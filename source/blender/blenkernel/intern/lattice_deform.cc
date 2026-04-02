@@ -61,7 +61,7 @@ LatticeDeformData *BKE_lattice_deform_data_create(const Object *oblatt, const Ob
   /* we make an array with all differences */
   Lattice *lt = BKE_object_get_lattice(oblatt);
   DispList *dl = oblatt->runtime->curve_cache ?
-                     BKE_displist_find(&oblatt->runtime->curve_cache->disp, DL_VERTS) :
+                     BKE_displist_find(&oblatt->runtime->curve_cache->disp, DlVerts) :
                      nullptr;
   const float *co = dl ? dl->verts : nullptr;
   float *fp, imat[4][4];

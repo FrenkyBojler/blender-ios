@@ -48,32 +48,32 @@ FVarLinearInterpolation fvar_interpolation_from_uv_smooth(int uv_smooth)
 {
   switch (uv_smooth) {
     case SUBSURF_UV_SMOOTH_NONE:
-      return SUBDIV_FVAR_LINEAR_INTERPOLATION_ALL;
+      return SubdivFvarLinearInterpolationAll;
     case SUBSURF_UV_SMOOTH_PRESERVE_CORNERS:
-      return SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_ONLY;
+      return SubdivFvarLinearInterpolationCornersOnly;
     case SUBSURF_UV_SMOOTH_PRESERVE_CORNERS_AND_JUNCTIONS:
-      return SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS;
+      return SubdivFvarLinearInterpolationCornersAndJunctions;
     case SUBSURF_UV_SMOOTH_PRESERVE_CORNERS_JUNCTIONS_AND_CONCAVE:
-      return SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_JUNCTIONS_AND_CONCAVE;
+      return SubdivFvarLinearInterpolationCornersJunctionsAndConcave;
     case SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES:
-      return SUBDIV_FVAR_LINEAR_INTERPOLATION_BOUNDARIES;
+      return SubdivFvarLinearInterpolationBoundaries;
     case SUBSURF_UV_SMOOTH_ALL:
-      return SUBDIV_FVAR_LINEAR_INTERPOLATION_NONE;
+      return SubdivFvarLinearInterpolationNone;
   }
   BLI_assert_msg(0, "Unknown uv smooth flag");
-  return SUBDIV_FVAR_LINEAR_INTERPOLATION_ALL;
+  return SubdivFvarLinearInterpolationAll;
 }
 
 VtxBoundaryInterpolation vtx_boundary_interpolation_from_subsurf(int boundary_smooth)
 {
   switch (boundary_smooth) {
     case SUBSURF_BOUNDARY_SMOOTH_PRESERVE_CORNERS:
-      return SUBDIV_VTX_BOUNDARY_EDGE_AND_CORNER;
+      return SubdivVtxBoundaryEdgeAndCorner;
     case SUBSURF_BOUNDARY_SMOOTH_ALL:
-      return SUBDIV_VTX_BOUNDARY_EDGE_ONLY;
+      return SubdivVtxBoundaryEdgeOnly;
   }
   BLI_assert_msg(0, "Unknown boundary smooth flag");
-  return SUBDIV_VTX_BOUNDARY_EDGE_ONLY;
+  return SubdivVtxBoundaryEdgeOnly;
 }
 
 /* --------------------------------------------------------------------
@@ -100,7 +100,7 @@ Subdiv *new_from_converter(const Settings *settings, OpenSubdiv_Converter *conve
 #ifdef WITH_OPENSUBDIV
   SubdivStats stats;
   stats_init(&stats);
-  stats_begin(&stats, SUBDIV_STATS_TOPOLOGY_REFINER_CREATION_TIME);
+  stats_begin(&stats, SubdivStatsTopologyRefinerCreationTime);
   OpenSubdiv_TopologyRefinerSettings topology_refiner_settings;
   topology_refiner_settings.level = settings->level;
   topology_refiner_settings.is_adaptive = settings->is_adaptive;
@@ -119,7 +119,7 @@ Subdiv *new_from_converter(const Settings *settings, OpenSubdiv_Converter *conve
   subdiv->topology_refiner = osd_topology_refiner;
   subdiv->evaluator = nullptr;
   subdiv->displacement_evaluator = nullptr;
-  stats_end(&stats, SUBDIV_STATS_TOPOLOGY_REFINER_CREATION_TIME);
+  stats_end(&stats, SubdivStatsTopologyRefinerCreationTime);
   subdiv->stats = stats;
   return subdiv;
 #else
@@ -154,9 +154,9 @@ Subdiv *update_from_converter(Subdiv *subdiv,
       can_reuse_subdiv = false;
     }
     else {
-      stats_begin(&subdiv->stats, SUBDIV_STATS_TOPOLOGY_COMPARE);
+      stats_begin(&subdiv->stats, SubdivStatsTopologyCompare);
       can_reuse_subdiv = subdiv->topology_refiner->isEqualToConverter(converter);
-      stats_end(&subdiv->stats, SUBDIV_STATS_TOPOLOGY_COMPARE);
+      stats_end(&subdiv->stats, SubdivStatsTopologyCompare);
     }
   }
   else {

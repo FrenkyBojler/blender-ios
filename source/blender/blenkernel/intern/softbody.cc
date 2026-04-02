@@ -76,7 +76,7 @@ static int (*SB_localInterruptCallBack)() = nullptr;
 
 /* ********** soft body engine ******* */
 
-enum type_spring { SB_EDGE = 1, SB_BEND = 2, SB_STIFFQUAD = 3, SB_HANDLE = 4 };
+enum type_spring { SbEdge = 1, SbBend = 2, SbStiffquad = 3, SbHandle = 4 };
 
 struct BodySpring {
   int v1, v2;
@@ -606,11 +606,11 @@ static void add_mesh_quad_diag_springs(Object *ob)
         if (poly_size == 4) {
           bs->v1 = corner_verts[faces[a].start() + 0];
           bs->v2 = corner_verts[faces[a].start() + 2];
-          bs->springtype = SB_STIFFQUAD;
+          bs->springtype = SbStiffquad;
           bs++;
           bs->v1 = corner_verts[faces[a].start() + 1];
           bs->v2 = corner_verts[faces[a].start() + 3];
-          bs->springtype = SB_STIFFQUAD;
+          bs->springtype = SbStiffquad;
           bs++;
         }
       }
@@ -665,7 +665,7 @@ static void add_2nd_order_roller(Object *ob, float /*stiffness*/, int *counter, 
             if (addsprings) {
               bs3->v1 = v0;
               bs3->v2 = bs2->v1;
-              bs3->springtype = SB_BEND;
+              bs3->springtype = SbBend;
               bs3++;
             }
           }
@@ -674,7 +674,7 @@ static void add_2nd_order_roller(Object *ob, float /*stiffness*/, int *counter, 
             if (addsprings) {
               bs3->v1 = v0;
               bs3->v2 = bs2->v2;
-              bs3->springtype = SB_BEND;
+              bs3->springtype = SbBend;
               bs3++;
             }
           }
@@ -781,7 +781,7 @@ static void calculate_collision_balls(Object *ob)
     /* first estimation based on attached */
     for (b = bp->nofsprings; b > 0; b--) {
       bs = sb->bspring + bp->springs[b - 1];
-      if (bs->springtype == SB_EDGE) {
+      if (bs->springtype == SbEdge) {
         akku += bs->len;
         akku_count++;
         min = min_ff(bs->len, min);
@@ -1408,7 +1408,7 @@ static void _scan_for_ext_spring_forces(Scene *scene,
       feedback[0] = feedback[1] = feedback[2] = 0.0f;
       bs->flag &= ~BSF_INTERSECT;
 
-      if (bs->springtype == SB_EDGE) {
+      if (bs->springtype == SbEdge) {
         /* +++ springs colliding */
         if (ob->softflag & OB_SB_EDGECOLL) {
           if (sb_detect_edge_collisionCached(
@@ -1875,14 +1875,14 @@ static void sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, floa
   kw = kw * kw;
   kw = kw * kw;
   switch (bs->springtype) {
-    case SB_EDGE:
-    case SB_HANDLE:
+    case SbEdge:
+    case SbHandle:
       forcefactor *= kw;
       break;
-    case SB_BEND:
+    case SbBend:
       forcefactor *= sb->secondspring * kw;
       break;
-    case SB_STIFFQUAD:
+    case SbStiffquad:
       forcefactor *= sb->shearstiff * sb->shearstiff * kw;
       break;
     default:
@@ -2690,7 +2690,7 @@ static void mesh_to_softbody(Object *ob)
       for (const int i : edges.index_range()) {
         sb->bspring[i].v1 = edges[i][0];
         sb->bspring[i].v2 = edges[i][1];
-        sb->bspring[i].springtype = SB_EDGE;
+        sb->bspring[i].springtype = SbEdge;
       }
 
       /* insert *diagonal* springs in quads if desired */
@@ -2795,21 +2795,21 @@ static void makelatticesprings(Lattice *lt, BodySpring *bs, int dostiff, Object 
         if (w) {
           bs->v1 = bpc;
           bs->v2 = bpc - dw;
-          bs->springtype = SB_EDGE;
+          bs->springtype = SbEdge;
           bs->len = globallen((bp - dw)->vec, bp->vec, ob);
           bs++;
         }
         if (v) {
           bs->v1 = bpc;
           bs->v2 = bpc - dv;
-          bs->springtype = SB_EDGE;
+          bs->springtype = SbEdge;
           bs->len = globallen((bp - dv)->vec, bp->vec, ob);
           bs++;
         }
         if (u) {
           bs->v1 = bpuc;
           bs->v2 = bpc;
-          bs->springtype = SB_EDGE;
+          bs->springtype = SbEdge;
           bs->len = globallen((bpu)->vec, bp->vec, ob);
           bs++;
         }
@@ -2820,14 +2820,14 @@ static void makelatticesprings(Lattice *lt, BodySpring *bs, int dostiff, Object 
             if (v && u) {
               bs->v1 = bpc;
               bs->v2 = bpc - dw - dv - 1;
-              bs->springtype = SB_BEND;
+              bs->springtype = SbBend;
               bs->len = globallen((bp - dw - dv - 1)->vec, bp->vec, ob);
               bs++;
             }
             if ((v < lt->pntsv - 1) && (u != 0)) {
               bs->v1 = bpc;
               bs->v2 = bpc - dw + dv - 1;
-              bs->springtype = SB_BEND;
+              bs->springtype = SbBend;
               bs->len = globallen((bp - dw + dv - 1)->vec, bp->vec, ob);
               bs++;
             }
@@ -2837,14 +2837,14 @@ static void makelatticesprings(Lattice *lt, BodySpring *bs, int dostiff, Object 
             if (v && u) {
               bs->v1 = bpc;
               bs->v2 = bpc + dw - dv - 1;
-              bs->springtype = SB_BEND;
+              bs->springtype = SbBend;
               bs->len = globallen((bp + dw - dv - 1)->vec, bp->vec, ob);
               bs++;
             }
             if ((v < lt->pntsv - 1) && (u != 0)) {
               bs->v1 = bpc;
               bs->v2 = bpc + dw + dv - 1;
-              bs->springtype = SB_BEND;
+              bs->springtype = SbBend;
               bs->len = globallen((bp + dw + dv - 1)->vec, bp->vec, ob);
               bs++;
             }
@@ -2982,19 +2982,19 @@ static void curve_surf_to_softbody(Object *ob)
           if (a > 0) {
             bs->v1 = curindex - 3;
             bs->v2 = curindex;
-            bs->springtype = SB_HANDLE;
+            bs->springtype = SbHandle;
             bs->len = globallen((bezt - 1)->vec[0], bezt->vec[0], ob);
             bs++;
           }
           bs->v1 = curindex;
           bs->v2 = curindex + 1;
-          bs->springtype = SB_HANDLE;
+          bs->springtype = SbHandle;
           bs->len = globallen(bezt->vec[0], bezt->vec[1], ob);
           bs++;
 
           bs->v1 = curindex + 1;
           bs->v2 = curindex + 2;
-          bs->springtype = SB_HANDLE;
+          bs->springtype = SbHandle;
           bs->len = globallen(bezt->vec[1], bezt->vec[2], ob);
           bs++;
         }
@@ -3008,7 +3008,7 @@ static void curve_surf_to_softbody(Object *ob)
         if (totspring && a > 0) {
           bs->v1 = curindex - 1;
           bs->v2 = curindex;
-          bs->springtype = SB_EDGE;
+          bs->springtype = SbEdge;
           bs->len = globallen((bpnt - 1)->vec, bpnt->vec, ob);
           bs++;
         }
@@ -3145,9 +3145,9 @@ void sbFree(Object *ob)
 SoftBody *sbCopy(SoftBody *sb, int flag)
 {
   SoftBody *sbn = MEM_dupalloc(sb);
-  const bool is_orig = (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) == 0;
+  const bool is_orig = (flag & LibIdCopySetCopiedOnWrite) == 0;
 
-  if ((flag & LIB_ID_COPY_CACHES) == 0) {
+  if ((flag & LibIdCopyCaches) == 0) {
     sbn->totspring = sbn->totpoint = 0;
     sbn->bpoint = nullptr;
     sbn->bspring = nullptr;
@@ -3495,7 +3495,7 @@ static void softbody_step(
 
   if (sb->solverflags & SBSO_MONITOR) {
     sct = BLI_time_now_seconds();
-    if ((sct - sst > 0.5) || (G.debug & G_DEBUG)) {
+    if ((sct - sst > 0.5) || (G.debug & GDebug)) {
       printf(" solver time %f sec %s\n", sct - sst, ob->id.name);
     }
   }

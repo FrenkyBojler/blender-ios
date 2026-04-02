@@ -53,10 +53,10 @@ enum eImbFileType : int8_t;
 #define IMA_UDIM_MAX 2000
 
 /* Image gpu runtime defaults */
-constexpr int IMAGE_GPU_FRAME_NONE = std::numeric_limits<int>::max();
-constexpr int IMAGE_GPU_PASS_NONE = std::numeric_limits<short>::max();
-constexpr int IMAGE_GPU_LAYER_NONE = std::numeric_limits<short>::max();
-constexpr int IMAGE_GPU_VIEW_NONE = std::numeric_limits<short>::max();
+constexpr int image_gpu_frame_none = std::numeric_limits<int>::max();
+constexpr int image_gpu_pass_none = std::numeric_limits<short>::max();
+constexpr int image_gpu_layer_none = std::numeric_limits<short>::max();
+constexpr int image_gpu_view_none = std::numeric_limits<short>::max();
 
 namespace bke {
 
@@ -71,11 +71,11 @@ struct ImageRuntime {
   gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
 
   /* GPU texture flag. */
-  int gpuframenr = IMAGE_GPU_FRAME_NONE;
+  int gpuframenr = image_gpu_frame_none;
   short gpuflag = 0;
-  short gpu_pass = IMAGE_GPU_PASS_NONE;
-  short gpu_layer = IMAGE_GPU_LAYER_NONE;
-  short gpu_view = IMAGE_GPU_VIEW_NONE;
+  short gpu_pass = image_gpu_pass_none;
+  short gpu_layer = image_gpu_layer_none;
+  short gpu_view = image_gpu_view_none;
 
   int lastused = 0;
 
@@ -491,9 +491,9 @@ void BKE_image_sort_tiles(Image *ima);
 bool BKE_image_fill_tile(Image *ima, ImageTile *tile);
 
 enum eUDIM_TILE_FORMAT {
-  UDIM_TILE_FORMAT_NONE = 0,
-  UDIM_TILE_FORMAT_UDIM = 1,
-  UDIM_TILE_FORMAT_UVTILE = 2
+  UdimTileFormatNone = 0,
+  UdimTileFormatUdim = 1,
+  UdimTileFormatUvtile = 2
 };
 
 /**

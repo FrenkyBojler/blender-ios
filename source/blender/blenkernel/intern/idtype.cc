@@ -189,7 +189,7 @@ static void id_type_init()
      * ID that is animated by it, and thus can point to any animatable ID type. */
     IDType_ID_AC.dependencies_id_types = 0;
     for (const IDTypeInfo *id_type : id_types) {
-      const bool is_animatable = (id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0;
+      const bool is_animatable = (id_type->flags & IdtypeFlagsNoAnimdata) == 0;
       if (is_animatable) {
         IDType_ID_AC.dependencies_id_types |= id_type->id_filter;
       }
@@ -297,16 +297,16 @@ bool BKE_idtype_idcode_is_linkable(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
   BLI_assert(id_type != nullptr);
-  return id_type != nullptr ? (id_type->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0 : false;
+  return id_type != nullptr ? (id_type->flags & IdtypeFlagsNoLiblinking) == 0 : false;
 }
 
 bool BKE_idtype_idcode_is_only_appendable(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
   BLI_assert(id_type != nullptr);
-  if (id_type != nullptr && (id_type->flags & IDTYPE_FLAGS_ONLY_APPEND) != 0) {
+  if (id_type != nullptr && (id_type->flags & IdtypeFlagsOnlyAppend) != 0) {
     /* Only appendable ID types should also always be linkable. */
-    BLI_assert((id_type->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0);
+    BLI_assert((id_type->flags & IdtypeFlagsNoLiblinking) == 0);
     return true;
   }
   return false;
@@ -316,9 +316,9 @@ bool BKE_idtype_idcode_append_is_reusable(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
   BLI_assert(id_type != nullptr);
-  if (id_type != nullptr && (id_type->flags & IDTYPE_FLAGS_APPEND_IS_REUSABLE) != 0) {
+  if (id_type != nullptr && (id_type->flags & IdtypeFlagsAppendIsReusable) != 0) {
     /* All appendable ID types should also always be linkable. */
-    BLI_assert((id_type->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0);
+    BLI_assert((id_type->flags & IdtypeFlagsNoLiblinking) == 0);
     return true;
   }
   return false;

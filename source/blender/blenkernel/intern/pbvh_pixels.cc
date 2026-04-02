@@ -56,7 +56,7 @@ static float2 calc_barycentric_delta_x(const ImBuf *image_buffer,
  * During debugging this check could be enabled.
  * It will write to each image pixel that is covered by the Tree.
  */
-constexpr bool USE_WATERTIGHT_CHECK = false;
+constexpr bool use_watertight_check = false;
 
 static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
                                        const ImBuf *image_buffer,
@@ -349,7 +349,7 @@ static bool update_pixels(const Depsgraph &depsgraph,
     do_encode_pixels(
         mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
   });
-  if (USE_WATERTIGHT_CHECK) {
+  if (use_watertight_check) {
     apply_watertight_check(pbvh, image, image_user);
   }
 

@@ -138,7 +138,7 @@ class IDSubDataTestData : public WholeIDTestData {
     nodes::node_tree_shader_default(this->C, this->bmain, &this->material->id);
 
     BKE_object_material_assign(
-        this->bmain, this->object, this->material, this->object->actcol, BKE_MAT_ASSIGN_OBJECT);
+        this->bmain, this->object, this->material, this->object->actcol, BkeMatAssignObject);
 
     this->node = static_cast<bNode *>(this->material->nodetree->nodes.first);
 
@@ -189,10 +189,10 @@ TEST_F(LibQueryTest, libquery_basic)
       if (*(cb_data->id_pointer)) {
         (*(cb_data->id_pointer))->us = 42;
       }
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     };
     BKE_library_foreach_ID_link(
-        context.bmain, &context.scene->id, set_count, nullptr, IDWALK_READONLY);
+        context.bmain, &context.scene->id, set_count, nullptr, IdwalkReadonly);
     EXPECT_EQ(context.scene->id.us, 42);
     EXPECT_EQ(context.object->id.us, 42);
     EXPECT_EQ(context.target->id.us, 42);
@@ -203,10 +203,10 @@ TEST_F(LibQueryTest, libquery_basic)
       if (*(cb_data->id_pointer) == &context.mesh->id) {
         *(cb_data->id_pointer) = nullptr;
       }
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     };
     BKE_library_foreach_ID_link(
-        context.bmain, &context.object->id, clear_mesh_pointer, nullptr, IDWALK_NOP);
+        context.bmain, &context.object->id, clear_mesh_pointer, nullptr, IdwalkNop);
     EXPECT_EQ(context.object->data, nullptr);
 
 #if 0 /* Does not work. */
@@ -252,10 +252,10 @@ TEST_F(LibQueryTest, libquery_recursive)
       if (*(cb_data->id_pointer)) {
         (*(cb_data->id_pointer))->us = 42;
       }
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     };
     BKE_library_foreach_ID_link(
-        context.bmain, &context.scene->id, set_count, nullptr, IDWALK_RECURSE);
+        context.bmain, &context.scene->id, set_count, nullptr, IdwalkRecurse);
     FOREACH_MAIN_ID_BEGIN (context.bmain, id_iter) {
       EXPECT_EQ(id_iter->us, 42);
     }
@@ -269,13 +269,13 @@ TEST_F(LibQueryTest, libquery_recursive)
 
     /* Recompute valid user counts for all IDs used by the scene, recursively. */
     auto compute_count = [](LibraryIDLinkCallbackData *cb_data) -> int {
-      if (*(cb_data->id_pointer) && (cb_data->cb_flag & IDWALK_CB_USER) != 0) {
+      if (*(cb_data->id_pointer) && (cb_data->cb_flag & IdwalkCbUser) != 0) {
         (*(cb_data->id_pointer))->us++;
       }
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     };
     BKE_library_foreach_ID_link(
-        context.bmain, &context.scene->id, compute_count, nullptr, IDWALK_RECURSE);
+        context.bmain, &context.scene->id, compute_count, nullptr, IdwalkRecurse);
     EXPECT_EQ(context.scene->id.us, 0);
     EXPECT_EQ(context.object->id.us, 1);
     /* Scene's master collection, and scene's compositor node IDProperty. Note that object
@@ -313,7 +313,7 @@ TEST_F(LibQueryTest, libquery_subdata)
       if (*(cb_data->id_pointer)) {
         (*(cb_data->id_pointer))->us = 42;
       }
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     };
     auto node_foreach_id = [&context](LibraryForeachIDData *data) {
       bke::node_node_foreach_id(context.node, data);
@@ -325,7 +325,7 @@ TEST_F(LibQueryTest, libquery_subdata)
                                    node_foreach_id,
                                    set_count,
                                    nullptr,
-                                   IDWALK_NOP);
+                                   IdwalkNop);
 
     EXPECT_EQ(context.scene->id.us, 0);
     EXPECT_EQ(context.object->id.us, 0);

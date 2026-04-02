@@ -40,20 +40,20 @@ struct StudioLight;
 
 /** #StudioLight.flag */
 enum StudioLightFlag {
-  STUDIOLIGHT_INTERNAL = (1 << 0),
-  STUDIOLIGHT_EXTERNAL_FILE = (1 << 1),
-  STUDIOLIGHT_TYPE_STUDIO = (1 << 2),
-  STUDIOLIGHT_TYPE_WORLD = (1 << 3),
-  STUDIOLIGHT_TYPE_MATCAP = (1 << 4),
-  STUDIOLIGHT_EXTERNAL_IMAGE_LOADED = (1 << 5),
+  StudiolightInternal = (1 << 0),
+  StudiolightExternalFile = (1 << 1),
+  StudiolightTypeStudio = (1 << 2),
+  StudiolightTypeWorld = (1 << 3),
+  StudiolightTypeMatcap = (1 << 4),
+  StudiolightExternalImageLoaded = (1 << 5),
   /** GPU Texture used for lookdev mode. */
-  STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE = (1 << 6),
-  STUDIOLIGHT_USER_DEFINED = (1 << 7),
+  StudiolightEquirectRadianceGputexture = (1 << 6),
+  StudiolightUserDefined = (1 << 7),
 
-  STUDIOLIGHT_MATCAP_DIFFUSE_GPUTEXTURE = (1 << 8),
-  STUDIOLIGHT_MATCAP_SPECULAR_GPUTEXTURE = (1 << 9),
+  StudiolightMatcapDiffuseGputexture = (1 << 8),
+  StudiolightMatcapSpecularGputexture = (1 << 9),
   /* Is set for studio lights and matcaps with specular highlight pass. */
-  STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS = (1 << 10),
+  StudiolightSpecularHighlightPass = (1 << 10),
 };
 
 #define STUDIOLIGHT_FLAG_ALL (STUDIOLIGHT_INTERNAL | STUDIOLIGHT_EXTERNAL_FILE)

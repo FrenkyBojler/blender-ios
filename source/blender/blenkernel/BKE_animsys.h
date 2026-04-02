@@ -300,9 +300,9 @@ void BKE_animsys_free_nla_keyframing_context_cache(ListBaseT<NlaKeyframingContex
 
 /* Flags for recalc parameter, indicating which part to recalculate. */
 enum eAnimData_Recalc {
-  ADT_RECALC_DRIVERS = (1 << 0),
-  ADT_RECALC_ANIM = (1 << 1),
-  ADT_RECALC_ALL = (ADT_RECALC_DRIVERS | ADT_RECALC_ANIM),
+  AdtRecalcDrivers = (1 << 0),
+  AdtRecalcAnim = (1 << 1),
+  AdtRecalcAll = (AdtRecalcDrivers | AdtRecalcAnim),
 };
 
 bool BKE_animsys_rna_path_resolve(struct PointerRNA *ptr,

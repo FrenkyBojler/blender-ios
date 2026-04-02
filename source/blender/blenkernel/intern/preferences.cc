@@ -40,7 +40,7 @@ namespace bke::preferences {
 
 bool exists()
 {
-  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
+  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BlenderUserConfig, nullptr);
   if (!cfgdir.has_value()) {
     return false;
   }
@@ -412,11 +412,11 @@ size_t BKE_preferences_extension_repo_dirpath_get(const bUserExtensionRepo *repo
 
   switch (source) {
     case USER_EXTENSION_REPO_SOURCE_SYSTEM: {
-      path = BKE_appdir_folder_id(BLENDER_SYSTEM_EXTENSIONS, nullptr);
+      path = BKE_appdir_folder_id(BlenderSystemExtensions, nullptr);
       break;
     }
     default: { /* #USER_EXTENSION_REPO_SOURCE_USER. */
-      path = BKE_appdir_folder_id_user_notest(BLENDER_USER_EXTENSIONS, nullptr);
+      path = BKE_appdir_folder_id_user_notest(BlenderUserExtensions, nullptr);
       break;
     }
   }
@@ -433,7 +433,7 @@ size_t BKE_preferences_extension_repo_user_dirpath_get(const bUserExtensionRepo 
                                                        char *dirpath,
                                                        const int dirpath_maxncpy)
 {
-  if (std::optional<std::string> path = BKE_appdir_folder_id_user_notest(BLENDER_USER_EXTENSIONS,
+  if (std::optional<std::string> path = BKE_appdir_folder_id_user_notest(BlenderUserExtensions,
                                                                          nullptr))
   {
     return BLI_path_join(dirpath, dirpath_maxncpy, path.value().c_str(), ".user", repo->module);

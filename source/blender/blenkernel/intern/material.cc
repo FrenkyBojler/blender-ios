@@ -100,11 +100,11 @@ static void material_copy_data(Main *bmain,
   Material *material_dst = id_cast<Material *>(id_dst);
   const Material *material_src = id_cast<const Material *>(id_src);
 
-  const bool is_localized = (flag & LIB_ID_CREATE_LOCAL) != 0;
+  const bool is_localized = (flag & LibIdCreateLocal) != 0;
   /* Never handle user-count here for own sub-data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
   /* Always need allocation of the embedded ID data. */
-  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
+  const int flag_embedded_id_data = flag_subdata & ~LibIdCreateNoAllocate;
 
   if (material_src->nodetree != nullptr) {
     if (is_localized) {
@@ -120,7 +120,7 @@ static void material_copy_data(Main *bmain,
     }
   }
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&material_dst->id, &material_src->id);
   }
   else {
@@ -175,11 +175,11 @@ static void material_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
       data, BKE_library_foreach_ID_embedded(data, (ID **)&material->nodetree));
   if (material->texpaintslot != nullptr) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->texpaintslot->ima, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->texpaintslot->ima, IdwalkCbNop);
   }
   if (material->gp_style != nullptr) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->sima, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->ima, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->sima, IdwalkCbUser);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->ima, IdwalkCbUser);
   }
 }
 
@@ -253,7 +253,7 @@ IDTypeInfo IDType_ID_MA = {
     .name = "Material",
     .name_plural = N_("materials"),
     .translation_context = BLT_I18NCONTEXT_ID_MATERIAL,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = material_init_data,
@@ -936,7 +936,7 @@ int BKE_object_material_ensure(Main *bmain, Object *ob, Material *material)
   int index = BKE_object_material_index_get(ob, material);
   if (index < 0) {
     BKE_object_material_slot_add(bmain, ob);
-    BKE_object_material_assign(bmain, ob, material, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
+    BKE_object_material_assign(bmain, ob, material, ob->totcol, BkeMatAssignUserpref);
     return ob->totcol - 1;
   }
   return index;
@@ -1164,24 +1164,24 @@ static void object_material_assign(
   }
 
   /* Determine the object/mesh linking */
-  if (assign_type == BKE_MAT_ASSIGN_EXISTING) {
+  if (assign_type == BkeMatAssignExisting) {
     /* keep existing option (avoid confusion in scripts),
      * intentionally ignore userpref (default to obdata). */
     bit = ob->matbits[act - 1];
   }
-  else if (assign_type == BKE_MAT_ASSIGN_USERPREF && ob->totcol && ob->actcol) {
+  else if (assign_type == BkeMatAssignUserpref && ob->totcol && ob->actcol) {
     /* copy from previous material */
     bit = ob->matbits[ob->actcol - 1];
   }
   else {
     switch (assign_type) {
-      case BKE_MAT_ASSIGN_OBDATA:
+      case BkeMatAssignObdata:
         bit = 0;
         break;
-      case BKE_MAT_ASSIGN_OBJECT:
+      case BkeMatAssignObject:
         bit = 1;
         break;
-      case BKE_MAT_ASSIGN_USERPREF:
+      case BkeMatAssignUserpref:
       default:
         bit = (U.flag & USER_MAT_ON_OB) ? 1 : 0;
         break;
@@ -1226,7 +1226,7 @@ void BKE_object_material_assign(Main *bmain, Object *ob, Material *ma, short act
 
 void BKE_object_material_assign_single_obdata(Main *bmain, Object *ob, Material *ma, short act)
 {
-  object_material_assign(bmain, ob, ma, act, BKE_MAT_ASSIGN_OBDATA, false);
+  object_material_assign(bmain, ob, ma, act, BkeMatAssignObdata, false);
 }
 
 void BKE_object_material_remap(Object *ob, const uint *remap)
@@ -1360,7 +1360,7 @@ void BKE_object_material_array_assign(
                                ob,
                                (*matar)[i],
                                i + 1,
-                               to_object_only ? BKE_MAT_ASSIGN_OBJECT : BKE_MAT_ASSIGN_USERPREF);
+                               to_object_only ? BkeMatAssignObject : BkeMatAssignUserpref);
   }
 
   actcol_orig = std::min(actcol_orig, ob->totcol);
@@ -1404,7 +1404,7 @@ bool BKE_object_material_slot_add(Main *bmain, Object *ob, const bool set_active
     return false;
   }
 
-  BKE_object_material_assign(bmain, ob, nullptr, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
+  BKE_object_material_assign(bmain, ob, nullptr, ob->totcol + 1, BkeMatAssignUserpref);
   if (set_active) {
     ob->actcol = ob->totcol;
   }
@@ -1521,8 +1521,8 @@ static bNode *nodetree_uv_node_recursive(bNode *node)
 
 /** Bitwise filter for updating paint slots. */
 enum ePaintSlotFilter {
-  PAINT_SLOT_IMAGE = 1 << 0,
-  PAINT_SLOT_COLOR_ATTRIBUTE = 1 << 1,
+  PaintSlotImage = 1 << 0,
+  PaintSlotColorAttribute = 1 << 1,
 };
 ENUM_OPERATORS(ePaintSlotFilter)
 
@@ -1532,8 +1532,8 @@ static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
                                             void *userdata,
                                             ePaintSlotFilter slot_filter)
 {
-  const bool do_image_nodes = (slot_filter & PAINT_SLOT_IMAGE) != 0;
-  const bool do_color_attributes = (slot_filter & PAINT_SLOT_COLOR_ATTRIBUTE) != 0;
+  const bool do_image_nodes = (slot_filter & PaintSlotImage) != 0;
+  const bool do_color_attributes = (slot_filter & PaintSlotColorAttribute) != 0;
   for (bNode *node : nodetree->all_nodes()) {
     if (do_image_nodes && node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
         node->typeinfo->type_legacy == SH_NODE_TEX_IMAGE && node->id)
@@ -1660,9 +1660,9 @@ static void fill_texpaint_slots_recursive(bNodeTree *nodetree,
 /** Check which type of paint slots should be filled for the given object. */
 static ePaintSlotFilter material_paint_slot_filter(const Object *ob)
 {
-  ePaintSlotFilter slot_filter = PAINT_SLOT_IMAGE;
+  ePaintSlotFilter slot_filter = PaintSlotImage;
   if (ob->mode == OB_MODE_SCULPT && USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
-    slot_filter |= PAINT_SLOT_COLOR_ATTRIBUTE;
+    slot_filter |= PaintSlotColorAttribute;
   }
   return slot_filter;
 }
@@ -1785,7 +1785,7 @@ std::pair<bNodeTree *, bNode *> BKE_texpaint_slot_material_find_node(Material *m
   ntree_foreach_texnode_recursive(ma->nodetree,
                                   texpaint_slot_node_find_cb,
                                   &find_data,
-                                  PAINT_SLOT_IMAGE | PAINT_SLOT_COLOR_ATTRIBUTE);
+                                  PaintSlotImage | PaintSlotColorAttribute);
 
   return std::pair<bNodeTree *, bNode *>(find_data.r_nodetree, find_data.r_node);
 }

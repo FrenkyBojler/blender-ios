@@ -29,17 +29,17 @@ typedef void (*DrawInfoFreeFP)(void *drawinfo);
 
 enum {
   /** ID preview: obj is #ID. */
-  ICON_DATA_ID = 0,
+  IconDataId = 0,
   /** Arbitrary Image buffer: obj is #ImBuf */
-  ICON_DATA_IMBUF,
+  IconDataImbuf,
   /** Preview: obj is #PreviewImage */
-  ICON_DATA_PREVIEW,
+  IconDataPreview,
   /** 2D triangles: obj is #Icon_Geom */
-  ICON_DATA_GEOM,
+  IconDataGeom,
   /** Studio-light. */
-  ICON_DATA_STUDIOLIGHT,
+  IconDataStudiolight,
   /** GPencil Layer color preview (annotations): obj is #bGPDlayer */
-  ICON_DATA_GPLAYER,
+  IconDataGplayer,
 };
 
 /**

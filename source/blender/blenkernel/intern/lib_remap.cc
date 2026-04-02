@@ -93,10 +93,10 @@ static void foreach_libblock_remap_callback_skip(const ID * /*id_owner*/,
     BLI_assert_unreachable();
   }
 
-  if (cb_flag & IDWALK_CB_USER) {
+  if (cb_flag & IdwalkCbUser) {
     id->runtime->remap.skipped_refcounted++;
   }
-  else if (cb_flag & IDWALK_CB_USER_ONE) {
+  else if (cb_flag & IdwalkCbUserOne) {
     /* No need to count number of times this happens, just a flag is enough. */
     id->runtime->remap.status |= ID_REMAP_IS_USER_ONE_SKIPPED;
   }
@@ -112,9 +112,9 @@ static void foreach_libblock_remap_callback_apply(ID *id_owner,
                                                   const bool is_indirect,
                                                   const bool violates_never_null)
 {
-  const bool skip_update_tagging = (id_remap_data->flag & ID_REMAP_SKIP_UPDATE_TAGGING) != 0;
-  const bool skip_user_refcount = (id_remap_data->flag & ID_REMAP_SKIP_USER_REFCOUNT) != 0;
-  const bool force_user_refcount = (id_remap_data->flag & ID_REMAP_FORCE_USER_REFCOUNT) != 0;
+  const bool skip_update_tagging = (id_remap_data->flag & IdRemapSkipUpdateTagging) != 0;
+  const bool skip_user_refcount = (id_remap_data->flag & IdRemapSkipUserRefcount) != 0;
+  const bool force_user_refcount = (id_remap_data->flag & IdRemapForceUserRefcount) != 0;
   BLI_assert(!skip_user_refcount || !force_user_refcount);
 
   ID *old_id = *id_ptr;
@@ -150,7 +150,7 @@ static void foreach_libblock_remap_callback_apply(ID *id_owner,
     return;
   }
 
-  if (cb_flag & IDWALK_CB_USER) {
+  if (cb_flag & IdwalkCbUser) {
     /* NOTE: by default we don't user-count IDs which are not in the main database.
      * This is because in certain conditions we can have data-blocks in
      * the main which are referencing data-blocks outside of it.
@@ -165,7 +165,7 @@ static void foreach_libblock_remap_callback_apply(ID *id_owner,
       id_us_plus_no_lib(new_id);
     }
   }
-  else if (cb_flag & IDWALK_CB_USER_ONE) {
+  else if (cb_flag & IdwalkCbUserOne) {
     id_us_ensure_real(new_id);
     /* We cannot affect old_id->us directly, ID_TAG_EXTRAUSER(_SET)
      * are assumed to be set as needed, that extra user is processed in final handling. */
@@ -179,8 +179,8 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
   /* NOTE: Support remapping of `IDWALK_CB_EMBEDDED_NON_OWNING` pointers, this is necessary in some
    * complex low-level ID manipulation cases (e.g. in ID swapping, see #BKE_lib_id_swap & co).
    */
-  if (cb_flag & IDWALK_CB_EMBEDDED) {
-    return IDWALK_RET_NOP;
+  if (cb_flag & IdwalkCbEmbedded) {
+    return IdwalkRetNop;
   }
 
   ID *id_owner = cb_data->owner_id;
@@ -197,7 +197,7 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
 
   /* Early exit when id pointer isn't set. */
   if (*id_p == nullptr) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
   /* Similar to above early-out on `IDWALK_CB_EMBEDDED` calls on ID pointers to embedded data, the
@@ -206,15 +206,15 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
    * This relation between owner ID and its embedded ID is not the responsibility of ID management,
    * and should never be affected by ID remapping.
    */
-  if (is_self_embedded && (cb_flag & IDWALK_CB_LOOPBACK) != 0 && *id_p == id_owner) {
-    return IDWALK_RET_NOP;
+  if (is_self_embedded && (cb_flag & IdwalkCbLoopback) != 0 && *id_p == id_owner) {
+    return IdwalkRetNop;
   }
 
   IDRemapper &id_remapper = id_remap_data->id_remapper;
-  IDRemapperApplyOptions id_remapper_options = ID_REMAP_APPLY_DEFAULT;
+  IDRemapperApplyOptions id_remapper_options = IdRemapApplyDefault;
 
   /* Used to cleanup all IDs used by a specific one. */
-  if (id_remap_data->type == ID_REMAP_TYPE_CLEANUP) {
+  if (id_remap_data->type == IdRemapTypeCleanup) {
     /* Clearing existing instance to reduce potential lookup times for IDs referencing many other
      * IDs. This makes sure that there will only be a single rule in the id_remapper. */
     id_remapper.clear();
@@ -223,36 +223,36 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
 
   /* Better remap to nullptr than not remapping at all,
    * then we can handle it as a regular remap-to-nullptr case. */
-  if (cb_flag & IDWALK_CB_NEVER_SELF) {
-    id_remapper_options |= ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF;
+  if (cb_flag & IdwalkCbNeverSelf) {
+    id_remapper_options |= IdRemapApplyUnmapWhenRemappingToSelf;
   }
 
   const IDRemapperApplyResult expected_mapping_result = id_remapper.get_mapping_result(
       *id_p, id_remapper_options, id_self);
   /* Exit when no modifications will be done, ensuring id->runtime counters won't changed. */
   if (ELEM(expected_mapping_result,
-           ID_REMAP_RESULT_SOURCE_UNAVAILABLE,
-           ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE))
+           IdRemapResultSourceUnavailable,
+           IdRemapResultSourceNotMappable))
   {
-    BLI_assert_msg(id_remap_data->type == ID_REMAP_TYPE_REMAP,
+    BLI_assert_msg(id_remap_data->type == IdRemapTypeRemap,
                    "Cleanup should always do unassign.");
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
-  const bool is_reference = (cb_flag & IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE) != 0;
-  const bool is_indirect = (cb_flag & IDWALK_CB_INDIRECT_USAGE) != 0;
-  const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
+  const bool is_reference = (cb_flag & IdwalkCbOverrideLibraryReference) != 0;
+  const bool is_indirect = (cb_flag & IdwalkCbIndirectUsage) != 0;
+  const bool skip_indirect = (id_remap_data->flag & IdRemapSkipIndirectUsage) != 0;
   const bool is_obj = (GS(id_owner->name) == ID_OB);
   /* NOTE: Edit Mode is a 'skip direct' case, unless specifically requested, obdata should not be
    * remapped in this situation. */
   const bool is_obj_editmode = (is_obj && BKE_object_is_in_editmode(id_cast<Object *>(id_owner)) &&
-                                (id_remap_data->flag & ID_REMAP_FORCE_OBDATA_IN_EDITMODE) == 0);
-  const bool violates_never_null = ((cb_flag & IDWALK_CB_NEVER_NULL) &&
+                                (id_remap_data->flag & IdRemapForceObdataInEditmode) == 0);
+  const bool violates_never_null = ((cb_flag & IdwalkCbNeverNull) &&
                                     (expected_mapping_result ==
-                                     ID_REMAP_RESULT_SOURCE_UNASSIGNED) &&
-                                    (id_remap_data->flag & ID_REMAP_FORCE_NEVER_NULL_USAGE) == 0);
-  const bool skip_reference = (id_remap_data->flag & ID_REMAP_SKIP_OVERRIDE_LIBRARY) != 0;
-  const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
+                                     IdRemapResultSourceUnassigned) &&
+                                    (id_remap_data->flag & IdRemapForceNeverNullUsage) == 0);
+  const bool skip_reference = (id_remap_data->flag & IdRemapSkipOverrideLibrary) != 0;
+  const bool skip_never_null = (id_remap_data->flag & IdRemapSkipNeverNullUsage) != 0;
 
 #ifdef DEBUG_PRINT
   printf(
@@ -269,9 +269,9 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
       skip_reference);
 #endif
 
-  if ((id_remap_data->flag & ID_REMAP_STORE_NEVER_NULL_USAGE) &&
-      (cb_flag & IDWALK_CB_NEVER_NULL) &&
-      (expected_mapping_result == ID_REMAP_RESULT_SOURCE_UNASSIGNED))
+  if ((id_remap_data->flag & IdRemapStoreNeverNullUsage) &&
+      (cb_flag & IdwalkCbNeverNull) &&
+      (expected_mapping_result == IdRemapResultSourceUnassigned))
   {
     id_remapper.never_null_users_add(id_owner);
   }
@@ -281,7 +281,7 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
    * (skipped_indirect too). */
   if ((violates_never_null && skip_never_null) ||
       (is_obj_editmode && ((id_cast<Object *>(id_owner))->data == *id_p) &&
-       (expected_mapping_result == ID_REMAP_RESULT_SOURCE_REMAPPED)) ||
+       (expected_mapping_result == IdRemapResultSourceRemapped)) ||
       (skip_indirect && is_indirect) || (is_reference && skip_reference))
   {
     foreach_libblock_remap_callback_skip(id_owner,
@@ -305,7 +305,7 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
                                           violates_never_null);
   }
 
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 static void libblock_remap_data_preprocess_ob(Object *ob,
@@ -319,7 +319,7 @@ static void libblock_remap_data_preprocess_ob(Object *ob,
     return;
   }
 
-  const bool is_cleanup_type = remap_type == ID_REMAP_TYPE_CLEANUP;
+  const bool is_cleanup_type = remap_type == IdRemapTypeCleanup;
   /* Early exit when mapping, but no armature mappings present. */
   if (!is_cleanup_type && !id_remapper.contains_mappings_for_any(FILTER_ID_AR)) {
     return;
@@ -332,8 +332,8 @@ static void libblock_remap_data_preprocess_ob(Object *ob,
    * and avoid another complex and risky condition nightmare like the one we have in
    * foreach_libblock_remap_callback(). */
   const IDRemapperApplyResult expected_mapping_result = id_remapper.get_mapping_result(
-      ob->data, ID_REMAP_APPLY_DEFAULT, nullptr);
-  if (is_cleanup_type || expected_mapping_result == ID_REMAP_RESULT_SOURCE_REMAPPED) {
+      ob->data, IdRemapApplyDefault, nullptr);
+  if (is_cleanup_type || expected_mapping_result == IdRemapResultSourceRemapped) {
     ob->pose->flag |= POSE_RECALC;
     /* We need to clear pose bone pointers immediately, some code may access those before
      * pose is actually recomputed, which can lead to segfault. */
@@ -445,7 +445,7 @@ static void libblock_remap_data_postprocess_nodetree_update(Main *bmain, ID *new
 static void libblock_remap_data_update_tags(ID *old_id, ID *new_id, IDRemap *id_remap_data)
 {
   const int remap_flags = id_remap_data->flag;
-  if ((remap_flags & ID_REMAP_SKIP_USER_CLEAR) == 0) {
+  if ((remap_flags & IdRemapSkipUserClear) == 0) {
     /* XXX We may not want to always 'transfer' fake-user from old to new id...
      *     Think for now it's desired behavior though,
      *     we can always add an option (flag) to control this later if needed. */
@@ -508,17 +508,17 @@ static void libblock_remap_data(
       /*flag*/ remap_flags,
   };
 
-  const bool include_ui = (remap_flags & ID_REMAP_FORCE_UI_POINTERS) != 0;
+  const bool include_ui = (remap_flags & IdRemapForceUiPointers) != 0;
   const LibraryForeachIDFlag foreach_id_flags =
-      (((remap_flags & ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS) != 0 ?
-            IDWALK_DO_INTERNAL_RUNTIME_POINTERS :
-            IDWALK_NOP) |
-       (include_ui ? IDWALK_INCLUDE_UI : IDWALK_NOP) |
+      (((remap_flags & IdRemapForceInternalRuntimePointers) != 0 ?
+            IdwalkDoInternalRuntimePointers :
+            IdwalkNop) |
+       (include_ui ? IdwalkIncludeUi : IdwalkNop) |
 
-       ((remap_flags & ID_REMAP_NO_ORIG_POINTERS_ACCESS) != 0 ? IDWALK_NO_ORIG_POINTERS_ACCESS :
-                                                                IDWALK_NOP) |
-       ((remap_flags & ID_REMAP_DO_LIBRARY_POINTERS) != 0 ? IDWALK_DO_LIBRARY_POINTER :
-                                                            IDWALK_NOP));
+       ((remap_flags & IdRemapNoOrigPointersAccess) != 0 ? IdwalkNoOrigPointersAccess :
+                                                                IdwalkNop) |
+       ((remap_flags & IdRemapDoLibraryPointers) != 0 ? IdwalkDoLibraryPointer :
+                                                            IdwalkNop));
 
   id_remapper.iter(libblock_remap_reset_remapping_status_fn);
 
@@ -571,14 +571,14 @@ static void libblock_remap_foreach_idpair(ID *old_id, ID *new_id, Main *bmain, i
   }
 
   BLI_assert(old_id != nullptr);
-  BLI_assert((new_id == nullptr) || remap_flags & ID_REMAP_ALLOW_IDTYPE_MISMATCH ||
+  BLI_assert((new_id == nullptr) || remap_flags & IdRemapAllowIdtypeMismatch ||
              GS(old_id->name) == GS(new_id->name));
 
   if (free_notifier_reference_cb) {
     free_notifier_reference_cb(old_id);
   }
 
-  if ((remap_flags & ID_REMAP_SKIP_USER_CLEAR) == 0) {
+  if ((remap_flags & IdRemapSkipUserClear) == 0) {
     /* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), and user
      * count has actually been incremented for that, we have to decrease once more its user
      * count... unless we had to skip some 'user_one' cases. */
@@ -661,7 +661,7 @@ void BKE_libblock_remap_multiple_locked(Main *bmain, IDRemapper &mappings, const
     return;
   }
 
-  libblock_remap_data(bmain, nullptr, ID_REMAP_TYPE_REMAP, mappings, remap_flags);
+  libblock_remap_data(bmain, nullptr, IdRemapTypeRemap, mappings, remap_flags);
 
   mappings.iter([&](ID *old_id, ID *new_id) {
     libblock_remap_foreach_idpair(old_id, new_id, bmain, remap_flags);
@@ -687,9 +687,9 @@ void BKE_libblock_remap_multiple_raw(Main *bmain, IDRemapper &mappings, const in
 
   libblock_remap_data(bmain,
                       nullptr,
-                      ID_REMAP_TYPE_REMAP,
+                      IdRemapTypeRemap,
                       mappings,
-                      remap_flags | ID_REMAP_SKIP_USER_REFCOUNT | ID_REMAP_SKIP_UPDATE_TAGGING);
+                      remap_flags | IdRemapSkipUserRefcount | IdRemapSkipUpdateTagging);
 }
 
 void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const int remap_flags)
@@ -721,7 +721,7 @@ void BKE_libblock_remap_multiple(Main *bmain, IDRemapper &mappings, const int re
 
 void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_skip_indirect)
 {
-  const int remap_flags = (do_skip_indirect ? ID_REMAP_SKIP_INDIRECT_USAGE : 0);
+  const int remap_flags = (do_skip_indirect ? IdRemapSkipIndirectUsage : 0);
 
   BKE_main_lock(bmain);
 
@@ -799,7 +799,7 @@ void BKE_libblock_relink_multiple(Main *bmain,
                                   IDRemapper &id_remapper,
                                   const int remap_flags)
 {
-  BLI_assert(remap_type == ID_REMAP_TYPE_REMAP || id_remapper.is_empty());
+  BLI_assert(remap_type == IdRemapTypeRemap || id_remapper.is_empty());
 
   for (ID *id_iter : ids) {
     libblock_remap_data(bmain, id_iter, remap_type, id_remapper, remap_flags);
@@ -810,13 +810,13 @@ void BKE_libblock_relink_multiple(Main *bmain,
   }
 
   switch (remap_type) {
-    case ID_REMAP_TYPE_REMAP: {
+    case IdRemapTypeRemap: {
       id_remapper.iter([&](ID *old_id, ID *new_id) {
         libblock_relink_foreach_idpair(old_id, new_id, bmain, ids);
       });
       break;
     }
-    case ID_REMAP_TYPE_CLEANUP: {
+    case IdRemapTypeCleanup: {
       bool is_object_update_processed = false;
       for (ID *id_iter : ids) {
         switch (GS(id_iter->name)) {
@@ -868,7 +868,7 @@ void BKE_libblock_relink_ex(
 
   /* No need to lock here, we are only affecting given ID, not bmain database. */
   IDRemapper id_remapper;
-  eIDRemapType remap_type = ID_REMAP_TYPE_REMAP;
+  eIDRemapType remap_type = IdRemapTypeRemap;
 
   BLI_assert(id != nullptr);
   UNUSED_VARS_NDEBUG(id);
@@ -879,7 +879,7 @@ void BKE_libblock_relink_ex(
   }
   else {
     BLI_assert(new_id == nullptr);
-    remap_type = ID_REMAP_TYPE_CLEANUP;
+    remap_type = IdRemapTypeCleanup;
   }
 
   BKE_libblock_relink_multiple(bmain, ids, remap_type, id_remapper, remap_flags);
@@ -897,8 +897,8 @@ static int id_relink_to_newid_looper(LibraryIDLinkCallbackData *cb_data)
 {
   const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
   /* NOTE: For now, support remapping `IDWALK_CB_EMBEDDED_NON_OWNING` pointers. */
-  if (cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE)) {
-    return IDWALK_RET_NOP;
+  if (cb_flag & (IdwalkCbEmbedded | IdwalkCbOverrideLibraryReference)) {
+    return IdwalkRetNop;
   }
 
   Main *bmain = cb_data->bmain;
@@ -916,7 +916,7 @@ static int id_relink_to_newid_looper(LibraryIDLinkCallbackData *cb_data)
       libblock_relink_to_newid_prepare_data(bmain, id, relink_data);
     }
   }
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 static void libblock_relink_to_newid_prepare_data(Main *bmain,
@@ -929,7 +929,7 @@ static void libblock_relink_to_newid_prepare_data(Main *bmain,
 
   id->tag &= ~ID_TAG_NEW;
   relink_data->ids.append(id);
-  BKE_library_foreach_ID_link(bmain, id, id_relink_to_newid_looper, relink_data, IDWALK_NOP);
+  BKE_library_foreach_ID_link(bmain, id, id_relink_to_newid_looper, relink_data, IdwalkNop);
 }
 
 void BKE_libblock_relink_to_newid(Main *bmain, ID *id, const int remap_flag)
@@ -944,10 +944,10 @@ void BKE_libblock_relink_to_newid(Main *bmain, ID *id, const int remap_flag)
 
   libblock_relink_to_newid_prepare_data(bmain, id, &relink_data);
 
-  const int remap_flag_final = remap_flag | ID_REMAP_SKIP_INDIRECT_USAGE |
-                               ID_REMAP_SKIP_OVERRIDE_LIBRARY;
+  const int remap_flag_final = remap_flag | IdRemapSkipIndirectUsage |
+                               IdRemapSkipOverrideLibrary;
   BKE_libblock_relink_multiple(
-      bmain, relink_data.ids, ID_REMAP_TYPE_REMAP, relink_data.id_remapper, remap_flag_final);
+      bmain, relink_data.ids, IdRemapTypeRemap, relink_data.id_remapper, remap_flag_final);
 }
 
 }  // namespace blender

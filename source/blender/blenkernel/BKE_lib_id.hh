@@ -235,22 +235,22 @@ enum {
    * Create data-block outside of any main database -
    * similar to 'localize' functions of materials etc.
    */
-  LIB_ID_CREATE_NO_MAIN = 1 << 0,
+  LibIdCreateNoMain = 1 << 0,
   /**
    * Do not affect user reference-count of data-blocks used by new one
    * (which also gets zero user-count then).
    * Implies LIB_ID_CREATE_NO_MAIN.
    */
-  LIB_ID_CREATE_NO_USER_REFCOUNT = 1 << 1,
+  LibIdCreateNoUserRefcount = 1 << 1,
   /**
    * Assume given `newid` already points to allocated memory for whole data-block
    * (ID + data) - USE WITH CAUTION!
    * Implies LIB_ID_CREATE_NO_MAIN.
    */
-  LIB_ID_CREATE_NO_ALLOCATE = 1 << 2,
+  LibIdCreateNoAllocate = 1 << 2,
 
   /** Do not tag new ID for update in depsgraph. */
-  LIB_ID_CREATE_NO_DEG_TAG = 1 << 8,
+  LibIdCreateNoDegTag = 1 << 8,
 
   /**
    * Very similar to #LIB_ID_CREATE_NO_MAIN, and should never be used with it (typically combined
@@ -258,70 +258,70 @@ enum {
    * It ensures that IDs created with it will get the #ID_TAG_LOCALIZED tag, and uses some
    * specific code in some copy cases (mostly for node trees).
    */
-  LIB_ID_CREATE_LOCAL = 1 << 9,
+  LibIdCreateLocal = 1 << 9,
 
   /**
    * Create for the depsgraph, when set #ID_TAG_COPIED_ON_EVAL must be set.
    * Internally this is used to share some pointers instead of duplicating them.
    */
-  LIB_ID_COPY_SET_COPIED_ON_WRITE = 1 << 10,
+  LibIdCopySetCopiedOnWrite = 1 << 10,
 
   /**
    * Set #ID.newid pointer of the given source ID with the address of its new copy.
    */
-  LIB_ID_COPY_ID_NEW_SET = 1 << 11,
+  LibIdCopyIdNewSet = 1 << 11,
 
   /* *** Specific options to some ID types or usages. *** */
   /* *** May be ignored by unrelated ID copying functions. *** */
   /** Object only, needed by make_local code. */
   /* LIB_ID_COPY_NO_PROXY_CLEAR = 1 << 16, */ /* UNUSED */
   /** Do not copy preview data, when supported. */
-  LIB_ID_COPY_NO_PREVIEW = 1 << 17,
+  LibIdCopyNoPreview = 1 << 17,
   /** Copy runtime data caches. */
-  LIB_ID_COPY_CACHES = 1 << 18,
+  LibIdCopyCaches = 1 << 18,
   /** Don't copy `id->adt`, used by ID data-block localization routines. */
-  LIB_ID_COPY_NO_ANIMDATA = 1 << 19,
+  LibIdCopyNoAnimdata = 1 << 19,
   /** Do not copy id->override_library, used by ID data-block override routines. */
-  LIB_ID_COPY_NO_LIB_OVERRIDE = 1 << 21,
+  LibIdCopyNoLibOverride = 1 << 21,
   /**
    * When copying local sub-data (like constraints or modifiers), do not set their "library
    * override local data" flag.
    */
-  LIB_ID_COPY_NO_LIB_OVERRIDE_LOCAL_DATA_FLAG = 1 << 22,
+  LibIdCopyNoLibOverrideLocalDataFlag = 1 << 22,
 
   /* *** XXX Hackish/not-so-nice specific behaviors needed for some corner cases. *** */
   /* *** Ideally we should not have those, but we need them for now... *** */
   /** EXCEPTION! Deep-copy actions used by animation-data of copied ID. */
-  LIB_ID_COPY_ACTIONS = 1 << 24,
+  LibIdCopyActions = 1 << 24,
   /** EXCEPTION! Deep-copy shape-keys used by copied obdata ID. */
-  LIB_ID_COPY_SHAPEKEY = 1 << 26,
+  LibIdCopyShapekey = 1 << 26,
   /**
    * EXCEPTION! Deep-copy screen used by copied workspace ID.
    * WARNING: Should always be used, except in `NO_MAIN` cases of copying. */
-  LIB_ID_COPY_SCREEN = 1 << 27,
+  LibIdCopyScreen = 1 << 27,
   /** EXCEPTION! Specific deep-copy of node trees used e.g. for rendering purposes. */
-  LIB_ID_COPY_NODETREE_LOCALIZE = 1 << 28,
+  LibIdCopyNodetreeLocalize = 1 << 28,
   /**
    * EXCEPTION! Specific handling of RB objects regarding collections differs depending whether we
    * duplicate scene/collections, or objects.
    */
-  LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING = 1 << 29,
+  LibIdCopyRigidBodyNoCollectionHandling = 1 << 29,
   /* Copy asset metadata. */
-  LIB_ID_COPY_ASSET_METADATA = 1 << 30,
+  LibIdCopyAssetMetadata = 1 << 30,
 
   /* *** Helper 'defines' gathering most common flag sets. *** */
   /**
    * Shape-keys are not real ID's, more like local data to geometry IDs. Same for bScreens being
    * local data of Workspaces.
    */
-  LIB_ID_COPY_DEFAULT = LIB_ID_COPY_SHAPEKEY | LIB_ID_COPY_SCREEN,
+  LibIdCopyDefault = LibIdCopyShapekey | LibIdCopyScreen,
 
   /** Create a local, outside of bmain, data-block to work on. */
-  LIB_ID_CREATE_LOCALIZE = LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
-                           LIB_ID_CREATE_NO_DEG_TAG,
+  LibIdCreateLocalize = LibIdCreateNoMain | LibIdCreateNoUserRefcount |
+                           LibIdCreateNoDegTag,
   /** Generate a local copy, outside of bmain, to work on (used by copy-on-eval e.g.). */
-  LIB_ID_COPY_LOCALIZE = LIB_ID_CREATE_LOCALIZE | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_CACHES |
-                         LIB_ID_COPY_NO_LIB_OVERRIDE,
+  LibIdCopyLocalize = LibIdCreateLocalize | LibIdCopyNoPreview | LibIdCopyCaches |
+                         LibIdCopyNoLibOverride,
 };
 
 void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **new_id_p, int orig_flag);
@@ -394,18 +394,18 @@ struct IDNewNameResult {
      * ID was not renamed, because requested new name would collide with another existing ID's
      * name, and the first available unique name is already current ID's name.
      */
-    UNCHANGED_COLLISION = 1,
+    UnchangedCollision = 1,
     /** Successfully renamed, without any collision with another ID's name. */
-    RENAMED_NO_COLLISION = 2,
+    RenamedNoCollision = 2,
     /**
      * Successfully renamed, requested new name was adjusted to avoid collision with another ID.
      */
-    RENAMED_COLLISION_ADJUSTED = 3,
+    RenamedCollisionAdjusted = 3,
     /**
      * Successfully renamed, requested new name was enforced onto given ID, and another ID had to
      * be renamed to avoid name collision.
      */
-    RENAMED_COLLISION_FORCED = 4,
+    RenamedCollisionForced = 4,
   } action = Action::UNCHANGED;
 
   /**
@@ -481,12 +481,12 @@ enum eLibIDDuplicateFlags {
    * NOTE: In some cases (like Object one), the duplicate function may be called on the root ID
    * with this flag set, as remapping and/or other similar tasks need to be handled by the caller.
    */
-  LIB_ID_DUPLICATE_IS_SUBPROCESS = 1 << 0,
+  LibIdDuplicateIsSubprocess = 1 << 0,
   /**
    * This call is performed on a 'root' ID, and should therefore perform some decisions regarding
    * sub-IDs (dependencies), check for linked vs. locale data, etc.
    */
-  LIB_ID_DUPLICATE_IS_ROOT_ID = 1 << 1,
+  LibIdDuplicateIsRootId = 1 << 1,
 };
 
 ENUM_OPERATORS(eLibIDDuplicateFlags)
@@ -498,25 +498,25 @@ ENUM_OPERATORS(eLibIDDuplicateFlags)
 enum {
   /* *** Generic options (should be handled by all ID types freeing). *** */
   /** Do not try to remove freed ID from given Main (passed Main may be NULL). */
-  LIB_ID_FREE_NO_MAIN = 1 << 0,
+  LibIdFreeNoMain = 1 << 0,
   /**
    * Do not affect user reference-count of data-blocks used by freed one.
    * Implies LIB_ID_FREE_NO_MAIN.
    */
-  LIB_ID_FREE_NO_USER_REFCOUNT = 1 << 1,
+  LibIdFreeNoUserRefcount = 1 << 1,
   /**
    * Assume freed ID data-block memory is managed elsewhere, do not free it
    * (still calls relevant ID type's freeing function though) - USE WITH CAUTION!
    * Implies LIB_ID_FREE_NO_MAIN.
    */
-  LIB_ID_FREE_NOT_ALLOCATED = 1 << 2,
+  LibIdFreeNotAllocated = 1 << 2,
 
   /** Do not tag freed ID for update in depsgraph. */
-  LIB_ID_FREE_NO_DEG_TAG = 1 << 8,
+  LibIdFreeNoDegTag = 1 << 8,
   /** Do not attempt to remove freed ID from UI data/notifiers/... */
-  LIB_ID_FREE_NO_UI_USER = 1 << 9,
+  LibIdFreeNoUiUser = 1 << 9,
   /** Do not remove freed ID's name from a potential runtime name-map. */
-  LIB_ID_FREE_NO_NAMEMAP_REMOVE = 1 << 10,
+  LibIdFreeNoNamemapRemove = 1 << 10,
 };
 
 /**
@@ -686,23 +686,23 @@ enum {
    * Making that ID local is part of making local a whole library. Implies
    * #LIB_ID_MAKELOCAL_INDIRECT.
    */
-  LIB_ID_MAKELOCAL_FULL_LIBRARY = 1 << 0,
+  LibIdMakelocalFullLibrary = 1 << 0,
   /** Also make local indirectly linked IDs. Implied by #LIB_ID_MAKELOCAL_FULL_LIBRARY. */
-  LIB_ID_MAKELOCAL_INDIRECT = 1 << 1,
+  LibIdMakelocalIndirect = 1 << 1,
 
   /** In case caller code already knows this ID should be made local without copying. */
-  LIB_ID_MAKELOCAL_FORCE_LOCAL = 1 << 8,
+  LibIdMakelocalForceLocal = 1 << 8,
   /** In case caller code already knows this ID should be made local using copying. */
-  LIB_ID_MAKELOCAL_FORCE_COPY = 1 << 9,
+  LibIdMakelocalForceCopy = 1 << 9,
 
   /**
    * Clear asset data (in case the ID can actually be made local, in copy case asset data is never
    * copied over).
    */
-  LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR = 1 << 16,
+  LibIdMakelocalAssetDataClear = 1 << 16,
 
   /** Clear any liboverride data as part of making this linked data local. */
-  LIB_ID_MAKELOCAL_LIBOVERRIDE_CLEAR = 1 << 17,
+  LibIdMakelocalLiboverrideClear = 1 << 17,
 };
 
 /**

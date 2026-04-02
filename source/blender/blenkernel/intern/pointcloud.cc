@@ -47,7 +47,7 @@
 
 namespace blender {
 
-constexpr StringRef ATTR_POSITION = "position";
+constexpr StringRef attr_position = "position";
 
 static void pointcloud_init_data(ID *id)
 {
@@ -98,7 +98,7 @@ static void pointcloud_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   PointCloud *pointcloud = id_cast<PointCloud *>(id);
   for (int i = 0; i < pointcloud->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pointcloud->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pointcloud->mat[i], IdwalkCbUser);
   }
 }
 
@@ -166,7 +166,7 @@ IDTypeInfo IDType_ID_PT = {
     .name = "PointCloud",
     .name_plural = N_("pointclouds"),
     .translation_context = BLT_I18NCONTEXT_ID_POINTCLOUD,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = pointcloud_init_data,
@@ -221,7 +221,7 @@ PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
 PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
 {
   PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(
-      nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
+      nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LibIdCreateLocalize));
 
   BKE_libblock_init_empty(&pointcloud->id);
 
@@ -304,7 +304,7 @@ bke::MutableAttributeAccessor PointCloud::attributes_for_write()
 
 bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const StringRef name)
 {
-  return name == ATTR_POSITION;
+  return name == attr_position;
 }
 
 void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
@@ -348,7 +348,7 @@ void pointcloud_resize(PointCloud &pointcloud, const int size)
 PointCloud *BKE_pointcloud_copy_for_eval(const PointCloud *pointcloud_src)
 {
   return reinterpret_cast<PointCloud *>(
-      BKE_id_copy_ex(nullptr, &pointcloud_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &pointcloud_src->id, nullptr, LibIdCopyLocalize));
 }
 
 static void pointcloud_evaluate_modifiers(Depsgraph *depsgraph,
@@ -359,7 +359,7 @@ static void pointcloud_evaluate_modifiers(Depsgraph *depsgraph,
   /* Modifier evaluation modes. */
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
-  ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
+  ModifierApplyFlag apply_flag = use_render ? ModApplyRender : ModApplyUsecache;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
 
   BKE_modifiers_clear_errors(object);

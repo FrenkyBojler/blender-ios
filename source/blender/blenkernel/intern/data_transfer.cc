@@ -51,7 +51,7 @@ void BKE_object_data_transfer_dttypes_to_cdmask(const int dtdata_types,
     }
 
     cddata_type = BKE_object_data_transfer_dttype_to_cdtype(dtdata_type);
-    if (!(cddata_type & CD_FAKE)) {
+    if (!(cddata_type & CdFake)) {
       if (DT_DATATYPE_IS_VERT(dtdata_type)) {
         r_data_masks->vmask |= 1LL << cddata_type;
       }
@@ -65,10 +65,10 @@ void BKE_object_data_transfer_dttypes_to_cdmask(const int dtdata_types,
         r_data_masks->pmask |= 1LL << cddata_type;
       }
     }
-    else if (cddata_type == CD_FAKE_MDEFORMVERT) {
+    else if (cddata_type == CdFakeMdeformvert) {
       r_data_masks->vmask |= CD_MASK_MDEFORMVERT; /* Exception for vgroups :/ */
     }
-    else if (cddata_type == CD_FAKE_UV) {
+    else if (cddata_type == CdFakeUv) {
       r_data_masks->lmask |= CD_MASK_PROP_FLOAT2;
     }
   }
@@ -157,7 +157,7 @@ int BKE_object_data_transfer_get_dttypes_item_types(const int dtdata_types)
 {
   int i, ret = 0;
 
-  for (i = 0; (i < DT_TYPE_MAX) && (ret ^ (ME_VERT | ME_EDGE | ME_LOOP | ME_POLY)); i++) {
+  for (i = 0; (i < DT_TYPE_MAX) && (ret ^ (MeVert | MeEdge | MeLoop | MePoly)); i++) {
     const int dtdata_type = 1 << i;
 
     if (!(dtdata_types & dtdata_type)) {
@@ -165,16 +165,16 @@ int BKE_object_data_transfer_get_dttypes_item_types(const int dtdata_types)
     }
 
     if (DT_DATATYPE_IS_VERT(dtdata_type)) {
-      ret |= ME_VERT;
+      ret |= MeVert;
     }
     if (DT_DATATYPE_IS_EDGE(dtdata_type)) {
-      ret |= ME_EDGE;
+      ret |= MeEdge;
     }
     if (DT_DATATYPE_IS_LOOP(dtdata_type)) {
-      ret |= ME_LOOP;
+      ret |= MeLoop;
     }
     if (DT_DATATYPE_IS_FACE(dtdata_type)) {
-      ret |= ME_POLY;
+      ret |= MePoly;
     }
   }
 
@@ -185,31 +185,31 @@ int BKE_object_data_transfer_dttype_to_cdtype(const int dtdata_type)
 {
   switch (dtdata_type) {
     case DT_TYPE_MDEFORMVERT:
-      return CD_FAKE_MDEFORMVERT;
+      return CdFakeMdeformvert;
     case DT_TYPE_SKIN:
       return CD_MVERT_SKIN;
     case DT_TYPE_BWEIGHT_VERT:
-      return CD_FAKE_BWEIGHT;
+      return CdFakeBweight;
 
     case DT_TYPE_SHARP_EDGE:
-      return CD_FAKE_SHARP;
+      return CdFakeSharp;
     case DT_TYPE_SEAM:
-      return CD_FAKE_SEAM;
+      return CdFakeSeam;
     case DT_TYPE_CREASE:
-      return CD_FAKE_CREASE;
+      return CdFakeCrease;
     case DT_TYPE_BWEIGHT_EDGE:
-      return CD_FAKE_BWEIGHT;
+      return CdFakeBweight;
     case DT_TYPE_FREESTYLE_EDGE:
-      return CD_FAKE_FREESTYLE_EDGE;
+      return CdFakeFreestyleEdge;
 
     case DT_TYPE_UV:
-      return CD_FAKE_UV;
+      return CdFakeUv;
     case DT_TYPE_SHARP_FACE:
-      return CD_FAKE_SHARP;
+      return CdFakeSharp;
     case DT_TYPE_FREESTYLE_FACE:
-      return CD_FAKE_FREESTYLE_FACE;
+      return CdFakeFreestyleFace;
     case DT_TYPE_LNOR:
-      return CD_FAKE_LNOR;
+      return CdFakeLnor;
     case DT_TYPE_MLOOPCOL_VERT:
     case DT_TYPE_MLOOPCOL_LOOP:
       return CD_PROP_BYTE_COLOR;
@@ -440,7 +440,7 @@ static void data_transfer_dtdata_type_postprocess(Mesh *me_dst,
 static MeshRemapIslandsCalc data_transfer_get_loop_islands_generator(const int cddata_type)
 {
   switch (cddata_type) {
-    case CD_FAKE_UV:
+    case CdFakeUv:
       return BKE_mesh_calc_islands_loop_face_edgeseam;
     default:
       break;
@@ -990,7 +990,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                  const int tolayers,
                                                  SpaceTransform *space_transform)
 {
-  if (elem_type == ME_VERT) {
+  if (elem_type == MeVert) {
     if (cddata_type == CD_MVERT_SKIN) {
       const void *data_src = CustomData_get_layer(&me_src->vert_data, CD_MVERT_SKIN);
       if (data_src) {
@@ -998,7 +998,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
             &me_dst->vert_data, CD_MVERT_SKIN, me_dst->verts_num);
         if (!data_dst && use_create) {
           data_dst = CustomData_add_layer(
-              &me_dst->vert_data, CD_MVERT_SKIN, CD_SET_DEFAULT, me_dst->verts_num);
+              &me_dst->vert_data, CD_MVERT_SKIN, CdSetDefault, me_dst->verts_num);
         }
 
         if (r_map && data_dst) {
@@ -1055,7 +1055,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
       }
       return true;
     }
-    if (cddata_type == CD_FAKE_MDEFORMVERT) {
+    if (cddata_type == CdFakeMdeformvert) {
       return data_transfer_layersmapping_vgroups(r_map,
                                                  mix_mode,
                                                  mix_factor,
@@ -1070,7 +1070,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                  fromlayers,
                                                  tolayers);
     }
-    if (cddata_type == CD_FAKE_BWEIGHT) {
+    if (cddata_type == CdFakeBweight) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_FLOAT,
                                                 bke::AttrDomain::Point,
@@ -1085,8 +1085,8 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
       return true;
     }
   }
-  else if (elem_type == ME_EDGE) {
-    if (cddata_type == CD_FAKE_SEAM) {
+  else if (elem_type == MeEdge) {
+    if (cddata_type == CdFakeSeam) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
                                                 bke::AttrDomain::Edge,
@@ -1100,7 +1100,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                 *me_dst);
       return true;
     }
-    if (cddata_type == CD_FAKE_SHARP) {
+    if (cddata_type == CdFakeSharp) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
                                                 bke::AttrDomain::Edge,
@@ -1114,7 +1114,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                 *me_dst);
       return true;
     }
-    if (cddata_type == CD_FAKE_BWEIGHT) {
+    if (cddata_type == CdFakeBweight) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_FLOAT,
                                                 bke::AttrDomain::Edge,
@@ -1128,7 +1128,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                 *me_dst);
       return true;
     }
-    if (cddata_type == CD_FAKE_CREASE) {
+    if (cddata_type == CdFakeCrease) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_FLOAT,
                                                 bke::AttrDomain::Edge,
@@ -1142,7 +1142,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                 *me_dst);
       return true;
     }
-    if (r_map && cddata_type == CD_FAKE_FREESTYLE_EDGE) {
+    if (r_map && cddata_type == CdFakeFreestyleEdge) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
                                                 bke::AttrDomain::Edge,
@@ -1159,8 +1159,8 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
 
     return false;
   }
-  else if (elem_type == ME_LOOP) {
-    if (cddata_type == CD_FAKE_UV) {
+  else if (elem_type == MeLoop) {
+    if (cddata_type == CdFakeUv) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 CD_PROP_FLOAT2,
                                                 bke::AttrDomain::Corner,
@@ -1178,7 +1178,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
       }
       return true;
     }
-    if (cddata_type == CD_FAKE_LNOR) {
+    if (cddata_type == CdFakeLnor) {
       if (r_map) {
         /* Use #CD_NORMAL as a temporary storage for custom normals in 3D vector form.
          * A post-process step will convert this layer to "custom_normal". */
@@ -1186,7 +1186,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
             CustomData_get_layer_for_write(&me_dst->corner_data, CD_NORMAL, me_dst->corners_num));
         if (!dst_data) {
           dst_data = static_cast<float3 *>(CustomData_add_layer(
-              &me_dst->corner_data, CD_NORMAL, CD_SET_DEFAULT, me_dst->corners_num));
+              &me_dst->corner_data, CD_NORMAL, CdSetDefault, me_dst->corners_num));
         }
         if (mix_factor != 1.0f || mix_weights) {
           MutableSpan(dst_data, me_dst->corners_num).copy_from(me_dst->corner_normals());
@@ -1242,8 +1242,8 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     }
     return false;
   }
-  else if (elem_type == ME_POLY) {
-    if (cddata_type == CD_FAKE_SHARP) {
+  else if (elem_type == MePoly) {
+    if (cddata_type == CdFakeSharp) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
                                                 bke::AttrDomain::Face,
@@ -1257,7 +1257,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
                                                 *me_dst);
       return true;
     }
-    if (cddata_type == CD_FAKE_FREESTYLE_FACE) {
+    if (cddata_type == CdFakeFreestyleFace) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
                                                 bke::AttrDomain::Face,
@@ -1328,7 +1328,7 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            ob_dst,
                                            me_src,
                                            me_dst,
-                                           ME_VERT,
+                                           MeVert,
                                            cddata_type,
                                            0,
                                            0.0f,
@@ -1345,7 +1345,7 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            ob_dst,
                                            me_src,
                                            me_dst,
-                                           ME_EDGE,
+                                           MeEdge,
                                            cddata_type,
                                            0,
                                            0.0f,
@@ -1362,7 +1362,7 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            ob_dst,
                                            me_src,
                                            me_dst,
-                                           ME_LOOP,
+                                           MeLoop,
                                            cddata_type,
                                            0,
                                            0.0f,
@@ -1379,7 +1379,7 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            ob_dst,
                                            me_src,
                                            me_dst,
-                                           ME_POLY,
+                                           MePoly,
                                            cddata_type,
                                            0,
                                            0.0f,
@@ -1511,28 +1511,28 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
 
         if ((map_vert_mode == MREMAP_MODE_TOPOLOGY) && (num_verts_dst != num_verts_src)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source and destination meshes do not have the same number of vertices, "
                      "'Topology' mapping cannot be used in this case");
           continue;
         }
         if ((map_vert_mode & MREMAP_USE_EDGE) && (me_src->edges_num == 0)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source mesh does not have any edges, "
                      "none of the 'Edge' mappings can be used in this case");
           continue;
         }
         if ((map_vert_mode & MREMAP_USE_POLY) && (me_src->faces_num == 0)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source mesh does not have any faces, "
                      "none of the 'Face' mappings can be used in this case");
           continue;
         }
         if (ELEM(0, num_verts_dst, num_verts_src)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source or destination meshes do not have any vertices, cannot transfer "
                      "vertex data");
           continue;
@@ -1560,7 +1560,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
                                                ob_dst,
                                                me_src,
                                                me_dst,
-                                               ME_VERT,
+                                               MeVert,
                                                cddata_type,
                                                mix_mode,
                                                mix_factor,
@@ -1591,14 +1591,14 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
 
         if ((map_edge_mode == MREMAP_MODE_TOPOLOGY) && (edges_dst.size() != num_edges_src)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source and destination meshes do not have the same number of edges, "
                      "'Topology' mapping cannot be used in this case");
           continue;
         }
         if ((map_edge_mode & MREMAP_USE_POLY) && (me_src->faces_num == 0)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source mesh does not have any faces, "
                      "none of the 'Face' mappings can be used in this case");
           continue;
@@ -1606,7 +1606,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
         if (ELEM(0, edges_dst.size(), num_edges_src)) {
           BKE_report(
               reports,
-              RPT_ERROR,
+              RptError,
               "Source or destination meshes do not have any edges, cannot transfer edge data");
           continue;
         }
@@ -1634,7 +1634,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
                                                ob_dst,
                                                me_src,
                                                me_dst,
-                                               ME_EDGE,
+                                               MeEdge,
                                                cddata_type,
                                                mix_mode,
                                                mix_factor,
@@ -1668,14 +1668,14 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
         if ((map_loop_mode == MREMAP_MODE_TOPOLOGY) && (corner_verts_dst.size() != num_loops_src))
         {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source and destination meshes do not have the same number of face corners, "
                      "'Topology' mapping cannot be used in this case");
           continue;
         }
         if ((map_loop_mode & MREMAP_USE_EDGE) && (me_src->edges_num == 0)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source mesh does not have any edges, "
                      "none of the 'Edge' mappings can be used in this case");
           continue;
@@ -1683,7 +1683,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
         if (ELEM(0, corner_verts_dst.size(), num_loops_src)) {
           BKE_report(
               reports,
-              RPT_ERROR,
+              RptError,
               "Source or destination meshes do not have any faces, cannot transfer corner data");
           continue;
         }
@@ -1715,7 +1715,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
                                                ob_dst,
                                                me_src,
                                                me_dst,
-                                               ME_LOOP,
+                                               MeLoop,
                                                cddata_type,
                                                mix_mode,
                                                mix_factor,
@@ -1746,14 +1746,14 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
 
         if ((map_face_mode == MREMAP_MODE_TOPOLOGY) && (faces_dst.size() != num_faces_src)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source and destination meshes do not have the same number of faces, "
                      "'Topology' mapping cannot be used in this case");
           continue;
         }
         if ((map_face_mode & MREMAP_USE_EDGE) && (me_src->edges_num == 0)) {
           BKE_report(reports,
-                     RPT_ERROR,
+                     RptError,
                      "Source mesh does not have any edges, "
                      "none of the 'Edge' mappings can be used in this case");
           continue;
@@ -1761,7 +1761,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
         if (ELEM(0, faces_dst.size(), num_faces_src)) {
           BKE_report(
               reports,
-              RPT_ERROR,
+              RptError,
               "Source or destination meshes do not have any faces, cannot transfer face data");
           continue;
         }
@@ -1795,7 +1795,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
                                                ob_dst,
                                                me_src,
                                                me_dst,
-                                               ME_POLY,
+                                               MePoly,
                                                cddata_type,
                                                mix_mode,
                                                mix_factor,

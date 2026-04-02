@@ -16,16 +16,16 @@ static std::string error_to_string(const Error &error)
 {
   const char *type;
   switch (error.type) {
-    case ErrorType::UNESCAPED_CURLY_BRACE:
+    case ErrorType::UnescapedCurlyBrace:
       type = "UNESCAPED_CURLY_BRACE";
       break;
-    case ErrorType::VARIABLE_SYNTAX:
+    case ErrorType::VariableSyntax:
       type = "VARIABLE_SYNTAX";
       break;
-    case ErrorType::FORMAT_SPECIFIER:
+    case ErrorType::FormatSpecifier:
       type = "FORMAT_SPECIFIER";
       break;
-    case ErrorType::UNKNOWN_VARIABLE:
+    case ErrorType::UnknownVariable:
       type = "UNKNOWN_VARIABLE";
       break;
   }
@@ -303,8 +303,8 @@ TEST(path_templates, validate_and_apply_template)
           "{hi:##}_{bye:#}",
           "{hi:##}_{bye:#}",
           {
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(0, 7)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(8, 7)},
+              {ErrorType::FormatSpecifier, IndexRange(0, 7)},
+              {ErrorType::FormatSpecifier, IndexRange(8, 7)},
           },
       },
 
@@ -314,13 +314,13 @@ TEST(path_templates, validate_and_apply_template)
           "{pi:##.}_{e:####.}_{ntsc:#.}_{two:###.}_{f_negative:###.}_{huge:###.}_{tiny:###.}",
           "{pi:##.}_{e:####.}_{ntsc:#.}_{two:###.}_{f_negative:###.}_{huge:###.}_{tiny:###.}",
           {
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(19, 9)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(29, 10)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(40, 17)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(58, 11)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(70, 11)},
+              {ErrorType::FormatSpecifier, IndexRange(0, 8)},
+              {ErrorType::FormatSpecifier, IndexRange(9, 9)},
+              {ErrorType::FormatSpecifier, IndexRange(19, 9)},
+              {ErrorType::FormatSpecifier, IndexRange(29, 10)},
+              {ErrorType::FormatSpecifier, IndexRange(40, 17)},
+              {ErrorType::FormatSpecifier, IndexRange(58, 11)},
+              {ErrorType::FormatSpecifier, IndexRange(70, 11)},
           },
       },
 
@@ -329,7 +329,7 @@ TEST(path_templates, validate_and_apply_template)
           "{hi}_{missing}_{bye}",
           "{hi}_{missing}_{bye}",
           {
-              {ErrorType::UNKNOWN_VARIABLE, IndexRange(5, 9)},
+              {ErrorType::UnknownVariable, IndexRange(5, 9)},
           },
       },
 
@@ -338,7 +338,7 @@ TEST(path_templates, validate_and_apply_template)
           "foo{hi",
           "foo{hi",
           {
-              {ErrorType::VARIABLE_SYNTAX, IndexRange(3, 3)},
+              {ErrorType::VariableSyntax, IndexRange(3, 3)},
           },
       },
 
@@ -347,7 +347,7 @@ TEST(path_templates, validate_and_apply_template)
           "foo{bye}{hi",
           "foo{bye}{hi",
           {
-              {ErrorType::VARIABLE_SYNTAX, IndexRange(8, 3)},
+              {ErrorType::VariableSyntax, IndexRange(8, 3)},
           },
       },
 
@@ -356,11 +356,11 @@ TEST(path_templates, validate_and_apply_template)
           "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime::sup}_{prime}",
           "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime::sup}_{prime}",
           {
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(0, 8)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(9, 9)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(19, 13)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(33, 11)},
-              {ErrorType::FORMAT_SPECIFIER, IndexRange(45, 12)},
+              {ErrorType::FormatSpecifier, IndexRange(0, 8)},
+              {ErrorType::FormatSpecifier, IndexRange(9, 9)},
+              {ErrorType::FormatSpecifier, IndexRange(19, 13)},
+              {ErrorType::FormatSpecifier, IndexRange(33, 11)},
+              {ErrorType::FormatSpecifier, IndexRange(45, 12)},
           },
       },
 
@@ -369,7 +369,7 @@ TEST(path_templates, validate_and_apply_template)
           "{hi_{hi}_{bye}",
           "{hi_{hi}_{bye}",
           {
-              {ErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
+              {ErrorType::VariableSyntax, IndexRange(0, 4)},
           },
       },
 
@@ -378,7 +378,7 @@ TEST(path_templates, validate_and_apply_template)
           "{hi_{{hi}}_{bye}",
           "{hi_{{hi}}_{bye}",
           {
-              {ErrorType::VARIABLE_SYNTAX, IndexRange(0, 4)},
+              {ErrorType::VariableSyntax, IndexRange(0, 4)},
           },
       },
 
@@ -519,13 +519,13 @@ TEST(path_templates, apply_template_alloc)
           "foo{non_existant_variable}bar",
           "foo{non_existant_variable}bar",
           {
-              {ErrorType::UNKNOWN_VARIABLE, IndexRange(3, 23)},
+              {ErrorType::UnknownVariable, IndexRange(3, 23)},
           },
       },
       {
           "foo{bar",
           "foo{bar",
-          {{ErrorType::VARIABLE_SYNTAX, IndexRange(3, 4)}},
+          {{ErrorType::VariableSyntax, IndexRange(3, 4)}},
       },
 
       /* Error where the error isn't until after the truncation point. Should
@@ -533,7 +533,7 @@ TEST(path_templates, apply_template_alloc)
       {
           "foo{long}{long}{long}{long}{long}{long}{long}{bar",
           "foo{long}{long}{long}{long}{long}{long}{long}{bar",
-          {{ErrorType::VARIABLE_SYNTAX, IndexRange(45, 4)}},
+          {{ErrorType::VariableSyntax, IndexRange(45, 4)}},
       },
   };
 

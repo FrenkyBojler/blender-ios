@@ -13,7 +13,7 @@ using bke::NodeSocketValueMenuRuntimeFlag;
 
 bool bNodeSocketValueMenu::has_conflict() const
 {
-  return this->runtime_flag & NodeSocketValueMenuRuntimeFlag::NODE_MENU_ITEMS_CONFLICT;
+  return this->runtime_flag & NodeSocketValueMenuRuntimeFlag::NodeMenuItemsConflict;
 }
 
 Span<NodeEnumItem> NodeEnumDefinition::items() const

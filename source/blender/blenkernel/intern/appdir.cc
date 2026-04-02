@@ -619,7 +619,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
                              size_t path_maxncpy)
 {
   switch (folder_id) {
-    case BLENDER_DATAFILES: /* general case */
+    case BlenderDatafiles: /* general case */
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_USER_DATAFILES")) {
         break;
       }
@@ -637,7 +637,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_USER_DATAFILES:
+    case BlenderUserDatafiles:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_USER_DATAFILES")) {
         break;
       }
@@ -646,7 +646,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_SYSTEM_DATAFILES:
+    case BlenderSystemDatafiles:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_SYSTEM_DATAFILES")) {
         break;
       }
@@ -658,7 +658,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_USER_CONFIG:
+    case BlenderUserConfig:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_USER_CONFIG")) {
         break;
       }
@@ -667,7 +667,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_USER_SCRIPTS:
+    case BlenderUserScripts:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_USER_SCRIPTS")) {
         break;
       }
@@ -676,7 +676,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_SYSTEM_SCRIPTS:
+    case BlenderSystemScripts:
       if (get_path_system(path, path_maxncpy, "scripts", subfolder)) {
         break;
       }
@@ -685,7 +685,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_USER_EXTENSIONS:
+    case BlenderUserExtensions:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_USER_EXTENSIONS")) {
         break;
       }
@@ -694,7 +694,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_SYSTEM_EXTENSIONS:
+    case BlenderSystemExtensions:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_SYSTEM_EXTENSIONS")) {
         break;
       }
@@ -706,7 +706,7 @@ bool BKE_appdir_folder_id_ex(const int folder_id,
       }
       return false;
 
-    case BLENDER_SYSTEM_PYTHON:
+    case BlenderSystemPython:
       if (get_path_environment(path, path_maxncpy, subfolder, "BLENDER_SYSTEM_PYTHON")) {
         break;
       }
@@ -743,7 +743,7 @@ std::optional<std::string> BKE_appdir_folder_id_user_notest(const int folder_id,
   const bool check_is_dir = false;
 
   switch (folder_id) {
-    case BLENDER_USER_DATAFILES:
+    case BlenderUserDatafiles:
       if (get_path_environment_ex(
               path, sizeof(path), subfolder, "BLENDER_USER_DATAFILES", check_is_dir))
       {
@@ -751,7 +751,7 @@ std::optional<std::string> BKE_appdir_folder_id_user_notest(const int folder_id,
       }
       get_path_user_ex(path, sizeof(path), "datafiles", subfolder, version, check_is_dir);
       break;
-    case BLENDER_USER_CONFIG:
+    case BlenderUserConfig:
       if (get_path_environment_ex(
               path, sizeof(path), subfolder, "BLENDER_USER_CONFIG", check_is_dir))
       {
@@ -759,7 +759,7 @@ std::optional<std::string> BKE_appdir_folder_id_user_notest(const int folder_id,
       }
       get_path_user_ex(path, sizeof(path), "config", subfolder, version, check_is_dir);
       break;
-    case BLENDER_USER_SCRIPTS:
+    case BlenderUserScripts:
       if (get_path_environment_ex(
               path, sizeof(path), subfolder, "BLENDER_USER_SCRIPTS", check_is_dir))
       {
@@ -767,7 +767,7 @@ std::optional<std::string> BKE_appdir_folder_id_user_notest(const int folder_id,
       }
       get_path_user_ex(path, sizeof(path), "scripts", subfolder, version, check_is_dir);
       break;
-    case BLENDER_USER_EXTENSIONS:
+    case BlenderUserExtensions:
       if (get_path_environment_ex(
               path, sizeof(path), subfolder, "BLENDER_USER_EXTENSIONS", check_is_dir))
       {
@@ -790,10 +790,10 @@ std::optional<std::string> BKE_appdir_folder_id_create(const int folder_id, cons
 {
   /* Only for user folders. */
   if (!ELEM(folder_id,
-            BLENDER_USER_DATAFILES,
-            BLENDER_USER_CONFIG,
-            BLENDER_USER_SCRIPTS,
-            BLENDER_USER_EXTENSIONS))
+            BlenderUserDatafiles,
+            BlenderUserConfig,
+            BlenderUserScripts,
+            BlenderUserExtensions))
   {
     BLI_assert_unreachable();
     return std::nullopt;
@@ -818,13 +818,13 @@ std::optional<std::string> BKE_appdir_resource_path_id_with_version(const int fo
   char path[FILE_MAX] = "";
   bool ok;
   switch (folder_id) {
-    case BLENDER_RESOURCE_PATH_USER:
+    case BlenderResourcePathUser:
       ok = get_path_user_ex(path, sizeof(path), nullptr, nullptr, version, check_is_dir);
       break;
-    case BLENDER_RESOURCE_PATH_LOCAL:
+    case BlenderResourcePathLocal:
       ok = get_path_local_ex(path, sizeof(path), nullptr, nullptr, version, check_is_dir);
       break;
-    case BLENDER_RESOURCE_PATH_SYSTEM:
+    case BlenderResourcePathSystem:
       ok = get_path_system_ex(path, sizeof(path), nullptr, nullptr, version, check_is_dir);
       break;
     default:
@@ -1008,7 +1008,7 @@ bool BKE_appdir_program_python_search(char *program_filepath,
   SNPRINTF(python_version, "%s%d.%d", basename, version_major, version_minor);
 
   {
-    const std::optional<std::string> python_bin_dir = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON,
+    const std::optional<std::string> python_bin_dir = BKE_appdir_folder_id(BlenderSystemPython,
                                                                            "bin");
     if (python_bin_dir.has_value()) {
 
@@ -1059,7 +1059,7 @@ static Vector<std::string> appdir_app_template_directories()
 
   /** Keep in sync with `bpy.utils.app_template_paths()` */
   char temp_dir[FILE_MAX];
-  if (BKE_appdir_folder_id_ex(BLENDER_USER_SCRIPTS,
+  if (BKE_appdir_folder_id_ex(BlenderUserScripts,
                               "startup" SEP_STR "bl_app_templates_user",
                               temp_dir,
                               sizeof(temp_dir)))
@@ -1072,7 +1072,7 @@ static Vector<std::string> appdir_app_template_directories()
       "startup" SEP_STR "bl_app_templates_system", "BLENDER_SYSTEM_SCRIPTS", true));
 
   /* Local or system directory. */
-  if (BKE_appdir_folder_id_ex(BLENDER_SYSTEM_SCRIPTS,
+  if (BKE_appdir_folder_id_ex(BlenderSystemScripts,
                               "startup" SEP_STR "bl_app_templates_system",
                               temp_dir,
                               sizeof(temp_dir)))

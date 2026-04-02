@@ -815,7 +815,7 @@ static const auto &builtin_attributes()
         "Index Validate",
         [](int2 value) { return math::max(value, int2(0)); },
         mf::build::exec_presets::AllSpanOrSingle());
-    AttrBuiltinInfo edge_verts(AttrDomain::Edge, AttrType::Int32_2D);
+    AttrBuiltinInfo edge_verts(AttrDomain::Edge, AttrType::Int322D);
     edge_verts.validator = AttributeValidator{&int2_index_clamp};
     map.add_new(".edge_verts", std::move(edge_verts));
 

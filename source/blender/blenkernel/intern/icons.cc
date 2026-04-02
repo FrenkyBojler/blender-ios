@@ -42,7 +42,7 @@ namespace blender {
  * Previews & ID's have their own functions to remove icons.
  */
 enum {
-  ICON_FLAG_MANAGED = (1 << 0),
+  IconFlagManaged = (1 << 0),
 };
 
 /* GLOBALS */
@@ -80,7 +80,7 @@ static void icon_free(void *val)
     return;
   }
 
-  if (icon->obj_type == ICON_DATA_GEOM) {
+  if (icon->obj_type == IconDataGeom) {
     Icon_Geom *obj = static_cast<Icon_Geom *>(icon->obj);
     if (obj->mem) {
       /* coords & colors are part of this memory. */
@@ -105,26 +105,26 @@ static void icon_free(void *val)
 static void icon_free_data(int icon_id, Icon *icon)
 {
   switch (icon->obj_type) {
-    case ICON_DATA_ID:
+    case IconDataId:
       (static_cast<ID *>(icon->obj))->icon_id = 0;
       break;
-    case ICON_DATA_IMBUF: {
+    case IconDataImbuf: {
       ImBuf *imbuf = static_cast<ImBuf *>(icon->obj);
       if (imbuf) {
         IMB_freeImBuf(imbuf);
       }
       break;
     }
-    case ICON_DATA_PREVIEW:
+    case IconDataPreview:
       (static_cast<PreviewImage *>(icon->obj))->runtime->icon_id = 0;
       break;
-    case ICON_DATA_GPLAYER:
+    case IconDataGplayer:
       (static_cast<bGPDlayer *>(icon->obj))->runtime.icon_id = 0;
       break;
-    case ICON_DATA_GEOM:
+    case IconDataGeom:
       (static_cast<Icon_Geom *>(icon->obj))->icon_id = 0;
       break;
-    case ICON_DATA_STUDIOLIGHT: {
+    case IconDataStudiolight: {
       StudioLight *sl = static_cast<StudioLight *>(icon->obj);
       if (sl != nullptr) {
         BKE_studiolight_unset_icon_id(sl, icon_id);
@@ -227,7 +227,7 @@ void BKE_icon_changed(const int icon_id)
 
   /* We *only* expect ID-tied icons here, not non-ID icon/preview! */
   BLI_assert(icon->id_type != 0);
-  BLI_assert(icon->obj_type == ICON_DATA_ID);
+  BLI_assert(icon->obj_type == IconDataId);
 
   /* Do not enforce creation of previews for valid ID types using BKE_previewimg_id_ensure()
    * here, we only want to ensure *existing* preview images are properly tagged as
@@ -269,9 +269,9 @@ static int icon_id_ensure_create_icon(ID *id)
 {
   BLI_assert(BLI_thread_is_main());
 
-  Icon *icon = icon_create(id->icon_id, ICON_DATA_ID, id);
+  Icon *icon = icon_create(id->icon_id, IconDataId, id);
   icon->id_type = GS(id->name);
-  icon->flag = ICON_FLAG_MANAGED;
+  icon->flag = IconFlagManaged;
 
   return id->icon_id;
 }
@@ -315,8 +315,8 @@ static int icon_gplayer_color_ensure_create_icon(bGPDlayer *gpl)
    * colored rectangle), we need to define icon data here so that
    * we can store a pointer to the layer data in icon->obj.
    */
-  Icon *icon = icon_create(gpl->runtime.icon_id, ICON_DATA_GPLAYER, gpl);
-  icon->flag = ICON_FLAG_MANAGED;
+  Icon *icon = icon_create(gpl->runtime.icon_id, IconDataGplayer, gpl);
+  icon->flag = IconFlagManaged;
 
   return gpl->runtime.icon_id;
 }
@@ -378,8 +378,8 @@ int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
     return icon_id_ensure_create_icon(id);
   }
 
-  Icon *icon = icon_create(preview->runtime->icon_id, ICON_DATA_PREVIEW, preview);
-  icon->flag = ICON_FLAG_MANAGED;
+  Icon *icon = icon_create(preview->runtime->icon_id, IconDataPreview, preview);
+  icon->flag = IconFlagManaged;
 
   return preview->runtime->icon_id;
 }
@@ -388,8 +388,8 @@ int BKE_icon_imbuf_create(ImBuf *ibuf)
 {
   int icon_id = get_next_free_id();
 
-  Icon *icon = icon_create(icon_id, ICON_DATA_IMBUF, ibuf);
-  icon->flag = ICON_FLAG_MANAGED;
+  Icon *icon = icon_create(icon_id, IconDataImbuf, ibuf);
+  icon->flag = IconFlagManaged;
 
   return icon_id;
 }
@@ -401,7 +401,7 @@ ImBuf *BKE_icon_imbuf_get_buffer(int icon_id)
     CLOG_ERROR(&LOG, "no icon for icon ID: %d", icon_id);
     return nullptr;
   }
-  if (icon->obj_type != ICON_DATA_IMBUF) {
+  if (icon->obj_type != IconDataImbuf) {
     CLOG_ERROR(&LOG, "icon ID does not refer to an imbuf icon: %d", icon_id);
     return nullptr;
   }
@@ -416,7 +416,7 @@ bool BKE_icon_is_imbuf(const int icon_id)
     CLOG_ERROR(&LOG, "no icon for icon ID: %d", icon_id);
     return false;
   }
-  return icon->obj_type == ICON_DATA_IMBUF;
+  return icon->obj_type == IconDataImbuf;
 }
 
 static IconBufferRef construct_icon_buffer(const int width,
@@ -460,21 +460,21 @@ std::optional<IconBufferRef> BKE_icon_get_buffer(const int icon_id, const eIconS
   }
 
   switch (icon->obj_type) {
-    case ICON_DATA_IMBUF: {
+    case IconDataImbuf: {
       const ImBuf *ibuf = static_cast<ImBuf *>(icon->obj);
       if (ibuf->byte_buffer.data == nullptr) {
         return std::nullopt;
       }
       return construct_icon_buffer(ibuf->x, ibuf->y, ibuf->channels, ibuf->byte_buffer.data);
     }
-    case ICON_DATA_ID: {
+    case IconDataId: {
       const ID *id = static_cast<ID *>(icon->obj);
       if (PreviewImage *preview = BKE_previewimg_id_get(id)) {
         return icon_buffer_from_preview(preview, size);
       }
       break;
     }
-    case ICON_DATA_PREVIEW: {
+    case IconDataPreview: {
       if (const PreviewImage *preview = static_cast<PreviewImage *>(icon->obj)) {
         if (!BKE_previewimg_is_finished(preview, size)) {
           return std::nullopt;
@@ -572,7 +572,7 @@ bool BKE_icon_delete_unmanaged(const int icon_id)
 
   Icon *icon = gIcons.pop_default(icon_id, nullptr);
   if (icon) {
-    if (UNLIKELY(icon->flag & ICON_FLAG_MANAGED)) {
+    if (UNLIKELY(icon->flag & IconFlagManaged)) {
       gIcons.add(icon_id, icon);
       return false;
     }
@@ -599,7 +599,7 @@ int BKE_icon_geom_ensure(Icon_Geom *geom)
 
   geom->icon_id = get_next_free_id();
 
-  icon_create(geom->icon_id, ICON_DATA_GEOM, geom);
+  icon_create(geom->icon_id, IconDataGeom, geom);
   /* Not managed for now, we may want this to be configurable per icon). */
 
   return geom->icon_id;
@@ -664,7 +664,7 @@ Icon_Geom *BKE_icon_geom_from_file(const char *filename)
 int BKE_icon_ensure_studio_light(StudioLight *sl, int id_type)
 {
   int icon_id = get_next_free_id();
-  Icon *icon = icon_create(icon_id, ICON_DATA_STUDIOLIGHT, sl);
+  Icon *icon = icon_create(icon_id, IconDataStudiolight, sl);
   icon->id_type = id_type;
   return icon_id;
 }

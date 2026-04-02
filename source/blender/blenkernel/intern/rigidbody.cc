@@ -1171,19 +1171,19 @@ RigidBodyWorld *BKE_rigidbody_world_copy(RigidBodyWorld *rbw, const int flag)
   if (rbw->effector_weights) {
     rbw_copy->effector_weights = static_cast<EffectorWeights *>(
         MEM_dupalloc(rbw->effector_weights));
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((flag & LibIdCreateNoUserRefcount) == 0) {
       id_us_plus((ID *)rbw->effector_weights->group);
     }
   }
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     id_us_plus((ID *)rbw_copy->group);
     id_us_plus((ID *)rbw_copy->constraints);
   }
 
-  if ((flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) == 0) {
+  if ((flag & LibIdCopySetCopiedOnWrite) == 0) {
     /* This is a regular copy, and not an evaluated copy for depsgraph evaluation. */
     rbw_copy->shared = MEM_new<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
-    BKE_ptcache_copy_list(&rbw_copy->shared->ptcaches, &rbw->shared->ptcaches, LIB_ID_COPY_CACHES);
+    BKE_ptcache_copy_list(&rbw_copy->shared->ptcaches, &rbw->shared->ptcaches, LibIdCopyCaches);
     rbw_copy->shared->pointcache = static_cast<PointCache *>(rbw_copy->shared->ptcaches.first);
     BKE_rigidbody_world_init_runtime(rbw_copy);
   }
@@ -1483,13 +1483,13 @@ void BKE_rigidbody_ensure_local_object(Main *bmain, Object *ob)
 bool BKE_rigidbody_add_object(Main *bmain, Scene *scene, Object *ob, int type, ReportList *reports)
 {
   if (ob->type != OB_MESH) {
-    BKE_report(reports, RPT_ERROR, "Cannot add Rigid Body to non mesh object");
+    BKE_report(reports, RptError, "Cannot add Rigid Body to non mesh object");
     return false;
   }
 
   /* Add object to rigid body world in scene. */
   if (!rigidbody_add_object_to_scene(bmain, scene, ob)) {
-    BKE_report(reports, RPT_ERROR, "Cannot create Rigid Body world");
+    BKE_report(reports, RptError, "Cannot create Rigid Body world");
     return false;
   }
 
@@ -1713,7 +1713,7 @@ static void rigidbody_update_sim_ob(Depsgraph *depsgraph, Object *ob, RigidBodyO
 
   /* Make transformed objects temporarily kinematic
    * so that they can be moved by the user during simulation. */
-  if (is_selected && (G.moving & G_TRANSFORM_OBJ)) {
+  if (is_selected && (G.moving & GTransformObj)) {
     RB_body_set_kinematic_state(static_cast<rbRigidBody *>(rbo->shared->physics_object), true);
     RB_body_set_mass(static_cast<rbRigidBody *>(rbo->shared->physics_object), 0.0f);
   }
@@ -1989,7 +1989,7 @@ static void rigidbody_update_external_forces(Depsgraph *depsgraph,
          *   which we don't have... */
         BKE_effectors_apply(
             effectors, nullptr, effector_weights, &epoint, eff_force, nullptr, nullptr);
-        if (G.f & G_DEBUG) {
+        if (G.f & GDebug) {
           printf("\tapplying force (%f,%f,%f) to '%s'\n",
                  eff_force[0],
                  eff_force[1],
@@ -2005,7 +2005,7 @@ static void rigidbody_update_external_forces(Depsgraph *depsgraph,
                                       eff_force);
         }
       }
-      else if (G.f & G_DEBUG) {
+      else if (G.f & GDebug) {
         printf("\tno forces to apply to '%s'\n", ob->id.name + 2);
       }
 
@@ -2036,7 +2036,7 @@ static void rigidbody_update_simulation_post_step(Depsgraph *depsgraph, RigidBod
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     RigidBodyOb *rbo = ob->rigidbody_object;
     /* Reset kinematic state for transformed objects. */
-    if (rbo && base && (base->flag & BASE_SELECTED) && (G.moving & G_TRANSFORM_OBJ) &&
+    if (rbo && base && (base->flag & BASE_SELECTED) && (G.moving & GTransformObj) &&
         rbo->shared->physics_object)
     {
       RB_body_set_kinematic_state(static_cast<rbRigidBody *>(rbo->shared->physics_object),
@@ -2067,7 +2067,7 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
 
   /* use rigid body transform after cache start frame if objects is not being transformed */
   if (BKE_rigidbody_check_sim_running(rbw, ctime) &&
-      !(ob->base_flag & BASE_SELECTED && G.moving & G_TRANSFORM_OBJ))
+      !(ob->base_flag & BASE_SELECTED && G.moving & GTransformObj))
   {
     float mat[4][4], size_mat[4][4], size[3];
 
@@ -2406,14 +2406,14 @@ void BKE_rigidbody_object_sync_transforms(Depsgraph *depsgraph, Scene *scene, Ob
 
 void BKE_rigidbody_world_id_loop(RigidBodyWorld *rbw, RigidbodyWorldIDFunc func, void *userdata)
 {
-  func(rbw, reinterpret_cast<ID **>(&rbw->group), userdata, IDWALK_CB_USER);
-  func(rbw, reinterpret_cast<ID **>(&rbw->constraints), userdata, IDWALK_CB_USER);
-  func(rbw, reinterpret_cast<ID **>(&rbw->effector_weights->group), userdata, IDWALK_CB_USER);
+  func(rbw, reinterpret_cast<ID **>(&rbw->group), userdata, IdwalkCbUser);
+  func(rbw, reinterpret_cast<ID **>(&rbw->constraints), userdata, IdwalkCbUser);
+  func(rbw, reinterpret_cast<ID **>(&rbw->effector_weights->group), userdata, IdwalkCbUser);
 
   if (rbw->objects) {
     int i;
     for (i = 0; i < rbw->numbodies; i++) {
-      func(rbw, reinterpret_cast<ID **>(&rbw->objects[i]), userdata, IDWALK_CB_NOP);
+      func(rbw, reinterpret_cast<ID **>(&rbw->objects[i]), userdata, IdwalkCbNop);
     }
   }
 }
@@ -2430,7 +2430,7 @@ static RigidBodyOb *rigidbody_copy_object(const Object *ob, const int flag)
   RigidBodyOb *rboN = nullptr;
 
   if (ob->rigidbody_object) {
-    const bool is_orig = (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) == 0;
+    const bool is_orig = (flag & LibIdCopySetCopiedOnWrite) == 0;
 
     /* just duplicate the whole struct first (to catch all the settings) */
     rboN = MEM_dupalloc(ob->rigidbody_object);
@@ -2472,7 +2472,7 @@ void BKE_rigidbody_object_copy(Main *bmain, Object *ob_dst, const Object *ob_src
   ob_dst->rigidbody_object = rigidbody_copy_object(ob_src, flag);
   ob_dst->rigidbody_constraint = rigidbody_copy_constraint(ob_src, flag);
 
-  if ((flag & (LIB_ID_CREATE_NO_MAIN | LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING)) != 0) {
+  if ((flag & (LibIdCreateNoMain | LibIdCopyRigidBodyNoCollectionHandling)) != 0) {
     return;
   }
 
@@ -2498,7 +2498,7 @@ void BKE_rigidbody_object_copy(Main *bmain, Object *ob_dst, const Object *ob_src
         }
       }
 
-      if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0 &&
+      if ((flag & LibIdCreateNoDegTag) == 0 &&
           (need_objects_update || need_constraints_update))
       {
         BKE_rigidbody_cache_reset(rigidbody_world);

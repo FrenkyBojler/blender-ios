@@ -108,20 +108,20 @@ TEST(udim, image_get_tile_strformat)
 
   /* Typical usage. */
   udim_pattern = BKE_image_get_tile_strformat("", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_NONE);
+  EXPECT_EQ(tile_format, UdimTileFormatNone);
   EXPECT_EQ(udim_pattern, nullptr);
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UNKNOWN>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_NONE);
+  EXPECT_EQ(tile_format, UdimTileFormatNone);
   EXPECT_EQ(udim_pattern, nullptr);
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UDIM>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UDIM);
+  EXPECT_EQ(tile_format, UdimTileFormatUdim);
   EXPECT_STREQ(udim_pattern, "test.%d.png");
   MEM_delete(udim_pattern);
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UVTILE);
+  EXPECT_EQ(tile_format, UdimTileFormatUvtile);
   EXPECT_STREQ(udim_pattern, "test.u%d_v%d.png");
   MEM_delete(udim_pattern);
 }
@@ -133,7 +133,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   int tile_number;
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UDIM>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UDIM);
+  EXPECT_EQ(tile_format, UdimTileFormatUdim);
   EXPECT_NE(udim_pattern, nullptr);
 
   /* Parameter validation. */
@@ -142,7 +142,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "test.1004.png", nullptr, tile_format, &tile_number));
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
-      "test.1004.png", udim_pattern, UDIM_TILE_FORMAT_NONE, &tile_number));
+      "test.1004.png", udim_pattern, UdimTileFormatNone, &tile_number));
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "test.1004.png", udim_pattern, tile_format, nullptr));
 
@@ -162,7 +162,7 @@ TEST(udim, image_get_tile_number_from_filepath)
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UVTILE);
+  EXPECT_EQ(tile_format, UdimTileFormatUvtile);
   EXPECT_NE(udim_pattern, nullptr);
 
   EXPECT_TRUE(BKE_image_get_tile_number_from_filepath(
@@ -187,7 +187,7 @@ TEST(udim, image_set_filepath_from_tile_number)
   char *udim_pattern;
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UDIM>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UDIM);
+  EXPECT_EQ(tile_format, UdimTileFormatUdim);
   EXPECT_NE(udim_pattern, nullptr);
 
   char filepath[FILE_MAX];
@@ -198,7 +198,7 @@ TEST(udim, image_set_filepath_from_tile_number)
   BKE_image_set_filepath_from_tile_number(nullptr, udim_pattern, tile_format, 1028);
   BKE_image_set_filepath_from_tile_number(filepath, nullptr, tile_format, 1028);
   EXPECT_STREQ(filepath, "xxxx");
-  BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, UDIM_TILE_FORMAT_NONE, 1028);
+  BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, UdimTileFormatNone, 1028);
   EXPECT_STREQ(filepath, "xxxx");
 
   /* UDIM tile format tests. */
@@ -208,7 +208,7 @@ TEST(udim, image_set_filepath_from_tile_number)
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
-  EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UVTILE);
+  EXPECT_EQ(tile_format, UdimTileFormatUvtile);
   EXPECT_NE(udim_pattern, nullptr);
 
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);

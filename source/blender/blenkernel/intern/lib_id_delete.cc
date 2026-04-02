@@ -111,34 +111,34 @@ static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_id
 
   if (use_flag_from_idtag) {
     if ((id->tag & ID_TAG_NO_MAIN) != 0) {
-      flag |= LIB_ID_FREE_NO_MAIN | LIB_ID_FREE_NO_UI_USER | LIB_ID_FREE_NO_DEG_TAG;
+      flag |= LibIdFreeNoMain | LibIdFreeNoUiUser | LibIdFreeNoDegTag;
     }
     else {
-      flag &= ~LIB_ID_FREE_NO_MAIN;
+      flag &= ~LibIdFreeNoMain;
     }
 
     if ((id->tag & ID_TAG_NO_USER_REFCOUNT) != 0) {
-      flag |= LIB_ID_FREE_NO_USER_REFCOUNT;
+      flag |= LibIdFreeNoUserRefcount;
     }
     else {
-      flag &= ~LIB_ID_FREE_NO_USER_REFCOUNT;
+      flag &= ~LibIdFreeNoUserRefcount;
     }
 
     if ((id->tag & ID_TAG_NOT_ALLOCATED) != 0) {
-      flag |= LIB_ID_FREE_NOT_ALLOCATED;
+      flag |= LibIdFreeNotAllocated;
     }
     else {
-      flag &= ~LIB_ID_FREE_NOT_ALLOCATED;
+      flag &= ~LibIdFreeNotAllocated;
     }
   }
 
-  BLI_assert((flag & LIB_ID_FREE_NO_MAIN) != 0 || bmain != nullptr);
-  BLI_assert((flag & LIB_ID_FREE_NO_MAIN) != 0 || (flag & LIB_ID_FREE_NOT_ALLOCATED) == 0);
-  BLI_assert((flag & LIB_ID_FREE_NO_MAIN) != 0 || (flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0);
+  BLI_assert((flag & LibIdFreeNoMain) != 0 || bmain != nullptr);
+  BLI_assert((flag & LibIdFreeNoMain) != 0 || (flag & LibIdFreeNotAllocated) == 0);
+  BLI_assert((flag & LibIdFreeNoMain) != 0 || (flag & LibIdFreeNoUserRefcount) == 0);
 
   const short type = GS(id->name);
 
-  if (bmain && (flag & LIB_ID_FREE_NO_DEG_TAG) == 0) {
+  if (bmain && (flag & LibIdFreeNoDegTag) == 0) {
     BLI_assert(bmain->is_locked_for_linking == false);
 
     DEG_id_type_tag(bmain, type);
@@ -146,24 +146,24 @@ static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_id
 
   BKE_libblock_free_data_py(id);
 
-  Key *key = ((flag & LIB_ID_FREE_NO_MAIN) == 0) ? BKE_key_from_id(id) : nullptr;
+  Key *key = ((flag & LibIdFreeNoMain) == 0) ? BKE_key_from_id(id) : nullptr;
 
-  if ((flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0) {
-    BKE_libblock_relink_ex(bmain, id, nullptr, nullptr, ID_REMAP_SKIP_USER_CLEAR);
+  if ((flag & LibIdFreeNoUserRefcount) == 0) {
+    BKE_libblock_relink_ex(bmain, id, nullptr, nullptr, IdRemapSkipUserClear);
   }
 
-  if ((flag & LIB_ID_FREE_NO_MAIN) == 0 && key != nullptr) {
+  if ((flag & LibIdFreeNoMain) == 0 && key != nullptr) {
     id_free(bmain, &key->id, flag, use_flag_from_idtag);
   }
 
   BKE_libblock_free_datablock(id, flag);
 
   /* avoid notifying on removed data */
-  if ((flag & LIB_ID_FREE_NO_MAIN) == 0) {
+  if ((flag & LibIdFreeNoMain) == 0) {
     BKE_main_lock(bmain);
   }
 
-  if ((flag & LIB_ID_FREE_NO_UI_USER) == 0) {
+  if ((flag & LibIdFreeNoUiUser) == 0) {
     if (free_notifier_reference_cb) {
       free_notifier_reference_cb(id);
     }
@@ -175,21 +175,21 @@ static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_id
     }
   }
 
-  if ((flag & LIB_ID_FREE_NO_MAIN) == 0) {
+  if ((flag & LibIdFreeNoMain) == 0) {
     ListBaseT<ID> *lb = which_libbase(bmain, type);
     BLI_remlink(lb, id);
-    if ((flag & LIB_ID_FREE_NO_NAMEMAP_REMOVE) == 0) {
+    if ((flag & LibIdFreeNoNamemapRemove) == 0) {
       BKE_main_namemap_remove_id(*bmain, *id);
     }
   }
 
-  BKE_libblock_free_data(id, (flag & LIB_ID_FREE_NO_USER_REFCOUNT) == 0);
+  BKE_libblock_free_data(id, (flag & LibIdFreeNoUserRefcount) == 0);
 
-  if ((flag & LIB_ID_FREE_NO_MAIN) == 0) {
+  if ((flag & LibIdFreeNoMain) == 0) {
     BKE_main_unlock(bmain);
   }
 
-  if ((flag & LIB_ID_FREE_NOT_ALLOCATED) == 0) {
+  if ((flag & LibIdFreeNotAllocated) == 0) {
     MEM_delete(id);
   }
 
@@ -201,7 +201,7 @@ void BKE_id_free_ex(Main *bmain, void *idv, const int flag_orig, const bool use_
   /* ViewLayer resync needs to be delayed during Scene freeing, since internal relationships
    * between the Scene's master collection and its view_layers become invalid
    * (due to remapping). */
-  if (bmain && (flag_orig & LIB_ID_FREE_NO_MAIN) == 0) {
+  if (bmain && (flag_orig & LibIdFreeNoMain) == 0) {
     BKE_layer_collection_resync_forbid(*bmain);
   }
 
@@ -210,11 +210,11 @@ void BKE_id_free_ex(Main *bmain, void *idv, const int flag_orig, const bool use_
   int flag_final = id_free(bmain, idv, flag_orig, use_flag_from_idtag);
 
   if (bmain) {
-    if ((flag_orig & LIB_ID_FREE_NO_MAIN) == 0) {
+    if ((flag_orig & LibIdFreeNoMain) == 0) {
       BKE_layer_collection_resync_allow(*bmain);
     }
 
-    if ((flag_final & LIB_ID_FREE_NO_MAIN) == 0) {
+    if ((flag_final & LibIdFreeNoMain) == 0) {
       if (ELEM(id_type, ID_SCE, ID_GR, ID_OB)) {
         BKE_main_collection_sync_remap(bmain);
       }
@@ -265,10 +265,10 @@ static size_t id_delete(Main *bmain, Set<ID *> &ids_to_delete, const int extra_r
   /* Used by batch tagged deletion, when we call BKE_id_free then, id is no more in Main database,
    * and has already properly unlinked its other IDs usages.
    * UI users are always cleared in BKE_libblock_remap_locked() call, so we can always skip it. */
-  const int free_flag = LIB_ID_FREE_NO_UI_USER | LIB_ID_FREE_NO_MAIN |
-                        LIB_ID_FREE_NO_USER_REFCOUNT;
-  const int remapping_flags = (ID_REMAP_STORE_NEVER_NULL_USAGE | ID_REMAP_FORCE_NEVER_NULL_USAGE |
-                               ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS | extra_remapping_flags);
+  const int free_flag = LibIdFreeNoUiUser | LibIdFreeNoMain |
+                        LibIdFreeNoUserRefcount;
+  const int remapping_flags = (IdRemapStoreNeverNullUsage | IdRemapForceNeverNullUsage |
+                               IdRemapForceInternalRuntimePointers | extra_remapping_flags);
 
   MainListsArray lbarray = BKE_main_lists_get(*bmain);
   const int base_count = lbarray.size();
@@ -348,9 +348,9 @@ static size_t id_delete(Main *bmain, Set<ID *> &ids_to_delete, const int extra_r
   BKE_libblock_relink_multiple(
       bmain,
       cleanup_ids,
-      ID_REMAP_TYPE_CLEANUP,
+      IdRemapTypeCleanup,
       id_remapper,
-      (ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS | ID_REMAP_SKIP_USER_CLEAR));
+      (IdRemapForceInternalRuntimePointers | IdRemapSkipUserClear));
   cleanup_ids.clear();
 
   /* Now we can safely mark that ID as not being in Main database anymore. */

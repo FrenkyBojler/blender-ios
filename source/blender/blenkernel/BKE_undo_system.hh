@@ -94,15 +94,15 @@ struct UndoStep {
 };
 
 enum eUndoStepDir {
-  STEP_REDO = 1,
-  STEP_UNDO = -1,
-  STEP_INVALID = 0,
+  StepRedo = 1,
+  StepUndo = -1,
+  StepInvalid = 0,
 };
 
 enum eUndoPushReturn {
-  UNDO_PUSH_RET_FAILURE = 0,
-  UNDO_PUSH_RET_SUCCESS = (1 << 0),
-  UNDO_PUSH_RET_OVERRIDE_CHANGED = (1 << 1),
+  UndoPushRetFailure = 0,
+  UndoPushRetSuccess = (1 << 0),
+  UndoPushRetOverrideChanged = (1 << 1),
 };
 ENUM_OPERATORS(eUndoPushReturn)
 
@@ -174,14 +174,14 @@ enum eUndoTypeFlags {
    * This undo type `encode` callback needs a valid context, it will fail otherwise.
    * \note Callback is still supposed to properly deal with a null context pointer.
    */
-  UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE = 1 << 0,
+  UndotypeFlagNeedContextForEncode = 1 << 0,
 
   /**
    * When the active undo step is of this type, it must be read before loading other undo steps.
    *
    * This is typically used for undo systems that store both before/after states.
    */
-  UNDOTYPE_FLAG_DECODE_ACTIVE_STEP = 1 << 1,
+  UndotypeFlagDecodeActiveStep = 1 << 1,
 };
 
 /* -------------------------------------------------------------------- */

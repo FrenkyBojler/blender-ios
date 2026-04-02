@@ -665,7 +665,7 @@ static int cloth_collision_response_static(ClothModifierData *clmd,
     zero_v3(i3);
 
     /* Only handle static collisions here. */
-    if (collpair->flag & (COLLISION_IN_FUTURE | COLLISION_INACTIVE)) {
+    if (collpair->flag & (CollisionInFuture | CollisionInactive)) {
       continue;
     }
 
@@ -807,7 +807,7 @@ static int cloth_selfcollision_response_static(ClothModifierData *clmd,
     float v1[3], v2[3], relativeVelocity[3];
 
     /* Only handle static collisions here. */
-    if (collpair->flag & (COLLISION_IN_FUTURE | COLLISION_INACTIVE)) {
+    if (collpair->flag & (CollisionInFuture | CollisionInactive)) {
       continue;
     }
 
@@ -951,7 +951,7 @@ static bool cloth_bvh_collision_is_active(const ClothModifierData * /*clmd*/,
   const int flags_a = verts[vert_tri_a[0]].flags & verts[vert_tri_a[1]].flags &
                       verts[vert_tri_a[2]].flags;
 
-  if (flags_a & (CLOTH_VERT_FLAG_PINNED | CLOTH_VERT_FLAG_NOOBJCOLL)) {
+  if (flags_a & (ClothVertFlagPinned | ClothVertFlagNoobjcoll)) {
     return false;
   }
 
@@ -1027,7 +1027,7 @@ static void cloth_collision(void *__restrict userdata,
                                   &collpair[index].bw3);
   }
   else {
-    collpair[index].flag = COLLISION_INACTIVE;
+    collpair[index].flag = CollisionInactive;
   }
 }
 
@@ -1044,12 +1044,12 @@ static bool cloth_bvh_selfcollision_is_active(const ClothModifierData *clmd,
   const int flags_b = verts[vert_tri_b[0]].flags & verts[vert_tri_b[1]].flags &
                       verts[vert_tri_b[2]].flags;
 
-  if ((flags_a | flags_b) & CLOTH_VERT_FLAG_NOSELFCOLL) {
+  if ((flags_a | flags_b) & ClothVertFlagNoselfcoll) {
     return false;
   }
 
   /* Skip when both triangles are pinned. */
-  if ((flags_a & flags_b) & CLOTH_VERT_FLAG_PINNED) {
+  if ((flags_a & flags_b) & ClothVertFlagPinned) {
     return false;
   }
 
@@ -1149,7 +1149,7 @@ static void cloth_selfcollision(void *__restrict userdata,
                                   &collpair[index].bw3);
   }
   else {
-    collpair[index].flag = COLLISION_INACTIVE;
+    collpair[index].flag = CollisionInactive;
   }
 }
 
@@ -1220,7 +1220,7 @@ static void hair_collision(void *__restrict userdata,
                                   &collpair[index].bw3);
   }
   else {
-    collpair[index].flag = COLLISION_INACTIVE;
+    collpair[index].flag = CollisionInactive;
   }
 }
 
@@ -1688,7 +1688,7 @@ int cloth_bvh_collision(
     if (ret2) {
       for (i = 0; i < mvert_num; i++) {
         if (clmd->sim_parms->vgroup_mass > 0) {
-          if (verts[i].flags & CLOTH_VERT_FLAG_PINNED) {
+          if (verts[i].flags & ClothVertFlagPinned) {
             continue;
           }
         }

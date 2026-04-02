@@ -86,11 +86,11 @@ struct BVHTreeOverlap *BKE_bmbvh_overlap_self(const BMBVHTree *bmtree,
 /** #BKE_bmbvh_new flag parameter. */
 enum {
   /** Use with 'cos_cage', returns hits in relation to original geometry. */
-  BMBVH_RETURN_ORIG = (1 << 0),
+  BmbvhReturnOrig = (1 << 0),
   /** Restrict to hidden geometry (overrides BMBVH_RESPECT_HIDDEN). */
-  BMBVH_RESPECT_SELECT = (1 << 1),
+  BmbvhRespectSelect = (1 << 1),
   /** Omit hidden geometry. */
-  BMBVH_RESPECT_HIDDEN = (1 << 2),
+  BmbvhRespectHidden = (1 << 2),
 };
 
 }  // namespace blender

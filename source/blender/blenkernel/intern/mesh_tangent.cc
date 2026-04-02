@@ -96,7 +96,7 @@ void calc_uv_tangent_tris_quads(const Span<float3> vert_positions,
   for (const int64_t i : faces.index_range()) {
     if (faces[i].size() > 4) {
       BKE_report(
-          reports, RPT_ERROR, "Tangent space can only be computed for tris/quads, aborting");
+          reports, RptError, "Tangent space can only be computed for tris/quads, aborting");
       return;
     }
   }

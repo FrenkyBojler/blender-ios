@@ -244,17 +244,17 @@ PackedFile *BKE_packedfile_new(ReportList *reports, const char *filepath_rel, co
 
   const int file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
   if (file == -1) {
-    BKE_reportf(reports, RPT_ERROR, "Unable to pack file, source path '%s' not found", filepath);
+    BKE_reportf(reports, RptError, "Unable to pack file, source path '%s' not found", filepath);
     return nullptr;
   }
 
   PackedFile *pf = nullptr;
   const size_t file_size = BLI_file_descriptor_size(file);
   if (file_size == size_t(-1)) {
-    BKE_reportf(reports, RPT_ERROR, "Unable to access the size of, source path '%s'", filepath);
+    BKE_reportf(reports, RptError, "Unable to access the size of, source path '%s'", filepath);
   }
-  else if (file_size > PACKED_FILE_MAX_SIZE) {
-    BKE_reportf(reports, RPT_ERROR, "Unable to pack files over 2gb, source path '%s'", filepath);
+  else if (file_size > packed_file_max_size) {
+    BKE_reportf(reports, RptError, "Unable to pack files over 2gb, source path '%s'", filepath);
   }
   else {
     /* #MEM_new_uninitialized complains about `MEM_new_uninitialized(0, "...")`,
@@ -293,7 +293,7 @@ void BKE_packedfile_pack_all(Main *bmain, ReportList *reports, bool verbose)
       }
       else if (ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE) && verbose) {
         BKE_reportf(reports,
-                    RPT_WARNING,
+                    RptWarning,
                     "Image '%s' skipped, packing movies or image sequences not supported",
                     ima->id.name + 2);
       }
@@ -347,10 +347,10 @@ void BKE_packedfile_pack_all(Main *bmain, ReportList *reports, bool verbose)
   }
 
   if (tot > 0) {
-    BKE_reportf(reports, RPT_INFO, "Packed %d file(s)", tot);
+    BKE_reportf(reports, RptInfo, "Packed %d file(s)", tot);
   }
   else if (verbose) {
-    BKE_report(reports, RPT_INFO, "No new files have been packed");
+    BKE_report(reports, RptInfo, "No new files have been packed");
   }
 }
 
@@ -385,16 +385,16 @@ int BKE_packedfile_write_to_file(ReportList *reports,
 
   file = BLI_open(filepath, O_BINARY + O_WRONLY + O_CREAT + O_TRUNC, 0666);
   if (file == -1) {
-    BKE_reportf(reports, RPT_ERROR, "Error creating file '%s'", filepath);
+    BKE_reportf(reports, RptError, "Error creating file '%s'", filepath);
     ret_value = RET_ERROR;
   }
   else {
     if (write(file, pf->data, pf->size) != pf->size) {
-      BKE_reportf(reports, RPT_ERROR, "Error writing file '%s'", filepath);
+      BKE_reportf(reports, RptError, "Error writing file '%s'", filepath);
       ret_value = RET_ERROR;
     }
     else {
-      BKE_reportf(reports, RPT_INFO, "Saved packed file to: %s", filepath);
+      BKE_reportf(reports, RptInfo, "Saved packed file to: %s", filepath);
     }
 
     close(file);
@@ -404,7 +404,7 @@ int BKE_packedfile_write_to_file(ReportList *reports,
     if (ret_value == RET_ERROR) {
       if (BLI_rename_overwrite(filepath_temp, filepath) != 0) {
         BKE_reportf(reports,
-                    RPT_ERROR,
+                    RptError,
                     "Error restoring temp file (check files '%s' '%s')",
                     filepath_temp,
                     filepath);
@@ -412,7 +412,7 @@ int BKE_packedfile_write_to_file(ReportList *reports,
     }
     else {
       if (BLI_delete(filepath_temp, false, false) != 0) {
-        BKE_reportf(reports, RPT_ERROR, "Error deleting '%s' (ignored)", filepath_temp);
+        BKE_reportf(reports, RptError, "Error deleting '%s' (ignored)", filepath_temp);
       }
     }
   }
@@ -433,20 +433,20 @@ enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
   BLI_path_abs(filepath, ref_file_name);
 
   if (BLI_stat(filepath, &st) == -1) {
-    ret_val = PF_CMP_NOFILE;
+    ret_val = PfCmpNofile;
   }
   else if (st.st_size != pf->size) {
-    ret_val = PF_CMP_DIFFERS;
+    ret_val = PfCmpDiffers;
   }
   else {
     /* we'll have to compare the two... */
 
     const int file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
     if (file == -1) {
-      ret_val = PF_CMP_NOFILE;
+      ret_val = PfCmpNofile;
     }
     else {
-      ret_val = PF_CMP_EQUAL;
+      ret_val = PfCmpEqual;
 
       for (int i = 0; i < pf->size; i += sizeof(buf)) {
         int len = pf->size - i;
@@ -454,12 +454,12 @@ enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
 
         if (BLI_read(file, buf, len) != len) {
           /* read error ... */
-          ret_val = PF_CMP_DIFFERS;
+          ret_val = PfCmpDiffers;
           break;
         }
 
         if (memcmp(buf, (static_cast<const char *>(pf->data)) + i, len) != 0) {
-          ret_val = PF_CMP_DIFFERS;
+          ret_val = PfCmpDiffers;
           break;
         }
       }
@@ -483,12 +483,12 @@ char *BKE_packedfile_unpack_to_file(ReportList *reports,
 
   if (pf != nullptr) {
     switch (how) {
-      case PF_KEEP:
+      case PfKeep:
         break;
-      case PF_REMOVE:
+      case PfRemove:
         temp = abs_name;
         break;
-      case PF_USE_LOCAL: {
+      case PfUseLocal: {
         char temp_abs[FILE_MAX];
 
         STRNCPY(temp_abs, local_name);
@@ -502,12 +502,12 @@ char *BKE_packedfile_unpack_to_file(ReportList *reports,
         /* else create it */
         ATTR_FALLTHROUGH;
       }
-      case PF_WRITE_LOCAL:
+      case PfWriteLocal:
         if (BKE_packedfile_write_to_file(reports, ref_file_name, local_name, pf) == RET_OK) {
           temp = local_name;
         }
         break;
-      case PF_USE_ORIGINAL: {
+      case PfUseOriginal: {
         char temp_abs[FILE_MAX];
 
         STRNCPY(temp_abs, abs_name);
@@ -515,14 +515,14 @@ char *BKE_packedfile_unpack_to_file(ReportList *reports,
 
         /* if file exists use it */
         if (BLI_exists(temp_abs)) {
-          BKE_reportf(reports, RPT_INFO, "Use existing file (instead of packed): %s", abs_name);
+          BKE_reportf(reports, RptInfo, "Use existing file (instead of packed): %s", abs_name);
           temp = abs_name;
           break;
         }
         /* else create it */
         ATTR_FALLTHROUGH;
       }
-      case PF_WRITE_ORIGINAL:
+      case PfWriteOriginal:
         if (BKE_packedfile_write_to_file(reports, ref_file_name, abs_name, pf) == RET_OK) {
           temp = abs_name;
         }
@@ -714,7 +714,7 @@ int BKE_packedfile_unpack_image(Main *bmain,
         }
 
         /* keep the new name in the image for non-pack specific reasons */
-        if (how != PF_REMOVE) {
+        if (how != PfRemove) {
           STRNCPY(ima->filepath, new_file_path);
           if (ima->source == IMA_SRC_TILED) {
             /* Ensure that the Image filepath is kept in a tokenized format. */
@@ -781,7 +781,7 @@ int BKE_packedfile_unpack_all_libraries(Main *bmain, ReportList *reports)
                                               lib->runtime->filepath_abs,
                                               lib->runtime->filepath_abs,
                                               lib->packedfile,
-                                              PF_WRITE_ORIGINAL);
+                                              PfWriteOriginal);
       if (newname != nullptr) {
         ret_value = RET_OK;
 
@@ -820,7 +820,7 @@ void BKE_packedfile_pack_all_libraries(Main *bmain, ReportList *reports)
   }
 
   if (lib) {
-    BKE_reportf(reports, RPT_ERROR, "Cannot pack absolute file: '%s'", lib->filepath);
+    BKE_reportf(reports, RptError, "Cannot pack absolute file: '%s'", lib->filepath);
     return;
   }
 
@@ -956,7 +956,7 @@ void BKE_packedfile_id_unpack(Main *bmain, ID *id, ReportList *reports, enum ePF
     }
     case ID_LI: {
       Library *li = id_cast<Library *>(id);
-      BKE_reportf(reports, RPT_ERROR, "Cannot unpack individual Library file, '%s'", li->filepath);
+      BKE_reportf(reports, RptError, "Cannot unpack individual Library file, '%s'", li->filepath);
       break;
     }
     default:

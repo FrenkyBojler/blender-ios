@@ -177,7 +177,7 @@ static void image_copy_data(Main * /*bmain*/,
 
   BLI_duplicatelist(&image_dst->tiles, &image_src->tiles);
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&image_dst->id, &image_src->id);
   }
   else {
@@ -267,7 +267,7 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   Image *ima = id_cast<Image *>(id);
   const eBPathForeachFlag flag = bpath_data->flag;
 
-  if (BKE_image_has_packedfile(ima) && (flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0) {
+  if (BKE_image_has_packedfile(ima) && (flag & BkeBpathForeachPathSkipPacked) != 0) {
     return;
   }
   /* Skip empty file paths, these are typically from generated images and
@@ -283,7 +283,7 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   /* If this is a tiled image, and we're asked to resolve the tokens in the virtual
    * filepath, use the first tile to generate a concrete path for use during processing. */
   bool result = false;
-  if (ima->source == IMA_SRC_TILED && (flag & BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN) != 0) {
+  if (ima->source == IMA_SRC_TILED && (flag & BkeBpathForeachPathResolveToken) != 0) {
     char temp_path[FILE_MAX], orig_file[FILE_MAXFILE];
     STRNCPY(temp_path, ima->filepath);
     BLI_path_split_file_part(temp_path, orig_file, sizeof(orig_file));
@@ -311,7 +311,7 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 
   if (result) {
-    if (flag & BKE_BPATH_FOREACH_PATH_RELOAD_EDITED) {
+    if (flag & BkeBpathForeachPathReloadEdited) {
       if (!BKE_image_has_packedfile(ima) &&
           /* Image may have been painted onto (and not saved, #44543). */
           !BKE_image_is_dirty(ima))
@@ -431,7 +431,7 @@ IDTypeInfo IDType_ID_IM = {
     .name = "Image",
     .name_plural = "images",
     .translation_context = BLT_I18NCONTEXT_ID_IMAGE,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsNoAnimdata | IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = image_init_data,
@@ -1501,10 +1501,10 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
   const int tot_viewfiles = image_num_viewfiles(ima);
 
   if (tot_viewfiles != 1) {
-    BKE_report(reports, RPT_ERROR, "Cannot pack multiview images from raw data currently...");
+    BKE_report(reports, RptError, "Cannot pack multiview images from raw data currently...");
   }
   else if (ima->source == IMA_SRC_TILED) {
-    BKE_report(reports, RPT_ERROR, "Cannot pack tiled images from raw data currently...");
+    BKE_report(reports, RptError, "Cannot pack tiled images from raw data currently...");
   }
   else {
     ImagePackedFile *imapf = MEM_new<ImagePackedFile>(__func__);
@@ -3650,15 +3650,15 @@ char *BKE_image_get_tile_strformat(const char *filepath, eUDIM_TILE_FORMAT *r_ti
   }
 
   if (strstr(filepath, "<UDIM>") != nullptr) {
-    *r_tile_format = UDIM_TILE_FORMAT_UDIM;
+    *r_tile_format = UdimTileFormatUdim;
     return BLI_string_replaceN(filepath, "<UDIM>", "%d");
   }
   if (strstr(filepath, "<UVTILE>") != nullptr) {
-    *r_tile_format = UDIM_TILE_FORMAT_UVTILE;
+    *r_tile_format = UdimTileFormatUvtile;
     return BLI_string_replaceN(filepath, "<UVTILE>", "u%d_v%d");
   }
 
-  *r_tile_format = UDIM_TILE_FORMAT_NONE;
+  *r_tile_format = UdimTileFormatNone;
   return nullptr;
 }
 
@@ -3674,13 +3674,13 @@ bool BKE_image_get_tile_number_from_filepath(const char *filepath,
   int u, v;
   bool result = false;
 
-  if (tile_format == UDIM_TILE_FORMAT_UDIM) {
+  if (tile_format == UdimTileFormatUdim) {
     if (sscanf(filepath, pattern, &u) == 1) {
       *r_tile_number = u;
       result = true;
     }
   }
-  else if (tile_format == UDIM_TILE_FORMAT_UVTILE) {
+  else if (tile_format == UdimTileFormatUvtile) {
     if (sscanf(filepath, pattern, &u, &v) == 2) {
       *r_tile_number = 1001 + (u - 1) + ((v - 1) * 10);
       result = true;
@@ -3699,10 +3699,10 @@ void BKE_image_set_filepath_from_tile_number(char *filepath,
     return;
   }
 
-  if (tile_format == UDIM_TILE_FORMAT_UDIM) {
+  if (tile_format == UdimTileFormatUdim) {
     BLI_snprintf(filepath, FILE_MAX, pattern, tile_number);
   }
-  else if (tile_format == UDIM_TILE_FORMAT_UVTILE) {
+  else if (tile_format == UdimTileFormatUvtile) {
     int u = ((tile_number - 1001) % 10);
     int v = ((tile_number - 1001) / 10);
     BLI_snprintf(filepath, FILE_MAX, pattern, u + 1, v + 1);
@@ -4258,7 +4258,7 @@ static ImBuf *load_image_single(Image *ima,
       image_init_after_load(ima, iuser, ibuf);
 
       /* Make packed file for auto-pack. */
-      if (!is_sequence && (has_packed == false) && (G.fileflags & G_FILE_AUTOPACK)) {
+      if (!is_sequence && (has_packed == false) && (G.fileflags & GFileAutopack)) {
         ImagePackedFile *imapf = MEM_new<ImagePackedFile>("Image Pack-file");
         BLI_addtail(&ima->packedfiles, imapf);
 
@@ -5139,7 +5139,7 @@ void BKE_image_user_frame_calc(Image *ima, ImageUser *iuser, int cfra)
       /* NOTE: a single texture and refresh doesn't really work when
        * multiple image users may use different frames, this is to
        * be improved with perhaps a GPU texture cache. */
-      if (ima->runtime->gpuframenr != IMAGE_GPU_FRAME_NONE) {
+      if (ima->runtime->gpuframenr != image_gpu_frame_none) {
         BKE_image_partial_update_mark_full_update(ima);
       }
       ima->runtime->gpuframenr = iuser->framenr;

@@ -29,7 +29,7 @@
 
 namespace blender {
 
-static constexpr int MASK_RESOL_MAX = 128;
+static constexpr int mask_resol_max = 128;
 
 int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 {
@@ -62,12 +62,12 @@ int BKE_mask_spline_resolution(MaskSpline *spline, int width, int height)
 
     resol = std::max(resol, cur_resol);
 
-    if (resol >= MASK_RESOL_MAX) {
+    if (resol >= mask_resol_max) {
       break;
     }
   }
 
-  return std::clamp(resol, 1, MASK_RESOL_MAX);
+  return std::clamp(resol, 1, mask_resol_max);
 }
 
 uint BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int height)
@@ -77,8 +77,8 @@ uint BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int heigh
   float max_jump = 0.0f;
 
   /* Avoid checking the feather if we already hit the maximum value. */
-  if (resol >= MASK_RESOL_MAX) {
-    return MASK_RESOL_MAX;
+  if (resol >= mask_resol_max) {
+    return mask_resol_max;
   }
 
   for (int i = 0; i < spline->tot_point; i++) {
@@ -106,7 +106,7 @@ uint BKE_mask_spline_feather_resolution(MaskSpline *spline, int width, int heigh
 
   resol += max_jump / max_segment;
 
-  return std::clamp(resol, 1, MASK_RESOL_MAX);
+  return std::clamp(resol, 1, mask_resol_max);
 }
 
 int BKE_mask_spline_differentiate_calc_total(const MaskSpline *spline, const uint resol)

@@ -197,14 +197,14 @@ static bool name_valid_for_builtin_domain_and_type(const bke::AttributeAccessor 
   if (const std::optional metadata = attributes.get_builtin_domain_and_type(name)) {
     if (domain != metadata->domain) {
       BKE_reportf(reports,
-                  RPT_ERROR,
+                  RptError,
                   "Domain unsupported for \"%s\" attribute",
                   std::string(name).c_str());
       return false;
     }
     if (data_type != metadata->data_type) {
       BKE_reportf(
-          reports, RPT_ERROR, "Type unsupported for \"%s\" attribute", std::string(name).c_str());
+          reports, RptError, "Type unsupported for \"%s\" attribute", std::string(name).c_str());
       return false;
     }
   }
@@ -219,7 +219,7 @@ static bool mesh_attribute_valid(const Mesh &mesh,
 {
   if (mesh.runtime->edit_mesh) {
     if (BM_attribute_stored_in_bmesh_builtin(name)) {
-      BKE_report(reports, RPT_ERROR, "Unable to create attribute in edit mode");
+      BKE_report(reports, RptError, "Unable to create attribute in edit mode");
       return false;
     }
   }
@@ -240,7 +240,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
     return false;
   }
   if (new_name.is_empty()) {
-    BKE_report(reports, RPT_ERROR, "Attribute name cannot be empty");
+    BKE_report(reports, RptError, "Attribute name cannot be empty");
     return false;
   }
 
@@ -262,7 +262,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
 
       BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, old_name);
       if (!attr) {
-        BKE_report(reports, RPT_ERROR, "Attribute is not part of this geometry");
+        BKE_report(reports, RptError, "Attribute is not part of this geometry");
         return false;
       }
 
@@ -299,7 +299,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
   bke::AttributeStorage &attributes = *owner.get_storage();
   bke::Attribute *attr = attributes.lookup(old_name);
   if (!attr) {
-    BKE_report(reports, RPT_ERROR, "Attribute is not part of this geometry");
+    BKE_report(reports, RptError, "Attribute is not part of this geometry");
     return false;
   }
 
@@ -388,7 +388,7 @@ CustomDataLayer *BKE_attribute_new(Mesh &mesh,
 
   CustomData *customdata = info[int(domain)].customdata;
   if (customdata == nullptr) {
-    BKE_report(reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
+    BKE_report(reports, RptError, "Attribute domain not supported by this geometry type");
     return nullptr;
   }
 
@@ -440,11 +440,11 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
 {
   using namespace blender::bke;
   if (name.is_empty()) {
-    BKE_report(reports, RPT_ERROR, "The attribute name must not be empty");
+    BKE_report(reports, RptError, "The attribute name must not be empty");
     return false;
   }
   if (BKE_attribute_required(owner, name)) {
-    BKE_report(reports, RPT_ERROR, "Attribute is required and cannot be removed");
+    BKE_report(reports, RptError, "Attribute is required and cannot be removed");
     return false;
   }
 
@@ -591,7 +591,7 @@ int BKE_attributes_length(const AttributeOwner &owner,
     }
   }
   const bke::AttributeStorage &storage = *owner.get_storage();
-  if (include_anonymous && domain_mask == ATTR_DOMAIN_MASK_ALL && mask == CD_MASK_PROP_ALL) {
+  if (include_anonymous && domain_mask == AttrDomainMaskAll && mask == CD_MASK_PROP_ALL) {
     return storage.count();
   }
   return std::count_if(storage.begin(), storage.end(), [&](const bke::Attribute &attr) {
@@ -669,7 +669,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      if (active_index > BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL)) {
+      if (active_index > BKE_attributes_length(owner, AttrDomainMaskAll, CD_MASK_PROP_ALL)) {
         active_index = 0;
       }
       const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
@@ -709,7 +709,7 @@ void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
       const int index = BKE_attribute_to_index(
-          owner, name, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
+          owner, name, AttrDomainMaskAll, CD_MASK_PROP_ALL);
       *BKE_attributes_active_index_p(owner) = index;
       return;
     }
@@ -782,7 +782,7 @@ std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
   }
 
   bke::AttributeStorage &storage = *owner.get_storage();
-  if (domain_mask == ATTR_DOMAIN_MASK_ALL && layer_mask == CD_MASK_PROP_ALL) {
+  if (domain_mask == AttrDomainMaskAll && layer_mask == CD_MASK_PROP_ALL) {
     return storage.at_index(lookup_index).name();
   }
   int index = 0;
@@ -838,7 +838,7 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
   }
 
   const bke::AttributeStorage &storage = *owner.get_storage();
-  if (domain_mask == ATTR_DOMAIN_MASK_ALL && layer_mask == CD_MASK_PROP_ALL) {
+  if (domain_mask == AttrDomainMaskAll && layer_mask == CD_MASK_PROP_ALL) {
     return storage.index_of(name);
   }
   int index = 0;

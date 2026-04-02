@@ -107,7 +107,7 @@ struct PTCacheFile {
 #define PTCACHE_VEL_PER_SEC 1
 
 enum {
-  PTCACHE_FILE_PTCACHE = 0,
+  PtcacheFilePtcache = 0,
 };
 
 struct PTCacheID {
@@ -237,7 +237,7 @@ enum {
   /* Modifier stack got evaluated during particle edit mode, need to copy
    * new evaluated particles to the edit struct.
    */
-  PT_CACHE_EDIT_UPDATE_PARTICLE_FROM_EVAL = (1 << 0),
+  PtCacheEditUpdateParticleFromEval = (1 << 0),
 };
 
 struct PTCacheEdit {

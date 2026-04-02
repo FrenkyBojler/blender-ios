@@ -43,13 +43,13 @@ struct NlaEvalStrip {
 /** #NlaEvalStrip::strip_mode. */
 enum eNlaEvalStrip_StripMode {
   /* standard evaluation */
-  NES_TIME_BEFORE = -1,
-  NES_TIME_WITHIN,
-  NES_TIME_AFTER,
+  NesTimeBefore = -1,
+  NesTimeWithin,
+  NesTimeAfter,
 
   /* transition-strip evaluations */
-  NES_TIME_TRANSITION_START,
-  NES_TIME_TRANSITION_END,
+  NesTimeTransitionStart,
+  NesTimeTransitionEnd,
 };
 
 struct NlaEvalChannel;
@@ -99,10 +99,10 @@ struct NlaEvalChannelSnapshot {
 
 /** #NlaEvalChannel::mix_mode */
 enum eNlaEvalChannel_MixMode {
-  NEC_MIX_ADD,
-  NEC_MIX_MULTIPLY,
-  NEC_MIX_QUATERNION,
-  NEC_MIX_AXIS_ANGLE,
+  NecMixAdd,
+  NecMixMultiply,
+  NecMixQuaternion,
+  NecMixAxisAngle,
 };
 
 /**
@@ -202,16 +202,16 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
 
 enum eNlaStripEvaluate_Mode {
   /** Blend upper strip with lower stack. */
-  STRIP_EVAL_BLEND,
+  StripEvalBlend,
   /** Given upper strip and blended snapshot, solve for lower stack. */
-  STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT,
+  StripEvalBlendGetInvertedLowerSnapshot,
   /**
    * Store strip fcurve values in snapshot, properly marking blend_domain values.
    *
    * Currently only used for transitions to distinguish fcurve sampled values from default or lower
    * stack values.
    */
-  STRIP_EVAL_NOBLEND,
+  StripEvalNoblend,
 };
 
 void nlastrip_evaluate(const int evaluation_mode,

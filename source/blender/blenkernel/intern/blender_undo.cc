@@ -60,7 +60,7 @@ bool BKE_memfile_undo_decode(MemFileUndoData *mfu,
   STRNCPY(mainstr, BKE_main_blendfile_path(bmain)); /* temporal store */
 
   fileflags = G.fileflags;
-  G.fileflags |= G_FILE_NO_UI;
+  G.fileflags |= GFileNoUi;
 
   if (UNDO_DISK) {
     const BlendFileReadParams params{};
@@ -105,7 +105,7 @@ MemFileUndoData *BKE_memfile_undo_encode(Main *bmain, MemFileUndoData *mfu_prev)
   /* This flag used to be set because the undo step was written as #BLENDER_QUIT_FILE. It's not
    * clear whether there are still good reasons to keep it. Undo can also be thought of as a kind
    * of recovery, so better keep it for now. */
-  const int fileflags = G.fileflags | G_FILE_RECOVER_WRITE;
+  const int fileflags = G.fileflags | GFileRecoverWrite;
 
   /* disk save version */
   if (UNDO_DISK) {

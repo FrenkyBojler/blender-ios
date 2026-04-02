@@ -1169,7 +1169,7 @@ static void multires_create_grids_in_unsubdivided_base_mesh(MultiresUnsubdivideC
     CustomData_free_layers(&base_mesh->corner_data, CD_MDISPS);
   }
   MDisps *mdisps = static_cast<MDisps *>(CustomData_add_layer(
-      &base_mesh->corner_data, CD_MDISPS, CD_SET_DEFAULT, base_mesh->corners_num));
+      &base_mesh->corner_data, CD_MDISPS, CdSetDefault, base_mesh->corners_num));
 
   const int totdisp = pow_i(CCG_grid_size(context->num_total_levels), 2);
   const int totloop = base_mesh->corners_num;

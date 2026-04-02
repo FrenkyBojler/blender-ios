@@ -892,7 +892,7 @@ void BKE_ptcache_id_from_softbody(PTCacheID *pid, Object *ob, SoftBody *sb)
 
   pid->default_step = 1;
   pid->max_step = 20;
-  pid->file_type = PTCACHE_FILE_PTCACHE;
+  pid->file_type = PtcacheFilePtcache;
 }
 void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *psys)
 {
@@ -956,7 +956,7 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 
   pid->default_step = 1;
   pid->max_step = 20;
-  pid->file_type = PTCACHE_FILE_PTCACHE;
+  pid->file_type = PtcacheFilePtcache;
 }
 void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *clmd)
 {
@@ -992,7 +992,7 @@ void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *cl
 
   pid->default_step = 1;
   pid->max_step = 1;
-  pid->file_type = PTCACHE_FILE_PTCACHE;
+  pid->file_type = PtcacheFilePtcache;
 }
 
 void BKE_ptcache_id_from_smoke(PTCacheID *pid, Object *ob, FluidModifierData *fmd)
@@ -1047,7 +1047,7 @@ void BKE_ptcache_id_from_dynamicpaint(PTCacheID *pid, Object *ob, DynamicPaintSu
 
   pid->default_step = 1;
   pid->max_step = 1;
-  pid->file_type = PTCACHE_FILE_PTCACHE;
+  pid->file_type = PtcacheFilePtcache;
 }
 
 void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, Object *ob, RigidBodyWorld *rbw)
@@ -1085,7 +1085,7 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, Object *ob, RigidBodyWorld *r
 
   pid->default_step = 1;
   pid->max_step = 1;
-  pid->file_type = PTCACHE_FILE_PTCACHE;
+  pid->file_type = PtcacheFilePtcache;
 }
 
 PTCacheID BKE_ptcache_id_find(Object *ob, Scene *scene, PointCache *cache)
@@ -1093,7 +1093,7 @@ PTCacheID BKE_ptcache_id_find(Object *ob, Scene *scene, PointCache *cache)
   PTCacheID result = {nullptr};
 
   ListBaseT<PTCacheID> pidlist;
-  BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
+  BKE_ptcache_ids_from_object(&pidlist, ob, scene, max_dupli_recur);
 
   for (PTCacheID &pid : pidlist) {
     if (pid.cache == cache) {
@@ -1270,7 +1270,7 @@ static const char *ptcache_file_extension(const PTCacheID *pid)
 {
   switch (pid->file_type) {
     default:
-    case PTCACHE_FILE_PTCACHE:
+    case PtcacheFilePtcache:
       return PTCACHE_EXT;
   }
 }
@@ -1965,7 +1965,7 @@ static PTCacheMem *ptcache_disk_frame_to_mem(PTCacheID *pid, int cfra)
 
   ptcache_file_close(pf);
 
-  if (error && G.debug & G_DEBUG) {
+  if (error && G.debug & GDebug) {
     printf("Error reading from disk cache\n");
   }
 
@@ -1981,7 +1981,7 @@ static int ptcache_mem_frame_to_disk(PTCacheID *pid, PTCacheMem *pm)
   pf = ptcache_file_open(pid, PTCACHE_FILE_WRITE, pm->frame);
 
   if (pf == nullptr) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("Error opening disk cache file for writing\n");
     }
     return 0;
@@ -2028,7 +2028,7 @@ static int ptcache_mem_frame_to_disk(PTCacheID *pid, PTCacheMem *pm)
 
   ptcache_file_close(pf);
 
-  if (error && G.debug & G_DEBUG) {
+  if (error && G.debug & GDebug) {
     printf("Error writing to disk cache\n");
   }
 
@@ -2045,7 +2045,7 @@ static int ptcache_read_stream(PTCacheID *pid, int cfra)
   }
 
   if (pf == nullptr) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("Error opening disk cache file for reading\n");
     }
     return 0;
@@ -2303,7 +2303,7 @@ static int ptcache_write_stream(PTCacheID *pid, int cfra, int totpoint)
   pf = ptcache_file_open(pid, PTCACHE_FILE_WRITE, cfra);
 
   if (pf == nullptr) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("Error opening disk cache file for writing\n");
     }
     return 0;
@@ -2324,7 +2324,7 @@ static int ptcache_write_stream(PTCacheID *pid, int cfra, int totpoint)
 
   ptcache_file_close(pf);
 
-  if (error && G.debug & G_DEBUG) {
+  if (error && G.debug & GDebug) {
     printf("Error writing to disk cache\n");
   }
 
@@ -3030,7 +3030,7 @@ PointCache *BKE_ptcache_copy_list(ListBaseT<PointCache> *ptcaches_new,
   BLI_listbase_clear(ptcaches_new);
 
   for (; cache; cache = cache->next) {
-    BLI_addtail(ptcaches_new, ptcache_copy(cache, (flag & LIB_ID_COPY_CACHES) != 0));
+    BLI_addtail(ptcaches_new, ptcache_copy(cache, (flag & LibIdCopyCaches) != 0));
   }
 
   return static_cast<PointCache *>(ptcaches_new->first);
@@ -3117,7 +3117,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
         ListBaseT<PTCacheID> pidlist2;
         BLI_assert(GS(pid->owner_id->name) == ID_OB);
         BKE_ptcache_ids_from_object(
-            &pidlist2, id_cast<Object *>(pid->owner_id), scene, MAX_DUPLI_RECUR);
+            &pidlist2, id_cast<Object *>(pid->owner_id), scene, max_dupli_recur);
         for (PTCacheID &pid2 : pidlist2) {
           if (pid2.type == PTCACHE_TYPE_SMOKE_DOMAIN) {
             if (pid2.cache && !(pid2.cache->flag & PTCACHE_BAKED)) {
@@ -3154,7 +3154,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
   else {
     for (SETLOOPER_VIEW_LAYER(*bmain, scene, view_layer, sce_iter, base)) {
       /* cache/bake everything in the scene */
-      BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
+      BKE_ptcache_ids_from_object(&pidlist, base->object, scene, max_dupli_recur);
 
       for (pid = static_cast<PTCacheID *>(pidlist.first); pid; pid = pid->next) {
         cache = pid->cache;
@@ -3292,7 +3292,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
   }
   else {
     for (SETLOOPER_VIEW_LAYER(*bmain, scene, view_layer, sce_iter, base)) {
-      BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
+      BKE_ptcache_ids_from_object(&pidlist, base->object, scene, max_dupli_recur);
 
       for (PTCacheID &pid : pidlist) {
         /* skip hair particles */
@@ -3408,7 +3408,7 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 
   if (blendfile_path[0] == '\0') {
     cache->flag &= ~PTCACHE_DISK_CACHE;
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("File must be saved before using disk cache!\n");
     }
     return;

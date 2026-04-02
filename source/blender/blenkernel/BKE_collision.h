@@ -28,12 +28,12 @@ struct Object;
 
 /* COLLISION FLAGS */
 enum COLLISION_FLAGS {
-  COLLISION_IN_FUTURE = (1 << 1),
+  CollisionInFuture = (1 << 1),
 #ifdef WITH_ELTOPO
   COLLISION_USE_COLLFACE = (1 << 2),
   COLLISION_IS_EDGES = (1 << 3),
 #endif
-  COLLISION_INACTIVE = (1 << 4),
+  CollisionInactive = (1 << 4),
 };
 
 struct CollPair {

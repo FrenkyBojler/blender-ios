@@ -158,7 +158,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_CD_MVERT_SKIN = {src, coarse_mesh.verts_num};
     ctx->subdiv_CD_MVERT_SKIN = {
         static_cast<MVertSkin *>(CustomData_add_layer(
-            &subdiv_mesh->vert_data, CD_MVERT_SKIN, CD_CONSTRUCT, subdiv_mesh->verts_num)),
+            &subdiv_mesh->vert_data, CD_MVERT_SKIN, CdConstruct, subdiv_mesh->verts_num)),
         subdiv_mesh->verts_num};
   }
   if (const auto *src = static_cast<const float3 *>(
@@ -167,7 +167,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_CD_NORMAL = {src, coarse_mesh.corners_num};
     ctx->subdiv_CD_NORMAL = {
         static_cast<float3 *>(CustomData_add_layer(
-            &subdiv_mesh->corner_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh->corners_num)),
+            &subdiv_mesh->corner_data, CD_NORMAL, CdConstruct, subdiv_mesh->corners_num)),
         subdiv_mesh->corners_num};
   }
   if (const auto *src = static_cast<const float2 *>(
@@ -177,7 +177,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->subdiv_CD_ORIGSPACE_MLOOP = {
         static_cast<float2 *>(CustomData_add_layer(&subdiv_mesh->corner_data,
                                                    CD_ORIGSPACE_MLOOP,
-                                                   CD_CONSTRUCT,
+                                                   CdConstruct,
                                                    subdiv_mesh->corners_num)),
         subdiv_mesh->corners_num};
   }
@@ -187,7 +187,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_vert_origindex = {src, coarse_mesh.verts_num};
     ctx->subdiv_vert_origindex = {
         static_cast<int *>(CustomData_add_layer(
-            &subdiv_mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->verts_num)),
+            &subdiv_mesh->vert_data, CD_ORIGINDEX, CdConstruct, subdiv_mesh->verts_num)),
         subdiv_mesh->verts_num};
   }
   if (const auto *src = static_cast<const int *>(
@@ -196,7 +196,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_edge_origindex = {src, coarse_mesh.edges_num};
     ctx->subdiv_edge_origindex = {
         static_cast<int *>(CustomData_add_layer(
-            &subdiv_mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->edges_num)),
+            &subdiv_mesh->edge_data, CD_ORIGINDEX, CdConstruct, subdiv_mesh->edges_num)),
         subdiv_mesh->edges_num};
   }
   if (const auto *src = static_cast<const int *>(
@@ -205,7 +205,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_face_origindex = {src, coarse_mesh.faces_num};
     ctx->subdiv_face_origindex = {
         static_cast<int *>(CustomData_add_layer(
-            &subdiv_mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->faces_num)),
+            &subdiv_mesh->face_data, CD_ORIGINDEX, CdConstruct, subdiv_mesh->faces_num)),
         subdiv_mesh->faces_num};
   }
   /* UV layers interpolation. */
@@ -213,11 +213,11 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   /* Orco interpolation. */
   if (CustomData_has_layer(&coarse_mesh.vert_data, CD_ORCO)) {
     ctx->orco = static_cast<float (*)[3]>(CustomData_add_layer(
-        &subdiv_mesh->vert_data, CD_ORCO, CD_CONSTRUCT, subdiv_mesh->verts_num));
+        &subdiv_mesh->vert_data, CD_ORCO, CdConstruct, subdiv_mesh->verts_num));
   }
   if (CustomData_has_layer(&coarse_mesh.vert_data, CD_CLOTH_ORCO)) {
     ctx->cloth_orco = static_cast<float (*)[3]>(CustomData_add_layer(
-        &subdiv_mesh->vert_data, CD_CLOTH_ORCO, CD_CONSTRUCT, subdiv_mesh->verts_num));
+        &subdiv_mesh->vert_data, CD_CLOTH_ORCO, CdConstruct, subdiv_mesh->verts_num));
   }
 }
 
@@ -1516,16 +1516,16 @@ static void setup_foreach_callbacks(const SubdivMeshContext *subdiv_context,
 Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh *coarse_mesh)
 {
 
-  stats_begin(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
+  stats_begin(&subdiv->stats, SubdivStatsSubdivToMesh);
   /* Make sure evaluator is up to date with possible new topology, and that
    * it is refined for the new positions of coarse vertices. */
-  if (!eval_begin_from_mesh(subdiv, coarse_mesh, SUBDIV_EVALUATOR_TYPE_CPU)) {
+  if (!eval_begin_from_mesh(subdiv, coarse_mesh, SubdivEvaluatorTypeCpu)) {
     /* This could happen in two situations:
      * - OpenSubdiv is disabled.
      * - Something totally bad happened, and OpenSubdiv rejected our topology.
      * In either way, we can't safely continue. */
     if (coarse_mesh->faces_num) {
-      stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
+      stats_end(&subdiv->stats, SubdivStatsSubdivToMesh);
       return nullptr;
     }
   }
@@ -1549,7 +1549,7 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   subdiv_context.subdiv = subdiv;
   subdiv_context.have_displacement = (subdiv->displacement_evaluator != nullptr);
   /* Multi-threaded traversal/evaluation. */
-  stats_begin(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
+  stats_begin(&subdiv->stats, SubdivStatsSubdivToMeshGeometry);
   ForeachContext foreach_context;
   setup_foreach_callbacks(&subdiv_context, &foreach_context);
   SubdivMeshTLS tls{};
@@ -1557,7 +1557,7 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   foreach_context.user_data_tls_size = sizeof(SubdivMeshTLS);
   foreach_context.user_data_tls = &tls;
   foreach_subdiv_geometry(subdiv, &foreach_context, settings, coarse_mesh);
-  stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
+  stats_end(&subdiv->stats, SubdivStatsSubdivToMeshGeometry);
   Mesh *result = subdiv_context.subdiv_mesh;
 
   /* NOTE: Using normals from the limit surface gives different results than Blender's vertex
@@ -1600,7 +1600,7 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
     attr.finish();
   }
 
-  stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
+  stats_end(&subdiv->stats, SubdivStatsSubdivToMesh);
   subdiv_mesh_context_free(&subdiv_context);
   return result;
 }
@@ -1626,8 +1626,8 @@ void calculate_limit_positions(Mesh *mesh, MutableSpan<float3> limit_positions)
   /* Default subdivision surface modifier settings:
    * - UV Smooth:Keep Corners.
    * - BoundarySmooth: All. */
-  settings.vtx_boundary_interpolation = SUBDIV_VTX_BOUNDARY_EDGE_ONLY;
-  settings.fvar_linear_interpolation = SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS;
+  settings.vtx_boundary_interpolation = SubdivVtxBoundaryEdgeOnly;
+  settings.fvar_linear_interpolation = SubdivFvarLinearInterpolationCornersAndJunctions;
 
   Subdiv *subdiv = update_from_mesh(nullptr, &settings, mesh);
   if (subdiv) {

@@ -70,7 +70,7 @@ TEST_F(BrushTest, deep_copy)
   brush->mtex.tex->nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
 
   Brush *duplicated_brush = BKE_brush_duplicate(
-      bmain, brush, USER_DUP_OBDATA | USER_DUP_LINKED_ID, LIB_ID_DUPLICATE_IS_ROOT_ID);
+      bmain, brush, USER_DUP_OBDATA | USER_DUP_LINKED_ID, LibIdDuplicateIsRootId);
 
   check_id_and_name(&brush->id, &duplicated_brush->id);
   check_id_and_name(&brush->paint_curve->id, &duplicated_brush->paint_curve->id);
@@ -99,7 +99,7 @@ TEST_F(BrushTest, deep_copy_grease_pencil_brush)
       BKE_id_new(bmain, ID_MA, "UnitTestMaterialAlt"));
 
   Brush *duplicated_brush = BKE_brush_duplicate(
-      bmain, brush, USER_DUP_OBDATA | USER_DUP_LINKED_ID, LIB_ID_DUPLICATE_IS_ROOT_ID);
+      bmain, brush, USER_DUP_OBDATA | USER_DUP_LINKED_ID, LibIdDuplicateIsRootId);
 
   check_id_and_name(&brush->id, &duplicated_brush->id);
   check_id_and_name(&brush->paint_curve->id, &duplicated_brush->paint_curve->id);

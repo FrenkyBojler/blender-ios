@@ -709,7 +709,7 @@ void BKE_particle_system_eval_init(struct Depsgraph *depsgraph, struct Object *o
 
 /* Draw Cache */
 enum {
-  BKE_PARTICLE_BATCH_DIRTY_ALL = 0,
+  BkeParticleBatchDirtyAll = 0,
 };
 void BKE_particle_batch_cache_dirty_tag(struct ParticleSystem *psys, int mode);
 void BKE_particle_batch_cache_free(struct ParticleSystem *psys);

@@ -12,9 +12,9 @@ namespace blender {
 struct Mesh;
 
 enum MeshForeachFlag {
-  MESH_FOREACH_NOP = 0,
+  MeshForeachNop = 0,
   /* foreachMappedVert, foreachMappedLoop, foreachMappedFaceCenter */
-  MESH_FOREACH_USE_NORMAL = (1 << 0),
+  MeshForeachUseNormal = (1 << 0),
 };
 
 void BKE_mesh_foreach_mapped_vert(

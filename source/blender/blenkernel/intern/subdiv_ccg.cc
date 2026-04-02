@@ -379,7 +379,7 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
                                              SubdivCCGMaskEvaluator *mask_evaluator)
 {
 #ifdef WITH_OPENSUBDIV
-  stats_begin(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  stats_begin(&subdiv.stats, SubdivStatsSubdivToCcg);
   std::unique_ptr<SubdivCCG> subdiv_ccg = std::make_unique<SubdivCCG>();
   subdiv_ccg->subdiv = &subdiv;
   subdiv_ccg->level = bitscan_forward_i(settings.resolution - 1);
@@ -393,11 +393,11 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
     subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
     subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
     if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
-      stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+      stats_end(&subdiv.stats, SubdivStatsSubdivToCcg);
       return nullptr;
     }
   }
-  stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  stats_end(&subdiv.stats, SubdivStatsSubdivToCcg);
   return subdiv_ccg;
 #else
   UNUSED_VARS(subdiv, settings, coarse_mesh, mask_evaluator);
@@ -410,13 +410,13 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
                              const Mesh &coarse_mesh)
 {
   /* Make sure evaluator is ready. */
-  stats_begin(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
-  if (!eval_begin_from_mesh(&subdiv, &coarse_mesh, SUBDIV_EVALUATOR_TYPE_CPU)) {
+  stats_begin(&subdiv.stats, SubdivStatsSubdivToCcg);
+  if (!eval_begin_from_mesh(&subdiv, &coarse_mesh, SubdivEvaluatorTypeCpu)) {
     if (coarse_mesh.faces_num) {
       return nullptr;
     }
   }
-  stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  stats_end(&subdiv.stats, SubdivStatsSubdivToCcg);
   SubdivCCGMaskEvaluator mask_evaluator;
   bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(

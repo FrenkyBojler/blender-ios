@@ -49,9 +49,9 @@ enum class AttrStorageType : int8_t {
 enum class AttrType : int16_t {
   Bool = 0,
   Int8 = 1,
-  Int16_2D = 2,
+  Int162D = 2,
   Int32 = 3,
-  Int32_2D = 4,
+  Int322D = 4,
   Float = 5,
   Float2 = 6,
   Float3 = 7,

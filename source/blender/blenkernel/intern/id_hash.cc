@@ -176,21 +176,21 @@ static void compute_deep_hash_recursive(const Main &bmain,
       const_cast<Main *>(&bmain),
       const_cast<ID *>(&id),
       [&](LibraryIDLinkCallbackData *cb_data) {
-        if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
+        if (cb_data->cb_flag & IdwalkCbLoopback) {
           /* Loop-back pointer (e.g. from a shape-key to its owner geometry ID, or from a
            * collection to its parents) should always be ignored, as they do not represent an
            * actual dependency. The dependency relationship should already have been
            * processed from the owner to its dependency anyway (if applicable). */
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
-        if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+        if (cb_data->cb_flag & (IdwalkCbEmbedded | IdwalkCbEmbeddedNotOwning)) {
           /* Embedded data are part of their owner's internal data, and as such already computed as
            * part of the owner's shallow hash. */
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
-        if (cb_data->cb_flag & IDWALK_CB_HASH_IGNORE) {
+        if (cb_data->cb_flag & IdwalkCbHashIgnore) {
           /* This pointer is explicitly ignored for the hash computation. */
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
         ID *referenced_id = *cb_data->id_pointer;
         if (!referenced_id) {
@@ -198,7 +198,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
            * where there is no id and the case where this callback is not called at all.*/
           const int random_data = 452942579;
           XXH3_128bits_update(hash_state, &random_data, sizeof(int));
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
         /* All embedded ID usages should already have been excluded above. */
         BLI_assert((referenced_id->flag & ID_FLAG_EMBEDDED_DATA) == 0);
@@ -206,19 +206,19 @@ static void compute_deep_hash_recursive(const Main &bmain,
           /* Somehow encode that we had a circular reference here. */
           const int random_data = 234632342;
           XXH3_128bits_update(hash_state, &random_data, sizeof(int));
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
         compute_deep_hash_recursive(bmain, *referenced_id, current_stack, r_hashes, r_errors);
         const IDHash *referenced_id_hash = r_hashes.lookup_ptr(referenced_id);
         if (!referenced_id_hash) {
           success = false;
-          return IDWALK_RET_STOP_ITER;
+          return IdwalkRetStopIter;
         }
         XXH3_128bits_update(hash_state, referenced_id_hash->data, sizeof(IDHash));
-        return IDWALK_RET_NOP;
+        return IdwalkRetNop;
       },
       nullptr,
-      IDWALK_READONLY);
+      IdwalkReadonly);
 
   if (!success) {
     return;

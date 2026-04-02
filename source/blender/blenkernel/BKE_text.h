@@ -141,8 +141,8 @@ extern int text_check_identifier_nodigit_unicode(unsigned int ch);
 /** \} */
 
 enum {
-  TXT_MOVE_LINE_UP = -1,
-  TXT_MOVE_LINE_DOWN = 1,
+  TxtMoveLineUp = -1,
+  TxtMoveLineDown = 1,
 };
 
 /* Fast non-validating buffer conversion for undo. */

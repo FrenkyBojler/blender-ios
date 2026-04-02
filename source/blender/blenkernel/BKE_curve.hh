@@ -61,17 +61,17 @@ struct CVKeyIndex {
 
 enum eNurbHandleTest_Mode {
   /** Read the selection from each handle. */
-  NURB_HANDLE_TEST_EACH = 1,
+  NurbHandleTestEach = 1,
   /**
    * When the knot (center point) is selected treat the handles as selected too.
    * Otherwise use the same behavior as #NURB_HANDLE_TEST_EACH.
    */
-  NURB_HANDLE_TEST_KNOT_OR_EACH = 2,
+  NurbHandleTestKnotOrEach = 2,
   /**
    * When the knot is selected, treat all handles as selected, otherwise none.
    * \note Typically used when handles are hidden.
    */
-  NURB_HANDLE_TEST_KNOT_ONLY = 3,
+  NurbHandleTestKnotOnly = 3,
 };
 
 #define KNOTSU(nu) \
@@ -379,8 +379,8 @@ void BKE_curve_eval_geometry(Depsgraph *depsgraph, Curve *curve);
 
 /* Draw Cache */
 enum {
-  BKE_CURVE_BATCH_DIRTY_ALL = 0,
-  BKE_CURVE_BATCH_DIRTY_SELECT,
+  BkeCurveBatchDirtyAll = 0,
+  BkeCurveBatchDirtySelect,
 };
 void BKE_curve_batch_cache_dirty_tag(Curve *cu, int mode);
 void BKE_curve_batch_cache_free(Curve *cu);

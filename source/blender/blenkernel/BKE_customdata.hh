@@ -83,12 +83,12 @@ extern const CustomData_MeshMasks CD_MASK_EVERYTHING;
 /** Add/copy/merge allocation types. */
 enum eCDAllocType {
   /** Allocate and set to default, which is usually just zeroed memory. */
-  CD_SET_DEFAULT = 2,
+  CdSetDefault = 2,
   /**
    * Default construct new layer values. Does nothing for trivial types. This should be used
    * if all layer values will be set by the caller after creating the layer.
    */
-  CD_CONSTRUCT = 5,
+  CdConstruct = 5,
 };
 
 inline eCustomDataMask CD_TYPE_AS_MASK(eCustomDataType type)
@@ -213,7 +213,7 @@ bool CustomData_merge_layout(const CustomData *source,
 void CustomData_realloc(CustomData *data,
                         int old_size,
                         int new_size,
-                        eCDAllocType alloctype = CD_CONSTRUCT);
+                        eCDAllocType alloctype = CdConstruct);
 
 /**
  * BMesh version of CustomData_merge_layout; merges the layouts of source and `dest`,
@@ -622,10 +622,10 @@ using cd_datatransfer_interp = void (*)(const CustomDataTransferLayerMap *laymap
                                         float mix_factor);
 
 enum {
-  ME_VERT = 1 << 0,
-  ME_EDGE = 1 << 1,
-  ME_POLY = 1 << 2,
-  ME_LOOP = 1 << 3,
+  MeVert = 1 << 0,
+  MeEdge = 1 << 1,
+  MePoly = 1 << 2,
+  MeLoop = 1 << 3,
 };
 
 struct CustomDataTransferLayerMap {

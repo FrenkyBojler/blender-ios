@@ -88,10 +88,10 @@ static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     for (MaskSpline &mask_spline : mask_layer.splines) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, mask_spline.parent.id, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, mask_spline.parent.id, IdwalkCbUser);
       for (int i = 0; i < mask_spline.tot_point; i++) {
         MaskSplinePoint *point = &mask_spline.points[i];
-        BKE_LIB_FOREACHID_PROCESS_ID(data, point->parent.id, IDWALK_CB_USER);
+        BKE_LIB_FOREACHID_PROCESS_ID(data, point->parent.id, IdwalkCbUser);
       }
     }
   }
@@ -193,7 +193,7 @@ IDTypeInfo IDType_ID_MSK = {
     .name = "Mask",
     .name_plural = N_("masks"),
     .translation_context = BLT_I18NCONTEXT_ID_MASK,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = nullptr,
@@ -574,8 +574,8 @@ float BKE_mask_spline_project_co(MaskSpline *spline,
       BKE_mask_point_normal(spline, point, u1, n1);
       sub_v2_v2v2(v1, co, co1);
 
-      if ((sign == MASK_PROJ_ANY) || ((sign == MASK_PROJ_NEG) && (dot_v2v2(v1, n1) <= 0.0f)) ||
-          ((sign == MASK_PROJ_POS) && (dot_v2v2(v1, n1) >= 0.0f)))
+      if ((sign == MaskProjAny) || ((sign == MaskProjNeg) && (dot_v2v2(v1, n1) <= 0.0f)) ||
+          ((sign == MaskProjPos) && (dot_v2v2(v1, n1) >= 0.0f)))
       {
 
         if (len_squared_v2(v1) > proj_eps_sq) {
@@ -601,8 +601,8 @@ float BKE_mask_spline_project_co(MaskSpline *spline,
       BKE_mask_point_normal(spline, point, u2, n2);
       sub_v2_v2v2(v2, co, co2);
 
-      if ((sign == MASK_PROJ_ANY) || ((sign == MASK_PROJ_NEG) && (dot_v2v2(v2, n2) <= 0.0f)) ||
-          ((sign == MASK_PROJ_POS) && (dot_v2v2(v2, n2) >= 0.0f)))
+      if ((sign == MaskProjAny) || ((sign == MaskProjNeg) && (dot_v2v2(v2, n2) <= 0.0f)) ||
+          ((sign == MaskProjPos) && (dot_v2v2(v2, n2) >= 0.0f)))
       {
 
         if (len_squared_v2(v2) > proj_eps_sq) {
@@ -637,10 +637,10 @@ eMaskhandleMode BKE_mask_point_handles_mode_get(const MaskSplinePoint *point)
   const BezTriple *bezt = &point->bezt;
 
   if (bezt->h1 == bezt->h2 && bezt->h1 == HD_ALIGN) {
-    return MASK_HANDLE_MODE_STICK;
+    return MaskHandleModeStick;
   }
 
-  return MASK_HANDLE_MODE_INDIVIDUAL_HANDLES;
+  return MaskHandleModeIndividualHandles;
 }
 
 void BKE_mask_point_handle(const MaskSplinePoint *point,
@@ -649,7 +649,7 @@ void BKE_mask_point_handle(const MaskSplinePoint *point,
 {
   const BezTriple *bezt = &point->bezt;
 
-  if (which_handle == MASK_WHICH_HANDLE_STICK) {
+  if (which_handle == MaskWhichHandleStick) {
     float vec[2];
 
     sub_v2_v2v2(vec, bezt->vec[0], bezt->vec[1]);
@@ -657,10 +657,10 @@ void BKE_mask_point_handle(const MaskSplinePoint *point,
     r_handle[0] = (bezt->vec[1][0] + vec[1]);
     r_handle[1] = (bezt->vec[1][1] - vec[0]);
   }
-  else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
+  else if (which_handle == MaskWhichHandleLeft) {
     copy_v2_v2(r_handle, bezt->vec[0]);
   }
-  else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
+  else if (which_handle == MaskWhichHandleRight) {
     copy_v2_v2(r_handle, bezt->vec[2]);
   }
   else {
@@ -677,7 +677,7 @@ void BKE_mask_point_set_handle(MaskSplinePoint *point,
 {
   BezTriple *bezt = &point->bezt;
 
-  if (which_handle == MASK_WHICH_HANDLE_STICK) {
+  if (which_handle == MaskWhichHandleStick) {
     float v1[2], v2[2], vec[2];
     if (keep_direction) {
       sub_v2_v2v2(v1, loc, orig_vec[1]);
@@ -710,10 +710,10 @@ void BKE_mask_point_set_handle(MaskSplinePoint *point,
       sub_v2_v2v2(bezt->vec[2], bezt->vec[1], v2);
     }
   }
-  else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
+  else if (which_handle == MaskWhichHandleLeft) {
     copy_v2_v2(bezt->vec[0], loc);
   }
-  else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
+  else if (which_handle == MaskWhichHandleRight) {
     copy_v2_v2(bezt->vec[2], loc);
   }
   else {
@@ -949,14 +949,14 @@ void BKE_mask_point_select_set_handle(MaskSplinePoint *point,
                                       const bool do_select)
 {
   if (do_select) {
-    if (ELEM(which_handle, MASK_WHICH_HANDLE_STICK, MASK_WHICH_HANDLE_BOTH)) {
+    if (ELEM(which_handle, MaskWhichHandleStick, MaskWhichHandleBoth)) {
       point->bezt.f1 |= SELECT;
       point->bezt.f3 |= SELECT;
     }
-    else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
+    else if (which_handle == MaskWhichHandleLeft) {
       point->bezt.f1 |= SELECT;
     }
-    else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
+    else if (which_handle == MaskWhichHandleRight) {
       point->bezt.f3 |= SELECT;
     }
     else {
@@ -964,14 +964,14 @@ void BKE_mask_point_select_set_handle(MaskSplinePoint *point,
     }
   }
   else {
-    if (ELEM(which_handle, MASK_WHICH_HANDLE_STICK, MASK_WHICH_HANDLE_BOTH)) {
+    if (ELEM(which_handle, MaskWhichHandleStick, MaskWhichHandleBoth)) {
       point->bezt.f1 &= ~SELECT;
       point->bezt.f3 &= ~SELECT;
     }
-    else if (which_handle == MASK_WHICH_HANDLE_LEFT) {
+    else if (which_handle == MaskWhichHandleLeft) {
       point->bezt.f1 &= ~SELECT;
     }
-    else if (which_handle == MASK_WHICH_HANDLE_RIGHT) {
+    else if (which_handle == MaskWhichHandleRight) {
       point->bezt.f3 &= ~SELECT;
     }
     else {

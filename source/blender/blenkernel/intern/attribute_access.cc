@@ -40,11 +40,11 @@ const CPPType &attribute_type_to_cpp_type(const AttrType type)
       return CPPType::get<bool>();
     case AttrType::Int8:
       return CPPType::get<int8_t>();
-    case AttrType::Int16_2D:
+    case AttrType::Int162D:
       return CPPType::get<short2>();
     case AttrType::Int32:
       return CPPType::get<int>();
-    case AttrType::Int32_2D:
+    case AttrType::Int322D:
       return CPPType::get<int2>();
     case AttrType::Float:
       return CPPType::get<float>();
@@ -87,7 +87,7 @@ AttrType cpp_type_to_attribute_type(const CPPType &type)
     return AttrType::Int32;
   }
   if (type.is<int2>()) {
-    return AttrType::Int32_2D;
+    return AttrType::Int322D;
   }
   if (type.is<ColorGeometry4f>()) {
     return AttrType::ColorFloat;
@@ -108,7 +108,7 @@ AttrType cpp_type_to_attribute_type(const CPPType &type)
     return AttrType::Float4x4;
   }
   if (type.is<short2>()) {
-    return AttrType::Int16_2D;
+    return AttrType::Int162D;
   }
   if (type.is<MStringProperty>()) {
     return AttrType::String;
@@ -244,9 +244,9 @@ static int attribute_data_type_complexity(const AttrType data_type)
       return 2;
     case AttrType::Float:
       return 3;
-    case AttrType::Int16_2D:
+    case AttrType::Int162D:
       return 4;
-    case AttrType::Int32_2D:
+    case AttrType::Int322D:
       return 5;
     case AttrType::Float2:
       return 6;

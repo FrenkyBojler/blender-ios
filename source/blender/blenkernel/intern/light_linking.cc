@@ -41,7 +41,7 @@ void BKE_light_linking_copy(Object *object_dst, const Object *object_src, const 
   BLI_assert(ELEM(object_dst->light_linking, nullptr, object_src->light_linking));
   if (object_src->light_linking) {
     object_dst->light_linking = MEM_new<LightLinking>(__func__, *(object_src->light_linking));
-    if ((copy_flags & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((copy_flags & LibIdCreateNoUserRefcount) == 0) {
       id_us_plus(id_cast<ID *>(object_dst->light_linking->receiver_collection));
       id_us_plus(id_cast<ID *>(object_dst->light_linking->blocker_collection));
     }
@@ -64,20 +64,20 @@ void BKE_light_linking_copy_receiver_collection(Main *bmain,
                                                 Object &object_dst,
                                                 const Object &object_src)
 {
-  BKE_light_linking_copy_collection(bmain, object_dst, object_src, LIGHT_LINKING_RECEIVER);
+  BKE_light_linking_copy_collection(bmain, object_dst, object_src, LightLinkingReceiver);
 }
 
 void BKE_light_linking_copy_blocker_collection(Main *bmain,
                                                Object &object_dst,
                                                const Object &object_src)
 {
-  BKE_light_linking_copy_collection(bmain, object_dst, object_src, LIGHT_LINKING_BLOCKER);
+  BKE_light_linking_copy_collection(bmain, object_dst, object_src, LightLinkingBlocker);
 }
 
 void BKE_light_linking_delete(Object *object, const int delete_flags)
 {
   if (object->light_linking) {
-    if ((delete_flags & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((delete_flags & LibIdCreateNoUserRefcount) == 0) {
       id_us_min(id_cast<ID *>(object->light_linking->receiver_collection));
       id_us_min(id_cast<ID *>(object->light_linking->blocker_collection));
     }
@@ -90,7 +90,7 @@ void BKE_light_linking_free_if_empty(Object *object)
   if (object->light_linking->receiver_collection == nullptr &&
       object->light_linking->blocker_collection == nullptr)
   {
-    BKE_light_linking_delete(object, LIB_ID_CREATE_NO_USER_REFCOUNT);
+    BKE_light_linking_delete(object, LibIdCreateNoUserRefcount);
   }
 }
 
@@ -102,9 +102,9 @@ Collection *BKE_light_linking_collection_get(const Object *object,
   }
 
   switch (link_type) {
-    case LIGHT_LINKING_RECEIVER:
+    case LightLinkingReceiver:
       return object->light_linking->receiver_collection;
-    case LIGHT_LINKING_BLOCKER:
+    case LightLinkingBlocker:
       return object->light_linking->blocker_collection;
   }
 
@@ -117,10 +117,10 @@ static std::string get_default_collection_name(const Object *object,
   const char *format;
 
   switch (link_type) {
-    case LIGHT_LINKING_RECEIVER:
+    case LightLinkingReceiver:
       format = DATA_("Light Linking for %s");
       break;
-    case LIGHT_LINKING_BLOCKER:
+    case LightLinkingBlocker:
       format = DATA_("Shadow Linking for %s");
       break;
   }
@@ -162,10 +162,10 @@ void BKE_light_linking_collection_assign_only(Object *object,
   if (object->light_linking) {
     /* Assign and increment user of new collection. */
     switch (link_type) {
-      case LIGHT_LINKING_RECEIVER:
+      case LightLinkingReceiver:
         object->light_linking->receiver_collection = new_collection;
         break;
-      case LIGHT_LINKING_BLOCKER:
+      case LightLinkingBlocker:
         object->light_linking->blocker_collection = new_collection;
         break;
       default:
@@ -490,7 +490,7 @@ bool BKE_light_linking_unlink_id_from_collection(Main *bmain,
   }
   else {
     BKE_reportf(reports,
-                RPT_ERROR,
+                RptError,
                 "Cannot unlink unsupported '%s' from light linking collection '%s'",
                 id->name + 2,
                 collection->id.name + 2);

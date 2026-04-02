@@ -88,7 +88,7 @@ bool multiresModifier_reshapeFromDeformModifier(Depsgraph *depsgraph,
   ModifierEvalContext modifier_ctx{};
   modifier_ctx.depsgraph = depsgraph;
   modifier_ctx.object = object;
-  modifier_ctx.flag = MOD_APPLY_USECACHE | MOD_APPLY_IGNORE_SIMPLIFY;
+  modifier_ctx.flag = ModApplyUsecache | ModApplyIgnoreSimplify;
 
   const bool deform_success = BKE_modifier_deform_verts(
       deform_md, &modifier_ctx, multires_mesh, deformed_verts);
@@ -170,7 +170,7 @@ void multiresModifier_subdivide_to_level(Object *object,
   const bool has_mdisps = CustomData_has_layer(&coarse_mesh->corner_data, CD_MDISPS);
   if (!has_mdisps) {
     CustomData_add_layer(
-        &coarse_mesh->corner_data, CD_MDISPS, CD_SET_DEFAULT, coarse_mesh->corners_num);
+        &coarse_mesh->corner_data, CD_MDISPS, CdSetDefault, coarse_mesh->corners_num);
   }
 
   /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set

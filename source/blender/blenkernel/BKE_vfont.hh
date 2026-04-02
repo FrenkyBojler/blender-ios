@@ -80,21 +80,21 @@ struct EditFont {
 };
 
 enum eEditFontMode {
-  FO_EDIT = 0,
-  FO_CURS = 1,
-  FO_CURSUP = 2,
-  FO_CURSDOWN = 3,
-  FO_DUPLI = 4,
-  FO_PAGEUP = 8,
-  FO_PAGEDOWN = 9,
-  FO_LINE_BEGIN = 10,
-  FO_LINE_END = 11,
-  FO_SELCHANGE = 12,
+  FoEdit = 0,
+  FoCurs = 1,
+  FoCursup = 2,
+  FoCursdown = 3,
+  FoDupli = 4,
+  FoPageup = 8,
+  FoPagedown = 9,
+  FoLineBegin = 10,
+  FoLineEnd = 11,
+  FoSelchange = 12,
 };
 
 /** #BKE_vfont_to_curve will move the cursor in these cases. */
 #define FO_CURS_IS_MOTION(mode) \
-  (ELEM(mode, FO_CURSUP, FO_CURSDOWN, FO_PAGEUP, FO_PAGEDOWN, FO_LINE_BEGIN, FO_LINE_END))
+  (ELEM(mode, FoCursup, FoCursdown, FoPageup, FoPagedown, FoLineBegin, FoLineEnd))
 
 /* -------------------------------------------------------------------- */
 /** \name VFont API

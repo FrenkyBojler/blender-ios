@@ -396,36 +396,36 @@ VolumeGridData &GVolumeGrid::get_for_write()
 VolumeGridType get_type(const openvdb::TreeBase &tree)
 {
   if (tree.isType<openvdb::FloatTree>()) {
-    return VOLUME_GRID_FLOAT;
+    return VolumeGridFloat;
   }
   if (tree.isType<openvdb::Vec3fTree>()) {
-    return VOLUME_GRID_VECTOR_FLOAT;
+    return VolumeGridVectorFloat;
   }
   if (tree.isType<openvdb::BoolTree>()) {
-    return VOLUME_GRID_BOOLEAN;
+    return VolumeGridBoolean;
   }
   if (tree.isType<openvdb::DoubleTree>()) {
-    return VOLUME_GRID_DOUBLE;
+    return VolumeGridDouble;
   }
   if (tree.isType<openvdb::Int32Tree>()) {
-    return VOLUME_GRID_INT;
+    return VolumeGridInt;
   }
   if (tree.isType<openvdb::Int64Tree>()) {
-    return VOLUME_GRID_INT64;
+    return VolumeGridInT64;
   }
   if (tree.isType<openvdb::Vec3ITree>()) {
-    return VOLUME_GRID_VECTOR_INT;
+    return VolumeGridVectorInt;
   }
   if (tree.isType<openvdb::Vec3dTree>()) {
-    return VOLUME_GRID_VECTOR_DOUBLE;
+    return VolumeGridVectorDouble;
   }
   if (tree.isType<openvdb::MaskTree>()) {
-    return VOLUME_GRID_MASK;
+    return VolumeGridMask;
   }
   if (tree.isType<openvdb::points::PointDataTree>()) {
-    return VOLUME_GRID_POINTS;
+    return VolumeGridPoints;
   }
-  return VOLUME_GRID_UNKNOWN;
+  return VolumeGridUnknown;
 }
 
 VolumeGridType get_type(const openvdb::GridBase &grid)
@@ -489,19 +489,19 @@ VolumeGridType get_type(const VolumeGridData &grid)
 int get_channels_num(const VolumeGridType type)
 {
   switch (type) {
-    case VOLUME_GRID_BOOLEAN:
-    case VOLUME_GRID_FLOAT:
-    case VOLUME_GRID_DOUBLE:
-    case VOLUME_GRID_INT:
-    case VOLUME_GRID_INT64:
-    case VOLUME_GRID_MASK:
+    case VolumeGridBoolean:
+    case VolumeGridFloat:
+    case VolumeGridDouble:
+    case VolumeGridInt:
+    case VolumeGridInT64:
+    case VolumeGridMask:
       return 1;
-    case VOLUME_GRID_VECTOR_FLOAT:
-    case VOLUME_GRID_VECTOR_DOUBLE:
-    case VOLUME_GRID_VECTOR_INT:
+    case VolumeGridVectorFloat:
+    case VolumeGridVectorDouble:
+    case VolumeGridVectorInt:
       return 3;
-    case VOLUME_GRID_POINTS:
-    case VOLUME_GRID_UNKNOWN:
+    case VolumeGridPoints:
+    case VolumeGridUnknown:
       return 0;
   }
   return 0;

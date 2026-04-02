@@ -28,16 +28,16 @@ struct MovieClipUser;
 /* `mask_ops.cc` */
 
 enum eMaskWhichHandle {
-  MASK_WHICH_HANDLE_NONE = 0,
-  MASK_WHICH_HANDLE_STICK = 1,
-  MASK_WHICH_HANDLE_LEFT = 2,
-  MASK_WHICH_HANDLE_RIGHT = 3,
-  MASK_WHICH_HANDLE_BOTH = 4,
+  MaskWhichHandleNone = 0,
+  MaskWhichHandleStick = 1,
+  MaskWhichHandleLeft = 2,
+  MaskWhichHandleRight = 3,
+  MaskWhichHandleBoth = 4,
 };
 
 enum eMaskhandleMode {
-  MASK_HANDLE_MODE_STICK = 1,
-  MASK_HANDLE_MODE_INDIVIDUAL_HANDLES = 2,
+  MaskHandleModeStick = 1,
+  MaskHandleModeIndividualHandles = 2,
 };
 
 /* -------------------------------------------------------------------- */
@@ -104,9 +104,9 @@ BezTriple *BKE_mask_spline_point_next_bezt(MaskSpline *spline,
                                            MaskSplinePoint *point);
 
 enum eMaskSign {
-  MASK_PROJ_NEG = -1,
-  MASK_PROJ_ANY = 0,
-  MASK_PROJ_POS = 1,
+  MaskProjNeg = -1,
+  MaskProjAny = 0,
+  MaskProjPos = 1,
 };
 float BKE_mask_spline_project_co(
     MaskSpline *spline, MaskSplinePoint *point, float start_u, const float co[2], eMaskSign sign);
@@ -153,8 +153,8 @@ inline bool BKE_mask_point_selected_knot(const MaskSplinePoint *p)
 inline bool BKE_mask_point_is_handle_selected(const MaskSplinePoint *point,
                                               eMaskWhichHandle handle)
 {
-  return (handle == MASK_WHICH_HANDLE_STICK  ? (point->bezt.f1 | point->bezt.f3) & SELECT :
-          (handle == MASK_WHICH_HANDLE_LEFT) ? (point->bezt.f1 & SELECT) :
+  return (handle == MaskWhichHandleStick  ? (point->bezt.f1 | point->bezt.f3) & SELECT :
+          (handle == MaskWhichHandleLeft) ? (point->bezt.f1 & SELECT) :
                                                (point->bezt.f3 & SELECT)) != 0;
 }
 

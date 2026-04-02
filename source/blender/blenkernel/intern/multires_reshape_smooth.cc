@@ -940,7 +940,7 @@ static void reshape_subdiv_create(MultiresReshapeSmoothContext *reshape_smooth_c
 
   OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
   bke::subdiv::eval_begin(
-      reshape_subdiv, bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr, &evaluator_settings);
+      reshape_subdiv, bke::subdiv::SubdivEvaluatorTypeCpu, nullptr, &evaluator_settings);
 
   reshape_smooth_context->reshape_subdiv = reshape_subdiv;
 

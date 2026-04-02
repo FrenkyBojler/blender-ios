@@ -383,11 +383,11 @@ void BKE_cryptomatte_store_metadata(const CryptomatteSession *session, RenderRes
 
 namespace bke::cryptomatte {
 namespace manifest {
-constexpr StringRef WHITESPACES = " \t\n\v\f\r";
+constexpr StringRef whitespaces = " \t\n\v\f\r";
 
 static constexpr StringRef skip_whitespaces_(StringRef ref)
 {
-  size_t skip = ref.find_first_not_of(WHITESPACES);
+  size_t skip = ref.find_first_not_of(whitespaces);
   if (skip == StringRef::not_found) {
     return ref;
   }

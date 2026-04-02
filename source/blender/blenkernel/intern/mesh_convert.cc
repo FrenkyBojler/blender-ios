@@ -74,27 +74,27 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
   int faces_num = 0;
   int totloop = 0;
   for (const DispList &dl : *dispbase) {
-    if (dl.type == DL_SEGM) {
+    if (dl.type == DlSegm) {
       totvert += dl.parts * dl.nr;
       totedge += dl.parts * (dl.nr - 1);
     }
-    else if (dl.type == DL_POLY) {
+    else if (dl.type == DlPoly) {
       if (conv_polys) {
         totvert += dl.parts * dl.nr;
         totedge += dl.parts * dl.nr;
       }
     }
-    else if (dl.type == DL_SURF) {
+    else if (dl.type == DlSurf) {
       if (dl.parts != 0) {
         int tot;
         totvert += dl.parts * dl.nr;
-        tot = (((dl.flag & DL_CYCL_U) ? 1 : 0) + (dl.nr - 1)) *
-              (((dl.flag & DL_CYCL_V) ? 1 : 0) + (dl.parts - 1));
+        tot = (((dl.flag & DlCyclU) ? 1 : 0) + (dl.nr - 1)) *
+              (((dl.flag & DlCyclV) ? 1 : 0) + (dl.parts - 1));
         faces_num += tot;
         totloop += tot * 4;
       }
     }
-    else if (dl.type == DL_INDEX3) {
+    else if (dl.type == DlIndeX3) {
       int tot;
       totvert += dl.nr;
       tot = dl.parts;
@@ -132,7 +132,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
   for (const DispList &dl : *dispbase) {
     const bool is_smooth = (dl.rt & CU_SMOOTH) != 0;
 
-    if (dl.type == DL_SEGM) {
+    if (dl.type == DlSegm) {
       const int startvert = dst_vert;
       a = dl.parts * dl.nr;
       const float *data = dl.verts;
@@ -152,7 +152,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
         }
       }
     }
-    else if (dl.type == DL_POLY) {
+    else if (dl.type == DlPoly) {
       if (conv_polys) {
         const int startvert = dst_vert;
         a = dl.parts * dl.nr;
@@ -178,7 +178,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
         }
       }
     }
-    else if (dl.type == DL_INDEX3) {
+    else if (dl.type == DlIndeX3) {
       const int startvert = dst_vert;
       a = dl.nr;
       const float *data = dl.verts;
@@ -208,7 +208,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
         index += 3;
       }
     }
-    else if (dl.type == DL_SURF) {
+    else if (dl.type == DlSurf) {
       const int startvert = dst_vert;
       a = dl.parts * dl.nr;
       const float *data = dl.verts;
@@ -220,12 +220,12 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
 
       for (a = 0; a < dl.parts; a++) {
 
-        if ((dl.flag & DL_CYCL_V) == 0 && a == dl.parts - 1) {
+        if ((dl.flag & DlCyclV) == 0 && a == dl.parts - 1) {
           break;
         }
 
         int p1, p2, p3, p4;
-        if (dl.flag & DL_CYCL_U) {    /* p2 -> p1 -> */
+        if (dl.flag & DlCyclU) {    /* p2 -> p1 -> */
           p1 = startvert + dl.nr * a; /* p4 -> p3 -> */
           p2 = p1 + dl.nr - 1;        /* -----> next row */
           p3 = p1 + dl.nr;
@@ -239,7 +239,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
           p3 = p1 + dl.nr;
           b = 1;
         }
-        if ((dl.flag & DL_CYCL_V) && a == dl.parts - 1) {
+        if ((dl.flag & DlCyclV) && a == dl.parts - 1) {
           p3 -= dl.parts * dl.nr;
           p4 -= dl.parts * dl.nr;
         }
@@ -256,13 +256,13 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
           int orco_sizev = dl.parts - 1;
 
           /* exception as handled in convertblender.c too */
-          if (dl.flag & DL_CYCL_U) {
+          if (dl.flag & DlCyclU) {
             orco_sizeu++;
-            if (dl.flag & DL_CYCL_V) {
+            if (dl.flag & DlCyclV) {
               orco_sizev++;
             }
           }
-          else if (dl.flag & DL_CYCL_V) {
+          else if (dl.flag & DlCyclV) {
             orco_sizev++;
           }
 
@@ -631,17 +631,17 @@ static Object *object_for_curve_to_mesh_create(const Object *object)
   /* Create a temporary object which can be evaluated and modified by generic
    * curve evaluation (hence the #LIB_ID_COPY_SET_COPIED_ON_WRITE flag). */
   Object *temp_object = id_cast<Object *>(BKE_id_copy_ex(
-      nullptr, &object->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_SET_COPIED_ON_WRITE));
+      nullptr, &object->id, nullptr, LibIdCopyLocalize | LibIdCopySetCopiedOnWrite));
 
   /* Remove all modifiers, since we don't want them to be applied. */
-  BKE_object_free_modifiers(temp_object, LIB_ID_CREATE_NO_USER_REFCOUNT);
+  BKE_object_free_modifiers(temp_object, LibIdCreateNoUserRefcount);
 
   /* Need to create copy of curve itself as well, since it will be changed by the curve evaluation
    * process. NOTE: Copies the data, but not the shape-keys. */
   temp_object->data = BKE_id_copy_ex(nullptr,
                                      static_cast<const ID *>(object->data),
                                      nullptr,
-                                     LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_SET_COPIED_ON_WRITE);
+                                     LibIdCopyLocalize | LibIdCopySetCopiedOnWrite);
   Curve *temp_curve = id_cast<Curve *>(temp_object->data);
 
   /* Make sure texture space is calculated for a copy of curve, it will be used for the final
@@ -809,7 +809,7 @@ static Mesh *mesh_new_from_mesh(Object *object, const Mesh *mesh, const bool ens
 {
   /* While we could copy this into the new mesh,
    * add the data to 'mesh' so future calls to this function don't need to re-convert the data. */
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+  if (mesh->runtime->wrapper_type == MeWrapperTypeBmesh) {
     BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
   }
   else if (ensure_subdivision) {
@@ -817,7 +817,7 @@ static Mesh *mesh_new_from_mesh(Object *object, const Mesh *mesh, const bool ens
   }
 
   Mesh *mesh_result = id_cast<Mesh *>(BKE_id_copy_ex(
-      nullptr, &mesh->id, nullptr, LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT));
+      nullptr, &mesh->id, nullptr, LibIdCreateNoMain | LibIdCreateNoUserRefcount));
   /* NOTE: Materials should already be copied. */
   /* Copy original mesh name. This is because edit meshes might not have one properly set name. */
   STRNCPY(mesh_result->id.name, object->data->name);
@@ -953,30 +953,30 @@ static int foreach_libblock_make_original_callback(LibraryIDLinkCallbackData *cb
 {
   ID **id_p = cb_data->id_pointer;
   if (*id_p == nullptr) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
   *id_p = DEG_get_original(*id_p);
 
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 static int foreach_libblock_make_usercounts_callback(LibraryIDLinkCallbackData *cb_data)
 {
   ID **id_p = cb_data->id_pointer;
   if (*id_p == nullptr) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
   const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
-  if (cb_flag & IDWALK_CB_USER) {
+  if (cb_flag & IdwalkCbUser) {
     id_us_plus(*id_p);
   }
-  else if (cb_flag & IDWALK_CB_USER_ONE) {
+  else if (cb_flag & IdwalkCbUserOne) {
     /* NOTE: in that context, that one should not be needed (since there should be at least already
      * one USER_ONE user of that ID), but better be consistent. */
     id_us_ensure_real(*id_p);
   }
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
@@ -1003,7 +1003,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
    * Note that user-count updates have to be done *after* the mesh has been transferred to Main
    * database (since doing reference-counting on non-Main IDs is forbidden). */
   BKE_library_foreach_ID_link(
-      nullptr, &mesh->id, foreach_libblock_make_original_callback, nullptr, IDWALK_NOP);
+      nullptr, &mesh->id, foreach_libblock_make_original_callback, nullptr, IdwalkNop);
 
   /* Add the mesh to 'bmain'. We do it in a bit longer way since there is no simple and clear way
    * of adding existing data-blocks to the 'bmain'. So we create new empty mesh (which guarantees
@@ -1027,7 +1027,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
   /* User-count is required because so far mesh was in a limbo, where library management does
    * not perform any user management (i.e. copy of a mesh will not increase users of materials). */
   BKE_library_foreach_ID_link(
-      nullptr, &mesh_in_bmain->id, foreach_libblock_make_usercounts_callback, nullptr, IDWALK_NOP);
+      nullptr, &mesh_in_bmain->id, foreach_libblock_make_usercounts_callback, nullptr, IdwalkNop);
 
   /* Make sure user count from BKE_mesh_add() is the one we expect here and bring it down to 0. */
   BLI_assert(mesh_in_bmain->id.us == 1);

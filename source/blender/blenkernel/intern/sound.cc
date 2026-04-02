@@ -189,7 +189,7 @@ static void sound_foreach_cache(ID *id,
 static void sound_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   bSound *sound = id_cast<bSound *>(id);
-  if (sound->packedfile != nullptr && (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0)
+  if (sound->packedfile != nullptr && (bpath_data->flag & BkeBpathForeachPathSkipPacked) != 0)
   {
     return;
   }
@@ -239,7 +239,7 @@ IDTypeInfo IDType_ID_SO = {
     .name = "Sound",
     .name_plural = N_("sounds"),
     .translation_context = BLT_I18NCONTEXT_ID_SOUND,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsNoAnimdata | IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     /* A fuzzy case, think NULLified content is OK here... */
@@ -1588,7 +1588,7 @@ SoundInfo bke::sound_info_get(AUD_Sound sound)
 {
   SoundInfo res;
   res.length = 0.0f;
-  res.specs.channels = SOUND_CHANNELS_INVALID;
+  res.specs.channels = SoundChannelsInvalid;
   res.specs.samplerate = 0;
 
   try {

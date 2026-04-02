@@ -37,9 +37,9 @@ struct Scene;
 
 /* Bits to or into the #ClothVertex.flags. */
 enum eClothVertexFlag {
-  CLOTH_VERT_FLAG_PINNED = (1 << 0),
-  CLOTH_VERT_FLAG_NOSELFCOLL = (1 << 1), /* vertex NOT used for self collisions */
-  CLOTH_VERT_FLAG_NOOBJCOLL = (1 << 2),  /* vertex NOT used for object collisions */
+  ClothVertFlagPinned = (1 << 0),
+  ClothVertFlagNoselfcoll = (1 << 1), /* vertex NOT used for self collisions */
+  ClothVertFlagNoobjcoll = (1 << 2),  /* vertex NOT used for object collisions */
 };
 
 struct ClothHairData {
@@ -185,19 +185,19 @@ struct ClothSpring {
 
 /* Spring types as defined in the paper. */
 enum CLOTH_SPRING_TYPES {
-  CLOTH_SPRING_TYPE_STRUCTURAL = (1 << 1),
-  CLOTH_SPRING_TYPE_SHEAR = (1 << 2),
-  CLOTH_SPRING_TYPE_BENDING = (1 << 3),
-  CLOTH_SPRING_TYPE_GOAL = (1 << 4),
-  CLOTH_SPRING_TYPE_SEWING = (1 << 5),
-  CLOTH_SPRING_TYPE_BENDING_HAIR = (1 << 6),
-  CLOTH_SPRING_TYPE_INTERNAL = (1 << 7),
+  ClothSpringTypeStructural = (1 << 1),
+  ClothSpringTypeShear = (1 << 2),
+  ClothSpringTypeBending = (1 << 3),
+  ClothSpringTypeGoal = (1 << 4),
+  ClothSpringTypeSewing = (1 << 5),
+  ClothSpringTypeBendingHair = (1 << 6),
+  ClothSpringTypeInternal = (1 << 7),
 };
 
 /* SPRING FLAGS */
 enum CLOTH_SPRINGS_FLAGS {
-  CLOTH_SPRING_FLAG_DEACTIVATE = (1 << 1),
-  CLOTH_SPRING_FLAG_NEEDED = (1 << 2), /* Springs has values to be applied. */
+  ClothSpringFlagDeactivate = (1 << 1),
+  ClothSpringFlagNeeded = (1 << 2), /* Springs has values to be applied. */
 };
 
 /* -------------------------------------------------------------------- */

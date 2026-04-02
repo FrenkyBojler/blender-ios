@@ -22,8 +22,8 @@ struct Mesh;
  * to minimize changes in the vertex positions or tangency in the affected area. */
 
 enum eMeshFairingDepth {
-  MESH_FAIRING_DEPTH_POSITION = 1,
-  MESH_FAIRING_DEPTH_TANGENCY = 2,
+  MeshFairingDepthPosition = 1,
+  MeshFairingDepthTangency = 2,
 };
 
 /**

@@ -279,9 +279,9 @@ enum class FieldStateSyncResult : int8_t {
   /* Nothing changed. */
   NONE = 0,
   /* State A has been modified. */
-  CHANGED_A = (1 << 0),
+  ChangedA = (1 << 0),
   /* State B has been modified. */
-  CHANGED_B = (1 << 1),
+  ChangedB = (1 << 1),
 };
 ENUM_OPERATORS(FieldStateSyncResult)
 
@@ -297,10 +297,10 @@ static FieldStateSyncResult sync_field_states(SocketFieldState &a, SocketFieldSt
 
   FieldStateSyncResult res = FieldStateSyncResult::NONE;
   if (a.requires_single != requires_single || a.is_single != is_single) {
-    res |= FieldStateSyncResult::CHANGED_A;
+    res |= FieldStateSyncResult::ChangedA;
   }
   if (b.requires_single != requires_single || b.is_single != is_single) {
-    res |= FieldStateSyncResult::CHANGED_B;
+    res |= FieldStateSyncResult::ChangedB;
   }
 
   a.requires_single = requires_single;
@@ -366,7 +366,7 @@ static bool propagate_special_data_requirements(
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const FieldStateSyncResult sync_result = simulation_nodes_field_state_sync(
             node, *output_node, field_state_by_socket_id);
-        if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_B)) {
+        if (flag_is_set(sync_result, FieldStateSyncResult::ChangedB)) {
           need_update = true;
         }
       }
@@ -378,7 +378,7 @@ static bool propagate_special_data_requirements(
         if (node.identifier == data.output_node_id) {
           const FieldStateSyncResult sync_result = simulation_nodes_field_state_sync(
               *input_node, node, field_state_by_socket_id);
-          if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_A)) {
+          if (flag_is_set(sync_result, FieldStateSyncResult::ChangedA)) {
             need_update = true;
           }
         }
@@ -390,7 +390,7 @@ static bool propagate_special_data_requirements(
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const FieldStateSyncResult sync_result = repeat_field_state_sync(
             node, *output_node, field_state_by_socket_id);
-        if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_B)) {
+        if (flag_is_set(sync_result, FieldStateSyncResult::ChangedB)) {
           need_update = true;
         }
       }
@@ -402,7 +402,7 @@ static bool propagate_special_data_requirements(
         if (node.identifier == data.output_node_id) {
           const FieldStateSyncResult sync_result = repeat_field_state_sync(
               *input_node, node, field_state_by_socket_id);
-          if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_A)) {
+          if (flag_is_set(sync_result, FieldStateSyncResult::ChangedA)) {
             need_update = true;
           }
         }

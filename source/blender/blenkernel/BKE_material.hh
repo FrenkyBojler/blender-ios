@@ -80,10 +80,10 @@ short *BKE_id_material_len_p(ID *id);
 
 enum {
   /* use existing link option */
-  BKE_MAT_ASSIGN_EXISTING,
-  BKE_MAT_ASSIGN_USERPREF,
-  BKE_MAT_ASSIGN_OBDATA,
-  BKE_MAT_ASSIGN_OBJECT,
+  BkeMatAssignExisting,
+  BkeMatAssignUserpref,
+  BkeMatAssignObdata,
+  BkeMatAssignObject,
 };
 
 Material **BKE_object_material_get_p(Object *ob, short act);

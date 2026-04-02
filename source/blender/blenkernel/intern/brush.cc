@@ -84,7 +84,7 @@ static void brush_copy_data(Main * /*bmain*/,
   Brush *brush_dst = reinterpret_cast<Brush *>(id_dst);
   const Brush *brush_src = reinterpret_cast<const Brush *>(id_src);
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&brush_dst->id, &brush_src->id);
   }
   else {
@@ -181,7 +181,7 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
   }
 
   Brush *brush = reinterpret_cast<Brush *>(id);
-  const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
+  const bool lib_local = (flags & LibIdMakelocalFullLibrary) != 0;
 
   bool force_local, force_copy;
   BKE_lib_id_make_local_generic_action_define(bmain, id, flags, &force_local, &force_copy);
@@ -206,7 +206,7 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
     ID_NEW_SET(brush, brush_new);
 
     if (!lib_local) {
-      BKE_libblock_remap(bmain, brush, brush_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+      BKE_libblock_remap(bmain, brush, brush_new, IdRemapSkipIndirectUsage);
     }
   }
 }
@@ -215,10 +215,10 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->paint_curve, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->paint_curve, IdwalkCbUser);
   if (brush->gpencil_settings) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material_alt, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IdwalkCbUser);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material_alt, IdwalkCbUser);
   }
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_texture_mtex_foreach_id(data, &brush->mtex));
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
@@ -526,7 +526,7 @@ IDTypeInfo IDType_ID_BR = {
     .name = "Brush",
     .name_plural = N_("brushes"),
     .translation_context = BLT_I18NCONTEXT_ID_BRUSH,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+    .flags = IdtypeFlagsNoAnimdata | IdtypeFlagsNoMemfileUndo,
     .asset_type_info = &AssetType_BR,
 
     .init_data = brush_init_data,
@@ -688,8 +688,8 @@ Brush *BKE_brush_duplicate(Main *bmain,
                            eDupli_ID_Flags /*dupflag*/,
                            /*eLibIDDuplicateFlags*/ uint duplicate_options)
 {
-  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
-  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
+  const bool is_subprocess = (duplicate_options & LibIdDuplicateIsSubprocess) != 0;
+  const bool is_root_id = (duplicate_options & LibIdDuplicateIsRootId) != 0;
 
   const eDupli_ID_Flags dupflag = USER_DUP_OBDATA | USER_DUP_LINKED_ID;
 
@@ -697,10 +697,10 @@ Brush *BKE_brush_duplicate(Main *bmain,
     BKE_main_id_newptr_and_tag_clear(bmain);
   }
   if (is_root_id) {
-    duplicate_options &= ~LIB_ID_DUPLICATE_IS_ROOT_ID;
+    duplicate_options &= ~LibIdDuplicateIsRootId;
   }
 
-  constexpr int id_copy_flag = LIB_ID_COPY_DEFAULT;
+  constexpr int id_copy_flag = LibIdCopyDefault;
 
   Brush *new_brush = reinterpret_cast<Brush *>(
       BKE_id_copy_for_duplicate(bmain, &brush->id, dupflag, id_copy_flag));
@@ -708,22 +708,22 @@ Brush *BKE_brush_duplicate(Main *bmain,
   /* Currently this duplicates everything and the passed in value of `dupflag` is ignored. Ideally,
    * this should both check user preferences and do further filtering based on eDupli_ID_Flags. */
   auto dependencies_cb = [&](const LibraryIDLinkCallbackData *cb_data) -> int {
-    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
-      return IDWALK_NOP;
+    if (cb_data->cb_flag & (IdwalkCbEmbedded | IdwalkCbEmbeddedNotOwning)) {
+      return IdwalkNop;
     }
-    if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
-      return IDWALK_NOP;
+    if (cb_data->cb_flag & IdwalkCbLoopback) {
+      return IdwalkNop;
     }
 
     BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dupflag, id_copy_flag);
-    return IDWALK_NOP;
+    return IdwalkNop;
   };
 
-  BKE_library_foreach_ID_link(bmain, &new_brush->id, dependencies_cb, nullptr, IDWALK_RECURSE);
+  BKE_library_foreach_ID_link(bmain, &new_brush->id, dependencies_cb, nullptr, IdwalkRecurse);
 
   if (!is_subprocess) {
     /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-    BKE_libblock_relink_to_newid(bmain, &new_brush->id, ID_REMAP_SKIP_USER_CLEAR);
+    BKE_libblock_relink_to_newid(bmain, &new_brush->id, IdRemapSkipUserClear);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */

@@ -244,7 +244,7 @@ enum LibOverride_HierarchyRoot_ValidateOptions {
    * existing hierarchy root info, even if no more fully valid, is necessary for an optimal resync
    * reconstruction when linked reference data hierarchy has been modified.
    */
-  ONLY_PROCESS_NULL_ROOT_POINTERS = 1 << 0,
+  OnlyProcessNullRootPointers = 1 << 0,
   /** Do report nullptr hierarchy roots as errors.
    *
    * This is typically only done at readfile time, where this is a fairly bad error.
@@ -252,7 +252,7 @@ enum LibOverride_HierarchyRoot_ValidateOptions {
    * When called after some operations like ID deletion etc., getting a nullptr here is typically
    * expected, and so does not need to be reported.
    */
-  REPORT_NULL_ROOT_POINTERS = 1 << 16,
+  ReportNullRootPointers = 1 << 16,
 };
 ENUM_OPERATORS(LibOverride_HierarchyRoot_ValidateOptions);
 

@@ -130,11 +130,11 @@ static void greasepencil_foreach_id(ID *id, LibraryForeachIDData *data)
   bGPdata *gpencil = id_cast<bGPdata *>(id);
   /* materials */
   for (int i = 0; i < gpencil->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gpencil->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gpencil->mat[i], IdwalkCbUser);
   }
 
   for (bGPDlayer &gplayer : gpencil->layers) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gplayer.parent, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gplayer.parent, IdwalkCbNop);
   }
 }
 
@@ -273,7 +273,7 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     .name = "Annotation",
     .name_plural = N_("annotations"),
     .translation_context = BLT_I18NCONTEXT_ID_GPENCIL,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = nullptr,
@@ -910,7 +910,7 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
         if ((found) && (gpf->framenum == cframe)) {
           gpl->actframe = gpf;
         }
-        else if (addnew == GP_GETFRAME_ADD_COPY) {
+        else if (addnew == GpGetframeAddCopy) {
           /* The #BKE_gpencil_frame_addcopy function copies the active frame of gpl,
            * so we need to set the active frame before copying. */
           gpl->actframe = gpf;
@@ -940,7 +940,7 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
         if ((found) && (gpf->framenum == cframe)) {
           gpl->actframe = gpf;
         }
-        else if (addnew == GP_GETFRAME_ADD_COPY) {
+        else if (addnew == GpGetframeAddCopy) {
           /* The #BKE_gpencil_frame_addcopy function copies the active frame of gpl;
            * so we need to set the active frame before copying. */
           gpl->actframe = gpf;

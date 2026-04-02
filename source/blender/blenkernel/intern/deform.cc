@@ -1315,7 +1315,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(
             continue;
           }
           data_transfer_layersmapping_add_item(r_map,
-                                               CD_FAKE_MDEFORMVERT,
+                                               CdFakeMdeformvert,
                                                mix_mode,
                                                mix_factor,
                                                mix_weights,
@@ -1367,7 +1367,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(
         }
         if (r_map) {
           data_transfer_layersmapping_add_item(r_map,
-                                               CD_FAKE_MDEFORMVERT,
+                                               CdFakeMdeformvert,
                                                mix_mode,
                                                mix_factor,
                                                mix_weights,
@@ -1488,7 +1488,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
 
     if (r_map) {
       data_transfer_layersmapping_add_item(r_map,
-                                           CD_FAKE_MDEFORMVERT,
+                                           CdFakeMdeformvert,
                                            mix_mode,
                                            mix_factor,
                                            mix_weights,

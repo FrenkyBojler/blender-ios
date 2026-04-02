@@ -554,13 +554,13 @@ void BKE_nla_tweakmode_exit_nofollowptr(AnimData *adt);
 /* time mapping conversion modes */
 enum eNlaTime_ConvertModes {
   /* convert from global time to strip time - for evaluation */
-  NLATIME_CONVERT_EVAL = 0,
+  NlatimeConvertEval = 0,
   /* convert from global time to strip time - for editing corrections */
   /* XXX: old 0 invert. */
-  NLATIME_CONVERT_UNMAP,
+  NlatimeConvertUnmap,
   /* convert from strip time to global time */
   /* XXX: old 1 invert. */
-  NLATIME_CONVERT_MAP,
+  NlatimeConvertMap,
 };
 
 /**

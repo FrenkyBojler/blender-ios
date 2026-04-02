@@ -91,9 +91,9 @@ static void curves_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Curves *curves = id_cast<Curves *>(id);
   for (int i = 0; i < curves->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curves->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curves->mat[i], IdwalkCbUser);
   }
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curves->surface, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curves->surface, IdwalkCbNop);
 }
 
 static void curves_foreach_working_space_color(ID *id,
@@ -151,7 +151,7 @@ IDTypeInfo IDType_ID_CV = {
     .name = "Curves",
     .name_plural = N_("hair_curves"),
     .translation_context = BLT_I18NCONTEXT_ID_CURVES,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = curves_init_data,
@@ -188,7 +188,7 @@ bool BKE_curves_attribute_required(const Curves * /*curves*/, const StringRef na
 Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
 {
   return reinterpret_cast<Curves *>(
-      BKE_id_copy_ex(nullptr, &curves_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &curves_src->id, nullptr, LibIdCopyLocalize));
 }
 
 static void curves_evaluate_modifiers(Depsgraph *depsgraph,
@@ -202,7 +202,7 @@ static void curves_evaluate_modifiers(Depsgraph *depsgraph,
   if (BKE_object_is_in_editmode(object)) {
     required_mode = ModifierMode(required_mode | eModifierMode_Editmode);
   }
-  ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
+  ModifierApplyFlag apply_flag = use_render ? ModApplyRender : ModApplyUsecache;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
 
   BKE_modifiers_clear_errors(object);

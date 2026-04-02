@@ -787,11 +787,11 @@ static bool validate_generic_attributes(const Mesh &mesh, const bool verbose, Me
         break;
       case AttrType::Int8:
         break;
-      case AttrType::Int16_2D:
+      case AttrType::Int162D:
         break;
       case AttrType::Int32:
         break;
-      case AttrType::Int32_2D:
+      case AttrType::Int322D:
         break;
       case AttrType::Float:
         validate_float_attribute(iter, 1, verbose, all_attributes_valid, mesh_mut);

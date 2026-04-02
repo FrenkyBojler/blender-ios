@@ -80,7 +80,7 @@ namespace geo_log = nodes::geo_eval_log;
 /** \name Internal Duplicate Context
  * \{ */
 
-static constexpr short GEOMETRY_SET_DUPLI_GENERATOR_TYPE = 1;
+static constexpr short geometry_set_dupli_generator_type = 1;
 
 struct DupliContext {
   Depsgraph *depsgraph;
@@ -124,9 +124,9 @@ struct DupliContext {
    */
   Set<const Object *> *include_objects;
 
-  int persistent_id[MAX_DUPLI_RECUR];
-  int64_t instance_idx[MAX_DUPLI_RECUR];
-  const GeometrySet *instance_data[MAX_DUPLI_RECUR];
+  int persistent_id[max_dupli_recur];
+  int64_t instance_idx[max_dupli_recur];
+  const GeometrySet *instance_data[max_dupli_recur];
   int level;
 
   const struct DupliGenerator *gen;
@@ -173,7 +173,7 @@ static void init_context(DupliContext *r_ctx,
   r_ctx->level = 0;
 
   r_ctx->gen = get_dupli_generator(r_ctx);
-  if (r_ctx->gen && r_ctx->gen->type != GEOMETRY_SET_DUPLI_GENERATOR_TYPE) {
+  if (r_ctx->gen && r_ctx->gen->type != geometry_set_dupli_generator_type) {
     r_ctx->dupli_gen_type_stack->append(r_ctx->gen->type);
   }
 
@@ -212,7 +212,7 @@ static bool copy_dupli_context(DupliContext *r_ctx,
   r_ctx->instance_data[r_ctx->level] = geometry;
   ++r_ctx->level;
 
-  if (r_ctx->level == MAX_DUPLI_RECUR - 1) {
+  if (r_ctx->level == max_dupli_recur - 1) {
     const StringRef object_name = ob ? ob->id.name + 2 : "";
     const StringRef geometry_name = geometry ? geometry->name() : "";
 
@@ -237,7 +237,7 @@ static bool copy_dupli_context(DupliContext *r_ctx,
   }
 
   r_ctx->gen = get_dupli_generator(r_ctx);
-  if (r_ctx->gen && r_ctx->gen->type != GEOMETRY_SET_DUPLI_GENERATOR_TYPE) {
+  if (r_ctx->gen && r_ctx->gen->type != geometry_set_dupli_generator_type) {
     r_ctx->dupli_gen_type_stack->append(r_ctx->gen->type);
   }
   return true;
@@ -286,7 +286,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
     dob->persistent_id[i] = ctx->persistent_id[ctx->level - i];
   }
   /* Fill rest of values with #INT_MAX which index will never have as value. */
-  for (; i < MAX_DUPLI_RECUR; i++) {
+  for (; i < max_dupli_recur; i++) {
     dob->persistent_id[i] = INT_MAX;
   }
 
@@ -363,7 +363,7 @@ static void make_recursive_duplis(const DupliContext *ctx,
     return;
   }
   /* Simple preventing of too deep nested collections with #MAX_DUPLI_RECUR. */
-  if (ctx->level < MAX_DUPLI_RECUR) {
+  if (ctx->level < max_dupli_recur) {
     DupliContext rctx;
     if (!copy_dupli_context(&rctx, ctx, ob, space_mat, index, geometry, instance_index)) {
       return;
@@ -372,7 +372,7 @@ static void make_recursive_duplis(const DupliContext *ctx,
       ctx->instance_stack->append(ob);
       rctx.gen->make_duplis(&rctx);
       ctx->instance_stack->remove_last();
-      if (rctx.gen->type != GEOMETRY_SET_DUPLI_GENERATOR_TYPE) {
+      if (rctx.gen->type != geometry_set_dupli_generator_type) {
         if (!ctx->dupli_gen_type_stack->is_empty()) {
           ctx->dupli_gen_type_stack->remove_last();
         }
@@ -421,7 +421,7 @@ static void make_child_duplis(const DupliContext *ctx,
             ob->flag |= OB_DONE; /* Doesn't render. */
           }
           make_child_duplis_cb(&pctx, userdata, ob);
-          if (pctx.gen->type != GEOMETRY_SET_DUPLI_GENERATOR_TYPE) {
+          if (pctx.gen->type != geometry_set_dupli_generator_type) {
             if (!ctx->dupli_gen_type_stack->is_empty()) {
               ctx->dupli_gen_type_stack->remove_last();
             }
@@ -451,7 +451,7 @@ static void make_child_duplis(const DupliContext *ctx,
           }
 
           make_child_duplis_cb(&pctx, userdata, ob);
-          if (pctx.gen->type != GEOMETRY_SET_DUPLI_GENERATOR_TYPE) {
+          if (pctx.gen->type != geometry_set_dupli_generator_type) {
             if (!ctx->dupli_gen_type_stack->is_empty()) {
               ctx->dupli_gen_type_stack->remove_last();
             }
@@ -493,7 +493,7 @@ static const Mesh *mesh_data_from_duplicator_object(Object *ob,
     /* Note that this will only show deformation if #eModifierMode_OnCage is enabled.
      * We could change this but it matches 2.7x behavior. */
     mesh_eval = BKE_object_get_editmesh_eval_cage(ob);
-    if ((mesh_eval == nullptr) || (mesh_eval->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH)) {
+    if ((mesh_eval == nullptr) || (mesh_eval->runtime->wrapper_type == MeWrapperTypeBmesh)) {
       bke::EditMeshData *emd = mesh_eval ? mesh_eval->runtime->edit_data.get() : nullptr;
 
       /* Only assign edit-mesh in the case we can't use `mesh_eval`. */
@@ -841,7 +841,7 @@ static void make_duplis_font(const DupliContext *ctx)
   /* In `par` the family name is stored, use this to find the other objects. */
 
   BKE_vfont_to_curve_ex(
-      par, *cu, FO_DUPLI, nullptr, &text, &text_len, &text_free, &chartransdata, nullptr);
+      par, *cu, FoDupli, nullptr, &text, &text_len, &text_free, &chartransdata, nullptr);
 
   if (text == nullptr || chartransdata == nullptr) {
     return;
@@ -1074,7 +1074,7 @@ static void make_duplis_geometry_set(const DupliContext *ctx)
 }
 
 static const DupliGenerator gen_dupli_geometry_set = {
-    /*type*/ GEOMETRY_SET_DUPLI_GENERATOR_TYPE,
+    /*type*/ geometry_set_dupli_generator_type,
     /*make_duplis*/ make_duplis_geometry_set,
 };
 

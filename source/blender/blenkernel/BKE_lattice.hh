@@ -67,8 +67,8 @@ void BKE_lattice_eval_geometry(Depsgraph *depsgraph, Lattice *latt);
 
 /* Draw Cache */
 enum {
-  BKE_LATTICE_BATCH_DIRTY_ALL = 0,
-  BKE_LATTICE_BATCH_DIRTY_SELECT,
+  BkeLatticeBatchDirtyAll = 0,
+  BkeLatticeBatchDirtySelect,
 };
 void BKE_lattice_batch_cache_dirty_tag(Lattice *lt, int mode);
 void BKE_lattice_batch_cache_free(Lattice *lt);

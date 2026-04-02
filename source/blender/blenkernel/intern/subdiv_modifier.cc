@@ -75,7 +75,7 @@ bool BKE_subsurf_modifier_use_custom_loop_normals(const SubsurfModifierData *smd
   const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       "custom_normal");
   return meta_data && meta_data->domain == AttrDomain::Corner &&
-         meta_data->data_type == AttrType::Int16_2D;
+         meta_data->data_type == AttrType::Int162D;
 }
 
 bool BKE_subsurf_modifier_has_split_normals(const SubsurfModifierData *smd, const Mesh *mesh)

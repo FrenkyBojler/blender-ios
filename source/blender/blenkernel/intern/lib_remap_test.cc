@@ -163,7 +163,7 @@ TEST_F(LibRemapTest, embedded_ids_can_not_be_deleted)
   ASSERT_EQ(context.material_nodetree, context.material->nodetree);
 
   BKE_libblock_remap(
-      context.bmain, context.material_nodetree, nullptr, ID_REMAP_SKIP_NEVER_NULL_USAGE);
+      context.bmain, context.material_nodetree, nullptr, IdRemapSkipNeverNullUsage);
 
   EXPECT_EQ(context.material_nodetree, context.material->nodetree);
   EXPECT_NE(context.material->nodetree, nullptr);
@@ -221,7 +221,7 @@ TEST_F(LibRemapTest, users_are_same_when_skipping_never_null)
   ASSERT_EQ(context.object->id.tag & ID_TAG_DOIT, 0);
   ASSERT_EQ(context.mesh->id.us, 1);
 
-  BKE_libblock_remap(context.bmain, context.mesh, nullptr, ID_REMAP_SKIP_NEVER_NULL_USAGE);
+  BKE_libblock_remap(context.bmain, context.mesh, nullptr, IdRemapSkipNeverNullUsage);
   EXPECT_EQ(context.mesh->id.us, 1);
   EXPECT_EQ(context.object->data, id_cast<ID *>(context.mesh));
   EXPECT_NE(context.object->data, nullptr);
@@ -241,7 +241,7 @@ TEST_F(LibRemapTest, do_not_delete_when_cannot_unset)
   ASSERT_NE(context.object, nullptr);
   ASSERT_EQ(context.object->data, id_cast<ID *>(context.mesh));
 
-  BKE_libblock_remap(context.bmain, context.mesh, nullptr, ID_REMAP_SKIP_NEVER_NULL_USAGE);
+  BKE_libblock_remap(context.bmain, context.mesh, nullptr, IdRemapSkipNeverNullUsage);
   EXPECT_EQ(context.object->data, id_cast<ID *>(context.mesh));
   EXPECT_NE(context.object->data, nullptr);
 }
@@ -253,7 +253,7 @@ TEST_F(LibRemapTest, force_never_null_usage)
   ASSERT_NE(context.object, nullptr);
   ASSERT_EQ(context.object->data, id_cast<ID *>(context.mesh));
 
-  BKE_libblock_remap(context.bmain, context.mesh, nullptr, ID_REMAP_FORCE_NEVER_NULL_USAGE);
+  BKE_libblock_remap(context.bmain, context.mesh, nullptr, IdRemapForceNeverNullUsage);
   EXPECT_EQ(context.object->data, nullptr);
 }
 
@@ -266,7 +266,7 @@ TEST_F(LibRemapTest, never_null_usage_flag_not_requested_on_delete)
   ASSERT_EQ(context.object->id.tag & ID_TAG_DOIT, 0);
 
   /* Never null usage isn't requested so the flag should not be set. */
-  BKE_libblock_remap(context.bmain, context.mesh, nullptr, ID_REMAP_SKIP_NEVER_NULL_USAGE);
+  BKE_libblock_remap(context.bmain, context.mesh, nullptr, IdRemapSkipNeverNullUsage);
   EXPECT_EQ(context.object->data, id_cast<ID *>(context.mesh));
   EXPECT_NE(context.object->data, nullptr);
   EXPECT_EQ(context.object->id.tag & ID_TAG_DOIT, 0);
@@ -284,7 +284,7 @@ TEST_F(LibRemapTest, never_null_usage_storage_requested_on_delete)
   IDRemapper remapper;
   remapper.add(&context.mesh->id, nullptr);
   BKE_libblock_remap_multiple_locked(
-      context.bmain, remapper, (ID_REMAP_SKIP_NEVER_NULL_USAGE | ID_REMAP_STORE_NEVER_NULL_USAGE));
+      context.bmain, remapper, (IdRemapSkipNeverNullUsage | IdRemapStoreNeverNullUsage));
 
   /* Never null usages un-assignment is not enforced (no #ID_REMAP_FORCE_NEVER_NULL_USAGE),
    * so the object-data should still use the original mesh. */
@@ -303,7 +303,7 @@ TEST_F(LibRemapTest, never_null_usage_flag_not_requested_on_remap)
   ASSERT_EQ(context.object->id.tag & ID_TAG_DOIT, 0);
 
   /* Never null usage isn't requested so the flag should not be set. */
-  BKE_libblock_remap(context.bmain, context.mesh, other_mesh, ID_REMAP_SKIP_NEVER_NULL_USAGE);
+  BKE_libblock_remap(context.bmain, context.mesh, other_mesh, IdRemapSkipNeverNullUsage);
   EXPECT_EQ(context.object->data, id_cast<ID *>(other_mesh));
   EXPECT_EQ(context.object->id.tag & ID_TAG_DOIT, 0);
 }
@@ -322,7 +322,7 @@ TEST_F(LibRemapTest, never_null_usage_storage_requested_on_remap)
   IDRemapper remapper;
   remapper.add(&context.mesh->id, &other_mesh->id);
   BKE_libblock_remap_multiple_locked(
-      context.bmain, remapper, (ID_REMAP_SKIP_NEVER_NULL_USAGE | ID_REMAP_STORE_NEVER_NULL_USAGE));
+      context.bmain, remapper, (IdRemapSkipNeverNullUsage | IdRemapStoreNeverNullUsage));
   EXPECT_EQ(context.object->data, id_cast<ID *>(other_mesh));
   EXPECT_TRUE(remapper.never_null_users().is_empty());
 }

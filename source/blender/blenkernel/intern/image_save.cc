@@ -242,7 +242,7 @@ static void image_save_post(ReportList *reports,
 {
   if (!ok) {
     BKE_reportf(reports,
-                RPT_ERROR,
+                RptError,
                 "Could not write image: %s",
                 errno ? strerror(errno) : "internal error, see console");
     return;
@@ -387,7 +387,7 @@ static bool image_save_single(ReportList *reports,
   /* error handling */
   if (rr == nullptr) {
     if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
-      BKE_report(reports, RPT_ERROR, "Did not write, no Multilayer Image");
+      BKE_report(reports, RptError, "Did not write, no Multilayer Image");
       BKE_image_release_renderresult(opts->scene, ima, rr);
       BKE_image_release_ibuf(ima, ibuf, lock);
       return ok;
@@ -397,7 +397,7 @@ static bool image_save_single(ReportList *reports,
     if (imf->views_format == R_IMF_VIEWS_STEREO_3D) {
       if (!BKE_image_is_stereo(ima)) {
         BKE_reportf(reports,
-                    RPT_ERROR,
+                    RptError,
                     R"(Did not write, the image doesn't have a "%s" and "%s" views)",
                     STEREO_LEFT_NAME,
                     STEREO_RIGHT_NAME);
@@ -411,7 +411,7 @@ static bool image_save_single(ReportList *reports,
           (BLI_findstring(&rr->views, STEREO_RIGHT_NAME, offsetof(RenderView, name)) == nullptr))
       {
         BKE_reportf(reports,
-                    RPT_ERROR,
+                    RptError,
                     R"(Did not write, the image doesn't have a "%s" and "%s" views)",
                     STEREO_LEFT_NAME,
                     STEREO_RIGHT_NAME);
@@ -591,7 +591,7 @@ static bool image_save_single(ReportList *reports,
 
         if (ibuf == nullptr) {
           BKE_report(
-              reports, RPT_ERROR, "Did not write, unexpected error when saving stereo image");
+              reports, RptError, "Did not write, unexpected error when saving stereo image");
           BKE_image_release_ibuf(ima, ibuf, lock);
           stereo_ok = false;
           break;
@@ -659,9 +659,9 @@ bool BKE_image_save(
   if (ima->source == IMA_SRC_TILED) {
     /* Verify filepath for tiled images contains a valid UDIM marker. */
     udim_pattern = BKE_image_get_tile_strformat(opts->filepath, &tile_format);
-    if (tile_format == UDIM_TILE_FORMAT_NONE) {
+    if (tile_format == UdimTileFormatNone) {
       BKE_reportf(reports,
-                  RPT_ERROR,
+                  RptError,
                   "When saving a tiled image, the path '%s' must contain a valid UDIM marker",
                   opts->filepath);
       return false;
@@ -1061,7 +1061,7 @@ bool BKE_image_render_write_exr(ReportList *reports,
   else {
     /* TODO: get the error from openexr's exception. */
     BKE_reportf(
-        reports, RPT_ERROR, "Error writing render result, %s (see console)", strerror(errno));
+        reports, RptError, "Error writing render result, %s (see console)", strerror(errno));
   }
 
   for (float *rect : tmp_output_rects) {
@@ -1086,7 +1086,7 @@ static void image_render_print_save_message(ReportList *reports,
   else {
     /* report on error since users will want to know what failed */
     BKE_reportf(
-        reports, RPT_ERROR, "Render error (%s) cannot save: '%s'", strerror(err), filepath);
+        reports, RptError, "Render error (%s) cannot save: '%s'", strerror(err), filepath);
   }
 }
 
@@ -1242,7 +1242,7 @@ bool BKE_image_render_write(ReportList *reports,
         }
       }
       else {
-        BKE_reportf(reports, RPT_ERROR, "Failed to create stereo image buffer");
+        BKE_reportf(reports, RptError, "Failed to create stereo image buffer");
         ok = false;
       }
 

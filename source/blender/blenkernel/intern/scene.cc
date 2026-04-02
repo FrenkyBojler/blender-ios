@@ -202,11 +202,11 @@ static void scene_init_data(ID *id)
 
   scene->unit.system = USER_UNIT_METRIC;
   scene->unit.scale_length = 1.0f;
-  scene->unit.length_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_LENGTH));
-  scene->unit.mass_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_MASS));
-  scene->unit.time_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_TIME));
+  scene->unit.length_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, BUnitLength));
+  scene->unit.mass_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, BUnitMass));
+  scene->unit.time_unit = uchar(BKE_unit_base_of_type_get(USER_UNIT_METRIC, BUnitTime));
   scene->unit.temperature_unit = uchar(
-      BKE_unit_base_of_type_get(USER_UNIT_METRIC, B_UNIT_TEMPERATURE));
+      BKE_unit_base_of_type_get(USER_UNIT_METRIC, BUnitTemperature));
 
   {
     ParticleEditSettings *pset;
@@ -256,7 +256,7 @@ static void scene_init_data(ID *id)
   /* Master Collection */
   scene->master_collection = BKE_collection_master_add(scene);
 
-  BKE_view_layer_add(nullptr, scene, DATA_("ViewLayer"), nullptr, VIEWLAYER_ADD_NEW);
+  BKE_view_layer_add(nullptr, scene, DATA_("ViewLayer"), nullptr, ViewlayerAddNew);
 
   scene->runtime = MEM_new<SceneRuntime>(__func__);
 }
@@ -270,9 +270,9 @@ static void scene_copy_data(Main *bmain,
   Scene *scene_dst = id_cast<Scene *>(id_dst);
   const Scene *scene_src = id_cast<const Scene *>(id_src);
   /* Never handle user-count here for own sub-data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
   /* Always need allocation of the embedded ID data. */
-  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
+  const int flag_embedded_id_data = flag_subdata & ~LibIdCreateNoAllocate;
 
   scene_dst->ed = nullptr;
   scene_dst->depsgraph_hash = nullptr;
@@ -352,7 +352,7 @@ static void scene_copy_data(Main *bmain,
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
   }
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&scene_dst->id, &scene_src->id);
   }
   else {
@@ -461,10 +461,10 @@ static void scene_foreach_rigidbodyworldSceneLooper(RigidBodyWorld * /*rbw*/,
 enum eSceneForeachUndoPreserveProcess {
   /* Undo when preserving tool-settings from old scene, we also want to try to preserve that ID
    * pointer from its old scene's value. */
-  SCENE_FOREACH_UNDO_RESTORE,
+  SceneForeachUndoRestore,
   /* Undo when preserving tool-settings from old scene, we want to keep the new value of that ID
    * pointer. */
-  SCENE_FOREACH_UNDO_NO_RESTORE,
+  SceneForeachUndoNoRestore,
 };
 
 static void scene_foreach_toolsettings_id_pointer_process(
@@ -475,7 +475,7 @@ static void scene_foreach_toolsettings_id_pointer_process(
     const uint cb_flag)
 {
   switch (action) {
-    case SCENE_FOREACH_UNDO_RESTORE: {
+    case SceneForeachUndoRestore: {
       ID *id_old = *id_old_p;
       /* Old data has not been remapped to new values of the pointers, if we want to keep the old
        * pointer here we need its new address. */
@@ -489,7 +489,7 @@ static void scene_foreach_toolsettings_id_pointer_process(
       if (id_old_new != nullptr) {
         BLI_assert(id_old == id_old_new->orig_id);
         *id_old_p = id_old_new;
-        if (cb_flag & IDWALK_CB_USER) {
+        if (cb_flag & IdwalkCbUser) {
           id_us_plus_no_lib(id_old_new);
           id_us_min(id_old);
         }
@@ -509,7 +509,7 @@ static void scene_foreach_toolsettings_id_pointer_process(
                        nullptr;
       if (id_new != id) {
         *id_p = id_new;
-        if (cb_flag & IDWALK_CB_USER) {
+        if (cb_flag & IdwalkCbUser) {
           id_us_plus_no_lib(id_new);
           id_us_min(id);
         }
@@ -517,7 +517,7 @@ static void scene_foreach_toolsettings_id_pointer_process(
       std::swap(*id_p, *id_old_p);
       break;
     }
-    case SCENE_FOREACH_UNDO_NO_RESTORE:
+    case SceneForeachUndoNoRestore:
       /* Counteract the swap of the whole ToolSettings container struct. */
       std::swap(*id_p, *id_old_p);
       break;
@@ -574,20 +574,20 @@ static void scene_foreach_paint(LibraryForeachIDData *data,
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     brush_p,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_RESTORE,
+                                                    SceneForeachUndoRestore,
                                                     reader,
                                                     &paint_old->brush,
-                                                    IDWALK_CB_NOP);
+                                                    IdwalkCbNop);
 
   Palette *palette_tmp = nullptr;
   Palette **palette_p = paint ? &paint->palette : &palette_tmp;
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     palette_p,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_RESTORE,
+                                                    SceneForeachUndoRestore,
                                                     reader,
                                                     &paint_old->palette,
-                                                    IDWALK_CB_USER);
+                                                    IdwalkCbUser);
 }
 
 static void scene_foreach_toolsettings(LibraryForeachIDData *data,
@@ -611,64 +611,64 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->particle.scene,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_NO_RESTORE,
+                                                    SceneForeachUndoNoRestore,
                                                     reader,
                                                     &toolsett_old->particle.scene,
-                                                    IDWALK_CB_NOP);
+                                                    IdwalkCbNop);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->particle.object,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_NO_RESTORE,
+                                                    SceneForeachUndoNoRestore,
                                                     reader,
                                                     &toolsett_old->particle.object,
-                                                    IDWALK_CB_NOP);
+                                                    IdwalkCbNop);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->particle.shape_object,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_NO_RESTORE,
+                                                    SceneForeachUndoNoRestore,
                                                     reader,
                                                     &toolsett_old->particle.shape_object,
-                                                    IDWALK_CB_NOP);
+                                                    IdwalkCbNop);
 
   scene_foreach_paint(
       data, &toolsett->imapaint.paint, do_undo_restore, reader, &toolsett_old->imapaint.paint);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->imapaint.stencil,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_RESTORE,
+                                                    SceneForeachUndoRestore,
                                                     reader,
                                                     &toolsett_old->imapaint.stencil,
-                                                    IDWALK_CB_USER);
+                                                    IdwalkCbUser);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->imapaint.clone,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_RESTORE,
+                                                    SceneForeachUndoRestore,
                                                     reader,
                                                     &toolsett_old->imapaint.clone,
-                                                    IDWALK_CB_USER);
+                                                    IdwalkCbUser);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->imapaint.canvas,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_RESTORE,
+                                                    SceneForeachUndoRestore,
                                                     reader,
                                                     &toolsett_old->imapaint.canvas,
-                                                    IDWALK_CB_USER);
+                                                    IdwalkCbUser);
 
   /* These two Object pointers should just follow the normal Undo behavior. See #153065. */
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->anim_mirror_object,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_NO_RESTORE,
+                                                    SceneForeachUndoNoRestore,
                                                     reader,
                                                     &toolsett_old->anim_mirror_object,
-                                                    IDWALK_CB_NOP);
+                                                    IdwalkCbNop);
   BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                     &toolsett->anim_relative_object,
                                                     do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_NO_RESTORE,
+                                                    SceneForeachUndoNoRestore,
                                                     reader,
                                                     &toolsett_old->anim_relative_object,
-                                                    IDWALK_CB_NOP);
+                                                    IdwalkCbNop);
 
   Paint *paint, *paint_old;
 
@@ -705,10 +705,10 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
     BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
                                                       &gravity_object,
                                                       do_undo_restore,
-                                                      SCENE_FOREACH_UNDO_NO_RESTORE,
+                                                      SceneForeachUndoNoRestore,
                                                       reader,
                                                       &gravity_object_old,
-                                                      IDWALK_CB_NOP);
+                                                      IdwalkCbNop);
     if (toolsett->sculpt) {
       toolsett->sculpt->gravity_object = gravity_object;
     }
@@ -763,10 +763,10 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
       data,
       &toolsett->gp_sculpt.guide.reference_object,
       do_undo_restore,
-      SCENE_FOREACH_UNDO_NO_RESTORE,
+      SceneForeachUndoNoRestore,
       reader,
       &toolsett_old->gp_sculpt.guide.reference_object,
-      IDWALK_CB_NOP);
+      IdwalkCbNop);
 }
 
 #undef BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER
@@ -779,12 +779,12 @@ static void scene_foreach_layer_collection(LibraryForeachIDData *data,
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
 
   for (LayerCollection &lc : *lb) {
-    if ((data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0 && lc.collection != nullptr) {
+    if ((data_flags & IdwalkNoOrigPointersAccess) == 0 && lc.collection != nullptr) {
       BLI_assert(is_master == ((lc.collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
     }
-    const LibraryForeachIDCallbackFlag cb_flag = is_master ? IDWALK_CB_EMBEDDED_NOT_OWNING :
-                                                             IDWALK_CB_NOP;
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lc.collection, cb_flag | IDWALK_CB_DIRECT_WEAK_LINK);
+    const LibraryForeachIDCallbackFlag cb_flag = is_master ? IdwalkCbEmbeddedNotOwning :
+                                                             IdwalkCbNop;
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lc.collection, cb_flag | IdwalkCbDirectWeakLink);
     scene_foreach_layer_collection(data, &lc.layer_collections, false);
   }
 }
@@ -810,11 +810,11 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   } \
   ((void)0)
 
-  FOREACHID_PROCESS_IDSUPER(data, strip->scene, IDWALK_CB_NEVER_SELF);
-  FOREACHID_PROCESS_IDSUPER(data, strip->scene_camera, IDWALK_CB_NOP);
-  FOREACHID_PROCESS_IDSUPER(data, strip->clip, IDWALK_CB_USER);
-  FOREACHID_PROCESS_IDSUPER(data, strip->mask, IDWALK_CB_USER);
-  FOREACHID_PROCESS_IDSUPER(data, strip->sound, IDWALK_CB_USER);
+  FOREACHID_PROCESS_IDSUPER(data, strip->scene, IdwalkCbNeverSelf);
+  FOREACHID_PROCESS_IDSUPER(data, strip->scene_camera, IdwalkCbNop);
+  FOREACHID_PROCESS_IDSUPER(data, strip->clip, IdwalkCbUser);
+  FOREACHID_PROCESS_IDSUPER(data, strip->mask, IdwalkCbUser);
+  FOREACHID_PROCESS_IDSUPER(data, strip->sound, IdwalkCbUser);
   IDP_foreach_property(strip->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
@@ -823,21 +823,21 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   });
   if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
     CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
-    FOREACHID_PROCESS_IDSUPER(data, comp_data->node_group, IDWALK_CB_USER);
+    FOREACHID_PROCESS_IDSUPER(data, comp_data->node_group, IdwalkCbUser);
   }
   /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
    * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   for (StripModifierData &smd : strip->modifiers) {
-    FOREACHID_PROCESS_IDSUPER(data, smd.mask_id, IDWALK_CB_USER);
+    FOREACHID_PROCESS_IDSUPER(data, smd.mask_id, IdwalkCbUser);
     if (smd.type == eSeqModifierType_Compositor) {
       auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(&smd);
-      FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
+      FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IdwalkCbUser);
     }
   }
 
   if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
     TextVars *text_data = static_cast<TextVars *>(strip->effectdata);
-    FOREACHID_PROCESS_IDSUPER(data, text_data->text_font, IDWALK_CB_USER);
+    FOREACHID_PROCESS_IDSUPER(data, text_data->text_font, IdwalkCbUser);
   }
 
 #undef FOREACHID_PROCESS_IDSUPER
@@ -851,13 +851,13 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   Scene *scene = reinterpret_cast<Scene *>(id);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->camera, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->world, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->set, IDWALK_CB_NEVER_SELF);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->clip, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gpd, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->camera, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->world, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->set, IdwalkCbNeverSelf);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->clip, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gpd, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IdwalkCbUser);
 
   if (scene->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
@@ -879,8 +879,8 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   for (ViewLayer &view_layer : scene->view_layers) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.mat_override, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.world_override, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.mat_override, IdwalkCbUser);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.world_override, IdwalkCbUser);
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data,
         IDP_foreach_property(view_layer.id_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
@@ -907,7 +907,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
     const bool is_synced = bmain ? BKE_view_layer_synced_ensure(*bmain, scene, &view_layer) :
                                    BKE_view_layer_is_synced(view_layer);
     if (!is_synced) {
-      BLI_assert_msg((flag & IDWALK_RECURSE) == 0,
+      BLI_assert_msg((flag & IdwalkRecurse) == 0,
                      "foreach_id should never recurse in case it cannot ensure that all "
                      "view-layers are in synced with their collections");
     }
@@ -915,24 +915,24 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
           data,
           base.object,
-          IDWALK_CB_NOP | IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE | IDWALK_CB_DIRECT_WEAK_LINK);
+          IdwalkCbNop | IdwalkCbOverrideLibraryNotOverridable | IdwalkCbDirectWeakLink);
     }
 
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data, scene_foreach_layer_collection(data, &view_layer.layer_collections, true));
 
     for (FreestyleModuleConfig &fmc : view_layer.freestyle_config.modules) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fmc.script, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fmc.script, IdwalkCbNop);
     }
 
     for (FreestyleLineSet &fls : view_layer.freestyle_config.linesets) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.group, IDWALK_CB_USER);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.linestyle, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.group, IdwalkCbUser);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.linestyle, IdwalkCbUser);
     }
   }
 
   for (TimeMarker &marker : scene->markers) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, marker.camera, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, marker.camera, IdwalkCbNop);
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data, IDP_foreach_property(marker.prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
           BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
@@ -952,19 +952,19 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
             scene->rigidbody_world, scene_foreach_rigidbodyworldSceneLooper, data));
   }
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
+  if (flag & IdwalkDoDeprecatedPointers) {
     for (Base &base_legacy : scene->base.items_mutable()) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, base_legacy.object, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, base_legacy.object, IdwalkCbNop);
     }
 
     for (SceneRenderLayer &srl : scene->r.layers) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, srl.mat_override, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, srl.mat_override, IdwalkCbUser);
       for (FreestyleModuleConfig &fmc : srl.freestyleConfig.modules) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fmc.script, IDWALK_CB_NOP);
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fmc.script, IdwalkCbNop);
       }
       for (FreestyleLineSet &fls : srl.freestyleConfig.linesets) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.linestyle, IDWALK_CB_USER);
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.group, IDWALK_CB_USER);
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.linestyle, IdwalkCbUser);
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, fls.group, IdwalkCbUser);
       }
     }
   }
@@ -988,7 +988,7 @@ static bool strip_foreach_path_callback(Strip *strip, void *user_data)
       uint len = uint(MEM_allocN_len(se)) / uint(sizeof(*se));
       uint i;
 
-      if (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE) {
+      if (bpath_data->flag & BkeBpathForeachPathSkipMultifile) {
         /* only operate on one path */
         len = std::min(1u, len);
       }
@@ -1548,7 +1548,7 @@ static void scene_blend_read_after_liblink(BlendLibReader *reader, ID *id)
   for (Base &base_legacy : sce->base.items_mutable()) {
     if (base_legacy.object == nullptr) {
       BLO_reportf_wrap(BLO_read_lib_reports(reader),
-                       RPT_WARNING,
+                       RptWarning,
                        RPT_("LIB: object lost from scene: '%s'"),
                        sce->id.name + 2);
       BLI_remlink(&sce->base, &base_legacy);
@@ -1617,7 +1617,7 @@ IDTypeInfo IDType_ID_SCE = {
     .name = "Scene",
     .name_plural = "scenes",
     .translation_context = BLT_I18NCONTEXT_ID_SCENE,
-    .flags = IDTYPE_FLAGS_NEVER_UNUSED,
+    .flags = IdtypeFlagsNeverUnused,
     .asset_type_info = nullptr,
 
     .init_data = scene_init_data,
@@ -1864,7 +1864,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
 
   /* TODO: this should/could most likely be replaced by call to more generic code at some point...
    * But for now, let's keep it well isolated here. */
-  if (type == SCE_COPY_EMPTY) {
+  if (type == SceCopyEmpty) {
     ListBaseT<SceneRenderView> rv;
 
     sce_copy = BKE_scene_add(bmain, sce->id.name + 2);
@@ -1921,9 +1921,9 @@ Scene *BKE_scene_duplicate(Main *bmain,
    *
    * TODO: At some point it would be nice to deduplicate this logic and move common behavior into
    * generic ID management code, with IDType callbacks for specific duplication behavior only. */
-  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
-  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
-  const int copy_flags = LIB_ID_COPY_DEFAULT;
+  const bool is_subprocess = (duplicate_options & LibIdDuplicateIsSubprocess) != 0;
+  const bool is_root_id = (duplicate_options & LibIdDuplicateIsRootId) != 0;
+  const int copy_flags = LibIdCopyDefault;
 
   if (!is_subprocess) {
     BKE_main_id_newptr_and_tag_clear(bmain);
@@ -1965,7 +1965,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
   BKE_id_copy_for_duplicate(
       bmain, reinterpret_cast<ID *>(sce->compositing_node_group), duplicate_flags, copy_flags);
 
-  if (type == SCE_COPY_FULL) {
+  if (type == SceCopyFull) {
     /* Copy Freestyle LineStyle datablocks. */
     for (ViewLayer &view_layer_dst : sce_copy->view_layers) {
       for (FreestyleLineSet &lineset : view_layer_dst.freestyle_config.linesets) {
@@ -1987,7 +1987,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
                              nullptr,
                              sce_copy->master_collection,
                              duplicate_flags,
-                             LIB_ID_DUPLICATE_IS_SUBPROCESS);
+                             LibIdDuplicateIsSubprocess);
 
     /* Rigid body world collections may not be instantiated as scene's collections, ensure they
      * also get properly duplicated. */
@@ -1998,7 +1998,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
                                  nullptr,
                                  sce_copy->rigidbody_world->group,
                                  duplicate_flags,
-                                 LIB_ID_DUPLICATE_IS_SUBPROCESS);
+                                 LibIdDuplicateIsSubprocess);
       }
       if (sce_copy->rigidbody_world->constraints != nullptr) {
         BKE_collection_duplicate(bmain,
@@ -2006,7 +2006,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
                                  nullptr,
                                  sce_copy->rigidbody_world->constraints,
                                  duplicate_flags,
-                                 LIB_ID_DUPLICATE_IS_SUBPROCESS);
+                                 LibIdDuplicateIsSubprocess);
       }
     }
   }
@@ -2028,7 +2028,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
      * mode, and therefore not remapping their obdata to the newly duplicated one. See #139715.
      */
     BKE_libblock_relink_to_newid(
-        bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
+        bmain, &sce_copy->id, IdRemapForceObdataInEditmode | IdRemapSkipUserClear);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
@@ -2711,7 +2711,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
 
   bool run_callbacks = DEG_id_type_any_updated(depsgraph);
   if (run_callbacks) {
-    BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_DEPSGRAPH_UPDATE_PRE);
+    BKE_callback_exec_id(bmain, &scene->id, BkeCbEvtDepsgraphUpdatePre);
   }
 
   for (int pass = 0; pass < 2; pass++) {
@@ -2729,7 +2729,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
     /* Notify python about depsgraph update. */
     if (run_callbacks) {
       BKE_callback_exec_id_depsgraph(
-          bmain, &scene->id, depsgraph, BKE_CB_EVT_DEPSGRAPH_UPDATE_POST);
+          bmain, &scene->id, depsgraph, BkeCbEvtDepsgraphUpdatePost);
 
       /* It is possible that the custom callback modified scene and removed some IDs from the main
        * database. In this case DEG_editors_update() will crash because it iterates over all IDs
@@ -2787,7 +2787,7 @@ void BKE_scene_graph_update_for_newframe_ex(Depsgraph *depsgraph, const bool cle
   bool used_multiple_passes = false;
 
   /* Keep this first. */
-  BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_FRAME_CHANGE_PRE);
+  BKE_callback_exec_id(bmain, &scene->id, BkeCbEvtFrameChangePre);
 
   for (int pass = 0; pass < 2; pass++) {
     /* Update animated image textures for particles, modifiers, gpu, etc,
@@ -2813,7 +2813,7 @@ void BKE_scene_graph_update_for_newframe_ex(Depsgraph *depsgraph, const bool cle
 
     /* Notify editors and python about recalc. */
     if (pass == 0) {
-      BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_FRAME_CHANGE_POST);
+      BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BkeCbEvtFrameChangePost);
 
       /* NOTE: Similar to this case in scene_graph_update_tagged(). Need to ensure that
        * DEG_editors_update() doesn't access freed memory of possibly removed ID. */
@@ -2995,8 +2995,8 @@ bool BKE_scene_uses_shader_previews(const Scene *scene)
 
 /* This enumeration has to match the one defined in the Cycles addon. */
 enum eCyclesFeatureSet {
-  CYCLES_FEATURES_SUPPORTED = 0,
-  CYCLES_FEATURES_EXPERIMENTAL = 1,
+  CyclesFeaturesSupported = 0,
+  CyclesFeaturesExperimental = 1,
 };
 
 void BKE_scene_base_flag_to_objects(const Main &bmain, const Scene *scene, ViewLayer *view_layer)

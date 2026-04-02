@@ -139,13 +139,13 @@ void BKE_animdata_duplicate_id_action(Main *bmain, ID *id, uint duplicate_flags)
 /* Merge copies of data from source AnimData block */
 enum eAnimData_MergeCopy_Modes {
   /* Keep destination action */
-  ADT_MERGECOPY_KEEP_DST = 0,
+  AdtMergecopyKeepDst = 0,
 
   /* Use src action (make a new copy) */
-  ADT_MERGECOPY_SRC_COPY = 1,
+  AdtMergecopySrcCopy = 1,
 
   /* Use src action (but just reference the existing version) */
-  ADT_MERGECOPY_SRC_REF = 2,
+  AdtMergecopySrcRef = 2,
 };
 
 /**

@@ -184,7 +184,7 @@ static float dtar_get_prop_val(const AnimationEvalContext *anim_eval_context,
       anim_eval_context);
   PointerRNA property_ptr;
   if (!driver_get_target_property(&driver_target_context, dvar, dtar, &property_ptr)) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_ERROR(&LOG, "driver has an invalid target to use (path = %s)", dtar->rna_path);
     }
 
@@ -206,7 +206,7 @@ static float dtar_get_prop_val(const AnimationEvalContext *anim_eval_context,
     }
 
     /* Path couldn't be resolved. */
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_ERROR(&LOG,
                  "Driver Evaluation Error: cannot resolve target for %s -> %s",
                  property_ptr.owner_id->name,
@@ -226,7 +226,7 @@ static float dtar_get_prop_val(const AnimationEvalContext *anim_eval_context,
       }
 
       /* Out of bounds. */
-      if (G.debug & G_DEBUG) {
+      if (G.debug & GDebug) {
         CLOG_ERROR(&LOG,
                    "Driver Evaluation Error: array index is out of bounds for %s -> %s (%d)",
                    property_ptr.owner_id->name,
@@ -294,7 +294,7 @@ eDriverVariablePropertyResult driver_get_variable_property(
 
   /* Sanity check. */
   if (ELEM(nullptr, driver, dtar)) {
-    return DRIVER_VAR_PROPERTY_INVALID;
+    return DriverVarPropertyInvalid;
   }
 
   dtar->flag &= ~DTAR_FLAG_FALLBACK_USED;
@@ -304,13 +304,13 @@ eDriverVariablePropertyResult driver_get_variable_property(
       anim_eval_context);
   PointerRNA target_ptr;
   if (!driver_get_target_property(&driver_target_context, dvar, dtar, &target_ptr)) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_ERROR(&LOG, "driver has an invalid target to use (path = %s)", dtar->rna_path);
     }
 
     driver->flag |= DRIVER_FLAG_INVALID;
     dtar->flag |= DTAR_FLAG_INVALID;
-    return DRIVER_VAR_PROPERTY_INVALID;
+    return DriverVarPropertyInvalid;
   }
 
   /* Get property to read from, and get value as appropriate. */
@@ -326,11 +326,11 @@ eDriverVariablePropertyResult driver_get_variable_property(
       ptr = PointerRNA_NULL;
       *r_prop = nullptr;
       *r_index = -1;
-      return DRIVER_VAR_PROPERTY_FALLBACK;
+      return DriverVarPropertyFallback;
     }
 
     /* Path couldn't be resolved. */
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_ERROR(&LOG,
                  "Driver Evaluation Error: cannot resolve target for %s -> %s",
                  target_ptr.owner_id->name,
@@ -343,7 +343,7 @@ eDriverVariablePropertyResult driver_get_variable_property(
 
     driver->flag |= DRIVER_FLAG_INVALID;
     dtar->flag |= DTAR_FLAG_INVALID;
-    return DRIVER_VAR_PROPERTY_INVALID;
+    return DriverVarPropertyInvalid;
   }
 
   *r_ptr = ptr;
@@ -354,11 +354,11 @@ eDriverVariablePropertyResult driver_get_variable_property(
   if (prop && RNA_property_array_check(prop)) {
     if ((index < 0 && !allow_no_index) || index >= RNA_property_array_length(&ptr, prop)) {
       if (dtar_try_use_fallback(dtar)) {
-        return DRIVER_VAR_PROPERTY_FALLBACK;
+        return DriverVarPropertyFallback;
       }
 
       /* Out of bounds. */
-      if (G.debug & G_DEBUG) {
+      if (G.debug & GDebug) {
         CLOG_ERROR(&LOG,
                    "Driver Evaluation Error: array index is out of bounds for %s -> %s (%d)",
                    ptr.owner_id->name,
@@ -368,13 +368,13 @@ eDriverVariablePropertyResult driver_get_variable_property(
 
       driver->flag |= DRIVER_FLAG_INVALID;
       dtar->flag |= DTAR_FLAG_INVALID;
-      return DRIVER_VAR_PROPERTY_INVALID_INDEX;
+      return DriverVarPropertyInvalidIndex;
     }
   }
 
   /* If we're still here, we should be ok. */
   dtar->flag &= ~DTAR_FLAG_INVALID;
-  return DRIVER_VAR_PROPERTY_SUCCESS;
+  return DriverVarPropertySuccess;
 }
 
 static short driver_check_valid_targets(ChannelDriver *driver, DriverVar *dvar)
@@ -425,7 +425,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
 
   /* Make sure we have enough valid targets to use - all or nothing for now. */
   if (driver_check_valid_targets(driver, dvar) != 2) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_WARN(&LOG,
                 "RotDiff DVar: not enough valid targets (n = %d) (a = %p, b = %p)",
                 valid_targets,
@@ -490,7 +490,7 @@ static float dvar_eval_locDiff(const AnimationEvalContext * /*anim_eval_context*
 
   /* Make sure we have enough valid targets to use - all or nothing for now. */
   if (valid_targets < dvar->num_targets) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_WARN(&LOG,
                 "LocDiff DVar: not enough valid targets (n = %d) (a = %p, b = %p)",
                 valid_targets,
@@ -1105,9 +1105,9 @@ ChannelDriver *fcurve_copy_driver(const ChannelDriver *driver)
 /* Index constants for the expression parameter array. */
 enum {
   /* Index of the 'frame' variable. */
-  VAR_INDEX_FRAME = 0,
+  VarIndexFrame = 0,
   /* Index of the first user-defined driver variable. */
-  VAR_INDEX_CUSTOM
+  VarIndexCustom
 };
 
 static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
@@ -1115,22 +1115,22 @@ static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
   /* Prepare parameter names. */
   int names_len = BLI_listbase_count(&driver->variables);
   const char **names = static_cast<const char **>(
-      BLI_array_alloca(names, names_len + VAR_INDEX_CUSTOM));
-  int i = VAR_INDEX_CUSTOM;
+      BLI_array_alloca(names, names_len + VarIndexCustom));
+  int i = VarIndexCustom;
 
-  names[VAR_INDEX_FRAME] = "frame";
+  names[VarIndexFrame] = "frame";
 
   for (DriverVar &dvar : driver->variables) {
     names[i++] = dvar.name;
   }
 
-  return BLI_expr_pylike_parse(driver->expression, names, names_len + VAR_INDEX_CUSTOM);
+  return BLI_expr_pylike_parse(driver->expression, names, names_len + VarIndexCustom);
 }
 
 static bool driver_check_simple_expr_depends_on_time(const ExprPyLike_Parsed *expr)
 {
   /* Check if the 'frame' parameter is actually used. */
-  return BLI_expr_pylike_is_using_param(expr, VAR_INDEX_FRAME);
+  return BLI_expr_pylike_is_using_param(expr, VarIndexFrame);
 }
 
 static bool driver_evaluate_simple_expr(const AnimationEvalContext *anim_eval_context,
@@ -1141,10 +1141,10 @@ static bool driver_evaluate_simple_expr(const AnimationEvalContext *anim_eval_co
 {
   /* Prepare parameter values. */
   int vars_len = BLI_listbase_count(&driver->variables);
-  double *vars = static_cast<double *>(BLI_array_alloca(vars, vars_len + VAR_INDEX_CUSTOM));
-  int i = VAR_INDEX_CUSTOM;
+  double *vars = static_cast<double *>(BLI_array_alloca(vars, vars_len + VarIndexCustom));
+  int i = VarIndexCustom;
 
-  vars[VAR_INDEX_FRAME] = time;
+  vars[VarIndexFrame] = time;
 
   for (DriverVar &dvar : driver->variables) {
     vars[i++] = driver_get_variable_value(anim_eval_context, driver, &dvar);
@@ -1153,7 +1153,7 @@ static bool driver_evaluate_simple_expr(const AnimationEvalContext *anim_eval_co
   /* Evaluate expression. */
   double result_val;
   eExprPyLike_EvalStatus status = BLI_expr_pylike_eval(
-      expr, vars, vars_len + VAR_INDEX_CUSTOM, &result_val);
+      expr, vars, vars_len + VarIndexCustom, &result_val);
   const char *message;
 
   switch (status) {

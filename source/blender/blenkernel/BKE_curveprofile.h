@@ -135,9 +135,9 @@ void BKE_curveprofile_init(struct CurveProfile *profile, short segments_len);
 
 /* Called for a complete update of the widget after modifications */
 enum {
-  PROF_UPDATE_NONE = 0,
-  PROF_UPDATE_REMOVE_DOUBLES = (1 << 0),
-  PROF_UPDATE_CLIP = (1 << 1),
+  ProfUpdateNone = 0,
+  ProfUpdateRemoveDoubles = (1 << 0),
+  ProfUpdateClip = (1 << 1),
 };
 /**
  * Should be called after the widget is changed. Does profile and remove double checks and more

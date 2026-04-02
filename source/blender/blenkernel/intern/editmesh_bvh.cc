@@ -73,7 +73,7 @@ BMBVHTree *BKE_bmbvh_new_ex(BMesh *bm,
 
   if (test_fn) {
     /* callback must do... */
-    BLI_assert(!(flag & (BMBVH_RESPECT_SELECT | BMBVH_RESPECT_HIDDEN)));
+    BLI_assert(!(flag & (BmbvhRespectSelect | BmbvhRespectHidden)));
 
     f_test_prev = nullptr;
     test_fn_ret = false;
@@ -151,17 +151,17 @@ BMBVHTree *BKE_bmbvh_new(BMesh *bm,
 {
   bool (*test_fn)(BMFace *, void *user_data);
 
-  if (flag & BMBVH_RESPECT_SELECT) {
+  if (flag & BmbvhRespectSelect) {
     test_fn = bm_face_is_select;
   }
-  else if (flag & BMBVH_RESPECT_HIDDEN) {
+  else if (flag & BmbvhRespectHidden) {
     test_fn = bm_face_is_not_hidden;
   }
   else {
     test_fn = nullptr;
   }
 
-  flag &= ~(BMBVH_RESPECT_SELECT | BMBVH_RESPECT_HIDDEN);
+  flag &= ~(BmbvhRespectSelect | BmbvhRespectHidden);
 
   return BKE_bmbvh_new_ex(bm, looptris, flag, cos_cage, cos_cage_free, test_fn, nullptr);
 }
@@ -226,7 +226,7 @@ static BMFace *bmbvh_ray_cast_handle_hit(const BMBVHTree *bmtree,
                                          float r_cagehit[3])
 {
   if (r_hitout) {
-    if (bmtree->flag & BMBVH_RETURN_ORIG) {
+    if (bmtree->flag & BmbvhReturnOrig) {
       const std::array<BMLoop *, 3> &ltri = bmtree->looptris[hit->index];
       interp_v3_v3v3v3_uv(r_hitout, ltri[0]->v->co, ltri[1]->v->co, ltri[2]->v->co, bmcb_data->uv);
     }

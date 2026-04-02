@@ -20,26 +20,26 @@ struct Nurb;
 /** #DispList.type */
 enum {
   /** A closed polygon (that can be filled). */
-  DL_POLY = 0,
+  DlPoly = 0,
   /** An open polygon. */
-  DL_SEGM = 1,
+  DlSegm = 1,
   /** A grid surface that respects #DL_CYCL_U & #DL_CYCL_V. */
-  DL_SURF = 2,
+  DlSurf = 2,
   /** Triangles. */
-  DL_INDEX3 = 4,
+  DlIndeX3 = 4,
   // DL_VERTCOL = 6, /* UNUSED */
   /** Isolated points. */
-  DL_VERTS = 7,
+  DlVerts = 7,
 };
 
 /** #DispList.type */
 enum {
   /** U/V swapped here compared with #Nurb.flagu, #Nurb.flagv and #CU_NURB_CYCLIC */
-  DL_CYCL_U = (1 << 0),
-  DL_CYCL_V = (1 << 1),
+  DlCyclU = (1 << 0),
+  DlCyclV = (1 << 1),
 
-  DL_FRONT_CURVE = (1 << 2),
-  DL_BACK_CURVE = (1 << 3),
+  DlFrontCurve = (1 << 2),
+  DlBackCurve = (1 << 3),
 
   /**
    * Marks geometry whose winding direction was reversed during bevel list generation
@@ -47,7 +47,7 @@ enum {
    *
    * Needed to check if the winding has been flipped (CDT filling).
    */
-  DL_REVERSED = (1 << 4),
+  DlReversed = (1 << 4),
 };
 
 /* prototypes */

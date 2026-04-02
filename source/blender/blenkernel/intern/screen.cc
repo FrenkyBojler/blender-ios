@@ -166,7 +166,7 @@ static void screen_copy_data(Main * /*bmain*/,
 
 void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, area->full, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, area->full, IdwalkCbNop);
 
   for (SpaceLink &sl : area->spacedata) {
     SpaceType *space_type = BKE_spacetype_from_id(sl.spacetype);
@@ -182,11 +182,11 @@ static void screen_foreach_id(ID *id, LibraryForeachIDData *data)
   bScreen *screen = reinterpret_cast<bScreen *>(id);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, screen->scene, IDWALK_CB_NOP);
+  if (flag & IdwalkDoDeprecatedPointers) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, screen->scene, IdwalkCbNop);
   }
 
-  if (flag & IDWALK_INCLUDE_UI) {
+  if (flag & IdwalkIncludeUi) {
     for (ScrArea &area : screen->areabase) {
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
                                               BKE_screen_foreach_id_screen_area(data, &area));
@@ -254,7 +254,7 @@ IDTypeInfo IDType_ID_SCR = {
     .name = "Screen",
     .name_plural = N_("screens"),
     .translation_context = BLT_I18NCONTEXT_ID_SCREEN,
-    .flags = IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+    .flags = IdtypeFlagsOnlyAppend | IdtypeFlagsNoAnimdata | IdtypeFlagsNoMemfileUndo,
     .asset_type_info = nullptr,
 
     .init_data = screen_init_data,

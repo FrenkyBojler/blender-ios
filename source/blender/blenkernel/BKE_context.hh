@@ -97,14 +97,14 @@ struct bContextDataResult;
  * when mixing C/C++ code. */
 enum eContextResult {
   /* The context member was found, and its data is available. */
-  CTX_RESULT_OK = 1,
+  CtxResultOk = 1,
 
   /* The context member was not found. */
-  CTX_RESULT_MEMBER_NOT_FOUND = 0,
+  CtxResultMemberNotFound = 0,
 
   /* The context member was found, but its data is not available.
    * For example, "active_bone" is a valid context member, but has not data in Object mode. */
-  CTX_RESULT_NO_DATA = -1,
+  CtxResultNoData = -1,
 };
 
 /* Function mapping a context member name to its value. */
@@ -129,35 +129,35 @@ class AssetRepresentation;
 /* for the context's rna mode enum
  * keep aligned with data_mode_strings in context.cc */
 enum eContextObjectMode {
-  CTX_MODE_EDIT_MESH = 0,
-  CTX_MODE_EDIT_CURVE,
-  CTX_MODE_EDIT_SURFACE,
-  CTX_MODE_EDIT_TEXT,
-  CTX_MODE_EDIT_ARMATURE,
-  CTX_MODE_EDIT_METABALL,
-  CTX_MODE_EDIT_LATTICE,
-  CTX_MODE_EDIT_CURVES,
-  CTX_MODE_EDIT_GREASE_PENCIL,
-  CTX_MODE_EDIT_POINTCLOUD,
-  CTX_MODE_POSE,
-  CTX_MODE_SCULPT,
-  CTX_MODE_PAINT_WEIGHT,
-  CTX_MODE_PAINT_VERTEX,
-  CTX_MODE_PAINT_TEXTURE,
-  CTX_MODE_PARTICLE,
-  CTX_MODE_OBJECT,
-  CTX_MODE_PAINT_GPENCIL_LEGACY,
-  CTX_MODE_EDIT_GPENCIL_LEGACY,
-  CTX_MODE_SCULPT_GPENCIL_LEGACY,
-  CTX_MODE_WEIGHT_GPENCIL_LEGACY,
-  CTX_MODE_VERTEX_GPENCIL_LEGACY,
-  CTX_MODE_SCULPT_CURVES,
-  CTX_MODE_PAINT_GREASE_PENCIL,
-  CTX_MODE_SCULPT_GREASE_PENCIL,
-  CTX_MODE_WEIGHT_GREASE_PENCIL,
-  CTX_MODE_VERTEX_GREASE_PENCIL,
+  CtxModeEditMesh = 0,
+  CtxModeEditCurve,
+  CtxModeEditSurface,
+  CtxModeEditText,
+  CtxModeEditArmature,
+  CtxModeEditMetaball,
+  CtxModeEditLattice,
+  CtxModeEditCurves,
+  CtxModeEditGreasePencil,
+  CtxModeEditPointcloud,
+  CtxModePose,
+  CtxModeSculpt,
+  CtxModePaintWeight,
+  CtxModePaintVertex,
+  CtxModePaintTexture,
+  CtxModeParticle,
+  CtxModeObject,
+  CtxModePaintGpencilLegacy,
+  CtxModeEditGpencilLegacy,
+  CtxModeSculptGpencilLegacy,
+  CtxModeWeightGpencilLegacy,
+  CtxModeVertexGpencilLegacy,
+  CtxModeSculptCurves,
+  CtxModePaintGreasePencil,
+  CtxModeSculptGreasePencil,
+  CtxModeWeightGreasePencil,
+  CtxModeVertexGreasePencil,
 };
-#define CTX_MODE_NUM (CTX_MODE_VERTEX_GREASE_PENCIL + 1)
+#define CTX_MODE_NUM (CtxModeVertexGreasePencil + 1)
 
 /* Context */
 

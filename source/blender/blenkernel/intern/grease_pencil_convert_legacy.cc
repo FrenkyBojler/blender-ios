@@ -914,7 +914,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
 
     const IndexRange points = points_by_curve[stroke_i];
 
-    const float stroke_thickness = float(gps.thickness) * LEGACY_RADIUS_CONVERSION_FACTOR;
+    const float stroke_thickness = float(gps.thickness) * legacy_radius_conversion_factor;
     MutableSpan<float3> dst_positions = positions.slice(points);
     MutableSpan<float3> dst_handle_positions_left = has_bezier_stroke ?
                                                         handle_positions_left.slice(points) :
@@ -1146,7 +1146,7 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
    * the time being, assuming invalid fcurves/drivers are fine here. */
   if (AnimData *gpd_animdata = BKE_animdata_from_id(&gpd.id)) {
     grease_pencil.adt = BKE_animdata_copy_in_lib(
-        &conversion_data.bmain, gpd.id.lib, gpd_animdata, LIB_ID_COPY_DEFAULT);
+        &conversion_data.bmain, gpd.id.lib, gpd_animdata, LibIdCopyDefault);
 
     /* Some property was renamed between legacy GP layers and new GreasePencil ones. */
     AnimDataConvertor animdata_gpdata_transfer(
@@ -1164,13 +1164,13 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
   }
 }
 
-constexpr const char *OFFSET_RADIUS_NODETREE_NAME = "Offset Radius GPv3 Conversion";
+constexpr const char *offset_radius_nodetree_name = "Offset Radius GPv3 Conversion";
 static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, Library *library)
 {
   /* NOTE: DO NOT translate this ID name, it is used to find a potentially already existing
    * node-tree. */
   bNodeTree *group = bke::node_tree_add_in_lib(
-      &conversion_data.bmain, library, OFFSET_RADIUS_NODETREE_NAME, "GeometryNodeTree");
+      &conversion_data.bmain, library, offset_radius_nodetree_name, "GeometryNodeTree");
 
   if (!group->geometry_node_asset_traits) {
     group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
@@ -1316,15 +1316,15 @@ static void fcurve_convert_thickness_cb(FCurve &fcurve)
   if (fcurve.bezt) {
     for (uint i = 0; i < fcurve.totvert; i++) {
       BezTriple &bezier_triple = fcurve.bezt[i];
-      bezier_triple.vec[0][1] *= LEGACY_RADIUS_CONVERSION_FACTOR;
-      bezier_triple.vec[1][1] *= LEGACY_RADIUS_CONVERSION_FACTOR;
-      bezier_triple.vec[2][1] *= LEGACY_RADIUS_CONVERSION_FACTOR;
+      bezier_triple.vec[0][1] *= legacy_radius_conversion_factor;
+      bezier_triple.vec[1][1] *= legacy_radius_conversion_factor;
+      bezier_triple.vec[2][1] *= legacy_radius_conversion_factor;
     }
   }
   if (fcurve.fpt) {
     for (uint i = 0; i < fcurve.totvert; i++) {
       FPoint &fpoint = fcurve.fpt[i];
-      fpoint.vec[1] *= LEGACY_RADIUS_CONVERSION_FACTOR;
+      fpoint.vec[1] *= legacy_radius_conversion_factor;
     }
   }
   fcurve.flag &= ~FCURVE_INT_VALUES;
@@ -1436,7 +1436,7 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
       /* NOTE: this offset may be negative. */
       const float uniform_object_scale = math::average(float3(dst_object.scale));
       const float radius_offset = math::safe_divide(
-          float(thickness_px) * LEGACY_RADIUS_CONVERSION_FACTOR, uniform_object_scale);
+          float(thickness_px) * legacy_radius_conversion_factor, uniform_object_scale);
 
       const auto offset_radius_ntree_ensure = [&](Library *owner_library) {
         if (bNodeTree **ntree = conversion_data.offset_radius_ntree_by_library.lookup_ptr(
@@ -1451,7 +1451,7 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
           if (ntree_iter.id.lib != owner_library) {
             continue;
           }
-          if (STREQ(ntree_iter.id.name + 2, OFFSET_RADIUS_NODETREE_NAME)) {
+          if (STREQ(ntree_iter.id.name + 2, offset_radius_nodetree_name)) {
             conversion_data.offset_radius_ntree_by_library.add_new(owner_library, &ntree_iter);
             return &ntree_iter;
           }
@@ -1515,7 +1515,7 @@ static ModifierData &legacy_object_modifier_common(ConversionData &conversion_da
 
   ModifierData &new_md = *BKE_modifier_new(type);
 
-  if (mti->flags & eModifierTypeFlag_RequiresOriginalData) {
+  if (mti->flags & EModifierTypeFlagRequiresOriginalData) {
     ModifierData *md;
     for (md = static_cast<ModifierData *>(object.modifiers.first);
          md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform;
@@ -2406,7 +2406,7 @@ static void legacy_object_modifier_thickness(ConversionData &conversion_data,
     md_thickness.flag |= MOD_GREASE_PENCIL_THICK_WEIGHT_FACTOR;
   }
   md_thickness.thickness_fac = legacy_md_thickness.thickness_fac;
-  md_thickness.thickness = legacy_md_thickness.thickness * LEGACY_RADIUS_CONVERSION_FACTOR;
+  md_thickness.thickness = legacy_md_thickness.thickness * legacy_radius_conversion_factor;
 
   legacy_object_modifier_influence(md_thickness.influence,
                                    legacy_md_thickness.layername,
@@ -2955,7 +2955,7 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
                                                                           &legacy_gpd->id,
                                                                           std::nullopt,
                                                                           nullptr,
-                                                                          LIB_ID_COPY_DEFAULT));
+                                                                          LibIdCopyDefault));
       new_annotation_gpd->flag |= GP_DATA_ANNOTATIONS;
       id_us_min(&new_annotation_gpd->id);
       annotations_gpv2.add_overwrite(legacy_gpd, new_annotation_gpd);
@@ -3125,7 +3125,7 @@ void legacy_main(Main &bmain,
     gpd_remapper.add(&legacy_gpd.id, &new_grease_pencil->id);
   }
 
-  BKE_libblock_remap_multiple(&bmain, gpd_remapper, ID_REMAP_ALLOW_IDTYPE_MISMATCH);
+  BKE_libblock_remap_multiple(&bmain, gpd_remapper, IdRemapAllowIdtypeMismatch);
 
   /* !MAIN_VERSION_FILE_ATLEAST(new_bmain, 501, 24) */
   /* Convert all the material stroke/fill settings to geometry attributes. */
@@ -3151,8 +3151,8 @@ void legacy_main(Main &bmain,
           return true;
         },
         eBlendfileLinkAppendForeachItemFlag(
-            BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT |
-            BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_INDIRECT));
+            BkeBlendfileLinkAppendForeachItemFlagDoDirect |
+            BkeBlendfileLinkAppendForeachItemFlagDoIndirect));
   }
 }
 
@@ -3204,7 +3204,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
       attributes.rename(hide_stroke_name, unique_name);
       BLO_reportf_wrap(
           &reports,
-          RPT_WARNING,
+          RptWarning,
           RPT_("Renamed attribute '%s' to '%s' in object '%s' on layer '%s' on frame %d!"),
           hide_stroke_name.c_str(),
           unique_name.c_str(),
@@ -3231,7 +3231,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
       attributes.rename(fill_id_name, unique_name);
       BLO_reportf_wrap(
           &reports,
-          RPT_WARNING,
+          RptWarning,
           RPT_("Renamed attribute '%s' to '%s' in object '%s' on layer '%s' on frame %d!"),
           fill_id_name.c_str(),
           unique_name.c_str(),
@@ -3288,7 +3288,7 @@ void material_stroke_fill_toggles_to_attributes(Main &bmain,
     }
     else {
       BLO_reportf_wrap(&reports,
-                       RPT_WARNING,
+                       RptWarning,
                        RPT_("Skipped versioning materials of object '%s' because '%s' was already "
                             "converted. Manual intervention might be required!"),
                        object.id.name + 2,
@@ -3319,7 +3319,7 @@ void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
   lmd->shadow_camera_near = lmd_legacy->shadow_camera_near;
   lmd->shadow_camera_far = lmd_legacy->shadow_camera_far;
   lmd->opacity = lmd_legacy->opacity;
-  lmd->radius = float(lmd_legacy->thickness) * LEGACY_RADIUS_CONVERSION_FACTOR;
+  lmd->radius = float(lmd_legacy->thickness) * legacy_radius_conversion_factor;
   lmd->mask_switches = lmd_legacy->mask_switches;
   lmd->material_mask_bits = lmd_legacy->material_mask_bits;
   lmd->intersection_mask = lmd_legacy->intersection_mask;
@@ -3362,7 +3362,7 @@ void lineart_unwrap_v3(LineartGpencilModifierData *lmd_legacy,
   lmd_legacy->shadow_camera_near = lmd->shadow_camera_near;
   lmd_legacy->shadow_camera_far = lmd->shadow_camera_far;
   lmd_legacy->opacity = lmd->opacity;
-  lmd_legacy->thickness = lmd->radius / LEGACY_RADIUS_CONVERSION_FACTOR;
+  lmd_legacy->thickness = lmd->radius / legacy_radius_conversion_factor;
   lmd_legacy->mask_switches = lmd->mask_switches;
   lmd_legacy->material_mask_bits = lmd->material_mask_bits;
   lmd_legacy->intersection_mask = lmd->intersection_mask;

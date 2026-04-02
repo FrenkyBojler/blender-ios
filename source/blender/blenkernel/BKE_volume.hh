@@ -60,7 +60,7 @@ void BKE_volume_grids_backup_restore(Volume *volume,
 /* Draw Cache */
 
 enum {
-  BKE_VOLUME_BATCH_DIRTY_ALL = 0,
+  BkeVolumeBatchDirtyAll = 0,
 };
 
 void BKE_volume_batch_cache_dirty_tag(Volume *volume, int mode);

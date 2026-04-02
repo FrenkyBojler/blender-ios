@@ -30,9 +30,9 @@ struct ToMeshSettings;
 enum MultiresModifiedFlags {
   /* indicates the grids have been sculpted on, so MDisps
    * have to be updated */
-  MULTIRES_COORDS_MODIFIED = 1,
+  MultiresCoordsModified = 1,
   /* indicates elements have been hidden or unhidden */
-  MULTIRES_HIDDEN_MODIFIED = 2,
+  MultiresHiddenModified = 2,
 };
 
 /**

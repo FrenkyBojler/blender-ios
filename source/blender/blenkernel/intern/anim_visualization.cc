@@ -132,7 +132,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
   /* Avoid 0 size allocations. */
   if (avs->path_sf >= avs->path_ef) {
     BKE_reportf(reports,
-                RPT_ERROR,
+                RptError,
                 "Motion path frame extents invalid for %s (%d to %d)%s",
                 (pchan) ? pchan->name : ob->id.name,
                 avs->path_sf,

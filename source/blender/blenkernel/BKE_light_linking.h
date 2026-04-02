@@ -23,8 +23,8 @@ struct Scene;
 struct ViewLayer;
 
 enum LightLinkingType {
-  LIGHT_LINKING_RECEIVER,
-  LIGHT_LINKING_BLOCKER,
+  LightLinkingReceiver,
+  LightLinkingBlocker,
 };
 
 /**

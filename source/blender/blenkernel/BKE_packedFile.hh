@@ -27,23 +27,23 @@ struct Volume;
 struct bSound;
 
 enum ePF_FileCompare {
-  PF_CMP_EQUAL = 0,
-  PF_CMP_DIFFERS = 1,
-  PF_CMP_NOFILE = 2,
+  PfCmpEqual = 0,
+  PfCmpDiffers = 1,
+  PfCmpNofile = 2,
 };
 
 enum ePF_FileStatus {
-  PF_WRITE_ORIGINAL = 3,
-  PF_WRITE_LOCAL = 4,
-  PF_USE_LOCAL = 5,
-  PF_USE_ORIGINAL = 6,
-  PF_KEEP = 7,
-  PF_REMOVE = 8,
+  PfWriteOriginal = 3,
+  PfWriteLocal = 4,
+  PfUseLocal = 5,
+  PfUseOriginal = 6,
+  PfKeep = 7,
+  PfRemove = 8,
 
-  PF_ASK = 10,
+  PfAsk = 10,
 };
 
-constexpr int64_t PACKED_FILE_MAX_SIZE = INT32_MAX;
+constexpr int64_t packed_file_max_size = INT32_MAX;
 
 /* Pack. */
 

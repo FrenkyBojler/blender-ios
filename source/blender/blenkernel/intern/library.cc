@@ -113,33 +113,33 @@ static void library_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Library *lib = id_cast<Library *>(id);
   const LibraryForeachIDFlag foreach_flag = BKE_lib_query_foreachid_process_flags_get(data);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->runtime->parent, IDWALK_CB_NEVER_SELF);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->runtime->parent, IdwalkCbNeverSelf);
 
   if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
     /* Archive library must have a parent, this can't be nullptr. */
     if (lib->archive_parent_library) {
       BKE_LIB_FOREACHID_PROCESS_ID(
-          data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF | IDWALK_CB_NEVER_NULL);
+          data, lib->archive_parent_library, IdwalkCbNeverSelf | IdwalkCbNeverNull);
     }
 
     /* Archive libraries should never 'own' other archives. */
     BLI_assert(lib->runtime->archived_libraries.is_empty());
-    if (foreach_flag & IDWALK_DO_INTERNAL_RUNTIME_POINTERS) {
+    if (foreach_flag & IdwalkDoInternalRuntimePointers) {
       for (Library *&lib_p : lib->runtime->archived_libraries) {
         BKE_LIB_FOREACHID_PROCESS_ID(
-            data, lib_p, IDWALK_CB_NEVER_SELF | IDWALK_CB_INTERNAL | IDWALK_CB_LOOPBACK);
+            data, lib_p, IdwalkCbNeverSelf | IdwalkCbInternal | IdwalkCbLoopback);
       }
     }
   }
   else {
     /* Regular libraries should never have an archive parent. */
     BLI_assert(!lib->archive_parent_library);
-    BKE_LIB_FOREACHID_PROCESS_ID(data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF);
+    BKE_LIB_FOREACHID_PROCESS_ID(data, lib->archive_parent_library, IdwalkCbNeverSelf);
 
-    if (foreach_flag & IDWALK_DO_INTERNAL_RUNTIME_POINTERS) {
+    if (foreach_flag & IdwalkDoInternalRuntimePointers) {
       for (Library *&lib_p : lib->runtime->archived_libraries) {
         BKE_LIB_FOREACHID_PROCESS_ID(
-            data, lib_p, IDWALK_CB_NEVER_SELF | IDWALK_CB_INTERNAL | IDWALK_CB_LOOPBACK);
+            data, lib_p, IdwalkCbNeverSelf | IdwalkCbInternal | IdwalkCbLoopback);
       }
     }
   }
@@ -220,7 +220,7 @@ IDTypeInfo IDType_ID_LI = {
     .name = "Library",
     .name_plural = N_("libraries"),
     .translation_context = BLT_I18NCONTEXT_ID_LIBRARY,
-    .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED,
+    .flags = IdtypeFlagsNoLiblinking | IdtypeFlagsNoAnimdata | IdtypeFlagsNeverUnused,
     .asset_type_info = nullptr,
 
     .init_data = library_init_data,
@@ -522,8 +522,8 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   /* Only copy a subset of the reference library tags. E.g. an archive library should never be
    * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
    * tweaking still. */
-  constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
-                                 LIBRARY_IS_ASSET_EDIT_FILE);
+  constexpr uint16_t copy_tag = (LibraryTagResyncRequired | LibraryAssetEditable |
+                                 LibraryIsAssetEditFile);
   archive_library->runtime->tag = reference_library.runtime->tag & copy_tag;
   /* By definition, the file version of an archive library containing only packed linked data is
    * the same as the one of its Main container. */
@@ -656,8 +656,8 @@ static void pack_linked_id(Main &bmain,
                                    linked_id,
                                    std::nullopt,
                                    nullptr,
-                                   LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                       LIB_ID_COPY_ASSET_METADATA);
+                                   LibIdCopyDefault | LibIdCopyIdNewSet |
+                                       LibIdCopyAssetMetadata);
     id_us_min(packed_id);
     copied_id_process(linked_id, packed_id);
 
@@ -729,7 +729,7 @@ static void pack_linked_ids(Main &bmain, const Set<ID *> &ids_to_pack)
   }
 
   BKE_libblock_relink_multiple(
-      &bmain, ids_to_remap.as_span(), ID_REMAP_TYPE_REMAP, id_remapper, 0);
+      &bmain, ids_to_remap.as_span(), IdRemapTypeRemap, id_remapper, 0);
   BKE_main_ensure_invariants(bmain);
 }
 
@@ -744,21 +744,21 @@ void bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
       &bmain,
       &root_id,
       [&ids_to_pack](LibraryIDLinkCallbackData *cb_data) -> int {
-        if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
-          return IDWALK_RET_NOP;
+        if (cb_data->cb_flag & IdwalkCbLoopback) {
+          return IdwalkRetNop;
         }
-        if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
-          return IDWALK_RET_NOP;
+        if (cb_data->cb_flag & (IdwalkCbEmbedded | IdwalkCbEmbeddedNotOwning)) {
+          return IdwalkRetNop;
         }
 
         ID *self_id = cb_data->self_id;
         ID *referenced_id = *cb_data->id_pointer;
         if (!referenced_id) {
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
         if (!ID_IS_LINKED(referenced_id)) {
           CLOG_ERROR(&LOG, "Linked data-block references non-linked data-block");
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
         if (ID_IS_PACKED(referenced_id)) {
           /* A linked ID can use another packed linked ID, as long as it is not from the same
@@ -769,19 +769,19 @@ void bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
                        "Non-packed data-block references packed data-block from the same library, "
                        "which is not allowed");
           }
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
         if (GS(referenced_id->name) == ID_KE) {
           /* Shape keys cannot be directly linked, from linking code PoV they behave as embedded
            * data (i.e. their owning data is responsible to handle them). */
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         }
 
         ids_to_pack.add(referenced_id);
-        return IDWALK_RET_NOP;
+        return IdwalkRetNop;
       },
       nullptr,
-      IDWALK_READONLY | IDWALK_RECURSE);
+      IdwalkReadonly | IdwalkRecurse);
 
   pack_linked_ids(bmain, ids_to_pack);
 }

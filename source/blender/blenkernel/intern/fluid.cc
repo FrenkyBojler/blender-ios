@@ -5001,7 +5001,7 @@ void BKE_fluid_modifier_copy(const FluidModifierData *fmd, FluidModifierData *tf
 
     /* pointcache options */
     BKE_ptcache_free_list(&(tfds->ptcaches[0]));
-    if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
+    if (flag & LibIdCopySetCopiedOnWrite) {
       /* Share the cache with the original object's modifier. */
       tfmd->modifier.flag |= eModifierFlag_SharedCaches;
       tfds->point_cache[0] = fds->point_cache[0];

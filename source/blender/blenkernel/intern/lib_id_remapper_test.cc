@@ -25,8 +25,8 @@ TEST(lib_id_remapper, unavailable)
   ID *idp = &id1;
 
   IDRemapper remapper;
-  IDRemapperApplyResult result = remapper.apply(&idp, ID_REMAP_APPLY_DEFAULT);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_UNAVAILABLE);
+  IDRemapperApplyResult result = remapper.apply(&idp, IdRemapApplyDefault);
+  EXPECT_EQ(result, IdRemapResultSourceUnavailable);
 }
 
 TEST(lib_id_remapper, not_mappable)
@@ -36,8 +36,8 @@ TEST(lib_id_remapper, not_mappable)
   ID *idp = nullptr;
 
   IDRemapper remapper;
-  IDRemapperApplyResult result = remapper.apply(&idp, ID_REMAP_APPLY_DEFAULT);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE);
+  IDRemapperApplyResult result = remapper.apply(&idp, IdRemapApplyDefault);
+  EXPECT_EQ(result, IdRemapResultSourceNotMappable);
 }
 
 TEST(lib_id_remapper, mapped)
@@ -52,8 +52,8 @@ TEST(lib_id_remapper, mapped)
 
   IDRemapper remapper;
   remapper.add(&id1, &id2);
-  IDRemapperApplyResult result = remapper.apply(&idp, ID_REMAP_APPLY_DEFAULT);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_REMAPPED);
+  IDRemapperApplyResult result = remapper.apply(&idp, IdRemapApplyDefault);
+  EXPECT_EQ(result, IdRemapResultSourceRemapped);
   EXPECT_EQ(idp, &id2);
 }
 
@@ -67,8 +67,8 @@ TEST(lib_id_remapper, unassigned)
 
   IDRemapper remapper;
   remapper.add(&id1, nullptr);
-  IDRemapperApplyResult result = remapper.apply(&idp, ID_REMAP_APPLY_DEFAULT);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_UNASSIGNED);
+  IDRemapperApplyResult result = remapper.apply(&idp, IdRemapApplyDefault);
+  EXPECT_EQ(result, IdRemapResultSourceUnassigned);
   EXPECT_EQ(idp, nullptr);
 }
 
@@ -90,24 +90,24 @@ TEST(lib_id_remapper, unassign_when_mapped_to_self)
   IDRemapper remapper;
   remapper.add(&id1, &id2);
   IDRemapperApplyResult result = remapper.apply(
-      &idp, ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF, &id_self);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_REMAPPED);
+      &idp, IdRemapApplyUnmapWhenRemappingToSelf, &id_self);
+  EXPECT_EQ(result, IdRemapResultSourceRemapped);
   EXPECT_EQ(idp, &id2);
 
   /* Default mapping behavior. Should unassign. */
   idp = &id1;
   remapper.clear();
   remapper.add(&id1, nullptr);
-  result = remapper.apply(&idp, ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF, &id_self);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_UNASSIGNED);
+  result = remapper.apply(&idp, IdRemapApplyUnmapWhenRemappingToSelf, &id_self);
+  EXPECT_EQ(result, IdRemapResultSourceUnassigned);
   EXPECT_EQ(idp, nullptr);
 
   /* Unmap when remapping to self behavior. Should unassign. */
   idp = &id1;
   remapper.clear();
   remapper.add(&id1, &id_self);
-  result = remapper.apply(&idp, ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF, &id_self);
-  EXPECT_EQ(result, ID_REMAP_RESULT_SOURCE_UNASSIGNED);
+  result = remapper.apply(&idp, IdRemapApplyUnmapWhenRemappingToSelf, &id_self);
+  EXPECT_EQ(result, IdRemapResultSourceUnassigned);
   EXPECT_EQ(idp, nullptr);
 }
 

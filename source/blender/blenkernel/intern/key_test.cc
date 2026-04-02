@@ -239,11 +239,11 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
   ASSERT_EQ(mesh->verts_num, 4);
   ASSERT_EQ(key->elemsize, sizeof(float[3]));
   /* The mesh has 4 vertices, but this shapekey will only have 3. */
-  constexpr int SHAPEKEY_VERTEX_COUNT = 3;
+  constexpr int shapekey_vertex_count = 3;
   float3 *key1_data = reinterpret_cast<float3 *>(
-      MEM_new_array_uninitialized(size_t(SHAPEKEY_VERTEX_COUNT), size_t(key->elemsize), __func__));
+      MEM_new_array_uninitialized(size_t(shapekey_vertex_count), size_t(key->elemsize), __func__));
   key1->data = key1_data;
-  key1->totelem = SHAPEKEY_VERTEX_COUNT;
+  key1->totelem = shapekey_vertex_count;
   key1_data[1] = {5, 5, 5};
 
   key1->curval = 1.0;

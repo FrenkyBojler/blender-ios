@@ -211,11 +211,11 @@ struct SimDebugElement {
 };
 
 enum eSimDebugElement_Type {
-  SIM_DEBUG_ELEM_DOT,
-  SIM_DEBUG_ELEM_CIRCLE,
-  SIM_DEBUG_ELEM_LINE,
-  SIM_DEBUG_ELEM_VECTOR,
-  SIM_DEBUG_ELEM_STRING,
+  SimDebugElemDot,
+  SimDebugElemCircle,
+  SimDebugElemLine,
+  SimDebugElemVector,
+  SimDebugElemString,
 };
 
 struct SimDebugData {

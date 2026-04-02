@@ -136,16 +136,16 @@ float driver_get_variable_value(const struct AnimationEvalContext *anim_eval_con
 
 enum eDriverVariablePropertyResult {
   /** The property reference has been successfully resolved and can be accessed. */
-  DRIVER_VAR_PROPERTY_SUCCESS,
+  DriverVarPropertySuccess,
   /** Evaluation should use the fallback value. */
-  DRIVER_VAR_PROPERTY_FALLBACK,
+  DriverVarPropertyFallback,
   /** The target property could not be resolved. */
-  DRIVER_VAR_PROPERTY_INVALID,
+  DriverVarPropertyInvalid,
   /**
    * The property was resolved (output parameters are set),
    * but the array index is out of bounds.
    */
-  DRIVER_VAR_PROPERTY_INVALID_INDEX
+  DriverVarPropertyInvalidIndex
 };
 
 /**

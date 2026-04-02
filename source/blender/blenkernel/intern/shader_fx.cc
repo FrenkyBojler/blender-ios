@@ -40,7 +40,7 @@ bool BKE_shaderfx_has_gpencil(const Object *ob)
 {
   for (const ShaderFxData &fx : ob->shader_fx) {
     const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx.type));
-    if (fxi->type == eShaderFxType_GpencilType) {
+    if (fxi->type == EShaderFxTypeGpencilType) {
       return true;
     }
   }
@@ -68,7 +68,7 @@ ShaderFxData *BKE_shaderfx_new(int type)
   /* Expand only the parent panel by default. */
   fx->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
 
-  if (fxi->flags & eShaderFxTypeFlag_EnableInEditmode) {
+  if (fxi->flags & EShaderFxTypeFlagEnableInEditmode) {
     fx->mode |= eShaderFxMode_Editmode;
   }
 
@@ -85,7 +85,7 @@ static void shaderfx_free_data_id_us_cb(void * /*user_data*/,
                                         const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
-  if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
+  if (id != nullptr && (cb_flag & IdwalkCbUser) != 0) {
     id_us_min(id);
   }
 }
@@ -94,7 +94,7 @@ void BKE_shaderfx_free_ex(ShaderFxData *fx, const int flag)
 {
   const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx->type));
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     if (fxi->foreach_ID_link) {
       fxi->foreach_ID_link(fx, nullptr, shaderfx_free_data_id_us_cb, nullptr);
     }
@@ -181,7 +181,7 @@ static void shaderfx_copy_data_id_us_cb(void * /*user_data*/,
                                         const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
-  if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
+  if (id != nullptr && (cb_flag & IdwalkCbUser) != 0) {
     id_us_plus(id);
   }
 }
@@ -198,7 +198,7 @@ void BKE_shaderfx_copydata_ex(ShaderFxData *fx, ShaderFxData *target, const int 
     fxi->copy_data(fx, target);
   }
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     if (fxi->foreach_ID_link) {
       fxi->foreach_ID_link(target, nullptr, shaderfx_copy_data_id_us_cb, nullptr);
     }

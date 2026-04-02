@@ -59,7 +59,7 @@ bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgraph,
   if (!subdiv) {
     return nullptr;
   }
-  if (!subdiv::eval_begin_from_mesh(subdiv, base_mesh, subdiv::SUBDIV_EVALUATOR_TYPE_CPU)) {
+  if (!subdiv::eval_begin_from_mesh(subdiv, base_mesh, subdiv::SubdivEvaluatorTypeCpu)) {
     subdiv::free(subdiv);
     return nullptr;
   }

@@ -104,12 +104,12 @@ static void workspace_copy_data(
    */
   BLI_listbase_clear(&workspace_dst->layouts);
   for (WorkSpaceLayout &layout_src : workspace_src->layouts) {
-    if (flag & LIB_ID_COPY_SCREEN) {
+    if (flag & LibIdCopyScreen) {
       BKE_workspace_layout_add_from_layout(bmain, *workspace_dst, layout_src, flag);
     }
     else {
       /* Copying of screens should only be disabled in some `NO_MAIN` cases. */
-      BLI_assert(flag & LIB_ID_CREATE_NO_MAIN);
+      BLI_assert(flag & LibIdCreateNoMain);
       BKE_workspace_layout_add(bmain, *workspace_dst, *layout_src.screen, layout_src.name);
     }
   }
@@ -119,11 +119,11 @@ static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   WorkSpace *workspace = id_cast<WorkSpace *>(id);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->pin_scene, IDWALK_CB_DIRECT_WEAK_LINK);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->sequencer_scene, IDWALK_CB_DIRECT_WEAK_LINK);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->pin_scene, IdwalkCbDirectWeakLink);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->sequencer_scene, IdwalkCbDirectWeakLink);
 
   for (WorkSpaceLayout &layout : workspace->layouts) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layout.screen, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layout.screen, IdwalkCbUser);
   }
 
   BKE_viewer_path_foreach_id(data, &workspace->viewer_path);
@@ -233,8 +233,8 @@ IDTypeInfo IDType_ID_WS = {
     .name = "WorkSpace",
     .name_plural = N_("workspaces"),
     .translation_context = BLT_I18NCONTEXT_ID_WORKSPACE,
-    .flags = IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO |
-             IDTYPE_FLAGS_NEVER_UNUSED,
+    .flags = IdtypeFlagsOnlyAppend | IdtypeFlagsNoAnimdata | IdtypeFlagsNoMemfileUndo |
+             IdtypeFlagsNeverUnused,
     .asset_type_info = nullptr,
 
     .init_data = workspace_init_data,

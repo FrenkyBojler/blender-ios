@@ -148,10 +148,10 @@ char *BKE_object_data_editmode_flush_ptr_get(ID *id);
 void BKE_object_update_select_id(Main *bmain);
 
 enum eObjectVisibilityResult {
-  OB_VISIBLE_SELF = 1,
-  OB_VISIBLE_PARTICLES = 2,
-  OB_VISIBLE_INSTANCES = 4,
-  OB_VISIBLE_ALL = (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES | OB_VISIBLE_INSTANCES),
+  ObVisibleSelf = 1,
+  ObVisibleParticles = 2,
+  ObVisibleInstances = 4,
+  ObVisibleAll = (ObVisibleSelf | ObVisibleParticles | ObVisibleInstances),
 };
 
 /**
@@ -610,19 +610,19 @@ void BKE_object_batch_cache_dirty_tag(Object *ob);
 /* this function returns a superset of the scenes selection based on relationships */
 
 enum eObRelationTypes {
-  OB_REL_NONE = 0,                      /* Just the selection as is. */
-  OB_REL_PARENT = (1 << 0),             /* Immediate parent. */
-  OB_REL_PARENT_RECURSIVE = (1 << 1),   /* Parents up to root of selection tree. */
-  OB_REL_CHILDREN = (1 << 2),           /* Immediate children. */
-  OB_REL_CHILDREN_RECURSIVE = (1 << 3), /* All children. */
-  OB_REL_MOD_ARMATURE = (1 << 4),       /* Armatures related to the selected objects. */
+  ObRelNone = 0,                      /* Just the selection as is. */
+  ObRelParent = (1 << 0),             /* Immediate parent. */
+  ObRelParentRecursive = (1 << 1),   /* Parents up to root of selection tree. */
+  ObRelChildren = (1 << 2),           /* Immediate children. */
+  ObRelChildrenRecursive = (1 << 3), /* All children. */
+  ObRelModArmature = (1 << 4),       /* Armatures related to the selected objects. */
   // OB_REL_SCENE_CAMERA = (1 << 5), /* You might want the scene camera too even if unselected? */
 };
 
 enum eObjectSet {
-  OB_SET_SELECTED, /* Selected Objects. */
-  OB_SET_VISIBLE,  /* Visible Objects. */
-  OB_SET_ALL,      /* All Objects. */
+  ObSetSelected, /* Selected Objects. */
+  ObSetVisible,  /* Visible Objects. */
+  ObSetAll,      /* All Objects. */
 };
 
 /**

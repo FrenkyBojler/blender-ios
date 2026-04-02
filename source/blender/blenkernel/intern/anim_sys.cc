@@ -193,7 +193,7 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
 
   /* don't add if there is already a matching KS_Path in the KeyingSet */
   if (BKE_keyingset_find_path(ks, id, group_name, rna_path, array_index, groupmode)) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_ERROR(&LOG_ANIM_KEYINGSET, "destination already exists in Keying Set");
     }
     return nullptr;
@@ -265,7 +265,7 @@ void BKE_keyingsets_foreach_id(LibraryForeachIDData *data, const ListBaseT<Keyin
 {
   for (KeyingSet &ksn : *keyingsets) {
     for (KS_Path &kspn : ksn.paths) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, kspn.id, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, kspn.id, IdwalkCbNop);
     }
   }
 }
@@ -370,7 +370,7 @@ bool BKE_animsys_rna_path_resolve(
     /* failed to get path */
     /* XXX don't tag as failed yet though, as there are some legit situations (Action Constraint)
      * where some channels will not exist, but shouldn't lock up Action */
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_WARN(&LOG_ANIM_FCURVE,
                 "Invalid path. ID = '%s',  '%s[%d]'",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
@@ -386,7 +386,7 @@ bool BKE_animsys_rna_path_resolve(
 
   int array_len = RNA_property_array_length(&r_result->ptr, r_result->prop);
   if (array_len && array_index >= array_len) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_WARN(&LOG_ANIM_FCURVE,
                 "Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
@@ -1057,7 +1057,7 @@ static void nlastrip_evaluate_controls(NlaStrip *strip,
 
   if ((strip->flag & NLASTRIP_FLAG_USR_TIME) == 0) {
     strip->strip_time = nlastrip_get_frame(
-        strip, anim_eval_context->eval_time, NLATIME_CONVERT_EVAL);
+        strip, anim_eval_context->eval_time, NlatimeConvertEval);
   }
 
   /* if user can control the evaluation time (using F-Curves), consider the option which allows
@@ -1103,7 +1103,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
     if (in_range) {
       /* this strip is active, so try to use it */
       estrip = &strip;
-      side = NES_TIME_WITHIN;
+      side = NesTimeWithin;
       break;
     }
 
@@ -1116,7 +1116,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
         }
 
         /* side is 'before' regardless of whether there's a useful strip */
-        side = NES_TIME_BEFORE;
+        side = NesTimeBefore;
       }
       else {
         /* before next strip - previous strip has ended, but next hasn't begun,
@@ -1127,7 +1127,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
         if (strip.prev->extendmode != NLASTRIP_EXTEND_NOTHING) {
           estrip = strip.prev;
         }
-        side = NES_TIME_AFTER;
+        side = NesTimeAfter;
       }
       break;
     }
@@ -1140,7 +1140,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
           estrip = &strip;
         }
 
-        side = NES_TIME_AFTER;
+        side = NesTimeAfter;
         break;
       }
 
@@ -1157,10 +1157,10 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
 
   /* if ctime was not within the boundaries of the strip, clamp! */
   switch (side) {
-    case NES_TIME_BEFORE: /* extend first frame only */
+    case NesTimeBefore: /* extend first frame only */
       ctime = estrip->start;
       break;
-    case NES_TIME_AFTER: /* extend last frame only */
+    case NesTimeAfter: /* extend last frame only */
       ctime = estrip->end;
       break;
   }
@@ -1443,7 +1443,7 @@ static bool nlaevalchan_validate_index_ex(const NlaEvalChannel *nec, const int a
   const int index = nlaevalchan_validate_index(nec, array_index);
 
   if (index < 0) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       ID *id = nec->key.ptr.owner_id;
       CLOG_WARN(&LOG_ANIM_NLA,
                 "Animation: Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
@@ -1466,12 +1466,12 @@ static void nlaevalchan_get_default_values(NlaEvalChannel *nec, float *r_values)
   int length = nec->base_snapshot.length;
 
   /* Use unit quaternion for quaternion properties. */
-  if (nec->mix_mode == NEC_MIX_QUATERNION) {
+  if (nec->mix_mode == NecMixQuaternion) {
     unit_qt(r_values);
     return;
   }
   /* Use all zero for Axis-Angle properties. */
-  if (nec->mix_mode == NEC_MIX_AXIS_ANGLE) {
+  if (nec->mix_mode == NecMixAxisAngle) {
     zero_v4(r_values);
     return;
   }
@@ -1531,7 +1531,7 @@ static void nlaevalchan_get_default_values(NlaEvalChannel *nec, float *r_values)
   }
 
   /* Ensure multiplicative properties aren't reset to 0. */
-  if (nec->mix_mode == NEC_MIX_MULTIPLY) {
+  if (nec->mix_mode == NecMixMultiply) {
     for (int i = 0; i < length; i++) {
       if (r_values[i] == 0.0f) {
         r_values[i] = 1.0f;
@@ -1545,15 +1545,15 @@ static char nlaevalchan_detect_mix_mode(NlaEvalChannelKey *key, int length)
   PropertySubType subtype = RNA_property_subtype(key->prop);
 
   if (subtype == PROP_QUATERNION && length == 4) {
-    return NEC_MIX_QUATERNION;
+    return NecMixQuaternion;
   }
   if (subtype == PROP_AXISANGLE && length == 4) {
-    return NEC_MIX_AXIS_ANGLE;
+    return NecMixAxisAngle;
   }
   if (RNA_property_flag(key->prop) & PROP_PROPORTIONAL) {
-    return NEC_MIX_MULTIPLY;
+    return NecMixMultiply;
   }
-  return NEC_MIX_ADD;
+  return NecMixAdd;
 }
 
 /* Verify that an appropriate NlaEvalChannel for this property exists. */
@@ -1619,7 +1619,7 @@ static NlaEvalChannel *nlaevalchan_verify(PointerRNA *ptr, NlaEvalData *nlaeval,
 
   if (!RNA_path_resolve_property(ptr, path, &key.ptr, &key.prop)) {
     /* Report failure to resolve the path. */
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_WARN(&LOG_ANIM_NLA,
                 "Invalid path. ID = '%s',  '%s'",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
@@ -1756,11 +1756,11 @@ static bool nla_combine_get_inverted_lower_value(const int mix_mode,
 
   /* Perform blending. */
   switch (mix_mode) {
-    case NEC_MIX_ADD:
-    case NEC_MIX_AXIS_ANGLE:
+    case NecMixAdd:
+    case NecMixAxisAngle:
       *r_lower_value = blended_value - (strip_value - base_value) * influence;
       return true;
-    case NEC_MIX_MULTIPLY: /* Division by zero. */
+    case NecMixMultiply: /* Division by zero. */
       if (IS_EQF(strip_value, 0.0f)) {
         /* Resolve 0/0 to 1.
          *
@@ -1795,7 +1795,7 @@ static bool nla_combine_get_inverted_lower_value(const int mix_mode,
       *r_lower_value = blended_value / powf(strip_value / base_value, influence);
       return true;
 
-    case NEC_MIX_QUATERNION:
+    case NecMixQuaternion:
       BLI_assert_msg(0, "Use nla_combine_quaternion_get_inverted_lower_values()");
       return false;
   }
@@ -1880,11 +1880,11 @@ static float nla_combine_value(const int mix_mode,
 
   /* Perform blending */
   switch (mix_mode) {
-    case NEC_MIX_ADD:
-    case NEC_MIX_AXIS_ANGLE:
+    case NecMixAdd:
+    case NecMixAxisAngle:
       return lower_value + (strip_value - base_value) * influence;
 
-    case NEC_MIX_MULTIPLY:
+    case NecMixMultiply:
       if (IS_EQF(base_value, 0.0f)) {
         base_value = 1.0f;
       }
@@ -1974,12 +1974,12 @@ static bool nla_combine_get_inverted_strip_value(const int mix_mode,
   }
 
   switch (mix_mode) {
-    case NEC_MIX_ADD:
-    case NEC_MIX_AXIS_ANGLE:
+    case NecMixAdd:
+    case NecMixAxisAngle:
       *r_strip_value = base_value + (blended_value - lower_value) / influence;
       return true;
 
-    case NEC_MIX_MULTIPLY:
+    case NecMixMultiply:
       if (IS_EQF(base_value, 0.0f)) {
         base_value = 1.0f;
       }
@@ -2265,13 +2265,13 @@ static void nlaevalchan_blendOrcombine(NlaEvalChannelSnapshot *lower_necs,
   switch (upper_blendmode) {
     case NLASTRIP_MODE_COMBINE: {
       switch (r_blended_necs->channel->mix_mode) {
-        case NEC_MIX_QUATERNION: {
+        case NecMixQuaternion: {
           nlaevalchan_combine_quaternion(lower_necs, upper_necs, upper_influence, r_blended_necs);
           return;
         }
-        case NEC_MIX_ADD:
-        case NEC_MIX_AXIS_ANGLE:
-        case NEC_MIX_MULTIPLY: {
+        case NecMixAdd:
+        case NecMixAxisAngle:
+        case NecMixMultiply: {
           nlaevalchan_combine_value(lower_necs, upper_necs, upper_influence, r_blended_necs);
           return;
         }
@@ -2420,14 +2420,14 @@ static void nlaevalchan_blendOrcombine_get_inverted_upper_evalchan(
   switch (upper_blendmode) {
     case NLASTRIP_MODE_COMBINE: {
       switch (r_upper_necs->channel->mix_mode) {
-        case NEC_MIX_QUATERNION: {
+        case NecMixQuaternion: {
           nlaevalchan_combine_quaternion_get_inverted_upper_evalchan(
               lower_necs, blended_necs, upper_influence, r_upper_necs);
           return;
         }
-        case NEC_MIX_ADD:
-        case NEC_MIX_AXIS_ANGLE:
-        case NEC_MIX_MULTIPLY: {
+        case NecMixAdd:
+        case NecMixAxisAngle:
+        case NecMixMultiply: {
           nlaevalchan_combine_value_get_inverted_upper_evalchan(
               lower_necs, blended_necs, upper_influence, r_upper_necs);
           return;
@@ -2592,14 +2592,14 @@ static void nlaevalchan_blendOrCombine_get_inverted_lower_evalchan(
   switch (upper_blendmode) {
     case NLASTRIP_MODE_COMBINE: {
       switch (r_lower_necs->channel->mix_mode) {
-        case NEC_MIX_QUATERNION: {
+        case NecMixQuaternion: {
           nlaevalchan_combine_quaternion_get_inverted_lower_evalchan(
               blended_necs, upper_necs, upper_influence, r_lower_necs);
           return;
         }
-        case NEC_MIX_ADD:
-        case NEC_MIX_AXIS_ANGLE:
-        case NEC_MIX_MULTIPLY: {
+        case NecMixAdd:
+        case NecMixAxisAngle:
+        case NecMixMultiply: {
           nlaevalchan_combine_value_get_inverted_lower_evalchan(
               blended_necs, upper_necs, upper_influence, r_lower_necs);
           return;
@@ -2725,7 +2725,7 @@ static void nlasnapshot_from_action(PointerRNA *ptr,
     evaluate_value_fmodifiers(&storage, modifiers, fcu, &value, evaltime);
     necs->values[fcu->array_index] = value;
 
-    if (nec->mix_mode == NEC_MIX_QUATERNION) {
+    if (nec->mix_mode == NecMixQuaternion) {
       BLI_bitmap_set_all(necs->blend_domain.ptr, true, 4);
     }
     else {
@@ -2761,7 +2761,7 @@ static void nlastrip_evaluate_actionclip(const int evaluation_mode,
   nlaeval_fmodifiers_join_stacks(&tmp_modifiers, &strip->modifiers, modifiers);
 
   switch (evaluation_mode) {
-    case STRIP_EVAL_BLEND: {
+    case StripEvalBlend: {
 
       NlaEvalSnapshot strip_snapshot;
       nlaeval_snapshot_init(&strip_snapshot, channels, nullptr);
@@ -2780,7 +2780,7 @@ static void nlastrip_evaluate_actionclip(const int evaluation_mode,
 
       break;
     }
-    case STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT: {
+    case StripEvalBlendGetInvertedLowerSnapshot: {
 
       NlaEvalSnapshot strip_snapshot;
       nlaeval_snapshot_init(&strip_snapshot, channels, nullptr);
@@ -2799,7 +2799,7 @@ static void nlastrip_evaluate_actionclip(const int evaluation_mode,
 
       break;
     }
-    case STRIP_EVAL_NOBLEND: {
+    case StripEvalNoblend: {
       nlasnapshot_from_action(ptr,
                               channels,
                               &tmp_modifiers,
@@ -2850,7 +2850,7 @@ static void nlastrip_evaluate_transition(const int evaluation_mode,
   }
 
   switch (evaluation_mode) {
-    case STRIP_EVAL_BLEND: {
+    case StripEvalBlend: {
 
       /* prepare template for 'evaluation strip'
        * - based on the transition strip's evaluation strip data
@@ -2864,7 +2864,7 @@ static void nlastrip_evaluate_transition(const int evaluation_mode,
       /* evaluate these strips into a temp-buffer (tmp_channels) */
       /* FIXME: modifier evaluation here needs some work... */
       /* first strip */
-      tmp_nes.strip_mode = NES_TIME_TRANSITION_START;
+      tmp_nes.strip_mode = NesTimeTransitionStart;
       tmp_nes.strip = s1;
       tmp_nes.strip_time = s1->strip_time;
       nlaeval_snapshot_init(&snapshot1, channels, snapshot);
@@ -2877,7 +2877,7 @@ static void nlastrip_evaluate_transition(const int evaluation_mode,
                               flush_to_original);
 
       /* second strip */
-      tmp_nes.strip_mode = NES_TIME_TRANSITION_END;
+      tmp_nes.strip_mode = NesTimeTransitionEnd;
       tmp_nes.strip = s2;
       tmp_nes.strip_time = s2->strip_time;
       nlaeval_snapshot_init(&snapshot2, channels, snapshot);
@@ -2903,7 +2903,7 @@ static void nlastrip_evaluate_transition(const int evaluation_mode,
 
       break;
     }
-    case STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT: {
+    case StripEvalBlendGetInvertedLowerSnapshot: {
       /* No support for remapping values through a transition. Mark all channel values affected by
        * transition as non-remappable. */
       tmp_nes = *nes;
@@ -2956,7 +2956,7 @@ static void nlastrip_evaluate_transition(const int evaluation_mode,
 
       break;
     }
-    case STRIP_EVAL_NOBLEND: {
+    case StripEvalNoblend: {
       BLI_assert_msg(false,
                      "This case shouldn't occur. "
                      "Transitions assumed to not reference other transitions.");
@@ -3010,9 +3010,9 @@ static void nlastrip_evaluate_meta(const int evaluation_mode,
    * case difference should be the evaluation order.
    */
   BLI_assert(ELEM(evaluation_mode,
-                  STRIP_EVAL_BLEND,
-                  STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT,
-                  STRIP_EVAL_NOBLEND));
+                  StripEvalBlend,
+                  StripEvalBlendGetInvertedLowerSnapshot,
+                  StripEvalNoblend));
 
   /* directly evaluate child strip into accumulation buffer...
    * - there's no need to use a temporary buffer (as it causes issues [#40082])
@@ -3100,7 +3100,7 @@ void nlasnapshot_blend_strip(PointerRNA *ptr,
                              const AnimationEvalContext *anim_eval_context,
                              const bool flush_to_original)
 {
-  nlastrip_evaluate(STRIP_EVAL_BLEND,
+  nlastrip_evaluate(StripEvalBlend,
                     ptr,
                     channels,
                     modifiers,
@@ -3118,7 +3118,7 @@ void nlasnapshot_blend_strip_get_inverted_lower_snapshot(
     NlaEvalSnapshot *snapshot,
     const AnimationEvalContext *anim_eval_context)
 {
-  nlastrip_evaluate(STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT,
+  nlastrip_evaluate(StripEvalBlendGetInvertedLowerSnapshot,
                     ptr,
                     channels,
                     modifiers,
@@ -3136,7 +3136,7 @@ void nlasnapshot_blend_strip_no_blend(PointerRNA *ptr,
                                       const AnimationEvalContext *anim_eval_context)
 {
   nlastrip_evaluate(
-      STRIP_EVAL_NOBLEND, ptr, channels, modifiers, nes, snapshot, anim_eval_context, false);
+      StripEvalNoblend, ptr, channels, modifiers, nes, snapshot, anim_eval_context, false);
 }
 
 void nladata_flush_channels(PointerRNA *ptr,
@@ -3205,7 +3205,7 @@ static void nla_eval_domain_action(PointerRNA *ptr,
 
     if (nec != nullptr) {
       /* For quaternion properties, enable all sub-channels. */
-      if (nec->mix_mode == NEC_MIX_QUATERNION) {
+      if (nec->mix_mode == NecMixQuaternion) {
         BLI_bitmap_set_all(nec->domain.ptr, true, 4);
         continue;
       }
@@ -3883,7 +3883,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
    * will always fail. See nlaevalchan_combine_quaternion_handle_undefined_blend_values().
    */
   const bool can_force_all = r_force_all != nullptr;
-  if (blended_necs->channel->mix_mode == NEC_MIX_QUATERNION &&
+  if (blended_necs->channel->mix_mode == NecMixQuaternion &&
       ELEM(blend_mode, NLASTRIP_MODE_COMBINE, NLASTRIP_MODE_REPLACE) && can_force_all)
   {
 
@@ -4037,7 +4037,7 @@ void BKE_animsys_evaluate_animdata(ID *id,
    *   or be layered on top of existing animation data.
    * - Drivers should be in the appropriate order to be evaluated without problems...
    */
-  if (recalc & ADT_RECALC_DRIVERS) {
+  if (recalc & AdtRecalcDrivers) {
     animsys_evaluate_drivers(&id_ptr, adt, anim_eval_context);
   }
 
@@ -4054,7 +4054,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
 {
   ID *id;
 
-  if (G.debug & G_DEBUG) {
+  if (G.debug & GDebug) {
     printf("Evaluate all animation - %f\n", ctime);
   }
 
@@ -4106,7 +4106,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
    * set correctly, so this optimization must be skipped in that case...
    */
   if (BLI_listbase_is_empty(&main->actions) && BLI_listbase_is_empty(&main->curves)) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("\tNo Actions, so no animation needs to be evaluated...\n");
     }
 

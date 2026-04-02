@@ -75,8 +75,8 @@ enum class ModifierTypeType {
 };
 
 enum ModifierTypeFlag {
-  eModifierTypeFlag_AcceptsMesh = (1 << 0),
-  eModifierTypeFlag_AcceptsCVs = (1 << 1),
+  EModifierTypeFlagAcceptsMesh = (1 << 0),
+  EModifierTypeFlagAcceptsCVs = (1 << 1),
   /**
    * Modifiers that enable this flag can have the modifiers "On Cage" option toggled,
    * see: #eModifierMode_OnCage, where the output of the modifier can be selected directly.
@@ -93,8 +93,8 @@ enum ModifierTypeFlag {
    * Modifiers that create entirely new geometry from the input should not enable this flag
    * because none of the geometry will be selectable when "On Cage" is enabled.
    */
-  eModifierTypeFlag_SupportsMapping = (1 << 2),
-  eModifierTypeFlag_SupportsEditmode = (1 << 3),
+  EModifierTypeFlagSupportsMapping = (1 << 2),
+  EModifierTypeFlagSupportsEditmode = (1 << 3),
 
   /**
    * For modifiers that support editmode this determines if the
@@ -103,33 +103,33 @@ enum ModifierTypeFlag {
    * also generally used in editmode, otherwise let the user enable
    * it by hand.
    */
-  eModifierTypeFlag_EnableInEditmode = (1 << 4),
+  EModifierTypeFlagEnableInEditmode = (1 << 4),
 
   /**
    * For modifiers that require original data and so cannot
    * be placed after any non-deforming modifier.
    */
-  eModifierTypeFlag_RequiresOriginalData = (1 << 5),
+  EModifierTypeFlagRequiresOriginalData = (1 << 5),
 
   /**
    * For modifiers that support point-cache,
    * so we can check to see if it has files we need to deal with.
    */
-  eModifierTypeFlag_UsesPointCache = (1 << 6),
+  EModifierTypeFlagUsesPointCache = (1 << 6),
 
   /** For physics modifiers, max one per type */
-  eModifierTypeFlag_Single = (1 << 7),
+  EModifierTypeFlagSingle = (1 << 7),
 
   /** Some modifier can't be added manually by user */
-  eModifierTypeFlag_NoUserAdd = (1 << 8),
+  EModifierTypeFlagNoUserAdd = (1 << 8),
 
-  eModifierTypeFlag_AcceptsVertexCosOnly = (1 << 10),
+  EModifierTypeFlagAcceptsVertexCosOnly = (1 << 10),
 
   /** Accepts #BMesh input (without conversion). */
-  eModifierTypeFlag_AcceptsBMesh = (1 << 11),
+  EModifierTypeFlagAcceptsBMesh = (1 << 11),
 
   /** Accepts #GreasePencil data input. */
-  eModifierTypeFlag_AcceptsGreasePencil = (1 << 12),
+  EModifierTypeFlagAcceptsGreasePencil = (1 << 12),
 };
 ENUM_OPERATORS(ModifierTypeFlag)
 
@@ -145,26 +145,26 @@ using TexWalkFunc = void (*)(void *user_data,
 
 enum ModifierApplyFlag {
   /** Render time. */
-  MOD_APPLY_RENDER = 1 << 0,
+  ModApplyRender = 1 << 0,
   /**
    * Result of evaluation will be cached, so modifier might
    * want to cache data for quick updates (used by subdivision-surface).
    */
-  MOD_APPLY_USECACHE = 1 << 1,
+  ModApplyUsecache = 1 << 1,
   /** Modifier evaluated for undeformed texture coordinates */
-  MOD_APPLY_ORCO = 1 << 2,
+  ModApplyOrco = 1 << 2,
   /**
    * Ignore scene simplification flag and use subdivisions
    * level set in multires modifier.
    */
-  MOD_APPLY_IGNORE_SIMPLIFY = 1 << 3,
+  ModApplyIgnoreSimplify = 1 << 3,
   /**
    * The effect of this modifier will be applied to the original geometry
    * The modifier itself will be removed from the modifier stack.
    * This flag can be checked to ignore rendering display data to the mesh.
    * See `OBJECT_OT_modifier_apply` operator.
    */
-  MOD_APPLY_TO_ORIGINAL = 1 << 4,
+  ModApplyToOriginal = 1 << 4,
 };
 ENUM_OPERATORS(ModifierApplyFlag);
 

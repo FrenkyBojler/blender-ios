@@ -187,12 +187,12 @@ TEST_F(BMainMergeTest, linked_data)
 #else
 #  define ABS_ROOT SEP_STR
 #endif
-  constexpr char DST_PATH[] = ABS_ROOT "tmp" SEP_STR "dst" SEP_STR "dst.blend";
-  constexpr char SRC_PATH[] = ABS_ROOT "tmp" SEP_STR "src" SEP_STR "src.blend";
-  constexpr char LIB_PATH[] = ABS_ROOT "tmp" SEP_STR "lib" SEP_STR "lib.blend";
+  constexpr char dst_path[] = ABS_ROOT "tmp" SEP_STR "dst" SEP_STR "dst.blend";
+  constexpr char src_path[] = ABS_ROOT "tmp" SEP_STR "src" SEP_STR "src.blend";
+  constexpr char lib_path[] = ABS_ROOT "tmp" SEP_STR "lib" SEP_STR "lib.blend";
 
-  constexpr char LIB_PATH_RELATIVE[] = "//lib" SEP_STR "lib.blend";
-  constexpr char LIB_PATH_RELATIVE_ABS_SRC[] = ABS_ROOT "tmp" SEP_STR "src" SEP_STR "lib" SEP_STR
+  constexpr char lib_path_relative[] = "//lib" SEP_STR "lib.blend";
+  constexpr char lib_path_relative_abs_src[] = ABS_ROOT "tmp" SEP_STR "src" SEP_STR "lib" SEP_STR
                                                         "lib.blend";
 
   EXPECT_TRUE(BLI_listbase_is_empty(&bmain_dst->libraries));
@@ -203,14 +203,14 @@ TEST_F(BMainMergeTest, linked_data)
   EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->collections));
   EXPECT_TRUE(BLI_listbase_is_empty(&bmain_src->objects));
 
-  STRNCPY(bmain_dst->filepath, DST_PATH);
-  STRNCPY(bmain_src->filepath, SRC_PATH);
+  STRNCPY(bmain_dst->filepath, dst_path);
+  STRNCPY(bmain_src->filepath, src_path);
 
   BKE_id_new<Collection>(bmain_dst, "Coll_dst");
 
   Collection *coll_1 = BKE_id_new<Collection>(bmain_src, "Coll_src");
-  Library *lib_src_1 = BKE_id_new<Library>(bmain_src, LIB_PATH);
-  BKE_library_filepath_set(bmain_src, lib_src_1, LIB_PATH);
+  Library *lib_src_1 = BKE_id_new<Library>(bmain_src, lib_path);
+  BKE_library_filepath_set(bmain_src, lib_src_1, lib_path);
   Object *ob_1 = BKE_id_new_in_lib<Object>(bmain_src, lib_src_1, "Ob_src");
   BKE_collection_object_add(bmain_src, coll_1, ob_1);
 
@@ -239,11 +239,11 @@ TEST_F(BMainMergeTest, linked_data)
   /* Try another merge, with the same library path - second library should be skipped, destination
    * merge should still have only one library ID. */
   bmain_src = BKE_main_new();
-  STRNCPY(bmain_src->filepath, SRC_PATH);
+  STRNCPY(bmain_src->filepath, src_path);
 
   Collection *coll_2 = BKE_id_new<Collection>(bmain_src, "Coll_src_2");
-  Library *lib_src_2 = BKE_id_new<Library>(bmain_src, LIB_PATH);
-  BKE_library_filepath_set(bmain_src, lib_src_2, LIB_PATH);
+  Library *lib_src_2 = BKE_id_new<Library>(bmain_src, lib_path);
+  BKE_library_filepath_set(bmain_src, lib_src_2, lib_path);
   std::cout << lib_src_1->runtime->filepath_abs << "\n";
   std::cout << lib_src_2->runtime->filepath_abs << "\n";
   Object *ob_2 = BKE_id_new_in_lib<Object>(bmain_src, lib_src_2, "Ob_src_2");
@@ -277,19 +277,19 @@ TEST_F(BMainMergeTest, linked_data)
    * the same name, it should still be moved into `bmain_dst`. The library filepath should also be
    * updated and become relative the path of bmain_dst too. */
   bmain_src = BKE_main_new();
-  STRNCPY(bmain_src->filepath, SRC_PATH);
+  STRNCPY(bmain_src->filepath, src_path);
 
   Collection *coll_3 = BKE_id_new<Collection>(bmain_src, "Coll_src_3");
-  Library *lib_src_3 = BKE_id_new<Library>(bmain_src, LIB_PATH_RELATIVE);
-  BKE_library_filepath_set(bmain_src, lib_src_3, LIB_PATH_RELATIVE);
+  Library *lib_src_3 = BKE_id_new<Library>(bmain_src, lib_path_relative);
+  BKE_library_filepath_set(bmain_src, lib_src_3, lib_path_relative);
   Object *ob_3 = BKE_id_new_in_lib<Object>(bmain_src, lib_src_3, "Ob_src");
   BKE_collection_object_add(bmain_src, coll_3, ob_3);
 
   EXPECT_EQ(1, BLI_listbase_count(&bmain_src->collections));
   EXPECT_EQ(1, BLI_listbase_count(&bmain_src->objects));
   EXPECT_EQ(1, BLI_listbase_count(&bmain_src->libraries));
-  EXPECT_TRUE(STREQ(lib_src_3->filepath, LIB_PATH_RELATIVE));
-  EXPECT_TRUE(STREQ(lib_src_3->runtime->filepath_abs, LIB_PATH_RELATIVE_ABS_SRC));
+  EXPECT_TRUE(STREQ(lib_src_3->filepath, lib_path_relative));
+  EXPECT_TRUE(STREQ(lib_src_3->runtime->filepath_abs, lib_path_relative_abs_src));
 
   reports = {};
   BKE_main_merge(bmain_dst, &bmain_src, reports);
@@ -305,8 +305,8 @@ TEST_F(BMainMergeTest, linked_data)
   EXPECT_EQ(ob_2->id.lib, lib_src_1);
   EXPECT_EQ(ob_2_2->id.lib, lib_src_1);
   EXPECT_EQ(ob_3->id.lib, lib_src_3);
-  EXPECT_FALSE(STREQ(lib_src_3->filepath, LIB_PATH_RELATIVE));
-  EXPECT_TRUE(STREQ(lib_src_3->runtime->filepath_abs, LIB_PATH_RELATIVE_ABS_SRC));
+  EXPECT_FALSE(STREQ(lib_src_3->filepath, lib_path_relative));
+  EXPECT_TRUE(STREQ(lib_src_3->runtime->filepath_abs, lib_path_relative_abs_src));
   EXPECT_EQ(3, reports.num_merged_ids);
   EXPECT_EQ(0, reports.num_unknown_ids);
   EXPECT_EQ(0, reports.num_remapped_ids);
@@ -317,10 +317,10 @@ TEST_F(BMainMergeTest, linked_data)
    * library should also be skipped, and the 'linked' object in source bmain should become a local
    * object in destination bmain. */
   bmain_src = BKE_main_new();
-  STRNCPY(bmain_src->filepath, SRC_PATH);
+  STRNCPY(bmain_src->filepath, src_path);
 
-  Library *lib_src_4 = BKE_id_new<Library>(bmain_src, DST_PATH);
-  BKE_library_filepath_set(bmain_src, lib_src_4, DST_PATH);
+  Library *lib_src_4 = BKE_id_new<Library>(bmain_src, dst_path);
+  BKE_library_filepath_set(bmain_src, lib_src_4, dst_path);
   Collection *coll_4 = BKE_id_new_in_lib<Collection>(bmain_src, lib_src_4, "Coll_src");
   Object *ob_4 = BKE_id_new_in_lib<Object>(bmain_src, lib_src_4, "Ob_src_4");
   BKE_collection_object_add(bmain_src, coll_4, ob_4);
@@ -352,7 +352,7 @@ TEST_F(BMainMergeTest, linked_data)
 
 TEST_F(BMainMergeTest, link_lib_packed)
 {
-  constexpr char LIB_PATH[] = ABS_ROOT "tmp" SEP_STR "lib" SEP_STR "lib.blend";
+  constexpr char lib_path[] = ABS_ROOT "tmp" SEP_STR "lib" SEP_STR "lib.blend";
   bool is_archive_lib_new = false;
 
   auto create_packed_object = [&is_archive_lib_new](Main &bmain,
@@ -372,8 +372,8 @@ TEST_F(BMainMergeTest, link_lib_packed)
 
   /* Three packed IDs in source Main, two with same names, one with different name, leading to two
    * different archive libraries. */
-  Library *lib_src = BKE_id_new<Library>(bmain_src, LIB_PATH);
-  BKE_library_filepath_set(bmain_src, lib_src, LIB_PATH);
+  Library *lib_src = BKE_id_new<Library>(bmain_src, lib_path);
+  BKE_library_filepath_set(bmain_src, lib_src, lib_path);
 
   Object *ob_src_linked = BKE_id_new_in_lib<Object>(bmain_src, lib_src, "Ob_linked");
 
@@ -388,8 +388,8 @@ TEST_F(BMainMergeTest, link_lib_packed)
   /* Two packed IDs in destination Main before the merge, with same names as the two first in
    * source Main, one sharing the same deep_hash (so being identical data), the second with another
    * deep hash. */
-  Library *lib_dst = BKE_id_new<Library>(bmain_dst, LIB_PATH);
-  BKE_library_filepath_set(bmain_dst, lib_dst, LIB_PATH);
+  Library *lib_dst = BKE_id_new<Library>(bmain_dst, lib_path);
+  BKE_library_filepath_set(bmain_dst, lib_dst, lib_path);
 
   Object *ob_dst_packed = create_packed_object(*bmain_dst, *lib_dst, "Ob_packed", {1});
   EXPECT_TRUE(is_archive_lib_new);

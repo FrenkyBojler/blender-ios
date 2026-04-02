@@ -3500,7 +3500,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
   BKE_id_copy_ex(nullptr,
                  &psys->hair_in_mesh->id,
                  reinterpret_cast<ID **>(&psys->hair_out_mesh),
-                 LIB_ID_COPY_LOCALIZE);
+                 LibIdCopyLocalize);
 
   clothModifier_do(
       psys->clmd,
@@ -4747,7 +4747,7 @@ static int hair_needs_recalc(ParticleSystem *psys)
 static ParticleSettings *particle_settings_localize(ParticleSettings *particle_settings)
 {
   ParticleSettings *particle_settings_local = id_cast<ParticleSettings *>(
-      BKE_id_copy_ex(nullptr, (&particle_settings->id), nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, (&particle_settings->id), nullptr, LibIdCopyLocalize));
   return particle_settings_local;
 }
 
@@ -4850,7 +4850,7 @@ void particle_system_update(Depsgraph *depsgraph,
           const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
               depsgraph, hcfra);
           BKE_animsys_evaluate_animdata(
-              &part_local->id, part_local->adt, &anim_eval_context, ADT_RECALC_ANIM, false);
+              &part_local->id, part_local->adt, &anim_eval_context, AdtRecalcAnim, false);
         }
         system_step(&sim, hcfra, use_render_params);
         psys->cfra = hcfra;
@@ -4950,7 +4950,7 @@ void particle_system_update(Depsgraph *depsgraph,
   }
 
   if (psys_orig->edit) {
-    psys_orig->edit->flags |= PT_CACHE_EDIT_UPDATE_PARTICLE_FROM_EVAL;
+    psys_orig->edit->flags |= PtCacheEditUpdateParticleFromEval;
   }
 
   psys->cfra = cfra;
@@ -4973,7 +4973,7 @@ void particle_system_update(Depsgraph *depsgraph,
    * at render-time the actual dupli-object's matrix is used so don't update! */
   invert_m4_m4(psys->imat, ob->object_to_world().ptr());
 
-  BKE_particle_batch_cache_dirty_tag(psys, BKE_PARTICLE_BATCH_DIRTY_ALL);
+  BKE_particle_batch_cache_dirty_tag(psys, BkeParticleBatchDirtyAll);
 }
 
 /* ID looper */
@@ -5003,9 +5003,9 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
   const int foreachid_data_flags = BKE_lib_query_foreachid_process_flags_get(foreachid_data);
 
   func(
-      psys, reinterpret_cast<ID **>(&psys->part), userdata, IDWALK_CB_USER | IDWALK_CB_NEVER_NULL);
-  func(psys, reinterpret_cast<ID **>(&psys->target_ob), userdata, IDWALK_CB_NOP);
-  func(psys, reinterpret_cast<ID **>(&psys->parent), userdata, IDWALK_CB_NOP);
+      psys, reinterpret_cast<ID **>(&psys->part), userdata, IdwalkCbUser | IdwalkCbNeverNull);
+  func(psys, reinterpret_cast<ID **>(&psys->target_ob), userdata, IdwalkCbNop);
+  func(psys, reinterpret_cast<ID **>(&psys->parent), userdata, IdwalkCbNop);
 
   if (psys->clmd != nullptr) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(psys->clmd->modifier.type));
@@ -5021,13 +5021,13 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
   }
 
   for (ParticleTarget &pt : psys->targets) {
-    func(psys, reinterpret_cast<ID **>(&pt.ob), userdata, IDWALK_CB_NOP);
+    func(psys, reinterpret_cast<ID **>(&pt.ob), userdata, IdwalkCbNop);
   }
 
   /* In case `psys->part` is nullptr (See ID_REMAP_SKIP/FORCE/FLAG_NEVER_NULL_USAGE in
    * #BKE_library_remap), or accessing it is forbidden, always handle particles for potential boids
    * data. Unfortunate, but for now there is no other proper way to do this. */
-  if (!(psys->part && (foreachid_data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0) ||
+  if (!(psys->part && (foreachid_data_flags & IdwalkNoOrigPointersAccess) == 0) ||
       psys->part->phystype == PART_PHYS_BOIDS)
   {
     ParticleData *pa;
@@ -5035,7 +5035,7 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
 
     for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) {
       if (pa->boid != nullptr) {
-        func(psys, reinterpret_cast<ID **>(&pa->boid->ground), userdata, IDWALK_CB_NOP);
+        func(psys, reinterpret_cast<ID **>(&pa->boid->ground), userdata, IdwalkCbNop);
       }
     }
   }

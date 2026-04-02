@@ -33,9 +33,9 @@ struct View3D;
 struct ViewLayer;
 
 enum eViewLayerCopyMethod {
-  VIEWLAYER_ADD_NEW = 0,
-  VIEWLAYER_ADD_EMPTY = 1,
-  VIEWLAYER_ADD_COPY = 2,
+  ViewlayerAddNew = 0,
+  ViewlayerAddEmpty = 1,
+  ViewlayerAddCopy = 2,
 };
 
 /**

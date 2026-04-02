@@ -150,9 +150,9 @@ ImBuf *BKE_previewimg_to_imbuf(const PreviewImage *prv, int size);
  * Preview rendering.
  */
 enum PreviewImageRenderEndStatus {
-  PRV_RENDER_STATUS_FINISHED,
-  PRV_RENDER_STATUS_FAILED,
-  PRV_RENDER_STATUS_CANCELLED,
+  PrvRenderStatusFinished,
+  PrvRenderStatusFailed,
+  PrvRenderStatusCancelled,
 };
 
 void BKE_previewimg_render_start(PreviewImage *prv, int size, bool using_job);

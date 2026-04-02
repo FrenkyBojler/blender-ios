@@ -290,7 +290,7 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
     /* OpenVDB internally has a limit of 3e-15 for the matrix's determinant and throws
      * ArithmeticError if the provided value is too low.
      * See #136637 for more details. */
-    BKE_reportf(reports, RPT_ERROR, "Voxel size of %f too small to be solved", voxel_size);
+    BKE_reportf(reports, RptError, "Voxel size of %f too small to be solved", voxel_size);
     return nullptr;
   }
   openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, transform);

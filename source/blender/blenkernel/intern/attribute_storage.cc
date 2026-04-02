@@ -410,13 +410,13 @@ static void read_array_data(BlendDataReader &reader,
     case int8_t(AttrType::Int8):
       BLO_read_int8_array(&reader, size, reinterpret_cast<int8_t **>(data));
       return;
-    case int8_t(AttrType::Int16_2D):
+    case int8_t(AttrType::Int162D):
       BLO_read_int16_array(&reader, size * 2, reinterpret_cast<int16_t **>(data));
       return;
     case int8_t(AttrType::Int32):
       BLO_read_int32_array(&reader, size, reinterpret_cast<int32_t **>(data));
       return;
-    case int8_t(AttrType::Int32_2D):
+    case int8_t(AttrType::Int322D):
       BLO_read_int32_array(&reader, size * 2, reinterpret_cast<int32_t **>(data));
       return;
     case int8_t(AttrType::Float):
@@ -590,13 +590,13 @@ static void write_array_data(BlendWriter &writer,
     case AttrType::Int8:
       writer.write_int8_array(size, static_cast<const int8_t *>(data));
       break;
-    case AttrType::Int16_2D:
+    case AttrType::Int162D:
       writer.write_int16_array(size * 2, static_cast<const int16_t *>(data));
       break;
     case AttrType::Int32:
       writer.write_int32_array(size, static_cast<const int32_t *>(data));
       break;
-    case AttrType::Int32_2D:
+    case AttrType::Int322D:
       writer.write_int32_array(size * 2, static_cast<const int32_t *>(data));
       break;
     case AttrType::Float:

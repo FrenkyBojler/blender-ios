@@ -92,11 +92,11 @@ static void world_copy_data(Main *bmain,
   World *wrld_dst = id_cast<World *>(id_dst);
   const World *wrld_src = id_cast<const World *>(id_src);
 
-  const bool is_localized = (flag & LIB_ID_CREATE_LOCAL) != 0;
+  const bool is_localized = (flag & LibIdCreateLocal) != 0;
   /* Never handle user-count here for own sub-data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
   /* Always need allocation of the embedded ID data. */
-  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
+  const int flag_embedded_id_data = flag_subdata & ~LibIdCreateNoAllocate;
 
   if (wrld_src->nodetree) {
     if (is_localized) {
@@ -114,7 +114,7 @@ static void world_copy_data(Main *bmain,
 
   BLI_listbase_clear(&wrld_dst->gpumaterial);
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&wrld_dst->id, &wrld_src->id);
   }
   else {
@@ -195,7 +195,7 @@ IDTypeInfo IDType_ID_WO = {
     .name = "World",
     .name_plural = N_("worlds"),
     .translation_context = BLT_I18NCONTEXT_ID_WORLD,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = world_init_data,

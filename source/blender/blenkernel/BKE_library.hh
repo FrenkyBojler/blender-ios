@@ -120,7 +120,7 @@ Library *ensure_archive_library(
 /** #LibraryRuntime.tag */
 enum eLibrary_Tag {
   /** Automatic recursive re-synchronize was needed when linking/loading data from that library. */
-  LIBRARY_TAG_RESYNC_REQUIRED = 1 << 0,
+  LibraryTagResyncRequired = 1 << 0,
   /**
    * Data-blocks from this library are editable in the UI despite being linked.
    * Used for asset that can be temporarily or permanently edited.
@@ -128,14 +128,14 @@ enum eLibrary_Tag {
    * may need to become per data-block to handle cases where a library is both used
    * for editable assets and linked into the blend file for other reasons.
    */
-  LIBRARY_ASSET_EDITABLE = 1 << 1,
+  LibraryAssetEditable = 1 << 1,
   /** The blend file of this library is writable for asset editing. */
-  LIBRARY_ASSET_FILE_WRITABLE = 1 << 2,
+  LibraryAssetFileWritable = 1 << 2,
   /**
    * The blend file of this library has the #G_FILE_ASSET_EDIT_FILE flag set (refer to it for more
    * info).
    */
-  LIBRARY_IS_ASSET_EDIT_FILE = 1 << 3,
+  LibraryIsAssetEditFile = 1 << 3,
 };
 
 void BKE_library_filepath_set(Main *bmain, Library *lib, const char *filepath);

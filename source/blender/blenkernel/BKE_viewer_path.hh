@@ -39,8 +39,8 @@ class IDRemapper;
 }
 
 enum ViewerPathEqualFlag {
-  VIEWER_PATH_EQUAL_FLAG_IGNORE_ITERATION = (1 << 0),
-  VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME = (1 << 1),
+  ViewerPathEqualFlagIgnoreIteration = (1 << 0),
+  ViewerPathEqualFlagConsiderUiName = (1 << 1),
 };
 
 void BKE_viewer_path_init(ViewerPath *viewer_path);

@@ -20,8 +20,8 @@ namespace bke::subdiv {
 struct Subdiv;
 
 enum eSubdivEvaluatorType {
-  SUBDIV_EVALUATOR_TYPE_CPU,
-  SUBDIV_EVALUATOR_TYPE_GPU,
+  SubdivEvaluatorTypeCpu,
+  SubdivEvaluatorTypeGpu,
 };
 
 /** Returns true if evaluator is ready for use. */

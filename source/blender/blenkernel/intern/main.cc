@@ -101,8 +101,8 @@ void BKE_main_clear(Main &bmain)
 
   /* Since we are removing whole main, no need to bother 'properly' (and slowly) removing each ID
    * from it. */
-  const int free_flag = (LIB_ID_FREE_NO_MAIN | LIB_ID_FREE_NO_UI_USER |
-                         LIB_ID_FREE_NO_USER_REFCOUNT | LIB_ID_FREE_NO_DEG_TAG);
+  const int free_flag = (LibIdFreeNoMain | LibIdFreeNoUiUser |
+                         LibIdFreeNoUserRefcount | LibIdFreeNoDegTag);
 
   MEM_SAFE_DELETE(bmain.blen_thumb);
 
@@ -502,9 +502,9 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
       /* Note that no bmain is given here, so this is only a 'raw' remapping. */
       BKE_libblock_relink_multiple(nullptr,
                                    Span(&id_iter_src, 1),
-                                   ID_REMAP_TYPE_REMAP,
+                                   IdRemapTypeRemap,
                                    id_remapper_libraries,
-                                   ID_REMAP_DO_LIBRARY_POINTERS);
+                                   IdRemapDoLibraryPointers);
       BLI_assert(id_iter_src->lib);
     }
   }
@@ -526,11 +526,11 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
   /* The other data has to be remapped once all IDs are in `bmain_dst`, to ensure that additional
    * update process (e.g. collection hierarchy handling) happens as expected with the correct set
    * of data. */
-  BKE_libblock_relink_multiple(bmain_dst, ids_to_move, ID_REMAP_TYPE_REMAP, id_remapper, 0);
+  BKE_libblock_relink_multiple(bmain_dst, ids_to_move, IdRemapTypeRemap, id_remapper, 0);
 
   BKE_reportf(
       reports.reports,
-      RPT_INFO,
+      RptInfo,
       "Merged %d IDs from '%s' Main into '%s' Main; %d IDs and %d Libraries already existed as "
       "part of the destination Main, and %d IDs missing from destination Main, were freed "
       "together with the source Main",
@@ -632,7 +632,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
     }
   }
 
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 void BKE_main_relations_create(Main *bmain, const short flag)
@@ -651,10 +651,10 @@ void BKE_main_relations_create(Main *bmain, const short flag)
 
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    const LibraryForeachIDFlag idwalk_flag = IDWALK_READONLY |
-                                             ((flag & MAINIDRELATIONS_INCLUDE_UI) != 0 ?
-                                                  IDWALK_INCLUDE_UI :
-                                                  IDWALK_NOP);
+    const LibraryForeachIDFlag idwalk_flag = IdwalkReadonly |
+                                             ((flag & MainidrelationsIncludeUi) != 0 ?
+                                                  IdwalkIncludeUi :
+                                                  IdwalkNop);
 
     /* Ensure all IDs do have an entry, even if they are not connected to any other. */
     MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup_or_add_cb(

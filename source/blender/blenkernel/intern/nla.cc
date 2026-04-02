@@ -154,7 +154,7 @@ NlaStrip *BKE_nlastrip_copy(Main *bmain,
   NlaStrip *strip_d;
   NlaStrip *cs_d;
 
-  const bool do_id_user = (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0;
+  const bool do_id_user = (flag & LibIdCreateNoUserRefcount) == 0;
 
   /* sanity check */
   if (strip == nullptr) {
@@ -662,7 +662,7 @@ NlaStrip *BKE_nla_add_soundstrip(Main *bmain, Scene *scene, Speaker *speaker)
 
 void BKE_nla_strip_foreach_id(NlaStrip *strip, LibraryForeachIDData *data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->act, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->act, IdwalkCbUser);
 
   for (FCurve &fcu : strip->fcurves) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_fcurve_foreach_id(&fcu, data));
@@ -729,10 +729,10 @@ static float nlastrip_get_frame_actionclip(NlaStrip *strip, float cframe, short 
   /* reversed = play strip backwards */
   if (strip->flag & NLASTRIP_FLAG_REVERSE) {
     /* FIXME: this won't work right with Graph Editor? */
-    if (mode == NLATIME_CONVERT_MAP) {
+    if (mode == NlatimeConvertMap) {
       return strip->end - scale * (cframe - strip->actstart);
     }
-    if (mode == NLATIME_CONVERT_UNMAP) {
+    if (mode == NlatimeConvertUnmap) {
       return (strip->end + (strip->actstart * scale - cframe)) / scale;
     }
     /* if (mode == NLATIME_CONVERT_EVAL) */
@@ -749,10 +749,10 @@ static float nlastrip_get_frame_actionclip(NlaStrip *strip, float cframe, short 
     return strip->actend - fmodf(cframe - strip->start, actlength * scale) / scale;
   }
 
-  if (mode == NLATIME_CONVERT_MAP) {
+  if (mode == NlatimeConvertMap) {
     return strip->start + scale * (cframe - strip->actstart);
   }
-  if (mode == NLATIME_CONVERT_UNMAP) {
+  if (mode == NlatimeConvertUnmap) {
     return strip->actstart + (cframe - strip->start) / scale;
   }
   /* if (mode == NLATIME_CONVERT_EVAL) */
@@ -781,14 +781,14 @@ static float nlastrip_get_frame_transition(NlaStrip *strip, float cframe, short 
 
   /* reversed = play strip backwards */
   if (strip->flag & NLASTRIP_FLAG_REVERSE) {
-    if (mode == NLATIME_CONVERT_MAP) {
+    if (mode == NlatimeConvertMap) {
       return strip->end - (length * cframe);
     }
 
     return (strip->end - cframe) / length;
   }
 
-  if (mode == NLATIME_CONVERT_MAP) {
+  if (mode == NlatimeConvertMap) {
     return (length * cframe) + strip->start;
   }
 
@@ -1244,7 +1244,7 @@ NlaTrack *BKE_nlatrack_find_tweaked(AnimData *adt)
       if (BLI_findindex(&nlt.strips, adt->actstrip) != -1) {
         return &nlt;
       }
-      if (G.debug & G_DEBUG) {
+      if (G.debug & GDebug) {
         printf("%s: Active strip (%p, %s) not in NLA track found (%p, %s)\n",
                __func__,
                adt->actstrip,
@@ -2369,7 +2369,7 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
   nla_tweakmode_find_active(&adt.nla_tracks, &activeTrack, &activeStrip);
 
   if (ELEM(nullptr, activeTrack, activeStrip, activeStrip->act)) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("NLA tweak-mode enter - neither active requirement found\n");
       printf("\tactiveTrack = %p, activeStrip = %p\n",
              static_cast<void *>(activeTrack),

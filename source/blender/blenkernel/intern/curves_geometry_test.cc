@@ -12,7 +12,7 @@
 
 namespace blender::bke::tests {
 
-constexpr float EPSILON_FLT32 = 1e-6f;
+constexpr float epsilon_fl_t32 = 1e-6f;
 
 static CurvesGeometry create_basic_curves(const int points_size, const int curves_size)
 {
@@ -553,7 +553,7 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderBezierDeg3)
     curves.tag_topology_changed();
     Span<float3> evaluated_positions = curves.evaluated_positions();
     EXPECT_NEAR_SPAN<float>(
-        evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
+        evaluated_positions.cast<float>(), positions.as_span().cast<float>(), epsilon_fl_t32);
   }
 }
 
@@ -573,7 +573,7 @@ TEST(curves_geometry, NURBSEvaluateZeroOrderClampedDeg3)
     curves.tag_topology_changed();
     Span<float3> evaluated_positions = curves.evaluated_positions();
     EXPECT_NEAR_SPAN<float>(
-        evaluated_positions.cast<float>(), positions.as_span().cast<float>(), EPSILON_FLT32);
+        evaluated_positions.cast<float>(), positions.as_span().cast<float>(), epsilon_fl_t32);
   }
 }
 
@@ -690,7 +690,7 @@ TEST(curves_geometry, BasisCacheNonUniformDeg2)
                                        KnotsMode::NURBS_KNOT_MODE_CUSTOM,
                                        knots,
                                        cache);
-  EXPECT_NEAR_SPAN<float>(expectation, cache.weights, EPSILON_FLT32);
+  EXPECT_NEAR_SPAN<float>(expectation, cache.weights, epsilon_fl_t32);
 }
 
 /** \} */

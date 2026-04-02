@@ -360,7 +360,7 @@ static bool undosys_stack_push_main(UndoStack *ustack, const char *name, Main *b
   eUndoPushReturn ret = BKE_undosys_step_push_with_type(
       ustack, C_temp, name, BKE_UNDOSYS_TYPE_MEMFILE);
   CTX_free(C_temp);
-  return (ret & UNDO_PUSH_RET_SUCCESS);
+  return (ret & UndoPushRetSuccess);
 }
 
 void BKE_undosys_stack_init_from_main(UndoStack *ustack, Main *bmain)
@@ -519,12 +519,12 @@ eUndoPushReturn BKE_undosys_step_push_with_type(UndoStack *ustack,
                                                 const char *name,
                                                 const UndoType *ut)
 {
-  BLI_assert((ut->flags & UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE) == 0 || C != nullptr);
+  BLI_assert((ut->flags & UndotypeFlagNeedContextForEncode) == 0 || C != nullptr);
 
   UNDO_NESTED_ASSERT(false);
   undosys_stack_validate(ustack, false);
   bool is_not_empty = ustack->step_active != nullptr;
-  eUndoPushReturn retval = UNDO_PUSH_RET_FAILURE;
+  eUndoPushReturn retval = UndoPushRetFailure;
 
   /* Might not be final place for this to be called - probably only want to call it from some
    * undo handlers, not all of them? */
@@ -532,7 +532,7 @@ eUndoPushReturn BKE_undosys_step_push_with_type(UndoStack *ustack,
   BKE_lib_override_library_main_operations_create(
       G_MAIN, false, reinterpret_cast<int *>(&report_flags));
   if (report_flags & RNA_OVERRIDE_MATCH_RESULT_CREATED) {
-    retval |= UNDO_PUSH_RET_OVERRIDE_CHANGED;
+    retval |= UndoPushRetOverrideChanged;
   }
 
   /* Remove all undo-steps after (also when 'ustack->step_active == nullptr'). */
@@ -618,7 +618,7 @@ eUndoPushReturn BKE_undosys_step_push_with_type(UndoStack *ustack,
   }
 
   undosys_stack_validate(ustack, true);
-  return (retval | UNDO_PUSH_RET_SUCCESS);
+  return (retval | UndoPushRetSuccess);
 }
 
 eUndoPushReturn BKE_undosys_step_push(UndoStack *ustack, bContext *C, const char *name)
@@ -627,7 +627,7 @@ eUndoPushReturn BKE_undosys_step_push(UndoStack *ustack, bContext *C, const char
   const UndoType *ut = ustack->step_init ? ustack->step_init->type :
                                            BKE_undosys_type_from_context(C);
   if (ut == nullptr) {
-    return UNDO_PUSH_RET_FAILURE;
+    return UndoPushRetFailure;
   }
   return BKE_undosys_step_push_with_type(ustack, C, name, ut);
 }
@@ -704,28 +704,28 @@ eUndoStepDir BKE_undosys_step_calc_direction(const UndoStack *ustack,
    *    to the end of the list, rather than its start. */
   /* NOTE: in case target step is the active one, we assume we are in an undo case... */
   if (ELEM(us_target, us_reference, us_reference->prev)) {
-    return STEP_UNDO;
+    return StepUndo;
   }
   if (us_target == us_reference->next) {
-    return STEP_REDO;
+    return StepRedo;
   }
 
   /* Search forward, and then backward. */
   for (UndoStep *us_iter = us_reference->next; us_iter != nullptr; us_iter = us_iter->next) {
     if (us_iter == us_target) {
-      return STEP_REDO;
+      return StepRedo;
     }
   }
   for (UndoStep *us_iter = us_reference->prev; us_iter != nullptr; us_iter = us_iter->prev) {
     if (us_iter == us_target) {
-      return STEP_UNDO;
+      return StepUndo;
     }
   }
 
   BLI_assert_msg(0,
                  "Target undo step not found, this should not happen and may indicate an undo "
                  "stack corruption");
-  return STEP_INVALID;
+  return StepInvalid;
 }
 
 /**
@@ -734,7 +734,7 @@ eUndoStepDir BKE_undosys_step_calc_direction(const UndoStack *ustack,
  */
 static UndoStep *undosys_step_iter_first(UndoStep *us_reference, const eUndoStepDir undo_dir)
 {
-  if (us_reference->type->flags & UNDOTYPE_FLAG_DECODE_ACTIVE_STEP) {
+  if (us_reference->type->flags & UndotypeFlagDecodeActiveStep) {
     /* Reading this step means an undo action reads undo twice.
      * This should be avoided where possible, however some undo systems require it.
      *
@@ -769,7 +769,7 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
 
   /* This considers we are in undo case if both `us_target` and `us_reference` are the same. */
   const eUndoStepDir undo_dir = BKE_undosys_step_calc_direction(ustack, us_target, us_reference);
-  BLI_assert(undo_dir != STEP_INVALID);
+  BLI_assert(undo_dir != StepInvalid);
 
   /* This will be the active step once the undo process is complete.
    *

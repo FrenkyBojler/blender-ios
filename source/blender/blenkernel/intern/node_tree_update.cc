@@ -61,17 +61,17 @@ using namespace blender::nodes;
  * API.
  */
 enum eNodeTreeChangedFlag {
-  NTREE_CHANGED_NOTHING = 0,
-  NTREE_CHANGED_ANY = (1 << 1),
-  NTREE_CHANGED_NODE_PROPERTY = (1 << 2),
-  NTREE_CHANGED_NODE_OUTPUT = (1 << 3),
-  NTREE_CHANGED_LINK = (1 << 4),
-  NTREE_CHANGED_REMOVED_NODE = (1 << 5),
-  NTREE_CHANGED_REMOVED_SOCKET = (1 << 6),
-  NTREE_CHANGED_SOCKET_PROPERTY = (1 << 7),
-  NTREE_CHANGED_INTERNAL_LINK = (1 << 8),
-  NTREE_CHANGED_PARENT = (1 << 9),
-  NTREE_CHANGED_ALL = -1,
+  NtreeChangedNothing = 0,
+  NtreeChangedAny = (1 << 1),
+  NtreeChangedNodeProperty = (1 << 2),
+  NtreeChangedNodeOutput = (1 << 3),
+  NtreeChangedLink = (1 << 4),
+  NtreeChangedRemovedNode = (1 << 5),
+  NtreeChangedRemovedSocket = (1 << 6),
+  NtreeChangedSocketProperty = (1 << 7),
+  NtreeChangedInternalLink = (1 << 8),
+  NtreeChangedParent = (1 << 9),
+  NtreeChangedAll = -1,
 };
 
 static void add_tree_tag(bNodeTree *ntree, const eNodeTreeChangedFlag flag)
@@ -203,7 +203,7 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
 /* Check both the tree's own tags and the interface tags. */
 static bool is_tree_changed(const bNodeTree &tree)
 {
-  return tree.runtime->changed_flag != NTREE_CHANGED_NOTHING ||
+  return tree.runtime->changed_flag != NtreeChangedNothing ||
          tree.tree_interface.requires_dependent_tree_updates();
 }
 
@@ -373,12 +373,12 @@ class NodeTreeMainUpdater {
         Span<TreeNodePair> dependent_trees = relations_.get_group_node_users(ntree);
         if (result.output_changed) {
           for (const TreeNodePair &pair : dependent_trees) {
-            add_node_tag(pair.first, pair.second, NTREE_CHANGED_NODE_OUTPUT);
+            add_node_tag(pair.first, pair.second, NtreeChangedNodeOutput);
           }
         }
         if (result.interface_changed) {
           for (const TreeNodePair &pair : dependent_trees) {
-            add_node_tag(pair.first, pair.second, NTREE_CHANGED_NODE_PROPERTY);
+            add_node_tag(pair.first, pair.second, NtreeChangedNodeProperty);
           }
         }
       }
@@ -667,13 +667,13 @@ class NodeTreeMainUpdater {
 
   bool should_update_individual_node(const bNodeTree &ntree, const bNode &node)
   {
-    if (ntree.runtime->changed_flag & NTREE_CHANGED_ANY) {
+    if (ntree.runtime->changed_flag & NtreeChangedAny) {
       return true;
     }
-    if (node.runtime->changed_flag & NTREE_CHANGED_NODE_PROPERTY) {
+    if (node.runtime->changed_flag & NtreeChangedNodeProperty) {
       return true;
     }
-    if (ntree.runtime->changed_flag & NTREE_CHANGED_LINK) {
+    if (ntree.runtime->changed_flag & NtreeChangedLink) {
       /* Currently we have no way to tell if a node needs to be updated when a link changed. */
       return true;
     }
@@ -686,7 +686,7 @@ class NodeTreeMainUpdater {
     if (all_zone_input_node_types().contains(node.type_legacy)) {
       const bNodeZoneType &zone_type = *zone_type_by_node_type(node.type_legacy);
       if (const bNode *output_node = zone_type.get_corresponding_output(ntree, node)) {
-        if (output_node->runtime->changed_flag & NTREE_CHANGED_NODE_PROPERTY) {
+        if (output_node->runtime->changed_flag & NtreeChangedNodeProperty) {
           return true;
         }
       }
@@ -864,8 +864,8 @@ class NodeTreeMainUpdater {
   void remove_unused_previews_when_necessary(bNodeTree &ntree)
   {
     /* Don't trigger preview removal when only those flags are set. */
-    const uint32_t allowed_flags = NTREE_CHANGED_LINK | NTREE_CHANGED_SOCKET_PROPERTY |
-                                   NTREE_CHANGED_NODE_PROPERTY | NTREE_CHANGED_NODE_OUTPUT;
+    const uint32_t allowed_flags = NtreeChangedLink | NtreeChangedSocketProperty |
+                                   NtreeChangedNodeProperty | NtreeChangedNodeOutput;
     if ((ntree.runtime->changed_flag & allowed_flags) == ntree.runtime->changed_flag) {
       return;
     }
@@ -1278,7 +1278,7 @@ class NodeTreeMainUpdater {
             socket_value.enum_items->remove_user_and_delete_if_last();
             socket_value.enum_items = nullptr;
           }
-          socket_value.runtime_flag |= NodeSocketValueMenuRuntimeFlag::NODE_MENU_ITEMS_CONFLICT;
+          socket_value.runtime_flag |= NodeSocketValueMenuRuntimeFlag::NodeMenuItemsConflict;
         }
       }
       else if (found_enum_items != nullptr) {
@@ -1321,7 +1321,7 @@ class NodeTreeMainUpdater {
           }
           /* Items are moved, no need to change user count. */
           dst.enum_items = src.enum_items;
-          SET_FLAG_FROM_TEST(dst.runtime_flag, src.has_conflict(), NODE_MENU_ITEMS_CONFLICT);
+          SET_FLAG_FROM_TEST(dst.runtime_flag, src.has_conflict(), NodeMenuItemsConflict);
         }
         else {
           /* If the item isn't move make sure it gets released again. */
@@ -1359,7 +1359,7 @@ class NodeTreeMainUpdater {
     BLI_assert(socket.is_available() && socket.type == SOCK_MENU);
     bNodeSocketValueMenu &default_value = *socket.default_value_typed<bNodeSocketValueMenu>();
     this->reset_enum_ptr(default_value);
-    default_value.runtime_flag &= ~NODE_MENU_ITEMS_CONFLICT;
+    default_value.runtime_flag &= ~NodeMenuItemsConflict;
   }
 
   void update_socket_enum_definition(bNodeSocketValueMenu &dst, const bNodeSocketValueMenu &src)
@@ -1373,7 +1373,7 @@ class NodeTreeMainUpdater {
     if (src.has_conflict()) {
       /* Target conflict if any source enum has a conflict. */
       this->reset_enum_ptr(dst);
-      dst.runtime_flag |= NODE_MENU_ITEMS_CONFLICT;
+      dst.runtime_flag |= NodeMenuItemsConflict;
     }
     else if (!dst.enum_items) {
       /* First connection, set the reference. */
@@ -1382,7 +1382,7 @@ class NodeTreeMainUpdater {
     else if (src.enum_items && dst.enum_items != src.enum_items) {
       /* Error if enum ref does not match other connections. */
       this->reset_enum_ptr(dst);
-      dst.runtime_flag |= NODE_MENU_ITEMS_CONFLICT;
+      dst.runtime_flag |= NodeMenuItemsConflict;
     }
   }
 
@@ -1573,7 +1573,7 @@ class NodeTreeMainUpdater {
       }
     }
 
-    if (tree.runtime->changed_flag & NTREE_CHANGED_ANY) {
+    if (tree.runtime->changed_flag & NtreeChangedAny) {
       return true;
     }
 
@@ -1584,7 +1584,7 @@ class NodeTreeMainUpdater {
     /* The topology hash can only be used when only topology-changing operations have been done.
      */
     if (tree.runtime->changed_flag ==
-        (tree.runtime->changed_flag & (NTREE_CHANGED_LINK | NTREE_CHANGED_REMOVED_NODE)))
+        (tree.runtime->changed_flag & (NtreeChangedLink | NtreeChangedRemovedNode)))
     {
       if (old_topology_hash == new_topology_hash) {
         return false;
@@ -1811,14 +1811,14 @@ class NodeTreeMainUpdater {
     while (!sockets_to_check.is_empty()) {
       const bNodeSocket &socket = *sockets_to_check.pop();
       const bNode &node = socket.owner_node();
-      if (socket.runtime->changed_flag != NTREE_CHANGED_NOTHING) {
+      if (socket.runtime->changed_flag != NtreeChangedNothing) {
         return true;
       }
-      if (node.runtime->changed_flag != NTREE_CHANGED_NOTHING) {
+      if (node.runtime->changed_flag != NtreeChangedNothing) {
         const bool only_unused_internal_link_changed = !node.is_muted() &&
                                                        node.runtime->changed_flag ==
-                                                           NTREE_CHANGED_INTERNAL_LINK;
-        const bool only_parent_changed = node.runtime->changed_flag == NTREE_CHANGED_PARENT;
+                                                           NtreeChangedInternalLink;
+        const bool only_parent_changed = node.runtime->changed_flag == NtreeChangedParent;
         const bool change_affects_output = !(only_unused_internal_link_changed ||
                                              only_parent_changed);
         if (change_affects_output) {
@@ -2003,15 +2003,15 @@ class NodeTreeMainUpdater {
 
   void reset_changed_flags(bNodeTree &ntree)
   {
-    ntree.runtime->changed_flag = NTREE_CHANGED_NOTHING;
+    ntree.runtime->changed_flag = NtreeChangedNothing;
     for (bNode *node : ntree.all_nodes()) {
-      node->runtime->changed_flag = NTREE_CHANGED_NOTHING;
+      node->runtime->changed_flag = NtreeChangedNothing;
       node->runtime->update = 0;
       for (bNodeSocket &socket : node->inputs) {
-        socket.runtime->changed_flag = NTREE_CHANGED_NOTHING;
+        socket.runtime->changed_flag = NtreeChangedNothing;
       }
       for (bNodeSocket &socket : node->outputs) {
-        socket.runtime->changed_flag = NTREE_CHANGED_NOTHING;
+        socket.runtime->changed_flag = NtreeChangedNothing;
       }
     }
 
@@ -2046,97 +2046,97 @@ class NodeTreeMainUpdater {
 
 void BKE_ntree_update_tag_all(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_ANY);
+  add_tree_tag(ntree, NtreeChangedAny);
 }
 
 void BKE_ntree_update_tag_node_property(bNodeTree *ntree, bNode *node)
 {
-  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+  add_node_tag(ntree, node, NtreeChangedNodeProperty);
 }
 
 void BKE_ntree_update_tag_node_new(bNodeTree *ntree, bNode *node)
 {
-  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+  add_node_tag(ntree, node, NtreeChangedNodeProperty);
 }
 
 void BKE_ntree_update_tag_node_type(bNodeTree *ntree, bNode *node)
 {
-  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+  add_node_tag(ntree, node, NtreeChangedNodeProperty);
 }
 
 void BKE_ntree_update_tag_socket_property(bNodeTree *ntree, bNodeSocket *socket)
 {
-  add_socket_tag(ntree, socket, NTREE_CHANGED_SOCKET_PROPERTY);
+  add_socket_tag(ntree, socket, NtreeChangedSocketProperty);
 }
 
 void BKE_ntree_update_tag_socket_new(bNodeTree *ntree, bNodeSocket *socket)
 {
-  add_socket_tag(ntree, socket, NTREE_CHANGED_SOCKET_PROPERTY);
+  add_socket_tag(ntree, socket, NtreeChangedSocketProperty);
 }
 
 void BKE_ntree_update_tag_socket_removed(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_REMOVED_SOCKET);
+  add_tree_tag(ntree, NtreeChangedRemovedSocket);
 }
 
 void BKE_ntree_update_tag_socket_type(bNodeTree *ntree, bNodeSocket *socket)
 {
-  add_socket_tag(ntree, socket, NTREE_CHANGED_SOCKET_PROPERTY);
+  add_socket_tag(ntree, socket, NtreeChangedSocketProperty);
 }
 
 void BKE_ntree_update_tag_socket_availability(bNodeTree *ntree, bNodeSocket *socket)
 {
-  add_socket_tag(ntree, socket, NTREE_CHANGED_SOCKET_PROPERTY);
+  add_socket_tag(ntree, socket, NtreeChangedSocketProperty);
 }
 
 void BKE_ntree_update_tag_node_removed(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_REMOVED_NODE);
+  add_tree_tag(ntree, NtreeChangedRemovedNode);
 }
 
 void BKE_ntree_update_tag_node_mute(bNodeTree *ntree, bNode *node)
 {
-  add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+  add_node_tag(ntree, node, NtreeChangedNodeProperty);
 }
 
 void BKE_ntree_update_tag_node_internal_link(bNodeTree *ntree, bNode *node)
 {
-  add_node_tag(ntree, node, NTREE_CHANGED_INTERNAL_LINK);
+  add_node_tag(ntree, node, NtreeChangedInternalLink);
 }
 
 void BKE_ntree_update_tag_link_changed(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_LINK);
+  add_tree_tag(ntree, NtreeChangedLink);
 }
 
 void BKE_ntree_update_tag_link_removed(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_LINK);
+  add_tree_tag(ntree, NtreeChangedLink);
 }
 
 void BKE_ntree_update_tag_link_added(bNodeTree *ntree, bNodeLink * /*link*/)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_LINK);
+  add_tree_tag(ntree, NtreeChangedLink);
 }
 
 void BKE_ntree_update_tag_link_mute(bNodeTree *ntree, bNodeLink * /*link*/)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_LINK);
+  add_tree_tag(ntree, NtreeChangedLink);
 }
 
 void BKE_ntree_update_tag_active_output_changed(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_ANY);
+  add_tree_tag(ntree, NtreeChangedAny);
 }
 
 void BKE_ntree_update_tag_missing_runtime_data(bNodeTree *ntree)
 {
-  add_tree_tag(ntree, NTREE_CHANGED_ALL);
+  add_tree_tag(ntree, NtreeChangedAll);
 }
 
 void BKE_ntree_update_tag_parent_change(bNodeTree *ntree, bNode *node)
 {
-  add_node_tag(ntree, node, NTREE_CHANGED_PARENT);
+  add_node_tag(ntree, node, NtreeChangedParent);
 }
 
 void BKE_ntree_update_tag_id_changed(Main *bmain, ID *id)
@@ -2145,7 +2145,7 @@ void BKE_ntree_update_tag_id_changed(Main *bmain, ID *id)
     for (bNode *node : ntree->all_nodes()) {
       if (node->id == id) {
         node->runtime->update |= NODE_UPDATE_ID;
-        add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
+        add_node_tag(ntree, node, NtreeChangedNodeProperty);
       }
     }
   }
@@ -2155,7 +2155,7 @@ void BKE_ntree_update_tag_id_changed(Main *bmain, ID *id)
 void BKE_ntree_update_tag_image_user_changed(bNodeTree *ntree, ImageUser * /*iuser*/)
 {
   /* Would have to search for the node that uses the image user for a more detailed tag. */
-  add_tree_tag(ntree, NTREE_CHANGED_ANY);
+  add_tree_tag(ntree, NtreeChangedAny);
 }
 
 uint64_t bNestedNodePath::hash() const

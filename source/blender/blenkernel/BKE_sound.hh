@@ -53,15 +53,15 @@ void BKE_sound_packfile_ensure(Main *bmain, bSound *sound, ReportList *reports);
 
 /** Matches AUD_Channels. */
 enum eSoundChannels {
-  SOUND_CHANNELS_INVALID = 0,
-  SOUND_CHANNELS_MONO = 1,
-  SOUND_CHANNELS_STEREO = 2,
-  SOUND_CHANNELS_STEREO_LFE = 3,
-  SOUND_CHANNELS_SURROUND4 = 4,
-  SOUND_CHANNELS_SURROUND5 = 5,
-  SOUND_CHANNELS_SURROUND51 = 6,
-  SOUND_CHANNELS_SURROUND61 = 7,
-  SOUND_CHANNELS_SURROUND71 = 8,
+  SoundChannelsInvalid = 0,
+  SoundChannelsMono = 1,
+  SoundChannelsStereo = 2,
+  SoundChannelsStereoLfe = 3,
+  SoundChannelsSurrounD4 = 4,
+  SoundChannelsSurrounD5 = 5,
+  SoundChannelsSurrounD51 = 6,
+  SoundChannelsSurrounD61 = 7,
+  SoundChannelsSurrounD71 = 8,
 };
 
 struct SoundInfo {

@@ -494,7 +494,7 @@ void cloth_free_modifier(ClothModifierData *clmd)
 void cloth_free_modifier_extern(ClothModifierData *clmd)
 {
   Cloth *cloth = nullptr;
-  if (G.debug & G_DEBUG_SIMDATA) {
+  if (G.debug & GDebugSimdata) {
     printf("cloth_free_modifier_extern\n");
   }
 
@@ -505,7 +505,7 @@ void cloth_free_modifier_extern(ClothModifierData *clmd)
   cloth = clmd->clothObject;
 
   if (cloth) {
-    if (G.debug & G_DEBUG_SIMDATA) {
+    if (G.debug & GDebugSimdata) {
       printf("cloth_free_modifier_extern in\n");
     }
 
@@ -626,8 +626,8 @@ static void cloth_apply_vgroup(ClothModifierData *clmd, const Mesh *mesh)
       verts->shrink_factor = 0.0f;
 
       /* Reset vertex flags */
-      verts->flags &= ~(CLOTH_VERT_FLAG_PINNED | CLOTH_VERT_FLAG_NOSELFCOLL |
-                        CLOTH_VERT_FLAG_NOOBJCOLL);
+      verts->flags &= ~(ClothVertFlagPinned | ClothVertFlagNoselfcoll |
+                        ClothVertFlagNoobjcoll);
 
       if (!dverts.is_empty()) {
         const MDeformVert *dvert = &dverts[i];
@@ -642,7 +642,7 @@ static void cloth_apply_vgroup(ClothModifierData *clmd, const Mesh *mesh)
 
             verts->goal = pow4f(verts->goal);
             if (verts->goal >= SOFTGOALSNAP) {
-              verts->flags |= CLOTH_VERT_FLAG_PINNED;
+              verts->flags |= ClothVertFlagPinned;
             }
           }
 
@@ -660,13 +660,13 @@ static void cloth_apply_vgroup(ClothModifierData *clmd, const Mesh *mesh)
 
           if (dvert->dw[j].def_nr == (clmd->coll_parms->vgroup_selfcol - 1)) {
             if (dvert->dw[j].weight > 0.0f) {
-              verts->flags |= CLOTH_VERT_FLAG_NOSELFCOLL;
+              verts->flags |= ClothVertFlagNoselfcoll;
             }
           }
 
           if (dvert->dw[j].def_nr == (clmd->coll_parms->vgroup_objcol - 1)) {
             if (dvert->dw[j].weight > 0.0f) {
-              verts->flags |= CLOTH_VERT_FLAG_NOOBJCOLL;
+              verts->flags |= ClothVertFlagNoobjcoll;
             }
           }
 
@@ -717,7 +717,7 @@ static bool cloth_from_object(
   /* If we have a clothObject, free it. */
   if (clmd->clothObject != nullptr) {
     cloth_free_modifier(clmd);
-    if (G.debug & G_DEBUG_SIMDATA) {
+    if (G.debug & GDebugSimdata) {
       printf("cloth_free_modifier cloth_from_object\n");
     }
   }
@@ -984,7 +984,7 @@ static void cloth_hair_update_bending_targets(ClothModifierData *clmd)
     ClothHairData *hair_ij, *hair_kl;
     bool is_root = spring->kl != prev_mn;
 
-    if (spring->type != CLOTH_SPRING_TYPE_BENDING_HAIR) {
+    if (spring->type != ClothSpringTypeBendingHair) {
       continue;
     }
 
@@ -1042,7 +1042,7 @@ static void cloth_hair_update_bending_rest_targets(ClothModifierData *clmd)
     ClothHairData *hair_ij, *hair_kl;
     bool is_root = spring->kl != prev_mn;
 
-    if (spring->type != CLOTH_SPRING_TYPE_BENDING_HAIR) {
+    if (spring->type != ClothSpringTypeBendingHair) {
       continue;
     }
 
@@ -1085,34 +1085,34 @@ static void cloth_update_springs(ClothModifierData *clmd)
     spring->lin_stiffness = 0.0f;
 
     if (clmd->sim_parms->bending_model == CLOTH_BENDING_ANGULAR) {
-      if (spring->type & CLOTH_SPRING_TYPE_BENDING) {
+      if (spring->type & ClothSpringTypeBending) {
         spring->ang_stiffness = (cloth->verts[spring->kl].bend_stiff +
                                  cloth->verts[spring->ij].bend_stiff) /
                                 2.0f;
       }
     }
 
-    if (spring->type & CLOTH_SPRING_TYPE_STRUCTURAL) {
+    if (spring->type & ClothSpringTypeStructural) {
       spring->lin_stiffness = (cloth->verts[spring->kl].struct_stiff +
                                cloth->verts[spring->ij].struct_stiff) /
                               2.0f;
     }
-    else if (spring->type & CLOTH_SPRING_TYPE_SHEAR) {
+    else if (spring->type & ClothSpringTypeShear) {
       spring->lin_stiffness = (cloth->verts[spring->kl].shear_stiff +
                                cloth->verts[spring->ij].shear_stiff) /
                               2.0f;
     }
-    else if (spring->type == CLOTH_SPRING_TYPE_BENDING) {
+    else if (spring->type == ClothSpringTypeBending) {
       spring->lin_stiffness = (cloth->verts[spring->kl].bend_stiff +
                                cloth->verts[spring->ij].bend_stiff) /
                               2.0f;
     }
-    else if (spring->type & CLOTH_SPRING_TYPE_INTERNAL) {
+    else if (spring->type & ClothSpringTypeInternal) {
       spring->lin_stiffness = (cloth->verts[spring->kl].internal_stiff +
                                cloth->verts[spring->ij].internal_stiff) /
                               2.0f;
     }
-    else if (spring->type == CLOTH_SPRING_TYPE_BENDING_HAIR) {
+    else if (spring->type == ClothSpringTypeBendingHair) {
       ClothVertex *v1 = &cloth->verts[spring->ij];
       ClothVertex *v2 = &cloth->verts[spring->kl];
       if (clmd->hairdata) {
@@ -1122,18 +1122,18 @@ static void cloth_update_springs(ClothModifierData *clmd)
       }
       spring->lin_stiffness = (v1->bend_stiff + v2->bend_stiff) / 2.0f;
     }
-    else if (spring->type == CLOTH_SPRING_TYPE_GOAL) {
+    else if (spring->type == ClothSpringTypeGoal) {
       /* WARNING: Appending NEW goal springs does not work
        * because implicit solver would need reset! */
 
       /* Activate / Deactivate existing springs */
-      if (!(cloth->verts[spring->ij].flags & CLOTH_VERT_FLAG_PINNED) &&
+      if (!(cloth->verts[spring->ij].flags & ClothVertFlagPinned) &&
           (cloth->verts[spring->ij].goal > ALMOST_ZERO))
       {
-        spring->flags &= ~CLOTH_SPRING_FLAG_DEACTIVATE;
+        spring->flags &= ~ClothSpringFlagDeactivate;
       }
       else {
-        spring->flags |= CLOTH_SPRING_FLAG_DEACTIVATE;
+        spring->flags |= ClothSpringFlagDeactivate;
       }
     }
 
@@ -1192,9 +1192,9 @@ static void cloth_update_spring_lengths(ClothModifierData *clmd, const Mesh *mes
   while (search) {
     ClothSpring *spring = static_cast<ClothSpring *>(search->link);
 
-    if (spring->type != CLOTH_SPRING_TYPE_SEWING) {
-      if (spring->type & (CLOTH_SPRING_TYPE_STRUCTURAL | CLOTH_SPRING_TYPE_SHEAR |
-                          CLOTH_SPRING_TYPE_BENDING | CLOTH_SPRING_TYPE_INTERNAL))
+    if (spring->type != ClothSpringTypeSewing) {
+      if (spring->type & (ClothSpringTypeStructural | ClothSpringTypeShear |
+                          ClothSpringTypeBending | ClothSpringTypeInternal))
       {
         shrink_factor = cloth_shrink_factor(clmd, cloth->verts, spring->ij, spring->kl);
       }
@@ -1205,13 +1205,13 @@ static void cloth_update_spring_lengths(ClothModifierData *clmd, const Mesh *mes
       spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest) *
                         shrink_factor;
 
-      if (spring->type & CLOTH_SPRING_TYPE_BENDING) {
+      if (spring->type & ClothSpringTypeBending) {
         spring->restang = cloth_spring_angle(
             cloth->verts, spring->ij, spring->kl, spring->pa, spring->pb, spring->la, spring->lb);
       }
     }
 
-    if (spring->type & CLOTH_SPRING_TYPE_STRUCTURAL) {
+    if (spring->type & ClothSpringTypeStructural) {
       clmd->sim_parms->avg_spring_len += spring->restlen;
       cloth->verts[spring->ij].avg_spring_len += spring->restlen;
       cloth->verts[spring->kl].avg_spring_len += spring->restlen;
@@ -1297,7 +1297,7 @@ static bool cloth_add_shear_bend_spring(ClothModifierData *clmd,
   shrink_factor = cloth_shrink_factor(clmd, cloth->verts, spring->ij, spring->kl);
   spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest) *
                     shrink_factor;
-  spring->type |= CLOTH_SPRING_TYPE_SHEAR;
+  spring->type |= ClothSpringTypeShear;
   spring->lin_stiffness = (cloth->verts[spring->kl].shear_stiff +
                            cloth->verts[spring->ij].shear_stiff) /
                           2.0f;
@@ -1309,7 +1309,7 @@ static bool cloth_add_shear_bend_spring(ClothModifierData *clmd,
 
   /* Bending specific properties. */
   if (clmd->sim_parms->bending_model == CLOTH_BENDING_ANGULAR) {
-    spring->type |= CLOTH_SPRING_TYPE_BENDING;
+    spring->type |= ClothSpringTypeBending;
 
     spring->la = k - j + 1;
     spring->lb = faces[i].size() - k + j + 1;
@@ -1544,7 +1544,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
           spring->lin_stiffness = (cloth->verts[spring->kl].internal_stiff +
                                    cloth->verts[spring->ij].internal_stiff) /
                                   2.0f;
-          spring->type = CLOTH_SPRING_TYPE_INTERNAL;
+          spring->type = ClothSpringTypeInternal;
 
           spring->flags = 0;
 
@@ -1593,7 +1593,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
         /* handle sewing (loose edges will be pulled together) */
         spring->restlen = 0.0f;
         spring->lin_stiffness = 1.0f;
-        spring->type = CLOTH_SPRING_TYPE_SEWING;
+        spring->type = ClothSpringTypeSewing;
 
         cloth->sew_edge_graph.add({edges[i][0], edges[i][1]});
       }
@@ -1605,7 +1605,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
         spring->lin_stiffness = (cloth->verts[spring->kl].struct_stiff +
                                  cloth->verts[spring->ij].struct_stiff) /
                                 2.0f;
-        spring->type = CLOTH_SPRING_TYPE_STRUCTURAL;
+        spring->type = ClothSpringTypeStructural;
 
         clmd->sim_parms->avg_spring_len += spring->restlen;
         cloth->verts[spring->ij].avg_spring_len += spring->restlen;
@@ -1694,7 +1694,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
           else if (curr_ref->face == 2) {
             spring = curr_ref->spring;
 
-            spring->type |= CLOTH_SPRING_TYPE_BENDING;
+            spring->type |= ClothSpringTypeBending;
 
             spring->la = faces[curr_ref->index].size();
             spring->lb = faces[i].size();
@@ -1728,7 +1728,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
           else if (curr_ref->face == 3) {
             spring = curr_ref->spring;
 
-            spring->type &= ~CLOTH_SPRING_TYPE_BENDING;
+            spring->type &= ~ClothSpringTypeBending;
             MEM_delete(spring->pa);
             MEM_delete(spring->pb);
             spring->pa = nullptr;
@@ -1771,7 +1771,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
             spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest,
                                        cloth->verts[spring->ij].xrest) *
                               shrink_factor;
-            spring->type = CLOTH_SPRING_TYPE_BENDING;
+            spring->type = ClothSpringTypeBending;
             spring->lin_stiffness = (cloth->verts[spring->kl].bend_stiff +
                                      cloth->verts[spring->ij].bend_stiff) /
                                     2.0f;
@@ -1809,7 +1809,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
           spring->mn = tspring->kl;
           spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest,
                                      cloth->verts[spring->ij].xrest);
-          spring->type = CLOTH_SPRING_TYPE_BENDING_HAIR;
+          spring->type = ClothSpringTypeBendingHair;
           spring->lin_stiffness = (cloth->verts[spring->kl].bend_stiff +
                                    cloth->verts[spring->ij].bend_stiff) /
                                   2.0f;
@@ -1848,7 +1848,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
           spring->kl = tspring->kl;
           spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest,
                                      cloth->verts[spring->ij].xrest);
-          spring->type = CLOTH_SPRING_TYPE_BENDING;
+          spring->type = ClothSpringTypeBending;
           spring->lin_stiffness = (cloth->verts[spring->kl].bend_stiff +
                                    cloth->verts[spring->ij].bend_stiff) /
                                   2.0f;

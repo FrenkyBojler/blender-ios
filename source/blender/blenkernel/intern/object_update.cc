@@ -278,38 +278,38 @@ void BKE_object_batch_cache_dirty_tag(Object *ob)
 {
   switch (ob->type) {
     case OB_MESH:
-      BKE_mesh_batch_cache_dirty_tag(id_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
+      BKE_mesh_batch_cache_dirty_tag(id_cast<Mesh *>(ob->data), BkeMeshBatchDirtyAll);
       break;
     case OB_LATTICE:
-      BKE_lattice_batch_cache_dirty_tag(id_cast<Lattice *>(ob->data), BKE_LATTICE_BATCH_DIRTY_ALL);
+      BKE_lattice_batch_cache_dirty_tag(id_cast<Lattice *>(ob->data), BkeLatticeBatchDirtyAll);
       break;
     case OB_CURVES_LEGACY:
     case OB_SURF:
     case OB_FONT:
-      BKE_curve_batch_cache_dirty_tag(id_cast<Curve *>(ob->data), BKE_CURVE_BATCH_DIRTY_ALL);
+      BKE_curve_batch_cache_dirty_tag(id_cast<Curve *>(ob->data), BkeCurveBatchDirtyAll);
       break;
     case OB_MBALL: {
       /* This function is currently called on original objects, so to properly
        * clear the actual displayed geometry, we have to tag the evaluated mesh. */
       Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(ob);
       if (mesh) {
-        BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
+        BKE_mesh_batch_cache_dirty_tag(mesh, BkeMeshBatchDirtyAll);
       }
       break;
     }
     case OB_CURVES:
-      BKE_curves_batch_cache_dirty_tag(id_cast<Curves *>(ob->data), BKE_CURVES_BATCH_DIRTY_ALL);
+      BKE_curves_batch_cache_dirty_tag(id_cast<Curves *>(ob->data), BkeCurvesBatchDirtyAll);
       break;
     case OB_POINTCLOUD:
       BKE_pointcloud_batch_cache_dirty_tag(id_cast<PointCloud *>(ob->data),
-                                           BKE_POINTCLOUD_BATCH_DIRTY_ALL);
+                                           BkePointcloudBatchDirtyAll);
       break;
     case OB_VOLUME:
-      BKE_volume_batch_cache_dirty_tag(id_cast<Volume *>(ob->data), BKE_VOLUME_BATCH_DIRTY_ALL);
+      BKE_volume_batch_cache_dirty_tag(id_cast<Volume *>(ob->data), BkeVolumeBatchDirtyAll);
       break;
     case OB_GREASE_PENCIL:
       BKE_grease_pencil_batch_cache_dirty_tag(id_cast<GreasePencil *>(ob->data),
-                                              BKE_GREASEPENCIL_BATCH_DIRTY_ALL);
+                                              BkeGreasepencilBatchDirtyAll);
       break;
     default:
       break;
@@ -351,14 +351,14 @@ void BKE_object_data_select_update(Depsgraph *depsgraph, ID *object_data)
   DEG_debug_print_eval(depsgraph, __func__, object_data->name, object_data);
   switch (GS(object_data->name)) {
     case ID_ME:
-      BKE_mesh_batch_cache_dirty_tag(id_cast<Mesh *>(object_data), BKE_MESH_BATCH_DIRTY_SELECT);
+      BKE_mesh_batch_cache_dirty_tag(id_cast<Mesh *>(object_data), BkeMeshBatchDirtySelect);
       break;
     case ID_CU_LEGACY:
-      BKE_curve_batch_cache_dirty_tag(id_cast<Curve *>(object_data), BKE_CURVE_BATCH_DIRTY_SELECT);
+      BKE_curve_batch_cache_dirty_tag(id_cast<Curve *>(object_data), BkeCurveBatchDirtySelect);
       break;
     case ID_LT:
       BKE_lattice_batch_cache_dirty_tag(reinterpret_cast<Lattice *>(object_data),
-                                        BKE_LATTICE_BATCH_DIRTY_SELECT);
+                                        BkeLatticeBatchDirtySelect);
       break;
     default:
       break;
@@ -426,7 +426,7 @@ void BKE_object_eval_eval_base_flags(Depsgraph *depsgraph,
          psys != nullptr;
          psys = psys->next)
     {
-      BKE_particle_batch_cache_dirty_tag(psys, BKE_PARTICLE_BATCH_DIRTY_ALL);
+      BKE_particle_batch_cache_dirty_tag(psys, BkeParticleBatchDirtyAll);
     }
   }
 

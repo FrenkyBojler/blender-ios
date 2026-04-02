@@ -22,27 +22,27 @@ struct Mesh;
  * or otherwise not (directly) accessible to usual CDLayer system).
  */
 enum {
-  CD_FAKE = 1 << 8,
+  CdFake = 1 << 8,
 
   /* Vertices. */
-  CD_FAKE_MDEFORMVERT = CD_FAKE | CD_MDEFORMVERT, /* *sigh* due to how vgroups are stored :(. */
+  CdFakeMdeformvert = CdFake | CD_MDEFORMVERT, /* *sigh* due to how vgroups are stored :(. */
 
   /* Edges. */
-  CD_FAKE_SEAM = CD_FAKE | 100, /* UV seam flag for edges. */
+  CdFakeSeam = CdFake | 100, /* UV seam flag for edges. */
 
   /* Multiple types of mesh elements... */
-  CD_FAKE_UV =
-      CD_FAKE |
+  CdFakeUv =
+      CdFake |
       CD_PROP_FLOAT2, /* UV flag, because we handle both loop's UVs and face's textures. */
 
-  CD_FAKE_LNOR = CD_FAKE | 200,
+  CdFakeLnor = CdFake | 200,
 
-  CD_FAKE_SHARP = CD_FAKE | 300, /* Sharp flag for edges, smooth flag for faces. */
+  CdFakeSharp = CdFake | 300, /* Sharp flag for edges, smooth flag for faces. */
 
-  CD_FAKE_BWEIGHT = CD_FAKE | 400,
-  CD_FAKE_CREASE = CD_FAKE | 500,
-  CD_FAKE_FREESTYLE_EDGE = CD_FAKE | 600,
-  CD_FAKE_FREESTYLE_FACE = CD_FAKE | 700,
+  CdFakeBweight = CdFake | 400,
+  CdFakeCrease = CdFake | 500,
+  CdFakeFreestyleEdge = CdFake | 600,
+  CdFakeFreestyleFace = CdFake | 700,
 };
 
 float data_transfer_interp_float_do(int mix_mode, float val_dst, float val_src, float mix_factor);

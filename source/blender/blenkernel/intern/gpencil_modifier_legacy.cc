@@ -174,172 +174,172 @@ static void gpencil_modifier_foreach_ID_link(GpencilModifierData *md,
     case eGpencilModifierType_Noise: {
       NoiseGpencilModifierData *mmd = reinterpret_cast<NoiseGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Subdiv: {
       SubdivGpencilModifierData *mmd = reinterpret_cast<SubdivGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Thick: {
       ThickGpencilModifierData *mmd = reinterpret_cast<ThickGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Tint: {
       TintGpencilModifierData *mmd = reinterpret_cast<TintGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Array: {
       ArrayGpencilModifierData *mmd = reinterpret_cast<ArrayGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Build: {
       BuildGpencilModifierData *mmd = reinterpret_cast<BuildGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Opacity: {
       OpacityGpencilModifierData *mmd = reinterpret_cast<OpacityGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Color: {
       ColorGpencilModifierData *mmd = reinterpret_cast<ColorGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Lattice: {
       LatticeGpencilModifierData *mmd = reinterpret_cast<LatticeGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Simplify: {
       SimplifyGpencilModifierData *mmd = reinterpret_cast<SimplifyGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Smooth: {
       SmoothGpencilModifierData *mmd = reinterpret_cast<SmoothGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Hook: {
       HookGpencilModifierData *mmd = reinterpret_cast<HookGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Offset: {
       OffsetGpencilModifierData *mmd = reinterpret_cast<OffsetGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Mirror: {
       MirrorGpencilModifierData *mmd = reinterpret_cast<MirrorGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Armature: {
       ArmatureGpencilModifierData *mmd = reinterpret_cast<ArmatureGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Time: {
       TimeGpencilModifierData *mmd = reinterpret_cast<TimeGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Multiply: {
       MultiplyGpencilModifierData *mmd = reinterpret_cast<MultiplyGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Texture: {
       TextureGpencilModifierData *mmd = reinterpret_cast<TextureGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Lineart: {
       LineartGpencilModifierData *lmd = reinterpret_cast<LineartGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->target_material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_collection), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->target_material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_collection), IdwalkCbNop);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_object), IDWALK_CB_NOP);
-      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_camera), IDWALK_CB_NOP);
-      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->light_contour_object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_object), IdwalkCbNop);
+      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_camera), IdwalkCbNop);
+      walk(user_data, ob, reinterpret_cast<ID **>(&lmd->light_contour_object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Length: {
       LengthGpencilModifierData *mmd = reinterpret_cast<LengthGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_WeightProximity: {
       WeightProxGpencilModifierData *mmd = reinterpret_cast<WeightProxGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case eGpencilModifierType_Dash: {
       DashGpencilModifierData *mmd = reinterpret_cast<DashGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_WeightAngle: {
       WeightAngleGpencilModifierData *mmd = reinterpret_cast<WeightAngleGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Shrinkwrap: {
       ShrinkwrapGpencilModifierData *mmd = reinterpret_cast<ShrinkwrapGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->target), IDWALK_CB_NOP);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->aux_target), IDWALK_CB_NOP);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->target), IdwalkCbNop);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->aux_target), IdwalkCbNop);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Envelope: {
       EnvelopeGpencilModifierData *mmd = reinterpret_cast<EnvelopeGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
       break;
     }
     case eGpencilModifierType_Outline: {
       OutlineGpencilModifierData *mmd = reinterpret_cast<OutlineGpencilModifierData *>(md);
 
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->outline_material), IDWALK_CB_USER);
-      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->outline_material), IdwalkCbUser);
+      walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IdwalkCbNop);
       break;
     }
     case NUM_GREASEPENCIL_MODIFIER_TYPES:
@@ -357,14 +357,14 @@ static void modifier_free_data_id_us_cb(void * /*user_data*/,
                                         const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
-  if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
+  if (id != nullptr && (cb_flag & IdwalkCbUser) != 0) {
     id_us_min(id);
   }
 }
 
 void BKE_gpencil_modifier_free_ex(GpencilModifierData *md, const int flag)
 {
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     gpencil_modifier_foreach_ID_link(md, nullptr, modifier_free_data_id_us_cb, nullptr);
   }
 

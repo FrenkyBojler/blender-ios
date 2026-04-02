@@ -104,7 +104,7 @@ static void movie_clip_copy_data(Main * /*bmain*/,
   const MovieClip *movie_clip_src = id_cast<const MovieClip *>(id_src);
 
   /* We never handle user-count here for owned data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
 
   movie_clip_dst->anim = nullptr;
   movie_clip_dst->cache = nullptr;
@@ -131,14 +131,14 @@ static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
   MovieClip *movie_clip = id_cast<MovieClip *>(id);
   MovieTracking *tracking = &movie_clip->tracking;
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, movie_clip->gpd, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, movie_clip->gpd, IdwalkCbUser);
 
   for (MovieTrackingObject &object : tracking->objects) {
     for (MovieTrackingTrack &track : object.tracks) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track.gpd, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track.gpd, IdwalkCbUser);
     }
     for (MovieTrackingPlaneTrack &plane_track : object.plane_tracks) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track.image, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track.image, IdwalkCbUser);
     }
   }
 }
@@ -301,7 +301,7 @@ IDTypeInfo IDType_ID_MC = {
     .name = "MovieClip",
     .name_plural = N_("movieclips"),
     .translation_context = BLT_I18NCONTEXT_ID_MOVIECLIP,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = movie_clip_init_data,

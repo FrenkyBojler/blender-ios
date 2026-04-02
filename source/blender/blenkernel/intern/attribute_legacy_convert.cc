@@ -92,11 +92,11 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_PROP_FLOAT4X4:
       return AttrType::Float4x4;
     case CD_PROP_INT16_2D:
-      return AttrType::Int16_2D;
+      return AttrType::Int162D;
     case CD_PROP_INT8:
       return AttrType::Int8;
     case CD_PROP_INT32_2D:
-      return AttrType::Int32_2D;
+      return AttrType::Int322D;
     case CD_PROP_COLOR:
       return AttrType::ColorFloat;
     case CD_PROP_FLOAT3:
@@ -195,11 +195,11 @@ std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr
       return CD_PROP_BOOL;
     case AttrType::Int8:
       return CD_PROP_INT8;
-    case AttrType::Int16_2D:
+    case AttrType::Int162D:
       return CD_PROP_INT16_2D;
     case AttrType::Int32:
       return CD_PROP_INT32;
-    case AttrType::Int32_2D:
+    case AttrType::Int322D:
       return CD_PROP_INT32_2D;
     case AttrType::Float:
       return CD_PROP_FLOAT;

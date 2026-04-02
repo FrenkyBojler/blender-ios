@@ -32,30 +32,30 @@ struct Main;
 /** IDTypeInfo.flags. */
 enum {
   /** Indicates that the given IDType does not support copying. */
-  IDTYPE_FLAGS_NO_COPY = 1 << 0,
+  IdtypeFlagsNoCopy = 1 << 0,
   /** Indicates that the given IDType does not support linking/appending from a library file. */
-  IDTYPE_FLAGS_NO_LIBLINKING = 1 << 1,
+  IdtypeFlagsNoLiblinking = 1 << 1,
   /**
    * Indicates that the given IDType should not be directly linked from a library file,
    * but may be appended.
    * NOTE: Mutually exclusive with `IDTYPE_FLAGS_NO_LIBLINKING`.
    */
-  IDTYPE_FLAGS_ONLY_APPEND = 1 << 2,
+  IdtypeFlagsOnlyAppend = 1 << 2,
   /**
    * Allow to re-use an existing local ID with matching weak library reference
    * instead of creating a new copy of it, when appending.
    * See also #LibraryWeakReference in `DNA_ID.h`.
    */
-  IDTYPE_FLAGS_APPEND_IS_REUSABLE = 1 << 3,
+  IdtypeFlagsAppendIsReusable = 1 << 3,
   /** Indicates that the given IDType does not have animation data. */
-  IDTYPE_FLAGS_NO_ANIMDATA = 1 << 4,
+  IdtypeFlagsNoAnimdata = 1 << 4,
   /**
    * Indicates that the given IDType is not handled through memfile (aka global) undo.
    *
    * \note Current readfile undo code expects these data-blocks to not be used by any 'regular'
    * data-blocks.
    */
-  IDTYPE_FLAGS_NO_MEMFILE_UNDO = 1 << 5,
+  IdtypeFlagsNoMemfileUndo = 1 << 5,
   /**
    * Indicates that the given IDType is never considered as unused, even when having zero users.
    *
@@ -69,7 +69,7 @@ enum {
    * fragile and inconsistent currently. In most case though, code is expected to ensure that such
    * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
    */
-  IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
+  IdtypeFlagsNeverUnused = 1 << 6,
 };
 
 struct IDCacheKey {
@@ -105,7 +105,7 @@ enum eIDTypeInfoCacheCallbackFlags {
    * Indicates to the callback that cache may be stored in the .blend file,
    * so its pointer should not be cleared at read-time.
    */
-  IDTYPE_CACHE_CB_FLAGS_PERSISTENT = 1 << 0,
+  IdtypeCacheCbFlagsPersistent = 1 << 0,
 };
 using IDTypeForeachCacheFunctionCallback =
     void (*)(ID *id, const IDCacheKey *cache_key, void **cache_p, uint flags, void *user_data);

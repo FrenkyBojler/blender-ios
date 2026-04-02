@@ -186,11 +186,11 @@ struct Global {
 
 /** #Global.f */
 enum {
-  G_FLAG_RENDER_VIEWPORT = (1 << 0),
-  G_FLAG_PICKSEL = (1 << 2),
+  GFlagRenderViewport = (1 << 0),
+  GFlagPicksel = (1 << 2),
   /** Support simulating events (for testing). */
-  G_FLAG_EVENT_SIMULATE = (1 << 3),
-  G_FLAG_USERPREF_NO_SAVE_ON_EXIT = (1 << 4),
+  GFlagEventSimulate = (1 << 3),
+  GFlagUserprefNoSaveOnExit = (1 << 4),
 
   /**
    * Internet access is allowed (offline mode when disabled).
@@ -200,7 +200,7 @@ enum {
    * While this isn't enforced, it is considered a bug when any script sends or receives
    * data over the internet while this flag is set.
    */
-  G_FLAG_INTERNET_ALLOW = (1 << 10),
+  GFlagInternetAllow = (1 << 10),
 
   /* NOTE: storing both online/offline override is needed so changing the preference
    * can be disabled when launching Blender with `--offline-mode`.
@@ -208,19 +208,19 @@ enum {
    * in offline-mode and the option can't be changed afterwards. */
 
   /** Launched with `--offline-mode` (overrides #USER_INTERNET_ALLOW when set). */
-  G_FLAG_INTERNET_OVERRIDE_PREF_ONLINE = (1 << 11),
+  GFlagInternetOverridePrefOnline = (1 << 11),
   /** Launched with `--offline-mode` (overrides #USER_INTERNET_ALLOW when set). */
-  G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE = (1 << 12),
+  GFlagInternetOverridePrefOffline = (1 << 12),
 
-  G_FLAG_SCRIPT_AUTOEXEC = (1 << 13),
+  GFlagScriptAutoexec = (1 << 13),
   /** When this flag is set ignore the preferences #USER_SCRIPT_AUTOEXEC_DISABLE. */
-  G_FLAG_SCRIPT_OVERRIDE_PREF = (1 << 14),
-  G_FLAG_SCRIPT_AUTOEXEC_FAIL = (1 << 15),
-  G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET = (1 << 16),
+  GFlagScriptOverridePref = (1 << 14),
+  GFlagScriptAutoexecFail = (1 << 15),
+  GFlagScriptAutoexecFailQuiet = (1 << 16),
 
   /** When this flag is set the active GPU Backend is different than the user wants to use. */
-  G_FLAG_GPU_BACKEND_FALLBACK = (1 << 17),
-  G_FLAG_GPU_BACKEND_FALLBACK_QUIET = (1 << 18),
+  GFlagGpuBackendFallback = (1 << 17),
+  GFlagGpuBackendFallbackQuiet = (1 << 18),
 
 };
 
@@ -242,40 +242,40 @@ enum {
 
 /** #Global.debug */
 enum {
-  G_DEBUG = (1 << 0),                 /* general debug flag, print more info in unexpected cases */
-  G_DEBUG_PYTHON = (1 << 2),          /* extra python info */
-  G_DEBUG_EVENTS = (1 << 3),          /* input/window/screen events */
-  G_DEBUG_HANDLERS = (1 << 4),        /* events handling */
-  G_DEBUG_WM = (1 << 5),              /* operator, undo */
-  G_DEBUG_JOBS = (1 << 6),            /* jobs time profiling */
-  G_DEBUG_FREESTYLE = (1 << 7),       /* freestyle messages */
-  G_DEBUG_DEPSGRAPH_BUILD = (1 << 8), /* depsgraph construction messages */
-  G_DEBUG_DEPSGRAPH_EVAL = (1 << 9),  /* depsgraph evaluation messages */
-  G_DEBUG_DEPSGRAPH_TAG = (1 << 10),  /* depsgraph tagging messages */
-  G_DEBUG_DEPSGRAPH_TIME = (1 << 11), /* depsgraph timing statistics and messages */
-  G_DEBUG_DEPSGRAPH_NO_THREADS = (1 << 12), /* single threaded depsgraph */
-  G_DEBUG_DEPSGRAPH_PRETTY = (1 << 13),     /* use pretty colors in depsgraph messages */
-  G_DEBUG_DEPSGRAPH_UID = (1 << 14),        /* Verify validness of session-wide identifiers
+  GDebug = (1 << 0),                 /* general debug flag, print more info in unexpected cases */
+  GDebugPython = (1 << 2),          /* extra python info */
+  GDebugEvents = (1 << 3),          /* input/window/screen events */
+  GDebugHandlers = (1 << 4),        /* events handling */
+  GDebugWm = (1 << 5),              /* operator, undo */
+  GDebugJobs = (1 << 6),            /* jobs time profiling */
+  GDebugFreestyle = (1 << 7),       /* freestyle messages */
+  GDebugDepsgraphBuild = (1 << 8), /* depsgraph construction messages */
+  GDebugDepsgraphEval = (1 << 9),  /* depsgraph evaluation messages */
+  GDebugDepsgraphTag = (1 << 10),  /* depsgraph tagging messages */
+  GDebugDepsgraphTime = (1 << 11), /* depsgraph timing statistics and messages */
+  GDebugDepsgraphNoThreads = (1 << 12), /* single threaded depsgraph */
+  GDebugDepsgraphPretty = (1 << 13),     /* use pretty colors in depsgraph messages */
+  GDebugDepsgraphUid = (1 << 14),        /* Verify validness of session-wide identifiers
                                              * assigned to ID datablocks */
-  G_DEBUG_DEPSGRAPH = (G_DEBUG_DEPSGRAPH_BUILD | G_DEBUG_DEPSGRAPH_EVAL | G_DEBUG_DEPSGRAPH_TAG |
-                       G_DEBUG_DEPSGRAPH_TIME | G_DEBUG_DEPSGRAPH_UID),
-  G_DEBUG_SIMDATA = (1 << 15),                     /* sim debug data display */
-  G_DEBUG_GPU = (1 << 16),                         /* gpu debug */
-  G_DEBUG_IO = (1 << 17),                          /* IO Debugging. */
-  G_DEBUG_GPU_FORCE_WORKAROUNDS = (1 << 18),       /* Force GPU workarounds bypassing detection. */
-  G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ = (1 << 19), /* Force GPU dynamic rendering local read. */
-  G_DEBUG_GPU_COMPILE_SHADERS = (1 << 20),         /* Compile all statically defined shaders. . */
-  G_DEBUG_GPU_RENDERDOC = (1 << 21),               /* Enable RenderDoc integration. */
-  G_DEBUG_GPU_SHADER_DEBUG_INFO = (1 << 22), /* Enable the generation of shader debug info. */
-  G_DEBUG_GPU_NO_TEXTURE_POOL = (1 << 23),   /* Disable memory aliasing in the texture pool. */
-  G_DEBUG_XR = (1 << 24),                    /* XR/OpenXR messages */
-  G_DEBUG_XR_TIME = (1 << 25),               /* XR/OpenXR timing messages */
+  GDebugDepsgraph = (GDebugDepsgraphBuild | GDebugDepsgraphEval | GDebugDepsgraphTag |
+                       GDebugDepsgraphTime | GDebugDepsgraphUid),
+  GDebugSimdata = (1 << 15),                     /* sim debug data display */
+  GDebugGpu = (1 << 16),                         /* gpu debug */
+  GDebugIo = (1 << 17),                          /* IO Debugging. */
+  GDebugGpuForceWorkarounds = (1 << 18),       /* Force GPU workarounds bypassing detection. */
+  GDebugGpuForceVulkanLocalRead = (1 << 19), /* Force GPU dynamic rendering local read. */
+  GDebugGpuCompileShaders = (1 << 20),         /* Compile all statically defined shaders. . */
+  GDebugGpuRenderdoc = (1 << 21),               /* Enable RenderDoc integration. */
+  GDebugGpuShaderDebugInfo = (1 << 22), /* Enable the generation of shader debug info. */
+  GDebugGpuNoTexturePool = (1 << 23),   /* Disable memory aliasing in the texture pool. */
+  GDebugXr = (1 << 24),                    /* XR/OpenXR messages */
+  GDebugXrTime = (1 << 25),               /* XR/OpenXR timing messages */
 
-  G_DEBUG_GHOST = (1 << 26),  /* Debug GHOST module. */
-  G_DEBUG_WINTAB = (1 << 27), /* Debug Wintab. */
+  GDebugGhost = (1 << 26),  /* Debug GHOST module. */
+  GDebugWintab = (1 << 27), /* Debug Wintab. */
 
-  G_DEBUG_GPU_SHADER_NO_PREPROCESSOR = (1 << 28), /* Disable the preprocessor (implies NO_DCE). */
-  G_DEBUG_GPU_SHADER_NO_DCE = (1 << 29),          /* Disable Dead Code Elimination. */
+  GDebugGpuShaderNoPreprocessor = (1 << 28), /* Disable the preprocessor (implies NO_DCE). */
+  GDebugGpuShaderNoDce = (1 << 29),          /* Disable Dead Code Elimination. */
 };
 
 #define G_DEBUG_ALL \
@@ -284,8 +284,8 @@ enum {
 
 /** #Global.fileflags */
 enum {
-  G_FILE_AUTOPACK = (1 << 0),
-  G_FILE_COMPRESS = (1 << 1),
+  GFileAutopack = (1 << 0),
+  GFileCompress = (1 << 1),
 
   /**
    * When in background mode, do not automatically build a depsgraph when loading a blend-file.
@@ -295,7 +295,7 @@ enum {
    * The default behavior will then be changed to never automatically generate a depsgraph on
    * file-load when in background mode.
    */
-  G_BACKGROUND_NO_DEPSGRAPH = 1 << 2,
+  GBackgroundNoDepsgraph = 1 << 2,
 
   /**
    * Do not perform automatic resync of library overrides on blend-file load.
@@ -303,10 +303,10 @@ enum {
    * NOTE: runtime version of #UserDef_Experimental.no_override_auto_resync, both values are OR'ed
    * together.
    */
-  G_LIBOVERRIDE_NO_AUTO_RESYNC = 1 << 3,
+  GLiboverrideNoAutoResync = 1 << 3,
 
   // G_FILE_DEPRECATED_9 = (1 << 9),
-  G_FILE_NO_UI = (1 << 10),
+  GFileNoUi = (1 << 10),
 
   /* Bits 11 to 22 (inclusive) are deprecated & need to be cleared */
 
@@ -318,7 +318,7 @@ enum {
    * In practice this means recover needs to be passed around to too many low level functions,
    * so keep this as a flag.
    */
-  G_FILE_RECOVER_READ = (1 << 23),
+  GFileRecoverRead = (1 << 23),
   /**
    * On write, assign use #FileGlobal.filename, otherwise leave it blank,
    * needed so files can be recovered at their original locations.
@@ -326,7 +326,7 @@ enum {
    * \note only #BLENDER_QUIT_FILE and auto-save files include recovery information.
    * As users/developers may not want their paths exposed in publicly distributed files.
    */
-  G_FILE_RECOVER_WRITE = (1 << 24),
+  GFileRecoverWrite = (1 << 24),
   /** BMesh option to save as older mesh format */
   // #define G_FILE_MESH_COMPAT       (1 << 26)
   // #define G_FILE_GLSL_NO_ENV_LIGHTING (1 << 28) /* deprecated */
@@ -335,7 +335,7 @@ enum {
    * UI and save the changes, at which point the file will be regenerated by the asset system to
    * include the edits (API in #BKE_asset_edit.hh). Stored with an .asset.blend file extension.
    */
-  G_FILE_ASSET_EDIT_FILE = (1 << 29),
+  GFileAssetEditFile = (1 << 29),
 };
 
 /**
@@ -348,23 +348,23 @@ enum {
 
 /** #Global.moving, signals drawing in (3d) window to denote transform */
 enum {
-  G_TRANSFORM_OBJ = (1 << 0),
-  G_TRANSFORM_EDIT = (1 << 1),
-  G_TRANSFORM_SEQ = (1 << 2),
-  G_TRANSFORM_FCURVES = (1 << 3),
+  GTransformObj = (1 << 0),
+  GTransformEdit = (1 << 1),
+  GTransformSeq = (1 << 2),
+  GTransformFcurves = (1 << 3),
   /**
    * Set while interactively transforming screen data (e.g. resizing areas & regions).
    *
    * \note Ideally this flag would also be used for resizing the window however that's handled
    * outside by the windowing environment, so this is only used for internal windowing operations.
    */
-  G_TRANSFORM_WM = (1 << 4),
+  GTransformWm = (1 << 4),
   /**
    * Set when transforming the cursor itself.
    * Used as a hint to draw the cursor (even when hidden).
    * Otherwise it's not possible to see what's being transformed.
    */
-  G_TRANSFORM_CURSOR = (1 << 5),
+  GTransformCursor = (1 << 5),
 };
 
 /** Defined in `blender.cc` */

@@ -74,11 +74,11 @@ static void texture_copy_data(Main *bmain,
   Tex *texture_dst = id_cast<Tex *>(id_dst);
   const Tex *texture_src = id_cast<const Tex *>(id_src);
 
-  const bool is_localized = (flag & LIB_ID_CREATE_LOCAL) != 0;
+  const bool is_localized = (flag & LibIdCreateLocal) != 0;
   /* Never handle user-count here for own sub-data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
   /* Always need allocation of the embedded ID data. */
-  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
+  const int flag_embedded_id_data = flag_subdata & ~LibIdCreateNoAllocate;
 
   if (!BKE_texture_is_image_user(texture_src)) {
     texture_dst->ima = nullptr;
@@ -105,7 +105,7 @@ static void texture_copy_data(Main *bmain,
     }
   }
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&texture_dst->id, &texture_src->id);
   }
   else {
@@ -139,7 +139,7 @@ static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data, BKE_library_foreach_ID_embedded(data, (ID **)&texture->nodetree));
   }
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, texture->ima, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, texture->ima, IdwalkCbUser);
 }
 
 static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -189,7 +189,7 @@ IDTypeInfo IDType_ID_TE = {
     .name = "Texture",
     .name_plural = N_("textures"),
     .translation_context = BLT_I18NCONTEXT_ID_TEXTURE,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = texture_init_data,
@@ -213,8 +213,8 @@ IDTypeInfo IDType_ID_TE = {
 
 void BKE_texture_mtex_foreach_id(LibraryForeachIDData *data, MTex *mtex)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mtex->object, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mtex->tex, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mtex->object, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mtex->tex, IdwalkCbUser);
 }
 
 /* ****************** Mapping ******************* */

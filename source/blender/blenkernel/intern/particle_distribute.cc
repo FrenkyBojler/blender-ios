@@ -954,7 +954,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
       }
       else {
         mesh = id_cast<Mesh *>(BKE_id_copy_ex(
-            nullptr, static_cast<const ID *>(ob->data), nullptr, LIB_ID_COPY_LOCALIZE));
+            nullptr, static_cast<const ID *>(ob->data), nullptr, LibIdCopyLocalize));
       }
       BKE_mesh_tessface_ensure(mesh);
 
@@ -1015,7 +1015,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     }
     else {
       mesh = id_cast<Mesh *>(BKE_id_copy_ex(
-          nullptr, static_cast<const ID *>(ob->data), nullptr, LIB_ID_COPY_LOCALIZE));
+          nullptr, static_cast<const ID *>(ob->data), nullptr, LibIdCopyLocalize));
     }
 
     BKE_mesh_tessface_ensure(mesh);
@@ -1052,7 +1052,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
   if (totelem == 0) {
     distribute_invalid(sim, children ? PART_FROM_CHILD : 0);
 
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       fprintf(stderr, "Particle distribution error: Nothing to emit from!\n");
     }
 

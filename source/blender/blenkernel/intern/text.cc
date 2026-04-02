@@ -235,7 +235,7 @@ IDTypeInfo IDType_ID_TXT = {
     .name = "Text",
     .name_plural = N_("texts"),
     .translation_context = BLT_I18NCONTEXT_ID_TEXT,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsNoAnimdata | IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = text_init_data,
@@ -2185,7 +2185,7 @@ void txt_move_lines(Text *text, const int direction)
 {
   TextLine *line_other;
 
-  BLI_assert(ELEM(direction, TXT_MOVE_LINE_UP, TXT_MOVE_LINE_DOWN));
+  BLI_assert(ELEM(direction, TxtMoveLineUp, TxtMoveLineDown));
 
   if (!text->curl || !text->sell) {
     return;
@@ -2193,7 +2193,7 @@ void txt_move_lines(Text *text, const int direction)
 
   txt_order_cursors(text, false);
 
-  line_other = (direction == TXT_MOVE_LINE_DOWN) ? text->sell->next : text->curl->prev;
+  line_other = (direction == TxtMoveLineDown) ? text->sell->next : text->curl->prev;
 
   if (!line_other) {
     return;
@@ -2201,7 +2201,7 @@ void txt_move_lines(Text *text, const int direction)
 
   BLI_remlink(&text->lines, line_other);
 
-  if (direction == TXT_MOVE_LINE_DOWN) {
+  if (direction == TxtMoveLineDown) {
     BLI_insertlinkbefore(&text->lines, text->curl, line_other);
   }
   else {

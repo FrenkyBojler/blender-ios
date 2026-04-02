@@ -470,8 +470,8 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 }  // namespace bke::pbvh
 
 enum PBVHTopologyUpdateMode {
-  PBVH_Subdivide = 1,
-  PBVH_Collapse = 2,
+  PbvhSubdivide = 1,
+  PbvhCollapse = 2,
 };
 ENUM_OPERATORS(PBVHTopologyUpdateMode);
 

@@ -66,7 +66,7 @@ static void lattice_copy_data(Main *bmain,
 
   lattice_dst->def = MEM_dupalloc(lattice_src->def);
 
-  if (lattice_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
+  if (lattice_src->key && (flag & LibIdCopyShapekey)) {
     BKE_id_copy_in_lib(bmain,
                        owner_library,
                        &lattice_src->key->id,
@@ -120,7 +120,7 @@ static void lattice_free_data(ID *id)
 static void lattice_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Lattice *lattice = reinterpret_cast<Lattice *>(id);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lattice->key, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lattice->key, IdwalkCbUser);
 }
 
 static void lattice_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -164,7 +164,7 @@ IDTypeInfo IDType_ID_LT = {
     .name = "Lattice",
     .name_plural = N_("lattices"),
     .translation_context = BLT_I18NCONTEXT_ID_LATTICE,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = lattice_init_data,
@@ -532,7 +532,7 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
   for (; md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-    if (!(mti->flags & eModifierTypeFlag_AcceptsVertexCosOnly)) {
+    if (!(mti->flags & EModifierTypeFlagAcceptsVertexCosOnly)) {
       continue;
     }
     if (!(md->mode & eModifierMode_Realtime)) {
@@ -563,7 +563,7 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
   Lattice *lt_eval = BKE_object_get_evaluated_lattice(ob);
   if (lt_eval == nullptr) {
-    BKE_id_copy_ex(nullptr, &lt->id, reinterpret_cast<ID **>(&lt_eval), LIB_ID_COPY_LOCALIZE);
+    BKE_id_copy_ex(nullptr, &lt->id, reinterpret_cast<ID **>(&lt_eval), LibIdCopyLocalize);
     BKE_object_eval_assign_data(ob, &lt_eval->id, true);
   }
 

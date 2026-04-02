@@ -1316,7 +1316,7 @@ void BKE_sim_debug_data_add_element(int type,
   SimDebugElement *elem;
 
   if (!_sim_debug_data) {
-    if (G.debug & G_DEBUG_SIMDATA) {
+    if (G.debug & GDebugSimdata) {
       BKE_sim_debug_data_set_enabled(true);
     }
     else {

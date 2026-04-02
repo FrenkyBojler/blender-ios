@@ -52,7 +52,7 @@ namespace greasepencil {
  * but in blender units (world space) directly. Also note that there is no longer a stroke
  * "thickness" attribute, the radii are directly stored on the points.
  * For compatibility, legacy thickness values have to be multiplied by this factor. */
-constexpr float LEGACY_RADIUS_CONVERSION_FACTOR = 1.0f / 2000.0f;
+constexpr float legacy_radius_conversion_factor = 1.0f / 2000.0f;
 
 struct FillCache {
   /**
@@ -408,7 +408,7 @@ static_assert(sizeof(LayerMask) == sizeof(blender::GreasePencilLayerMask));
  * Structure used to transform frames in a grease pencil layer.
  */
 struct LayerTransformData {
-  enum FrameTransformationStatus { TRANS_CLEAR, TRANS_INIT, TRANS_RUNNING };
+  enum FrameTransformationStatus { TransClear, TransInit, TransRunning };
 
   /* Map of frame keys describing the transformation of the frames. Keys of the map are the source
    * frame indices, and the values of the map are the destination frame indices. */
@@ -430,7 +430,7 @@ struct LayerTransformData {
    * Used in the move+duplicate operator. */
   Map<int, GreasePencilFrame> duplicated_frames_buffer;
 
-  FrameTransformationStatus status{TRANS_CLEAR};
+  FrameTransformationStatus status{TransClear};
 };
 
 /*

@@ -245,10 +245,10 @@ class VariableMap {
 };
 
 enum class ErrorType {
-  UNESCAPED_CURLY_BRACE,
-  VARIABLE_SYNTAX,
-  FORMAT_SPECIFIER,
-  UNKNOWN_VARIABLE,
+  UnescapedCurlyBrace,
+  VariableSyntax,
+  FormatSpecifier,
+  UnknownVariable,
 };
 
 struct Error {

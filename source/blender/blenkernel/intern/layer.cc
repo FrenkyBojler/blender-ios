@@ -190,7 +190,7 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
                               ViewLayer *view_layer_source,
                               const int type)
 {
-  BLI_assert_msg(bmain || type != VIEWLAYER_ADD_EMPTY,
+  BLI_assert_msg(bmain || type != ViewlayerAddEmpty,
                  "A valid Main is required with `VIEWLAYER_ADD_EMPTY` type of process");
 
   ViewLayer *view_layer_new;
@@ -201,7 +201,7 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
 
   switch (type) {
     default:
-    case VIEWLAYER_ADD_NEW: {
+    case ViewlayerAddNew: {
       view_layer_new = view_layer_add(name);
       BLI_addtail(&scene->view_layers, view_layer_new);
       if (bmain) {
@@ -212,7 +212,7 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
       }
       break;
     }
-    case VIEWLAYER_ADD_COPY: {
+    case ViewlayerAddCopy: {
       /* Allocate and copy view layer data */
       view_layer_new = MEM_new<ViewLayer>("View Layer");
       *view_layer_new = *view_layer_source;
@@ -222,7 +222,7 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
       STRNCPY_UTF8(view_layer_new->name, name);
       break;
     }
-    case VIEWLAYER_ADD_EMPTY: {
+    case ViewlayerAddEmpty: {
       view_layer_new = view_layer_add(name);
       BLI_addtail(&scene->view_layers, view_layer_new);
 
@@ -556,7 +556,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   layer_lightgroup_copy_data(
       view_layer_dst, view_layer_src, &view_layer_dst->lightgroups, &view_layer_src->lightgroups);
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     id_us_plus(id_cast<ID *>(view_layer_dst->mat_override));
   }
 }

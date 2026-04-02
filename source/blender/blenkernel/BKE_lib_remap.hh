@@ -41,7 +41,7 @@ class IDRemapper;
 /* Also IDRemap->flag. */
 enum {
   /** Do not remap indirect usages of IDs (that is, when user is some linked data). */
-  ID_REMAP_SKIP_INDIRECT_USAGE = 1 << 0,
+  IdRemapSkipIndirectUsage = 1 << 0,
   /**
    * This flag should always be set, *except for 'unlink' scenarios*
    * (only relevant when new_id == NULL).
@@ -50,37 +50,37 @@ enum {
    * This is mandatory for 'delete ID' case,
    * but in all other situation this would lead to invalid user counts!
    */
-  ID_REMAP_SKIP_NEVER_NULL_USAGE = 1 << 1,
+  IdRemapSkipNeverNullUsage = 1 << 1,
   /**
    * Store in the #IDRemapper all IDs using target one with a 'never NULL' pointer (like e.g.
    * #Object.data), when such ID usage has (or should have) been remapped to `nullptr`. See also
    * #ID_REMAP_FORCE_NEVER_NULL_USAGE and #ID_REMAP_SKIP_NEVER_NULL_USAGE.
    */
-  ID_REMAP_STORE_NEVER_NULL_USAGE = 1 << 2,
+  IdRemapStoreNeverNullUsage = 1 << 2,
   /**
    * This tells the callback function to force setting IDs
    * using target one with a 'never NULL' pointer to NULL.
    * \warning Use with extreme care, this will leave database in broken state
    * and can cause crashes very easily!
    */
-  ID_REMAP_FORCE_NEVER_NULL_USAGE = 1 << 3,
+  IdRemapForceNeverNullUsage = 1 << 3,
   /** Do not remap library override pointers. */
-  ID_REMAP_SKIP_OVERRIDE_LIBRARY = 1 << 4,
+  IdRemapSkipOverrideLibrary = 1 << 4,
   /**
    * Force internal ID runtime pointers (like `ID.newid`, `ID.orig_id` etc.) to also be processed.
    * This should only be needed in some very specific cases, typically only BKE ID management code
    * should need it (e.g. required from `id_delete` to ensure no runtime pointer remains using
    * freed ones).
    */
-  ID_REMAP_FORCE_INTERNAL_RUNTIME_POINTERS = 1 << 5,
+  IdRemapForceInternalRuntimePointers = 1 << 5,
   /** Force remapping of 'UI-like' ID usages (ID pointers stored in editors data etc.). */
-  ID_REMAP_FORCE_UI_POINTERS = 1 << 6,
+  IdRemapForceUiPointers = 1 << 6,
   /**
    * Force obdata pointers to also be processed, even when object (`id_owner`) is in Edit mode.
    * This is required by some tools creating/deleting IDs while operating in Edit mode, like e.g.
    * the 'separate' mesh operator.
    */
-  ID_REMAP_FORCE_OBDATA_IN_EDITMODE = 1 << 7,
+  IdRemapForceObdataInEditmode = 1 << 7,
   /**
    * Do remapping of `lib` Library pointers of IDs (by default these are completely ignored).
    *
@@ -89,52 +89,52 @@ enum {
    * the calling code takes care of the rest of the required changes
    * (ID tags & flags updates, etc.).
    */
-  ID_REMAP_DO_LIBRARY_POINTERS = 1 << 8,
+  IdRemapDoLibraryPointers = 1 << 8,
 
   /**
    * Allow remapping of an ID pointer of a certain to another one of a different type.
    *
    * WARNING: Use with caution. Should only be needed in a very small amount of cases, e.g. when
    * converting an ID type to another. */
-  ID_REMAP_ALLOW_IDTYPE_MISMATCH = 1 << 9,
+  IdRemapAllowIdtypeMismatch = 1 << 9,
 
   /**
    * Don't touch the special user counts (use when the 'old' remapped ID remains in use):
    * - Do not transfer 'fake user' status from old to new ID.
    * - Do not clear 'extra user' from old ID.
    */
-  ID_REMAP_SKIP_USER_CLEAR = 1 << 16,
+  IdRemapSkipUserClear = 1 << 16,
   /**
    * Force handling user count even for IDs that are outside of Main (used in some cases when
    * dealing with IDs temporarily out of Main, but which will be put in it ultimately).
    */
-  ID_REMAP_FORCE_USER_REFCOUNT = 1 << 17,
+  IdRemapForceUserRefcount = 1 << 17,
   /**
    * Do NOT handle user count for IDs (used in some cases when dealing with IDs from different
    * BMains, if user-count will be recomputed anyway afterwards, like e.g.
    * in memfile reading during undo step decoding).
    */
-  ID_REMAP_SKIP_USER_REFCOUNT = 1 << 18,
+  IdRemapSkipUserRefcount = 1 << 18,
   /**
    * Do NOT tag IDs which had some of their ID pointers updated for update in the depsgraph, or ID
    * type specific updates, like e.g. with node trees.
    */
-  ID_REMAP_SKIP_UPDATE_TAGGING = 1 << 19,
+  IdRemapSkipUpdateTagging = 1 << 19,
   /**
    * Do not attempt to access original ID pointers (triggers usages of
    * `IDWALK_NO_ORIG_POINTERS_ACCESS` too).
    *
    * Use when original ID pointers values are (probably) not valid, e.g. during read-file process.
    */
-  ID_REMAP_NO_ORIG_POINTERS_ACCESS = 1 << 20,
+  IdRemapNoOrigPointersAccess = 1 << 20,
 };
 
 enum eIDRemapType {
   /** Remap an ID reference to a new reference. The new reference can also be null. */
-  ID_REMAP_TYPE_REMAP = 0,
+  IdRemapTypeRemap = 0,
 
   /** Cleanup all IDs used by a specific one. */
-  ID_REMAP_TYPE_CLEANUP = 1,
+  IdRemapTypeCleanup = 1,
 };
 
 /**
@@ -222,13 +222,13 @@ void BKE_library_callback_remap_editor_id_reference_set(
 /* IDRemapper */
 enum IDRemapperApplyResult {
   /** No remapping rules available for the source. */
-  ID_REMAP_RESULT_SOURCE_UNAVAILABLE,
+  IdRemapResultSourceUnavailable,
   /** Source isn't mappable (e.g. NULL). */
-  ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE,
+  IdRemapResultSourceNotMappable,
   /** Source has been remapped to a new pointer. */
-  ID_REMAP_RESULT_SOURCE_REMAPPED,
+  IdRemapResultSourceRemapped,
   /** Source has been set to NULL. */
-  ID_REMAP_RESULT_SOURCE_UNASSIGNED,
+  IdRemapResultSourceUnassigned,
 };
 
 enum IDRemapperApplyOptions {
@@ -243,23 +243,23 @@ enum IDRemapperApplyOptions {
    * use it or not. Needed for rare cases in UI handling though (see e.g. `image_id_remap` in
    * `space_image.cc`).
    */
-  ID_REMAP_APPLY_UPDATE_REFCOUNT = (1 << 0),
+  IdRemapApplyUpdateRefcount = (1 << 0),
 
   /**
    * Make sure that the new ID data-block will have a 'real' user.
    *
    * NOTE: See Note for #ID_REMAP_APPLY_UPDATE_REFCOUNT above.
    */
-  ID_REMAP_APPLY_ENSURE_REAL = (1 << 1),
+  IdRemapApplyEnsureReal = (1 << 1),
 
   /**
    * Unassign instead of remap when the new ID pointer would point to itself.
    *
    * To use this option #IDRemapper::apply must be used with a non-null id_self parameter.
    */
-  ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF = (1 << 2),
+  IdRemapApplyUnmapWhenRemappingToSelf = (1 << 2),
 
-  ID_REMAP_APPLY_DEFAULT = 0,
+  IdRemapApplyDefault = 0,
 };
 ENUM_OPERATORS(IDRemapperApplyOptions)
 

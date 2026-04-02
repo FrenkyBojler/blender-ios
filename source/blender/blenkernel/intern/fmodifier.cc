@@ -234,8 +234,8 @@ static void fcm_generator_evaluate(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_GENERATOR = {
     /*type*/ FMODIFIER_TYPE_GENERATOR,
     /*size*/ sizeof(FMod_Generator),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_NOTHING,
+    /*acttype*/ FmiTypeGenerateCurve,
+    /*requires_flag*/ FmiRequiresNothing,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Generator"),
     /*struct_name*/ "FMod_Generator",
     /*storage_size*/ 0,
@@ -367,8 +367,8 @@ static void fcm_fn_generator_evaluate(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_FN_GENERATOR = {
     /*type*/ FMODIFIER_TYPE_FN_GENERATOR,
     /*size*/ sizeof(FMod_FunctionGenerator),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_NOTHING,
+    /*acttype*/ FmiTypeGenerateCurve,
+    /*requires_flag*/ FmiRequiresNothing,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Built-In Function"),
     /*struct_name*/ "FMod_FunctionGenerator",
     /*storage_size*/ 0,
@@ -483,7 +483,7 @@ static void fcm_envelope_evaluate(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_ENVELOPE = {
     /*type*/ FMODIFIER_TYPE_ENVELOPE,
     /*size*/ sizeof(FMod_Envelope),
-    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
+    /*acttype*/ FmiTypeReplaceValues,
     /*requires_flag*/ 0,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Envelope"),
     /*struct_name*/ "FMod_Envelope",
@@ -780,8 +780,8 @@ static void fcm_cycles_evaluate(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_CYCLES = {
     /*type*/ FMODIFIER_TYPE_CYCLES,
     /*size*/ sizeof(FMod_Cycles),
-    /*acttype*/ FMI_TYPE_EXTRAPOLATION,
-    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
+    /*acttype*/ FmiTypeExtrapolation,
+    /*requires_flag*/ FmiRequiresOriginalData,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Cycles"),
     /*struct_name*/ "FMod_Cycles",
     /*storage_size*/ sizeof(tFCMED_Cycles),
@@ -869,7 +869,7 @@ static void fcm_noise_evaluate(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_NOISE = {
     /*type*/ FMODIFIER_TYPE_NOISE,
     /*size*/ sizeof(FMod_Noise),
-    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
+    /*acttype*/ FmiTypeReplaceValues,
     /*requires_flag*/ 0,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Noise"),
     /*struct_name*/ "FMod_Noise",
@@ -924,8 +924,8 @@ static void fcm_limits_evaluate(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_LIMITS = {
     /*type*/ FMODIFIER_TYPE_LIMITS,
     /*size*/ sizeof(FMod_Limits),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
+    /*acttype*/ FmiTypeGenerateCurve,
+    /*requires_flag*/ FmiRequiresRuntimeCheck, /* XXX... err... */
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Limits"),
     /*struct_name*/ "FMod_Limits",
     /*storage_size*/ 0,
@@ -984,8 +984,8 @@ static float fcm_stepped_time(const FCurve * /*fcu*/,
 static FModifierTypeInfo FMI_STEPPED = {
     /*type*/ FMODIFIER_TYPE_STEPPED,
     /*size*/ sizeof(FMod_Limits),
-    /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
+    /*acttype*/ FmiTypeGenerateCurve,
+    /*requires_flag*/ FmiRequiresRuntimeCheck, /* XXX... err... */
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Stepped"),
     /*struct_name*/ "FMod_Stepped",
     /*storage_size*/ 0,
@@ -1090,8 +1090,8 @@ static void fcm_smooth_evaluate(
 static FModifierTypeInfo FMI_SMOOTH = {
     /*type*/ FMODIFIER_TYPE_SMOOTH,
     /*size*/ sizeof(FMod_Smooth),
-    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
+    /*acttype*/ FmiTypeReplaceValues,
+    /*requires_flag*/ FmiRequiresOriginalData,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Smooth"),
     /*struct_name*/ "FMod_Smooth",
     /*storage_size*/ 0,
@@ -1189,7 +1189,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   }
 
   /* special checks for whether modifier can be added */
-  if ((modifiers->first) && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
+  if ((modifiers->first) && (fmi->requires_flag & FmiRequiresOriginalData)) {
     /* Modifiers requiring original data must be first in stack, so for now, don't add if it can't
      * be. */
     /* TODO: perhaps there is some better way, but for now, */

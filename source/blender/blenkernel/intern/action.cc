@@ -194,7 +194,7 @@ static void action_copy_data(Main * /*bmain*/,
     action_dst.slot_array[i] = MEM_new<animrig::Slot>(__func__, *action_src.slot(i));
   }
 
-  if (flag & LIB_ID_COPY_NO_PREVIEW) {
+  if (flag & LibIdCopyNoPreview) {
     action_dst.preview = nullptr;
   }
   else {
@@ -255,7 +255,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
    * NOTE: early-returns by BKE_LIB_FOREACHID_PROCESS_... macros are forbidden in non-readonly
    * cases (see #IDWALK_RET_STOP_ITER documentation). */
 
-  constexpr LibraryForeachIDCallbackFlag idwalk_flags = IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK;
+  constexpr LibraryForeachIDCallbackFlag idwalk_flags = IdwalkCbNeverSelf | IdwalkCbLoopback;
 
   /* Note that `bmain` can be `nullptr`. An example is in
    * `deg_eval_copy_on_write.cc`, function `deg_expand_eval_copy_datablock`. */
@@ -290,7 +290,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
 
 #ifndef NDEBUG
     const LibraryForeachIDFlag flag = BKE_lib_query_foreachid_process_flags_get(data);
-    const bool is_readonly = flag & IDWALK_READONLY;
+    const bool is_readonly = flag & IdwalkReadonly;
     if (is_readonly) {
       BLI_assert_msg(!should_invalidate,
                      "pointers were changed while IDWALK_READONLY flag was set");
@@ -303,7 +303,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
    * data, not drivers. */
 
   for (TimeMarker &marker : action.markers) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, marker.camera, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, marker.camera, IdwalkCbNop);
   }
 }
 
@@ -749,7 +749,7 @@ IDTypeInfo IDType_ID_AC = {
     .name = "Action",
     .name_plural = "actions",
     .translation_context = BLT_I18NCONTEXT_ID_ACTION,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .flags = IdtypeFlagsNoAnimdata,
     .asset_type_info = &bke::AssetType_AC,
 
     .init_data = bke::action_init_data,
@@ -1041,11 +1041,11 @@ void BKE_pose_copy_data_ex(bPose **dst,
   outPose->avs = src->avs;
 
   for (bPoseChannel &pchan : outPose->chanbase) {
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((flag & LibIdCreateNoUserRefcount) == 0) {
       id_us_plus(id_cast<ID *>(pchan.custom));
     }
 
-    if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
+    if ((flag & LibIdCreateNoMain) == 0) {
       BKE_pose_channel_session_uid_generate(&pchan);
     }
 
@@ -1799,7 +1799,7 @@ void what_does_obaction(Object *ob,
     adt.slot_handle = action_slot_handle;
 
     /* execute effects of Action on to workob (or its PoseChannels) */
-    BKE_animsys_evaluate_animdata(&workob->id, &adt, anim_eval_context, ADT_RECALC_ANIM, false);
+    BKE_animsys_evaluate_animdata(&workob->id, &adt, anim_eval_context, AdtRecalcAnim, false);
 
     /* Ensure stack memory set here isn't accessed later, relates to !118847. */
     workob->adt = nullptr;

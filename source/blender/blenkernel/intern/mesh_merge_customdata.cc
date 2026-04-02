@@ -18,15 +18,15 @@
 namespace blender {
 
 enum {
-  CMP_CLOSE = 0,
-  CMP_EQUAL = 1,
-  CMP_APART = 2,
+  CmpClose = 0,
+  CmpEqual = 1,
+  CmpApart = 2,
 };
 
 static int compare_v2_classify(const float uv_a[2], const float uv_b[2])
 {
   if (uv_a[0] == uv_b[0] && uv_a[1] == uv_b[1]) {
-    return CMP_EQUAL;
+    return CmpEqual;
   }
   /* NOTE(@ideasman42): that the ULP value is the primary value used to compare relative
    * values as the absolute value doesn't account for float precision at difference scales.
@@ -48,9 +48,9 @@ static int compare_v2_classify(const float uv_a[2], const float uv_b[2])
   if (compare_ff_relative(uv_a[0], uv_b[0], diff_abs, diff_ulp) &&
       compare_ff_relative(uv_a[1], uv_b[1], diff_abs, diff_ulp))
   {
-    return CMP_CLOSE;
+    return CmpClose;
   }
-  return CMP_APART;
+  return CmpApart;
 }
 
 static void merge_uvs_for_vertex(const Span<int> loops_for_vert, Span<float2 *> uv_map_layers)
@@ -70,16 +70,16 @@ static void merge_uvs_for_vertex(const Span<int> loops_for_vert, Span<float2 *> 
       for (uint i = 1; i <= i_last;) {
         float *uv_dst = uv_map[loops_merge[i]];
         switch (compare_v2_classify(uv_src, uv_dst)) {
-          case CMP_CLOSE: {
+          case CmpClose: {
             uv_dst[0] = uv_src[0];
             uv_dst[1] = uv_src[1];
             ATTR_FALLTHROUGH;
           }
-          case CMP_EQUAL: {
+          case CmpEqual: {
             loops_merge[i] = loops_merge[i_last--];
             break;
           }
-          case CMP_APART: {
+          case CmpApart: {
             /* Doesn't match, check the next UV. */
             i++;
             break;

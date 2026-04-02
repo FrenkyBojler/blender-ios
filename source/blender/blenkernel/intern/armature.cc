@@ -143,7 +143,7 @@ static void armature_copy_data(Main * /*bmain*/,
   Bone *bone_dst_act = nullptr;
 
   /* We never handle user-count here for own data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
 
   armature_dst->bonehash = nullptr;
 
@@ -510,7 +510,7 @@ IDTypeInfo IDType_ID_AR = {
     .name = "Armature",
     .name_plural = N_("armatures"),
     .translation_context = BLT_I18NCONTEXT_ID_ARMATURE,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = armature_init_data,

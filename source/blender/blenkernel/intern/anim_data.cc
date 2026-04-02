@@ -68,7 +68,7 @@ bool id_type_can_have_animdata(const short id_type)
 {
   const IDTypeInfo *typeinfo = BKE_idtype_get_info_from_idcode(id_type);
   if (typeinfo != nullptr) {
-    return (typeinfo->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0;
+    return (typeinfo->flags & IdtypeFlagsNoAnimdata) == 0;
   }
   return false;
 }
@@ -141,13 +141,13 @@ bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
 
   AnimData *adt = BKE_animdata_ensure_id(id);
   if (adt == nullptr) {
-    BKE_report(reports, RPT_WARNING, "Attempt to set action on non-animatable ID");
+    BKE_report(reports, RptWarning, "Attempt to set action on non-animatable ID");
     return false;
   }
 
   if (!BKE_animdata_action_editable(adt)) {
     /* Cannot remove, otherwise things turn to custard. */
-    BKE_report(reports, RPT_ERROR, "Cannot change action, as it is still being edited in NLA");
+    BKE_report(reports, RptError, "Cannot change action, as it is still being edited in NLA");
     return false;
   }
 
@@ -247,8 +247,8 @@ void BKE_animdata_foreach_id(AnimData *adt, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_fcurve_foreach_id(&fcu, data));
   }
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->action, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->tmpact, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->action, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, adt->tmpact, IdwalkCbUser);
 
   for (NlaTrack &nla_track : adt->nla_tracks) {
     for (NlaStrip &nla_strip : nla_track.strips) {
@@ -266,8 +266,8 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
 {
   AnimData *dadt;
 
-  const bool do_action = (flag & LIB_ID_COPY_ACTIONS) != 0 && (flag & LIB_ID_CREATE_NO_MAIN) == 0;
-  const bool do_id_user = (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0;
+  const bool do_action = (flag & LibIdCopyActions) != 0 && (flag & LibIdCreateNoMain) == 0;
+  const bool do_id_user = (flag & LibIdCreateNoUserRefcount) == 0;
 
   /* sanity check before duplicating struct */
   if (adt == nullptr) {
@@ -287,8 +287,8 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
      * now, but we may have to revisit this at some point and add a proper extra flag to deal with
      * that situation. Or refactor completely the way we handle such recursion, by flattening it
      * e.g. */
-    const int id_copy_flag = (flag & LIB_ID_CREATE_NO_MAIN) == 0 ?
-                                 flag & ~LIB_ID_CREATE_NO_USER_REFCOUNT :
+    const int id_copy_flag = (flag & LibIdCreateNoMain) == 0 ?
+                                 flag & ~LibIdCreateNoUserRefcount :
                                  flag;
     BLI_assert(bmain != nullptr);
     BLI_assert(dadt->action == nullptr || dadt->action != dadt->tmpact);
@@ -322,7 +322,7 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
   /* don't copy overrides */
   BLI_listbase_clear(&dadt->overrides);
 
-  const bool is_main = (flag & LIB_ID_CREATE_NO_MAIN) == 0;
+  const bool is_main = (flag & LibIdCreateNoMain) == 0;
   if (is_main) {
     /* Action references were changed, so the Slot-to-user map is incomplete now. Only necessary
      * when this happens in the main database though, as the user cache only tracks original IDs,
@@ -355,7 +355,7 @@ bool BKE_animdata_copy_id(Main *bmain, ID *id_to, ID *id_from, const int flag)
     return false;
   }
 
-  BKE_animdata_free(id_to, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
+  BKE_animdata_free(id_to, (flag & LibIdCreateNoUserRefcount) == 0);
 
   adt = BKE_animdata_from_id(id_from);
   if (adt) {
@@ -459,12 +459,12 @@ void BKE_animdata_merge_copy(
   }
 
   /* handle actions... */
-  if (action_mode == ADT_MERGECOPY_SRC_COPY) {
+  if (action_mode == AdtMergecopySrcCopy) {
     /* make a copy of the actions */
     dst->action = id_cast<bAction *>(BKE_id_copy(bmain, &src->action->id));
     dst->tmpact = id_cast<bAction *>(BKE_id_copy(bmain, &src->tmpact->id));
   }
-  else if (action_mode == ADT_MERGECOPY_SRC_REF) {
+  else if (action_mode == AdtMergecopySrcRef) {
     /* make a reference to it */
     dst->action = src->action;
     id_us_plus(id_cast<ID *>(dst->action));
@@ -613,7 +613,7 @@ static std::pair<AnimData *, AnimData *> ensure_animdata_pair(Main &bmain,
   /* Create destination animdata if needed. */
   AnimData *dst_adt = BKE_animdata_ensure_id(&dst_id);
   if (dst_adt == nullptr) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_ERROR(&LOG, "Failed to create AnimData for '%s'", dst_id.name);
     }
     return {nullptr, nullptr};
@@ -933,7 +933,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
 
   /* if no action, no need to proceed */
   if (ELEM(nullptr, owner_id, old_path)) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       CLOG_WARN(&LOG, "early abort");
     }
     return old_path;
@@ -960,11 +960,11 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
   }
 
   /* fix given path */
-  if (G.debug & G_DEBUG) {
+  if (G.debug & GDebug) {
     printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
   }
   result = rna_path_rename_fix(owner_id, prefix, oldN, newN, old_path, verify_paths);
-  if (G.debug & G_DEBUG) {
+  if (G.debug & GDebug) {
     printf("path rename result = %p\n", result);
   }
 

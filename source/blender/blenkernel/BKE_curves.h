@@ -36,7 +36,7 @@ void BKE_curves_data_update(struct Depsgraph *depsgraph,
 /* Draw Cache */
 
 enum {
-  BKE_CURVES_BATCH_DIRTY_ALL = 0,
+  BkeCurvesBatchDirtyAll = 0,
 };
 
 void BKE_curves_batch_cache_dirty_tag(struct Curves *curves, int mode);

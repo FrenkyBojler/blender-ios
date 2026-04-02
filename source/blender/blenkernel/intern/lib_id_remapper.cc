@@ -37,17 +37,17 @@ IDRemapperApplyResult IDRemapper::get_mapping_result(ID *id,
                                                      const ID *id_self) const
 {
   if (!mappings_.contains(id)) {
-    return ID_REMAP_RESULT_SOURCE_UNAVAILABLE;
+    return IdRemapResultSourceUnavailable;
   }
   const ID *new_id = mappings_.lookup(id);
-  if ((options & ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF) != 0 && id_self == new_id) {
+  if ((options & IdRemapApplyUnmapWhenRemappingToSelf) != 0 && id_self == new_id) {
     new_id = nullptr;
   }
   if (new_id == nullptr) {
-    return ID_REMAP_RESULT_SOURCE_UNASSIGNED;
+    return IdRemapResultSourceUnassigned;
   }
 
-  return ID_REMAP_RESULT_SOURCE_REMAPPED;
+  return IdRemapResultSourceRemapped;
 }
 
 IDRemapperApplyResult IDRemapper::apply(ID **r_id_ptr,
@@ -56,51 +56,51 @@ IDRemapperApplyResult IDRemapper::apply(ID **r_id_ptr,
 {
   BLI_assert(r_id_ptr != nullptr);
   BLI_assert_msg(
-      ((options & ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF) == 0 || id_self != nullptr),
+      ((options & IdRemapApplyUnmapWhenRemappingToSelf) == 0 || id_self != nullptr),
       "ID_REMAP_APPLY_WHEN_REMAPPING_TO_SELF requires a non-null `id_self` parameter.");
 
   if (*r_id_ptr == nullptr) {
-    return ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE;
+    return IdRemapResultSourceNotMappable;
   }
 
   ID *const *new_id = mappings_.lookup_ptr(*r_id_ptr);
   if (new_id == nullptr) {
-    return ID_REMAP_RESULT_SOURCE_UNAVAILABLE;
+    return IdRemapResultSourceUnavailable;
   }
 
-  if (options & ID_REMAP_APPLY_UPDATE_REFCOUNT) {
+  if (options & IdRemapApplyUpdateRefcount) {
     id_us_min(*r_id_ptr);
   }
 
   *r_id_ptr = *new_id;
-  if (options & ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF && *r_id_ptr == id_self) {
+  if (options & IdRemapApplyUnmapWhenRemappingToSelf && *r_id_ptr == id_self) {
     *r_id_ptr = nullptr;
   }
   if (*r_id_ptr == nullptr) {
-    return ID_REMAP_RESULT_SOURCE_UNASSIGNED;
+    return IdRemapResultSourceUnassigned;
   }
 
-  if (options & ID_REMAP_APPLY_UPDATE_REFCOUNT) {
+  if (options & IdRemapApplyUpdateRefcount) {
     /* Do not handle ID_TAG_INDIRECT/ID_TAG_EXTERN here. */
     id_us_plus_no_lib(*r_id_ptr);
   }
 
-  if (options & ID_REMAP_APPLY_ENSURE_REAL) {
+  if (options & IdRemapApplyEnsureReal) {
     id_us_ensure_real(*r_id_ptr);
   }
-  return ID_REMAP_RESULT_SOURCE_REMAPPED;
+  return IdRemapResultSourceRemapped;
 }
 
 StringRefNull IDRemapper::result_to_string(const IDRemapperApplyResult result)
 {
   switch (result) {
-    case ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE:
+    case IdRemapResultSourceNotMappable:
       return "not_mappable";
-    case ID_REMAP_RESULT_SOURCE_UNAVAILABLE:
+    case IdRemapResultSourceUnavailable:
       return "unavailable";
-    case ID_REMAP_RESULT_SOURCE_UNASSIGNED:
+    case IdRemapResultSourceUnassigned:
       return "unassigned";
-    case ID_REMAP_RESULT_SOURCE_REMAPPED:
+    case IdRemapResultSourceRemapped:
       return "remapped";
   }
   BLI_assert_unreachable();

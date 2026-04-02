@@ -587,10 +587,10 @@ struct VFontCursor_Params {
 };
 
 enum {
-  VFONT_TO_CURVE_INIT = 0,
-  VFONT_TO_CURVE_BISECT,
-  VFONT_TO_CURVE_SCALE_ONCE,
-  VFONT_TO_CURVE_DONE,
+  VfontToCurveInit = 0,
+  VfontToCurveBisect,
+  VfontToCurveScaleOnce,
+  VfontToCurveDone,
 };
 
 #define FONT_TO_CURVE_SCALE_ITERATIONS 20
@@ -1425,24 +1425,24 @@ static bool vfont_to_curve(Object *ob,
     }
   }
 
-  if (ELEM(mode, FO_CURSUP, FO_CURSDOWN, FO_PAGEUP, FO_PAGEDOWN, FO_LINE_BEGIN, FO_LINE_END) &&
-      iter_data.status == VFONT_TO_CURVE_INIT)
+  if (ELEM(mode, FoCursup, FoCursdown, FoPageup, FoPagedown, FoLineBegin, FoLineEnd) &&
+      iter_data.status == VfontToCurveInit)
   {
     ct = &chartransdata[ef->pos];
 
-    if (ELEM(mode, FO_CURSUP, FO_PAGEUP) && ct->linenr == 0) {
+    if (ELEM(mode, FoCursup, FoPageup) && ct->linenr == 0) {
       /* Pass. */
     }
-    else if (ELEM(mode, FO_CURSDOWN, FO_PAGEDOWN) && ct->linenr == lnr) {
+    else if (ELEM(mode, FoCursdown, FoPagedown) && ct->linenr == lnr) {
       /* Pass. */
     }
-    else if (mode == FO_LINE_BEGIN) {
+    else if (mode == FoLineBegin) {
       /* Line wrap aware line beginning. */
       while ((ef->pos > 0) && (chartransdata[ef->pos - 1].linenr == ct->linenr)) {
         ef->pos -= 1;
       }
     }
-    else if (mode == FO_LINE_END) {
+    else if (mode == FoLineEnd) {
       /* Line wrap aware line end. */
       while ((ef->pos < slen) && (chartransdata[ef->pos + 1].linenr == ct->linenr)) {
         ef->pos += 1;
@@ -1450,25 +1450,25 @@ static bool vfont_to_curve(Object *ob,
     }
     else {
       switch (mode) {
-        case FO_CURSUP:
+        case FoCursup:
           lnr = ct->linenr - 1;
           break;
-        case FO_CURSDOWN:
+        case FoCursdown:
           lnr = ct->linenr + 1;
           break;
-        case FO_PAGEUP:
+        case FoPageup:
           lnr = ct->linenr - 10;
           break;
-        case FO_PAGEDOWN:
+        case FoPagedown:
           lnr = ct->linenr + 10;
           break;
           /* Ignored. */
-        case FO_EDIT:
-        case FO_CURS:
-        case FO_DUPLI:
-        case FO_SELCHANGE:
-        case FO_LINE_BEGIN:
-        case FO_LINE_END:
+        case FoEdit:
+        case FoCurs:
+        case FoDupli:
+        case FoSelchange:
+        case FoLineBegin:
+        case FoLineEnd:
           break;
       }
       cnr = ct->charnr;
@@ -1539,11 +1539,11 @@ static bool vfont_to_curve(Object *ob,
     }
   }
 
-  if (mode == FO_SELCHANGE) {
+  if (mode == FoSelchange) {
     MEM_delete(chartransdata);
     chartransdata = nullptr;
   }
-  else if (mode == FO_EDIT) {
+  else if (mode == FoEdit) {
     /* Make NURBS-data. */
     BKE_nurbList_free(r_nubase);
 
@@ -1619,10 +1619,10 @@ static bool vfont_to_curve(Object *ob,
     }
   }
 
-  if (iter_data.status == VFONT_TO_CURVE_SCALE_ONCE) {
+  if (iter_data.status == VfontToCurveScaleOnce) {
     /* That means we were in a final run, just exit. */
     BLI_assert(cu.overflow == CU_OVERFLOW_SCALE);
-    iter_data.status = VFONT_TO_CURVE_DONE;
+    iter_data.status = VfontToCurveDone;
   }
   else if (cu.overflow == CU_OVERFLOW_NONE) {
     /* Pass. */
@@ -1639,7 +1639,7 @@ static bool vfont_to_curve(Object *ob,
         if ((last_line != -1) && (lnr > last_line)) {
           const float total_text_height = lnr * linedist;
           iter_data.scale_to_fit = tb_scale.h / total_text_height;
-          iter_data.status = VFONT_TO_CURVE_SCALE_ONCE;
+          iter_data.status = VfontToCurveScaleOnce;
           iter_data.word_wrap = false;
         }
       }
@@ -1650,7 +1650,7 @@ static bool vfont_to_curve(Object *ob,
           float scale_to_fit = tb_scale.w / longest_line_length;
 
           iter_data.scale_to_fit = scale_to_fit;
-          iter_data.status = VFONT_TO_CURVE_SCALE_ONCE;
+          iter_data.status = VfontToCurveScaleOnce;
           iter_data.word_wrap = false;
         }
       }
@@ -1662,7 +1662,7 @@ static bool vfont_to_curve(Object *ob,
        * Keep in mind that there is no single number that will make all fit to the end.
        * In a way, our ultimate goal is to get the highest scale that still leads to the
        * number of extra lines to zero. */
-      if (iter_data.status == VFONT_TO_CURVE_INIT) {
+      if (iter_data.status == VfontToCurveInit) {
         bool valid = true;
 
         for (int tb_index = 0; tb_index <= curbox; tb_index++) {
@@ -1680,11 +1680,11 @@ static bool vfont_to_curve(Object *ob,
           iter_data.bisect.max = 1.0f;
           iter_data.bisect.min = scale_to_fit;
 
-          iter_data.status = VFONT_TO_CURVE_BISECT;
+          iter_data.status = VfontToCurveBisect;
         }
       }
       else {
-        BLI_assert(iter_data.status == VFONT_TO_CURVE_BISECT);
+        BLI_assert(iter_data.status == VfontToCurveBisect);
         /* Try to get the highest scale that gives us the exactly
          * number of lines we need. */
         bool valid = false;
@@ -1707,11 +1707,11 @@ static bool vfont_to_curve(Object *ob,
                                          (cu.fsize * FONT_TO_CURVE_SCALE_THRESHOLD)))
         {
           if (valid) {
-            iter_data.status = VFONT_TO_CURVE_DONE;
+            iter_data.status = VfontToCurveDone;
           }
           else {
             iter_data.scale_to_fit = iter_data.bisect.min;
-            iter_data.status = VFONT_TO_CURVE_SCALE_ONCE;
+            iter_data.status = VfontToCurveScaleOnce;
           }
         }
       }
@@ -1822,7 +1822,7 @@ static bool vfont_to_curve(Object *ob,
   }
 
   /* Scale to fit only works for single text box layouts. */
-  if (ELEM(iter_data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT)) {
+  if (ELEM(iter_data.status, VfontToCurveScaleOnce, VfontToCurveBisect)) {
     /* Always cleanup before going to the scale-to-fit repetition. */
     if (r_nubase != nullptr) {
       BKE_nurbList_free(r_nubase);
@@ -1895,7 +1895,7 @@ bool BKE_vfont_to_curve_ex(Object *ob,
   data.scale_to_fit = 1.0f;
   data.word_wrap = true;
   data.ok = true;
-  data.status = VFONT_TO_CURVE_INIT;
+  data.status = VfontToCurveInit;
 
   do {
     data.ok &= vfont_to_curve(ob,
@@ -1909,7 +1909,7 @@ bool BKE_vfont_to_curve_ex(Object *ob,
                               r_text_free,
                               r_chartransdata,
                               r_font_size_eval);
-  } while (data.ok && ELEM(data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT));
+  } while (data.ok && ELEM(data.status, VfontToCurveScaleOnce, VfontToCurveBisect));
 
   return data.ok;
 }
@@ -1925,7 +1925,7 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float2 &cursor_location)
   data.scale_to_fit = 1.0f;
   data.word_wrap = true;
   data.ok = true;
-  data.status = VFONT_TO_CURVE_INIT;
+  data.status = VfontToCurveInit;
 
   VFontCursor_Params cursor_params = {};
   cursor_params.cursor_location = cursor_location;
@@ -1934,7 +1934,7 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float2 &cursor_location)
   do {
     data.ok &= vfont_to_curve(ob,
                               cu,
-                              FO_CURS,
+                              FoCurs,
                               data,
                               &cursor_params,
                               r_nubase,
@@ -1943,7 +1943,7 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const float2 &cursor_location)
                               nullptr,
                               nullptr,
                               nullptr);
-  } while (data.ok && ELEM(data.status, VFONT_TO_CURVE_SCALE_ONCE, VFONT_TO_CURVE_BISECT));
+  } while (data.ok && ELEM(data.status, VfontToCurveScaleOnce, VfontToCurveBisect));
 
   return cursor_params.r_string_offset;
 }

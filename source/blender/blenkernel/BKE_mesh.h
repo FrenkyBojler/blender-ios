@@ -43,12 +43,12 @@ struct MeshBatchCache;
 
 /* TODO: Move to `BKE_mesh_types.hh` when possible. */
 enum eMeshBatchDirtyMode : int8_t {
-  BKE_MESH_BATCH_DIRTY_ALL = 0,
-  BKE_MESH_BATCH_DIRTY_SELECT,
-  BKE_MESH_BATCH_DIRTY_SELECT_PAINT,
-  BKE_MESH_BATCH_DIRTY_SHADING,
-  BKE_MESH_BATCH_DIRTY_UVEDIT_ALL,
-  BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT,
+  BkeMeshBatchDirtyAll = 0,
+  BkeMeshBatchDirtySelect,
+  BkeMeshBatchDirtySelectPaint,
+  BkeMeshBatchDirtyShading,
+  BkeMeshBatchDirtyUveditAll,
+  BkeMeshBatchDirtyUveditSelect,
 };
 
 /* `mesh.cc` */
@@ -282,7 +282,7 @@ struct MLoopNorSpace {
  * MLoopNorSpace.flags
  */
 enum {
-  MLNOR_SPACE_IS_SINGLE = 1 << 0,
+  MlnorSpaceIsSingle = 1 << 0,
 };
 
 /**
@@ -303,8 +303,8 @@ struct MLoopNorSpaceArray {
  * MLoopNorSpaceArray.data_type
  */
 enum {
-  MLNOR_SPACEARR_LOOP_INDEX = 0,
-  MLNOR_SPACEARR_BMLOOP_PTR = 1,
+  MlnorSpacearrLoopIndex = 0,
+  MlnorSpacearrBmloopPtr = 1,
 };
 
 /* Low-level custom normals functions. */

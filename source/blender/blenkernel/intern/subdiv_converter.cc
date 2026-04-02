@@ -22,11 +22,11 @@ void converter_free(OpenSubdiv_Converter *converter)
 int converter_vtx_boundary_interpolation_from_settings(const Settings *settings)
 {
   switch (settings->vtx_boundary_interpolation) {
-    case SUBDIV_VTX_BOUNDARY_NONE:
+    case SubdivVtxBoundaryNone:
       return OSD_VTX_BOUNDARY_NONE;
-    case SUBDIV_VTX_BOUNDARY_EDGE_ONLY:
+    case SubdivVtxBoundaryEdgeOnly:
       return OSD_VTX_BOUNDARY_EDGE_ONLY;
-    case SUBDIV_VTX_BOUNDARY_EDGE_AND_CORNER:
+    case SubdivVtxBoundaryEdgeAndCorner:
       return OSD_VTX_BOUNDARY_EDGE_AND_CORNER;
   }
   BLI_assert_msg(0, "Unknown vtx boundary interpolation");
@@ -37,17 +37,17 @@ int converter_vtx_boundary_interpolation_from_settings(const Settings *settings)
     const Settings *settings)
 {
   switch (settings->fvar_linear_interpolation) {
-    case SUBDIV_FVAR_LINEAR_INTERPOLATION_NONE:
+    case SubdivFvarLinearInterpolationNone:
       return OSD_FVAR_LINEAR_INTERPOLATION_NONE;
-    case SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_ONLY:
+    case SubdivFvarLinearInterpolationCornersOnly:
       return OSD_FVAR_LINEAR_INTERPOLATION_CORNERS_ONLY;
-    case SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS:
+    case SubdivFvarLinearInterpolationCornersAndJunctions:
       return OSD_FVAR_LINEAR_INTERPOLATION_CORNERS_PLUS1;
-    case SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_JUNCTIONS_AND_CONCAVE:
+    case SubdivFvarLinearInterpolationCornersJunctionsAndConcave:
       return OSD_FVAR_LINEAR_INTERPOLATION_CORNERS_PLUS2;
-    case SUBDIV_FVAR_LINEAR_INTERPOLATION_BOUNDARIES:
+    case SubdivFvarLinearInterpolationBoundaries:
       return OSD_FVAR_LINEAR_INTERPOLATION_BOUNDARIES;
-    case SUBDIV_FVAR_LINEAR_INTERPOLATION_ALL:
+    case SubdivFvarLinearInterpolationAll:
       return OSD_FVAR_LINEAR_INTERPOLATION_ALL;
   }
   BLI_assert_msg(0, "Unknown fvar linear interpolation");

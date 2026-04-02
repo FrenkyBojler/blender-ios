@@ -156,7 +156,7 @@ static void collection_copy_data(Main *bmain,
              ((collection_src->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
 
   /* Do not copy collection's preview (same behavior as for objects). */
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) { /* XXX TODO: temp hack. */
+  if ((flag & LibIdCopyNoPreview) == 0 && false) { /* XXX TODO: temp hack. */
     BKE_previewimg_id_copy(&collection_dst->id, &collection_src->id);
   }
   else {
@@ -213,7 +213,7 @@ static void collection_free_data(ID *id)
   }
 
   /* No need for depsgraph tagging here, since the data is being deleted. */
-  collection_object_cache_free(nullptr, collection, LIB_ID_CREATE_NO_DEG_TAG, 0);
+  collection_object_cache_free(nullptr, collection, LibIdCreateNoDegTag, 0);
 
   MEM_delete(collection->runtime);
 }
@@ -226,13 +226,13 @@ static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_ID(
       data,
       collection->owner_id,
-      (IDWALK_CB_LOOPBACK | IDWALK_CB_NEVER_SELF | IDWALK_CB_READFILE_IGNORE));
+      (IdwalkCbLoopback | IdwalkCbNeverSelf | IdwalkCbReadfileIgnore));
 
   for (CollectionObject &cob : collection->gobject) {
     Object *cob_ob_old = cob.ob;
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-        data, cob.ob, IDWALK_CB_USER | IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_DEFAULT);
+        data, cob.ob, IdwalkCbUser | IdwalkCbOverrideLibraryHierarchyDefault);
 
     if (collection->runtime->gobject_hash) {
       /* If the remapping does not create inconsistent data (nullptr object pointer or duplicate
@@ -243,25 +243,25 @@ static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
     else if (cob_ob_old != cob.ob || cob.ob == nullptr) {
       /* If there is no reference GHash, duplicates cannot be reliably detected, so assume that any
        * nullptr pointer or changed pointer may create an invalid collection object list. */
-      collection->runtime->tag |= COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
+      collection->runtime->tag |= CollectionTagCollectionObjectDirty;
     }
   }
   for (CollectionChild &child : collection->children) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data,
                                       child.collection,
-                                      IDWALK_CB_NEVER_SELF | IDWALK_CB_USER |
-                                          IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_DEFAULT);
+                                      IdwalkCbNeverSelf | IdwalkCbUser |
+                                          IdwalkCbOverrideLibraryHierarchyDefault);
   }
   for (CollectionParent &parent : collection->runtime->parents) {
     /* XXX This is very weak. The whole idea of keeping pointers to private IDs is very bad
      * anyway... */
     const LibraryForeachIDCallbackFlag cb_flag =
-        ((parent.collection != nullptr && (data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0 &&
+        ((parent.collection != nullptr && (data_flags & IdwalkNoOrigPointersAccess) == 0 &&
           (parent.collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
-             IDWALK_CB_EMBEDDED_NOT_OWNING :
-             IDWALK_CB_NOP);
+             IdwalkCbEmbeddedNotOwning :
+             IdwalkCbNop);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-        data, parent.collection, IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK | cb_flag);
+        data, parent.collection, IdwalkCbNeverSelf | IdwalkCbLoopback | cb_flag);
   }
 }
 
@@ -411,7 +411,7 @@ static void collection_blend_read_after_liblink(BlendLibReader * /*reader*/, ID 
    * is not needed during readfile process since the runtime data is affects are not yet built, so
    * just clear it here. */
   BLI_assert(collection->runtime->gobject_hash == nullptr);
-  collection->runtime->tag &= ~COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
+  collection->runtime->tag &= ~CollectionTagCollectionObjectDirty;
 }
 
 IDTypeInfo IDType_ID_GR = {
@@ -423,7 +423,7 @@ IDTypeInfo IDType_ID_GR = {
     .name = "Collection",
     .name_plural = N_("collections"),
     .translation_context = BLT_I18NCONTEXT_ID_COLLECTION,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsNoAnimdata | IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = collection_init_data,
@@ -607,7 +607,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
     CollectionObject *cob = static_cast<CollectionObject *>(collection->gobject.first);
     while (cob != nullptr) {
       collection_object_remove_no_gobject_hash(
-          bmain, collection, cob, LIB_ID_CREATE_NO_DEG_TAG, true);
+          bmain, collection, cob, LibIdCreateNoDegTag, true);
       cob = static_cast<CollectionObject *>(collection->gobject.first);
     }
 
@@ -637,7 +637,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
 
       /* Remove child object. */
       collection_object_remove_no_gobject_hash(
-          bmain, collection, cob, LIB_ID_CREATE_NO_DEG_TAG, true);
+          bmain, collection, cob, LibIdCreateNoDegTag, true);
       cob = static_cast<CollectionObject *>(collection->gobject.first);
     }
   }
@@ -730,7 +730,7 @@ static Collection *collection_duplicate_recursive(Main *bmain,
 
       if (ob_old->id.newid == nullptr) {
         BKE_object_duplicate(
-            bmain, ob_old, duplicate_flags, duplicate_options | LIB_ID_DUPLICATE_IS_SUBPROCESS);
+            bmain, ob_old, duplicate_flags, duplicate_options | LibIdDuplicateIsSubprocess);
       }
     }
 
@@ -779,9 +779,9 @@ Collection *BKE_collection_duplicate(Main *bmain,
                                      eDupli_ID_Flags duplicate_flags,
                                      /*eLibIDDuplicateFlags*/ uint duplicate_options)
 {
-  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
-  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
-  const int id_create_flag = (collection->id.tag & ID_TAG_NO_MAIN) ? LIB_ID_CREATE_NO_MAIN : 0;
+  const bool is_subprocess = (duplicate_options & LibIdDuplicateIsSubprocess) != 0;
+  const bool is_root_id = (duplicate_options & LibIdDuplicateIsRootId) != 0;
+  const int id_create_flag = (collection->id.tag & ID_TAG_NO_MAIN) ? LibIdCreateNoMain : 0;
 
   if (!is_subprocess) {
     BKE_main_id_newptr_and_tag_clear(bmain);
@@ -792,7 +792,7 @@ Collection *BKE_collection_duplicate(Main *bmain,
     if (ID_IS_LINKED(collection)) {
       duplicate_flags |= USER_DUP_LINKED_ID;
     }
-    duplicate_options &= ~LIB_ID_DUPLICATE_IS_ROOT_ID;
+    duplicate_options &= ~LibIdDuplicateIsRootId;
   }
 
   Collection *collection_new = collection_duplicate_recursive(
@@ -817,7 +817,7 @@ Collection *BKE_collection_duplicate(Main *bmain,
      * and therefore not remapping their obdata to the newly duplicated one.
      * See #139715. */
     BKE_libblock_relink_to_newid(
-        bmain, &collection_new->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
+        bmain, &collection_new->id, IdRemapForceObdataInEditmode | IdRemapSkipUserClear);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
@@ -967,7 +967,7 @@ static void collection_object_cache_free(const Main *bmain,
    *
    * Having this code here avoids the need for another utility tagging function processing the
    * parent hierarchy as well. */
-  if (id_recalc_flag && (id_create_flag & (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_DEG_TAG)) == 0)
+  if (id_recalc_flag && (id_create_flag & (LibIdCreateNoMain | LibIdCreateNoDegTag)) == 0)
   {
     BLI_assert(bmain != nullptr);
     DEG_id_tag_update_ex(const_cast<Main *>(bmain), &collection->id, id_recalc_flag);
@@ -1045,7 +1045,7 @@ Collection *BKE_collection_master_add(Scene *scene)
 
   /* Not an actual datablock, but owned by scene. */
   Collection *master_collection = static_cast<Collection *>(BKE_libblock_alloc_in_lib(
-      nullptr, scene->id.lib, ID_GR, BKE_SCENE_COLLECTION_NAME, LIB_ID_CREATE_NO_MAIN));
+      nullptr, scene->id.lib, ID_GR, BKE_SCENE_COLLECTION_NAME, LibIdCreateNoMain));
   master_collection->id.flag |= ID_FLAG_EMBEDDED_DATA;
   master_collection->owner_id = &scene->id;
   master_collection->flag |= COLLECTION_IS_MASTER;
@@ -1232,12 +1232,12 @@ static void collection_gobject_hash_create(Collection *collection)
   CollectionObjectMap *gobject_hash = collection_gobject_hash_alloc(collection);
   for (CollectionObject &cob : collection->gobject) {
     if (UNLIKELY(cob.ob == nullptr)) {
-      BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
+      BLI_assert(collection->runtime->tag & CollectionTagCollectionObjectDirty);
       continue;
     }
     /* Do not overwrite an already existing entry. */
     if (!gobject_hash->add(cob.ob, &cob)) {
-      BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
+      BLI_assert(collection->runtime->tag & CollectionTagCollectionObjectDirty);
     }
   }
   collection->runtime->gobject_hash = gobject_hash;
@@ -1265,7 +1265,7 @@ static void collection_gobject_hash_ensure_fix(Main *bmain, Collection *collecti
 {
   bool changed = false;
 
-  if ((collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY) == 0) {
+  if ((collection->runtime->tag & CollectionTagCollectionObjectDirty) == 0) {
 #ifdef USE_DEBUG_EXTRA_GOBJECT_ASSERT
     collection_gobject_assert_internal_consistency(collection, true);
 #endif
@@ -1298,7 +1298,7 @@ static void collection_gobject_hash_ensure_fix(Main *bmain, Collection *collecti
     BKE_collection_object_cache_free(bmain, collection, 0);
   }
 
-  collection->runtime->tag &= ~COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
+  collection->runtime->tag &= ~CollectionTagCollectionObjectDirty;
   collection_gobject_assert_internal_consistency(collection, true);
 }
 
@@ -1328,19 +1328,19 @@ static void collection_gobject_hash_update_object(Collection *collection,
     CollectionObject *cob_old = collection->runtime->gobject_hash->pop_default(ob_old, nullptr);
     if (cob_old != cob) {
       /* Old object already removed from the #GHash. */
-      collection->runtime->tag |= COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
+      collection->runtime->tag |= CollectionTagCollectionObjectDirty;
     }
   }
 
   if (cob->ob) {
     if (collection->runtime->gobject_hash->add(cob->ob, cob)) {
       /* Duplicate #CollectionObject entries. */
-      collection->runtime->tag |= COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
+      collection->runtime->tag |= CollectionTagCollectionObjectDirty;
     }
   }
   else {
     /* #CollectionObject with nullptr object pointer. */
-    collection->runtime->tag |= COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
+    collection->runtime->tag |= CollectionTagCollectionObjectDirty;
   }
 }
 
@@ -1360,7 +1360,7 @@ static void collection_gobject_hash_update_object(Collection *collection,
 static void collection_gobject_assert_internal_consistency(Collection *collection,
                                                            const bool do_extensive_check)
 {
-  BLI_assert((collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY) == 0);
+  BLI_assert((collection->runtime->tag & CollectionTagCollectionObjectDirty) == 0);
   if (!do_extensive_check) {
     return;
   }
@@ -1477,11 +1477,11 @@ static bool collection_object_add(Main *bmain,
   BLI_addtail(&collection->gobject, cob);
   BKE_collection_object_cache_free(bmain, collection, id_create_flag);
 
-  if (add_us && (id_create_flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if (add_us && (id_create_flag & LibIdCreateNoUserRefcount) == 0) {
     id_us_plus(&ob->id);
   }
 
-  if ((id_create_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
+  if ((id_create_flag & LibIdCreateNoMain) == 0) {
     BKE_rigidbody_main_collection_object_add(bmain, collection, ob);
   }
 
@@ -1652,7 +1652,7 @@ bool BKE_collection_object_add_notest(Main *bmain, Collection *collection, Objec
     return false;
   }
 
-  const int id_create_flag = (collection->id.tag & ID_TAG_NO_MAIN) ? LIB_ID_CREATE_NO_MAIN : 0;
+  const int id_create_flag = (collection->id.tag & ID_TAG_NO_MAIN) ? LibIdCreateNoMain : 0;
   if (!collection_object_add(bmain, collection, ob, nullptr, id_create_flag, true)) {
     return false;
   }
@@ -1719,7 +1719,7 @@ bool BKE_collection_object_remove(Main *bmain,
     return false;
   }
 
-  const int id_create_flag = (collection->id.tag & ID_TAG_NO_MAIN) ? LIB_ID_CREATE_NO_MAIN : 0;
+  const int id_create_flag = (collection->id.tag & ID_TAG_NO_MAIN) ? LibIdCreateNoMain : 0;
   if (!collection_object_remove(bmain, collection, ob, id_create_flag, free_us)) {
     return false;
   }
@@ -1769,7 +1769,7 @@ static bool scene_collections_object_remove(
     Main *bmain, Scene *scene, Object *ob, const bool free_us, Collection *collection_skip)
 {
   bool removed = false;
-  const int id_create_flag = (scene->id.tag & ID_TAG_NO_MAIN) ? LIB_ID_CREATE_NO_MAIN : 0;
+  const int id_create_flag = (scene->id.tag & ID_TAG_NO_MAIN) ? LibIdCreateNoMain : 0;
 
   /* If given object is removed from all collections in given scene, then it can also be safely
    * removed from rigidbody world for given scene. */
@@ -2069,7 +2069,7 @@ static bool collection_child_add(Main *bmain,
   BLI_addtail(&parent->children, child);
 
   /* Don't add parent links for depsgraph datablocks, these are not kept in sync. */
-  if ((id_create_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
+  if ((id_create_flag & LibIdCreateNoMain) == 0) {
     CollectionParent *cparent = MEM_new_zeroed<CollectionParent>("CollectionParent");
     cparent->collection = parent;
     BLI_addtail(&collection->runtime->parents, cparent);
@@ -2162,12 +2162,12 @@ void BKE_collection_parent_relations_rebuild(Collection *collection)
 static void collection_parents_rebuild_recursive(Collection *collection)
 {
   /* A same collection may be child of several others, no need to process it more than once. */
-  if ((collection->runtime->tag & COLLECTION_TAG_RELATION_REBUILD) == 0) {
+  if ((collection->runtime->tag & CollectionTagRelationRebuild) == 0) {
     return;
   }
 
   BKE_collection_parent_relations_rebuild(collection);
-  collection->runtime->tag &= ~COLLECTION_TAG_RELATION_REBUILD;
+  collection->runtime->tag &= ~CollectionTagRelationRebuild;
 
   for (CollectionChild &child : collection->children) {
     /* See comment above in `BKE_collection_parent_relations_rebuild`. */
@@ -2184,7 +2184,7 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
   for (Collection &collection : bmain->collections) {
     BLI_freelistN(&collection.runtime->parents);
 
-    collection.runtime->tag |= COLLECTION_TAG_RELATION_REBUILD;
+    collection.runtime->tag |= CollectionTagRelationRebuild;
   }
 
   /* Scene's master collections will be 'root' parent of most of our collections, so start with
@@ -2195,7 +2195,7 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
      */
     if (scene.master_collection != nullptr) {
       BLI_assert(BLI_listbase_is_empty(&scene.master_collection->runtime->parents));
-      scene.master_collection->runtime->tag |= COLLECTION_TAG_RELATION_REBUILD;
+      scene.master_collection->runtime->tag |= CollectionTagRelationRebuild;
       collection_parents_rebuild_recursive(scene.master_collection);
     }
   }
@@ -2203,7 +2203,7 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
   /* We may have parent chains outside of scene's master_collection context? At least, readfile's
    * #collection_blend_read_after_liblink() seems to assume that, so do the same here. */
   for (Collection &collection : bmain->collections) {
-    if (collection.runtime->tag & COLLECTION_TAG_RELATION_REBUILD) {
+    if (collection.runtime->tag & CollectionTagRelationRebuild) {
       /* NOTE: we do not have easy access to 'which collections is root' info in that case, which
        * means test for cycles in collection relationships may fail here. I don't think that is an
        * issue in practice here, but worth keeping in mind... */

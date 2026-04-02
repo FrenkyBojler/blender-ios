@@ -98,7 +98,7 @@ static void shapekey_free_data(ID *id)
 static void shapekey_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Key *key = reinterpret_cast<Key *>(id);
-  BKE_LIB_FOREACHID_PROCESS_ID(data, key->from, IDWALK_CB_LOOPBACK);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, key->from, IdwalkCbLoopback);
 }
 
 static ID **shapekey_owner_pointer_get(ID *id, const bool debug_relationship_assert)
@@ -176,7 +176,7 @@ IDTypeInfo IDType_ID_KE = {
     .name = "Key",
     .name_plural = N_("shape_keys"),
     .translation_context = BLT_I18NCONTEXT_ID_SHAPEKEY,
-    .flags = IDTYPE_FLAGS_NO_LIBLINKING,
+    .flags = IdtypeFlagsNoLiblinking,
     .asset_type_info = nullptr,
 
     .init_data = nullptr,

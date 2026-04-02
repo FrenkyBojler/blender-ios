@@ -38,12 +38,12 @@ struct rcti;
  */
 
 enum eTrackArea {
-  TRACK_AREA_POINT = (1 << 0),
-  TRACK_AREA_PAT = (1 << 1),
-  TRACK_AREA_SEARCH = (1 << 2),
+  TrackAreaPoint = (1 << 0),
+  TrackAreaPat = (1 << 1),
+  TrackAreaSearch = (1 << 2),
 
-  TRACK_AREA_NONE = 0,
-  TRACK_AREA_ALL = (TRACK_AREA_POINT | TRACK_AREA_PAT | TRACK_AREA_SEARCH),
+  TrackAreaNone = 0,
+  TrackAreaAll = (TrackAreaPoint | TrackAreaPat | TrackAreaSearch),
 };
 ENUM_OPERATORS(eTrackArea);
 
@@ -225,11 +225,11 @@ bool BKE_tracking_track_has_enabled_marker_at_frame(MovieTrackingTrack *track, i
  */
 enum eTrackClearAction {
   /* Clear path from `ref_frame+1` up to the current frame. */
-  TRACK_CLEAR_UPTO,
+  TrackClearUpto,
   /* Clear path from the beginning up to `ref_frame-1`. */
-  TRACK_CLEAR_REMAINED,
+  TrackClearRemained,
   /* Only marker at frame `ref_frame` will remain. */
-  TRACK_CLEAR_ALL,
+  TrackClearAll,
 };
 void BKE_tracking_track_path_clear(MovieTrackingTrack *track,
                                    int ref_frame,

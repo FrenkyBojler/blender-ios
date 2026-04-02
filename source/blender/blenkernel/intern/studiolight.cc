@@ -103,7 +103,7 @@ static CLG_LogRef LOG = {"bke.studiolight"};
 
 static void studiolight_free_image_buffers(StudioLight *sl)
 {
-  sl->flag &= ~STUDIOLIGHT_EXTERNAL_IMAGE_LOADED;
+  sl->flag &= ~StudiolightExternalImageLoaded;
   IMB_SAFE_FREE(sl->matcap_diffuse.ibuf);
   IMB_SAFE_FREE(sl->matcap_specular.ibuf);
   IMB_SAFE_FREE(sl->equirect_radiance_buffer);
@@ -114,8 +114,8 @@ static void studiolight_free_gpu_textures(StudioLight *sl)
   GPU_TEXTURE_SAFE_FREE(sl->equirect_radiance_gputexture);
   GPU_TEXTURE_SAFE_FREE(sl->matcap_diffuse.gputexture);
   GPU_TEXTURE_SAFE_FREE(sl->matcap_specular.gputexture);
-  sl->flag &= ~(STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE | STUDIOLIGHT_MATCAP_DIFFUSE_GPUTEXTURE |
-                STUDIOLIGHT_MATCAP_SPECULAR_GPUTEXTURE);
+  sl->flag &= ~(StudiolightEquirectRadianceGputexture | StudiolightMatcapDiffuseGputexture |
+                StudiolightMatcapSpecularGputexture);
 }
 
 static void studiolight_free(StudioLight *sl)
@@ -150,9 +150,9 @@ static void studiolight_free(StudioLight *sl)
  */
 static void studiolight_free_temp_resources(StudioLight *sl)
 {
-  const bool is_used_in_viewport = bool(sl->flag & (STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE |
-                                                    STUDIOLIGHT_MATCAP_SPECULAR_GPUTEXTURE |
-                                                    STUDIOLIGHT_MATCAP_DIFFUSE_GPUTEXTURE));
+  const bool is_used_in_viewport = bool(sl->flag & (StudiolightEquirectRadianceGputexture |
+                                                    StudiolightMatcapSpecularGputexture |
+                                                    StudiolightMatcapDiffuseGputexture));
   if (is_used_in_viewport) {
     return;
   }
@@ -167,10 +167,10 @@ static StudioLight *studiolight_create(int flag)
   sl->free_function = nullptr;
   sl->flag = flag;
   sl->index = ++last_studiolight_id;
-  if (flag & STUDIOLIGHT_TYPE_STUDIO) {
+  if (flag & StudiolightTypeStudio) {
     sl->icon_id_irradiance = BKE_icon_ensure_studio_light(sl, STUDIOLIGHT_ICON_ID_TYPE_IRRADIANCE);
   }
-  else if (flag & STUDIOLIGHT_TYPE_MATCAP) {
+  else if (flag & StudiolightTypeMatcap) {
     sl->icon_id_matcap = BKE_icon_ensure_studio_light(sl, STUDIOLIGHT_ICON_ID_TYPE_MATCAP);
     sl->icon_id_matcap_flipped = BKE_icon_ensure_studio_light(
         sl, STUDIOLIGHT_ICON_ID_TYPE_MATCAP_FLIPPED);
@@ -361,7 +361,7 @@ static void studiolight_multilayer_addpass(void *base,
 
 static void studiolight_load_equirect_image(StudioLight *sl)
 {
-  if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
+  if (sl->flag & StudiolightExternalFile) {
     ImBuf *ibuf = IMB_load_image_from_filepath(sl->filepath, IB_multilayer | IB_alphamode_ignore);
     ImBuf *specular_ibuf = nullptr;
     ImBuf *diffuse_ibuf = nullptr;
@@ -423,11 +423,11 @@ static void studiolight_load_equirect_image(StudioLight *sl)
           nullptr, (failed || (specular_ibuf == nullptr)) ? magenta : black, 1, 1, 4);
     }
 
-    if (sl->flag & STUDIOLIGHT_TYPE_MATCAP) {
+    if (sl->flag & StudiolightTypeMatcap) {
       sl->matcap_diffuse.ibuf = diffuse_ibuf;
       sl->matcap_specular.ibuf = specular_ibuf;
       if (specular_ibuf != nullptr) {
-        sl->flag |= STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS;
+        sl->flag |= StudiolightSpecularHighlightPass;
       }
     }
     else {
@@ -438,13 +438,13 @@ static void studiolight_load_equirect_image(StudioLight *sl)
     }
   }
 
-  sl->flag |= STUDIOLIGHT_EXTERNAL_IMAGE_LOADED;
+  sl->flag |= StudiolightExternalImageLoaded;
 }
 
 static void studiolight_create_equirect_radiance_gputexture(StudioLight *sl)
 {
-  if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
-    BKE_studiolight_ensure_flag(sl, STUDIOLIGHT_EXTERNAL_IMAGE_LOADED);
+  if (sl->flag & StudiolightExternalFile) {
+    BKE_studiolight_ensure_flag(sl, StudiolightExternalImageLoaded);
     ImBuf *ibuf = sl->equirect_radiance_buffer;
 
     sl->equirect_radiance_gputexture = GPU_texture_create_2d(
@@ -459,7 +459,7 @@ static void studiolight_create_equirect_radiance_gputexture(StudioLight *sl)
     GPU_texture_filter_mode(tex, true);
     GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
   }
-  sl->flag |= STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE;
+  sl->flag |= StudiolightEquirectRadianceGputexture;
 }
 
 static void studiolight_create_matcap_gputexture(StudioLightImage *sli)
@@ -489,25 +489,25 @@ static void studiolight_create_matcap_gputexture(StudioLightImage *sli)
 
 static void studiolight_create_matcap_diffuse_gputexture(StudioLight *sl)
 {
-  if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
-    if (sl->flag & STUDIOLIGHT_TYPE_MATCAP) {
-      BKE_studiolight_ensure_flag(sl, STUDIOLIGHT_EXTERNAL_IMAGE_LOADED);
+  if (sl->flag & StudiolightExternalFile) {
+    if (sl->flag & StudiolightTypeMatcap) {
+      BKE_studiolight_ensure_flag(sl, StudiolightExternalImageLoaded);
       studiolight_create_matcap_gputexture(&sl->matcap_diffuse);
     }
   }
-  sl->flag |= STUDIOLIGHT_MATCAP_DIFFUSE_GPUTEXTURE;
+  sl->flag |= StudiolightMatcapDiffuseGputexture;
 }
 static void studiolight_create_matcap_specular_gputexture(StudioLight *sl)
 {
-  if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
-    if (sl->flag & STUDIOLIGHT_TYPE_MATCAP) {
-      BKE_studiolight_ensure_flag(sl, STUDIOLIGHT_EXTERNAL_IMAGE_LOADED);
+  if (sl->flag & StudiolightExternalFile) {
+    if (sl->flag & StudiolightTypeMatcap) {
+      BKE_studiolight_ensure_flag(sl, StudiolightExternalImageLoaded);
       if (sl->matcap_specular.ibuf) {
         studiolight_create_matcap_gputexture(&sl->matcap_specular);
       }
     }
   }
-  sl->flag |= STUDIOLIGHT_MATCAP_SPECULAR_GPUTEXTURE;
+  sl->flag |= StudiolightMatcapSpecularGputexture;
 }
 
 static float4 studiolight_calculate_radiance(const ImBuf *ibuf, const float direction[3])
@@ -612,14 +612,14 @@ static StudioLight *studiolight_add_file(const char *filepath, int flag)
   char filename[FILE_MAXFILE];
   BLI_path_split_file_part(filepath, filename, FILE_MAXFILE);
 
-  if ((((flag & STUDIOLIGHT_TYPE_STUDIO) != 0) && BLI_path_extension_check(filename, ".sl")) ||
+  if ((((flag & StudiolightTypeStudio) != 0) && BLI_path_extension_check(filename, ".sl")) ||
       BLI_path_extension_check_array(filename, imb_ext_image))
   {
-    StudioLight *sl = studiolight_create(STUDIOLIGHT_EXTERNAL_FILE | flag);
+    StudioLight *sl = studiolight_create(StudiolightExternalFile | flag);
     STRNCPY(sl->name, filename);
     STRNCPY(sl->filepath, filepath);
 
-    if ((flag & STUDIOLIGHT_TYPE_STUDIO) != 0) {
+    if ((flag & StudiolightTypeStudio) != 0) {
       studiolight_load_solid_light(sl);
     }
     BLI_addtail(&studiolights, sl);
@@ -652,7 +652,7 @@ static void studiolight_add_files_from_datafolder(const int folder_id,
 static int studiolight_flag_cmp_order(const StudioLight *sl)
 {
   /* Internal studiolights before external studio lights */
-  if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
+  if (sl->flag & StudiolightExternalFile) {
     return 1;
   }
   return 0;
@@ -707,7 +707,7 @@ static void sphere_normal_from_uv(float normal[3], float u, float v)
 
 static void studiolight_radiance_preview(uint *icon_buffer, StudioLight *sl)
 {
-  BKE_studiolight_ensure_flag(sl, STUDIOLIGHT_EXTERNAL_IMAGE_LOADED);
+  BKE_studiolight_ensure_flag(sl, StudiolightExternalImageLoaded);
 
   ITER_PIXELS (uint, icon_buffer, 1, STUDIOLIGHT_ICON_SIZE, STUDIOLIGHT_ICON_SIZE) {
     float dy = RESCALE_COORD(y);
@@ -739,7 +739,7 @@ static void studiolight_radiance_preview(uint *icon_buffer, StudioLight *sl)
 
 static void studiolight_matcap_preview(uint *icon_buffer, StudioLight *sl, bool flipped)
 {
-  BKE_studiolight_ensure_flag(sl, STUDIOLIGHT_EXTERNAL_IMAGE_LOADED);
+  BKE_studiolight_ensure_flag(sl, StudiolightExternalImageLoaded);
 
   ImBuf *diffuse_buffer = sl->matcap_diffuse.ibuf;
   ImBuf *specular_buffer = sl->matcap_specular.ibuf;
@@ -854,33 +854,33 @@ void BKE_studiolight_default(SolidLight lights[4], float light_ambient[3])
 void BKE_studiolight_init()
 {
   /* Add default studio light */
-  StudioLight *sl = studiolight_create(STUDIOLIGHT_INTERNAL | STUDIOLIGHT_TYPE_STUDIO |
-                                       STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS);
+  StudioLight *sl = studiolight_create(StudiolightInternal | StudiolightTypeStudio |
+                                       StudiolightSpecularHighlightPass);
   STRNCPY(sl->name, "Default");
 
   BLI_addtail(&studiolights, sl);
 
   /* Go over the preset folder and add a studio-light for every image with its path. */
   /* Also reserve icon space for it. */
-  studiolight_add_files_from_datafolder(BLENDER_USER_DATAFILES,
+  studiolight_add_files_from_datafolder(BlenderUserDatafiles,
                                         STUDIOLIGHT_LIGHTS_FOLDER,
-                                        STUDIOLIGHT_TYPE_STUDIO | STUDIOLIGHT_USER_DEFINED |
-                                            STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS);
-  studiolight_add_files_from_datafolder(BLENDER_USER_DATAFILES,
+                                        StudiolightTypeStudio | StudiolightUserDefined |
+                                            StudiolightSpecularHighlightPass);
+  studiolight_add_files_from_datafolder(BlenderUserDatafiles,
                                         STUDIOLIGHT_WORLD_FOLDER,
-                                        STUDIOLIGHT_TYPE_WORLD | STUDIOLIGHT_USER_DEFINED);
-  studiolight_add_files_from_datafolder(BLENDER_USER_DATAFILES,
+                                        StudiolightTypeWorld | StudiolightUserDefined);
+  studiolight_add_files_from_datafolder(BlenderUserDatafiles,
                                         STUDIOLIGHT_MATCAP_FOLDER,
-                                        STUDIOLIGHT_TYPE_MATCAP | STUDIOLIGHT_USER_DEFINED);
-  studiolight_add_files_from_datafolder(BLENDER_SYSTEM_DATAFILES,
+                                        StudiolightTypeMatcap | StudiolightUserDefined);
+  studiolight_add_files_from_datafolder(BlenderSystemDatafiles,
                                         STUDIOLIGHT_LIGHTS_FOLDER,
-                                        STUDIOLIGHT_TYPE_STUDIO |
-                                            STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS);
+                                        StudiolightTypeStudio |
+                                            StudiolightSpecularHighlightPass);
 #ifdef WITH_IMAGE_OPENEXR
   studiolight_add_files_from_datafolder(
-      BLENDER_SYSTEM_DATAFILES, STUDIOLIGHT_WORLD_FOLDER, STUDIOLIGHT_TYPE_WORLD);
+      BlenderSystemDatafiles, STUDIOLIGHT_WORLD_FOLDER, StudiolightTypeWorld);
   studiolight_add_files_from_datafolder(
-      BLENDER_SYSTEM_DATAFILES, STUDIOLIGHT_MATCAP_FOLDER, STUDIOLIGHT_TYPE_MATCAP);
+      BlenderSystemDatafiles, STUDIOLIGHT_MATCAP_FOLDER, StudiolightTypeMatcap);
 #else
   CLOG_WARN(&LOG, "Unable to load matcap or world presets, Built without 'WITH_IMAGE_OPENEXR'");
 #endif
@@ -902,10 +902,10 @@ StudioLight *BKE_studiolight_find_default(int flag)
 {
   const char *default_name = "";
 
-  if (flag & STUDIOLIGHT_TYPE_WORLD) {
+  if (flag & StudiolightTypeWorld) {
     default_name = STUDIOLIGHT_WORLD_DEFAULT;
   }
-  else if (flag & STUDIOLIGHT_TYPE_MATCAP) {
+  else if (flag & StudiolightTypeMatcap) {
     default_name = STUDIOLIGHT_MATCAP_DEFAULT;
   }
 
@@ -992,16 +992,16 @@ void BKE_studiolight_ensure_flag(StudioLight *sl, int flag)
     return;
   }
 
-  if (flag & STUDIOLIGHT_EXTERNAL_IMAGE_LOADED) {
+  if (flag & StudiolightExternalImageLoaded) {
     studiolight_load_equirect_image(sl);
   }
-  if (flag & STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE) {
+  if (flag & StudiolightEquirectRadianceGputexture) {
     studiolight_create_equirect_radiance_gputexture(sl);
   }
-  if (flag & STUDIOLIGHT_MATCAP_DIFFUSE_GPUTEXTURE) {
+  if (flag & StudiolightMatcapDiffuseGputexture) {
     studiolight_create_matcap_diffuse_gputexture(sl);
   }
-  if (flag & STUDIOLIGHT_MATCAP_SPECULAR_GPUTEXTURE) {
+  if (flag & StudiolightMatcapSpecularGputexture) {
     studiolight_create_matcap_specular_gputexture(sl);
   }
 }
@@ -1012,7 +1012,7 @@ void BKE_studiolight_ensure_flag(StudioLight *sl, int flag)
 
 void BKE_studiolight_remove(StudioLight *sl)
 {
-  if (sl->flag & STUDIOLIGHT_USER_DEFINED) {
+  if (sl->flag & StudiolightUserDefined) {
     BLI_remlink(&studiolights, sl);
     studiolight_free(sl);
   }
@@ -1020,7 +1020,7 @@ void BKE_studiolight_remove(StudioLight *sl)
 
 StudioLight *BKE_studiolight_load(const char *filepath, int type)
 {
-  StudioLight *sl = studiolight_add_file(filepath, type | STUDIOLIGHT_USER_DEFINED);
+  StudioLight *sl = studiolight_add_file(filepath, type | StudiolightUserDefined);
   return sl;
 }
 
@@ -1028,9 +1028,9 @@ StudioLight *BKE_studiolight_create(const char *filepath,
                                     const SolidLight light[4],
                                     const float light_ambient[3])
 {
-  StudioLight *sl = studiolight_create(STUDIOLIGHT_EXTERNAL_FILE | STUDIOLIGHT_USER_DEFINED |
-                                       STUDIOLIGHT_TYPE_STUDIO |
-                                       STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS);
+  StudioLight *sl = studiolight_create(StudiolightExternalFile | StudiolightUserDefined |
+                                       StudiolightTypeStudio |
+                                       StudiolightSpecularHighlightPass);
 
   char filename[FILE_MAXFILE];
   BLI_path_split_file_part(filepath, filename, FILE_MAXFILE);
@@ -1049,7 +1049,7 @@ StudioLight *BKE_studiolight_create(const char *filepath,
 StudioLight *BKE_studiolight_studio_edit_get()
 {
   static StudioLight sl = {nullptr};
-  sl.flag = STUDIOLIGHT_TYPE_STUDIO | STUDIOLIGHT_SPECULAR_HIGHLIGHT_PASS;
+  sl.flag = StudiolightTypeStudio | StudiolightSpecularHighlightPass;
 
   memcpy(sl.light, U.light_param, sizeof(*sl.light) * 4);
   memcpy(sl.light_ambient, U.light_ambient, sizeof(*sl.light_ambient) * 3);

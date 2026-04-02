@@ -153,7 +153,7 @@ static MutableSpan<float3> orco_coord_layer_ensure(Mesh &mesh, const eCustomData
 {
   void *data = CustomData_get_layer_for_write(&mesh.vert_data, layer, mesh.verts_num);
   if (!data) {
-    data = CustomData_add_layer(&mesh.vert_data, layer, CD_CONSTRUCT, mesh.verts_num);
+    data = CustomData_add_layer(&mesh.vert_data, layer, CdConstruct, mesh.verts_num);
   }
   return MutableSpan(reinterpret_cast<float3 *>(data), mesh.verts_num);
 }
@@ -309,10 +309,10 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
   const bool sculpt_dyntopo = (sculpt_mode && ob.runtime->sculpt_session->bm) && !use_render;
 
   /* Modifier evaluation contexts for different types of modifiers. */
-  ModifierApplyFlag apply_render = use_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);
-  ModifierApplyFlag apply_cache = use_cache ? MOD_APPLY_USECACHE : ModifierApplyFlag(0);
+  ModifierApplyFlag apply_render = use_render ? ModApplyRender : ModifierApplyFlag(0);
+  ModifierApplyFlag apply_cache = use_cache ? ModApplyUsecache : ModifierApplyFlag(0);
   const ModifierEvalContext mectx = {&depsgraph, &ob, apply_render | apply_cache};
-  const ModifierEvalContext mectx_orco = {&depsgraph, &ob, apply_render | MOD_APPLY_ORCO};
+  const ModifierEvalContext mectx_orco = {&depsgraph, &ob, apply_render | ModApplyOrco};
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */
@@ -395,7 +395,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
       continue;
     }
 
-    if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) &&
+    if ((mti->flags & EModifierTypeFlagRequiresOriginalData) &&
         have_non_onlydeform_modifiers_applied)
     {
       BKE_modifier_set_error(&ob, md, "Modifier requires original data, bad stack position");
@@ -491,9 +491,9 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
             ((nextmask.vmask | nextmask.emask | nextmask.pmask) & CD_MASK_ORIGINDEX))
         {
           /* calc */
-          CustomData_add_layer(&mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->verts_num);
-          CustomData_add_layer(&mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->edges_num);
-          CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num);
+          CustomData_add_layer(&mesh->vert_data, CD_ORIGINDEX, CdConstruct, mesh->verts_num);
+          CustomData_add_layer(&mesh->edge_data, CD_ORIGINDEX, CdConstruct, mesh->edges_num);
+          CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CdConstruct, mesh->faces_num);
 
           /* Not worth parallelizing this,
            * gives less than 0.1% overall speedup in best of best cases... */
@@ -533,7 +533,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
       if ((md_datamask->mask.lmask) & CD_MASK_ORIGSPACE_MLOOP) {
         if (!CustomData_has_layer(&mesh->corner_data, CD_ORIGSPACE_MLOOP)) {
           CustomData_add_layer(
-              &mesh->corner_data, CD_ORIGSPACE_MLOOP, CD_SET_DEFAULT, mesh->corners_num);
+              &mesh->corner_data, CD_ORIGSPACE_MLOOP, CdSetDefault, mesh->corners_num);
           mesh_init_origspace(*mesh);
         }
       }
@@ -707,7 +707,7 @@ bool editbmesh_modifier_is_enabled(const Scene *scene,
     return false;
   }
 
-  if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) && has_prev_mesh) {
+  if ((mti->flags & EModifierTypeFlagRequiresOriginalData) && has_prev_mesh) {
     BKE_modifier_set_error(ob, md, "Modifier requires original data, bad stack position");
     return false;
   }
@@ -718,14 +718,14 @@ bool editbmesh_modifier_is_enabled(const Scene *scene,
 static MutableSpan<float3> mesh_wrapper_vert_coords_ensure_for_write(Mesh *mesh)
 {
   switch (mesh->runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_BMESH:
+    case MeWrapperTypeBmesh:
       if (mesh->runtime->edit_data->vert_positions.is_empty()) {
         mesh->runtime->edit_data->vert_positions = BM_mesh_vert_coords_alloc(
             mesh->runtime->edit_mesh->bm);
       }
       return mesh->runtime->edit_data->vert_positions;
-    case ME_WRAPPER_TYPE_MDATA:
-    case ME_WRAPPER_TYPE_SUBD:
+    case MeWrapperTypeMdata:
+    case MeWrapperTypeSubd:
       return mesh->vert_positions_for_write();
   }
   BLI_assert_unreachable();
@@ -758,9 +758,9 @@ static void editbmesh_calc_modifiers(Depsgraph &depsgraph,
 
   const bool use_render = (DEG_get_mode(&depsgraph) == DAG_EVAL_RENDER);
   /* Modifier evaluation contexts for different types of modifiers. */
-  ModifierApplyFlag apply_render = use_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);
-  const ModifierEvalContext mectx = {&depsgraph, &ob, MOD_APPLY_USECACHE | apply_render};
-  const ModifierEvalContext mectx_orco = {&depsgraph, &ob, MOD_APPLY_ORCO};
+  ModifierApplyFlag apply_render = use_render ? ModApplyRender : ModifierApplyFlag(0);
+  const ModifierEvalContext mectx = {&depsgraph, &ob, ModApplyUsecache | apply_render};
+  const ModifierEvalContext mectx_orco = {&depsgraph, &ob, ModApplyOrco};
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */
@@ -886,7 +886,7 @@ static void editbmesh_calc_modifiers(Depsgraph &depsgraph,
       if (mask.lmask & CD_MASK_ORIGSPACE_MLOOP) {
         if (!CustomData_has_layer(&mesh->corner_data, CD_ORIGSPACE_MLOOP)) {
           CustomData_add_layer(
-              &mesh->corner_data, CD_ORIGSPACE_MLOOP, CD_SET_DEFAULT, mesh->corners_num);
+              &mesh->corner_data, CD_ORIGSPACE_MLOOP, CdSetDefault, mesh->corners_num);
           mesh_init_origspace(*mesh);
         }
       }
@@ -1267,7 +1267,7 @@ void mesh_get_mapped_verts_coords(Mesh *mesh_eval, MutableSpan<float3> r_cos)
     r_cos.fill(float3(0));
     user_data.vertexcos = r_cos;
     user_data.vertex_visit.resize(r_cos.size());
-    BKE_mesh_foreach_mapped_vert(mesh_eval, make_vertexcos__mapFunc, &user_data, MESH_FOREACH_NOP);
+    BKE_mesh_foreach_mapped_vert(mesh_eval, make_vertexcos__mapFunc, &user_data, MeshForeachNop);
   }
   else {
     r_cos.copy_from(BKE_mesh_wrapper_vert_coords(mesh_eval));

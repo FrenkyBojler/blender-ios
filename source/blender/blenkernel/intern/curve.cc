@@ -98,7 +98,7 @@ static void curve_copy_data(Main *bmain,
 
   curve_dst->bevel_profile = BKE_curveprofile_copy(curve_src->bevel_profile);
 
-  if (curve_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
+  if (curve_src->key && (flag & LibIdCopyShapekey)) {
     BKE_id_copy_in_lib(bmain,
                        owner_library,
                        &curve_src->key->id,
@@ -137,17 +137,17 @@ static void curve_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Curve *curve = reinterpret_cast<Curve *>(id);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->bevobj, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->taperobj, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->textoncurve, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->key, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->bevobj, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->taperobj, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->textoncurve, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->key, IdwalkCbUser);
   for (int i = 0; i < curve->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->mat[i], IdwalkCbUser);
   }
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfont, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfontb, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfonti, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfontbi, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfont, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfontb, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfonti, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfontbi, IdwalkCbUser);
 }
 
 static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -283,7 +283,7 @@ IDTypeInfo IDType_ID_CU_LEGACY = {
     .name = "Curve",
     .name_plural = N_("curves"),
     .translation_context = BLT_I18NCONTEXT_ID_CURVE_LEGACY,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = curve_init_data,
@@ -4025,17 +4025,17 @@ short BKE_nurb_bezt_handle_test_calc_flag(const BezTriple *bezt,
   short flag = 0;
 
   switch (handle_mode) {
-    case NURB_HANDLE_TEST_KNOT_ONLY: {
+    case NurbHandleTestKnotOnly: {
       flag = (bezt->f2 & sel_flag) ? (SEL_F1 | SEL_F2 | SEL_F3) : 0;
       break;
     }
-    case NURB_HANDLE_TEST_KNOT_OR_EACH:
+    case NurbHandleTestKnotOrEach:
       if (bezt->f2 & sel_flag) {
         flag = (bezt->f2 & sel_flag) ? (SEL_F1 | SEL_F2 | SEL_F3) : 0;
         break;
       }
       [[fallthrough]];
-    case NURB_HANDLE_TEST_EACH: {
+    case NurbHandleTestEach: {
       if (bezt->f1 & sel_flag) {
         flag |= SEL_F1;
       }
@@ -5112,7 +5112,7 @@ std::optional<Bounds<float3>> BKE_curve_minmax(const Curve *cu, bool use_radius)
   if (is_font) {
     ListBaseT<Nurb> temp_nurb_lb{};
     BKE_vfont_to_curve_ex(
-        nullptr, *cu, FO_EDIT, &temp_nurb_lb, nullptr, nullptr, nullptr, nullptr, nullptr);
+        nullptr, *cu, FoEdit, &temp_nurb_lb, nullptr, nullptr, nullptr, nullptr, nullptr);
     BLI_SCOPED_DEFER([&]() { BKE_nurbList_free(&temp_nurb_lb); });
     return calc_nurblist_bounds(&temp_nurb_lb, false);
   }

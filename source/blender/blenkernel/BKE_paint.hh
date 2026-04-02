@@ -89,12 +89,12 @@ struct tPaletteColorHSV;
 
 /* overlay invalidation */
 enum ePaintOverlayControlFlags {
-  PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY = 1,
-  PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY = (1 << 2),
-  PAINT_OVERLAY_INVALID_CURVE = (1 << 3),
-  PAINT_OVERLAY_OVERRIDE_CURSOR = (1 << 4),
-  PAINT_OVERLAY_OVERRIDE_PRIMARY = (1 << 5),
-  PAINT_OVERLAY_OVERRIDE_SECONDARY = (1 << 6),
+  PaintOverlayInvalidTexturePrimary = 1,
+  PaintOverlayInvalidTextureSecondary = (1 << 2),
+  PaintOverlayInvalidCurve = (1 << 3),
+  PaintOverlayOverrideCursor = (1 << 4),
+  PaintOverlayOverridePrimary = (1 << 5),
+  PaintOverlayOverrideSecondary = (1 << 6),
 };
 ENUM_OPERATORS(ePaintOverlayControlFlags);
 
@@ -110,9 +110,9 @@ ENUM_OPERATORS(ePaintOverlayControlFlags);
 #define PAINT_SYMM_AREA_DEFAULT 0
 
 enum ePaintSymmetryAreas {
-  PAINT_SYMM_AREA_X = (1 << 0),
-  PAINT_SYMM_AREA_Y = (1 << 1),
-  PAINT_SYMM_AREA_Z = (1 << 2),
+  PaintSymmAreaX = (1 << 0),
+  PaintSymmAreaY = (1 << 1),
+  PaintSymmAreaZ = (1 << 2),
 };
 ENUM_OPERATORS(ePaintSymmetryAreas);
 

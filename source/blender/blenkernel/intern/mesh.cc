@@ -116,8 +116,8 @@ static void mesh_copy_data(Main *bmain,
   mesh_dst->runtime = new bke::MeshRuntime();
   mesh_dst->runtime->deformed_only = mesh_src->runtime->deformed_only;
   /* Subd runtime.mesh_eval is not copied, will need to be reevaluated. */
-  mesh_dst->runtime->wrapper_type = (mesh_src->runtime->wrapper_type == ME_WRAPPER_TYPE_SUBD) ?
-                                        ME_WRAPPER_TYPE_MDATA :
+  mesh_dst->runtime->wrapper_type = (mesh_src->runtime->wrapper_type == MeWrapperTypeSubd) ?
+                                        MeWrapperTypeMdata :
                                         mesh_src->runtime->wrapper_type;
   mesh_dst->runtime->subsurf_runtime_data = mesh_src->runtime->subsurf_runtime_data;
   mesh_dst->runtime->cd_mask_extra = mesh_src->runtime->cd_mask_extra;
@@ -235,7 +235,7 @@ static void mesh_copy_data(Main *bmain,
 
   mesh_dst->mselect = MEM_dupalloc(mesh_dst->mselect);
 
-  if (mesh_src->key && (flag & LIB_ID_COPY_SHAPEKEY)) {
+  if (mesh_src->key && (flag & LibIdCopyShapekey)) {
     BKE_id_copy_in_lib(bmain,
                        owner_library,
                        &mesh_src->key->id,
@@ -275,10 +275,10 @@ static void mesh_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->texcomesh, IDWALK_CB_NEVER_SELF);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->key, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->texcomesh, IdwalkCbNeverSelf);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->key, IdwalkCbUser);
   for (int i = 0; i < mesh->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->mat[i], IdwalkCbUser);
   }
 }
 
@@ -497,7 +497,7 @@ IDTypeInfo IDType_ID_ME = {
     .name = "Mesh",
     .name_plural = N_("meshes"),
     .translation_context = BLT_I18NCONTEXT_ID_MESH,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = mesh_init_data,
@@ -548,7 +548,7 @@ void BKE_mesh_ensure_skin_customdata(Mesh *mesh)
   else {
     if (!CustomData_has_layer(&mesh->vert_data, CD_MVERT_SKIN)) {
       vs = static_cast<MVertSkin *>(
-          CustomData_add_layer(&mesh->vert_data, CD_MVERT_SKIN, CD_SET_DEFAULT, mesh->verts_num));
+          CustomData_add_layer(&mesh->vert_data, CD_MVERT_SKIN, CdSetDefault, mesh->verts_num));
 
       /* Mark an arbitrary vertex as root */
       if (vs) {
@@ -611,7 +611,7 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
 
   /* Try to create attributes if they do not exist. */
   attributes.add("position", AttrDomain::Point, bke::AttrType::Float3, attribute_init);
-  attributes.add(".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, attribute_init);
+  attributes.add(".edge_verts", AttrDomain::Edge, bke::AttrType::Int322D, attribute_init);
   attributes.add(".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
   attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
 }
@@ -1201,7 +1201,7 @@ MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
     return {dvert, this->verts_num};
   }
   return {static_cast<MDeformVert *>(CustomData_add_layer(
-              &this->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, this->verts_num)),
+              &this->vert_data, CD_MDEFORMVERT, CdSetDefault, this->verts_num)),
           this->verts_num};
 }
 
@@ -1337,7 +1337,7 @@ Mesh *mesh_new_no_attributes(const int verts_num,
                              const int corners_num)
 {
   Mesh *mesh = static_cast<Mesh *>(BKE_libblock_alloc(
-      nullptr, ID_ME, BKE_idtype_idcode_to_name(ID_ME), LIB_ID_CREATE_LOCALIZE));
+      nullptr, ID_ME, BKE_idtype_idcode_to_name(ID_ME), LibIdCreateLocalize));
   BKE_libblock_init_empty(&mesh->id);
 
   mesh->verts_num = verts_num;
@@ -1451,16 +1451,16 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
   BKE_mesh_copy_parameters_for_eval(me_dst, me_src);
 
   CustomData_init_layout_from(
-      &me_src->vert_data, &me_dst->vert_data, mask.vmask, CD_SET_DEFAULT, verts_num);
+      &me_src->vert_data, &me_dst->vert_data, mask.vmask, CdSetDefault, verts_num);
   CustomData_init_layout_from(
-      &me_src->edge_data, &me_dst->edge_data, mask.emask, CD_SET_DEFAULT, edges_num);
+      &me_src->edge_data, &me_dst->edge_data, mask.emask, CdSetDefault, edges_num);
   CustomData_init_layout_from(
-      &me_src->face_data, &me_dst->face_data, mask.pmask, CD_SET_DEFAULT, faces_num);
+      &me_src->face_data, &me_dst->face_data, mask.pmask, CdSetDefault, faces_num);
   CustomData_init_layout_from(
-      &me_src->corner_data, &me_dst->corner_data, mask.lmask, CD_SET_DEFAULT, corners_num);
+      &me_src->corner_data, &me_dst->corner_data, mask.lmask, CdSetDefault, corners_num);
   if (do_tessface) {
     CustomData_init_layout_from(
-        &me_src->fdata_legacy, &me_dst->fdata_legacy, mask.fmask, CD_SET_DEFAULT, tessface_num);
+        &me_src->fdata_legacy, &me_dst->fdata_legacy, mask.fmask, CdSetDefault, tessface_num);
   }
   else {
     mesh_tessface_clear_intern(me_dst, false);
@@ -1471,7 +1471,7 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
   bke::mesh_ensure_required_data_layers(*me_dst);
   BKE_mesh_face_offsets_ensure_alloc(me_dst);
   if (do_tessface && !CustomData_get_layer(&me_dst->fdata_legacy, CD_MFACE)) {
-    CustomData_add_layer(&me_dst->fdata_legacy, CD_MFACE, CD_SET_DEFAULT, me_dst->totface_legacy);
+    CustomData_add_layer(&me_dst->fdata_legacy, CD_MFACE, CdSetDefault, me_dst->totface_legacy);
   }
 
   bke::MutableAttributeAccessor dst_attrs = me_dst->attributes_for_write();
@@ -1498,7 +1498,7 @@ Mesh *BKE_mesh_new_nomain_from_template(const Mesh *me_src,
 Mesh *BKE_mesh_copy_for_eval(const Mesh &source)
 {
   return reinterpret_cast<Mesh *>(
-      BKE_id_copy_ex(nullptr, &source.id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &source.id, nullptr, LibIdCopyLocalize));
 }
 
 BMesh *BKE_mesh_to_bmesh_ex(const Mesh *mesh,
@@ -1554,13 +1554,13 @@ static void ensure_orig_index_layer(CustomData &data, const int size)
     return;
   }
   int *indices = static_cast<int *>(
-      CustomData_add_layer(&data, CD_ORIGINDEX, CD_SET_DEFAULT, size));
+      CustomData_add_layer(&data, CD_ORIGINDEX, CdSetDefault, size));
   range_vn_i(indices, size, 0);
 }
 
 void BKE_mesh_ensure_default_orig_index_customdata(Mesh *mesh)
 {
-  BLI_assert(mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA);
+  BLI_assert(mesh->runtime->wrapper_type == MeWrapperTypeMdata);
   BKE_mesh_ensure_default_orig_index_customdata_no_check(mesh);
 }
 
@@ -1693,7 +1693,7 @@ void BKE_mesh_orco_ensure(Object *ob, Mesh *mesh)
   Array<float3> orcodata = BKE_mesh_orco_verts_get(ob);
   BKE_mesh_orco_verts_transform(mesh, orcodata, false);
   float3 *data = static_cast<float3 *>(
-      CustomData_add_layer(&mesh->vert_data, CD_ORCO, CD_CONSTRUCT, mesh->verts_num));
+      CustomData_add_layer(&mesh->vert_data, CD_ORCO, CdConstruct, mesh->verts_num));
   MutableSpan(data, mesh->verts_num).copy_from(orcodata);
 }
 
@@ -1868,12 +1868,12 @@ std::optional<Bounds<float3>> Mesh::bounds_min_max() const
   }
   this->runtime->bounds_cache.ensure([&](Bounds<float3> &r_bounds) {
     switch (this->runtime->wrapper_type) {
-      case ME_WRAPPER_TYPE_BMESH:
+      case MeWrapperTypeBmesh:
         r_bounds = *BKE_editmesh_cache_calc_minmax(*this->runtime->edit_mesh,
                                                    *this->runtime->edit_data);
         break;
-      case ME_WRAPPER_TYPE_MDATA:
-      case ME_WRAPPER_TYPE_SUBD:
+      case MeWrapperTypeMdata:
+      case MeWrapperTypeSubd:
         r_bounds = *bounds::min_max(this->vert_positions());
         break;
     }
@@ -1888,7 +1888,7 @@ void Mesh::bounds_set_eager(const Bounds<float3> &bounds)
 
 static bool use_bmesh_material_indices(const Mesh &mesh)
 {
-  return mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && mesh.runtime->edit_mesh &&
+  return mesh.runtime->wrapper_type == MeWrapperTypeBmesh && mesh.runtime->edit_mesh &&
          mesh.runtime->edit_mesh->bm;
 }
 

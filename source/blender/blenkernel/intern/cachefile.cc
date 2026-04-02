@@ -130,7 +130,7 @@ IDTypeInfo IDType_ID_CF = {
     .name = "CacheFile",
     .name_plural = N_("cache_files"),
     .translation_context = BLT_I18NCONTEXT_ID_CACHEFILE,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = cache_file_init_data,

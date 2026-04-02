@@ -32,24 +32,24 @@ struct ReportList;
 
 /** Actions to apply to an item (i.e. linked ID). */
 enum {
-  LINK_APPEND_ACT_UNSET = 0,
-  LINK_APPEND_ACT_KEEP_LINKED,
-  LINK_APPEND_ACT_REUSE_LOCAL,
-  LINK_APPEND_ACT_MAKE_LOCAL,
-  LINK_APPEND_ACT_COPY_LOCAL,
+  LinkAppendActUnset = 0,
+  LinkAppendActKeepLinked,
+  LinkAppendActReuseLocal,
+  LinkAppendActMakeLocal,
+  LinkAppendActCopyLocal,
 };
 
 /** Various status info about an item (i.e. linked ID). */
 enum {
   /** An indirectly linked ID. */
-  LINK_APPEND_TAG_INDIRECT = 1 << 0,
+  LinkAppendTagIndirect = 1 << 0,
   /**
    * An ID also used as liboverride dependency (either directly, as a liboverride reference, or
    * indirectly, as data used by a liboverride reference). It should never be directly made local.
    *
    * Mutually exclusive with #LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY_ONLY.
    */
-  LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY = 1 << 1,
+  LinkAppendTagLiboverrideDependency = 1 << 1,
   /**
    * An ID only used as liboverride dependency (either directly or indirectly, see
    * #LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY for precisions). It should not be considered during
@@ -57,7 +57,7 @@ enum {
    *
    * Mutually exclusive with #LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY.
    */
-  LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY_ONLY = 1 << 2,
+  LinkAppendTagLiboverrideDependencyOnly = 1 << 2,
 };
 
 /* NOTE: These three structs are currently exposed in header to allow for their usage in RNA.
@@ -295,7 +295,7 @@ short BKE_blendfile_link_append_context_item_idcode_get(BlendfileLinkAppendConte
 
 enum eBlendfileLinkAppendForeachItemFlag {
   /** Loop over directly linked items (i.e. those explicitly defined by user code). */
-  BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT = 1 << 0,
+  BkeBlendfileLinkAppendForeachItemFlagDoDirect = 1 << 0,
   /**
    * Loop over indirectly linked items (i.e. those defined by internal code, as dependencies of
    * direct ones).
@@ -303,7 +303,7 @@ enum eBlendfileLinkAppendForeachItemFlag {
    * IMPORTANT: Those 'indirect' items currently may not cover **all** indirectly linked data.
    * See comments in #foreach_libblock_link_append_callback.
    */
-  BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_INDIRECT = 1 << 1,
+  BkeBlendfileLinkAppendForeachItemFlagDoIndirect = 1 << 1,
 };
 
 /**
@@ -371,7 +371,7 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
  * Options controlling the behavior of liboverrides creation.
  */
 enum eBKELibLinkOverride {
-  BKE_LIBLINK_OVERRIDE_INIT = 0,
+  BkeLiblinkOverrideInit = 0,
 
   /**
    * Try to find a matching existing liboverride first, instead of always creating a new one.
@@ -379,7 +379,7 @@ enum eBKELibLinkOverride {
    * \note Takes into account the #BKE_LIBLINK_CREATE_RUNTIME flag too (i.e. only checks for
    *       runtime liboverrides if that flag is set, and vice-versa).
    */
-  BKE_LIBLINK_OVERRIDE_USE_EXISTING_LIBOVERRIDES = 1 << 0,
+  BkeLiblinkOverrideUseExistingLiboverrides = 1 << 0,
   /**
    * Create (or return an existing) runtime liboverride, instead of a regular saved-in-blend-files
    * one. See also the #ID_TAG_RUNTIME tag of IDs in DNA_ID.h.
@@ -387,7 +387,7 @@ enum eBKELibLinkOverride {
    * \note Typically, usage of this flag implies that no linked IDs are instantiated, such that
    * their usages remain indirect.
    */
-  BKE_LIBLINK_OVERRIDE_CREATE_RUNTIME = 1 << 1,
+  BkeLiblinkOverrideCreateRuntime = 1 << 1,
 };
 
 /**

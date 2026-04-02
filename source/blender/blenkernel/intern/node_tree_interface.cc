@@ -327,7 +327,7 @@ static void socket_data_copy(bNodeTreeInterfaceSocket &dst,
     if (src.socket_data) {
       dst.socket_data = socket_data_copy_impl(get_socket_data_as<SocketDataType>(src));
     }
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((flag & LibIdCreateNoUserRefcount) == 0) {
       socket_data_id_user_increment(get_socket_data_as<SocketDataType>(dst));
     }
   });
@@ -347,7 +347,7 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
       dst.socket_data = socket_data_copy_impl(
           *static_cast<const SocketDataType *>(src_socket_data));
     }
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((flag & LibIdCreateNoUserRefcount) == 0) {
       socket_data_id_user_increment(get_socket_data_as<SocketDataType>(dst));
     }
   });
@@ -585,46 +585,46 @@ void socket_data_foreach_id_impl(LibraryForeachIDData * /*data*/, T & /*data*/)
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueObject &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueImage &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<>
 void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueCollection &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<>
 void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueTexture &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<>
 void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueMaterial &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueFont &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueScene &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueText &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueMask &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 template<> void socket_data_foreach_id_impl(LibraryForeachIDData *cb, bNodeSocketValueSound &data)
 {
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(cb, data.value, IdwalkCbUser);
 }
 
 static void socket_data_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceSocket &socket)

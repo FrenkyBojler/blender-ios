@@ -155,7 +155,7 @@ static ModifierData *modifier_allocate_and_init(ModifierType type)
   /* Only open the main panel at the beginning, not the sub-panels. */
   md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
 
-  if (mti->flags & eModifierTypeFlag_EnableInEditmode) {
+  if (mti->flags & EModifierTypeFlagEnableInEditmode) {
     md->mode |= eModifierMode_Editmode;
   }
 
@@ -178,7 +178,7 @@ static void modifier_free_data_id_us_cb(void * /*user_data*/,
                                         const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
-  if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
+  if (id != nullptr && (cb_flag & IdwalkCbUser) != 0) {
     id_us_min(id);
   }
 }
@@ -187,7 +187,7 @@ void BKE_modifier_free_ex(ModifierData *md, const int flag)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(md, nullptr, modifier_free_data_id_us_cb, nullptr);
     }
@@ -250,7 +250,7 @@ bool BKE_modifier_supports_mapping(ModifierData *md)
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
   return (mti->type == ModifierTypeType::OnlyDeform ||
-          (mti->flags & eModifierTypeFlag_SupportsMapping));
+          (mti->flags & EModifierTypeFlagSupportsMapping));
 }
 
 ModifierData *BKE_modifiers_findby_type(const Object *ob, ModifierType type)
@@ -294,7 +294,7 @@ void BKE_modifiers_foreach_ID_link(Object *ob, IDWalkFunc walk, void *user_data)
   for (ModifierData &md : ob->modifiers) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
     IDP_foreach_property(md.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-      walk(user_data, ob, (ID **)&id_prop->data.pointer, IDWALK_CB_USER);
+      walk(user_data, ob, (ID **)&id_prop->data.pointer, IdwalkCbUser);
     });
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(&md, ob, walk, user_data);
@@ -351,7 +351,7 @@ static void modifier_copy_data_id_us_cb(void * /*user_data*/,
                                         const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
-  if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
+  if (id != nullptr && (cb_flag & IdwalkCbUser) != 0) {
     id_us_plus(id);
   }
 }
@@ -369,7 +369,7 @@ void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, cons
     mti->copy_data(md, target, flag);
   }
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(target, nullptr, modifier_copy_data_id_us_cb, nullptr);
     }
@@ -390,7 +390,7 @@ bool BKE_modifier_supports_cage(Scene *scene, ModifierData *md)
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
   return ((!mti->is_disabled || !mti->is_disabled(scene, md, false)) &&
-          (mti->flags & eModifierTypeFlag_SupportsEditmode) && BKE_modifier_supports_mapping(md));
+          (mti->flags & EModifierTypeFlagSupportsEditmode) && BKE_modifier_supports_mapping(md));
 }
 
 bool BKE_modifier_couldbe_cage(Scene *scene, ModifierData *md)
@@ -496,7 +496,7 @@ int BKE_modifiers_get_cage_index(const Scene *scene,
     if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
       continue;
     }
-    if (!(mti->flags & eModifierTypeFlag_SupportsEditmode)) {
+    if (!(mti->flags & EModifierTypeFlagSupportsEditmode)) {
       continue;
     }
     if (md->mode & eModifierMode_DisableTemporary) {
@@ -543,7 +543,7 @@ bool BKE_modifier_is_enabled(const Scene *scene, ModifierData *md, int required_
     return false;
   }
   if ((required_mode & eModifierMode_Editmode) &&
-      !(mti->flags & eModifierTypeFlag_SupportsEditmode))
+      !(mti->flags & EModifierTypeFlagSupportsEditmode))
   {
     return false;
   }
@@ -871,7 +871,7 @@ void BKE_modifiers_add_at_end_if_possible(Object *ob, ModifierData *new_md)
 
   const ModifierType mt = static_cast<ModifierType>(new_md->type);
   const ModifierTypeInfo *mti = BKE_modifier_get_info(mt);
-  const bool check_deform_only = (mti->flags & eModifierTypeFlag_RequiresOriginalData) ||
+  const bool check_deform_only = (mti->flags & EModifierTypeFlagRequiresOriginalData) ||
                                  (mt == eModifierType_Hook);
   if (check_deform_only) {
     next_md = static_cast<ModifierData *>(ob->modifiers.first);
@@ -940,7 +940,7 @@ void BKE_modifier_path_init(char *path, int path_maxncpy, const char *name)
 static void ensure_non_lazy_normals(Mesh *mesh)
 {
   switch (mesh->runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_BMESH: {
+    case MeWrapperTypeBmesh: {
       bke::EditMeshData &edit_data = *mesh->runtime->edit_data;
       if (!edit_data.vert_positions.is_empty()) {
         /* Note that 'ensure' is acceptable here since these values aren't modified in-place.
@@ -952,10 +952,10 @@ static void ensure_non_lazy_normals(Mesh *mesh)
       }
       break;
     }
-    case ME_WRAPPER_TYPE_SUBD:
+    case MeWrapperTypeSubd:
       /* Not an expected case. */
       break;
-    case ME_WRAPPER_TYPE_MDATA:
+    case MeWrapperTypeMdata:
       /* Normals are calculated lazily. */
       break;
   }
@@ -967,8 +967,8 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    if ((mti->flags & eModifierTypeFlag_AcceptsBMesh) == 0) {
+  if (mesh->runtime->wrapper_type == MeWrapperTypeBmesh) {
+    if ((mti->flags & EModifierTypeFlagAcceptsBMesh) == 0) {
       BKE_mesh_wrapper_ensure_mdata(mesh);
     }
   }
@@ -1377,7 +1377,7 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBaseT<ModifierDat
     if (md->type == eModifierType_Fluidsim) {
       BLO_reportf_wrap(
           BLO_read_data_reports(reader),
-          RPT_WARNING,
+          RptWarning,
           RPT_("Possible data loss when saving this file! %s modifier is deprecated (Object: %s)"),
           md->name,
           ob->id.name + 2);
@@ -1387,7 +1387,7 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBaseT<ModifierDat
     else if (md->type == eModifierType_Smoke) {
       BLO_reportf_wrap(
           BLO_read_data_reports(reader),
-          RPT_WARNING,
+          RptWarning,
           RPT_("Possible data loss when saving this file! %s modifier is deprecated (Object: %s)"),
           md->name,
           ob->id.name + 2);

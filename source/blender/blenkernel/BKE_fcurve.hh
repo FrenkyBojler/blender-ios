@@ -90,25 +90,25 @@ struct FModifierTypeInfo {
 /* Values which describe the behavior of a FModifier Type */
 enum eFMI_Action_Types {
   /* modifier only modifies values outside of data range */
-  FMI_TYPE_EXTRAPOLATION = 0,
+  FmiTypeExtrapolation = 0,
   /* modifier leaves data-points alone, but adjusts the interpolation between and around them */
-  FMI_TYPE_INTERPOLATION,
+  FmiTypeInterpolation,
   /* modifier only modifies the values of points (but times stay the same) */
-  FMI_TYPE_REPLACE_VALUES,
+  FmiTypeReplaceValues,
   /* modifier generates a curve regardless of what came before */
-  FMI_TYPE_GENERATE_CURVE,
+  FmiTypeGenerateCurve,
 };
 
 /* Flags for the requirements of a FModifier Type */
 enum eFMI_Requirement_Flags {
   /* modifier requires original data-points (kind of beats the purpose of a modifier stack?) */
-  FMI_REQUIRES_ORIGINAL_DATA = (1 << 0),
+  FmiRequiresOriginalData = (1 << 0),
   /* modifier doesn't require on any preceding data (i.e. it will generate a curve).
    * Use in conjunction with FMI_TYPE_GENRATE_CURVE
    */
-  FMI_REQUIRES_NOTHING = (1 << 1),
+  FmiRequiresNothing = (1 << 1),
   /* refer to modifier instance */
-  FMI_REQUIRES_RUNTIME_CHECK = (1 << 2),
+  FmiRequiresRuntimeCheck = (1 << 2),
 };
 
 /* Function Prototypes for FModifierTypeInfo's */
@@ -437,11 +437,11 @@ bool BKE_fcurve_is_cyclic(const FCurve &fcu);
 
 /* Type of infinite cycle for a curve. */
 enum eFCU_Cycle_Type {
-  FCU_CYCLE_NONE = 0,
+  FcuCycleNone = 0,
   /* The cycle repeats identically to the base range. */
-  FCU_CYCLE_PERFECT,
+  FcuCyclePerfect,
   /* The cycle accumulates the change between start and end keys. */
-  FCU_CYCLE_OFFSET,
+  FcuCycleOffset,
 };
 
 /**

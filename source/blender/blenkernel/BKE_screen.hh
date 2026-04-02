@@ -236,10 +236,10 @@ ENUM_OPERATORS(ARegionTypeFlag)
 
 /* #ARegionType::lock */
 enum ARegionDrawLockFlags {
-  REGION_DRAW_LOCK_NONE = 0,
-  REGION_DRAW_LOCK_RENDER = (1 << 0),
-  REGION_DRAW_LOCK_BAKING = (1 << 1),
-  REGION_DRAW_LOCK_ALL = (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
+  RegionDrawLockNone = 0,
+  RegionDrawLockRender = (1 << 0),
+  RegionDrawLockBaking = (1 << 1),
+  RegionDrawLockAll = (RegionDrawLockRender | RegionDrawLockBaking)
 };
 
 struct ARegionType {
@@ -419,15 +419,15 @@ struct PanelType {
 
 /** #PanelType.flag */
 enum {
-  PANEL_TYPE_DEFAULT_CLOSED = (1 << 0),
-  PANEL_TYPE_NO_HEADER = (1 << 1),
+  PanelTypeDefaultClosed = (1 << 0),
+  PanelTypeNoHeader = (1 << 1),
   /** Makes buttons in the header shrink/stretch to fill full layout width. */
-  PANEL_TYPE_HEADER_EXPAND = (1 << 2),
-  PANEL_TYPE_LAYOUT_VERT_BAR = (1 << 3),
+  PanelTypeHeaderExpand = (1 << 2),
+  PanelTypeLayoutVertBar = (1 << 3),
   /** This panel type represents data external to the UI. */
-  PANEL_TYPE_INSTANCED = (1 << 4),
+  PanelTypeInstanced = (1 << 4),
   /** Don't search panels with this type during property search. */
-  PANEL_TYPE_NO_SEARCH = (1 << 7),
+  PanelTypeNoSearch = (1 << 7),
 };
 
 struct LayoutPanelHeader {
@@ -688,15 +688,15 @@ enum AssetShelfTypeFlag {
    * Do not trigger asset dragging on drag events.
    * Drag events can be overridden with custom keymap items then.
    */
-  ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
-  ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
-  ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
+  AssetShelfTypeFlagNoAssetDrag = (1 << 0),
+  AssetShelfTypeFlagDefaultVisible = (1 << 1),
+  AssetShelfTypeFlagStoreCatalogsInPrefs = (1 << 2),
   /**
    * When spawning a context menu for an asset, activate the asset and call the activate operator
    * (`bl_activate_operator`/#AssetShelfType.activate_operator) if present, rather than just
    * highlighting the asset as active.
    */
-  ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU = (1 << 3),
+  AssetShelfTypeFlagActivateForContextMenu = (1 << 3),
 };
 ENUM_OPERATORS(AssetShelfTypeFlag);
 

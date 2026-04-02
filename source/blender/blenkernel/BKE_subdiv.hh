@@ -27,20 +27,20 @@ namespace bke::subdiv {
 
 enum VtxBoundaryInterpolation {
   /** Do not interpolate boundaries. */
-  SUBDIV_VTX_BOUNDARY_NONE,
+  SubdivVtxBoundaryNone,
   /** Sharpen edges. */
-  SUBDIV_VTX_BOUNDARY_EDGE_ONLY,
+  SubdivVtxBoundaryEdgeOnly,
   /** Sharpen edges and corners. */
-  SUBDIV_VTX_BOUNDARY_EDGE_AND_CORNER,
+  SubdivVtxBoundaryEdgeAndCorner,
 };
 
 enum FVarLinearInterpolation {
-  SUBDIV_FVAR_LINEAR_INTERPOLATION_NONE,
-  SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_ONLY,
-  SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS,
-  SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_JUNCTIONS_AND_CONCAVE,
-  SUBDIV_FVAR_LINEAR_INTERPOLATION_BOUNDARIES,
-  SUBDIV_FVAR_LINEAR_INTERPOLATION_ALL,
+  SubdivFvarLinearInterpolationNone,
+  SubdivFvarLinearInterpolationCornersOnly,
+  SubdivFvarLinearInterpolationCornersAndJunctions,
+  SubdivFvarLinearInterpolationCornersJunctionsAndConcave,
+  SubdivFvarLinearInterpolationBoundaries,
+  SubdivFvarLinearInterpolationAll,
 };
 
 struct Settings {
@@ -85,16 +85,16 @@ struct Settings {
  * \note Order of enumerators MUST match order of values in SubdivStats.
  */
 enum StatsValue {
-  SUBDIV_STATS_TOPOLOGY_REFINER_CREATION_TIME = 0,
-  SUBDIV_STATS_SUBDIV_TO_MESH,
-  SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY,
-  SUBDIV_STATS_EVALUATOR_CREATE,
-  SUBDIV_STATS_EVALUATOR_REFINE,
-  SUBDIV_STATS_SUBDIV_TO_CCG,
-  SUBDIV_STATS_SUBDIV_TO_CCG_ELEMENTS,
-  SUBDIV_STATS_TOPOLOGY_COMPARE,
+  SubdivStatsTopologyRefinerCreationTime = 0,
+  SubdivStatsSubdivToMesh,
+  SubdivStatsSubdivToMeshGeometry,
+  SubdivStatsEvaluatorCreate,
+  SubdivStatsEvaluatorRefine,
+  SubdivStatsSubdivToCcg,
+  SubdivStatsSubdivToCcgElements,
+  SubdivStatsTopologyCompare,
 
-  NUM_SUBDIV_STATS_VALUES,
+  NumSubdivStatsValues,
 };
 
 struct SubdivStats {
@@ -121,14 +121,14 @@ struct SubdivStats {
       /** Time spent on CCG elements evaluation/initialization. */
       double topology_compare_time;
     };
-    double values_[NUM_SUBDIV_STATS_VALUES];
+    double values_[NumSubdivStatsValues];
   };
 
   /**
    * Per-value timestamp on when corresponding stats_begin() was
    * called.
    */
-  double begin_timestamp_[NUM_SUBDIV_STATS_VALUES];
+  double begin_timestamp_[NumSubdivStatsValues];
 };
 
 /** Functor which evaluates displacement at a given (u, v) of given ptex face. */

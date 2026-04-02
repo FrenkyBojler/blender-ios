@@ -26,7 +26,7 @@ struct ViewerPath;
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
-constexpr int MAX_DUPLI_RECUR = 8;
+constexpr int max_dupli_recur = 8;
 
 struct DupliObject {
   /* Object whose geometry is instanced. */
@@ -47,7 +47,7 @@ struct DupliObject {
 
   /* Persistent identifier for a dupli object, for inter-frame matching of
    * objects with motion blur, or inter-update matching for syncing. */
-  int persistent_id[MAX_DUPLI_RECUR];
+  int persistent_id[max_dupli_recur];
 
   /* Random ID for shading */
   unsigned int random_id;

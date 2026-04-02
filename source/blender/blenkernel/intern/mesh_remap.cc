@@ -1351,9 +1351,9 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
         /* We expect our islands to contain face indices, with edge indices of 'inner cuts',
          * and a mapping loops -> islands indices.
          * This implies all loops of a same face are in the same island. */
-        BLI_assert((island_store.item_type == MISLAND_TYPE_LOOP) &&
-                   (island_store.island_type == MISLAND_TYPE_POLY) &&
-                   (island_store.innercut_type == MISLAND_TYPE_EDGE));
+        BLI_assert((island_store.item_type == MislandTypeLoop) &&
+                   (island_store.island_type == MislandTypePoly) &&
+                   (island_store.innercut_type == MislandTypeEdge));
       }
     }
     else {

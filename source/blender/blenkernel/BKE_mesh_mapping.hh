@@ -153,11 +153,11 @@ void BKE_mesh_origindex_map_create_corner_tri(MeshElemMap **r_map,
 
 /* Loop islands data helpers. */
 enum {
-  MISLAND_TYPE_NONE = 0,
-  MISLAND_TYPE_VERT = 1,
-  MISLAND_TYPE_EDGE = 2,
-  MISLAND_TYPE_POLY = 3,
-  MISLAND_TYPE_LOOP = 4,
+  MislandTypeNone = 0,
+  MislandTypeVert = 1,
+  MislandTypeEdge = 2,
+  MislandTypePoly = 3,
+  MislandTypeLoop = 4,
 };
 
 struct MeshIslandStore {

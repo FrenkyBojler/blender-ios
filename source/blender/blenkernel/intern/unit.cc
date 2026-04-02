@@ -111,15 +111,15 @@ struct bUnitDef {
 };
 
 enum {
-  B_UNIT_DEF_NONE = 0,
+  BUnitDefNone = 0,
   /** Use for units that are not used enough to be translated into for common use. */
-  B_UNIT_DEF_SUPPRESS = 1,
+  BUnitDefSuppress = 1,
   /** Display a unit even if its value is 0.1, eg 0.1mm instead of 100um. */
-  B_UNIT_DEF_TENTH = 2,
+  BUnitDefTenth = 2,
   /** Short unit name is case sensitive, for example to distinguish mW and MW. */
-  B_UNIT_DEF_CASE_SENSITIVE = 4,
+  BUnitDefCaseSensitive = 4,
   /** Short unit name does not have space between it and preceding number. */
-  B_UNIT_DEF_NO_SPACE = 8,
+  BUnitDefNoSpace = 8,
 };
 
 /* Define a single unit system. */
@@ -184,7 +184,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "KILOMETERS",
         /*scalar*/ UN_SC_KM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "hectometer",
@@ -195,7 +195,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "HECTOMETERS",
         /*scalar*/ UN_SC_HM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "dekameter",
@@ -206,7 +206,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "DEKAMETERS",
         /*scalar*/ UN_SC_DAM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     /* Base unit. */
     {
@@ -218,7 +218,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "METERS",
         /*scalar*/ UN_SC_M,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "decimeter",
@@ -229,7 +229,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "DECIMETERS",
         /*scalar*/ UN_SC_DM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "centimeter",
@@ -240,7 +240,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "CENTIMETERS",
         /*scalar*/ UN_SC_CM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "millimeter",
@@ -251,7 +251,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "MILLIMETERS",
         /*scalar*/ UN_SC_MM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE | B_UNIT_DEF_TENTH,
+        /*flag*/ BUnitDefNone | BUnitDefTenth,
     },
     {
         /*name*/ "micrometer",
@@ -262,7 +262,7 @@ static bUnitDef buMetricLenDef[] = {
         /*identifier*/ "MICROMETERS",
         /*scalar*/ UN_SC_UM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
 
 /* These get displayed because of float precision problems in the transform header,
@@ -310,7 +310,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "MILES",
         /*scalar*/ UN_SC_MI,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "furlong",
@@ -321,7 +321,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "FURLONGS",
         /*scalar*/ UN_SC_FUR,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "chain",
@@ -332,7 +332,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "CHAINS",
         /*scalar*/ UN_SC_CH,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "yard",
@@ -343,7 +343,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "YARDS",
         /*scalar*/ UN_SC_YD,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     /* Base unit. */
     {
@@ -355,7 +355,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "FEET",
         /*scalar*/ UN_SC_FT,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE | B_UNIT_DEF_NO_SPACE,
+        /*flag*/ BUnitDefNone | BUnitDefNoSpace,
     },
     {
         /*name*/ "inch",
@@ -366,7 +366,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "INCHES",
         /*scalar*/ UN_SC_IN,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE | B_UNIT_DEF_NO_SPACE,
+        /*flag*/ BUnitDefNone | BUnitDefNoSpace,
     },
     /* NOTE: Plural for "thou" has no 's'. */
     {
@@ -378,7 +378,7 @@ static bUnitDef buImperialLenDef[] = {
         /*identifier*/ "THOU",
         /*scalar*/ UN_SC_MIL,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -400,7 +400,7 @@ static bUnitDef buWavelengthLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e6f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "micrometer",
@@ -411,7 +411,7 @@ static bUnitDef buWavelengthLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e3f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -423,7 +423,7 @@ static bUnitDef buWavelengthLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "picometer",
@@ -434,7 +434,7 @@ static bUnitDef buWavelengthLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e-3f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -456,7 +456,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_KM *UN_SC_KM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "square hectometer",
@@ -467,7 +467,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_HM *UN_SC_HM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     }, /* Hectare. */
     {
         /*name*/ "square dekameter",
@@ -478,7 +478,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_DAM *UN_SC_DAM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     /* Base unit. */
     {
@@ -490,7 +490,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_M *UN_SC_M,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "square decimeter",
@@ -501,7 +501,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_DM *UN_SC_DM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "square centimeter",
@@ -512,7 +512,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_CM *UN_SC_CM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "square millimeter",
@@ -523,7 +523,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MM *UN_SC_MM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE | B_UNIT_DEF_TENTH,
+        /*flag*/ BUnitDefNone | BUnitDefTenth,
     },
     {
         /*name*/ "square micrometer",
@@ -534,7 +534,7 @@ static bUnitDef buMetricAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_UM *UN_SC_UM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -555,7 +555,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MI *UN_SC_MI,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "square furlong",
@@ -566,7 +566,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_FUR *UN_SC_FUR,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "square chain",
@@ -577,7 +577,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_CH *UN_SC_CH,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "square yard",
@@ -588,7 +588,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_YD *UN_SC_YD,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -600,7 +600,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_FT *UN_SC_FT,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "square inch",
@@ -611,7 +611,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_IN *UN_SC_IN,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "square thou",
@@ -622,7 +622,7 @@ static bUnitDef buImperialAreaDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MIL *UN_SC_MIL,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -644,7 +644,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_KM *UN_SC_KM *UN_SC_KM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "cubic hectometer",
@@ -655,7 +655,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_HM *UN_SC_HM *UN_SC_HM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "cubic dekameter",
@@ -666,7 +666,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_DAM *UN_SC_DAM *UN_SC_DAM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     /* Base unit. */
     {
@@ -678,7 +678,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_M *UN_SC_M *UN_SC_M,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "cubic decimeter",
@@ -689,7 +689,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_DM *UN_SC_DM *UN_SC_DM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "cubic centimeter",
@@ -700,7 +700,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_CM *UN_SC_CM *UN_SC_CM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "cubic millimeter",
@@ -711,7 +711,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MM *UN_SC_MM *UN_SC_MM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE | B_UNIT_DEF_TENTH,
+        /*flag*/ BUnitDefNone | BUnitDefTenth,
     },
     {
         /*name*/ "cubic micrometer",
@@ -722,7 +722,7 @@ static bUnitDef buMetricVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_UM *UN_SC_UM *UN_SC_UM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -743,7 +743,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MI *UN_SC_MI *UN_SC_MI,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "cubic furlong",
@@ -754,7 +754,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_FUR *UN_SC_FUR *UN_SC_FUR,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "cubic chain",
@@ -765,7 +765,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_CH *UN_SC_CH *UN_SC_CH,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "cubic yard",
@@ -776,7 +776,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_YD *UN_SC_YD *UN_SC_YD,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -788,7 +788,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_FT *UN_SC_FT *UN_SC_FT,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "cubic inch",
@@ -799,7 +799,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_IN *UN_SC_IN *UN_SC_IN,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "cubic thou",
@@ -810,7 +810,7 @@ static bUnitDef buImperialVolDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MIL *UN_SC_MIL *UN_SC_MIL,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -832,7 +832,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "TONNES",
         /*scalar*/ UN_SC_MTON,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "quintal",
@@ -843,7 +843,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "QUINTALS",
         /*scalar*/ UN_SC_QL,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     /* Base unit. */
     {
@@ -855,7 +855,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "KILOGRAMS",
         /*scalar*/ UN_SC_KG,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "hectogram",
@@ -866,7 +866,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "HECTOGRAMS",
         /*scalar*/ UN_SC_HG,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "dekagram",
@@ -877,7 +877,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "DEKAGRAMS",
         /*scalar*/ UN_SC_DAG,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "gram",
@@ -888,7 +888,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "GRAMS",
         /*scalar*/ UN_SC_G,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "milligram",
@@ -899,7 +899,7 @@ static bUnitDef buMetricMassDef[] = {
         /*identifier*/ "MILLIGRAMS",
         /*scalar*/ UN_SC_MG,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -920,7 +920,7 @@ static bUnitDef buImperialMassDef[] = {
         /*identifier*/ "TONNES",
         /*scalar*/ UN_SC_ITON,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "centum weight",
@@ -931,7 +931,7 @@ static bUnitDef buImperialMassDef[] = {
         /*identifier*/ "CENTUM_WEIGHTS",
         /*scalar*/ UN_SC_CWT,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "stone",
@@ -942,7 +942,7 @@ static bUnitDef buImperialMassDef[] = {
         /*identifier*/ "STONES",
         /*scalar*/ UN_SC_ST,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -954,7 +954,7 @@ static bUnitDef buImperialMassDef[] = {
         /*identifier*/ "POUNDS",
         /*scalar*/ UN_SC_LB,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "ounce",
@@ -965,7 +965,7 @@ static bUnitDef buImperialMassDef[] = {
         /*identifier*/ "OUNCES",
         /*scalar*/ UN_SC_OZ,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -991,7 +991,7 @@ static bUnitDef buMetricVelDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_M,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "kilometer per hour",
@@ -1002,7 +1002,7 @@ static bUnitDef buMetricVelDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_KM / 3600.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     NULL_UNIT,
 };
@@ -1024,7 +1024,7 @@ static bUnitDef buImperialVelDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_FT,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "mile per hour",
@@ -1035,7 +1035,7 @@ static bUnitDef buImperialVelDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MI / 3600.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     NULL_UNIT,
 };
@@ -1058,7 +1058,7 @@ static bUnitDef buMetricAclDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_M,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1080,7 +1080,7 @@ static bUnitDef buImperialAclDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_FT,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1103,7 +1103,7 @@ static bUnitDef buNaturalTimeDef[] = {
         /*identifier*/ "DAYS",
         /*scalar*/ 86400.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "hour",
@@ -1114,7 +1114,7 @@ static bUnitDef buNaturalTimeDef[] = {
         /*identifier*/ "HOURS",
         /*scalar*/ 3600.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "minute",
@@ -1125,7 +1125,7 @@ static bUnitDef buNaturalTimeDef[] = {
         /*identifier*/ "MINUTES",
         /*scalar*/ 60.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -1137,7 +1137,7 @@ static bUnitDef buNaturalTimeDef[] = {
         /*identifier*/ "SECONDS",
         /*scalar*/ 1.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "millisecond",
@@ -1148,7 +1148,7 @@ static bUnitDef buNaturalTimeDef[] = {
         /*identifier*/ "MILLISECONDS",
         /*scalar*/ 0.001,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "microsecond",
@@ -1159,7 +1159,7 @@ static bUnitDef buNaturalTimeDef[] = {
         /*identifier*/ "MICROSECONDS",
         /*scalar*/ 0.000001,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1180,7 +1180,7 @@ static bUnitDef buNaturalRotDef[] = {
         /*identifier*/ "DEGREES",
         /*scalar*/ M_PI / 180.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE | B_UNIT_DEF_NO_SPACE,
+        /*flag*/ BUnitDefNone | BUnitDefNoSpace,
     },
     /* `arcminutes` / `arcseconds` are used in Astronomy/Navigation areas. */
     {
@@ -1192,7 +1192,7 @@ static bUnitDef buNaturalRotDef[] = {
         /*identifier*/ "ARCMINUTES",
         /*scalar*/ (M_PI / 180.0) / 60.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS | B_UNIT_DEF_NO_SPACE,
+        /*flag*/ BUnitDefSuppress | BUnitDefNoSpace,
     },
     {
         /*name*/ "arcsecond",
@@ -1203,7 +1203,7 @@ static bUnitDef buNaturalRotDef[] = {
         /*identifier*/ "ARCSECONDS",
         /*scalar*/ (M_PI / 180.0) / 3600.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS | B_UNIT_DEF_NO_SPACE,
+        /*flag*/ BUnitDefSuppress | BUnitDefNoSpace,
     },
     {
         /*name*/ "radian",
@@ -1214,7 +1214,7 @@ static bUnitDef buNaturalRotDef[] = {
         /*identifier*/ "RADIANS",
         /*scalar*/ 1.0,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
 #if 0
     {
@@ -1250,7 +1250,7 @@ static bUnitDef buCameraLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_KM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "decimeter",
@@ -1261,7 +1261,7 @@ static bUnitDef buCameraLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_HM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "centimeter",
@@ -1272,7 +1272,7 @@ static bUnitDef buCameraLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_DAM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     {
         /*name*/ "millimeter",
@@ -1283,7 +1283,7 @@ static bUnitDef buCameraLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_M,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "micrometer",
@@ -1294,7 +1294,7 @@ static bUnitDef buCameraLenDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ UN_SC_MM,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     NULL_UNIT,
 };
@@ -1316,7 +1316,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e9f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "megawatt",
@@ -1327,7 +1327,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e6f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+        /*flag*/ BUnitDefCaseSensitive,
     },
     {
         /*name*/ "kilowatt",
@@ -1338,7 +1338,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e3f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_SUPPRESS,
+        /*flag*/ BUnitDefSuppress,
     },
     /* Base unit. */
     {
@@ -1350,7 +1350,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "milliwatt",
@@ -1361,7 +1361,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e-3f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+        /*flag*/ BUnitDefCaseSensitive,
     },
     {
         /*name*/ "microwatt",
@@ -1372,7 +1372,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e-6f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "nanowatt",
@@ -1383,7 +1383,7 @@ static bUnitDef buPowerDef[] = {
         /*identifier*/ nullptr,
         /*scalar*/ 1e-9f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1405,7 +1405,7 @@ static bUnitDef buMetricTempDef[] = {
         /*identifier*/ "KELVIN",
         /*scalar*/ 1.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -1417,7 +1417,7 @@ static bUnitDef buMetricTempDef[] = {
         /*identifier*/ "CELSIUS",
         /*scalar*/ 1.0f,
         /*bias*/ 273.15,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1438,7 +1438,7 @@ static bUnitDef buImperialTempDef[] = {
         /*identifier*/ "KELVIN",
         /*scalar*/ 1.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     /* Base unit. */
     {
@@ -1450,7 +1450,7 @@ static bUnitDef buImperialTempDef[] = {
         /*identifier*/ "FAHRENHEIT",
         /*scalar*/ UN_SC_FAH,
         /*bias*/ 459.67,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1473,7 +1473,7 @@ static bUnitDef buColorTempDef[] = {
         /*identifier*/ "KELVIN",
         /*scalar*/ 1.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1496,7 +1496,7 @@ static bUnitDef buFrequencyDef[] = {
         /*identifier*/ "HERTZ",
         /*scalar*/ 1.0f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     {
         /*name*/ "kilohertz",
@@ -1507,7 +1507,7 @@ static bUnitDef buFrequencyDef[] = {
         /*identifier*/ "KILOHERTZ",
         /*scalar*/ 1e3f,
         /*bias*/ 0.0,
-        /*flag*/ B_UNIT_DEF_NONE,
+        /*flag*/ BUnitDefNone,
     },
     NULL_UNIT,
 };
@@ -1518,8 +1518,8 @@ static bUnitCollection buFrequencyCollection = {
     /*length*/ UNIT_COLLECTION_LENGTH(buFrequencyDef),
 };
 
-#define UNIT_SYSTEM_TOT (((sizeof(bUnitSystems) / B_UNIT_TYPE_TOT) / sizeof(void *)) - 1)
-static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
+#define UNIT_SYSTEM_TOT (((sizeof(bUnitSystems) / BUnitTypeTot) / sizeof(void *)) - 1)
+static const bUnitCollection *bUnitSystems[][BUnitTypeTot] = {
     /* Natural. */
     {
         /*B_UNIT_NONE*/ nullptr,
@@ -1583,7 +1583,7 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
 static const bUnitCollection *unit_get_system(int system, int type)
 {
   BLI_assert((system > -1) && (system < UNIT_SYSTEM_TOT) && (type > -1) &&
-             (type < B_UNIT_TYPE_TOT));
+             (type < BUnitTypeTot));
   return bUnitSystems[system][type]; /* Select system to use: metric/imperial/other? */
 }
 
@@ -1601,12 +1601,12 @@ static const bUnitDef *unit_best_fit(double value,
 
   for (const bUnitDef *unit = unit_start ? unit_start : usys->units; unit->name; unit++) {
 
-    if (suppress && (unit->flag & B_UNIT_DEF_SUPPRESS)) {
+    if (suppress && (unit->flag & BUnitDefSuppress)) {
       continue;
     }
 
     /* Scale down scalar so 1cm doesn't convert to 10mm because of float error. */
-    if (UNLIKELY(unit->flag & B_UNIT_DEF_TENTH)) {
+    if (UNLIKELY(unit->flag & BUnitDefTenth)) {
       if (value_abs >= unit->scalar * (0.1 - EPS)) {
         return unit;
       }
@@ -1696,7 +1696,7 @@ static size_t unit_as_string(char *str,
   }
 
   /* Now add a space for all units except foot, inch, degree, arcminute, arcsecond. */
-  if (!(unit->flag & B_UNIT_DEF_NO_SPACE)) {
+  if (!(unit->flag & BUnitDefNoSpace)) {
     str[++i] = ' ';
   }
 
@@ -1720,7 +1720,7 @@ static size_t unit_as_string(char *str,
 
 static bool unit_should_be_split(int type)
 {
-  return ELEM(type, B_UNIT_LENGTH, B_UNIT_MASS, B_UNIT_TIME, B_UNIT_CAMERA, B_UNIT_WAVELENGTH);
+  return ELEM(type, BUnitLength, BUnitMass, BUnitTime, BUnitCamera, BUnitWavelength);
 }
 
 struct PreferredUnits {
@@ -1799,24 +1799,24 @@ static const bUnitDef *get_preferred_display_unit_if_used(int type, const Prefer
   int max_offset = usys->length - 1;
 
   switch (type) {
-    case B_UNIT_LENGTH:
-    case B_UNIT_AREA:
-    case B_UNIT_VOLUME:
+    case BUnitLength:
+    case BUnitArea:
+    case BUnitVolume:
       if (units.length == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
       return usys->units + std::min(units.length, max_offset);
-    case B_UNIT_MASS:
+    case BUnitMass:
       if (units.mass == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
       return usys->units + std::min(units.mass, max_offset);
-    case B_UNIT_TIME:
+    case BUnitTime:
       if (units.time == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
       return usys->units + std::min(units.time, max_offset);
-    case B_UNIT_ROTATION:
+    case BUnitRotation:
       if (units.rotation == 0) {
         return usys->units + 0;
       }
@@ -1824,7 +1824,7 @@ static const bUnitDef *get_preferred_display_unit_if_used(int type, const Prefer
         return usys->units + 3;
       }
       break;
-    case B_UNIT_TEMPERATURE:
+    case BUnitTemperature:
       if (units.temperature == USER_UNIT_ADAPTIVE) {
         return nullptr;
       }
@@ -1920,19 +1920,19 @@ double BKE_unit_value_scale(const UnitSettings &settings, const int unit_type, d
   }
 
   switch (unit_type) {
-    case B_UNIT_LENGTH:
-    case B_UNIT_VELOCITY:
-    case B_UNIT_ACCELERATION:
+    case BUnitLength:
+    case BUnitVelocity:
+    case BUnitAcceleration:
       return value * double(settings.scale_length);
-    case B_UNIT_AREA:
-    case B_UNIT_POWER:
+    case BUnitArea:
+    case BUnitPower:
       return value * pow(settings.scale_length, 2);
-    case B_UNIT_VOLUME:
+    case BUnitVolume:
       return value * pow(settings.scale_length, 3);
-    case B_UNIT_MASS:
+    case BUnitMass:
       return value * pow(settings.scale_length, 3);
-    case B_UNIT_CAMERA: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
-    case B_UNIT_WAVELENGTH: /* Wavelength values are independent of the scene scale. */
+    case BUnitCamera: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
+    case BUnitWavelength: /* Wavelength values are independent of the scene scale. */
     default:
       return value;
   }
@@ -2270,7 +2270,7 @@ static int unit_scale_str(char *str,
 static int unit_replace(
     char *str, int str_maxncpy, char *str_tmp, double scale_pref, const bUnitDef *unit)
 {
-  const bool case_sensitive = (unit->flag & B_UNIT_DEF_CASE_SENSITIVE) != 0;
+  const bool case_sensitive = (unit->flag & BUnitDefCaseSensitive) != 0;
   int ofs = 0;
   ofs += unit_scale_str(
       str + ofs, str_maxncpy - ofs, str_tmp, scale_pref, unit, unit->name_short, case_sensitive);
@@ -2285,7 +2285,7 @@ static int unit_replace(
 
 static bool unit_find(const char *str, const bUnitDef *unit)
 {
-  const bool case_sensitive = (unit->flag & B_UNIT_DEF_CASE_SENSITIVE) != 0;
+  const bool case_sensitive = (unit->flag & BUnitDefCaseSensitive) != 0;
   if (unit_find_str(str, unit->name_short, case_sensitive)) {
     return true;
   }
@@ -2462,7 +2462,7 @@ void BKE_unit_name_to_alt(char *str, int str_maxncpy, const char *orig_str, int 
     if (unit->name_alt == nullptr) {
       continue;
     }
-    const bool case_sensitive = (unit->flag & B_UNIT_DEF_CASE_SENSITIVE) != 0;
+    const bool case_sensitive = (unit->flag & BUnitDefCaseSensitive) != 0;
     const char *found = unit_find_str(orig_str, unit->name_short, case_sensitive);
     if (found == nullptr) {
       continue;
@@ -2522,7 +2522,7 @@ double BKE_unit_base_scalar(int system, int type)
 
 bool BKE_unit_is_valid(int system, int type)
 {
-  return !(system < 0 || system > UNIT_SYSTEM_TOT || type < 0 || type > B_UNIT_TYPE_TOT);
+  return !(system < 0 || system > UNIT_SYSTEM_TOT || type < 0 || type > BUnitTypeTot);
 }
 
 void BKE_unit_system_get(int system, int type, void const **r_usys_pt, int *r_len)
@@ -2582,7 +2582,7 @@ bool BKE_unit_is_suppressed(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
   BLI_assert(uint(index) < uint(usys->length));
-  return (usys->units[index].flag & B_UNIT_DEF_SUPPRESS) != 0;
+  return (usys->units[index].flag & BUnitDefSuppress) != 0;
 }
 
 }  // namespace blender

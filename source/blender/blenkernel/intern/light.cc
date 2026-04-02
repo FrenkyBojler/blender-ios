@@ -68,12 +68,12 @@ static void light_copy_data(Main *bmain,
   Light *la_dst = id_cast<Light *>(id_dst);
   const Light *la_src = id_cast<const Light *>(id_src);
 
-  const bool is_localized = (flag & LIB_ID_CREATE_LOCAL) != 0;
+  const bool is_localized = (flag & LibIdCreateLocal) != 0;
   /* We always need allocation of our private ID data.
    * User reference-counting is also handled by calling code,
    * so the duplication calls for embedded data should _never_ handle it from here. */
-  const int flag_embedded_id_data = (flag & ~LIB_ID_CREATE_NO_ALLOCATE) |
-                                    LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_embedded_id_data = (flag & ~LibIdCreateNoAllocate) |
+                                    LibIdCreateNoUserRefcount;
 
   if (la_src->nodetree) {
     if (is_localized) {
@@ -89,7 +89,7 @@ static void light_copy_data(Main *bmain,
     }
   }
 
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     BKE_previewimg_id_copy(&la_dst->id, &la_src->id);
   }
   else {
@@ -176,7 +176,7 @@ IDTypeInfo IDType_ID_LA = {
     .name = "Light",
     .name_plural = N_("lights"),
     .translation_context = BLT_I18NCONTEXT_ID_LIGHT,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = light_init_data,

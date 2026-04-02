@@ -67,7 +67,7 @@ struct IDNameLib_Map {
 
 static IDNameLib_TypeMap *main_idmap_from_idcode(IDNameLib_Map *id_map, short id_type)
 {
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_NAME) {
+  if (id_map->idmap_types & MainIdmapTypeName) {
     for (int i = 0; i < INDEX_ID_MAX; i++) {
       if (id_map->type_maps[i].id_type == id_type) {
         return &id_map->type_maps[i];
@@ -96,7 +96,7 @@ IDNameLib_Map *BKE_main_idmap_create(Main *bmain,
   BLI_assert(index == INDEX_ID_MAX);
   id_map->type_maps_keys_pool = nullptr;
 
-  if (idmap_types & MAIN_IDMAP_TYPE_UID) {
+  if (idmap_types & MainIdmapTypeUid) {
     ID *id;
     id_map->uid_map = MEM_new<Map<uint32_t, ID *>>(__func__);
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
@@ -124,7 +124,7 @@ IDNameLib_Map *BKE_main_idmap_create(Main *bmain,
 
 void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id)
 {
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_NAME) {
+  if (id_map->idmap_types & MainIdmapTypeName) {
     const short id_type = GS(id->name);
     IDNameLib_TypeMap *type_map = main_idmap_from_idcode(id_map, id_type);
 
@@ -140,7 +140,7 @@ void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id)
     }
   }
 
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+  if (id_map->idmap_types & MainIdmapTypeUid) {
     BLI_assert(id_map->uid_map != nullptr);
     BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
     id_map->uid_map->add_new(id->session_uid, id);
@@ -149,7 +149,7 @@ void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id)
 
 void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, const ID *id)
 {
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_NAME) {
+  if (id_map->idmap_types & MainIdmapTypeName) {
     const short id_type = GS(id->name);
     IDNameLib_TypeMap *type_map = main_idmap_from_idcode(id_map, id_type);
 
@@ -164,7 +164,7 @@ void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, const ID *id)
     }
   }
 
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+  if (id_map->idmap_types & MainIdmapTypeUid) {
     BLI_assert(id_map->uid_map != nullptr);
     BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
     id_map->uid_map->remove(id->session_uid);
@@ -242,7 +242,7 @@ ID *BKE_main_idmap_lookup_id(IDNameLib_Map *id_map, const ID *id)
 
 ID *BKE_main_idmap_lookup_uid(IDNameLib_Map *id_map, const uint session_uid)
 {
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+  if (id_map->idmap_types & MainIdmapTypeUid) {
     return id_map->uid_map->lookup_default(session_uid, nullptr);
   }
   return nullptr;
@@ -250,14 +250,14 @@ ID *BKE_main_idmap_lookup_uid(IDNameLib_Map *id_map, const uint session_uid)
 
 void BKE_main_idmap_clear(IDNameLib_Map &id_map)
 {
-  if (id_map.idmap_types & MAIN_IDMAP_TYPE_NAME) {
+  if (id_map.idmap_types & MainIdmapTypeName) {
     for (IDNameLib_TypeMap &type_map : id_map.type_maps) {
       if (type_map.map) {
         BLI_ghash_clear(type_map.map, nullptr, nullptr);
       }
     }
   }
-  if (id_map.idmap_types & MAIN_IDMAP_TYPE_UID) {
+  if (id_map.idmap_types & MainIdmapTypeUid) {
     id_map.uid_map->clear();
   }
 
@@ -268,7 +268,7 @@ void BKE_main_idmap_clear(IDNameLib_Map &id_map)
 
 void BKE_main_idmap_destroy(IDNameLib_Map *id_map)
 {
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_NAME) {
+  if (id_map->idmap_types & MainIdmapTypeName) {
     for (IDNameLib_TypeMap &type_map : id_map->type_maps) {
       if (type_map.map) {
         BLI_ghash_free(type_map.map, nullptr, nullptr);
@@ -280,7 +280,7 @@ void BKE_main_idmap_destroy(IDNameLib_Map *id_map)
       id_map->type_maps_keys_pool = nullptr;
     }
   }
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+  if (id_map->idmap_types & MainIdmapTypeUid) {
     MEM_delete(id_map->uid_map);
   }
 

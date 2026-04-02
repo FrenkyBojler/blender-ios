@@ -33,15 +33,15 @@ struct wmTimer;
 
 /** Keep in sync with 'rna_enum_wm_report_items' in `wm_rna.c`. */
 enum eReportType : uint16_t {
-  RPT_DEBUG = (1 << 0),
-  RPT_INFO = (1 << 1),
-  RPT_OPERATOR = (1 << 2),
-  RPT_PROPERTY = (1 << 3),
-  RPT_WARNING = (1 << 4),
-  RPT_ERROR = (1 << 5),
-  RPT_ERROR_INVALID_INPUT = (1 << 6),
-  RPT_ERROR_INVALID_CONTEXT = (1 << 7),
-  RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
+  RptDebug = (1 << 0),
+  RptInfo = (1 << 1),
+  RptOperator = (1 << 2),
+  RptProperty = (1 << 3),
+  RptWarning = (1 << 4),
+  RptError = (1 << 5),
+  RptErrorInvalidInput = (1 << 6),
+  RptErrorInvalidContext = (1 << 7),
+  RptErrorOutOfMemory = (1 << 8),
 };
 ENUM_OPERATORS(eReportType)
 
@@ -54,12 +54,12 @@ ENUM_OPERATORS(eReportType)
   (RPT_ERROR | RPT_ERROR_INVALID_INPUT | RPT_ERROR_INVALID_CONTEXT | RPT_ERROR_OUT_OF_MEMORY)
 
 enum ReportListFlags {
-  RPT_PRINT = (1 << 0),
-  RPT_STORE = (1 << 1),
-  RPT_FREE = (1 << 2),
-  RPT_OP_HOLD = (1 << 3), /* don't move them into the operator global list (caller will use) */
+  RptPrint = (1 << 0),
+  RptStore = (1 << 1),
+  RptFree = (1 << 2),
+  RptOpHold = (1 << 3), /* don't move them into the operator global list (caller will use) */
   /** Don't print (the owner of the #ReportList will handle printing to the `stdout`). */
-  RPT_PRINT_HANDLED_BY_OWNER = (1 << 4),
+  RptPrintHandledByOwner = (1 << 4),
 };
 
 struct Report {

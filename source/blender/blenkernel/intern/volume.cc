@@ -197,7 +197,7 @@ static void volume_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Volume *volume = id_cast<Volume *>(id);
   for (int i = 0; i < volume->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, volume->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, volume->mat[i], IdwalkCbUser);
   }
 }
 
@@ -219,7 +219,7 @@ static void volume_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   Volume *volume = reinterpret_cast<Volume *>(id);
 
   if (volume->packedfile != nullptr &&
-      (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0)
+      (bpath_data->flag & BkeBpathForeachPathSkipPacked) != 0)
   {
     return;
   }
@@ -278,7 +278,7 @@ IDTypeInfo IDType_ID_VO = {
     .name = "Volume",
     .name_plural = N_("volumes"),
     .translation_context = BLT_I18NCONTEXT_ID_VOLUME,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = volume_init_data,
@@ -552,7 +552,7 @@ bool BKE_volume_save(const Volume *volume,
 {
 #ifdef WITH_OPENVDB
   if (!BKE_volume_load(volume, bmain)) {
-    BKE_reportf(reports, RPT_ERROR, "Could not load volume for writing");
+    BKE_reportf(reports, RptError, "Could not load volume for writing");
     return false;
   }
 
@@ -573,11 +573,11 @@ bool BKE_volume_save(const Volume *volume,
     file.close();
   }
   catch (const openvdb::IoError &e) {
-    BKE_reportf(reports, RPT_ERROR, "Could not write volume: %s", e.what());
+    BKE_reportf(reports, RptError, "Could not write volume: %s", e.what());
     return false;
   }
   catch (...) {
-    BKE_reportf(reports, RPT_ERROR, "Could not write volume: Unknown error writing VDB file");
+    BKE_reportf(reports, RptError, "Could not write volume: Unknown error writing VDB file");
     return false;
   }
 
@@ -651,7 +651,7 @@ bool BKE_volume_is_points_only(const Volume *volume)
 
   for (int i = 0; i < num_grids; i++) {
     const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
-    if (bke::volume_grid::get_type(*grid) != VOLUME_GRID_POINTS) {
+    if (bke::volume_grid::get_type(*grid) != VolumeGridPoints) {
       return false;
     }
   }
@@ -691,7 +691,7 @@ static void volume_evaluate_modifiers(Depsgraph *depsgraph,
   /* Modifier evaluation modes. */
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
-  ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
+  ModifierApplyFlag apply_flag = use_render ? ModApplyRender : ModApplyUsecache;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
 
   BKE_modifiers_clear_errors(object);
@@ -949,7 +949,7 @@ Volume *BKE_volume_new_for_eval(const Volume *volume_src)
 Volume *BKE_volume_copy_for_eval(const Volume *volume_src)
 {
   return reinterpret_cast<Volume *>(
-      BKE_id_copy_ex(nullptr, &volume_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &volume_src->id, nullptr, LibIdCopyLocalize));
 }
 
 #ifdef WITH_OPENVDB
@@ -973,7 +973,7 @@ bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
 {
   VolumeGridVector &grids = *volume.runtime->grids;
   BLI_assert(BKE_volume_grid_find(&volume, name) == nullptr);
-  BLI_assert(bke::volume_grid::get_type(*vdb_grid) != VOLUME_GRID_UNKNOWN);
+  BLI_assert(bke::volume_grid::get_type(*vdb_grid) != VolumeGridUnknown);
 
   vdb_grid->setName(name);
   grids.emplace_back(GVolumeGrid(std::move(vdb_grid)));

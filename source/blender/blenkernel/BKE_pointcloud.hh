@@ -77,7 +77,7 @@ void BKE_pointcloud_data_update(Depsgraph *depsgraph, Scene *scene, Object *obje
 /* Draw Cache */
 
 enum {
-  BKE_POINTCLOUD_BATCH_DIRTY_ALL = 0,
+  BkePointcloudBatchDirtyAll = 0,
 };
 
 void BKE_pointcloud_batch_cache_dirty_tag(PointCloud *pointcloud, int mode);

@@ -183,17 +183,17 @@ void deform_coarse_vertices(Subdiv *subdiv,
                             const Mesh *coarse_mesh,
                             MutableSpan<float3> vert_positions)
 {
-  stats_begin(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
+  stats_begin(&subdiv->stats, SubdivStatsSubdivToMesh);
   /* Make sure evaluator is up to date with possible new topology, and that
    * is refined for the new positions of coarse vertices. */
-  if (!eval_begin_from_mesh(subdiv, coarse_mesh, SUBDIV_EVALUATOR_TYPE_CPU, vert_positions)) {
+  if (!eval_begin_from_mesh(subdiv, coarse_mesh, SubdivEvaluatorTypeCpu, vert_positions)) {
     /* This could happen in two situations:
      * - OpenSubdiv is disabled.
      * - Something totally bad happened, and OpenSubdiv rejected our
      *   topology.
      * In either way, we can't safely continue. */
     if (coarse_mesh->faces_num) {
-      stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
+      stats_end(&subdiv->stats, SubdivStatsSubdivToMesh);
       return;
     }
   }
@@ -215,11 +215,11 @@ void deform_coarse_vertices(Subdiv *subdiv,
   mesh_settings.use_optimal_display = false;
 
   /* Multi-threaded traversal/evaluation. */
-  stats_begin(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
+  stats_begin(&subdiv->stats, SubdivStatsSubdivToMeshGeometry);
   foreach_subdiv_geometry(subdiv, &foreach_context, &mesh_settings, coarse_mesh);
-  stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
+  stats_end(&subdiv->stats, SubdivStatsSubdivToMeshGeometry);
 
-  stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
+  stats_end(&subdiv->stats, SubdivStatsSubdivToMesh);
 
   /* Free used memory. */
   subdiv_mesh_context_free(&subdiv_context);

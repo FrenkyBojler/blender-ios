@@ -188,7 +188,7 @@ static void clean_paths(Main *bmain)
   BPathForeachPathData foreach_path_data{};
   foreach_path_data.bmain = bmain;
   foreach_path_data.callback_function = foreach_path_clean_cb;
-  foreach_path_data.flag = BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE;
+  foreach_path_data.flag = BkeBpathForeachPathSkipMultifile;
   foreach_path_data.user_data = nullptr;
 
   BKE_bpath_foreach_path_main(&foreach_path_data);
@@ -311,15 +311,15 @@ static id::IDRemapper &reuse_bmain_data_remapper_ensure(ReuseOldBMainData *reuse
 
 static bool reuse_bmain_data_remapper_is_id_remapped(id::IDRemapper &remapper, ID *id)
 {
-  IDRemapperApplyResult result = remapper.get_mapping_result(id, ID_REMAP_APPLY_DEFAULT, nullptr);
-  if (ELEM(result, ID_REMAP_RESULT_SOURCE_REMAPPED, ID_REMAP_RESULT_SOURCE_UNASSIGNED)) {
+  IDRemapperApplyResult result = remapper.get_mapping_result(id, IdRemapApplyDefault, nullptr);
+  if (ELEM(result, IdRemapResultSourceRemapped, IdRemapResultSourceUnassigned)) {
     /* ID is already remapped to its matching ID in the new main, or explicitly remapped to null,
      * nothing else to do here. */
     return true;
   }
-  BLI_assert_msg(result != ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE,
+  BLI_assert_msg(result != IdRemapResultSourceNotMappable,
                  "There should never be a non-mappable (i.e. null) input here.");
-  BLI_assert(result == ID_REMAP_RESULT_SOURCE_UNAVAILABLE);
+  BLI_assert(result == IdRemapResultSourceUnavailable);
   return false;
 }
 
@@ -401,10 +401,10 @@ static Library *reuse_bmain_data_dependencies_new_library_get(ReuseOldBMainData 
   const id::IDRemapper &remapper = reuse_bmain_data_remapper_ensure(reuse_data);
   Library *new_lib = old_lib;
   IDRemapperApplyResult result = remapper.apply(reinterpret_cast<ID **>(&new_lib),
-                                                ID_REMAP_APPLY_DEFAULT);
+                                                IdRemapApplyDefault);
 
   switch (result) {
-    case ID_REMAP_RESULT_SOURCE_UNAVAILABLE: {
+    case IdRemapResultSourceUnavailable: {
       /* Move library to new bmain.
        * There should be no filepath conflicts, as #reuse_bmain_data_remapper_ensure has
        * already remapped existing libraries with matching filepath. */
@@ -415,17 +415,17 @@ static Library *reuse_bmain_data_dependencies_new_library_get(ReuseOldBMainData 
       BKE_main_namemap_destroy(&old_lib->runtime->name_map);
       return old_lib;
     }
-    case ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE: {
+    case IdRemapResultSourceNotMappable: {
       BLI_assert_unreachable();
       return nullptr;
     }
-    case ID_REMAP_RESULT_SOURCE_REMAPPED: {
+    case IdRemapResultSourceRemapped: {
       /* Already in new bmain, only transfer flags. */
       new_lib->runtime->tag |= old_lib->runtime->tag &
-                               (LIBRARY_ASSET_EDITABLE | LIBRARY_ASSET_FILE_WRITABLE);
+                               (LibraryAssetEditable | LibraryAssetFileWritable);
       return new_lib;
     }
-    case ID_REMAP_RESULT_SOURCE_UNASSIGNED: {
+    case IdRemapResultSourceUnassigned: {
       /* Happens when the library is the newly opened blend file. */
       return nullptr;
     }
@@ -441,12 +441,12 @@ static int reuse_editable_asset_bmain_data_dependencies_process_cb(
   ID *id = *cb_data->id_pointer;
 
   if (id == nullptr) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
   if (GS(id->name) == ID_LI) {
     /* Libraries are handled separately. */
-    return IDWALK_RET_STOP_RECURSION;
+    return IdwalkRetStopRecursion;
   }
 
   ReuseOldBMainData *reuse_data = static_cast<ReuseOldBMainData *>(cb_data->user_data);
@@ -454,20 +454,20 @@ static int reuse_editable_asset_bmain_data_dependencies_process_cb(
   /* First check if it has already been remapped. */
   id::IDRemapper &remapper = reuse_bmain_data_remapper_ensure(reuse_data);
   if (reuse_bmain_data_remapper_is_id_remapped(remapper, id)) {
-    return IDWALK_RET_STOP_RECURSION;
+    return IdwalkRetStopRecursion;
   }
 
   if (id->lib == nullptr) {
     /* There should be no links to local datablocks from linked editable data. */
     remapper.add(id, nullptr);
     BLI_assert_unreachable();
-    return IDWALK_RET_STOP_RECURSION;
+    return IdwalkRetStopRecursion;
   }
 
   /* Only preserve specific datablock types. */
   if (!ID_TYPE_SUPPORTS_ASSET_EDITABLE(GS(id->name))) {
     remapper.add(id, nullptr);
-    return IDWALK_RET_STOP_RECURSION;
+    return IdwalkRetStopRecursion;
   }
 
   /* There may be a new library pointer in new_bmain, matching a library in old_bmain, even
@@ -478,19 +478,19 @@ static int reuse_editable_asset_bmain_data_dependencies_process_cb(
   /* Happens when the library is the newly opened blend file. */
   if (old_id_new_lib == nullptr) {
     remapper.add(id, nullptr);
-    return IDWALK_RET_STOP_RECURSION;
+    return IdwalkRetStopRecursion;
   }
 
   /* Move to new main database. */
-  return reuse_bmain_move_id(reuse_data, id, old_id_new_lib, true) ? IDWALK_RET_STOP_RECURSION :
-                                                                     IDWALK_RET_NOP;
+  return reuse_bmain_move_id(reuse_data, id, old_id_new_lib, true) ? IdwalkRetStopRecursion :
+                                                                     IdwalkRetNop;
 }
 
 static bool reuse_editable_asset_needed(ReuseOldBMainData *reuse_data)
 {
   Main *old_bmain = reuse_data->old_bmain;
   for (Library &lib : old_bmain->libraries) {
-    if (lib.runtime->tag & LIBRARY_ASSET_EDITABLE) {
+    if (lib.runtime->tag & LibraryAssetEditable) {
       return true;
     }
   }
@@ -523,7 +523,7 @@ static void reuse_editable_asset_bmain_data_for_blendfile(ReuseOldBMainData *reu
 
   FOREACH_MAIN_LISTBASE_ID_BEGIN (old_lb, old_id_iter) {
     /* Keep any datablocks from libraries marked as LIBRARY_ASSET_EDITABLE. */
-    if (!(ID_IS_LINKED(old_id_iter) && old_id_iter->lib->runtime->tag & LIBRARY_ASSET_EDITABLE)) {
+    if (!(ID_IS_LINKED(old_id_iter) && old_id_iter->lib->runtime->tag & LibraryAssetEditable)) {
       continue;
     }
 
@@ -546,7 +546,7 @@ static void reuse_editable_asset_bmain_data_for_blendfile(ReuseOldBMainData *reu
                                   old_id_iter,
                                   reuse_editable_asset_bmain_data_dependencies_process_cb,
                                   reuse_data,
-                                  IDWALK_RECURSE | IDWALK_DO_LIBRARY_POINTER);
+                                  IdwalkRecurse | IdwalkDoLibraryPointer);
     }
   }
   FOREACH_MAIN_LISTBASE_ID_END;
@@ -691,8 +691,8 @@ static void swap_wm_data_for_blendfile(ReuseOldBMainData *reuse_data, const bool
                          &old_wm->id,
                          &new_wm->id,
                          true,
-                         (ID_REMAP_SKIP_NEVER_NULL_USAGE | ID_REMAP_SKIP_UPDATE_TAGGING |
-                          ID_REMAP_SKIP_USER_REFCOUNT | ID_REMAP_FORCE_UI_POINTERS));
+                         (IdRemapSkipNeverNullUsage | IdRemapSkipUpdateTagging |
+                          IdRemapSkipUserRefcount | IdRemapForceUiPointers));
     /* Not strictly necessary, but helps for readability. */
     std::swap<wmWindowManager *>(old_wm, new_wm);
     BLI_addhead(new_wm_list, new_wm);
@@ -719,7 +719,7 @@ static int swap_old_bmain_data_for_blendfile_dependencies_process_cb(
   ID *id = *cb_data->id_pointer;
 
   if (id == nullptr) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
   ReuseOldBMainData *reuse_data = static_cast<ReuseOldBMainData *>(cb_data->user_data);
@@ -727,7 +727,7 @@ static int swap_old_bmain_data_for_blendfile_dependencies_process_cb(
   /* First check if it has already been remapped. */
   id::IDRemapper &remapper = reuse_bmain_data_remapper_ensure(reuse_data);
   if (reuse_bmain_data_remapper_is_id_remapped(remapper, id)) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
   IDNameLib_Map *id_map = reuse_data->id_map;
@@ -736,7 +736,7 @@ static int swap_old_bmain_data_for_blendfile_dependencies_process_cb(
   ID *id_new = BKE_main_idmap_lookup_id(id_map, id);
   remapper.add(id, id_new);
 
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 static void swap_old_bmain_data_dependencies_process(ReuseOldBMainData *reuse_data,
@@ -758,7 +758,7 @@ static void swap_old_bmain_data_dependencies_process(ReuseOldBMainData *reuse_da
                                 new_id_iter,
                                 swap_old_bmain_data_for_blendfile_dependencies_process_cb,
                                 reuse_data,
-                                IDWALK_READONLY | IDWALK_INCLUDE_UI | IDWALK_DO_LIBRARY_POINTER);
+                                IdwalkReadonly | IdwalkIncludeUi | IdwalkDoLibraryPointer);
   }
   FOREACH_MAIN_LISTBASE_ID_END;
 }
@@ -768,14 +768,14 @@ static int reuse_bmain_data_invalid_local_usages_fix_cb(LibraryIDLinkCallbackDat
   ID *id = *cb_data->id_pointer;
 
   if (id == nullptr) {
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   }
 
   /* Embedded data cannot (yet) be fully trusted to have the same lib pointer as their owner ID, so
    * for now ignore them. This code should never have anything to fix for them anyway, otherwise
    * there is something extremely wrong going on. */
-  if ((cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) != 0) {
-    return IDWALK_RET_NOP;
+  if ((cb_data->cb_flag & (IdwalkCbEmbedded | IdwalkCbEmbeddedNotOwning)) != 0) {
+    return IdwalkRetNop;
   }
 
   if (!ID_IS_LINKED(id)) {
@@ -783,7 +783,7 @@ static int reuse_bmain_data_invalid_local_usages_fix_cb(LibraryIDLinkCallbackDat
 
     /* Do not allow linked data to use local data. */
     if (ID_IS_LINKED(owner_id)) {
-      if (cb_data->cb_flag & IDWALK_CB_USER) {
+      if (cb_data->cb_flag & IdwalkCbUser) {
         id_us_min(id);
       }
       *cb_data->id_pointer = nullptr;
@@ -792,14 +792,14 @@ static int reuse_bmain_data_invalid_local_usages_fix_cb(LibraryIDLinkCallbackDat
     else if (ID_IS_OVERRIDE_LIBRARY_REAL(owner_id) &&
              &owner_id->override_library->reference == cb_data->id_pointer)
     {
-      if (cb_data->cb_flag & IDWALK_CB_USER) {
+      if (cb_data->cb_flag & IdwalkCbUser) {
         id_us_min(id);
       }
       *cb_data->id_pointer = nullptr;
     }
   }
 
-  return IDWALK_RET_NOP;
+  return IdwalkRetNop;
 }
 
 /**
@@ -819,7 +819,7 @@ static void reuse_bmain_data_invalid_local_usages_fix(ReuseOldBMainData *reuse_d
                                     nullptr;
 
     BKE_library_foreach_ID_link(
-        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, IDWALK_NOP);
+        new_bmain, id_iter, reuse_bmain_data_invalid_local_usages_fix_cb, reuse_data, IdwalkNop);
 
     /* Liboverrides who lost their reference should not be liboverrides anymore, but regular IDs.
      */
@@ -930,49 +930,49 @@ static void setup_app_data(bContext *C,
   Main *bmain = G_MAIN;
   const bool recover = (G.fileflags & G_FILE_RECOVER_READ) != 0;
   enum {
-    LOAD_UI = 1,
-    LOAD_UI_OFF,
-    LOAD_UNDO,
+    LoadUi = 1,
+    LoadUiOff,
+    LoadUndo,
   } mode;
 
-  if (params->undo_direction != STEP_INVALID) {
+  if (params->undo_direction != StepInvalid) {
     BLI_assert(bfd->curscene != nullptr);
-    mode = LOAD_UNDO;
+    mode = LoadUndo;
   }
-  else if (bfd->fileflags & G_FILE_ASSET_EDIT_FILE) {
+  else if (bfd->fileflags & GFileAssetEditFile) {
     BKE_report(reports->reports,
-               RPT_WARNING,
+               RptWarning,
                "This file is managed by the asset system, you cannot overwrite it (using \"Save "
                "As\" is possible)");
     /* From now on the file in memory is a normal file, further saving it will contain a
      * window-manager, scene, ... and potentially user created data. Use #Main.is_asset_edit_file
      * to detect if saving this file needs extra protections. */
-    bfd->fileflags &= ~G_FILE_ASSET_EDIT_FILE;
+    bfd->fileflags &= ~GFileAssetEditFile;
     BLI_assert(bfd->main->is_asset_edit_file);
-    mode = LOAD_UI_OFF;
+    mode = LoadUiOff;
   }
   /* May happen with library files, loading undo-data should never have a null `curscene`
    * (but may have a null `curscreen`). */
   else if (ELEM(nullptr, bfd->curscreen, bfd->curscene)) {
-    BKE_report(reports->reports, RPT_WARNING, "Library file, loading empty scene");
-    mode = LOAD_UI_OFF;
+    BKE_report(reports->reports, RptWarning, "Library file, loading empty scene");
+    mode = LoadUiOff;
   }
   else if (G.fileflags & G_FILE_NO_UI) {
-    mode = LOAD_UI_OFF;
+    mode = LoadUiOff;
   }
   else {
-    mode = LOAD_UI;
+    mode = LoadUi;
   }
 
   /* Free all render results and interactive compositor renders, without this stale data gets
    * displayed after loading files */
-  if (mode != LOAD_UNDO) {
+  if (mode != LoadUndo) {
     RE_FreeAllRenderResults();
     RE_FreeInteractiveCompositorRenders();
   }
 
   /* Only make file-paths compatible when loading for real (not undo). */
-  if (mode != LOAD_UNDO) {
+  if (mode != LoadUndo) {
     clean_paths(bfd->main);
   }
 
@@ -985,15 +985,15 @@ static void setup_app_data(bContext *C,
   reuse_data.old_bmain = bmain;
   reuse_data.wm_setup_data = wm_setup_data;
 
-  const bool reuse_editable_assets = mode != LOAD_UNDO && !params->is_factory_settings &&
+  const bool reuse_editable_assets = mode != LoadUndo && !params->is_factory_settings &&
                                      reuse_editable_asset_needed(&reuse_data);
 
-  if (mode != LOAD_UNDO) {
+  if (mode != LoadUndo) {
     const short ui_id_codes[]{ID_WS, ID_SCR};
 
     /* WM needs special complex handling, regardless of whether UI is kept or loaded from file. */
-    swap_wm_data_for_blendfile(&reuse_data, mode == LOAD_UI);
-    if (mode != LOAD_UI) {
+    swap_wm_data_for_blendfile(&reuse_data, mode == LoadUi);
+    if (mode != LoadUi) {
       /* Re-use UI data from `old_bmain` if keeping existing UI. */
       for (auto id_code : ui_id_codes) {
         swap_old_bmain_data_for_blendfile(&reuse_data, id_code);
@@ -1003,10 +1003,10 @@ static void setup_app_data(bContext *C,
     /* Needs to happen after all data from `old_bmain` has been moved into new one. */
     BLI_assert(reuse_data.id_map == nullptr);
     reuse_data.id_map = BKE_main_idmap_create(
-        reuse_data.new_bmain, true, reuse_data.old_bmain, MAIN_IDMAP_TYPE_NAME);
+        reuse_data.new_bmain, true, reuse_data.old_bmain, MainIdmapTypeName);
 
     swap_old_bmain_data_dependencies_process(&reuse_data, ID_WM);
-    if (mode != LOAD_UI) {
+    if (mode != LoadUi) {
       for (auto id_code : ui_id_codes) {
         swap_old_bmain_data_dependencies_process(&reuse_data, id_code);
       }
@@ -1027,7 +1027,7 @@ static void setup_app_data(bContext *C,
       }
     }
 
-    if (mode != LOAD_UI) {
+    if (mode != LoadUi) {
       for (bScreen &screen : bfd->main->screens) {
         BKE_screen_runtime_refresh_for_blendfile(&screen);
       }
@@ -1068,12 +1068,12 @@ static void setup_app_data(bContext *C,
 
   /* If UI is not loaded when opening actual `.blend` file,
    * and always in case of undo MEMFILE reading. */
-  if (mode != LOAD_UI) {
+  if (mode != LoadUi) {
     /* Re-use current window and screen. */
     win = CTX_wm_window(C);
     curscreen = CTX_wm_screen(C);
 
-    track_undo_scene = (mode == LOAD_UNDO && curscreen && curscene && bfd->main->wm.first);
+    track_undo_scene = (mode == LoadUndo && curscreen && curscene && bfd->main->wm.first);
 
     if (track_undo_scene) {
       /* Keep the old (to-be-freed) scene, remapping below will ensure it's remapped to the
@@ -1093,13 +1093,13 @@ static void setup_app_data(bContext *C,
   if (reuse_data.remapper != nullptr) {
     /* In undo case all "keeping old data" and remapping logic is now handled
      * in file reading code itself, so there should never be any remapping to do here. */
-    BLI_assert(mode != LOAD_UNDO);
+    BLI_assert(mode != LoadUndo);
 
     /* Handle all pending remapping from swapping old and new IDs around. */
     BKE_libblock_remap_multiple_raw(bfd->main,
                                     *reuse_data.remapper,
-                                    (ID_REMAP_FORCE_UI_POINTERS | ID_REMAP_SKIP_USER_REFCOUNT |
-                                     ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_CLEAR));
+                                    (IdRemapForceUiPointers | IdRemapSkipUserRefcount |
+                                     IdRemapSkipUpdateTagging | IdRemapSkipUserClear));
 
     /* Fix potential invalid usages of now-locale-data created by remapping above. Should never
      * be needed in undo case, this is to address cases like:
@@ -1112,7 +1112,7 @@ static void setup_app_data(bContext *C,
     wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
   }
 
-  if (mode == LOAD_UNDO) {
+  if (mode == LoadUndo) {
     /* It's possible to undo into a time before the scene existed, in this case the window's scene
      * will be null. Since it doesn't make sense to remove the window, set it to the current scene.
      *
@@ -1127,7 +1127,7 @@ static void setup_app_data(bContext *C,
 
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
-  if (mode != LOAD_UI) {
+  if (mode != LoadUi) {
     if (win) {
       curscene = win->scene;
     }
@@ -1163,7 +1163,7 @@ static void setup_app_data(bContext *C,
   BLI_assert(BKE_main_namemap_validate(*bmain));
 
   /* These context data should remain valid if old UI is being re-used. */
-  if (mode == LOAD_UI) {
+  if (mode == LoadUi) {
     /* Setting a window-manger clears all other windowing members (window, screen, area, etc).
      * So only do it when effectively loading a new #wmWindowManager
      * otherwise just assert that the WM from context is still the same as in `new_bmain`. */
@@ -1195,7 +1195,7 @@ static void setup_app_data(bContext *C,
   }
 #endif
 
-  if (mode != LOAD_UNDO) {
+  if (mode != LoadUndo) {
     /* Perform complex versioning that involves adding or removing IDs,
      * and/or needs to operate over the whole Main data-base
      * (versioning done in file reading code only operates on a per-library basis). */
@@ -1221,7 +1221,7 @@ static void setup_app_data(bContext *C,
 
   /* Base-flags, groups, make depsgraph, etc. */
   /* first handle case if other windows have different scenes visible. */
-  if (mode == LOAD_UI) {
+  if (mode == LoadUi) {
     wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
     if (wm) {
       for (wmWindow &win : wm->windows) {
@@ -1238,12 +1238,12 @@ static void setup_app_data(bContext *C,
   if (params->is_startup) {
     IMB_colormanagement_working_space_init_startup(bmain);
   }
-  IMB_colormanagement_working_space_check(bmain, mode == LOAD_UNDO, reuse_editable_assets);
+  IMB_colormanagement_working_space_check(bmain, mode == LoadUndo, reuse_editable_assets);
   IMB_colormanagement_check_file_config(bmain);
 
   BKE_scene_set_background(bmain, curscene);
 
-  if (mode != LOAD_UNDO) {
+  if (mode != LoadUndo) {
     /* TODO(@sergey): Can this be also move above? */
     RE_FreeAllPersistentData();
   }
@@ -1254,13 +1254,13 @@ static void setup_app_data(bContext *C,
 
   BLI_assert(BKE_main_namemap_validate(*bmain));
 
-  if (mode != LOAD_UNDO && liboverride::is_auto_resync_enabled()) {
+  if (mode != LoadUndo && liboverride::is_auto_resync_enabled()) {
     reports->duration.lib_overrides_resync = BLI_time_now_seconds();
 
     /* Null hierarchy roots are never expected here for regular liboverrides. Attempt to fix them
      * so that resync can perform as best as possible, and report them as errors. */
     BKE_lib_override_library_main_hierarchy_root_ensure(
-        bmain, ONLY_PROCESS_NULL_ROOT_POINTERS | REPORT_NULL_ROOT_POINTERS, reports->reports);
+        bmain, OnlyProcessNullRootPointers | ReportNullRootPointers, reports->reports);
 
     BKE_lib_override_library_main_resync(
         bmain,
@@ -1278,14 +1278,14 @@ static void setup_app_data(bContext *C,
 
   /* Now that liboverrides have been resynced and 'irrelevant' missing linked IDs has been removed,
    * report actual missing linked data. */
-  if (mode != LOAD_UNDO) {
+  if (mode != LoadUndo) {
     ID *id_iter;
     int missing_linked_ids_num = 0;
     FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
       if (ID_IS_LINKED(id_iter) && (id_iter->tag & ID_TAG_MISSING)) {
         missing_linked_ids_num++;
         BLO_reportf_wrap(reports,
-                         RPT_INFO,
+                         RptInfo,
                          RPT_("LIB: %s: '%s' missing from '%s', parent '%s'"),
                          BKE_idtype_idcode_to_name(GS(id_iter->name)),
                          id_iter->name + 2,
@@ -1320,7 +1320,7 @@ static void handle_subversion_warning(Main *main, BlendFileReadReport *reports)
                                                    main->subversionfile > BLENDER_FILE_SUBVERSION))
   {
     BKE_reportf(reports->reports,
-                RPT_WARNING,
+                RptWarning,
                 "File written by newer Blender binary (%d.%d), expect loss of data!",
                 main->versionfile,
                 main->subversionfile);
@@ -1669,7 +1669,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
   char filepath[FILE_MAX];
   bool ok = true;
   const bool use_template_userpref = BKE_appdir_app_template_has_userpref(U.app_template);
-  std::optional<std::string> cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr);
+  std::optional<std::string> cfgdir = BKE_appdir_folder_id_create(BlenderUserConfig, nullptr);
 
   if (cfgdir) {
     bool ok_write;
@@ -1683,20 +1683,20 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
     }
 
     if (ok_write) {
-      BKE_report(reports, RPT_INFO, "Preferences saved");
+      BKE_report(reports, RptInfo, "Preferences saved");
     }
     else {
       CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
       ok = false;
-      BKE_report(reports, RPT_ERROR, "Saving preferences failed");
+      BKE_report(reports, RptError, "Saving preferences failed");
     }
   }
   else {
-    BKE_report(reports, RPT_ERROR, "Unable to create userpref path");
+    BKE_report(reports, RptError, "Unable to create userpref path");
   }
 
   if (use_template_userpref) {
-    cfgdir = BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, U.app_template);
+    cfgdir = BKE_appdir_folder_id_create(BlenderUserConfig, U.app_template);
     if (cfgdir) {
       /* Also save app-template preferences. */
       BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
@@ -1710,7 +1710,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
       }
     }
     else {
-      BKE_report(reports, RPT_ERROR, "Unable to create app-template userpref path");
+      BKE_report(reports, RptError, "Unable to create app-template userpref path");
       ok = false;
     }
   }
@@ -1784,10 +1784,10 @@ PartialWriteContext::PartialWriteContext(Main &reference_main)
   }
   this->bmain.colorspace = reference_main.colorspace;
   /* Only for IDs matching existing data in current G_MAIN. */
-  matching_uid_map_ = BKE_main_idmap_create(&this->bmain, false, nullptr, MAIN_IDMAP_TYPE_UID);
+  matching_uid_map_ = BKE_main_idmap_create(&this->bmain, false, nullptr, MainIdmapTypeUid);
   /* For all IDs existing in the context. */
   this->bmain.id_map = BKE_main_idmap_create(
-      &this->bmain, false, nullptr, MAIN_IDMAP_TYPE_UID | MAIN_IDMAP_TYPE_NAME);
+      &this->bmain, false, nullptr, MainIdmapTypeUid | MainIdmapTypeName);
 };
 
 PartialWriteContext::~PartialWriteContext()
@@ -1837,8 +1837,8 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
 void PartialWriteContext::process_added_id(ID *ctx_id,
                                            const PartialWriteContext::IDAddOperations operations)
 {
-  const bool set_fake_user = (operations & SET_FAKE_USER) != 0;
-  const bool set_clipboard_mark = (operations & SET_CLIPBOARD_MARK) != 0;
+  const bool set_fake_user = (operations & SetFakeUser) != 0;
+  const bool set_clipboard_mark = (operations & SetClipboardMark) != 0;
 
   if (set_fake_user) {
     id_fake_user_set(ctx_id);
@@ -1858,9 +1858,9 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
 {
   ID *ctx_root_id = nullptr;
   BLI_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
-  const int copy_flags = (LIB_ID_CREATE_LOCALIZE |
+  const int copy_flags = (LibIdCreateLocalize |
                           /* NOTE: Could make this an option if needed in the future */
-                          LIB_ID_COPY_ASSET_METADATA);
+                          LibIdCopyAssetMetadata);
   ctx_root_id = BKE_id_copy_in_lib(nullptr, id->lib, id, std::nullopt, nullptr, copy_flags);
   if (!ctx_root_id) {
     return ctx_root_id;
@@ -1904,7 +1904,7 @@ void PartialWriteContext::make_local(ID *ctx_id, const int make_local_flags)
    * linked data may have already been cleared out by dependency management in code above that
    * call. */
   else if ((ctx_id->override_library || ID_IS_OVERRIDE_LIBRARY(ctx_id)) &&
-           (make_local_flags & LIB_ID_MAKELOCAL_LIBOVERRIDE_CLEAR) != 0)
+           (make_local_flags & LibIdMakelocalLiboverrideClear) != 0)
 
   {
     BKE_lib_override_library_make_local(&this->bmain, ctx_id);
@@ -1977,12 +1977,12 @@ ID *PartialWriteContext::id_add(
                                                      PartialWriteContext::IDAddOptions options)>
         dependencies_filter_cb)
 {
-  constexpr int make_local_flags = (LIB_ID_MAKELOCAL_INDIRECT | LIB_ID_MAKELOCAL_FORCE_LOCAL |
-                                    LIB_ID_MAKELOCAL_LIBOVERRIDE_CLEAR);
+  constexpr int make_local_flags = (LibIdMakelocalIndirect | LibIdMakelocalForceLocal |
+                                    LibIdMakelocalLiboverrideClear);
 
-  const bool add_dependencies = (options.operations & ADD_DEPENDENCIES) != 0;
-  const bool clear_dependencies = (options.operations & CLEAR_DEPENDENCIES) != 0;
-  const bool duplicate_dependencies = (options.operations & DUPLICATE_DEPENDENCIES) != 0;
+  const bool add_dependencies = (options.operations & AddDependencies) != 0;
+  const bool clear_dependencies = (options.operations & ClearDependencies) != 0;
+  const bool duplicate_dependencies = (options.operations & DuplicateDependencies) != 0;
   BLI_assert(clear_dependencies || add_dependencies || dependencies_filter_cb);
   BLI_assert(!clear_dependencies || !(add_dependencies || duplicate_dependencies));
   UNUSED_VARS_NDEBUG(add_dependencies, clear_dependencies, duplicate_dependencies);
@@ -2038,44 +2038,44 @@ ID *PartialWriteContext::id_add(
     ID **id_ptr = cb_data->id_pointer;
     const ID *orig_deps_id = *id_ptr;
 
-    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
-      return IDWALK_RET_NOP;
+    if (cb_data->cb_flag & (IdwalkCbEmbedded | IdwalkCbEmbeddedNotOwning)) {
+      return IdwalkRetNop;
     }
     if (!orig_deps_id) {
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     }
 
-    if (cb_data->cb_flag & IDWALK_CB_INTERNAL) {
+    if (cb_data->cb_flag & IdwalkCbInternal) {
       /* Cleanup internal ID pointers. */
       *id_ptr = nullptr;
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     }
 
-    PartialWriteContext::IDAddOperations operations_final = (options.operations & MASK_INHERITED);
+    PartialWriteContext::IDAddOperations operations_final = (options.operations & MaskInherited);
     if (dependencies_filter_cb) {
       const PartialWriteContext::IDAddOperations operations_per_id = dependencies_filter_cb(
           cb_data, options);
-      operations_final = ((operations_per_id & MASK_PER_ID_USAGE) |
-                          (operations_final & ~MASK_PER_ID_USAGE));
-      if (ID_IS_PACKED(orig_deps_id) && (operations_final & MAKE_LOCAL) == 0) {
+      operations_final = ((operations_per_id & MaskPerIdUsage) |
+                          (operations_final & ~MaskPerIdUsage));
+      if (ID_IS_PACKED(orig_deps_id) && (operations_final & MakeLocal) == 0) {
         /* To ensure that their deep hash still matches with their 'context' copy, packed IDs that
          * are not made local (i.e. 'unpacked'):
          *  - Must also include all of their dependencies.
          *  - Should never duplicate or clear their dependencies. */
-        operations_final |= ADD_DEPENDENCIES;
-        operations_final &= ~(DUPLICATE_DEPENDENCIES | CLEAR_DEPENDENCIES);
+        operations_final |= AddDependencies;
+        operations_final &= ~(DuplicateDependencies | ClearDependencies);
       }
     }
 
-    const bool add_dependencies = (operations_final & ADD_DEPENDENCIES) != 0;
-    const bool clear_dependencies = (operations_final & CLEAR_DEPENDENCIES) != 0;
-    const bool duplicate_dependencies = (operations_final & DUPLICATE_DEPENDENCIES) != 0;
+    const bool add_dependencies = (operations_final & AddDependencies) != 0;
+    const bool clear_dependencies = (operations_final & ClearDependencies) != 0;
+    const bool duplicate_dependencies = (operations_final & DuplicateDependencies) != 0;
     BLI_assert(clear_dependencies || add_dependencies);
     BLI_assert(!clear_dependencies || !(add_dependencies || duplicate_dependencies));
     UNUSED_VARS_NDEBUG(add_dependencies);
 
     if (clear_dependencies) {
-      if (cb_data->cb_flag & IDWALK_CB_NEVER_NULL) {
+      if (cb_data->cb_flag & IdwalkCbNeverNull) {
         CLOG_WARN(&LOG_PARTIALWRITE,
                   "Clearing a 'never null' ID usage of '%s' by '%s', this is likely not a "
                   "desired action",
@@ -2085,7 +2085,7 @@ ID *PartialWriteContext::id_add(
       /* Owner ID should be a 'context-main' duplicate of a real Main ID, as such there should be
        * no need to decrease ID usages refcount here. */
       *id_ptr = nullptr;
-      return IDWALK_RET_NOP;
+      return IdwalkRetNop;
     }
     /* else if (add_dependencies) */
     /* The given ID may have already been added (either explicitly or as a dependency) before. */
@@ -2097,7 +2097,7 @@ ID *PartialWriteContext::id_add(
       ctx_deps_id = BKE_main_idmap_lookup_uid(matching_uid_map_, orig_deps_id->session_uid);
     }
     if (!ctx_deps_id) {
-      if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
+      if (cb_data->cb_flag & IdwalkCbLoopback) {
         /* Do not follow 'loop back' pointers. */
         /* NOTE: Not sure whether this should be considered an error or not. Typically hitting such
          * a case is bad practice. On the other hand, some of these pointers are present in
@@ -2110,7 +2110,7 @@ ID *PartialWriteContext::id_add(
                    (*id_ptr)->name,
                    cb_data->owner_id->name);
         *id_ptr = nullptr;
-        return IDWALK_RET_NOP;
+        return IdwalkRetNop;
       }
       ctx_deps_id = this->id_add_copy(orig_deps_id, duplicate_dependencies);
       local_ctx_id_map.add(orig_deps_id, ctx_deps_id);
@@ -2121,7 +2121,7 @@ ID *PartialWriteContext::id_add(
                    (*id_ptr)->name,
                    cb_data->owner_id->name);
         *id_ptr = nullptr;
-        return IDWALK_RET_NOP;
+        return IdwalkRetNop;
       }
       ids_to_process.add(ctx_deps_id);
       post_process_ids_todo.append({ctx_deps_id, operations_final});
@@ -2135,19 +2135,19 @@ ID *PartialWriteContext::id_add(
     this->process_added_id(ctx_deps_id, operations_final);
     /* In-place remapping. */
     *id_ptr = ctx_deps_id;
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   };
   while (!ids_to_process.is_empty()) {
     ID *ctx_id = ids_to_process.pop();
     BKE_library_foreach_ID_link(
-        &this->bmain, ctx_id, dependencies_cb, &options, IDWALK_DO_INTERNAL_RUNTIME_POINTERS);
+        &this->bmain, ctx_id, dependencies_cb, &options, IdwalkDoInternalRuntimePointers);
   }
 
   /* Post process all newly added IDs in the context:
    *   - Make them local or ensure that their library reference is also in the context.
    */
   for (auto [ctx_id, options_final] : post_process_ids_todo) {
-    const bool do_make_local = (options_final & MAKE_LOCAL) != 0;
+    const bool do_make_local = (options_final & MakeLocal) != 0;
     if (do_make_local) {
       this->make_local(ctx_id, make_local_flags);
     }
@@ -2248,8 +2248,8 @@ bool PartialWriteContext::is_valid()
 
     /* By definition, embedded IDs are not in Main, so they are not listed in this context either.
      */
-    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
-      return IDWALK_RET_NOP;
+    if (cb_data->cb_flag & (IdwalkCbEmbedded | IdwalkCbEmbeddedNotOwning)) {
+      return IdwalkRetNop;
     }
 
     if (*id_p && !ids_in_context.contains(*id_p)) {
@@ -2269,11 +2269,11 @@ bool PartialWriteContext::is_valid()
       }
       is_valid = false;
     }
-    return IDWALK_RET_NOP;
+    return IdwalkRetNop;
   };
   FOREACH_MAIN_ID_BEGIN (&this->bmain, id_iter) {
     BKE_library_foreach_ID_link(
-        &this->bmain, id_iter, id_validate_dependencies_cb, nullptr, IDWALK_READONLY);
+        &this->bmain, id_iter, id_validate_dependencies_cb, nullptr, IdwalkReadonly);
   }
   FOREACH_MAIN_ID_END;
 

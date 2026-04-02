@@ -95,7 +95,7 @@ static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   MetaBall *metaball = reinterpret_cast<MetaBall *>(id);
   for (int i = 0; i < metaball->totcol; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, metaball->mat[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, metaball->mat[i], IdwalkCbUser);
   }
 }
 
@@ -145,7 +145,7 @@ IDTypeInfo IDType_ID_MB = {
     .name = "Metaball",
     .name_plural = N_("metaballs"),
     .translation_context = BLT_I18NCONTEXT_ID_METABALL,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = metaball_init_data,

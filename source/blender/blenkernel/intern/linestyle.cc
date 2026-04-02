@@ -67,9 +67,9 @@ static void linestyle_copy_data(Main *bmain,
   const FreestyleLineStyle *linestyle_src = id_cast<const FreestyleLineStyle *>(id_src);
 
   /* Never handle user-count here for own sub-data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
   /* Always need allocation of the embedded ID data. */
-  const int flag_embedded_id_data = flag_subdata & ~LIB_ID_CREATE_NO_ALLOCATE;
+  const int flag_embedded_id_data = flag_subdata & ~LibIdCreateNoAllocate;
 
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle_src->mtex[a]) {
@@ -164,21 +164,21 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
     if (lsm.type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleColorModifier_DistanceFromObject *p =
           reinterpret_cast<LineStyleColorModifier_DistanceFromObject *>(&lsm);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IdwalkCbNop);
     }
   }
   for (LineStyleModifier &lsm : linestyle->alpha_modifiers) {
     if (lsm.type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleAlphaModifier_DistanceFromObject *p =
           reinterpret_cast<LineStyleAlphaModifier_DistanceFromObject *>(&lsm);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IdwalkCbNop);
     }
   }
   for (LineStyleModifier &lsm : linestyle->thickness_modifiers) {
     if (lsm.type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleThicknessModifier_DistanceFromObject *p =
           reinterpret_cast<LineStyleThicknessModifier_DistanceFromObject *>(&lsm);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IdwalkCbNop);
     }
   }
 }
@@ -700,7 +700,7 @@ IDTypeInfo IDType_ID_LS = {
     .name = "FreestyleLineStyle",
     .name_plural = N_("linestyles"),
     .translation_context = BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = linestyle_init_data,
@@ -921,7 +921,7 @@ LineStyleModifier *BKE_linestyle_color_modifier_copy(FreestyleLineStyle *linesty
       LineStyleColorModifier_DistanceFromObject *q =
           reinterpret_cast<LineStyleColorModifier_DistanceFromObject *>(new_m);
       q->target = p->target;
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      if ((flag & LibIdCreateNoUserRefcount) == 0) {
         id_us_plus(id_cast<ID *>(q->target));
       }
       q->color_ramp = MEM_dupalloc(p->color_ramp);
@@ -1470,7 +1470,7 @@ LineStyleModifier *BKE_linestyle_thickness_modifier_copy(FreestyleLineStyle *lin
       LineStyleThicknessModifier_DistanceFromObject *q =
           reinterpret_cast<LineStyleThicknessModifier_DistanceFromObject *>(new_m);
       q->target = p->target;
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      if ((flag & LibIdCreateNoUserRefcount) == 0) {
         id_us_plus(id_cast<ID *>(q->target));
       }
       q->curve = BKE_curvemapping_copy(p->curve);

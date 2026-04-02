@@ -107,7 +107,7 @@ Mesh *BKE_multires_create_mesh(Depsgraph *depsgraph, Object *object, MultiresMod
   ModifierEvalContext modifier_ctx{};
   modifier_ctx.depsgraph = depsgraph;
   modifier_ctx.object = object_eval;
-  modifier_ctx.flag = MOD_APPLY_USECACHE | MOD_APPLY_IGNORE_SIMPLIFY;
+  modifier_ctx.flag = ModApplyUsecache | ModApplyIgnoreSimplify;
 
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(mmd->modifier.type));
   Mesh *result = mti->modify_mesh(&mmd->modifier, &modifier_ctx, deformed_mesh);
@@ -135,7 +135,7 @@ Array<float3> BKE_multires_create_deformed_base_mesh_vert_coords(Depsgraph *deps
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   ModifierEvalContext mesh_eval_context = {depsgraph, &object_for_eval, ModifierApplyFlag(0)};
   if (use_render) {
-    mesh_eval_context.flag |= MOD_APPLY_RENDER;
+    mesh_eval_context.flag |= ModApplyRender;
   }
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
 
@@ -239,10 +239,10 @@ void multires_set_tot_level(Object *ob, MultiresModifierData *mmd, const int lvl
 
 static void multires_ccg_mark_as_modified(SubdivCCG *subdiv_ccg, const MultiresModifiedFlags flags)
 {
-  if (flags & MULTIRES_COORDS_MODIFIED) {
+  if (flags & MultiresCoordsModified) {
     subdiv_ccg->dirty.coords = true;
   }
-  if (flags & MULTIRES_HIDDEN_MODIFIED) {
+  if (flags & MultiresHiddenModified) {
     subdiv_ccg->dirty.hidden = true;
   }
 }
@@ -774,7 +774,7 @@ void multires_ensure_external_read(Mesh *mesh, const int top_level)
       static_cast<const MDisps *>(CustomData_get_layer(&mesh->corner_data, CD_MDISPS)));
   if (mdisps == nullptr) {
     mdisps = static_cast<MDisps *>(
-        CustomData_add_layer(&mesh->corner_data, CD_MDISPS, CD_SET_DEFAULT, mesh->corners_num));
+        CustomData_add_layer(&mesh->corner_data, CD_MDISPS, CdSetDefault, mesh->corners_num));
   }
 
   const int totloop = mesh->corners_num;

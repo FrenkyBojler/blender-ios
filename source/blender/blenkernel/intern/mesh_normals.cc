@@ -533,7 +533,7 @@ void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr,
 
     lnors_spacearr->spaces_num = 0;
   }
-  BLI_assert(ELEM(data_type, MLNOR_SPACEARR_BMLOOP_PTR, MLNOR_SPACEARR_LOOP_INDEX));
+  BLI_assert(ELEM(data_type, MlnorSpacearrBmloopPtr, MlnorSpacearrLoopIndex));
   lnors_spacearr->data_type = data_type;
 }
 
@@ -672,8 +672,8 @@ void BKE_lnor_space_add_loop(MLoopNorSpaceArray *lnors_spacearr,
                              void *bm_loop,
                              const bool is_single)
 {
-  BLI_assert((lnors_spacearr->data_type == MLNOR_SPACEARR_LOOP_INDEX && bm_loop == nullptr) ||
-             (lnors_spacearr->data_type == MLNOR_SPACEARR_BMLOOP_PTR && bm_loop != nullptr));
+  BLI_assert((lnors_spacearr->data_type == MlnorSpacearrLoopIndex && bm_loop == nullptr) ||
+             (lnors_spacearr->data_type == MlnorSpacearrBmloopPtr && bm_loop != nullptr));
 
   lnors_spacearr->lspacearr[corner] = lnor_space;
   if (bm_loop == nullptr) {
@@ -681,11 +681,11 @@ void BKE_lnor_space_add_loop(MLoopNorSpaceArray *lnors_spacearr,
   }
   if (is_single) {
     BLI_assert(lnor_space->loops == nullptr);
-    lnor_space->flags |= MLNOR_SPACE_IS_SINGLE;
+    lnor_space->flags |= MlnorSpaceIsSingle;
     lnor_space->loops = static_cast<LinkNode *>(bm_loop);
   }
   else {
-    BLI_assert((lnor_space->flags & MLNOR_SPACE_IS_SINGLE) == 0);
+    BLI_assert((lnor_space->flags & MlnorSpaceIsSingle) == 0);
     BLI_linklist_prepend_nlink(&lnor_space->loops, bm_loop, &lnors_spacearr->loops_pool[corner]);
   }
 }
@@ -1553,7 +1553,7 @@ static void mesh_normals_corner_custom_set(const Span<float3> positions,
   for (const int i : corner_verts.index_range()) {
     if (lnors_spacearr.corner_space_indices[i] == -1) {
       done_corners[i].reset();
-      if (G.debug & G_DEBUG) {
+      if (G.debug & GDebug) {
         printf("WARNING! Still getting invalid nullptr corner space in second for loop %d!\n", i);
       }
       continue;
@@ -1709,11 +1709,11 @@ void mesh_set_custom_normals_from_verts_normalized(Mesh &mesh, MutableSpan<float
 
 namespace mesh {
 
-constexpr AttributeMetaData CORNER_FAN_META_DATA{AttrDomain::Corner, AttrType::Int16_2D};
+constexpr AttributeMetaData corner_fan_meta_data{AttrDomain::Corner, AttrType::Int162D};
 
 bool is_corner_fan_normals(const AttributeMetaData &meta_data)
 {
-  return meta_data == CORNER_FAN_META_DATA;
+  return meta_data == corner_fan_meta_data;
 }
 
 static bke::AttrDomain normal_domain_to_domain(bke::MeshNormalDomain domain)
@@ -1779,7 +1779,7 @@ void NormalJoinInfo::add_mesh(const Mesh &mesh)
     }
     this->add_free_normals(custom_normal->domain);
   }
-  else if (*custom_normal == CORNER_FAN_META_DATA) {
+  else if (*custom_normal == corner_fan_meta_data) {
     this->add_corner_fan_normals();
   }
 }

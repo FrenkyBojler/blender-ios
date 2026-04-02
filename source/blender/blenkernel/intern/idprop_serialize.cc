@@ -26,19 +26,19 @@ static const IDPropertySerializer &serializer_for(StringRef idprop_typename);
  * \{ */
 
 /* Definitions */
-static constexpr StringRef IDP_KEY_NAME("name");
-static constexpr StringRef IDP_KEY_TYPE("type");
-static constexpr StringRef IDP_KEY_SUBTYPE("subtype");
-static constexpr StringRef IDP_KEY_VALUE("value");
+static constexpr StringRef idp_key_name("name");
+static constexpr StringRef idp_key_type("type");
+static constexpr StringRef idp_key_subtype("subtype");
+static constexpr StringRef idp_key_value("value");
 
-static constexpr StringRef IDP_PROPERTY_TYPENAME_STRING("IDP_STRING");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_BOOL("IDP_BOOL");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_INT("IDP_INT");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_FLOAT("IDP_FLOAT");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_DOUBLE("IDP_DOUBLE");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_ARRAY("IDP_ARRAY");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_GROUP("IDP_GROUP");
-static constexpr StringRef IDP_PROPERTY_TYPENAME_UNKNOWN("IDP_UNKNOWN");
+static constexpr StringRef idp_property_typename_string("IDP_STRING");
+static constexpr StringRef idp_property_typename_bool("IDP_BOOL");
+static constexpr StringRef idp_property_typename_int("IDP_INT");
+static constexpr StringRef idp_property_typename_float("IDP_FLOAT");
+static constexpr StringRef idp_property_typename_double("IDP_DOUBLE");
+static constexpr StringRef idp_property_typename_array("IDP_ARRAY");
+static constexpr StringRef idp_property_typename_group("IDP_GROUP");
+static constexpr StringRef idp_property_typename_unknown("IDP_UNKNOWN");
 
 /**
  * \brief Base class for (de)serializing IDProperties.
@@ -91,8 +91,8 @@ class IDPropertySerializer {
   std::shared_ptr<DictionaryValue> create_dictionary(const IDProperty *id_property) const
   {
     std::shared_ptr<DictionaryValue> result = std::make_shared<DictionaryValue>();
-    result->append_str(IDP_KEY_NAME, id_property->name);
-    result->append_str(IDP_KEY_TYPE, this->type_name());
+    result->append_str(idp_key_name, id_property->name);
+    result->append_str(idp_key_type, this->type_name());
     return result;
   }
 };
@@ -108,67 +108,67 @@ struct DictionaryEntryParser {
 
   std::optional<eIDPropertyType> get_type() const
   {
-    return get_id_property_type(IDP_KEY_TYPE);
+    return get_id_property_type(idp_key_type);
   }
 
   std::optional<eIDPropertyType> get_subtype() const
   {
-    return get_id_property_type(IDP_KEY_SUBTYPE);
+    return get_id_property_type(idp_key_subtype);
   }
 
   std::optional<std::string> get_name() const
   {
-    return get_string(IDP_KEY_NAME);
+    return get_string(idp_key_name);
   }
 
   std::optional<std::string> get_string_value() const
   {
-    return get_string(IDP_KEY_VALUE);
+    return get_string(idp_key_value);
   }
 
   std::optional<bool> get_bool_value() const
   {
-    return get_bool(IDP_KEY_VALUE);
+    return get_bool(idp_key_value);
   }
 
   std::optional<int32_t> get_int_value() const
   {
-    return get_int(IDP_KEY_VALUE);
+    return get_int(idp_key_value);
   }
 
   std::optional<float> get_float_value() const
   {
-    return get_float(IDP_KEY_VALUE);
+    return get_float(idp_key_value);
   }
 
   std::optional<double> get_double_value() const
   {
-    return get_double(IDP_KEY_VALUE);
+    return get_double(idp_key_value);
   }
 
   std::optional<int> get_enum_value() const
   {
-    return get_enum(IDP_KEY_VALUE);
+    return get_enum(idp_key_value);
   }
 
   const ArrayValue *get_array_value() const
   {
-    return get_array(IDP_KEY_VALUE);
+    return get_array(idp_key_value);
   }
 
   std::optional<Vector<int32_t>> get_array_int_value() const
   {
-    return get_array_primitive<int32_t, IntValue>(IDP_KEY_VALUE);
+    return get_array_primitive<int32_t, IntValue>(idp_key_value);
   }
 
   std::optional<Vector<float>> get_array_float_value() const
   {
-    return get_array_primitive<float, DoubleValue>(IDP_KEY_VALUE);
+    return get_array_primitive<float, DoubleValue>(idp_key_value);
   }
 
   std::optional<Vector<double>> get_array_double_value() const
   {
-    return get_array_primitive<double, DoubleValue>(IDP_KEY_VALUE);
+    return get_array_primitive<double, DoubleValue>(idp_key_value);
   }
 
  private:
@@ -288,7 +288,7 @@ class IDPStringSerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_STRING;
+    return idp_property_typename_string;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -300,7 +300,7 @@ class IDPStringSerializer : public IDPropertySerializer {
       const IDProperty *id_property) const override
   {
     std::shared_ptr<DictionaryValue> result = create_dictionary(id_property);
-    result->append_str(IDP_KEY_VALUE, IDP_string_get(id_property));
+    result->append_str(idp_key_value, IDP_string_get(id_property));
     return result;
   }
 
@@ -327,7 +327,7 @@ class IDPBoolSerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_BOOL;
+    return idp_property_typename_bool;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -339,7 +339,7 @@ class IDPBoolSerializer : public IDPropertySerializer {
       const IDProperty *id_property) const override
   {
     std::shared_ptr<DictionaryValue> result = create_dictionary(id_property);
-    result->append(IDP_KEY_VALUE, std::make_shared<BooleanValue>(IDP_bool_get(id_property) != 0));
+    result->append(idp_key_value, std::make_shared<BooleanValue>(IDP_bool_get(id_property) != 0));
     return result;
   }
 
@@ -366,7 +366,7 @@ class IDPIntSerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_INT;
+    return idp_property_typename_int;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -378,7 +378,7 @@ class IDPIntSerializer : public IDPropertySerializer {
       const IDProperty *id_property) const override
   {
     std::shared_ptr<DictionaryValue> result = create_dictionary(id_property);
-    result->append_int(IDP_KEY_VALUE, IDP_int_get(id_property));
+    result->append_int(idp_key_value, IDP_int_get(id_property));
     return result;
   }
 
@@ -405,7 +405,7 @@ class IDPFloatSerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_FLOAT;
+    return idp_property_typename_float;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -417,7 +417,7 @@ class IDPFloatSerializer : public IDPropertySerializer {
       const IDProperty *id_property) const override
   {
     std::shared_ptr<DictionaryValue> result = create_dictionary(id_property);
-    result->append_double(IDP_KEY_VALUE, IDP_float_get(id_property));
+    result->append_double(idp_key_value, IDP_float_get(id_property));
     return result;
   }
 
@@ -444,7 +444,7 @@ class IDPDoubleSerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_DOUBLE;
+    return idp_property_typename_double;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -456,7 +456,7 @@ class IDPDoubleSerializer : public IDPropertySerializer {
       const IDProperty *id_property) const override
   {
     std::shared_ptr<DictionaryValue> result = create_dictionary(id_property);
-    result->append_double(IDP_KEY_VALUE, IDP_double_get(id_property));
+    result->append_double(idp_key_value, IDP_double_get(id_property));
     return result;
   }
 
@@ -483,7 +483,7 @@ class IDPArraySerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_ARRAY;
+    return idp_property_typename_array;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -497,9 +497,9 @@ class IDPArraySerializer : public IDPropertySerializer {
     std::shared_ptr<DictionaryValue> result = create_dictionary(id_property);
     const IDPropertySerializer &subtype_serializer = serializer_for(
         static_cast<eIDPropertyType>(id_property->subtype));
-    result->append_str(IDP_KEY_SUBTYPE, subtype_serializer.type_name());
+    result->append_str(idp_key_subtype, subtype_serializer.type_name());
 
-    ArrayValue &array = *result->append_array(IDP_KEY_VALUE);
+    ArrayValue &array = *result->append_array(idp_key_value);
     switch (static_cast<eIDPropertyType>(id_property->subtype)) {
       case IDP_INT: {
         int32_t *values = IDP_array_int_get(id_property);
@@ -634,7 +634,7 @@ class IDPGroupSerializer : public IDPropertySerializer {
 
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_GROUP;
+    return idp_property_typename_group;
   }
 
   std::optional<eIDPropertyType> property_type() const override
@@ -654,7 +654,7 @@ class IDPGroupSerializer : public IDPropertySerializer {
       array->append(sub_property_serializer.idprop_to_dictionary(&sub_property));
     }
 
-    result->append(IDP_KEY_VALUE, std::move(array));
+    result->append(idp_key_value, std::move(array));
     return result;
   }
 
@@ -694,7 +694,7 @@ class IDPUnknownSerializer : public IDPropertySerializer {
   constexpr IDPUnknownSerializer() = default;
   std::string type_name() const override
   {
-    return IDP_PROPERTY_TYPENAME_UNKNOWN;
+    return idp_property_typename_unknown;
   }
   std::optional<eIDPropertyType> property_type() const override
   {
@@ -721,71 +721,71 @@ class IDPUnknownSerializer : public IDPropertySerializer {
 };
 
 /* Serializers are constructed statically to remove construction/destruction. */
-static constexpr IDPStringSerializer IDP_SERIALIZER_STRING;
-static constexpr IDPBoolSerializer IDP_SERIALIZER_BOOL;
-static constexpr IDPIntSerializer IDP_SERIALIZER_INT;
-static constexpr IDPFloatSerializer IDP_SERIALIZER_FLOAT;
-static constexpr IDPDoubleSerializer IDP_SERIALIZER_DOUBLE;
-static constexpr IDPArraySerializer IDP_SERIALIZER_ARRAY;
-static constexpr IDPGroupSerializer IDP_SERIALIZER_GROUP;
-static constexpr IDPUnknownSerializer IDP_SERIALIZER_UNKNOWN;
+static constexpr IDPStringSerializer idp_serializer_string;
+static constexpr IDPBoolSerializer idp_serializer_bool;
+static constexpr IDPIntSerializer idp_serializer_int;
+static constexpr IDPFloatSerializer idp_serializer_float;
+static constexpr IDPDoubleSerializer idp_serializer_double;
+static constexpr IDPArraySerializer idp_serializer_array;
+static constexpr IDPGroupSerializer idp_serializer_group;
+static constexpr IDPUnknownSerializer idp_serializer_unknown;
 
 /** \brief get the serializer for the given property type. */
 static const IDPropertySerializer &serializer_for(eIDPropertyType property_type)
 {
   switch (property_type) {
     case IDP_STRING:
-      return IDP_SERIALIZER_STRING;
+      return idp_serializer_string;
 
     case IDP_BOOLEAN:
-      return IDP_SERIALIZER_BOOL;
+      return idp_serializer_bool;
 
     case IDP_INT:
-      return IDP_SERIALIZER_INT;
+      return idp_serializer_int;
 
     case IDP_FLOAT:
-      return IDP_SERIALIZER_FLOAT;
+      return idp_serializer_float;
 
     case IDP_DOUBLE:
-      return IDP_SERIALIZER_DOUBLE;
+      return idp_serializer_double;
 
     case IDP_ARRAY:
-      return IDP_SERIALIZER_ARRAY;
+      return idp_serializer_array;
 
     case IDP_GROUP:
-      return IDP_SERIALIZER_GROUP;
+      return idp_serializer_group;
 
     default:
       BLI_assert_msg(false, "Trying to convert an unsupported/unknown property type to a string");
-      return IDP_SERIALIZER_UNKNOWN;
+      return idp_serializer_unknown;
   }
 }
 
 /** \brief get serializer for the given typename. */
 static const IDPropertySerializer &serializer_for(StringRef idprop_typename)
 {
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_STRING) {
-    return IDP_SERIALIZER_STRING;
+  if (idprop_typename == idp_property_typename_string) {
+    return idp_serializer_string;
   }
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_BOOL) {
-    return IDP_SERIALIZER_BOOL;
+  if (idprop_typename == idp_property_typename_bool) {
+    return idp_serializer_bool;
   }
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_INT) {
-    return IDP_SERIALIZER_INT;
+  if (idprop_typename == idp_property_typename_int) {
+    return idp_serializer_int;
   }
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_FLOAT) {
-    return IDP_SERIALIZER_FLOAT;
+  if (idprop_typename == idp_property_typename_float) {
+    return idp_serializer_float;
   }
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_DOUBLE) {
-    return IDP_SERIALIZER_DOUBLE;
+  if (idprop_typename == idp_property_typename_double) {
+    return idp_serializer_double;
   }
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_ARRAY) {
-    return IDP_SERIALIZER_ARRAY;
+  if (idprop_typename == idp_property_typename_array) {
+    return idp_serializer_array;
   }
-  if (idprop_typename == IDP_PROPERTY_TYPENAME_GROUP) {
-    return IDP_SERIALIZER_GROUP;
+  if (idprop_typename == idp_property_typename_group) {
+    return idp_serializer_group;
   }
-  return IDP_SERIALIZER_UNKNOWN;
+  return idp_serializer_unknown;
 }
 
 /** \} */

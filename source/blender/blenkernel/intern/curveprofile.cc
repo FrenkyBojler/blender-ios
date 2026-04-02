@@ -884,7 +884,7 @@ void BKE_curveprofile_init(CurveProfile *profile, short segments_len)
   profile->segments_len = segments_len;
 
   /* Calculate the higher resolution / segments tables for display and evaluation. */
-  BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
+  BKE_curveprofile_update(profile, ProfUpdateNone);
 }
 
 /**
@@ -1027,7 +1027,7 @@ void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
   /* Clamp with the clipping rect in case something got past. */
   if (profile->flag & PROF_USE_CLIP) {
     /* Move points inside the clip rectangle. */
-    if (update_flags & PROF_UPDATE_CLIP) {
+    if (update_flags & ProfUpdateClip) {
       for (int i = 0; i < profile->path_len; i++) {
         points[i].x = clamp_f(points[i].x, clipr->xmin, clipr->xmax);
         points[i].y = clamp_f(points[i].y, clipr->ymin, clipr->ymax);
@@ -1049,7 +1049,7 @@ void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
 
   /* Remove doubles with a threshold set at 1% of default range. */
   float thresh = pow2f(0.01f * BLI_rctf_size_x(clipr));
-  if (update_flags & PROF_UPDATE_REMOVE_DOUBLES && profile->path_len > 2) {
+  if (update_flags & ProfUpdateRemoveDoubles && profile->path_len > 2) {
     for (int i = 0; i < profile->path_len - 1; i++) {
       if (len_squared_v2v2(&points[i].x, &points[i + 1].x) < thresh) {
         if (i == 0) {

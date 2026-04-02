@@ -38,13 +38,13 @@ struct GreasePencil;
 struct GreasePencilDrawing;
 
 enum AttrDomainMask : uint8_t {
-  ATTR_DOMAIN_MASK_POINT = (1 << 0),
-  ATTR_DOMAIN_MASK_EDGE = (1 << 1),
-  ATTR_DOMAIN_MASK_FACE = (1 << 2),
-  ATTR_DOMAIN_MASK_CORNER = (1 << 3),
-  ATTR_DOMAIN_MASK_CURVE = (1 << 4),
-  ATTR_DOMAIN_MASK_GREASE_PENCIL_LAYER = (1 << 6),
-  ATTR_DOMAIN_MASK_ALL = (1 << 7) - 1
+  AttrDomainMaskPoint = (1 << 0),
+  AttrDomainMaskEdge = (1 << 1),
+  AttrDomainMaskFace = (1 << 2),
+  AttrDomainMaskCorner = (1 << 3),
+  AttrDomainMaskCurve = (1 << 4),
+  AttrDomainMaskGreasePencilLayer = (1 << 6),
+  AttrDomainMaskAll = (1 << 7) - 1
 };
 ENUM_OPERATORS(AttrDomainMask);
 

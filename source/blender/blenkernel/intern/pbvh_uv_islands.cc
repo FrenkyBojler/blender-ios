@@ -135,7 +135,7 @@ static void mesh_data_init_edges(MeshData &mesh_data)
     }
   }
 }
-static constexpr int INVALID_UV_ISLAND_ID = -1;
+static constexpr int invalid_uv_island_id = -1;
 /**
  * NOTE: doesn't support weird topology where unconnected mesh primitives share the same uv
  * island. For a accurate implementation we should use implement an uv_prim_lookup.
@@ -150,7 +150,7 @@ static void extract_uv_neighbors(const MeshData &mesh_data,
       if (primitive_i == other_primitive_i) {
         continue;
       }
-      if (uv_island_ids[other_primitive_i] != INVALID_UV_ISLAND_ID) {
+      if (uv_island_ids[other_primitive_i] != invalid_uv_island_id) {
         continue;
       }
 
@@ -167,13 +167,13 @@ static void extract_uv_neighbors(const MeshData &mesh_data,
 static int mesh_data_init_primitive_uv_island_ids(MeshData &mesh_data)
 {
   mesh_data.uv_island_ids.reinitialize(mesh_data.corner_tris.size());
-  mesh_data.uv_island_ids.fill(INVALID_UV_ISLAND_ID);
+  mesh_data.uv_island_ids.fill(invalid_uv_island_id);
 
   int uv_island_id = 0;
   Vector<int> prims_to_add;
   for (const int primitive_i : mesh_data.corner_tris.index_range()) {
     /* Early exit when uv island id is already extracted during uv neighbor extractions. */
-    if (mesh_data.uv_island_ids[primitive_i] != INVALID_UV_ISLAND_ID) {
+    if (mesh_data.uv_island_ids[primitive_i] != invalid_uv_island_id) {
       continue;
     }
 

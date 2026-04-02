@@ -393,7 +393,7 @@ static void ctx_member_log_access(const bContext *C,
 
   /* If hiding missing is enabled and the member was not found, skip logging. */
   if (C && bool(C->data.log_flag & CTX_LogFlag::HideMissing)) {
-    if (lookup_result == CTX_RESULT_MEMBER_NOT_FOUND) {
+    if (lookup_result == CtxResultMemberNotFound) {
       return;
     }
   }
@@ -451,7 +451,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
       }
 
       /* Log context member access directly without storing a copy. */
-      ctx_member_log_access(C, member, result, CTX_RESULT_OK);
+      ctx_member_log_access(C, member, result, CtxResultOk);
     }
   }
 #else
@@ -468,7 +468,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     return_data = fall_through;
 
     /* Log fallback context member access. */
-    ctx_member_log_access(C, member, fallback_result, CTX_RESULT_MEMBER_NOT_FOUND);
+    ctx_member_log_access(C, member, fallback_result, CtxResultMemberNotFound);
   }
 
   /* Don't allow UI context access from non-main threads. */
@@ -495,15 +495,15 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override. */
-      ctx_member_log_access(C, member, *result, CTX_RESULT_OK);
-      return CTX_RESULT_OK;
+      ctx_member_log_access(C, member, *result, CtxResultOk);
+      return CtxResultOk;
     }
   }
 #endif
 
   /* Don't allow UI context access from non-main threads. */
   if (!BLI_thread_is_main()) {
-    return CTX_RESULT_MEMBER_NOT_FOUND;
+    return CtxResultMemberNotFound;
   }
 
   /* we check recursion to ensure that we do not get infinite
@@ -568,7 +568,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   eContextResult final_result = eContextResult(done);
 
   /* Log context result if we're in a temp_override and we got a successful or no-data result. */
-  if (ELEM(final_result, CTX_RESULT_OK, CTX_RESULT_NO_DATA)) {
+  if (ELEM(final_result, CtxResultOk, CtxResultNoData)) {
     ctx_member_log_access(C, member, *result, final_result);
   }
 
@@ -578,7 +578,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 static void *ctx_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::Pointer);
     return result.ptr.data;
   }
@@ -589,7 +589,7 @@ static void *ctx_data_pointer_get(const bContext *C, const char *member)
 static bool ctx_data_pointer_verify(const bContext *C, const char *member, void **pointer)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::Pointer);
     *pointer = result.ptr.data;
     return true;
@@ -604,7 +604,7 @@ static bool ctx_data_collection_get(const bContext *C,
                                     Vector<PointerRNA> *list)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::Collection);
     *list = std::move(result.list);
     return true;
@@ -652,7 +652,7 @@ static bool ctx_data_base_collection_get(const bContext *C,
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::Pointer);
     return result.ptr;
   }
@@ -693,7 +693,7 @@ PointerRNA CTX_data_pointer_get_type_silent(const bContext *C, const char *membe
 Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::Collection);
     return result.list;
   }
@@ -711,7 +711,7 @@ void CTX_data_collection_remap_property(MutableSpan<PointerRNA> collection_point
 std::optional<StringRefNull> CTX_data_string_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::String);
     return result.str;
   }
@@ -722,7 +722,7 @@ std::optional<StringRefNull> CTX_data_string_get(const bContext *C, const char *
 std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
-  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CtxResultOk) {
     BLI_assert(result.type == ContextDataType::Int64);
     return result.int_value;
   }
@@ -743,7 +743,7 @@ int /*eContextResult*/ CTX_data_get(const bContext *C,
   bContextDataResult result;
   eContextResult ret = ctx_data_get(const_cast<bContext *>(C), member, &result);
 
-  if (ret == CTX_RESULT_OK) {
+  if (ret == CtxResultOk) {
     *r_ptr = result.ptr;
     *r_lb = result.list;
     *r_prop = result.prop;
@@ -1403,78 +1403,78 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
   if (obedit) {
     switch (obedit->type) {
       case OB_MESH:
-        return CTX_MODE_EDIT_MESH;
+        return CtxModeEditMesh;
       case OB_CURVES_LEGACY:
-        return CTX_MODE_EDIT_CURVE;
+        return CtxModeEditCurve;
       case OB_SURF:
-        return CTX_MODE_EDIT_SURFACE;
+        return CtxModeEditSurface;
       case OB_FONT:
-        return CTX_MODE_EDIT_TEXT;
+        return CtxModeEditText;
       case OB_ARMATURE:
-        return CTX_MODE_EDIT_ARMATURE;
+        return CtxModeEditArmature;
       case OB_MBALL:
-        return CTX_MODE_EDIT_METABALL;
+        return CtxModeEditMetaball;
       case OB_LATTICE:
-        return CTX_MODE_EDIT_LATTICE;
+        return CtxModeEditLattice;
       case OB_CURVES:
-        return CTX_MODE_EDIT_CURVES;
+        return CtxModeEditCurves;
       case OB_GREASE_PENCIL:
-        return CTX_MODE_EDIT_GREASE_PENCIL;
+        return CtxModeEditGreasePencil;
       case OB_POINTCLOUD:
-        return CTX_MODE_EDIT_POINTCLOUD;
+        return CtxModeEditPointcloud;
     }
   }
   else {
     // Object *ob = CTX_data_active_object(C);
     if (ob) {
       if (object_mode & OB_MODE_POSE) {
-        return CTX_MODE_POSE;
+        return CtxModePose;
       }
       if (object_mode & OB_MODE_SCULPT) {
-        return CTX_MODE_SCULPT;
+        return CtxModeSculpt;
       }
       if (object_mode & OB_MODE_WEIGHT_PAINT) {
-        return CTX_MODE_PAINT_WEIGHT;
+        return CtxModePaintWeight;
       }
       if (object_mode & OB_MODE_VERTEX_PAINT) {
-        return CTX_MODE_PAINT_VERTEX;
+        return CtxModePaintVertex;
       }
       if (object_mode & OB_MODE_TEXTURE_PAINT) {
-        return CTX_MODE_PAINT_TEXTURE;
+        return CtxModePaintTexture;
       }
       if (object_mode & OB_MODE_PARTICLE_EDIT) {
-        return CTX_MODE_PARTICLE;
+        return CtxModeParticle;
       }
       if (object_mode & OB_MODE_PAINT_GREASE_PENCIL) {
         if (ob->type == OB_GREASE_PENCIL) {
-          return CTX_MODE_PAINT_GREASE_PENCIL;
+          return CtxModePaintGreasePencil;
         }
       }
       if (object_mode & OB_MODE_EDIT_GPENCIL_LEGACY) {
-        return CTX_MODE_EDIT_GPENCIL_LEGACY;
+        return CtxModeEditGpencilLegacy;
       }
       if (object_mode & OB_MODE_SCULPT_GREASE_PENCIL) {
         if (ob->type == OB_GREASE_PENCIL) {
-          return CTX_MODE_SCULPT_GREASE_PENCIL;
+          return CtxModeSculptGreasePencil;
         }
       }
       if (object_mode & OB_MODE_WEIGHT_GREASE_PENCIL) {
         if (ob->type == OB_GREASE_PENCIL) {
-          return CTX_MODE_WEIGHT_GREASE_PENCIL;
+          return CtxModeWeightGreasePencil;
         }
       }
       if (object_mode & OB_MODE_VERTEX_GREASE_PENCIL) {
         if (ob->type == OB_GREASE_PENCIL) {
-          return CTX_MODE_VERTEX_GREASE_PENCIL;
+          return CtxModeVertexGreasePencil;
         }
       }
       if (object_mode & OB_MODE_SCULPT_CURVES) {
-        return CTX_MODE_SCULPT_CURVES;
+        return CtxModeSculptCurves;
       }
     }
   }
 
-  return CTX_MODE_OBJECT;
+  return CtxModeObject;
 }
 
 enum eContextObjectMode CTX_data_mode_enum(const bContext *C)

@@ -21,7 +21,7 @@ namespace blender::bke {
 
 WindowManagerRuntime::WindowManagerRuntime()
 {
-  BKE_reports_init(&this->reports, RPT_STORE);
+  BKE_reports_init(&this->reports, RptStore);
 }
 
 WindowManagerRuntime::~WindowManagerRuntime()

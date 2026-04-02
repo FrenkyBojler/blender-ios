@@ -739,9 +739,9 @@ void BKE_mesh_loop_islands_init(MeshIslandStore *island_store,
   /* else memarena should be cleared */
 
   BLI_assert(
-      ELEM(item_type, MISLAND_TYPE_VERT, MISLAND_TYPE_EDGE, MISLAND_TYPE_POLY, MISLAND_TYPE_LOOP));
+      ELEM(item_type, MislandTypeVert, MislandTypeEdge, MislandTypePoly, MislandTypeLoop));
   BLI_assert(ELEM(
-      island_type, MISLAND_TYPE_VERT, MISLAND_TYPE_EDGE, MISLAND_TYPE_POLY, MISLAND_TYPE_LOOP));
+      island_type, MislandTypeVert, MislandTypeEdge, MislandTypePoly, MislandTypeLoop));
 
   island_store->item_type = item_type;
   island_store->items_to_islands_num = items_num;
@@ -760,15 +760,15 @@ void BKE_mesh_loop_islands_init(MeshIslandStore *island_store,
 
 void BKE_mesh_loop_islands_clear(MeshIslandStore *island_store)
 {
-  island_store->item_type = MISLAND_TYPE_NONE;
+  island_store->item_type = MislandTypeNone;
   island_store->items_to_islands_num = 0;
   island_store->items_to_islands = nullptr;
 
-  island_store->island_type = MISLAND_TYPE_NONE;
+  island_store->island_type = MislandTypeNone;
   island_store->islands_num = 0;
   island_store->islands = nullptr;
 
-  island_store->innercut_type = MISLAND_TYPE_NONE;
+  island_store->innercut_type = MislandTypeNone;
   island_store->innercuts = nullptr;
 
   if (island_store->mem) {
@@ -863,10 +863,10 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
 
   BKE_mesh_loop_islands_clear(r_island_store);
   BKE_mesh_loop_islands_init(r_island_store,
-                             MISLAND_TYPE_LOOP,
+                             MislandTypeLoop,
                              int(corner_edges.size()),
-                             MISLAND_TYPE_POLY,
-                             MISLAND_TYPE_EDGE);
+                             MislandTypePoly,
+                             MislandTypeEdge);
 
   Array<int> edge_to_face_offsets;
   Array<int> edge_to_face_indices;

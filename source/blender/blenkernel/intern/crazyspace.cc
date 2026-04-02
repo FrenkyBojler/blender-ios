@@ -502,7 +502,7 @@ void BKE_crazyspace_api_eval(Depsgraph *depsgraph,
 
   if (object->type != OB_MESH) {
     BKE_report(reports,
-               RPT_ERROR,
+               RptError,
                "Crazyspace transformation is only available for Mesh type of objects");
     return;
   }
@@ -522,7 +522,7 @@ void BKE_crazyspace_api_displacement_to_deformed(Object *object,
 {
   if (vert < 0 || vert >= object->runtime->crazyspace_deform_imats.size()) {
     BKE_reportf(reports,
-                RPT_ERROR,
+                RptError,
                 "Invalid vertex index %d (expected to be within 0 to %d range)",
                 vert,
                 int(object->runtime->crazyspace_deform_imats.size()));
@@ -541,7 +541,7 @@ void BKE_crazyspace_api_displacement_to_original(Object *object,
 {
   if (vert < 0 || vert >= object->runtime->crazyspace_deform_imats.size()) {
     BKE_reportf(reports,
-                RPT_ERROR,
+                RptError,
                 "Invalid vertex index %d (expected to be within 0 to %d range)",
                 vert,
                 int(object->runtime->crazyspace_deform_imats.size()));

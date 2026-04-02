@@ -28,8 +28,8 @@ struct IDNameLib_Map;
 struct Main;
 
 enum {
-  MAIN_IDMAP_TYPE_NAME = 1 << 0,
-  MAIN_IDMAP_TYPE_UID = 1 << 1,
+  MainIdmapTypeName = 1 << 0,
+  MainIdmapTypeUid = 1 << 1,
 };
 
 /**

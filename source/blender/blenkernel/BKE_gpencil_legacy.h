@@ -164,12 +164,12 @@ bool BKE_gpencil_layer_is_editable(const struct bGPDlayer *gpl);
  */
 enum eGP_GetFrame_Mode {
   /* Use the preceding gp-frame (i.e. don't add anything) */
-  GP_GETFRAME_USE_PREV = 0,
+  GpGetframeUsePrev = 0,
 
   /* Add a new empty/blank frame */
-  GP_GETFRAME_ADD_NEW = 1,
+  GpGetframeAddNew = 1,
   /* Make a copy of the active frame */
-  GP_GETFRAME_ADD_COPY = 2,
+  GpGetframeAddCopy = 2,
 };
 
 /**

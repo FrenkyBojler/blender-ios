@@ -2211,7 +2211,7 @@ bool bmesh_update_topology(BMesh &bm,
   MutableSpan<BMeshNode> nodes = pbvh.nodes<BMeshNode>();
   Array<bool> node_changed(nodes.size(), false);
 
-  if (mode & PBVH_Collapse) {
+  if (mode & PbvhCollapse) {
     EdgeQueue queue;
     BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert *) * 2, 0, 128, BLI_MEMPOOL_NOP);
     EdgeQueueContext eq_ctx = {
@@ -2237,7 +2237,7 @@ bool bmesh_update_topology(BMesh &bm,
     BLI_mempool_destroy(queue_pool);
   }
 
-  if (mode & PBVH_Subdivide) {
+  if (mode & PbvhSubdivide) {
     EdgeQueue q;
     BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert *) * 2, 0, 128, BLI_MEMPOOL_NOP);
     EdgeQueueContext eq_ctx = {

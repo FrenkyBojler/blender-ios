@@ -91,7 +91,7 @@ namespace blender {
  * but more memory and more work in single threaded initialization time. Found that 8
  * seems to be optimal for both simple (150 faces) & complex (16000 faces) masks at
  * HD / 4K resolutions. */
-static constexpr int BUCKET_PIXELS_PER_CELL = 8;
+static constexpr int bucket_pixels_per_cell = 8;
 
 #define SF_EDGE_IS_BOUNDARY 0xff
 #define SF_KEYINDEX_TEMP_ID uint(-1)
@@ -547,8 +547,8 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
   const float bucket_dim_x = BLI_rctf_size_x(&layer->bounds);
   const float bucket_dim_y = BLI_rctf_size_y(&layer->bounds);
 
-  layer->buckets_x = uint((bucket_dim_x / pixel_size) / float(BUCKET_PIXELS_PER_CELL));
-  layer->buckets_y = uint((bucket_dim_y / pixel_size) / float(BUCKET_PIXELS_PER_CELL));
+  layer->buckets_x = uint((bucket_dim_x / pixel_size) / float(bucket_pixels_per_cell));
+  layer->buckets_y = uint((bucket_dim_y / pixel_size) / float(bucket_pixels_per_cell));
 
   //      printf("bucket size %ux%u\n", layer->buckets_x, layer->buckets_y);
 

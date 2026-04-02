@@ -625,7 +625,7 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
   Lattice *lt = id_cast<Lattice *>(ob->data);
 
   DispList *dl = ob->runtime->curve_cache ?
-                     BKE_displist_find(&ob->runtime->curve_cache->disp, DL_VERTS) :
+                     BKE_displist_find(&ob->runtime->curve_cache->disp, DlVerts) :
                      nullptr;
   const float *co = dl ? dl->verts : nullptr;
   BPoint *bp = lt->def;
@@ -2879,7 +2879,7 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
   t = (s * (data->end - data->start)) + data->start;
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph, t);
 
-  if (G.debug & G_DEBUG) {
+  if (G.debug & GDebug) {
     printf("do Action Constraint %s - Ob %s Pchan %s\n",
            con->name,
            cob->ob->id.name + 2,
@@ -5937,7 +5937,7 @@ void BKE_constraint_free_data_ex(bConstraint *con, bool do_id_user)
 
       /* unlink the referenced resources it uses */
       if (do_id_user) {
-        con_invoke_id_looper(cti, con, con_unlink_refs_cb, IDWALK_NOP, nullptr);
+        con_invoke_id_looper(cti, con, con_unlink_refs_cb, IdwalkNop, nullptr);
       }
     }
 
@@ -6314,14 +6314,14 @@ static void constraint_copy_data_ex(bConstraint *dst,
     }
 
     /* Fix user-counts for all referenced data that need it. */
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      con_invoke_id_looper(cti, dst, con_fix_copied_refs_cb, IDWALK_NOP, nullptr);
+    if ((flag & LibIdCreateNoUserRefcount) == 0) {
+      con_invoke_id_looper(cti, dst, con_fix_copied_refs_cb, IdwalkNop, nullptr);
     }
 
     /* For proxies we don't want to make external. */
     if (do_extern) {
       /* go over used ID-links for this constraint to ensure that they are valid for proxies */
-      con_invoke_id_looper(cti, dst, con_extern_cb, IDWALK_NOP, nullptr);
+      con_invoke_id_looper(cti, dst, con_extern_cb, IdwalkNop, nullptr);
     }
   }
 }
@@ -6368,7 +6368,7 @@ void BKE_constraints_copy_ex(ListBaseT<bConstraint> *dst,
        srccon = srccon->next, con = con->next)
   {
     constraint_copy_data_ex(con, srccon, flag, do_extern);
-    if ((flag & LIB_ID_COPY_NO_LIB_OVERRIDE_LOCAL_DATA_FLAG) == 0) {
+    if ((flag & LibIdCopyNoLibOverrideLocalDataFlag) == 0) {
       con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
     }
   }

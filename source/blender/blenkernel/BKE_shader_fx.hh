@@ -32,25 +32,25 @@ struct ShaderFxData;
 
 enum ShaderFxTypeType {
   /* Should not be used, only for None type */
-  eShaderFxType_NoneType,
+  EShaderFxTypeNoneType,
 
   /* grease pencil effects */
-  eShaderFxType_GpencilType,
+  EShaderFxTypeGpencilType,
 };
 
 enum ShaderFxTypeFlag {
-  eShaderFxTypeFlag_SupportsEditmode = (1 << 0),
+  EShaderFxTypeFlagSupportsEditmode = (1 << 0),
 
   /* For effects that support editmode this determines if the
    * effect should be enabled by default in editmode.
    */
-  eShaderFxTypeFlag_EnableInEditmode = (1 << 2),
+  EShaderFxTypeFlagEnableInEditmode = (1 << 2),
 
   /* max one per type */
-  eShaderFxTypeFlag_Single = (1 << 4),
+  EShaderFxTypeFlagSingle = (1 << 4),
 
   /* can't be added manually by user */
-  eShaderFxTypeFlag_NoUserAdd = (1 << 5),
+  EShaderFxTypeFlagNoUserAdd = (1 << 5),
 };
 
 typedef void (*ShaderFxIDWalkFunc)(void *user_data,

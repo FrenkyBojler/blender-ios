@@ -37,9 +37,9 @@ static CLG_LogRef LOG = {"lib.main_namemap"};
 // #define DEBUG_PRINT_MEMORY_USAGE
 
 /* Assumes and ensure that the suffix number can never go beyond 1 billion. */
-constexpr int MAX_NUMBER = 999999999;
+constexpr int max_number = 999999999;
 /* Value representing that there is no available number. Must be negative value. */
-constexpr int NO_AVAILABLE_NUMBER = -1;
+constexpr int no_available_number = -1;
 
 /* Tracking of used numeric suffixes. For each base name:
  *
@@ -87,7 +87,7 @@ struct UniqueName_Value {
         this->mask[number].set(true);
       }
     }
-    if (number <= MAX_NUMBER) {
+    if (number <= max_number) {
       if (this->max_value_in_use) {
         math::max_inplace(this->max_value_in_use.value(), number);
       }
@@ -119,7 +119,7 @@ struct UniqueName_Value {
 
       this->mask[number].set(false);
     }
-    if (number == this->max_value_in_use.value_or(NO_AVAILABLE_NUMBER)) {
+    if (number == this->max_value_in_use.value_or(no_available_number)) {
       if (number > 0) {
         this->max_value_in_use.value()--;
       }
@@ -155,10 +155,10 @@ struct UniqueName_Value {
       return int(this->mask.size());
     }
     if (this->max_value_in_use) {
-      if (this->max_value_in_use.value() + 1 <= MAX_NUMBER) {
+      if (this->max_value_in_use.value() + 1 <= max_number) {
         return this->max_value_in_use.value() + 1;
       }
-      return NO_AVAILABLE_NUMBER;
+      return no_available_number;
     }
     return 1;
   }
@@ -445,8 +445,8 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
 {
   /* In case no number value is available, current base name cannot be used to generate a final
    * full name. */
-  if (number != NO_AVAILABLE_NUMBER) {
-    BLI_assert(number >= 0 && number <= MAX_NUMBER);
+  if (number != no_available_number) {
+    BLI_assert(number >= 0 && number <= max_number);
     r_name_final = fmt::format("{}.{:03}", base_name, number);
     /* Most common case, there is a valid number suffix value and it fits in the #MAX_ID_NAME - 2
      * length limit.
@@ -474,7 +474,7 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
     r_name_final = base_name_modified;
     std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
         r_name_final);
-    if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
+    if (!val || val->get()->max_value_in_use.value_or(0) < max_number) {
       return false;
     }
   }
@@ -486,7 +486,7 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   while (r_name_final.size() < MAX_ID_NAME - 2 - 12) {
     std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
         r_name_final);
-    if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
+    if (!val || val->get()->max_value_in_use.value_or(0) < max_number) {
       return false;
     }
     suffix++;
@@ -507,7 +507,7 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
     r_name_final = fmt::format("{}_{}", new_base_name, uint32_t(get_default_hash(r_name_final)));
     std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
         r_name_final);
-    if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
+    if (!val || val->get()->max_value_in_use.value_or(0) < max_number) {
       return false;
     }
   }

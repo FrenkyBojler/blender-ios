@@ -159,26 +159,26 @@ void BKE_tempdir_session_purge();
  */
 enum {
   /* general, will find based on user/local/system priority */
-  BLENDER_DATAFILES = 2,
+  BlenderDatafiles = 2,
 
   /* user-specific */
-  BLENDER_USER_CONFIG = 31,
-  BLENDER_USER_DATAFILES = 32,
-  BLENDER_USER_SCRIPTS = 33,
-  BLENDER_USER_EXTENSIONS = 34,
+  BlenderUserConfig = 31,
+  BlenderUserDatafiles = 32,
+  BlenderUserScripts = 33,
+  BlenderUserExtensions = 34,
 
   /* system */
-  BLENDER_SYSTEM_DATAFILES = 52,
-  BLENDER_SYSTEM_SCRIPTS = 53,
-  BLENDER_SYSTEM_EXTENSIONS = 54,
-  BLENDER_SYSTEM_PYTHON = 55,
+  BlenderSystemDatafiles = 52,
+  BlenderSystemScripts = 53,
+  BlenderSystemExtensions = 54,
+  BlenderSystemPython = 55,
 };
 
 /** For #BKE_appdir_folder_id_version only. */
 enum {
-  BLENDER_RESOURCE_PATH_USER = 0,
-  BLENDER_RESOURCE_PATH_LOCAL = 1,
-  BLENDER_RESOURCE_PATH_SYSTEM = 2,
+  BlenderResourcePathUser = 0,
+  BlenderResourcePathLocal = 1,
+  BlenderResourcePathSystem = 2,
 };
 
 #define BLENDER_STARTUP_FILE "startup.blend"

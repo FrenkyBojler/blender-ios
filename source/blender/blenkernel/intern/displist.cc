@@ -85,11 +85,11 @@ DispList *BKE_displist_find(ListBaseT<DispList> *lb, int type)
 bool BKE_displist_surfindex_get(
     const DispList *dl, int a, int *b, int *p1, int *p2, int *p3, int *p4)
 {
-  if ((dl->flag & DL_CYCL_V) == 0 && a == (dl->parts) - 1) {
+  if ((dl->flag & DlCyclV) == 0 && a == (dl->parts) - 1) {
     return false;
   }
 
-  if (dl->flag & DL_CYCL_U) {
+  if (dl->flag & DlCyclU) {
     (*p1) = dl->nr * a;
     (*p2) = (*p1) + dl->nr - 1;
     (*p3) = (*p1) + dl->nr;
@@ -104,7 +104,7 @@ bool BKE_displist_surfindex_get(
     (*b) = 1;
   }
 
-  if ((dl->flag & DL_CYCL_V) && a == dl->parts - 1) {
+  if ((dl->flag & DlCyclV) && a == dl->parts - 1) {
     (*p3) -= dl->nr * dl->parts;
     (*p4) -= dl->nr * dl->parts;
   }
@@ -177,7 +177,7 @@ static void curve_to_displist(const Curve *cu,
       dl->col = nu.mat_nr;
       dl->charidx = nu.charidx;
 
-      dl->type = use_cyclic_sample ? DL_POLY : DL_SEGM;
+      dl->type = use_cyclic_sample ? DlPoly : DlSegm;
 
       float *data = dl->verts;
       for (int i = 1; i < nu.pntsu; i++) {
@@ -230,7 +230,7 @@ static void curve_to_displist(const Curve *cu,
       dl->nr = len;
       dl->col = nu.mat_nr;
       dl->charidx = nu.charidx;
-      dl->type = is_cyclic ? DL_POLY : DL_SEGM;
+      dl->type = is_cyclic ? DlPoly : DlSegm;
 
       BKE_nurb_makeCurve(&nu, dl->verts, nullptr, nullptr, nullptr, resolution, sizeof(float[3]));
     }
@@ -243,7 +243,7 @@ static void curve_to_displist(const Curve *cu,
       dl->nr = len;
       dl->col = nu.mat_nr;
       dl->charidx = nu.charidx;
-      dl->type = (is_cyclic && (dl->nr != 2)) ? DL_POLY : DL_SEGM;
+      dl->type = (is_cyclic && (dl->nr != 2)) ? DlPoly : DlSegm;
 
       float (*coords)[3] = reinterpret_cast<float (*)[3]>(dl->verts);
       for (int i = 0; i < len; i++) {
@@ -374,7 +374,7 @@ static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
     short dl_flag_accum = 0;
     short dl_rt_accum = 0;
     for (const DispList &dl : *dispbase) {
-      if (dl.type == DL_POLY) {
+      if (dl.type == DlPoly) {
         if (charidx < dl.charidx) {
           should_continue = true;
         }
@@ -418,8 +418,8 @@ static void displist_fill_scanfill(const ListBaseT<DispList> *dispbase,
     const int triangles_len = BLI_scanfill_calc_ex(&sf_ctx, scanfill_flag, normal_proj);
     if (totvert != 0 && triangles_len != 0) {
       DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
-      dlnew->type = DL_INDEX3;
-      dlnew->flag = (dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
+      dlnew->type = DlIndeX3;
+      dlnew->flag = (dl_flag_accum & (DlBackCurve | DlFrontCurve));
       dlnew->rt = (dl_rt_accum & CU_SMOOTH);
       dlnew->col = colnr;
       dlnew->nr = totvert;
@@ -499,7 +499,7 @@ static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
      * so the CDT winding number calculation produces correct results.
      * Needed for correct non-zero filling but harmless for odd/even, see: #155733. */
     faces[p].resize(poly.count);
-    if (poly.dl->flag & DL_REVERSED) {
+    if (poly.dl->flag & DlReversed) {
       std::iota(faces[p].rbegin(), faces[p].rend(), poly.start);
     }
     else {
@@ -536,8 +536,8 @@ static DispList *displist_fill_cdt_process_group(const CDTFillGroup &group,
   const int out_tris = int(result.face.size());
 
   DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
-  dlnew->type = DL_INDEX3;
-  dlnew->flag = (group.dl_flag_accum & (DL_BACK_CURVE | DL_FRONT_CURVE));
+  dlnew->type = DlIndeX3;
+  dlnew->flag = (group.dl_flag_accum & (DlBackCurve | DlFrontCurve));
   dlnew->rt = (group.dl_rt_accum & CU_SMOOTH);
   dlnew->col = group.colnr;
   dlnew->nr = out_verts;
@@ -616,7 +616,7 @@ static void displist_fill_cdt(const ListBaseT<DispList> *dispbase,
   Map<std::pair<int, short>, CDTFillGroup> group_map;
 
   for (const DispList &dl : *dispbase) {
-    if (dl.type != DL_POLY) {
+    if (dl.type != DlPoly) {
       continue;
     }
     const std::pair<int, short> key(dl.charidx, dl.col);
@@ -697,16 +697,16 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
   ListBaseT<DispList> back = {nullptr, nullptr};
 
   for (const DispList &dl : *dispbase) {
-    if (dl.type == DL_SURF) {
-      if ((dl.flag & DL_CYCL_V) && (dl.flag & DL_CYCL_U) == 0) {
-        if ((cu->flag & CU_BACK) && (dl.flag & DL_BACK_CURVE)) {
+    if (dl.type == DlSurf) {
+      if ((dl.flag & DlCyclV) && (dl.flag & DlCyclU) == 0) {
+        if ((cu->flag & CU_BACK) && (dl.flag & DlBackCurve)) {
           DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
           BLI_addtail(&front, dlnew);
           dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(dl.parts), __func__);
           dlnew->nr = dl.parts;
           dlnew->parts = 1;
-          dlnew->type = DL_POLY;
-          dlnew->flag = DL_BACK_CURVE | (dl.flag & DL_REVERSED);
+          dlnew->type = DlPoly;
+          dlnew->flag = DlBackCurve | (dl.flag & DlReversed);
           dlnew->col = dl.col;
           dlnew->charidx = dl.charidx;
 
@@ -718,14 +718,14 @@ static void bevels_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
             old_verts += 3 * dl.nr;
           }
         }
-        if ((cu->flag & CU_FRONT) && (dl.flag & DL_FRONT_CURVE)) {
+        if ((cu->flag & CU_FRONT) && (dl.flag & DlFrontCurve)) {
           DispList *dlnew = MEM_new_zeroed<DispList>(__func__);
           BLI_addtail(&back, dlnew);
           dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(dl.parts), __func__);
           dlnew->nr = dl.parts;
           dlnew->parts = 1;
-          dlnew->type = DL_POLY;
-          dlnew->flag = DL_FRONT_CURVE | (dl.flag & DL_REVERSED);
+          dlnew->type = DlPoly;
+          dlnew->flag = DlFrontCurve | (dl.flag & DlReversed);
           dlnew->col = dl.col;
           dlnew->charidx = dl.charidx;
 
@@ -772,7 +772,7 @@ static void curve_to_filledpoly(const Curve *cu, ListBaseT<DispList> *dispbase)
     return;
   }
 
-  if (dispbase->first && (static_cast<DispList *>(dispbase->first))->type == DL_SURF) {
+  if (dispbase->first && (static_cast<DispList *>(dispbase->first))->type == DlSurf) {
     bevels_to_filledpoly(cu, dispbase);
   }
   else {
@@ -909,10 +909,10 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
 
   ModifierApplyFlag apply_flag = ModifierApplyFlag(0);
   if (editmode) {
-    apply_flag = MOD_APPLY_USECACHE;
+    apply_flag = ModApplyUsecache;
   }
   if (for_render) {
-    apply_flag = MOD_APPLY_RENDER;
+    apply_flag = ModApplyRender;
   }
 
   float *keyVerts = nullptr;
@@ -1030,16 +1030,16 @@ static bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
   const bool editmode = (!for_render && (cu->editnurb || cu->editfont));
   const bool use_cache = !for_render;
 
-  ModifierApplyFlag apply_flag = for_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);
+  ModifierApplyFlag apply_flag = for_render ? ModApplyRender : ModifierApplyFlag(0);
   ModifierMode required_mode = for_render ? eModifierMode_Render : eModifierMode_Realtime;
   if (editmode) {
     required_mode = ModifierMode(int(required_mode) | eModifierMode_Editmode);
   }
 
   const ModifierEvalContext mectx_deform = {
-      depsgraph, ob, editmode ? (apply_flag | MOD_APPLY_USECACHE) : apply_flag};
+      depsgraph, ob, editmode ? (apply_flag | ModApplyUsecache) : apply_flag};
   const ModifierEvalContext mectx_apply = {
-      depsgraph, ob, use_cache ? (apply_flag | MOD_APPLY_USECACHE) : apply_flag};
+      depsgraph, ob, use_cache ? (apply_flag | ModApplyUsecache) : apply_flag};
 
   ModifierData *pretessellatePoint = curve_get_tessellate_point(scene, ob, for_render, editmode);
 
@@ -1173,10 +1173,10 @@ static bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
 
       float *data = dl->verts;
       if (nu.flagu & CU_NURB_CYCLIC) {
-        dl->type = DL_POLY;
+        dl->type = DlPoly;
       }
       else {
-        dl->type = DL_SEGM;
+        dl->type = DlSegm;
       }
 
       BKE_nurb_makeCurve(&nu, data, nullptr, nullptr, nullptr, resolu, sizeof(float[3]));
@@ -1193,15 +1193,15 @@ static bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
       dl->rt = nu.flag;
 
       float *data = dl->verts;
-      dl->type = DL_SURF;
+      dl->type = DlSurf;
 
       dl->parts = (nu.pntsu * resolu); /* in reverse, because makeNurbfaces works that way */
       dl->nr = (nu.pntsv * resolv);
       if (nu.flagv & CU_NURB_CYCLIC) {
-        dl->flag |= DL_CYCL_U; /* reverse too! */
+        dl->flag |= DlCyclU; /* reverse too! */
       }
       if (nu.flagu & CU_NURB_CYCLIC) {
-        dl->flag |= DL_CYCL_V;
+        dl->flag |= DlCyclV;
       }
 
       BKE_nurb_makeFaces(&nu, data, 0, resolu, resolv);
@@ -1290,7 +1290,7 @@ static void fillBevelCap(const Nurb *nu,
   dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(dlb->nr), __func__);
   memcpy(dl->verts, prev_fp, sizeof(float[3]) * dlb->nr);
 
-  dl->type = DL_POLY;
+  dl->type = DlPoly;
 
   dl->parts = 1;
   dl->nr = dlb->nr;
@@ -1451,7 +1451,7 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
   ListBaseT<Nurb> *deformed_nurbs = &ob->runtime->curve_cache->deformed_nurbs;
 
   if (ob->type == OB_FONT) {
-    BKE_vfont_to_curve_nubase(ob, FO_EDIT, deformed_nurbs);
+    BKE_vfont_to_curve_nubase(ob, FoEdit, deformed_nurbs);
   }
   else {
     BKE_nurbList_duplicate(deformed_nurbs, BKE_curve_nurbs_get_for_read(cu));
@@ -1493,14 +1493,14 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
         BLI_addtail(r_dispbase, dl);
 
         if (bl->poly != -1) {
-          dl->type = DL_POLY;
+          dl->type = DlPoly;
         }
         else {
-          dl->type = DL_SEGM;
-          dl->flag = (DL_FRONT_CURVE | DL_BACK_CURVE);
+          dl->type = DlSegm;
+          dl->flag = (DlFrontCurve | DlBackCurve);
         }
         if (bl->reversed) {
-          dl->flag |= DL_REVERSED;
+          dl->flag |= DlReversed;
         }
 
         dl->parts = 1;
@@ -1546,17 +1546,17 @@ static bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph,
                                                                 __func__);
           BLI_addtail(r_dispbase, dl);
 
-          dl->type = DL_SURF;
+          dl->type = DlSurf;
 
-          dl->flag = dlb.flag & (DL_FRONT_CURVE | DL_BACK_CURVE);
-          if (dlb.type == DL_POLY) {
-            dl->flag |= DL_CYCL_U;
+          dl->flag = dlb.flag & (DlFrontCurve | DlBackCurve);
+          if (dlb.type == DlPoly) {
+            dl->flag |= DlCyclU;
           }
           if ((bl->poly >= 0) && (steps > 2)) {
-            dl->flag |= DL_CYCL_V;
+            dl->flag |= DlCyclV;
           }
           if (bl->reversed) {
-            dl->flag |= DL_REVERSED;
+            dl->flag |= DlReversed;
           }
 
           dl->parts = steps;
@@ -1716,7 +1716,7 @@ void BKE_displist_make_curveTypes(Depsgraph *depsgraph,
        * (see #95355), this somewhat hacky inefficient solution is relatively temporary.
        */
       Curve &cow_curve = *reinterpret_cast<Curve *>(
-          BKE_id_copy_ex(nullptr, &original_curve.id, nullptr, LIB_ID_COPY_LOCALIZE));
+          BKE_id_copy_ex(nullptr, &original_curve.id, nullptr, LibIdCopyLocalize));
       cow_curve.curve_eval = geometry.get_curves();
       /* Copy edit mode pointers necessary for drawing to the duplicated curve. */
       cow_curve.editnurb = original_curve.editnurb;
@@ -1734,7 +1734,7 @@ void BKE_displist_minmax(const ListBaseT<DispList> *dispbase, float min[3], floa
   bool empty = true;
 
   for (const DispList &dl : *dispbase) {
-    const int tot = dl.type == DL_INDEX3 ? dl.nr : dl.nr * dl.parts;
+    const int tot = dl.type == DlIndeX3 ? dl.nr : dl.nr * dl.parts;
     for (const int i : IndexRange(tot)) {
       minmax_v3v3_v3(min, max, &dl.verts[i * 3]);
     }

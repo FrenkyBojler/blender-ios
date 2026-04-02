@@ -91,7 +91,7 @@ static void vfont_copy_data(Main * /*bmain*/,
   VFont *vfont_dst = id_cast<VFont *>(id_dst);
 
   /* We never handle user-count here for own data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
 
   /* Just to be sure, should not have any value actually after reading time. */
   vfont_dst->temp_pf = nullptr;
@@ -122,7 +122,7 @@ static void vfont_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   VFont *vfont = id_cast<VFont *>(id);
 
   if ((vfont->packedfile != nullptr) &&
-      (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0)
+      (bpath_data->flag & BkeBpathForeachPathSkipPacked) != 0)
   {
     return;
   }
@@ -173,7 +173,7 @@ IDTypeInfo IDType_ID_VF = {
     .name = "Font",
     .name_plural = N_("fonts"),
     .translation_context = BLT_I18NCONTEXT_ID_VFONT,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsNoAnimdata | IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = vfont_init_data,
@@ -332,7 +332,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *filepath)
       STRNCPY(vfont->filepath, filepath);
 
       /* if auto-pack is on store the packed-file in de font structure */
-      if (!is_builtin && (G.fileflags & G_FILE_AUTOPACK)) {
+      if (!is_builtin && (G.fileflags & GFileAutopack)) {
         vfont->packedfile = pf;
       }
 

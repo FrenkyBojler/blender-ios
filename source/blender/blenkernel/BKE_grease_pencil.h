@@ -14,7 +14,7 @@ namespace blender {
  */
 
 enum {
-  BKE_GREASEPENCIL_BATCH_DIRTY_ALL = 0,
+  BkeGreasepencilBatchDirtyAll = 0,
 };
 
 extern void (*BKE_grease_pencil_batch_cache_dirty_tag_cb)(GreasePencil *grease_pencil, int mode);

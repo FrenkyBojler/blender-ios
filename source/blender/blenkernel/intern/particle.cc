@@ -171,10 +171,10 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
   ParticleSettings *psett = reinterpret_cast<ParticleSettings *>(id);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->instance_collection, IDWALK_CB_USER);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->instance_object, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->bb_ob, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->collision_group, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->instance_collection, IdwalkCbUser);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->instance_object, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->bb_ob, IdwalkCbNop);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->collision_group, IdwalkCbNop);
 
   for (int i = 0; i < MAX_MTEX; i++) {
     if (psett->mtex[i]) {
@@ -184,16 +184,16 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (psett->effector_weights) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->effector_weights->group, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->effector_weights->group, IdwalkCbUser);
   }
 
   if (psett->pd) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd->tex, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd->f_source, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd->tex, IdwalkCbUser);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd->f_source, IdwalkCbNop);
   }
   if (psett->pd2) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd2->tex, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd2->f_source, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd2->tex, IdwalkCbUser);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->pd2->f_source, IdwalkCbNop);
   }
 
   if (psett->boids) {
@@ -201,22 +201,22 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
       for (BoidRule &rule : state.rules) {
         if (ELEM(rule.type, eBoidRuleType_Avoid, eBoidRuleType_Goal)) {
           BoidRuleGoalAvoid *gabr = reinterpret_cast<BoidRuleGoalAvoid *>(&rule);
-          BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gabr->ob, IDWALK_CB_NOP);
+          BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, gabr->ob, IdwalkCbNop);
         }
         else if (rule.type == eBoidRuleType_FollowLeader) {
           BoidRuleFollowLeader *flbr = reinterpret_cast<BoidRuleFollowLeader *>(&rule);
-          BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, flbr->ob, IDWALK_CB_NOP);
+          BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, flbr->ob, IdwalkCbNop);
         }
       }
     }
   }
 
   for (ParticleDupliWeight &dw : psett->instance_weights) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, dw.ob, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, dw.ob, IdwalkCbNop);
   }
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->force_group, IDWALK_CB_NOP);
+  if (flag & IdwalkDoDeprecatedPointers) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, psett->force_group, IdwalkCbNop);
   }
 }
 
@@ -5452,12 +5452,12 @@ void BKE_particle_uv_on_emitter(ParticleSystem *particlesystem,
                                 float r_uv[2])
 {
   if (modifier->mesh_final == nullptr) {
-    BKE_report(reports, RPT_ERROR, "Object was not yet evaluated");
+    BKE_report(reports, RptError, "Object was not yet evaluated");
     zero_v2(r_uv);
     return;
   }
   if (modifier->mesh_final->uv_map_names().is_empty()) {
-    BKE_report(reports, RPT_ERROR, "Mesh has no UV data");
+    BKE_report(reports, RptError, "Mesh has no UV data");
     zero_v2(r_uv);
     return;
   }
@@ -5492,7 +5492,7 @@ void BKE_particle_mcol_on_emitter(ParticleSystem *particlesystem,
                                   float r_mcol[3])
 {
   if (!CustomData_has_layer(&modifier->mesh_final->fdata_legacy, CD_MCOL)) {
-    BKE_report(reports, RPT_ERROR, "Mesh has no VCol data");
+    BKE_report(reports, RptError, "Mesh has no VCol data");
     zero_v3(r_mcol);
     return;
   }

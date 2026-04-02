@@ -37,16 +37,16 @@ enum eBPathForeachFlag {
    * the path of the current .blend file. This can be used by the callbacks to convert relative
    * paths to absolute ones.
    */
-  BKE_BPATH_FOREACH_PATH_ABSOLUTE = (1 << 0),
+  BkeBpathForeachPathAbsolute = (1 << 0),
   /** Skip paths of linked IDs. */
-  BKE_BPATH_FOREACH_PATH_SKIP_LINKED = (1 << 1),
+  BkeBpathForeachPathSkipLinked = (1 << 1),
   /** Skip paths when their matching data is packed. */
-  BKE_BPATH_FOREACH_PATH_SKIP_PACKED = (1 << 2),
+  BkeBpathForeachPathSkipPacked = (1 << 2),
   /**
    * Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only used
    * for UDIM tiles.
    */
-  BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN = (1 << 3),
+  BkeBpathForeachPathResolveToken = (1 << 3),
   /**
    * Skip weak reference paths. Those paths are typically 'nice to have' extra information, but are
    * not used as actual source of data by the current .blend file.
@@ -54,7 +54,7 @@ enum eBPathForeachFlag {
    * NOTE: Currently this only concerns the weak reference to a library file stored in
    * `ID::library_weak_reference`.
    */
-  BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES = (1 << 5),
+  BkeBpathTraverseSkipWeakReferences = (1 << 5),
 
   /**
    * Flags not affecting the generic BPath API. Those may be used by specific IDTypeInfo
@@ -68,12 +68,12 @@ enum eBPathForeachFlag {
    * This is needed for directory manipulation callbacks which might otherwise modify the same
    * directory multiple times.
    */
-  BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE = (1 << 8),
+  BkeBpathForeachPathSkipMultifile = (1 << 8),
   /**
    * Reload data (when the path is edited).
    * \note Only used by Image #IDType currently.
    */
-  BKE_BPATH_FOREACH_PATH_RELOAD_EDITED = (1 << 9),
+  BkeBpathForeachPathReloadEdited = (1 << 9),
 };
 ENUM_OPERATORS(eBPathForeachFlag)
 

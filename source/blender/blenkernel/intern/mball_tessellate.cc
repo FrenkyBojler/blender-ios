@@ -1206,7 +1206,7 @@ static void init_meta(Depsgraph *depsgraph, PROCESS *process, Scene *scene, Obje
      * the instancer is visible too. */
     if ((base->flag_legacy & OB_FROMDUPLI) == 0 && ob->parent != nullptr &&
         (ob->parent->transflag & parenting_dupli_transflag) != 0 &&
-        (BKE_object_visibility(ob->parent, deg_eval_mode) & OB_VISIBLE_SELF) == 0)
+        (BKE_object_visibility(ob->parent, deg_eval_mode) & ObVisibleSelf) == 0)
     {
       continue;
     }
@@ -1385,7 +1385,7 @@ Mesh *BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob)
   if (!is_render && (mb->flag == MB_UPDATE_NEVER)) {
     return nullptr;
   }
-  if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_FAST) {
+  if ((G.moving & (GTransformObj | GTransformEdit)) && mb->flag == MB_UPDATE_FAST) {
     return nullptr;
   }
 
@@ -1394,7 +1394,7 @@ Mesh *BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob)
   }
   else {
     process.size = mb->wiresize;
-    if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_HALFRES) {
+    if ((G.moving & (GTransformObj | GTransformEdit)) && mb->flag == MB_UPDATE_HALFRES) {
       process.size *= 2.0f;
     }
   }

@@ -93,7 +93,7 @@ class CombinedKeyingResult {
 
   bool has_errors() const;
 
-  void generate_reports(ReportList *reports, eReportType report_level = RPT_ERROR);
+  void generate_reports(ReportList *reports, eReportType report_level = RptError);
 };
 
 /**

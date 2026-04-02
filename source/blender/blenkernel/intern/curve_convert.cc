@@ -25,10 +25,10 @@ static Curve *curve_from_font_object(Object *object, Depsgraph *depsgraph)
 {
   Curve *curve = id_cast<Curve *>(object->data);
   Curve *new_curve = id_cast<Curve *>(
-      BKE_id_copy_ex(nullptr, &curve->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &curve->id, nullptr, LibIdCopyLocalize));
 
   Object *evaluated_object = DEG_get_evaluated(depsgraph, object);
-  BKE_vfont_to_curve_nubase(evaluated_object, FO_EDIT, &new_curve->nurb);
+  BKE_vfont_to_curve_nubase(evaluated_object, FoEdit, &new_curve->nurb);
 
   new_curve->ob_type = OB_CURVES_LEGACY;
 
@@ -43,7 +43,7 @@ static Curve *curve_from_curve_object(Object *object, Depsgraph *depsgraph, bool
   Object *evaluated_object = DEG_get_evaluated(depsgraph, object);
   Curve *curve = id_cast<Curve *>(evaluated_object->data);
   Curve *new_curve = id_cast<Curve *>(
-      BKE_id_copy_ex(nullptr, &curve->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &curve->id, nullptr, LibIdCopyLocalize));
 
   if (apply_modifiers) {
     BKE_curve_calc_modifiers_pre(depsgraph,

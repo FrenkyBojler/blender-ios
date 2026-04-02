@@ -26,7 +26,7 @@ static Vector<NodesModifierBakeFile> pack_files_from_directory(const StringRefNu
                                                                ReportList *reports)
 {
   if (!BLI_is_dir(directory.c_str())) {
-    BKE_reportf(reports, RPT_ERROR, "%s is not a directory", directory.c_str());
+    BKE_reportf(reports, RptError, "%s is not a directory", directory.c_str());
     return {};
   }
 
@@ -87,13 +87,13 @@ bool unpack_bake_to_disk(const NodesModifierPackedBake &packed_bake,
     char file_path[FILE_MAX];
     BLI_path_join(file_path, sizeof(file_path), directory.c_str(), bake_file.name);
     if (!BLI_file_ensure_parent_dir_exists(file_path)) {
-      BKE_reportf(reports, RPT_ERROR, "Cannot ensure directory: %s", directory.c_str());
+      BKE_reportf(reports, RptError, "Cannot ensure directory: %s", directory.c_str());
       return false;
     }
     fstream fs(file_path, std::ios::out | std::ios::binary);
     fs.write(static_cast<const char *>(bake_file.packed_file->data), bake_file.packed_file->size);
     if (fs.bad()) {
-      BKE_reportf(reports, RPT_ERROR, "Cannot write file: %s", file_path);
+      BKE_reportf(reports, RptError, "Cannot write file: %s", file_path);
       return false;
     }
     return true;
@@ -170,7 +170,7 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
     return UnpackGeometryNodesBakeResult::NoPackedData;
   }
   if (StringRef(BKE_main_blendfile_path(&bmain)).is_empty()) {
-    BKE_report(reports, RPT_ERROR, "Can only unpack bake if the current .blend file is saved");
+    BKE_report(reports, RptError, "Can only unpack bake if the current .blend file is saved");
     return UnpackGeometryNodesBakeResult::BlendFileNotSaved;
   }
 
@@ -211,7 +211,7 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
   };
 
   switch (how) {
-    case PF_USE_ORIGINAL: {
+    case PfUseOriginal: {
       const bake::BakePath bake_path = prepare_original_path();
       if (!disk_bake_exists(bake_path)) {
         delete_bake_on_disk(bake_path);
@@ -222,7 +222,7 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
       free_packed_bake();
       return finalize_on_success();
     }
-    case PF_WRITE_ORIGINAL: {
+    case PfWriteOriginal: {
       const bake::BakePath bake_path = prepare_original_path();
       delete_bake_on_disk(bake_path);
       if (!bake::unpack_bake_to_disk(*bake.packed, bake_path, reports)) {
@@ -231,7 +231,7 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
       free_packed_bake();
       return finalize_on_success();
     }
-    case PF_USE_LOCAL: {
+    case PfUseLocal: {
       const bake::BakePath bake_path = prepare_local_path();
       if (!disk_bake_exists(bake_path)) {
         delete_bake_on_disk(bake_path);
@@ -242,7 +242,7 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
       free_packed_bake();
       return finalize_on_success();
     }
-    case PF_WRITE_LOCAL: {
+    case PfWriteLocal: {
       const bake::BakePath bake_path = prepare_local_path();
       delete_bake_on_disk(bake_path);
       if (!bake::unpack_bake_to_disk(*bake.packed, bake_path, reports)) {
@@ -251,10 +251,10 @@ UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,
       free_packed_bake();
       return finalize_on_success();
     }
-    case PF_KEEP: {
+    case PfKeep: {
       return finalize_on_success();
     }
-    case PF_REMOVE: {
+    case PfRemove: {
       free_packed_bake();
       return finalize_on_success();
     }

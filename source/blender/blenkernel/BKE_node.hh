@@ -1260,9 +1260,9 @@ inline bool bNodeType::is_type(const StringRef query_idname) const
     return *static_cast<const StorageT *>(node.storage); \
   }
 
-constexpr int NODE_DEFAULT_MAX_WIDTH = 700;
-constexpr int GROUP_NODE_DEFAULT_WIDTH = 140;
-constexpr int GROUP_NODE_MAX_WIDTH = NODE_DEFAULT_MAX_WIDTH;
-constexpr int GROUP_NODE_MIN_WIDTH = 60;
+constexpr int node_default_max_width = 700;
+constexpr int group_node_default_width = 140;
+constexpr int group_node_max_width = node_default_max_width;
+constexpr int group_node_min_width = 60;
 
 }  // namespace blender

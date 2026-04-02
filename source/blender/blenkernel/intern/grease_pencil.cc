@@ -252,18 +252,18 @@ static void grease_pencil_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
   for (int i = 0; i < grease_pencil->material_array_num; i++) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, grease_pencil->material_array[i], IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, grease_pencil->material_array[i], IdwalkCbUser);
   }
   for (GreasePencilDrawingBase *drawing_base : grease_pencil->drawings()) {
     if (drawing_base->type == GP_DRAWING_REFERENCE) {
       GreasePencilDrawingReference *drawing_reference =
           reinterpret_cast<GreasePencilDrawingReference *>(drawing_base);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, drawing_reference->id_reference, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, drawing_reference->id_reference, IdwalkCbUser);
     }
   }
   for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
     if (layer->parent) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layer->parent, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layer->parent, IdwalkCbUser);
     }
   }
 }
@@ -354,7 +354,7 @@ IDTypeInfo IDType_ID_GP = {
     .name = "GreasePencil",
     .name_plural = N_("grease_pencils"),
     .translation_context = BLT_I18NCONTEXT_ID_GPENCIL,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = grease_pencil_init_data,
@@ -377,10 +377,10 @@ IDTypeInfo IDType_ID_GP = {
 };
 
 namespace bke::greasepencil {
-constexpr StringRef ATTR_RADIUS = "radius";
-constexpr StringRef ATTR_OPACITY = "opacity";
-constexpr StringRef ATTR_VERTEX_COLOR = "vertex_color";
-constexpr StringRef ATTR_FILL_COLOR = "fill_color";
+constexpr StringRef attr_radius = "radius";
+constexpr StringRef attr_opacity = "opacity";
+constexpr StringRef attr_vertex_color = "vertex_color";
+constexpr StringRef attr_fill_color = "fill_color";
 
 Drawing::Drawing()
 {
@@ -939,14 +939,14 @@ bke::CurvesGeometry &Drawing::strokes_for_write()
 VArray<float> Drawing::radii() const
 {
   return *this->strokes().attributes().lookup_or_default<float>(
-      ATTR_RADIUS, AttrDomain::Point, 0.01f);
+      attr_radius, AttrDomain::Point, 0.01f);
 }
 
 MutableSpan<float> Drawing::radii_for_write()
 {
   return bke::get_mutable_attribute<float>(this->strokes_for_write().attribute_storage.wrap(),
                                            AttrDomain::Point,
-                                           ATTR_RADIUS,
+                                           attr_radius,
                                            this->strokes().points_num(),
                                            0.01f);
 }
@@ -954,14 +954,14 @@ MutableSpan<float> Drawing::radii_for_write()
 VArray<float> Drawing::opacities() const
 {
   return *this->strokes().attributes().lookup_or_default<float>(
-      ATTR_OPACITY, AttrDomain::Point, 1.0f);
+      attr_opacity, AttrDomain::Point, 1.0f);
 }
 
 MutableSpan<float> Drawing::opacities_for_write()
 {
   return bke::get_mutable_attribute<float>(this->strokes_for_write().attribute_storage.wrap(),
                                            AttrDomain::Point,
-                                           ATTR_OPACITY,
+                                           attr_opacity,
                                            this->strokes().points_num(),
                                            1.0f);
 }
@@ -969,7 +969,7 @@ MutableSpan<float> Drawing::opacities_for_write()
 VArray<ColorGeometry4f> Drawing::vertex_colors() const
 {
   return *this->strokes().attributes().lookup_or_default<ColorGeometry4f>(
-      ATTR_VERTEX_COLOR, AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+      attr_vertex_color, AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
@@ -977,7 +977,7 @@ MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
   return bke::get_mutable_attribute<ColorGeometry4f>(
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Point,
-      ATTR_VERTEX_COLOR,
+      attr_vertex_color,
       this->strokes().points_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
@@ -985,7 +985,7 @@ MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
 VArray<ColorGeometry4f> Drawing::fill_colors() const
 {
   return *this->strokes().attributes().lookup_or_default<ColorGeometry4f>(
-      ATTR_FILL_COLOR, AttrDomain::Curve, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+      attr_fill_color, AttrDomain::Curve, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
@@ -993,7 +993,7 @@ MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
   return bke::get_mutable_attribute<ColorGeometry4f>(
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Curve,
-      ATTR_FILL_COLOR,
+      attr_fill_color,
       this->strokes().curves_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
@@ -2295,7 +2295,7 @@ GreasePencil *BKE_grease_pencil_new_nomain()
 GreasePencil *BKE_grease_pencil_copy_for_eval(const GreasePencil *grease_pencil_src)
 {
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(
-      BKE_id_copy_ex(nullptr, &grease_pencil_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
+      BKE_id_copy_ex(nullptr, &grease_pencil_src->id, nullptr, LibIdCopyLocalize));
   grease_pencil->runtime->eval_frame = grease_pencil_src->runtime->eval_frame;
   return grease_pencil;
 }
@@ -2420,7 +2420,7 @@ static void grease_pencil_evaluate_modifiers(Depsgraph *depsgraph,
   if (BKE_object_is_in_editmode(object)) {
     required_mode |= eModifierMode_Editmode;
   }
-  ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
+  ModifierApplyFlag apply_flag = use_render ? ModApplyRender : ModApplyUsecache;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
 
   BKE_modifiers_clear_errors(object);
@@ -2855,7 +2855,7 @@ Material *BKE_grease_pencil_object_material_new(Main *bmain,
   id_us_min(&ma->id); /* no users yet */
 
   BKE_object_material_slot_add(bmain, ob);
-  BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
+  BKE_object_material_assign(bmain, ob, ma, ob->totcol, BkeMatAssignUserpref);
 
   if (r_index) {
     *r_index = ob->actcol - 1;
@@ -2905,7 +2905,7 @@ static Material *grease_pencil_object_material_ensure_from_brush_pinned(Main *bm
     const bool change_active_material = false;
 
     BKE_object_material_slot_add(bmain, ob, change_active_material);
-    BKE_object_material_assign(bmain, ob, ma, ob->totcol, BKE_MAT_ASSIGN_USERPREF);
+    BKE_object_material_assign(bmain, ob, ma, ob->totcol, BkeMatAssignUserpref);
   }
 
   return ma;

@@ -350,9 +350,9 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser)
 
   /* Note that the image can cache both stereo views, so we only invalidate the cache if the view
    * index is more than 2. */
-  if (!ELEM(image->runtime->gpu_pass, IMAGE_GPU_PASS_NONE, iuser->pass) ||
-      !ELEM(image->runtime->gpu_layer, IMAGE_GPU_LAYER_NONE, iuser->layer) ||
-      (!ELEM(image->runtime->gpu_view, IMAGE_GPU_VIEW_NONE, iuser->multi_index) &&
+  if (!ELEM(image->runtime->gpu_pass, image_gpu_pass_none, iuser->pass) ||
+      !ELEM(image->runtime->gpu_layer, image_gpu_layer_none, iuser->layer) ||
+      (!ELEM(image->runtime->gpu_view, image_gpu_view_none, iuser->multi_index) &&
        iuser->multi_index >= 2))
   {
     BKE_image_partial_update_mark_full_update(image);

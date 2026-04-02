@@ -17,7 +17,7 @@
 
 namespace blender {
 
-static ListBaseT<bCallbackFuncStore> callback_slots[BKE_CB_EVT_TOT] = {{nullptr}};
+static ListBaseT<bCallbackFuncStore> callback_slots[BkeCbEvtTot] = {{nullptr}};
 
 static bool callbacks_initialized = false;
 
@@ -119,7 +119,7 @@ void BKE_callback_global_init()
 
 void BKE_callback_global_finalize()
 {
-  for (int evt_i = 0; evt_i < BKE_CB_EVT_TOT; evt_i++) {
+  for (int evt_i = 0; evt_i < BkeCbEvtTot; evt_i++) {
     const eCbEvent evt = eCbEvent(evt_i);
     ListBaseT<bCallbackFuncStore> *lb = &callback_slots[evt];
     bCallbackFuncStore *funcstore;

@@ -42,21 +42,21 @@
 
 namespace blender::bke {
 
-constexpr StringRef ATTR_POSITION = "position";
-constexpr StringRef ATTR_RADIUS = "radius";
-constexpr StringRef ATTR_TILT = "tilt";
-constexpr StringRef ATTR_CURVE_TYPE = "curve_type";
-constexpr StringRef ATTR_CYCLIC = "cyclic";
-constexpr StringRef ATTR_RESOLUTION = "resolution";
-constexpr StringRef ATTR_NORMAL_MODE = "normal_mode";
-constexpr StringRef ATTR_HANDLE_TYPE_LEFT = "handle_type_left";
-constexpr StringRef ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
-constexpr StringRef ATTR_HANDLE_POSITION_LEFT = "handle_left";
-constexpr StringRef ATTR_HANDLE_POSITION_RIGHT = "handle_right";
-constexpr StringRef ATTR_NURBS_ORDER = "nurbs_order";
-constexpr StringRef ATTR_NURBS_WEIGHT = "nurbs_weight";
-constexpr StringRef ATTR_NURBS_KNOTS_MODE = "knots_mode";
-constexpr StringRef ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
+constexpr StringRef attr_position = "position";
+constexpr StringRef attr_radius = "radius";
+constexpr StringRef attr_tilt = "tilt";
+constexpr StringRef attr_curve_type = "curve_type";
+constexpr StringRef attr_cyclic = "cyclic";
+constexpr StringRef attr_resolution = "resolution";
+constexpr StringRef attr_normal_mode = "normal_mode";
+constexpr StringRef attr_handle_type_left = "handle_type_left";
+constexpr StringRef attr_handle_type_right = "handle_type_right";
+constexpr StringRef attr_handle_position_left = "handle_left";
+constexpr StringRef attr_handle_position_right = "handle_right";
+constexpr StringRef attr_nurbs_order = "nurbs_order";
+constexpr StringRef attr_nurbs_weight = "nurbs_weight";
+constexpr StringRef attr_nurbs_knots_mode = "knots_mode";
+constexpr StringRef attr_surface_uv_coordinate = "surface_uv_coordinate";
 
 /* -------------------------------------------------------------------- */
 /** \name Constructors/Destructor
@@ -230,7 +230,7 @@ VArray<int8_t> CurvesGeometry::curve_types() const
 {
   return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
                                       AttrDomain::Curve,
-                                      ATTR_CURVE_TYPE,
+                                      attr_curve_type,
                                       this->curves_num(),
                                       CURVE_TYPE_CATMULL_ROM);
 }
@@ -238,7 +238,7 @@ VArray<int8_t> CurvesGeometry::curve_types() const
 MutableSpan<int8_t> CurvesGeometry::curve_types_for_write()
 {
   return get_mutable_attribute<int8_t>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_CURVE_TYPE, this->curves_num());
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_curve_type, this->curves_num());
 }
 
 void CurvesGeometry::fill_curve_types(const CurveType type)
@@ -322,23 +322,23 @@ void CurvesGeometry::update_curve_types()
 Span<float3> CurvesGeometry::positions() const
 {
   return *get_span_attribute<float3>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_POSITION, this->points_num());
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_position, this->points_num());
 }
 MutableSpan<float3> CurvesGeometry::positions_for_write()
 {
   return get_mutable_attribute<float3>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_POSITION, this->points_num());
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_position, this->points_num());
 }
 
 VArray<float> CurvesGeometry::radius() const
 {
   return get_varray_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_RADIUS, this->points_num(), 0.01f);
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_radius, this->points_num(), 0.01f);
 }
 MutableSpan<float> CurvesGeometry::radius_for_write()
 {
   return get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_RADIUS, this->points_num(), 0.01f);
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_radius, this->points_num(), 0.01f);
 }
 
 Span<int> CurvesGeometry::offsets() const
@@ -361,52 +361,52 @@ MutableSpan<int> CurvesGeometry::offsets_for_write()
 VArray<bool> CurvesGeometry::cyclic() const
 {
   return get_varray_attribute<bool>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_CYCLIC, this->curves_num(), false);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_cyclic, this->curves_num(), false);
 }
 MutableSpan<bool> CurvesGeometry::cyclic_for_write()
 {
   return get_mutable_attribute<bool>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_CYCLIC, this->curves_num(), false);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_cyclic, this->curves_num(), false);
 }
 
 VArray<int> CurvesGeometry::resolution() const
 {
   return get_varray_attribute<int>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_RESOLUTION, this->curves_num(), 12);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_resolution, this->curves_num(), 12);
 }
 MutableSpan<int> CurvesGeometry::resolution_for_write()
 {
   return get_mutable_attribute<int>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_RESOLUTION, this->curves_num(), 12);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_resolution, this->curves_num(), 12);
 }
 
 VArray<int8_t> CurvesGeometry::normal_mode() const
 {
   return get_varray_attribute<int8_t>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NORMAL_MODE, this->curves_num(), 0);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_normal_mode, this->curves_num(), 0);
 }
 MutableSpan<int8_t> CurvesGeometry::normal_mode_for_write()
 {
   return get_mutable_attribute<int8_t>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NORMAL_MODE, this->curves_num());
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_normal_mode, this->curves_num());
 }
 
 VArray<float> CurvesGeometry::tilt() const
 {
   return get_varray_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_TILT, this->points_num(), 0.0f);
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_tilt, this->points_num(), 0.0f);
 }
 MutableSpan<float> CurvesGeometry::tilt_for_write()
 {
   return get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_TILT, this->points_num());
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_tilt, this->points_num());
 }
 
 VArray<int8_t> CurvesGeometry::handle_types_left() const
 {
   return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
                                       AttrDomain::Point,
-                                      ATTR_HANDLE_TYPE_LEFT,
+                                      attr_handle_type_left,
                                       this->points_num(),
                                       0);
 }
@@ -414,7 +414,7 @@ MutableSpan<int8_t> CurvesGeometry::handle_types_left_for_write()
 {
   return get_mutable_attribute<int8_t>(this->attribute_storage.wrap(),
                                        AttrDomain::Point,
-                                       ATTR_HANDLE_TYPE_LEFT,
+                                       attr_handle_type_left,
                                        this->points_num(),
                                        0);
 }
@@ -423,7 +423,7 @@ VArray<int8_t> CurvesGeometry::handle_types_right() const
 {
   return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
                                       AttrDomain::Point,
-                                      ATTR_HANDLE_TYPE_RIGHT,
+                                      attr_handle_type_right,
                                       this->points_num(),
                                       0);
 }
@@ -431,7 +431,7 @@ MutableSpan<int8_t> CurvesGeometry::handle_types_right_for_write()
 {
   return get_mutable_attribute<int8_t>(this->attribute_storage.wrap(),
                                        AttrDomain::Point,
-                                       ATTR_HANDLE_TYPE_RIGHT,
+                                       attr_handle_type_right,
                                        this->points_num(),
                                        0);
 }
@@ -440,14 +440,14 @@ std::optional<Span<float3>> CurvesGeometry::handle_positions_left() const
 {
   return get_span_attribute<float3>(this->attribute_storage.wrap(),
                                     AttrDomain::Point,
-                                    ATTR_HANDLE_POSITION_LEFT,
+                                    attr_handle_position_left,
                                     this->points_num());
 }
 MutableSpan<float3> CurvesGeometry::handle_positions_left_for_write()
 {
   return get_mutable_attribute<float3>(this->attribute_storage.wrap(),
                                        AttrDomain::Point,
-                                       ATTR_HANDLE_POSITION_LEFT,
+                                       attr_handle_position_left,
                                        this->points_num());
 }
 
@@ -455,38 +455,38 @@ std::optional<Span<float3>> CurvesGeometry::handle_positions_right() const
 {
   return get_span_attribute<float3>(this->attribute_storage.wrap(),
                                     AttrDomain::Point,
-                                    ATTR_HANDLE_POSITION_RIGHT,
+                                    attr_handle_position_right,
                                     this->points_num());
 }
 MutableSpan<float3> CurvesGeometry::handle_positions_right_for_write()
 {
   return get_mutable_attribute<float3>(this->attribute_storage.wrap(),
                                        AttrDomain::Point,
-                                       ATTR_HANDLE_POSITION_RIGHT,
+                                       attr_handle_position_right,
                                        this->points_num());
 }
 
 VArray<int8_t> CurvesGeometry::nurbs_orders() const
 {
   return get_varray_attribute<int8_t>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NURBS_ORDER, this->curves_num(), 4);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_nurbs_order, this->curves_num(), 4);
 }
 MutableSpan<int8_t> CurvesGeometry::nurbs_orders_for_write()
 {
   return get_mutable_attribute<int8_t>(
-      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NURBS_ORDER, this->curves_num(), 4);
+      this->attribute_storage.wrap(), AttrDomain::Curve, attr_nurbs_order, this->curves_num(), 4);
 }
 
 std::optional<Span<float>> CurvesGeometry::nurbs_weights() const
 {
   return get_span_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_NURBS_WEIGHT, this->points_num());
+      this->attribute_storage.wrap(), AttrDomain::Point, attr_nurbs_weight, this->points_num());
 }
 MutableSpan<float> CurvesGeometry::nurbs_weights_for_write()
 {
   return get_mutable_attribute<float>(this->attribute_storage.wrap(),
                                       AttrDomain::Point,
-                                      ATTR_NURBS_WEIGHT,
+                                      attr_nurbs_weight,
                                       this->points_num(),
                                       1.0f);
 }
@@ -495,7 +495,7 @@ VArray<int8_t> CurvesGeometry::nurbs_knots_modes() const
 {
   return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
                                       AttrDomain::Curve,
-                                      ATTR_NURBS_KNOTS_MODE,
+                                      attr_nurbs_knots_mode,
                                       this->curves_num(),
                                       0);
 }
@@ -503,7 +503,7 @@ MutableSpan<int8_t> CurvesGeometry::nurbs_knots_modes_for_write()
 {
   return get_mutable_attribute<int8_t>(this->attribute_storage.wrap(),
                                        AttrDomain::Curve,
-                                       ATTR_NURBS_KNOTS_MODE,
+                                       attr_nurbs_knots_mode,
                                        this->curves_num(),
                                        0);
 }
@@ -512,7 +512,7 @@ std::optional<Span<float2>> CurvesGeometry::surface_uv_coords() const
 {
   return get_span_attribute<float2>(this->attribute_storage.wrap(),
                                     AttrDomain::Curve,
-                                    ATTR_SURFACE_UV_COORDINATE,
+                                    attr_surface_uv_coordinate,
                                     this->curves_num());
 }
 
@@ -520,7 +520,7 @@ MutableSpan<float2> CurvesGeometry::surface_uv_coords_for_write()
 {
   return get_mutable_attribute<float2>(this->attribute_storage.wrap(),
                                        AttrDomain::Curve,
-                                       ATTR_SURFACE_UV_COORDINATE,
+                                       attr_surface_uv_coordinate,
                                        this->curves_num());
 }
 
@@ -625,7 +625,7 @@ MutableSpan<MDeformVert> CurvesGeometry::deform_verts_for_write()
     return {dvert, this->point_num};
   }
   return {static_cast<MDeformVert *>(CustomData_add_layer(
-              &this->point_data, CD_MDEFORMVERT, CD_SET_DEFAULT, this->point_num)),
+              &this->point_data, CD_MDEFORMVERT, CdSetDefault, this->point_num)),
           this->point_num};
 }
 
@@ -1688,10 +1688,10 @@ static void reverse_swap_curve_point_data(const CurvesGeometry &curves,
 
 void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
 {
-  Set<StringRef> bezier_handle_names{{ATTR_HANDLE_POSITION_LEFT,
-                                      ATTR_HANDLE_POSITION_RIGHT,
-                                      ATTR_HANDLE_TYPE_LEFT,
-                                      ATTR_HANDLE_TYPE_RIGHT}};
+  Set<StringRef> bezier_handle_names{{attr_handle_position_left,
+                                      attr_handle_position_right,
+                                      attr_handle_type_left,
+                                      attr_handle_type_right}};
 
   MutableAttributeAccessor attributes = this->attributes_for_write();
 
@@ -1735,15 +1735,15 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
    * to avoid loading the attribute twice. Generally we can expect the right layer to exist when
    * the left does, but there's no need to count on it, so check for both attributes. */
 
-  if (attributes.contains(ATTR_HANDLE_POSITION_LEFT) &&
-      attributes.contains(ATTR_HANDLE_POSITION_RIGHT))
+  if (attributes.contains(attr_handle_position_left) &&
+      attributes.contains(attr_handle_position_right))
   {
     reverse_swap_curve_point_data(*this,
                                   curves_to_reverse,
                                   this->handle_positions_left_for_write(),
                                   this->handle_positions_right_for_write());
   }
-  if (attributes.contains(ATTR_HANDLE_TYPE_LEFT) && attributes.contains(ATTR_HANDLE_TYPE_RIGHT)) {
+  if (attributes.contains(attr_handle_type_left) && attributes.contains(attr_handle_type_right)) {
     reverse_swap_curve_point_data(*this,
                                   curves_to_reverse,
                                   this->handle_types_left_for_write(),
@@ -1757,18 +1757,18 @@ void CurvesGeometry::remove_attributes_based_on_types()
 {
   MutableAttributeAccessor attributes = this->attributes_for_write();
   if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
-    attributes.remove(ATTR_HANDLE_TYPE_LEFT);
-    attributes.remove(ATTR_HANDLE_TYPE_RIGHT);
-    attributes.remove(ATTR_HANDLE_POSITION_LEFT);
-    attributes.remove(ATTR_HANDLE_POSITION_RIGHT);
+    attributes.remove(attr_handle_type_left);
+    attributes.remove(attr_handle_type_right);
+    attributes.remove(attr_handle_position_left);
+    attributes.remove(attr_handle_position_right);
   }
   if (!this->has_curve_with_type(CURVE_TYPE_NURBS)) {
-    attributes.remove(ATTR_NURBS_WEIGHT);
-    attributes.remove(ATTR_NURBS_ORDER);
-    attributes.remove(ATTR_NURBS_KNOTS_MODE);
+    attributes.remove(attr_nurbs_weight);
+    attributes.remove(attr_nurbs_order);
+    attributes.remove(attr_nurbs_knots_mode);
   }
   if (!this->has_curve_with_type({CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
-    attributes.remove(ATTR_RESOLUTION);
+    attributes.remove(attr_resolution);
   }
 }
 

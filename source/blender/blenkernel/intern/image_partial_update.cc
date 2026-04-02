@@ -66,7 +66,7 @@ namespace blender {
 namespace bke::image::partial_update {
 
 /** \brief Size of chunks to track changes. */
-constexpr int CHUNK_SIZE = 256;
+constexpr int chunk_size = 256;
 
 /**
  * \brief Max number of changesets to keep in history.
@@ -78,7 +78,7 @@ constexpr int CHUNK_SIZE = 256;
  * A to small number would lead to more full updates when changes couldn't be reconstructed from
  * the available history.
  */
-constexpr int MAX_HISTORY_LEN = 4;
+constexpr int max_history_len = 4;
 
 /**
  * \brief get the chunk number for the give pixel coordinate.
@@ -87,7 +87,7 @@ constexpr int MAX_HISTORY_LEN = 4;
  */
 static int chunk_number_for_pixel(int pixel_offset)
 {
-  int chunk_offset = pixel_offset / CHUNK_SIZE;
+  int chunk_offset = pixel_offset / chunk_size;
   if (pixel_offset < 0) {
     chunk_offset -= 1;
   }
@@ -130,11 +130,11 @@ static PartialUpdateRegisterImpl *unwrap(PartialUpdateRegister *partial_update_r
 }
 
 using ChangesetID = int64_t;
-constexpr ChangesetID UnknownChangesetID = -1;
+constexpr ChangesetID unknown_changeset_id = -1;
 
 struct PartialUpdateUserImpl {
   /** \brief last changeset id that was seen by this user. */
-  ChangesetID last_changeset_id = UnknownChangesetID;
+  ChangesetID last_changeset_id = unknown_changeset_id;
 
   /** \brief regions that have been updated. */
   Vector<PartialUpdateRegion> updated_regions;
@@ -201,8 +201,8 @@ struct TileChangeset {
     tile_width = image_buffer->x;
     tile_height = image_buffer->y;
 
-    int chunk_x_len = (tile_width + CHUNK_SIZE - 1) / CHUNK_SIZE;
-    int chunk_y_len = (tile_height + CHUNK_SIZE - 1) / CHUNK_SIZE;
+    int chunk_x_len = (tile_width + chunk_size - 1) / chunk_size;
+    int chunk_y_len = (tile_height + chunk_size - 1) / chunk_size;
     init_chunks(chunk_x_len, chunk_y_len);
     return true;
   }
@@ -407,7 +407,7 @@ struct PartialUpdateRegisterImpl {
   /** \brief Limit the number of items in the changeset. */
   void limit_history()
   {
-    const int num_items_to_remove = max_ii(history.size() - MAX_HISTORY_LEN, 0);
+    const int num_items_to_remove = max_ii(history.size() - max_history_len, 0);
     if (num_items_to_remove == 0) {
       return;
     }
@@ -514,10 +514,10 @@ ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *imag
         PartialUpdateRegion region;
         region.tile_number = tile.tile_number;
         BLI_rcti_init(&region.region,
-                      chunk_x * CHUNK_SIZE,
-                      (chunk_x + 1) * CHUNK_SIZE,
-                      chunk_y * CHUNK_SIZE,
-                      (chunk_y + 1) * CHUNK_SIZE);
+                      chunk_x * chunk_size,
+                      (chunk_x + 1) * chunk_size,
+                      chunk_y * chunk_size,
+                      (chunk_y + 1) * chunk_size);
         user_impl->updated_regions.append_as(region);
       }
     }

@@ -245,17 +245,17 @@ class PartialWriteContext : NonCopyable, NonMovable {
      * areas not expecting nullptr (like LibOverride data) may assert or error on load of the
      * partial written blendfile.
      */
-    MAKE_LOCAL = 1 << 0,
+    MakeLocal = 1 << 0,
     /**
      * Set the 'fake user' flag to the added ID. Ensures that it is never auto-removed from the
      * context, and always written to disk.
      */
-    SET_FAKE_USER = 1 << 1,
+    SetFakeUser = 1 << 1,
     /**
      * Set the 'clipboard' flag to the added ID. Ensures that it is treated as potential source
      * data for a 'paste ID' operation.
      */
-    SET_CLIPBOARD_MARK = 1 << 4,
+    SetClipboardMark = 1 << 4,
 
     /**
      * Clear all dependency IDs that are not in the partial write context. Mutually exclusive with
@@ -267,12 +267,12 @@ class PartialWriteContext : NonCopyable, NonMovable {
      * NOTE: Either #CLEAR_DEPENDENCIES or #ADD_DEPENDENCIES must be specified in the final
      * operation flags for all ID dependencies. This can be achieved by
      */
-    CLEAR_DEPENDENCIES = 1 << 8,
+    ClearDependencies = 1 << 8,
     /**
      * Also add (or reuse if already there) dependency IDs into the partial write context. Mutually
      * exclusive with #CLEAR_DEPENDENCIES.
      */
-    ADD_DEPENDENCIES = 1 << 9,
+    AddDependencies = 1 << 9,
     /**
      * For each explicitly added IDs (i.e. these with a fake user), ensure all of their
      * dependencies are independent copies, instead of being shared with other explicitly added
@@ -281,7 +281,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
      * \warning Implies that the `session_uid` of these duplicated dependencies will be different
      * than their source data.
      */
-    DUPLICATE_DEPENDENCIES = 1 << 10,
+    DuplicateDependencies = 1 << 10,
 
     /**
      * Operation flags that are (by default) inherited by all dependencies.
@@ -289,15 +289,15 @@ class PartialWriteContext : NonCopyable, NonMovable {
      * \note This will be (partially) superseded by masked-out values from #MASK_PER_ID_USAGES
      * below.
      */
-    MASK_INHERITED = (MAKE_LOCAL | CLEAR_DEPENDENCIES | ADD_DEPENDENCIES | DUPLICATE_DEPENDENCIES),
+    MaskInherited = (MakeLocal | ClearDependencies | AddDependencies | DuplicateDependencies),
     /**
      * Operation flags that are defined by the #dependencies_filter_cb callback, if given.
      *
      * \note This mask is applied on top of the filter from #MASK_INHERITED, for ID dependencies
      * of explicitly added data.
      */
-    MASK_PER_ID_USAGE = (MAKE_LOCAL | SET_FAKE_USER | SET_CLIPBOARD_MARK | CLEAR_DEPENDENCIES |
-                         ADD_DEPENDENCIES),
+    MaskPerIdUsage = (MakeLocal | SetFakeUser | SetClipboardMark | ClearDependencies |
+                         AddDependencies),
   };
   /**
    * Options passed to the #id_add method.

@@ -199,7 +199,7 @@ void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data)
     for (DriverVar &dvar : driver->variables) {
       /* only used targets */
       DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
-        BKE_LIB_FOREACHID_PROCESS_ID(data, dtar->id, IDWALK_CB_NOP);
+        BKE_LIB_FOREACHID_PROCESS_ID(data, dtar->id, IdwalkCbNop);
       }
       DRIVER_TARGETS_LOOPER_END;
     }
@@ -1089,15 +1089,15 @@ eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve &fcu)
   FModifier *fcm = static_cast<FModifier *>(fcu.modifiers.first);
 
   if (!fcm || fcm->type != FMODIFIER_TYPE_CYCLES) {
-    return FCU_CYCLE_NONE;
+    return FcuCycleNone;
   }
 
   if (fcm->flag & (FMODIFIER_FLAG_DISABLED | FMODIFIER_FLAG_MUTED)) {
-    return FCU_CYCLE_NONE;
+    return FcuCycleNone;
   }
 
   if (fcm->flag & (FMODIFIER_FLAG_RANGERESTRICT | FMODIFIER_FLAG_USEINFLUENCE)) {
-    return FCU_CYCLE_NONE;
+    return FcuCycleNone;
   }
 
   FMod_Cycles *data = static_cast<FMod_Cycles *>(fcm->data);
@@ -1105,22 +1105,22 @@ eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve &fcu)
   if (data && data->after_cycles == 0 && data->before_cycles == 0) {
     if (data->before_mode == FCM_EXTRAPOLATE_CYCLIC && data->after_mode == FCM_EXTRAPOLATE_CYCLIC)
     {
-      return FCU_CYCLE_PERFECT;
+      return FcuCyclePerfect;
     }
 
     if (ELEM(data->before_mode, FCM_EXTRAPOLATE_CYCLIC, FCM_EXTRAPOLATE_CYCLIC_OFFSET) &&
         ELEM(data->after_mode, FCM_EXTRAPOLATE_CYCLIC, FCM_EXTRAPOLATE_CYCLIC_OFFSET))
     {
-      return FCU_CYCLE_OFFSET;
+      return FcuCycleOffset;
     }
   }
 
-  return FCU_CYCLE_NONE;
+  return FcuCycleNone;
 }
 
 bool BKE_fcurve_is_cyclic(const FCurve &fcu)
 {
-  return BKE_fcurve_get_cycle_type(fcu) != FCU_CYCLE_NONE;
+  return BKE_fcurve_get_cycle_type(fcu) != FcuCycleNone;
 }
 
 /* Shifts 'in' by the difference in coordinates between 'to' and 'from',
@@ -1283,7 +1283,7 @@ void testhandles_fcurve(FCurve *fcu, eBezTriple_Flag sel_flag, const bool use_ha
   uint a;
   for (a = 0, bezt = fcu->bezt; a < fcu->totvert; a++, bezt++) {
     BKE_nurb_bezt_handle_test(
-        bezt, sel_flag, use_handle ? NURB_HANDLE_TEST_EACH : NURB_HANDLE_TEST_KNOT_ONLY, false);
+        bezt, sel_flag, use_handle ? NurbHandleTestEach : NurbHandleTestKnotOnly, false);
   }
 
   /* Recalculate handles. */
@@ -1850,7 +1850,7 @@ void BKE_fcurve_merge_duplicate_keys(FCurve *fcu, const int sel_flag, const bool
 
   if (BLI_listbase_is_empty(&retained_keys)) {
     /* This may happen if none of the points were selected... */
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("%s: nothing to do for FCurve %p (rna_path = '%s')\n", __func__, fcu, fcu->rna_path);
     }
     return;
@@ -2065,7 +2065,7 @@ static float fcurve_eval_keyframes_interpolate(const FCurve *fcu,
   }
 
   if (evaltime < prevbezt->vec[1][0] || bezt->vec[1][0] < evaltime) {
-    if (G.debug & G_DEBUG) {
+    if (G.debug & GDebug) {
       printf("   ERROR: failed eval - p=%f b=%f, t=%f (%f)\n",
              prevbezt->vec[1][0],
              bezt->vec[1][0],
@@ -2120,7 +2120,7 @@ static float fcurve_eval_keyframes_interpolate(const FCurve *fcu,
 
       /* Try to get a value for this position - if failure, try another set of points. */
       if (!findzero(evaltime, v1[0], v2[0], v3[0], v4[0], opl)) {
-        if (G.debug & G_DEBUG) {
+        if (G.debug & GDebug) {
           printf("    ERROR: findzero() failed at %f with %f %f %f %f\n",
                  evaltime,
                  v1[0],
@@ -2460,7 +2460,7 @@ float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,
 bool BKE_fcurve_is_empty(const FCurve *fcu)
 {
   return fcu->totvert == 0 && fcu->driver == nullptr &&
-         !list_has_suitable_fmodifier(&fcu->modifiers, 0, FMI_TYPE_GENERATE_CURVE);
+         !list_has_suitable_fmodifier(&fcu->modifiers, 0, FmiTypeGenerateCurve);
 }
 
 float calculate_fcurve(PathResolvedRNA *anim_rna,
@@ -2548,7 +2548,7 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader,
       /* This can happen when the blend file has data for a modifier that doesn't exist in this
        * Blender version (when the blend file is newer). */
       BLO_reportf_wrap(BLO_read_data_reports(reader),
-                       RPT_WARNING,
+                       RptWarning,
                        RPT_("F-Curve modifier lost on '%s[%d]' because it has an unknown type"),
                        curve->rna_path,
                        curve->array_index);

@@ -431,17 +431,17 @@ void IDP_BlendReadData_impl(BlendDataReader *reader,
 
 enum eIDPropertyUIDataType {
   /** Other properties types that don't support RNA UI data. */
-  IDP_UI_DATA_TYPE_UNSUPPORTED = -1,
+  IdpUiDataTypeUnsupported = -1,
   /** IDP_INT or IDP_ARRAY with subtype IDP_INT. */
-  IDP_UI_DATA_TYPE_INT = 0,
+  IdpUiDataTypeInt = 0,
   /** IDP_FLOAT and IDP_DOUBLE or IDP_ARRAY properties with a float or double sub-types. */
-  IDP_UI_DATA_TYPE_FLOAT = 1,
+  IdpUiDataTypeFloat = 1,
   /** IDP_STRING properties. */
-  IDP_UI_DATA_TYPE_STRING = 2,
+  IdpUiDataTypeString = 2,
   /** IDP_ID. */
-  IDP_UI_DATA_TYPE_ID = 3,
+  IdpUiDataTypeId = 3,
   /** IDP_BOOLEAN or IDP_ARRAY with subtype IDP_BOOLEAN. */
-  IDP_UI_DATA_TYPE_BOOLEAN = 4,
+  IdpUiDataTypeBoolean = 4,
 };
 
 bool IDP_ui_data_supported(const IDProperty *prop);

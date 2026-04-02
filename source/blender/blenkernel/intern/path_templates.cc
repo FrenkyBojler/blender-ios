@@ -353,7 +353,7 @@ enum class FormatSpecifierType {
   FLOAT,
 
   /* The format specifier was invalid due to incorrect syntax. */
-  SYNTAX_ERROR,
+  SyntaxError,
 };
 
 /**
@@ -371,26 +371,26 @@ struct FormatSpecifier {
 
 enum class TokenType {
   /* Either "{variable_name}" or "{variable_name:format_spec}". */
-  VARIABLE_EXPRESSION,
+  VariableExpression,
 
   /* "{{", which is an escaped "{". */
-  LEFT_CURLY_BRACE,
+  LeftCurlyBrace,
 
   /* "}}", which is an escaped "}". */
-  RIGHT_CURLY_BRACE,
+  RightCurlyBrace,
 
   /* Encountered a syntax error while trying to parse a variable expression. */
-  VARIABLE_SYNTAX_ERROR,
+  VariableSyntaxError,
 
   /* Encountered an unescaped curly brace in an invalid position. */
-  UNESCAPED_CURLY_BRACE_ERROR,
+  UnescapedCurlyBraceError,
 };
 
 /**
  * A token that was parsed and should be substituted in the string, or an error.
  */
 struct Token {
-  TokenType type = TokenType::VARIABLE_EXPRESSION;
+  TokenType type = TokenType::VariableExpression;
 
   /* Byte index range (exclusive on the right) of the token or syntax error in
    * the path string. */
@@ -423,7 +423,7 @@ static int format_int_to_string(const FormatSpecifier &format,
                                 const int64_t integer_value,
                                 char r_output_string[FORMAT_BUFFER_SIZE])
 {
-  BLI_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
+  BLI_assert(format.type != FormatSpecifierType::SyntaxError);
 
   r_output_string[0] = '\0';
   int output_length = 0;
@@ -484,7 +484,7 @@ static int format_int_to_string(const FormatSpecifier &format,
       break;
     }
 
-    case FormatSpecifierType::SYNTAX_ERROR: {
+    case FormatSpecifierType::SyntaxError: {
       BLI_assert_msg(
           false,
           "Format specifiers with invalid syntax should have been rejected before getting here.");
@@ -507,7 +507,7 @@ static int format_float_to_string(const FormatSpecifier &format,
                                   const double float_value,
                                   char r_output_string[FORMAT_BUFFER_SIZE])
 {
-  BLI_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
+  BLI_assert(format.type != FormatSpecifierType::SyntaxError);
 
   r_output_string[0] = '\0';
   int output_length = 0;
@@ -569,7 +569,7 @@ static int format_float_to_string(const FormatSpecifier &format,
       break;
     }
 
-    case FormatSpecifierType::SYNTAX_ERROR: {
+    case FormatSpecifierType::SyntaxError: {
       BLI_assert_msg(
           false,
           "Format specifiers with invalid syntax should have been rejected before getting here.");
@@ -593,7 +593,7 @@ static FormatSpecifier parse_format_specifier(StringRef format_specifier)
 
   /* A ":" was used, but no format specifier was given, which is invalid. */
   if (format_specifier.is_empty()) {
-    format.type = FormatSpecifierType::SYNTAX_ERROR;
+    format.type = FormatSpecifierType::SyntaxError;
     return format;
   }
 
@@ -617,7 +617,7 @@ static FormatSpecifier parse_format_specifier(StringRef format_specifier)
     /* We currently require that the fractional digits are specified, so bail if
      * they aren't. */
     if (right.is_empty()) {
-      format.type = FormatSpecifierType::SYNTAX_ERROR;
+      format.type = FormatSpecifierType::SyntaxError;
       return format;
     }
 
@@ -631,7 +631,7 @@ static FormatSpecifier parse_format_specifier(StringRef format_specifier)
     return format;
   }
 
-  format.type = FormatSpecifierType::SYNTAX_ERROR;
+  format.type = FormatSpecifierType::SyntaxError;
   return format;
 }
 
@@ -662,7 +662,7 @@ static std::optional<Token> next_token(StringRef path, const int from_char)
         path[byte_index + 1] == '{')
     {
       Token token;
-      token.type = TokenType::LEFT_CURLY_BRACE;
+      token.type = TokenType::LeftCurlyBrace;
       token.byte_range = IndexRange::from_begin_end(byte_index, byte_index + 2);
       return token;
     }
@@ -675,7 +675,7 @@ static std::optional<Token> next_token(StringRef path, const int from_char)
     if (start == -1 && (byte_index + 1) < path.size() && path[byte_index] == '}' &&
         path[byte_index + 1] == '}')
     {
-      token.type = TokenType::RIGHT_CURLY_BRACE;
+      token.type = TokenType::RightCurlyBrace;
       token.byte_range = IndexRange::from_begin_end(byte_index, byte_index + 2);
       return token;
     }
@@ -683,7 +683,7 @@ static std::optional<Token> next_token(StringRef path, const int from_char)
     /* Check for unescaped "}", which outside of a variable expression is
      * illegal. */
     if (start == -1 && path[byte_index] == '}') {
-      token.type = TokenType::UNESCAPED_CURLY_BRACE_ERROR;
+      token.type = TokenType::UnescapedCurlyBraceError;
       token.byte_range = IndexRange::from_begin_end(byte_index, byte_index + 1);
       return token;
     }
@@ -692,7 +692,7 @@ static std::optional<Token> next_token(StringRef path, const int from_char)
     if (path[byte_index] == '{') {
       if (start != -1) {
         /* Already inside a variable expression. */
-        token.type = TokenType::VARIABLE_SYNTAX_ERROR;
+        token.type = TokenType::VariableSyntaxError;
         token.byte_range = IndexRange::from_begin_end(start, byte_index);
         return token;
       }
@@ -732,7 +732,7 @@ static std::optional<Token> next_token(StringRef path, const int from_char)
 
   /* Unclosed variable expression. Syntax error. */
   if (end == -1) {
-    token.type = TokenType::VARIABLE_SYNTAX_ERROR;
+    token.type = TokenType::VariableSyntaxError;
     token.byte_range = IndexRange::from_begin_end(start, path.size());
     return token;
   }
@@ -748,8 +748,8 @@ static std::optional<Token> next_token(StringRef path, const int from_char)
     token.variable_name = path.substr(start + 1, format_specifier_split - (start + 1));
     token.format = parse_format_specifier(
         path.substr(format_specifier_split + 1, (end - 1) - (format_specifier_split + 1)));
-    if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-      token.type = TokenType::VARIABLE_SYNTAX_ERROR;
+    if (token.format.type == FormatSpecifierType::SyntaxError) {
+      token.type = TokenType::VariableSyntaxError;
       return token;
     }
   }
@@ -782,23 +782,23 @@ static Vector<Token> parse_template(StringRef path)
 static std::optional<Error> token_to_syntax_error(const Token &token)
 {
   switch (token.type) {
-    case TokenType::VARIABLE_SYNTAX_ERROR: {
-      if (token.format.type == FormatSpecifierType::SYNTAX_ERROR) {
-        return {{ErrorType::FORMAT_SPECIFIER, token.byte_range}};
+    case TokenType::VariableSyntaxError: {
+      if (token.format.type == FormatSpecifierType::SyntaxError) {
+        return {{ErrorType::FormatSpecifier, token.byte_range}};
       }
       else {
-        return {{ErrorType::VARIABLE_SYNTAX, token.byte_range}};
+        return {{ErrorType::VariableSyntax, token.byte_range}};
       }
     }
 
-    case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
-      return {{ErrorType::UNESCAPED_CURLY_BRACE, token.byte_range}};
+    case TokenType::UnescapedCurlyBraceError: {
+      return {{ErrorType::UnescapedCurlyBrace, token.byte_range}};
     }
 
     /* Non-errors. */
-    case TokenType::VARIABLE_EXPRESSION:
-    case TokenType::LEFT_CURLY_BRACE:
-    case TokenType::RIGHT_CURLY_BRACE:
+    case TokenType::VariableExpression:
+    case TokenType::LeftCurlyBrace:
+    case TokenType::RightCurlyBrace:
       return std::nullopt;
   }
 
@@ -864,30 +864,30 @@ static Vector<Error> eval_template(std::string *r_out_path,
 
     switch (token.type) {
       /* Syntax errors should have been handled above. */
-      case TokenType::VARIABLE_SYNTAX_ERROR:
-      case TokenType::UNESCAPED_CURLY_BRACE_ERROR: {
+      case TokenType::VariableSyntaxError:
+      case TokenType::UnescapedCurlyBraceError: {
         BLI_assert_msg(false, "Unhandled syntax error.");
         continue;
       }
 
       /* Curly brace escapes. */
-      case TokenType::LEFT_CURLY_BRACE: {
+      case TokenType::LeftCurlyBrace: {
         strcpy(replacement_string, "{");
         break;
       }
-      case TokenType::RIGHT_CURLY_BRACE: {
+      case TokenType::RightCurlyBrace: {
         strcpy(replacement_string, "}");
         break;
       }
 
       /* Expand variable expression into the variable's value. */
-      case TokenType::VARIABLE_EXPRESSION: {
+      case TokenType::VariableExpression: {
         if (std::optional<StringRefNull> string_value = template_variables.get_string(
                 token.variable_name))
         {
           if (token.format.type != FormatSpecifierType::NONE) {
             /* String variables don't take format specifiers: error. */
-            errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
+            errors.append({ErrorType::FormatSpecifier, token.byte_range});
             continue;
           }
           STRNCPY(replacement_string, string_value->c_str());
@@ -900,7 +900,7 @@ static Vector<Error> eval_template(std::string *r_out_path,
         {
           if (token.format.type != FormatSpecifierType::NONE) {
             /* Path variables don't take format specifiers: error. */
-            errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
+            errors.append({ErrorType::FormatSpecifier, token.byte_range});
             continue;
           }
           STRNCPY(replacement_string, path_value->c_str());
@@ -923,7 +923,7 @@ static Vector<Error> eval_template(std::string *r_out_path,
         }
 
         /* No matching variable found: error. */
-        errors.append({ErrorType::UNKNOWN_VARIABLE, token.byte_range});
+        errors.append({ErrorType::UnknownVariable, token.byte_range});
         continue;
       }
     }
@@ -997,19 +997,19 @@ std::string BKE_path_template_error_to_string(const Error &error, StringRef path
   StringRef subpath = path.substr(error.byte_range.start(), error.byte_range.size());
 
   switch (error.type) {
-    case ErrorType::UNESCAPED_CURLY_BRACE: {
+    case ErrorType::UnescapedCurlyBrace: {
       return std::string("Unescaped curly brace '") + subpath + "'.";
     }
 
-    case ErrorType::VARIABLE_SYNTAX: {
+    case ErrorType::VariableSyntax: {
       return std::string("Invalid or incomplete template expression '") + subpath + "'.";
     }
 
-    case ErrorType::FORMAT_SPECIFIER: {
+    case ErrorType::FormatSpecifier: {
       return std::string("Invalid format specifier in template expression '") + subpath + "'.";
     }
 
-    case ErrorType::UNKNOWN_VARIABLE: {
+    case ErrorType::UnknownVariable: {
       return std::string("Unknown variable referenced in template expression '") + subpath + "'.";
     }
   }
@@ -1037,7 +1037,7 @@ std::optional<std::string> BKE_path_template_format_float(const StringRef format
                                                           const double value)
 {
   const FormatSpecifier format = parse_format_specifier(format_specifier);
-  if (format.type == FormatSpecifierType::SYNTAX_ERROR) {
+  if (format.type == FormatSpecifierType::SyntaxError) {
     return std::nullopt;
   }
   char buffer[FORMAT_BUFFER_SIZE];
@@ -1049,7 +1049,7 @@ std::optional<std::string> BKE_path_template_format_int(const StringRef format_s
                                                         const int64_t value)
 {
   const FormatSpecifier format = parse_format_specifier(format_specifier);
-  if (format.type == FormatSpecifierType::SYNTAX_ERROR) {
+  if (format.type == FormatSpecifierType::SyntaxError) {
     return std::nullopt;
   }
   char buffer[FORMAT_BUFFER_SIZE];

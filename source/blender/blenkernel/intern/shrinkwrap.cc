@@ -1303,9 +1303,9 @@ static Array<float3> shrinkwrap_calc_subdivided_positions(Mesh *mesh, const int 
   /* Default subdivision surface modifier settings:
    * - UV Smooth:Keep Corners.
    * - BoundarySmooth: All. */
-  settings.vtx_boundary_interpolation = subdiv::SUBDIV_VTX_BOUNDARY_EDGE_ONLY;
+  settings.vtx_boundary_interpolation = subdiv::SubdivVtxBoundaryEdgeOnly;
   settings.fvar_linear_interpolation =
-      subdiv::SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS;
+      subdiv::SubdivFvarLinearInterpolationCornersAndJunctions;
 
   subdiv::Subdiv *subdiv = subdiv::update_from_mesh(nullptr, &settings, mesh);
   if (subdiv) {

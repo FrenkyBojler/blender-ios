@@ -79,7 +79,7 @@ static void camera_copy_data(Main * /*bmain*/,
   const Camera *cam_src = id_cast<const Camera *>(id_src);
 
   /* We never handle user-count here for owned data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
 
   BLI_listbase_clear(&cam_dst->bg_images);
   for (CameraBGImage &bgpic_src : cam_src->bg_images) {
@@ -107,17 +107,17 @@ static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
   Camera *camera = reinterpret_cast<Camera *>(id);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof.focus_object, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof.focus_object, IdwalkCbNop);
   for (CameraBGImage &bgpic : camera->bg_images) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, bgpic.ima, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, bgpic.clip, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, bgpic.ima, IdwalkCbUser);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, bgpic.clip, IdwalkCbUser);
   }
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof_ob, IDWALK_CB_NOP);
+  if (flag & IdwalkDoDeprecatedPointers) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof_ob, IdwalkCbNop);
   }
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IdwalkCbUser);
 }
 
 static void camera_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -258,7 +258,7 @@ IDTypeInfo IDType_ID_CA = {
     .name = "Camera",
     .name_plural = N_("cameras"),
     .translation_context = BLT_I18NCONTEXT_ID_CAMERA,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = nullptr,
 
     .init_data = camera_init_data,
@@ -1275,12 +1275,12 @@ CameraBGImage *BKE_camera_background_image_copy(const CameraBGImage *bgpic_src, 
 
   bgpic_dst->next = bgpic_dst->prev = nullptr;
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     id_us_plus(id_cast<ID *>(bgpic_dst->ima));
     id_us_plus(id_cast<ID *>(bgpic_dst->clip));
   }
 
-  if ((flag & LIB_ID_COPY_NO_LIB_OVERRIDE_LOCAL_DATA_FLAG) == 0) {
+  if ((flag & LibIdCopyNoLibOverrideLocalDataFlag) == 0) {
     bgpic_dst->flag |= CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL;
   }
 

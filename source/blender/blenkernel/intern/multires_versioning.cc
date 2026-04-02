@@ -50,7 +50,7 @@ static bke::subdiv::Subdiv *subdiv_for_simple_to_catmull_clark(Object *object,
   subdiv::Subdiv *subdiv = subdiv::new_from_converter(&subdiv_settings, &converter);
   subdiv::converter_free(&converter);
 
-  if (!subdiv::eval_begin_from_mesh(subdiv, base_mesh, subdiv::SUBDIV_EVALUATOR_TYPE_CPU)) {
+  if (!subdiv::eval_begin_from_mesh(subdiv, base_mesh, subdiv::SubdivEvaluatorTypeCpu)) {
     subdiv::free(subdiv);
     return nullptr;
   }

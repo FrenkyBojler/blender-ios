@@ -76,14 +76,14 @@ static ID *asset_link_id(Main &global_main,
 
   /* Tag library as being editable. */
   if (local_asset && local_asset->lib) {
-    local_asset->lib->runtime->tag |= LIBRARY_ASSET_EDITABLE;
+    local_asset->lib->runtime->tag |= LibraryAssetEditable;
 
-    if ((local_asset->lib->runtime->tag & LIBRARY_IS_ASSET_EDIT_FILE) &&
+    if ((local_asset->lib->runtime->tag & LibraryIsAssetEditFile) &&
         StringRef(filepath).endswith(BLENDER_ASSET_FILE_SUFFIX) &&
         BKE_preferences_asset_library_containing_path(&U, filepath) &&
         BLI_file_is_writable(filepath))
     {
-      local_asset->lib->runtime->tag |= LIBRARY_ASSET_FILE_WRITABLE;
+      local_asset->lib->runtime->tag |= LibraryAssetFileWritable;
     }
   }
 
@@ -118,7 +118,7 @@ static std::string asset_blendfile_path_for_save(const bUserAssetLibrary &user_l
   BLI_assert(!root_path.empty());
 
   if (!BLI_dir_create_recursive(root_path.c_str())) {
-    BKE_report(&reports, RPT_ERROR, "Failed to create asset library directory to save asset");
+    BKE_report(&reports, RptError, "Failed to create asset library directory to save asset");
     return "";
   }
 
@@ -169,12 +169,12 @@ static bool asset_write_in_library(Main &bmain,
 
   PartialWriteContext lib_write_ctx{bmain};
   ID *new_id = lib_write_ctx.id_add(&id,
-                                    {(PartialWriteContext::IDAddOperations::MAKE_LOCAL |
-                                      PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-                                      PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)});
+                                    {(PartialWriteContext::IDAddOperations::MakeLocal |
+                                      PartialWriteContext::IDAddOperations::SetFakeUser |
+                                      PartialWriteContext::IDAddOperations::AddDependencies)});
   if (!new_id) {
     BKE_reportf(&reports,
-                RPT_ERROR,
+                RptError,
                 "Could not create a copy of ID '%s' to write it in the library",
                 id.name);
     return false;
@@ -186,7 +186,7 @@ static bool asset_write_in_library(Main &bmain,
   BKE_packedfile_pack_all(&lib_write_ctx.bmain, nullptr, false);
   lib_write_ctx.bmain.is_asset_edit_file = true;
 
-  const int write_flags = G_FILE_COMPRESS | G_FILE_ASSET_EDIT_FILE;
+  const int write_flags = GFileCompress | GFileAssetEditFile;
   const int remap_mode = BLO_WRITE_PATH_REMAP_RELATIVE;
   const bool success = lib_write_ctx.write(filepath.c_str(), write_flags, remap_mode, reports);
 
@@ -272,14 +272,14 @@ std::optional<std::string> asset_edit_id_save_as(Main &global_main,
   const bool success = asset_write_in_library(
       global_main, id, name, filepath, final_full_asset_filepath, reports);
   if (!success) {
-    BKE_report(&reports, RPT_ERROR, "Failed to write to asset library");
+    BKE_report(&reports, RptError, "Failed to write to asset library");
     return std::nullopt;
   }
 
   r_weak_ref = asset_weak_reference_for_user_library(
       user_library, GS(id.name), name.c_str(), filepath.c_str());
 
-  BKE_reportf(&reports, RPT_INFO, "Saved \"%s\"", filepath.c_str());
+  BKE_reportf(&reports, RptInfo, "Saved \"%s\"", filepath.c_str());
 
   return final_full_asset_filepath;
 }
@@ -299,7 +299,7 @@ bool asset_edit_id_save(Main &global_main, const ID &id, ReportList &reports)
                                               reports);
 
   if (!success) {
-    BKE_report(&reports, RPT_ERROR, "Failed to write to asset library");
+    BKE_report(&reports, RptError, "Failed to write to asset library");
     return false;
   }
 
@@ -319,7 +319,7 @@ bool asset_edit_id_delete(Main &global_main, ID &id, ReportList &reports)
 {
   if (asset_edit_id_is_writable(id)) {
     if (BLI_delete(id.lib->runtime->filepath_abs, false, false) != 0) {
-      BKE_report(&reports, RPT_ERROR, "Failed to delete asset library file");
+      BKE_report(&reports, RptError, "Failed to delete asset library file");
       return false;
     }
   }
@@ -399,12 +399,12 @@ std::optional<AssetWeakReference> asset_edit_weak_reference_from_id(const ID &id
 
 bool asset_edit_id_is_editable(const ID &id)
 {
-  return (id.lib && (id.lib->runtime->tag & LIBRARY_ASSET_EDITABLE));
+  return (id.lib && (id.lib->runtime->tag & LibraryAssetEditable));
 }
 
 bool asset_edit_id_is_writable(const ID &id)
 {
-  return asset_edit_id_is_editable(id) && (id.lib->runtime->tag & LIBRARY_ASSET_FILE_WRITABLE);
+  return asset_edit_id_is_editable(id) && (id.lib->runtime->tag & LibraryAssetFileWritable);
 }
 
 ID *asset_edit_id_find_local(Main &global_main, ID &id)
@@ -445,14 +445,14 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
           /* A direct or indirect dependency of #id. */
           ID *dependency_id = *cb_data->id_pointer;
           if (!dependency_id || !ID_TYPE_SUPPORTS_ASSET_EDITABLE(GS(dependency_id->name))) {
-            return IDWALK_RET_STOP_RECURSION;
+            return IdwalkRetStopRecursion;
           }
           /* Mark this ID for processing. */
           dependency_id->tag &= ~ID_TAG_PRE_EXISTING;
-          return IDWALK_RET_NOP;
+          return IdwalkRetNop;
         },
         nullptr,
-        IDWALK_RECURSE);
+        IdwalkRecurse);
   }
 
   GHash *old_to_new_id = BLI_ghash_ptr_new_ex(__func__, 4);
@@ -483,10 +483,10 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
             if (*cb_data->id_pointer && ID_IS_LINKED(*cb_data->id_pointer)) {
               *cb_data->id_pointer = nullptr;
             }
-            return IDWALK_RET_NOP;
+            return IdwalkRetNop;
           },
           nullptr,
-          IDWALK_NOP);
+          IdwalkNop);
     }
   }
 

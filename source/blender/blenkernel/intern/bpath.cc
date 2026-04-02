@@ -61,7 +61,7 @@ static CLG_LogRef LOG = {"lib.bpath"};
 void BKE_bpath_summary_report(const BPathSummary &summary, ReportList *reports)
 {
   BKE_reportf(reports,
-              summary.count_failed ? RPT_WARNING : RPT_INFO,
+              summary.count_failed ? RptWarning : RptInfo,
               "Total files %d | Changed %d | Failed %d",
               summary.count_total,
               summary.count_changed,
@@ -77,19 +77,19 @@ void BKE_bpath_summary_report(const BPathSummary &summary, ReportList *reports)
 void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
 {
   const eBPathForeachFlag flag = bpath_data->flag;
-  const char *absbase = (flag & BKE_BPATH_FOREACH_PATH_ABSOLUTE) ?
+  const char *absbase = (flag & BkeBpathForeachPathAbsolute) ?
                             ID_BLEND_PATH(bpath_data->bmain, id) :
                             nullptr;
   bpath_data->absolute_base_path = absbase;
   bpath_data->owner_id = id;
   bpath_data->is_path_modified = false;
 
-  if ((flag & BKE_BPATH_FOREACH_PATH_SKIP_LINKED) && ID_IS_LINKED(id)) {
+  if ((flag & BkeBpathForeachPathSkipLinked) && ID_IS_LINKED(id)) {
     return;
   }
 
   if (id->library_weak_reference != nullptr &&
-      (flag & BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES) == 0)
+      (flag & BkeBpathTraverseSkipWeakReferences) == 0)
   {
     BKE_bpath_foreach_path_fixed_process(bpath_data,
                                          id->library_weak_reference->library_filepath,
@@ -231,7 +231,7 @@ static bool check_missing_files_foreach_path_cb(BPathForeachPathData *bpath_data
     if (owner_id) {
       if (ID_IS_LINKED(owner_id)) {
         BKE_reportf(reports,
-                    RPT_WARNING,
+                    RptWarning,
                     "Path '%s' not found, from linked data-block '%s' (from library '%s')",
                     path_src,
                     owner_id->name,
@@ -239,7 +239,7 @@ static bool check_missing_files_foreach_path_cb(BPathForeachPathData *bpath_data
       }
       else {
         BKE_reportf(reports,
-                    RPT_WARNING,
+                    RptWarning,
                     "Path '%s' not found, from local data-block '%s'",
                     path_src,
                     owner_id->name);
@@ -247,7 +247,7 @@ static bool check_missing_files_foreach_path_cb(BPathForeachPathData *bpath_data
     }
     else {
       BKE_reportf(
-          reports, RPT_WARNING, "Path '%s' not found (no known owner data-block)", path_src);
+          reports, RptWarning, "Path '%s' not found (no known owner data-block)", path_src);
     }
   }
 
@@ -259,13 +259,13 @@ void BKE_bpath_missing_files_check(Main *bmain, ReportList *reports)
   BPathForeachPathData path_data{};
   path_data.bmain = bmain;
   path_data.callback_function = check_missing_files_foreach_path_cb;
-  path_data.flag = BKE_BPATH_FOREACH_PATH_ABSOLUTE | BKE_BPATH_FOREACH_PATH_SKIP_PACKED |
-                   BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES;
+  path_data.flag = BkeBpathForeachPathAbsolute | BkeBpathForeachPathSkipPacked |
+                   BkeBpathForeachPathResolveToken | BkeBpathTraverseSkipWeakReferences;
   path_data.user_data = reports;
   BKE_bpath_foreach_path_main(&path_data);
 
   if (BLI_listbase_is_empty(&reports->list)) {
-    BKE_reportf(reports, RPT_INFO, "No missing files");
+    BKE_reportf(reports, RptInfo, "No missing files");
   }
 }
 
@@ -384,14 +384,14 @@ static bool missing_files_find_foreach_path_cb(BPathForeachPathData *bpath_data,
 
   if (filesize == FILESIZE_INVALID_DIRECTORY) {
     BKE_reportf(data->reports,
-                RPT_WARNING,
+                RptWarning,
                 "Could not open the directory '%s'",
                 BLI_path_basename(data->searchdir));
     return false;
   }
   if (is_found == false) {
     BKE_reportf(data->reports,
-                RPT_WARNING,
+                RptWarning,
                 "Could not find '%s' in '%s'",
                 BLI_path_basename(path_src),
                 data->searchdir);
@@ -412,8 +412,8 @@ void BKE_bpath_missing_files_find(Main *bmain,
                                   const bool find_all)
 {
   BPathFind_Data data = {nullptr};
-  const int flag = BKE_BPATH_FOREACH_PATH_ABSOLUTE | BKE_BPATH_FOREACH_PATH_RELOAD_EDITED |
-                   BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN | BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES;
+  const int flag = BkeBpathForeachPathAbsolute | BkeBpathForeachPathReloadEdited |
+                   BkeBpathForeachPathResolveToken | BkeBpathTraverseSkipWeakReferences;
 
   data.basedir = BKE_main_blendfile_path(bmain);
   data.reports = reports;
@@ -462,7 +462,7 @@ static bool relative_rebase_foreach_path_cb(BPathForeachPathData *bpath_data,
   char filepath[(FILE_MAXDIR * 2) + FILE_MAXFILE];
   BLI_strncpy(filepath, path_src, FILE_MAX);
   if (!BLI_path_abs(filepath, data->basedir_src)) {
-    BKE_reportf(data->reports, RPT_WARNING, "Path '%s' cannot be made absolute", path_src);
+    BKE_reportf(data->reports, RptWarning, "Path '%s' cannot be made absolute", path_src);
     data->summary.count_failed++;
     return false;
   }
@@ -484,7 +484,7 @@ void BKE_bpath_relative_rebase(Main *bmain,
                                BPathSummary *r_summary)
 {
   BPathRebase_Data data = {nullptr};
-  const int flag = (BKE_BPATH_FOREACH_PATH_SKIP_LINKED | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE);
+  const int flag = (BkeBpathForeachPathSkipLinked | BkeBpathForeachPathSkipMultifile);
 
   BLI_assert(basedir_src[0] != '\0');
   BLI_assert(basedir_dst[0] != '\0');
@@ -539,7 +539,7 @@ static bool relative_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
     const char *type_name = BKE_idtype_get_info_from_id(bpath_data->owner_id)->name;
     const char *id_name = bpath_data->owner_id->name + 2;
     BKE_reportf(data->reports,
-                RPT_WARNING,
+                RptWarning,
                 "Path '%s' cannot be made relative for %s '%s'",
                 path_src,
                 type_name,
@@ -573,7 +573,7 @@ static bool absolute_convert_foreach_path_cb(BPathForeachPathData *bpath_data,
     const char *type_name = BKE_idtype_get_info_from_id(bpath_data->owner_id)->name;
     const char *id_name = bpath_data->owner_id->name + 2;
     BKE_reportf(data->reports,
-                RPT_WARNING,
+                RptWarning,
                 "Path '%s' cannot be made absolute for %s '%s'",
                 path_src,
                 type_name,
@@ -594,7 +594,7 @@ static void bpath_absolute_relative_convert(Main *bmain,
                                             BPathSummary *r_summary)
 {
   BPathRemap_Data data = {nullptr};
-  const int flag = BKE_BPATH_FOREACH_PATH_SKIP_LINKED;
+  const int flag = BkeBpathForeachPathSkipLinked;
 
   BLI_assert(basedir[0] != '\0');
   if (basedir[0] == '\0') {

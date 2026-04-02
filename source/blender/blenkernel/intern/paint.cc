@@ -160,7 +160,7 @@ IDTypeInfo IDType_ID_PAL = {
     .name = "Palette",
     .name_plural = N_("palettes"),
     .translation_context = BLT_I18NCONTEXT_ID_PALETTE,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .flags = IdtypeFlagsNoAnimdata,
     .asset_type_info = nullptr,
 
     .init_data = palette_init_data,
@@ -230,7 +230,7 @@ IDTypeInfo IDType_ID_PC = {
     .name = "PaintCurve",
     .name_plural = N_("paint_curves"),
     .translation_context = BLT_I18NCONTEXT_ID_PAINTCURVE,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .flags = IdtypeFlagsNoAnimdata,
     .asset_type_info = nullptr,
 
     .init_data = nullptr,
@@ -270,10 +270,10 @@ void BKE_paint_invalidate_overlay_tex(const Main &bmain,
   }
 
   if (br->mtex.tex == tex) {
-    overlay_flags |= PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY;
+    overlay_flags |= PaintOverlayInvalidTexturePrimary;
   }
   if (br->mask_mtex.tex == tex) {
-    overlay_flags |= PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY;
+    overlay_flags |= PaintOverlayInvalidTextureSecondary;
   }
 }
 
@@ -289,14 +289,14 @@ void BKE_paint_invalidate_cursor_overlay(const Main &bmain,
 
   Brush *br = BKE_paint_brush(paint);
   if (br && br->curve_distance_falloff == curve) {
-    overlay_flags |= PAINT_OVERLAY_INVALID_CURVE;
+    overlay_flags |= PaintOverlayInvalidCurve;
   }
 }
 
 void BKE_paint_invalidate_overlay_all()
 {
-  overlay_flags |= (PAINT_OVERLAY_INVALID_TEXTURE_SECONDARY |
-                    PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY | PAINT_OVERLAY_INVALID_CURVE);
+  overlay_flags |= (PaintOverlayInvalidTextureSecondary |
+                    PaintOverlayInvalidTexturePrimary | PaintOverlayInvalidCurve);
 }
 
 ePaintOverlayControlFlags BKE_paint_get_overlay_flags()
@@ -568,29 +568,29 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
 {
   if (tref->space_type == SPACE_VIEW3D) {
     switch (tref->mode) {
-      case CTX_MODE_SCULPT:
+      case CtxModeSculpt:
         return PaintMode::Sculpt;
-      case CTX_MODE_PAINT_VERTEX:
+      case CtxModePaintVertex:
         return PaintMode::Vertex;
-      case CTX_MODE_PAINT_WEIGHT:
+      case CtxModePaintWeight:
         return PaintMode::Weight;
-      case CTX_MODE_PAINT_GPENCIL_LEGACY:
+      case CtxModePaintGpencilLegacy:
         return PaintMode::GPencil;
-      case CTX_MODE_PAINT_TEXTURE:
+      case CtxModePaintTexture:
         return PaintMode::Texture3D;
-      case CTX_MODE_VERTEX_GREASE_PENCIL:
-      case CTX_MODE_VERTEX_GPENCIL_LEGACY:
+      case CtxModeVertexGreasePencil:
+      case CtxModeVertexGpencilLegacy:
         return PaintMode::VertexGPencil;
-      case CTX_MODE_SCULPT_GPENCIL_LEGACY:
+      case CtxModeSculptGpencilLegacy:
         return PaintMode::SculptGPencil;
-      case CTX_MODE_WEIGHT_GREASE_PENCIL:
-      case CTX_MODE_WEIGHT_GPENCIL_LEGACY:
+      case CtxModeWeightGreasePencil:
+      case CtxModeWeightGpencilLegacy:
         return PaintMode::WeightGPencil;
-      case CTX_MODE_SCULPT_CURVES:
+      case CtxModeSculptCurves:
         return PaintMode::SculptCurves;
-      case CTX_MODE_PAINT_GREASE_PENCIL:
+      case CtxModePaintGreasePencil:
         return PaintMode::GPencil;
-      case CTX_MODE_SCULPT_GREASE_PENCIL:
+      case CtxModeSculptGreasePencil:
         return PaintMode::SculptGPencil;
     }
   }
@@ -1799,7 +1799,7 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   dst->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(
       src->unified_paint_settings.curve_rand_value);
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     id_us_plus(id_cast<ID *>(dst->palette));
   }
 
@@ -2412,7 +2412,7 @@ static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
 
       if (mmd->sculptlvl > 0 && !(mmd->flags & eMultiresModifierFlag_UseSculptBaseMesh)) {
         if (need_mdisps) {
-          CustomData_add_layer(&mesh.corner_data, CD_MDISPS, CD_SET_DEFAULT, mesh.corners_num);
+          CustomData_add_layer(&mesh.corner_data, CD_MDISPS, CdSetDefault, mesh.corners_num);
         }
 
         return mmd;
@@ -2699,7 +2699,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
     int gridarea = gridsize * gridsize;
 
     GridPaintMask *gmask = static_cast<GridPaintMask *>(CustomData_add_layer(
-        &mesh->corner_data, CD_GRID_PAINT_MASK, CD_SET_DEFAULT, mesh->corners_num));
+        &mesh->corner_data, CD_GRID_PAINT_MASK, CdSetDefault, mesh->corners_num));
 
     for (int i = 0; i < mesh->corners_num; i++) {
       GridPaintMask *gpm = &gmask[i];

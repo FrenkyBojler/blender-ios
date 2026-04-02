@@ -38,10 +38,10 @@ static eOpenSubdivEvaluator opensubdiv_evaluator_from_subdiv_evaluator_type(
     eSubdivEvaluatorType evaluator_type)
 {
   switch (evaluator_type) {
-    case SUBDIV_EVALUATOR_TYPE_CPU: {
+    case SubdivEvaluatorTypeCpu: {
       return OPENSUBDIV_EVALUATOR_CPU;
     }
-    case SUBDIV_EVALUATOR_TYPE_GPU: {
+    case SubdivEvaluatorTypeGpu: {
       return OPENSUBDIV_EVALUATOR_GPU;
     }
   }
@@ -61,7 +61,7 @@ bool eval_begin(Subdiv *subdiv,
                 const OpenSubdiv_EvaluatorSettings *settings)
 {
 #ifdef WITH_OPENSUBDIV
-  stats_reset(&subdiv->stats, SUBDIV_STATS_EVALUATOR_CREATE);
+  stats_reset(&subdiv->stats, SubdivStatsEvaluatorCreate);
   if (subdiv->topology_refiner == nullptr) {
     /* Happens on input mesh with just loose geometry,
      * or when OpenSubdiv is disabled */
@@ -70,10 +70,10 @@ bool eval_begin(Subdiv *subdiv,
   if (subdiv->evaluator == nullptr) {
     eOpenSubdivEvaluator opensubdiv_evaluator_type =
         opensubdiv_evaluator_from_subdiv_evaluator_type(evaluator_type);
-    stats_begin(&subdiv->stats, SUBDIV_STATS_EVALUATOR_CREATE);
+    stats_begin(&subdiv->stats, SubdivStatsEvaluatorCreate);
     subdiv->evaluator = openSubdiv_createEvaluatorFromTopologyRefiner(
         subdiv->topology_refiner, opensubdiv_evaluator_type, evaluator_cache);
-    stats_end(&subdiv->stats, SUBDIV_STATS_EVALUATOR_CREATE);
+    stats_end(&subdiv->stats, SubdivStatsEvaluatorCreate);
     if (subdiv->evaluator == nullptr) {
       return false;
     }
@@ -258,9 +258,9 @@ bool eval_refine_from_mesh(Subdiv *subdiv,
   /* Set vertex data to orco. */
   set_vert_data_from_orco(subdiv, mesh);
   /* Update evaluator to the new coarse geometry. */
-  stats_begin(&subdiv->stats, SUBDIV_STATS_EVALUATOR_REFINE);
+  stats_begin(&subdiv->stats, SubdivStatsEvaluatorRefine);
   subdiv->evaluator->eval_output->refine();
-  stats_end(&subdiv->stats, SUBDIV_STATS_EVALUATOR_REFINE);
+  stats_end(&subdiv->stats, SubdivStatsEvaluatorRefine);
   return true;
 #else
   UNUSED_VARS(subdiv, mesh, coarse_vert_positions);

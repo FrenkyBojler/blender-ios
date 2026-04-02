@@ -208,7 +208,7 @@ void BKE_blender_globals_init()
 #ifndef WITH_PYTHON_SECURITY /* default */
   G.f |= G_FLAG_SCRIPT_AUTOEXEC;
 #else
-  G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
+  G.f &= ~GFlagScriptAutoexec;
 #endif
 
   G.log.level = CLG_LEVEL_WARN;

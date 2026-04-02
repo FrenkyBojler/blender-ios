@@ -33,10 +33,10 @@ struct UnitSettings;
 struct ViewLayer;
 
 enum eSceneCopyMethod {
-  SCE_COPY_NEW = 0,
-  SCE_COPY_EMPTY = 1,
-  SCE_COPY_LINK_COLLECTION = 2,
-  SCE_COPY_FULL = 3,
+  SceCopyNew = 0,
+  SceCopyEmpty = 1,
+  SceCopyLinkCollection = 2,
+  SceCopyFull = 3,
 };
 
 /** Use as the contents of a 'for' loop: `for (SETLOOPER(...)) { ... }`. */

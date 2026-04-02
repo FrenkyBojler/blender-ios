@@ -145,13 +145,13 @@ void BKE_viewer_path_foreach_id(LibraryForeachIDData *data, ViewerPath *viewer_p
     switch (ViewerPathElemType(elem.type)) {
       case VIEWER_PATH_ELEM_TYPE_ID: {
         auto *typed_elem = reinterpret_cast<IDViewerPathElem *>(&elem);
-        BKE_LIB_FOREACHID_PROCESS_ID(data, typed_elem->id, IDWALK_CB_DIRECT_WEAK_LINK);
+        BKE_LIB_FOREACHID_PROCESS_ID(data, typed_elem->id, IdwalkCbDirectWeakLink);
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
         auto *typed_elem = reinterpret_cast<EvaluateClosureNodeViewerPathElem *>(&elem);
         BKE_LIB_FOREACHID_PROCESS_ID(
-            data, typed_elem->source_node_tree, IDWALK_CB_DIRECT_WEAK_LINK);
+            data, typed_elem->source_node_tree, IdwalkCbDirectWeakLink);
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER:
@@ -172,7 +172,7 @@ void BKE_viewer_path_id_remap(ViewerPath *viewer_path, const bke::id::IDRemapper
     switch (ViewerPathElemType(elem.type)) {
       case VIEWER_PATH_ELEM_TYPE_ID: {
         auto *typed_elem = reinterpret_cast<IDViewerPathElem *>(&elem);
-        mappings.apply(&typed_elem->id, ID_REMAP_APPLY_DEFAULT);
+        mappings.apply(&typed_elem->id, IdRemapApplyDefault);
         break;
       }
       case VIEWER_PATH_ELEM_TYPE_MODIFIER:
@@ -345,7 +345,7 @@ bool BKE_viewer_path_elem_equal(const ViewerPathElem *a,
   if (a->type != b->type) {
     return false;
   }
-  if (flag & VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME) {
+  if (flag & ViewerPathEqualFlagConsiderUiName) {
     if (StringRef(a->ui_name) != StringRef(b->ui_name)) {
       return false;
     }
@@ -380,14 +380,14 @@ bool BKE_viewer_path_elem_equal(const ViewerPathElem *a,
       const auto *a_elem = reinterpret_cast<const RepeatZoneViewerPathElem *>(a);
       const auto *b_elem = reinterpret_cast<const RepeatZoneViewerPathElem *>(b);
       return a_elem->repeat_output_node_id == b_elem->repeat_output_node_id &&
-             ((flag & VIEWER_PATH_EQUAL_FLAG_IGNORE_ITERATION) != 0 ||
+             ((flag & ViewerPathEqualFlagIgnoreIteration) != 0 ||
               a_elem->iteration == b_elem->iteration);
     }
     case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
       const auto *a_elem = reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem *>(a);
       const auto *b_elem = reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem *>(b);
       return a_elem->zone_output_node_id == b_elem->zone_output_node_id &&
-             ((flag & VIEWER_PATH_EQUAL_FLAG_IGNORE_ITERATION) != 0 ||
+             ((flag & ViewerPathEqualFlagIgnoreIteration) != 0 ||
               a_elem->index == b_elem->index);
     }
     case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {

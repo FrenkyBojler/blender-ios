@@ -95,23 +95,23 @@ static void curve_bevel_make_extrude_and_fill(const Curve *cu,
   if (fill_type == FULL) {
     /* The full loop. */
     nr = 4 * cu->bevresol + (use_extrude ? 6 : 4);
-    dl->flag = DL_FRONT_CURVE | DL_BACK_CURVE;
+    dl->flag = DlFrontCurve | DlBackCurve;
   }
   else if (fill_type == HALF) {
     /* Half the loop. */
     nr = 2 * (cu->bevresol + 1) + (use_extrude ? 2 : 1);
-    dl->flag = DL_FRONT_CURVE | DL_BACK_CURVE;
+    dl->flag = DlFrontCurve | DlBackCurve;
   }
   else {
     /* One quarter of the loop (just front or back). */
     nr = use_extrude ? cu->bevresol + 3 : cu->bevresol + 2;
-    dl->flag = (fill_type == FRONT) ? DL_FRONT_CURVE : DL_BACK_CURVE;
+    dl->flag = (fill_type == FRONT) ? DlFrontCurve : DlBackCurve;
   }
 
   dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(nr), __func__);
   BLI_addtail(disp, dl);
   /* Use a different type depending on whether the loop is complete or not. */
-  dl->type = (fill_type == FULL) ? DL_POLY : DL_SEGM;
+  dl->type = (fill_type == FULL) ? DlPoly : DlSegm;
   dl->parts = 1;
   dl->nr = nr;
 
@@ -191,9 +191,9 @@ static void curve_bevel_make_full_circle(const Curve *cu, ListBaseT<DispList> *d
   DispList *dl = MEM_new_zeroed<DispList>(__func__);
   dl->verts = MEM_new_array_uninitialized<float>(3 * size_t(nr), __func__);
   BLI_addtail(disp, dl);
-  dl->type = DL_POLY;
+  dl->type = DlPoly;
   dl->parts = 1;
-  dl->flag = DL_BACK_CURVE;
+  dl->flag = DlBackCurve;
   dl->nr = nr;
 
   float *fp = dl->verts;
@@ -214,9 +214,9 @@ static void curve_bevel_make_only_extrude(const Curve *cu, ListBaseT<DispList> *
   DispList *dl = MEM_new_zeroed<DispList>(__func__);
   dl->verts = MEM_new_array_uninitialized<float>(3 * 2, __func__);
   BLI_addtail(disp, dl);
-  dl->type = DL_SEGM;
+  dl->type = DlSegm;
   dl->parts = 1;
-  dl->flag = DL_FRONT_CURVE | DL_BACK_CURVE;
+  dl->flag = DlFrontCurve | DlBackCurve;
   dl->nr = 2;
 
   float *fp = dl->verts;
@@ -251,15 +251,15 @@ static void curve_bevel_make_from_object(const Curve *cu, ListBaseT<DispList> *d
     }
 
     while (dl) {
-      if (ELEM(dl->type, DL_POLY, DL_SEGM)) {
+      if (ELEM(dl->type, DlPoly, DlSegm)) {
         DispList *dlnew = MEM_new_uninitialized<DispList>(__func__);
         *dlnew = *dl;
         dlnew->verts = MEM_new_array_uninitialized<float>(3 * size_t(dl->parts) * size_t(dl->nr),
                                                           __func__);
         memcpy(dlnew->verts, dl->verts, sizeof(float[3]) * dl->parts * dl->nr);
 
-        if (dlnew->type == DL_SEGM) {
-          dlnew->flag |= (DL_FRONT_CURVE | DL_BACK_CURVE);
+        if (dlnew->type == DlSegm) {
+          dlnew->flag |= (DlFrontCurve | DlBackCurve);
         }
 
         BLI_addtail(disp, dlnew);

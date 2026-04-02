@@ -52,27 +52,27 @@ template<typename OpType>
 auto BKE_volume_grid_type_operation(const VolumeGridType grid_type, OpType &&op)
 {
   switch (grid_type) {
-    case VOLUME_GRID_FLOAT:
+    case VolumeGridFloat:
       return op.template operator()<openvdb::FloatGrid>();
-    case VOLUME_GRID_VECTOR_FLOAT:
+    case VolumeGridVectorFloat:
       return op.template operator()<openvdb::Vec3fGrid>();
-    case VOLUME_GRID_BOOLEAN:
+    case VolumeGridBoolean:
       return op.template operator()<openvdb::BoolGrid>();
-    case VOLUME_GRID_DOUBLE:
+    case VolumeGridDouble:
       return op.template operator()<openvdb::DoubleGrid>();
-    case VOLUME_GRID_INT:
+    case VolumeGridInt:
       return op.template operator()<openvdb::Int32Grid>();
-    case VOLUME_GRID_INT64:
+    case VolumeGridInT64:
       return op.template operator()<openvdb::Int64Grid>();
-    case VOLUME_GRID_VECTOR_INT:
+    case VolumeGridVectorInt:
       return op.template operator()<openvdb::Vec3IGrid>();
-    case VOLUME_GRID_VECTOR_DOUBLE:
+    case VolumeGridVectorDouble:
       return op.template operator()<openvdb::Vec3dGrid>();
-    case VOLUME_GRID_MASK:
+    case VolumeGridMask:
       return op.template operator()<openvdb::MaskGrid>();
-    case VOLUME_GRID_POINTS:
+    case VolumeGridPoints:
       return op.template operator()<openvdb::points::PointDataGrid>();
-    case VOLUME_GRID_UNKNOWN:
+    case VolumeGridUnknown:
       break;
   }
 
@@ -85,27 +85,27 @@ template<typename Fn>
 inline void BKE_volume_grid_type_to_static_type(const VolumeGridType grid_type, Fn &&fn)
 {
   switch (grid_type) {
-    case VOLUME_GRID_FLOAT:
+    case VolumeGridFloat:
       return fn.template operator()<openvdb::FloatGrid>();
-    case VOLUME_GRID_VECTOR_FLOAT:
+    case VolumeGridVectorFloat:
       return fn.template operator()<openvdb::Vec3fGrid>();
-    case VOLUME_GRID_BOOLEAN:
+    case VolumeGridBoolean:
       return fn.template operator()<openvdb::BoolGrid>();
-    case VOLUME_GRID_DOUBLE:
+    case VolumeGridDouble:
       return fn.template operator()<openvdb::DoubleGrid>();
-    case VOLUME_GRID_INT:
+    case VolumeGridInt:
       return fn.template operator()<openvdb::Int32Grid>();
-    case VOLUME_GRID_INT64:
+    case VolumeGridInT64:
       return fn.template operator()<openvdb::Int64Grid>();
-    case VOLUME_GRID_VECTOR_INT:
+    case VolumeGridVectorInt:
       return fn.template operator()<openvdb::Vec3IGrid>();
-    case VOLUME_GRID_VECTOR_DOUBLE:
+    case VolumeGridVectorDouble:
       return fn.template operator()<openvdb::Vec3dGrid>();
-    case VOLUME_GRID_MASK:
+    case VolumeGridMask:
       return fn.template operator()<openvdb::MaskGrid>();
-    case VOLUME_GRID_POINTS:
+    case VolumeGridPoints:
       return fn.template operator()<openvdb::points::PointDataGrid>();
-    case VOLUME_GRID_UNKNOWN:
+    case VolumeGridUnknown:
       break;
   }
   BLI_assert_unreachable();
@@ -115,33 +115,33 @@ template<typename Fn>
 inline bool BKE_volume_grid_type_to_blender_value_type(const VolumeGridType grid_type, Fn &&fn)
 {
   switch (grid_type) {
-    case VOLUME_GRID_FLOAT:
+    case VolumeGridFloat:
       fn.template operator()<float>();
       return true;
-    case VOLUME_GRID_VECTOR_FLOAT:
+    case VolumeGridVectorFloat:
       fn.template operator()<float3>();
       return true;
-    case VOLUME_GRID_BOOLEAN:
+    case VolumeGridBoolean:
       fn.template operator()<bool>();
       return true;
-    case VOLUME_GRID_DOUBLE:
+    case VolumeGridDouble:
       fn.template operator()<double>();
       return true;
-    case VOLUME_GRID_INT:
+    case VolumeGridInt:
       fn.template operator()<int>();
       return true;
-    case VOLUME_GRID_INT64:
+    case VolumeGridInT64:
       fn.template operator()<int64_t>();
       return true;
-    case VOLUME_GRID_VECTOR_INT:
+    case VolumeGridVectorInt:
       fn.template operator()<int3>();
       return true;
-    case VOLUME_GRID_VECTOR_DOUBLE:
+    case VolumeGridVectorDouble:
       fn.template operator()<double3>();
       return true;
-    case VOLUME_GRID_MASK:
-    case VOLUME_GRID_POINTS:
-    case VOLUME_GRID_UNKNOWN:
+    case VolumeGridMask:
+    case VolumeGridPoints:
+    case VolumeGridUnknown:
       break;
   }
   return false;

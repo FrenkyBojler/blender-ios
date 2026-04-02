@@ -2466,14 +2466,14 @@ void CustomData_realloc(CustomData *data,
       const int new_elements_num = new_size - old_size;
       void *new_elements_begin = POINTER_OFFSET(layer->data, old_size_in_bytes);
       switch (alloctype) {
-        case CD_CONSTRUCT: {
+        case CdConstruct: {
           /* Initialize new values for non-trivial types. */
           if (typeInfo->construct) {
             typeInfo->construct(new_elements_begin, new_elements_num);
           }
           break;
         }
-        case CD_SET_DEFAULT: {
+        case CdSetDefault: {
           if (typeInfo->set_default_value) {
             typeInfo->set_default_value(new_elements_begin, new_elements_num);
           }
@@ -2812,7 +2812,7 @@ static CustomDataLayer *customData_add_layer__internal(
 
   if (alloctype.has_value()) {
     switch (*alloctype) {
-      case CD_SET_DEFAULT: {
+      case CdSetDefault: {
         if (totelem > 0) {
           new_layer.data = MEM_new_uninitialized_aligned(
               size_in_bytes, type_info.alignment, alloc_name);
@@ -2826,7 +2826,7 @@ static CustomDataLayer *customData_add_layer__internal(
         }
         break;
       }
-      case CD_CONSTRUCT: {
+      case CdConstruct: {
         if (totelem > 0) {
           new_layer.data = MEM_new_uninitialized_aligned(
               size_in_bytes, type_info.alignment, alloc_name);
@@ -4542,7 +4542,7 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
     return;
   }
 
-  if (int(data_type) & CD_FAKE) {
+  if (int(data_type) & CdFake) {
     data_size = laymap->data_size;
   }
   else {
@@ -4580,7 +4580,7 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
     memcpy(tmp_dst, sources[best_src_idx], data_size);
   }
 
-  if (!(int(data_type) & CD_FAKE)) {
+  if (!(int(data_type) & CdFake)) {
     CustomData_data_mix_value(eCustomDataType(data_type), tmp_dst, data_dst, mix_mode, mix_factor);
   }
   /* Else we can do nothing by default, needs custom interp func!
@@ -4668,7 +4668,7 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap, CustomDataTransferL
     tmp_data_src = MEM_new_array_uninitialized<const void *>(tmp_buff_size, __func__);
   }
 
-  if (int(data_type) & CD_FAKE) {
+  if (int(data_type) & CdFake) {
     data_step = laymap->elem_size;
     data_size = laymap->data_size;
     data_offset = laymap->data_offset;
@@ -5073,13 +5073,13 @@ std::optional<VolumeGridType> custom_data_type_to_volume_grid_type(const eCustom
 {
   switch (type) {
     case CD_PROP_FLOAT:
-      return VOLUME_GRID_FLOAT;
+      return VolumeGridFloat;
     case CD_PROP_FLOAT3:
-      return VOLUME_GRID_VECTOR_FLOAT;
+      return VolumeGridVectorFloat;
     case CD_PROP_INT32:
-      return VOLUME_GRID_INT;
+      return VolumeGridInt;
     case CD_PROP_BOOL:
-      return VOLUME_GRID_BOOLEAN;
+      return VolumeGridBoolean;
     default:
       return std::nullopt;
   }
@@ -5088,13 +5088,13 @@ std::optional<VolumeGridType> custom_data_type_to_volume_grid_type(const eCustom
 std::optional<eCustomDataType> volume_grid_type_to_custom_data_type(const VolumeGridType type)
 {
   switch (type) {
-    case VOLUME_GRID_FLOAT:
+    case VolumeGridFloat:
       return CD_PROP_FLOAT;
-    case VOLUME_GRID_VECTOR_FLOAT:
+    case VolumeGridVectorFloat:
       return CD_PROP_FLOAT3;
-    case VOLUME_GRID_INT:
+    case VolumeGridInt:
       return CD_PROP_INT32;
-    case VOLUME_GRID_BOOLEAN:
+    case VolumeGridBoolean:
       return CD_PROP_BOOL;
     default:
       return std::nullopt;

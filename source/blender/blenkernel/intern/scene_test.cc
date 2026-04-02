@@ -118,9 +118,9 @@ TEST_F(SceneTest, linked_copy_id_remapping)
   Scene *scene_copy = BKE_scene_duplicate(
       bmain,
       scene_src,
-      SCE_COPY_LINK_COLLECTION,
+      SceCopyLinkCollection,
       static_cast<eDupli_ID_Flags>(U.dupflag | USER_DUP_OBJECT),
-      LIB_ID_DUPLICATE_IS_ROOT_ID);
+      LibIdDuplicateIsRootId);
 
   /* Source data should remain unchanged. */
 

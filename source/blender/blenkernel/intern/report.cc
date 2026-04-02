@@ -35,21 +35,21 @@ static CLG_LogRef LOG = {"reports"};
 void BKE_report_log(eReportType type, const char *message, CLG_LogRef *log)
 {
   switch (type) {
-    case RPT_DEBUG:
+    case RptDebug:
       CLOG_STR_DEBUG(log, message);
       break;
-    case RPT_INFO:
-    case RPT_OPERATOR:
-    case RPT_PROPERTY:
+    case RptInfo:
+    case RptOperator:
+    case RptProperty:
       CLOG_INFO_NOCHECK(log, "%s", message);
       break;
-    case RPT_WARNING:
+    case RptWarning:
       CLOG_STR_WARN(log, message);
       break;
-    case RPT_ERROR:
-    case RPT_ERROR_INVALID_INPUT:
-    case RPT_ERROR_INVALID_CONTEXT:
-    case RPT_ERROR_OUT_OF_MEMORY:
+    case RptError:
+    case RptErrorInvalidInput:
+    case RptErrorInvalidContext:
+    case RptErrorOutOfMemory:
       CLOG_STR_ERROR(log, message);
       break;
   }
@@ -58,23 +58,23 @@ void BKE_report_log(eReportType type, const char *message, CLG_LogRef *log)
 const char *BKE_report_type_str(eReportType type)
 {
   switch (type) {
-    case RPT_DEBUG:
+    case RptDebug:
       return RPT_("Debug");
-    case RPT_INFO:
+    case RptInfo:
       return RPT_("Info");
-    case RPT_OPERATOR:
+    case RptOperator:
       return RPT_("Operator");
-    case RPT_PROPERTY:
+    case RptProperty:
       return RPT_("Property");
-    case RPT_WARNING:
+    case RptWarning:
       return RPT_("Warning");
-    case RPT_ERROR:
+    case RptError:
       return RPT_("Error");
-    case RPT_ERROR_INVALID_INPUT:
+    case RptErrorInvalidInput:
       return RPT_("Invalid Input Error");
-    case RPT_ERROR_INVALID_CONTEXT:
+    case RptErrorInvalidContext:
       return RPT_("Invalid Context Error");
-    case RPT_ERROR_OUT_OF_MEMORY:
+    case RptErrorOutOfMemory:
       return RPT_("Out Of Memory Error");
     default:
       return RPT_("Undefined Type");
@@ -89,8 +89,8 @@ void BKE_reports_init(ReportList *reports, int flag)
 
   *reports = ReportList{};
 
-  reports->storelevel = RPT_INFO;
-  reports->printlevel = RPT_ERROR;
+  reports->storelevel = RptInfo;
+  reports->printlevel = RptError;
   reports->flag = flag;
 
   reports->lock = MEM_new<std::mutex>(__func__);
@@ -163,7 +163,7 @@ void BKE_report(ReportList *reports, eReportType type, const char *_message)
     fflush(stdout); /* this ensures the message is printed before a crash */
   }
 
-  if (reports && (reports->flag & RPT_STORE) && (type >= reports->storelevel)) {
+  if (reports && (reports->flag & RptStore) && (type >= reports->storelevel)) {
     std::scoped_lock lock(*reports->lock);
 
     char *message_alloc;
@@ -195,7 +195,7 @@ void BKE_reportf(ReportList *reports, eReportType type, const char *_format, ...
     MEM_delete(message);
   }
 
-  if (reports && (reports->flag & RPT_STORE) && (type >= reports->storelevel)) {
+  if (reports && (reports->flag & RptStore) && (type >= reports->storelevel)) {
     std::scoped_lock lock(*reports->lock);
 
     report = MEM_new<Report>("Report");
@@ -258,7 +258,7 @@ void BKE_reports_prependf(ReportList *reports, const char *prepend_format, ...)
 eReportType BKE_report_print_level(ReportList *reports)
 {
   if (!reports) {
-    return RPT_ERROR;
+    return RptError;
   }
 
   return eReportType(reports->printlevel);
@@ -278,7 +278,7 @@ void BKE_report_print_level_set(ReportList *reports, eReportType level)
 eReportType BKE_report_store_level(ReportList *reports)
 {
   if (!reports) {
-    return RPT_ERROR;
+    return RptError;
   }
 
   return eReportType(reports->storelevel);
@@ -329,7 +329,7 @@ bool BKE_reports_print_test(const ReportList *reports, eReportType type)
   if (reports == nullptr) {
     return true;
   }
-  if (reports->flag & RPT_PRINT_HANDLED_BY_OWNER) {
+  if (reports->flag & RptPrintHandledByOwner) {
     return false;
   }
   /* In background mode always print otherwise there are cases the errors won't be displayed,
@@ -339,7 +339,7 @@ bool BKE_reports_print_test(const ReportList *reports, eReportType type)
   }
 
   /* Common case. */
-  return (reports->flag & RPT_PRINT) && (type >= reports->printlevel);
+  return (reports->flag & RptPrint) && (type >= reports->printlevel);
 }
 
 void BKE_reports_log(ReportList *reports, eReportType level, CLG_LogRef *log)
@@ -374,7 +374,7 @@ Report *BKE_reports_last_displayable(ReportList *reports)
   std::scoped_lock lock(*reports->lock);
 
   for (Report &report : reports->list.items_reversed()) {
-    if (ELEM(report.type, RPT_ERROR, RPT_WARNING, RPT_INFO)) {
+    if (ELEM(report.type, RptError, RptWarning, RptInfo)) {
       return &report;
     }
   }

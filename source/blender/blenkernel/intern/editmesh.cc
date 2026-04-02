@@ -172,7 +172,7 @@ Array<float3> BKE_editmesh_vert_coords_alloc(Depsgraph *depsgraph,
   data.positions_cage = positions_cage;
   data.visit_bitmap = visit_bitmap;
 
-  BKE_mesh_foreach_mapped_vert(cage, cage_mapped_verts_callback, &data, MESH_FOREACH_NOP);
+  BKE_mesh_foreach_mapped_vert(cage, cage_mapped_verts_callback, &data, MeshForeachNop);
 
   MEM_delete(visit_bitmap);
 
@@ -194,7 +194,7 @@ Span<float3> BKE_editmesh_vert_coords_when_deformed(
     vert_positions = BKE_mesh_wrapper_vert_coords(mesh_cage);
   }
   else if ((editmesh_eval_final != nullptr) &&
-           (editmesh_eval_final->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH))
+           (editmesh_eval_final->runtime->wrapper_type == MeWrapperTypeBmesh))
   {
     /* If this is an edit-mesh type, leave nullptr as we can use the vertex coords. */
 

@@ -48,11 +48,11 @@ struct MeshBatchCache;
 /** #MeshRuntime.wrapper_type */
 enum eMeshWrapperType {
   /** Use mesh data (#Mesh.vert_positions(), #Mesh.medge, #Mesh.corner_verts(), #Mesh.faces()). */
-  ME_WRAPPER_TYPE_MDATA = 0,
+  MeWrapperTypeMdata = 0,
   /** Use edit-mesh data (#Mesh.edit_mesh, #MeshRuntime.edit_data). */
-  ME_WRAPPER_TYPE_BMESH = 1,
+  MeWrapperTypeBmesh = 1,
   /** Use subdivision mesh data (#MeshRuntime.mesh_eval). */
-  ME_WRAPPER_TYPE_SUBD = 2,
+  MeWrapperTypeSubd = 2,
 };
 
 namespace bke {
@@ -227,7 +227,7 @@ struct MeshRuntime {
   bool is_original_bmesh = false;
 
   /** #eMeshWrapperType and others. */
-  eMeshWrapperType wrapper_type = ME_WRAPPER_TYPE_MDATA;
+  eMeshWrapperType wrapper_type = MeWrapperTypeMdata;
 
   /**
    * Settings for lazily evaluating the subdivision on the CPU if needed. These are

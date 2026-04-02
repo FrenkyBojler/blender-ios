@@ -147,7 +147,7 @@ static void ntree_init_data(ID *id)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   ntree->tree_interface.init_data();
   ntree->runtime = MEM_new<bNodeTreeRuntime>(__func__);
-  ntree->default_group_node_width = GROUP_NODE_DEFAULT_WIDTH;
+  ntree->default_group_node_width = group_node_default_width;
   ntree_set_typeinfo(ntree, nullptr);
 }
 
@@ -161,7 +161,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   const bNodeTree *ntree_src = reinterpret_cast<const bNodeTree *>(id_src);
 
   /* We never handle user-count here for owned data. */
-  const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
+  const int flag_subdata = flag | LibIdCreateNoUserRefcount;
 
   ntree_dst->runtime = MEM_new<bNodeTreeRuntime>(__func__);
   bNodeTreeRuntime &dst_runtime = *ntree_dst->runtime;
@@ -209,7 +209,7 @@ static void ntree_copy_data(Main * /*bmain*/,
 
   ntree_dst->tree_interface.copy_data(ntree_src->tree_interface, flag);
   /* copy preview hash */
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+  if ((flag & LibIdCopyNoPreview) == 0) {
     for (const auto &item : ntree_src->runtime->previews.items()) {
       dst_runtime.previews.add_new(item.key, item.value);
     }
@@ -256,7 +256,7 @@ static void ntree_copy_data(Main * /*bmain*/,
         ntree_src->nested_node_refs, ntree_src->nested_node_refs_num, ntree_dst->nested_node_refs);
   }
 
-  if (flag & LIB_ID_COPY_NO_PREVIEW) {
+  if (flag & LibIdCopyNoPreview) {
     ntree_dst->preview = nullptr;
   }
   else {
@@ -327,55 +327,55 @@ static void library_foreach_node_socket(bNodeSocket *sock, LibraryForeachIDData 
   switch (eNodeSocketDatatype(sock->type)) {
     case SOCK_OBJECT: {
       bNodeSocketValueObject &default_value = *sock->default_value_typed<bNodeSocketValueObject>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_IMAGE: {
       bNodeSocketValueImage &default_value = *sock->default_value_typed<bNodeSocketValueImage>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_COLLECTION: {
       bNodeSocketValueCollection &default_value =
           *sock->default_value_typed<bNodeSocketValueCollection>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_TEXTURE: {
       bNodeSocketValueTexture &default_value =
           *sock->default_value_typed<bNodeSocketValueTexture>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_MATERIAL: {
       bNodeSocketValueMaterial &default_value =
           *sock->default_value_typed<bNodeSocketValueMaterial>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_FONT: {
       bNodeSocketValueFont &default_value = *sock->default_value_typed<bNodeSocketValueFont>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_SCENE: {
       bNodeSocketValueScene &default_value = *sock->default_value_typed<bNodeSocketValueScene>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_TEXT_ID: {
       bNodeSocketValueText &default_value = *sock->default_value_typed<bNodeSocketValueText>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_MASK: {
       bNodeSocketValueMask &default_value = *sock->default_value_typed<bNodeSocketValueMask>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_SOUND: {
       bNodeSocketValueSound &default_value = *sock->default_value_typed<bNodeSocketValueSound>();
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IdwalkCbUser);
       break;
     }
     case SOCK_FLOAT:
@@ -399,7 +399,7 @@ static void library_foreach_node_socket(bNodeSocket *sock, LibraryForeachIDData 
 
 void node_node_foreach_id(bNode *node, LibraryForeachIDData *data)
 {
-  BKE_LIB_FOREACHID_PROCESS_ID(data, node->id, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, node->id, IdwalkCbUser);
 
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
       data, IDP_foreach_property(node->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
@@ -418,7 +418,7 @@ void node_node_foreach_id(bNode *node, LibraryForeachIDData *data)
   }
 
   /* Note that this ID pointer is only a cache, it may be outdated. */
-  BKE_LIB_FOREACHID_PROCESS_ID(data, node->runtime->owner_tree, IDWALK_CB_LOOPBACK);
+  BKE_LIB_FOREACHID_PROCESS_ID(data, node->runtime->owner_tree, IdwalkCbLoopback);
 }
 
 static void node_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -428,9 +428,9 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_ID(
       data,
       ntree->owner_id,
-      (IDWALK_CB_LOOPBACK | IDWALK_CB_NEVER_SELF | IDWALK_CB_READFILE_IGNORE));
+      (IdwalkCbLoopback | IdwalkCbNeverSelf | IdwalkCbReadfileIgnore));
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ntree->gpd, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ntree->gpd, IdwalkCbUser);
 
   for (bNode *node : ntree->all_nodes()) {
     node_node_foreach_id(node, data);
@@ -440,7 +440,7 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (ntree->runtime->eval_dependencies) {
     for (ID *&id_ref : ntree->runtime->eval_dependencies->ids.values()) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_HASH_IGNORE);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IdwalkCbHashIgnore);
     }
   }
 }
@@ -1383,7 +1383,7 @@ namespace versioning_internal {
  * values are modified, as a 'manual' version of DNA internal versioning must be performed on data
  * from older blend-files (see also #direct_link_node_socket_default_value).
  */
-constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING = 300;
+constexpr int min_blendfile_version_for_modern_node_socket_default_value_reading = 300;
 
 /* The `_404` structs below are copies of DNA structs as they were in Blender 4.4 and before. Their
  * data layout should never have to be modified in any way, as it matches the expected data layout
@@ -1507,7 +1507,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
   }
 
   if (BLO_read_fileversion_get(reader) >=
-      versioning_internal::MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING)
+      versioning_internal::min_blendfile_version_for_modern_node_socket_default_value_reading)
   {
     /* Modern, standard DNA-typed reading of sockets default values. */
     switch (eNodeSocketDatatype(sock->type)) {
@@ -2329,7 +2329,7 @@ IDTypeInfo IDType_ID_NT = {
     .name = "NodeTree",
     .name_plural = N_("node_groups"),
     .translation_context = BLT_I18NCONTEXT_ID_NODETREE,
-    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .flags = IdtypeFlagsAppendIsReusable,
     .asset_type_info = &AssetType_NT,
 
     .init_data = bke::ntree_init_data,
@@ -4078,7 +4078,7 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
   if (sock_src->default_value) {
     sock_dst->default_value = MEM_dupalloc_void(sock_src->default_value);
 
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    if ((flag & LibIdCreateNoUserRefcount) == 0) {
       socket_id_user_increment(sock_dst);
     }
 
@@ -4165,7 +4165,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     dst_link.tosock = socket_map.lookup(dst_link.tosock);
   }
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+  if ((flag & LibIdCreateNoUserRefcount) == 0) {
     id_us_plus(node_dst->id);
   }
 
@@ -4179,7 +4179,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
 
   /* Only call copy function when a copy is made for the main database, not
    * for cases like the dependency graph and localization. */
-  if (node_dst->typeinfo->copyfunc_api && !(flag & LIB_ID_CREATE_NO_MAIN)) {
+  if (node_dst->typeinfo->copyfunc_api && !(flag & LibIdCreateNoMain)) {
     PointerRNA ptr = RNA_pointer_create_discrete(
         reinterpret_cast<ID *>(dst_tree), RNA_Node, node_dst);
 
@@ -4652,7 +4652,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
    */
   int flag = 0;
   if (is_embedded || bmain == nullptr) {
-    flag |= LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT;
+    flag |= LibIdCreateNoMain | LibIdCreateNoUserRefcount;
   }
   BLI_assert_msg(!owner_library || !owner_id,
                  "Embedded NTrees should never have a defined owner library here");
@@ -4702,7 +4702,7 @@ bNodeTree *node_tree_add_tree_embedded(Main * /*bmain*/,
 
 bNodeTree *node_tree_copy_tree_ex(const bNodeTree &ntree, Main *bmain, const bool do_id_user)
 {
-  const int flag = do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_CREATE_NO_MAIN;
+  const int flag = do_id_user ? 0 : LibIdCreateNoUserRefcount | LibIdCreateNoMain;
 
   bNodeTree *ntree_copy = reinterpret_cast<bNodeTree *>(
       BKE_id_copy_ex(bmain, reinterpret_cast<const ID *>(&ntree), nullptr, flag));
@@ -5153,7 +5153,7 @@ bNodeTree *node_tree_localize(bNodeTree *ntree, std::optional<ID *> new_owner_id
                          &ntree->id,
                          new_owner_id,
                          nullptr,
-                         (LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA)));
+                         (LibIdCopyLocalize | LibIdCopyNoAnimdata)));
 
   ltree->id.tag |= ID_TAG_LOCALIZED;
 
@@ -5875,13 +5875,13 @@ std::optional<VolumeGridType> socket_type_to_grid_type(const eNodeSocketDatatype
 {
   switch (type) {
     case SOCK_BOOLEAN:
-      return VOLUME_GRID_BOOLEAN;
+      return VolumeGridBoolean;
     case SOCK_FLOAT:
-      return VOLUME_GRID_FLOAT;
+      return VolumeGridFloat;
     case SOCK_INT:
-      return VOLUME_GRID_INT;
+      return VolumeGridInt;
     case SOCK_VECTOR:
-      return VOLUME_GRID_VECTOR_FLOAT;
+      return VolumeGridVectorFloat;
     default:
       return std::nullopt;
   }
@@ -5890,13 +5890,13 @@ std::optional<VolumeGridType> socket_type_to_grid_type(const eNodeSocketDatatype
 std::optional<eNodeSocketDatatype> grid_type_to_socket_type(const VolumeGridType type)
 {
   switch (type) {
-    case VOLUME_GRID_BOOLEAN:
+    case VolumeGridBoolean:
       return SOCK_BOOLEAN;
-    case VOLUME_GRID_FLOAT:
+    case VolumeGridFloat:
       return SOCK_FLOAT;
-    case VOLUME_GRID_INT:
+    case VolumeGridInt:
       return SOCK_INT;
-    case VOLUME_GRID_VECTOR_FLOAT:
+    case VolumeGridVectorFloat:
       return SOCK_VECTOR;
     default:
       return std::nullopt;
@@ -5973,16 +5973,16 @@ void node_type_size_preset(bNodeType &ntype, const eNodeSizePreset size)
 {
   switch (size) {
     case eNodeSizePreset::Default:
-      node_type_size(ntype, 140, 100, NODE_DEFAULT_MAX_WIDTH);
+      node_type_size(ntype, 140, 100, node_default_max_width);
       break;
     case eNodeSizePreset::Small:
-      node_type_size(ntype, 100, 80, NODE_DEFAULT_MAX_WIDTH);
+      node_type_size(ntype, 100, 80, node_default_max_width);
       break;
     case eNodeSizePreset::Middle:
-      node_type_size(ntype, 150, 120, NODE_DEFAULT_MAX_WIDTH);
+      node_type_size(ntype, 150, 120, node_default_max_width);
       break;
     case eNodeSizePreset::Large:
-      node_type_size(ntype, 240, 140, NODE_DEFAULT_MAX_WIDTH);
+      node_type_size(ntype, 240, 140, node_default_max_width);
       break;
   }
 }

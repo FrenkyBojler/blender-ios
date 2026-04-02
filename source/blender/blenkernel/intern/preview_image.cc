@@ -490,13 +490,13 @@ void BKE_previewimg_render_end(PreviewImage *prv,
   bool do_delete = false;
 
   prv->runtime->tag[size] &= ~PRV_TAG_DEFERRED_RENDERING;
-  if (status == PRV_RENDER_STATUS_FAILED) {
+  if (status == PrvRenderStatusFailed) {
     prv->runtime->tag[size] |= PRV_TAG_DEFERRED_INVALID;
   }
 
   /* When job is cancelled for e.g. undo, PRV_RENDERING remains so that
    * it can resume when going back to that undo step. */
-  if (status != PRV_RENDER_STATUS_CANCELLED) {
+  if (status != PrvRenderStatusCancelled) {
     prv->flag[size] &= ~PRV_RENDERING;
   }
 
