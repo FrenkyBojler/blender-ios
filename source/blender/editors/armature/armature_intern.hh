@@ -154,9 +154,11 @@ struct tPChanFCurveLink {
   animrig::Transformable *transformable;
   /** F-Curves for this Transformable. */
   Vector<FCurve *> fcurves;
+  /* This is used as an optimization to only do blending on transform types that actually have
+   * animation. */
   eAction_TransformFlags transform_flag;
 
-  /** transform values at start of operator (to be restored before each modal step) */
+  /** Transform values at start of operator (to be restored before each modal step). */
   Array<float> old_loc;
   animrig::Rotation old_rot;
   Array<float> old_scale;

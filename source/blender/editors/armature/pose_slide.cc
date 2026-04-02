@@ -143,8 +143,6 @@ struct tPoseSlideOp {
 
   /** Sliding Mode. */
   ePoseSlide_Modes mode;
-  /** unused for now, but can later get used for storing runtime settings.... */
-  // short flag;
 
   /* Store overlay settings when invoking the operator. Bones will be temporarily hidden. */
   int overlay_flag;
@@ -700,7 +698,6 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
      *   for quaternions instead.
      */
     animrig::Transformable *transformable = pfl.transformable;
-    bPoseChannel *pchan = static_cast<bPoseChannel *>(pfl.transformable->data());
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
       transformable->blend_location_to(0.0f, slider_factor, axis_flag);
@@ -712,7 +709,7 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
       transformable->blend_rotation_to(
-          animrig::Rotation::unit_rotation(eRotationModes(pchan->rotmode)),
+          animrig::Rotation::unit_rotation(transformable->get_rotation_mode()),
           slider_factor,
           axis_flag);
     }
@@ -763,11 +760,6 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 
   /* For each link, handle each set of transforms. */
   for (tPChanFCurveLink &pfl : pso->pfLinks) {
-    /* Valid transforms for each #bPoseChannel should have been noted already
-     * - sliding the pose should be a straightforward exercise for location+rotation,
-     *   but rotations get more complicated since we may want to use quaternion blending
-     *   for quaternions instead...
-     */
     animrig::Transformable *transformable = pfl.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
