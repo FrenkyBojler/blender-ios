@@ -448,7 +448,7 @@ static bool cryptomatte_pick_sample_and_apply(bContext *C,
   return true;
 }
 
-static void cryptomatte_pick_exit(bContext *C, wmOperator *op)
+static void cryptomatte_pick_free_and_exit(bContext *C, wmOperator *op)
 {
   CryptomattePicker *picker = static_cast<CryptomattePicker *>(op->customdata);
   wmWindow *window = CTX_wm_window(C);
@@ -492,7 +492,7 @@ static void cryptomatte_pick_cancel(bContext *C, wmOperator *op)
     BKE_main_ensure_invariants(*CTX_data_main(C), picker->ntree->id);
   }
 
-  cryptomatte_pick_exit(C, op);
+  cryptomatte_pick_free_and_exit(C, op);
 }
 
 static bool cryptomatte_pick_poll(bContext *C)
@@ -575,13 +575,13 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
       case CRYPTO_PICK_MODAL_SAMPLE_RELEASE:
         picker->accum_start = false;
         if (!picker->multi_sample) {
-          cryptomatte_pick_exit(C, op);
+          cryptomatte_pick_free_and_exit(C, op);
           return OPERATOR_FINISHED;
         }
         break;
 
       case CRYPTO_PICK_MODAL_CONFIRM:
-        cryptomatte_pick_exit(C, op);
+        cryptomatte_pick_free_and_exit(C, op);
         return OPERATOR_FINISHED;
 
       case CRYPTO_PICK_MODAL_INVERT_PRESS:
@@ -601,11 +601,11 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
   }
 
   {
-    const bool alt_pressed = (picker->is_add != picker->initial_state);
+    const bool inverted = (picker->is_add != picker->initial_state);
     WorkspaceStatus status(C);
     status.opmodal(IFACE_("Sample"), op->type, CRYPTO_PICK_MODAL_SAMPLE_BEGIN);
     status.item(IFACE_("Multi-Sample"), ICON_EVENT_SHIFT, ICON_MOUSE_LMB);
-    status.item_bool(IFACE_(picker->is_add ? "Add" : "Remove"), alt_pressed, ICON_EVENT_ALT);
+    status.item_bool(picker->is_add ? IFACE_("Add") : IFACE_("Remove"), inverted, ICON_EVENT_CTRL);
     status.opmodal(IFACE_("Confirm"), op->type, CRYPTO_PICK_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, CRYPTO_PICK_MODAL_CANCEL);
   }
