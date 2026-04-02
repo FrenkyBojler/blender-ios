@@ -516,27 +516,31 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   }
 
 #ifdef WITH_INPUT_IME
-  /* Reposition the IME candidate window to follow the text cursor.
-   * Deferred during animation playback and when `cursor_ime` returns nullopt
-   * (e.g. during navigation), keeping `do_ime` set so refresh occurs once the action ends. */
-  if (win->runtime->ime_data && at->cursor_ime && region->runtime->do_ime) {
+  /* Manage the IME candidate window for the active region based on `cursor_ime`:
+   * - Position returned: start (if no session) or reposition IME.
+   * - nullopt returned: end any active IME session (e.g. exited edit mode).
+   * Deferred during animation playback, keeping `do_ime` set for when it stops. */
+  if (at->cursor_ime && region->runtime->do_ime) {
     const bScreen *screen = WM_window_get_active_screen(win);
-    if (screen->animtimer || screen->scrubbing) {
-      /* Defer: animation is playing, `do_ime` stays set for when it stops. */
-    }
-    else {
+    if (!screen->animtimer && !screen->scrubbing && region == screen->active_region) {
       const std::optional<blender::int2> pos = at->cursor_ime(win, area, region);
       if (pos) {
-        region->runtime->do_ime = false;
+        /* Start fresh when no IME session exists, reposition otherwise. */
+        const bool complete = (win->runtime->ime_data == nullptr);
         wm_window_IME_begin(win,
                             region->winrct.xmin + pos->x,
                             region->winrct.ymin + pos->y,
                             0,
                             0,
-                            false);
+                            complete);
       }
-      /* When `pos` is nullopt (e.g. navigating), `do_ime` stays set
-       * so refresh occurs on the next draw after navigation ends. */
+      else {
+        /* cursor_ime returned nullopt (e.g. exited edit mode, or navigating).
+         * End any active IME session. After navigation ends, the next redraw
+         * sets `do_ime` and cursor_ime will restart IME if appropriate. */
+        wm_window_IME_end(win);
+      }
+      region->runtime->do_ime = false;
     }
   }
 #endif
@@ -2833,6 +2837,11 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     }
 
     ED_area_exit(C, area);
+
+#ifdef WITH_INPUT_IME
+    /* End any active IME session — the old space type's cursor_ime is no longer valid. */
+    wm_window_IME_end(win);
+#endif
 
     /* restore old area exit callback */
     if (skip_region_exit && area->type) {
