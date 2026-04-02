@@ -92,8 +92,12 @@ void modifier_clear(Strip *strip);
 void modifier_free(StripModifierData *smd);
 void modifier_unique_name(Strip *strip, StripModifierData *smd);
 StripModifierData *modifier_find_by_name(Strip *strip, const char *name);
-StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src);
-void modifier_list_copy(Strip *strip_new, Strip *strip);
+/**
+ * Copy the `mod_src` modifier and add it to `strip_dst`.
+ * \param flag: The flag used for copying the system ID properties.
+ */
+StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src, int flag);
+void modifier_list_copy(Strip *strip_new, Strip *strip, int flag);
 int sequence_supports_modifiers(Strip *strip);
 
 void modifier_blend_write(BlendWriter *writer, ListBaseT<StripModifierData> *modbase);

@@ -544,7 +544,7 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
   }
 }
 
-StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
+StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src, const int flag)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
   StripModifierData *mod_new = MEM_dupalloc(mod_src);
@@ -553,8 +553,7 @@ StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
 
   mod_new->system_properties = nullptr;
   if (mod_src->system_properties) {
-    /* TODO: What flag should be used here for copying?? */
-    mod_new->system_properties = IDP_CopyProperty_ex(mod_src->system_properties, 0);
+    mod_new->system_properties = IDP_CopyProperty_ex(mod_src->system_properties, flag);
   }
 
   mod_new->runtime = MEM_new<StripModifierDataRuntime>(__func__);
@@ -573,10 +572,10 @@ StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
   return mod_new;
 }
 
-void modifier_list_copy(Strip *strip_new, Strip *strip)
+void modifier_list_copy(Strip *strip_new, Strip *strip, const int flag)
 {
   for (StripModifierData &smd : strip->modifiers) {
-    modifier_copy(*strip_new, &smd);
+    modifier_copy(*strip_new, &smd, flag);
   }
 }
 
