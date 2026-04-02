@@ -2,3 +2,4 @@ Referenced by issue #154875, Windows: Viewport playback performance regression
 Referenced by issue #155551, High CPU usage during playback in 5.0 compared to 3.6 with rigged character + subdivision surface
 Referenced by issue #156361, Crash on load svg to grease pencil
 Referenced by issue #156740, Regression: Viewport render preview lags when changing Base Color via color wheel in Principled BSDF (5.1 vs 5.0)
+Referenced by issue #156753, GLTF/GLB export ignores light color
