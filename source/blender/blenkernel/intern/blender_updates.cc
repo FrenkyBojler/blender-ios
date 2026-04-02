@@ -352,17 +352,17 @@ void load_available_updates_cache_file_impl()
     return;
   }
   std::string available_updates_file = *datafiles_path + SEP + BLENDER_AVAILABLE_UPDATES_FILE;
-  size_t size;
+  size_t size = 0;
   std::unique_ptr<char, MEM_smart_ptr_deleter<char>> json_text = nullptr;
   json_text.reset(BLI_file_read_text_as_mem(available_updates_file.c_str(), 0, &size));
 
   printf("%s\n", available_updates_file.c_str());
 
-  if (!json_text || size == 0) {
+  if (!json_text) {
     return;
   }
 
-  std::istringstream available_updates_stream(json_text.get());
+  std::istringstream available_updates_stream(std::string(json_text.get(), size));
 
   using namespace io::serialize;
 
