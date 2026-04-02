@@ -476,7 +476,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
                                                 ListBaseT<TreeElement> *tree,
                                                 SyncSelectActiveData *active_data,
                                                 const SyncSelectTypes *sync_types,
-                                                bool &is_active_changed)
+                                                bool *r_any_new_active)
 {
   for (TreeElement &te : *tree) {
     TreeStoreElem *tselem = TREESTORE(&te);
@@ -507,7 +507,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
       tselem->flag &= ~(TSE_SELECTED | TSE_ACTIVE);
     }
     const bool is_active_new = (tselem->flag & TSE_ACTIVE) != 0;
-    is_active_changed |= is_active_new && !is_active_old;
+    *r_any_new_active |= is_active_new && !is_active_old;
     /* Sync subtree elements */
     outliner_sync_selection_to_outliner(bmain,
                                         scene,
@@ -516,7 +516,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
                                         &te.subtree,
                                         active_data,
                                         sync_types,
-                                        is_active_changed);
+                                        r_any_new_active);
   }
 }
 
@@ -542,7 +542,7 @@ bool outliner_sync_selection(const bContext *C,
   SyncSelectTypes sync_types;
   const bool sync_required = outliner_sync_select_to_outliner_set_types(
       tvc, space_outliner, &sync_types);
-  bool is_active_changed = false;
+  bool r_any_new_active = false;
 
   if (sync_required) {
     /* Store active object, bones, and strip */
@@ -556,7 +556,7 @@ bool outliner_sync_selection(const bContext *C,
                                         &space_outliner->tree,
                                         &active_data,
                                         &sync_types,
-                                        is_active_changed);
+                                        &r_any_new_active);
 
     /* Keep any un-synced data in the dirty flag. */
     if (sync_types.object) {
@@ -573,7 +573,7 @@ bool outliner_sync_selection(const bContext *C,
     }
   }
 
-  return is_active_changed;
+  return r_any_new_active;
 }
 
 }  // namespace ed::outliner
