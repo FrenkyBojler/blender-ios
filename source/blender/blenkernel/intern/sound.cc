@@ -2270,7 +2270,10 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
 #endif
 }
 
-float bSoundFrequencySampler::sample(const float time, const float low, const float high) const
+float bSoundFrequencySampler::sample(const float time,
+                                     const float low,
+                                     const float high,
+                                     const FrequencyInterpolationMethod method) const
 {
   if (low >= high) {
     return 0.0f;
@@ -2280,34 +2283,74 @@ float bSoundFrequencySampler::sample(const float time, const float low, const fl
     return 0.0f;
   }
 
-  const float prev_cumulative_low = this->sample_cumulative_frequency(window_pair->prev, low);
-  const float prev_cumulative_high = this->sample_cumulative_frequency(window_pair->prev, high);
+  const float prev_cumulative_low = this->sample_cumulative_frequency(
+      window_pair->prev, low, method);
+  const float prev_cumulative_high = this->sample_cumulative_frequency(
+      window_pair->prev, high, method);
   const float prev_amplitude = prev_cumulative_high - prev_cumulative_low;
 
-  const float next_cumulative_low = this->sample_cumulative_frequency(window_pair->next, low);
-  const float next_cumulative_high = this->sample_cumulative_frequency(window_pair->next, high);
+  const float next_cumulative_low = this->sample_cumulative_frequency(
+      window_pair->next, low, method);
+  const float next_cumulative_high = this->sample_cumulative_frequency(
+      window_pair->next, high, method);
   const float next_amplitude = next_cumulative_high - next_cumulative_low;
 
   const float amplitude = math::interpolate(prev_amplitude, next_amplitude, window_pair->fraction);
   return amplitude;
 }
 
-float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> window_values,
-                                                          const float frequency) const
+float bSoundFrequencySampler::sample_cumulative_frequency(
+    const Span<float> window_values,
+    const float frequency,
+    const FrequencyInterpolationMethod method) const
 {
   const int max_i = window_values.size() - 1;
-
   const float i_float = frequency * key_.fft_size / samples_per_second_;
-  int i = std::floor(i_float);
-  const float fraction = i_float - i;
+  const int i_pre = std::clamp<int>(std::floor(i_float), 0, max_i);
+  const int i_post = std::min(i_pre + 1, max_i);
+  switch (method) {
+    case FrequencyInterpolationMethod::Linear: {
+      return math::interpolate(window_values[i_pre], window_values[i_post], i_float - i_pre);
+    }
+    case FrequencyInterpolationMethod::CatmullRom: {
+      const int i_pre2 = std::max(i_pre - 1, 0);
+      const int i_post2 = std::min(i_post + 1, max_i);
 
-  i = std::clamp(i, 0, max_i);
-  const int i_next = std::min(i + 1, max_i);
+      const float p0 = window_values[i_pre2];
+      const float p1 = window_values[i_pre];
+      const float p2 = window_values[i_post];
+      const float p3 = window_values[i_post2];
 
-  const float value_0 = window_values[i];
-  const float value_1 = window_values[i_next];
-  const float value = math::interpolate(value_0, value_1, fraction);
-  return value;
+      const float t = i_float - i_pre;
+      const float t2 = t * t;
+      const float t3 = t2 * t;
+
+      const float value = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                                 (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+      return value;
+    }
+    case FrequencyInterpolationMethod::BSpline: {
+      const int i_pre2 = std::max(i_pre - 1, 0);
+      const int i_post2 = std::min(i_post + 1, max_i);
+
+      const float p0 = window_values[i_pre2];
+      const float p1 = window_values[i_pre];
+      const float p2 = window_values[i_post];
+      const float p3 = window_values[i_post2];
+
+      const float t = i_float - i_pre;
+      const float t2 = t * t;
+      const float t3 = t2 * t;
+
+      const float b0 = (1.0f - t) * (1.0f - t) * (1.0f - t) / 6.0f;
+      const float b1 = (3.0f * t3 - 6.0f * t2 + 4.0f) / 6.0f;
+      const float b2 = (-3.0f * t3 + 3.0f * t2 + 3.0f * t + 1.0f) / 6.0f;
+      const float b3 = t3 / 6.0f;
+
+      return (b0 * p0 + b1 * p1 + b2 * p2 + b3 * p3);
+    }
+  }
+  return 0.0f;
 }
 
 std::optional<bSoundFrequencySampler::WindowCachePair> bSoundFrequencySampler::

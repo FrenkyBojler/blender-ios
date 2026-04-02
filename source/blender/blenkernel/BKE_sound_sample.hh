@@ -35,6 +35,18 @@ class bSoundFrequencySampler {
     Rectangular,
   };
 
+  enum class FrequencyInterpolationMethod {
+    /**
+     * Fastest method but a resulting spectrum visualization may not be continuous, especially for
+     * lower frequencies.
+     */
+    Linear,
+    /** Slower but produces a continuous spectrum. It may not be entirely smooth though. */
+    CatmullRom,
+    /** Yet slower but produces a continuous spectrum that is smooth. */
+    BSpline,
+  };
+
   struct Key {
     WindowFunction window_function;
     /** This has to be a power of two. */
@@ -97,10 +109,15 @@ class bSoundFrequencySampler {
   static const bSoundFrequencySampler *get_cached(const bSound &sound, const Key &key);
 
   /** Sample the amplitude a the given time and frequency range. */
-  float sample(float time, float low, float high) const;
+  float sample(float time,
+               float low,
+               float high,
+               FrequencyInterpolationMethod method = FrequencyInterpolationMethod::BSpline) const;
 
  private:
-  float sample_cumulative_frequency(Span<float> window_values, float frequency) const;
+  float sample_cumulative_frequency(Span<float> window_values,
+                                    float frequency,
+                                    FrequencyInterpolationMethod method) const;
   std::optional<WindowCachePair> get_window_caches_for_time(float time) const;
   std::optional<Span<float>> ensure_window_cache(int window_i) const;
   std::optional<Array<float>> compute_fft(int start_sample) const;
