@@ -1643,7 +1643,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
       }
       else {
         int len = BLI_str_utf8_offset_from_index(category_id_draw, category_draw_len, 1);
-        std::string title (category_id_draw, len);
+        std::string title(category_id_draw, len);
         if (len < 3) {
           char *space = BLI_strcasestr(category_id_draw, " ");
           if (space) {
@@ -2694,9 +2694,11 @@ int handler_panel_region(bContext *C,
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = panel_category_show_active_tab(region, event->xy);
     }
-    else if (event->type == MOUSEMOVE) {
+    else if (event->type == MOUSEMOVE && U.flag & USER_TOOLTIPS &&
+             U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS)
+    {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
-      if (pc_dyn && (U.flag & USER_TOOLTIPS)) {
+      if (pc_dyn) {
         region->runtime->category_tip_name = pc_dyn->idname;
         WM_tooltip_timer_init(
             C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init);
@@ -2748,7 +2750,15 @@ int handler_panel_region(bContext *C,
       continue;
     }
 
-    if (has_panel_header && mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
+    if (has_panel_header && event->type == RIGHTMOUSE) {
+      if (ELEM(mouse_state, PANEL_MOUSE_INSIDE_HEADER, PANEL_MOUSE_INSIDE_CONTENT)) {
+        retval = WM_UI_HANDLER_BREAK;
+        popup_context_menu_for_panel(C, region, block.panel);
+        break;
+      }
+    }
+
+    if ((has_panel_header && mouse_state == PANEL_MOUSE_INSIDE_HEADER)) {
       /* All mouse clicks inside panel headers should return in break. */
       if (ELEM(event->type, EVT_RETKEY, EVT_PADENTER, LEFTMOUSE)) {
         retval = WM_UI_HANDLER_BREAK;
@@ -2761,12 +2771,18 @@ int handler_panel_region(bContext *C,
       }
       break;
     }
+
     if (mouse_state == PANEL_MOUSE_INSIDE_LAYOUT_PANEL_HEADER) {
       if (ELEM(event->type, EVT_RETKEY, EVT_PADENTER, LEFTMOUSE)) {
         retval = WM_UI_HANDLER_BREAK;
         handle_layout_panel_header(C, &block, mx, my, event->type);
       }
     }
+  }
+
+  if (retval == WM_UI_HANDLER_CONTINUE && event->type == RIGHTMOUSE) {
+    retval = WM_UI_HANDLER_BREAK;
+    popup_context_menu_for_panel(C, region, nullptr);
   }
 
   return retval;
