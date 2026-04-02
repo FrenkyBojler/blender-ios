@@ -2270,49 +2270,119 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
 #endif
 }
 
+static float catmul_rom_interpolation(
+    const float p0, const float p1, const float p2, const float p3, const float t)
+{
+  const float t2 = t * t;
+  const float t3 = t2 * t;
+
+  const float value = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                             (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  return value;
+}
+
+static float bspline_interpolation(
+    const float p0, const float p1, const float p2, const float p3, const float t)
+{
+  const float t2 = t * t;
+  const float t3 = t2 * t;
+
+  const float b0 = (1.0f - t) * (1.0f - t) * (1.0f - t) / 6.0f;
+  const float b1 = (3.0f * t3 - 6.0f * t2 + 4.0f) / 6.0f;
+  const float b2 = (-3.0f * t3 + 3.0f * t2 + 3.0f * t + 1.0f) / 6.0f;
+  const float b3 = t3 / 6.0f;
+
+  return (b0 * p0 + b1 * p1 + b2 * p2 + b3 * p3);
+}
+
 float bSoundFrequencySampler::sample(const float time,
                                      const float low,
                                      const float high,
-                                     const FrequencyInterpolationMethod method) const
+                                     const InterpolationMethod time_interpolation,
+                                     const InterpolationMethod frequency_interpolation) const
 {
   if (low >= high) {
     return 0.0f;
   }
-  const std::optional<WindowCachePair> window_pair = this->get_window_caches_for_time(time);
-  if (!window_pair.has_value()) {
-    return 0.0f;
+  const float i_float = std::max(
+      0.0f, (time * samples_per_second_ - key_.fft_size / 2) / window_cache_stride_);
+  const int i_pre = floorf(i_float);
+  const int i_post = i_pre + 1;
+  const float t = i_float - i_pre;
+
+  switch (time_interpolation) {
+    case InterpolationMethod::Linear: {
+      const float v_prev = this->sample_frequency_range_in_window(
+          i_pre, low, high, frequency_interpolation);
+      const float v_next = this->sample_frequency_range_in_window(
+          i_post, low, high, frequency_interpolation);
+
+      return math::interpolate(v_prev, v_next, t);
+    }
+    case InterpolationMethod::CatmullRom: {
+      const int i_pre2 = i_pre - 1;
+      const int i_post2 = i_post + 1;
+
+      const float p0 = this->sample_frequency_range_in_window(
+          i_pre2, low, high, frequency_interpolation);
+      const float p1 = this->sample_frequency_range_in_window(
+          i_pre, low, high, frequency_interpolation);
+      const float p2 = this->sample_frequency_range_in_window(
+          i_post, low, high, frequency_interpolation);
+      const float p3 = this->sample_frequency_range_in_window(
+          i_post2, low, high, frequency_interpolation);
+
+      return catmul_rom_interpolation(p0, p1, p2, p3, t);
+    }
+    default:
+    case InterpolationMethod::BSpline: {
+      const int i_pre2 = i_pre - 1;
+      const int i_post2 = i_post + 1;
+
+      const float p0 = this->sample_frequency_range_in_window(
+          i_pre2, low, high, frequency_interpolation);
+      const float p1 = this->sample_frequency_range_in_window(
+          i_pre, low, high, frequency_interpolation);
+      const float p2 = this->sample_frequency_range_in_window(
+          i_post, low, high, frequency_interpolation);
+      const float p3 = this->sample_frequency_range_in_window(
+          i_post2, low, high, frequency_interpolation);
+
+      return bspline_interpolation(p0, p1, p2, p3, t);
+    }
   }
-
-  const float prev_cumulative_low = this->sample_cumulative_frequency(
-      window_pair->prev, low, method);
-  const float prev_cumulative_high = this->sample_cumulative_frequency(
-      window_pair->prev, high, method);
-  const float prev_amplitude = prev_cumulative_high - prev_cumulative_low;
-
-  const float next_cumulative_low = this->sample_cumulative_frequency(
-      window_pair->next, low, method);
-  const float next_cumulative_high = this->sample_cumulative_frequency(
-      window_pair->next, high, method);
-  const float next_amplitude = next_cumulative_high - next_cumulative_low;
-
-  const float amplitude = math::interpolate(prev_amplitude, next_amplitude, window_pair->fraction);
-  return amplitude;
 }
 
-float bSoundFrequencySampler::sample_cumulative_frequency(
-    const Span<float> window_values,
-    const float frequency,
-    const FrequencyInterpolationMethod method) const
+float bSoundFrequencySampler::sample_frequency_range_in_window(int window_i,
+                                                               float low,
+                                                               float high,
+                                                               InterpolationMethod method) const
+{
+  const std::optional<Span<float>> window_opt = this->ensure_window_cache(window_i);
+  if (!window_opt.has_value()) {
+    return 0.0f;
+  }
+  const Span<float> window_values = *window_opt;
+  const float cumulative_low = this->sample_cumulative_frequency(window_values, low, method);
+  const float cumulative_high = this->sample_cumulative_frequency(window_values, high, method);
+  return cumulative_high - cumulative_low;
+}
+
+float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> window_values,
+                                                          const float frequency,
+                                                          const InterpolationMethod method) const
 {
   const int max_i = window_values.size() - 1;
   const float i_float = frequency * key_.fft_size / samples_per_second_;
   const int i_pre = std::clamp<int>(std::floor(i_float), 0, max_i);
   const int i_post = std::min(i_pre + 1, max_i);
+  const float t = i_float - i_pre;
+
   switch (method) {
-    case FrequencyInterpolationMethod::Linear: {
-      return math::interpolate(window_values[i_pre], window_values[i_post], i_float - i_pre);
+    case InterpolationMethod::Linear: {
+      return math::interpolate(window_values[i_pre], window_values[i_post], t);
     }
-    case FrequencyInterpolationMethod::CatmullRom: {
+    case InterpolationMethod::CatmullRom: {
       const int i_pre2 = std::max(i_pre - 1, 0);
       const int i_post2 = std::min(i_post + 1, max_i);
 
@@ -2321,15 +2391,9 @@ float bSoundFrequencySampler::sample_cumulative_frequency(
       const float p2 = window_values[i_post];
       const float p3 = window_values[i_post2];
 
-      const float t = i_float - i_pre;
-      const float t2 = t * t;
-      const float t3 = t2 * t;
-
-      const float value = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-                                 (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
-      return value;
+      return catmul_rom_interpolation(p0, p1, p2, p3, t);
     }
-    case FrequencyInterpolationMethod::BSpline: {
+    case InterpolationMethod::BSpline: {
       const int i_pre2 = std::max(i_pre - 1, 0);
       const int i_post2 = std::min(i_post + 1, max_i);
 
@@ -2338,47 +2402,17 @@ float bSoundFrequencySampler::sample_cumulative_frequency(
       const float p2 = window_values[i_post];
       const float p3 = window_values[i_post2];
 
-      const float t = i_float - i_pre;
-      const float t2 = t * t;
-      const float t3 = t2 * t;
-
-      const float b0 = (1.0f - t) * (1.0f - t) * (1.0f - t) / 6.0f;
-      const float b1 = (3.0f * t3 - 6.0f * t2 + 4.0f) / 6.0f;
-      const float b2 = (-3.0f * t3 + 3.0f * t2 + 3.0f * t + 1.0f) / 6.0f;
-      const float b3 = t3 / 6.0f;
-
-      return (b0 * p0 + b1 * p1 + b2 * p2 + b3 * p3);
+      return bspline_interpolation(p0, p1, p2, p3, t);
     }
   }
   return 0.0f;
 }
 
-std::optional<bSoundFrequencySampler::WindowCachePair> bSoundFrequencySampler::
-    get_window_caches_for_time(const float time) const
-{
-  /* The time should be at the middle of the window (the different window functions have their peak
-   * there). */
-  const float window_i_float = std::max(
-      0.0f, (time * samples_per_second_ - key_.fft_size / 2) / window_cache_stride_);
-  const int prev_window_i = floorf(window_i_float);
-  const int next_window_i = prev_window_i + 1;
-  const float window_fraction = window_i_float - prev_window_i;
-  if (prev_window_i < 0) {
-    return std::nullopt;
-  }
-  if (next_window_i >= window_caches_.size()) {
-    return std::nullopt;
-  }
-  const std::optional<Span<float>> prev_window_opt = this->ensure_window_cache(prev_window_i);
-  const std::optional<Span<float>> next_window_opt = this->ensure_window_cache(next_window_i);
-  if (!prev_window_opt.has_value() || !next_window_opt.has_value()) {
-    return std::nullopt;
-  }
-  return WindowCachePair{*prev_window_opt, *next_window_opt, window_fraction};
-}
-
 std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(const int window_i) const
 {
+  if (window_i < 0 || window_i >= window_caches_.size()) {
+    return std::nullopt;
+  }
   const WindowCache &window = window_caches_[window_i];
   /* Compute the FFT of that window if that wasn't done already. */
   window.mutex.ensure([&]() {

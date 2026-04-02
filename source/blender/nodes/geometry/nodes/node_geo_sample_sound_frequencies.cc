@@ -174,6 +174,9 @@ class SampleSoundFunction : public mf::MultiFunction {
     const bool constant_channel = all_channels_value == true ||
                                   (all_channels_value.has_value() && channel_value.has_value());
 
+    const auto time_interpolation = bke::bSoundFrequencySampler::InterpolationMethod::BSpline;
+    const auto frequency_interpolation = bke::bSoundFrequencySampler::InterpolationMethod::BSpline;
+
     /* Optimize the case when all indices sample the same channel. */
     if (constant_channel) {
       bke::bSoundFrequencySampler::Key key;
@@ -190,7 +193,8 @@ class SampleSoundFunction : public mf::MultiFunction {
         const float time = times[i];
         const float low = lows[i];
         const float high = highs[i];
-        const float amplitude = sampler->sample(time, low, high);
+        const float amplitude = sampler->sample(
+            time, low, high, time_interpolation, frequency_interpolation);
         amplitudes[i] = amplitude;
       });
       return;
@@ -238,7 +242,8 @@ class SampleSoundFunction : public mf::MultiFunction {
         const float time = times[i];
         const float low = lows[i];
         const float high = highs[i];
-        const float amplitude = sampler->sample(time, low, high);
+        const float amplitude = sampler->sample(
+            time, low, high, time_interpolation, frequency_interpolation);
         amplitudes[i] = amplitude;
       }
     };

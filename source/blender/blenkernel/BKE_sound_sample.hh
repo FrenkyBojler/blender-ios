@@ -35,7 +35,7 @@ class bSoundFrequencySampler {
     Rectangular,
   };
 
-  enum class FrequencyInterpolationMethod {
+  enum class InterpolationMethod {
     /**
      * Fastest method but a resulting spectrum visualization may not be continuous, especially for
      * lower frequencies.
@@ -79,12 +79,6 @@ class bSoundFrequencySampler {
     mutable std::optional<Array<float, 0>> cumulative_amplitudes;
   };
 
-  struct WindowCachePair {
-    Span<float> prev;
-    Span<float> next;
-    float fraction;
-  };
-
   const bSound &sound_;
   Key key_;
   /** Derived from the sound. */
@@ -112,13 +106,17 @@ class bSoundFrequencySampler {
   float sample(float time,
                float low,
                float high,
-               FrequencyInterpolationMethod method = FrequencyInterpolationMethod::BSpline) const;
+               InterpolationMethod time_interpolation,
+               InterpolationMethod frequency_interpolation) const;
 
  private:
+  float sample_frequency_range_in_window(int window_i,
+                                         float low,
+                                         float high,
+                                         InterpolationMethod method) const;
   float sample_cumulative_frequency(Span<float> window_values,
                                     float frequency,
-                                    FrequencyInterpolationMethod method) const;
-  std::optional<WindowCachePair> get_window_caches_for_time(float time) const;
+                                    InterpolationMethod method) const;
   std::optional<Span<float>> ensure_window_cache(int window_i) const;
   std::optional<Array<float>> compute_fft(int start_sample) const;
 };
