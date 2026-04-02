@@ -42,36 +42,79 @@ def use_revision_columns(config: api.TestConfig) -> bool:
     )
 
 
-def print_header(config: api.TestConfig) -> None:
-    # Print header with revision columns headers.
-    if use_revision_columns(config):
-        header = ""
-        if config.queue.has_multiple_categories:
-            header += f"{'': <15} "
-        header += f"{'': <40} "
+class MarkdownColumn:
+    def __init__(self, name, width=10, is_visible=True, alignment='LEFT'):
+        self.name = name
+        self.width = width
+        self.is_visible = is_visible
+        self.alignment = alignment
+        if len(self.name) > self.width:
+            self.width = len(self.name)
 
+
+class MarkdownTable:
+    def __init__(self):
+        self.columns = []
+        self.show_header = True
+
+    def add_column(self, *args, **kwargs):
+        self.columns.append(MarkdownColumn(*args, **kwargs))
+
+    def print_header(self):
+        if not self.show_header:
+            return
+
+        values = []
+        lines = []
+        for column in self.columns:
+            if not column.is_visible:
+                continue
+            values.append(f"{column.name:{column.width}}")
+            lines.append('-' * column.width)
+
+        print('| ' + (' | '.join(values)) + ' |')
+        print('| ' + (' | '.join(lines)) + ' |')
+
+    def print_row(self, row_values, end='\n'):
+        values = []
+        for column, value in zip(self.columns, row_values):
+            if not column.is_visible:
+                continue
+            if len(value) > column.width:
+                column.width = len(value)
+            if column.alignment == 'LEFT':
+                values.append(f"{value:<{column.width}}")
+            else:
+                values.append(f"{value:>{column.width}}")
+
+        print("| " + (" | ".join(values)) + " |", end=end, flush=True)
+
+
+def print_header(config: api.TestConfig) -> None:
+    global table
+    table = MarkdownTable()
+    table.add_column("Revision")
+    table.add_column("Category", is_visible=config.queue.has_multiple_categories)
+    table.add_column("Device", is_visible=config.queue.has_multiple_devices)
+    table.add_column("Test", width=40)
+    if use_revision_columns(config):
         for revision_name in config.revision_names():
-            header += f"{revision_name: <20} "
-        print(header)
+            table.add_column(revision_name, width=20, alignment='RIGHT')
+        table.columns[0].is_visible = False
+    else:
+        table.add_column("Result", alignment='RIGHT')
+    table.print_header()
 
 
 def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
     # Print one or more test entries on a row.
-    row = ""
+    row = []
 
-    # For time series, print revision first.
-    if not use_revision_columns(config):
-        revision = entries[0].revision
-        git_hash = entries[0].git_hash
-
-        row += f"{revision: <15} "
-
-    if config.queue.has_multiple_categories:
-        category_name = entries[0].category
-        if entries[0].device_type != "CPU":
-            category_name += " " + entries[0].device_type
-        row += f"{category_name: <15} "
-    row += f"{entries[0].test: <40} "
+    # For time series, revision is printed first.
+    row.append(entries[0].revision)
+    row.append(entries[0].category)
+    row.append(entries[0].device_type)
+    row.append(entries[0].test)
 
     for entry in entries:
         # Show time or status.
@@ -90,10 +133,10 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
             result = "failed: " + entry.error_msg
         else:
             result = status
+        row.append(result)
 
-        row += f"{result: <20} "
-
-    print(row, end=end, flush=True)
+    global table
+    table.print_row(row, end=end)
 
 
 def print_entry(config: api.TestConfig, entry: api.TestEntry) -> None:
