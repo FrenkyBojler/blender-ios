@@ -258,7 +258,7 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
   WIN32_CHK(count != 0);
 
   const int titleLength = GetWindowTextLengthW(hWnd);
-  WIN32_CHK(titleLength >= 0);
+  WIN32_CHK(titleLength != 0 || GetLastError() == NO_ERROR);
 
   /* Allocate space for characters + terminating null. */
   std::wstring WindowName(static_cast<size_t>(titleLength) + 1, L'\0');
