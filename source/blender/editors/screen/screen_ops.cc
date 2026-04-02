@@ -4305,6 +4305,8 @@ static bool area_join_apply(bContext *C, wmOperator *op)
     WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
   }
 
+  CTX_wm_window(C)->tag_cursor_refresh = true;
+
   return true;
 }
 
@@ -5022,8 +5024,6 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         else if (jd->sa1 && jd->sa2 && jd->dir != SCREEN_DIR_NONE) {
           /* Join to neighbor. */
           area_join_apply(C, op);
-          wmWindow *win = CTX_wm_window(C);
-          win->tag_cursor_refresh = true;
         }
         else {
           area_join_cancel(C, op);
