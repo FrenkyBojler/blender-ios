@@ -278,6 +278,47 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
   }
 }
 
+static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
+                                              ui::Layout &layout,
+                                              const bNodeTreeInterfacePanel &interface_panel,
+                                              const bool is_mask_input_used)
+{
+  bool found_image_input = false;
+  bool found_mask_input = false;
+  for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
+      case NODE_INTERFACE_PANEL: {
+        const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+        draw_interface_panel_as_panel(ctx, layout, sub_interface_panel);
+        break;
+      }
+      case NODE_INTERFACE_SOCKET: {
+        const auto &interface_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+        const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
+        const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+        if (interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+          /* Don't draw the first color input. It's the strip input. */
+          if (!found_image_input && socket_type == SOCK_RGBA) {
+            found_image_input = true;
+          }
+          /* Don't draw the second color input if the mask input is used. */
+          else if (is_mask_input_used && !found_mask_input && socket_type == SOCK_RGBA) {
+            found_mask_input = true;
+          }
+          else if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
+            PointerRNA inputs_ptr = RNA_pointer_get(ctx.properties_ptr, "inputs");
+            PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr,
+                                                          interface_socket.identifier);
+            draw_property_for_socket(
+                ctx, layout, interface_socket, &socket_props_ptr, std::nullopt);
+          }
+        }
+        break;
+      }
+    }
+  }
+}
+
 static void draw_mask_input_type_settings(const bContext &C, ui::Layout &layout, PointerRNA *ptr)
 {
   Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
@@ -321,6 +362,11 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
                           "node.duplicate_compositing_modifier_node_group";
   template_id(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
 
+  const StripModifierData &smd = cmd.modifier;
+  const bool is_mask_used = smd.mask_input_type == STRIP_MASK_INPUT_STRIP ?
+                                smd.mask_strip != nullptr :
+                                smd.mask_id != nullptr;
+
   if (cmd.node_group != nullptr) {
     bNodeTree &tree = *cmd.node_group;
     tree.ensure_interface_cache();
@@ -328,7 +374,7 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
     ctx.output_usages.reinitialize(tree.interface_outputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
         tree, *ctx.properties_ptr, ctx.input_usages, ctx.output_usages);
-    draw_interface_panel_content(ctx, layout, tree.tree_interface.root_panel);
+    draw_interface_root_panel_content(ctx, layout, tree.tree_interface.root_panel, is_mask_used);
   }
 
   if (ui::Layout *mask_input_layout = layout.panel_prop(

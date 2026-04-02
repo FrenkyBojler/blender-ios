@@ -648,11 +648,6 @@ class NodeTreeMainUpdater {
       else if (ntree.type == NTREE_COMPOSIT) {
         ntree.runtime->compositor_nodes_srna_data =
             nodes::create_compositor_nodes_rna_for_strip_modifier(ntree);
-        /* Hide the first color input. This input is always the strip itself. */
-        /* TODO: Doing this at the node group level means that the hidden inputs are hidden for all
-         * usages of the node group which is not great. Would be better to do this at the e.g.
-         * strip modifier level. */
-        this->update_compositor_image_input_modifier_visibility(ntree);
       }
     }
 
@@ -2104,20 +2099,6 @@ class NodeTreeMainUpdater {
       }
     }
     return changed;
-  }
-
-  void update_compositor_image_input_modifier_visibility(bNodeTree &ntree)
-  {
-    /* Hides the first color input in the modifier interface. This input is always implicitly used
-     * as the strip input. */
-    for (bNodeTreeInterfaceSocket *input_socket : ntree.interface_inputs()) {
-      const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
-      const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-      if (socket_type == SOCK_RGBA) {
-        input_socket->flag |= NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER;
-        break;
-      }
-    }
   }
 };
 
