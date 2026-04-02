@@ -1,0 +1,18 @@
+{
+"name" : "cycles_hwpgo",
+"workloads" :
+[
+	{
+		"name" : "classroom",
+		"args" : ["-b", "scenes/cyclesx_classroom.blend", "-E", "CYCLES", "-f", "1"]
+	},
+	{
+		"name" : "monster",
+		"args" : ["-b", "scenes/cyclesx_monster.blend", "-E", "CYCLES", "-f", "1"]
+	},
+	{
+		"name" : "junkshop",
+		"args" : ["-b", "scenes/cyclesx_junkshop.blend", "-E", "CYCLES", "-f", "1"]
+	}
+]
+}
