@@ -108,7 +108,7 @@ struct MaskSamplerNone {
 struct MaskSamplerDirectFloat {
   MaskSamplerDirectFloat(const ImBuf *mask) : mask(mask)
   {
-    BLI_assert(mask && mask->float_data90);
+    BLI_assert(mask && mask->float_data());
   }
   void begin_row(int64_t y)
   {
