@@ -2967,18 +2967,17 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  int filter;
-  short type;
+
+  const short type = RNA_enum_get(op->ptr, "type");
+  const bool remove_all = RNA_boolean_get(op->ptr, "remove_all");
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  /* Get type of modifier to remove. */
-  type = RNA_enum_get(op->ptr, "type");
-
   /* Filter data. */
+  int filter;
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
             ANIMFILTER_FCURVESONLY);
   if (RNA_boolean_get(op->ptr, "only_active")) {
@@ -2998,7 +2997,7 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
     for (fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm; fcm = fcm_next) {
       fcm_next = fcm->next;
 
-      if (fcm->type == type) {
+      if (remove_all || fcm->type == type) {
         remove_fmodifier(&fcu->modifiers, fcm);
       }
     }
@@ -3043,6 +3042,12 @@ void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
                   false,
                   "Only Active",
                   "Only remove Modifier(s) from active F-Curve");
+
+  RNA_def_boolean(ot->srna,
+                  "remove_all",
+                  false,
+                  "Remove All",
+                  "Remove all modifiers instead of just the specified type");
 }
 
 /** \} */
