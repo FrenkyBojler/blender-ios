@@ -1551,6 +1551,41 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   //   }
   // }
 
+  Array<float> tri_max_weight(result.face.size(), 0.0f);
+
+  for (const int tri_index : result.face.index_range()) {
+    {
+      auto [next_tri, edge_index] = tri_adjacency_0[tri_index];
+
+      if (next_tri != NULL_INDEX) {
+        if (!is_source_edge[edge_index]) {
+          tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index],
+                                                edge_weights[edge_index]);
+        }
+      }
+    }
+    {
+      auto [next_tri, edge_index] = tri_adjacency_1[tri_index];
+
+      if (next_tri != NULL_INDEX) {
+        if (!is_source_edge[edge_index]) {
+          tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index],
+                                                edge_weights[edge_index]);
+        }
+      }
+    }
+    {
+      auto [next_tri, edge_index] = tri_adjacency_2[tri_index];
+
+      if (next_tri != NULL_INDEX) {
+        if (!is_source_edge[edge_index]) {
+          tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index],
+                                                edge_weights[edge_index]);
+        }
+      }
+    }
+  }
+
   Array<bool> tri_to_fill(result.face.size(), false);
 
   if (invert) {
@@ -1643,7 +1678,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       }
 
       tri_hint_index[tri_index] = hint_index;
-      tri_weight[tri_index] = 1000000.0f;
+      tri_weight[tri_index] = tri_max_weight[tri_index];
 
       Vector<int> tris_to_check;
       tris_to_check.append(tri_index);
