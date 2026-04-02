@@ -1,3 +1,3 @@
 Referenced by issue #156686, Crash on add-on registration
 Referenced by issue #154125, Duplicating objects with array modifier shows missing `Randomize` & `Merge` panels
-Referenced by issue #156748, Geometry Nodes modifiers lose pointer property on save/reload
+Referenced by issue #156748, Regression: Geometry Nodes modifiers lose pointer property on save/reload
