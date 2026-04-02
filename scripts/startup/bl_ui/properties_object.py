@@ -11,6 +11,21 @@ from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_properties import PropertiesAnimationMixin
 
+# Matches `view3d_panel_transform` in `view3d_buttons.cc` (dimensions block).
+_OBJECT_TRANSFORM_DIMENSION_TYPES = frozenset({
+    'MESH',
+    'FONT',
+    'CURVE',
+    'SURFACE',
+    'META',
+    'LATTICE',
+    'ARMATURE',
+    'CURVES',
+    'POINTCLOUD',
+    'GREASEPENCIL',
+    'VOLUME',
+})
+
 
 class ObjectButtonsPanel:
     bl_space_type = 'PROPERTIES'
@@ -81,6 +96,10 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
         row.prop(ob, "scale")
         row.use_property_decorate = False
         row.prop(ob, "lock_scale", text="", emboss=False, icon='DECORATE_UNLOCKED')
+
+        if ob.type in _OBJECT_TRANSFORM_DIMENSION_TYPES:
+            col = layout.column()
+            col.prop(ob, "dimensions")
 
 
 class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
