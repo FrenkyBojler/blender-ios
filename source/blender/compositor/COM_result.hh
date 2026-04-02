@@ -486,11 +486,11 @@ class Result {
 
   /* Shorthand for sample() with nearest filter */
   template<typename T>
-  T sample_nearest(const float2 &coordinates, const Extension&, const Extension&) const;
+  T sample_nearest(const float2 &coordinates, const Extension &, const Extension &) const;
 
   /* Shorthand for sample() with bilinear/box interpolation and wh==1/size. */
   template<typename T>
-  T sample_bilinear(const float2 &coordinates, const Extension&, const Extension&) const;
+  T sample_bilinear(const float2 &coordinates, const Extension &, const Extension &) const;
 
   /* Shorthand for sample() with bilinear interpolation and zero boundary extension. */
   template<typename T, bool CouldBeSingleValue = false>
@@ -711,10 +711,14 @@ static inline void sample_ewa_read_callback(void *userdata, int x, int y, float 
   copy_v4_v4(result, sampled_result);
 }
 
-template<typename T>
-BLI_INLINE_METHOD T cast_float4(const float4& v) { return T(v); }
-template<>
-BLI_INLINE_METHOD float cast_float4<float>(const float4& v) { return v[0]; }
+template<typename T> BLI_INLINE_METHOD T cast(const float4 &v)
+{
+  return T(v);
+}
+template<> BLI_INLINE_METHOD float cast<float>(const float4 &v)
+{
+  return v[0];
+}
 
 template<typename T>
 BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
@@ -734,10 +738,10 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
 
       switch (interpolation) {
         default:
-          return cast_float4<T>(math::sample_rect<math::Sampler::Box>(source, uv, wh));
+          return cast<T>(math::sample_rect<math::Sampler::Box>(source, uv, wh));
         case Interpolation::Bicubic:
-          return cast_float4<T>(math::sample_rect<math::Sampler::Bspline>(source, uv, wh));
-#if 0 // use ewa filter. Without this Box filter is used
+          return cast<T>(math::sample_rect<math::Sampler::Bspline>(source, uv, wh));
+#if 0  // use ewa filter. Without this Box filter is used
         case Interpolation::Anisotropic:
           return sample<T>(coordinates, Interpolation::Anisotropic,
                            extension_mode_x, extension_mode_y,
@@ -770,7 +774,7 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                      sample_ewa_read_callback,
                      &sampling_data,
                      output);
-      return cast_float4<T>(output);
+      return cast<T>(output);
     }
     // convert to nearest rectangle using fast approximation of hypot and assume
     // the larger numbers are diagonally opposite.
@@ -778,8 +782,8 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
     float b = fabsf(jacobian[1][0]);
     float c = fabsf(jacobian[0][1]);
     float d = fabsf(jacobian[1][1]);
-    const float2 rect =
-      (a < b) ? float2(b + 0.375f * a, c + 0.375f * d) : float2(a + 0.375f * b, d + 0.375f * c);
+    const float2 rect = (a < b) ? float2(b + 0.375f * a, c + 0.375f * d) :
+                                  float2(a + 0.375f * b, d + 0.375f * c);
     return sample<T>(coordinates, interpolation, extension_mode_x, extension_mode_y, rect);
   }
   return sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
@@ -835,7 +839,7 @@ BLI_INLINE_METHOD T Result::sample_bilinear(const float2 &coordinates,
                                            coordinates.y * domain_.data_size.y - 0.5f,
                                            wrap_mode_x,
                                            wrap_mode_y);
-    return cast_float4<T>(pixel_value);
+    return cast<T>(pixel_value);
   }
   else {
     return this->sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);

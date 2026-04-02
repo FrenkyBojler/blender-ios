@@ -237,7 +237,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
 }
 
 template<typename T>
-static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation, const float2 &wh)
+static void realize_on_domain(const Result &input,
+                              Result &output,
+                              const float3x3 &transformation,
+                              const float2 &wh)
 {
   const RealizationOptions realization_options = input.get_realization_options();
   const float2 scale(1.0f / float2(input.domain().data_size));
@@ -265,18 +268,18 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &,
   Result &input = this->get_input();
   Result &output = this->get_result();
   input.get_cpp_type()
-    .to_static_type<float,
-                    float2,
-                    float3,
-                    float4,
-                    Color,
-                    int32_t,
-                    int2,
-                    int3,
-                    bool,
-                    float4x4,
-                    nodes::MenuValue>(
-     [&]<typename T>() { realize_on_domain<T>(input, output, transformation, wh); });
+      .to_static_type<float,
+                      float2,
+                      float3,
+                      float4,
+                      Color,
+                      int32_t,
+                      int2,
+                      int3,
+                      bool,
+                      float4x4,
+                      nodes::MenuValue>(
+          [&]<typename T>() { realize_on_domain<T>(input, output, transformation, wh); });
 }
 
 Domain RealizeOnDomainOperation::compute_domain()
