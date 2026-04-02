@@ -787,6 +787,8 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           }
           else {
             buttons_area_redraw(area, BCONTEXT_MODIFIER);
+            /* Evaluated geometry (bounds, dimensions in Transform, etc.) depends on modifiers. */
+            buttons_area_redraw(area, BCONTEXT_OBJECT);
           }
           buttons_area_redraw(area, BCONTEXT_PHYSICS);
           break;
