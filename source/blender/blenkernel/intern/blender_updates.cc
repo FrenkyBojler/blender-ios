@@ -171,7 +171,7 @@ static void register_blender_update(VersionUpdate &&update)
     return std::nullopt; \
   }
 
-std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
+static std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
 {
   using namespace io::serialize;
   if (!entry || entry->type() != eValueType::Dictionary) {
@@ -345,7 +345,7 @@ if result:
 
 #define BLENDER_AVAILABLE_UPDATES_FILE "available_updates.json"
 
-void load_available_updates_cache_file_impl()
+static void load_available_updates_cache_file_impl()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (!datafiles_path) {
