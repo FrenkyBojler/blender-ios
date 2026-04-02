@@ -35,10 +35,6 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 
-#if defined(WITH_INPUT_IME)
-#  include "wm_window.hh"
-#endif
-
 #include "SEQ_channels.hh"
 #include "SEQ_offscreen.hh"
 #include "SEQ_preview_cache.hh"
@@ -861,17 +857,10 @@ static void sequencer_preview_region_view2d_changed(const bContext *C, ARegion *
 }
 
 #ifdef WITH_INPUT_IME
-static void sequencer_preview_region_on_activation_changed(wmWindow *win,
-                                                           ScrArea *area,
-                                                           ARegion *region,
-                                                           bool activated)
+static std::optional<blender::int2> sequencer_preview_region_cursor_ime(
+    wmWindow * /*win*/, ScrArea * /*area*/, ARegion *region)
 {
-  if (activated) {
-    wm_window_IME_begin(win, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
-  }
-  else {
-    wm_window_IME_end(win);
-  }
+  return blender::int2(0, BLI_rcti_size_y(&region->winrct));
 }
 #endif
 
@@ -1187,7 +1176,7 @@ void ED_spacetype_sequencer()
   art->on_view2d_changed = sequencer_preview_region_view2d_changed;
   art->draw = sequencer_preview_region_draw;
 #ifdef WITH_INPUT_IME
-  art->on_activation_changed = sequencer_preview_region_on_activation_changed;
+  art->cursor_ime = sequencer_preview_region_cursor_ime;
 #endif
   art->listener = sequencer_preview_region_listener;
   art->keymapflag = ED_KEYMAP_TOOL | ED_KEYMAP_GIZMO | ED_KEYMAP_GPENCIL;

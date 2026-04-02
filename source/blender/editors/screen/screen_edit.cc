@@ -37,6 +37,10 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#ifdef WITH_INPUT_IME
+#  include "wm_window.hh"
+#endif
+
 #include "ED_clip.hh"
 #include "ED_node.hh"
 #include "ED_screen.hh"
@@ -1179,19 +1183,30 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
     }
   }
 
+#ifdef WITH_INPUT_IME
   if (region_prev != screen->active_region) {
-    if (region_prev != nullptr) {
-      if (region_prev->runtime->type->on_activation_changed != nullptr) {
-        region_prev->runtime->type->on_activation_changed(win, area, region_prev, false);
-      }
+    /* End any active IME session when changing regions. */
+    if (win->runtime->ime_data) {
+      wm_window_IME_end(win);
     }
-    if (screen->active_region != nullptr) {
-      if (screen->active_region->runtime->type->on_activation_changed != nullptr) {
-        screen->active_region->runtime->type->on_activation_changed(
-            win, area, screen->active_region, true);
+    /* Start IME in the new active region if it provides a cursor position. */
+    if (screen->active_region != nullptr &&
+        screen->active_region->runtime->type->cursor_ime != nullptr)
+    {
+      const std::optional<blender::int2> pos =
+          screen->active_region->runtime->type->cursor_ime(
+              win, area, screen->active_region);
+      if (pos) {
+        wm_window_IME_begin(win,
+                            screen->active_region->winrct.xmin + pos->x,
+                            screen->active_region->winrct.ymin + pos->y,
+                            0,
+                            0,
+                            true);
       }
     }
   }
+#endif
 }
 
 int ED_screen_area_active(const bContext *C)

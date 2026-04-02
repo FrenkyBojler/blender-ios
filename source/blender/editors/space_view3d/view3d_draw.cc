@@ -1809,15 +1809,6 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
 
   v3d->runtime.flag &= ~V3D_RUNTIME_DEPTHBUF_OVERRIDDEN;
   /* TODO: Clear cache? */
-
-#ifdef WITH_INPUT_IME
-  {
-    wmWindow *win = CTX_wm_window(C);
-    if (win->runtime->ime_data) {
-      view3d_main_region_ime_refresh(win, region);
-    }
-  }
-#endif
 }
 
 /** \} */

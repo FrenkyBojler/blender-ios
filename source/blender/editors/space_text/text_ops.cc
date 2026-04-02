@@ -3574,8 +3574,6 @@ static wmOperatorStatus text_insert_exec(bContext *C, wmOperator *op)
 
   str = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, &str_len);
 
-  ED_text_undo_push_init(C);
-
   if (st && st->overwrite) {
     while (str[i]) {
       code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &i);
@@ -3594,6 +3592,8 @@ static wmOperatorStatus text_insert_exec(bContext *C, wmOperator *op)
   if (!done) {
     return OPERATOR_CANCELLED;
   }
+
+  ED_text_undo_push_init(C);
 
   text_update_line_edited(text->curl);
 

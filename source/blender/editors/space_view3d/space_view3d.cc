@@ -65,10 +65,6 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#ifdef WITH_INPUT_IME
-#  include "wm_window.hh"
-#endif
-
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
@@ -562,42 +558,45 @@ static void *view3d_main_region_duplicate(void *poin)
 }
 
 #ifdef WITH_INPUT_IME
-void view3d_main_region_ime_refresh(wmWindow *win, ARegion *region)
+static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
+                                                                  ScrArea * /*area*/,
+                                                                  ARegion *region)
 {
+  /* Defer during viewport navigation (orbit, pan, zoom, fly, walk). */
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+  if (rv3d->rflag & RV3D_NAVIGATING) {
+    return std::nullopt;
+  }
+
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  if (view_layer) {
-    Object *ob = BKE_view_layer_active_object_get(view_layer);
-    if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
-      Curve *cu = id_cast<Curve *>(ob->data);
+  if (!view_layer) {
+    return std::nullopt;
+  }
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (!ob || ob->type != OB_FONT || ob->mode != OB_MODE_EDIT) {
+    return std::nullopt;
+  }
 
-      float2 cursor_screen = float2(0);
-      EditFont *ef = cu->editfont;
+  Curve *cu = id_cast<Curve *>(ob->data);
+  EditFont *ef = cu->editfont;
 
-      /* cu->editfont can be nullpr on Blender startup. */
-      if (ef) {
-        /* Bottom right corner of the text cursor to get its center in local space. */
-        float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
-        /* Transform to world space, then project to region coordinates. */
-        const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
-        if (ED_view3d_project_float_global(
-                region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK)
-        {
-          cursor_screen = float2(0);
-        }
-      }
-
-      wm_window_IME_begin(win,
-                          region->winrct.xmin + int(cursor_screen[0]),
-                          region->winrct.ymin + int(cursor_screen[1]),
-                          0,
-                          0,
-                          true);
-
-      return;
+  float2 cursor_screen = float2(0);
+  /* cu->editfont can be nullptr on Blender startup. */
+  if (ef) {
+    /* Bottom right corner of the text cursor to get its center in local space. */
+    float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
+    /* Transform to world space, then project to region coordinates. */
+    const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
+    if (ED_view3d_project_float_global(
+            region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK)
+    {
+      cursor_screen = float2(0);
     }
   }
-  wm_window_IME_end(win);
+
+  return blender::int2(int(cursor_screen[0]), int(cursor_screen[1]));
 }
+
 #endif
 
 static void view3d_main_region_listener(const wmRegionListenerParams *params)
@@ -669,17 +668,10 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_OB_VISIBLE:
         case ND_RENDER_OPTIONS:
         case ND_MARKERS:
+        case ND_MODE:
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(gzmap);
           break;
-        case ND_MODE: {
-#ifdef WITH_INPUT_IME
-          view3d_main_region_ime_refresh(window, region);
-#endif
-          ED_region_tag_redraw(region);
-          WM_gizmomap_tag_refresh(gzmap);
-          break;
-        }
         case ND_WORLD:
           /* handled by space_view3d_listener() for v3d access */
           break;
@@ -1647,21 +1639,6 @@ static void view3d_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   BKE_viewer_path_blend_write(writer, &v3d->viewer_path);
 }
 
-#ifdef WITH_INPUT_IME
-static void view3d_main_region_on_activation_changed(wmWindow *win,
-                                                     ScrArea * /*area*/,
-                                                     ARegion *region,
-                                                     bool activated)
-{
-  if (activated) {
-    view3d_main_region_ime_refresh(win, region);
-  }
-  else {
-    wm_window_IME_end(win);
-  }
-}
-#endif
-
 void ED_spacetype_view3d()
 {
   using namespace blender::ed;
@@ -1699,7 +1676,7 @@ void ED_spacetype_view3d()
   art->free = view3d_main_region_free;
   art->duplicate = view3d_main_region_duplicate;
 #ifdef WITH_INPUT_IME
-  art->on_activation_changed = view3d_main_region_on_activation_changed;
+  art->cursor_ime = view3d_main_region_cursor_ime;
 #endif
   art->listener = view3d_main_region_listener;
   art->message_subscribe = view3d_main_region_message_subscribe;

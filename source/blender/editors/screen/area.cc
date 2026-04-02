@@ -35,6 +35,10 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
+#ifdef WITH_INPUT_IME
+#  include "wm_window.hh"
+#endif
+
 #include "ED_asset_shelf.hh"
 #include "ED_buttons.hh"
 #include "ED_screen.hh"
@@ -511,6 +515,32 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     at->draw(C, region);
   }
 
+#ifdef WITH_INPUT_IME
+  /* Reposition the IME candidate window to follow the text cursor.
+   * Deferred during animation playback and when `cursor_ime` returns nullopt
+   * (e.g. during navigation), keeping `do_ime` set so refresh occurs once the action ends. */
+  if (win->runtime->ime_data && at->cursor_ime && region->runtime->do_ime) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+    if (screen->animtimer || screen->scrubbing) {
+      /* Defer: animation is playing, `do_ime` stays set for when it stops. */
+    }
+    else {
+      const std::optional<blender::int2> pos = at->cursor_ime(win, area, region);
+      if (pos) {
+        region->runtime->do_ime = false;
+        wm_window_IME_begin(win,
+                            region->winrct.xmin + pos->x,
+                            region->winrct.ymin + pos->y,
+                            0,
+                            0,
+                            false);
+      }
+      /* When `pos` is nullopt (e.g. navigating), `do_ime` stays set
+       * so refresh occurs on the next draw after navigation ends. */
+    }
+  }
+#endif
+
   /* XXX test: add convention to end regions always in pixel space,
    * for drawing of borders/gestures etc */
   ED_region_pixelspace(region);
@@ -626,6 +656,8 @@ void ED_region_tag_redraw(ARegion *region)
     region->runtime->do_draw &= ~(RGN_DRAW_PARTIAL | RGN_DRAW_NO_REBUILD |
                                   RGN_DRAW_EDITOR_OVERLAYS);
     region->runtime->do_draw |= RGN_DRAW;
+    /* Also refresh the IME cursor position on the next draw. */
+    region->runtime->do_ime = true;
     region->runtime->drawrct = rcti{};
   }
 }
@@ -642,6 +674,8 @@ void ED_region_tag_redraw_no_rebuild(ARegion *region)
   if (region && !(region->runtime->do_draw & (RGN_DRAWING | RGN_DRAW))) {
     region->runtime->do_draw &= ~(RGN_DRAW_PARTIAL | RGN_DRAW_EDITOR_OVERLAYS);
     region->runtime->do_draw |= RGN_DRAW_NO_REBUILD;
+    /* Also refresh the IME cursor position on the next draw. */
+    region->runtime->do_ime = true;
     region->runtime->drawrct = rcti{};
   }
 }
