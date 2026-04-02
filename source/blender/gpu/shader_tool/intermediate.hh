@@ -241,13 +241,17 @@ struct MutableString {
     insert_after(at.str_index_last(), content);
   }
 
-  void insert_line_number(size_t at, int line)
+  void insert_line_number(size_t at, int line, std::string_view filename = "")
   {
-    insert_after(at, "#line " + std::to_string(line) + "\n");
+    std::string str = "#line " + std::to_string(line);
+    if (!filename.empty()) {
+      str = str + " \"" + std::string(filename) + "\"";
+    }
+    insert_after(at, str + "\n");
   }
-  void insert_line_number(Token at, int line)
+  void insert_line_number(Token at, int line, std::string_view filename = "")
   {
-    insert_line_number(at.str_index_last(), line);
+    insert_line_number(at.str_index_last(), line, filename);
   }
 
   /* Insert a preprocessor directive after the given token.
