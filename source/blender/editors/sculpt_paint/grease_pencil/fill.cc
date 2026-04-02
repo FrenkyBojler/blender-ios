@@ -1298,6 +1298,81 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
   return fill_curves;
 }
 
+constexpr int NULL_INDEX = -1;
+
+static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
+                                const MutableSpan<float> tri_weight,
+                                const Span<std::pair<int, int>> tri_adjacency_0,
+                                const Span<std::pair<int, int>> tri_adjacency_1,
+                                const Span<std::pair<int, int>> tri_adjacency_2,
+                                const Span<float> edge_weights,
+                                const Span<float> tri_max_weight,
+                                const Span<bool> is_source_edge,
+                                const int hint_tri_index,
+                                const int hint_index)
+{
+  tri_hint_index[hint_tri_index] = hint_index;
+  tri_weight[hint_tri_index] = tri_max_weight[hint_tri_index];
+
+  Vector<int> tris_to_check;
+  tris_to_check.append(hint_tri_index);
+
+  int temp = 0;
+
+  while (!tris_to_check.is_empty()) {
+    temp++;
+    BLI_assert(temp < 1000);
+
+    Vector<int> new_tris_to_check;
+
+    for (const int i : tris_to_check.index_range()) {
+      const int tri_index = tris_to_check[i];
+
+      for (const int j : IndexRange(3)) {
+        int next_tri = NULL_INDEX;
+        int edge_index = NULL_INDEX;
+
+        if (j == 0) {
+          next_tri = tri_adjacency_0[tri_index].first;
+          edge_index = tri_adjacency_0[tri_index].second;
+        }
+        if (j == 1) {
+          next_tri = tri_adjacency_1[tri_index].first;
+          edge_index = tri_adjacency_1[tri_index].second;
+        }
+        if (j == 2) {
+          next_tri = tri_adjacency_2[tri_index].first;
+          edge_index = tri_adjacency_2[tri_index].second;
+        }
+
+        if (next_tri == NULL_INDEX) {
+          continue;
+        }
+        if (is_source_edge[edge_index]) {
+          continue;
+        }
+
+        const float weight = std::min(edge_weights[edge_index], tri_weight[tri_index]);
+
+        if (weight > tri_weight[next_tri]) {
+          new_tris_to_check.append(next_tri);
+          tri_hint_index[next_tri] = hint_index;
+          tri_weight[next_tri] = weight;
+          continue;
+        }
+
+        if (weight == tri_weight[next_tri] && tri_hint_index[next_tri] != hint_index) {
+          new_tris_to_check.append(next_tri);
+          tri_hint_index[next_tri] = hint_index;
+          tri_weight[next_tri] = weight;
+        }
+      }
+    }
+
+    tris_to_check = new_tris_to_check;
+  }
+}
+
 bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                                           const Brush &brush,
                                           const Scene &scene,
@@ -1374,8 +1449,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
   /**/
-
-  constexpr int NULL_INDEX = -1;
 
   Map<std::pair<int, int>, int> edge_to_index;
   for (const int edge_index : result.edge.index_range()) {
@@ -1677,66 +1750,16 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         tri_index = 0;
       }
 
-      tri_hint_index[tri_index] = hint_index;
-      tri_weight[tri_index] = tri_max_weight[tri_index];
-
-      Vector<int> tris_to_check;
-      tris_to_check.append(tri_index);
-
-      int temp = 0;
-
-      while (!tris_to_check.is_empty()) {
-        temp++;
-        BLI_assert(temp < 1000);
-
-        Vector<int> new_tris_to_check;
-
-        for (const int i : tris_to_check.index_range()) {
-          const int tri_index = tris_to_check[i];
-
-          for (const int j : IndexRange(3)) {
-            int next_tri = NULL_INDEX;
-            int edge_index = NULL_INDEX;
-
-            if (j == 0) {
-              next_tri = tri_adjacency_0[tri_index].first;
-              edge_index = tri_adjacency_0[tri_index].second;
-            }
-            if (j == 1) {
-              next_tri = tri_adjacency_1[tri_index].first;
-              edge_index = tri_adjacency_1[tri_index].second;
-            }
-            if (j == 2) {
-              next_tri = tri_adjacency_2[tri_index].first;
-              edge_index = tri_adjacency_2[tri_index].second;
-            }
-
-            if (next_tri == NULL_INDEX) {
-              continue;
-            }
-            if (is_source_edge[edge_index]) {
-              continue;
-            }
-
-            const float weight = std::min(edge_weights[edge_index], tri_weight[tri_index]);
-
-            if (weight > tri_weight[next_tri]) {
-              new_tris_to_check.append(next_tri);
-              tri_hint_index[next_tri] = hint_index;
-              tri_weight[next_tri] = weight;
-              continue;
-            }
-
-            if (weight == tri_weight[next_tri] && tri_hint_index[next_tri] != hint_index) {
-              new_tris_to_check.append(next_tri);
-              tri_hint_index[next_tri] = hint_index;
-              tri_weight[next_tri] = weight;
-            }
-          }
-        }
-
-        tris_to_check = new_tris_to_check;
-      }
+      add_weights_for_tri(tri_hint_index.as_mutable_span(),
+                          tri_weight.as_mutable_span(),
+                          tri_adjacency_0.as_span(),
+                          tri_adjacency_1.as_span(),
+                          tri_adjacency_2.as_span(),
+                          edge_weights.as_span(),
+                          tri_max_weight.as_span(),
+                          is_source_edge.as_span(),
+                          tri_index,
+                          hint_index);
     }
 
     const int fill_hint_index = 1;
