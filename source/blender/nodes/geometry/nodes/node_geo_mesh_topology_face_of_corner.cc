@@ -10,24 +10,21 @@ namespace blender::nodes::node_geo_mesh_topology_face_of_corner_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Corner Index")
+  b.add_input<decl::Int>("Corner Index"_ustr)
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The corner to retrieve data from. Defaults to the corner from the context")
       .structure_type(StructureType::Field);
-  b.add_output<decl::Int>("Face Index")
+  b.add_output<decl::Int>("Face Index"_ustr)
       .field_source_reference_all()
       .description("The index of the face the corner is a part of");
-  b.add_output<decl::Int>("Index in Face")
+  b.add_output<decl::Int>("Index in Face"_ustr)
       .field_source_reference_all()
       .description("The index of the corner starting from the first corner in the face");
 }
 
 class CornerFaceIndexInput final : public bke::MeshFieldInput {
  public:
-  CornerFaceIndexInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Face Index")
-  {
-    category_ = Category::Generated;
-  }
+  CornerFaceIndexInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Face Index") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
@@ -52,10 +49,7 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
 
 class CornerIndexInFaceInput final : public bke::MeshFieldInput {
  public:
-  CornerIndexInFaceInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Index In Face")
-  {
-    category_ = Category::Generated;
-  }
+  CornerIndexInFaceInput() : bke::MeshFieldInput(CPPType::get<int>(), "Corner Index In Face") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
