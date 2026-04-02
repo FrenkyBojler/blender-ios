@@ -85,7 +85,23 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
 
-  if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
+  /* Check #composite_node_tree_socket_type_valid for which socket types are valid and should be
+   * drawn. */
+  if (ELEM(type,
+           SOCK_GEOMETRY,
+           SOCK_MATRIX,
+           SOCK_BUNDLE,
+           SOCK_CLOSURE,
+           SOCK_COLLECTION,
+           SOCK_MATERIAL,
+           SOCK_TEXTURE,
+           SOCK_FONT,
+           SOCK_SCENE,
+           SOCK_TEXT_ID,
+           SOCK_MASK,
+           SOCK_SOUND,
+           SOCK_IMAGE))
+  {
     return;
   }
 
@@ -102,21 +118,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
   }
 
-  /* Check #composite_node_tree_socket_type_valid for which socket types are valid and should be
-   * drawn. */
   switch (type) {
-    case SOCK_COLLECTION:
-    case SOCK_MATERIAL:
-    case SOCK_TEXTURE:
-    case SOCK_FONT:
-    case SOCK_SCENE:
-    case SOCK_TEXT_ID:
-    case SOCK_MASK:
-    case SOCK_SOUND:
-    case SOCK_IMAGE: {
-      /* Unsupported. */
-      break;
-    }
     case SOCK_OBJECT: {
       row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
       break;
