@@ -179,6 +179,9 @@ def setup():
             grid.data.dilation_threshold = 1.0
             bpy.ops.object.lightprobe_cache_bake(subset='ACTIVE')
 
+        # Disable anisotropic-filtering
+        scene.render.anisotropic_filter = 'FILTER_0' 
+
 
 # When run from inside Blender, render and exit.
 try:
@@ -260,6 +263,7 @@ def main():
     report.set_reference_dir("eevee_renders")
 
     test_dir_name = Path(args.testdir).name
+    """
     if test_dir_name.startswith('image_mapping'):
         # Platform dependent border values. To be fixed
         report.set_fail_threshold(0.2)
@@ -304,7 +308,7 @@ def main():
     elif test_dir_name.startswith('texture'):
         # Noise difference in "white noise 256pp" (Old AMD/Linux/OpenGL only, see #154515)
         report.set_fail_threshold(0.02)
-
+    """
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
 
