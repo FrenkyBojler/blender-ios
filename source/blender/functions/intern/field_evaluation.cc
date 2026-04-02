@@ -100,7 +100,7 @@ static Vector<GVArray> get_field_context_inputs(
       const CPPType &type = field_input.cpp_type();
       varray = GVArray::from_single_default(type, mask.min_array_size());
     }
-    field_context_inputs.append(varray);
+    field_context_inputs.append(std::move(varray));
   }
   return field_context_inputs;
 }
@@ -110,7 +110,7 @@ static Vector<GVArray> get_field_context_inputs(
  * for different indices.
  */
 static Set<GFieldRef> find_varying_fields(const FieldTreeInfo &field_tree_info,
-                                          Span<GVArray> field_context_inputs)
+                                          const Span<GVArray> field_context_inputs)
 {
   Set<GFieldRef> found_fields;
   Stack<GFieldRef> fields_to_check;
