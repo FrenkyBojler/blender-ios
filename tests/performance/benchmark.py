@@ -102,7 +102,7 @@ def print_header(config: api.TestConfig) -> None:
             table.add_column(revision_name, width=20, alignment='RIGHT')
         table.columns[0].is_visible = False
     else:
-        table.add_column("Result", alignment='RIGHT')
+        table.add_column("Result", width=20, alignment='RIGHT')
     table.print_header()
 
 
