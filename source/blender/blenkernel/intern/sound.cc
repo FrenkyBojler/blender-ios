@@ -2203,6 +2203,11 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   const int frequencies_num = key_.fft_size / 2;
 
 #if defined(WITH_AUDASPACE) && defined(WITH_FFTW3)
+  /* Read some extra samples before the ones we are actually interested in here. This is done
+   * because there appears to be some bug in the called #read function below where there first
+   * couple samples will always be zero. */
+  const int dummy_extra_samples = 2000;
+
   /* Prepare the reader. */
   AUD_Sound sound_handle = sound_.runtime->handle;
   std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
@@ -2210,11 +2215,14 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   const int channels_num = specs.channels;
 
   /* Read the raw samples from the audio stream. */
-  Array<float> read_buffer(key_.fft_size * channels_num);
+  Array<float> read_buffer_extra((key_.fft_size + dummy_extra_samples) * channels_num);
   bool is_end_of_stream = false;
-  int length = key_.fft_size;
-  reader->seek(start_sample);
-  reader->read(length, is_end_of_stream, read_buffer.data());
+  int length = key_.fft_size + dummy_extra_samples;
+  reader->seek(std::max(start_sample - dummy_extra_samples, 0));
+  reader->read(length, is_end_of_stream, read_buffer_extra.data());
+  const Span<float> read_buffer = read_buffer_extra.as_span().drop_front(dummy_extra_samples *
+                                                                         channels_num);
+  const int read_length = read_buffer.size() / channels_num;
 
   /* Pull out the samples for the requested channel(s). */
   Array<float> buffer(key_.fft_size, 0.0f);
@@ -2223,12 +2231,12 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
     if (channel < 0 || channel >= channels_num) {
       return std::nullopt;
     }
-    for (const int i : IndexRange(length)) {
+    for (const int i : IndexRange(read_length)) {
       buffer[i] = read_buffer[i * channels_num + channel];
     }
   }
   else {
-    for (const int i : IndexRange(length)) {
+    for (const int i : IndexRange(read_length)) {
       for (const int c : IndexRange(channels_num)) {
         buffer[i] += read_buffer[i * channels_num + c];
       }
@@ -2237,7 +2245,7 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   }
 
   /* Apply window function which avoids spectral leakage (depending on the function). */
-  for (const int i : IndexRange(length)) {
+  for (const int i : IndexRange(read_length)) {
     buffer[i] *= window_weights_.weights[i];
   }
 
