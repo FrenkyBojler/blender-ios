@@ -169,7 +169,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
                            StripsDrawBatch &strips_batch,
                            const Vector<StripDrawContext> &strips);
 
-/* sequencerchannels_draw.cc */
+/* sequencer_channels_draw.cc */
 
 void draw_channels(const bContext *C, ARegion *region);
 void channel_draw_context_init(const bContext *C,
