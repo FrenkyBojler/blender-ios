@@ -1222,6 +1222,38 @@ if(WITH_CYCLES AND (WITH_CYCLES_DEVICE_ONEAPI OR (WITH_CYCLES_EMBREE AND EMBREE_
   )
 endif()
 
+if(WITH_HWPGO)
+string(TOUPPER "${HWPGO_MODE}" HWPGO_MODE)
+  if((NOT HWPGO_MODE STREQUAL GENERATE) AND (NOT HWPGO_MODE STREQUAL USE)) #Check for HWPGO Mode
+    message(FATAL_ERROR "WITH_HWPGO=ON requires HWPGO_MODE=GENERATE or HWPGO_MODE=USE, but got HWPGO_MODE="${HWPGO_MODE})
+  endif()
+  if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+    if(HWPGO_MODE STREQUAL "GENERATE")
+      string(APPEND CMAKE_CXX_FLAGS " -gdwarf -gsplit-dwarf /clang:-funique-internal-linkage-names /clang:-fdebug-info-for-profiling")
+      string(APPEND CMAKE_EXE_LINKER_FLAGS " /debug:dwarf")
+      string(APPEND CMAKE_SHARED_LINKER_FLAGS " /debug:dwarf")
+      string(APPEND CMAKE_MODULE_LINKER_FLAGS " /debug:dwarf")
+    elseif(HWPGO_MODE STREQUAL "USE")
+      if(NOT EXISTS "${HWPGO_PROFILE}" OR IS_DIRECTORY "${HWPGO_PROFILE}")
+        message(FATAL_ERROR "HWPGO_MODE=USE requires a HWPGO pofile provided with HWPGO_PROFILE. Found no HWPGO profile at HWPGO_PROFILE=${HWPGO_PROFILE}")
+      endif()
+      string(APPEND CMAKE_CXX_FLAGS " /clang:-funique-internal-linkage-names /clang:-fdebug-info-for-profiling -fprofile-sample-use=${HWPGO_PROFILE}")
+      #string(APPEND CMAKE_CXX_FLAGS " /clang:-Rpass=sample-profile /clang:-Rpass-missed=sample-profile /clang:-Rpass-analysis=sample-profile")
+    endif()
+  else()
+    message(FATAL_ERROR "WITH_HWPGO=ON only supported for clang.")
+  endif()
+endif()
+
+if(WITH_LTO)
+  if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+	string(APPEND CMAKE_CXX_FLAGS " -flto")
+  else()
+    message(FATAL_ERROR "WITH_LTO=ON only supported for clang.")
+  endif()	
+endif()
+
+
 # Add the MSVC directory to the path so when building with ASAN enabled tools such as
 # `msgfmt` which run before the install phase can find the asan shared libraries.
 get_filename_component(_msvc_path ${CMAKE_C_COMPILER} DIRECTORY)
