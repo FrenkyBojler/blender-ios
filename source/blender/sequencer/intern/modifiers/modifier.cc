@@ -497,7 +497,7 @@ void modifier_unique_name(Strip *strip, StripModifierData *smd)
                  sizeof(smd->name));
 }
 
-StripModifierData *modifier_find_by_name(const Strip *strip, const char *name)
+StripModifierData *modifier_find_by_name(Strip *strip, const char *name)
 {
   return static_cast<StripModifierData *>(
       BLI_findstring(&(strip->modifiers), name, offsetof(StripModifierData, name)));
@@ -519,7 +519,7 @@ static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeli
   return strip_has_ended_skip || missing_data_skip;
 }
 
-void modifier_apply_stack(ModifierApplyContext &context, const int timeline_frame)
+void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
 {
   if (context.strip.modifiers.first == nullptr) {
     return;
