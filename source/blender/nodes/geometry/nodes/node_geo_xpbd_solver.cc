@@ -2602,7 +2602,7 @@ class XpbdSolverStep {
         /* The effector is at the root level, so a local filter applies to everything.*/
         return true;
       }
-      const StringRef effector_parent_path = effector_path.substr(0, pos);
+      const StringRef effector_parent_path = effector_path.substr(0, pos + 1);
       if (geo_bundle_path.startswith(effector_parent_path)) {
         return true;
       }
