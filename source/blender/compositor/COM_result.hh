@@ -456,19 +456,41 @@ class Result {
    * stores a value of the given template type. */
   template<typename T> void store_pixel(const int2 &texel, const T &pixel_value);
 
-  /* Samples the result at the given normalized coordinates with the given interpolation and
-   * boundary extension. The interpolation is ignored for non float types that do not support
-   * interpolation. The jacobian represents the change of the given coordinates across space, if
-   * provided, the function will do area sampling for the area spanned by the jacobian, but if not
-   * provided, standard point sampling will be done. Assumes the result stores a value of the given
-   * template type. If the CouldBeSingleValue template argument is true and the result is a single
-   * value result, then that single value is returned for all coordinates. */
-  template<typename T, bool CouldBeSingleValue = false>
+  /* Samples the result at the normalized (uv) coordinates with the given interpolation and
+   * boundary extension. Nearest interpolation is used for non float types that do not support
+   * interpolation. \a wh is the size of a retangle to sample (for a Box filter), measured in
+   * normalized coordiantes. */
+  template<typename T>
   T sample(const float2 &coordinates,
            const Interpolation &interpolation,
            const Extension &extension_mode_x,
            const Extension &extension_mode_y,
-           std::optional<float2x2> jacobian = std::nullopt) const;
+           const float2 &wh) const;
+
+  /* The jacobian is the derivative of coordinates per output pixel, first column is dPdx
+   * and second is dPdy. For most filters this is converted to the nearest wh value. */
+  template<typename T>
+  T sample(const float2 &coordinates,
+           const Interpolation &interpolation,
+           const Extension &extension_mode_x,
+           const Extension &extension_mode_y,
+           const float2x2 &jacobian) const;
+
+  /* Provided for back-compatibility, the wh is set to one input texel. Sample should not
+   * be called without derivatives, this function should be removed. */
+  template<typename T>
+  T sample(const float2 &coordinates,
+           const Interpolation &interpolation,
+           const Extension &extension_mode_x,
+           const Extension &extension_mode_y) const;
+
+  /* Shorthand for sample() with nearest filter */
+  template<typename T>
+  T sample_nearest(const float2 &coordinates, const Extension&, const Extension&) const;
+
+  /* Shorthand for sample() with bilinear/box interpolation and wh==1/size. */
+  template<typename T>
+  T sample_bilinear(const float2 &coordinates, const Extension&, const Extension&) const;
 
   /* Shorthand for sample() with bilinear interpolation and zero boundary extension. */
   template<typename T, bool CouldBeSingleValue = false>
@@ -689,108 +711,157 @@ static inline void sample_ewa_read_callback(void *userdata, int x, int y, float 
   copy_v4_v4(result, sampled_result);
 }
 
-template<typename T, bool CouldBeSingleValue>
+template<typename T>
+BLI_INLINE_METHOD T cast_float4(const float4& v) { return T(v); }
+template<>
+BLI_INLINE_METHOD float cast_float4<float>(const float4& v) { return v[0]; }
+
+template<typename T>
 BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                    const Interpolation &interpolation,
                                    const Extension &extension_mode_x,
                                    const Extension &extension_mode_y,
-                                   std::optional<float2x2> jacobian) const
+                                   const float2 &rect) const
 {
-  if constexpr (CouldBeSingleValue) {
-    if (is_single_value_) {
-      return this->get_single_value<T>();
+  if (interpolation != Interpolation::Nearest) {
+    if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
+      const int2 size = domain_.data_size;
+      const float2 uv = coordinates * float2(size);
+      const float2 wh = rect * float2(size);
+      math::sampler2D source = sampler2D();
+      source.wrap_x = map_extension_mode_to_wrap_mode(extension_mode_x);
+      source.wrap_y = map_extension_mode_to_wrap_mode(extension_mode_y);
+
+      switch (interpolation) {
+        default:
+          return cast_float4<T>(math::sample_rect<math::Sampler::Box>(source, uv, wh));
+        case Interpolation::Bicubic:
+          return cast_float4<T>(math::sample_rect<math::Sampler::Bspline>(source, uv, wh));
+#if 0 // use ewa filter. Without this Box filter is used
+        case Interpolation::Anisotropic:
+          return sample<T>(coordinates, Interpolation::Anisotropic,
+                           extension_mode_x, extension_mode_y,
+                           float2x2({0, rect.x}, {rect.y, 0}});
+#endif
+      }
     }
   }
+  return sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
+}
 
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size);
-
+template<typename T>
+BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
+                                   const Interpolation &interpolation,
+                                   const Extension &extension_mode_x,
+                                   const Extension &extension_mode_y,
+                                   const float2x2 &jacobian) const
+{
   if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
-    T pixel_value = T(0);
-    const float *buffer = static_cast<const float *>(this->cpu_data().data());
-    float *output = nullptr;
-    if constexpr (std::is_same_v<T, float>) {
-      output = &pixel_value;
+    if (interpolation == Interpolation::Anisotropic) {
+      EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
+      float4 output;
+      BLI_ewa_filter(domain_.data_size.x,
+                     domain_.data_size.y,
+                     false,
+                     true,
+                     coordinates,
+                     jacobian[0],
+                     jacobian[1],
+                     sample_ewa_read_callback,
+                     &sampling_data,
+                     output);
+      return cast_float4<T>(output);
     }
-    else {
-      output = pixel_value;
-    }
+    // convert to nearest rectangle using fast approximation of hypot and assume
+    // the larger numbers are diagonally opposite.
+    float a = fabsf(jacobian[0][0]);
+    float b = fabsf(jacobian[1][0]);
+    float c = fabsf(jacobian[0][1]);
+    float d = fabsf(jacobian[1][1]);
+    const float2 rect =
+      (a < b) ? float2(b + 0.375f * a, c + 0.375f * d) : float2(a + 0.375f * b, d + 0.375f * c);
+    return sample<T>(coordinates, interpolation, extension_mode_x, extension_mode_y, rect);
+  }
+  return sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
+}
 
+template<typename T>
+BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
+                                   const Interpolation &interpolation,
+                                   const Extension &extension_mode_x,
+                                   const Extension &extension_mode_y) const
+{
+  if (interpolation != Interpolation::Nearest) {
+    if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
+      const float2 rect(1.0f / domain_.data_size.x, 1.0f / domain_.data_size.y);
+      return sample<T>(coordinates, interpolation, extension_mode_x, extension_mode_y, rect);
+    }
+  }
+  return sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
+}
+
+template<typename T>
+BLI_INLINE_METHOD T Result::sample_nearest(const float2 &coordinates,
+                                           const Extension &extension_mode_x,
+                                           const Extension &extension_mode_y) const
+{
+  const math::InterpWrapMode wrap_mode_x = map_extension_mode_to_wrap_mode(extension_mode_x);
+  const int x = wrap_coord(coordinates.x * domain_.data_size.x, domain_.data_size.x, wrap_mode_x);
+  const math::InterpWrapMode wrap_mode_y = map_extension_mode_to_wrap_mode(extension_mode_y);
+  const int y = wrap_coord(coordinates.y * domain_.data_size.y, domain_.data_size.y, wrap_mode_y);
+  if (x < 0 || y < 0) {
+    return T{};
+  }
+  return this->load_pixel<T>(int2(x, y));
+}
+
+template<typename T>
+BLI_INLINE_METHOD T Result::sample_bilinear(const float2 &coordinates,
+                                            const Extension &extension_mode_x,
+                                            const Extension &extension_mode_y) const
+{
+  if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
+    float4 pixel_value;
+    const float *buffer = static_cast<const float *>(this->cpu_data().data());
+    float *output = &pixel_value[0];
     const math::InterpWrapMode wrap_mode_x = map_extension_mode_to_wrap_mode(extension_mode_x);
     const math::InterpWrapMode wrap_mode_y = map_extension_mode_to_wrap_mode(extension_mode_y);
-    switch (interpolation) {
-      case Interpolation::Nearest:
-        math::interpolate_nearest_wrapmode_fl(buffer,
-                                              output,
-                                              size.x,
-                                              size.y,
-                                              sizeof(T) / sizeof(float),
-                                              texel_coordinates.x,
-                                              texel_coordinates.y,
-                                              wrap_mode_x,
-                                              wrap_mode_y);
-        break;
-      case Interpolation::Bilinear:
-        math::interpolate_bilinear_wrapmode_fl(buffer,
-                                               output,
-                                               size.x,
-                                               size.y,
-                                               sizeof(T) / sizeof(float),
-                                               texel_coordinates.x - 0.5f,
-                                               texel_coordinates.y - 0.5f,
-                                               wrap_mode_x,
-                                               wrap_mode_y);
-        break;
-      case Interpolation::Bicubic:
-        math::interpolate_cubic_bspline_wrapmode_fl(buffer,
-                                                    output,
-                                                    size.x,
-                                                    size.y,
-                                                    sizeof(T) / sizeof(float),
-                                                    texel_coordinates.x - 0.5f,
-                                                    texel_coordinates.y - 0.5f,
-                                                    wrap_mode_x,
-                                                    wrap_mode_y);
-        break;
-      case Interpolation::Anisotropic:
-        BLI_assert(type_ == ResultType::Color);
-        const float2 x_gradient = jacobian.has_value() ? jacobian.value()[0] :
-                                                         float2(1.0f / size.x, 0.0f);
-        const float2 y_gradient = jacobian.has_value() ? jacobian.value()[1] :
-                                                         float2(0.0f, 1.0f / size.y);
-        EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
-        BLI_ewa_filter(size.x,
-                       size.y,
-                       false,
-                       true,
-                       coordinates,
-                       x_gradient,
-                       y_gradient,
-                       sample_ewa_read_callback,
-                       &sampling_data,
-                       output);
-        break;
-    }
-
-    return pixel_value;
+    math::interpolate_bilinear_wrapmode_fl(buffer,
+                                           output,
+                                           domain_.data_size.x,
+                                           domain_.data_size.y,
+                                           sizeof(T) / sizeof(float),
+                                           coordinates.x * domain_.data_size.x - 0.5f,
+                                           coordinates.y * domain_.data_size.y - 0.5f,
+                                           wrap_mode_x,
+                                           wrap_mode_y);
+    return cast_float4<T>(pixel_value);
   }
   else {
-    return this->load_pixel<T>(int2(texel_coordinates), extension_mode_x, extension_mode_y);
+    return this->sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
   }
 }
 
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample_bilinear_zero(const float2 &coordinates) const
 {
-  return this->sample<T, CouldBeSingleValue>(
-      coordinates, Interpolation::Bilinear, Extension::Clip, Extension::Clip);
+  if constexpr (CouldBeSingleValue) {
+    if (is_single_value_) {
+      return this->get_single_value<T>();
+    }
+  }
+  return this->sample_bilinear<T>(coordinates, Extension::Clip, Extension::Clip);
 }
 
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample_bilinear_extended(const float2 &coordinates) const
 {
-  return this->sample<T, CouldBeSingleValue>(
-      coordinates, Interpolation::Bilinear, Extension::Extend, Extension::Extend);
+  if constexpr (CouldBeSingleValue) {
+    if (is_single_value_) {
+      return this->get_single_value<T>();
+    }
+  }
+  return this->sample_bilinear<T>(coordinates, Extension::Extend, Extension::Extend);
 }
 
 BLI_INLINE_METHOD int64_t Result::get_pixel_index(const int2 &texel) const

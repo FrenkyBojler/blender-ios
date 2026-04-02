@@ -236,103 +236,47 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
   GPU_shader_unbind();
 }
 
-/* support for non-float types, does nearest sampling only. */
 template<typename T>
-static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation)
+static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation, const float2 &wh)
 {
   const RealizationOptions realization_options = input.get_realization_options();
-  const int2 input_size = input.domain().data_size;
+  const float2 scale(1.0f / float2(input.domain().data_size));
+  const float2 dPdx(transformation[0].xy() * scale);
+  const float2 dPdy(transformation[1].xy() * scale);
+  const float2 translate(transformation[2].xy() * scale);
+  const float2 rect(wh * scale);
+
   const int2 output_size = output.domain().data_size;
-  const float2 dPdx(transformation[0].xy() / float2(input_size));
-  const float2 dPdy(transformation[1].xy() / float2(input_size));
-  const float2 translate(transformation[2].xy() / float2(input_size));
   parallel_for(output_size, [&](const int2 texel) {
     const float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     T sample = input.sample<T>(uv,
                                realization_options.interpolation,
                                realization_options.extension_x,
-                               realization_options.extension_y);
+                               realization_options.extension_y,
+                               rect);
     output.store_pixel(texel, sample);
   });
 }
 
-template<math::Sampler sampler>
-static void realize_on_domain(math::sampler2D &source,
-                              Result &output,
-                              const float3x3 &transformation,
-                              const float2 &wh)
-{
-  const float2 dPdx(transformation[0].xy());
-  const float2 dPdy(transformation[1].xy());
-  const float2 translate(transformation[2].xy());
-  parallel_for(output.domain().data_size, [&](const int2 texel) {
-    float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-    float4 sample = sample_rect<sampler>(source, uv, wh);
-    output.store_pixel(texel, Color(sample));
-  });
-}
-
-void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &options,
+void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &,
                                                      const float3x3 &transformation,
                                                      const float2 &wh)
 {
   Result &input = this->get_input();
   Result &output = this->get_result();
-
-  switch (input.type()) {
-    case ResultType::Float:
-    case ResultType::Float2:
-    case ResultType::Float3:
-    case ResultType::Float4:
-    case ResultType::Color: {
-      math::sampler2D source{input.sampler2D()};
-      source.wrap_x = options.wrap_x;
-      source.wrap_y = options.wrap_y;
-      switch (options.sampler) {
-        case math::Sampler::Nearest:
-          realize_on_domain<math::Sampler::Nearest>(source, output, transformation, wh);
-          break;
-        case math::Sampler::Bilinear:
-          realize_on_domain<math::Sampler::Bilinear>(source, output, transformation, wh);
-          break;
-        default:  // Sampler::Box
-          realize_on_domain<math::Sampler::Box>(source, output, transformation, wh);
-          break;
-        case math::Sampler::Bspline:
-          realize_on_domain<math::Sampler::Bspline>(source, output, transformation, wh);
-          break;
-      }
-      break;
-    }
-    case ResultType::Int:
-      realize_on_domain<int32_t>(input, output, transformation);
-      break;
-    case ResultType::Int2:
-      realize_on_domain<int2>(input, output, transformation);
-      break;
-    case ResultType::Int3:
-      realize_on_domain<int3>(input, output, transformation);
-      break;
-    case ResultType::Bool:
-      realize_on_domain<bool>(input, output, transformation);
-      break;
-    case ResultType::Float4x4:
-      realize_on_domain<float4x4>(input, output, transformation);
-      break;
-    case ResultType::Menu:
-      realize_on_domain<nodes::MenuValue>(input, output, transformation);
-      break;
-    case ResultType::String:
-    case ResultType::Object:
-    case ResultType::Image:
-    case ResultType::Font:
-    case ResultType::Scene:
-    case ResultType::Text:
-    case ResultType::Mask:
-      /* Single only types do not support GPU code path. */
-      BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
-      BLI_assert_unreachable();
-  }
+  input.get_cpp_type()
+    .to_static_type<float,
+                    float2,
+                    float3,
+                    float4,
+                    Color,
+                    int32_t,
+                    int2,
+                    int3,
+                    bool,
+                    float4x4,
+                    nodes::MenuValue>(
+     [&]<typename T>() { realize_on_domain<T>(input, output, transformation, wh); });
 }
 
 Domain RealizeOnDomainOperation::compute_domain()
