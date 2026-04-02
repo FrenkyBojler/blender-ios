@@ -170,7 +170,7 @@ struct MaskSamplerTransformedFloat {
   MaskSamplerTransformedFloat(const ImBuf *mask, const float3x3 &transform)
       : mask(mask), transform(transform)
   {
-    BLI_assert(mask && mask->float_buffer.data);
+    BLI_assert(mask && mask->float_data());
     start_uv = transform.location().xy();
     add_x = transform.x_axis().xy();
     add_y = transform.y_axis().xy();

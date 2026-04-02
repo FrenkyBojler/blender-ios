@@ -2411,7 +2411,7 @@ void IMB_colormanagement_imbuf_to_byte_texture(uchar *out_buffer,
   /* Byte buffer storage, only for sRGB, scene linear and data texture since other
    * color space conversions can't be done on the GPU. */
   BLI_assert(ibuf->byte_data());
-  BLI_assert(ibuf->float_buffer.data == nullptr);
+  BLI_assert(ibuf->float_data() == nullptr);
   BLI_assert(IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace));

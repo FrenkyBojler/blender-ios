@@ -105,10 +105,10 @@ void ScreenSpaceDrawingMode::do_partial_update_float_buffer(
     ImBuf *float_buffer, PartialUpdateChecker<ImageTileData>::CollectResult &iterator) const
 {
   ImBuf *src = iterator.tile_data.tile_buffer;
-  BLI_assert(float_buffer->float_buffer.data != nullptr);
-  BLI_assert(float_buffer->byte_buffer.data == nullptr);
-  BLI_assert(src->float_buffer.data == nullptr);
-  BLI_assert(src->byte_buffer.data != nullptr);
+  BLI_assert(float_buffer->float_data() != nullptr);
+  BLI_assert(float_buffer->byte_data() == nullptr);
+  BLI_assert(src->float_data() == nullptr);
+  BLI_assert(src->byte_data() != nullptr);
 
   /* Calculate the overlap between the updated region and the buffer size. Partial Update Checker
    * always returns a tile (256x256). Which could lay partially outside the buffer when using

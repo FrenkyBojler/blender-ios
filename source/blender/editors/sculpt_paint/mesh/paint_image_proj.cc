@@ -5502,7 +5502,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
             }
           }
           else {
-            BLI_assert(ps->reproject_ibuf->byte_buffer.data != nullptr);
+            BLI_assert(ps->reproject_ibuf->byte_data() != nullptr);
             imbuf::interpolate_cubic_bspline_byte(ps->reproject_ibuf,
                                                   projPixel->newColor.ch,
                                                   projPixel->projCoSS[0],
