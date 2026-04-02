@@ -43,6 +43,25 @@ def dopesheet_filter(layout, context):
     else:  # graph and dopesheet editors - F-Curves and drivers only
         row.prop(dopesheet, "show_only_errors", text="")
 
+
+def dopesheet_filter_active(dopesheet):
+    """Check if any filter in the dopesheet popover is restricting visibility."""
+    if dopesheet.filter_fcurve_name or dopesheet.filter_text:
+        return True
+    if dopesheet.filter_collection:
+        return True
+    # Check if any data type filter is unchecked (default is all shown).
+    type_attrs = (
+        'show_scenes', 'show_nodes', 'show_transforms', 'show_modifiers',
+        'show_shapekeys', 'show_armatures', 'show_cameras', 'show_lights',
+        'show_meshes', 'show_curves', 'show_lattices', 'show_metaballs',
+        'show_worlds', 'show_particles', 'show_linestyles', 'show_speakers',
+        'show_materials', 'show_textures', 'show_gpencil',
+        'show_cache_files', 'show_movieclips',
+        'show_hair_curves', 'show_pointclouds', 'show_volumes', 'show_lightprobes',
+    )
+    return any(not getattr(dopesheet, a, True) for a in type_attrs)
+
 #######################################
 # Dope-sheet Filtering Popovers
 
@@ -269,7 +288,7 @@ class DOPESHEET_HT_editor_buttons:
         layout.popover(
             panel="DOPESHEET_PT_filters",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if dopesheet_filter_active(st.dopesheet) else 'FILTER',
         )
 
         tool_settings = context.tool_settings

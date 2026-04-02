@@ -13,6 +13,17 @@ from bpy_extras import (
 from bpy.app.translations import contexts as i18n_contexts
 
 
+def _asset_filter_active(params):
+    """Check if asset browser filter popover has active filters."""
+    if params.filter_search:
+        return True
+    filter_id = params.filter_asset_id
+    for identifier in dir(filter_id):
+        if identifier.startswith("filter_") and not getattr(filter_id, identifier):
+            return True
+    return False
+
+
 class FILEBROWSER_HT_header(Header):
     bl_space_type = 'FILE_BROWSER'
 
@@ -45,7 +56,7 @@ class FILEBROWSER_HT_header(Header):
         layout.popover(
             panel="ASSETBROWSER_PT_filter",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if _asset_filter_active(params) else 'FILTER',
         )
 
         layout.operator(

@@ -8,6 +8,7 @@ from bl_ui.space_dopesheet import (
     DopesheetFilterPopoverBase,
     DopesheetActionPanelBase,
     dopesheet_filter,
+    dopesheet_filter_active,
 )
 from bl_ui.space_time import playback_controls
 
@@ -29,7 +30,7 @@ class NLA_HT_header(Header):
         layout.popover(
             panel="NLA_PT_filters",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if dopesheet_filter_active(context.space_data.dopesheet) else 'FILTER',
         )
 
         row = layout.row(align=True)

@@ -19,6 +19,32 @@ def has_selected_ids_in_context(context):
     return False
 
 
+def _outliner_filter_active(space):
+    """Check if outliner filter popover has active restrictive filters."""
+    if space.display_mode == 'VIEW_LAYER':
+        if space.filter_state != 'ALL':
+            return True
+        if not space.use_filter_object:
+            return True
+        if not space.use_filter_collection:
+            return True
+        if not space.use_filter_view_layers:
+            return True
+        for attr in (
+            'use_filter_object_content', 'use_filter_children',
+            'use_filter_object_mesh', 'use_filter_object_armature',
+            'use_filter_object_light', 'use_filter_object_camera',
+            'use_filter_object_empty', 'use_filter_object_others',
+            'use_filter_object_grease_pencil',
+        ):
+            if not getattr(space, attr, True):
+                return True
+    elif space.display_mode == 'LIBRARY_OVERRIDES':
+        if space.use_filter_lib_override_system:
+            return True
+    return False
+
+
 class OUTLINER_HT_header(Header):
     bl_space_type = 'OUTLINER'
 
@@ -62,7 +88,7 @@ class OUTLINER_HT_header(Header):
             row.popover(
                 panel="OUTLINER_PT_filter",
                 text="",
-                icon='FILTER',
+                icon='FILTER_FILLED' if _outliner_filter_active(space) else 'FILTER',
             )
 
         if display_mode in {'LIBRARIES', 'ORPHAN_DATA'}:

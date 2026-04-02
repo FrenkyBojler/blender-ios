@@ -10,6 +10,7 @@ from bpy.app.translations import (
 from bl_ui.space_dopesheet import (
     DopesheetFilterPopoverBase,
     dopesheet_filter,
+    dopesheet_filter_active,
 )
 from bl_ui.space_time import playback_controls
 
@@ -76,7 +77,7 @@ class GRAPH_HT_header(Header):
         layout.popover(
             panel="GRAPH_PT_filters",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if dopesheet_filter_active(st.dopesheet) else 'FILTER',
         )
 
         layout.prop(st, "pivot_point", icon_only=True)
