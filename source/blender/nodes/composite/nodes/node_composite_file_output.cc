@@ -85,18 +85,18 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(item);
     BaseSocketDeclarationBuilder *declaration = nullptr;
     if (socket_type == SOCK_VECTOR) {
-      declaration = &b.add_input<decl::Vector>(item.name, identifier)
+      declaration = &b.add_input<decl::Vector>(UString(item.name), UString(identifier))
                          .dimensions(item.vector_socket_dimensions);
     }
     else {
-      declaration = &b.add_input(socket_type, item.name, identifier);
+      declaration = &b.add_input(socket_type, UString(item.name), UString(identifier));
     }
     declaration->structure_type(StructureType::Dynamic)
         .compositor_realization_mode(realization_mode)
         .socket_name_ptr(&node_tree->id, *FileOutputItemsAccessor::item_srna, &item, "name");
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static void node_init(const bContext *C, PointerRNA *node_pointer)
@@ -423,7 +423,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
           params.node_tree, node, socket_type, params.socket.name);
     }
-    params.update_and_connect_available_socket(node, params.socket.name);
+    params.update_and_connect_available_socket(node, UString(params.socket.name));
   });
 }
 
@@ -642,6 +642,12 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float4x4:
       case ResultType::Menu:
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -676,6 +682,12 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float4x4:
       case ResultType::Menu:
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Not supported. */
         BLI_assert_unreachable();
         return nullptr;
@@ -731,6 +743,12 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float4x4:
       case ResultType::Menu:
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Not supported. */
         BLI_assert_unreachable();
         break;

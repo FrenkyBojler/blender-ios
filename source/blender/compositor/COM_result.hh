@@ -30,6 +30,15 @@
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
 
+namespace blender {
+struct Object;
+struct Image;
+struct VFont;
+struct Scene;
+struct Text;
+struct Mask;
+}  // namespace blender
+
 namespace blender::compositor {
 
 class Context;
@@ -51,6 +60,12 @@ enum class ResultType : uint8_t {
 
   /* Single value only types. See Result::is_single_value_only_type. */
   String,
+  Object,
+  Image,
+  Font,
+  Scene,
+  Text,
+  Mask,
 };
 
 /* The precision of the data. CPU data is always stored using full precision at the moment. */
@@ -136,8 +151,7 @@ class Result {
    * member stores the number of results that share the data. This is heap allocated and have the
    * same lifetime as allocated data, that's because this reference count is shared by all results
    * that share the same data. Unlike the result's reference count, the data is freed if the count
-   * becomes 1, that is, data is no longer shared with some other result. This is nullptr if the
-   * data is external. */
+   * becomes 1, that is, data is no longer shared with some other result. */
   int *data_reference_count_ = nullptr;
   /* If the result is a single value, this member stores the value of the result, the value of
    * which will be identical to that stored in the data_ member. The active variant member depends
@@ -154,7 +168,13 @@ class Result {
                bool,
                float4x4,
                nodes::MenuValue,
-               std::string>
+               std::string,
+               Object *,
+               Image *,
+               VFont *,
+               Scene *,
+               Text *,
+               Mask *>
       single_value_ = 0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
@@ -719,10 +739,10 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
         break;
       case Interpolation::Anisotropic:
         BLI_assert(type_ == ResultType::Color);
-        const float2 x_gradient = jacobian.has_value() ? jacobian.value()[0] / float(size.x) :
-                                                         float2(1.0f / math::square(size.x));
-        const float2 y_gradient = jacobian.has_value() ? jacobian.value()[1] / float(size.y) :
-                                                         float2(1.0f / math::square(size.y));
+        const float2 x_gradient = jacobian.has_value() ? jacobian.value()[0] :
+                                                         float2(1.0f / size.x, 0.0f);
+        const float2 y_gradient = jacobian.has_value() ? jacobian.value()[1] :
+                                                         float2(0.0f, 1.0f / size.y);
         EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
         BLI_ewa_filter(size.x,
                        size.y,

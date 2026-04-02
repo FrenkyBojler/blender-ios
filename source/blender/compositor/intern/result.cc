@@ -57,6 +57,12 @@ bool Result::is_single_value_only_type(ResultType type)
     case ResultType::Menu:
       return false;
     case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
       return true;
   }
 
@@ -99,6 +105,12 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
            * practice. */
           return gpu::TextureFormat::SINT_8;
         case ResultType::String:
+        case ResultType::Object:
+        case ResultType::Image:
+        case ResultType::Font:
+        case ResultType::Scene:
+        case ResultType::Text:
+        case ResultType::Mask:
           /* Single only types do not support GPU code path. */
           BLI_assert(Result::is_single_value_only_type(type));
           BLI_assert_unreachable();
@@ -137,6 +149,12 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
            * practice. */
           return gpu::TextureFormat::SINT_8;
         case ResultType::String:
+        case ResultType::Object:
+        case ResultType::Image:
+        case ResultType::Font:
+        case ResultType::Scene:
+        case ResultType::Text:
+        case ResultType::Mask:
           /* Single only types do not support GPU storage. */
           BLI_assert(Result::is_single_value_only_type(type));
           BLI_assert_unreachable();
@@ -166,6 +184,12 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
     case ResultType::Menu:
       return GPU_DATA_INT;
     case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
       /* Single only types do not support GPU storage. */
       BLI_assert(Result::is_single_value_only_type(type));
       BLI_assert_unreachable();
@@ -345,6 +369,18 @@ const CPPType &Result::cpp_type(const ResultType type)
       return CPPType::get<nodes::MenuValue>();
     case ResultType::String:
       return CPPType::get<std::string>();
+    case ResultType::Object:
+      return CPPType::get<Object *>();
+    case ResultType::Image:
+      return CPPType::get<Image *>();
+    case ResultType::Font:
+      return CPPType::get<VFont *>();
+    case ResultType::Scene:
+      return CPPType::get<Scene *>();
+    case ResultType::Text:
+      return CPPType::get<Text *>();
+    case ResultType::Mask:
+      return CPPType::get<Mask *>();
   }
 
   BLI_assert_unreachable();
@@ -378,6 +414,18 @@ const char *Result::type_name(const ResultType type)
       return "menu";
     case ResultType::String:
       return "string";
+    case ResultType::Object:
+      return "object";
+    case ResultType::Image:
+      return "image";
+    case ResultType::Font:
+      return "font";
+    case ResultType::Scene:
+      return "scene";
+    case ResultType::Text:
+      return "text";
+    case ResultType::Mask:
+      return "mask";
   }
 
   BLI_assert_unreachable();
@@ -487,6 +535,24 @@ void Result::allocate_single_value()
     case ResultType::String:
       this->set_single_value(std::string(""));
       break;
+    case ResultType::Object:
+      this->set_single_value(static_cast<Object *>(nullptr));
+      break;
+    case ResultType::Image:
+      this->set_single_value(static_cast<Image *>(nullptr));
+      break;
+    case ResultType::Font:
+      this->set_single_value(static_cast<VFont *>(nullptr));
+      break;
+    case ResultType::Scene:
+      this->set_single_value(static_cast<Scene *>(nullptr));
+      break;
+    case ResultType::Text:
+      this->set_single_value(static_cast<Text *>(nullptr));
+      break;
+    case ResultType::Mask:
+      this->set_single_value(static_cast<Mask *>(nullptr));
+      break;
   }
 }
 
@@ -566,11 +632,7 @@ void Result::share_data(const Result &source)
   *this = source;
   reference_count_ = reference_count;
 
-  /* External data is intrinsically shared, and data_reference_count_ is nullptr in this case since
-   * it is not needed. */
-  if (!is_external_) {
-    (*data_reference_count_)++;
-  }
+  (*data_reference_count_)++;
 }
 
 void Result::steal_data(Result &source)
@@ -632,6 +694,7 @@ void Result::wrap_external(gpu::Texture *texture)
   is_external_ = true;
   is_single_value_ = false;
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(void *data, int2 size)
@@ -643,6 +706,7 @@ void Result::wrap_external(void *data, int2 size)
   storage_type_ = ResultStorageType::CPU;
   is_external_ = true;
   domain_ = Domain(size);
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(const Result &result)
@@ -656,6 +720,7 @@ void Result::wrap_external(const Result &result)
   Result result_copy = result;
   this->steal_data(result_copy);
   is_external_ = true;
+  (*data_reference_count_)++;
 }
 
 void Result::set_transformation(const float3x3 &transformation)
@@ -707,13 +772,6 @@ void Result::release()
 
 void Result::free()
 {
-  /* The data in the result are not owned by the result, so we only free the derived resources. */
-  if (is_external_) {
-    delete derived_resources_;
-    derived_resources_ = nullptr;
-    return;
-  }
-
   if (!this->is_allocated()) {
     return;
   }
@@ -739,6 +797,24 @@ void Result::free()
     return;
   }
 
+  delete data_reference_count_;
+  data_reference_count_ = nullptr;
+
+  delete derived_resources_;
+  derived_resources_ = nullptr;
+
+  if (is_external_) {
+    switch (storage_type_) {
+      case ResultStorageType::GPU:
+        gpu_texture_ = nullptr;
+        break;
+      case ResultStorageType::CPU:
+        cpu_data_ = GMutableSpan();
+        break;
+    }
+    return;
+  }
+
   switch (storage_type_) {
     case ResultStorageType::GPU:
       if (is_from_pool_) {
@@ -754,12 +830,6 @@ void Result::free()
       cpu_data_ = GMutableSpan();
       break;
   }
-
-  delete data_reference_count_;
-  data_reference_count_ = nullptr;
-
-  delete derived_resources_;
-  derived_resources_ = nullptr;
 }
 
 bool Result::should_compute()
@@ -845,6 +915,12 @@ int64_t Result::channels_count() const
     case ResultType::Float4x4:
       return 16;
     case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
       /* Single only types do not have channels. */
       BLI_assert(Result::is_single_value_only_type(type_));
       BLI_assert_unreachable();
@@ -915,6 +991,12 @@ void Result::update_single_value_data()
           break;
         }
         case ResultType::String:
+        case ResultType::Object:
+        case ResultType::Image:
+        case ResultType::Font:
+        case ResultType::Scene:
+        case ResultType::Text:
+        case ResultType::Mask:
           /* Single only types do not support GPU storage. */
           BLI_assert(Result::is_single_value_only_type(this->type()));
           BLI_assert_unreachable();

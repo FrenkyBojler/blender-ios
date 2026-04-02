@@ -97,7 +97,7 @@ class VKTexturePool : public TexturePool {
     /* Return a segment to the allocation for reuse. */
     void release(VKMemorySegment segment);
 
-    /* Check if no part of the allocation is acuired. */
+    /* Check if no part of the allocation is acquired. */
     bool is_unused() const
     {
       return !segments.empty() && segments.front().size == allocation_info.size;
@@ -139,7 +139,7 @@ class VKTexturePool : public TexturePool {
   };
 
   /* Cache of VkImage handles to avoid repeated memory binding. */
-  VKImageCache image_cache_;
+  std::optional<VKImageCache> image_cache_;
   /* Allocated memory on which images are bound. */
   Set<AllocationHandle> allocations_;
   /* Texture handles currently in use. */
@@ -167,6 +167,7 @@ class VKTexturePool : public TexturePool {
   void log_usage_data();
 
  public:
+  VKTexturePool();
   ~VKTexturePool();
 
   Texture *acquire_texture(int2 extent,
@@ -174,11 +175,11 @@ class VKTexturePool : public TexturePool {
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
                            const char *name = nullptr) override;
 
-  void release_texture(Texture *tex) override;
+  void release_texture(Texture *texture) override;
 
   void reset(bool force_free = false) override;
 
-  void offset_users_count(Texture *tex, int offset) override;
+  void offset_users_count(Texture *texture, int offset) override;
 };
 
 }  // namespace blender::gpu
