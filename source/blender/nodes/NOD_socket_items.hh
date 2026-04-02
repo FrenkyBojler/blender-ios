@@ -328,12 +328,9 @@ template<typename Accessor>
       return false;
     }
     /* Ensure the source node declaration is up-to-date before capturing the socket label.
-     * This is necessary to correctly capture dynamic labels at creation time. Use the source 
-     * node's own tree to avoid issues when linking across different trees. */
-    if (src_socket->runtime && src_socket->runtime->owner_node && src_socket->runtime->owner_node->runtime->owner_tree) {
-      blender::bke::node_declaration_ensure(*src_socket->runtime->owner_node->runtime->owner_tree, *src_socket->runtime->owner_node);
-      blender::bke::node_socket_declarations_update(src_socket->runtime->owner_node);
-    }
+     * This is necessary to correctly capture dynamic labels at creation time. */
+    ntree.ensure_topology_cache();
+    blender::bke::node_declaration_ensure(src_socket->owner_tree(), src_socket->owner_node());
     std::string name = blender::bke::node_socket_label(*src_socket);
 
     std::optional<int> dimensions = std::nullopt;
