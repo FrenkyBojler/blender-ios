@@ -8,7 +8,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_sample_sound_cc {
+namespace blender::nodes::node_geo_sample_sound_frequencies_cc {
 
 enum class FFTSize {
   _128 = 128,
@@ -334,14 +334,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSampleSound");
-  ntype.ui_name = "Sample Sound";
-  ntype.ui_description = "Retrieve the amplitude from a sound data-block at a given time";
-  ntype.nclass = NODE_CLASS_INPUT;
+  geo_node_type_base(&ntype, "GeometryNodeSampleSoundFrequencies");
+  ntype.ui_name = "Sample Sound Frequencies";
+  ntype.ui_description =
+      "Retrieve the amplitude from a sound data-block of a frequency range at a given time";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
+  bke::node_type_size(ntype, 180, 100, NODE_DEFAULT_MAX_WIDTH);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_sample_sound_cc
+}  // namespace blender::nodes::node_geo_sample_sound_frequencies_cc
