@@ -3720,7 +3720,7 @@ static float3 boundbox_to_dimensions(const Object *ob, const std::optional<Bound
   if (!bounds) {
     return float3(0);
   }
-  const float3 scale = math::to_scale(ob->object_to_world());
+  const float3 &scale = ob->scale;
   return scale * (bounds->max - bounds->min);
 }
 
