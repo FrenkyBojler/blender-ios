@@ -269,7 +269,7 @@ class UpdatesDownloader:
         if bpy.app.timers.is_registered(self.on_timer_event):
             bpy.app.timers.unregister(self.on_timer_event)
 
-        # Cleanup temp directory 
+        # Cleanup temp directory
         if self._temp_dir:
             self._temp_dir.cleanup()
             self._temp_dir = None
