@@ -121,7 +121,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         .optional_label()
         .description(
             "Number of samples to process in the discrete fourier transformation at once. Higher "
-            "values have better frequency but worse time resolution and vice versa");
+            "values have higher frequency but lower time resolution and vice versa");
     p.add_input<decl::Menu>("Window Function"_ustr)
         .static_items(window_function_items)
         .default_value(WindowFunction::Hann)
