@@ -1428,19 +1428,19 @@ if(TEST_SRC_DIR_EXISTS)
 
   foreach(render_test ${render_tests})
     add_render_test(
-      sequencer_render_${render_test}
+      sequencer_cpu_${render_test}
       ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
       --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
-      --outdir "${TEST_OUT_DIR}/sequence_editing"
+      --outdir "${TEST_OUT_DIR}/sequencer_cpu"
     )
   endforeach()
 
   foreach(video_output_test ${video_output_tests})
     add_render_test(
-      sequencer_render_${video_output_test}
+      sequencer_cpu_${video_output_test}
       ${CMAKE_CURRENT_LIST_DIR}/sequencer_video_output_tests.py
       --testdir "${TEST_SRC_DIR}/sequence_editing/${video_output_test}"
-      --outdir "${TEST_OUT_DIR}/sequence_editing"
+      --outdir "${TEST_OUT_DIR}/sequencer_cpu"
     )
   endforeach()
 
@@ -1461,10 +1461,10 @@ if(TEST_SRC_DIR_EXISTS)
     if(WITH_OPENGL_BACKEND)
       foreach(render_test ${render_tests})
         add_render_test(
-                sequencer_gpu_opengl_${render_test}
+                sequencer_opengl_${render_test}
                 ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
                 --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
-                --outdir "${TEST_OUT_DIR}/sequence_editing"
+                --outdir "${TEST_OUT_DIR}/sequencer_opengl"
                 --gpu-backend opengl
         )
       endforeach()
@@ -1472,10 +1472,10 @@ if(TEST_SRC_DIR_EXISTS)
     if(WITH_METAL_BACKEND)
       foreach(render_test ${render_tests})
         add_render_test(
-                sequencer_gpu_metal_${render_test}
+                sequencer_metal_${render_test}
                 ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
                 --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
-                --outdir "${TEST_OUT_DIR}/sequence_editing"
+                --outdir "${TEST_OUT_DIR}/sequencer_metal"
                 --gpu-backend metal
         )
       endforeach()
@@ -1483,10 +1483,10 @@ if(TEST_SRC_DIR_EXISTS)
     if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
       foreach(render_test ${render_tests})
         add_render_test(
-                sequencer_gpu_vulkan_${render_test}
+                sequencer_vulkan_${render_test}
                 ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
                 --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
-                --outdir "${TEST_OUT_DIR}/sequence_editing"
+                --outdir "${TEST_OUT_DIR}/sequencer_vulkan"
                 --gpu-backend vulkan
         )
       endforeach()
