@@ -31,15 +31,13 @@ class StringRefNull;
 
 namespace animrig {
 
-namespace AxisFlag {
-enum Flags : int8_t {
-  NONE = 0,
-  X = 1 << 0,
-  Y = 1 << 1,
-  Z = 1 << 2,
-  W = 1 << 3,
+enum AxisFlag : int8_t {
+  AXIS_FLAG_NONE = 0,
+  AXIS_FLAG_X = 1 << 0,
+  AXIS_FLAG_Y = 1 << 1,
+  AXIS_FLAG_Z = 1 << 2,
+  AXIS_FLAG_W = 1 << 3,
 };
-}
 
 /* Describes a rotation in a specific mode. */
 struct Rotation {
@@ -128,14 +126,14 @@ class Transformable {
   /**
    * Blend all location values to a single value.
    */
-  void blend_location_to(float value, float factor, AxisFlag::Flags lock_flag);
+  void blend_location_to(float value, float factor, AxisFlag lock_flag);
   /* Blend the location to the values given in the span. The span size has to match the location
    * value count. */
-  void blend_location_to(Span<float> values, float factor, AxisFlag::Flags lock_flag);
+  void blend_location_to(Span<float> values, float factor, AxisFlag lock_flag);
 
-  void blend_scale_to(float target, float factor, AxisFlag::Flags axis_flag);
+  void blend_scale_to(float target, float factor, AxisFlag axis_flag);
 
-  void blend_rotation_to(const Rotation &target, float factor, AxisFlag::Flags axis_flag);
+  void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
 };
 
 }  // namespace animrig

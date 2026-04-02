@@ -77,6 +77,7 @@ namespace blender {
 
 /** Axis Locks. */
 enum ePoseSlide_AxisLock {
+  /* TODO replace with animrig::AxisFlag */
   PS_LOCK_X = (1 << 0),
   PS_LOCK_Y = (1 << 1),
   PS_LOCK_Z = (1 << 2),
@@ -349,7 +350,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, co
 {
 
   const float factor = ED_slider_factor_get(pso.slider);
-  Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
+  const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
   animrig::Transformable *transformable = pfl.transformable;
   Array<float> prev_values = transformable->get_location();
   Array<float> next_values = prev_values;
@@ -362,7 +363,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, co
     next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
   }
 
-  const animrig::AxisFlag::Flags lock = animrig::AxisFlag::Flags(pso.axislock);
+  const animrig::AxisFlag lock = animrig::AxisFlag(pso.axislock);
 
   switch (pso.mode) {
     case POSESLIDE_PUSH: /* Make the current pose more pronounced. */
@@ -389,11 +390,11 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, co
 
       if (factor < 0.5) {
         /* Blend to previous key. */
-        transformable->blend_location_to(prev_frame, blend_factor, lock);
+        transformable->blend_location_to(prev_values, blend_factor, lock);
       }
       else {
         /* Blend to next key. */
-        transformable->blend_location_to(next_frame, blend_factor, lock);
+        transformable->blend_location_to(next_values, blend_factor, lock);
       }
 
       break;
@@ -679,7 +680,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 
     if (pso->mode == POSESLIDE_BREAKDOWN) {
       transformable->set_rotation(rot_prev_frame);
-      transformable->blend_rotation_to(rot_next_frame, factor, animrig::AxisFlag::NONE);
+      transformable->blend_rotation_to(rot_next_frame, factor, animrig::AXIS_FLAG_NONE);
     }
     else {
       /* Compute breakdown based on actual frame range. */
@@ -691,22 +692,22 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 
       if (pso->mode == POSESLIDE_PUSH) {
         transformable->set_rotation(breakdown);
-        transformable->blend_rotation_to(current, factor, animrig::AxisFlag::NONE);
+        transformable->blend_rotation_to(current, factor, animrig::AXIS_FLAG_NONE);
       }
       else {
         BLI_assert(pso->mode == POSESLIDE_RELAX);
         transformable->set_rotation(current);
-        transformable->blend_rotation_to(breakdown, factor, animrig::AxisFlag::NONE);
+        transformable->blend_rotation_to(breakdown, factor, animrig::AXIS_FLAG_NONE);
       }
     }
   }
   else if (pso->mode == POSESLIDE_BLEND) {
     const float blend_factor = fabs((factor - 0.5f) * 2);
     if (factor < 0.5) {
-      transformable->blend_rotation_to(rot_prev_frame, blend_factor, animrig::AxisFlag::NONE);
+      transformable->blend_rotation_to(rot_prev_frame, blend_factor, animrig::AXIS_FLAG_NONE);
     }
     else {
-      transformable->blend_rotation_to(rot_next_frame, blend_factor, animrig::AxisFlag::NONE);
+      transformable->blend_rotation_to(rot_next_frame, blend_factor, animrig::AXIS_FLAG_NONE);
     }
   }
 }
@@ -716,7 +717,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
  */
 static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 {
-  const animrig::AxisFlag::Flags axis_flag = animrig::AxisFlag::Flags(pso->axislock);
+  const animrig::AxisFlag axis_flag = animrig::AxisFlag(pso->axislock);
   const float slider_factor = ED_slider_factor_get(pso->slider);
   /* For each link, handle each set of transforms. */
   for (tPChanFCurveLink &pfl : pso->pfLinks) {

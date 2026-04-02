@@ -263,9 +263,9 @@ void Transformable::set_rotation(const Rotation &rotation)
   }
 }
 
-static bool should_modify_axis(const int index, const AxisFlag::Flags axis_flag)
+static bool should_modify_axis(const int index, const AxisFlag axis_flag)
 {
-  if (axis_flag == AxisFlag::NONE) {
+  if (axis_flag == AXIS_FLAG_NONE) {
     return true;
   }
   return axis_flag & (1 << index);
@@ -274,7 +274,7 @@ static bool should_modify_axis(const int index, const AxisFlag::Flags axis_flag)
 static void blend_linear(MutableSpan<float> values,
                          const float target,
                          const float factor,
-                         const AxisFlag::Flags axis_flag)
+                         const AxisFlag axis_flag)
 {
   for (int i : values.index_range()) {
     if (!should_modify_axis(i, axis_flag)) {
@@ -287,7 +287,7 @@ static void blend_linear(MutableSpan<float> values,
 static void blend_linear(MutableSpan<float> values,
                          const Span<float> target,
                          const float factor,
-                         const AxisFlag::Flags axis_flag)
+                         const AxisFlag axis_flag)
 {
   for (int i : values.index_range()) {
     if (!should_modify_axis(i, axis_flag)) {
@@ -299,28 +299,28 @@ static void blend_linear(MutableSpan<float> values,
 
 void Transformable::blend_location_to(const float target,
                                       const float factor,
-                                      const AxisFlag::Flags axis_flag)
+                                      const AxisFlag axis_flag)
 {
   blend_linear(location_, target, factor, axis_flag);
 }
 
 void Transformable::blend_location_to(const Span<float> target,
                                       const float factor,
-                                      const AxisFlag::Flags axis_flag)
+                                      const AxisFlag axis_flag)
 {
   blend_linear(location_, target, factor, axis_flag);
 }
 
 void Transformable::blend_scale_to(const float target,
                                    const float factor,
-                                   const AxisFlag::Flags axis_flag)
+                                   const AxisFlag axis_flag)
 {
   blend_linear(scale_, target, factor, axis_flag);
 }
 
 void Transformable::blend_rotation_to(const Rotation &target,
                                       const float factor,
-                                      const AxisFlag::Flags axis_flag)
+                                      const AxisFlag axis_flag)
 {
   const eRotationModes current_mode = eRotationModes(*rotation_mode_);
   Rotation rot;
