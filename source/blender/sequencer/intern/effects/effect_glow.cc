@@ -218,15 +218,15 @@ static ImBuf *do_glow_effect(const RenderData *context,
 
   int render_size = 100 * context->rectx / context->scene->r.xsch;
 
-  if (out->float_buffer.data) {
+  if (out->float_data()) {
     do_glow_effect_float(strip,
                          render_size,
                          fac,
                          context->rectx,
                          context->recty,
-                         ibuf1->float_buffer.data,
+                         ibuf1->float_data_for_write(),
                          nullptr,
-                         out->float_buffer.data);
+                         out->float_data_for_write());
   }
   else {
     do_glow_effect_byte(strip,
@@ -234,9 +234,9 @@ static ImBuf *do_glow_effect(const RenderData *context,
                         fac,
                         context->rectx,
                         context->recty,
-                        ibuf1->byte_buffer.data,
+                        ibuf1->byte_data_for_write(),
                         nullptr,
-                        out->byte_buffer.data);
+                        out->byte_data_for_write());
   }
 
   return out;

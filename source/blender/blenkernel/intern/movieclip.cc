@@ -1734,7 +1734,7 @@ void BKE_movieclip_update_scopes(MovieClip *clip,
 
     scopes->track_disabled = false;
 
-    if (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
+    if (ibuf && (ibuf->byte_data() || ibuf->float_data())) {
       MovieTrackingMarker undist_marker = *marker;
 
       if (user->render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
@@ -2049,7 +2049,7 @@ gpu::Texture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuse
 
   /* This only means RGBA16F instead of RGBA32F. */
   const bool high_bitdepth = false;
-  const bool store_premultiplied = ibuf->float_buffer.data ? false : true;
+  const bool store_premultiplied = ibuf->float_data() ? false : true;
   *tex = IMB_create_gpu_texture(clip->id.name + 2, ibuf, high_bitdepth, store_premultiplied, true);
 
   /* Do not generate mips for movieclips... too slow. */
