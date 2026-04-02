@@ -10670,7 +10670,7 @@ static bool mouse_motion_keynav_test(KeyNavLock *keynav, const wmEvent *event)
 
 static char menu_scroll_test(Block *block, int2 xy)
 {
-  float shadow_width = theme::get_menu_shadow_width() / block->aspect;
+  const float shadow_width = theme::get_menu_shadow_width() / block->aspect;
   if (xy[0] < block->rect.xmin - shadow_width || xy[0] > block->rect.xmax + shadow_width) {
     return 0;
   }
