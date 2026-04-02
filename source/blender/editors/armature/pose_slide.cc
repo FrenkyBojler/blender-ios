@@ -332,6 +332,79 @@ static bool pose_frame_range_from_id_get(tPoseSlideOp *pso,
   return false;
 }
 
+static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcurves,
+                                                 StringRef path)
+{
+  Vector<FCurve *> fcurves;
+  for (FCurve *fcu : input_fcurves) {
+    if (StringRefNull(fcu->rna_path) != path) {
+      continue;
+    }
+    fcurves.append(fcu);
+  }
+  return fcurves;
+}
+
+static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, const StringRef path)
+{
+
+  const float factor = ED_slider_factor_get(pso.slider);
+  Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
+  animrig::Transformable *transformable = pfl.transformable;
+  Array<float> prev_values = transformable->get_location();
+  Array<float> next_values = prev_values;
+
+  float prev_frame, next_frame;
+  pose_frame_range_from_id_get(&pso, transformable->owner_id(), &prev_frame, &next_frame);
+
+  for (FCurve *fcurve : fcurves) {
+    prev_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
+    next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
+  }
+
+  const animrig::AxisFlag::Flags lock = animrig::AxisFlag::Flags(pso.axislock);
+
+  switch (pso.mode) {
+    case POSESLIDE_PUSH: /* Make the current pose more pronounced. */
+    {
+      /* Slide the pose away from the breakdown pose in the timeline */
+      break;
+    }
+    case POSESLIDE_RELAX: /* Make the current pose more like its surrounding ones. */
+    {
+      /* Slide the pose towards the breakdown pose in the timeline */
+      break;
+    }
+    case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
+    {
+      /* Perform simple linear interpolation. */
+      transformable->set_location(prev_values);
+      transformable->blend_location_to(next_values, factor, lock);
+      break;
+    }
+    case POSESLIDE_BLEND: /* Blend the current pose with the previous (<50%) or next key (>50%). */
+    {
+      /* Convert factor to absolute 0-1 range which is needed for `blend_location_to`. */
+      const float blend_factor = fabs((factor - 0.5f) * 2);
+
+      if (factor < 0.5) {
+        /* Blend to previous key. */
+        transformable->blend_location_to(prev_frame, blend_factor, lock);
+      }
+      else {
+        /* Blend to next key. */
+        transformable->blend_location_to(next_frame, blend_factor, lock);
+      }
+
+      break;
+    }
+    /* Those are handled in pose_slide_rest_pose_apply. */
+    case POSESLIDE_BLEND_REST: {
+      break;
+    }
+  }
+}
+
 /**
  * Helper for apply() - perform sliding for some value.
  */
@@ -571,19 +644,6 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   }
 }
 
-static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcurves,
-                                                 StringRef path)
-{
-  Vector<FCurve *> fcurves;
-  for (FCurve *fcu : input_fcurves) {
-    if (StringRefNull(fcu->rna_path) != path) {
-      continue;
-    }
-    fcurves.append(fcu);
-  }
-  return fcurves;
-}
-
 /**
  * Helper for apply() - perform sliding for quaternion rotations (using quat blending).
  */
@@ -597,10 +657,8 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
     return;
   }
 
-  /* Get the path to use - this should be quaternion rotations only (needs care). */
   std::string path = fmt::format("{}.{}", transformable->rna_path(), "rotation_quaternion");
 
-  /* Get the current frame number. */
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
 
@@ -617,7 +675,6 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   normalize_qt(rot_prev_frame.values.data());
   normalize_qt(rot_next_frame.values.data());
 
-  /* Perform blending. */
   if (ELEM(pso->mode, POSESLIDE_BREAKDOWN, POSESLIDE_PUSH, POSESLIDE_RELAX)) {
 
     if (pso->mode == POSESLIDE_BREAKDOWN) {
@@ -742,7 +799,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
       /* Calculate these for the 'location' vector, and use location curves. */
-      pose_slide_apply_vec3(pso, &pfl, pchan->loc, "location");
+      std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "location");
+      pose_slide_apply_linear(*pso, pfl, path);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {

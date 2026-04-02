@@ -77,28 +77,34 @@ class Transformable {
   short *rotation_mode_;
   MutableSpan<float> scale_;
 
+  /**
+   * Returns the correct array based on the given mode. Asserts that the array is set for the
+   * current transformable.
+   */
   const Array<float *> *get_rotation_array_from_mode(eRotationModes mode) const;
 
  public:
   Transformable(Object &obj, bPoseChannel &pchan);
   Transformable(Object &object);
 
-  Type type()
+  Type type() const
   {
     return type_;
   }
 
-  ID *owner_id()
+  ID *owner_id() const
   {
     return owner_id_;
   }
 
-  void *data()
+  void *data() const
   {
     return data_;
   }
 
-  StringRefNull rna_path();
+  /* Returns the rna path from the ID to the struct represented by this transformable. If the
+   * struct is an ID this is an empty string. */
+  StringRefNull rna_path() const;
 
   /* Returns a copy of the current location. */
   Array<float> get_location() const;

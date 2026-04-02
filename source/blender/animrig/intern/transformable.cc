@@ -107,7 +107,7 @@ Rotation Rotation::interpolated(const Rotation &a, const Rotation &b, const floa
   return interpolated;
 }
 
-StringRefNull Transformable::rna_path()
+StringRefNull Transformable::rna_path() const
 {
   return rna_path_from_id_;
 }
