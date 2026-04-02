@@ -204,6 +204,7 @@ def run_entry(env: api.TestEnvironment,
                 entry.status = 'failed'
                 entry.error_msg = 'Failed to run'
                 entry.exception_msg = str(e)
+                break
 
         if entry.status == 'done' and run_outputs:
             # Combine results from runs
@@ -213,6 +214,7 @@ def run_entry(env: api.TestEnvironment,
                 keys |= run_output.keys()
 
             output = {}
+            output_all_runs = {}
             for key in keys:
                 values = []
                 for run_output in run_outputs:
@@ -220,8 +222,9 @@ def run_entry(env: api.TestEnvironment,
                         continue
                     values.append(run_output[key])
                 output[key] = sum(values) / len(values)
-                output[f"_{key}_values"] = values
+                output_all_runs[key] = values
             entry.output = output
+            entry.output_all_runs = output_all_runs
 
     print_row(config, row, end='\r')
 
@@ -317,7 +320,7 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     parser = argparse.ArgumentParser()
     parser.add_argument('config', nargs='?', default=None)
     parser.add_argument('test', nargs='?', default='*')
-    parser.add_argument('--count', nargs='?', default=1, type=int, help="Number of runs to perform (default=1)")
+    parser.add_argument('--count', default=1, type=int, help="Number of runs to perform (default=1)")
     args = parser.parse_args(argv)
 
     exit_code = 0
