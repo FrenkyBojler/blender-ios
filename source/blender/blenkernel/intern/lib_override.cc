@@ -1971,7 +1971,9 @@ static void lib_override_library_main_hierarchy_id_root_ensure(
   BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(id));
 
   if (id->override_library->flag & LIBOVERRIDE_FLAG_NO_HIERARCHY) {
-    if (id->override_library->hierarchy_root != id) {
+    if (id->override_library->hierarchy_root != nullptr &&
+        id->override_library->hierarchy_root != id)
+    {
       std::string error_msg = fmt::format(
           "Existing isolated override '{}' has a non-null hierarchy root ('{}'), will be "
           "cleared",
