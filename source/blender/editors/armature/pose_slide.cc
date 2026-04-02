@@ -352,7 +352,8 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, co
   const float factor = ED_slider_factor_get(pso.slider);
   const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
   animrig::Transformable *transformable = pfl.transformable;
-  Array<float> prev_values = transformable->get_location();
+  animrig::Transformable::PropertyType prop_type = animrig::Transformable::PropertyType::LOCATION;
+  Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
   float prev_frame, next_frame;
@@ -379,8 +380,8 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, co
     case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
     {
       /* Perform simple linear interpolation. */
-      transformable->set_location(prev_values);
-      transformable->blend_location_to(next_values, factor, lock);
+      transformable->set_property(prop_type, prev_values);
+      transformable->blend_property_to(prop_type, next_values, factor, lock);
       break;
     }
     case POSESLIDE_BLEND: /* Blend the current pose with the previous (<50%) or next key (>50%). */
@@ -390,11 +391,11 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, co
 
       if (factor < 0.5) {
         /* Blend to previous key. */
-        transformable->blend_location_to(prev_values, blend_factor, lock);
+        transformable->blend_property_to(prop_type, prev_values, blend_factor, lock);
       }
       else {
         /* Blend to next key. */
-        transformable->blend_location_to(next_values, blend_factor, lock);
+        transformable->blend_property_to(prop_type, next_values, blend_factor, lock);
       }
 
       break;

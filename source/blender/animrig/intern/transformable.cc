@@ -17,6 +17,66 @@
 
 namespace blender::animrig {
 
+static bool should_modify_axis(const int index, const AxisFlag axis_flag)
+{
+  if (axis_flag == AXIS_FLAG_NONE) {
+    return true;
+  }
+  return axis_flag & (1 << index);
+}
+
+static Array<float> copy_span_to_array(const Span<float> value)
+{
+  Array<float> copy(value.size());
+  for (int i : value.index_range()) {
+    copy[i] = value[i];
+  }
+  return copy;
+}
+
+static Array<float> copy_span_to_array(const Span<float *> value)
+{
+  Array<float> copy(value.size());
+  for (int i : value.index_range()) {
+    copy[i] = *(value[i]);
+  }
+  return copy;
+}
+
+static void copy_span_into_mutable_span(const Span<float> value, MutableSpan<float> target)
+{
+  BLI_assert(target.size() == value.size());
+  for (const int i : IndexRange(3)) {
+    target[i] = value[i];
+  }
+}
+
+static void blend_linear(MutableSpan<float> values,
+                         const float target,
+                         const float factor,
+                         const AxisFlag axis_flag)
+{
+  for (int i : values.index_range()) {
+    if (!should_modify_axis(i, axis_flag)) {
+      continue;
+    }
+    values[i] += factor * (target - values[i]);
+  }
+}
+
+static void blend_linear(MutableSpan<float> values,
+                         const Span<float> target,
+                         const float factor,
+                         const AxisFlag axis_flag)
+{
+  for (int i : values.index_range()) {
+    if (!should_modify_axis(i, axis_flag)) {
+      continue;
+    }
+    values[i] += factor * (target[i] - values[i]);
+  }
+}
+
 /* Using a namespace instead of enum class because these should still be used as indices into an
  * array and an enum class would require casting for that. */
 namespace RotationModeIndex {
@@ -112,6 +172,84 @@ StringRefNull Transformable::rna_path() const
   return rna_path_from_id_;
 }
 
+Array<float> Transformable::get_property(const PropertyType prop_type) const
+{
+  switch (prop_type) {
+    case PropertyType::LOCATION:
+      return copy_span_to_array(location_);
+
+    case PropertyType::ROTATION: {
+      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+          eRotationModes(*rotation_mode_));
+      return copy_span_to_array(*rotation_array);
+    }
+    case PropertyType::SCALE:
+      return copy_span_to_array(scale_);
+  }
+
+  BLI_assert_unreachable();
+  return {};
+}
+
+void Transformable::set_property(const PropertyType prop_type, const Span<float> values)
+{
+  switch (prop_type) {
+    case PropertyType::LOCATION:
+      copy_span_into_mutable_span(values, location_);
+      break;
+
+    case PropertyType::ROTATION: {
+      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+          eRotationModes(*rotation_mode_));
+      for (int i : rotation_array->index_range()) {
+        if (i >= values.size()) {
+          /* Trying to set a rotation with different mode. Use `set_rotation` instead. */
+          BLI_assert_unreachable();
+          return;
+        }
+        *(*rotation_array)[i] = values[i];
+      }
+      break;
+    }
+    case PropertyType::SCALE:
+      copy_span_into_mutable_span(values, scale_);
+      break;
+  }
+}
+
+void Transformable::blend_property_to(const PropertyType prop_type,
+                                      const Span<float> values,
+                                      const float factor,
+                                      const AxisFlag axis_flag)
+{
+  switch (prop_type) {
+    case PropertyType::LOCATION:
+      blend_linear(location_, values, factor, axis_flag);
+      break;
+
+    case PropertyType::ROTATION: {
+      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+          eRotationModes(*rotation_mode_));
+      if (rotation_array->size() != values.size()) {
+        /* This doesn't catch all invalid cases. Differing euler rotation order or quaternion/axis
+         * angle will still have the same array size but blending will create bogus data. */
+        BLI_assert_msg(false, "Cannot do blending with differing rotation modes");
+        return;
+      }
+      Rotation rotation;
+      /* Note: We assume the rotation mode here which may not be correct. It is the responsibility
+       * of the caller to ensure this is right. */
+      rotation.mode = eRotationModes(*rotation_mode_);
+      rotation.values = copy_span_to_array(*rotation_array);
+      blend_rotation_to(rotation, factor, axis_flag);
+      break;
+    }
+    case PropertyType::SCALE:
+      blend_linear(scale_, values, factor, axis_flag);
+      break;
+  }
+}
+
 static std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
 {
   char name_esc[sizeof(pose_bone.name) * 2];
@@ -161,23 +299,6 @@ Transformable::Transformable(Object &obj)
 {
   build_rotations_array(rotations_, obj.rot, obj.quat, obj.rotAxis, &obj.rotAngle);
   rna_path_from_id_ = "";
-}
-
-static Array<float> copy_span_to_array(const Span<float> value)
-{
-  Array<float> copy(value.size());
-  for (int i : value.index_range()) {
-    copy[i] = value[i];
-  }
-  return copy;
-}
-
-static void copy_span_into_mutable_span(const Span<float> value, MutableSpan<float> target)
-{
-  BLI_assert(target.size() == value.size());
-  for (const int i : IndexRange(3)) {
-    target[i] = value[i];
-  }
 }
 
 Array<float> Transformable::get_location() const
@@ -236,11 +357,7 @@ Rotation Transformable::get_rotation() const
   rotation.mode = eRotationModes(*rotation_mode_);
   const Array<float *> *rotations_array = get_rotation_array_from_mode(rotation.mode);
   BLI_assert(rotations_array != nullptr);
-
-  rotation.values.reinitialize(rotations_array->size());
-  for (int i : rotations_array->index_range()) {
-    rotation.values[i] = *((*rotations_array)[i]);
-  }
+  rotation.values = copy_span_to_array(*rotations_array);
   return rotation;
 }
 
@@ -260,40 +377,6 @@ void Transformable::set_rotation(const Rotation &rotation)
   Rotation rot_in_correct_mode = rotation.converted_to_mode(current_mode);
   for (int i : rotations_array->index_range()) {
     *(*rotations_array)[i] = rot_in_correct_mode.values[i];
-  }
-}
-
-static bool should_modify_axis(const int index, const AxisFlag axis_flag)
-{
-  if (axis_flag == AXIS_FLAG_NONE) {
-    return true;
-  }
-  return axis_flag & (1 << index);
-}
-
-static void blend_linear(MutableSpan<float> values,
-                         const float target,
-                         const float factor,
-                         const AxisFlag axis_flag)
-{
-  for (int i : values.index_range()) {
-    if (!should_modify_axis(i, axis_flag)) {
-      continue;
-    }
-    values[i] += factor * (target - values[i]);
-  }
-}
-
-static void blend_linear(MutableSpan<float> values,
-                         const Span<float> target,
-                         const float factor,
-                         const AxisFlag axis_flag)
-{
-  for (int i : values.index_range()) {
-    if (!should_modify_axis(i, axis_flag)) {
-      continue;
-    }
-    values[i] += factor * (target[i] - values[i]);
   }
 }
 

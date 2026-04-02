@@ -52,12 +52,20 @@ struct Rotation {
   static Rotation interpolated(const Rotation &a, const Rotation &b, float factor);
 };
 
+/**
+ * Provides a common interface to transform values for multiple structs.
+ * In a way this is similar to RNA, however RNA has the issue that the properties don't have
+ * consistent naming making it not possible to work with them in a generic way.
+ */
 class Transformable {
  public:
   enum class Type : int8_t {
     POSE_BONE,
     OBJECT,
   };
+
+  /* For generic access to property values. */
+  enum class PropertyType : int8_t { LOCATION, ROTATION, SCALE };
 
  private:
   Type type_;
@@ -103,6 +111,23 @@ class Transformable {
   /* Returns the rna path from the ID to the struct represented by this transformable. If the
    * struct is an ID this is an empty string. */
   StringRefNull rna_path() const;
+
+  /**
+   * Returns a copy of the property values for the given property type.
+   * While this will return the values of the current rotation mode for PropertyType::ROTATION, it
+   * is best to use the explicit function for it so a `Rotation` struct is returned which has more
+   * features for dealing with different rotation modes.
+   */
+  Array<float> get_property(PropertyType prop_type) const;
+  /**
+   * Generic way to set the given transform property. It is asserted that the value count matches
+   * the current rotation mode. Use `set_rotation` to automatically convert to the correct mode.
+   */
+  void set_property(PropertyType prop_type, Span<float> values);
+  void blend_property_to(PropertyType prop_type,
+                         Span<float> values,
+                         float factor,
+                         AxisFlag axis_flag);
 
   /* Returns a copy of the current location. */
   Array<float> get_location() const;
