@@ -292,6 +292,11 @@ inline const Attribute::DataVariant &Attribute::data() const
   return data_;
 }
 
+inline AttrStorageType Attribute::storage_type() const
+{
+  return AttrStorageType(data_.index());
+}
+
 inline void Attribute::assign_data(DataVariant &&data)
 {
   data_ = std::move(data);

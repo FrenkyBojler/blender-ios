@@ -35,6 +35,14 @@ static CLG_LogRef LOG = {"geom.attribute"};
 
 namespace bke {
 
+/* Check that directly returning the index in #Attribute::structure_type() is correct. */
+static_assert(
+    std::is_same_v<std::variant_alternative_t<int(AttrStorageType::Array), Attribute::DataVariant>,
+                   Attribute::ArrayData>);
+static_assert(std::is_same_v<
+              std::variant_alternative_t<int(AttrStorageType::Single), Attribute::DataVariant>,
+              Attribute::SingleData>);
+
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
  private:
   void *data_;
@@ -143,18 +151,6 @@ Attribute::SingleData Attribute::SingleData::from_value(const GPointer &value)
 Attribute::SingleData Attribute::SingleData::from_default_value(const CPPType &type)
 {
   return from_value(default_value_for_type(type));
-}
-
-AttrStorageType Attribute::storage_type() const
-{
-  if (std::get_if<Attribute::ArrayData>(&data_)) {
-    return AttrStorageType::Array;
-  }
-  if (std::get_if<Attribute::SingleData>(&data_)) {
-    return AttrStorageType::Single;
-  }
-  BLI_assert_unreachable();
-  return AttrStorageType::Array;
 }
 
 Attribute::DataVariant &Attribute::data_for_write()
