@@ -328,6 +328,13 @@ Enable optimizations even on Debug builds for executables used for the build pro
 )
 mark_as_advanced(WITH_OPTIMIZED_BUILD_TOOLS)
 
+option(WITH_HWPGO "Compile with Hardware Profile Guided Optimization" OFF)
+
+set(HWPGO_MODE "NONE" CACHE STRING "HWPGO mode: NONE, GENERATE, USE")
+set_property(CACHE HWPGO_MODE PROPERTY STRINGS NONE GENERATE USE)
+set(HWPGO_PROFILE "" CACHE FILEPATH "Path to HWPGO profile")
+
+option(WITH_LTO "Compile with Linke Time Optimization" OFF)																		  
 option(WITH_IK_ITASC "\
 Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)"
   ON
@@ -2585,7 +2592,13 @@ if(FIRST_RUN)
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)
   info_cfg_option(WITH_OPTIMIZED_BUILD_TOOLS)
-
+  info_cfg_option(WITH_HWPGO)
+  info_cfg_option(HWPGO_MODE)
+  if(HWPGO_MODE STREQUAL "USE")
+    info_cfg_option(HWPGO_PROFILE)
+  endif()
+  info_cfg_option(WITH_LTO)							 
+							 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)
   info_cfg_option(WITH_TBB_MALLOC_PROXY)
