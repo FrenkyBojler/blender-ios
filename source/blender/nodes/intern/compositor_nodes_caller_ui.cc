@@ -37,8 +37,6 @@ namespace blender::nodes {
 
 namespace {
 
-/* This class must not have a destructor, since it is used by buttons and freed with
- * #MEM_delete_void. */
 struct DrawGroupInputsContext {
   const bContext &C;
   bNodeTree *tree;
