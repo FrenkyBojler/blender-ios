@@ -2097,6 +2097,7 @@ namespace bke {
 const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &sound,
                                                                  const Key &key)
 {
+#ifdef WITH_AUDASPACE
   {
     /* Fast common case when the sampler has been created already. */
     bSoundFrequencySamplerMap::ConstAccessor accessor;
@@ -2117,6 +2118,10 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
     accessor->second = std::make_shared<bSoundFrequencySampler>(sound, key);
   }
   return accessor->second.get();
+#else
+  UNUSED_VARS(sound, key);
+  return nullptr;
+#endif
 }
 
 static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
@@ -2172,6 +2177,7 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
       key_(key),
       window_weights_(get_window_function_weights(key.window_function, key.fft_size))
 {
+#ifdef WITH_AUDASPACE
   AUD_Sound sound_handle = sound.runtime->handle;
   const SoundInfo info = bke::sound_info_get(sound_handle);
   samples_per_second_ = info.specs.samplerate;
@@ -2181,10 +2187,19 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
   const int window_caches_num = std::ceil(info.length * info.specs.samplerate /
                                           window_cache_stride_);
   window_caches_.reinitialize(window_caches_num);
+#else
+  UNUSED_VARS(sound, key);
+  BLI_assert_unreachable();
+#endif
 }
 
 std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_sample) const
 {
+  /* Since the result of the dft algorithm is symmetric in this case, only the first half is
+   * computed. */
+  const int frequencies_num = key_.fft_size / 2;
+
+#ifdef WITH_AUDASPACE
   /* Prepare the reader. */
   AUD_Sound sound_handle = sound_.runtime->handle;
   std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
@@ -2223,10 +2238,6 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
     buffer[i] *= window_weights_.weights[i];
   }
 
-  /* Since the result of the dft algorithm is symmetric in this case, only the first half is
-   * computed. */
-  const int frequencies_num = key_.fft_size / 2;
-
   /* Set up the fftw plan. */
   fftwf_complex *fftwf_buffer = static_cast<fftwf_complex *>(
       fftwf_malloc(sizeof(fftwf_complex) * (frequencies_num + 1)));
@@ -2253,6 +2264,10 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   }
 
   return frequency_amplitudes;
+#else
+  UNUSED_VARS(start_sample);
+  return Array<float>(frequencies_num, 0.0f);
+#endif
 }
 
 float bSoundFrequencySampler::sample(const float time, const float low, const float high) const
