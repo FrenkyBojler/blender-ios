@@ -4788,7 +4788,6 @@ void node_draw_space(const bContext &C, ARegion &region)
   ui::view2d_view_ortho(&v2d);
   draw_background_color();
   GPU_depth_test(GPU_DEPTH_NONE);
-  GPU_scissor_test(true);
 
   /* XXX `snode->runtime->cursor` set in coordinate-space for placing new nodes,
    * used for drawing noodles too. */
@@ -4845,8 +4844,7 @@ void node_draw_space(const bContext &C, ARegion &region)
         GPU_matrix_push_projection();
         wmOrtho2_region_pixelspace(&region);
 
-        const bool is_compositor = ntree->type == NTREE_COMPOSIT;
-        const bool show_render_region = is_compositor &&
+        const bool show_render_region = ED_node_is_compositor(&snode) &&
                                         snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
                                         snode.overlay.flag & SN_OVERLAY_SHOW_RENDER_REGION &&
                                         snode.flag & SNODE_BACKDRAW;

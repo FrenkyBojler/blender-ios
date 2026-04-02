@@ -37,7 +37,6 @@
  * Other Details:
  * - used unsigned values all over for some extra speed on some arch's.
  * - anti-aliasing is faked, just ensuring at least one pixel feather - avoids oversampling.
- * - initializing the spacial structure doesn't need to be as optimized as pixel lookups are.
  * - mask lookups need not be pixel aligned so any sub-pixel values from x/y (0 - 1), can be found.
  *   (perhaps masks can be used as a vector texture in 3D later on)
  * Currently, to build the spacial structure we have to calculate
@@ -88,8 +87,11 @@ namespace blender {
 #define SPLINE_RESOL_CAP_MIN 8
 #define SPLINE_RESOL_CAP_MAX 64
 
-/* found this gives best performance for high detail masks, values between 2 and 8 work best */
-#define BUCKET_PIXELS_PER_CELL 4
+/* Bucket size in pixels: smaller values are more granular (less work for raster loop),
+ * but more memory and more work in single threaded initialization time. Found that 8
+ * seems to be optimal for both simple (150 faces) & complex (16000 faces) masks at
+ * HD / 4K resolutions. */
+static constexpr int BUCKET_PIXELS_PER_CELL = 8;
 
 #define SF_EDGE_IS_BOUNDARY 0xff
 #define SF_KEYINDEX_TEMP_ID uint(-1)
@@ -107,6 +109,7 @@ namespace blender {
       BLI_assert(_t[1] < vert_max); \
       BLI_assert(_t[2] < vert_max); \
       BLI_assert(_t[3] < vert_max || _t[3] == TRI_VERT); \
+      UNUSED_VARS_NDEBUG(vert_max); \
     } \
     (void)0
 #else
@@ -444,74 +447,70 @@ static void maskrasterize_spline_differentiate_point_outset(float (*diff_feather
   }
 }
 
-/* this function is not exact, sometimes it returns false positives,
- * the main point of it is to clear out _almost_ all bucket/face non-intersections,
- * returning true in corner cases is ok but missing an intersection is NOT.
- *
- * method used
- * - check if the center of the buckets bounding box is intersecting the face
- * - if not get the max radius to a corner of the bucket and see how close we
- *   are to any of the triangle edges.
- */
+/* Check if triangle overlaps a bucket cell. This is based on Separating Axis Theorem,
+ * note that it only checks triangle edges against the cell (not cell edges against triangle -
+ * the calling code already only visits cells that are within triangle bounding box). */
+static bool isect_aabb_tri_v2(const float xmin,
+                              const float ymin,
+                              const float xmax,
+                              const float ymax,
+                              const float v1[2],
+                              const float v2[2],
+                              const float v3[2])
+{
+  /* Test each triangle edge. */
+  const float *va[3] = {v1, v2, v3};
+  for (int i = 0; i < 3; i++) {
+    const float *a = va[i];
+    const float *b = va[(i + 1) % 3];
+    const float *c = va[(i + 2) % 3];
+    /* Edge normal. */
+    float nx = -(b[1] - a[1]);
+    float ny = b[0] - a[0];
+    /* Project the opposite vertex along the normal. */
+    float d_c = nx * (c[0] - a[0]) + ny * (c[1] - a[1]);
+    /* Project the cell box using the p-vertex (max along normal) and n-vertex (min along normal);
+     * pick the p/n vertices based on normal component signs. */
+    float box_max = nx * (nx >= 0.0f ? xmax : xmin) - nx * a[0] + ny * (ny >= 0.0f ? ymax : ymin) -
+                    ny * a[1];
+    float box_min = nx * (nx >= 0.0f ? xmin : xmax) - nx * a[0] + ny * (ny >= 0.0f ? ymin : ymax) -
+                    ny * a[1];
+    /* No intersection when intervals do not overlap. */
+    if (box_max < fminf(0.0f, d_c) || box_min > fmaxf(0.0f, d_c)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* Check if face overlaps the bucket cell. */
 static bool layer_bucket_isect_test(const MaskRasterLayer *layer,
                                     uint face_index,
                                     const uint bucket_x,
                                     const uint bucket_y,
                                     const float bucket_size_x,
-                                    const float bucket_size_y,
-                                    const float bucket_max_rad_squared)
+                                    const float bucket_size_y)
 {
-  uint *face = layer->face_array[face_index];
-  float (*cos)[3] = layer->face_coords;
+  const uint *face = layer->face_array[face_index];
+  const float (*cos)[3] = layer->face_coords;
 
   const float xmin = layer->bounds.xmin + (bucket_size_x * float(bucket_x));
   const float ymin = layer->bounds.ymin + (bucket_size_y * float(bucket_y));
   const float xmax = xmin + bucket_size_x;
   const float ymax = ymin + bucket_size_y;
 
-  const float cent[2] = {(xmin + xmax) * 0.5f, (ymin + ymax) * 0.5f};
-
-  if (face[3] == TRI_VERT) {
-    const float *v1 = cos[face[0]];
-    const float *v2 = cos[face[1]];
-    const float *v3 = cos[face[2]];
-
-    if (isect_point_tri_v2(cent, v1, v2, v3)) {
-      return true;
-    }
-
-    if ((dist_squared_to_line_segment_v2(cent, v1, v2) < bucket_max_rad_squared) ||
-        (dist_squared_to_line_segment_v2(cent, v2, v3) < bucket_max_rad_squared) ||
-        (dist_squared_to_line_segment_v2(cent, v3, v1) < bucket_max_rad_squared))
-    {
-      return true;
-    }
-
-    // printf("skip tri\n");
-    return false;
-  }
-
   const float *v1 = cos[face[0]];
   const float *v2 = cos[face[1]];
   const float *v3 = cos[face[2]];
-  const float *v4 = cos[face[3]];
-
-  if (isect_point_tri_v2(cent, v1, v2, v3)) {
+  if (isect_aabb_tri_v2(xmin, ymin, xmax, ymax, v1, v2, v3)) {
     return true;
   }
-  if (isect_point_tri_v2(cent, v1, v3, v4)) {
-    return true;
+  if (face[3] != TRI_VERT) {
+    const float *v4 = cos[face[3]];
+    if (isect_aabb_tri_v2(xmin, ymin, xmax, ymax, v1, v3, v4)) {
+      return true;
+    }
   }
-
-  if ((dist_squared_to_line_segment_v2(cent, v1, v2) < bucket_max_rad_squared) ||
-      (dist_squared_to_line_segment_v2(cent, v2, v3) < bucket_max_rad_squared) ||
-      (dist_squared_to_line_segment_v2(cent, v3, v4) < bucket_max_rad_squared) ||
-      (dist_squared_to_line_segment_v2(cent, v4, v1) < bucket_max_rad_squared))
-  {
-    return true;
-  }
-
-  // printf("skip quad\n");
   return false;
 }
 
@@ -563,9 +562,6 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
     /* width and height of each bucket */
     const float bucket_size_x = (bucket_dim_x + FLT_EPSILON) / float(layer->buckets_x);
     const float bucket_size_y = (bucket_dim_y + FLT_EPSILON) / float(layer->buckets_y);
-    const float bucket_max_rad = (max_ff(bucket_size_x, bucket_size_y) * float(M_SQRT2)) +
-                                 FLT_EPSILON;
-    const float bucket_max_rad_squared = bucket_max_rad * bucket_max_rad;
 
     uint *face = &layer->face_array[0][0];
     float (*cos)[3] = layer->face_coords;
@@ -639,25 +635,13 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
           for (yi = yi_min; yi <= yi_max; yi++) {
             uint bucket_index = (layer->buckets_x * yi) + xi_min;
             for (xi = xi_min; xi <= xi_max; xi++, bucket_index++) {
-              /* correct but do in outer loop */
-              // uint bucket_index = (layer->buckets_x * yi) + xi;
 
               BLI_assert(xi < layer->buckets_x);
               BLI_assert(yi < layer->buckets_y);
               BLI_assert(bucket_index < bucket_tot);
 
               /* Check if the bucket intersects with the face. */
-              /* NOTE: there is a trade off here since checking box/tri intersections isn't as
-               * optimal as it could be, but checking pixels against faces they will never
-               * intersect with is likely the greater slowdown here -
-               * so check if the cell intersects the face. */
-              if (layer_bucket_isect_test(layer,
-                                          face_index,
-                                          xi,
-                                          yi,
-                                          bucket_size_x,
-                                          bucket_size_y,
-                                          bucket_max_rad_squared))
+              if (layer_bucket_isect_test(layer, face_index, xi, yi, bucket_size_x, bucket_size_y))
               {
                 BLI_linklist_prepend_arena(&bucketstore[bucket_index], face_index_void, arena);
                 bucketstore_tot[bucket_index]++;
@@ -1646,6 +1630,7 @@ static void maskrasterize_layer_init_cdt(MaskRasterHandle *mr_handle,
     MEM_delete(open_spline_ranges);
 
     BLI_assert(face_index == face_num);
+    UNUSED_VARS_NDEBUG(face_index);
 
     if (BLI_rctf_isect(&default_bounds, &bounds, &bounds)) {
       layer->face_tot = face_num;
