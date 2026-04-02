@@ -463,7 +463,7 @@ uint64_t AttributeFieldInput::hash() const
   return get_default_hash(name_, type_);
 }
 
-bool AttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
+bool AttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
 {
   if (const AttributeFieldInput *other_typed = dynamic_cast<const AttributeFieldInput *>(&other)) {
     return name_ == other_typed->name_ && type_ == other_typed->type_;
@@ -483,6 +483,13 @@ std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     return std::nullopt;
   }
   return meta_data->domain;
+}
+
+const fn::GField &AttributeFieldInput::position_field()
+{
+  static const fn::GField position_field = AttributeFieldInput::from<float3>("position");
+  static const fn::GField position_field_ref = fn::GField::from_non_owning_ref(position_field);
+  return position_field_ref;
 }
 
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
@@ -522,7 +529,7 @@ uint64_t IDAttributeFieldInput::hash() const
   return 92386459827;
 }
 
-bool IDAttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
+bool IDAttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
 {
   /* All random ID attribute inputs are the same within the same evaluation context. */
   return dynamic_cast<const IDAttributeFieldInput *>(&other) != nullptr;
@@ -566,7 +573,7 @@ uint64_t NamedLayerSelectionFieldInput::hash() const
   return get_default_hash(layer_name_, type_);
 }
 
-bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldNode &other) const
+bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldInput &other) const
 {
   if (const NamedLayerSelectionFieldInput *other_named_layer =
           dynamic_cast<const NamedLayerSelectionFieldInput *>(&other))
@@ -749,10 +756,9 @@ GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldCo
   return attributes.adapt_domain(GVArray::from_garray(std::move(values)), src_domain_, dst_domain);
 }
 
-void EvaluateOnDomainInput::for_each_field_input_recursive(
-    FunctionRef<void(const FieldInput &)> fn) const
+void EvaluateOnDomainInput::foreach_recursive_field(FunctionRef<void(const fn::GField &)> fn) const
 {
-  src_field_.node().for_each_field_input_recursive(fn);
+  fn(src_field_);
 }
 
 std::optional<AttrDomain> EvaluateOnDomainInput::preferred_domain(
@@ -792,7 +798,7 @@ uint64_t NormalFieldInput::hash() const
   return get_default_hash(2980541, legacy_corner_normals_, true_normals_);
 }
 
-bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
+bool NormalFieldInput::is_equal_to(const fn::FieldInput &other) const
 {
   if (const NormalFieldInput *other_typed = dynamic_cast<const NormalFieldInput *>(&other)) {
     return legacy_corner_normals_ == other_typed->legacy_corner_normals_ &&
@@ -803,8 +809,8 @@ bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
 
 static std::optional<StringRefNull> try_get_field_direct_attribute_id(const fn::GField &any_field)
 {
-  if (const auto *field = dynamic_cast<const AttributeFieldInput *>(&any_field.node())) {
-    return field->attribute_name();
+  if (const auto *attribute_input = any_field.get_input_if<AttributeFieldInput>()) {
+    return attribute_input->attribute_name();
   }
   return {};
 }
@@ -913,7 +919,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection);
 
-  const bool selection_is_full = !selection.node().depends_on_input() &&
+  const bool selection_is_full = !selection.depends_on_input() &&
                                  fn::evaluate_constant_field(selection);
 
   struct StoreResult {
@@ -939,13 +945,13 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   bool success = true;
 
   for (const int input_index : names.index_range()) {
-    const StringRef id = names[input_index];
+    const StringRef name = names[input_index];
     const CPPType &type = fields[input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
 
     /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
     if (const std::optional<AttributeDomainAndType> meta_data =
-            attributes.get_builtin_domain_and_type(id))
+            attributes.get_builtin_domain_and_type(name))
     {
       if (*meta_data != AttributeDomainAndType{domain, data_type}) {
         success = false;
@@ -953,11 +959,11 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
-    const AttributeValidator validator = attributes.lookup_validator(id);
+    const AttributeValidator validator = attributes.lookup_validator(name);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
 
     /* We are writing to an attribute that exists already with the correct domain and type. */
-    if (const GAttributeReader dst = attributes.lookup(id)) {
+    if (const GAttributeReader dst = attributes.lookup(name)) {
       if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
         const int evaluator_index = evaluator.add(field);
         results_to_store.append({input_index, evaluator_index});
@@ -966,18 +972,18 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     }
 
     if (!validator && selection_is_full) {
-      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
+      if (try_add_shared_field_attribute(attributes, name, domain, field)) {
         continue;
       }
     }
 
-    if (field.node().depends_on_input() || !selection_is_full) {
+    if (field.depends_on_input() || !selection_is_full) {
       /* Could avoid allocating a new buffer if:
        * - The field does not depend on that attribute (we can't easily check for that yet). */
       void *buffer = MEM_new_uninitialized_aligned(
           type.size * domain_size, type.alignment, __func__);
       if (!selection_is_full) {
-        initialize_new_data(attributes, domain, domain_size, id, type, data_type, buffer);
+        initialize_new_data(attributes, domain, domain_size, name, type, data_type, buffer);
       }
 
       GMutableSpan dst(type, buffer, domain_size);
@@ -995,31 +1001,31 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
 
   for (const StoreResult &result : results_to_store) {
-    const StringRef id = names[result.input_index];
+    const StringRef name = names[result.input_index];
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
     const CommonVArrayInfo info = result_data.common_info();
     if (selection_is_full) {
       if (info.type == CommonVArrayInfo::Type::Single) {
-        if (try_assign_single_value(attributes, id, GPointer(result_data.type(), info.data))) {
+        if (try_assign_single_value(attributes, name, GPointer(result_data.type(), info.data))) {
           continue;
         }
       }
     }
-    const GAttributeReader dst = attributes.lookup(id);
+    const GAttributeReader dst = attributes.lookup(name);
     if (!attribute_data_matches_varray(dst, info)) {
-      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
+      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(name);
       array_utils::copy(result_data, mask, dst_mut.span);
       dst_mut.finish();
     }
   }
 
   for (AddResult &result : results_to_add) {
-    const StringRef id = names[result.input_index];
-    attributes.remove(id);
+    const StringRef name = names[result.input_index];
+    attributes.remove(name);
     const CPPType &type = fields[result.input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
     if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
-      if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(array->data))) {
+      if (!attributes.add(name, domain, data_type, AttributeInitMoveArray(array->data))) {
         /* If the name corresponds to a builtin attribute, removing the attribute might fail if
          * it's required, adding the attribute might fail if the domain or type is incorrect. */
         type.destruct_n(array->data, domain_size);
@@ -1030,7 +1036,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     else {
       const auto value = std::get<AddResult::Single>(result.new_data);
       const AttributeInitValue init(GPointer(type, value.value));
-      if (!attributes.add(id, domain, data_type, init)) {
+      if (!attributes.add(name, domain, data_type, init)) {
         success = false;
       }
     }
@@ -1093,7 +1099,7 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
                                     const AttrDomain domain,
                                     const Span<fn::GField> fields)
 {
-  const fn::Field<bool> selection = fn::make_constant_field<bool>(true);
+  const fn::Field<bool> selection = fn::Field<bool>(true);
   return try_capture_fields_on_geometry(component, names, domain, selection, fields);
 }
 
@@ -1110,7 +1116,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
   if (component_type == GeometryComponent::Type::Instance) {
     return AttrDomain::Instance;
   }
-  const std::shared_ptr<const fn::FieldInputs> &field_inputs = field.node().field_inputs();
+  const fn::FieldInputsPtr &field_inputs = field.field_inputs();
   if (!field_inputs) {
     return std::nullopt;
   }
@@ -1134,7 +1140,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     if (mesh == nullptr) {
       return std::nullopt;
     }
-    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+    for (const fn::FieldInput &field_input : field_inputs->inputs) {
       if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
               &field_input))
       {
@@ -1158,7 +1164,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     if (curves == nullptr) {
       return std::nullopt;
     }
-    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+    for (const fn::FieldInput &field_input : field_inputs->inputs) {
       if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
               &field_input))
       {

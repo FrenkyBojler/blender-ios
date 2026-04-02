@@ -23,6 +23,8 @@
 #include "BKE_image_format.hh"
 #include "BKE_path_templates.hh"
 
+#include "BLT_translation.hh"
+
 namespace blender {
 
 namespace path_templates = bke::path_templates;
@@ -177,7 +179,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 /* File Types */
 
-int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
+eImbFileType BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
   *r_options = ImbFormatOptions();
 
@@ -236,7 +238,7 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
   return IMB_FTYPE_JPG;
 }
 
-char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
+char BKE_ftype_to_imtype(const eImbFileType ftype, const ImbFormatOptions *options)
 {
   if (ftype == IMB_FTYPE_NONE) {
     return R_IMF_IMTYPE_TARGA;
@@ -679,6 +681,13 @@ static Vector<path_templates::Error> do_makepicstring(
   if (use_frames) {
     BLI_path_frame(filepath, FILE_MAX, frame, 4);
   }
+  else {
+    /* Avoid empty filename if there is no frame and only a directory was specified. */
+    const size_t len = strlen(filepath);
+    if (len && BLI_path_slash_is_native_compat(filepath[len - 1])) {
+      BLI_path_suffix(filepath, FILE_MAX, DATA_("Untitled"), "");
+    }
+  }
 
   if (suffix) {
     BLI_path_suffix(filepath, FILE_MAX, suffix, "");
@@ -948,7 +957,7 @@ static char imtype_best_depth(const ImBuf *ibuf, const char imtype)
 void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 {
   /* Read from ImBuf after file read. */
-  int ftype = imbuf->ftype;
+  eImbFileType ftype = imbuf->ftype;
   int custom_flags = imbuf->foptions.flag;
   char quality = imbuf->foptions.quality;
   char compress = imbuf->foptions.compress;

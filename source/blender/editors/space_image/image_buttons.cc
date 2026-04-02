@@ -1069,8 +1069,12 @@ void uiTemplateImageSettings(ui::Layout *layout,
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
         if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
           PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
-          color_settings.prop(
-              &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+          color_settings.prop_with_menu(&linear_settings_ptr,
+                                        "name",
+                                        UI_ITEM_NONE,
+                                        IFACE_("Color Space"),
+                                        ICON_NONE,
+                                        "UI_MT_color_space_select");
         }
       }
       else {
@@ -1270,7 +1274,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
     }
     else if (ima->source == IMA_SRC_SEQUENCE && ibuf) {
       /* Image sequence frame number + filename */
-      const char *filename = BLI_path_basename(ibuf->filepath);
+      const char *filename = BLI_path_basename(ibuf->filepath.c_str());
       SNPRINTF_UTF8(str, RPT_("Frame %d: %s"), framenr, filename);
     }
     else {
