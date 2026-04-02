@@ -9,8 +9,6 @@
 #include <string>
 #include <variant>
 
-#include "DNA_node_types.h"
-
 #include "BLI_assert.h"
 #include "BLI_color_types.hh"
 #include "BLI_compiler_compat.h"
@@ -231,9 +229,6 @@ class Result {
 
   /* Returns the type of the given GPU texture format. */
   static ResultType type(gpu::TextureFormat format);
-
-  /* Returns the result type from the given node socket data type. */
-  static std::optional<ResultType> from_socket_data_type(eNodeSocketDatatype type);
 
   /* Returns the CPP type corresponding to the given result type. */
   static const CPPType &cpp_type(const ResultType type);

@@ -432,49 +432,6 @@ const char *Result::type_name(const ResultType type)
   return "";
 }
 
-std::optional<ResultType> Result::from_socket_data_type(const eNodeSocketDatatype type)
-{
-  switch (type) {
-    case SOCK_FLOAT:
-      return ResultType::Float;
-    case SOCK_INT:
-      return ResultType::Int;
-    case SOCK_RGBA:
-      return ResultType::Color;
-    case SOCK_BOOLEAN:
-      return ResultType::Bool;
-    case SOCK_VECTOR:
-      return ResultType::Float3;
-    case SOCK_INT_VECTOR:
-      return ResultType::Int3;
-    case SOCK_ROTATION:
-      return ResultType::Float4;
-    case SOCK_STRING:
-      return ResultType::String;
-    case SOCK_MENU:
-      return ResultType::Menu;
-    case SOCK_MATRIX:
-    case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
-    case SOCK_CUSTOM:
-    case SOCK_SHADER:
-    case SOCK_OBJECT:
-    case SOCK_IMAGE:
-    case SOCK_GEOMETRY:
-    case SOCK_COLLECTION:
-    case SOCK_TEXTURE:
-    case SOCK_MATERIAL:
-    case SOCK_FONT:
-    case SOCK_SCENE:
-    case SOCK_TEXT_ID:
-    case SOCK_MASK:
-    case SOCK_SOUND:
-      return {};
-  }
-  BLI_assert_unreachable();
-  return {};
-}
-
 Result::operator gpu::Texture *() const
 {
   return this->gpu_texture();

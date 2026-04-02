@@ -13,6 +13,7 @@
 #include "COM_domain.hh"
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_result.hh"
+#include "COM_utilities.hh"
 
 #include "DNA_node_types.h"
 #include "DNA_sequence_types.h"
@@ -277,40 +278,32 @@ class CompositorModifierContext : public CompositorContext {
     for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
       const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
       const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-
-      PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
-      const std::optional<ResultType> result_type = Result::from_socket_data_type(socket_type);
-      Result *input_result = new Result(
-          this->create_result(result_type.value_or(ResultType::Color), ResultPrecision::Full));
-      if (result_type) {
-        if (!found_image_input && socket_type == SOCK_RGBA) {
-          /* First color socket is the image input. */
-          create_result_from_input(*input_result, *image_buffer_);
-          found_image_input = true;
-        }
-        else if (!found_mask_input && socket_type == SOCK_RGBA) {
-          /* Second socket is the mask input. */
-          render_mask_input(this->mod_context_, this->timeline_frame_);
-          if (this->mask_.is_allocated()) {
-            input_result->set_type(this->mask_.type());
-            input_result->set_precision(this->mask_.precision());
-            input_result->wrap_external(this->mask_);
-            input_result->set_transformation(this->mask_transform_);
-          }
-          else {
-            input_result->allocate_invalid();
-          }
-          found_mask_input = true;
+      const ResultType result_type = compositor::get_node_interface_socket_result_type(
+          *input_socket);
+      Result *input_result = new Result(this->create_result(result_type, ResultPrecision::Full));
+      if (!found_image_input && socket_type == SOCK_RGBA) {
+        /* First color socket is the image input. */
+        create_result_from_input(*input_result, *image_buffer_);
+        found_image_input = true;
+      }
+      else if (!found_mask_input && socket_type == SOCK_RGBA) {
+        /* Second socket is the mask input. */
+        render_mask_input(this->mod_context_, this->timeline_frame_);
+        if (this->mask_.is_allocated()) {
+          input_result->set_type(this->mask_.type());
+          input_result->set_precision(this->mask_.precision());
+          input_result->wrap_external(this->mask_);
+          input_result->set_transformation(this->mask_transform_);
         }
         else {
-          PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
-          input_result->allocate_single_value();
-          set_single_input_from_rna_value(&input_props_ptr, socket_type, *input_result);
+          input_result->allocate_invalid();
         }
+        found_mask_input = true;
       }
       else {
-        /* The rest of the sockets are not supported. */
-        input_result->allocate_invalid();
+        PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
+        input_result->allocate_single_value();
+        set_single_input_from_rna_value(&input_props_ptr, socket_type, *input_result);
       }
 
       node_group_operation.map_input_to_result(input_socket->identifier, input_result);
