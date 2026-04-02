@@ -29,7 +29,7 @@ a) Open an administrator command prompt
 
 b) Load the VTune environment:
 ```
-"C:\Program Files (x86)\Intel\oneAPI\vtune\latest\setvars.cmd"
+"C:\Program Files (x86)\Intel\oneAPI\vtune\latest\sep_vars.cmd"
 ```
 
 c) Run the collection script. It takes a workload definition in JSON format (see below) and drives `sep` for each scene:
