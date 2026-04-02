@@ -205,9 +205,7 @@ class CompositorModifierContext : public CompositorContext {
         image_transform_matrix_get(mod_context.render_data.scene, &mod_context.strip));
 
     PointerRNA ptr = RNA_pointer_create_discrete(
-        const_cast<ID *>(&mod_context.render_data.scene->id),
-        RNA_SequencerCompositorModifierData,
-        modifier_data);
+        &mod_context.render_data.scene->id, RNA_SequencerCompositorModifierData, modifier_data);
     properties_ptr_ = RNA_pointer_get(&ptr, "properties");
   }
 
