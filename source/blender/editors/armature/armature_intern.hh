@@ -169,8 +169,8 @@ struct tPChanFCurveLink {
   float curve_in_x, curve_in_z = 0;
   float curve_out_x, curve_out_z = 0;
   float ease1, ease2 = 0;
-  float scale_in[3];
-  float scale_out[3];
+  float scale_in[3] = {0, 0, 0};
+  float scale_out[3] = {0, 0, 0};
 
   /** copy of custom properties at start of operator (to be restored before each modal step) */
   IDProperty *oldprops = nullptr;

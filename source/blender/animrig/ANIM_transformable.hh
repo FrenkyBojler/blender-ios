@@ -39,6 +39,12 @@ enum AxisFlag : int8_t {
   AXIS_FLAG_W = 1 << 3,
 };
 
+/**
+ * Interpolated the values linearly based on `factor` and returns a new Array. Asserts that boths
+ * spans are the same length.
+ */
+Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
+
 /* Describes a rotation in a specific mode. */
 struct Rotation {
   /* The array size differs depending on the rotation mode. */
@@ -124,8 +130,12 @@ class Transformable {
    * the current rotation mode. Use `set_rotation` to automatically convert to the correct mode.
    */
   void set_property(PropertyType prop_type, Span<float> values);
+  /**
+   * Do a linear blend of the property values towards the given `target`. It is asserted that the
+   * given span size equals the property size.
+   */
   void blend_property_to(PropertyType prop_type,
-                         Span<float> values,
+                         Span<float> target,
                          float factor,
                          AxisFlag axis_flag);
 

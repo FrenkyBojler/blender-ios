@@ -364,25 +364,38 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
     prev_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
     next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
   }
+  const float current_frame = float(pso.current_frame);
+
+  /* Encodes a percentage value of where the current frame is between prev_- and next_frame. At 0
+   * it is at prev_frame. */
+  const float current_frame_factor = (current_frame - pso.prev_frame) /
+                                     (pso.next_frame - pso.prev_frame);
+  /* Note christoph: After looking at POSESLIDE_PUSH and _RELAX for a long time I finally realized
+   * what they do. They take the linear interpolation of the values based on the current frame and
+   * blend the current pose towards or away from it. The usefulness of this is likely limited and
+   * the naming could be better. */
+  Array<float> current_frame_breakdown = animrig::property_interpolated(
+      prev_values, next_values, current_frame_factor);
 
   const animrig::AxisFlag lock = animrig::AxisFlag(pso.axislock);
 
   switch (pso.mode) {
-    case POSESLIDE_PUSH: /* Make the current pose more pronounced. */
-    {
+
+    case POSESLIDE_PUSH: {
       /* Slide the pose away from the breakdown pose in the timeline */
+      transformable->blend_property_to(prop_type, current_frame_breakdown, -factor, lock);
       break;
     }
-    case POSESLIDE_RELAX: /* Make the current pose more like its surrounding ones. */
-    {
+    case POSESLIDE_RELAX: {
       /* Slide the pose towards the breakdown pose in the timeline */
+      transformable->blend_property_to(prop_type, current_frame_breakdown, factor, lock);
       break;
     }
     case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
     {
       /* Perform simple linear interpolation. */
-      transformable->set_property(prop_type, prev_values);
-      transformable->blend_property_to(prop_type, next_values, factor, lock);
+      Array<float> breakdown = animrig::property_interpolated(prev_values, next_values, factor);
+      transformable->set_property(prop_type, breakdown);
       break;
     }
     case POSESLIDE_BLEND: /* Blend the current pose with the previous (<50%) or next key (>50%). */
@@ -414,31 +427,15 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
 static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, float *val)
 {
   float prev_frame, next_frame;
-  float prev_weight, next_weight;
   pose_frame_range_from_id_get(pso, id, &prev_frame, &next_frame);
 
   const float factor = ED_slider_factor_get(pso->slider);
   const float current_frame = float(pso->current_frame);
 
-  /* Calculate the relative weights of the endpoints. */
-  if (pso->mode == POSESLIDE_BREAKDOWN) {
-    /* Get weights from the factor control. */
-    next_weight = factor;
-    prev_weight = 1.0f - next_weight;
-  }
-  else {
-    /* - these weights are derived from the relative distance of these
-     *   poses from the current frame
-     * - they then get normalized so that they only sum up to 1
-     */
-
-    next_weight = current_frame - float(pso->prev_frame);
-    prev_weight = float(pso->next_frame) - current_frame;
-
-    const float total_weight = next_weight + prev_weight;
-    next_weight = (next_weight / total_weight);
-    prev_weight = (prev_weight / total_weight);
-  }
+  /* Encodes a percentage value of where the current frame is between prev_- and next_frame. At 0
+   * it is at prev_frame. */
+  const float current_frame_factor = (current_frame - pso->prev_frame) /
+                                     (pso->next_frame - pso->prev_frame);
 
   /* Get keyframe values for endpoint poses to blend with. */
   /* Previous/start. */
@@ -450,13 +447,17 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, f
     case POSESLIDE_PUSH: /* Make the current pose more pronounced. */
     {
       /* Slide the pose away from the breakdown pose in the timeline */
-      (*val) -= ((prev_frame_y * prev_weight) + (next_frame_y * next_weight) - (*val)) * factor;
+      (*val) -= ((prev_frame_y * (1 - current_frame_factor)) +
+                 (next_frame_y * current_frame_factor) - (*val)) *
+                factor;
       break;
     }
     case POSESLIDE_RELAX: /* Make the current pose more like its surrounding ones. */
     {
       /* Slide the pose towards the breakdown pose in the timeline */
-      (*val) += ((prev_frame_y * prev_weight) + (next_frame_y * next_weight) - (*val)) * factor;
+      (*val) += ((prev_frame_y * (1 - current_frame_factor)) +
+                 (next_frame_y * current_frame_factor) - (*val)) *
+                factor;
       break;
     }
     case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
@@ -1373,7 +1374,9 @@ void POSE_OT_push(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Push Pose from Breakdown";
   ot->idname = "POSE_OT_push";
-  ot->description = "Exaggerate the current pose in regards to the breakdown pose";
+  ot->description =
+      "From the current pose, interpolate away from the linear interpolation between the previous "
+      "and next frame";
 
   /* callbacks */
   ot->exec = pose_slide_push_exec;
@@ -1430,7 +1433,9 @@ void POSE_OT_relax(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Relax Pose to Breakdown";
   ot->idname = "POSE_OT_relax";
-  ot->description = "Make the current pose more similar to its breakdown pose";
+  ot->description =
+      "From the current pose, interpolate towards the linear interpolation between the previous "
+      "and next frame";
 
   /* callbacks */
   ot->exec = pose_slide_relax_exec;

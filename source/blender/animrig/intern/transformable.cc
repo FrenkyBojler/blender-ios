@@ -77,6 +77,16 @@ static void blend_linear(MutableSpan<float> values,
   }
 }
 
+Array<float> property_interpolated(Span<float> a, Span<float> b, float factor)
+{
+  BLI_assert(a.size() == b.size());
+  Array<float> interpolated(a.size());
+  for (int i : a.index_range()) {
+    interpolated[i] = interpf(a[i], b[i], factor);
+  }
+  return interpolated;
+}
+
 /* Using a namespace instead of enum class because these should still be used as indices into an
  * array and an enum class would require casting for that. */
 namespace RotationModeIndex {
