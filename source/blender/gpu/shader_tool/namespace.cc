@@ -95,8 +95,7 @@ static void parse_namespace_symbols(Scope ns, metadata::Source &metadata)
 
 void SourceProcessor::parse_local_symbols(Parser &parser)
 {
-  parser().foreach_scope(ScopeType::Namespace,
-                         [&](const Scope &ns) { parse_namespace_symbols(ns, metadata_); });
+  parse_namespace_symbols(parser(), metadata_);
 }
 
 static void lower_namespace(string ns_prefix,
@@ -124,8 +123,30 @@ static void lower_namespace(string ns_prefix,
     if (token.prev() == '.') {
       return;
     }
+    Token next = token.next();
     /* Only process the end token of a namespace qualified identifier. */
-    if (token.next() == ':') {
+    if (next == ':') {
+      return;
+    }
+
+    bool is_pipeline_arg = false;
+    if (token.scope().type() == ScopeType::FunctionArg) {
+      std::string_view type = token.scope().scope().front().prev(2).str();
+      is_pipeline_arg = (type == "PipelineGraphic" || type == "PipelineCompute");
+    }
+
+    if (is_pipeline_arg) {
+      /* Special case for pipelines. We need to match the function names but they are arguments. */
+    }
+    /* Only process function calls or types. */
+    else if (next != '<' &&  /* Templated type or function. */
+             next != '{' &&  /* Type definition. */
+             next != '&' &&  /* Reference definition. */
+             next != Word && /* Variable definition. */
+             token.scope().type() != parser::ScopeType::TemplateArg && /* Template argument. */
+             next != '(' /* Function call or reference definition. */
+    )
+    {
       return;
     }
 
@@ -145,6 +166,8 @@ static void lower_namespace(string ns_prefix,
       }
     }
 
+    const int token_line = token.line_number();
+
     for (const auto &symbol : symbols_set) {
       if (token.str() != symbol.identifier) {
         continue;
@@ -155,20 +178,19 @@ static void lower_namespace(string ns_prefix,
       }
       /* Reject symbols declared after the identifier.
        * Note that static method have their definition line at the top of the struct. */
-      if (token.line_number() < symbol.definition_line) {
+      if (token_line < symbol.definition_line) {
         continue;
       }
       /* Symbol as it could be specified from this namespace. */
       string symbol_visible = symbol.name_space.substr(ns_prefix.size()) + symbol.identifier;
 
       bool append_struct_ns = false;
+      string specified_symbol = token.full_symbol_name();
       /* First try to match methods. */
       if (symbol.is_method && !struct_name.empty()) {
         if (!symbol.is_static) {
           continue;
         }
-
-        string specified_symbol = token.full_symbol_name();
 
         bool is_prev_ns_specifier = token.prev() == ':' && token.prev(2) == ':';
         if (!is_prev_ns_specifier) {
@@ -185,8 +207,36 @@ static void lower_namespace(string ns_prefix,
       }
       else {
         /* Other symbols. */
-        if (token.full_symbol_name() != symbol_visible) {
+        if (specified_symbol != symbol_visible) {
           continue;
+        }
+      }
+
+      /* Only for non-definition. */
+      if (token.prev() != Word) {
+        /* WORKAROUND: Since we do not have overload argument type infos, we cannot resolve
+         * them like C++ does. Instead, we error on ambiguity and let the user resolve it. */
+        for (const auto &overload : symbols_set) {
+          /* Searching for overload in other namespaces. */
+          if (overload.name_space == symbol.name_space || overload.identifier != symbol.identifier)
+          {
+            continue;
+          }
+          /* Reject symbols declared after the identifier.
+           * Note that static method have their definition line at the top of the struct. */
+          if (token_line < overload.definition_line) {
+            continue;
+          }
+          /* Only expand symbols that are visible inside this namespace. */
+          if (ns_prefix.substr(0, overload.name_space.size()) != overload.name_space) {
+            continue;
+          }
+          if (specified_symbol != overload.identifier) {
+            continue;
+          }
+          report_error(ERROR_TOK(token),
+                       "Call to function is ambiguous. Specify namespace to remove ambiguity.");
+          break;
         }
       }
 

@@ -435,10 +435,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.link);
   }
 
-  if (!USER_VERSION_ATLEAST(502, 100)) {
-    btheme->tui.notification_blend = U_theme_default.tui.notification_blend;
-  }
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1774,6 +1770,10 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(502, 100)) {
     userdef->notification_position = USER_NOTIFICATION_POS_RIGHT;
     userdef->notification_seconds = U_default.notification_seconds;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 13)) {
+    userdef->geometry_nodes_stack_limit = 100;
   }
 
   /**
