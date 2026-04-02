@@ -345,6 +345,7 @@ class SourceProcessor {
       const Token &inst_start,
       const Token &inst_name,
       const Scope &inst_args,
+      const std::string_view ns,
       const Token &fn_start,
       const Token &fn_end,
       const Token &fn_name,

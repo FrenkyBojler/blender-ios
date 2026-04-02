@@ -84,6 +84,7 @@ void SourceProcessor::lower_template_instantiation(
     const Token &inst_start,
     const Token &inst_name,
     const Scope &inst_args,
+    const string_view ns,
     const Token &fn_start,
     const Token &fn_end,
     const Token &fn_name,
@@ -125,6 +126,18 @@ void SourceProcessor::lower_template_instantiation(
   /* Specialize template content. */
   SourceProcessor::Parser instance_parser(fn_decl, report_error_);
 
+  /* Inject namespace around definition. */
+  if (ns.empty()) {
+    instance_parser.insert_before(instance_parser.front(), "\n");
+    instance_parser.insert_after(instance_parser.back(), "\n");
+  }
+  else {
+    /* Remove suffix "::". */
+    string ns_name(ns.substr(0, ns.size() - 2));
+    instance_parser.insert_before(instance_parser.front(), "namespace " + ns_name + " {\n");
+    instance_parser.insert_after(instance_parser.back(), "\n}\n");
+  }
+
   instance_parser().foreach_token(Word, [&](const Token &word) {
     string_view token_str = word.str();
     for (const auto &arg_name_value : arg_name_value_pairs) {
@@ -152,7 +165,9 @@ void SourceProcessor::lower_template_instantiation(
   lower_pre_template(instance_parser);
 
   /* Paste template content in place of instantiation. */
-  string instance = instance_parser.result_get() + '\n';
+  string instance = instance_parser.result_get();
+  /* Remove added newline from the injected namespace. */
+  instance = instance.substr(instance.find_first_of('\n') + 1);
   parser.erase(inst_start, inst_end);
   if (is_method) {
     /* Method are put back in their classes. */
@@ -255,18 +270,23 @@ void SourceProcessor::process_template_struct(
   Scope struct_body = struct_name.next().scope();
 
   Token struct_end = struct_body.back().next();
-  const string struct_decl = parser.substr_range_inclusive(struct_start, struct_end);
+  const string struct_decl = def_parser.substr_range_inclusive(struct_start, struct_end);
 
   vector<string> arg_list;
   bool all_template_args_in_function_signature = false;
   template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
     parse_template_definition(
-        arg, arg_list, Scope(parser), all_template_args_in_function_signature, report_error_);
+        arg, arg_list, Scope(def_parser), all_template_args_in_function_signature, report_error_);
   });
 
   /* Remove declaration. */
   Token template_keyword = template_scope.front().prev();
-  parser.erase(template_keyword, struct_end);
+  def_parser.erase(template_keyword, struct_end);
+
+  string full_specified_name(template_def.name_space + template_def.identifier);
+  SourceProcessor::Parser name_parser(full_specified_name, report_error_);
+  lower_scope_resolution_operators(name_parser);
+  full_specified_name = name_parser.result_get();
 
   string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
   string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
@@ -283,10 +303,11 @@ void SourceProcessor::process_template_struct(
                                  tokens[0],
                                  tokens[2],
                                  tokens[3].scope(),
+                                 template_def.name_space,
                                  struct_start,
                                  struct_end,
                                  struct_name,
-                                 struct_name.str(),
+                                 full_specified_name,
                                  false,
                                  arg_list,
                                  struct_decl,
@@ -345,6 +366,9 @@ void SourceProcessor::process_template_function(
   def_parser.erase(template_keyword, fn_end);
 
   string full_specified_name(template_def.name_space + template_def.identifier);
+  SourceProcessor::Parser name_parser(full_specified_name, report_error_);
+  lower_scope_resolution_operators(name_parser);
+  full_specified_name = name_parser.result_get();
 
   string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
   string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
@@ -360,6 +384,7 @@ void SourceProcessor::process_template_function(
                                  tokens[0],
                                  tokens[2],
                                  tokens[3].scope(),
+                                 template_def.name_space,
                                  fn_start,
                                  fn_end,
                                  fn_name,

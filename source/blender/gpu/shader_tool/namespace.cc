@@ -55,6 +55,10 @@ static void parse_namespace_symbols(SourceProcessor::Parser &parser,
   };
 
   auto process_templates = [&](Scope ns_scope, Token t, bool is_method) {
+    if (t.scope() != ns_scope) {
+      return;
+    }
+
     if (t.next() == '<') {
       if (t.next(2) == '>') {
         /* Template specialization.*/
