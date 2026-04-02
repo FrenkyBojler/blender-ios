@@ -22,6 +22,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_blender_user_menu.hh"
 #include "BKE_report.hh"
 #include "BKE_studiolight.h"
 
@@ -372,6 +373,33 @@ static void rna_UserMenu_items_move(bUserMenu *um, ReportList *reports, int from
     BKE_reportf(reports, RPT_ERROR, "Cannot move item from index %d to %d", from, to);
     return;
   }
+  USERDEF_TAG_DIRTY;
+}
+
+static void rna_UserMenu_items_remove(bUserMenu *um, ReportList *reports, PointerRNA *item_ptr)
+{
+  bUserMenuItem *umi = static_cast<bUserMenuItem *>(item_ptr->data);
+  if (BLI_findindex(reinterpret_cast<ListBase *>(&um->items), umi) == -1) {
+    BKE_report(reports, RPT_ERROR, "Menu item not found");
+    return;
+  }
+  BLI_remlink(reinterpret_cast<ListBase *>(&um->items), umi);
+  BKE_blender_user_menu_item_free(umi);
+  USERDEF_TAG_DIRTY;
+}
+
+static void rna_UserMenu_items_add_separator(bUserMenu *um,
+                                             ReportList *reports,
+                                             PointerRNA *after_ptr)
+{
+  bUserMenuItem *after = static_cast<bUserMenuItem *>(after_ptr->data);
+  if (BLI_findindex(reinterpret_cast<ListBase *>(&um->items), after) == -1) {
+    BKE_report(reports, RPT_ERROR, "Menu item not found");
+    return;
+  }
+  bUserMenuItem *sep = BKE_blender_user_menu_item_add(&um->items, USER_MENU_TYPE_SEP);
+  BLI_remlink(&um->items, sep);
+  BLI_insertlinkafter(&um->items, after, sep);
   USERDEF_TAG_DIRTY;
 }
 
@@ -7812,6 +7840,20 @@ static void rna_def_userdef_user_menu_items_collection(BlenderRNA *brna, Propert
   parm = RNA_def_int(
       func, "to_index", -1, INT_MIN, INT_MAX, "To Index", "Target index", 0, 10000);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "remove", "rna_UserMenu_items_remove");
+  RNA_def_function_ui_description(func, "Remove a menu item");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "item", "UserMenuItem", "", "Menu item to remove");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+
+  func = RNA_def_function(srna, "add_separator", "rna_UserMenu_items_add_separator");
+  RNA_def_function_ui_description(func, "Add a separator after a menu item");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "after", "UserMenuItem", "", "Item to add separator after");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }
 
 static void rna_def_userdef_user_menu(BlenderRNA *brna)
