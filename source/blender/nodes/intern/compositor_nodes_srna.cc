@@ -41,23 +41,13 @@ const EnumPropertyItem compositor_nodes_input_type_items_value[] = {
 };
 
 static std::pair<const Strip *, const StripModifierData *>
-find_strip_modifier_data_from_system_property(const PointerRNA *ptr)
+find_strip_and_modifier_data_from_system_property(const PointerRNA *ptr)
 {
-  bool found = false;
-  const Strip *strip = nullptr;
-  const StripModifierData *md = nullptr;
-  for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
-    if (RNA_struct_is_a(ancestor.type, RNA_StripModifier)) {
-      md = static_cast<const StripModifierData *>(ancestor.data);
+  if (const auto modifier = RNA_struct_search_closest_ancestor_by_type(ptr, RNA_StripModifier)) {
+    if (const auto strip = RNA_struct_search_closest_ancestor_by_type(ptr, RNA_Strip)) {
+      return {static_cast<const Strip *>(strip->data),
+              static_cast<const StripModifierData *>(modifier->data)};
     }
-    else if (RNA_struct_is_a(ancestor.type, RNA_Strip)) {
-      strip = static_cast<const Strip *>(ancestor.data);
-      found = true;
-      break;
-    }
-  }
-  if (found) {
-    return {strip, md};
   }
   const Scene *sequencer_scene = id_cast<const Scene *>(ptr->owner_id);
   const Editing *ed = seq::editing_get(sequencer_scene);
@@ -83,7 +73,7 @@ static std::optional<std::string> rna_CompositorNodesModifierProperty_path(
 {
   StructRNA *srna = ptr->type;
   const char *identifier = RNA_struct_identifier(srna);
-  const auto [strip, smd] = find_strip_modifier_data_from_system_property(ptr);
+  const auto [strip, smd] = find_strip_and_modifier_data_from_system_property(ptr);
   BLI_assert(strip && smd);
   std::string strip_name_esc = BLI_str_escape(strip->name + 2);
   std::string modifier_name_esc = BLI_str_escape(smd->name);

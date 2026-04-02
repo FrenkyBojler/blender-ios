@@ -1103,10 +1103,11 @@ static void make_common_type_prop(StructRNA &srna,
 }
 static PointerRNA find_compositor_modifier(PointerRNA *ptr)
 {
-  for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
-    if (RNA_struct_is_a(ancestor.type, RNA_SequencerCompositorModifierProperties)) {
-      return PointerRNA(ptr->owner_id, ancestor.type, ancestor.data);
-    }
+  if (const std::optional<AncestorPointerRNA> ancestor =
+          RNA_struct_search_closest_ancestor_by_type(ptr,
+                                                     RNA_SequencerCompositorModifierProperties))
+  {
+    return PointerRNA(ptr->owner_id, ancestor->type, ancestor->data);
   }
   return PointerRNA_NULL;
 }
