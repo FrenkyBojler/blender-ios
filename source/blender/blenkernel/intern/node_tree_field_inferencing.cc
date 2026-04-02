@@ -679,15 +679,15 @@ static Array<FieldSocketState> calc_socket_states(
 {
   auto get_state_to_store = [&](const SocketFieldState &state) {
     if (state.is_always_single) {
-      return FieldSocketState::RequiresSingle;
+      return FieldSocketState::REQUIRES_SINGLE;
     }
     if (!state.is_single) {
-      return FieldSocketState::IsField;
+      return FieldSocketState::IS_FIELD;
     }
     if (state.requires_single) {
-      return FieldSocketState::RequiresSingle;
+      return FieldSocketState::REQUIRES_SINGLE;
     }
-    return FieldSocketState::CanBeField;
+    return FieldSocketState::CAN_BE_FIELD;
   };
 
   Array<FieldSocketState> result(field_state_by_socket_id.size());

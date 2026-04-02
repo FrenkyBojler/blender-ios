@@ -549,27 +549,27 @@ static bool can_simple_adapt_for_single(const Mesh &mesh,
    * be loose elements on the result domain that should have the default value rather than the
    * single value from the source. */
   switch (from_domain) {
-    case AttrDomain::Point:
+    case AttrDomain::POINT:
       /* All other domains are always connected to points. */
       return true;
-    case AttrDomain::Edge:
-      if (to_domain == AttrDomain::Point) {
+    case AttrDomain::EDGE:
+      if (to_domain == AttrDomain::POINT) {
         return mesh.loose_verts().is_empty();
       }
       return true;
-    case AttrDomain::Face:
-      if (to_domain == AttrDomain::Point) {
+    case AttrDomain::FACE:
+      if (to_domain == AttrDomain::POINT) {
         return mesh.verts_no_face().is_empty();
       }
-      if (to_domain == AttrDomain::Edge) {
+      if (to_domain == AttrDomain::EDGE) {
         return mesh.loose_edges().is_empty();
       }
       return true;
-    case AttrDomain::Corner:
-      if (to_domain == AttrDomain::Point) {
+    case AttrDomain::CORNER:
+      if (to_domain == AttrDomain::POINT) {
         return mesh.verts_no_face().is_empty();
       }
-      if (to_domain == AttrDomain::Edge) {
+      if (to_domain == AttrDomain::EDGE) {
         return mesh.loose_edges().is_empty();
       }
       return true;
@@ -602,52 +602,52 @@ static GVArray adapt_mesh_attribute_domain(const Mesh &mesh,
   }
 
   switch (from_domain) {
-    case AttrDomain::Corner: {
+    case AttrDomain::CORNER: {
       switch (to_domain) {
-        case AttrDomain::Point:
+        case AttrDomain::POINT:
           return adapt_mesh_domain_corner_to_point(mesh, varray);
-        case AttrDomain::Face:
+        case AttrDomain::FACE:
           return adapt_mesh_domain_corner_to_face(mesh, varray);
-        case AttrDomain::Edge:
+        case AttrDomain::EDGE:
           return adapt_mesh_domain_corner_to_edge(mesh, varray);
         default:
           break;
       }
       break;
     }
-    case AttrDomain::Point: {
+    case AttrDomain::POINT: {
       switch (to_domain) {
-        case AttrDomain::Corner:
+        case AttrDomain::CORNER:
           return adapt_mesh_domain_point_to_corner(mesh, varray);
-        case AttrDomain::Face:
+        case AttrDomain::FACE:
           return adapt_mesh_domain_point_to_face(mesh, varray);
-        case AttrDomain::Edge:
+        case AttrDomain::EDGE:
           return adapt_mesh_domain_point_to_edge(mesh, varray);
         default:
           break;
       }
       break;
     }
-    case AttrDomain::Face: {
+    case AttrDomain::FACE: {
       switch (to_domain) {
-        case AttrDomain::Point:
+        case AttrDomain::POINT:
           return adapt_mesh_domain_face_to_point(mesh, varray);
-        case AttrDomain::Corner:
+        case AttrDomain::CORNER:
           return adapt_mesh_domain_face_to_corner(mesh, varray);
-        case AttrDomain::Edge:
+        case AttrDomain::EDGE:
           return adapt_mesh_domain_face_to_edge(mesh, varray);
         default:
           break;
       }
       break;
     }
-    case AttrDomain::Edge: {
+    case AttrDomain::EDGE: {
       switch (to_domain) {
-        case AttrDomain::Corner:
+        case AttrDomain::CORNER:
           return adapt_mesh_domain_edge_to_corner(mesh, varray);
-        case AttrDomain::Point:
+        case AttrDomain::POINT:
           return adapt_mesh_domain_edge_to_point(mesh, varray);
-        case AttrDomain::Face:
+        case AttrDomain::FACE:
           return adapt_mesh_domain_edge_to_face(mesh, varray);
         default:
           break;
@@ -716,13 +716,13 @@ static int get_domain_size(const void *owner, const AttrDomain domain)
 {
   const Mesh *mesh = static_cast<const Mesh *>(owner);
   switch (domain) {
-    case AttrDomain::Point:
+    case AttrDomain::POINT:
       return mesh->verts_num;
-    case AttrDomain::Edge:
+    case AttrDomain::EDGE:
       return mesh->edges_num;
-    case AttrDomain::Face:
+    case AttrDomain::FACE:
       return mesh->faces_num;
-    case AttrDomain::Corner:
+    case AttrDomain::CORNER:
       return mesh->corners_num;
     default:
       return 0;
@@ -735,9 +735,9 @@ static GAttributeReader reader_for_vertex_group_index(const Mesh &mesh,
 {
   BLI_assert(vertex_group_index >= 0);
   if (dverts.is_empty()) {
-    return {VArray<float>::from_single(0.0f, mesh.verts_num), AttrDomain::Point};
+    return {VArray<float>::from_single(0.0f, mesh.verts_num), AttrDomain::POINT};
   }
-  return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
+  return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::POINT};
 }
 
 static GAttributeReader try_get_vertex_group(const void *owner, const StringRef name)
@@ -765,7 +765,7 @@ static GAttributeWriter try_get_vertex_group_for_write(void *owner, const String
     return {};
   }
   MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
-  return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
+  return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::POINT};
 }
 
 static bool foreach_vertex_group(const void *owner, FunctionRef<void(const AttributeIter &)> fn)
@@ -780,7 +780,7 @@ static bool foreach_vertex_group(const void *owner, FunctionRef<void(const Attri
   for (const auto [group_index, group] : mesh->vertex_group_names.enumerate()) {
     const int index = group_index;
     const auto get_fn = [&]() { return reader_for_vertex_group_index(*mesh, dverts, index); };
-    AttributeIter iter{group.name, AttrDomain::Point, bke::AttrType::Float, get_fn};
+    AttributeIter iter{group.name, AttrDomain::POINT, bke::AttrType::FLOAT, get_fn};
     iter.is_builtin = false;
     iter.accessor = &accessor;
     fn(iter);
@@ -796,7 +796,7 @@ static const auto &builtin_attributes()
   static auto attributes = []() {
     Map<StringRef, AttrBuiltinInfo> map;
 
-    AttrBuiltinInfo position(AttrDomain::Point, AttrType::Float3);
+    AttrBuiltinInfo position(AttrDomain::POINT, AttrType::FLOAT3);
     position.deletable = false;
     map.add_new("position", std::move(position));
 
@@ -807,7 +807,7 @@ static const auto &builtin_attributes()
           return std::clamp<int>(value, 0, std::numeric_limits<short>::max());
         },
         mf::build::exec_presets::AllSpanOrSingle());
-    AttrBuiltinInfo material_index(AttrDomain::Face, AttrType::Int32);
+    AttrBuiltinInfo material_index(AttrDomain::FACE, AttrType::INT32);
     material_index.validator = AttributeValidator{&material_index_clamp};
     map.add_new("material_index", std::move(material_index));
 
@@ -815,7 +815,7 @@ static const auto &builtin_attributes()
         "Index Validate",
         [](int2 value) { return math::max(value, int2(0)); },
         mf::build::exec_presets::AllSpanOrSingle());
-    AttrBuiltinInfo edge_verts(AttrDomain::Edge, AttrType::Int32_2D);
+    AttrBuiltinInfo edge_verts(AttrDomain::EDGE, AttrType::INT32_2_D);
     edge_verts.validator = AttributeValidator{&int2_index_clamp};
     map.add_new(".edge_verts", std::move(edge_verts));
 
@@ -825,18 +825,18 @@ static const auto &builtin_attributes()
         "Index Validate",
         [](int value) { return std::max(value, 0); },
         mf::build::exec_presets::AllSpanOrSingle());
-    AttrBuiltinInfo corner_vert(AttrDomain::Corner, AttrType::Int32);
+    AttrBuiltinInfo corner_vert(AttrDomain::CORNER, AttrType::INT32);
     corner_vert.validator = AttributeValidator{&int_index_clamp};
     map.add_new(".corner_vert", std::move(corner_vert));
 
-    AttrBuiltinInfo corner_edge(AttrDomain::Corner, AttrType::Int32);
+    AttrBuiltinInfo corner_edge(AttrDomain::CORNER, AttrType::INT32);
     corner_edge.validator = AttributeValidator{&int_index_clamp};
     map.add_new(".corner_edge", std::move(corner_edge));
 
-    AttrBuiltinInfo sharp_face(AttrDomain::Face, AttrType::Bool);
+    AttrBuiltinInfo sharp_face(AttrDomain::FACE, AttrType::BOOL);
     map.add_new("sharp_face", std::move(sharp_face));
 
-    AttrBuiltinInfo sharp_edge(AttrDomain::Edge, AttrType::Bool);
+    AttrBuiltinInfo sharp_edge(AttrDomain::EDGE, AttrType::BOOL);
     map.add_new("sharp_edge", std::move(sharp_edge));
 
     return map;
@@ -848,7 +848,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
 {
   AttributeAccessorFunctions fn{};
   fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
-    return ELEM(domain, AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face, AttrDomain::Corner);
+    return ELEM(domain, AttrDomain::POINT, AttrDomain::EDGE, AttrDomain::FACE, AttrDomain::CORNER);
   };
   fn.domain_size = get_domain_size;
   fn.builtin_domain_and_type = [](const void * /*owner*/,
@@ -866,7 +866,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
   fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
     const Mesh &mesh = *static_cast<const Mesh *>(owner);
     if (BKE_defgroup_name_index(&mesh.vertex_group_names, name) != -1) {
-      return AttributeMetaData{AttrDomain::Point, AttrType::Float};
+      return AttributeMetaData{AttrDomain::POINT, AttrType::FLOAT};
     }
     const AttributeStorage &storage = mesh.attribute_storage.wrap();
     const Attribute *attr = storage.lookup(name);
@@ -989,7 +989,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
     const bool array = array_storage_required().contains(name);
     Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer, array);
     storage.add(name, domain, type, std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }
@@ -1020,7 +1020,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
                                                          initializer,
                                                          array_storage_required().contains(name));
     attr->assign_data(std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }

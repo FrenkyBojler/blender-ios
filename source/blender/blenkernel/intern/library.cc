@@ -514,17 +514,17 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   id_us_ensure_real(&archive_library->id);
 
   archive_library->archive_parent_library = &reference_library;
-  constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
-  archive_library->flag = (reference_library.flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
+  constexpr uint16_t COPY_FLAG = ~LIBRARY_FLAG_IS_ARCHIVE;
+  archive_library->flag = (reference_library.flag & COPY_FLAG) | LIBRARY_FLAG_IS_ARCHIVE;
   BKE_library_filepath_set(&bmain, archive_library, reference_library.filepath);
 
   archive_library->runtime->parent = reference_library.runtime->parent;
   /* Only copy a subset of the reference library tags. E.g. an archive library should never be
    * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
    * tweaking still. */
-  constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+  constexpr uint16_t COPY_TAG = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
                                  LIBRARY_IS_ASSET_EDIT_FILE);
-  archive_library->runtime->tag = reference_library.runtime->tag & copy_tag;
+  archive_library->runtime->tag = reference_library.runtime->tag & COPY_TAG;
   /* By definition, the file version of an archive library containing only packed linked data is
    * the same as the one of its Main container. */
   archive_library->runtime->versionfile = bmain.versionfile;

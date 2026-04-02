@@ -101,10 +101,10 @@ namespace bke {
 struct SceneAudioRuntime;
 
 enum class SoundTags {
-  None = 0,
+  NONE = 0,
   /* Do not free/reset waveform on sound load, only used by undo code. */
-  WaveformNoReload = 1 << 0,
-  WaveformLoading = 1 << 1,
+  WAVEFORM_NO_RELOAD = 1 << 0,
+  WAVEFORM_LOADING = 1 << 1,
 };
 ENUM_OPERATORS(SoundTags);
 
@@ -120,7 +120,7 @@ struct SoundRuntime {
   /* Note: not by-value since #sound_foreach_cache can only
    * save/restore a pointer. */
   Vector<float> *waveform = nullptr;
-  SoundTags tags = SoundTags::None;
+  SoundTags tags = SoundTags::NONE;
 };
 
 }  // namespace bke
@@ -136,11 +136,11 @@ static void sound_init_runtime(bSound *sound)
 static void sound_free_waveform(bSound *sound)
 {
   bke::SoundRuntime *runtime = sound->runtime;
-  if (!flag_is_set(runtime->tags, bke::SoundTags::WaveformNoReload)) {
+  if (!flag_is_set(runtime->tags, bke::SoundTags::WAVEFORM_NO_RELOAD)) {
     MEM_SAFE_DELETE(runtime->waveform);
   }
   /* This tag is only valid once. */
-  runtime->tags &= ~bke::SoundTags::WaveformNoReload;
+  runtime->tags &= ~bke::SoundTags::WAVEFORM_NO_RELOAD;
 }
 
 static void sound_copy_data(Main * /*bmain*/,
@@ -223,7 +223,7 @@ static void sound_blend_read_data(BlendDataReader *reader, ID *id)
   bSound *sound = id_cast<bSound *>(id);
   sound_init_runtime(sound);
   if (BLO_read_data_is_undo(reader)) {
-    sound->runtime->tags |= bke::SoundTags::WaveformNoReload;
+    sound->runtime->tags |= bke::SoundTags::WAVEFORM_NO_RELOAD;
   }
 
   BKE_packedfile_blend_read(reader, &sound->packedfile, sound->filepath);
@@ -499,7 +499,7 @@ static bool sound_use_close_thread()
 
 static void delayed_close_thread_run()
 {
-  constexpr std::chrono::milliseconds device_close_delay{30000};
+  constexpr std::chrono::milliseconds DEVICE_CLOSE_DELAY{30000};
 
   std::unique_lock lock(g_state.sound_device_mutex);
 
@@ -519,7 +519,7 @@ static void delayed_close_thread_run()
       }
       else {
         g_state.delayed_close_cv.wait_until(
-            lock, g_state.last_user_disconnect_time_point + device_close_delay);
+            lock, g_state.last_user_disconnect_time_point + DEVICE_CLOSE_DELAY);
       }
     }
     else {
@@ -554,7 +554,7 @@ static void delayed_close_thread_run()
     }
 
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-    if ((now - g_state.last_user_disconnect_time_point) >= device_close_delay) {
+    if ((now - g_state.last_user_disconnect_time_point) >= DEVICE_CLOSE_DELAY) {
       sound_device_close_no_lock();
     }
   }
@@ -1323,7 +1323,7 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
   if (*stop) {
     MEM_SAFE_DELETE(runtime->waveform);
     BLI_spin_lock(&runtime->spinlock);
-    runtime->tags &= ~bke::SoundTags::WaveformLoading;
+    runtime->tags &= ~bke::SoundTags::WAVEFORM_LOADING;
     BLI_spin_unlock(&runtime->spinlock);
     return;
   }
@@ -1332,7 +1332,7 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
 
   BLI_spin_lock(&runtime->spinlock);
   runtime->waveform = waveform;
-  runtime->tags &= ~bke::SoundTags::WaveformLoading;
+  runtime->tags &= ~bke::SoundTags::WAVEFORM_LOADING;
   BLI_spin_unlock(&runtime->spinlock);
 
   if (need_close_audio_handles) {
@@ -2055,7 +2055,7 @@ void BKE_sound_runtime_clear_waveform_loading_tag(bSound *sound)
 {
   bke::SoundRuntime *runtime = sound->runtime;
   BLI_spin_lock(&runtime->spinlock);
-  runtime->tags &= ~bke::SoundTags::WaveformLoading;
+  runtime->tags &= ~bke::SoundTags::WAVEFORM_LOADING;
   BLI_spin_unlock(&runtime->spinlock);
 }
 
@@ -2066,9 +2066,9 @@ bool BKE_sound_runtime_start_waveform_loading(bSound *sound)
   BLI_spin_lock(&runtime->spinlock);
   if (runtime->waveform == nullptr) {
     /* Load the waveform data if it hasn't been loaded and cached already. */
-    if (!flag_is_set(runtime->tags, bke::SoundTags::WaveformLoading)) {
+    if (!flag_is_set(runtime->tags, bke::SoundTags::WAVEFORM_LOADING)) {
       /* Prevent sounds from reloading. */
-      runtime->tags |= bke::SoundTags::WaveformLoading;
+      runtime->tags |= bke::SoundTags::WAVEFORM_LOADING;
       result = true;
     }
   }

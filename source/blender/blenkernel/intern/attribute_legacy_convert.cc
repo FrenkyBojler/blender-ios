@@ -84,33 +84,33 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
 
     /* Attribute types. */
     case CD_PROP_FLOAT:
-      return AttrType::Float;
+      return AttrType::FLOAT;
     case CD_PROP_INT32:
-      return AttrType::Int32;
+      return AttrType::INT32;
     case CD_PROP_BYTE_COLOR:
-      return AttrType::ColorByte;
+      return AttrType::COLOR_BYTE;
     case CD_PROP_FLOAT4X4:
-      return AttrType::Float4x4;
+      return AttrType::FLOAT4X4;
     case CD_PROP_INT16_2D:
-      return AttrType::Int16_2D;
+      return AttrType::INT16_2_D;
     case CD_PROP_INT8:
-      return AttrType::Int8;
+      return AttrType::INT8;
     case CD_PROP_INT32_2D:
-      return AttrType::Int32_2D;
+      return AttrType::INT32_2_D;
     case CD_PROP_COLOR:
-      return AttrType::ColorFloat;
+      return AttrType::COLOR_FLOAT;
     case CD_PROP_FLOAT3:
-      return AttrType::Float3;
+      return AttrType::FLOAT3;
     case CD_PROP_FLOAT4:
-      return AttrType::Float4;
+      return AttrType::FLOAT4;
     case CD_PROP_FLOAT2:
-      return AttrType::Float2;
+      return AttrType::FLOAT2;
     case CD_PROP_BOOL:
-      return AttrType::Bool;
+      return AttrType::BOOL;
     case CD_PROP_STRING:
-      return AttrType::String;
+      return AttrType::STRING;
     case CD_PROP_QUATERNION:
-      return AttrType::Quaternion;
+      return AttrType::QUATERNION;
   }
   return std::nullopt;
 }
@@ -191,33 +191,33 @@ static void attribute_legacy_convert_customdata_to_storage(
 std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr_type)
 {
   switch (attr_type) {
-    case AttrType::Bool:
+    case AttrType::BOOL:
       return CD_PROP_BOOL;
-    case AttrType::Int8:
+    case AttrType::INT8:
       return CD_PROP_INT8;
-    case AttrType::Int16_2D:
+    case AttrType::INT16_2_D:
       return CD_PROP_INT16_2D;
-    case AttrType::Int32:
+    case AttrType::INT32:
       return CD_PROP_INT32;
-    case AttrType::Int32_2D:
+    case AttrType::INT32_2_D:
       return CD_PROP_INT32_2D;
-    case AttrType::Float:
+    case AttrType::FLOAT:
       return CD_PROP_FLOAT;
-    case AttrType::Float2:
+    case AttrType::FLOAT2:
       return CD_PROP_FLOAT2;
-    case AttrType::Float3:
+    case AttrType::FLOAT3:
       return CD_PROP_FLOAT3;
-    case AttrType::Float4:
+    case AttrType::FLOAT4:
       return CD_PROP_FLOAT4;
-    case AttrType::Float4x4:
+    case AttrType::FLOAT4X4:
       return CD_PROP_FLOAT4X4;
-    case AttrType::ColorByte:
+    case AttrType::COLOR_BYTE:
       return CD_PROP_BYTE_COLOR;
-    case AttrType::ColorFloat:
+    case AttrType::COLOR_FLOAT:
       return CD_PROP_COLOR;
-    case AttrType::Quaternion:
+    case AttrType::QUATERNION:
       return CD_PROP_QUATERNION;
-    case AttrType::String:
+    case AttrType::STRING:
       return CD_PROP_STRING;
   }
   return std::nullopt;
@@ -226,18 +226,18 @@ std::optional<eCustomDataType> attr_type_to_custom_data_type(const AttrType attr
 void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
   bke::attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
-       {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
-       {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
-       {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}},
+      {{AttrDomain::POINT, {mesh.vert_data, mesh.verts_num}},
+       {AttrDomain::EDGE, {mesh.edge_data, mesh.edges_num}},
+       {AttrDomain::FACE, {mesh.face_data, mesh.faces_num}},
+       {AttrDomain::CORNER, {mesh.corner_data, mesh.corners_num}}},
       mesh.attribute_storage.wrap());
 }
 
 void curves_convert_customdata_to_storage(CurvesGeometry &curves)
 {
   attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
-       {AttrDomain::Curve, {curves.curve_data_legacy, curves.curves_num()}}},
+      {{AttrDomain::POINT, {curves.point_data, curves.points_num()}},
+       {AttrDomain::CURVE, {curves.curve_data_legacy, curves.curves_num()}}},
       curves.attribute_storage.wrap());
   CustomData_reset(&curves.curve_data_legacy);
   /* Update the curve type count again (the first time was done on file-read, where
@@ -248,7 +248,7 @@ void curves_convert_customdata_to_storage(CurvesGeometry &curves)
 void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 {
   attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}},
+      {{AttrDomain::POINT, {pointcloud.pdata_legacy, pointcloud.totpoint}}},
       pointcloud.attribute_storage.wrap());
   CustomData_reset(&pointcloud.pdata_legacy);
 }
@@ -256,7 +256,7 @@ void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {
   attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Layer,
+      {{AttrDomain::LAYER,
         {grease_pencil.layers_data_legacy, int(grease_pencil.layers().size())}}},
       grease_pencil.attribute_storage.wrap());
   CustomData_reset(&grease_pencil.layers_data_legacy);
@@ -265,13 +265,13 @@ void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 static const CustomData &get_custom_data(const Mesh &mesh, const AttrDomain domain)
 {
   switch (domain) {
-    case AttrDomain::Point:
+    case AttrDomain::POINT:
       return mesh.vert_data;
-    case AttrDomain::Edge:
+    case AttrDomain::EDGE:
       return mesh.edge_data;
-    case AttrDomain::Face:
+    case AttrDomain::FACE:
       return mesh.face_data;
-    case AttrDomain::Corner:
+    case AttrDomain::CORNER:
       return mesh.corner_data;
     default:
       BLI_assert_unreachable();
@@ -287,13 +287,13 @@ static CustomData &get_custom_data(Mesh &mesh, const AttrDomain domain)
 static int get_domain_size(const Mesh &mesh, const AttrDomain domain)
 {
   switch (domain) {
-    case AttrDomain::Point:
+    case AttrDomain::POINT:
       return mesh.verts_num;
-    case AttrDomain::Edge:
+    case AttrDomain::EDGE:
       return mesh.edges_num;
-    case AttrDomain::Face:
+    case AttrDomain::FACE:
       return mesh.faces_num;
-    case AttrDomain::Corner:
+    case AttrDomain::CORNER:
       return mesh.corners_num;
     default:
       BLI_assert_unreachable();
@@ -322,17 +322,17 @@ LegacyMeshInterpolator::LegacyMeshInterpolator(const Mesh &src, Mesh &dst, const
     if (dst_attr->data_type() != src_attr.data_type()) {
       continue;
     }
-    if (dst_attr->storage_type() != AttrStorageType::Array) {
+    if (dst_attr->storage_type() != AttrStorageType::ARRAY) {
       continue;
     }
     const CPPType &cpp_type = attribute_type_to_cpp_type(src_attr.data_type());
     switch (src_attr.storage_type()) {
-      case AttrStorageType::Single: {
+      case AttrStorageType::SINGLE: {
         const auto &value = std::get<Attribute::SingleData>(src_attr.data());
         attrs_src_.append(GVArray::from_single_ref(cpp_type, src_domain_size, value.value));
         break;
       }
-      case AttrStorageType::Array: {
+      case AttrStorageType::ARRAY: {
         const auto &value = std::get<Attribute::ArrayData>(src_attr.data());
         attrs_src_.append(GVArray::from_span({cpp_type, value.data, src_domain_size}));
         break;

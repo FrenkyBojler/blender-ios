@@ -130,11 +130,11 @@ static PartialUpdateRegisterImpl *unwrap(PartialUpdateRegister *partial_update_r
 }
 
 using ChangesetID = int64_t;
-constexpr ChangesetID UnknownChangesetID = -1;
+constexpr ChangesetID UNKNOWN_CHANGESET_ID = -1;
 
 struct PartialUpdateUserImpl {
   /** \brief last changeset id that was seen by this user. */
-  ChangesetID last_changeset_id = UnknownChangesetID;
+  ChangesetID last_changeset_id = UNKNOWN_CHANGESET_ID;
 
   /** \brief regions that have been updated. */
   Vector<PartialUpdateRegion> updated_regions;
@@ -484,12 +484,12 @@ ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *imag
 
   if (!partial_updater->can_construct(user_impl->last_changeset_id)) {
     user_impl->last_changeset_id = partial_updater->last_changeset_id;
-    return ePartialUpdateCollectResult::FullUpdateNeeded;
+    return ePartialUpdateCollectResult::FULL_UPDATE_NEEDED;
   }
 
   /* Check if there are changes since last invocation for the user. */
   if (user_impl->last_changeset_id == partial_updater->last_changeset_id) {
-    return ePartialUpdateCollectResult::NoChangesDetected;
+    return ePartialUpdateCollectResult::NO_CHANGES_DETECTED;
   }
 
   /* Collect changed tiles. */
@@ -524,7 +524,7 @@ ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *imag
   }
 
   user_impl->last_changeset_id = partial_updater->last_changeset_id;
-  return ePartialUpdateCollectResult::PartialChangesDetected;
+  return ePartialUpdateCollectResult::PARTIAL_CHANGES_DETECTED;
 }
 
 ePartialUpdateIterResult BKE_image_partial_update_get_next_change(PartialUpdateUser *user,
@@ -532,11 +532,11 @@ ePartialUpdateIterResult BKE_image_partial_update_get_next_change(PartialUpdateU
 {
   PartialUpdateUserImpl *user_impl = unwrap(user);
   if (user_impl->updated_regions.is_empty()) {
-    return ePartialUpdateIterResult::Finished;
+    return ePartialUpdateIterResult::FINISHED;
   }
   PartialUpdateRegion region = user_impl->updated_regions.pop_last();
   *r_region = region;
-  return ePartialUpdateIterResult::ChangeAvailable;
+  return ePartialUpdateIterResult::CHANGE_AVAILABLE;
 }
 
 }  // namespace bke::image::partial_update

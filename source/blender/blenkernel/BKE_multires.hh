@@ -54,10 +54,10 @@ void multires_force_external_reload(Object *object);
 void multiresModifier_set_levels_from_disps(MultiresModifierData *mmd, Object *ob);
 
 enum class MultiresFlags : uint8_t {
-  UseLocalMMD = 1,
-  UseRenderParams = 2,
-  AllocPaintMask = 4,
-  IgnoreSimplify = 8,
+  USE_LOCAL_MMD = 1,
+  USE_RENDER_PARAMS = 2,
+  ALLOC_PAINT_MASK = 4,
+  IGNORE_SIMPLIFY = 8,
 };
 ENUM_OPERATORS(MultiresFlags);
 
@@ -95,8 +95,8 @@ void multiresModifier_del_levels(MultiresModifierData *mmd,
                                  int direction);
 
 enum class ApplyBaseMode : int8_t {
-  Base,
-  ForSubdivision,
+  BASE,
+  FOR_SUBDIVISION,
 };
 
 void multiresModifier_base_apply(Depsgraph *depsgraph,
@@ -163,9 +163,9 @@ bool multiresModifier_reshapeFromCCG(int tot_level, Mesh *coarse_mesh, SubdivCCG
 /* Subdivide multi-res displacement once. */
 
 enum class MultiresSubdivideModeType : int8_t {
-  CatmullClark,
-  Simple,
-  Linear,
+  CATMULL_CLARK,
+  SIMPLE,
+  LINEAR,
 };
 
 void multiresModifier_subdivide(Object *object,

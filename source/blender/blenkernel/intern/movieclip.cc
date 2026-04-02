@@ -1080,7 +1080,7 @@ static bool need_postprocessed_frame(const MovieClipUser *user,
                                      int clip_flag,
                                      MovieClipPostprocFlag postprocess_flag)
 {
-  bool result = (postprocess_flag != MovieClipPostprocFlag::None);
+  bool result = (postprocess_flag != MovieClipPostprocFlag::NONE);
   result |= need_undistortion_postprocess(user, clip_flag);
   return result;
 }
@@ -1191,11 +1191,11 @@ static ImBuf *postprocess_frame(MovieClip *clip,
     postproc_ibuf = IMB_dupImBuf(ibuf);
   }
 
-  if (postprocess_flag != MovieClipPostprocFlag::None) {
-    bool disable_red = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DisableRed);
-    bool disable_green = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DisableGreen);
-    bool disable_blue = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DisableBlue);
-    bool grayscale = flag_is_set(postprocess_flag, MovieClipPostprocFlag::PreviewGray);
+  if (postprocess_flag != MovieClipPostprocFlag::NONE) {
+    bool disable_red = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DISABLE_RED);
+    bool disable_green = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DISABLE_GREEN);
+    bool disable_blue = flag_is_set(postprocess_flag, MovieClipPostprocFlag::DISABLE_BLUE);
+    bool grayscale = flag_is_set(postprocess_flag, MovieClipPostprocFlag::PREVIEW_GRAY);
 
     if (disable_red || disable_green || disable_blue || grayscale) {
       BKE_tracking_disable_channels(postproc_ibuf, disable_red, disable_green, disable_blue, true);
@@ -1292,7 +1292,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(MovieClip *clip,
       ibuf = movieclip_load_movie_file(clip, user, framenr, flag);
     }
 
-    if (ibuf && !flag_is_set(cache_flag, MovieClipCacheFlag::SkipCache)) {
+    if (ibuf && !flag_is_set(cache_flag, MovieClipCacheFlag::SKIP_CACHE)) {
       put_imbuf_cache(clip, user, ibuf, flag, true);
     }
   }
@@ -1305,7 +1305,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(MovieClip *clip,
       ImBuf *tmpibuf = ibuf;
       ibuf = postprocess_frame(clip, user, tmpibuf, flag, postprocess_flag);
       IMB_freeImBuf(tmpibuf);
-      if (ibuf && !flag_is_set(cache_flag, MovieClipCacheFlag::SkipCache)) {
+      if (ibuf && !flag_is_set(cache_flag, MovieClipCacheFlag::SKIP_CACHE)) {
         put_postprocessed_frame_to_cache(clip, user, ibuf, flag, postprocess_flag);
       }
     }
@@ -1330,7 +1330,7 @@ static ImBuf *movieclip_get_postprocessed_ibuf(MovieClip *clip,
 ImBuf *BKE_movieclip_get_ibuf(MovieClip *clip, const MovieClipUser *user)
 {
   return BKE_movieclip_get_ibuf_flag(
-      clip, user, MovieClipFlag(clip->flag), MovieClipCacheFlag::None);
+      clip, user, MovieClipFlag(clip->flag), MovieClipCacheFlag::NONE);
 }
 
 ImBuf *BKE_movieclip_get_ibuf_flag(MovieClip *clip,
@@ -1339,7 +1339,7 @@ ImBuf *BKE_movieclip_get_ibuf_flag(MovieClip *clip,
                                    const MovieClipCacheFlag cache_flag)
 {
   return movieclip_get_postprocessed_ibuf(
-      clip, user, flag, MovieClipPostprocFlag::None, cache_flag);
+      clip, user, flag, MovieClipPostprocFlag::NONE, cache_flag);
 }
 
 ImBuf *BKE_movieclip_get_postprocessed_ibuf(MovieClip *clip,
@@ -1347,7 +1347,7 @@ ImBuf *BKE_movieclip_get_postprocessed_ibuf(MovieClip *clip,
                                             const MovieClipPostprocFlag postprocess_flag)
 {
   return movieclip_get_postprocessed_ibuf(
-      clip, user, clip->flag, postprocess_flag, MovieClipCacheFlag::None);
+      clip, user, clip->flag, postprocess_flag, MovieClipCacheFlag::NONE);
 }
 
 static ImBuf *get_stable_cached_frame(MovieClip *clip,
@@ -1843,7 +1843,7 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
   user.render_flag = 0;
   user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
 
-  ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MovieClipCacheFlag::SkipCache);
+  ibuf = BKE_movieclip_get_ibuf_flag(clip, &user, clip_flag, MovieClipCacheFlag::SKIP_CACHE);
 
   if (ibuf) {
     ImBuf *tmpibuf = ibuf;

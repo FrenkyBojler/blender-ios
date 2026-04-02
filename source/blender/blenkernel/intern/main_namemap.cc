@@ -51,7 +51,7 @@ constexpr int NO_AVAILABLE_NUMBER = -1;
  *   one larger.
  */
 struct UniqueName_Value {
-  static constexpr int max_exact_tracking = 1023;
+  static constexpr int MAX_EXACT_TRACKING = 1023;
   std::optional<int> max_value_in_use = {};
   BitVector<> mask = {};
   /* Only created when required. Used to manage cases where the same numeric value is used by
@@ -71,7 +71,7 @@ struct UniqueName_Value {
   void mark_used(const int number)
   {
     BLI_assert(number >= 0);
-    if (number >= 0 && number <= max_exact_tracking) {
+    if (number >= 0 && number <= MAX_EXACT_TRACKING) {
       if (this->mask.size() <= number) {
         this->mask.resize(number + 1);
       }
@@ -100,7 +100,7 @@ struct UniqueName_Value {
   void mark_unused(const int number)
   {
     BLI_assert(number >= 0);
-    if (number >= 0 && number <= max_exact_tracking) {
+    if (number >= 0 && number <= MAX_EXACT_TRACKING) {
       BLI_assert_msg(number < this->mask.size(),
                      "Trying to unregister a number suffix higher than current size of the bit "
                      "vector, should never happen.");
@@ -149,7 +149,7 @@ struct UniqueName_Value {
     if (result) {
       return int(*result + 1);
     }
-    if (this->mask.size() <= max_exact_tracking) {
+    if (this->mask.size() <= MAX_EXACT_TRACKING) {
       /* No need to increase size of the mask here, this will be done by calls to #mark_used once
        * the final name with its final number has been defined. */
       return int(this->mask.size());
@@ -660,7 +660,7 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
                                    *which_libbase(&bmain, GS(id_iter.name)),
                                    id_iter,
                                    nullptr,
-                                   IDNewNameMode::RenameExistingNever,
+                                   IDNewNameMode::RENAME_EXISTING_NEVER,
                                    true);
           key.name = id_iter.name;
           if (!id_names_libs.add(key)) {

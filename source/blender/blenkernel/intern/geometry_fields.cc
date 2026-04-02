@@ -81,11 +81,11 @@ GeometryFieldContext::GeometryFieldContext(const void *geometry,
       grease_pencil_layer_index_(grease_pencil_layer_index)
 {
   BLI_assert(ELEM(type,
-                  GeometryComponent::Type::Mesh,
-                  GeometryComponent::Type::Curve,
-                  GeometryComponent::Type::PointCloud,
-                  GeometryComponent::Type::GreasePencil,
-                  GeometryComponent::Type::Instance));
+                  GeometryComponent::Type::MESH,
+                  GeometryComponent::Type::CURVE,
+                  GeometryComponent::Type::POINT_CLOUD,
+                  GeometryComponent::Type::GREASE_PENCIL,
+                  GeometryComponent::Type::INSTANCE));
 }
 
 GeometryFieldContext::GeometryFieldContext(const GeometryComponent &component,
@@ -93,83 +93,83 @@ GeometryFieldContext::GeometryFieldContext(const GeometryComponent &component,
     : type_(component.type()), domain_(domain)
 {
   switch (component.type()) {
-    case GeometryComponent::Type::Mesh: {
+    case GeometryComponent::Type::MESH: {
       const MeshComponent &mesh_component = static_cast<const MeshComponent &>(component);
       geometry_ = mesh_component.get();
       break;
     }
-    case GeometryComponent::Type::Curve: {
+    case GeometryComponent::Type::CURVE: {
       const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
       const Curves *curves = curve_component.get();
       geometry_ = curves ? &curves->geometry.wrap() : nullptr;
       curves_id_ = curve_component.get();
       break;
     }
-    case GeometryComponent::Type::PointCloud: {
+    case GeometryComponent::Type::POINT_CLOUD: {
       const PointCloudComponent &pointcloud_component = static_cast<const PointCloudComponent &>(
           component);
       geometry_ = pointcloud_component.get();
       break;
     }
-    case GeometryComponent::Type::GreasePencil: {
+    case GeometryComponent::Type::GREASE_PENCIL: {
       const GreasePencilComponent &grease_pencil_component =
           static_cast<const GreasePencilComponent &>(component);
       geometry_ = grease_pencil_component.get();
       /* Need to use another constructor for other domains. */
-      BLI_assert(domain == AttrDomain::Layer);
+      BLI_assert(domain == AttrDomain::LAYER);
       break;
     }
-    case GeometryComponent::Type::Instance: {
+    case GeometryComponent::Type::INSTANCE: {
       const InstancesComponent &instances_component = static_cast<const InstancesComponent &>(
           component);
       geometry_ = instances_component.get();
       break;
     }
-    case GeometryComponent::Type::Volume:
-    case GeometryComponent::Type::Edit:
+    case GeometryComponent::Type::VOLUME:
+    case GeometryComponent::Type::EDIT:
       BLI_assert_unreachable();
       break;
   }
 }
 
 GeometryFieldContext::GeometryFieldContext(const Mesh &mesh, AttrDomain domain)
-    : geometry_(&mesh), type_(GeometryComponent::Type::Mesh), domain_(domain)
+    : geometry_(&mesh), type_(GeometryComponent::Type::MESH), domain_(domain)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const CurvesGeometry &curves, AttrDomain domain)
-    : geometry_(&curves), type_(GeometryComponent::Type::Curve), domain_(domain)
+    : geometry_(&curves), type_(GeometryComponent::Type::CURVE), domain_(domain)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const Curves &curves_id, AttrDomain domain)
     : geometry_(&curves_id.geometry.wrap()),
-      type_(GeometryComponent::Type::Curve),
+      type_(GeometryComponent::Type::CURVE),
       domain_(domain),
       curves_id_(&curves_id)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const PointCloud &points)
-    : geometry_(&points), type_(GeometryComponent::Type::PointCloud), domain_(AttrDomain::Point)
+    : geometry_(&points), type_(GeometryComponent::Type::POINT_CLOUD), domain_(AttrDomain::POINT)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const GreasePencil &grease_pencil)
     : geometry_(&grease_pencil),
-      type_(GeometryComponent::Type::GreasePencil),
-      domain_(AttrDomain::Layer)
+      type_(GeometryComponent::Type::GREASE_PENCIL),
+      domain_(AttrDomain::LAYER)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const GreasePencil &grease_pencil,
                                            const AttrDomain domain,
                                            const int layer_index)
     : geometry_(&grease_pencil),
-      type_(GeometryComponent::Type::GreasePencil),
+      type_(GeometryComponent::Type::GREASE_PENCIL),
       domain_(domain),
       grease_pencil_layer_index_(layer_index)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const Instances &instances)
     : geometry_(&instances),
-      type_(GeometryComponent::Type::Instance),
-      domain_(AttrDomain::Instance)
+      type_(GeometryComponent::Type::INSTANCE),
+      domain_(AttrDomain::INSTANCE)
 {
 }
 
@@ -185,7 +185,7 @@ std::optional<AttributeAccessor> GeometryFieldContext::attributes() const
     return pointcloud->attributes();
   }
   if (const GreasePencil *grease_pencil = this->grease_pencil()) {
-    if (domain_ == AttrDomain::Layer) {
+    if (domain_ == AttrDomain::LAYER) {
       return grease_pencil->attributes();
     }
     if (const greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
@@ -202,31 +202,31 @@ std::optional<AttributeAccessor> GeometryFieldContext::attributes() const
 
 const Mesh *GeometryFieldContext::mesh() const
 {
-  return this->type() == GeometryComponent::Type::Mesh ? static_cast<const Mesh *>(geometry_) :
+  return this->type() == GeometryComponent::Type::MESH ? static_cast<const Mesh *>(geometry_) :
                                                          nullptr;
 }
 const CurvesGeometry *GeometryFieldContext::curves() const
 {
-  return this->type() == GeometryComponent::Type::Curve ?
+  return this->type() == GeometryComponent::Type::CURVE ?
              static_cast<const CurvesGeometry *>(geometry_) :
              nullptr;
 }
 const PointCloud *GeometryFieldContext::pointcloud() const
 {
-  return this->type() == GeometryComponent::Type::PointCloud ?
+  return this->type() == GeometryComponent::Type::POINT_CLOUD ?
              static_cast<const PointCloud *>(geometry_) :
              nullptr;
 }
 const GreasePencil *GeometryFieldContext::grease_pencil() const
 {
-  return this->type() == GeometryComponent::Type::GreasePencil ?
+  return this->type() == GeometryComponent::Type::GREASE_PENCIL ?
              static_cast<const GreasePencil *>(geometry_) :
              nullptr;
 }
 const greasepencil::Drawing *GeometryFieldContext::grease_pencil_layer_drawing() const
 {
-  if (!(this->type() == GeometryComponent::Type::GreasePencil) ||
-      !ELEM(domain_, AttrDomain::Curve, AttrDomain::Point))
+  if (!(this->type() == GeometryComponent::Type::GREASE_PENCIL) ||
+      !ELEM(domain_, AttrDomain::CURVE, AttrDomain::POINT))
   {
     return nullptr;
   }
@@ -249,7 +249,7 @@ const Curves *GeometryFieldContext::curves_id() const
 }
 const Instances *GeometryFieldContext::instances() const
 {
-  return this->type() == GeometryComponent::Type::Instance ?
+  return this->type() == GeometryComponent::Type::INSTANCE ?
              static_cast<const Instances *>(geometry_) :
              nullptr;
 }
@@ -397,10 +397,10 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
   const AttrDomain domain = context.domain();
   if (const GreasePencil *grease_pencil = context.grease_pencil()) {
     const AttributeAccessor layer_attributes = grease_pencil->attributes();
-    if (domain == AttrDomain::Layer) {
+    if (domain == AttrDomain::LAYER) {
       return *layer_attributes.lookup(name_, data_type);
     }
-    if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
+    if (ELEM(domain, AttrDomain::POINT, AttrDomain::CURVE)) {
       const int layer_index = context.grease_pencil_layer_index();
       const AttributeAccessor curves_attributes = *context.attributes();
       if (const GAttributeReader reader = curves_attributes.lookup(name_, domain, data_type)) {
@@ -417,7 +417,7 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
       }
     }
   }
-  else if (context.domain() == bke::AttrDomain::Instance && name_ == "position") {
+  else if (context.domain() == bke::AttrDomain::INSTANCE && name_ == "position") {
     /* Special case for "position" which is no longer an attribute on instances. */
     return bke::instance_position_varray(*context.instances());
   }
@@ -432,11 +432,11 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
                                                           const IndexMask & /*mask*/) const
 {
   const AttrDomain domain = context.domain();
-  if (context.type() == GeometryComponent::Type::GreasePencil) {
+  if (context.type() == GeometryComponent::Type::GREASE_PENCIL) {
     const AttributeAccessor layer_attributes = context.grease_pencil()->attributes();
-    if (context.domain() == AttrDomain::Layer) {
+    if (context.domain() == AttrDomain::LAYER) {
       const bool exists = layer_attributes.contains(name_);
-      const int domain_size = layer_attributes.domain_size(AttrDomain::Layer);
+      const int domain_size = layer_attributes.domain_size(AttrDomain::LAYER);
       return VArray<bool>::from_single(exists, domain_size);
     }
     const greasepencil::Drawing *drawing = context.grease_pencil_layer_drawing();
@@ -488,8 +488,8 @@ std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
 {
   switch (domain) {
-    case AttrDomain::Point:
-    case AttrDomain::Instance:
+    case AttrDomain::POINT:
+    case AttrDomain::INSTANCE:
       return "id";
     default:
       return "";
@@ -533,7 +533,7 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
 {
   using namespace bke::greasepencil;
   const AttrDomain domain = context.domain();
-  if (!ELEM(domain, AttrDomain::Point, AttrDomain::Curve, AttrDomain::Layer)) {
+  if (!ELEM(domain, AttrDomain::POINT, AttrDomain::CURVE, AttrDomain::LAYER)) {
     return {};
   }
 
@@ -552,7 +552,7 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
     return layer.name() == selection_name;
   };
 
-  if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
+  if (ELEM(domain, AttrDomain::POINT, AttrDomain::CURVE)) {
     const int layer_i = context.grease_pencil_layer_index();
     const bool selected = layer_is_selected(layer_i);
     return VArray<bool>::from_single(selected, mask.min_array_size());
@@ -579,7 +579,7 @@ bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldNode &other) cons
 std::optional<AttrDomain> NamedLayerSelectionFieldInput::preferred_domain(
     const bke::GeometryComponent & /*component*/) const
 {
-  return AttrDomain::Layer;
+  return AttrDomain::LAYER;
 }
 
 EvaluateAtIndexInput::EvaluateAtIndexInput(fn::Field<int> index_field,
@@ -637,11 +637,11 @@ const GeometryComponent *SampleIndexFunction::find_source_component(const Geomet
   /* Choose the other component based on a consistent order, rather than some more complicated
    * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
   static const Array<GeometryComponent::Type> supported_types = {
-      GeometryComponent::Type::Mesh,
-      GeometryComponent::Type::PointCloud,
-      GeometryComponent::Type::Curve,
-      GeometryComponent::Type::Instance,
-      GeometryComponent::Type::GreasePencil};
+      GeometryComponent::Type::MESH,
+      GeometryComponent::Type::POINT_CLOUD,
+      GeometryComponent::Type::CURVE,
+      GeometryComponent::Type::INSTANCE,
+      GeometryComponent::Type::GREASE_PENCIL};
   for (const GeometryComponent::Type src_type : supported_types) {
     if (component_is_available(geometry, src_type, domain)) {
       return geometry.get_component(src_type);
@@ -714,12 +714,12 @@ GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldCo
   const int dst_domain_size = context.attributes()->domain_size(dst_domain);
   const CPPType &cpp_type = src_field_.cpp_type();
 
-  if (context.type() == GeometryComponent::Type::GreasePencil &&
-      (src_domain_ == AttrDomain::Layer) != (dst_domain == AttrDomain::Layer))
+  if (context.type() == GeometryComponent::Type::GREASE_PENCIL &&
+      (src_domain_ == AttrDomain::LAYER) != (dst_domain == AttrDomain::LAYER))
   {
     /* Evaluate field just for the current layer. */
-    if (src_domain_ == AttrDomain::Layer) {
-      const bke::GeometryFieldContext src_domain_context{context, AttrDomain::Layer};
+    if (src_domain_ == AttrDomain::LAYER) {
+      const bke::GeometryFieldContext src_domain_context{context, AttrDomain::LAYER};
       const int layer_index = context.grease_pencil_layer_index();
 
       const IndexMask single_layer_mask = IndexRange(layer_index, 1);
@@ -1046,8 +1046,8 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
                                     const Span<fn::GField> fields)
 {
   const GeometryComponent::Type component_type = component.type();
-  if (component_type == GeometryComponent::Type::GreasePencil &&
-      ELEM(domain, AttrDomain::Point, AttrDomain::Curve))
+  if (component_type == GeometryComponent::Type::GREASE_PENCIL &&
+      ELEM(domain, AttrDomain::POINT, AttrDomain::CURVE))
   {
     /* Capture the field on every layer individually. */
     auto &grease_pencil_component = static_cast<GreasePencilComponent &>(component);
@@ -1077,7 +1077,7 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
     });
     return any_success;
   }
-  if (component_type == GeometryComponent::Type::GreasePencil && domain != AttrDomain::Layer) {
+  if (component_type == GeometryComponent::Type::GREASE_PENCIL && domain != AttrDomain::LAYER) {
     /* The remaining code only handles the layer domain for grease pencil geometries. */
     return false;
   }
@@ -1101,14 +1101,14 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
                                                   const fn::GField &field)
 {
   const GeometryComponent::Type component_type = component.type();
-  if (component_type == GeometryComponent::Type::PointCloud) {
-    return AttrDomain::Point;
+  if (component_type == GeometryComponent::Type::POINT_CLOUD) {
+    return AttrDomain::POINT;
   }
-  if (component_type == GeometryComponent::Type::GreasePencil) {
-    return AttrDomain::Layer;
+  if (component_type == GeometryComponent::Type::GREASE_PENCIL) {
+    return AttrDomain::LAYER;
   }
-  if (component_type == GeometryComponent::Type::Instance) {
-    return AttrDomain::Instance;
+  if (component_type == GeometryComponent::Type::INSTANCE) {
+    return AttrDomain::INSTANCE;
   }
   const std::shared_ptr<const fn::FieldInputs> &field_inputs = field.node().field_inputs();
   if (!field_inputs) {
@@ -1128,7 +1128,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     output_domain = domain;
     return true;
   };
-  if (component_type == GeometryComponent::Type::Mesh) {
+  if (component_type == GeometryComponent::Type::MESH) {
     const MeshComponent &mesh_component = static_cast<const MeshComponent &>(component);
     const Mesh *mesh = mesh_component.get();
     if (mesh == nullptr) {
@@ -1152,7 +1152,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
       }
     }
   }
-  if (component_type == GeometryComponent::Type::Curve) {
+  if (component_type == GeometryComponent::Type::CURVE) {
     const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
     const Curves *curves = curve_component.get();
     if (curves == nullptr) {

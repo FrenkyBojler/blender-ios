@@ -72,8 +72,8 @@ CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
 {
   CurvesGeometry dst_curves(0, src_curves.curves_num());
   copy_attributes(src_curves.attributes(),
-                  AttrDomain::Curve,
-                  AttrDomain::Curve,
+                  AttrDomain::CURVE,
+                  AttrDomain::CURVE,
                   {},
                   dst_curves.attributes_for_write());
   dst_curves.runtime->type_counts = src_curves.runtime->type_counts;

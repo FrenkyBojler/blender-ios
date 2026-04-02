@@ -864,7 +864,7 @@ static ModifierData *curve_get_tessellate_point(const Scene *scene,
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
     }
-    if (mti->type == ModifierTypeType::Constructive) {
+    if (mti->type == ModifierTypeType::CONSTRUCTIVE) {
       return pretessellatePoint;
     }
 
@@ -945,7 +945,7 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
       if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
         continue;
       }
-      if (mti->type != ModifierTypeType::OnlyDeform) {
+      if (mti->type != ModifierTypeType::ONLY_DEFORM) {
         continue;
       }
 
@@ -1078,7 +1078,7 @@ static bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
     }
     Mesh *mesh = geometry_set.get_mesh_for_write();
 
-    if (mti->type == ModifierTypeType::OnlyDeform) {
+    if (mti->type == ModifierTypeType::ONLY_DEFORM) {
       mti->deform_verts(md, &mectx_deform, mesh, mesh->vert_positions_for_write());
       mesh->tag_positions_changed();
     }

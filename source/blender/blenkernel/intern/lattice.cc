@@ -532,7 +532,7 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
   for (; md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-    if (!(mti->flags & eModifierTypeFlag_AcceptsVertexCosOnly)) {
+    if (!(mti->flags & E_MODIFIER_TYPE_FLAG_ACCEPTS_VERTEX_COS_ONLY)) {
       continue;
     }
     if (!(md->mode & eModifierMode_Realtime)) {
@@ -544,7 +544,7 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
     if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
       continue;
     }
-    if (mti->type != ModifierTypeType::OnlyDeform) {
+    if (mti->type != ModifierTypeType::ONLY_DEFORM) {
       continue;
     }
 

@@ -2087,7 +2087,7 @@ static void emit_from_mesh(
     const MDeformVert *dvert = mesh->deform_verts().data();
     const bke::AttributeAccessor attributes = mesh->attributes();
     const VArraySpan uv_map = *attributes.lookup<float2>(ffs->uvlayer_name,
-                                                         bke::AttrDomain::Corner);
+                                                         bke::AttrDomain::CORNER);
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
       vert_vel = MEM_new_array_zeroed<float>(3 * size_t(numverts), "manta_flow_velocity");
@@ -3196,7 +3196,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
 
   const AttributeAccessor orig_attributes = orgmesh->attributes();
   const VArraySpan orig_material_indices = *orig_attributes.lookup<int>("material_index",
-                                                                        AttrDomain::Face);
+                                                                        AttrDomain::FACE);
   const short mp_mat_nr = orig_material_indices.is_empty() ? 0 : orig_material_indices[0];
 
   int i;
@@ -3226,9 +3226,9 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
-  if (orgmesh->attributes().domain_size(AttrDomain::Face) > 0) {
+  if (orgmesh->attributes().domain_size(AttrDomain::FACE) > 0) {
     const bool is_sharp = orgmesh->attributes()
-                              .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
+                              .lookup_or_default<bool>("sharp_face", AttrDomain::FACE, false)
                               .varray[0];
     mesh_smooth_set(*mesh, !is_sharp);
   }
@@ -3262,7 +3262,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
 
   if (use_speedvectors) {
     velocities = attributes.lookup_or_add_for_write_only_span<float3>("velocity",
-                                                                      AttrDomain::Point);
+                                                                      AttrDomain::POINT);
   }
 
   /* Loop for vertices and normals. */
@@ -3315,7 +3315,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   }
 
   bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", AttrDomain::Face);
+      "material_index", AttrDomain::FACE);
 
   /* Loop for triangles. */
   for (const int i : face_offsets.index_range().drop_back(1)) {

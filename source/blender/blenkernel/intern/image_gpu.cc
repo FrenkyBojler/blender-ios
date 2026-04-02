@@ -297,7 +297,7 @@ static gpu::Texture *image_gpu_texture_error_create(eGPUTextureTarget textarget)
 static void image_gpu_texture_partial_update_changes_available(
     Image *image, PartialUpdateChecker<ImageTileData>::CollectResult &changes)
 {
-  while (changes.get_next_change() == ePartialUpdateIterResult::ChangeAvailable) {
+  while (changes.get_next_change() == ePartialUpdateIterResult::CHANGE_AVAILABLE) {
     /* Calculate the clipping region with the tile buffer.
      * TODO(jbakker): should become part of ImageTileData to deduplicate with image engine. */
     rcti buffer_rect;
@@ -325,17 +325,17 @@ static void image_gpu_texture_try_partial_update(Image *image, ImageUser *iuser)
   PartialUpdateChecker<ImageTileData> checker(image, iuser, image->runtime->partial_update_user);
   PartialUpdateChecker<ImageTileData>::CollectResult changes = checker.collect_changes();
   switch (changes.get_result_code()) {
-    case ePartialUpdateCollectResult::FullUpdateNeeded: {
+    case ePartialUpdateCollectResult::FULL_UPDATE_NEEDED: {
       image_free_gpu(image, true);
       break;
     }
 
-    case ePartialUpdateCollectResult::PartialChangesDetected: {
+    case ePartialUpdateCollectResult::PARTIAL_CHANGES_DETECTED: {
       image_gpu_texture_partial_update_changes_available(image, changes);
       break;
     }
 
-    case ePartialUpdateCollectResult::NoChangesDetected: {
+    case ePartialUpdateCollectResult::NO_CHANGES_DETECTED: {
       /* GPUTextures are up to date. */
       break;
     }

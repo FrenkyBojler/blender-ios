@@ -29,13 +29,13 @@ static void add_final_mesh_as_geometry_component(const Object &object,
 
     if (mesh != nullptr) {
       BKE_mesh_wrapper_ensure_mdata(mesh);
-      geometry_set.replace_mesh(mesh, GeometryOwnershipType::ReadOnly);
+      geometry_set.replace_mesh(mesh, GeometryOwnershipType::READ_ONLY);
     }
     return;
   }
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf(&object);
   if (mesh != nullptr) {
-    geometry_set.replace_mesh(mesh, GeometryOwnershipType::ReadOnly);
+    geometry_set.replace_mesh(mesh, GeometryOwnershipType::READ_ONLY);
   }
 }
 
@@ -77,13 +77,13 @@ void Instances::foreach_referenced_geometry(
 {
   for (const InstanceReference &reference : references_) {
     switch (reference.type()) {
-      case InstanceReference::Type::Object: {
+      case InstanceReference::Type::OBJECT: {
         const Object &object = reference.object();
         const GeometrySet object_geometry_set = object_get_evaluated_geometry_set(object);
         callback(object_geometry_set);
         break;
       }
-      case InstanceReference::Type::Collection: {
+      case InstanceReference::Type::COLLECTION: {
         Collection &collection = reference.collection();
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
           const GeometrySet object_geometry_set = object_get_evaluated_geometry_set(*object);
@@ -92,12 +92,12 @@ void Instances::foreach_referenced_geometry(
         FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
         break;
       }
-      case InstanceReference::Type::GeometrySet: {
+      case InstanceReference::Type::GEOMETRY_SET: {
         const GeometrySet &instance_geometry_set = reference.geometry_set();
         callback(instance_geometry_set);
         break;
       }
-      case InstanceReference::Type::None: {
+      case InstanceReference::Type::NONE: {
         break;
       }
     }
@@ -110,16 +110,16 @@ void Instances::ensure_geometry_instances()
   new_references.reserve(references_.size());
   for (const InstanceReference &reference : references_) {
     switch (reference.type()) {
-      case InstanceReference::Type::None: {
+      case InstanceReference::Type::NONE: {
         new_references.append(InstanceReference(GeometrySet{}));
         break;
       }
-      case InstanceReference::Type::GeometrySet: {
+      case InstanceReference::Type::GEOMETRY_SET: {
         /* Those references can stay as their were. */
         new_references.append(reference);
         break;
       }
-      case InstanceReference::Type::Object: {
+      case InstanceReference::Type::OBJECT: {
         /* Create a new reference that contains the geometry set of the object. We may want to
          * treat e.g. lamps and similar object types separately here. */
         Object &object = reference.object();
@@ -135,7 +135,7 @@ void Instances::ensure_geometry_instances()
         new_references.append(std::move(object_geometry_set));
         break;
       }
-      case InstanceReference::Type::Collection: {
+      case InstanceReference::Type::COLLECTION: {
         /* Create a new reference that contains a geometry set that contains all objects from the
          * collection as instances. */
         Collection &collection = reference.collection();

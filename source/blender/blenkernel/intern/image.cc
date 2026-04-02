@@ -236,17 +236,17 @@ static void image_foreach_cache(ID *id,
   }
 
   /* Ensure we don't collide with the identifiers used above. */
-  constexpr size_t runtime_base_id = size_t(1) << 32u;
+  constexpr size_t RUNTIME_BASE_ID = size_t(1) << 32u;
 
-  key.identifier = runtime_base_id + offsetof(bke::ImageRuntime, cache);
+  key.identifier = RUNTIME_BASE_ID + offsetof(bke::ImageRuntime, cache);
   function_callback(id, &key, reinterpret_cast<void **>(&image->runtime->cache), 0, user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
-    constexpr size_t base_offset = offsetof(bke::ImageRuntime, gputexture);
+    constexpr size_t BASE_OFFSET = offsetof(bke::ImageRuntime, gputexture);
     gpu::Texture **first = &image->runtime->gputexture[0][0];
     const size_t array_offset = sizeof(*first) *
                                 (&image->runtime->gputexture[target][eye] - first);
-    return base_offset + array_offset;
+    return BASE_OFFSET + array_offset;
   };
 
   for (int eye = 0; eye < 2; eye++) {
@@ -255,7 +255,7 @@ static void image_foreach_cache(ID *id,
       if (texture == nullptr) {
         continue;
       }
-      key.identifier = runtime_base_id + gputexture_offset(a, eye);
+      key.identifier = RUNTIME_BASE_ID + gputexture_offset(a, eye);
       function_callback(
           id, &key, reinterpret_cast<void **>(&image->runtime->gputexture[a][eye]), 0, user_data);
     }

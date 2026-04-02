@@ -59,9 +59,9 @@ struct ReferenceLifetimesInfo;
 namespace bke {
 
 enum class FieldSocketState : int8_t {
-  RequiresSingle,
-  CanBeField,
-  IsField,
+  REQUIRES_SINGLE,
+  CAN_BE_FIELD,
+  IS_FIELD,
 };
 
 struct NodeIDGetter {

@@ -355,7 +355,7 @@ bool dynamicPaint_outputLayerExists(DynamicPaintSurface *surface, Object *ob, in
       Mesh *mesh = id_cast<Mesh *>(ob->data);
       const AttributeAccessor attributes = mesh->attributes();
       const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
-      return meta_data == AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte};
+      return meta_data == AttributeMetaData{AttrDomain::CORNER, AttrType::COLOR_BYTE};
     }
     if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
       return (BKE_object_defgroup_name_index(ob, name) != -1);
@@ -1657,7 +1657,7 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     const StringRef uvname = mesh->uv_map_names().contains(surface->init_layername) ?
                                  surface->init_layername :
                                  mesh->active_uv_map_name();
-    const VArraySpan uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
+    const VArraySpan uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::CORNER);
 
     if (uv_map.is_empty()) {
       return;
@@ -1702,7 +1702,7 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
       const Span<int> corner_verts = mesh->corner_verts();
       const VArraySpan col = *attributes.lookup<ColorGeometry4b>(surface->init_layername,
-                                                                 bke::AttrDomain::Corner);
+                                                                 bke::AttrDomain::CORNER);
       if (col.is_empty()) {
         return;
       }
@@ -1714,7 +1714,7 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
       const Span<int3> corner_tris = mesh->corner_tris();
       const VArraySpan col = *attributes.lookup<ColorGeometry4b>(surface->init_layername,
-                                                                 bke::AttrDomain::Corner);
+                                                                 bke::AttrDomain::CORNER);
       if (col.is_empty()) {
         return;
       }
@@ -1981,19 +1981,19 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
             /* paint layer */
             SpanAttributeWriter<ColorGeometry4b> mloopcol;
             if (attributes.lookup_meta_data(surface->output_name) ==
-                AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte})
+                AttributeMetaData{AttrDomain::CORNER, AttrType::COLOR_BYTE})
             {
               mloopcol = attributes.lookup_for_write_span<ColorGeometry4b>(surface->output_name);
             }
             /* if output layer is lost from a constructive modifier, re-add it */
             if (!mloopcol && dynamicPaint_outputLayerExists(surface, ob, 0)) {
               mloopcol = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
-                  surface->output_name, AttrDomain::Corner);
+                  surface->output_name, AttrDomain::CORNER);
             }
 
             SpanAttributeWriter<ColorGeometry4b> mloopcol_wet;
             if (attributes.lookup_meta_data(surface->output_name2) ==
-                AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte})
+                AttributeMetaData{AttrDomain::CORNER, AttrType::COLOR_BYTE})
             {
               mloopcol_wet = attributes.lookup_for_write_span<ColorGeometry4b>(
                   surface->output_name2);
@@ -2001,7 +2001,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
             /* if output layer is lost from a constructive modifier, re-add it */
             if (!mloopcol_wet && dynamicPaint_outputLayerExists(surface, ob, 1)) {
               mloopcol_wet = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
-                  surface->output_name2, AttrDomain::Corner);
+                  surface->output_name2, AttrDomain::CORNER);
             }
 
             data.ob = ob;
@@ -2874,7 +2874,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
                                  surface->uvlayer_name :
                                  mesh->active_uv_map_name();
     const bke::AttributeAccessor attributes = mesh->attributes();
-    uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
+    uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::CORNER);
   }
 
   /* Check for validity */

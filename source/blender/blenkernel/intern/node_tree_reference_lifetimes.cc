@@ -30,19 +30,19 @@ namespace aal = nodes::aal;
 std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info)
 {
   switch (info.type) {
-    case ReferenceSetType::GroupOutputData:
+    case ReferenceSetType::GROUP_OUTPUT_DATA:
       stream << "Group Output Data: " << info.index;
       break;
-    case ReferenceSetType::GroupInputReferenceSet:
+    case ReferenceSetType::GROUP_INPUT_REFERENCE_SET:
       stream << "Group Input Reference: " << info.index;
       break;
-    case ReferenceSetType::LocalReferenceSet:
+    case ReferenceSetType::LOCAL_REFERENCE_SET:
       stream << "Local: " << info.socket->name;
       break;
-    case ReferenceSetType::ClosureInputReferenceSet:
+    case ReferenceSetType::CLOSURE_INPUT_REFERENCE_SET:
       stream << "Closure Input Reference: " << info.socket->name;
       break;
-    case ReferenceSetType::ClosureOutputData:
+    case ReferenceSetType::CLOSURE_OUTPUT_DATA:
       stream << "Closure Output Data: " << info.socket->name;
       break;
   }
@@ -247,7 +247,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
     const bNodeSocketType *stype = interface_input.socket_typeinfo();
     const eNodeSocketDatatype socket_type = stype ? stype->type : SOCK_CUSTOM;
     if (can_contain_reference(socket_type)) {
-      reference_sets.append({ReferenceSetType::GroupInputReferenceSet, input_i});
+      reference_sets.append({ReferenceSetType::GROUP_INPUT_REFERENCE_SET, input_i});
     }
   }
   /* Handle references required by output geometries. */
@@ -257,7 +257,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
     const eNodeSocketDatatype socket_type = stype ? stype->type : SOCK_CUSTOM;
     if (can_contain_referenced_data(socket_type)) {
       r_group_output_reference_sets.append(
-          reference_sets.append_and_get_index({ReferenceSetType::GroupOutputData, output_i}));
+          reference_sets.append_and_get_index({ReferenceSetType::GROUP_OUTPUT_DATA, output_i}));
     }
   }
   /* All references referenced by the sources found so far can exist on all geometry inputs. */
@@ -289,7 +289,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
         if (!reference_socket.is_directly_linked() || !data_socket.is_directly_linked()) {
           continue;
         }
-        reference_sets.append({ReferenceSetType::LocalReferenceSet, &reference_socket});
+        reference_sets.append({ReferenceSetType::LOCAL_REFERENCE_SET, &reference_socket});
         reference_sets.last().potential_data_origins.append(&data_socket);
       }
     }
@@ -309,7 +309,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
       for (const int i : IndexRange(storage.output_items.items_num)) {
         const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
         if (can_contain_reference(eNodeSocketDatatype(item.socket_type))) {
-          reference_sets.append({ReferenceSetType::LocalReferenceSet, &node->output_socket(i)});
+          reference_sets.append({ReferenceSetType::LOCAL_REFERENCE_SET, &node->output_socket(i)});
           reference_sets.last().potential_data_origins.extend(reference_outputs);
         }
       }
@@ -332,7 +332,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
     for (const int input_i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &socket = input_node.output_socket(input_i);
       if (can_contain_reference(eNodeSocketDatatype(socket.type))) {
-        reference_sets.append({ReferenceSetType::ClosureInputReferenceSet, &socket});
+        reference_sets.append({ReferenceSetType::CLOSURE_INPUT_REFERENCE_SET, &socket});
       }
     }
     /* Handle references required by output geometries in the closure. */
@@ -341,7 +341,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
       if (can_contain_referenced_data(eNodeSocketDatatype(socket.type))) {
         r_output_set_sources_by_closure_zone.add(
             zone,
-            reference_sets.append_and_get_index({ReferenceSetType::ClosureOutputData, &socket}));
+            reference_sets.append_and_get_index({ReferenceSetType::CLOSURE_OUTPUT_DATA, &socket}));
       }
     }
     /* All references referenced passed into this zone may exist on the geometry inputs. */
@@ -370,21 +370,21 @@ static void set_initial_data_and_reference_bits(const bNodeTree &tree,
       r_potential_data_by_socket[socket->index_in_tree()][reference_set_i].set();
     }
     switch (reference_set.type) {
-      case ReferenceSetType::LocalReferenceSet:
-      case ReferenceSetType::ClosureInputReferenceSet: {
+      case ReferenceSetType::LOCAL_REFERENCE_SET:
+      case ReferenceSetType::CLOSURE_INPUT_REFERENCE_SET: {
         r_potential_reference_by_socket[reference_set.socket->index_in_tree()][reference_set_i]
             .set();
         break;
       }
-      case ReferenceSetType::GroupInputReferenceSet: {
+      case ReferenceSetType::GROUP_INPUT_REFERENCE_SET: {
         for (const bNode *node : tree.group_input_nodes()) {
           const bNodeSocket &socket = node->output_socket(reference_set.index);
           r_potential_reference_by_socket[socket.index_in_tree()][reference_set_i].set();
         }
         break;
       }
-      case ReferenceSetType::GroupOutputData:
-      case ReferenceSetType::ClosureOutputData: {
+      case ReferenceSetType::GROUP_OUTPUT_DATA:
+      case ReferenceSetType::CLOSURE_OUTPUT_DATA: {
         /* Nothing to do. */
         break;
       }
@@ -631,7 +631,7 @@ static void prepare_required_data_for_group_outputs(
     const Span<const bNodeSocket *> sockets = group_output_node->input_sockets().drop_back(1);
     for (const int reference_set_i : group_output_set_sources) {
       const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
-      BLI_assert(reference_set.type == ReferenceSetType::GroupOutputData);
+      BLI_assert(reference_set.type == ReferenceSetType::GROUP_OUTPUT_DATA);
       const int index = sockets[reference_set.index]->index_in_tree();
       r_required_data_by_socket[index][reference_set_i].set();
     }
@@ -675,7 +675,7 @@ static void prepare_required_data_for_closure_outputs(
     const Span<int> closure_output_set_sources = output_set_sources_by_closure_zone.lookup(zone);
     for (const int reference_set_i : closure_output_set_sources) {
       const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
-      BLI_assert(reference_set.type == ReferenceSetType::ClosureOutputData);
+      BLI_assert(reference_set.type == ReferenceSetType::CLOSURE_OUTPUT_DATA);
       r_required_data_by_socket[reference_set.socket->index_in_tree()][reference_set_i].set();
     }
     BitVector<> potential_output_references(reference_sets.size(), false);
@@ -925,12 +925,12 @@ static aal::RelationsInNode get_tree_relations(
       bits::foreach_1_index(required_data, [&](const int reference_set_i) {
         const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
         switch (reference_set.type) {
-          case ReferenceSetType::GroupOutputData: {
+          case ReferenceSetType::GROUP_OUTPUT_DATA: {
             tree_relations.propagate_relations.append_non_duplicates(
                 {input_i, reference_set.index});
             break;
           }
-          case ReferenceSetType::GroupInputReferenceSet: {
+          case ReferenceSetType::GROUP_INPUT_REFERENCE_SET: {
             tree_relations.eval_relations.append_non_duplicates({reference_set.index, input_i});
             break;
           }
@@ -950,7 +950,7 @@ static aal::RelationsInNode get_tree_relations(
         bits::foreach_1_index(potential_references, [&](const int reference_set_i) {
           const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
           switch (reference_set.type) {
-            case ReferenceSetType::GroupInputReferenceSet: {
+            case ReferenceSetType::GROUP_INPUT_REFERENCE_SET: {
               tree_relations.reference_relations.append_non_duplicates(
                   {reference_set.index, output_i});
               break;
@@ -966,7 +966,7 @@ static aal::RelationsInNode get_tree_relations(
         bits::foreach_1_index(potential_data, [&](const int reference_set_i) {
           const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
           switch (reference_set.type) {
-            case ReferenceSetType::LocalReferenceSet: {
+            case ReferenceSetType::LOCAL_REFERENCE_SET: {
               for (const bNodeSocket *other_socket :
                    group_output_node->input_sockets().drop_back(1))
               {
@@ -1011,7 +1011,7 @@ static void disable_unused_group_output_propagation(
   BitVector<> reference_sets_mask(reference_sets.size(), true);
   for (const int i : reference_sets.index_range()) {
     const ReferenceSetInfo &reference_set = reference_sets[i];
-    if (reference_set.type == ReferenceSetType::GroupOutputData) {
+    if (reference_set.type == ReferenceSetType::GROUP_OUTPUT_DATA) {
       if (!propagate_targets.contains(reference_set.index)) {
         reference_sets_mask[i].reset();
       }

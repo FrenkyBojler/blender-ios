@@ -48,9 +48,9 @@ enum eTrackArea {
 ENUM_OPERATORS(eTrackArea);
 
 enum class TrackingCleanAction {
-  Select = 0,
-  DeleteTrack = 1,
-  DeleteSegment = 2,
+  SELECT = 0,
+  DELETE_TRACK = 1,
+  DELETE_SEGMENT = 2,
 };
 
 /* --------------------------------------------------------------------

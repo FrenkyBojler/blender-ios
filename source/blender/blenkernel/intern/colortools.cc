@@ -340,7 +340,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve[0].y = clipr->ymax;
       cuma->curve[1].x = clipr->xmax;
       cuma->curve[1].y = clipr->ymin;
-      if (slope == CurveMapSlopeType::PositiveNegative) {
+      if (slope == CurveMapSlopeType::POSITIVE_NEGATIVE) {
         cuma->curve[0].flag &= ~CUMA_HANDLE_AUTO_ANIM;
         cuma->curve[1].flag &= ~CUMA_HANDLE_AUTO_ANIM;
         cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
@@ -364,7 +364,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve[3].y = 0.0625;
       cuma->curve[4].x = 1;
       cuma->curve[4].y = 0;
-      if (slope == CurveMapSlopeType::PositiveNegative) {
+      if (slope == CurveMapSlopeType::POSITIVE_NEGATIVE) {
         cuma->curve[0].flag &= ~CUMA_HANDLE_AUTO_ANIM;
         cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
         cuma->curve[4].flag &= ~CUMA_HANDLE_AUTO_ANIM;
@@ -429,7 +429,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve[4].y = 0.25;
       cuma->curve[5].x = 1;
       cuma->curve[5].y = 0;
-      if (slope == CurveMapSlopeType::PositiveNegative) {
+      if (slope == CurveMapSlopeType::POSITIVE_NEGATIVE) {
         cuma->curve[0].flag &= ~CUMA_HANDLE_AUTO_ANIM;
         cuma->curve[0].flag |= CUMA_HANDLE_VECTOR;
         cuma->curve[5].flag &= ~CUMA_HANDLE_AUTO_ANIM;
@@ -468,7 +468,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
 
   /* mirror curve in x direction to have positive slope
    * rather than default negative slope */
-  if (slope == CurveMapSlopeType::Positive) {
+  if (slope == CurveMapSlopeType::POSITIVE) {
     if (ELEM(preset, CURVE_PRESET_LINE, CURVE_PRESET_CONSTANT_MEDIAN)) {
       BLI_assert(cuma->totpoint == 2);
       /* The LINE and CONSTANT_MEDIAN presets are defined by a single pair of points, relative to
@@ -493,7 +493,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       cuma->curve = newpoints;
     }
   }
-  else if (slope == CurveMapSlopeType::PositiveNegative) {
+  else if (slope == CurveMapSlopeType::POSITIVE_NEGATIVE) {
     const int num_points = cuma->totpoint * 2 - 1;
     CurveMapPoint *new_points = MEM_new_array<CurveMapPoint>(size_t(num_points),
                                                              "curve symmetric points");

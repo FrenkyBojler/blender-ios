@@ -432,8 +432,8 @@ static void armature_vert_task_with_mixer(const ArmatureDeformParams &params,
   }
 
   /* TODO Actually should be EPSILON? Weight values and contrib can be like 10e-39 small. */
-  constexpr float contrib_threshold = 0.0001f;
-  if (contrib > contrib_threshold) {
+  constexpr float CONTRIB_THRESHOLD = 0.0001f;
+  if (contrib > CONTRIB_THRESHOLD) {
     float3 delta_co;
     float3x3 local_deform_mat;
     mixer.finalize(co, contrib, armature_weight, delta_co, local_deform_mat);
@@ -510,8 +510,8 @@ static void armature_deform_coords(const Object &ob_arm,
                                                                   dverts.has_value());
 
   const bool use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
-  constexpr int grain_size = 32;
-  threading::parallel_for(vert_coords.index_range(), grain_size, [&](const IndexRange range) {
+  constexpr int GRAIN_SIZE = 32;
+  threading::parallel_for(vert_coords.index_range(), GRAIN_SIZE, [&](const IndexRange range) {
     for (const int i : range) {
       const MDeformVert *dvert = nullptr;
       if (deform_params.use_dverts || deform_params.armature_def_nr >= 0) {

@@ -35,11 +35,11 @@ static const auto &builtin_attributes()
   static auto attributes = []() {
     Map<StringRef, AttrBuiltinInfo> map;
 
-    AttrBuiltinInfo position(bke::AttrDomain::Point, bke::AttrType::Float3);
+    AttrBuiltinInfo position(bke::AttrDomain::POINT, bke::AttrType::FLOAT3);
     position.deletable = false;
     map.add_new("position", std::move(position));
 
-    AttrBuiltinInfo radius(bke::AttrDomain::Point, bke::AttrType::Float);
+    AttrBuiltinInfo radius(bke::AttrDomain::POINT, bke::AttrType::FLOAT);
     map.add_new("radius", std::move(radius));
 
     return map;
@@ -57,10 +57,10 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
 {
   AttributeAccessorFunctions fn{};
   fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
-    return domain == AttrDomain::Point;
+    return domain == AttrDomain::POINT;
   };
   fn.domain_size = [](const void *owner, const AttrDomain domain) {
-    return domain == AttrDomain::Point ? static_cast<const PointCloud *>(owner)->totpoint : 0;
+    return domain == AttrDomain::POINT ? static_cast<const PointCloud *>(owner)->totpoint : 0;
   };
   fn.builtin_domain_and_type = [](const void * /*owner*/,
                                   const StringRef name) -> std::optional<AttributeDomainAndType> {
@@ -90,13 +90,13 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     if (!attribute) {
       return {};
     }
-    return attribute_to_reader(*attribute, AttrDomain::Point, pointcloud.totpoint);
+    return attribute_to_reader(*attribute, AttrDomain::POINT, pointcloud.totpoint);
   };
   fn.adapt_domain = [](const void * /*owner*/,
                        const GVArray &varray,
                        const AttrDomain from_domain,
                        const AttrDomain to_domain) {
-    if (from_domain == to_domain && from_domain == AttrDomain::Point) {
+    if (from_domain == to_domain && from_domain == AttrDomain::POINT) {
       return varray;
     }
     return GVArray{};
@@ -108,7 +108,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     const AttributeStorage &storage = pointcloud.attribute_storage.wrap();
     for (const Attribute &attribute : storage) {
       const auto get_fn = [&]() {
-        return attribute_to_reader(attribute, AttrDomain::Point, pointcloud.totpoint);
+        return attribute_to_reader(attribute, AttrDomain::POINT, pointcloud.totpoint);
       };
       AttributeIter iter(attribute.name(), attribute.domain(), attribute.data_type(), get_fn);
       iter.is_builtin = builtin_attributes().contains(attribute.name());
@@ -173,7 +173,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     Attribute::DataVariant data = attribute_init_to_data(
         type, domain_size, initializer, array_storage_required().contains(name));
     storage.add(name, domain, type, std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }
@@ -205,7 +205,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
                                                          initializer,
                                                          array_storage_required().contains(name));
     attr->assign_data(std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }
@@ -218,8 +218,8 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
 
 const AttributeAccessorFunctions &pointcloud_attribute_accessor_functions()
 {
-  static constexpr AttributeAccessorFunctions fn = get_pointcloud_accessor_functions();
-  return fn;
+  static constexpr AttributeAccessorFunctions FN = get_pointcloud_accessor_functions();
+  return FN;
 }
 
 }  // namespace blender::bke

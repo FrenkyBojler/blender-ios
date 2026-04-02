@@ -453,7 +453,7 @@ static void ensure_fill_cache(const Drawing &drawing)
     const CurvesGeometry &curves = drawing.strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
 
-    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::CURVE);
     r_fill_cache = fill_cache_from_fill_ids(fill_ids);
   });
 }
@@ -818,11 +818,11 @@ Span<float4x2> Drawing::texture_matrices() const
     const AttributeAccessor attributes = curves.attributes();
 
     const VArray<float> uv_rotations = *attributes.lookup_or_default<float>(
-        "uv_rotation", AttrDomain::Curve, 0.0f);
+        "uv_rotation", AttrDomain::CURVE, 0.0f);
     const VArray<float2> uv_translations = *attributes.lookup_or_default<float2>(
-        "uv_translation", AttrDomain::Curve, float2(0.0f, 0.0f));
+        "uv_translation", AttrDomain::CURVE, float2(0.0f, 0.0f));
     const VArray<float2> uv_scales = *attributes.lookup_or_default<float2>(
-        "uv_scale", AttrDomain::Curve, float2(1.0f, 1.0f));
+        "uv_scale", AttrDomain::CURVE, float2(1.0f, 1.0f));
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
@@ -851,11 +851,11 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
   CurvesGeometry &curves = this->strokes_for_write();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
   SpanAttributeWriter<float> uv_rotations = attributes.lookup_or_add_for_write_span<float>(
-      "uv_rotation", AttrDomain::Curve);
+      "uv_rotation", AttrDomain::CURVE);
   SpanAttributeWriter<float2> uv_translations = attributes.lookup_or_add_for_write_span<float2>(
-      "uv_translation", AttrDomain::Curve);
+      "uv_translation", AttrDomain::CURVE);
   SpanAttributeWriter<float2> uv_scales = attributes.lookup_or_add_for_write_span<float2>(
-      "uv_scale", AttrDomain::Curve, AttributeInitValue(float2(1.0f, 1.0f)));
+      "uv_scale", AttrDomain::CURVE, AttributeInitValue(float2(1.0f, 1.0f)));
 
   if (!uv_rotations || !uv_translations || !uv_scales) {
     /* FIXME: It might be better to ensure the attributes exist and are on the right domain. */
@@ -939,13 +939,13 @@ bke::CurvesGeometry &Drawing::strokes_for_write()
 VArray<float> Drawing::radii() const
 {
   return *this->strokes().attributes().lookup_or_default<float>(
-      ATTR_RADIUS, AttrDomain::Point, 0.01f);
+      ATTR_RADIUS, AttrDomain::POINT, 0.01f);
 }
 
 MutableSpan<float> Drawing::radii_for_write()
 {
   return bke::get_mutable_attribute<float>(this->strokes_for_write().attribute_storage.wrap(),
-                                           AttrDomain::Point,
+                                           AttrDomain::POINT,
                                            ATTR_RADIUS,
                                            this->strokes().points_num(),
                                            0.01f);
@@ -954,13 +954,13 @@ MutableSpan<float> Drawing::radii_for_write()
 VArray<float> Drawing::opacities() const
 {
   return *this->strokes().attributes().lookup_or_default<float>(
-      ATTR_OPACITY, AttrDomain::Point, 1.0f);
+      ATTR_OPACITY, AttrDomain::POINT, 1.0f);
 }
 
 MutableSpan<float> Drawing::opacities_for_write()
 {
   return bke::get_mutable_attribute<float>(this->strokes_for_write().attribute_storage.wrap(),
-                                           AttrDomain::Point,
+                                           AttrDomain::POINT,
                                            ATTR_OPACITY,
                                            this->strokes().points_num(),
                                            1.0f);
@@ -969,14 +969,14 @@ MutableSpan<float> Drawing::opacities_for_write()
 VArray<ColorGeometry4f> Drawing::vertex_colors() const
 {
   return *this->strokes().attributes().lookup_or_default<ColorGeometry4f>(
-      ATTR_VERTEX_COLOR, AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+      ATTR_VERTEX_COLOR, AttrDomain::POINT, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
 {
   return bke::get_mutable_attribute<ColorGeometry4f>(
       this->strokes_for_write().attribute_storage.wrap(),
-      AttrDomain::Point,
+      AttrDomain::POINT,
       ATTR_VERTEX_COLOR,
       this->strokes().points_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
@@ -985,14 +985,14 @@ MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
 VArray<ColorGeometry4f> Drawing::fill_colors() const
 {
   return *this->strokes().attributes().lookup_or_default<ColorGeometry4f>(
-      ATTR_FILL_COLOR, AttrDomain::Curve, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+      ATTR_FILL_COLOR, AttrDomain::CURVE, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
 {
   return bke::get_mutable_attribute<ColorGeometry4f>(
       this->strokes_for_write().attribute_storage.wrap(),
-      AttrDomain::Curve,
+      AttrDomain::CURVE,
       ATTR_FILL_COLOR,
       this->strokes().curves_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
@@ -2494,7 +2494,7 @@ static void grease_pencil_do_layer_adjustments(GreasePencil &grease_pencil)
 
   if (layer_attributes.contains("radius_offset")) {
     const VArray<float> radius_offsets = *layer_attributes.lookup_or_default<float>(
-        "radius_offset", bke::AttrDomain::Layer, 0.0f);
+        "radius_offset", bke::AttrDomain::LAYER, 0.0f);
     threading::parallel_for_each(drawing_infos, [&](LayerDrawingInfo &info) {
       if (radius_offsets[info.layer_index] == 0.0f) {
         return;
@@ -2514,7 +2514,7 @@ static void grease_pencil_do_layer_adjustments(GreasePencil &grease_pencil)
     };
     const VArray<ColorGeometry4f> tint_colors =
         *layer_attributes.lookup_or_default<ColorGeometry4f>(
-            "tint_color", bke::AttrDomain::Layer, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+            "tint_color", bke::AttrDomain::LAYER, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
     threading::parallel_for_each(drawing_infos, [&](LayerDrawingInfo &info) {
       if (tint_colors[info.layer_index].a == 0.0f) {
         return;
@@ -2577,7 +2577,7 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
 
   GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
-                                                             GeometryOwnershipType::ReadOnly);
+                                                             GeometryOwnershipType::READ_ONLY);
   /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
    * This ensures that the evaluated geometry contains the modifications. In the future, it would
    * be better to move these into modifiers. For now, these are hardcoded. */
@@ -2970,7 +2970,7 @@ void BKE_grease_pencil_material_remap(GreasePencil *grease_pencil, const uint *r
     if (!material_indices) {
       continue;
     }
-    BLI_assert(material_indices.domain == AttrDomain::Curve);
+    BLI_assert(material_indices.domain == AttrDomain::CURVE);
     for (const int i : material_indices.span.index_range()) {
       BLI_assert(IndexRange(totcol).contains(remap[material_indices.span[i]]));
       UNUSED_VARS_NDEBUG(totcol);
@@ -2995,7 +2995,7 @@ void BKE_grease_pencil_material_index_remove(GreasePencil *grease_pencil, const 
     if (!material_indices) {
       continue;
     }
-    BLI_assert(material_indices.domain == AttrDomain::Curve);
+    BLI_assert(material_indices.domain == AttrDomain::CURVE);
     for (const int i : material_indices.span.index_range()) {
       if (material_indices.span[i] > 0 && material_indices.span[i] >= index) {
         material_indices.span[i]--;
@@ -3016,7 +3016,7 @@ bool BKE_grease_pencil_material_index_used(GreasePencil *grease_pencil, int inde
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     AttributeAccessor attributes = drawing.strokes().attributes();
     const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-        "material_index", AttrDomain::Curve, 0);
+        "material_index", AttrDomain::CURVE, 0);
 
     if (material_indices.contains(index)) {
       return true;
@@ -3434,8 +3434,8 @@ void GreasePencil::remove_drawings_with_no_users()
 
   /* Index map to remap drawing indices in frame data.
    * Index -1 indicates that the drawing has not been moved. */
-  constexpr const int unchanged_index = -1;
-  Array<int> drawing_index_map(drawings.size(), unchanged_index);
+  constexpr const int UNCHANGED_INDEX = -1;
+  Array<int> drawing_index_map(drawings.size(), UNCHANGED_INDEX);
 
   int first_unused_drawing = -1;
   int last_used_drawing = drawings.size() - 1;
@@ -3506,7 +3506,7 @@ void GreasePencil::remove_drawings_with_no_users()
   for (Layer *layer : this->layers_for_write()) {
     for (auto [key, value] : layer->frames_for_write().items()) {
       const int new_drawing_index = drawing_index_map[value.drawing_index];
-      if (new_drawing_index != unchanged_index) {
+      if (new_drawing_index != UNCHANGED_INDEX) {
         value.drawing_index = new_drawing_index;
         layer->tag_frames_map_changed();
       }
@@ -3950,7 +3950,7 @@ bke::greasepencil::Layer &GreasePencil::add_layer(const StringRef name,
 {
   std::string unique_name = check_name_is_unique ? unique_layer_name(name) : std::string(name);
   const int numLayers = layers().size();
-  this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, numLayers + 1);
+  this->attribute_storage.wrap().resize(bke::AttrDomain::LAYER, numLayers + 1);
   bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__, unique_name);
   /* Enable Lights by default. */
   new_layer->base.flag |= GP_LAYER_TREE_NODE_USE_LIGHTS;
@@ -3961,7 +3961,7 @@ bke::greasepencil::Layer &GreasePencil::add_layer(const StringRef name,
   /* Initialize the attributes with default values. */
   bke::MutableAttributeAccessor attributes = this->attributes_for_write();
   bke::fill_attribute_range_default(attributes,
-                                    bke::AttrDomain::Layer,
+                                    bke::AttrDomain::LAYER,
                                     bke::attribute_filter_from_skip_ref({"name"}),
                                     IndexRange::from_single(numLayers));
 
@@ -3980,7 +3980,7 @@ bke::greasepencil::Layer &GreasePencil::add_layer(bke::greasepencil::LayerGroup 
 void GreasePencil::add_layers_for_eval(const int num_new_layers)
 {
   const int num_layers = this->layers().size();
-  this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, num_layers + num_new_layers);
+  this->attribute_storage.wrap().resize(bke::AttrDomain::LAYER, num_layers + num_new_layers);
   for ([[maybe_unused]] const int i : IndexRange(num_new_layers)) {
     bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__);
     /* Hide masks by default. */
@@ -4002,10 +4002,10 @@ bke::greasepencil::Layer &GreasePencil::duplicate_layer(
                                                                           duplicate_layer);
   root_group().add_node(new_layer->as_node());
 
-  this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, numLayers + 1);
+  this->attribute_storage.wrap().resize(bke::AttrDomain::LAYER, numLayers + 1);
   bke::MutableAttributeAccessor attributes = this->attributes_for_write();
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.storage_type == bke::AttrStorageType::Single) {
+    if (iter.storage_type == bke::AttrStorageType::SINGLE) {
       return;
     }
     bke::GSpanAttributeWriter attr = attributes.lookup_for_write_span(iter.name);
@@ -4080,7 +4080,7 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
     }
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
-      case bke::AttrStorageType::Array: {
+      case bke::AttrStorageType::ARRAY: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
         auto new_data = bke::Attribute::ArrayData::from_constructed(type, new_by_old_map.size());
         bke::attribute_math::gather(GSpan(type, data.data, data.size),
@@ -4089,7 +4089,7 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
         attr.assign_data(std::move(new_data));
         break;
       }
-      case bke::AttrStorageType::Single: {
+      case bke::AttrStorageType::SINGLE: {
         break;
       }
     }
@@ -4125,7 +4125,7 @@ static void reorder_layer_data(GreasePencil &grease_pencil,
 
   /* Use the mapping to re-order the custom data */
   reorder_attribute_domain(
-      grease_pencil.attribute_storage.wrap(), bke::AttrDomain::Layer, new_by_old_map);
+      grease_pencil.attribute_storage.wrap(), bke::AttrDomain::LAYER, new_by_old_map);
 }
 
 void GreasePencil::move_node_up(bke::greasepencil::TreeNode &node, const int step)
@@ -4409,7 +4409,7 @@ static void shrink_attribute_storage(bke::AttributeStorage &storage,
   for (bke::Attribute &attr : storage) {
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
-      case bke::AttrStorageType::Array: {
+      case bke::AttrStorageType::ARRAY: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
 
         auto new_data = bke::Attribute::ArrayData::from_uninitialized(type, size - 1);
@@ -4421,7 +4421,7 @@ static void shrink_attribute_storage(bke::AttributeStorage &storage,
         attr.assign_data(std::move(new_data));
         break;
       }
-      case bke::AttrStorageType::Single: {
+      case bke::AttrStorageType::SINGLE: {
         break;
       }
     }

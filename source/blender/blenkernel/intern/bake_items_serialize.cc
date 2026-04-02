@@ -486,12 +486,12 @@ template<typename T>
 
     const AttrStorageType storage_type = [&]() {
       if (const std::optional<StringRefNull> str = io_attribute->lookup_str("storage_type")) {
-        return get_storage_type_from_io_name(*str).value_or(AttrStorageType::Array);
+        return get_storage_type_from_io_name(*str).value_or(AttrStorageType::ARRAY);
       }
-      return AttrStorageType::Array;
+      return AttrStorageType::ARRAY;
     }();
     switch (storage_type) {
-      case AttrStorageType::Array: {
+      case AttrStorageType::ARRAY: {
         const int domain_size = attributes.domain_size(*domain);
         const ImplicitSharingInfo *attribute_sharing_info;
         const void *attribute_data = read_blob_shared_simple_gspan(
@@ -523,7 +523,7 @@ template<typename T>
         }
         break;
       }
-      case AttrStorageType::Single: {
+      case AttrStorageType::SINGLE: {
         const ImplicitSharingInfo *sharing_info;
         const void *value = read_blob_shared_simple_gspan(
             *io_data, blob_reader, blob_sharing, *cpp_type, 1, &sharing_info);
@@ -1031,7 +1031,7 @@ static std::shared_ptr<io::serialize::ArrayValue> serialize_attributes(
     const GAttributeReader attribute = iter.get();
     const CommonVArrayInfo info = attribute.varray.common_info();
     if (info.type == CommonVArrayInfo::Type::Single) {
-      io_attribute->append_str("storage_type", get_storage_type_io_name(AttrStorageType::Single));
+      io_attribute->append_str("storage_type", get_storage_type_io_name(AttrStorageType::SINGLE));
       const GSpan attribute_span(attribute.varray.type(), info.data, 1);
       io_attribute->append("data",
                            write_blob_shared_simple_gspan(
@@ -1217,7 +1217,7 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
 
     auto io_references = io_instances->append_array("references");
     for (const InstanceReference &reference : instances.references()) {
-      if (reference.type() == InstanceReference::Type::GeometrySet) {
+      if (reference.type() == InstanceReference::Type::GEOMETRY_SET) {
         const GeometrySet &geometry = reference.geometry_set();
         io_references->append(serialize_geometry_set(geometry, blob_writer, blob_sharing));
       }
@@ -1742,7 +1742,7 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
   return {};
 }
 
-static constexpr int bake_file_version = 3;
+static constexpr int BAKE_FILE_VERSION = 3;
 
 void serialize_bake(const BakeState &bake_state,
                     BlobWriter &blob_writer,
@@ -1750,7 +1750,7 @@ void serialize_bake(const BakeState &bake_state,
                     std::ostream &r_stream)
 {
   io::serialize::DictionaryValue io_root;
-  io_root.append_int("version", bake_file_version);
+  io_root.append_int("version", BAKE_FILE_VERSION);
   io::serialize::DictionaryValue &io_items = *io_root.append_dict("items");
   for (auto item : bake_state.items_by_id.items()) {
     io::serialize::DictionaryValue &io_item = *io_items.append_dict(std::to_string(item.key));
@@ -1781,7 +1781,7 @@ std::optional<BakeState> deserialize_bake(std::istream &stream,
     return std::nullopt;
   }
   const std::optional<int> version = io_root->lookup_int("version");
-  if (!version.has_value() || *version != bake_file_version) {
+  if (!version.has_value() || *version != BAKE_FILE_VERSION) {
     return std::nullopt;
   }
   const io::serialize::DictionaryValue *io_items = io_root->lookup_dict("items");

@@ -45,7 +45,7 @@ struct IDCacheKey;
 
 enum class ModifierTypeType {
   /** Should not be used, only for None modifier type. */
-  None,
+  NONE,
 
   /**
    * Modifier only does deformation, implies that modifier
@@ -53,30 +53,30 @@ enum class ModifierTypeType {
    * style modifiers implicitly accept either mesh or CV
    * input but should still declare flags appropriately.
    */
-  OnlyDeform,
+  ONLY_DEFORM,
 
   /** Modifier adds geometry. */
-  Constructive,
+  CONSTRUCTIVE,
   /** Modifier can add and remove geometry. */
-  Nonconstructive,
+  NONCONSTRUCTIVE,
 
   /**
    * Both deform_verts & applyModifier are valid calls
    * used for particles modifier that doesn't actually modify the object
    * unless it's a mesh and can be exploded -> curve can also emit particles
    */
-  DeformOrConstruct,
+  DEFORM_OR_CONSTRUCT,
 
   /**
    * Like Nonconstructive, but does not affect the geometry
    * of the object, rather some of its CustomData layers.
    * E.g. UVProject and WeightVG modifiers. */
-  NonGeometrical,
+  NON_GEOMETRICAL,
 };
 
 enum ModifierTypeFlag {
-  eModifierTypeFlag_AcceptsMesh = (1 << 0),
-  eModifierTypeFlag_AcceptsCVs = (1 << 1),
+  E_MODIFIER_TYPE_FLAG_ACCEPTS_MESH = (1 << 0),
+  E_MODIFIER_TYPE_FLAG_ACCEPTS_C_VS = (1 << 1),
   /**
    * Modifiers that enable this flag can have the modifiers "On Cage" option toggled,
    * see: #eModifierMode_OnCage, where the output of the modifier can be selected directly.
@@ -93,8 +93,8 @@ enum ModifierTypeFlag {
    * Modifiers that create entirely new geometry from the input should not enable this flag
    * because none of the geometry will be selectable when "On Cage" is enabled.
    */
-  eModifierTypeFlag_SupportsMapping = (1 << 2),
-  eModifierTypeFlag_SupportsEditmode = (1 << 3),
+  E_MODIFIER_TYPE_FLAG_SUPPORTS_MAPPING = (1 << 2),
+  E_MODIFIER_TYPE_FLAG_SUPPORTS_EDITMODE = (1 << 3),
 
   /**
    * For modifiers that support editmode this determines if the
@@ -103,33 +103,33 @@ enum ModifierTypeFlag {
    * also generally used in editmode, otherwise let the user enable
    * it by hand.
    */
-  eModifierTypeFlag_EnableInEditmode = (1 << 4),
+  E_MODIFIER_TYPE_FLAG_ENABLE_IN_EDITMODE = (1 << 4),
 
   /**
    * For modifiers that require original data and so cannot
    * be placed after any non-deforming modifier.
    */
-  eModifierTypeFlag_RequiresOriginalData = (1 << 5),
+  E_MODIFIER_TYPE_FLAG_REQUIRES_ORIGINAL_DATA = (1 << 5),
 
   /**
    * For modifiers that support point-cache,
    * so we can check to see if it has files we need to deal with.
    */
-  eModifierTypeFlag_UsesPointCache = (1 << 6),
+  E_MODIFIER_TYPE_FLAG_USES_POINT_CACHE = (1 << 6),
 
   /** For physics modifiers, max one per type */
-  eModifierTypeFlag_Single = (1 << 7),
+  E_MODIFIER_TYPE_FLAG_SINGLE = (1 << 7),
 
   /** Some modifier can't be added manually by user */
-  eModifierTypeFlag_NoUserAdd = (1 << 8),
+  E_MODIFIER_TYPE_FLAG_NO_USER_ADD = (1 << 8),
 
-  eModifierTypeFlag_AcceptsVertexCosOnly = (1 << 10),
+  E_MODIFIER_TYPE_FLAG_ACCEPTS_VERTEX_COS_ONLY = (1 << 10),
 
   /** Accepts #BMesh input (without conversion). */
-  eModifierTypeFlag_AcceptsBMesh = (1 << 11),
+  E_MODIFIER_TYPE_FLAG_ACCEPTS_B_MESH = (1 << 11),
 
   /** Accepts #GreasePencil data input. */
-  eModifierTypeFlag_AcceptsGreasePencil = (1 << 12),
+  E_MODIFIER_TYPE_FLAG_ACCEPTS_GREASE_PENCIL = (1 << 12),
 };
 ENUM_OPERATORS(ModifierTypeFlag)
 

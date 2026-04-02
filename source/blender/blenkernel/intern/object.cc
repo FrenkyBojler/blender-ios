@@ -1438,19 +1438,19 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
     return mti->modify_geometry_set != nullptr;
   }
   if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_LATTICE)) {
-    if (ob->type == OB_LATTICE && (mti->flags & eModifierTypeFlag_AcceptsVertexCosOnly) == 0) {
+    if (ob->type == OB_LATTICE && (mti->flags & E_MODIFIER_TYPE_FLAG_ACCEPTS_VERTEX_COS_ONLY) == 0) {
       return false;
     }
 
-    if (!((mti->flags & eModifierTypeFlag_AcceptsCVs) ||
-          (ob->type == OB_MESH && (mti->flags & eModifierTypeFlag_AcceptsMesh))))
+    if (!((mti->flags & E_MODIFIER_TYPE_FLAG_ACCEPTS_C_VS) ||
+          (ob->type == OB_MESH && (mti->flags & E_MODIFIER_TYPE_FLAG_ACCEPTS_MESH))))
     {
       return false;
     }
 
     return true;
   }
-  if (ob->type == OB_GREASE_PENCIL && (mti->flags & eModifierTypeFlag_AcceptsGreasePencil)) {
+  if (ob->type == OB_GREASE_PENCIL && (mti->flags & E_MODIFIER_TYPE_FLAG_ACCEPTS_GREASE_PENCIL)) {
     return true;
   }
 
@@ -1510,7 +1510,7 @@ bool BKE_object_copy_modifier(Main *bmain,
   if (!BKE_object_support_modifier_type_check(ob_dst, md_src->type)) {
     return false;
   }
-  if (mti->flags & eModifierTypeFlag_Single) {
+  if (mti->flags & E_MODIFIER_TYPE_FLAG_SINGLE) {
     if (BKE_modifiers_findby_type(ob_dst, ModifierType(md_src->type)) != nullptr) {
       return false;
     }
@@ -4949,7 +4949,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
        md = md->next)
   {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
-    bool can_deform = mti->type == ModifierTypeType::OnlyDeform || is_modifier_animated;
+    bool can_deform = mti->type == ModifierTypeType::ONLY_DEFORM || is_modifier_animated;
 
     if (!can_deform) {
       can_deform = constructive_modifier_is_deform_modified(ob, md);

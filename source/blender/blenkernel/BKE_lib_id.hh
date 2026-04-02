@@ -365,12 +365,12 @@ enum class IDNewNameMode {
    * Never rename another existing ID if the target name is already in use. The renamed ID will get
    * a name modified with a numerical suffix instead.
    */
-  RenameExistingNever = 0,
+  RENAME_EXISTING_NEVER = 0,
   /**
    * Always rename another existing ID if the target name is already in use. The renamed ID will
    * get the requested unmodified name.
    */
-  RenameExistingAlways = 1,
+  RENAME_EXISTING_ALWAYS = 1,
   /**
    * Only rename another existing ID if the target name is already in use, when the current name of
    * the renamed ID has the same root as the other ID name (i.e. they have the same name, besides
@@ -381,7 +381,7 @@ enum class IDNewNameMode {
    *   - Renaming `Cube` to `Object`: rename to `Object.001`,  the existing `Object` ID is not
    *     renamed.
    */
-  RenameExistingSameRoot = 2,
+  RENAME_EXISTING_SAME_ROOT = 2,
 };
 
 /** Information about how an ID rename went on. */
@@ -425,7 +425,7 @@ struct IDNewNameResult {
 IDNewNameResult BKE_libblock_rename(Main &bmain,
                                     ID &id,
                                     StringRefNull name,
-                                    const IDNewNameMode mode = IDNewNameMode::RenameExistingNever);
+                                    const IDNewNameMode mode = IDNewNameMode::RENAME_EXISTING_NEVER);
 
 /**
  * Like #BKE_libblock_rename, but also performs additional higher-level updates like depsgraph
@@ -436,7 +436,7 @@ IDNewNameResult BKE_libblock_rename(Main &bmain,
 IDNewNameResult BKE_id_rename(Main &bmain,
                               ID &id,
                               StringRefNull name,
-                              const IDNewNameMode mode = IDNewNameMode::RenameExistingNever);
+                              const IDNewNameMode mode = IDNewNameMode::RENAME_EXISTING_NEVER);
 
 /**
  * Find an ID in `bmain` by its type, name, and library ID.

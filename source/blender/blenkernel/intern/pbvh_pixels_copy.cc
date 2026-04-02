@@ -37,7 +37,7 @@ enum class CoordSpace {
    * With tile coordinate space each unit is a single pixel of the tile.
    * Range is [0..buffer width].
    */
-  Tile,
+  TILE,
 };
 
 template<CoordSpace Space> struct Vertex {
@@ -50,7 +50,7 @@ template<CoordSpace Space> struct Edge {
 };
 
 /** Calculate the bounds of the given edge. */
-static rcti get_bounds(const Edge<CoordSpace::Tile> &tile_edge)
+static rcti get_bounds(const Edge<CoordSpace::TILE> &tile_edge)
 {
   rcti bounds;
   BLI_rcti_init_minmax(&bounds);
@@ -76,25 +76,25 @@ static void clamp(rcti &bounds, int2 resolution)
   BLI_rcti_isect(&bounds, &clamping_bounds, &bounds);
 }
 
-static Vertex<CoordSpace::Tile> convert_coord_space(const Vertex<CoordSpace::UV> &uv_vertex,
+static Vertex<CoordSpace::TILE> convert_coord_space(const Vertex<CoordSpace::UV> &uv_vertex,
                                                     const image::ImageTileWrapper image_tile,
                                                     const int2 tile_resolution)
 {
-  return Vertex<CoordSpace::Tile>{(uv_vertex.coordinate - float2(image_tile.get_tile_offset())) *
+  return Vertex<CoordSpace::TILE>{(uv_vertex.coordinate - float2(image_tile.get_tile_offset())) *
                                   float2(tile_resolution)};
 }
 
-static Edge<CoordSpace::Tile> convert_coord_space(const Edge<CoordSpace::UV> &uv_edge,
+static Edge<CoordSpace::TILE> convert_coord_space(const Edge<CoordSpace::UV> &uv_edge,
                                                   const image::ImageTileWrapper image_tile,
                                                   const int2 tile_resolution)
 {
-  return Edge<CoordSpace::Tile>{
+  return Edge<CoordSpace::TILE>{
       convert_coord_space(uv_edge.vertex_1, image_tile, tile_resolution),
       convert_coord_space(uv_edge.vertex_2, image_tile, tile_resolution),
   };
 }
 
-class NonManifoldTileEdges : public Vector<Edge<CoordSpace::Tile>> {};
+class NonManifoldTileEdges : public Vector<Edge<CoordSpace::TILE>> {};
 
 class NonManifoldUVEdges : public Vector<Edge<CoordSpace::UV>> {
  public:
@@ -125,7 +125,7 @@ class NonManifoldUVEdges : public Vector<Edge<CoordSpace::UV>> {
   {
     NonManifoldTileEdges result;
     for (const Edge<CoordSpace::UV> &uv_edge : *this) {
-      const Edge<CoordSpace::Tile> tile_edge = convert_coord_space(
+      const Edge<CoordSpace::TILE> tile_edge = convert_coord_space(
           uv_edge, image_tile, tile_resolution);
       result.append(tile_edge);
     }
@@ -205,12 +205,12 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
 
 struct Rows {
   enum class PixelType {
-    Undecided,
+    UNDECIDED,
     /** This pixel is directly affected by a brush and doesn't need to be solved. */
-    Brush,
-    SelectedForCloserExamination,
+    BRUSH,
+    SELECTED_FOR_CLOSER_EXAMINATION,
     /** This pixel will be copied from another pixel to solve non-manifold edge bleeding. */
-    CopyFromClosestEdge,
+    COPY_FROM_CLOSEST_EDGE,
   };
 
   struct Pixel {
@@ -233,7 +233,7 @@ struct Rows {
       copy_command.source_1 = coordinate;
       copy_command.source_2 = coordinate;
       copy_command.mix_factor = 0.0f;
-      type = PixelType::Undecided;
+      type = PixelType::UNDECIDED;
       distance = std::numeric_limits<float>::max();
       edge_index = -1;
     }
@@ -286,7 +286,7 @@ struct Rows {
                  x++)
             {
               int64_t index = encoded_pixels.start_image_coordinate.y * resolution.x + x;
-              pixels[index].type = PixelType::Brush;
+              pixels[index].type = PixelType::BRUSH;
               pixels[index].distance = 0.0f;
             }
           });
@@ -323,7 +323,7 @@ struct Rows {
           continue;
         }
         int pixel_index = sy * resolution.y + sx;
-        if (pixels[pixel_index].type != PixelType::Brush) {
+        if (pixels[pixel_index].type != PixelType::BRUSH) {
           continue;
         }
 
@@ -340,7 +340,7 @@ struct Rows {
   float determine_mix_factor(const int2 destination,
                              const int2 source_1,
                              const int2 source_2,
-                             const Edge<CoordSpace::Tile> &edge)
+                             const Edge<CoordSpace::TILE> &edge)
   {
     /* Use stable result when both sources are the same. */
     if (source_1 == source_2) {
@@ -361,7 +361,7 @@ struct Rows {
 
   void find_copy_source(Pixel &pixel, const NonManifoldTileEdges &tile_edges)
   {
-    BLI_assert(pixel.type == PixelType::SelectedForCloserExamination);
+    BLI_assert(pixel.type == PixelType::SELECTED_FOR_CLOSER_EXAMINATION);
 
     rcti bounds;
     BLI_rcti_init(&bounds,
@@ -379,7 +379,7 @@ struct Rows {
       int pixel_index = sy * resolution.x;
       for (int sx : IndexRange(bounds.xmin, BLI_rcti_size_x(&bounds))) {
         Pixel &source = pixels[pixel_index + sx];
-        if (source.type != PixelType::Brush) {
+        if (source.type != PixelType::BRUSH) {
           continue;
         }
         float new_distance = math::distance(float2(sx, sy),
@@ -394,7 +394,7 @@ struct Rows {
     if (found_distance == std::numeric_limits<float>::max()) {
       return;
     }
-    pixel.type = PixelType::CopyFromClosestEdge;
+    pixel.type = PixelType::COPY_FROM_CLOSEST_EDGE;
     pixel.distance = found_distance;
     pixel.copy_command.source_1 = found_source;
     pixel.copy_command.source_2 = find_second_source(pixel.copy_command.destination, found_source);
@@ -423,7 +423,7 @@ struct Rows {
     selected_pixels.reserve(10000);
 
     for (int tile_edge_index : tile_edges.index_range()) {
-      const Edge<CoordSpace::Tile> &tile_edge = tile_edges[tile_edge_index];
+      const Edge<CoordSpace::TILE> &tile_edge = tile_edges[tile_edge_index];
       rcti edge_bounds = get_bounds(tile_edge);
       add_margin(edge_bounds, margin);
       clamp(edge_bounds, resolution);
@@ -432,10 +432,10 @@ struct Rows {
         for (const int64_t sx : IndexRange(edge_bounds.xmin, BLI_rcti_size_x(&edge_bounds))) {
           const int64_t index = sy * resolution.x + sx;
           Pixel &pixel = pixels[index];
-          if (pixel.type == PixelType::Brush) {
+          if (pixel.type == PixelType::BRUSH) {
             continue;
           }
-          BLI_assert_msg(pixel.type != PixelType::CopyFromClosestEdge,
+          BLI_assert_msg(pixel.type != PixelType::COPY_FROM_CLOSEST_EDGE,
                          "PixelType::CopyFromClosestEdge isn't allowed to be set as it is set "
                          "when finding the pixels to copy.");
 
@@ -447,10 +447,10 @@ struct Rows {
                                      tile_edge.vertex_2.coordinate);
           float distance_to_edge = math::distance(closest_edge_point, point);
           if (distance_to_edge < margin && distance_to_edge < pixel.distance) {
-            if (pixel.type != PixelType::SelectedForCloserExamination) {
+            if (pixel.type != PixelType::SELECTED_FOR_CLOSER_EXAMINATION) {
               selected_pixels.append(std::reference_wrapper<Pixel>(pixel));
             }
-            pixel.type = PixelType::SelectedForCloserExamination;
+            pixel.type = PixelType::SELECTED_FOR_CLOSER_EXAMINATION;
             pixel.distance = distance_to_edge;
             pixel.edge_index = tile_edge_index;
           }
@@ -467,7 +467,7 @@ struct Rows {
     std::optional<CopyPixelCommand> last_command = std::nullopt;
 
     for (const Pixel &elem : selected_pixels) {
-      if (elem.type == PixelType::CopyFromClosestEdge) {
+      if (elem.type == PixelType::COPY_FROM_CLOSEST_EDGE) {
         if (!last_command.has_value() || !last_command->can_be_extended(elem.copy_command)) {
           CopyPixelGroup new_group = {elem.copy_command.destination - int2(1, 0),
                                       elem.copy_command.source_1,

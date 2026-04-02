@@ -448,11 +448,11 @@ static void face_edge_loop_islands_calc(const int totedge,
   int num_edgeboundaries = 0;
 
   int face_prev = 0;
-  constexpr int temp_face_group_id = 3; /* Placeholder value. */
+  constexpr int TEMP_FACE_GROUP_ID = 3; /* Placeholder value. */
 
   /* For bitflags groups, group we could not find any available bit for, will be reset to 0 at the
    * end. */
-  constexpr int face_group_id_overflowed = 5;
+  constexpr int FACE_GROUP_ID_OVERFLOWED = 5;
 
   int tot_group = 0;
   bool group_id_overflow = false;
@@ -505,7 +505,7 @@ static void face_edge_loop_islands_calc(const int totedge,
       break;
     }
 
-    face_group_id = use_bitflags ? temp_face_group_id : ++tot_group;
+    face_group_id = use_bitflags ? TEMP_FACE_GROUP_ID : ++tot_group;
 
     /* start searching from here next time */
     face_prev = face + 1;
@@ -544,7 +544,7 @@ static void face_edge_loop_islands_calc(const int totedge,
             face_edge_loop_islands_calc_bitflags_exclude_at_boundary(face_groups,
                                                                      map_ele,
                                                                      face_group_id,
-                                                                     face_group_id_overflowed,
+                                                                     FACE_GROUP_ID_OVERFLOWED,
                                                                      bit_face_group_mask);
             if (use_boundary_vertices_for_bitflags) {
               /* Exclude bits used in other groups sharing the same boundary vertex. */
@@ -564,7 +564,7 @@ static void face_edge_loop_islands_calc(const int totedge,
               face_edge_loop_islands_calc_bitflags_exclude_at_boundary(face_groups,
                                                                        vert_face_map[vert],
                                                                        face_group_id,
-                                                                       face_group_id_overflowed,
+                                                                       FACE_GROUP_ID_OVERFLOWED,
                                                                        bit_face_group_mask);
             }
           }
@@ -600,7 +600,7 @@ static void face_edge_loop_islands_calc(const int totedge,
             "as out of any smooth group...\n");
 
         /* Can't use 0, will have to set them to this value later. */
-        face_group_id = face_group_id_overflowed;
+        face_group_id = FACE_GROUP_ID_OVERFLOWED;
 
         group_id_overflow = true;
       }
@@ -620,7 +620,7 @@ static void face_edge_loop_islands_calc(const int totedge,
   if (UNLIKELY(group_id_overflow)) {
     int i = int(faces.size()), *gid = face_groups;
     for (; i--; gid++) {
-      if (*gid == face_group_id_overflowed) {
+      if (*gid == FACE_GROUP_ID_OVERFLOWED) {
         *gid = 0;
       }
     }

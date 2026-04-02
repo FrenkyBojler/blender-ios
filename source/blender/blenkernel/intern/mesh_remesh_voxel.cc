@@ -460,10 +460,10 @@ static void sample_vertex_attributes(const Span<StringRef> names,
                                      MutableAttributeAccessor dst_attributes)
 {
   for (const StringRef name : names) {
-    const GVArray src = *src_attributes.lookup(name, AttrDomain::Point);
+    const GVArray src = *src_attributes.lookup(name, AttrDomain::POINT);
     const AttrType type = cpp_type_to_attribute_type(src.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-        name, AttrDomain::Point, type);
+        name, AttrDomain::POINT, type);
     mesh_surface_sample::sample_point_attribute(corner_verts,
                                                 corner_tris,
                                                 tri_indices,
@@ -483,7 +483,7 @@ static void sample_corner_attributes(const Span<StringRef> names,
                                      MutableAttributeAccessor dst_attributes)
 {
   for (const StringRef name : names) {
-    const GVArray src = *src_attributes.lookup(name, AttrDomain::Corner);
+    const GVArray src = *src_attributes.lookup(name, AttrDomain::CORNER);
     const AttrType type = cpp_type_to_attribute_type(src.type());
 
     GArray<> dst_point(src.type(), bary_coords.size());
@@ -491,8 +491,8 @@ static void sample_corner_attributes(const Span<StringRef> names,
         corner_tris, tri_indices, bary_coords, src, IndexMask(dst_point.size()), dst_point);
 
     GVArray dst_corner = dst_attributes.adapt_domain(
-        GVArray::from_span(dst_point.as_span()), AttrDomain::Point, AttrDomain::Corner);
-    dst_attributes.add(name, AttrDomain::Corner, type, AttributeInitVArray(std::move(dst_corner)));
+        GVArray::from_span(dst_point.as_span()), AttrDomain::POINT, AttrDomain::CORNER);
+    dst_attributes.add(name, AttrDomain::CORNER, type, AttributeInitVArray(std::move(dst_corner)));
   }
 }
 
@@ -511,7 +511,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
     if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
       return;
     }
-    if (iter.storage_type == bke::AttrStorageType::Single) {
+    if (iter.storage_type == bke::AttrStorageType::SINGLE) {
       const GVArray src_attr = *iter.get();
       const CommonVArrayInfo info = src_attr.common_info();
       if (info.type == CommonVArrayInfo::Type::Single) {
@@ -522,16 +522,16 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
       }
     }
     switch (iter.domain) {
-      case AttrDomain::Point:
+      case AttrDomain::POINT:
         point_ids.append(iter.name);
         break;
-      case AttrDomain::Edge:
+      case AttrDomain::EDGE:
         edge_ids.append(iter.name);
         break;
-      case AttrDomain::Face:
+      case AttrDomain::FACE:
         face_ids.append(iter.name);
         break;
-      case AttrDomain::Corner:
+      case AttrDomain::CORNER:
         corner_ids.append(iter.name);
         break;
       default:
@@ -618,14 +618,14 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
                        dst_edges,
                        bvhtree,
                        map);
-    gather_attributes(edge_ids, src_attributes, AttrDomain::Edge, map, dst_attributes);
+    gather_attributes(edge_ids, src_attributes, AttrDomain::EDGE, map, dst_attributes);
   }
 
   if (!face_ids.is_empty()) {
     const Span<int> src_tri_faces = src.corner_tri_faces();
     Array<int> map(dst.faces_num);
     find_nearest_faces(src_tri_faces, dst_positions, dst_faces, dst_corner_verts, bvhtree, map);
-    gather_attributes(face_ids, src_attributes, AttrDomain::Face, map, dst_attributes);
+    gather_attributes(face_ids, src_attributes, AttrDomain::FACE, map, dst_attributes);
   }
 
   if (src.active_color_attribute) {

@@ -102,7 +102,7 @@ void assign_to_vertex_group(Drawing &drawing, const StringRef name, const float 
 
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection", bke::AttrDomain::POINT, true);
 
   /* Look for existing group, otherwise lazy-initialize if any vertex is selected. */
   int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
@@ -143,7 +143,7 @@ bool remove_from_vertex_group(Drawing &drawing, const StringRef name, const bool
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection", bke::AttrDomain::POINT, true);
   for (const int i : dverts.index_range()) {
     if (!use_selection || selection[i]) {
       MDeformVert *dv = &dverts[i];

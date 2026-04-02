@@ -52,11 +52,11 @@ namespace bke {
 
 enum class GeometryOwnershipType {
   /* The geometry is owned. This implies that it can be changed. */
-  Owned = 0,
+  OWNED = 0,
   /* The geometry can be changed, but someone else is responsible for freeing it. */
-  Editable = 1,
+  EDITABLE = 1,
   /* The geometry cannot be changed and someone else is responsible for freeing it. */
-  ReadOnly = 2,
+  READ_ONLY = 2,
 };
 
 using GeometryComponentPtr = ImplicitSharingPtr<GeometryComponent>;
@@ -75,13 +75,13 @@ class GeometryComponent : public ImplicitSharingMixin {
    * \note These values are stored in files, so they should not be reordered.
    */
   enum class Type {
-    Mesh = 0,
-    PointCloud = 1,
-    Instance = 2,
-    Volume = 3,
-    Curve = 4,
-    Edit = 5,
-    GreasePencil = 6,
+    MESH = 0,
+    POINT_CLOUD = 1,
+    INSTANCE = 2,
+    VOLUME = 3,
+    CURVE = 4,
+    EDIT = 5,
+    GREASE_PENCIL = 6,
   };
 
  private:
@@ -127,7 +127,7 @@ class GeometryComponent : public ImplicitSharingMixin {
 };
 
 template<typename T>
-inline constexpr bool is_geometry_component_v = std::is_base_of_v<GeometryComponent, T>;
+inline constexpr bool IS_GEOMETRY_COMPONENT_V = std::is_base_of_v<GeometryComponent, T>;
 
 /**
  * A geometry set is a container for multiple kinds of geometry. It does not own geometry directly
@@ -179,8 +179,8 @@ struct GeometrySet {
   GeometryComponent &get_component_for_write(GeometryComponent::Type component_type);
   template<typename Component> Component &get_component_for_write()
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
-    return static_cast<Component &>(this->get_component_for_write(Component::static_type));
+    BLI_STATIC_ASSERT(IS_GEOMETRY_COMPONENT_V<Component>, "");
+    return static_cast<Component &>(this->get_component_for_write(Component::STATIC_TYPE));
   }
 
   /**
@@ -189,28 +189,28 @@ struct GeometrySet {
   const GeometryComponent *get_component(GeometryComponent::Type component_type) const;
   template<typename Component> const Component *get_component() const
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
-    return static_cast<const Component *>(get_component(Component::static_type));
+    BLI_STATIC_ASSERT(IS_GEOMETRY_COMPONENT_V<Component>, "");
+    return static_cast<const Component *>(get_component(Component::STATIC_TYPE));
   }
 
   bool has(const GeometryComponent::Type component_type) const;
   template<typename Component> bool has() const
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
-    return this->has(Component::static_type);
+    BLI_STATIC_ASSERT(IS_GEOMETRY_COMPONENT_V<Component>, "");
+    return this->has(Component::STATIC_TYPE);
   }
 
   template<typename Component> bool has_component() const
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
+    BLI_STATIC_ASSERT(IS_GEOMETRY_COMPONENT_V<Component>, "");
     return components_[int(Component::static_type)];
   }
 
   void remove(const GeometryComponent::Type component_type);
   template<typename Component> void remove()
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
-    return this->remove(Component::static_type);
+    BLI_STATIC_ASSERT(IS_GEOMETRY_COMPONENT_V<Component>, "");
+    return this->remove(Component::STATIC_TYPE);
   }
 
   /**
@@ -276,33 +276,33 @@ struct GeometrySet {
    * Create a new geometry set that only contains the given mesh.
    */
   static GeometrySet from_mesh(Mesh *mesh,
-                               GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                               GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Create a new geometry set that only contains the given volume.
    */
   static GeometrySet from_volume(Volume *volume,
-                                 GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                                 GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Create a new geometry set that only contains the given point cloud.
    */
   static GeometrySet from_pointcloud(
-      PointCloud *pointcloud, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+      PointCloud *pointcloud, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Create a new geometry set that only contains the given curves.
    */
   static GeometrySet from_curves(Curves *curves,
-                                 GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                                 GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Create a new geometry set that only contains the given instances.
    */
   static GeometrySet from_instances(std::unique_ptr<Instances> instances);
   static GeometrySet from_instances(
-      Instances *instances, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+      Instances *instances, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Create a new geometry set that only contains the given Grease Pencil data.
    */
   static GeometrySet from_grease_pencil(
-      GreasePencil *grease_pencil, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+      GreasePencil *grease_pencil, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
 
   /* Utility methods for access. */
   /**
@@ -416,32 +416,32 @@ struct GeometrySet {
   /**
    * Clear the existing mesh and replace it with the given one.
    */
-  void replace_mesh(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+  void replace_mesh(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Clear the existing point cloud and replace with the given one.
    */
   void replace_pointcloud(PointCloud *pointcloud,
-                          GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                          GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Clear the existing volume and replace with the given one.
    */
   void replace_volume(Volume *volume,
-                      GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                      GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Clear the existing curves data-block and replace it with the given one.
    */
   void replace_curves(Curves *curves,
-                      GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                      GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Clear the existing instances and replace them with the given one.
    */
   void replace_instances(Instances *instances,
-                         GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                         GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Clear the existing Grease Pencil data-block and replace it with the given one.
    */
   void replace_grease_pencil(GreasePencil *grease_pencil,
-                             GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                             GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
 
   bool has_bundle() const;
   const nodes::Bundle *bundle() const;
@@ -478,7 +478,7 @@ struct GeometrySet {
   GeometryComponent *get_component_ptr(GeometryComponent::Type type);
   template<typename Component> Component *get_component_ptr()
   {
-    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
+    BLI_STATIC_ASSERT(IS_GEOMETRY_COMPONENT_V<Component>, "");
     return static_cast<Component *>(get_component_ptr(Component::static_type));
   }
 };
@@ -490,11 +490,11 @@ struct GeometrySet {
 class MeshComponent : public GeometryComponent {
  private:
   Mesh *mesh_ = nullptr;
-  GeometryOwnershipType ownership_ = GeometryOwnershipType::Owned;
+  GeometryOwnershipType ownership_ = GeometryOwnershipType::OWNED;
 
  public:
   MeshComponent();
-  MeshComponent(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+  MeshComponent(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   ~MeshComponent() override;
   GeometryComponentPtr copy() const override;
 
@@ -503,7 +503,7 @@ class MeshComponent : public GeometryComponent {
   /**
    * Clear the component and replace it with the new mesh.
    */
-  void replace(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+  void replace(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Return the mesh and clear the component. The caller takes over responsibility for freeing the
    * mesh (if the component was responsible before).
@@ -528,7 +528,7 @@ class MeshComponent : public GeometryComponent {
 
   void count_memory(MemoryCounter &memory) const override;
 
-  static constexpr GeometryComponent::Type static_type = Type::Mesh;
+  static constexpr GeometryComponent::Type STATIC_TYPE = Type::MESH;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
@@ -547,12 +547,12 @@ class MeshComponent : public GeometryComponent {
 class PointCloudComponent : public GeometryComponent {
  private:
   PointCloud *pointcloud_ = nullptr;
-  GeometryOwnershipType ownership_ = GeometryOwnershipType::Owned;
+  GeometryOwnershipType ownership_ = GeometryOwnershipType::OWNED;
 
  public:
   PointCloudComponent();
   PointCloudComponent(PointCloud *pointcloud,
-                      GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                      GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   ~PointCloudComponent() override;
   GeometryComponentPtr copy() const override;
 
@@ -562,7 +562,7 @@ class PointCloudComponent : public GeometryComponent {
    * Clear the component and replace it with the new point cloud.
    */
   void replace(PointCloud *pointcloud,
-               GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+               GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Return the point cloud and clear the component. The caller takes over responsibility for
    * freeing the point cloud (if the component was responsible before).
@@ -592,7 +592,7 @@ class PointCloudComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr GeometryComponent::Type static_type = Type::PointCloud;
+  static constexpr GeometryComponent::Type STATIC_TYPE = Type::POINT_CLOUD;
 };
 
 /**
@@ -603,7 +603,7 @@ class PointCloudComponent : public GeometryComponent {
 class CurveComponent : public GeometryComponent {
  private:
   Curves *curves_ = nullptr;
-  GeometryOwnershipType ownership_ = GeometryOwnershipType::Owned;
+  GeometryOwnershipType ownership_ = GeometryOwnershipType::OWNED;
 
   /**
    * Because rendering #Curves isn't fully working yet, we must provide a #Curve for the render
@@ -615,7 +615,7 @@ class CurveComponent : public GeometryComponent {
 
  public:
   CurveComponent();
-  CurveComponent(Curves *curve, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+  CurveComponent(Curves *curve, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   ~CurveComponent() override;
   GeometryComponentPtr copy() const override;
 
@@ -624,7 +624,7 @@ class CurveComponent : public GeometryComponent {
   /**
    * Clear the component and replace it with the new curve.
    */
-  void replace(Curves *curve, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+  void replace(Curves *curve, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   Curves *release();
 
   const Curves *get() const;
@@ -646,7 +646,7 @@ class CurveComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr GeometryComponent::Type static_type = Type::Curve;
+  static constexpr GeometryComponent::Type STATIC_TYPE = Type::CURVE;
 };
 
 /**
@@ -655,12 +655,12 @@ class CurveComponent : public GeometryComponent {
 class InstancesComponent : public GeometryComponent {
  private:
   Instances *instances_ = nullptr;
-  GeometryOwnershipType ownership_ = GeometryOwnershipType::Owned;
+  GeometryOwnershipType ownership_ = GeometryOwnershipType::OWNED;
 
  public:
   InstancesComponent();
   InstancesComponent(Instances *instances,
-                     GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+                     GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   ~InstancesComponent() override;
   GeometryComponentPtr copy() const override;
 
@@ -670,7 +670,7 @@ class InstancesComponent : public GeometryComponent {
   Instances *get_for_write();
 
   void replace(Instances *instances,
-               GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+               GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
 
   bool is_empty() const final;
 
@@ -684,7 +684,7 @@ class InstancesComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr GeometryComponent::Type static_type = Type::Instance;
+  static constexpr GeometryComponent::Type STATIC_TYPE = Type::INSTANCE;
 };
 
 /**
@@ -695,7 +695,7 @@ class InstancesComponent : public GeometryComponent {
 class VolumeComponent : public GeometryComponent {
  private:
   Volume *volume_ = nullptr;
-  GeometryOwnershipType ownership_ = GeometryOwnershipType::Owned;
+  GeometryOwnershipType ownership_ = GeometryOwnershipType::OWNED;
 
  public:
   VolumeComponent();
@@ -707,7 +707,7 @@ class VolumeComponent : public GeometryComponent {
   /**
    * Clear the component and replace it with the new volume.
    */
-  void replace(Volume *volume, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+  void replace(Volume *volume, GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Return the volume and clear the component. The caller takes over responsibility for freeing
    * the volume (if the component was responsible before).
@@ -731,7 +731,7 @@ class VolumeComponent : public GeometryComponent {
 
   void count_memory(MemoryCounter &memory) const override;
 
-  static constexpr GeometryComponent::Type static_type = Type::Volume;
+  static constexpr GeometryComponent::Type STATIC_TYPE = Type::VOLUME;
 };
 
 /**
@@ -775,7 +775,7 @@ class GeometryComponentEditData final : public GeometryComponent {
    */
   static void remember_deformed_positions_if_necessary(GeometrySet &geometry);
 
-  static constexpr GeometryComponent::Type static_type = GeometryComponent::Type::Edit;
+  static constexpr GeometryComponent::Type STATIC_TYPE = GeometryComponent::Type::EDIT;
 };
 
 /**
@@ -786,7 +786,7 @@ class GeometryComponentEditData final : public GeometryComponent {
 class GreasePencilComponent : public GeometryComponent {
  private:
   GreasePencil *grease_pencil_ = nullptr;
-  GeometryOwnershipType ownership_ = GeometryOwnershipType::Owned;
+  GeometryOwnershipType ownership_ = GeometryOwnershipType::OWNED;
 
  public:
   GreasePencilComponent();
@@ -799,7 +799,7 @@ class GreasePencilComponent : public GeometryComponent {
    * Clear the component and replace it with the new \a grease_pencil data.
    */
   void replace(GreasePencil *grease_pencil,
-               GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
+               GeometryOwnershipType ownership = GeometryOwnershipType::OWNED);
   /**
    * Return the Grease Pencil data and clear the component. The caller takes over responsibility
    * for freeing the Grease Pencil data (if the component was responsible before).
@@ -814,7 +814,7 @@ class GreasePencilComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
-  static constexpr GeometryComponent::Type static_type = Type::GreasePencil;
+  static constexpr GeometryComponent::Type STATIC_TYPE = Type::GREASE_PENCIL;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;

@@ -16,10 +16,10 @@ namespace bke {
 /** \name Geometry Component Implementation
  * \{ */
 
-PointCloudComponent::PointCloudComponent() : GeometryComponent(Type::PointCloud) {}
+PointCloudComponent::PointCloudComponent() : GeometryComponent(Type::POINT_CLOUD) {}
 
 PointCloudComponent::PointCloudComponent(PointCloud *pointcloud, GeometryOwnershipType ownership)
-    : GeometryComponent(Type::PointCloud), pointcloud_(pointcloud), ownership_(ownership)
+    : GeometryComponent(Type::POINT_CLOUD), pointcloud_(pointcloud), ownership_(ownership)
 {
 }
 
@@ -33,7 +33,7 @@ GeometryComponentPtr PointCloudComponent::copy() const
   PointCloudComponent *new_component = new PointCloudComponent();
   if (pointcloud_ != nullptr) {
     new_component->pointcloud_ = BKE_pointcloud_copy_for_eval(pointcloud_);
-    new_component->ownership_ = GeometryOwnershipType::Owned;
+    new_component->ownership_ = GeometryOwnershipType::OWNED;
   }
   return GeometryComponentPtr(new_component);
 }
@@ -42,7 +42,7 @@ void PointCloudComponent::clear()
 {
   BLI_assert(this->is_mutable() || this->is_expired());
   if (pointcloud_ != nullptr) {
-    if (ownership_ == GeometryOwnershipType::Owned) {
+    if (ownership_ == GeometryOwnershipType::OWNED) {
       BKE_id_free(nullptr, pointcloud_);
     }
     pointcloud_ = nullptr;
@@ -78,9 +78,9 @@ const PointCloud *PointCloudComponent::get() const
 PointCloud *PointCloudComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ == GeometryOwnershipType::ReadOnly) {
+  if (ownership_ == GeometryOwnershipType::READ_ONLY) {
     pointcloud_ = BKE_pointcloud_copy_for_eval(pointcloud_);
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
   return pointcloud_;
 }
@@ -92,17 +92,17 @@ bool PointCloudComponent::is_empty() const
 
 bool PointCloudComponent::owns_direct_data() const
 {
-  return ownership_ == GeometryOwnershipType::Owned;
+  return ownership_ == GeometryOwnershipType::OWNED;
 }
 
 void PointCloudComponent::ensure_owns_direct_data()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ != GeometryOwnershipType::Owned) {
+  if (ownership_ != GeometryOwnershipType::OWNED) {
     if (pointcloud_) {
       pointcloud_ = BKE_pointcloud_copy_for_eval(pointcloud_);
     }
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
 }
 

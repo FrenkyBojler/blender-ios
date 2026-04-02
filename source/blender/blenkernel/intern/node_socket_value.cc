@@ -28,7 +28,7 @@
 namespace blender::bke {
 
 template<typename T, typename U>
-static constexpr bool is_single_or_field_or_grid_v = is_same_any_v<T,
+static constexpr bool IS_SINGLE_OR_FIELD_OR_GRID_V = is_same_any_v<T,
                                                                    U,
                                                                    fn::Field<U>
 #ifdef WITH_OPENVDB
@@ -42,22 +42,22 @@ static constexpr bool is_single_or_field_or_grid_v = is_same_any_v<T,
  */
 template<typename T> static std::optional<eNodeSocketDatatype> static_type_to_socket_type()
 {
-  if constexpr (is_single_or_field_or_grid_v<T, int>) {
+  if constexpr (IS_SINGLE_OR_FIELD_OR_GRID_V<T, int>) {
     return SOCK_INT;
   }
-  if constexpr (is_single_or_field_or_grid_v<T, float>) {
+  if constexpr (IS_SINGLE_OR_FIELD_OR_GRID_V<T, float>) {
     return SOCK_FLOAT;
   }
-  if constexpr (is_single_or_field_or_grid_v<T, bool>) {
+  if constexpr (IS_SINGLE_OR_FIELD_OR_GRID_V<T, bool>) {
     return SOCK_BOOLEAN;
   }
-  if constexpr (is_single_or_field_or_grid_v<T, float3>) {
+  if constexpr (IS_SINGLE_OR_FIELD_OR_GRID_V<T, float3>) {
     return SOCK_VECTOR;
   }
-  if constexpr (is_single_or_field_or_grid_v<T, ColorGeometry4f>) {
+  if constexpr (IS_SINGLE_OR_FIELD_OR_GRID_V<T, ColorGeometry4f>) {
     return SOCK_RGBA;
   }
-  if constexpr (is_single_or_field_or_grid_v<T, math::Quaternion>) {
+  if constexpr (IS_SINGLE_OR_FIELD_OR_GRID_V<T, math::Quaternion>) {
     return SOCK_ROTATION;
   }
   if constexpr (is_same_any_v<T, nodes::MenuValue, fn::Field<nodes::MenuValue>>) {
@@ -175,20 +175,20 @@ template<typename T> T SocketValueVariant::extract()
 {
   if constexpr (std::is_same_v<T, fn::GField>) {
     switch (kind_) {
-      case Kind::Field: {
+      case Kind::FIELD: {
         return std::move(value_.get<fn::GField>());
       }
-      case Kind::Single: {
+      case Kind::SINGLE: {
         const GPointer single_value = this->get_single_ptr();
         return fn::make_constant_field(*single_value.type(), single_value.get());
       }
-      case Kind::List:
-      case Kind::Grid: {
+      case Kind::LIST:
+      case Kind::GRID: {
         const CPPType *cpp_type = socket_type_to_geo_nodes_base_cpp_type(socket_type_);
         BLI_assert(cpp_type);
         return fn::make_constant_field(*cpp_type, cpp_type->default_value());
       }
-      case Kind::None: {
+      case Kind::NONE: {
         BLI_assert_unreachable();
         break;
       }
@@ -200,7 +200,7 @@ template<typename T> T SocketValueVariant::extract()
     return T(this->extract<fn::GField>().typed<base_type>());
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
-    if (kind_ != Kind::List) {
+    if (kind_ != Kind::LIST) {
       return {};
     }
     return std::move(value_.get<nodes::ListPtr>());
@@ -208,18 +208,18 @@ template<typename T> T SocketValueVariant::extract()
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
     switch (kind_) {
-      case Kind::Grid: {
+      case Kind::GRID: {
         BLI_assert(value_);
         return std::move(value_.get<GVolumeGrid>());
       }
-      case Kind::Single:
-      case Kind::List:
-      case Kind::Field: {
+      case Kind::SINGLE:
+      case Kind::LIST:
+      case Kind::FIELD: {
         const std::optional<VolumeGridType> grid_type = socket_type_to_grid_type(socket_type_);
         BLI_assert(grid_type);
         return GVolumeGrid(*grid_type);
       }
-      case Kind::None: {
+      case Kind::NONE: {
         BLI_assert_unreachable();
         break;
       }
@@ -232,16 +232,16 @@ template<typename T> T SocketValueVariant::extract()
 #endif
   else {
     BLI_assert(static_type_is_base_socket_type<T>(socket_type_));
-    if (kind_ == Kind::Single) {
+    if (kind_ == Kind::SINGLE) {
       return std::move(value_.get<T>());
     }
-    if (kind_ == Kind::Field) {
+    if (kind_ == Kind::FIELD) {
       T ret_value;
       std::destroy_at(&ret_value);
       fn::evaluate_constant_field(value_.get<fn::GField>(), &ret_value);
       return ret_value;
     }
-    if (kind_ == Kind::List) {
+    if (kind_ == Kind::LIST) {
       return {};
     }
   }
@@ -264,7 +264,7 @@ template<typename T> void SocketValueVariant::store_impl(T value)
         geo_nodes_base_cpp_type_to_socket_type(value.cpp_type());
     BLI_assert(new_socket_type);
     socket_type_ = *new_socket_type;
-    kind_ = Kind::Field;
+    kind_ = Kind::FIELD;
     value_.emplace<fn::GField>(std::move(value));
   }
   else if constexpr (fn::is_field_v<T>) {
@@ -272,7 +272,7 @@ template<typename T> void SocketValueVariant::store_impl(T value)
     this->store_impl<fn::GField>(std::move(value));
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
-    kind_ = Kind::List;
+    kind_ = Kind::LIST;
     const CPPType &list_cpp_type = value->cpp_type();
     if (list_cpp_type.is<bke::SocketValueVariant>()) {
       /* For lists of #SocketValueVariant, use the socket type of the first element. */
@@ -298,7 +298,7 @@ template<typename T> void SocketValueVariant::store_impl(T value)
         volume_grid_type);
     BLI_assert(new_socket_type);
     socket_type_ = *new_socket_type;
-    kind_ = Kind::Grid;
+    kind_ = Kind::GRID;
     value_.emplace<GVolumeGrid>(std::move(value));
   }
   else if constexpr (is_VolumeGrid_v<T>) {
@@ -310,14 +310,14 @@ template<typename T> void SocketValueVariant::store_impl(T value)
     const std::optional<eNodeSocketDatatype> new_socket_type = static_type_to_socket_type<T>();
     BLI_assert(new_socket_type);
     socket_type_ = *new_socket_type;
-    kind_ = Kind::Single;
+    kind_ = Kind::SINGLE;
     value_.emplace<T>(std::move(value));
   }
 }
 
 void SocketValueVariant::store_single(const eNodeSocketDatatype socket_type, const void *value)
 {
-  kind_ = Kind::Single;
+  kind_ = Kind::SINGLE;
   socket_type_ = socket_type;
   switch (socket_type) {
     case SOCK_FLOAT: {
@@ -429,32 +429,32 @@ bool SocketValueVariant::is_context_dependent_field() const
 
 bool SocketValueVariant::is_field() const
 {
-  return kind_ == Kind::Field;
+  return kind_ == Kind::FIELD;
 }
 
 bool SocketValueVariant::is_volume_grid() const
 {
-  return kind_ == Kind::Grid;
+  return kind_ == Kind::GRID;
 }
 
 bool SocketValueVariant::is_single() const
 {
-  return kind_ == Kind::Single;
+  return kind_ == Kind::SINGLE;
 }
 
 bool SocketValueVariant::is_list() const
 {
-  return kind_ == Kind::List;
+  return kind_ == Kind::LIST;
 }
 
 void SocketValueVariant::convert_to_single()
 {
   switch (kind_) {
-    case Kind::Single: {
+    case Kind::SINGLE: {
       /* Nothing to do. */
       break;
     }
-    case Kind::Field: {
+    case Kind::FIELD: {
       /* Evaluates the field without inputs to try to get a single value. If the field depends on
        * context, the default value is used instead. */
       fn::GField field = std::move(value_.get<fn::GField>());
@@ -462,15 +462,15 @@ void SocketValueVariant::convert_to_single()
       fn::evaluate_constant_field(field, buffer);
       break;
     }
-    case Kind::List:
-    case Kind::Grid: {
+    case Kind::LIST:
+    case Kind::GRID: {
       /* Can't convert a grid to a single value, so just use the default value of the current
        * socket type. */
       const CPPType &cpp_type = *socket_type_to_geo_nodes_base_cpp_type(socket_type_);
       this->store_single(socket_type_, cpp_type.default_value());
       break;
     }
-    case Kind::None: {
+    case Kind::NONE: {
       BLI_assert_unreachable();
       break;
     }
@@ -479,7 +479,7 @@ void SocketValueVariant::convert_to_single()
 
 GPointer SocketValueVariant::get_single_ptr() const
 {
-  BLI_assert(kind_ == Kind::Single);
+  BLI_assert(kind_ == Kind::SINGLE);
   const CPPType *type = socket_type_to_geo_nodes_base_cpp_type(socket_type_);
   BLI_assert(type != nullptr);
   const void *data = value_.get();
@@ -494,7 +494,7 @@ GMutablePointer SocketValueVariant::get_single_ptr()
 
 void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
 {
-  kind_ = Kind::Single;
+  kind_ = Kind::SINGLE;
   socket_type_ = socket_type;
   switch (socket_type) {
     case SOCK_FLOAT:
@@ -665,7 +665,7 @@ std::ostream &operator<<(std::ostream &stream, const SocketValueVariant &value_v
 {
   SocketValueVariant variant_copy = value_variant;
   variant_copy.convert_to_single();
-  if (value_variant.kind_ == SocketValueVariant::Kind::Single) {
+  if (value_variant.kind_ == SocketValueVariant::Kind::SINGLE) {
     const GPointer value = variant_copy.get_single_ptr();
     const CPPType &cpp_type = *value.type();
     if (cpp_type.is_printable()) {
@@ -681,7 +681,7 @@ std::ostream &operator<<(std::ostream &stream, const SocketValueVariant &value_v
 
 bool SocketValueVariant::valid_for_socket(eNodeSocketDatatype socket_type) const
 {
-  if (kind_ == Kind::None) {
+  if (kind_ == Kind::NONE) {
     return false;
   }
   return socket_type_ == socket_type;
@@ -690,10 +690,10 @@ bool SocketValueVariant::valid_for_socket(eNodeSocketDatatype socket_type) const
 void SocketValueVariant::count_memory(MemoryCounter &memory) const
 {
   switch (kind_) {
-    case Kind::None: {
+    case Kind::NONE: {
       break;
     }
-    case Kind::Single: {
+    case Kind::SINGLE: {
       const GPointer value = this->get_single_ptr();
       const CPPType &cpp_type = *value.type();
       memory.add(cpp_type.size);
@@ -709,10 +709,10 @@ void SocketValueVariant::count_memory(MemoryCounter &memory) const
       }
       break;
     }
-    case Kind::Field: {
+    case Kind::FIELD: {
       break;
     }
-    case Kind::Grid: {
+    case Kind::GRID: {
 #ifdef WITH_OPENVDB
       if (const GVolumeGrid &grid = value_.get<GVolumeGrid>()) {
         grid->count_memory(memory);
@@ -720,7 +720,7 @@ void SocketValueVariant::count_memory(MemoryCounter &memory) const
 #endif
       break;
     }
-    case Kind::List: {
+    case Kind::LIST: {
       if (const nodes::ListPtr &list = value_.get<nodes::ListPtr>()) {
         list->count_memory(memory);
       }

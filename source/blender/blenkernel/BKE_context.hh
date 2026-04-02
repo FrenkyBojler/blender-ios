@@ -79,9 +79,9 @@ struct WorkSpace;
  */
 enum class CTX_LogFlag : uint8_t {
   /** Enable logging of context member access. */
-  Access = (1 << 0),
+  ACCESS = (1 << 0),
   /** Hide missing/None values from logging. */
-  HideMissing = (1 << 1),
+  HIDE_MISSING = (1 << 1),
 };
 ENUM_OPERATORS(CTX_LogFlag);
 
@@ -283,11 +283,11 @@ void CTX_wm_operator_poll_msg_clear(bContext *C);
 
 /** Data type, needed so we can tell between a NULL pointer and an empty list. */
 enum class ContextDataType : uint8_t {
-  Pointer = 0,
-  Collection,
-  Property,
-  String,
-  Int64,
+  POINTER = 0,
+  COLLECTION,
+  PROPERTY,
+  STRING,
+  INT64,
 };
 
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);

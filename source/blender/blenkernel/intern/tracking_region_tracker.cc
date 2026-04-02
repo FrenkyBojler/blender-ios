@@ -110,7 +110,7 @@ static ImBuf *tracking_context_get_frame_ibuf(MovieClip *clip,
 
   new_user.framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, framenr);
 
-  ibuf = BKE_movieclip_get_ibuf_flag(clip, &new_user, clip_flag, MovieClipCacheFlag::SkipCache);
+  ibuf = BKE_movieclip_get_ibuf_flag(clip, &new_user, clip_flag, MovieClipCacheFlag::SKIP_CACHE);
 
   return ibuf;
 }
@@ -334,7 +334,7 @@ void BKE_tracking_refine_marker(MovieClip *clip,
 
   /* Destination image buffer has got frame number corresponding to refining marker. */
   destination_ibuf = BKE_movieclip_get_ibuf_flag(
-      clip, &user, clip_flag, MovieClipCacheFlag::SkipCache);
+      clip, &user, clip_flag, MovieClipCacheFlag::SKIP_CACHE);
   if (destination_ibuf == nullptr) {
     IMB_freeImBuf(reference_ibuf);
     return;

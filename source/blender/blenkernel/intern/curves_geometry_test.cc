@@ -697,12 +697,12 @@ TEST(curves_geometry, BasisCacheNonUniformDeg2)
 
 TEST(knot_vector, KnotVectorUniform)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num = 7;
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM = 7;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_NORMAL, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_NORMAL, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}), multiplicity);
@@ -710,12 +710,12 @@ TEST(knot_vector, KnotVectorUniform)
 
 TEST(knot_vector, KnotVectorUniformClamped)
 {
-  constexpr int8_t order = 3;
-  constexpr int points_num = 7;
+  constexpr int8_t ORDER = 3;
+  constexpr int POINTS_NUM = 7;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({3, 1, 1, 1, 1, 3}), multiplicity);
@@ -727,12 +727,12 @@ TEST(knot_vector, KnotVectorUniformClamped)
 
 TEST(knot_vector, KnotVectorBezierClampedSegmentDeg2)
 {
-  constexpr int8_t order = 3;
-  constexpr int points_num = 3;
+  constexpr int8_t ORDER = 3;
+  constexpr int POINTS_NUM = 3;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({3, 3}), multiplicity);
@@ -740,12 +740,12 @@ TEST(knot_vector, KnotVectorBezierClampedSegmentDeg2)
 
 TEST(knot_vector, KnotVectorBezierClampedSegmentDeg4)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num = 5;
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM = 5;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({5, 5}), multiplicity);
@@ -753,12 +753,12 @@ TEST(knot_vector, KnotVectorBezierClampedSegmentDeg4)
 
 TEST(knot_vector, KnotVectorBezierClampedDeg2)
 {
-  constexpr int8_t order = 3;
-  constexpr int points_num = 9;
+  constexpr int8_t ORDER = 3;
+  constexpr int POINTS_NUM = 9;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({3, 2, 2, 2, 3}), multiplicity);
@@ -766,12 +766,12 @@ TEST(knot_vector, KnotVectorBezierClampedDeg2)
 
 TEST(knot_vector, KnotVectorBezierClampedUnevenDeg2)
 {
-  constexpr int8_t order = 3;
-  constexpr int points_num = 8;
+  constexpr int8_t ORDER = 3;
+  constexpr int POINTS_NUM = 8;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({3, 2, 2, 4}), multiplicity);
@@ -779,12 +779,12 @@ TEST(knot_vector, KnotVectorBezierClampedUnevenDeg2)
 
 TEST(knot_vector, KnotVectorBezierClampedDeg4)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num = 13;
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM = 13;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({5, 4, 4, 5}), multiplicity);
@@ -792,17 +792,17 @@ TEST(knot_vector, KnotVectorBezierClampedDeg4)
 
 TEST(knot_vector, KnotVectorBezierClampedUnevenDeg4)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num[4] = {12, 11, 10, 9};
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM[4] = {12, 11, 10, 9};
   const std::array<std::array<int, 3>, 4> expectation = {std::array<int, 3>{5, 4, 8},
                                                          std::array<int, 3>{5, 4, 7},
                                                          std::array<int, 3>{5, 4, 6},
                                                          std::array<int, 3>{5, 4, 5}};
 
   for (int i = 0; i < expectation.size(); i++) {
-    Vector<float> knots(curves::nurbs::knots_num(points_num[i], order, false));
+    Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM[i], ORDER, false));
     curves::nurbs::calculate_knots(
-        points_num[i], KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, false, knots);
+        POINTS_NUM[i], KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, false, knots);
 
     const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
     EXPECT_EQ_SPAN<int>(Span(expectation[i]), multiplicity);
@@ -811,12 +811,12 @@ TEST(knot_vector, KnotVectorBezierClampedUnevenDeg4)
 
 TEST(knot_vector, KnotVectorCircleCyclicUnevenDeg2)
 {
-  constexpr int8_t order = 3;
-  constexpr int points_num = 8;
+  constexpr int8_t ORDER = 3;
+  constexpr int POINTS_NUM = 8;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, true));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, true));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, true, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, true, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({1, 2, 2, 2, 2, 2, 2}), multiplicity);
@@ -824,17 +824,17 @@ TEST(knot_vector, KnotVectorCircleCyclicUnevenDeg2)
 
 TEST(knot_vector, KnotVectorBezierClampedCyclicUnevenDeg4)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num[4] = {12, 11, 10, 9};
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM[4] = {12, 11, 10, 9};
   const std::array<std::array<int, 6>, 4> expectation = {std::array<int, 6>{1, 4, 4, 4, 4, 4},
                                                          std::array<int, 6>{1, 4, 4, 3, 4, 4},
                                                          std::array<int, 6>{1, 4, 4, 2, 4, 4},
                                                          std::array<int, 6>{1, 4, 4, 1, 4, 4}};
 
   for (int i = 0; i < expectation.size(); i++) {
-    Vector<float> knots(curves::nurbs::knots_num(points_num[i], order, true));
+    Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM[i], ORDER, true));
     curves::nurbs::calculate_knots(
-        points_num[i], KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, order, true, knots);
+        POINTS_NUM[i], KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER, ORDER, true, knots);
 
     const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
     EXPECT_EQ_SPAN<int>(Span(expectation[i]), multiplicity);
@@ -849,12 +849,12 @@ TEST(knot_vector, KnotVectorBezierClampedCyclicUnevenDeg4)
 
 TEST(knot_vector, KnotVectorBezierSegmentDeg2)
 {
-  constexpr int8_t order = 4;
-  constexpr int points_num = 4;
+  constexpr int8_t ORDER = 4;
+  constexpr int POINTS_NUM = 4;
 
-  Vector<float> knots(curves::nurbs::knots_num(points_num, order, false));
+  Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM, ORDER, false));
   curves::nurbs::calculate_knots(
-      points_num, KnotsMode::NURBS_KNOT_MODE_BEZIER, order, false, knots);
+      POINTS_NUM, KnotsMode::NURBS_KNOT_MODE_BEZIER, ORDER, false, knots);
 
   const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
   EXPECT_EQ_SPAN<int>(Span({2, 3, 3}), multiplicity);
@@ -862,17 +862,17 @@ TEST(knot_vector, KnotVectorBezierSegmentDeg2)
 
 TEST(knot_vector, KnotVectorBezierUnevenDeg2)
 {
-  constexpr int8_t order = 3;
-  constexpr int points_num[4] = {8, 7, 6, 5};
+  constexpr int8_t ORDER = 3;
+  constexpr int POINTS_NUM[4] = {8, 7, 6, 5};
   const std::array<std::array<int, 6>, 4> expectation = {std::array<int, 6>{2, 2, 2, 2, 2, 1},
                                                          std::array<int, 6>{2, 2, 2, 2, 2, -1},
                                                          std::array<int, 6>{2, 2, 2, 2, 1, -1},
                                                          std::array<int, 6>{2, 2, 2, 2, -1, -1}};
 
   for (int i = 0; i < expectation.size(); i++) {
-    Vector<float> knots(curves::nurbs::knots_num(points_num[i], order, false));
+    Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM[i], ORDER, false));
     curves::nurbs::calculate_knots(
-        points_num[i], KnotsMode::NURBS_KNOT_MODE_BEZIER, order, false, knots);
+        POINTS_NUM[i], KnotsMode::NURBS_KNOT_MODE_BEZIER, ORDER, false, knots);
 
     const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
     EXPECT_EQ_SPAN<int>(Span(expectation[i].data(), multiplicity.size()), multiplicity);
@@ -881,8 +881,8 @@ TEST(knot_vector, KnotVectorBezierUnevenDeg2)
 
 TEST(knot_vector, KnotVectorBezierUnevenDeg4)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num[6] = {14, 13, 12, 11, 10, 9};
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM[6] = {14, 13, 12, 11, 10, 9};
   const std::array<std::array<int, 6>, 6> expectation = {std::array<int, 6>{2, 4, 4, 4, 4, 1},
                                                          std::array<int, 6>{2, 4, 4, 4, 4, -1},
                                                          std::array<int, 6>{2, 4, 4, 4, 3, -1},
@@ -891,9 +891,9 @@ TEST(knot_vector, KnotVectorBezierUnevenDeg4)
                                                          std::array<int, 6>{2, 4, 4, 4, -1, -1}};
 
   for (int i = 0; i < expectation.size(); i++) {
-    Vector<float> knots(curves::nurbs::knots_num(points_num[i], order, false));
+    Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM[i], ORDER, false));
     curves::nurbs::calculate_knots(
-        points_num[i], KnotsMode::NURBS_KNOT_MODE_BEZIER, order, false, knots);
+        POINTS_NUM[i], KnotsMode::NURBS_KNOT_MODE_BEZIER, ORDER, false, knots);
 
     const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
     EXPECT_EQ_SPAN<int>(Span(expectation[i].data(), multiplicity.size()), multiplicity);
@@ -902,17 +902,17 @@ TEST(knot_vector, KnotVectorBezierUnevenDeg4)
 
 TEST(knot_vector, KnotVectorBezierCyclicUnevenDeg4)
 {
-  constexpr int8_t order = 5;
-  constexpr int points_num[4] = {12, 11, 10, 9};
+  constexpr int8_t ORDER = 5;
+  constexpr int POINTS_NUM[4] = {12, 11, 10, 9};
   const std::array<std::array<int, 6>, 4> expectation = {std::array<int, 6>{2, 4, 4, 4, 4, 3},
                                                          std::array<int, 6>{2, 4, 4, 3, 4, 3},
                                                          std::array<int, 6>{2, 4, 4, 2, 4, 3},
                                                          std::array<int, 6>{2, 4, 5, 4, 3, -1}};
 
   for (int i = 0; i < expectation.size(); i++) {
-    Vector<float> knots(curves::nurbs::knots_num(points_num[i], order, true));
+    Vector<float> knots(curves::nurbs::knots_num(POINTS_NUM[i], ORDER, true));
     curves::nurbs::calculate_knots(
-        points_num[i], KnotsMode::NURBS_KNOT_MODE_BEZIER, order, true, knots);
+        POINTS_NUM[i], KnotsMode::NURBS_KNOT_MODE_BEZIER, ORDER, true, knots);
 
     const Vector<int> multiplicity = curves::nurbs::calculate_multiplicity_sequence(knots);
     EXPECT_EQ_SPAN<int>(Span(expectation[i].data(), multiplicity.size()), multiplicity);

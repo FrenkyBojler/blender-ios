@@ -46,27 +46,27 @@ class SocketValueVariant {
     /**
      * Used to indicate that there is no value currently. This is used by the default constructor.
      */
-    None,
+    NONE,
     /**
      * Indicates that there is a single value like `int`, `float` or `std::string` stored.
      */
-    Single,
+    SINGLE,
     /**
      * Indicates that there is a `GField` stored.
      */
-    Field,
+    FIELD,
     /**
      * Indicates that there is a `GVolumeGrid` stored.
      */
-    Grid,
+    GRID,
     /** Indicates that there is a `ListPtr` stored. */
-    List,
+    LIST,
   };
 
   /**
    * High level category of the stored type.
    */
-  Kind kind_ = Kind::None;
+  Kind kind_ = Kind::NONE;
   /**
    * The socket type that corresponds to the stored value type, e.g. `SOCK_INT` for an `int` or
    * integer field.
@@ -242,7 +242,7 @@ template<typename T> inline void SocketValueVariant::set(T &&value)
 
 inline const void *SocketValueVariant::get_single_ptr_raw() const
 {
-  BLI_assert(kind_ == Kind::Single);
+  BLI_assert(kind_ == Kind::SINGLE);
   return value_.get();
 }
 

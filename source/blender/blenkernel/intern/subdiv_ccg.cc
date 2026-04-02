@@ -1477,16 +1477,16 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
   if (is_corner_grid_coord(subdiv_ccg, coord)) {
     if (coord.x == 0 && coord.y == 0) {
       /* Grid corner in the center of a face. */
-      return SubdivCCGAdjacencyType::None;
+      return SubdivCCGAdjacencyType::NONE;
     }
     if (coord.x == grid_size_1 && coord.y == grid_size_1) {
       /* Grid corner adjacent to a coarse mesh vertex. */
       r_v1 = r_v2 = corner_verts[coord.grid_index];
-      return SubdivCCGAdjacencyType::Vertex;
+      return SubdivCCGAdjacencyType::VERTEX;
     }
     /* Grid corner adjacent to the middle of a coarse mesh edge. */
     adjacent_vertices_index_from_adjacent_edge(subdiv_ccg, coord, corner_verts, faces, r_v1, r_v2);
-    return SubdivCCGAdjacencyType::Edge;
+    return SubdivCCGAdjacencyType::EDGE;
   }
 
   if (is_boundary_grid_coord(subdiv_ccg, coord)) {
@@ -1494,10 +1494,10 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
       /* Grid boundary adjacent to a coarse mesh edge. */
       adjacent_vertices_index_from_adjacent_edge(
           subdiv_ccg, coord, corner_verts, faces, r_v1, r_v2);
-      return SubdivCCGAdjacencyType::Edge;
+      return SubdivCCGAdjacencyType::EDGE;
     }
   }
-  return SubdivCCGAdjacencyType::None;
+  return SubdivCCGAdjacencyType::NONE;
 }
 
 bool BKE_subdiv_ccg_coord_is_mesh_boundary(const OffsetIndices<int> faces,
@@ -1511,11 +1511,11 @@ bool BKE_subdiv_ccg_coord_is_mesh_boundary(const OffsetIndices<int> faces,
   const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
       subdiv_ccg, coord, corner_verts, faces, v1, v2);
   switch (adjacency) {
-    case SubdivCCGAdjacencyType::Vertex:
+    case SubdivCCGAdjacencyType::VERTEX:
       return boundary_verts[v1];
-    case SubdivCCGAdjacencyType::Edge:
+    case SubdivCCGAdjacencyType::EDGE:
       return boundary_edges.contains(OrderedEdge(v1, v2));
-    case SubdivCCGAdjacencyType::None:
+    case SubdivCCGAdjacencyType::NONE:
       return false;
   }
   BLI_assert_unreachable();

@@ -32,9 +32,9 @@ static CLG_LogRef LOG = {"sculpt.bmesh"};
 namespace bke::pbvh {
 
 /* TODO: choose leaf limit better. */
-constexpr int leaf_limit = 400;
+constexpr int LEAF_LIMIT = 400;
 
-static constexpr int dyntopo_node_none = -1;
+static constexpr int DYNTOPO_NODE_NONE = -1;
 
 /* -------------------------------------------------------------------- */
 /** \name BMesh Utility API
@@ -201,7 +201,7 @@ static void pbvh_bmesh_node_finalize(BMeshNode &n,
     do {
       BMVert *v = l_iter->v;
       if (!n.bm_unique_verts_.contains(v)) {
-        if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != dyntopo_node_none) {
+        if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != DYNTOPO_NODE_NONE) {
           n.bm_other_verts_.add(v);
         }
         else {
@@ -234,7 +234,7 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
                                   const Span<Bounds<float3>> face_bounds,
                                   const int node_index)
 {
-  if (nodes[node_index].bm_faces_.size() <= leaf_limit) {
+  if (nodes[node_index].bm_faces_.size() <= LEAF_LIMIT) {
     /* Node limit not exceeded. */
     pbvh_bmesh_node_finalize(
         nodes[node_index], node_index, cd_vert_node_offset, cd_face_node_offset);
@@ -261,8 +261,8 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 
   /* Initialize children */
   BMeshNode *c1 = &nodes[children], *c2 = &nodes[children + 1];
-  c1->flag_ |= Node::Leaf;
-  c2->flag_ |= Node::Leaf;
+  c1->flag_ |= Node::LEAF;
+  c2->flag_ |= Node::LEAF;
   c1->parent_ = node_index;
   c2->parent_ = node_index;
   c1->bm_faces_.reserve(nodes[node_index].bm_faces_.size() / 2);
@@ -302,16 +302,16 @@ static void pbvh_bmesh_node_split(Vector<BMeshNode> &nodes,
 
   /* Mark this node's unique verts as unclaimed. */
   for (BMVert *v : nodes[node_index].bm_unique_verts_) {
-    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
+    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
   }
 
   /* Unclaim faces. */
   for (BMFace *f : nodes[node_index].bm_faces_) {
-    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
+    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
   }
   nodes[node_index].bm_faces_.clear();
 
-  nodes[node_index].flag_ &= ~Node::Leaf;
+  nodes[node_index].flag_ &= ~Node::LEAF;
   node_changed[node_index] = true;
 
   /* Recurse. */
@@ -335,7 +335,7 @@ static bool pbvh_bmesh_node_limit_ensure(BMesh &bm,
                                          const int node_index)
 {
   const int faces_num = nodes[node_index].bm_faces_.size();
-  if (faces_num <= leaf_limit) {
+  if (faces_num <= LEAF_LIMIT) {
     /* Node limit not exceeded */
     return false;
   }
@@ -373,7 +373,7 @@ BLI_INLINE int pbvh_bmesh_node_index_from_vert(const int cd_vert_node_offset, co
 {
   const int node_index = BM_ELEM_CD_GET_INT(reinterpret_cast<const BMElem *>(key),
                                             cd_vert_node_offset);
-  BLI_assert(node_index != dyntopo_node_none);
+  BLI_assert(node_index != DYNTOPO_NODE_NONE);
   return node_index;
 }
 
@@ -381,7 +381,7 @@ BLI_INLINE int pbvh_bmesh_node_index_from_face(const int cd_face_node_offset, co
 {
   const int node_index = BM_ELEM_CD_GET_INT(reinterpret_cast<const BMElem *>(key),
                                             cd_face_node_offset);
-  BLI_assert(node_index != dyntopo_node_none);
+  BLI_assert(node_index != DYNTOPO_NODE_NONE);
   return node_index;
 }
 
@@ -426,7 +426,7 @@ static BMVert *pbvh_bmesh_vert_create(BMesh &bm,
   node.bm_unique_verts_.add(v);
   BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, node_index);
 
-  node.flag_ |= Node::TopologyUpdated;
+  node.flag_ |= Node::TOPOLOGY_UPDATED;
   node_changed[node_index] = true;
 
   /* Log the new vertex. */
@@ -459,9 +459,9 @@ static BMFace *pbvh_bmesh_face_create(BMesh &bm,
   node.bm_faces_.add(f);
   BM_ELEM_CD_SET_INT(f, cd_face_node_offset, node_index);
 
-  node.flag_ |= Node::TopologyUpdated;
+  node.flag_ |= Node::TOPOLOGY_UPDATED;
   node_changed[node_index] = true;
-  node.flag_ &= ~Node::FullyHidden;
+  node.flag_ &= ~Node::FULLY_HIDDEN;
 
   /* Log the new face. */
   BM_log_face_added(&bm_log, f);
@@ -523,7 +523,7 @@ static void pbvh_bmesh_vert_ownership_transfer(MutableSpan<BMeshNode> nodes,
 {
   const int current_owner_index = pbvh_bmesh_node_index_from_vert(cd_vert_node_offset, v);
   BMeshNode *current_owner = &nodes[current_owner_index];
-  current_owner->flag_ |= Node::TopologyUpdated;
+  current_owner->flag_ |= Node::TOPOLOGY_UPDATED;
   node_changed[new_owner_index] = true;
 
   BMeshNode *new_owner = &nodes[new_owner_index];
@@ -539,7 +539,7 @@ static void pbvh_bmesh_vert_ownership_transfer(MutableSpan<BMeshNode> nodes,
   new_owner->bm_other_verts_.remove(v);
   BLI_assert(!new_owner->bm_other_verts_.contains(v));
 
-  new_owner->flag_ |= Node::TopologyUpdated;
+  new_owner->flag_ |= Node::TOPOLOGY_UPDATED;
   node_changed[new_owner_index] = true;
 }
 
@@ -550,11 +550,11 @@ static void pbvh_bmesh_vert_remove(MutableSpan<BMeshNode> nodes,
                                    BMVert *v)
 {
   /* Never match for first time. */
-  int f_node_index_prev = dyntopo_node_none;
+  int f_node_index_prev = DYNTOPO_NODE_NONE;
 
   BMeshNode *v_node = pbvh_bmesh_node_from_vert(nodes, cd_vert_node_offset, v);
   v_node->bm_unique_verts_.remove(v);
-  BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
+  BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
 
   /* Have to check each neighboring face's node. */
   BMFace *f;
@@ -566,7 +566,7 @@ static void pbvh_bmesh_vert_remove(MutableSpan<BMeshNode> nodes,
       f_node_index_prev = f_node_index;
 
       BMeshNode *f_node = &nodes[f_node_index];
-      f_node->flag_ |= Node::TopologyUpdated;
+      f_node->flag_ |= Node::TOPOLOGY_UPDATED;
       node_changed[f_node_index] = true;
 
       /* Remove current ownership. */
@@ -616,13 +616,13 @@ static void pbvh_bmesh_face_remove(MutableSpan<BMeshNode> nodes,
 
   /* Remove face from node and top level. */
   f_node->bm_faces_.remove(f);
-  BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
+  BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
 
   /* Log removed face. */
   BM_log_face_removed(&bm_log, f);
 
   /* Mark node for update. */
-  f_node->flag_ |= Node::TopologyUpdated;
+  f_node->flag_ |= Node::TOPOLOGY_UPDATED;
   node_changed[node_index] = true;
 }
 
@@ -856,14 +856,14 @@ static void long_edge_queue_edge_add_recursive(const EdgeQueueContext *eq_ctx,
   if (l_edge->radial_next != l_edge) {
     /* How much longer we need to be to consider for subdividing
      * (avoids subdividing faces which are only *slightly* skinny). */
-    static constexpr float even_edgelen_threshold = 1.2f;
+    static constexpr float EVEN_EDGELEN_THRESHOLD = 1.2f;
     /* How much the limit increases per recursion
      * (avoids performing subdivisions too far away). */
-    static constexpr float even_generation_scale = 1.6f;
+    static constexpr float EVEN_GENERATION_SCALE = 1.6f;
 
-    const float len_sq_cmp = len_sq * even_edgelen_threshold;
+    const float len_sq_cmp = len_sq * EVEN_EDGELEN_THRESHOLD;
 
-    const float new_limit_len = limit_len * even_generation_scale;
+    const float new_limit_len = limit_len * EVEN_GENERATION_SCALE;
     const float new_limit_len_sq = square_f(new_limit_len);
 
     const BMLoop *l_iter = l_edge;
@@ -973,8 +973,8 @@ static void long_edge_queue_create(const EdgeQueueContext *eq_ctx,
 
   for (BMeshNode &node : nodes) {
     /* Check leaf nodes marked for topology update. */
-    if ((node.flag_ & Node::Leaf) && (node.flag_ & Node::UpdateTopology) &&
-        !(node.flag_ & Node::FullyHidden))
+    if ((node.flag_ & Node::LEAF) && (node.flag_ & Node::UPDATE_TOPOLOGY) &&
+        !(node.flag_ & Node::FULLY_HIDDEN))
     {
       for (BMFace *f : node.bm_faces_) {
         long_edge_queue_face_add(eq_ctx, f);
@@ -1026,8 +1026,8 @@ static void short_edge_queue_create(const EdgeQueueContext *eq_ctx,
 
   for (BMeshNode &node : nodes) {
     /* Check leaf nodes marked for topology update */
-    if ((node.flag_ & Node::Leaf) && (node.flag_ & Node::UpdateTopology) &&
-        !(node.flag_ & Node::FullyHidden))
+    if ((node.flag_ & Node::LEAF) && (node.flag_ & Node::UPDATE_TOPOLOGY) &&
+        !(node.flag_ & Node::FULLY_HIDDEN))
     {
       for (BMFace *f : node.bm_faces_) {
         short_edge_queue_face_add(eq_ctx, f);
@@ -1214,8 +1214,8 @@ static bool pbvh_bmesh_subdivide_long_edges(const EdgeQueueContext *eq_ctx,
      * possible that an edge collapse has deleted adjacent faces
      * and the node has been split, thus leaving wire edges and
      * associated vertices. */
-    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == dyntopo_node_none) ||
-        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == dyntopo_node_none))
+    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE) ||
+        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE))
     {
       continue;
     }
@@ -1713,8 +1713,8 @@ static bool pbvh_bmesh_collapse_short_edges(const EdgeQueueContext *eq_ctx,
     /* Check that the edge's vertices are still in the Tree. It's possible that
      * an edge collapse has deleted adjacent faces and the node has been split, thus leaving wire
      * edges and associated vertices. */
-    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == dyntopo_node_none) ||
-        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == dyntopo_node_none))
+    if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE) ||
+        (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE))
     {
       continue;
     }
@@ -1824,7 +1824,7 @@ bool raycast_node_detail_bmesh(const BMeshNode &node,
                                float *depth,
                                float *r_edge_length)
 {
-  if (node.flag_ & Node::FullyHidden) {
+  if (node.flag_ & Node::FULLY_HIDDEN) {
     return false;
   }
 
@@ -1931,7 +1931,7 @@ static void pbvh_bmesh_node_limit_ensure_fast(const MutableSpan<BMFace *> nodein
                                               FastNodeBuildInfo *node,
                                               MemArena *arena)
 {
-  if (node->totface <= leaf_limit) {
+  if (node->totface <= LEAF_LIMIT) {
     return;
   }
 
@@ -2070,7 +2070,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
     /* Node does not have children so it's a leaf node, populate with faces and tag accordingly
      * this is an expensive part but it's not so easily thread-able due to vertex node indices. */
 
-    nodes[node_index].flag_ |= Node::Leaf;
+    nodes[node_index].flag_ |= Node::LEAF;
     nodes[node_index].bm_faces_.reserve(node->totface);
 
     const int end = node->start + node->totface;
@@ -2088,7 +2088,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
       do {
         BMVert *v = l_iter->v;
         if (!nodes[node_index].bm_unique_verts_.contains(v)) {
-          if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != dyntopo_node_none) {
+          if (BM_ELEM_CD_GET_INT(v, cd_vert_node_offset) != DYNTOPO_NODE_NONE) {
             nodes[node_index].bm_other_verts_.add(v);
           }
           else {
@@ -2105,7 +2105,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
 
 Tree Tree::from_bmesh(BMesh &bm)
 {
-  Tree pbvh(Type::BMesh);
+  Tree pbvh(Type::B_MESH);
   if (bm.totface == 0) {
     return pbvh;
   }
@@ -2135,14 +2135,14 @@ Tree Tree::from_bmesh(BMesh &bm)
     /* so we can do direct lookups on 'face_bounds' */
     BM_elem_index_set(f, i); /* set_dirty! */
     nodeinfo[i] = f;
-    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, dyntopo_node_none);
+    BM_ELEM_CD_SET_INT(f, cd_face_node_offset, DYNTOPO_NODE_NONE);
   }
   /* Likely this is already dirty. */
   bm.elem_index_dirty |= BM_FACE;
 
   BMVert *v;
   BM_ITER_MESH (v, &iter, &bm, BM_VERTS_OF_MESH) {
-    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, dyntopo_node_none);
+    BM_ELEM_CD_SET_INT(v, cd_vert_node_offset, DYNTOPO_NODE_NONE);
   }
 
   /* Set up root node. */
@@ -2173,7 +2173,7 @@ Tree Tree::from_bmesh(BMesh &bm)
             return BM_elem_flag_test(face, BM_ELEM_HIDDEN);
           }))
       {
-        nodes[i].flag_ |= Node::FullyHidden;
+        nodes[i].flag_ |= Node::FULLY_HIDDEN;
       }
     }
   });
@@ -2211,7 +2211,7 @@ bool bmesh_update_topology(BMesh &bm,
   MutableSpan<BMeshNode> nodes = pbvh.nodes<BMeshNode>();
   Array<bool> node_changed(nodes.size(), false);
 
-  if (mode & PBVH_Collapse) {
+  if (mode & PBVH_COLLAPSE) {
     EdgeQueue queue;
     BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert *) * 2, 0, 128, BLI_MEMPOOL_NOP);
     EdgeQueueContext eq_ctx = {
@@ -2237,7 +2237,7 @@ bool bmesh_update_topology(BMesh &bm,
     BLI_mempool_destroy(queue_pool);
   }
 
-  if (mode & PBVH_Subdivide) {
+  if (mode & PBVH_SUBDIVIDE) {
     EdgeQueue q;
     BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert *) * 2, 0, 128, BLI_MEMPOOL_NOP);
     EdgeQueueContext eq_ctx = {
@@ -2264,15 +2264,15 @@ bool bmesh_update_topology(BMesh &bm,
 
   /* Unmark nodes. */
   for (Node &node : nodes) {
-    if (node.flag_ & Node::Leaf && node.flag_ & Node::UpdateTopology) {
-      node.flag_ &= ~Node::UpdateTopology;
+    if (node.flag_ & Node::LEAF && node.flag_ & Node::UPDATE_TOPOLOGY) {
+      node.flag_ &= ~Node::UPDATE_TOPOLOGY;
     }
   }
 
   /* Go over all changed nodes and check if anything needs to be updated. */
   for (BMeshNode &node : nodes) {
-    if (node.flag_ & Node::Leaf && node.flag_ & Node::TopologyUpdated) {
-      node.flag_ &= ~Node::TopologyUpdated;
+    if (node.flag_ & Node::LEAF && node.flag_ & Node::TOPOLOGY_UPDATED) {
+      node.flag_ &= ~Node::TOPOLOGY_UPDATED;
 
       if (!node.orig_tris_.is_empty()) {
         /* Reallocate original triangle data. */
@@ -2371,7 +2371,7 @@ void BKE_pbvh_bmesh_after_stroke(BMesh &bm, bke::pbvh::Tree &pbvh)
   const IndexRange orig_range = nodes.index_range();
   for (const int i : orig_range) {
     bke::pbvh::BMeshNode *n = &nodes[i];
-    if (n->flag_ & bke::pbvh::Node::Leaf) {
+    if (n->flag_ & bke::pbvh::Node::LEAF) {
       /* Free `orco` / `ortri` data. */
       pbvh_bmesh_node_drop_orig(n);
 
@@ -2390,7 +2390,7 @@ void BKE_pbvh_bmesh_after_stroke(BMesh &bm, bke::pbvh::Tree &pbvh)
 
 void BKE_pbvh_node_mark_topology_update(bke::pbvh::Node &node)
 {
-  node.flag_ |= bke::pbvh::Node::UpdateTopology;
+  node.flag_ |= bke::pbvh::Node::UPDATE_TOPOLOGY;
 }
 
 const Set<BMVert *, 0> &BKE_pbvh_bmesh_node_unique_verts(bke::pbvh::BMeshNode *node)

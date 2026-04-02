@@ -40,7 +40,7 @@ inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Span<St
 {
   return AttributeFilterFromFunc([filter, skip](const StringRef name) {
     if (skip.contains(name)) {
-      return AttributeFilter::Result::AllowSkip;
+      return AttributeFilter::Result::ALLOW_SKIP;
     }
     return filter.filter(name);
   });
@@ -52,7 +52,7 @@ inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Set<Str
 {
   return AttributeFilterFromFunc([filter, &skip](const StringRef name) {
     if (skip.contains_as(name)) {
-      return AttributeFilter::Result::AllowSkip;
+      return AttributeFilter::Result::ALLOW_SKIP;
     }
     return filter.filter(name);
   });
@@ -66,9 +66,9 @@ inline auto attribute_filter_from_skip_ref(const Span<StringRef> skip)
 {
   return AttributeFilterFromFunc([skip](const StringRef name) {
     if (skip.contains(name)) {
-      return AttributeFilter::Result::AllowSkip;
+      return AttributeFilter::Result::ALLOW_SKIP;
     }
-    return AttributeFilter::Result::Process;
+    return AttributeFilter::Result::PROCESS;
   });
 }
 
@@ -77,9 +77,9 @@ template<typename StringT> inline auto attribute_filter_from_skip_ref(const Set<
 {
   return AttributeFilterFromFunc([&skip](const StringRef name) {
     if (skip.contains_as(name)) {
-      return AttributeFilter::Result::AllowSkip;
+      return AttributeFilter::Result::ALLOW_SKIP;
     }
-    return AttributeFilter::Result::Process;
+    return AttributeFilter::Result::PROCESS;
   });
 }
 

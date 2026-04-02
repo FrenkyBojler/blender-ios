@@ -258,8 +258,8 @@ bool is_corner_fan_normals(const AttributeMetaData &meta_data);
 /** Tracks the storage format for a resulting mesh based on a combination of input meshes. */
 class NormalJoinInfo {
  public:
-  enum class Output : int8_t { None, CornerFan, Free };
-  Output result_type = Output::None;
+  enum class Output : int8_t { NONE, CORNER_FAN, FREE };
+  Output result_type = Output::NONE;
   std::optional<bke::AttrDomain> result_domain;
 
   void add_no_custom_normals(bke::MeshNormalDomain domain);

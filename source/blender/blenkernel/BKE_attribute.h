@@ -49,11 +49,11 @@ enum AttrDomainMask : uint8_t {
 ENUM_OPERATORS(AttrDomainMask);
 
 enum class AttributeOwnerType {
-  Mesh,
-  PointCloud,
-  Curves,
-  GreasePencil,
-  GreasePencilDrawing,
+  MESH,
+  POINT_CLOUD,
+  CURVES,
+  GREASE_PENCIL,
+  GREASE_PENCIL_DRAWING,
 };
 
 class AttributeOwner {

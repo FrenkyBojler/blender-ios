@@ -172,7 +172,7 @@ bool BKE_object_defgroup_clear(Object *ob, bDeformGroup *dg, const bool use_sele
       if (mesh->deform_verts().data()) {
         const AttributeAccessor attributes = mesh->attributes();
         const VArray select_vert = *attributes.lookup_or_default<bool>(
-            ".select_vert", AttrDomain::Point, false);
+            ".select_vert", AttrDomain::POINT, false);
         int i;
 
         dv = mesh->deform_verts_for_write().data();

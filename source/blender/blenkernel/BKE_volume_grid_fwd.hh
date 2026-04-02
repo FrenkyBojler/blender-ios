@@ -51,8 +51,8 @@ class VolumeTreeAccessToken;
  * Compile time check to see of a type is a #VolumeGrid, e.g. false for `float` or
  * `GVolumeGrid` and true for `VolumeGrid<int>` and `VolumeGrid<float>`.
  */
-template<typename T> static constexpr bool is_VolumeGrid_v = false;
-template<typename T> static constexpr bool is_VolumeGrid_v<VolumeGrid<T>> = true;
+template<typename T> static constexpr bool IS_VOLUME_GRID_V = false;
+template<typename T> static constexpr bool IS_VOLUME_GRID_V<VolumeGrid<T>> = true;
 
 /**
  * Get the name stored in the volume grid, e.g. "density".

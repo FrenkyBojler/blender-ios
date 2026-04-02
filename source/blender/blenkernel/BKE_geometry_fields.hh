@@ -200,8 +200,8 @@ class GeometryFieldContext : public fn::FieldContext {
 
   int grease_pencil_layer_index() const
   {
-    BLI_assert(this->type_ == GeometryComponent::Type::GreasePencil);
-    BLI_assert(ELEM(this->domain_, AttrDomain::Layer, AttrDomain::Curve, AttrDomain::Point));
+    BLI_assert(this->type_ == GeometryComponent::Type::GREASE_PENCIL);
+    BLI_assert(ELEM(this->domain_, AttrDomain::LAYER, AttrDomain::CURVE, AttrDomain::POINT));
     return grease_pencil_layer_index_;
   }
 

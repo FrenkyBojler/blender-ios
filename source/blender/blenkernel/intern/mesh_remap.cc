@@ -1332,7 +1332,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     /* First, generate the islands, if possible. */
     if (gen_islands_src) {
       const bke::AttributeAccessor attributes = me_src->attributes();
-      const VArraySpan uv_seams = *attributes.lookup<bool>("uv_seam", bke::AttrDomain::Edge);
+      const VArraySpan uv_seams = *attributes.lookup<bool>("uv_seam", bke::AttrDomain::EDGE);
       use_islands = gen_islands_src(positions_src,
                                     edges_src,
                                     uv_seams,

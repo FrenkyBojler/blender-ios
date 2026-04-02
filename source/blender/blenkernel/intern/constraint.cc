@@ -5530,34 +5530,34 @@ static bke::AttrDomain domain_value_to_attribute(const Attribute_Domain domain)
 {
   switch (domain) {
     case CON_ATTRIBUTE_DOMAIN_POINT:
-      return bke::AttrDomain::Point;
+      return bke::AttrDomain::POINT;
     case CON_ATTRIBUTE_DOMAIN_EDGE:
-      return bke::AttrDomain::Edge;
+      return bke::AttrDomain::EDGE;
     case CON_ATTRIBUTE_DOMAIN_FACE:
-      return bke::AttrDomain::Face;
+      return bke::AttrDomain::FACE;
     case CON_ATTRIBUTE_DOMAIN_FACE_CORNER:
-      return bke::AttrDomain::Corner;
+      return bke::AttrDomain::CORNER;
     case CON_ATTRIBUTE_DOMAIN_CURVE:
-      return bke::AttrDomain::Curve;
+      return bke::AttrDomain::CURVE;
     case CON_ATTRIBUTE_DOMAIN_INSTANCE:
-      return bke::AttrDomain::Instance;
+      return bke::AttrDomain::INSTANCE;
   }
   BLI_assert_unreachable();
-  return bke::AttrDomain::Point;
+  return bke::AttrDomain::POINT;
 }
 
 static bke::AttrType type_value_to_attribute(const Attribute_Data_Type data_type)
 {
   switch (data_type) {
     case CON_ATTRIBUTE_VECTOR:
-      return bke::AttrType::Float3;
+      return bke::AttrType::FLOAT3;
     case CON_ATTRIBUTE_QUATERNION:
-      return bke::AttrType::Quaternion;
+      return bke::AttrType::QUATERNION;
     case CON_ATTRIBUTE_4X4MATRIX:
-      return bke::AttrType::Float4x4;
+      return bke::AttrType::FLOAT4X4;
   }
   BLI_assert_unreachable();
-  return bke::AttrType::Float3;
+  return bke::AttrType::FLOAT3;
 }
 
 static void value_attribute_to_matrix(float r_matrix[4][4],
@@ -5594,11 +5594,11 @@ static const bke::GeometryComponent *find_source_component(const bke::GeometrySe
   /* Choose the other component based on a consistent order, rather than some more complicated
    * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
   static const Array<bke::GeometryComponent::Type> supported_types = {
-      bke::GeometryComponent::Type::Mesh,
-      bke::GeometryComponent::Type::PointCloud,
-      bke::GeometryComponent::Type::Curve,
-      bke::GeometryComponent::Type::Instance,
-      bke::GeometryComponent::Type::GreasePencil};
+      bke::GeometryComponent::Type::MESH,
+      bke::GeometryComponent::Type::POINT_CLOUD,
+      bke::GeometryComponent::Type::CURVE,
+      bke::GeometryComponent::Type::INSTANCE,
+      bke::GeometryComponent::Type::GREASE_PENCIL};
   for (const bke::GeometryComponent::Type src_type : supported_types) {
     if (component_is_available(geometry, src_type, domain)) {
       return geometry.get_component(src_type);

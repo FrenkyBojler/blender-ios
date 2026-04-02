@@ -130,7 +130,7 @@ static void subdiv_mesh_ctx_cache_uv_layers(SubdivMeshContext *ctx)
   bke::MutableAttributeAccessor attributes = subdiv_mesh->attributes_for_write();
   for (const StringRef name : coarse_mesh.uv_map_names()) {
     SpanAttributeWriter uv_map = attributes.lookup_or_add_for_write_only_span<float2>(
-        name, AttrDomain::Corner);
+        name, AttrDomain::CORNER);
     if (!uv_map) {
       /* Attribute lookup can fail because of name collisions with vertex groups. */
       continue;
@@ -823,7 +823,7 @@ static void create_attrs_and_retrieve_interp_spans(const AttributeAccessor src_a
     if (iter.domain != domain) {
       return;
     }
-    if (iter.data_type == bke::AttrType::String) {
+    if (iter.data_type == bke::AttrType::STRING) {
       return;
     }
     if (skip_names.contains(iter.name)) {
@@ -879,7 +879,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
     vert_skip_names.add(group.name);
   }
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
-                                         AttrDomain::Point,
+                                         AttrDomain::POINT,
                                          vert_skip_names,
                                          attributes,
                                          subdiv_context->coarse_vert_attrs,
@@ -888,7 +888,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
                                          subdiv_context->subdiv_vert_attr_spans);
 
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
-                                         AttrDomain::Edge,
+                                         AttrDomain::EDGE,
                                          {".edge_verts"},
                                          attributes,
                                          subdiv_context->coarse_edge_attrs,
@@ -897,7 +897,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
                                          subdiv_context->subdiv_edge_attr_spans);
 
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
-                                         AttrDomain::Face,
+                                         AttrDomain::FACE,
                                          {},
                                          attributes,
                                          subdiv_context->coarse_face_attrs,
@@ -914,7 +914,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
     corner_skip_names.add_new(name);
   }
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
-                                         AttrDomain::Corner,
+                                         AttrDomain::CORNER,
                                          corner_skip_names,
                                          attributes,
                                          subdiv_context->coarse_corner_attrs,

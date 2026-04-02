@@ -386,9 +386,9 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
   for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.domain()) {
-      case AttrDomain::Face: {
+      case AttrDomain::FACE: {
         switch (attr.storage_type()) {
-          case AttrStorageType::Array: {
+          case AttrStorageType::ARRAY: {
             const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
             auto dst_data = Attribute::ArrayData::from_uninitialized(type, valid_faces_num);
             array_utils::gather(GSpan(type, src_data.data, mesh.faces_num),
@@ -397,14 +397,14 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
             attr.assign_data(std::move(dst_data));
             break;
           }
-          case AttrStorageType::Single:
+          case AttrStorageType::SINGLE:
             break;
         }
         break;
       }
-      case AttrDomain::Corner: {
+      case AttrDomain::CORNER: {
         switch (attr.storage_type()) {
-          case AttrStorageType::Array: {
+          case AttrStorageType::ARRAY: {
             const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
             auto dst_data = Attribute::ArrayData::from_uninitialized(type, new_faces.total_size());
             bke::attribute_math::gather_group_to_group(
@@ -416,7 +416,7 @@ static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
             attr.assign_data(std::move(dst_data));
             break;
           }
-          case AttrStorageType::Single:
+          case AttrStorageType::SINGLE:
             break;
         }
         break;
@@ -485,12 +485,12 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
   const int valid_edges_num = valid_edges.size();
 
   for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
-    if (attr.domain() != AttrDomain::Edge) {
+    if (attr.domain() != AttrDomain::EDGE) {
       continue;
     }
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
-      case AttrStorageType::Array: {
+      case AttrStorageType::ARRAY: {
         const auto &src_data = std::get<Attribute::ArrayData>(attr.data());
         auto dst_data = Attribute::ArrayData::from_uninitialized(type, valid_edges_num);
         array_utils::gather(GSpan(type, src_data.data, mesh.edges_num),
@@ -499,7 +499,7 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
         attr.assign_data(std::move(dst_data));
         break;
       }
-      case AttrStorageType::Single:
+      case AttrStorageType::SINGLE:
         break;
     }
   }
@@ -625,7 +625,7 @@ static bool validate_material_indices(const Mesh &mesh,
   const IndexRange materials_range(only_check_negative ? std::numeric_limits<int>::max() :
                                                          std::max(int(mesh.totcol), 1));
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArray material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::Face);
+  const VArray material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::FACE);
   if (!material_indices) {
     return true;
   }
@@ -782,40 +782,40 @@ static bool validate_generic_attributes(const Mesh &mesh, const bool verbose, Me
   bool all_attributes_valid = true;
   mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     switch (iter.data_type) {
-      case AttrType::Bool:
+      case AttrType::BOOL:
         validate_bool_attribute(iter, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::Int8:
+      case AttrType::INT8:
         break;
-      case AttrType::Int16_2D:
+      case AttrType::INT16_2_D:
         break;
-      case AttrType::Int32:
+      case AttrType::INT32:
         break;
-      case AttrType::Int32_2D:
+      case AttrType::INT32_2_D:
         break;
-      case AttrType::Float:
+      case AttrType::FLOAT:
         validate_float_attribute(iter, 1, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::Float2:
+      case AttrType::FLOAT2:
         validate_float_attribute(iter, 2, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::Float3:
+      case AttrType::FLOAT3:
         validate_float_attribute(iter, 3, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::ColorFloat:
+      case AttrType::COLOR_FLOAT:
         validate_float_attribute(iter, 4, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::Quaternion:
+      case AttrType::QUATERNION:
         validate_float_attribute(iter, 4, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::Float4x4:
+      case AttrType::FLOAT4X4:
         validate_float_attribute(iter, 16, verbose, all_attributes_valid, mesh_mut);
         break;
-      case AttrType::ColorByte:
+      case AttrType::COLOR_BYTE:
         break;
-      case AttrType::String:
+      case AttrType::STRING:
         break;
-      case AttrType::Float4:
+      case AttrType::FLOAT4:
         validate_float_attribute(iter, 4, verbose, all_attributes_valid, mesh_mut);
         break;
     }

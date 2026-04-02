@@ -301,7 +301,7 @@ struct bContextDataResult {
 static std::string ctx_result_brief_repr(const bContextDataResult &result)
 {
   switch (result.type) {
-    case ContextDataType::Pointer:
+    case ContextDataType::POINTER:
       if (result.ptr.data) {
         const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) :
                                                       "Unknown";
@@ -338,10 +338,10 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
         return "None";
       }
 
-    case ContextDataType::Collection:
+    case ContextDataType::COLLECTION:
       return fmt::format("[{} item(s)]", result.list.size());
 
-    case ContextDataType::String:
+    case ContextDataType::STRING:
       if (!result.str.is_empty()) {
         return "\"" + result.str + "\"";
       }
@@ -349,7 +349,7 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
         return "\"\"";
       }
 
-    case ContextDataType::Property:
+    case ContextDataType::PROPERTY:
       if (result.prop && result.ptr.data) {
         const char *prop_name = RNA_property_identifier(result.prop);
         const char *rna_type_name = result.ptr.type ? RNA_struct_identifier(result.ptr.type) :
@@ -365,7 +365,7 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
         return "<Property(None)>";
       }
 
-    case ContextDataType::Int64:
+    case ContextDataType::INT64:
       if (result.int_value.has_value()) {
         return std::to_string(result.int_value.value());
       }
@@ -392,7 +392,7 @@ static void ctx_member_log_access(const bContext *C,
   }
 
   /* If hiding missing is enabled and the member was not found, skip logging. */
-  if (C && bool(C->data.log_flag & CTX_LogFlag::HideMissing)) {
+  if (C && bool(C->data.log_flag & CTX_LogFlag::HIDE_MISSING)) {
     if (lookup_result == CTX_RESULT_MEMBER_NOT_FOUND) {
       return;
     }
@@ -464,7 +464,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     fallback_result.ptr.data = fall_through;
     fallback_result.ptr.type = const_cast<StructRNA *>(
         member_type); /* Use the expected RNA type */
-    fallback_result.type = ContextDataType::Pointer;
+    fallback_result.type = ContextDataType::POINTER;
     return_data = fall_through;
 
     /* Log fallback context member access. */
@@ -524,12 +524,12 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
     }
     else if (std::optional<StringRefNull> str = CTX_store_string_lookup(C->wm.store, member)) {
       result->str = *str;
-      result->type = ContextDataType::String;
+      result->type = ContextDataType::STRING;
       done = 1;
     }
     else if (std::optional<int64_t> int_value = CTX_store_int_lookup(C->wm.store, member)) {
       result->int_value = int_value;
-      result->type = ContextDataType::Int64;
+      result->type = ContextDataType::INT64;
       done = 1;
     }
   }
@@ -579,7 +579,7 @@ static void *ctx_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Pointer);
+    BLI_assert(result.type == ContextDataType::POINTER);
     return result.ptr.data;
   }
 
@@ -590,7 +590,7 @@ static bool ctx_data_pointer_verify(const bContext *C, const char *member, void 
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Pointer);
+    BLI_assert(result.type == ContextDataType::POINTER);
     *pointer = result.ptr.data;
     return true;
   }
@@ -605,7 +605,7 @@ static bool ctx_data_collection_get(const bContext *C,
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Collection);
+    BLI_assert(result.type == ContextDataType::COLLECTION);
     *list = std::move(result.list);
     return true;
   }
@@ -643,7 +643,7 @@ static bool ctx_data_base_collection_get(const bContext *C,
       ok = true;
     }
   }
-  CTX_data_type_set(&result, ContextDataType::Collection);
+  CTX_data_type_set(&result, ContextDataType::COLLECTION);
 
   *list = std::move(result.list);
   return ok;
@@ -653,7 +653,7 @@ PointerRNA CTX_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Pointer);
+    BLI_assert(result.type == ContextDataType::POINTER);
     return result.ptr;
   }
 
@@ -694,7 +694,7 @@ Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Collection);
+    BLI_assert(result.type == ContextDataType::COLLECTION);
     return result.list;
   }
   return {};
@@ -712,7 +712,7 @@ std::optional<StringRefNull> CTX_data_string_get(const bContext *C, const char *
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::String);
+    BLI_assert(result.type == ContextDataType::STRING);
     return result.str;
   }
 
@@ -723,7 +723,7 @@ std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
   if (ctx_data_get(const_cast<bContext *>(C), member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Int64);
+    BLI_assert(result.type == ContextDataType::INT64);
     return result.int_value;
   }
 
@@ -757,7 +757,7 @@ int /*eContextResult*/ CTX_data_get(const bContext *C,
     r_lb->clear();
     *r_str = "";
     *r_int_value = {};
-    *r_type = ContextDataType::Pointer;
+    *r_type = ContextDataType::POINTER;
   }
 
   return ret;
@@ -1775,7 +1775,7 @@ CTX_LogFlag CTX_member_logging_flag_get(const bContext *C)
 
 bool CTX_member_logging_get(const bContext *C)
 {
-  return (C->data.log_flag & CTX_LogFlag::Access) != CTX_LogFlag(0);
+  return (C->data.log_flag & CTX_LogFlag::ACCESS) != CTX_LogFlag(0);
 }
 
 bool CTX_member_rna_write_check(const bContext *C)

@@ -37,19 +37,19 @@ GeometryComponent::GeometryComponent(Type type) : type_(type) {}
 GeometryComponentPtr GeometryComponent::create(Type component_type)
 {
   switch (component_type) {
-    case Type::Mesh:
+    case Type::MESH:
       return GeometryComponentPtr(new MeshComponent());
-    case Type::PointCloud:
+    case Type::POINT_CLOUD:
       return GeometryComponentPtr(new PointCloudComponent());
-    case Type::Instance:
+    case Type::INSTANCE:
       return GeometryComponentPtr(new InstancesComponent());
-    case Type::Volume:
+    case Type::VOLUME:
       return GeometryComponentPtr(new VolumeComponent());
-    case Type::Curve:
+    case Type::CURVE:
       return GeometryComponentPtr(new CurveComponent());
-    case Type::Edit:
+    case Type::EDIT:
       return GeometryComponentPtr(new GeometryComponentEditData());
-    case Type::GreasePencil:
+    case Type::GREASE_PENCIL:
       return GeometryComponentPtr(new GreasePencilComponent());
   }
   BLI_assert_unreachable();
@@ -398,8 +398,8 @@ bool GeometrySet::has_realized_data() const
   for (const GeometryComponentPtr &component_ptr : components_) {
     if (component_ptr) {
       if (!ELEM(component_ptr->type(),
-                GeometryComponent::Type::Instance,
-                GeometryComponent::Type::Edit))
+                GeometryComponent::Type::INSTANCE,
+                GeometryComponent::Type::EDIT))
       {
         return true;
       }
@@ -458,7 +458,7 @@ GeometrySet GeometrySet::from_instances(Instances *instances, GeometryOwnershipT
 GeometrySet GeometrySet::from_instances(std::unique_ptr<Instances> instances)
 {
   GeometrySet geometry_set;
-  geometry_set.replace_instances(instances.release(), GeometryOwnershipType::Owned);
+  geometry_set.replace_instances(instances.release(), GeometryOwnershipType::OWNED);
   return geometry_set;
 }
 
@@ -648,7 +648,7 @@ void GeometrySet::attribute_foreach(const Span<GeometryComponent::Type> componen
       });
     }
     /* For Grease Pencil, we also need to iterate over the attributes of the evaluated drawings. */
-    if (component_type == GeometryComponent::Type::GreasePencil) {
+    if (component_type == GeometryComponent::Type::GREASE_PENCIL) {
       const GreasePencil &grease_pencil = *this->get_grease_pencil();
       for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
         if (const bke::greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(*layer)) {
@@ -672,31 +672,31 @@ bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type,
                                             const StringRef name)
 {
   switch (type) {
-    case GeometryComponent::Type::Mesh: {
+    case GeometryComponent::Type::MESH: {
       static auto component = GeometryComponent::create(type);
       return component->attributes()->is_builtin(name);
     }
-    case GeometryComponent::Type::PointCloud: {
+    case GeometryComponent::Type::POINT_CLOUD: {
       static auto component = GeometryComponent::create(type);
       return component->attributes()->is_builtin(name);
     }
-    case GeometryComponent::Type::Instance: {
+    case GeometryComponent::Type::INSTANCE: {
       static auto component = GeometryComponent::create(type);
       return component->attributes()->is_builtin(name);
     }
-    case GeometryComponent::Type::Curve: {
+    case GeometryComponent::Type::CURVE: {
       static auto component = GeometryComponent::create(type);
       return component->attributes()->is_builtin(name);
     }
-    case GeometryComponent::Type::GreasePencil: {
+    case GeometryComponent::Type::GREASE_PENCIL: {
       static auto grease_pencil_component = GeometryComponent::create(
-          GeometryComponent::Type::GreasePencil);
-      static auto curves_component = GeometryComponent::create(GeometryComponent::Type::Curve);
+          GeometryComponent::Type::GREASE_PENCIL);
+      static auto curves_component = GeometryComponent::create(GeometryComponent::Type::CURVE);
       return grease_pencil_component->attributes()->is_builtin(name) ||
              curves_component->attributes()->is_builtin(name);
     }
-    case GeometryComponent::Type::Volume:
-    case GeometryComponent::Type::Edit: {
+    case GeometryComponent::Type::VOLUME:
+    case GeometryComponent::Type::EDIT: {
       return false;
     }
   }

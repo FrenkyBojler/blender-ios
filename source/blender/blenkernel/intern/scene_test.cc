@@ -98,22 +98,22 @@ TEST_F(SceneTest, linked_copy_id_remapping)
   ASSERT_NE(animdata_src, nullptr);
   EXPECT_EQ(animdata_src->action, action_src);
 
-  constexpr StringRef idp_scene2scene_name = "scene2scene";
-  constexpr StringRef idp_scene2action_name = "scene2action";
-  constexpr StringRef idp_action2scene_name = "action2scene";
-  constexpr StringRef idp_action2action_name = "action2action";
+  constexpr StringRef IDP_SCENE2SCENE_NAME = "scene2scene";
+  constexpr StringRef IDP_SCENE2ACTION_NAME = "scene2action";
+  constexpr StringRef IDP_ACTION2SCENE_NAME = "action2scene";
+  constexpr StringRef IDP_ACTION2ACTION_NAME = "action2action";
 
   IDProperty *scene_idgroup_src = IDP_EnsureProperties(&scene_src->id);
   IDP_AddToGroup(scene_idgroup_src,
-                 bke::idprop::create(idp_scene2scene_name, &scene_src->id).release());
+                 bke::idprop::create(IDP_SCENE2SCENE_NAME, &scene_src->id).release());
   IDP_AddToGroup(scene_idgroup_src,
-                 bke::idprop::create(idp_scene2action_name, &action_src->id).release());
+                 bke::idprop::create(IDP_SCENE2ACTION_NAME, &action_src->id).release());
 
   IDProperty *action_idgroup_src = IDP_EnsureProperties(&action_src->id);
   IDP_AddToGroup(action_idgroup_src,
-                 bke::idprop::create(idp_action2scene_name, &scene_src->id).release());
+                 bke::idprop::create(IDP_ACTION2SCENE_NAME, &scene_src->id).release());
   IDP_AddToGroup(action_idgroup_src,
-                 bke::idprop::create(idp_action2action_name, &action_src->id).release());
+                 bke::idprop::create(IDP_ACTION2ACTION_NAME, &action_src->id).release());
 
   Scene *scene_copy = BKE_scene_duplicate(
       bmain,
@@ -124,14 +124,14 @@ TEST_F(SceneTest, linked_copy_id_remapping)
 
   /* Source data should remain unchanged. */
 
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_src, idp_scene2scene_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_src, IDP_SCENE2SCENE_NAME)),
             &scene_src->id);
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_src, idp_scene2action_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_src, IDP_SCENE2ACTION_NAME)),
             &action_src->id);
 
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_src, idp_action2scene_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_src, IDP_ACTION2SCENE_NAME)),
             &scene_src->id);
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_src, idp_action2action_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_src, IDP_ACTION2ACTION_NAME)),
             &action_src->id);
 
   /* Copied data should have its ID usages remapped to new copies if possible. */
@@ -146,16 +146,16 @@ TEST_F(SceneTest, linked_copy_id_remapping)
 
   IDProperty *scene_idgroup_copy = IDP_GetProperties(&scene_copy->id);
   ASSERT_NE(scene_idgroup_copy, nullptr);
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_copy, idp_scene2scene_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_copy, IDP_SCENE2SCENE_NAME)),
             &scene_copy->id);
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_copy, idp_scene2action_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_copy, IDP_SCENE2ACTION_NAME)),
             &action_copy->id);
 
   IDProperty *action_idgroup_copy = IDP_GetProperties(&action_copy->id);
   ASSERT_NE(action_idgroup_copy, nullptr);
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_copy, idp_action2scene_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_copy, IDP_ACTION2SCENE_NAME)),
             &scene_copy->id);
-  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_copy, idp_action2action_name)),
+  EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_copy, IDP_ACTION2ACTION_NAME)),
             &action_copy->id);
 }
 

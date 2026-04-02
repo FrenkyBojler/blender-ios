@@ -197,10 +197,10 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   Mesh *result = BKE_mesh_new_nomain_from_template(
       mesh, src_verts_num * 2, src_edges_num * 2, src_faces.size() * 2, src_loops_num * 2);
 
-  LegacyMeshInterpolator vert_interp(*mesh, *result, AttrDomain::Point);
-  LegacyMeshInterpolator edge_interp(*mesh, *result, AttrDomain::Edge);
-  LegacyMeshInterpolator face_interp(*mesh, *result, AttrDomain::Face);
-  LegacyMeshInterpolator corner_interp(*mesh, *result, AttrDomain::Corner);
+  LegacyMeshInterpolator vert_interp(*mesh, *result, AttrDomain::POINT);
+  LegacyMeshInterpolator edge_interp(*mesh, *result, AttrDomain::EDGE);
+  LegacyMeshInterpolator face_interp(*mesh, *result, AttrDomain::FACE);
+  LegacyMeshInterpolator corner_interp(*mesh, *result, AttrDomain::CORNER);
 
   /* Copy custom-data to original geometry. */
 
@@ -378,7 +378,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
 
   /* handle custom normals */
   bke::GAttributeWriter custom_normals = attributes.lookup_for_write("custom_normal");
-  if (ob->type == OB_MESH && custom_normals && custom_normals.domain == bke::AttrDomain::Corner &&
+  if (ob->type == OB_MESH && custom_normals && custom_normals.domain == bke::AttrDomain::CORNER &&
       custom_normals.varray.type().is<short2>() && result->faces_num > 0)
   {
     Array<float3> corner_normals(result_corner_verts.size());
@@ -392,8 +392,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     transpose_m4(mtx_nor);
 
     /* calculate custom normals into corner_normals, then mirror first half into second half */
-    const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-    const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+    const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::EDGE);
+    const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::FACE);
     bke::mesh::normals_calc_corners(result->vert_positions(),
                                     result_faces,
                                     result_corner_verts,

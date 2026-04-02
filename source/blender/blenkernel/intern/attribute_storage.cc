@@ -93,12 +93,12 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
 static GPointer default_value_for_type(const CPPType &type)
 {
   if (type.is<ColorGeometry4f>()) {
-    static constexpr ColorGeometry4f default_color(1.0f, 1.0f, 1.0f, 1.0f);
-    return GPointer(type, &default_color);
+    static constexpr ColorGeometry4f DEFAULT_COLOR(1.0f, 1.0f, 1.0f, 1.0f);
+    return GPointer(type, &DEFAULT_COLOR);
   }
   if (type.is<ColorGeometry4b>()) {
-    static constexpr ColorGeometry4b default_color(255, 255, 255, 255);
-    return GPointer(type, &default_color);
+    static constexpr ColorGeometry4b DEFAULT_COLOR(255, 255, 255, 255);
+    return GPointer(type, &DEFAULT_COLOR);
   }
   return GPointer(type, type.default_value());
 }
@@ -148,13 +148,13 @@ Attribute::SingleData Attribute::SingleData::from_default_value(const CPPType &t
 AttrStorageType Attribute::storage_type() const
 {
   if (std::get_if<Attribute::ArrayData>(&data_)) {
-    return AttrStorageType::Array;
+    return AttrStorageType::ARRAY;
   }
   if (std::get_if<Attribute::SingleData>(&data_)) {
-    return AttrStorageType::Single;
+    return AttrStorageType::SINGLE;
   }
   BLI_assert_unreachable();
-  return AttrStorageType::Array;
+  return AttrStorageType::ARRAY;
 }
 
 Attribute::DataVariant &Attribute::data_for_write()
@@ -376,7 +376,7 @@ void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
     }
     const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
     switch (attr.storage_type()) {
-      case bke::AttrStorageType::Array: {
+      case bke::AttrStorageType::ARRAY: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
         const int64_t old_size = data.size;
 
@@ -390,7 +390,7 @@ void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
         attr.assign_data(std::move(new_data));
         break;
       }
-      case bke::AttrStorageType::Single: {
+      case bke::AttrStorageType::SINGLE: {
         break;
       }
     }
@@ -403,48 +403,48 @@ static void read_array_data(BlendDataReader &reader,
                             void **data)
 {
   switch (dna_attr_type) {
-    case int8_t(AttrType::Bool):
+    case int8_t(AttrType::BOOL):
       static_assert(sizeof(bool) == sizeof(int8_t));
       BLO_read_int8_array(&reader, size, reinterpret_cast<int8_t **>(data));
       return;
-    case int8_t(AttrType::Int8):
+    case int8_t(AttrType::INT8):
       BLO_read_int8_array(&reader, size, reinterpret_cast<int8_t **>(data));
       return;
-    case int8_t(AttrType::Int16_2D):
+    case int8_t(AttrType::INT16_2_D):
       BLO_read_int16_array(&reader, size * 2, reinterpret_cast<int16_t **>(data));
       return;
-    case int8_t(AttrType::Int32):
+    case int8_t(AttrType::INT32):
       BLO_read_int32_array(&reader, size, reinterpret_cast<int32_t **>(data));
       return;
-    case int8_t(AttrType::Int32_2D):
+    case int8_t(AttrType::INT32_2_D):
       BLO_read_int32_array(&reader, size * 2, reinterpret_cast<int32_t **>(data));
       return;
-    case int8_t(AttrType::Float):
+    case int8_t(AttrType::FLOAT):
       BLO_read_float_array(&reader, size, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::Float2):
+    case int8_t(AttrType::FLOAT2):
       BLO_read_float_array(&reader, size * 2, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::Float3):
+    case int8_t(AttrType::FLOAT3):
       BLO_read_float3_array(&reader, size, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::Float4x4):
+    case int8_t(AttrType::FLOAT4X4):
       BLO_read_float_array(&reader, size * 16, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::ColorByte):
+    case int8_t(AttrType::COLOR_BYTE):
       BLO_read_uint8_array(&reader, size * 4, reinterpret_cast<uint8_t **>(data));
       return;
-    case int8_t(AttrType::ColorFloat):
+    case int8_t(AttrType::COLOR_FLOAT):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::Quaternion):
+    case int8_t(AttrType::QUATERNION):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
       return;
-    case int8_t(AttrType::String):
+    case int8_t(AttrType::STRING):
       BLO_read_struct_array(
           &reader, MStringProperty, size, reinterpret_cast<MStringProperty **>(data));
       return;
-    case int8_t(AttrType::Float4):
+    case int8_t(AttrType::FLOAT4):
       BLO_read_float_array(&reader, size * 4, reinterpret_cast<float **>(data));
       return;
     default:
@@ -476,7 +476,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
                                                             blender::Attribute &dna_attr)
 {
   switch (dna_storage_type) {
-    case int8_t(AttrStorageType::Array): {
+    case int8_t(AttrStorageType::ARRAY): {
       BLO_read_struct(&reader, AttributeArray, &dna_attr.data);
       auto &data = *static_cast<blender::AttributeArray *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, data.size, &data.data, &data.sharing_info);
@@ -491,7 +491,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       }
       return array_data;
     }
-    case int8_t(AttrStorageType::Single): {
+    case int8_t(AttrStorageType::SINGLE): {
       BLO_read_struct(&reader, AttributeSingle, &dna_attr.data);
       auto &data = *static_cast<blender::AttributeSingle *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, 1, &data.data, &data.sharing_info);
@@ -524,13 +524,13 @@ void AttributeStorage::count_memory(MemoryCounter &memory) const
 static std::optional<AttrDomain> read_attr_domain(const int8_t dna_domain)
 {
   switch (dna_domain) {
-    case int8_t(AttrDomain::Point):
-    case int8_t(AttrDomain::Edge):
-    case int8_t(AttrDomain::Face):
-    case int8_t(AttrDomain::Corner):
-    case int8_t(AttrDomain::Curve):
-    case int8_t(AttrDomain::Instance):
-    case int8_t(AttrDomain::Layer):
+    case int8_t(AttrDomain::POINT):
+    case int8_t(AttrDomain::EDGE):
+    case int8_t(AttrDomain::FACE):
+    case int8_t(AttrDomain::CORNER):
+    case int8_t(AttrDomain::CURVE):
+    case int8_t(AttrDomain::INSTANCE):
+    case int8_t(AttrDomain::LAYER):
       return AttrDomain(dna_domain);
     default:
       return std::nullopt;
@@ -583,47 +583,47 @@ static void write_array_data(BlendWriter &writer,
                              const int64_t size)
 {
   switch (data_type) {
-    case AttrType::Bool:
+    case AttrType::BOOL:
       static_assert(sizeof(bool) == sizeof(int8_t));
       writer.write_int8_array(size, static_cast<const int8_t *>(data));
       break;
-    case AttrType::Int8:
+    case AttrType::INT8:
       writer.write_int8_array(size, static_cast<const int8_t *>(data));
       break;
-    case AttrType::Int16_2D:
+    case AttrType::INT16_2_D:
       writer.write_int16_array(size * 2, static_cast<const int16_t *>(data));
       break;
-    case AttrType::Int32:
+    case AttrType::INT32:
       writer.write_int32_array(size, static_cast<const int32_t *>(data));
       break;
-    case AttrType::Int32_2D:
+    case AttrType::INT32_2_D:
       writer.write_int32_array(size * 2, static_cast<const int32_t *>(data));
       break;
-    case AttrType::Float:
+    case AttrType::FLOAT:
       writer.write_float_array(size, static_cast<const float *>(data));
       break;
-    case AttrType::Float2:
+    case AttrType::FLOAT2:
       writer.write_float_array(size * 2, static_cast<const float *>(data));
       break;
-    case AttrType::Float3:
+    case AttrType::FLOAT3:
       writer.write_float3_array(size, static_cast<const float *>(data));
       break;
-    case AttrType::Float4x4:
+    case AttrType::FLOAT4X4:
       writer.write_float_array(size * 16, static_cast<const float *>(data));
       break;
-    case AttrType::ColorByte:
+    case AttrType::COLOR_BYTE:
       writer.write_uint8_array(size * 4, static_cast<const uint8_t *>(data));
       break;
-    case AttrType::ColorFloat:
+    case AttrType::COLOR_FLOAT:
       writer.write_float_array(size * 4, static_cast<const float *>(data));
       break;
-    case AttrType::Quaternion:
+    case AttrType::QUATERNION:
       writer.write_float_array(size * 4, static_cast<const float *>(data));
       break;
-    case AttrType::String:
+    case AttrType::STRING:
       writer.write_struct_array_cast<MStringProperty>(size, data);
       break;
-    case AttrType::Float4:
+    case AttrType::FLOAT4:
       writer.write_float_array(size * 4, static_cast<const float *>(data));
       break;
   }
@@ -655,12 +655,12 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     };
 
     if (const auto *data = std::get_if<Attribute::ArrayData>(&attr.data())) {
-      attribute_dna.storage_type = int8_t(AttrStorageType::Array);
+      attribute_dna.storage_type = int8_t(AttrStorageType::ARRAY);
       attribute_dna.data = &create_dna_array(*data);
     }
     else if (const auto *data = std::get_if<Attribute::SingleData>(&attr.data())) {
       if (use_5_0_compatibility) {
-        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
+        attribute_dna.storage_type = int8_t(AttrStorageType::ARRAY);
         /* Convert single value storage to array storage for forward compatibility.
          * See #AttributeArray::is_single) comment for more details. */
         const CPPType &cpp_type = attribute_type_to_cpp_type(attr.data_type());
@@ -674,7 +674,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
         attribute_dna.data = &array_dna;
       }
       else {
-        attribute_dna.storage_type = int8_t(AttrStorageType::Single);
+        attribute_dna.storage_type = int8_t(AttrStorageType::SINGLE);
         auto &single_dna = write_data.scope.construct<blender::AttributeSingle>();
         single_dna.data = data->value;
         single_dna.sharing_info = data->sharing_info.get();
@@ -713,7 +713,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
   for (const blender::Attribute &attr_dna : write_data.attributes) {
     writer.write_string(attr_dna.name);
     switch (AttrStorageType(attr_dna.storage_type)) {
-      case AttrStorageType::Single: {
+      case AttrStorageType::SINGLE: {
         blender::AttributeSingle *single_dna = static_cast<blender::AttributeSingle *>(
             attr_dna.data);
         write_shared_array(
@@ -721,7 +721,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
         writer.write_struct(single_dna);
         break;
       }
-      case AttrStorageType::Array: {
+      case AttrStorageType::ARRAY: {
         blender::AttributeArray *array_dna = static_cast<blender::AttributeArray *>(attr_dna.data);
         write_shared_array(writer,
                            AttrType(attr_dna.data_type),
@@ -741,7 +741,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
 void AttributeStorage::foreach_working_space_color(const IDTypeForeachColorFunctionCallback &fn)
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
-    if (attribute->type_ == bke::AttrType::ColorFloat) {
+    if (attribute->type_ == bke::AttrType::COLOR_FLOAT) {
       if (auto *data = std::get_if<Attribute::ArrayData>(&attribute->data_)) {
         fn.implicit_sharing_array(
             data->sharing_info, reinterpret_cast<ColorGeometry4f *&>(data->data), data->size);

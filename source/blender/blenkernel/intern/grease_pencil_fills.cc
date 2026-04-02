@@ -119,14 +119,14 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
 {
   const AttributeAccessor attributes = curves.attributes();
   const OffsetIndices points_by_curve = curves.points_by_curve();
-  const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", AttrDomain::Curve);
+  const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", AttrDomain::CURVE);
 
   /* If the attribute does not exist then each curves is its own fill. */
   if (!fill_ids) {
-    if (domain == AttrDomain::Curve) {
+    if (domain == AttrDomain::CURVE) {
       return selected_mask;
     }
-    BLI_assert(domain == AttrDomain::Point);
+    BLI_assert(domain == AttrDomain::POINT);
 
     const IndexMask selected_curves = curves::point_to_curve_selection(
         points_by_curve, curves.curves_range(), memory);
@@ -136,7 +136,7 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
   VectorSet<int> selected_fill_ids;
   Array<bool> src_selected_curves(curves.curves_num());
 
-  if (domain == AttrDomain::Point) {
+  if (domain == AttrDomain::POINT) {
     const IndexMask selected_curves = curves::point_to_curve_selection(
         points_by_curve, curves.curves_range(), memory);
 
@@ -167,10 +167,10 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
         return selected_fill_ids.contains(fill_id);
       });
 
-  if (domain == AttrDomain::Curve) {
+  if (domain == AttrDomain::CURVE) {
     return selected_curves;
   }
-  BLI_assert(domain == AttrDomain::Point);
+  BLI_assert(domain == AttrDomain::POINT);
 
   return curves::curve_to_point_selection(curves.points_by_curve(), selected_curves, memory);
 }

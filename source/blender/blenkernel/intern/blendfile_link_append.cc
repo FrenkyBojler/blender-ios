@@ -138,7 +138,7 @@ BlendfileLinkAppendContext *BKE_blendfile_link_append_context_new(LibraryLink_Pa
 {
   BlendfileLinkAppendContext *lapp_context = MEM_new<BlendfileLinkAppendContext>(__func__);
   lapp_context->params = params;
-  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Init;
+  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::INIT;
   return lapp_context;
 }
 
@@ -187,7 +187,7 @@ void BKE_blendfile_link_append_context_library_add(BlendfileLinkAppendContext *l
                                                    BlendHandle *blo_handle)
 {
   BLI_assert(lapp_context->items.empty());
-  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::INIT);
 
   BlendfileLinkAppendContextLibrary lib_context = {};
 
@@ -229,7 +229,7 @@ int BKE_blendfile_link_append_context_item_idtypes_from_library_add(
     const uint64_t id_types_filter,
     const int library_index)
 {
-  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::INIT);
 
   int id_num = 0;
   int id_code_iter = 0;
@@ -280,7 +280,7 @@ void BKE_blendfile_link_append_context_item_library_index_enable(
     BlendfileLinkAppendContextItem *item,
     const int library_index)
 {
-  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::INIT);
   UNUSED_VARS_NDEBUG(lapp_context);
   item->libraries[library_index].set();
 }
@@ -299,7 +299,7 @@ void *BKE_blendfile_link_append_context_item_userdata_get(
 ID *BKE_blendfile_link_append_context_item_newid_get(BlendfileLinkAppendContext *lapp_context,
                                                      BlendfileLinkAppendContextItem *item)
 {
-  BLI_assert(lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::INIT);
   UNUSED_VARS_NDEBUG(lapp_context);
   return item->new_id;
 }
@@ -308,7 +308,7 @@ void BKE_blendfile_link_append_context_item_newid_set(BlendfileLinkAppendContext
                                                       BlendfileLinkAppendContextItem *item,
                                                       ID *new_id)
 {
-  BLI_assert(lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::INIT);
   BLI_assert(item->new_id);
   BLI_assert(!item->liboverride_id);
   BLI_assert(new_id->lib == item->new_id->lib);
@@ -322,7 +322,7 @@ void BKE_blendfile_link_append_context_item_newid_set(BlendfileLinkAppendContext
 ID *BKE_blendfile_link_append_context_item_liboverrideid_get(
     BlendfileLinkAppendContext *lapp_context, BlendfileLinkAppendContextItem *item)
 {
-  BLI_assert(lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage != BlendfileLinkAppendContext::ProcessStage::INIT);
   UNUSED_VARS_NDEBUG(lapp_context);
   return item->liboverride_id;
 }
@@ -359,7 +359,7 @@ void BKE_blendfile_link_append_context_item_foreach(
 
 void BKE_blendfile_link_append_context_init_done(BlendfileLinkAppendContext *lapp_context)
 {
-  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
+  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::INIT);
 
   PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
@@ -369,10 +369,10 @@ void BKE_blendfile_link_append_context_init_done(BlendfileLinkAppendContext *lap
 void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp_context)
 {
   BLI_assert(ELEM(lapp_context->process_stage,
-                  BlendfileLinkAppendContext::ProcessStage::Linking,
-                  BlendfileLinkAppendContext::ProcessStage::Appending,
-                  BlendfileLinkAppendContext::ProcessStage::Instantiating));
-  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Done;
+                  BlendfileLinkAppendContext::ProcessStage::LINKING,
+                  BlendfileLinkAppendContext::ProcessStage::APPENDING,
+                  BlendfileLinkAppendContext::ProcessStage::INSTANTIATING));
+  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::DONE;
 
   BKE_main_ensure_invariants(*lapp_context->params->bmain);
 
@@ -1456,8 +1456,8 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
 
 void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *reports)
 {
-  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Linking);
-  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Appending;
+  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::LINKING);
+  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::APPENDING;
 
   if (lapp_context->items.empty()) {
     /* Nothing to append. */
@@ -1665,9 +1665,9 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
                                                  ReportList *reports)
 {
   BLI_assert(ELEM(lapp_context->process_stage,
-                  BlendfileLinkAppendContext::ProcessStage::Linking,
-                  BlendfileLinkAppendContext::ProcessStage::Appending));
-  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Instantiating;
+                  BlendfileLinkAppendContext::ProcessStage::LINKING,
+                  BlendfileLinkAppendContext::ProcessStage::APPENDING));
+  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::INSTANTIATING;
 
   if (!lapp_context->params->context.scene) {
     return;
@@ -1706,8 +1706,8 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
 
 void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *reports)
 {
-  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::Init);
-  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Linking;
+  BLI_assert(lapp_context->process_stage == BlendfileLinkAppendContext::ProcessStage::INIT);
+  lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::LINKING;
 
   if (lapp_context->items.empty()) {
     /* Nothing to be linked. */

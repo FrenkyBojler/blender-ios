@@ -52,7 +52,7 @@ void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
                                   ProcessTilesFn process_tiles_fn);
 
 template<typename GridT>
-constexpr bool is_supported_grid_type = is_same_any_v<GridT,
+constexpr bool IS_SUPPORTED_GRID_TYPE = is_same_any_v<GridT,
                                                       openvdb::FloatGrid,
                                                       openvdb::Vec3fGrid,
                                                       openvdb::BoolGrid,

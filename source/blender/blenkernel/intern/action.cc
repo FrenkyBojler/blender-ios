@@ -255,7 +255,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
    * NOTE: early-returns by BKE_LIB_FOREACHID_PROCESS_... macros are forbidden in non-readonly
    * cases (see #IDWALK_RET_STOP_ITER documentation). */
 
-  constexpr LibraryForeachIDCallbackFlag idwalk_flags = IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK;
+  constexpr LibraryForeachIDCallbackFlag IDWALK_FLAGS = IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK;
 
   /* Note that `bmain` can be `nullptr`. An example is in
    * `deg_eval_copy_on_write.cc`, function `deg_expand_eval_copy_datablock`. */
@@ -274,7 +274,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
     for (animrig::Slot *slot : action.slots()) {
       for (ID *&slot_user : slot->runtime_users()) {
         ID *const old_pointer = slot_user;
-        BKE_LIB_FOREACHID_PROCESS_ID(data, slot_user, idwalk_flags);
+        BKE_LIB_FOREACHID_PROCESS_ID(data, slot_user, IDWALK_FLAGS);
         /* If slot_user changed, the cache should be invalidated. Not all pointer changes are
          * semantically correct for our use. For example, when ID-remapping is used to replace
          * MECube with MESuzanne. If MECube is animated by some slot before the remap, it will

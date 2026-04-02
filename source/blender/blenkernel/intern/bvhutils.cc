@@ -576,9 +576,9 @@ static BitVector<> loose_verts_no_hidden_mask_get(const Mesh &mesh)
   const AttributeAccessor attributes = mesh.attributes();
   const Span<int2> edges = mesh.edges();
   const VArray<bool> hide_edge = *attributes.lookup_or_default(
-      ".hide_edge", AttrDomain::Edge, false);
+      ".hide_edge", AttrDomain::EDGE, false);
   const VArray<bool> hide_vert = *attributes.lookup_or_default(
-      ".hide_vert", AttrDomain::Point, false);
+      ".hide_vert", AttrDomain::POINT, false);
 
   for (const int i : edges.index_range()) {
     if (hide_edge[i]) {
@@ -612,9 +612,9 @@ static BitVector<> loose_edges_no_hidden_mask_get(const Mesh &mesh)
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
   const VArray<bool> hide_poly = *attributes.lookup_or_default(
-      ".hide_poly", AttrDomain::Face, false);
+      ".hide_poly", AttrDomain::FACE, false);
   const VArray<bool> hide_edge = *attributes.lookup_or_default(
-      ".hide_edge", AttrDomain::Edge, false);
+      ".hide_edge", AttrDomain::EDGE, false);
 
   for (const int i : faces.index_range()) {
     if (hide_poly[i]) {
@@ -735,7 +735,7 @@ bke::BVHTreeFromMesh Mesh::bvh_corner_tris_no_hidden() const
   const Span<int> corner_verts = this->corner_verts();
   const Span<int3> corner_tris = this->corner_tris();
   const AttributeAccessor attributes = this->attributes();
-  const VArray hide_poly = *attributes.lookup<bool>(".hide_poly", AttrDomain::Face);
+  const VArray hide_poly = *attributes.lookup<bool>(".hide_poly", AttrDomain::FACE);
   if (!hide_poly) {
     return this->bvh_corner_tris();
   }

@@ -89,42 +89,42 @@ static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree
   return interfaces;
 }
 
-enum class DataRequirement : int8_t { None, Field, Single, Grid, List, Invalid };
+enum class DataRequirement : int8_t { NONE, FIELD, SINGLE, GRID, LIST, INVALID };
 
 static DataRequirement merge(const DataRequirement a, const DataRequirement b)
 {
   if (a == b) {
     return a;
   }
-  if (a == DataRequirement::None) {
+  if (a == DataRequirement::NONE) {
     return b;
   }
-  if (b == DataRequirement::None) {
+  if (b == DataRequirement::NONE) {
     return a;
   }
-  if ((a == DataRequirement::Field && b == DataRequirement::Single) ||
-      (a == DataRequirement::Single && b == DataRequirement::Field))
+  if ((a == DataRequirement::FIELD && b == DataRequirement::SINGLE) ||
+      (a == DataRequirement::SINGLE && b == DataRequirement::FIELD))
   {
     /* Single beats field, because fields can accept single values too. */
-    return DataRequirement::Single;
+    return DataRequirement::SINGLE;
   }
-  return DataRequirement::Invalid;
+  return DataRequirement::INVALID;
 }
 
 static StructureType data_requirement_to_auto_structure_type(const DataRequirement requirement)
 {
   switch (requirement) {
-    case DataRequirement::None:
+    case DataRequirement::NONE:
       return StructureType::Dynamic;
-    case DataRequirement::Field:
+    case DataRequirement::FIELD:
       return StructureType::Field;
-    case DataRequirement::Single:
+    case DataRequirement::SINGLE:
       return StructureType::Single;
-    case DataRequirement::Grid:
+    case DataRequirement::GRID:
       return StructureType::Grid;
-    case DataRequirement::List:
+    case DataRequirement::LIST:
       return StructureType::List;
-    case DataRequirement::Invalid:
+    case DataRequirement::INVALID:
       return StructureType::Dynamic;
   }
   BLI_assert_unreachable();
@@ -247,33 +247,33 @@ static void init_input_requirements(const bNodeTree &tree,
     for (const bNodeSocket *socket : node->input_sockets()) {
       DataRequirement &requirement = input_requirements[socket->index_in_all_inputs()];
       if (is_auto_structure_type[socket->index_in_tree()]) {
-        requirement = DataRequirement::None;
+        requirement = DataRequirement::NONE;
         continue;
       }
       const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
       if (!declaration) {
-        requirement = DataRequirement::None;
+        requirement = DataRequirement::NONE;
         continue;
       }
       switch (declaration->structure_type) {
         case StructureType::Dynamic: {
-          requirement = DataRequirement::None;
+          requirement = DataRequirement::NONE;
           break;
         }
         case StructureType::Single: {
-          requirement = DataRequirement::Single;
+          requirement = DataRequirement::SINGLE;
           break;
         }
         case StructureType::Grid: {
-          requirement = DataRequirement::Grid;
+          requirement = DataRequirement::GRID;
           break;
         }
         case StructureType::Field: {
-          requirement = DataRequirement::Field;
+          requirement = DataRequirement::FIELD;
           break;
         }
         case StructureType::List: {
-          requirement = DataRequirement::List;
+          requirement = DataRequirement::LIST;
           break;
         }
       }
@@ -284,7 +284,7 @@ static void init_input_requirements(const bNodeTree &tree,
 static DataRequirement calc_output_socket_requirement(
     const bNodeSocket &output_socket, const Span<DataRequirement> input_requirements)
 {
-  DataRequirement requirement = DataRequirement::None;
+  DataRequirement requirement = DataRequirement::NONE;
   if (!output_socket.is_available()) {
     return requirement;
   }
@@ -303,7 +303,7 @@ static void store_group_input_structure_types(const bNodeTree &tree,
 {
   /* Merge usages from all group input nodes. */
   Array<DataRequirement> interface_requirements(tree.interface_inputs().size(),
-                                                DataRequirement::None);
+                                                DataRequirement::NONE);
   for (const bNode *node : tree.group_input_nodes()) {
     const Span<const bNodeSocket *> output_sockets = node->output_sockets();
     for (const int i : output_sockets.index_range().drop_back(1)) {
@@ -350,9 +350,9 @@ static void store_auto_output_structure_types(const bNodeTree &tree,
 }
 
 enum class ZoneInOutChange {
-  None = 0,
-  In = (1 << 1),
-  Out = (1 << 2),
+  NONE = 0,
+  IN = (1 << 1),
+  OUT = (1 << 2),
 };
 ENUM_OPERATORS(ZoneInOutChange);
 
@@ -361,7 +361,7 @@ static ZoneInOutChange simulation_zone_requirements_propagate(
     const bNode &output_node,
     MutableSpan<DataRequirement> input_requirements)
 {
-  ZoneInOutChange change = ZoneInOutChange::None;
+  ZoneInOutChange change = ZoneInOutChange::NONE;
   for (const int i : output_node.output_sockets().index_range()) {
     /* First input node output is Delta Time which does not appear in the output node outputs. */
     const bNodeSocket &input_of_input_node = input_node.input_socket(i);
@@ -372,11 +372,11 @@ static ZoneInOutChange simulation_zone_requirements_propagate(
         calc_output_socket_requirement(output_of_output_node, input_requirements));
     if (input_requirements[input_of_input_node.index_in_all_inputs()] != new_value) {
       input_requirements[input_of_input_node.index_in_all_inputs()] = new_value;
-      change |= ZoneInOutChange::In;
+      change |= ZoneInOutChange::IN;
     }
     if (input_requirements[input_of_output_node.index_in_all_inputs()] != new_value) {
       input_requirements[input_of_output_node.index_in_all_inputs()] = new_value;
-      change |= ZoneInOutChange::Out;
+      change |= ZoneInOutChange::OUT;
     }
   }
   return change;
@@ -387,7 +387,7 @@ static ZoneInOutChange repeat_zone_requirements_propagate(
     const bNode &output_node,
     MutableSpan<DataRequirement> input_requirements)
 {
-  ZoneInOutChange change = ZoneInOutChange::None;
+  ZoneInOutChange change = ZoneInOutChange::NONE;
   for (const int i : output_node.output_sockets().index_range()) {
     const bNodeSocket &input_of_input_node = input_node.input_socket(i + 1);
     const bNodeSocket &output_of_output_node = output_node.output_socket(i);
@@ -397,11 +397,11 @@ static ZoneInOutChange repeat_zone_requirements_propagate(
         calc_output_socket_requirement(output_of_output_node, input_requirements));
     if (input_requirements[input_of_input_node.index_in_all_inputs()] != new_value) {
       input_requirements[input_of_input_node.index_in_all_inputs()] = new_value;
-      change |= ZoneInOutChange::In;
+      change |= ZoneInOutChange::IN;
     }
     if (input_requirements[input_of_output_node.index_in_all_inputs()] != new_value) {
       input_requirements[input_of_output_node.index_in_all_inputs()] = new_value;
-      change |= ZoneInOutChange::Out;
+      change |= ZoneInOutChange::OUT;
     }
   }
   return change;
@@ -418,7 +418,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = simulation_zone_requirements_propagate(
             node, *output_node, input_requirements);
-        if (flag_is_set(change, ZoneInOutChange::Out)) {
+        if (flag_is_set(change, ZoneInOutChange::OUT)) {
           return true;
         }
       }
@@ -430,7 +430,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = simulation_zone_requirements_propagate(
               *input_node, node, input_requirements);
-          if (flag_is_set(change, ZoneInOutChange::In)) {
+          if (flag_is_set(change, ZoneInOutChange::IN)) {
             return true;
           }
         }
@@ -442,7 +442,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = repeat_zone_requirements_propagate(
             node, *output_node, input_requirements);
-        if (flag_is_set(change, ZoneInOutChange::Out)) {
+        if (flag_is_set(change, ZoneInOutChange::OUT)) {
           return true;
         }
       }
@@ -454,7 +454,7 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = repeat_zone_requirements_propagate(
               *input_node, node, input_requirements);
-          if (flag_is_set(change, ZoneInOutChange::In)) {
+          if (flag_is_set(change, ZoneInOutChange::IN)) {
             return true;
           }
         }
@@ -480,7 +480,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
 
       for (const int output : node_interface.outputs.index_range()) {
         const bNodeSocket &output_socket = *output_sockets[output];
-        DataRequirement output_requirement = DataRequirement::None;
+        DataRequirement output_requirement = DataRequirement::NONE;
         for (const bNodeSocket *socket : output_socket.directly_linked_sockets()) {
           if (!socket->is_available()) {
             continue;
@@ -490,21 +490,21 @@ static void propagate_right_to_left(const bNodeTree &tree,
         }
 
         switch (output_requirement) {
-          case DataRequirement::Invalid:
-          case DataRequirement::None: {
+          case DataRequirement::INVALID:
+          case DataRequirement::NONE: {
             break;
           }
-          case DataRequirement::Single: {
+          case DataRequirement::SINGLE: {
             /* If the output is a single, all inputs must be singles. */
             for (const int input : node_interface.outputs[output].linked_inputs) {
               const bNodeSocket &input_socket = *input_sockets[input];
-              input_requirements[input_socket.index_in_all_inputs()] = DataRequirement::Single;
+              input_requirements[input_socket.index_in_all_inputs()] = DataRequirement::SINGLE;
             }
             break;
           }
-          case DataRequirement::Field:
-          case DataRequirement::Grid:
-          case DataRequirement::List: {
+          case DataRequirement::FIELD:
+          case DataRequirement::GRID:
+          case DataRequirement::LIST: {
             /* When a data requirement could be provided by multiple node inputs (i.e. only a
              * single node input involved in a math operation has to be a volume grid for the
              * output to be a grid), it's better to not propagate the data requirement than
@@ -513,7 +513,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
             for (const int input : node_interface.outputs[output].linked_inputs) {
               const bNodeSocket &input_socket = *input_sockets[input];
               if (input_requirements[input_socket.index_in_all_inputs()] ==
-                  DataRequirement::Single)
+                  DataRequirement::SINGLE)
               {
                 /* Inputs which require a single value can't get a different requirement. */
                 continue;
@@ -527,7 +527,7 @@ static void propagate_right_to_left(const bNodeTree &tree,
             }
             else {
               for (const int input : inputs_with_links) {
-                input_requirements[input] = DataRequirement::None;
+                input_requirements[input] = DataRequirement::NONE;
               }
             }
             break;
@@ -588,7 +588,7 @@ static ZoneInOutChange simulation_zone_status_propagate(const bNode &input_node,
                                                         const bNode &output_node,
                                                         MutableSpan<StructureType> structure_types)
 {
-  ZoneInOutChange change = ZoneInOutChange::None;
+  ZoneInOutChange change = ZoneInOutChange::NONE;
   for (const int i : output_node.output_sockets().index_range()) {
     /* First input node output is Delta Time which does not appear in the output node outputs. */
     const bNodeSocket &input = input_node.output_socket(i + 1);
@@ -597,11 +597,11 @@ static ZoneInOutChange simulation_zone_status_propagate(const bNode &input_node,
                                                         structure_types[output.index_in_tree()]);
     if (structure_types[input.index_in_tree()] != new_value) {
       structure_types[input.index_in_tree()] = new_value;
-      change |= ZoneInOutChange::In;
+      change |= ZoneInOutChange::IN;
     }
     if (structure_types[output.index_in_tree()] != new_value) {
       structure_types[output.index_in_tree()] = new_value;
-      change |= ZoneInOutChange::Out;
+      change |= ZoneInOutChange::OUT;
     }
   }
   return change;
@@ -611,7 +611,7 @@ static ZoneInOutChange repeat_zone_status_propagate(const bNode &input_node,
                                                     const bNode &output_node,
                                                     MutableSpan<StructureType> structure_types)
 {
-  ZoneInOutChange change = ZoneInOutChange::None;
+  ZoneInOutChange change = ZoneInOutChange::NONE;
   for (const int i : output_node.output_sockets().index_range()) {
     const bNodeSocket &input_of_input_node = input_node.output_socket(i + 1);
     const bNodeSocket &output_of_output_node = output_node.output_socket(i);
@@ -620,11 +620,11 @@ static ZoneInOutChange repeat_zone_status_propagate(const bNode &input_node,
         structure_types[output_of_output_node.index_in_tree()]);
     if (structure_types[input_of_input_node.index_in_tree()] != new_value) {
       structure_types[input_of_input_node.index_in_tree()] = new_value;
-      change |= ZoneInOutChange::In;
+      change |= ZoneInOutChange::IN;
     }
     if (structure_types[output_of_output_node.index_in_tree()] != new_value) {
       structure_types[output_of_output_node.index_in_tree()] = new_value;
-      change |= ZoneInOutChange::Out;
+      change |= ZoneInOutChange::OUT;
     }
   }
   return change;
@@ -641,7 +641,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = simulation_zone_status_propagate(
             node, *output_node, structure_types);
-        if (flag_is_set(change, ZoneInOutChange::Out)) {
+        if (flag_is_set(change, ZoneInOutChange::OUT)) {
           return true;
         }
       }
@@ -653,7 +653,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = simulation_zone_status_propagate(
               *input_node, node, structure_types);
-          if (flag_is_set(change, ZoneInOutChange::In)) {
+          if (flag_is_set(change, ZoneInOutChange::IN)) {
             return true;
           }
         }
@@ -665,7 +665,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const ZoneInOutChange change = repeat_zone_status_propagate(
             node, *output_node, structure_types);
-        if (flag_is_set(change, ZoneInOutChange::Out)) {
+        if (flag_is_set(change, ZoneInOutChange::OUT)) {
           return true;
         }
       }
@@ -677,7 +677,7 @@ static bool propagate_zone_status(const bNodeTree &tree,
         if (node.identifier == data.output_node_id) {
           const ZoneInOutChange change = repeat_zone_status_propagate(
               *input_node, node, structure_types);
-          if (flag_is_set(change, ZoneInOutChange::In)) {
+          if (flag_is_set(change, ZoneInOutChange::IN)) {
             return true;
           }
         }

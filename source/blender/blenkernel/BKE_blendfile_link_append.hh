@@ -148,24 +148,24 @@ struct BlendfileLinkAppendContext {
      * The context data is being filled with data (Libraries and IDs) to process. Nothing has been
      * linked yet.
      */
-    Init = 0,
+    INIT = 0,
     /** The context data is being used to linked IDs. */
-    Linking,
+    LINKING,
     /**
      * The context data is being used to append IDs (i.e. make local linked ones, or re-use already
      * existing local ones).
      */
-    Appending,
+    APPENDING,
     /**
      * The context data is being used to instantiate (loose) IDs (i.e. ensure that Collections,
      * Objects and/or ObjectData IDs are added to the current scene).
      */
-    Instantiating,
+    INSTANTIATING,
     /**
      * All data has been linked or appended. The context state represents the final result of the
      * process.
      */
-    Done,
+    DONE,
 
     /* NOTE: For the time being, liboverride step is not considered here (#BKE_blendfile_override).
      * Mainly because it is only available through the BPY API currently. */

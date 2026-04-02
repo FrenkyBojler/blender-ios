@@ -801,19 +801,19 @@ int BKE_layer_collection_findindex(ViewLayer *view_layer, const LayerCollection 
  * \{ */
 
 /* Maximum allowed levels of re-entrant calls to #BKE_layer_collection_resync_forbid. */
-[[maybe_unused]] static constexpr int no_resync_recurse_max = 16 * 256;
+[[maybe_unused]] static constexpr int NO_RESYNC_RECURSE_MAX = 16 * 256;
 
 void BKE_layer_collection_resync_forbid(Main &bmain)
 {
   BLI_assert(bmain.no_resync >= 0);
-  BLI_assert(bmain.no_resync < no_resync_recurse_max - 1);
+  BLI_assert(bmain.no_resync < NO_RESYNC_RECURSE_MAX - 1);
   bmain.no_resync++;
 }
 
 void BKE_layer_collection_resync_allow(Main &bmain)
 {
   BLI_assert(bmain.no_resync > 0);
-  BLI_assert(bmain.no_resync < no_resync_recurse_max);
+  BLI_assert(bmain.no_resync < NO_RESYNC_RECURSE_MAX);
   bmain.no_resync--;
 }
 

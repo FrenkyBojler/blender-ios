@@ -126,7 +126,7 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_never)
   IDNewNameResult result;
 
   /* Rename to different root name. */
-  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RenameExistingNever);
+  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RENAME_EXISTING_NEVER);
 
   EXPECT_EQ(result.action, IDNewNameResult::Action::RENAMED_COLLISION_ADJUSTED);
   //  EXPECT_EQ(result.other_id, id_a);  /* other_id purposely not looked-up currently. */
@@ -140,7 +140,7 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_never)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   /* Rename to same root name. */
-  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RenameExistingNever);
+  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RENAME_EXISTING_NEVER);
 
   EXPECT_EQ(result.action, IDNewNameResult::Action::UNCHANGED_COLLISION);
   //  EXPECT_EQ(result.other_id, id_a);  /* other_id purposely not looked-up currently. */
@@ -165,27 +165,27 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_never)
   STRNCPY(future_name, "OB_BBBB");
   EXPECT_FALSE(BKE_main_namemap_get_unique_name(*ctx.bmain, *id_c, future_name));
   EXPECT_STREQ(future_name, "OB_BBBB");
-  constexpr char long_name[] =
+  constexpr char LONG_NAME[] =
       "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(long_name) == MAX_ID_NAME - 2 - 1,
+  BLI_STATIC_ASSERT(std::string::traits_type::length(LONG_NAME) == MAX_ID_NAME - 2 - 1,
                     "Wrong 'max length' name");
-  constexpr char long_name_shorten[] =
+  constexpr char LONG_NAME_SHORTEN[] =
       "OB_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(long_name_shorten) == MAX_ID_NAME - 2 - 2,
+  BLI_STATIC_ASSERT(std::string::traits_type::length(LONG_NAME_SHORTEN) == MAX_ID_NAME - 2 - 2,
                     "Wrong 'max length' name");
   /* Name too long, needs to be truncated. */
-  STRNCPY(future_name, long_name);
-  change_name(ctx.bmain, id_a, future_name, IDNewNameMode::RenameExistingNever);
+  STRNCPY(future_name, LONG_NAME);
+  change_name(ctx.bmain, id_a, future_name, IDNewNameMode::RENAME_EXISTING_NEVER);
   EXPECT_STREQ(id_a->name + 2, future_name);
-  EXPECT_STREQ(future_name, long_name);
+  EXPECT_STREQ(future_name, LONG_NAME);
   EXPECT_TRUE(BKE_main_namemap_get_unique_name(*ctx.bmain, *id_c, future_name));
-  EXPECT_STREQ(future_name, long_name_shorten);
+  EXPECT_STREQ(future_name, LONG_NAME_SHORTEN);
 }
 
 TEST(lib_id_main_unique_name, local_ids_rename_existing_always)
@@ -203,7 +203,7 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_always)
   IDNewNameResult result;
 
   /* Rename to different root name. */
-  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RenameExistingAlways);
+  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RENAME_EXISTING_ALWAYS);
 
   EXPECT_EQ(result.action, IDNewNameResult::Action::RENAMED_COLLISION_FORCED);
   EXPECT_EQ(result.other_id, id_a);
@@ -216,7 +216,7 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_always)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   /* Rename to same root name. */
-  result = change_name(ctx.bmain, id_a, "OB_A", IDNewNameMode::RenameExistingAlways);
+  result = change_name(ctx.bmain, id_a, "OB_A", IDNewNameMode::RENAME_EXISTING_ALWAYS);
 
   EXPECT_EQ(result.action, IDNewNameResult::Action::RENAMED_COLLISION_FORCED);
   EXPECT_EQ(result.other_id, id_c);
@@ -246,7 +246,7 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_same_root)
   IDNewNameResult result;
 
   /* Rename to different root name. */
-  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RenameExistingSameRoot);
+  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RENAME_EXISTING_SAME_ROOT);
 
   EXPECT_EQ(result.action, IDNewNameResult::Action::RENAMED_COLLISION_ADJUSTED);
   //  EXPECT_EQ(result.other_id, id_a);  /* other_id purposely not looked-up currently. */
@@ -260,7 +260,7 @@ TEST(lib_id_main_unique_name, local_ids_rename_existing_same_root)
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
   /* Rename to same root name. */
-  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RenameExistingSameRoot);
+  result = change_name(ctx.bmain, id_c, "OB_A", IDNewNameMode::RENAME_EXISTING_SAME_ROOT);
 
   EXPECT_EQ(result.action, IDNewNameResult::Action::RENAMED_COLLISION_FORCED);
   EXPECT_EQ(result.other_id, id_a);
@@ -293,7 +293,7 @@ TEST(lib_id_main_unique_name, linked_ids_1)
   change_lib(ctx.bmain, id_b, lib_a);
   id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
 
-  change_name(ctx.bmain, id_b, "OB_A", IDNewNameMode::RenameExistingNever);
+  change_name(ctx.bmain, id_b, "OB_A", IDNewNameMode::RENAME_EXISTING_NEVER);
   EXPECT_STREQ(id_b->name + 2, "OB_A.001");
   EXPECT_STREQ(id_a->name + 2, "OB_A");
   EXPECT_TRUE(ctx.bmain->objects.first == id_c);
@@ -304,7 +304,7 @@ TEST(lib_id_main_unique_name, linked_ids_1)
 
   change_lib(ctx.bmain, id_b, lib_b);
   id_sort_by_name(&ctx.bmain->objects.cast<ID>(), id_b, nullptr);
-  change_name(ctx.bmain, id_b, "OB_A", IDNewNameMode::RenameExistingNever);
+  change_name(ctx.bmain, id_b, "OB_A", IDNewNameMode::RENAME_EXISTING_NEVER);
   EXPECT_STREQ(id_b->name + 2, "OB_A");
   EXPECT_STREQ(id_a->name + 2, "OB_A");
   EXPECT_TRUE(ctx.bmain->objects.first == id_c);
@@ -370,7 +370,7 @@ TEST(lib_id_main_global_unique_name, linked_ids_1)
 
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 
-  change_name(ctx.bmain, id_b, "OB_C", IDNewNameMode::RenameExistingNever);
+  change_name(ctx.bmain, id_b, "OB_C", IDNewNameMode::RENAME_EXISTING_NEVER);
   EXPECT_STREQ(id_b->name + 2, "OB_C");
   EXPECT_STREQ(id_a->name + 2, "OB_C.002");
   EXPECT_STREQ(id_c->name + 2, "OB_C");
@@ -431,45 +431,45 @@ TEST(lib_id_main_unique_name, ids_sorted_by_default_with_libraries)
 TEST(lib_id_main_unique_name, name_too_long_handling)
 {
   LibIDMainSortTestContext ctx;
-  constexpr char name_a[] =
+  constexpr char NAME_A[] =
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(name_a) > MAX_ID_NAME - 2,
+  BLI_STATIC_ASSERT(std::string::traits_type::length(NAME_A) > MAX_ID_NAME - 2,
                     "Wrong 'max length' name");
-  constexpr char name_a_shorten[] =
+  constexpr char NAME_A_SHORTEN[] =
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
       "Long_Name_That_Does_Not_Fit_Into_Max_Name_Limit_And_Should_Get_Truncated_"
       "Long_Name_That_Does_Not_Fit_Into_Max";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(name_a_shorten) == MAX_ID_NAME - 2 - 1,
+  BLI_STATIC_ASSERT(std::string::traits_type::length(NAME_A_SHORTEN) == MAX_ID_NAME - 2 - 1,
                     "Wrong 'max length' name");
-  constexpr char name_b[] =
+  constexpr char NAME_B[] =
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix.123456";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(name_b) > MAX_ID_NAME - 2,
+  BLI_STATIC_ASSERT(std::string::traits_type::length(NAME_B) > MAX_ID_NAME - 2,
                     "Wrong 'max length' name");
-  constexpr char name_b_shorten[] =
+  constexpr char NAME_B_SHORTEN[] =
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix_____"
       "Another_Long_Name_That_Does_Not_Fit_And_Has_A_Number_Suffix.123";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(name_b_shorten) == MAX_ID_NAME - 2 - 1,
+  BLI_STATIC_ASSERT(std::string::traits_type::length(NAME_B_SHORTEN) == MAX_ID_NAME - 2 - 1,
                     "Wrong 'max length' name");
-  constexpr char name_c[] = "Name_That_Has_Too_Long_Number_Suffix.1234567890";
-  BLI_STATIC_ASSERT(std::string::traits_type::length(name_c) < MAX_ID_NAME - 2,
+  constexpr char NAME_C[] = "Name_That_Has_Too_Long_Number_Suffix.1234567890";
+  BLI_STATIC_ASSERT(std::string::traits_type::length(NAME_C) < MAX_ID_NAME - 2,
                     "Wrong 'max length' name");
 
-  ID *id_a = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, name_a));
-  ID *id_b = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, name_b));
-  ID *id_c = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, name_c));
+  ID *id_a = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, NAME_A));
+  ID *id_b = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, NAME_B));
+  ID *id_c = static_cast<ID *>(BKE_id_new(ctx.bmain, ID_OB, NAME_C));
 
-  EXPECT_STREQ(BKE_id_name(*id_a), name_a_shorten);
-  EXPECT_STREQ(BKE_id_name(*id_b), name_b_shorten);
-  EXPECT_STREQ(BKE_id_name(*id_c), name_c); /* Unchanged */
+  EXPECT_STREQ(BKE_id_name(*id_a), NAME_A_SHORTEN);
+  EXPECT_STREQ(BKE_id_name(*id_b), NAME_B_SHORTEN);
+  EXPECT_STREQ(BKE_id_name(*id_c), NAME_C); /* Unchanged */
 
   EXPECT_TRUE(BKE_main_namemap_validate(*ctx.bmain));
 

@@ -12,7 +12,7 @@ namespace blender::bke {
 /** \name Geometry Component Implementation
  * \{ */
 
-VolumeComponent::VolumeComponent() : GeometryComponent(GeometryComponent::Type::Volume) {}
+VolumeComponent::VolumeComponent() : GeometryComponent(GeometryComponent::Type::VOLUME) {}
 
 VolumeComponent::~VolumeComponent()
 {
@@ -24,7 +24,7 @@ GeometryComponentPtr VolumeComponent::copy() const
   VolumeComponent *new_component = new VolumeComponent();
   if (volume_ != nullptr) {
     new_component->volume_ = BKE_volume_copy_for_eval(volume_);
-    new_component->ownership_ = GeometryOwnershipType::Owned;
+    new_component->ownership_ = GeometryOwnershipType::OWNED;
   }
   return GeometryComponentPtr(new_component);
 }
@@ -33,7 +33,7 @@ void VolumeComponent::clear()
 {
   BLI_assert(this->is_mutable() || this->is_expired());
   if (volume_ != nullptr) {
-    if (ownership_ == GeometryOwnershipType::Owned) {
+    if (ownership_ == GeometryOwnershipType::OWNED) {
       BKE_id_free(nullptr, volume_);
     }
     volume_ = nullptr;
@@ -69,26 +69,26 @@ const Volume *VolumeComponent::get() const
 Volume *VolumeComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ == GeometryOwnershipType::ReadOnly) {
+  if (ownership_ == GeometryOwnershipType::READ_ONLY) {
     volume_ = BKE_volume_copy_for_eval(volume_);
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
   return volume_;
 }
 
 bool VolumeComponent::owns_direct_data() const
 {
-  return ownership_ == GeometryOwnershipType::Owned;
+  return ownership_ == GeometryOwnershipType::OWNED;
 }
 
 void VolumeComponent::ensure_owns_direct_data()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ != GeometryOwnershipType::Owned) {
+  if (ownership_ != GeometryOwnershipType::OWNED) {
     if (volume_) {
       volume_ = BKE_volume_copy_for_eval(volume_);
     }
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
 }
 

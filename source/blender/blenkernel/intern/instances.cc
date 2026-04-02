@@ -19,7 +19,7 @@
 namespace blender::bke {
 
 InstanceReference::InstanceReference(GeometrySet geometry_set)
-    : type_(Type::GeometrySet),
+    : type_(Type::GEOMETRY_SET),
       geometry_set_(std::make_unique<GeometrySet>(std::move(geometry_set)))
 {
 }
@@ -34,7 +34,7 @@ InstanceReference::InstanceReference(const InstanceReference &other)
 
 void InstanceReference::ensure_owns_direct_data()
 {
-  if (type_ != Type::GeometrySet) {
+  if (type_ != Type::GEOMETRY_SET) {
     return;
   }
   geometry_set_->ensure_owns_direct_data();
@@ -42,7 +42,7 @@ void InstanceReference::ensure_owns_direct_data()
 
 bool InstanceReference::owns_direct_data() const
 {
-  if (type_ != Type::GeometrySet) {
+  if (type_ != Type::GEOMETRY_SET) {
     /* The object and collection instances are not direct data. */
     return true;
   }
@@ -52,7 +52,7 @@ bool InstanceReference::owns_direct_data() const
 void InstanceReference::count_memory(MemoryCounter &memory) const
 {
   switch (type_) {
-    case Type::GeometrySet: {
+    case Type::GEOMETRY_SET: {
       geometry_set_->count_memory(memory);
     }
     default: {
@@ -113,22 +113,22 @@ void InstanceReference::to_geometry_set(GeometrySet &r_geometry_set) const
 {
   r_geometry_set.clear();
   switch (type_) {
-    case Type::Object: {
+    case Type::OBJECT: {
       const Object &object = this->object();
       r_geometry_set = bke::object_get_evaluated_geometry_set(object);
       break;
     }
-    case Type::Collection: {
+    case Type::COLLECTION: {
       const Collection &collection = this->collection();
       std::unique_ptr<bke::Instances> instances_ptr = convert_collection_to_instances(collection);
       r_geometry_set.replace_instances(instances_ptr.release());
       break;
     }
-    case Type::GeometrySet: {
+    case Type::GEOMETRY_SET: {
       r_geometry_set = this->geometry_set();
       break;
     }
-    case Type::None: {
+    case Type::NONE: {
       break;
     }
   }
@@ -137,13 +137,13 @@ void InstanceReference::to_geometry_set(GeometrySet &r_geometry_set) const
 StringRefNull InstanceReference::name() const
 {
   switch (type_) {
-    case Type::Object:
+    case Type::OBJECT:
       return this->object().id.name + 2;
-    case Type::Collection:
+    case Type::COLLECTION:
       return this->collection().id.name + 2;
-    case Type::GeometrySet:
+    case Type::GEOMETRY_SET:
       return this->geometry_set().name();
-    case Type::None:
+    case Type::NONE:
       break;
   }
   return "";
@@ -167,7 +167,7 @@ Instances::Instances() = default;
 
 Instances::Instances(const int size) : instances_num_(size)
 {
-  attributes_.resize(AttrDomain::Instance, size);
+  attributes_.resize(AttrDomain::INSTANCE, size);
 }
 
 Instances::Instances(Instances &&other)
@@ -212,41 +212,41 @@ Instances &Instances::operator=(Instances &&other)
 
 void Instances::resize(int size)
 {
-  attributes_.resize(AttrDomain::Instance, size);
+  attributes_.resize(AttrDomain::INSTANCE, size);
   instances_num_ = size;
 }
 
 Span<int> Instances::reference_handles() const
 {
   return get_span_attribute<int>(
-             attributes_, AttrDomain::Instance, ".reference_index", instances_num_)
+             attributes_, AttrDomain::INSTANCE, ".reference_index", instances_num_)
       .value_or(Span<int>());
 }
 
 MutableSpan<int> Instances::reference_handles_for_write()
 {
   return get_mutable_attribute<int>(
-      attributes_, AttrDomain::Instance, ".reference_index", instances_num_);
+      attributes_, AttrDomain::INSTANCE, ".reference_index", instances_num_);
 }
 
 Span<float4x4> Instances::transforms() const
 {
   return get_span_attribute<float4x4>(
-             attributes_, AttrDomain::Instance, "instance_transform", instances_num_)
+             attributes_, AttrDomain::INSTANCE, "instance_transform", instances_num_)
       .value_or(Span<float4x4>());
 }
 
 MutableSpan<float4x4> Instances::transforms_for_write()
 {
   return get_mutable_attribute<float4x4>(
-      attributes_, AttrDomain::Instance, "instance_transform", instances_num_);
+      attributes_, AttrDomain::INSTANCE, "instance_transform", instances_num_);
 }
 
 GeometrySet &Instances::geometry_set_from_reference(const int reference_index)
 {
   /* If this assert fails, it means #ensure_geometry_instances must be called first or that the
    * reference can't be converted to a geometry set. */
-  BLI_assert(references_[reference_index].type() == InstanceReference::Type::GeometrySet);
+  BLI_assert(references_[reference_index].type() == InstanceReference::Type::GEOMETRY_SET);
 
   return references_[reference_index].geometry_set();
 }
@@ -301,8 +301,8 @@ void Instances::remove(const IndexMask &mask, const AttributeFilter &attribute_f
   new_instances.instances_num_ = mask.size();
 
   gather_attributes(this->attributes(),
-                    AttrDomain::Instance,
-                    AttrDomain::Instance,
+                    AttrDomain::INSTANCE,
+                    AttrDomain::INSTANCE,
                     attribute_filter,
                     mask,
                     new_instances.attributes_for_write());

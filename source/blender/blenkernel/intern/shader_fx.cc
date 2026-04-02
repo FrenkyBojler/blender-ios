@@ -40,7 +40,7 @@ bool BKE_shaderfx_has_gpencil(const Object *ob)
 {
   for (const ShaderFxData &fx : ob->shader_fx) {
     const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx.type));
-    if (fxi->type == eShaderFxType_GpencilType) {
+    if (fxi->type == E_SHADER_FX_TYPE_GPENCIL_TYPE) {
       return true;
     }
   }
@@ -68,7 +68,7 @@ ShaderFxData *BKE_shaderfx_new(int type)
   /* Expand only the parent panel by default. */
   fx->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
 
-  if (fxi->flags & eShaderFxTypeFlag_EnableInEditmode) {
+  if (fxi->flags & E_SHADER_FX_TYPE_FLAG_ENABLE_IN_EDITMODE) {
     fx->mode |= eShaderFxMode_Editmode;
   }
 

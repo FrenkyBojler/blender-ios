@@ -411,11 +411,11 @@ static void rename_attributes(const Span<GeometrySet *> geometries,
                               const Map<std::string, std::string> &attribute_map)
 {
   for (GeometrySet *geometry : geometries) {
-    for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
-                                               GeometryComponent::Type::Curve,
-                                               GeometryComponent::Type::GreasePencil,
-                                               GeometryComponent::Type::PointCloud,
-                                               GeometryComponent::Type::Instance})
+    for (const GeometryComponent::Type type : {GeometryComponent::Type::MESH,
+                                               GeometryComponent::Type::CURVE,
+                                               GeometryComponent::Type::GREASE_PENCIL,
+                                               GeometryComponent::Type::POINT_CLOUD,
+                                               GeometryComponent::Type::INSTANCE})
     {
       if (!geometry->has(type)) {
         continue;

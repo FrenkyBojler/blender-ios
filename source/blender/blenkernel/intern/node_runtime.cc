@@ -280,8 +280,8 @@ static void update_sockets_by_identifier(const bNodeTree &ntree)
 }
 
 enum class ToposortDirection {
-  LeftToRight,
-  RightToLeft,
+  LEFT_TO_RIGHT,
+  RIGHT_TO_LEFT,
 };
 
 struct ToposortNodeState {
@@ -358,7 +358,7 @@ static void toposort_from_start_node(const bNodeTree &ntree,
       return false;
     };
 
-    const Span<bNodeSocket *> sockets = (direction == ToposortDirection::LeftToRight) ?
+    const Span<bNodeSocket *> sockets = (direction == ToposortDirection::LEFT_TO_RIGHT) ?
                                             node.runtime->inputs :
                                             node.runtime->outputs;
     while (true) {
@@ -394,7 +394,7 @@ static void toposort_from_start_node(const bNodeTree &ntree,
       /* Some nodes are internally linked without an explicit `bNodeLink`. The toposort should
        * still order them correctly and find cycles. */
       const Vector<const bNode *> implicitly_linked_nodes =
-          (direction == ToposortDirection::LeftToRight) ? get_implicit_origin_nodes(ntree, node) :
+          (direction == ToposortDirection::LEFT_TO_RIGHT) ? get_implicit_origin_nodes(ntree, node) :
                                                           get_implicit_target_nodes(ntree, node);
       while (true) {
         if (item.implicit_link_index == implicitly_linked_nodes.size()) {
@@ -439,7 +439,7 @@ static void update_toposort(const bNodeTree &ntree,
       /* Ignore nodes that are done already. */
       continue;
     }
-    if ((direction == ToposortDirection::LeftToRight) ?
+    if ((direction == ToposortDirection::LEFT_TO_RIGHT) ?
             node->runtime->has_available_linked_outputs :
             node->runtime->has_available_linked_inputs)
     {
@@ -554,7 +554,7 @@ static void ensure_topology_cache(const bNodeTree &ntree)
         [&]() { update_sockets_by_identifier(ntree); },
         [&]() {
           update_toposort(ntree,
-                          ToposortDirection::LeftToRight,
+                          ToposortDirection::LEFT_TO_RIGHT,
                           tree_runtime.toposort_left_to_right,
                           tree_runtime.has_available_link_cycle);
           for (const int i : tree_runtime.toposort_left_to_right.index_range()) {
@@ -565,7 +565,7 @@ static void ensure_topology_cache(const bNodeTree &ntree)
         [&]() {
           bool dummy;
           update_toposort(
-              ntree, ToposortDirection::RightToLeft, tree_runtime.toposort_right_to_left, dummy);
+              ntree, ToposortDirection::RIGHT_TO_LEFT, tree_runtime.toposort_right_to_left, dummy);
           for (const int i : tree_runtime.toposort_right_to_left.index_range()) {
             const bNode &node = *tree_runtime.toposort_right_to_left[i];
             node.runtime->toposort_right_to_left_index = i;

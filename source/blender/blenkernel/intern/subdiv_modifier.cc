@@ -74,14 +74,14 @@ bool BKE_subsurf_modifier_use_custom_loop_normals(const SubsurfModifierData *smd
   }
   const std::optional<AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       "custom_normal");
-  return meta_data && meta_data->domain == AttrDomain::Corner &&
-         meta_data->data_type == AttrType::Int16_2D;
+  return meta_data && meta_data->domain == AttrDomain::CORNER &&
+         meta_data->data_type == AttrType::INT16_2_D;
 }
 
 bool BKE_subsurf_modifier_has_split_normals(const SubsurfModifierData *smd, const Mesh *mesh)
 {
   return BKE_subsurf_modifier_use_custom_loop_normals(smd, mesh) ||
-         mesh->normals_domain() == MeshNormalDomain::Corner;
+         mesh->normals_domain() == MeshNormalDomain::CORNER;
 }
 
 static bool is_subdivision_evaluation_possible_on_gpu()

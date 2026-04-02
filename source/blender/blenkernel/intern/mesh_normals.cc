@@ -297,48 +297,48 @@ bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_face) const
 {
   using namespace blender::bke;
   if (this->faces_num == 0) {
-    return MeshNormalDomain::Point;
+    return MeshNormalDomain::POINT;
   }
 
   const bke::AttributeAccessor attributes = this->attributes();
   if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data("custom_normal"))
   {
     switch (custom->domain) {
-      case AttrDomain::Point:
-        return MeshNormalDomain::Point;
-      case AttrDomain::Edge:
+      case AttrDomain::POINT:
+        return MeshNormalDomain::POINT;
+      case AttrDomain::EDGE:
         break;
-      case AttrDomain::Face:
-        return MeshNormalDomain::Face;
-      case AttrDomain::Corner:
-        return MeshNormalDomain::Corner;
+      case AttrDomain::FACE:
+        return MeshNormalDomain::FACE;
+      case AttrDomain::CORNER:
+        return MeshNormalDomain::CORNER;
       default:
         BLI_assert_unreachable();
     }
   }
 
   const VArray<bool> sharp_faces = *attributes.lookup_or_default<bool>(
-      "sharp_face", AttrDomain::Face, false);
+      "sharp_face", AttrDomain::FACE, false);
 
   const array_utils::BooleanMix face_mix = array_utils::booleans_mix_calc(sharp_faces);
   if (face_mix == array_utils::BooleanMix::AllTrue) {
-    return MeshNormalDomain::Face;
+    return MeshNormalDomain::FACE;
   }
 
   const VArray<bool> sharp_edges = *attributes.lookup_or_default<bool>(
-      "sharp_edge", AttrDomain::Edge, false);
+      "sharp_edge", AttrDomain::EDGE, false);
   const array_utils::BooleanMix edge_mix = array_utils::booleans_mix_calc(sharp_edges);
   if (edge_mix == array_utils::BooleanMix::AllTrue) {
-    return MeshNormalDomain::Face;
+    return MeshNormalDomain::FACE;
   }
 
   if (edge_mix == array_utils::BooleanMix::AllFalse &&
       (face_mix == array_utils::BooleanMix::AllFalse || support_sharp_face))
   {
-    return MeshNormalDomain::Point;
+    return MeshNormalDomain::POINT;
   }
 
-  return MeshNormalDomain::Corner;
+  return MeshNormalDomain::CORNER;
 }
 
 Span<float3> Mesh::vert_normals() const
@@ -347,11 +347,11 @@ Span<float3> Mesh::vert_normals() const
   this->runtime->vert_normals_cache.ensure([&](NormalsCache &r_data) {
     if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
       if (custom.varray.type().is<float3>()) {
-        if (custom.domain == AttrDomain::Point) {
+        if (custom.domain == AttrDomain::POINT) {
           r_data.store_varray(custom.varray.typed<float3>());
           return;
         }
-        if (custom.domain == AttrDomain::Face) {
+        if (custom.domain == AttrDomain::FACE) {
           mesh::normals_calc_verts(this->vert_positions(),
                                    this->faces(),
                                    this->corner_verts(),
@@ -361,7 +361,7 @@ Span<float3> Mesh::vert_normals() const
 
           return;
         }
-        if (custom.domain == AttrDomain::Corner) {
+        if (custom.domain == AttrDomain::CORNER) {
           mesh::mix_normals_corner_to_vert(this->vert_positions(),
                                            this->faces(),
                                            this->corner_verts(),
@@ -371,7 +371,7 @@ Span<float3> Mesh::vert_normals() const
           return;
         }
       }
-      else if (custom.varray.type().is<short2>() && custom.domain == AttrDomain::Corner) {
+      else if (custom.varray.type().is<short2>() && custom.domain == AttrDomain::CORNER) {
         mesh::mix_normals_corner_to_vert(this->vert_positions(),
                                          this->faces(),
                                          this->corner_verts(),
@@ -416,25 +416,25 @@ Span<float3> Mesh::face_normals() const
   this->runtime->face_normals_cache.ensure([&](NormalsCache &r_data) {
     if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
       if (custom.varray.type().is<float3>()) {
-        if (custom.domain == AttrDomain::Face) {
+        if (custom.domain == AttrDomain::FACE) {
           r_data.store_varray(custom.varray.typed<float3>());
           return;
         }
-        if (custom.domain == AttrDomain::Point) {
+        if (custom.domain == AttrDomain::POINT) {
           mesh::mix_normals_vert_to_face(this->faces(),
                                          this->corner_verts(),
                                          VArraySpan<float3>(custom.varray.typed<float3>()),
                                          r_data.ensure_vector_size(this->faces_num));
           return;
         }
-        if (custom.domain == AttrDomain::Corner) {
+        if (custom.domain == AttrDomain::CORNER) {
           mesh::mix_normals_corner_to_face(this->faces(),
                                            VArraySpan<float3>(custom.varray.typed<float3>()),
                                            r_data.ensure_vector_size(this->faces_num));
           return;
         }
       }
-      else if (custom.varray.type().is<short2>() && custom.domain == AttrDomain::Corner) {
+      else if (custom.varray.type().is<short2>() && custom.domain == AttrDomain::CORNER) {
         mesh::mix_normals_corner_to_face(
             this->faces(), this->corner_normals(), r_data.ensure_vector_size(this->faces_num));
         return;
@@ -469,29 +469,29 @@ Span<float3> Mesh::corner_normals() const
   this->runtime->corner_normals_cache.ensure([&](NormalsCache &r_data) {
     const OffsetIndices<int> faces = this->faces();
     switch (this->normals_domain()) {
-      case MeshNormalDomain::Point: {
+      case MeshNormalDomain::POINT: {
         MutableSpan<float3> data = r_data.ensure_vector_size(this->corners_num);
         array_utils::gather(this->vert_normals(), this->corner_verts(), data);
         break;
       }
-      case MeshNormalDomain::Face: {
+      case MeshNormalDomain::FACE: {
         MutableSpan<float3> data = r_data.ensure_vector_size(this->corners_num);
         const Span<float3> face_normals = this->face_normals();
         array_utils::gather_to_groups(faces, faces.index_range(), face_normals, data);
         break;
       }
-      case MeshNormalDomain::Corner: {
+      case MeshNormalDomain::CORNER: {
         const AttributeAccessor attributes = this->attributes();
         const GAttributeReader custom = attributes.lookup("custom_normal");
         if (custom && custom.varray.type().is<float3>()) {
-          if (custom.domain == bke::AttrDomain::Corner) {
+          if (custom.domain == bke::AttrDomain::CORNER) {
             r_data.store_varray(custom.varray.typed<float3>());
           }
           return;
         }
         MutableSpan<float3> data = r_data.ensure_vector_size(this->corners_num);
-        const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+        const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::EDGE);
+        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::FACE);
         mesh::normals_calc_corners(this->vert_positions(),
                                    this->faces(),
                                    this->corner_verts(),
@@ -1649,13 +1649,13 @@ static void mesh_set_custom_normals(Mesh &mesh,
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   SpanAttributeWriter custom_normals = attributes.lookup_or_add_for_write_span<short2>(
-      "custom_normal", AttrDomain::Corner);
+      "custom_normal", AttrDomain::CORNER);
   if (!custom_normals) {
     return;
   }
   SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_edge", AttrDomain::Edge);
-  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+      "sharp_edge", AttrDomain::EDGE);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::FACE);
 
   mesh_normals_corner_custom_set(mesh.vert_positions(),
                                  mesh.faces(),
@@ -1709,7 +1709,7 @@ void mesh_set_custom_normals_from_verts_normalized(Mesh &mesh, MutableSpan<float
 
 namespace mesh {
 
-constexpr AttributeMetaData CORNER_FAN_META_DATA{AttrDomain::Corner, AttrType::Int16_2D};
+constexpr AttributeMetaData CORNER_FAN_META_DATA{AttrDomain::CORNER, AttrType::INT16_2_D};
 
 bool is_corner_fan_normals(const AttributeMetaData &meta_data)
 {
@@ -1719,15 +1719,15 @@ bool is_corner_fan_normals(const AttributeMetaData &meta_data)
 static bke::AttrDomain normal_domain_to_domain(bke::MeshNormalDomain domain)
 {
   switch (domain) {
-    case bke::MeshNormalDomain::Point:
-      return bke::AttrDomain::Point;
-    case bke::MeshNormalDomain::Face:
-      return bke::AttrDomain::Face;
-    case bke::MeshNormalDomain::Corner:
-      return bke::AttrDomain::Corner;
+    case bke::MeshNormalDomain::POINT:
+      return bke::AttrDomain::POINT;
+    case bke::MeshNormalDomain::FACE:
+      return bke::AttrDomain::FACE;
+    case bke::MeshNormalDomain::CORNER:
+      return bke::AttrDomain::CORNER;
   }
   BLI_assert_unreachable();
-  return bke::AttrDomain::Point;
+  return bke::AttrDomain::POINT;
 }
 
 void NormalJoinInfo::add_no_custom_normals(const bke::MeshNormalDomain domain)
@@ -1737,9 +1737,9 @@ void NormalJoinInfo::add_no_custom_normals(const bke::MeshNormalDomain domain)
 
 void NormalJoinInfo::add_corner_fan_normals()
 {
-  this->add_domain(bke::AttrDomain::Corner);
-  if (this->result_type == Output::None) {
-    this->result_type = Output::CornerFan;
+  this->add_domain(bke::AttrDomain::CORNER);
+  if (this->result_type == Output::NONE) {
+    this->result_type = Output::CORNER_FAN;
   }
 }
 
@@ -1748,7 +1748,7 @@ void NormalJoinInfo::add_domain(const bke::AttrDomain domain)
   if (this->result_domain) {
     /* Any combination of point/face domains puts the result normals on the corner domain. */
     if (this->result_domain != domain) {
-      this->result_domain = bke::AttrDomain::Corner;
+      this->result_domain = bke::AttrDomain::CORNER;
     }
   }
   else {
@@ -1759,7 +1759,7 @@ void NormalJoinInfo::add_domain(const bke::AttrDomain domain)
 void NormalJoinInfo::add_free_normals(const bke::AttrDomain domain)
 {
   this->add_domain(domain);
-  this->result_type = Output::Free;
+  this->result_type = Output::FREE;
 }
 
 void NormalJoinInfo::add_mesh(const Mesh &mesh)
@@ -1771,8 +1771,8 @@ void NormalJoinInfo::add_mesh(const Mesh &mesh)
     this->add_no_custom_normals(mesh.normals_domain());
     return;
   }
-  if (custom_normal->data_type == bke::AttrType::Float3) {
-    if (custom_normal->domain == bke::AttrDomain::Edge) {
+  if (custom_normal->data_type == bke::AttrType::FLOAT3) {
+    if (custom_normal->domain == bke::AttrDomain::EDGE) {
       /* Skip invalid storage on the edge domain. */
       this->add_no_custom_normals(mesh.normals_domain());
       return;

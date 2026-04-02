@@ -11,10 +11,10 @@ namespace blender::bke {
 /** \name Geometry Component Implementation
  * \{ */
 
-InstancesComponent::InstancesComponent() : GeometryComponent(Type::Instance) {}
+InstancesComponent::InstancesComponent() : GeometryComponent(Type::INSTANCE) {}
 
 InstancesComponent::InstancesComponent(Instances *instances, GeometryOwnershipType ownership)
-    : GeometryComponent(Type::Instance), instances_(instances), ownership_(ownership)
+    : GeometryComponent(Type::INSTANCE), instances_(instances), ownership_(ownership)
 {
 }
 
@@ -28,7 +28,7 @@ GeometryComponentPtr InstancesComponent::copy() const
   InstancesComponent *new_component = new InstancesComponent();
   if (instances_ != nullptr) {
     new_component->instances_ = new Instances(*instances_);
-    new_component->ownership_ = GeometryOwnershipType::Owned;
+    new_component->ownership_ = GeometryOwnershipType::OWNED;
   }
   return GeometryComponentPtr(new_component);
 }
@@ -36,7 +36,7 @@ GeometryComponentPtr InstancesComponent::copy() const
 void InstancesComponent::clear()
 {
   BLI_assert(this->is_mutable() || this->is_expired());
-  if (ownership_ == GeometryOwnershipType::Owned) {
+  if (ownership_ == GeometryOwnershipType::OWNED) {
     delete instances_;
   }
   instances_ = nullptr;
@@ -75,9 +75,9 @@ const Instances *InstancesComponent::get() const
 Instances *InstancesComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ == GeometryOwnershipType::ReadOnly) {
+  if (ownership_ == GeometryOwnershipType::READ_ONLY) {
     instances_ = new Instances(*instances_);
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
   return instances_;
 }

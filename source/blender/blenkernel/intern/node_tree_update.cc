@@ -430,9 +430,9 @@ class NodeTreeMainUpdater {
 
  private:
   enum class ToposortMark {
-    None,
-    Temporary,
-    Permanent,
+    NONE,
+    TEMPORARY,
+    PERMANENT,
   };
 
   using ToposortMarkMap = Map<bNodeTree *, ToposortMark>;
@@ -451,10 +451,10 @@ class NodeTreeMainUpdater {
 
     ToposortMarkMap marks;
     for (bNodeTree *ntree : trees_to_update) {
-      marks.add_new(ntree, ToposortMark::None);
+      marks.add_new(ntree, ToposortMark::NONE);
     }
     for (bNodeTree *ntree : trees_to_update) {
-      if (marks.lookup(ntree) == ToposortMark::None) {
+      if (marks.lookup(ntree) == ToposortMark::NONE) {
         const bool cycle_detected = !this->get_tree_update_order__visit_recursive(
             ntree, marks, sorted_ntrees);
         /* This should be prevented by higher level operators. */
@@ -473,22 +473,22 @@ class NodeTreeMainUpdater {
                                               Vector<bNodeTree *> &sorted_ntrees)
   {
     ToposortMark &mark = marks.lookup(ntree);
-    if (mark == ToposortMark::Permanent) {
+    if (mark == ToposortMark::PERMANENT) {
       return true;
     }
-    if (mark == ToposortMark::Temporary) {
+    if (mark == ToposortMark::TEMPORARY) {
       /* There is a dependency cycle. */
       return false;
     }
 
-    mark = ToposortMark::Temporary;
+    mark = ToposortMark::TEMPORARY;
 
     for (const TreeNodePair &pair : relations_.get_group_node_users(ntree)) {
       this->get_tree_update_order__visit_recursive(pair.first, marks, sorted_ntrees);
     }
     sorted_ntrees.append(ntree);
 
-    mark = ToposortMark::Permanent;
+    mark = ToposortMark::PERMANENT;
     return true;
   }
 

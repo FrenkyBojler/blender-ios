@@ -229,9 +229,9 @@ static void ntree_copy_data(Main * /*bmain*/,
         *ntree_src->runtime->reference_lifetimes_info);
     for (ReferenceSetInfo &reference_set : dst_runtime.reference_lifetimes_info->reference_sets) {
       if (ELEM(reference_set.type,
-               ReferenceSetType::LocalReferenceSet,
-               ReferenceSetType::ClosureInputReferenceSet,
-               ReferenceSetType::ClosureOutputData))
+               ReferenceSetType::LOCAL_REFERENCE_SET,
+               ReferenceSetType::CLOSURE_INPUT_REFERENCE_SET,
+               ReferenceSetType::CLOSURE_OUTPUT_DATA))
       {
         reference_set.socket = socket_map.lookup(reference_set.socket);
       }
@@ -5583,47 +5583,47 @@ NodeColorTag node_color_tag(const bNode &node)
                                                           node.typeinfo->ui_class(&node);
   switch (nclass) {
     case NODE_CLASS_INPUT:
-      return NodeColorTag::Input;
+      return NodeColorTag::INPUT;
     case NODE_CLASS_OUTPUT:
-      return NodeColorTag::Output;
+      return NodeColorTag::OUTPUT;
     case NODE_CLASS_OP_COLOR:
-      return NodeColorTag::Color;
+      return NodeColorTag::COLOR;
     case NODE_CLASS_OP_VECTOR:
-      return NodeColorTag::Vector;
+      return NodeColorTag::VECTOR;
     case NODE_CLASS_OP_FILTER:
-      return NodeColorTag::Filter;
+      return NodeColorTag::FILTER;
     case NODE_CLASS_CONVERTER:
-      return NodeColorTag::Converter;
+      return NodeColorTag::CONVERTER;
     case NODE_CLASS_MATTE:
-      return NodeColorTag::Matte;
+      return NodeColorTag::MATTE;
     case NODE_CLASS_DISTORT:
-      return NodeColorTag::Distort;
+      return NodeColorTag::DISTORT;
     case NODE_CLASS_PATTERN:
-      return NodeColorTag::Pattern;
+      return NodeColorTag::PATTERN;
     case NODE_CLASS_TEXTURE:
-      return NodeColorTag::Texture;
+      return NodeColorTag::TEXTURE;
     case NODE_CLASS_SCRIPT:
-      return NodeColorTag::Script;
+      return NodeColorTag::SCRIPT;
     case NODE_CLASS_INTERFACE:
-      return NodeColorTag::Interface;
+      return NodeColorTag::INTERFACE;
     case NODE_CLASS_SHADER:
-      return NodeColorTag::Shader;
+      return NodeColorTag::SHADER;
     case NODE_CLASS_GEOMETRY:
-      return NodeColorTag::Geometry;
+      return NodeColorTag::GEOMETRY;
     case NODE_CLASS_ATTRIBUTE:
-      return NodeColorTag::Attribute;
+      return NodeColorTag::ATTRIBUTE;
     case NODE_CLASS_GROUP:
-      return NodeColorTag::Group;
+      return NodeColorTag::GROUP;
     case NODE_CLASS_LAYOUT:
       break;
   }
-  return NodeColorTag::None;
+  return NodeColorTag::NONE;
 }
 
 static void node_type_base_defaults(bNodeType &ntype)
 {
   /* default size values */
-  node_type_size_preset(ntype, eNodeSizePreset::Default);
+  node_type_size_preset(ntype, eNodeSizePreset::DEFAULT);
   ntype.height = 100;
   ntype.minheight = 30;
   ntype.maxheight = FLT_MAX;
@@ -5972,16 +5972,16 @@ void node_type_size(bNodeType &ntype, const int width, const int minwidth, const
 void node_type_size_preset(bNodeType &ntype, const eNodeSizePreset size)
 {
   switch (size) {
-    case eNodeSizePreset::Default:
+    case eNodeSizePreset::DEFAULT:
       node_type_size(ntype, 140, 100, NODE_DEFAULT_MAX_WIDTH);
       break;
-    case eNodeSizePreset::Small:
+    case eNodeSizePreset::SMALL:
       node_type_size(ntype, 100, 80, NODE_DEFAULT_MAX_WIDTH);
       break;
-    case eNodeSizePreset::Middle:
+    case eNodeSizePreset::MIDDLE:
       node_type_size(ntype, 150, 120, NODE_DEFAULT_MAX_WIDTH);
       break;
-    case eNodeSizePreset::Large:
+    case eNodeSizePreset::LARGE:
       node_type_size(ntype, 240, 140, NODE_DEFAULT_MAX_WIDTH);
       break;
   }

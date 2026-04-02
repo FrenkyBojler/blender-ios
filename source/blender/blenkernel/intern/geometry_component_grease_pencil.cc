@@ -16,7 +16,7 @@ namespace bke {
 /** \name Geometry Component Implementation
  * \{ */
 
-GreasePencilComponent::GreasePencilComponent() : GeometryComponent(Type::GreasePencil) {}
+GreasePencilComponent::GreasePencilComponent() : GeometryComponent(Type::GREASE_PENCIL) {}
 
 GreasePencilComponent::~GreasePencilComponent()
 {
@@ -28,7 +28,7 @@ GeometryComponentPtr GreasePencilComponent::copy() const
   GreasePencilComponent *new_component = new GreasePencilComponent();
   if (grease_pencil_ != nullptr) {
     new_component->grease_pencil_ = BKE_grease_pencil_copy_for_eval(grease_pencil_);
-    new_component->ownership_ = GeometryOwnershipType::Owned;
+    new_component->ownership_ = GeometryOwnershipType::OWNED;
   }
   return GeometryComponentPtr(new_component);
 }
@@ -37,7 +37,7 @@ void GreasePencilComponent::clear()
 {
   BLI_assert(this->is_mutable() || this->is_expired());
   if (grease_pencil_ != nullptr) {
-    if (ownership_ == GeometryOwnershipType::Owned) {
+    if (ownership_ == GeometryOwnershipType::OWNED) {
       BKE_id_free(nullptr, grease_pencil_);
     }
     grease_pencil_ = nullptr;
@@ -73,9 +73,9 @@ const GreasePencil *GreasePencilComponent::get() const
 GreasePencil *GreasePencilComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ == GeometryOwnershipType::ReadOnly) {
+  if (ownership_ == GeometryOwnershipType::READ_ONLY) {
     grease_pencil_ = BKE_grease_pencil_copy_for_eval(grease_pencil_);
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
   return grease_pencil_;
 }
@@ -87,17 +87,17 @@ bool GreasePencilComponent::is_empty() const
 
 bool GreasePencilComponent::owns_direct_data() const
 {
-  return ownership_ == GeometryOwnershipType::Owned;
+  return ownership_ == GeometryOwnershipType::OWNED;
 }
 
 void GreasePencilComponent::ensure_owns_direct_data()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ != GeometryOwnershipType::Owned) {
+  if (ownership_ != GeometryOwnershipType::OWNED) {
     if (grease_pencil_) {
       grease_pencil_ = BKE_grease_pencil_copy_for_eval(grease_pencil_);
     }
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
 }
 

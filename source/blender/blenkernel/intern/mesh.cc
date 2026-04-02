@@ -610,10 +610,10 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   AttributeInitConstruct attribute_init;
 
   /* Try to create attributes if they do not exist. */
-  attributes.add("position", AttrDomain::Point, bke::AttrType::Float3, attribute_init);
-  attributes.add(".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, attribute_init);
-  attributes.add(".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
-  attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
+  attributes.add("position", AttrDomain::POINT, bke::AttrType::FLOAT3, attribute_init);
+  attributes.add(".edge_verts", AttrDomain::EDGE, bke::AttrType::INT32_2_D, attribute_init);
+  attributes.add(".corner_vert", AttrDomain::CORNER, bke::AttrType::INT32, attribute_init);
+  attributes.add(".corner_edge", AttrDomain::CORNER, bke::AttrType::INT32, attribute_init);
 }
 
 void mesh_remove_invalid_attribute_strings(Mesh &mesh)
@@ -832,7 +832,7 @@ static Vector<NonContiguousGroup> compute_local_mesh_groups(Mesh &mesh)
   groups[0].children_offset = 0;
 
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
+  const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::FACE);
 
   partition_faces_recursively(
       face_centers, prim_face_indices, groups, 0, 0, bounds, material_index, 2500);
@@ -925,10 +925,10 @@ void mesh_apply_spatial_organization(Mesh &mesh)
 
   MutableAttributeAccessor attributes_for_write = mesh.attributes_for_write();
   attributes_for_write.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.storage_type == bke::AttrStorageType::Single) {
+    if (iter.storage_type == bke::AttrStorageType::SINGLE) {
       return;
     }
-    if (iter.domain == bke::AttrDomain::Face) {
+    if (iter.domain == bke::AttrDomain::FACE) {
       bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
       const CPPType &type = attribute.span.type();
       GArray<> new_values(type, new_face_order.size());
@@ -936,7 +936,7 @@ void mesh_apply_spatial_organization(Mesh &mesh)
       attribute.span.copy_from(new_values.as_span());
       attribute.finish();
     }
-    else if (iter.domain == bke::AttrDomain::Point) {
+    else if (iter.domain == bke::AttrDomain::POINT) {
       bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
       const CPPType &type = attribute.span.type();
       GArray<> new_values(type, new_vert_order.size());
@@ -944,7 +944,7 @@ void mesh_apply_spatial_organization(Mesh &mesh)
       attribute.span.copy_from(new_values.as_span());
       attribute.finish();
     }
-    else if (iter.domain == bke::AttrDomain::Corner && iter.name != ".corner_vert") {
+    else if (iter.domain == bke::AttrDomain::CORNER && iter.name != ".corner_vert") {
       bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
       GMutableSpan attribute_data = attribute.span;
       const CPPType &type = attribute_data.type();
@@ -1114,25 +1114,25 @@ void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
 Span<float3> Mesh::vert_positions() const
 {
   return bke::get_span_attribute<float3>(
-             this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->verts_num)
+             this->attribute_storage.wrap(), bke::AttrDomain::POINT, "position", this->verts_num)
       .value_or(Span<float3>());
 }
 MutableSpan<float3> Mesh::vert_positions_for_write()
 {
   return bke::get_mutable_attribute<float3>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->verts_num);
+      this->attribute_storage.wrap(), bke::AttrDomain::POINT, "position", this->verts_num);
 }
 
 Span<int2> Mesh::edges() const
 {
   return bke::get_span_attribute<int2>(
-             this->attribute_storage.wrap(), bke::AttrDomain::Edge, ".edge_verts", this->edges_num)
+             this->attribute_storage.wrap(), bke::AttrDomain::EDGE, ".edge_verts", this->edges_num)
       .value_or(Span<int2>());
 }
 MutableSpan<int2> Mesh::edges_for_write()
 {
   return bke::get_mutable_attribute<int2>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Edge, ".edge_verts", this->edges_num);
+      this->attribute_storage.wrap(), bke::AttrDomain::EDGE, ".edge_verts", this->edges_num);
 }
 
 OffsetIndices<int> Mesh::faces() const
@@ -1159,7 +1159,7 @@ MutableSpan<int> Mesh::face_offsets_for_write()
 Span<int> Mesh::corner_verts() const
 {
   return bke::get_span_attribute<int>(this->attribute_storage.wrap(),
-                                      bke::AttrDomain::Corner,
+                                      bke::AttrDomain::CORNER,
                                       ".corner_vert",
                                       this->corners_num)
       .value_or(Span<int>());
@@ -1167,13 +1167,13 @@ Span<int> Mesh::corner_verts() const
 MutableSpan<int> Mesh::corner_verts_for_write()
 {
   return bke::get_mutable_attribute<int>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Corner, ".corner_vert", this->corners_num);
+      this->attribute_storage.wrap(), bke::AttrDomain::CORNER, ".corner_vert", this->corners_num);
 }
 
 Span<int> Mesh::corner_edges() const
 {
   return bke::get_span_attribute<int>(this->attribute_storage.wrap(),
-                                      bke::AttrDomain::Corner,
+                                      bke::AttrDomain::CORNER,
                                       ".corner_edge",
                                       this->corners_num)
       .value_or(Span<int>());
@@ -1181,7 +1181,7 @@ Span<int> Mesh::corner_edges() const
 MutableSpan<int> Mesh::corner_edges_for_write()
 {
   return bke::get_mutable_attribute<int>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Corner, ".corner_edge", this->corners_num);
+      this->attribute_storage.wrap(), bke::AttrDomain::CORNER, ".corner_edge", this->corners_num);
 }
 
 Span<MDeformVert> Mesh::deform_verts() const
@@ -1310,7 +1310,7 @@ namespace mesh {
 
 bool is_uv_map(const AttributeMetaData &meta_data)
 {
-  return meta_data.domain == AttrDomain::Corner && meta_data.data_type == AttrType::Float2;
+  return meta_data.domain == AttrDomain::CORNER && meta_data.data_type == AttrType::FLOAT2;
 }
 
 bool is_uv_map(const std::optional<AttributeMetaData> &meta_data)
@@ -1320,8 +1320,8 @@ bool is_uv_map(const std::optional<AttributeMetaData> &meta_data)
 
 bool is_color_attribute(const bke::AttributeMetaData &meta_data)
 {
-  return ELEM(meta_data.domain, bke::AttrDomain::Point, bke::AttrDomain::Corner) &&
-         ELEM(meta_data.data_type, bke::AttrType::ColorByte, bke::AttrType::ColorFloat);
+  return ELEM(meta_data.domain, bke::AttrDomain::POINT, bke::AttrDomain::CORNER) &&
+         ELEM(meta_data.data_type, bke::AttrType::COLOR_BYTE, bke::AttrType::COLOR_FLOAT);
 }
 
 bool is_color_attribute(const std::optional<bke::AttributeMetaData> &meta_data)
@@ -1741,7 +1741,7 @@ void BKE_mesh_material_index_remove(Mesh *mesh, short index)
   if (!material_indices) {
     return;
   }
-  if (material_indices.domain != AttrDomain::Face) {
+  if (material_indices.domain != AttrDomain::FACE) {
     BLI_assert_unreachable();
     return;
   }
@@ -1762,7 +1762,7 @@ bool BKE_mesh_material_index_used(Mesh *mesh, short index)
   using namespace blender::bke;
   const AttributeAccessor attributes = mesh->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", AttrDomain::Face, 0);
+      "material_index", AttrDomain::FACE, 0);
   if (material_indices.is_single()) {
     return material_indices.get_internal_single() == index;
   }
@@ -1802,7 +1802,7 @@ void BKE_mesh_material_remap(Mesh *mesh, const uint *remap, uint remap_len)
   else {
     MutableAttributeAccessor attributes = mesh->attributes_for_write();
     SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-        "material_index", AttrDomain::Face);
+        "material_index", AttrDomain::FACE);
     if (!material_indices) {
       return;
     }
@@ -1826,7 +1826,7 @@ void mesh_smooth_set(Mesh &mesh, const bool use_smooth, const bool keep_sharp_ed
   }
   attributes.remove("sharp_face");
   if (!use_smooth) {
-    attributes.add<bool>("sharp_face", AttrDomain::Face, AttributeInitValue(true));
+    attributes.add<bool>("sharp_face", AttrDomain::FACE, AttributeInitValue(true));
   }
 }
 
@@ -1845,8 +1845,8 @@ void mesh_sharp_edges_set_from_angle(Mesh &mesh, const float angle, const bool k
     attributes.remove("sharp_edge");
   }
   SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_edge", AttrDomain::Edge);
-  const VArraySpan<bool> sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+      "sharp_edge", AttrDomain::EDGE);
+  const VArraySpan<bool> sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::FACE);
   mesh::edges_sharp_from_angle_set(mesh.faces(),
                                    mesh.corner_verts(),
                                    mesh.corner_edges(),
@@ -1915,7 +1915,7 @@ std::optional<int> Mesh::material_index_max() const
       return;
     }
     value = bounds::max<int>(
-        *this->attributes().lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0));
+        *this->attributes().lookup_or_default<int>("material_index", bke::AttrDomain::FACE, 0));
     if (value.has_value()) {
       value = std::clamp(*value, 0, MAXMAT);
     }
@@ -1947,7 +1947,7 @@ const VectorSet<int> &Mesh::material_indices_used() const
       }
     }
     else if (const VArray<int> material_indices = *this->attributes().lookup_or_default<int>(
-                 "material_index", bke::AttrDomain::Face, 0))
+                 "material_index", bke::AttrDomain::FACE, 0))
     {
       if (const std::optional<int> single_material_index = material_indices.get_if_single()) {
         used_indices[clamp_material_index(*single_material_index)] = true;
@@ -2057,11 +2057,11 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
 
   const AttributeAccessor attributes = mesh->attributes();
   const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-      ".select_vert", AttrDomain::Point, false);
+      ".select_vert", AttrDomain::POINT, false);
   const VArray<bool> select_edge = *attributes.lookup_or_default<bool>(
-      ".select_edge", AttrDomain::Edge, false);
+      ".select_edge", AttrDomain::EDGE, false);
   const VArray<bool> select_poly = *attributes.lookup_or_default<bool>(
-      ".select_poly", AttrDomain::Face, false);
+      ".select_poly", AttrDomain::FACE, false);
 
   for (i_src = 0, i_dst = 0; i_src < mesh->totselect; i_src++) {
     int index = mselect_src[i_src].index;

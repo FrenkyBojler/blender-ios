@@ -36,13 +36,13 @@ namespace bke::image::partial_update {
  */
 enum class ePartialUpdateCollectResult {
   /** \brief Unable to construct partial updates. Caller should perform a full update. */
-  FullUpdateNeeded,
+  FULL_UPDATE_NEEDED,
 
   /** \brief No changes detected since the last time requested. */
-  NoChangesDetected,
+  NO_CHANGES_DETECTED,
 
   /** \brief Changes detected since the last time requested. */
-  PartialChangesDetected,
+  PARTIAL_CHANGES_DETECTED,
 };
 
 /**
@@ -67,10 +67,10 @@ struct PartialUpdateRegion {
  */
 enum class ePartialUpdateIterResult {
   /** \brief no tiles left when iterating over tiles. */
-  Finished = 0,
+  FINISHED = 0,
 
   /** \brief a chunk was available and has been loaded. */
-  ChangeAvailable = 1,
+  CHANGE_AVAILABLE = 1,
 };
 
 /**
@@ -239,15 +239,15 @@ template<typename TileData = NoTileData> struct PartialUpdateChecker {
      */
     ePartialUpdateIterResult get_next_change()
     {
-      BLI_assert(result_code == ePartialUpdateCollectResult::PartialChangesDetected);
+      BLI_assert(result_code == ePartialUpdateCollectResult::PARTIAL_CHANGES_DETECTED);
       ePartialUpdateIterResult result = BKE_image_partial_update_get_next_change(checker->user,
                                                                                  &changed_region);
       switch (result) {
-        case ePartialUpdateIterResult::Finished:
+        case ePartialUpdateIterResult::FINISHED:
           tile_data.free_data();
           return result;
 
-        case ePartialUpdateIterResult::ChangeAvailable:
+        case ePartialUpdateIterResult::CHANGE_AVAILABLE:
           if (last_tile_number == changed_region.tile_number) {
             return result;
           }

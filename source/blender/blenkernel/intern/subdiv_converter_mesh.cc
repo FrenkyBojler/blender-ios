@@ -191,7 +191,7 @@ static void precalc_uv_layer(const OpenSubdiv_Converter *converter, const int la
   const Mesh *mesh = storage->mesh;
   const StringRef name = storage->uv_map_names[layer_index];
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan uv_map = *attributes.lookup<float2>(name, bke::AttrDomain::Corner);
+  const VArraySpan uv_map = *attributes.lookup<float2>(name, bke::AttrDomain::CORNER);
   const int num_vert = mesh->verts_num;
   /* Initialize memory required for the operations. */
   if (storage->loop_uv_indices == nullptr) {
@@ -369,8 +369,8 @@ static void init_user_data(OpenSubdiv_Converter *converter,
   user_data->corner_edges = mesh->corner_edges();
   if (settings->use_creases) {
     const AttributeAccessor attributes = mesh->attributes();
-    user_data->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::Point);
-    user_data->cd_edge_crease = *attributes.lookup<float>("crease_edge", AttrDomain::Edge);
+    user_data->cd_vertex_crease = *attributes.lookup<float>("crease_vert", AttrDomain::POINT);
+    user_data->cd_edge_crease = *attributes.lookup<float>("crease_edge", AttrDomain::EDGE);
   }
   user_data->uv_map_names = mesh->uv_map_names();
   user_data->loop_uv_indices = nullptr;

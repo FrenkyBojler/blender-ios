@@ -77,13 +77,13 @@ void mesh_flip_faces(Mesh &mesh, const IndexMask &selection)
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (iter.data_type == bke::AttrType::String) {
+    if (iter.data_type == bke::AttrType::STRING) {
       return;
     }
-    if (iter.domain != AttrDomain::Corner) {
+    if (iter.domain != AttrDomain::CORNER) {
       return;
     }
-    if (iter.storage_type == bke::AttrStorageType::Single) {
+    if (iter.storage_type == bke::AttrStorageType::SINGLE) {
       return;
     }
     if (ELEM(iter.name, ".corner_vert", ".corner_edge")) {

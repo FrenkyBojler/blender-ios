@@ -31,9 +31,9 @@ class ProcessAllAttributeExceptAnonymous : public AttributeFilter {
   Result filter(const StringRef name) const override
   {
     if (attribute_name_is_anonymous(name)) {
-      return AttributeFilter::Result::AllowSkip;
+      return AttributeFilter::Result::ALLOW_SKIP;
     }
-    return AttributeFilter::Result::Process;
+    return AttributeFilter::Result::PROCESS;
   }
 };
 

@@ -115,12 +115,12 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
 
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
   SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_only_span<int>(
-      "material_index", AttrDomain::Face);
+      "material_index", AttrDomain::FACE);
   SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_face", AttrDomain::Face);
+      "sharp_face", AttrDomain::FACE);
   const StringRef uv_name = DATA_("UVMap");
   SpanAttributeWriter<float2> uv_attribute = attributes.lookup_or_add_for_write_span<float2>(
-      uv_name, AttrDomain::Corner);
+      uv_name, AttrDomain::CORNER);
   mesh->uv_maps_active_set(uv_name);
   mesh->uv_maps_default_set(uv_name);
   MutableSpan<float2> uv_map = uv_attribute.span;
@@ -555,8 +555,8 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   const AttributeAccessor src_attributes = mesh_eval->attributes();
   MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
   copy_attributes(src_attributes,
-                  AttrDomain::Point,
-                  AttrDomain::Point,
+                  AttrDomain::POINT,
+                  AttrDomain::POINT,
                   attribute_filter_from_skip_ref({".select_vert", ".select_edge", ".select_poly"}),
                   dst_attributes);
 
@@ -565,10 +565,10 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     if (src.sharing_info && src.varray.is_span()) {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                           *src.sharing_info);
-      dst_attributes.add(".selection", AttrDomain::Point, type, init);
+      dst_attributes.add(".selection", AttrDomain::POINT, type, init);
     }
     else {
-      dst_attributes.add(".selection", AttrDomain::Point, type, AttributeInitVArray(src.varray));
+      dst_attributes.add(".selection", AttrDomain::POINT, type, AttributeInitVArray(src.varray));
     }
   }
 
@@ -595,8 +595,8 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     const AttributeAccessor src_attributes = points->attributes();
     MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
     copy_attributes(src_attributes,
-                    AttrDomain::Point,
-                    AttrDomain::Point,
+                    AttrDomain::POINT,
+                    AttrDomain::POINT,
                     attribute_filter_from_skip_ref({".selection"}),
                     dst_attributes);
 
@@ -605,11 +605,11 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
       if (src.sharing_info && src.varray.is_span()) {
         const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                             *src.sharing_info);
-        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+        dst_attributes.add(".select_vert", AttrDomain::POINT, type, init);
       }
       else {
         const AttributeInitVArray init(src.varray);
-        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+        dst_attributes.add(".select_vert", AttrDomain::POINT, type, init);
       }
     }
   }

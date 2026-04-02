@@ -43,14 +43,14 @@ template<typename T> struct VolumeGridTraits {
   /**
    * The corresponding #VolumeGridType for the type.
    */
-  static constexpr VolumeGridType EnumType = VOLUME_GRID_UNKNOWN;
+  static constexpr VolumeGridType ENUM_TYPE = VOLUME_GRID_UNKNOWN;
 };
 
 template<> struct VolumeGridTraits<bool> {
   using BlenderType = bool;
   using PrimitiveType = bool;
   using TreeType = openvdb::BoolTree;
-  static constexpr VolumeGridType EnumType = VOLUME_GRID_BOOLEAN;
+  static constexpr VolumeGridType ENUM_TYPE = VOLUME_GRID_BOOLEAN;
 
   static bool to_openvdb(const bool &value)
   {
@@ -66,7 +66,7 @@ template<> struct VolumeGridTraits<int> {
   using BlenderType = int;
   using PrimitiveType = int;
   using TreeType = openvdb::Int32Tree;
-  static constexpr VolumeGridType EnumType = VOLUME_GRID_INT;
+  static constexpr VolumeGridType ENUM_TYPE = VOLUME_GRID_INT;
 
   static int to_openvdb(const int &value)
   {
@@ -82,7 +82,7 @@ template<> struct VolumeGridTraits<float> {
   using BlenderType = float;
   using PrimitiveType = float;
   using TreeType = openvdb::FloatTree;
-  static constexpr VolumeGridType EnumType = VOLUME_GRID_FLOAT;
+  static constexpr VolumeGridType ENUM_TYPE = VOLUME_GRID_FLOAT;
 
   static float to_openvdb(const float &value)
   {
@@ -98,7 +98,7 @@ template<> struct VolumeGridTraits<float3> {
   using BlenderType = float3;
   using PrimitiveType = openvdb::Vec3f;
   using TreeType = openvdb::Vec3STree;
-  static constexpr VolumeGridType EnumType = VOLUME_GRID_VECTOR_FLOAT;
+  static constexpr VolumeGridType ENUM_TYPE = VOLUME_GRID_VECTOR_FLOAT;
 
   static openvdb::Vec3f to_openvdb(const float3 &value)
   {

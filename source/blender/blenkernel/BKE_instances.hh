@@ -61,14 +61,14 @@ class InstanceReference {
      * being in an invalid state. There might also be other use cases that we haven't explored
      * much yet (such as changing the instance later on, and "disabling" some instances).
      */
-    None,
-    Object,
-    Collection,
-    GeometrySet,
+    NONE,
+    OBJECT,
+    COLLECTION,
+    GEOMETRY_SET,
   };
 
  private:
-  Type type_ = Type::None;
+  Type type_ = Type::NONE;
   /** Depending on the type this is either null, an Object or Collection pointer. */
   void *data_ = nullptr;
   std::unique_ptr<GeometrySet> geometry_set_;
@@ -234,23 +234,23 @@ const AttributeAccessorFunctions &instance_attribute_accessor_functions();
  * \{ */
 
 inline InstanceReference::InstanceReference(std::unique_ptr<GeometrySet> geometry_set)
-    : type_(Type::GeometrySet), geometry_set_(std::move(geometry_set))
+    : type_(Type::GEOMETRY_SET), geometry_set_(std::move(geometry_set))
 {
 }
 
-inline InstanceReference::InstanceReference(Object &object) : type_(Type::Object), data_(&object)
+inline InstanceReference::InstanceReference(Object &object) : type_(Type::OBJECT), data_(&object)
 {
 }
 
 inline InstanceReference::InstanceReference(Collection &collection)
-    : type_(Type::Collection), data_(&collection)
+    : type_(Type::COLLECTION), data_(&collection)
 {
 }
 
 inline InstanceReference::InstanceReference(InstanceReference &&other)
     : type_(other.type_), data_(other.data_), geometry_set_(std::move(other.geometry_set_))
 {
-  other.type_ = Type::None;
+  other.type_ = Type::NONE;
   other.data_ = nullptr;
 }
 
@@ -281,25 +281,25 @@ inline InstanceReference::Type InstanceReference::type() const
 
 inline Object &InstanceReference::object() const
 {
-  BLI_assert(type_ == Type::Object);
+  BLI_assert(type_ == Type::OBJECT);
   return *static_cast<Object *>(data_);
 }
 
 inline Collection &InstanceReference::collection() const
 {
-  BLI_assert(type_ == Type::Collection);
+  BLI_assert(type_ == Type::COLLECTION);
   return *static_cast<Collection *>(data_);
 }
 
 inline GeometrySet &InstanceReference::geometry_set()
 {
-  BLI_assert(type_ == Type::GeometrySet);
+  BLI_assert(type_ == Type::GEOMETRY_SET);
   return *geometry_set_;
 }
 
 inline const GeometrySet &InstanceReference::geometry_set() const
 {
-  BLI_assert(type_ == Type::GeometrySet);
+  BLI_assert(type_ == Type::GEOMETRY_SET);
   return *geometry_set_;
 }
 

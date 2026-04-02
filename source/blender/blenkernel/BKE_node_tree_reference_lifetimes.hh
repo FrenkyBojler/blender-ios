@@ -43,19 +43,19 @@ enum class ReferenceSetType {
    * Corresponds to geometry outputs that may contain attributes that are propagated from a group
    * input. In such cases, the caller may provide a set of attributes that should be propagated.
    */
-  GroupOutputData,
-  ClosureOutputData,
+  GROUP_OUTPUT_DATA,
+  CLOSURE_OUTPUT_DATA,
   /**
    * Field inputs may require attributes that need to be propagated from other geometry inputs to
    * the node that evaluates the field.
    */
-  GroupInputReferenceSet,
-  ClosureInputReferenceSet,
+  GROUP_INPUT_REFERENCE_SET,
+  CLOSURE_INPUT_REFERENCE_SET,
   /**
    * Locally created anonymous attributes (like with the Capture Attribute node) need to be
    * propagated to the nodes that use them or even to the group output.
    */
-  LocalReferenceSet,
+  LOCAL_REFERENCE_SET,
 };
 
 struct ReferenceSetInfo {
@@ -76,15 +76,15 @@ struct ReferenceSetInfo {
   ReferenceSetInfo(ReferenceSetType type, const int index) : type(type), index(index)
   {
     BLI_assert(
-        ELEM(type, ReferenceSetType::GroupInputReferenceSet, ReferenceSetType::GroupOutputData));
+        ELEM(type, ReferenceSetType::GROUP_INPUT_REFERENCE_SET, ReferenceSetType::GROUP_OUTPUT_DATA));
   }
 
   ReferenceSetInfo(ReferenceSetType type, const bNodeSocket *socket) : type(type), socket(socket)
   {
     BLI_assert(ELEM(type,
-                    ReferenceSetType::LocalReferenceSet,
-                    ReferenceSetType::ClosureInputReferenceSet,
-                    ReferenceSetType::ClosureOutputData));
+                    ReferenceSetType::LOCAL_REFERENCE_SET,
+                    ReferenceSetType::CLOSURE_INPUT_REFERENCE_SET,
+                    ReferenceSetType::CLOSURE_OUTPUT_DATA));
   }
 
   friend std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info);

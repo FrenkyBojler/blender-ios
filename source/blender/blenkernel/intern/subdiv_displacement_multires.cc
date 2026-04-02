@@ -57,10 +57,10 @@ struct MultiresDisplacementData {
 /* Denotes which grid to use to average value of the displacement read from the
  * grid which corresponds to the PTEX face. */
 enum class AverageWith : int8_t {
-  None,
-  All,
-  Prev,
-  Next,
+  NONE,
+  ALL,
+  PREV,
+  NEXT,
 };
 
 static int displacement_get_grid_and_coord(const Displacement &displacement,
@@ -112,21 +112,21 @@ BLI_INLINE AverageWith read_displacement_grid(const MDisps &displacement_grid,
 {
   if (displacement_grid.disps == nullptr) {
     r_tangent_D = float3(0.0f);
-    return AverageWith::None;
+    return AverageWith::NONE;
   }
   const int x = roundf(grid_u * (grid_size - 1));
   const int y = roundf(grid_v * (grid_size - 1));
   r_tangent_D = displacement_grid.disps[y * grid_size + x];
   if (x == 0 && y == 0) {
-    return AverageWith::All;
+    return AverageWith::ALL;
   }
   if (x == 0) {
-    return AverageWith::Prev;
+    return AverageWith::PREV;
   }
   if (y == 0) {
-    return AverageWith::Next;
+    return AverageWith::NEXT;
   }
-  return AverageWith::None;
+  return AverageWith::NONE;
 }
 
 static void average_convert_grid_coord_to_ptex(const int num_corners,
@@ -288,16 +288,16 @@ static void average_displacement(const Displacement &displacement,
                                  float3 &r_D)
 {
   switch (average_with) {
-    case AverageWith::All:
+    case AverageWith::ALL:
       average_with_all(displacement, ptex_face_index, corner, grid_u, grid_v, r_D);
       break;
-    case AverageWith::Prev:
+    case AverageWith::PREV:
       average_with_prev(displacement, ptex_face_index, corner, grid_u, grid_v, r_D);
       break;
-    case AverageWith::Next:
+    case AverageWith::NEXT:
       average_with_next(displacement, ptex_face_index, corner, grid_u, grid_v, r_D);
       break;
-    case AverageWith::None:
+    case AverageWith::NONE:
       break;
   }
 }

@@ -221,7 +221,7 @@ static Mesh *modifier_modify_mesh_and_geometry_set(ModifierData *md,
     /* Replace only the mesh rather than the whole component, because the entire #MeshComponent
      * might have been replaced by data from a different object in the node tree, which means the
      * component contains vertex group name data for that object that should not be removed. */
-    geometry_set.replace_mesh(input_mesh, GeometryOwnershipType::Editable);
+    geometry_set.replace_mesh(input_mesh, GeometryOwnershipType::EDITABLE);
 
     /* Let the modifier change the geometry set. */
     mti->modify_geometry_set(md, &mectx, &geometry_set);
@@ -257,13 +257,13 @@ static void set_rest_position(Mesh &mesh)
   if (positions) {
     if (positions.sharing_info && positions.varray.is_span()) {
       attributes.add<float3>("rest_position",
-                             AttrDomain::Point,
+                             AttrDomain::POINT,
                              AttributeInitShared(positions.varray.get_internal_span().data(),
                                                  *positions.sharing_info));
     }
     else {
       attributes.add<float3>(
-          "rest_position", AttrDomain::Point, AttributeInitVArray(positions.varray));
+          "rest_position", AttrDomain::POINT, AttributeInitVArray(positions.varray));
     }
   }
 }
@@ -351,7 +351,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
         continue;
       }
 
-      if (mti->type == ModifierTypeType::OnlyDeform && !sculpt_dyntopo) {
+      if (mti->type == ModifierTypeType::ONLY_DEFORM && !sculpt_dyntopo) {
         ScopedModifierTimer modifier_timer{*md};
         if (!mesh) {
           ASSERT_IS_VALID_MESH_INPUT(&mesh_input);
@@ -391,11 +391,11 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
       continue;
     }
 
-    if (mti->type == ModifierTypeType::OnlyDeform && !use_deform) {
+    if (mti->type == ModifierTypeType::ONLY_DEFORM && !use_deform) {
       continue;
     }
 
-    if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) &&
+    if ((mti->flags & E_MODIFIER_TYPE_FLAG_REQUIRES_ORIGINAL_DATA) &&
         have_non_onlydeform_modifiers_applied)
     {
       BKE_modifier_set_error(&ob, md, "Modifier requires original data, bad stack position");
@@ -419,7 +419,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
       }
 
       if (scene.toolsettings->sculpt->flags & SCULPT_ONLY_DEFORM) {
-        unsupported |= (mti->type != ModifierTypeType::OnlyDeform);
+        unsupported |= (mti->type != ModifierTypeType::ONLY_DEFORM);
       }
 
       unsupported |= multires_applied;
@@ -450,7 +450,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
       }
     }
 
-    if (mti->type == ModifierTypeType::OnlyDeform) {
+    if (mti->type == ModifierTypeType::ONLY_DEFORM) {
       if (!mesh) {
         ASSERT_IS_VALID_MESH_INPUT(&mesh_input);
         mesh = BKE_mesh_copy_for_eval(mesh_input);
@@ -707,7 +707,7 @@ bool editbmesh_modifier_is_enabled(const Scene *scene,
     return false;
   }
 
-  if ((mti->flags & eModifierTypeFlag_RequiresOriginalData) && has_prev_mesh) {
+  if ((mti->flags & E_MODIFIER_TYPE_FLAG_REQUIRES_ORIGINAL_DATA) && has_prev_mesh) {
     BKE_modifier_set_error(ob, md, "Modifier requires original data, bad stack position");
     return false;
   }
@@ -831,7 +831,7 @@ static void editbmesh_calc_modifiers(Depsgraph &depsgraph,
       }
     }
 
-    if (mti->type == ModifierTypeType::OnlyDeform) {
+    if (mti->type == ModifierTypeType::ONLY_DEFORM) {
       if (mti->deform_verts_EM) {
         BKE_modifier_deform_vertsEM(
             md, &mectx, &em_input, mesh, mesh_wrapper_vert_coords_ensure_for_write(mesh));
@@ -985,7 +985,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
 
   /* Add the final mesh as a non-owning component to the geometry set. */
   MeshComponent &mesh_component = geometry_set_eval->get_component_for_write<MeshComponent>();
-  mesh_component.replace(mesh_eval, GeometryOwnershipType::Editable);
+  mesh_component.replace(mesh_eval, GeometryOwnershipType::EDITABLE);
   ob.runtime->geometry_set_eval = geometry_set_eval;
 
   ob.runtime->mesh_deform_eval = mesh_deform_eval;
@@ -1025,7 +1025,7 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
 
   /* Add the final mesh as a non-owning component to the geometry set. */
   MeshComponent &mesh_component = geometry_set_eval->get_component_for_write<MeshComponent>();
-  mesh_component.replace(me_final, GeometryOwnershipType::Editable);
+  mesh_component.replace(me_final, GeometryOwnershipType::EDITABLE);
   obedit.runtime->geometry_set_eval = geometry_set_eval;
 
   /* Make sure that drivers can target shapekey properties.

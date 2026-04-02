@@ -155,7 +155,7 @@ static ModifierData *modifier_allocate_and_init(ModifierType type)
   /* Only open the main panel at the beginning, not the sub-panels. */
   md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
 
-  if (mti->flags & eModifierTypeFlag_EnableInEditmode) {
+  if (mti->flags & E_MODIFIER_TYPE_FLAG_ENABLE_IN_EDITMODE) {
     md->mode |= eModifierMode_Editmode;
   }
 
@@ -249,8 +249,8 @@ bool BKE_modifier_supports_mapping(ModifierData *md)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-  return (mti->type == ModifierTypeType::OnlyDeform ||
-          (mti->flags & eModifierTypeFlag_SupportsMapping));
+  return (mti->type == ModifierTypeType::ONLY_DEFORM ||
+          (mti->flags & E_MODIFIER_TYPE_FLAG_SUPPORTS_MAPPING));
 }
 
 ModifierData *BKE_modifiers_findby_type(const Object *ob, ModifierType type)
@@ -390,7 +390,7 @@ bool BKE_modifier_supports_cage(Scene *scene, ModifierData *md)
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
   return ((!mti->is_disabled || !mti->is_disabled(scene, md, false)) &&
-          (mti->flags & eModifierTypeFlag_SupportsEditmode) && BKE_modifier_supports_mapping(md));
+          (mti->flags & E_MODIFIER_TYPE_FLAG_SUPPORTS_EDITMODE) && BKE_modifier_supports_mapping(md));
 }
 
 bool BKE_modifier_couldbe_cage(Scene *scene, ModifierData *md)
@@ -405,13 +405,13 @@ bool BKE_modifier_couldbe_cage(Scene *scene, ModifierData *md)
 bool BKE_modifier_is_same_topology(ModifierData *md)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
-  return ELEM(mti->type, ModifierTypeType::OnlyDeform, ModifierTypeType::NonGeometrical);
+  return ELEM(mti->type, ModifierTypeType::ONLY_DEFORM, ModifierTypeType::NON_GEOMETRICAL);
 }
 
 bool BKE_modifier_is_non_geometrical(ModifierData *md)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
-  return (mti->type == ModifierTypeType::NonGeometrical);
+  return (mti->type == ModifierTypeType::NON_GEOMETRICAL);
 }
 
 void BKE_modifier_set_error(const Object *ob, ModifierData *md, const char *_format, ...)
@@ -496,7 +496,7 @@ int BKE_modifiers_get_cage_index(const Scene *scene,
     if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
       continue;
     }
-    if (!(mti->flags & eModifierTypeFlag_SupportsEditmode)) {
+    if (!(mti->flags & E_MODIFIER_TYPE_FLAG_SUPPORTS_EDITMODE)) {
       continue;
     }
     if (md->mode & eModifierMode_DisableTemporary) {
@@ -543,7 +543,7 @@ bool BKE_modifier_is_enabled(const Scene *scene, ModifierData *md, int required_
     return false;
   }
   if ((required_mode & eModifierMode_Editmode) &&
-      !(mti->flags & eModifierTypeFlag_SupportsEditmode))
+      !(mti->flags & E_MODIFIER_TYPE_FLAG_SUPPORTS_EDITMODE))
   {
     return false;
   }
@@ -573,7 +573,7 @@ CDMaskLink *BKE_modifier_calc_data_masks(const Scene *scene,
     curr = MEM_new<CDMaskLink>(__func__);
 
     if (BKE_modifier_is_enabled(scene, md, required_mode)) {
-      if (mti->type == ModifierTypeType::OnlyDeform) {
+      if (mti->type == ModifierTypeType::ONLY_DEFORM) {
         have_deform_modifier = true;
       }
 
@@ -871,13 +871,13 @@ void BKE_modifiers_add_at_end_if_possible(Object *ob, ModifierData *new_md)
 
   const ModifierType mt = static_cast<ModifierType>(new_md->type);
   const ModifierTypeInfo *mti = BKE_modifier_get_info(mt);
-  const bool check_deform_only = (mti->flags & eModifierTypeFlag_RequiresOriginalData) ||
+  const bool check_deform_only = (mti->flags & E_MODIFIER_TYPE_FLAG_REQUIRES_ORIGINAL_DATA) ||
                                  (mt == eModifierType_Hook);
   if (check_deform_only) {
     next_md = static_cast<ModifierData *>(ob->modifiers.first);
 
     while (next_md && BKE_modifier_get_info(static_cast<ModifierType>(next_md->type))->type ==
-                          ModifierTypeType::OnlyDeform)
+                          ModifierTypeType::ONLY_DEFORM)
     {
       if (next_md->next && (next_md->next->flag & eModifierFlag_PinLast) != 0) {
         break;
@@ -968,7 +968,7 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    if ((mti->flags & eModifierTypeFlag_AcceptsBMesh) == 0) {
+    if ((mti->flags & E_MODIFIER_TYPE_FLAG_ACCEPTS_B_MESH) == 0) {
       BKE_mesh_wrapper_ensure_mdata(mesh);
     }
   }
@@ -996,7 +996,7 @@ bool BKE_modifier_deform_verts(ModifierData *md,
     /* Prepare mesh with vertices at the given positions. */
     GeometrySet geometry;
     if (mesh) {
-      geometry = GeometrySet::from_mesh(mesh, GeometryOwnershipType::ReadOnly);
+      geometry = GeometrySet::from_mesh(mesh, GeometryOwnershipType::READ_ONLY);
     }
     else {
       geometry = GeometrySet::from_mesh(BKE_mesh_new_nomain(positions.size(), 0, 0, 0));

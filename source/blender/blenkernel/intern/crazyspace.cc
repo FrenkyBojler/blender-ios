@@ -252,7 +252,7 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(Depsgraph *depsgraph,
       continue;
     }
 
-    if (mti->type == ModifierTypeType::OnlyDeform && mti->deform_matrices_EM) {
+    if (mti->type == ModifierTypeType::ONLY_DEFORM && mti->deform_matrices_EM) {
       if (deformmats.is_empty()) {
         const int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
         CustomData_MeshMasks cd_mask_extra = CD_MASK_BAREMESH;
@@ -315,13 +315,13 @@ static bool crazyspace_modifier_supports_deform_matrices(ModifierData *md)
     return true;
   }
   const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
-  return (mti->type == ModifierTypeType::OnlyDeform);
+  return (mti->type == ModifierTypeType::ONLY_DEFORM);
 }
 
 static bool crazyspace_modifier_supports_deform(ModifierData *md)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
-  return (mti->type == ModifierTypeType::OnlyDeform);
+  return (mti->type == ModifierTypeType::ONLY_DEFORM);
 }
 
 int BKE_sculpt_get_first_deform_matrices(Depsgraph *depsgraph,

@@ -66,16 +66,16 @@ class Node : NonCopyable {
 
  public:
   enum Flags : uint32_t {
-    None = 0,
-    Leaf = 1 << 0,
+    NONE = 0,
+    LEAF = 1 << 0,
 
-    FullyHidden = 1 << 10,
-    FullyMasked = 1 << 11,
-    FullyUnmasked = 1 << 12,
+    FULLY_HIDDEN = 1 << 10,
+    FULLY_MASKED = 1 << 11,
+    FULLY_UNMASKED = 1 << 12,
 
-    UpdateTopology = 1 << 13,
+    UPDATE_TOPOLOGY = 1 << 13,
     /** Used internally by `pbvh_bmesh.cc`. */
-    TopologyUpdated = 1 << 17,
+    TOPOLOGY_UPDATED = 1 << 17,
   };
 
   /* Index of the parent node. A value of -1 indicates that the node is the root node. */
@@ -92,7 +92,7 @@ class Node : NonCopyable {
 
   /* Indicates whether this node is a leaf or not; also used for
    * marking various updates that need to be applied. */
-  Flags flag_ = None;
+  Flags flag_ = NONE;
 
   /**
    * Used for ray-casting: how close the bounding-box is to the ray point.
@@ -216,9 +216,9 @@ class DrawCache {
 };
 
 enum class Type {
-  Mesh,
-  Grids,
-  BMesh,
+  MESH,
+  GRIDS,
+  B_MESH,
 };
 
 /**
@@ -470,8 +470,8 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 }  // namespace bke::pbvh
 
 enum PBVHTopologyUpdateMode {
-  PBVH_Subdivide = 1,
-  PBVH_Collapse = 2,
+  PBVH_SUBDIVIDE = 1,
+  PBVH_COLLAPSE = 2,
 };
 ENUM_OPERATORS(PBVHTopologyUpdateMode);
 

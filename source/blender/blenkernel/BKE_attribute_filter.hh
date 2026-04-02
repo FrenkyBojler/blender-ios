@@ -27,9 +27,9 @@ struct AttributeFilter {
  public:
   enum class Result {
     /** The algorithm is allowed to skip processing the attribute. */
-    AllowSkip,
+    ALLOW_SKIP,
     /** The attribute should be processed/propagated if at all possible. */
-    Process,
+    PROCESS,
   };
 
   virtual ~AttributeFilter() = default;
@@ -40,7 +40,7 @@ struct AttributeFilter {
    */
   virtual Result filter(const StringRef /*name*/) const
   {
-    return Result::Process;
+    return Result::PROCESS;
   }
 
   /**
@@ -48,7 +48,7 @@ struct AttributeFilter {
    */
   bool allow_skip(const StringRef name) const
   {
-    return this->filter(name) == Result::AllowSkip;
+    return this->filter(name) == Result::ALLOW_SKIP;
   }
 
   static const AttributeFilter &default_filter()

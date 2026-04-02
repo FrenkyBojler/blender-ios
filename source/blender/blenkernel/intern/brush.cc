@@ -477,7 +477,7 @@ static void brush_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_da
   BLI_assert(GS(brush->id.name) == ID_BR);
 
   /* Most names copied from brush RNA (not all are available there though). */
-  constexpr std::array mode_map{
+  constexpr std::array MODE_MAP{
       std::tuple{"use_paint_sculpt", OB_MODE_SCULPT, "sculpt_brush_type"},
       std::tuple{"use_paint_vertex", OB_MODE_VERTEX_PAINT, "vertex_brush_type"},
       std::tuple{"use_paint_weight", OB_MODE_WEIGHT_PAINT, "weight_brush_type"},
@@ -494,7 +494,7 @@ static void brush_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_da
       std::tuple{"use_paint_sculpt_curves", OB_MODE_SCULPT_CURVES, "curves_sculpt_brush_type"},
   };
 
-  for (const auto &[prop_name, mode, tool_prop_name] : mode_map) {
+  for (const auto &[prop_name, mode, tool_prop_name] : MODE_MAP) {
     /* Only add booleans for supported modes. */
     if (!(brush->ob_mode & mode)) {
       continue;
@@ -700,10 +700,10 @@ Brush *BKE_brush_duplicate(Main *bmain,
     duplicate_options &= ~LIB_ID_DUPLICATE_IS_ROOT_ID;
   }
 
-  constexpr int id_copy_flag = LIB_ID_COPY_DEFAULT;
+  constexpr int ID_COPY_FLAG = LIB_ID_COPY_DEFAULT;
 
   Brush *new_brush = reinterpret_cast<Brush *>(
-      BKE_id_copy_for_duplicate(bmain, &brush->id, dupflag, id_copy_flag));
+      BKE_id_copy_for_duplicate(bmain, &brush->id, dupflag, ID_COPY_FLAG));
 
   /* Currently this duplicates everything and the passed in value of `dupflag` is ignored. Ideally,
    * this should both check user preferences and do further filtering based on eDupli_ID_Flags. */
@@ -715,7 +715,7 @@ Brush *BKE_brush_duplicate(Main *bmain,
       return IDWALK_NOP;
     }
 
-    BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dupflag, id_copy_flag);
+    BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dupflag, ID_COPY_FLAG);
     return IDWALK_NOP;
   };
 
@@ -888,7 +888,7 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   cumap->preset = preset;
 
   cuma = b->curve_distance_falloff->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Negative);
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::NEGATIVE);
   BKE_curvemapping_changed(cumap, false);
   BKE_brush_tag_unsaved_changes(b);
 }
@@ -1708,7 +1708,7 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
 {
   switch (paint_mode) {
-    case PaintMode::Sculpt: {
+    case PaintMode::SCULPT: {
       if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE) {
         return true;
       }

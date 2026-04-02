@@ -19,32 +19,32 @@ class ColorSpace;
 }
 struct AssetWeakReference;
 enum class PaintMode : int8_t {
-  Sculpt = 0,
+  SCULPT = 0,
   /** Vertex color. */
-  Vertex = 1,
-  Weight = 2,
+  VERTEX = 1,
+  WEIGHT = 2,
   /** 3D view (projection painting). */
-  Texture3D = 3,
+  TEXTURE3_D = 3,
   /** Image space (2D painting). */
-  Texture2D = 4,
-  GPencil = 6,
+  TEXTURE2_D = 4,
+  G_PENCIL = 6,
   /* Grease Pencil Vertex Paint */
-  VertexGPencil = 7,
-  SculptGPencil = 8,
-  WeightGPencil = 9,
+  VERTEX_G_PENCIL = 7,
+  SCULPT_G_PENCIL = 8,
+  WEIGHT_G_PENCIL = 9,
   /** Curves. */
-  SculptCurves = 10,
+  SCULPT_CURVES = 10,
 
   /** Keep last. */
   /* TODO: Shift the ordering so that invalid is first so that zero-initialization makes sense. */
-  Invalid = 11,
+  INVALID = 11,
 };
 
 namespace bke {
 struct PaintRuntime : NonCopyable, NonMovable {
   bool initialized = false;
   uint16_t ob_mode = 0;
-  PaintMode paint_mode = PaintMode::Invalid;
+  PaintMode paint_mode = PaintMode::INVALID;
   AssetWeakReference *previous_active_brush_reference = nullptr;
 
   float2 last_rake = float2(0.0f, 0.0f);

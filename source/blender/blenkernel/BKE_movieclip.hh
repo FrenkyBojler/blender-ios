@@ -23,18 +23,18 @@ class Texture;
 }  // namespace gpu
 
 enum class MovieClipCacheFlag {
-  None = 0,
-  SkipCache = 1 << 0,
+  NONE = 0,
+  SKIP_CACHE = 1 << 0,
 };
 ENUM_OPERATORS(MovieClipCacheFlag);
 
 /* Note: do not change values; DNA data #SpaceClip.postproc_flag uses this. */
 enum class MovieClipPostprocFlag {
-  None = 0,
-  DisableRed = (1 << 0),
-  DisableGreen = (1 << 1),
-  DisableBlue = (1 << 2),
-  PreviewGray = (1 << 3),
+  NONE = 0,
+  DISABLE_RED = (1 << 0),
+  DISABLE_GREEN = (1 << 1),
+  DISABLE_BLUE = (1 << 2),
+  PREVIEW_GRAY = (1 << 3),
 };
 ENUM_OPERATORS(MovieClipPostprocFlag);
 

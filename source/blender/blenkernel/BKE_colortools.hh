@@ -47,9 +47,9 @@ void BKE_curvemapping_set_black_white(CurveMapping *cumap,
                                       const float white[3]);
 
 enum class CurveMapSlopeType : int8_t {
-  Negative = 0,
-  Positive = 1,
-  PositiveNegative = 2,
+  NEGATIVE = 0,
+  POSITIVE = 1,
+  POSITIVE_NEGATIVE = 2,
 };
 
 /**

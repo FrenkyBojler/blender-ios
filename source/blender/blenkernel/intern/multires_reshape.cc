@@ -183,7 +183,7 @@ void multiresModifier_subdivide_to_level(Object *object,
    * that the mdisps layer is also synchronized. */
   if (!has_mdisps || top_level == 1 || mmd->totlvl == 0) {
     multires_reshape_ensure_grids(coarse_mesh, top_level);
-    if (ELEM(mode, MultiresSubdivideModeType::Linear, MultiresSubdivideModeType::Simple)) {
+    if (ELEM(mode, MultiresSubdivideModeType::LINEAR, MultiresSubdivideModeType::SIMPLE)) {
       multires_subdivide_create_tangent_displacement_linear_grids(object, mmd);
     }
     else {
@@ -207,7 +207,7 @@ void multiresModifier_subdivide_to_level(Object *object,
    * displacement in sculpt mode at the old top level and then propagated to the new top level. */
   multires_reshape_free_original_grids(&reshape_context);
 
-  if (ELEM(mode, MultiresSubdivideModeType::Linear, MultiresSubdivideModeType::Simple)) {
+  if (ELEM(mode, MultiresSubdivideModeType::LINEAR, MultiresSubdivideModeType::SIMPLE)) {
     multires_reshape_smooth_object_grids(&reshape_context, mode);
   }
   else {
@@ -260,7 +260,7 @@ void multiresModifier_base_apply(Depsgraph *depsgraph,
    * - Heuristic moves them a bit, kind of canceling out the effect of subsurf (so then when
    *   multires modifier applies subsurf vertices are placed at the desired location). */
   multires_reshape_apply_base_update_mesh_coords(&reshape_context);
-  if (mode == ApplyBaseMode::ForSubdivision) {
+  if (mode == ApplyBaseMode::FOR_SUBDIVISION) {
     multires_reshape_apply_base_refit_base_mesh(&reshape_context);
   }
   multires_reshape_apply_base_update_shape_key(&reshape_context);

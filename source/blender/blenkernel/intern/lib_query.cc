@@ -718,7 +718,7 @@ class UnusedIDsData {
   std::array<int, INDEX_ID_MAX> *num_linked;
 
   /** Possible statuses for an ID. */
-  enum class Status : int8_t { Unknown, Used, Unused };
+  enum class Status : int8_t { UNKNOWN, USED, UNUSED };
 
  private:
   /* Statuses of IDs.
@@ -767,11 +767,11 @@ class UnusedIDsData {
        * owner ID. */
       return;
     }
-    if (status == ids_status_.lookup_default(&id, Status::Unknown)) {
+    if (status == ids_status_.lookup_default(&id, Status::UNKNOWN)) {
       return;
     }
 
-    if (status == Status::Unused && this->filter_fn && !this->filter_fn(&id)) {
+    if (status == Status::UNUSED && this->filter_fn && !this->filter_fn(&id)) {
       return;
     }
 
@@ -781,7 +781,7 @@ class UnusedIDsData {
   /** Return the current status of the given ID. */
   Status get_id_status(ID &id) const
   {
-    return ids_status_.lookup_default(&id, Status::Unknown);
+    return ids_status_.lookup_default(&id, Status::UNKNOWN);
   }
 
   /**
@@ -792,9 +792,9 @@ class UnusedIDsData {
   {
     ID *id;
     FOREACH_MAIN_ID_BEGIN (this->bmain, id) {
-      const Status status = ids_status_.lookup_default(id, Status::Unknown);
+      const Status status = ids_status_.lookup_default(id, Status::UNKNOWN);
       const int id_type_index = BKE_idtype_idcode_to_index(GS(id->name));
-      if (status == Status::Unused) {
+      if (status == Status::UNUSED) {
         id->tag |= this->id_tag;
         (*this->num_total)[INDEX_ID_NULL]++;
         (*this->num_total)[id_type_index]++;
@@ -895,7 +895,7 @@ static void lib_query_unused_ids_find_used_dependencies(ID &id,
                                                         UnusedIDsData &data,
                                                         const int required_usages)
 {
-  BLI_assert(data.get_id_status(id) == UnusedIDsData::Status::Used ||
+  BLI_assert(data.get_id_status(id) == UnusedIDsData::Status::USED ||
              (id.flag & ID_FLAG_EMBEDDED_DATA) != 0);
 
   Stack<ID *> todo_ids = {&id};
@@ -906,16 +906,16 @@ static void lib_query_unused_ids_find_used_dependencies(ID &id,
      *
      * Note that embedded ID pointers are ignored here, because their are handled as 'private ID
      * data' here, and the 'owner ID' is always used as reference. */
-    constexpr int ignored_usages = (IDWALK_CB_LOOPBACK | IDWALK_CB_EMBEDDED |
+    constexpr int IGNORED_USAGES = (IDWALK_CB_LOOPBACK | IDWALK_CB_EMBEDDED |
                                     IDWALK_CB_EMBEDDED_NOT_OWNING);
 
-    if ((foreachid_cb_data->cb_flag & ignored_usages) != 0) {
+    if ((foreachid_cb_data->cb_flag & IGNORED_USAGES) != 0) {
       return IDWALK_RET_NOP;
     }
 
     ID &owner_id = *foreachid_cb_data->owner_id;
     ID *id_to = *foreachid_cb_data->id_pointer;
-    if (!id_to || id_to == &owner_id || data.get_id_status(*id_to) == UnusedIDsData::Status::Used)
+    if (!id_to || id_to == &owner_id || data.get_id_status(*id_to) == UnusedIDsData::Status::USED)
     {
       /* Already known to be used, potentially a dependency cycle, no need to go deeper in this
        * branch in any case. */
@@ -931,7 +931,7 @@ static void lib_query_unused_ids_find_used_dependencies(ID &id,
       return IDWALK_RET_NOP;
     }
 
-    data.set_id_status(*id_to, UnusedIDsData::Status::Used);
+    data.set_id_status(*id_to, UnusedIDsData::Status::USED);
     todo_ids.push(id_to);
     return IDWALK_RET_NOP;
   };
@@ -955,30 +955,30 @@ static void lib_query_unused_ids_recursive_tag(UnusedIDsData &data)
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
     UNUSED_VARS_NDEBUG(id_type);
     if (id_is_enforced_used(*id, data)) {
-      data.set_id_status(*id, UnusedIDsData::Status::Used);
+      data.set_id_status(*id, UnusedIDsData::Status::USED);
     }
     else if (id->us == 0) {
       BLI_assert((id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) == 0);
-      data.set_id_status(*id, UnusedIDsData::Status::Unused);
+      data.set_id_status(*id, UnusedIDsData::Status::UNUSED);
     }
     else {
-      data.set_id_status(*id, UnusedIDsData::Status::Unknown);
+      data.set_id_status(*id, UnusedIDsData::Status::UNKNOWN);
     }
   }
   FOREACH_MAIN_ID_END;
 
   /* Pre-mark all IDs not yet known to be used as unused. */
   FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
-    if (data.get_id_status(*id) == UnusedIDsData::Status::Used) {
+    if (data.get_id_status(*id) == UnusedIDsData::Status::USED) {
       continue;
     }
-    data.set_id_status(*id, UnusedIDsData::Status::Unused);
+    data.set_id_status(*id, UnusedIDsData::Status::UNUSED);
   }
   FOREACH_MAIN_ID_END;
 
   /* Follow all valid dependencies of known used IDs and mark them as used as well. */
   FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
-    if (data.get_id_status(*id) != UnusedIDsData::Status::Used) {
+    if (data.get_id_status(*id) != UnusedIDsData::Status::USED) {
       continue;
     }
     lib_query_unused_ids_find_used_dependencies(*id, data, (IDWALK_CB_USER | IDWALK_CB_USER_ONE));
@@ -999,15 +999,15 @@ static void lib_query_unused_ids_direct_tag(UnusedIDsData &data)
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
     UNUSED_VARS_NDEBUG(id_type);
     if (id_is_enforced_used(*id, data)) {
-      data.set_id_status(*id, UnusedIDsData::Status::Used);
+      data.set_id_status(*id, UnusedIDsData::Status::USED);
     }
     else if (id->us == 0) {
       BLI_assert((id_type->flags & IDTYPE_FLAGS_NEVER_UNUSED) == 0);
-      data.set_id_status(*id, UnusedIDsData::Status::Unused);
+      data.set_id_status(*id, UnusedIDsData::Status::UNUSED);
     }
     else {
       /* In direct case, if an ID is not explicitly unused, it is always considered as used. */
-      data.set_id_status(*id, UnusedIDsData::Status::Used);
+      data.set_id_status(*id, UnusedIDsData::Status::USED);
     }
   }
   FOREACH_MAIN_ID_END;
@@ -1018,7 +1018,7 @@ static void lib_query_unused_ids_direct_tag(UnusedIDsData &data)
    * Currently, this covers linked but not instantiated Objects (see also
    * #id_is_used_dependency_exception). */
   FOREACH_MAIN_ID_BEGIN (data.bmain, id) {
-    if (data.get_id_status(*id) != UnusedIDsData::Status::Used) {
+    if (data.get_id_status(*id) != UnusedIDsData::Status::USED) {
       continue;
     }
     lib_query_unused_ids_find_used_dependencies(*id, data, IDWALK_CB_NOP);

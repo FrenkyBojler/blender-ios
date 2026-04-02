@@ -184,9 +184,9 @@ static IndexMask mask_first_distinct_edges(const Span<int2> edges,
     return {};
   }
 
-  constexpr int no_original_edge = std::numeric_limits<int>::max();
+  constexpr int NO_ORIGINAL_EDGE = std::numeric_limits<int>::max();
   Array<int> map_edge_to_first_original(edge_offsets.total_size());
-  map_edge_to_first_original.as_mutable_span().fill(no_original_edge);
+  map_edge_to_first_original.as_mutable_span().fill(NO_ORIGINAL_EDGE);
 
   /* TODO: Lock-free parallel version? BLI' "atomic::min<T>(T&, T);" ? */
   edges_to_check.foreach_index_optimized<int>([&](const int edge_i) {
@@ -281,7 +281,7 @@ void mesh_calc_edges(Mesh &mesh,
   const bool no_new_edges = edge_offsets.total_size() == original_unique_edge_num;
 
   MutableAttributeAccessor dst_attributes = mesh.attributes_for_write();
-  dst_attributes.add<int>(".corner_edge", AttrDomain::Corner, AttributeInitConstruct());
+  dst_attributes.add<int>(".corner_edge", AttrDomain::CORNER, AttributeInitConstruct());
   MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
 #ifndef NDEBUG
   corner_edges.fill(-1);
@@ -482,10 +482,10 @@ void mesh_calc_edges(Mesh &mesh,
   Vector<std::string> attributes_to_drop;
   /* TODO: Need ::all_pass() on #attribute_filter to know if this loop can be skipped. */
   mesh.attributes().foreach_attribute([&](const AttributeIter &attribute) {
-    if (attribute.data_type == AttrType::String) {
+    if (attribute.data_type == AttrType::STRING) {
       return;
     }
-    if (attribute.domain != AttrDomain::Edge) {
+    if (attribute.domain != AttrDomain::EDGE) {
       return;
     }
     if (!attribute_filter.allow_skip(attribute.name)) {
@@ -500,14 +500,14 @@ void mesh_calc_edges(Mesh &mesh,
 
   mesh.attribute_storage.wrap().remove(".edge_verts");
   for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
-    if (attr.domain() != bke::AttrDomain::Edge) {
+    if (attr.domain() != bke::AttrDomain::EDGE) {
       continue;
     }
     switch (attr.storage_type()) {
-      case AttrStorageType::Single: {
+      case AttrStorageType::SINGLE: {
         break;
       }
-      case AttrStorageType::Array: {
+      case AttrStorageType::ARRAY: {
         const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
         const auto &src_data = std::get<bke::Attribute::ArrayData>(attr.data());
         auto dst_data = bke::Attribute::ArrayData::from_uninitialized(type, result_edges_num);
@@ -545,17 +545,17 @@ void mesh_calc_edges(Mesh &mesh,
   mesh.edges_num = result_edges_num;
 
   dst_attributes.add<int2>(
-      ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
+      ".edge_verts", AttrDomain::EDGE, AttributeInitMoveArray(edge_verts.data()));
 
   if (select_new_edges) {
     dst_attributes.remove(".select_edge");
     if (ELEM(back_range_of_new_edges.size(), 0, mesh.edges_num)) {
       const bool fill_value = back_range_of_new_edges.size() == mesh.edges_num;
-      dst_attributes.add<bool>(".select_edge", AttrDomain::Edge, AttributeInitValue(fill_value));
+      dst_attributes.add<bool>(".select_edge", AttrDomain::EDGE, AttributeInitValue(fill_value));
     }
     else {
       SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
-          ".select_edge", AttrDomain::Edge);
+          ".select_edge", AttrDomain::EDGE);
       select_edge.span.drop_back(back_range_of_new_edges.size()).fill(false);
       select_edge.span.take_back(back_range_of_new_edges.size()).fill(true);
       select_edge.finish();

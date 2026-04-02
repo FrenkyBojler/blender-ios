@@ -227,7 +227,7 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
                                                       *which_libbase(bmain, GS(id->name)),
                                                       *id,
                                                       nullptr,
-                                                      IDNewNameMode::RenameExistingNever,
+                                                      IDNewNameMode::RENAME_EXISTING_NEVER,
                                                       false);
     if (!ELEM(result.action,
               IDNewNameResult::Action::UNCHANGED,
@@ -896,7 +896,7 @@ void BKE_id_move_to_same_lib(Main &bmain, ID &id, const ID &owner_id)
 
   ListBaseT<ID> &lb = *which_libbase(&bmain, GS(id.name));
   BKE_id_new_name_validate(
-      bmain, lb, id, BKE_id_name(id), IDNewNameMode::RenameExistingNever, true);
+      bmain, lb, id, BKE_id_name(id), IDNewNameMode::RENAME_EXISTING_NEVER, true);
 }
 
 static void id_embedded_swap(Main *bmain,
@@ -1160,7 +1160,7 @@ void BKE_libblock_management_main_add(Main *bmain, void *idv)
   BLI_addtail(lb, id);
   /* We need to allow adding extra datablocks into libraries too, e.g. to support generating new
    * overrides for recursive resync. */
-  BKE_id_new_name_validate(*bmain, *lb, *id, nullptr, IDNewNameMode::RenameExistingNever, true);
+  BKE_id_new_name_validate(*bmain, *lb, *id, nullptr, IDNewNameMode::RENAME_EXISTING_NEVER, true);
   /* alphabetic insertion: is in new_id */
   id->tag &= ~(ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT);
   bmain->is_memfile_undo_written = false;
@@ -1296,7 +1296,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBaseT<ID> *lb)
   for (i = 0; i < lb_len; i++) {
     if (!name_set.add(BKE_id_name(*id_array[i]))) {
       BKE_id_new_name_validate(
-          *bmain, *lb, *id_array[i], nullptr, IDNewNameMode::RenameExistingNever, false);
+          *bmain, *lb, *id_array[i], nullptr, IDNewNameMode::RENAME_EXISTING_NEVER, false);
     }
   }
   MEM_delete(id_array);
@@ -1423,7 +1423,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
 
       BKE_main_lock(bmain);
       BLI_addtail(lb, id);
-      BKE_id_new_name_validate(*bmain, *lb, *id, name, IDNewNameMode::RenameExistingNever, true);
+      BKE_id_new_name_validate(*bmain, *lb, *id, name, IDNewNameMode::RENAME_EXISTING_NEVER, true);
       bmain->is_memfile_undo_written = false;
       /* alphabetic insertion: is in new_id */
       BKE_main_unlock(bmain);
@@ -1951,14 +1951,14 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
   /* Store original requested new name, in modes that may solve name conflict by renaming the
    * existing conflicting ID. */
   char orig_name[MAX_ID_NAME - 2];
-  if (ELEM(mode, IDNewNameMode::RenameExistingAlways, IDNewNameMode::RenameExistingSameRoot)) {
+  if (ELEM(mode, IDNewNameMode::RENAME_EXISTING_ALWAYS, IDNewNameMode::RENAME_EXISTING_SAME_ROOT)) {
     STRNCPY(orig_name, name);
   }
 
   const bool had_name_collision = BKE_main_namemap_get_unique_name(bmain, id, name);
 
   if (had_name_collision &&
-      ELEM(mode, IDNewNameMode::RenameExistingAlways, IDNewNameMode::RenameExistingSameRoot))
+      ELEM(mode, IDNewNameMode::RENAME_EXISTING_ALWAYS, IDNewNameMode::RENAME_EXISTING_SAME_ROOT))
   {
     char prev_name[MAX_ID_NAME - 2];
     char prev_name_root[MAX_ID_NAME - 2];
@@ -1966,7 +1966,7 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
     char new_name_root[MAX_ID_NAME - 2];
     int new_number = 0;
     STRNCPY(prev_name, BKE_id_name(id));
-    if (mode == IDNewNameMode::RenameExistingSameRoot) {
+    if (mode == IDNewNameMode::RENAME_EXISTING_SAME_ROOT) {
       BLI_string_split_name_number(BKE_id_name(id), '.', prev_name_root, &prev_number);
       BLI_string_split_name_number(name, '.', new_name_root, &new_number);
     }
@@ -1976,8 +1976,8 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
 
     /* In case of #RenameExistingSameRoot, the existing ID (`id_other`) is only renamed if it has
      * the same 'root' name as the current name of the renamed `id`. */
-    if (mode == IDNewNameMode::RenameExistingAlways ||
-        (mode == IDNewNameMode::RenameExistingSameRoot && STREQ(prev_name_root, new_name_root)))
+    if (mode == IDNewNameMode::RENAME_EXISTING_ALWAYS ||
+        (mode == IDNewNameMode::RENAME_EXISTING_SAME_ROOT && STREQ(prev_name_root, new_name_root)))
     {
       BLI_strncpy(id_other->name + 2, name, sizeof(id_other->name) - 2);
       id_sort_by_name(&lb, id_other, nullptr);

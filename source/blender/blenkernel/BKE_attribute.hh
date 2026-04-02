@@ -41,26 +41,26 @@ class MutableAttributeAccessor;
 /** Some storage types are only relevant for certain attribute types. */
 enum class AttrStorageType : int8_t {
   /** #AttributeDataArray. */
-  Array = 0,
+  ARRAY = 0,
   /** A single value for the whole attribute. */
-  Single = 1,
+  SINGLE = 1,
 };
 
 enum class AttrType : int16_t {
-  Bool = 0,
-  Int8 = 1,
-  Int16_2D = 2,
-  Int32 = 3,
-  Int32_2D = 4,
-  Float = 5,
-  Float2 = 6,
-  Float3 = 7,
-  Float4x4 = 8,
-  ColorByte = 9,
-  ColorFloat = 10,
-  Quaternion = 11,
-  String = 12,
-  Float4 = 13,
+  BOOL = 0,
+  INT8 = 1,
+  INT16_2_D = 2,
+  INT32 = 3,
+  INT32_2_D = 4,
+  FLOAT = 5,
+  FLOAT2 = 6,
+  FLOAT3 = 7,
+  FLOAT4X4 = 8,
+  COLOR_BYTE = 9,
+  COLOR_FLOAT = 10,
+  QUATERNION = 11,
+  STRING = 12,
+  FLOAT4 = 13,
 };
 
 const CPPType &attribute_type_to_cpp_type(AttrType type);
@@ -68,21 +68,21 @@ AttrType cpp_type_to_attribute_type(const CPPType &type);
 
 enum class AttrDomain : int8_t {
   /* Used to choose automatically based on other data. */
-  Auto = -1,
+  AUTO = -1,
   /* Mesh, Curve or Point Cloud Point. */
-  Point = 0,
+  POINT = 0,
   /* Mesh Edge. */
-  Edge = 1,
+  EDGE = 1,
   /* Mesh Face. */
-  Face = 2,
+  FACE = 2,
   /* Mesh Corner. */
-  Corner = 3,
+  CORNER = 3,
   /* A single curve in a larger curve data-block. */
-  Curve = 4,
+  CURVE = 4,
   /* Instance. */
-  Instance = 5,
+  INSTANCE = 5,
   /* A layer in a grease pencil data-block. */
-  Layer = 6,
+  LAYER = 6,
 };
 #define ATTR_DOMAIN_NUM 7
 
@@ -112,17 +112,17 @@ struct AttributeDomainAndType {
 struct AttributeInit {
   enum class Type {
     /** #AttributeInitConstruct. */
-    Construct,
+    CONSTRUCT,
     /** #AttributeInitValue. */
-    Value,
+    VALUE,
     /** #AttributeInitDefaultValue. */
-    DefaultValue,
+    DEFAULT_VALUE,
     /** #AttributeInitVArray. */
-    VArray,
+    V_ARRAY,
     /** #AttributeInitMoveArray. */
-    MoveArray,
+    MOVE_ARRAY,
     /** #AttributeInitShared. */
-    Shared,
+    SHARED,
   };
   Type type;
   AttributeInit(const Type type) : type(type) {}
@@ -133,7 +133,7 @@ struct AttributeInit {
  * if all attribute element values will be set by the caller after creating the attribute.
  */
 struct AttributeInitConstruct : public AttributeInit {
-  AttributeInitConstruct() : AttributeInit(Type::Construct) {}
+  AttributeInitConstruct() : AttributeInit(Type::CONSTRUCT) {}
 };
 
 /**
@@ -144,17 +144,17 @@ struct AttributeInitValue : public AttributeInit {
 
   /** \warning The value argument must out-live this attribute initialization operation. */
   template<typename T>
-  AttributeInitValue(const T &value) : AttributeInit(Type::Value), value(GPointer(&value))
+  AttributeInitValue(const T &value) : AttributeInit(Type::VALUE), value(GPointer(&value))
   {
   }
-  AttributeInitValue(const GPointer value) : AttributeInit(Type::Value), value(value) {}
+  AttributeInitValue(const GPointer value) : AttributeInit(Type::VALUE), value(value) {}
 };
 
 /**
  * Create an attribute using the default value for the data type (almost always "zero").
  */
 struct AttributeInitDefaultValue : public AttributeInit {
-  AttributeInitDefaultValue() : AttributeInit(Type::DefaultValue) {}
+  AttributeInitDefaultValue() : AttributeInit(Type::DEFAULT_VALUE) {}
 };
 
 /**
@@ -164,7 +164,7 @@ struct AttributeInitDefaultValue : public AttributeInit {
 struct AttributeInitVArray : public AttributeInit {
   GVArray varray;
 
-  AttributeInitVArray(GVArray varray) : AttributeInit(Type::VArray), varray(std::move(varray)) {}
+  AttributeInitVArray(GVArray varray) : AttributeInit(Type::V_ARRAY), varray(std::move(varray)) {}
 };
 
 /**
@@ -178,7 +178,7 @@ struct AttributeInitVArray : public AttributeInit {
 struct AttributeInitMoveArray : public AttributeInit {
   void *data = nullptr;
 
-  AttributeInitMoveArray(void *data) : AttributeInit(Type::MoveArray), data(data) {}
+  AttributeInitMoveArray(void *data) : AttributeInit(Type::MOVE_ARRAY), data(data) {}
 };
 
 /**
@@ -190,7 +190,7 @@ struct AttributeInitShared : public AttributeInit {
   const ImplicitSharingInfo *sharing_info = nullptr;
 
   AttributeInitShared(const void *data, const ImplicitSharingInfo &sharing_info)
-      : AttributeInit(Type::Shared), data(data), sharing_info(&sharing_info)
+      : AttributeInit(Type::SHARED), data(data), sharing_info(&sharing_info)
   {
   }
 };

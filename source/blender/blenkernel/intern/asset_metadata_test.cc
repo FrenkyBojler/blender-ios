@@ -32,22 +32,22 @@ TEST(AssetMetadataTest, set_catalog_id)
   EXPECT_STREQ("Govoriš angleško?", meta.catalog_simple_name);
 
   /* Test length trimming to 63 chars + terminating zero. */
-  constexpr char len66[] = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
-  constexpr char len63[] = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1";
-  BKE_asset_metadata_catalog_id_set(&meta, uuid, len66);
-  EXPECT_STREQ(len63, meta.catalog_simple_name);
+  constexpr char LEN66[] = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
+  constexpr char LEN63[] = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1";
+  BKE_asset_metadata_catalog_id_set(&meta, uuid, LEN66);
+  EXPECT_STREQ(LEN63, meta.catalog_simple_name);
 
   /* Test length trimming happens after white-space trimming. */
-  constexpr char len68[] =
+  constexpr char LEN68[] =
       "     \
       000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20 ";
-  BKE_asset_metadata_catalog_id_set(&meta, uuid, len68);
-  EXPECT_STREQ(len63, meta.catalog_simple_name);
+  BKE_asset_metadata_catalog_id_set(&meta, uuid, LEN68);
+  EXPECT_STREQ(LEN63, meta.catalog_simple_name);
 
   /* Test length trimming to 63 bytes, and not 63 characters. ✓ in UTF8 is three bytes long. */
-  constexpr char with_utf8[] =
+  constexpr char WITH_UTF8[] =
       "00010203040506✓0708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
-  BKE_asset_metadata_catalog_id_set(&meta, uuid, with_utf8);
+  BKE_asset_metadata_catalog_id_set(&meta, uuid, WITH_UTF8);
   EXPECT_STREQ("00010203040506✓0708090a0b0c0d0e0f101112131415161718191a1b1c1d",
                meta.catalog_simple_name);
 }

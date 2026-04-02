@@ -410,13 +410,13 @@ static void data_transfer_dtdata_type_postprocess(Mesh *me_dst,
 
     bke::MutableAttributeAccessor attributes = me_dst->attributes_for_write();
     bke::SpanAttributeWriter custom_nors_dst = attributes.lookup_or_add_for_write_span<short2>(
-        "custom_normal", bke::AttrDomain::Corner);
+        "custom_normal", bke::AttrDomain::CORNER);
     if (!custom_nors_dst) {
       return;
     }
     bke::SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
-        "sharp_edge", bke::AttrDomain::Edge);
-    const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+        "sharp_edge", bke::AttrDomain::EDGE);
+    const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::FACE);
     /* Note loop_nors_dst contains our custom normals as transferred from source... */
     bke::mesh::normals_corner_custom_set(me_dst->vert_positions(),
                                          me_dst->faces(),
@@ -1022,7 +1022,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     else if (cddata_type == CD_PROP_BYTE_COLOR) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 CD_PROP_BYTE_COLOR,
-                                                bke::AttrDomain::Point,
+                                                bke::AttrDomain::POINT,
                                                 mix_mode,
                                                 mix_factor,
                                                 mix_weights,
@@ -1040,7 +1040,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     else if (cddata_type == CD_PROP_COLOR) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 CD_PROP_COLOR,
-                                                bke::AttrDomain::Point,
+                                                bke::AttrDomain::POINT,
                                                 mix_mode,
                                                 mix_factor,
                                                 mix_weights,
@@ -1073,7 +1073,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_BWEIGHT) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_FLOAT,
-                                                bke::AttrDomain::Point,
+                                                bke::AttrDomain::POINT,
                                                 "bevel_weight_vert",
                                                 mix_mode,
                                                 mix_factor,
@@ -1089,7 +1089,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_SEAM) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
-                                                bke::AttrDomain::Edge,
+                                                bke::AttrDomain::EDGE,
                                                 "uv_seam",
                                                 mix_mode,
                                                 mix_factor,
@@ -1103,7 +1103,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_SHARP) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
-                                                bke::AttrDomain::Edge,
+                                                bke::AttrDomain::EDGE,
                                                 "sharp_edge",
                                                 mix_mode,
                                                 mix_factor,
@@ -1117,7 +1117,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_BWEIGHT) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_FLOAT,
-                                                bke::AttrDomain::Edge,
+                                                bke::AttrDomain::EDGE,
                                                 "bevel_weight_edge",
                                                 mix_mode,
                                                 mix_factor,
@@ -1131,7 +1131,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_CREASE) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_FLOAT,
-                                                bke::AttrDomain::Edge,
+                                                bke::AttrDomain::EDGE,
                                                 "crease_edge",
                                                 mix_mode,
                                                 mix_factor,
@@ -1145,7 +1145,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (r_map && cddata_type == CD_FAKE_FREESTYLE_EDGE) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
-                                                bke::AttrDomain::Edge,
+                                                bke::AttrDomain::EDGE,
                                                 "freestyle_edge",
                                                 mix_mode,
                                                 mix_factor,
@@ -1163,7 +1163,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_UV) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 CD_PROP_FLOAT2,
-                                                bke::AttrDomain::Corner,
+                                                bke::AttrDomain::CORNER,
                                                 mix_mode,
                                                 mix_factor,
                                                 mix_weights,
@@ -1207,7 +1207,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_PROP_BYTE_COLOR) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 CD_PROP_BYTE_COLOR,
-                                                bke::AttrDomain::Corner,
+                                                bke::AttrDomain::CORNER,
                                                 mix_mode,
                                                 mix_factor,
                                                 mix_weights,
@@ -1225,7 +1225,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_PROP_COLOR) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 CD_PROP_COLOR,
-                                                bke::AttrDomain::Corner,
+                                                bke::AttrDomain::CORNER,
                                                 mix_mode,
                                                 mix_factor,
                                                 mix_weights,
@@ -1246,7 +1246,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_SHARP) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
-                                                bke::AttrDomain::Face,
+                                                bke::AttrDomain::FACE,
                                                 "sharp_face",
                                                 mix_mode,
                                                 mix_factor,
@@ -1260,7 +1260,7 @@ static bool data_transfer_layersmapping_generate(Vector<CustomDataTransferLayerM
     if (cddata_type == CD_FAKE_FREESTYLE_FACE) {
       data_transfer_layersmapping_add_item_attr(r_map,
                                                 CD_PROP_BOOL,
-                                                bke::AttrDomain::Face,
+                                                bke::AttrDomain::FACE,
                                                 "freestyle_face",
                                                 mix_mode,
                                                 mix_factor,

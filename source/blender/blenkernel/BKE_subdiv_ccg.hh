@@ -304,9 +304,9 @@ void BKE_subdiv_ccg_eval_limit_positions(const SubdivCCG &subdiv_ccg,
                                          MutableSpan<float3> r_limit_positions);
 
 enum class SubdivCCGAdjacencyType : int8_t {
-  None,
-  Vertex,
-  Edge,
+  NONE,
+  VERTEX,
+  EDGE,
 };
 
 /**

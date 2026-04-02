@@ -749,7 +749,7 @@ static Volume *take_volume_ownership_from_geometry_set(bke::GeometrySet &geometr
   Volume *volume = volume_component.release();
   if (volume != nullptr) {
     /* Add back, but only as read-only non-owning component. */
-    volume_component.replace(volume, bke::GeometryOwnershipType::ReadOnly);
+    volume_component.replace(volume, bke::GeometryOwnershipType::READ_ONLY);
   }
   else {
     /* The component was empty, we can remove it. */
@@ -766,7 +766,7 @@ void BKE_volume_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
   /* Evaluate modifiers. */
   Volume *volume = id_cast<Volume *>(object->data);
   bke::GeometrySet geometry_set;
-  geometry_set.replace_volume(volume, bke::GeometryOwnershipType::ReadOnly);
+  geometry_set.replace_volume(volume, bke::GeometryOwnershipType::READ_ONLY);
   volume_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
   Volume *volume_eval = take_volume_ownership_from_geometry_set(geometry_set);

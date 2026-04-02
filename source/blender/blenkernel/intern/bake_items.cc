@@ -93,7 +93,7 @@ static void prepare_geometry_for_bake_recursive(GeometrySet &geometry,
     instances->attributes_for_write().remove_anonymous();
     instances->ensure_geometry_instances();
     for (bke::InstanceReference &reference : instances->references_for_write()) {
-      if (reference.type() == bke::InstanceReference::Type::GeometrySet) {
+      if (reference.type() == bke::InstanceReference::Type::GEOMETRY_SET) {
         prepare_geometry_for_bake_recursive(reference.geometry_set(), data_block_map);
       }
       else {
@@ -165,7 +165,7 @@ static void restore_data_blocks_recursive(GeometrySet &geometry, BakeDataBlockMa
   }
   if (bke::Instances *instances = geometry.get_instances_for_write()) {
     for (bke::InstanceReference &reference : instances->references_for_write()) {
-      if (reference.type() == bke::InstanceReference::Type::GeometrySet) {
+      if (reference.type() == bke::InstanceReference::Type::GEOMETRY_SET) {
         restore_data_blocks_recursive(reference.geometry_set(), data_block_map);
       }
     }

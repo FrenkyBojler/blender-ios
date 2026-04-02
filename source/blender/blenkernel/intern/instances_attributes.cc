@@ -27,12 +27,12 @@ static const auto &builtin_attributes()
   static auto attributes = []() {
     Map<StringRef, AttrBuiltinInfo> map;
 
-    AttrBuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
+    AttrBuiltinInfo instance_transform(bke::AttrDomain::INSTANCE, bke::AttrType::FLOAT4X4);
     instance_transform.deletable = false;
     map.add_new("instance_transform", std::move(instance_transform));
 
     /** Indices into `Instances::references_`. Determines what data is instanced. */
-    AttrBuiltinInfo reference_index(bke::AttrDomain::Instance, bke::AttrType::Int32);
+    AttrBuiltinInfo reference_index(bke::AttrDomain::INSTANCE, bke::AttrType::INT32);
     reference_index.deletable = false;
     map.add_new(".reference_index", std::move(reference_index));
 
@@ -51,10 +51,10 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
 {
   AttributeAccessorFunctions fn{};
   fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
-    return domain == AttrDomain::Instance;
+    return domain == AttrDomain::INSTANCE;
   };
   fn.domain_size = [](const void *owner, const AttrDomain domain) {
-    return domain == AttrDomain::Instance ?
+    return domain == AttrDomain::INSTANCE ?
                static_cast<const Instances *>(owner)->instances_num() :
                0;
   };
@@ -86,13 +86,13 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     if (!attribute) {
       return {};
     }
-    return attribute_to_reader(*attribute, AttrDomain::Instance, instances.instances_num());
+    return attribute_to_reader(*attribute, AttrDomain::INSTANCE, instances.instances_num());
   };
   fn.adapt_domain = [](const void * /*owner*/,
                        const GVArray &varray,
                        const AttrDomain from_domain,
                        const AttrDomain to_domain) {
-    if (from_domain == to_domain && from_domain == AttrDomain::Instance) {
+    if (from_domain == to_domain && from_domain == AttrDomain::INSTANCE) {
       return varray;
     }
     return GVArray{};
@@ -104,7 +104,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     const AttributeStorage &storage = instances.attribute_storage();
     for (const Attribute &attribute : storage) {
       const auto get_fn = [&]() {
-        return attribute_to_reader(attribute, AttrDomain::Instance, instances.instances_num());
+        return attribute_to_reader(attribute, AttrDomain::INSTANCE, instances.instances_num());
       };
       AttributeIter iter(attribute.name(), attribute.domain(), attribute.data_type(), get_fn);
       iter.is_builtin = builtin_attributes().contains(attribute.name());
@@ -169,7 +169,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     const bool array = array_storage_required().contains(name);
     Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer, array);
     storage.add(name, domain, type, std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }
@@ -202,7 +202,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
                                                          initializer,
                                                          array_storage_required().contains(name));
     attr->assign_data(std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }

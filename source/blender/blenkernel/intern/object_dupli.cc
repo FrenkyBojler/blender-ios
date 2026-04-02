@@ -992,7 +992,7 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
     }
 
     switch (reference.type()) {
-      case InstanceReference::Type::Object: {
+      case InstanceReference::Type::OBJECT: {
         Object &object = reference.object();
         float matrix[4][4];
         mul_m4_m4m4(matrix, parent_transform, instance_offset_matrices[i].ptr());
@@ -1005,7 +1005,7 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
         make_recursive_duplis(ctx_for_instance, &object, space_matrix, id, &geometry_set, i);
         break;
       }
-      case InstanceReference::Type::Collection: {
+      case InstanceReference::Type::COLLECTION: {
         Collection &collection = reference.collection();
         float collection_matrix[4][4];
         unit_m4(collection_matrix);
@@ -1041,7 +1041,7 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
         FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
         break;
       }
-      case InstanceReference::Type::GeometrySet: {
+      case InstanceReference::Type::GEOMETRY_SET: {
         float new_transform[4][4];
         mul_m4_m4m4(new_transform, parent_transform, instance_offset_matrices[i].ptr());
 
@@ -1059,7 +1059,7 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
         }
         break;
       }
-      case InstanceReference::Type::None: {
+      case InstanceReference::Type::NONE: {
         break;
       }
     }
@@ -1357,7 +1357,7 @@ static void make_duplis_faces(const DupliContext *ctx)
   else {
     const bke::AttributeAccessor attributes = mesh_eval->attributes();
     const VArraySpan uv_map = *attributes.lookup<float2>(mesh_eval->default_uv_map_name(),
-                                                         bke::AttrDomain::Corner);
+                                                         bke::AttrDomain::CORNER);
     FaceDupliData_Mesh fdd{};
     fdd.params = fdd_params;
     fdd.totface = mesh_eval->faces_num;
@@ -1905,7 +1905,7 @@ bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph, Object &o
   MutableSpan<int> instances_reference_handles = top_level_instances.reference_handles_for_write();
   bke::SpanAttributeWriter<int> instances_ids =
       top_level_instances.attributes_for_write().lookup_or_add_for_write_only_span<int>(
-          "id", bke::AttrDomain::Instance);
+          "id", bke::AttrDomain::INSTANCE);
   for (const int i : IndexRange(instances_num)) {
     DupliObject &dob = *top_level_duplis[i];
     Object &instanced_object = *dob.ob;

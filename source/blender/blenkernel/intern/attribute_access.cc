@@ -36,33 +36,33 @@ namespace blender::bke {
 const CPPType &attribute_type_to_cpp_type(const AttrType type)
 {
   switch (type) {
-    case AttrType::Bool:
+    case AttrType::BOOL:
       return CPPType::get<bool>();
-    case AttrType::Int8:
+    case AttrType::INT8:
       return CPPType::get<int8_t>();
-    case AttrType::Int16_2D:
+    case AttrType::INT16_2_D:
       return CPPType::get<short2>();
-    case AttrType::Int32:
+    case AttrType::INT32:
       return CPPType::get<int>();
-    case AttrType::Int32_2D:
+    case AttrType::INT32_2_D:
       return CPPType::get<int2>();
-    case AttrType::Float:
+    case AttrType::FLOAT:
       return CPPType::get<float>();
-    case AttrType::Float2:
+    case AttrType::FLOAT2:
       return CPPType::get<float2>();
-    case AttrType::Float3:
+    case AttrType::FLOAT3:
       return CPPType::get<float3>();
-    case AttrType::Float4x4:
+    case AttrType::FLOAT4X4:
       return CPPType::get<float4x4>();
-    case AttrType::ColorByte:
+    case AttrType::COLOR_BYTE:
       return CPPType::get<ColorGeometry4b>();
-    case AttrType::ColorFloat:
+    case AttrType::COLOR_FLOAT:
       return CPPType::get<ColorGeometry4f>();
-    case AttrType::Quaternion:
+    case AttrType::QUATERNION:
       return CPPType::get<math::Quaternion>();
-    case AttrType::String:
+    case AttrType::STRING:
       return CPPType::get<MStringProperty>();
-    case AttrType::Float4:
+    case AttrType::FLOAT4:
       return CPPType::get<float4>();
   }
   BLI_assert_unreachable();
@@ -72,49 +72,49 @@ const CPPType &attribute_type_to_cpp_type(const AttrType type)
 AttrType cpp_type_to_attribute_type(const CPPType &type)
 {
   if (type.is<float>()) {
-    return AttrType::Float;
+    return AttrType::FLOAT;
   }
   if (type.is<float2>()) {
-    return AttrType::Float2;
+    return AttrType::FLOAT2;
   }
   if (type.is<float3>()) {
-    return AttrType::Float3;
+    return AttrType::FLOAT3;
   }
   if (type.is<float4>()) {
-    return AttrType::Float4;
+    return AttrType::FLOAT4;
   }
   if (type.is<int>()) {
-    return AttrType::Int32;
+    return AttrType::INT32;
   }
   if (type.is<int2>()) {
-    return AttrType::Int32_2D;
+    return AttrType::INT32_2_D;
   }
   if (type.is<ColorGeometry4f>()) {
-    return AttrType::ColorFloat;
+    return AttrType::COLOR_FLOAT;
   }
   if (type.is<bool>()) {
-    return AttrType::Bool;
+    return AttrType::BOOL;
   }
   if (type.is<int8_t>()) {
-    return AttrType::Int8;
+    return AttrType::INT8;
   }
   if (type.is<ColorGeometry4b>()) {
-    return AttrType::ColorByte;
+    return AttrType::COLOR_BYTE;
   }
   if (type.is<math::Quaternion>()) {
-    return AttrType::Quaternion;
+    return AttrType::QUATERNION;
   }
   if (type.is<float4x4>()) {
-    return AttrType::Float4x4;
+    return AttrType::FLOAT4X4;
   }
   if (type.is<short2>()) {
-    return AttrType::Int16_2D;
+    return AttrType::INT16_2_D;
   }
   if (type.is<MStringProperty>()) {
-    return AttrType::String;
+    return AttrType::STRING;
   }
   BLI_assert_unreachable();
-  return AttrType::Bool;
+  return AttrType::BOOL;
 }
 
 const CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
@@ -236,31 +236,31 @@ bool allow_procedural_attribute_access(StringRef attribute_name)
 static int attribute_data_type_complexity(const AttrType data_type)
 {
   switch (data_type) {
-    case AttrType::Bool:
+    case AttrType::BOOL:
       return 0;
-    case AttrType::Int8:
+    case AttrType::INT8:
       return 1;
-    case AttrType::Int32:
+    case AttrType::INT32:
       return 2;
-    case AttrType::Float:
+    case AttrType::FLOAT:
       return 3;
-    case AttrType::Int16_2D:
+    case AttrType::INT16_2_D:
       return 4;
-    case AttrType::Int32_2D:
+    case AttrType::INT32_2_D:
       return 5;
-    case AttrType::Float2:
+    case AttrType::FLOAT2:
       return 6;
-    case AttrType::Float3:
+    case AttrType::FLOAT3:
       return 7;
-    case AttrType::Float4:
+    case AttrType::FLOAT4:
       return 8;
-    case AttrType::ColorByte:
+    case AttrType::COLOR_BYTE:
       return 9;
-    case AttrType::Quaternion:
+    case AttrType::QUATERNION:
       return 10;
-    case AttrType::ColorFloat:
+    case AttrType::COLOR_FLOAT:
       return 11;
-    case AttrType::Float4x4:
+    case AttrType::FLOAT4X4:
       return 12;
 #if 0 /* These attribute types are not supported yet. */
     case AttrType::String:
@@ -276,7 +276,7 @@ static int attribute_data_type_complexity(const AttrType data_type)
 AttrType attribute_data_type_highest_complexity(Span<AttrType> data_types)
 {
   int highest_complexity = INT_MIN;
-  AttrType most_complex_type = AttrType::ColorFloat;
+  AttrType most_complex_type = AttrType::COLOR_FLOAT;
 
   for (const AttrType data_type : data_types) {
     const int complexity = attribute_data_type_complexity(data_type);
@@ -296,19 +296,19 @@ AttrType attribute_data_type_highest_complexity(Span<AttrType> data_types)
 static int attribute_domain_priority(const AttrDomain domain)
 {
   switch (domain) {
-    case AttrDomain::Instance:
+    case AttrDomain::INSTANCE:
       return 0;
-    case AttrDomain::Layer:
+    case AttrDomain::LAYER:
       return 1;
-    case AttrDomain::Curve:
+    case AttrDomain::CURVE:
       return 2;
-    case AttrDomain::Face:
+    case AttrDomain::FACE:
       return 3;
-    case AttrDomain::Edge:
+    case AttrDomain::EDGE:
       return 4;
-    case AttrDomain::Point:
+    case AttrDomain::POINT:
       return 5;
-    case AttrDomain::Corner:
+    case AttrDomain::CORNER:
       return 6;
     default:
       /* Domain not supported in nodes yet. */
@@ -320,7 +320,7 @@ static int attribute_domain_priority(const AttrDomain domain)
 AttrDomain attribute_domain_highest_priority(Span<AttrDomain> domains)
 {
   int highest_priority = INT_MIN;
-  AttrDomain highest_priority_domain = AttrDomain::Corner;
+  AttrDomain highest_priority_domain = AttrDomain::CORNER;
 
   for (const AttrDomain domain : domains) {
     const int priority = attribute_domain_priority(domain);
@@ -569,7 +569,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     if (!domains.contains(iter.domain)) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
+    if (iter.data_type == AttrType::STRING) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -622,7 +622,7 @@ void gather_attributes(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
+    if (iter.data_type == AttrType::STRING) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -666,7 +666,7 @@ void gather_attributes(const AttributeAccessor src_attributes,
       if (iter.domain != src_domain) {
         return;
       }
-      if (iter.data_type == AttrType::String) {
+      if (iter.data_type == AttrType::STRING) {
         return;
       }
       if (attribute_filter.allow_skip(iter.name)) {
@@ -710,7 +710,7 @@ void gather_attributes_group_to_group(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
+    if (iter.data_type == AttrType::STRING) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -744,7 +744,7 @@ void gather_attributes_to_groups(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
+    if (iter.data_type == AttrType::STRING) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -809,7 +809,7 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
+    if (iter.data_type == AttrType::STRING) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -860,7 +860,7 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
+    if (iter.data_type == AttrType::STRING) {
       return;
     }
     const GVArray varray = *iter.get();

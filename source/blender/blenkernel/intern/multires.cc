@@ -155,7 +155,7 @@ Array<float3> BKE_multires_create_deformed_base_mesh_vert_coords(Depsgraph *deps
     if (!BKE_modifier_is_enabled(scene_eval, md, required_mode)) {
       continue;
     }
-    if (mti->type != ModifierTypeType::OnlyDeform) {
+    if (mti->type != ModifierTypeType::ONLY_DEFORM) {
       break;
     }
     BKE_modifier_deform_verts(md, &mesh_eval_context, base_mesh, deformed_verts);
@@ -281,7 +281,7 @@ void multires_flush_sculpt_updates(Object *object)
   }
 
   SculptSession *sculpt_session = object->runtime->sculpt_session;
-  if (pbvh->type() != bke::pbvh::Type::Grids || sculpt_session->multires_modifier == nullptr) {
+  if (pbvh->type() != bke::pbvh::Type::GRIDS || sculpt_session->multires_modifier == nullptr) {
     return;
   }
 
@@ -560,7 +560,7 @@ void multires_stitch_grids(Object *ob)
     return;
   }
   BLI_assert(bke::object::pbvh_get(*ob) &&
-             bke::object::pbvh_get(*ob)->type() == bke::pbvh::Type::Grids);
+             bke::object::pbvh_get(*ob)->type() == bke::pbvh::Type::GRIDS);
   BKE_subdiv_ccg_average_stitch_faces(*subdiv_ccg, IndexMask(subdiv_ccg->faces.size()));
 }
 
@@ -625,7 +625,7 @@ void multiresModifier_sync_levels_ex(Object *ob_dst,
 
   if (mmd_src->totlvl > mmd_dst->totlvl) {
     multiresModifier_subdivide_to_level(
-        ob_dst, mmd_dst, mmd_src->totlvl, MultiresSubdivideModeType::CatmullClark);
+        ob_dst, mmd_dst, mmd_src->totlvl, MultiresSubdivideModeType::CATMULL_CLARK);
   }
   else {
     multires_del_higher(mmd_dst, ob_dst, mmd_src->totlvl);

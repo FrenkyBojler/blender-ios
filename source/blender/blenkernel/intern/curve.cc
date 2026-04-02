@@ -63,11 +63,11 @@ namespace blender {
 // static CLG_LogRef LOG = {"geom.curve"};
 
 enum class NURBSValidationStatus {
-  Valid,
-  AtLeastTwoPointsRequired,
-  MorePointsThanOrderRequired,
-  MoreRowsForBezierRequired,
-  MorePointsForBezierRequired
+  VALID,
+  AT_LEAST_TWO_POINTS_REQUIRED,
+  MORE_POINTS_THAN_ORDER_REQUIRED,
+  MORE_ROWS_FOR_BEZIER_REQUIRED,
+  MORE_POINTS_FOR_BEZIER_REQUIRED
 };
 
 static void curve_init_data(ID *id)
@@ -4700,11 +4700,11 @@ static NURBSValidationStatus nurb_check_valid(const int pnts,
                                               int *r_points_needed)
 {
   if (pnts <= 1) {
-    return NURBSValidationStatus::AtLeastTwoPointsRequired;
+    return NURBSValidationStatus::AT_LEAST_TWO_POINTS_REQUIRED;
   }
   if (type == CU_NURBS) {
     if (pnts < order) {
-      return NURBSValidationStatus::MorePointsThanOrderRequired;
+      return NURBSValidationStatus::MORE_POINTS_THAN_ORDER_REQUIRED;
     }
     if (flag & CU_NURB_BEZIER) {
       int points_needed = 0;
@@ -4717,12 +4717,12 @@ static NURBSValidationStatus nurb_check_valid(const int pnts,
       }
       if (points_needed) {
         *r_points_needed = points_needed;
-        return is_surf ? NURBSValidationStatus::MoreRowsForBezierRequired :
-                         NURBSValidationStatus::MorePointsForBezierRequired;
+        return is_surf ? NURBSValidationStatus::MORE_ROWS_FOR_BEZIER_REQUIRED :
+                         NURBSValidationStatus::MORE_POINTS_FOR_BEZIER_REQUIRED;
       }
     }
   }
-  return NURBSValidationStatus::Valid;
+  return NURBSValidationStatus::VALID;
 }
 
 bool BKE_nurb_valid_message(const int pnts,
@@ -4739,10 +4739,10 @@ bool BKE_nurb_valid_message(const int pnts,
       pnts, order, flag, type, is_surf, &points_needed);
 
   switch (status) {
-    case NURBSValidationStatus::Valid:
+    case NURBSValidationStatus::VALID:
       message_dst[0] = 0;
       return false;
-    case NURBSValidationStatus::AtLeastTwoPointsRequired:
+    case NURBSValidationStatus::AT_LEAST_TWO_POINTS_REQUIRED:
       if (dir == 1) {
         /* Exception made for curves as their pntsv == 1. */
         message_dst[0] = 0;
@@ -4750,17 +4750,17 @@ bool BKE_nurb_valid_message(const int pnts,
       }
       BLI_strncpy(message_dst, RPT_("At least two points required"), maxncpy);
       break;
-    case NURBSValidationStatus::MorePointsThanOrderRequired:
+    case NURBSValidationStatus::MORE_POINTS_THAN_ORDER_REQUIRED:
       BLI_strncpy(message_dst, RPT_("Must have more control points than Order"), maxncpy);
       break;
-    case NURBSValidationStatus::MoreRowsForBezierRequired:
+    case NURBSValidationStatus::MORE_ROWS_FOR_BEZIER_REQUIRED:
       BLI_snprintf(message_dst,
                    maxncpy,
                    RPT_("%d more %s row(s) needed for Bézier"),
                    points_needed,
                    dir == 0 ? "U" : "V");
       break;
-    case NURBSValidationStatus::MorePointsForBezierRequired:
+    case NURBSValidationStatus::MORE_POINTS_FOR_BEZIER_REQUIRED:
       BLI_snprintf(
           message_dst, maxncpy, RPT_("%d more point(s) needed for Bézier"), points_needed);
       break;
@@ -4772,7 +4772,7 @@ bool BKE_nurb_valid_message(const int pnts,
 bool BKE_nurb_check_valid_u(const Nurb *nu)
 {
   int points_needed;
-  return NURBSValidationStatus::Valid ==
+  return NURBSValidationStatus::VALID ==
          nurb_check_valid(
              nu->pntsu, nu->orderu, nu->flagu, nu->type, nu->pntsv > 1, &points_needed);
 }
@@ -4780,7 +4780,7 @@ bool BKE_nurb_check_valid_u(const Nurb *nu)
 bool BKE_nurb_check_valid_v(const Nurb *nu)
 {
   int points_needed;
-  return NURBSValidationStatus::Valid ==
+  return NURBSValidationStatus::VALID ==
          nurb_check_valid(
              nu->pntsv, nu->orderv, nu->flagv, nu->type, nu->pntsv > 1, &points_needed);
 }

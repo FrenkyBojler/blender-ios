@@ -478,23 +478,23 @@ struct bNodeType {
  * not purely color tags. Some classes also have functional effects (e.g. `NODE_CLASS_INPUT`).
  */
 enum class NodeColorTag {
-  None = 0,
-  Attribute = 1,
-  Color = 2,
-  Converter = 3,
-  Distort = 4,
-  Filter = 5,
-  Geometry = 6,
-  Input = 7,
-  Matte = 8,
-  Output = 9,
-  Script = 10,
-  Shader = 11,
-  Texture = 12,
-  Vector = 13,
-  Pattern = 14,
-  Interface = 15,
-  Group = 16,
+  NONE = 0,
+  ATTRIBUTE = 1,
+  COLOR = 2,
+  CONVERTER = 3,
+  DISTORT = 4,
+  FILTER = 5,
+  GEOMETRY = 6,
+  INPUT = 7,
+  MATTE = 8,
+  OUTPUT = 9,
+  SCRIPT = 10,
+  SHADER = 11,
+  TEXTURE = 12,
+  VECTOR = 13,
+  PATTERN = 14,
+  INTERFACE = 15,
+  GROUP = 16,
 };
 
 using bNodeClassCallback = void (*)(void *calldata, int nclass, StringRefNull name);
@@ -1172,10 +1172,10 @@ void node_type_socket_templates(bNodeType *ntype,
 void node_type_size(bNodeType &ntype, int width, int minwidth, int maxwidth);
 
 enum class eNodeSizePreset : int8_t {
-  Default,
-  Small,
-  Middle,
-  Large,
+  DEFAULT,
+  SMALL,
+  MIDDLE,
+  LARGE,
 };
 
 void node_type_size_preset(bNodeType &ntype, eNodeSizePreset size);

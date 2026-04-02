@@ -191,24 +191,24 @@ IDTypeInfo IDType_ID_PT = {
 Span<float3> PointCloud::positions() const
 {
   return bke::get_span_attribute<float3>(
-             this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->totpoint)
+             this->attribute_storage.wrap(), bke::AttrDomain::POINT, "position", this->totpoint)
       .value_or(Span<float3>());
 }
 MutableSpan<float3> PointCloud::positions_for_write()
 {
   return bke::get_mutable_attribute<float3>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->totpoint);
+      this->attribute_storage.wrap(), bke::AttrDomain::POINT, "position", this->totpoint);
 }
 
 VArray<float> PointCloud::radius() const
 {
   return bke::get_varray_attribute<float>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "radius", this->totpoint, 0.01f);
+      this->attribute_storage.wrap(), bke::AttrDomain::POINT, "radius", this->totpoint, 0.01f);
 }
 MutableSpan<float> PointCloud::radius_for_write()
 {
   return bke::get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "radius", this->totpoint, 0.01f);
+      this->attribute_storage.wrap(), bke::AttrDomain::POINT, "radius", this->totpoint, 0.01f);
 }
 
 PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
@@ -228,7 +228,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   pointcloud->totpoint = totpoint;
 
   pointcloud->attributes_for_write().add<float3>(
-      "position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+      "position", bke::AttrDomain::POINT, bke::AttributeInitConstruct());
 
   return pointcloud;
 }
@@ -279,7 +279,7 @@ std::optional<int> PointCloud::material_index_max() const
   }
   std::optional<int> max_material_index = bounds::max<int>(
       this->attributes()
-          .lookup_or_default<int>("material_index", bke::AttrDomain::Point, 0)
+          .lookup_or_default<int>("material_index", bke::AttrDomain::POINT, 0)
           .varray);
   if (max_material_index.has_value()) {
     max_material_index = std::clamp(*max_material_index, 0, MAXMAT);
@@ -331,15 +331,15 @@ void pointcloud_resize(PointCloud &pointcloud, const int size)
   bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
   if (old_totpoint == 0) {
     /* If there were no points before, ensure the position attribute exists. */
-    attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+    attributes.add<float3>("position", bke::AttrDomain::POINT, bke::AttributeInitConstruct());
   }
 
-  pointcloud.attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud.totpoint);
+  pointcloud.attribute_storage.wrap().resize(bke::AttrDomain::POINT, pointcloud.totpoint);
 
   if (size > old_totpoint) {
     /* Initialize new points. */
     fill_attribute_range_default(
-        attributes, bke::AttrDomain::Point, {}, IndexRange(old_totpoint, size));
+        attributes, bke::AttrDomain::POINT, {}, IndexRange(old_totpoint, size));
   }
 }
 
@@ -395,7 +395,7 @@ static PointCloud *take_pointcloud_ownership_from_geometry_set(bke::GeometrySet 
   PointCloud *pointcloud = pointcloud_component.release();
   if (pointcloud != nullptr) {
     /* Add back, but as read-only non-owning component. */
-    pointcloud_component.replace(pointcloud, bke::GeometryOwnershipType::ReadOnly);
+    pointcloud_component.replace(pointcloud, bke::GeometryOwnershipType::READ_ONLY);
   }
   else {
     /* The component was empty, we can also remove it. */
@@ -412,7 +412,7 @@ void BKE_pointcloud_data_update(Depsgraph *depsgraph, Scene *scene, Object *obje
   /* Evaluate modifiers. */
   PointCloud *pointcloud = id_cast<PointCloud *>(object->data);
   bke::GeometrySet geometry_set = bke::GeometrySet::from_pointcloud(
-      pointcloud, bke::GeometryOwnershipType::ReadOnly);
+      pointcloud, bke::GeometryOwnershipType::READ_ONLY);
   pointcloud_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
   PointCloud *pointcloud_eval = take_pointcloud_ownership_from_geometry_set(geometry_set);

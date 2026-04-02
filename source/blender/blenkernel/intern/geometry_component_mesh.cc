@@ -17,10 +17,10 @@ namespace bke {
 /** \name Geometry Component Implementation
  * \{ */
 
-MeshComponent::MeshComponent() : GeometryComponent(Type::Mesh) {}
+MeshComponent::MeshComponent() : GeometryComponent(Type::MESH) {}
 
 MeshComponent::MeshComponent(Mesh *mesh, GeometryOwnershipType ownership)
-    : GeometryComponent(Type::Mesh), mesh_(mesh), ownership_(ownership)
+    : GeometryComponent(Type::MESH), mesh_(mesh), ownership_(ownership)
 {
 }
 
@@ -34,7 +34,7 @@ GeometryComponentPtr MeshComponent::copy() const
   MeshComponent *new_component = new MeshComponent();
   if (mesh_ != nullptr) {
     new_component->mesh_ = BKE_mesh_copy_for_eval(*mesh_);
-    new_component->ownership_ = GeometryOwnershipType::Owned;
+    new_component->ownership_ = GeometryOwnershipType::OWNED;
   }
   return GeometryComponentPtr(new_component);
 }
@@ -43,7 +43,7 @@ void MeshComponent::clear()
 {
   BLI_assert(this->is_mutable() || this->is_expired());
   if (mesh_ != nullptr) {
-    if (ownership_ == GeometryOwnershipType::Owned) {
+    if (ownership_ == GeometryOwnershipType::OWNED) {
       BKE_id_free(nullptr, mesh_);
     }
     mesh_ = nullptr;
@@ -79,9 +79,9 @@ const Mesh *MeshComponent::get() const
 Mesh *MeshComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ == GeometryOwnershipType::ReadOnly) {
+  if (ownership_ == GeometryOwnershipType::READ_ONLY) {
     mesh_ = BKE_mesh_copy_for_eval(*mesh_);
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
   return mesh_;
 }
@@ -93,17 +93,17 @@ bool MeshComponent::is_empty() const
 
 bool MeshComponent::owns_direct_data() const
 {
-  return ownership_ == GeometryOwnershipType::Owned;
+  return ownership_ == GeometryOwnershipType::OWNED;
 }
 
 void MeshComponent::ensure_owns_direct_data()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ != GeometryOwnershipType::Owned) {
+  if (ownership_ != GeometryOwnershipType::OWNED) {
     if (mesh_) {
       mesh_ = BKE_mesh_copy_for_eval(*mesh_);
     }
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
 }
 
@@ -127,15 +127,15 @@ VArray<float3> mesh_normals_varray(const Mesh &mesh,
                                    const bool true_normals)
 {
   switch (domain) {
-    case AttrDomain::Face: {
+    case AttrDomain::FACE: {
       return VArray<float3>::from_span(true_normals ? mesh.face_normals_true() :
                                                       mesh.face_normals());
     }
-    case AttrDomain::Point: {
+    case AttrDomain::POINT: {
       return VArray<float3>::from_span(true_normals ? mesh.vert_normals_true() :
                                                       mesh.vert_normals());
     }
-    case AttrDomain::Edge: {
+    case AttrDomain::EDGE: {
       /* In this case, start with vertex normals and convert to the edge domain, since the
        * conversion from edges to vertices is very simple. Use "manual" domain interpolation
        * instead of the GeometryComponent API to avoid calculating unnecessary values and to
@@ -151,13 +151,13 @@ VArray<float3> mesh_normals_varray(const Mesh &mesh,
 
       return VArray<float3>::from_container(std::move(edge_normals));
     }
-    case AttrDomain::Corner: {
+    case AttrDomain::CORNER: {
       if (no_corner_normals || true_normals) {
         return mesh.attributes().adapt_domain(
             VArray<float3>::from_span(true_normals ? mesh.face_normals_true() :
                                                      mesh.face_normals()),
-            AttrDomain::Face,
-            AttrDomain::Corner);
+            AttrDomain::FACE,
+            AttrDomain::CORNER);
       }
       return VArray<float3>::from_span(mesh.corner_normals());
     }

@@ -27,9 +27,9 @@ NodesModifierPackedBake *pack_bake_from_disk(const BakePath &bake_path, ReportLi
                                        ReportList *reports);
 
 enum class PackGeometryNodesBakeResult {
-  NoDataFound,
-  PackedAlready,
-  Success,
+  NO_DATA_FOUND,
+  PACKED_ALREADY,
+  SUCCESS,
 };
 
 PackGeometryNodesBakeResult pack_geometry_nodes_bake(Main &bmain,
@@ -39,10 +39,10 @@ PackGeometryNodesBakeResult pack_geometry_nodes_bake(Main &bmain,
                                                      NodesModifierBake &bake);
 
 enum class UnpackGeometryNodesBakeResult {
-  BlendFileNotSaved,
-  NoPackedData,
-  Error,
-  Success,
+  BLEND_FILE_NOT_SAVED,
+  NO_PACKED_DATA,
+  ERROR,
+  SUCCESS,
 };
 
 UnpackGeometryNodesBakeResult unpack_geometry_nodes_bake(Main &bmain,

@@ -442,8 +442,8 @@ static int get_reshape_level_resolution(const MultiresReshapeContext *reshape_co
 static bool is_crease_supported(const MultiresReshapeSmoothContext *reshape_smooth_context)
 {
   return !ELEM(reshape_smooth_context->smoothing_type,
-               MultiresSubdivideModeType::Linear,
-               MultiresSubdivideModeType::Simple);
+               MultiresSubdivideModeType::LINEAR,
+               MultiresSubdivideModeType::SIMPLE);
 }
 
 /* Get crease which will be used for communication to OpenSubdiv topology.
@@ -479,7 +479,7 @@ static bool foreach_topology_info(const bke::subdiv::ForeachContext *foreach_con
   MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<MultiresReshapeSmoothContext *>(foreach_context->user_data);
   const int max_edges = reshape_smooth_context->smoothing_type ==
-                                MultiresSubdivideModeType::Linear ?
+                                MultiresSubdivideModeType::LINEAR ?
                             num_edges :
                             reshape_smooth_context->geometry.max_edges;
 
@@ -693,7 +693,7 @@ static void foreach_edge(const bke::subdiv::ForeachContext *foreach_context,
   MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<MultiresReshapeSmoothContext *>(foreach_context->user_data);
 
-  if (reshape_smooth_context->smoothing_type == MultiresSubdivideModeType::Linear) {
+  if (reshape_smooth_context->smoothing_type == MultiresSubdivideModeType::LINEAR) {
     if (!is_loose) {
       store_edge(reshape_smooth_context, subdiv_v1, subdiv_v2, 1.0f);
     }
@@ -1324,8 +1324,8 @@ void multires_reshape_smooth_object_grids_with_details(
   }
 
   const MultiresSubdivideModeType smoothing_type = reshape_context->subdiv->settings.is_simple ?
-                                                       MultiresSubdivideModeType::Simple :
-                                                       MultiresSubdivideModeType::CatmullClark;
+                                                       MultiresSubdivideModeType::SIMPLE :
+                                                       MultiresSubdivideModeType::CATMULL_CLARK;
   MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, smoothing_type);
   geometry_create(&reshape_smooth_context);
   evaluate_linear_delta_grids(&reshape_smooth_context);

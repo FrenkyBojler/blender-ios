@@ -35,14 +35,14 @@ static const auto &array_storage_required()
 static int get_domain_size(const void *owner, const AttrDomain domain)
 {
   const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(owner);
-  return domain == AttrDomain::Layer ? grease_pencil.layers().size() : 0;
+  return domain == AttrDomain::LAYER ? grease_pencil.layers().size() : 0;
 }
 
 static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
 {
   AttributeAccessorFunctions fn{};
   fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
-    return domain == AttrDomain::Layer;
+    return domain == AttrDomain::LAYER;
   };
   fn.domain_size = get_domain_size;
   fn.builtin_domain_and_type = [](const void * /*owner*/, const StringRef /*name*/)
@@ -54,8 +54,8 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     if (!attribute) {
       return {};
     }
-    const int domain_size = get_domain_size(owner, AttrDomain::Layer);
-    return attribute_to_reader(*attribute, AttrDomain::Layer, domain_size);
+    const int domain_size = get_domain_size(owner, AttrDomain::LAYER);
+    return attribute_to_reader(*attribute, AttrDomain::LAYER, domain_size);
   };
   fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
     const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
@@ -74,7 +74,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
                        const GVArray &varray,
                        const AttrDomain from_domain,
                        const AttrDomain to_domain) {
-    if (from_domain == to_domain && from_domain == AttrDomain::Layer) {
+    if (from_domain == to_domain && from_domain == AttrDomain::LAYER) {
       return varray;
     }
     return GVArray{};
@@ -86,8 +86,8 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     const AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     for (const Attribute &attribute : storage) {
       const auto get_fn = [&]() {
-        const int domain_size = get_domain_size(owner, AttrDomain::Layer);
-        return attribute_to_reader(attribute, AttrDomain::Layer, domain_size);
+        const int domain_size = get_domain_size(owner, AttrDomain::LAYER);
+        return attribute_to_reader(attribute, AttrDomain::LAYER, domain_size);
       };
       AttributeIter iter(attribute.name(), attribute.domain(), attribute.data_type(), get_fn);
       iter.is_builtin = builtin_attributes().contains(attribute.name());
@@ -113,7 +113,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     if (!attribute) {
       return {};
     }
-    const int domain_size = get_domain_size(owner, AttrDomain::Layer);
+    const int domain_size = get_domain_size(owner, AttrDomain::LAYER);
     return attribute_to_writer(&grease_pencil, {}, domain_size, *attribute);
   };
   fn.remove = [](void *owner, const StringRef name) -> bool {
@@ -153,7 +153,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     const bool array = array_storage_required().contains(name);
     Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer, array);
     storage.add(name, domain, type, std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }
@@ -186,7 +186,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
                                                          initializer,
                                                          array_storage_required().contains(name));
     attr->assign_data(std::move(data));
-    if (initializer.type != AttributeInit::Type::Construct) {
+    if (initializer.type != AttributeInit::Type::CONSTRUCT) {
       if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
         (*fn)(owner);
       }

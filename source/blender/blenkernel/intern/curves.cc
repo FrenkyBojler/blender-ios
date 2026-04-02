@@ -236,7 +236,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
 
   /* Evaluate modifiers. */
   Curves *curves = id_cast<Curves *>(object->data);
-  GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::ReadOnly);
+  GeometrySet geometry_set = GeometrySet::from_curves(curves, GeometryOwnershipType::READ_ONLY);
   if (ELEM(object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_CURVES)) {
     /* Try to propagate deformation data through modifier evaluation, so that sculpt mode can work
      * on evaluated curves. */
@@ -384,7 +384,7 @@ std::optional<MutableSpan<float3>> CurvesEditHints::positions_for_write()
 
 void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<float3> normals)
 {
-  const bke::CurvesFieldContext context(curves, AttrDomain::Point);
+  const bke::CurvesFieldContext context(curves, AttrDomain::POINT);
   fn::FieldEvaluator evaluator(context, curves.points_num());
   fn::Field<float3> field(std::make_shared<bke::NormalFieldInput>());
   evaluator.add_with_destination(std::move(field), normals);

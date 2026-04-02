@@ -225,12 +225,12 @@ enum class ARegionTypeFlag {
    * which panels are visible. Available categories are collected during layout and cached in
    * #ARegion.panels_category_active.
    */
-  UsePanelCategories = (1 << 0),
+  USE_PANEL_CATEGORIES = (1 << 0),
   /**
    * Same as #UsePanelCategories, plus panel drawing will draw tabs for the categories in this
    * region.
    */
-  UsePanelCategoryTabs = (1 << 1),
+  USE_PANEL_CATEGORY_TABS = (1 << 1),
 };
 ENUM_OPERATORS(ARegionTypeFlag)
 
@@ -498,11 +498,11 @@ namespace bke {
 
 /** #ARegionRuntime.quadview_index */
 enum class ARegionQuadviewIndex : uint8_t {
-  None = 0,
-  BottomLeft = 1,
-  TopLeft = 2,
-  BottomRight = 3,
-  TopRight = 4,
+  NONE = 0,
+  BOTTOM_LEFT = 1,
+  TOP_LEFT = 2,
+  BOTTOM_RIGHT = 3,
+  TOP_RIGHT = 4,
 };
 
 struct ARegionRuntime {
@@ -559,7 +559,7 @@ struct ARegionRuntime {
   /** Private, cached notifier events. */
   short do_draw_paintcursor;
 
-  ARegionQuadviewIndex quadview_index = ARegionQuadviewIndex::None;
+  ARegionQuadviewIndex quadview_index = ARegionQuadviewIndex::NONE;
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
@@ -641,11 +641,11 @@ enum class MenuTypeFlag {
    * Whether the menu depends on data retrieved via #CTX_data_pointer_get. If it is context
    * dependent, menu search has to scan it in different contexts.
    */
-  ContextDependent = (1 << 0),
+  CONTEXT_DEPENDENT = (1 << 0),
   /**
    * Automatically start searching in the menu when pressing a key.
    */
-  SearchOnKeyPress = (1 << 1),
+  SEARCH_ON_KEY_PRESS = (1 << 1),
 };
 ENUM_OPERATORS(MenuTypeFlag)
 

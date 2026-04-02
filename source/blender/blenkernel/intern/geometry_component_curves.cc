@@ -17,10 +17,10 @@ namespace blender::bke {
 /** \name Geometry Component Implementation
  * \{ */
 
-CurveComponent::CurveComponent() : GeometryComponent(Type::Curve) {}
+CurveComponent::CurveComponent() : GeometryComponent(Type::CURVE) {}
 
 CurveComponent::CurveComponent(Curves *curve, GeometryOwnershipType ownership)
-    : GeometryComponent(Type::Curve), curves_(curve), ownership_(ownership)
+    : GeometryComponent(Type::CURVE), curves_(curve), ownership_(ownership)
 {
 }
 
@@ -34,7 +34,7 @@ GeometryComponentPtr CurveComponent::copy() const
   CurveComponent *new_component = new CurveComponent();
   if (curves_ != nullptr) {
     new_component->curves_ = BKE_curves_copy_for_eval(curves_);
-    new_component->ownership_ = GeometryOwnershipType::Owned;
+    new_component->ownership_ = GeometryOwnershipType::OWNED;
   }
   return GeometryComponentPtr(new_component);
 }
@@ -43,7 +43,7 @@ void CurveComponent::clear()
 {
   BLI_assert(this->is_mutable() || this->is_expired());
   if (curves_ != nullptr) {
-    if (ownership_ == GeometryOwnershipType::Owned) {
+    if (ownership_ == GeometryOwnershipType::OWNED) {
       BKE_id_free(nullptr, curves_);
     }
     if (curve_for_render_ != nullptr) {
@@ -86,9 +86,9 @@ const Curves *CurveComponent::get() const
 Curves *CurveComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ == GeometryOwnershipType::ReadOnly) {
+  if (ownership_ == GeometryOwnershipType::READ_ONLY) {
     curves_ = BKE_curves_copy_for_eval(curves_);
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
   return curves_;
 }
@@ -100,17 +100,17 @@ bool CurveComponent::is_empty() const
 
 bool CurveComponent::owns_direct_data() const
 {
-  return ownership_ == GeometryOwnershipType::Owned;
+  return ownership_ == GeometryOwnershipType::OWNED;
 }
 
 void CurveComponent::ensure_owns_direct_data()
 {
   BLI_assert(this->is_mutable());
-  if (ownership_ != GeometryOwnershipType::Owned) {
+  if (ownership_ != GeometryOwnershipType::OWNED) {
     if (curves_) {
       curves_ = BKE_curves_copy_for_eval(curves_);
     }
-    ownership_ = GeometryOwnershipType::Owned;
+    ownership_ = GeometryOwnershipType::OWNED;
   }
 }
 
@@ -155,7 +155,7 @@ static Array<float3> curve_normal_point_domain(const CurvesGeometry &curves)
   const VArray<bool> curves_cyclic = curves.cyclic();
   const AttributeAccessor attributes = curves.attributes();
   const VArray<float3> custom_normals = *attributes.lookup_or_default<float3>(
-      "custom_normal", AttrDomain::Point, float3(0, 0, 1));
+      "custom_normal", AttrDomain::POINT, float3(0, 0, 1));
 
   const Span<float3> positions = curves.positions();
   const VArray<int8_t> normal_modes = curves.normal_mode();
@@ -226,18 +226,18 @@ VArray<float3> curve_normals_varray(const CurvesGeometry &curves, const AttrDoma
   const VArray<int8_t> types = curves.curve_types();
   if (curves.is_single_type(CURVE_TYPE_POLY)) {
     return curves.adapt_domain<float3>(
-        VArray<float3>::from_span(curves.evaluated_normals()), AttrDomain::Point, domain);
+        VArray<float3>::from_span(curves.evaluated_normals()), AttrDomain::POINT, domain);
   }
 
   Array<float3> normals = curve_normal_point_domain(curves);
 
-  if (domain == AttrDomain::Point) {
+  if (domain == AttrDomain::POINT) {
     return VArray<float3>::from_container(std::move(normals));
   }
 
-  if (domain == AttrDomain::Curve) {
+  if (domain == AttrDomain::CURVE) {
     return curves.adapt_domain<float3>(
-        VArray<float3>::from_container(std::move(normals)), AttrDomain::Point, AttrDomain::Curve);
+        VArray<float3>::from_container(std::move(normals)), AttrDomain::POINT, AttrDomain::CURVE);
   }
 
   return nullptr;
@@ -260,12 +260,12 @@ static VArray<float> construct_curve_length_gvarray(const CurvesGeometry &curves
         return curves.evaluated_length_total_for_curve(index, cyclic[index]);
       });
 
-  if (domain == AttrDomain::Curve) {
+  if (domain == AttrDomain::CURVE) {
     return lengths;
   }
 
-  if (domain == AttrDomain::Point) {
-    return curves.adapt_domain<float>(std::move(lengths), AttrDomain::Curve, AttrDomain::Point);
+  if (domain == AttrDomain::POINT) {
+    return curves.adapt_domain<float>(std::move(lengths), AttrDomain::CURVE, AttrDomain::POINT);
   }
 
   return {};
@@ -297,7 +297,7 @@ bool CurveLengthFieldInput::is_equal_to(const fn::FieldNode &other) const
 std::optional<AttrDomain> CurveLengthFieldInput::preferred_domain(
     const CurvesGeometry & /*curves*/) const
 {
-  return AttrDomain::Curve;
+  return AttrDomain::CURVE;
 }
 
 /** \} */

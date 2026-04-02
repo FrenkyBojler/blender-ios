@@ -49,13 +49,13 @@ AttributeOwner AttributeOwner::from_id(ID *id)
   }
   switch (GS(id->name)) {
     case ID_ME:
-      return AttributeOwner(AttributeOwnerType::Mesh, id);
+      return AttributeOwner(AttributeOwnerType::MESH, id);
     case ID_PT:
-      return AttributeOwner(AttributeOwnerType::PointCloud, id);
+      return AttributeOwner(AttributeOwnerType::POINT_CLOUD, id);
     case ID_CV:
-      return AttributeOwner(AttributeOwnerType::Curves, id);
+      return AttributeOwner(AttributeOwnerType::CURVES, id);
     case ID_GP:
-      return AttributeOwner(AttributeOwnerType::GreasePencil, id);
+      return AttributeOwner(AttributeOwnerType::GREASE_PENCIL, id);
     default:
       return {};
   }
@@ -74,50 +74,50 @@ bool AttributeOwner::is_valid() const
 Mesh *AttributeOwner::get_mesh() const
 {
   BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::Mesh);
+  BLI_assert(type_ == AttributeOwnerType::MESH);
   return reinterpret_cast<Mesh *>(ptr_);
 }
 
 PointCloud *AttributeOwner::get_pointcloud() const
 {
   BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::PointCloud);
+  BLI_assert(type_ == AttributeOwnerType::POINT_CLOUD);
   return reinterpret_cast<PointCloud *>(ptr_);
 }
 
 Curves *AttributeOwner::get_curves() const
 {
   BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::Curves);
+  BLI_assert(type_ == AttributeOwnerType::CURVES);
   return reinterpret_cast<Curves *>(ptr_);
 }
 
 GreasePencil *AttributeOwner::get_grease_pencil() const
 {
   BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::GreasePencil);
+  BLI_assert(type_ == AttributeOwnerType::GREASE_PENCIL);
   return reinterpret_cast<GreasePencil *>(ptr_);
 }
 
 GreasePencilDrawing *AttributeOwner::get_grease_pencil_drawing() const
 {
   BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::GreasePencilDrawing);
+  BLI_assert(type_ == AttributeOwnerType::GREASE_PENCIL_DRAWING);
   return reinterpret_cast<GreasePencilDrawing *>(ptr_);
 }
 
 bke::AttributeStorage *AttributeOwner::get_storage() const
 {
   switch (type_) {
-    case AttributeOwnerType::Mesh:
+    case AttributeOwnerType::MESH:
       return &this->get_mesh()->attribute_storage.wrap();
-    case AttributeOwnerType::PointCloud:
+    case AttributeOwnerType::POINT_CLOUD:
       return &this->get_pointcloud()->attribute_storage.wrap();
-    case AttributeOwnerType::Curves:
+    case AttributeOwnerType::CURVES:
       return &this->get_curves()->geometry.attribute_storage.wrap();
-    case AttributeOwnerType::GreasePencil:
+    case AttributeOwnerType::GREASE_PENCIL:
       return &this->get_grease_pencil()->attribute_storage.wrap();
-    case AttributeOwnerType::GreasePencilDrawing:
+    case AttributeOwnerType::GREASE_PENCIL_DRAWING:
       return &this->get_grease_pencil_drawing()->geometry.attribute_storage.wrap();
   }
   BLI_assert(false);
@@ -127,17 +127,17 @@ bke::AttributeStorage *AttributeOwner::get_storage() const
 std::optional<bke::MutableAttributeAccessor> AttributeOwner::get_accessor() const
 {
   switch (type_) {
-    case AttributeOwnerType::Mesh:
+    case AttributeOwnerType::MESH:
       /* The attribute API isn't implemented for BMesh, so edit mode meshes are not supported. */
       BLI_assert(this->get_mesh()->runtime->edit_mesh == nullptr);
       return this->get_mesh()->attributes_for_write();
-    case AttributeOwnerType::PointCloud:
+    case AttributeOwnerType::POINT_CLOUD:
       return this->get_pointcloud()->attributes_for_write();
-    case AttributeOwnerType::Curves:
+    case AttributeOwnerType::CURVES:
       return this->get_curves()->geometry.wrap().attributes_for_write();
-    case AttributeOwnerType::GreasePencil:
+    case AttributeOwnerType::GREASE_PENCIL:
       return this->get_grease_pencil()->attributes_for_write();
-    case AttributeOwnerType::GreasePencilDrawing:
+    case AttributeOwnerType::GREASE_PENCIL_DRAWING:
       return this->get_grease_pencil_drawing()->geometry.wrap().attributes_for_write();
   }
   BLI_assert(false);
@@ -152,14 +152,14 @@ struct DomainInfo {
 static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(BMesh *bm)
 {
   std::array<DomainInfo, ATTR_DOMAIN_NUM> info;
-  info[int(AttrDomain::Point)].customdata = &bm->vdata;
-  info[int(AttrDomain::Point)].length = bm->totvert;
-  info[int(AttrDomain::Edge)].customdata = &bm->edata;
-  info[int(AttrDomain::Edge)].length = bm->totedge;
-  info[int(AttrDomain::Corner)].customdata = &bm->ldata;
-  info[int(AttrDomain::Corner)].length = bm->totloop;
-  info[int(AttrDomain::Face)].customdata = &bm->pdata;
-  info[int(AttrDomain::Face)].length = bm->totface;
+  info[int(AttrDomain::POINT)].customdata = &bm->vdata;
+  info[int(AttrDomain::POINT)].length = bm->totvert;
+  info[int(AttrDomain::EDGE)].customdata = &bm->edata;
+  info[int(AttrDomain::EDGE)].length = bm->totedge;
+  info[int(AttrDomain::CORNER)].customdata = &bm->ldata;
+  info[int(AttrDomain::CORNER)].length = bm->totloop;
+  info[int(AttrDomain::FACE)].customdata = &bm->pdata;
+  info[int(AttrDomain::FACE)].length = bm->totface;
   return info;
 }
 
@@ -244,7 +244,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
     return false;
   }
 
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       /* NOTE: Checking if the new name matches the old name only makes sense when the name
@@ -272,7 +272,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
 
       std::string result_name = BKE_attribute_calc_unique_name(owner, new_name);
 
-      if (attr.type == bke::AttrType::Float2) {
+      if (attr.type == bke::AttrType::FLOAT2) {
         /* Rename UV sub-attributes. */
         char buffer_src[MAX_CUSTOMDATA_LAYER_NAME];
         char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
@@ -303,7 +303,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
     return false;
   }
 
-  if (owner.type() == AttributeOwnerType::Curves) {
+  if (owner.type() == AttributeOwnerType::CURVES) {
     Curves *curves = owner.get_curves();
     if (!name_valid_for_builtin_domain_and_type(curves->geometry.wrap().attributes(),
                                                 new_name,
@@ -314,12 +314,12 @@ bool BKE_attribute_rename(AttributeOwner &owner,
       return false;
     }
   }
-  else if (owner.type() == AttributeOwnerType::Mesh) {
+  else if (owner.type() == AttributeOwnerType::MESH) {
     Mesh *mesh = owner.get_mesh();
     if (!mesh_attribute_valid(*mesh, new_name, attr->domain(), attr->data_type(), reports)) {
       return false;
     }
-    if (attr->data_type() == bke::AttrType::Float2) {
+    if (attr->data_type() == bke::AttrType::FLOAT2) {
       /* Rename UV sub-attributes. */
       char buffer_src[MAX_CUSTOMDATA_LAYER_NAME];
       char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
@@ -350,7 +350,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
   const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh &mesh = *owner.get_mesh();
     if (mesh.runtime->edit_mesh) {
       Set<StringRef, 8> names;
@@ -448,7 +448,7 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
     return false;
   }
 
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
@@ -496,7 +496,7 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
                 uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)));
           }
 
-          if (type == CD_PROP_FLOAT2 && domain == int(AttrDomain::Corner)) {
+          if (type == CD_PROP_FLOAT2 && domain == int(AttrDomain::CORNER)) {
             char buffer[MAX_CUSTOMDATA_LAYER_NAME];
             BM_data_layer_free_named(em->bm, data, BKE_uv_map_pin_name_get(name_copy, buffer));
           }
@@ -512,7 +512,7 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
     return false;
   }
 
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const std::string name_copy = name;
     std::optional<bke::AttributeMetaData> metadata = attributes->lookup_meta_data(name_copy);
     if (!metadata) {
@@ -564,7 +564,7 @@ int BKE_attributes_length(const AttributeOwner &owner,
                           const eCustomDataMask mask,
                           const bool include_anonymous)
 {
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
       const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
@@ -625,12 +625,12 @@ AttrDomain BKE_attribute_domain(const Mesh &mesh, const BMesh &bm, const CustomD
   }
 
   BLI_assert_msg(0, "Custom data layer not found in geometry");
-  return AttrDomain(AttrDomain::Point);
+  return AttrDomain(AttrDomain::POINT);
 }
 
 int BKE_attribute_domain_size(const AttributeOwner &owner, const int domain)
 {
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
       const BMesh &bm = *em->bm;
@@ -645,15 +645,15 @@ int BKE_attribute_domain_size(const AttributeOwner &owner, const int domain)
 bool BKE_attribute_required(const AttributeOwner &owner, const StringRef name)
 {
   switch (owner.type()) {
-    case AttributeOwnerType::PointCloud:
+    case AttributeOwnerType::POINT_CLOUD:
       return BKE_pointcloud_attribute_required(owner.get_pointcloud(), name);
-    case AttributeOwnerType::Curves:
+    case AttributeOwnerType::CURVES:
       return BKE_curves_attribute_required(owner.get_curves(), name);
-    case AttributeOwnerType::Mesh:
+    case AttributeOwnerType::MESH:
       return BKE_mesh_attribute_required(name);
-    case AttributeOwnerType::GreasePencil:
+    case AttributeOwnerType::GREASE_PENCIL:
       return false;
-    case AttributeOwnerType::GreasePencilDrawing:
+    case AttributeOwnerType::GREASE_PENCIL_DRAWING:
       return BKE_grease_pencil_drawing_attribute_required(owner.get_grease_pencil_drawing(), name);
   }
   return false;
@@ -666,7 +666,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
   if (active_index == -1) {
     return std::nullopt;
   }
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       if (active_index > BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL)) {
@@ -705,7 +705,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
 
 void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
 {
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
       const int index = BKE_attribute_to_index(
@@ -727,19 +727,19 @@ void BKE_attributes_active_clear(AttributeOwner &owner)
 int *BKE_attributes_active_index_p(AttributeOwner &owner)
 {
   switch (owner.type()) {
-    case AttributeOwnerType::PointCloud: {
+    case AttributeOwnerType::POINT_CLOUD: {
       return &owner.get_pointcloud()->attributes_active_index;
     }
-    case AttributeOwnerType::Mesh: {
+    case AttributeOwnerType::MESH: {
       return &owner.get_mesh()->attributes_active_index;
     }
-    case AttributeOwnerType::Curves: {
+    case AttributeOwnerType::CURVES: {
       return &owner.get_curves()->geometry.attributes_active_index;
     }
-    case AttributeOwnerType::GreasePencil: {
+    case AttributeOwnerType::GREASE_PENCIL: {
       return &owner.get_grease_pencil()->attributes_active_index;
     }
-    case AttributeOwnerType::GreasePencilDrawing: {
+    case AttributeOwnerType::GREASE_PENCIL_DRAWING: {
       return &owner.get_grease_pencil_drawing()->geometry.attributes_active_index;
     }
   }
@@ -752,7 +752,7 @@ std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
                                                   const eCustomDataMask layer_mask,
                                                   const bool include_anonymous)
 {
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
       const BMesh &bm = *em->bm;
@@ -810,7 +810,7 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
                            eCustomDataMask layer_mask,
                            const bool include_anonymous)
 {
-  if (owner.type() == AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::MESH) {
     const Mesh &mesh = *owner.get_mesh();
     if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
       const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);

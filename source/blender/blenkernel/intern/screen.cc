@@ -373,7 +373,7 @@ bool BKE_regiontype_uses_categories(const ARegionType *region_type)
     return true;
   }
 
-  return bool(region_type->flag & ARegionTypeFlag::UsePanelCategories);
+  return bool(region_type->flag & ARegionTypeFlag::USE_PANEL_CATEGORIES);
 }
 
 bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type)
@@ -383,7 +383,7 @@ bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type)
     return true;
   }
 
-  return bool(region_type->flag & ARegionTypeFlag::UsePanelCategoryTabs);
+  return bool(region_type->flag & ARegionTypeFlag::USE_PANEL_CATEGORY_TABS);
 }
 
 /** \} */
@@ -945,7 +945,7 @@ ARegion *BKE_region_find_in_listbase_by_type(const ListBaseT<ARegion> *regionbas
 
 void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src)
 {
-  constexpr short flag_copy = HEADER_NO_PULLDOWN;
+  constexpr short FLAG_COPY = HEADER_NO_PULLDOWN;
 
   area_dst->spacetype = area_src->spacetype;
   area_dst->type = area_src->type;
@@ -953,7 +953,7 @@ void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src)
   /* Remove 'restore from fullscreen' data from the new copy. */
   area_dst->full = nullptr;
 
-  area_dst->flag = (area_dst->flag & ~flag_copy) | (area_src->flag & flag_copy);
+  area_dst->flag = (area_dst->flag & ~FLAG_COPY) | (area_src->flag & FLAG_COPY);
 
   /* Spaces. */
   BKE_spacedata_copylist(&area_dst->spacedata, &area_src->spacedata);

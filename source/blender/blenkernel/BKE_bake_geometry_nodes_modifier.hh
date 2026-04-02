@@ -28,14 +28,14 @@ namespace bke::bake {
 
 enum class CacheStatus {
   /** The cache is up-to-date with the inputs. */
-  Valid,
+  VALID,
   /**
    * Nodes or input values have changed since the cache was created, i.e. the output would be
    * different if the simulation was run again.
    */
-  Invalid,
+  INVALID,
   /** The cache has been baked and will not be invalidated by changing inputs. */
-  Baked,
+  BAKED,
 };
 
 /**
@@ -86,7 +86,7 @@ struct NodeBakeCache {
 struct SimulationNodeCache {
   NodeBakeCache bake;
 
-  CacheStatus cache_status = CacheStatus::Valid;
+  CacheStatus cache_status = CacheStatus::VALID;
 
   /** Previous simulation state when only that is stored (instead of the state for every frame). */
   std::optional<PrevCache> prev_cache;

@@ -140,7 +140,7 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   cumap->preset = CURVE_PRESET_LINE;
 
-  BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CurveMapSlopeType::POSITIVE);
   BKE_curvemapping_changed(cumap, false);
   BKE_curvemapping_init(cumap);
 
@@ -150,7 +150,7 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
 CurveMapping *BKE_paint_default_curve()
 {
   CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
-  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CurveMapSlopeType::Positive);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CurveMapSlopeType::POSITIVE);
   BKE_curvemapping_init(cumap);
 
   return cumap;
@@ -173,7 +173,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(mblur_shutter_curve->cm,
                      &mblur_shutter_curve->clipr,
                      CURVE_PRESET_MAX,
-                     CurveMapSlopeType::PositiveNegative);
+                     CurveMapSlopeType::POSITIVE_NEGATIVE);
 
   scene->toolsettings = MEM_new<ToolSettings>(__func__);
 
@@ -190,7 +190,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(gp_falloff_curve->cm,
                      &gp_falloff_curve->clipr,
                      CURVE_PRESET_GAUSS,
-                     CurveMapSlopeType::Positive);
+                     CurveMapSlopeType::POSITIVE);
 
   scene->toolsettings->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
   CurveMapping *gp_primitive_curve = scene->toolsettings->gp_sculpt.cur_primitive;
@@ -198,7 +198,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(gp_primitive_curve->cm,
                      &gp_primitive_curve->clipr,
                      CURVE_PRESET_BELL,
-                     CurveMapSlopeType::Positive);
+                     CurveMapSlopeType::POSITIVE);
 
   scene->unit.system = USER_UNIT_METRIC;
   scene->unit.scale_length = 1.0f;

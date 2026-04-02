@@ -383,7 +383,7 @@ static bool reuse_bmain_move_id(ReuseOldBMainData *reuse_data,
   BLI_addtail(new_lb, id);
   if (handle_name_map_updates) {
     BKE_id_new_name_validate(
-        *new_bmain, *new_lb, *id, nullptr, IDNewNameMode::RenameExistingNever, true);
+        *new_bmain, *new_lb, *id, nullptr, IDNewNameMode::RENAME_EXISTING_NEVER, true);
   }
   else {
     id_sort_by_name(new_lb, id, nullptr);
@@ -1977,7 +1977,7 @@ ID *PartialWriteContext::id_add(
                                                      PartialWriteContext::IDAddOptions options)>
         dependencies_filter_cb)
 {
-  constexpr int make_local_flags = (LIB_ID_MAKELOCAL_INDIRECT | LIB_ID_MAKELOCAL_FORCE_LOCAL |
+  constexpr int MAKE_LOCAL_FLAGS = (LIB_ID_MAKELOCAL_INDIRECT | LIB_ID_MAKELOCAL_FORCE_LOCAL |
                                     LIB_ID_MAKELOCAL_LIBOVERRIDE_CLEAR);
 
   const bool add_dependencies = (options.operations & ADD_DEPENDENCIES) != 0;
@@ -2149,7 +2149,7 @@ ID *PartialWriteContext::id_add(
   for (auto [ctx_id, options_final] : post_process_ids_todo) {
     const bool do_make_local = (options_final & MAKE_LOCAL) != 0;
     if (do_make_local) {
-      this->make_local(ctx_id, make_local_flags);
+      this->make_local(ctx_id, MAKE_LOCAL_FLAGS);
     }
   }
 

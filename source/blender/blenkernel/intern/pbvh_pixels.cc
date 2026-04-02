@@ -311,7 +311,7 @@ static bool update_pixels(const Depsgraph &depsgraph,
   }
 
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_name, AttrDomain::Corner);
+  const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_name, AttrDomain::CORNER);
 
   uv_islands::MeshData mesh_data(mesh.faces(),
                                  mesh.corner_tris(),
