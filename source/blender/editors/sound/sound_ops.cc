@@ -344,10 +344,10 @@ static bool sound_mixdown_progress(float progress, void *data)
 
 struct SoundMixdownJobData {
   wmWindowManager *wm = nullptr;
-  bool interface_is_locked = false;
+  bool interface_locked = false;
 
   Scene *scene_eval = nullptr;
-  std::string filepath = "";
+  std::string filepath;
   aud::Container container{};
   aud::Codec codec{};
   aud::DeviceSpecs specs{};
@@ -356,7 +356,7 @@ struct SoundMixdownJobData {
   bool split = false;
 
   bool succeeded = false;
-  std::string error_message = "";
+  std::string error_message;
 };
 
 static void sound_mixdown_startjob(void *customdata, wmJobWorkerStatus *worker_status)
@@ -401,7 +401,7 @@ static void sound_mixdown_endjob(void *customdata)
 {
   SoundMixdownJobData *mixdown_job_data = static_cast<SoundMixdownJobData *>(customdata);
 
-  if (mixdown_job_data->interface_is_locked) {
+  if (mixdown_job_data->interface_locked) {
     WM_locked_interface_set(mixdown_job_data->wm, false);
   }
 
@@ -452,7 +452,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
     WM_locked_interface_set(mixdown_job_data->wm, true);
     /* Save the state in the main thread to avoid any issues if the user messes with the setting
      * during rendering. */
-    mixdown_job_data->interface_is_locked = true;
+    mixdown_job_data->interface_locked = true;
   }
 
   wmJob *wm_job = WM_jobs_get(wm,
