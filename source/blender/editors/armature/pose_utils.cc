@@ -166,13 +166,12 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   }
 
   tPChanFCurveLink *pfl = MEM_new<tPChanFCurveLink>("tPChanFCurveLink");
+  BLI_addtail(&pfLinks, pfl);
 
   pfl->fcurves = curves;
   animrig::Transformable *transformable = MEM_new<animrig::Transformable>(
       "transformable_pose_bone", ob, pchan);
   pfl->transformable = transformable;
-
-  BLI_addtail(&pfLinks, pfl);
 
   /* Set pchan's transform flags. */
   pfl->transform_flag = transFlags;

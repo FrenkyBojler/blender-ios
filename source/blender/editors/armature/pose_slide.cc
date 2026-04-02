@@ -188,7 +188,7 @@ static const EnumPropertyItem prop_axis_lock_types[] = {
 /* ------------------------------------ */
 
 /** Operator custom-data initialization. */
-static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
+static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 {
   tPoseSlideOp *pso = MEM_new<tPoseSlideOp>(__func__);
   op->customdata = pso;
@@ -264,7 +264,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   }
 
   /* Return status is whether we've got all the data we were requested to get. */
-  return 1;
+  return true;
 }
 
 /**
@@ -360,7 +360,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
   float prev_frame, next_frame;
   pose_frame_range_from_id_get(&pso, transformable->owner_id(), &prev_frame, &next_frame);
 
-  for (FCurve *fcurve : fcurves) {
+  for (const FCurve *fcurve : fcurves) {
     prev_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
     next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
   }
@@ -499,7 +499,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   const int len = pfl->transformable->rna_path().size();
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->transformable);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->transformable->data());
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
@@ -520,98 +520,101 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
     bPtr = strstr(fcu->rna_path, pfl->transformable->rna_path().data()) + len;
     pPtr = strstr(bPtr, prop_prefix);
 
-    if (pPtr) {
-      /* Use RNA to try and get a handle on this property, then, assuming that it is just
-       * numerical, try and grab the value as a float for temp editing before setting back. */
-      PropertyRNA *prop = RNA_struct_find_property(&ptr, pPtr);
+    if (!pPtr) {
+      continue;
+    }
+    /* Use RNA to try and get a handle on this property, then, assuming that it is just
+     * numerical, try and grab the value as a float for temp editing before setting back. */
+    PropertyRNA *prop = RNA_struct_find_property(&ptr, pPtr);
 
-      if (prop) {
-        switch (RNA_property_type(prop)) {
-          /* Continuous values that can be smoothly interpolated. */
-          case PROP_FLOAT: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
-            }
-            else {
-              tval = RNA_property_float_get(&ptr, prop);
-            }
+    if (!prop) {
+      continue;
+    }
 
-            pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
-
-            if (is_array) {
-              RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_float_set(&ptr, prop, tval);
-            }
-            break;
+    switch (RNA_property_type(prop)) {
+      /* Continuous values that can be smoothly interpolated. */
+      case PROP_FLOAT: {
+        const bool is_array = RNA_property_array_check(prop);
+        float tval;
+        if (is_array) {
+          if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
+            break; /* Out of range, skip. */
           }
-          case PROP_INT: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
-            }
-            else {
-              tval = RNA_property_int_get(&ptr, prop);
-            }
-
-            pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
-
-            if (is_array) {
-              RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_int_set(&ptr, prop, tval);
-            }
-            break;
-          }
-
-          /* Values which can only take discrete values. */
-          case PROP_BOOLEAN: {
-            const bool is_array = RNA_property_array_check(prop);
-            float tval;
-            if (is_array) {
-              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
-                break; /* Out of range, skip. */
-              }
-              tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
-            }
-            else {
-              tval = float(RNA_property_boolean_get(&ptr, prop));
-            }
-
-            pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
-
-            /* XXX: do we need threshold clamping here? */
-            if (is_array) {
-              RNA_property_boolean_set_index(&ptr, prop, fcu->array_index, tval);
-            }
-            else {
-              RNA_property_boolean_set(&ptr, prop, tval);
-            }
-            break;
-          }
-          case PROP_ENUM: {
-            /* Don't handle this case - these don't usually represent interchangeable
-             * set of values which should be interpolated between. */
-            break;
-          }
-
-          default:
-            /* Cannot handle. */
-            // printf("Cannot Pose Slide non-numerical property\n");
-            break;
+          tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
         }
+        else {
+          tval = RNA_property_float_get(&ptr, prop);
+        }
+
+        pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
+
+        if (is_array) {
+          RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
+        }
+        else {
+          RNA_property_float_set(&ptr, prop, tval);
+        }
+        break;
       }
+      case PROP_INT: {
+        const bool is_array = RNA_property_array_check(prop);
+        float tval;
+        if (is_array) {
+          if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
+            break; /* Out of range, skip. */
+          }
+          tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
+        }
+        else {
+          tval = RNA_property_int_get(&ptr, prop);
+        }
+
+        pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
+
+        if (is_array) {
+          RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
+        }
+        else {
+          RNA_property_int_set(&ptr, prop, tval);
+        }
+        break;
+      }
+
+      /* Values which can only take discrete values. */
+      case PROP_BOOLEAN: {
+        const bool is_array = RNA_property_array_check(prop);
+        float tval;
+        if (is_array) {
+          if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
+            break; /* Out of range, skip. */
+          }
+          tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
+        }
+        else {
+          tval = float(RNA_property_boolean_get(&ptr, prop));
+        }
+
+        pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
+
+        /* XXX: do we need threshold clamping here? */
+        if (is_array) {
+          RNA_property_boolean_set_index(&ptr, prop, fcu->array_index, tval);
+        }
+        else {
+          RNA_property_boolean_set(&ptr, prop, tval);
+        }
+        break;
+      }
+      case PROP_ENUM: {
+        /* Don't handle this case - these don't usually represent interchangeable
+         * set of values which should be interpolated between. */
+        break;
+      }
+
+      default:
+        /* Cannot handle. */
+        // printf("Cannot Pose Slide non-numerical property\n");
+        break;
     }
   }
 }
@@ -1649,7 +1652,7 @@ static void propagate_curve_values(ListBaseT<tPChanFCurveLink> *pflinks,
 {
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
-  for (tPChanFCurveLink &pfl : *pflinks) {
+  for (const tPChanFCurveLink &pfl : *pflinks) {
     for (FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
@@ -1663,11 +1666,11 @@ static void propagate_curve_values(ListBaseT<tPChanFCurveLink> *pflinks,
   }
 }
 
-static float find_next_key(ListBaseT<tPChanFCurveLink> *pflinks, const float start_frame)
+static float find_next_key(const ListBaseT<tPChanFCurveLink> *pflinks, const float start_frame)
 {
   float target_frame = FLT_MAX;
-  for (tPChanFCurveLink &pfl : *pflinks) {
-    for (FCurve *fcu : pfl.fcurves) {
+  for (const tPChanFCurveLink &pfl : *pflinks) {
+    for (const FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1685,11 +1688,11 @@ static float find_next_key(ListBaseT<tPChanFCurveLink> *pflinks, const float sta
   return target_frame;
 }
 
-static float find_last_key(ListBaseT<tPChanFCurveLink> *pflinks)
+static float find_last_key(const ListBaseT<tPChanFCurveLink> *pflinks)
 {
   float target_frame = FLT_MIN;
-  for (tPChanFCurveLink &pfl : *pflinks) {
-    for (FCurve *fcu : pfl.fcurves) {
+  for (const tPChanFCurveLink &pfl : *pflinks) {
+    for (const FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1718,7 +1721,7 @@ static void get_keyed_frames_in_range(ListBaseT<tPChanFCurveLink> *pflinks,
                                       ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  for (tPChanFCurveLink &pfl : *pflinks) {
+  for (const tPChanFCurveLink &pfl : *pflinks) {
     for (FCurve *fcu : pfl.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
@@ -1737,11 +1740,11 @@ static void get_keyed_frames_in_range(ListBaseT<tPChanFCurveLink> *pflinks,
   ED_keylist_free(keylist);
 }
 
-static void get_selected_frames(ListBaseT<tPChanFCurveLink> *pflinks,
+static void get_selected_frames(const ListBaseT<tPChanFCurveLink> *pflinks,
                                 ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  for (tPChanFCurveLink &pfl : *pflinks) {
+  for (const tPChanFCurveLink &pfl : *pflinks) {
     for (FCurve *fcu : pfl.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
     }

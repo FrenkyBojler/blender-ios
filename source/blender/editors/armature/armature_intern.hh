@@ -148,33 +148,33 @@ enum eAction_TransformFlags {
 
 /* Temporary data linking PoseChannels with the F-Curves they affect */
 struct tPChanFCurveLink {
-  tPChanFCurveLink *next, *prev;
+  tPChanFCurveLink *next, *prev = nullptr;
 
   /** The Transformable which the data is attached to */
-  animrig::Transformable *transformable;
+  animrig::Transformable *transformable = nullptr;
   /** F-Curves for this Transformable. */
-  Vector<FCurve *> fcurves;
+  Vector<FCurve *> fcurves = {};
   /* This is used as an optimization to only do blending on transform types that actually have
    * animation. */
-  eAction_TransformFlags transform_flag;
+  eAction_TransformFlags transform_flag = eAction_TransformFlags(0);
 
   /** Transform values at start of operator (to be restored before each modal step). */
-  Array<float> old_loc;
-  animrig::Rotation old_rot;
-  Array<float> old_scale;
+  Array<float> old_loc = {};
+  animrig::Rotation old_rot = {};
+  Array<float> old_scale = {};
 
   /** old bbone values (to be restored along with the transform properties) */
-  float roll1, roll2;
+  float roll1, roll2 = 0;
   /** (NOTE: we haven't renamed these this time, as their names are already long enough) */
-  float curve_in_x, curve_in_z;
-  float curve_out_x, curve_out_z;
-  float ease1, ease2;
+  float curve_in_x, curve_in_z = 0;
+  float curve_out_x, curve_out_z = 0;
+  float ease1, ease2 = 0;
   float scale_in[3];
   float scale_out[3];
 
   /** copy of custom properties at start of operator (to be restored before each modal step) */
-  IDProperty *oldprops;
-  IDProperty *old_system_properties;
+  IDProperty *oldprops = nullptr;
+  IDProperty *old_system_properties = nullptr;
 };
 
 /* ----------- */
