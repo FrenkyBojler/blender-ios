@@ -17,7 +17,7 @@ WARMUP_SECONDS = 3
 WARMUP_FRAMES = 10
 RECORD_PLAYBACK_ITER = 3
 MIN_NUM_FRAMES_TOTAL = 250
-LOG_KEY = "WORKBENCH_PERFORMANCE: "
+LOG_KEY = "VIEWPORT_PERFORMANCE: "
 
 
 def _run(args):
@@ -48,12 +48,6 @@ def frame_change_handler(scene):
         frame_set_mode = False
         # Overwrite animation FPS limit set by .blend files.
         bpy.context.scene.render.fps = 1000
-
-        for area in screen.areas:
-            if area.type == 'VIEW_3D':
-                space = area.spaces[0]
-                space.shading.type = 'SOLID'
-                space.overlay.show_overlays = False
 
         start_warmup_time = time.perf_counter()
         warmup_frame = 0
@@ -102,7 +96,7 @@ if __name__ == '__main__':
 else:
     import api
 
-    class WorkbenchTest(api.Test):
+    class ViewportTest(api.Test):
         def __init__(self, filepath):
             self.filepath = filepath
 
@@ -110,7 +104,7 @@ else:
             return self.filepath.stem
 
         def category(self):
-            return "workbench"
+            return "viewport"
 
         def use_device(self) -> bool:
             return True
@@ -135,5 +129,5 @@ else:
             raise Exception("No playback performance result found in log.")
 
     def generate(env):
-        filepaths = env.find_blend_files('eevee/*')
+        filepaths = env.find_blend_files('viewport/*')
         return [WorkbenchTest(filepath) for filepath in filepaths]
