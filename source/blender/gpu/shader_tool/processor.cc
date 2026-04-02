@@ -77,8 +77,6 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
         return {line_directive_prefix(filename) + parser.result_get(), metadata_};
       }
 
-      parse_local_symbols(parser);
-
       /* Lower high level parsing complexity.
        * Merge tokens that can be combined together,
        * remove the token that are unsupported or that are noop.
@@ -91,8 +89,11 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       lower_noop_keywords(parser);
       lower_trailing_comma_in_list(parser);
       lower_comma_separated_declarations(parser);
+      lower_assert(parser, filename);
 
       parser.apply_mutations();
+
+      parse_local_symbols(parser);
 
       /* Linting phase. Detect valid syntax with invalid usage. */
       lint_unbraced_statements(parser);
@@ -102,21 +103,9 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       lint_constructors(parser);
       lint_forward_declared_structs(parser);
 
-      /* Lower noop attributes after linting them. */
-      lower_maybe_unused(parser);
-      /* Lower assert first to keep original condition. */
-      lower_assert(parser, filename);
-      /* Lint and remove C++ accessor templates before lowering template. */
-      lower_srt_accessor_templates(parser);
-      lower_union_accessor_templates(parser);
-      /* Lower implicit members before we remove SRT member from their struct. */
-      lower_implicit_member(parser);
-      /* Lower namespaces. */
-      lower_using(parser);
-      lower_namespaces(parser);
-      lower_scope_resolution_operators(parser);
+      /* All mutations that needs to also be applied on template definitions. */
+      lower_pre_template(parser);
       /* Lower templates. */
-      lower_template_dependent_names(parser);
       lower_templates(parser);
       /* Lower unions and then lint shared structures. */
       lower_unions(parser);
@@ -195,6 +184,8 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
 {
   metadata_ = {};
 
+  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
+
   string str = this->source_;
   str = remove_comments(str);
   str = disabled_code_mutation(str);
@@ -206,6 +197,22 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
   parser.apply_mutations();
 
   lower_preprocessor(parser);
+
+  parser.apply_mutations();
+
+  /* Lower high level parsing complexity.
+   * Merge tokens that can be combined together,
+   * remove the token that are unsupported or that are noop.
+   * All these steps should be independent. */
+  lower_namesless_parameters(parser);
+  lower_attribute_sequences(parser);
+  lower_strings_sequences(parser);
+  lower_swizzle_methods(parser);
+  lower_classes(parser);
+  lower_noop_keywords(parser);
+  lower_trailing_comma_in_list(parser);
+  lower_comma_separated_declarations(parser);
+  lower_assert(parser, filename);
 
   parser.apply_mutations();
 
@@ -1118,6 +1125,8 @@ void SourceProcessor::lower_noop_keywords(Parser &parser)
   };
   parser().foreach_token(Private, process_access);
   parser().foreach_token(Public, process_access);
+
+  lower_template_dependent_names(parser);
 }
 
 void SourceProcessor::lower_trailing_comma_in_list(Parser &parser)

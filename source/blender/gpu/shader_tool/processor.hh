@@ -181,6 +181,8 @@ class SourceProcessor {
   /* Lower template definition and instantiation by doing simple copy paste + argument
    * substitution. */
   void lower_templates(Parser &parser);
+  void lower_template_calls(Parser &parser);
+  void lower_template_specialization(Parser &parser);
   /* Ensures pragma once is present in headers to comply to our include semantic. */
   void lint_pragma_once(Parser &parser, const std::string &filename);
   /* Unroll loops by copy pasting content. */
@@ -330,6 +332,31 @@ class SourceProcessor {
   /* Parse subscript scope with single integer literal and return the literal value.
    * Return the fallback value in any case of non-literal value, or failed conversion. */
   int static_array_size(const Scope &array, int fallback_value);
+
+  void process_template_struct(metadata::TemplateDefinition &template_def,
+                               SourceProcessor::Parser &parser);
+  void process_template_function(metadata::TemplateDefinition &template_def,
+                                 SourceProcessor::Parser &parser);
+
+  void lower_pre_template(Parser &parser);
+
+  void lower_template_instantiation(
+      Parser &parser,
+      const Token &inst_start,
+      const Token &inst_name,
+      const Scope &inst_args,
+      const Token &fn_start,
+      const Token &fn_end,
+      const Token &fn_name,
+      /* Method template instantiation reside outside of their struct.
+       * For this reason they have the struct name_prepended. */
+      const std::string_view full_specified_name,
+      const bool is_method,
+      const std::vector<std::string> &arg_list,
+      const std::string &fn_decl,
+      const std::string_view &template_filename,
+      const std::string_view &instance_filename,
+      const bool all_template_args_in_function_signature);
 
  public:
   /* Check for existence of preprocessor pragma in file. */
