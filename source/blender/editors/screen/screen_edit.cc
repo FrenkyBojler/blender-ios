@@ -1193,9 +1193,8 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
     if (screen->active_region != nullptr &&
         screen->active_region->runtime->type->cursor_ime != nullptr)
     {
-      const std::optional<blender::int2> pos =
-          screen->active_region->runtime->type->cursor_ime(
-              win, area, screen->active_region);
+      const std::optional<blender::int2> pos = screen->active_region->runtime->type->cursor_ime(
+          win, area, screen->active_region);
       if (pos) {
         wm_window_IME_begin(win,
                             screen->active_region->winrct.xmin + pos->x,

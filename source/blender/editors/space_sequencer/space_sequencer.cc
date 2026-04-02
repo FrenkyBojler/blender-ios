@@ -857,10 +857,21 @@ static void sequencer_preview_region_view2d_changed(const bContext *C, ARegion *
 }
 
 #ifdef WITH_INPUT_IME
-static std::optional<blender::int2> sequencer_preview_region_cursor_ime(
-    wmWindow * /*win*/, ScrArea * /*area*/, ARegion *region)
+static std::optional<blender::int2> sequencer_preview_region_cursor_ime(wmWindow *win,
+                                                                        ScrArea * /*area*/,
+                                                                        ARegion *region)
 {
-  return blender::int2(0, BLI_rcti_size_y(&region->winrct));
+  WorkSpace *workspace = WM_window_get_active_workspace(win);
+  Scene *scene = workspace->sequencer_scene;
+  if (!scene) {
+    return std::nullopt;
+  }
+  std::optional<blender::int2> pos = sequencer_text_editing_cursor_region_xy_get(scene, region);
+  if (pos) {
+    pos->x = std::clamp(pos->x, 0, BLI_rcti_size_x(&region->winrct));
+    pos->y = std::clamp(pos->y, 0, BLI_rcti_size_y(&region->winrct));
+  }
+  return pos;
 }
 #endif
 

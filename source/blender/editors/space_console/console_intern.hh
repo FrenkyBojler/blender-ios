@@ -25,7 +25,10 @@ void console_textview_main(SpaceConsole *sc, const ARegion *region);
 int console_textview_height(SpaceConsole *sc, const ARegion *region);
 int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2]);
 /** Get the region-coordinate position for a character \a offset in the input line. */
-void console_cursor_region_xy_get(SpaceConsole *sc, const ARegion *region, int offset, int r_xy[2]);
+void console_cursor_region_xy_get(SpaceConsole *sc,
+                                  const ARegion *region,
+                                  int offset,
+                                  int r_xy[2]);
 
 void console_scrollback_prompt_begin(SpaceConsole *sc, ConsoleLine *cl_dummy);
 void console_scrollback_prompt_end(SpaceConsole *sc, ConsoleLine *cl_dummy);

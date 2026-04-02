@@ -527,12 +527,8 @@ void ED_region_do_draw(bContext *C, ARegion *region)
       if (pos) {
         /* Start fresh when no IME session exists, reposition otherwise. */
         const bool complete = (win->runtime->ime_data == nullptr);
-        wm_window_IME_begin(win,
-                            region->winrct.xmin + pos->x,
-                            region->winrct.ymin + pos->y,
-                            0,
-                            0,
-                            complete);
+        wm_window_IME_begin(
+            win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, complete);
       }
       else {
         /* cursor_ime returned nullopt (e.g. exited edit mode, or navigating).
@@ -2839,8 +2835,11 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     ED_area_exit(C, area);
 
 #ifdef WITH_INPUT_IME
-    /* End any active IME session — the old space type's cursor_ime is no longer valid. */
-    wm_window_IME_end(win);
+    /* Will be null for newly opened windows (file selector for e.g.). */
+    if (win->runtime && win->runtime->ghostwin) {
+      /* End any active IME session - the old space type's cursor_ime is no longer valid. */
+      wm_window_IME_end(win);
+    }
 #endif
 
     /* restore old area exit callback */

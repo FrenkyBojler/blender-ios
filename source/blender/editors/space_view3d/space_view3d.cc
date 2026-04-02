@@ -587,8 +587,8 @@ static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
     float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
     /* Transform to world space, then project to region coordinates. */
     const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
-    if (ED_view3d_project_float_global(
-            region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK)
+    if (ED_view3d_project_float_global(region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) !=
+        V3D_PROJ_RET_OK)
     {
       cursor_screen = float2(0);
     }
