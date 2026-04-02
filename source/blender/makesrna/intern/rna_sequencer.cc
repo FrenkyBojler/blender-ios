@@ -1900,7 +1900,23 @@ static bool rna_Compositor_node_group_poll(PointerRNA * /*ptr*/, PointerRNA valu
   return true;
 }
 
-static void strip_compositor_node_group_update(Main *bmain, PointerRNA *ptr)
+static void strip_compositor_effect_node_group_update(Main *bmain, PointerRNA *ptr)
+{
+  /* Tag depsgraph relations for an update since the strip could now be referencing a different
+   * node tree. */
+  DEG_relations_tag_update(bmain);
+
+  /* Strips from other scenes could be modified, so use the scene of the strip as opposed to the
+   * active scene argument. */
+  Scene *strip_scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Editing *ed = seq::editing_get(strip_scene);
+
+  /* The sequencer stores a cached mapping between compositor node trees and strips that use them,
+   * so we need to invalidate the cache since the node tree changed. */
+  seq::strip_lookup_invalidate(ed);
+}
+
+static void strip_compositor_modifier_node_group_update(Main *bmain, PointerRNA *ptr)
 {
   /* Tag depsgraph relations for an update since the strip could now be referencing a different
    * node tree. */
@@ -1925,13 +1941,13 @@ static void strip_compositor_node_group_update(Main *bmain, PointerRNA *ptr)
 static void rna_CompositorEffect_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_Strip_invalidate_raw_update(bmain, scene, ptr);
-  strip_compositor_node_group_update(bmain, ptr);
+  strip_compositor_effect_node_group_update(bmain, ptr);
 }
 
 static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_StripModifier_update(bmain, scene, ptr);
-  strip_compositor_node_group_update(bmain, ptr);
+  strip_compositor_modifier_node_group_update(bmain, ptr);
 }
 
 static StructRNA *rna_SequencerCompositorModifierProperties_refine(PointerRNA *ptr)
