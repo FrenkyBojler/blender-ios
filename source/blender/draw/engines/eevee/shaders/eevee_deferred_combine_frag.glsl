@@ -12,6 +12,7 @@
 FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_combine)
 
 #include "draw_view_lib.glsl"
+#include "eevee_closure_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
@@ -59,6 +60,7 @@ void main()
   const uchar closure_count = gbuf.header.closure_len();
   const uint3 bin_indices = gbuf.header.bin_index_per_layer();
 
+  float sum_weight = 0.0f;
   float3 diffuse_color = float3(0.0f);
   float3 diffuse_direct = float3(0.0f);
   float3 diffuse_indirect = float3(0.0f);
@@ -68,6 +70,7 @@ void main()
   float3 out_direct = float3(0.0f);
   float3 out_indirect = float3(0.0f);
   float3 average_normal = float3(0.0f);
+  float average_squared_roughness = 0.0f;
 
   for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < closure_count; i++) {
     ClosureUndetermined cl = gbuf.layer_get(i);
@@ -82,7 +85,14 @@ void main()
       closure_indirect_light = load_radiance_indirect(texel, layer_index);
     }
 
-    average_normal += cl.N * reduce_add(cl.color);
+    float closure_weight = reduce_add(cl.color);
+    sum_weight += closure_weight;
+
+    average_normal += cl.N * closure_weight;
+
+    /* Accumulate squared roughness like in Cycles. */
+    float closure_roughness = closure_apparent_roughness_get(cl);
+    average_squared_roughness += SQUARE(closure_roughness) * closure_weight;
 
     switch (cl.type) {
       case CLOSURE_BSDF_TRANSLUCENT_ID:
@@ -165,6 +175,13 @@ void main()
     float depth = texelFetch(hiz_tx, texel, 0).r;
     float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
     output_renderpass_color(uniform_buf.render_pass.position_id, float4(P, 1.0f));
+  }
+  if (render_pass_roughness_enabled) {
+    if (sum_weight >= 1e-5f) {
+      average_squared_roughness /= sum_weight;
+    }
+    output_renderpass_value(uniform_buf.render_pass.roughness_id,
+                            sqrtf(average_squared_roughness));
   }
 
   out_combined = float4(out_direct + out_indirect, 0.0f);

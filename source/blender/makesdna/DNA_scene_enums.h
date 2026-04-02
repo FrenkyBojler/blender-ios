@@ -130,6 +130,7 @@ enum eScenePassType {
 #define RE_PASSNAME_INDEXOB "Object Index"
 #define RE_PASSNAME_INDEXMA "Material Index"
 #define RE_PASSNAME_MIST "Mist"
+#define RE_PASSNAME_ROUGHNESS "Roughness"
 
 #define RE_PASSNAME_DIFFUSE_DIRECT "Diffuse Direct"
 #define RE_PASSNAME_DIFFUSE_INDIRECT "Diffuse Indirect"

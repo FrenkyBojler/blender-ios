@@ -50,8 +50,8 @@ struct [[host_shared]] RenderBuffersInfoData {
   int value_len;
   int shadow_id;
   int ambient_occlusion_id;
+  int roughness_id;
   int _pad0;
-  int _pad1;
 };
 
 #ifndef GPU_SHADER

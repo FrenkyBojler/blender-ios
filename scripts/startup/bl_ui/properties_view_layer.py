@@ -122,6 +122,7 @@ class VIEWLAYER_PT_eevee_layer_passes_data(ViewLayerButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_mist")
         col.prop(view_layer, "use_pass_normal")
         col.prop(view_layer, "use_pass_position")
+        col.prop(view_layer, "use_pass_roughness")
         sub = col.column()
         sub.active = not scene.render.use_motion_blur
         sub.prop(view_layer, "use_pass_vector")

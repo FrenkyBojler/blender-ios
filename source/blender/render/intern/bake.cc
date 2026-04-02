@@ -1055,7 +1055,8 @@ int RE_pass_depth(const eScenePassType pass_type)
   switch (pass_type) {
     case SCE_PASS_DEPTH:
     case SCE_PASS_AO:
-    case SCE_PASS_MIST: {
+    case SCE_PASS_MIST:
+    case SCE_PASS_ROUGHNESS: {
       return 1;
     }
     case SCE_PASS_UV: {

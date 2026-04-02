@@ -778,6 +778,7 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     float mist_accum = 0.0f;
     float shadow_accum = 0.0f;
     float ao_accum = 0.0f;
+    float roughness_accum = 0.0f;
 
     for (int i = 0; i < samples_len; i++) {
       FilmSample src = film_sample_get(i, texel_film);
@@ -806,6 +807,11 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
                         uniform_buf.render_pass.ambient_occlusion_id,
                         rp_value_tx,
                         ao_accum);
+      film_sample_accum(src,
+                        uniform_buf.film.roughness_id,
+                        uniform_buf.render_pass.roughness_id,
+                        rp_value_tx,
+                        roughness_accum);
       film_sample_accum_mist(src, mist_accum);
     }
     /* Monochrome render passes that have colored outputs. Set alpha to 1. */
@@ -817,6 +823,7 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     film_store_color(dst, uniform_buf.film.environment_id, environment_accum, out_color);
     film_store_color(dst, uniform_buf.film.shadow_id, shadow_accum_color, out_color);
     film_store_color(dst, uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color);
+    film_store_value(dst, uniform_buf.film.roughness_id, roughness_accum, out_color);
     film_store_value(dst, uniform_buf.film.mist_id, mist_accum, out_color);
   }
 

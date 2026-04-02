@@ -161,6 +161,7 @@ TEST(view_layer, aov_conflict)
       scene, engine, view_layer, aov, "Glossy Direct", "use_pass_glossy_direct");
   test_render_pass_conflict(
       scene, engine, view_layer, aov, "Glossy Color", "use_pass_glossy_color");
+  test_render_pass_conflict(scene, engine, view_layer, aov, "Roughness", "use_pass_roughness");
 
   BKE_main_free(bmain);
 

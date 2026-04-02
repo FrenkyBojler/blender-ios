@@ -88,6 +88,7 @@ struct [[host_shared]] FilmData {
   int shadow_id;
   int ambient_occlusion_id;
   int transparent_id;
+  int roughness_id;
   /** Not indexed but still not -1 if enabled. */
   int depth_id;
   int combined_id;
@@ -124,7 +125,6 @@ struct [[host_shared]] FilmData {
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
   float samples_weight_total;
-  int _pad2;
   struct FilmSample samples[FILM_PRECOMP_SAMPLE_MAX];
 };
 

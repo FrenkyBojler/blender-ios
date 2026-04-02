@@ -30,6 +30,7 @@ rl_outputs = (
     RL_entry('use_pass_mist', 'Mist', 'Mist', True, True),
     RL_entry('use_pass_normal', 'Normal', 'Normal', True, True),
     RL_entry('use_pass_object_index', 'Object Index', 'Object Index', False, True),
+    RL_entry('use_pass_roughness', 'Roughness', 'Roughness', True, False),
     RL_entry('use_pass_shadow', 'Shadow', 'Shadow', False, True),
     RL_entry('use_pass_subsurface_color', 'Subsurface Color', 'Subsurface Color', True, True),
     RL_entry('use_pass_subsurface_direct', 'Subsurface Direct', 'Subsurface Direct', True, True),

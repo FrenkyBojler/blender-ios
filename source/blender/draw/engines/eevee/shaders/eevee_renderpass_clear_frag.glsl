@@ -28,6 +28,7 @@ void main()
   output_renderpass_color(uniform_buf.render_pass.specular_color_id, clear_color);
   output_renderpass_color(uniform_buf.render_pass.emission_id, clear_color);
   output_renderpass_value(uniform_buf.render_pass.shadow_id, 1.0f);
+  output_renderpass_value(uniform_buf.render_pass.roughness_id, 0.0f);
   /** NOTE: AO is done on its own pass. */
 
   int2 texel = int2(gl_FragCoord.xy);

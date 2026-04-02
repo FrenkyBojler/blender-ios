@@ -201,6 +201,7 @@ class Film {
     switch (pass_type) {
       case EEVEE_RENDER_PASS_DEPTH:
       case EEVEE_RENDER_PASS_MIST:
+      case EEVEE_RENDER_PASS_ROUGHNESS:
         return PASS_STORAGE_VALUE;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
       case EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET:
@@ -254,6 +255,8 @@ class Film {
         return data_.shadow_id;
       case EEVEE_RENDER_PASS_AO:
         return data_.ambient_occlusion_id;
+      case EEVEE_RENDER_PASS_ROUGHNESS:
+        return data_.roughness_id;
       case EEVEE_RENDER_PASS_TRANSPARENT:
         return data_.transparent_id;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
@@ -329,6 +332,9 @@ class Film {
         break;
       case EEVEE_RENDER_PASS_AO:
         result.append(RE_PASSNAME_AO);
+        break;
+      case EEVEE_RENDER_PASS_ROUGHNESS:
+        result.append(RE_PASSNAME_ROUGHNESS);
         break;
       case EEVEE_RENDER_PASS_TRANSPARENT:
         result.append(RE_PASSNAME_TRANSPARENT);

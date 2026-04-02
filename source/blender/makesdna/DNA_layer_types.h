@@ -55,8 +55,9 @@ enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_VECTOR = (1 << 19),
   EEVEE_RENDER_PASS_TRANSPARENT = (1 << 20),
   EEVEE_RENDER_PASS_POSITION = (1 << 21),
+  EEVEE_RENDER_PASS_ROUGHNESS = (1 << 22),
 };
-#define EEVEE_RENDER_PASS_MAX_BIT 21
+#define EEVEE_RENDER_PASS_MAX_BIT 22
 ENUM_OPERATORS(eViewLayerEEVEEPassType)
 
 /* #ViewLayer::grease_pencil_flags */

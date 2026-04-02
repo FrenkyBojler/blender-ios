@@ -225,6 +225,7 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
   ENABLE_FROM_LEGACY(GLOSSY_DIRECT, SPECULAR_LIGHT)
   ENABLE_FROM_LEGACY(ENVIRONMENT, ENVIRONMENT)
   ENABLE_FROM_LEGACY(VECTOR, VECTOR)
+  ENABLE_FROM_LEGACY(ROUGHNESS, ROUGHNESS)
 
 #undef ENABLE_FROM_LEGACY
 
@@ -400,7 +401,9 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                                                    EEVEE_RENDER_PASS_SPECULAR_COLOR |
                                                    EEVEE_RENDER_PASS_ENVIRONMENT |
                                                    EEVEE_RENDER_PASS_MIST |
-                                                   EEVEE_RENDER_PASS_SHADOW | EEVEE_RENDER_PASS_AO;
+                                                   EEVEE_RENDER_PASS_SHADOW |
+                                                   EEVEE_RENDER_PASS_AO |
+                                                   EEVEE_RENDER_PASS_ROUGHNESS;
     const eViewLayerEEVEEPassType color_passes_3 = EEVEE_RENDER_PASS_TRANSPARENT;
 
     data_.exposure_scale = pow2f(scene.view_settings.exposure);
@@ -458,6 +461,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
     data_.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
     data_.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
+    data_.roughness_id = pass_index_get(EEVEE_RENDER_PASS_ROUGHNESS);
 
     data_.aov_color_id = data_.color_len;
     data_.aov_value_id = data_.value_len;
