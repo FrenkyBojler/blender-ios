@@ -50,6 +50,8 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
+#include "NOD_geometry_nodes_srna.hh"
+
 #include "BLT_translation.hh"
 
 namespace blender {
@@ -1014,7 +1016,7 @@ static void mesh_tessface_calc(Mesh &mesh)
   const VArray sharp_faces = *attributes.lookup_or_default<bool>(
       "sharp_face", bke::AttrDomain::Face, false);
 
-  /* Allocate the length of `totfaces`, avoid many small reallocation's,
+  /* Allocate the length of `totfaces`, avoid many small reallocations,
    * if all faces are triangles it will be correct, `quads == 2x` allocations. */
   /* Take care since memory is _not_ zeroed so be sure to initialize each field. */
   mface_to_poly_map = MEM_new_array_uninitialized<int>(size_t(corner_tris_num), __func__);
@@ -2265,15 +2267,22 @@ static ModifierData *create_auto_smooth_modifier(
   md->node_group = get_node_group(object.id.lib);
   id_us_plus(&md->node_group->id);
 
-  md->settings.properties = idprop::create_group("Nodes Modifier Settings").release();
-  IDProperty *angle_prop = idprop::create("Socket_2", angle).release();
-  auto *ui_data = reinterpret_cast<IDPropertyUIDataFloat *>(IDP_ui_data_ensure(angle_prop));
-  ui_data->base.rna_subtype = PROP_ANGLE;
-  ui_data->soft_min = 0.0f;
-  ui_data->soft_max = DEG2RADF(180.0f);
-  IDP_AddToGroup(md->settings.properties, angle_prop);
-  IDP_AddToGroup(md->settings.properties, idprop::create("Socket_2_use_attribute", 0).release());
-  IDP_AddToGroup(md->settings.properties, idprop::create("Socket_2_attribute_name", "").release());
+  IDProperty *system_props = bke::idprop::create_group("NodesModifierProperties").release();
+
+  IDProperty *inputs = bke::idprop::create_group("inputs").release();
+  IDP_AddToGroup(system_props, inputs);
+
+  IDProperty *angle_prop_group = bke::idprop::create_group("Socket_2").release();
+  IDP_AddToGroup(inputs, angle_prop_group);
+
+  IDProperty *type_prop =
+      idprop::create("type", int(nodes::GeometryNodesInputType::Value)).release();
+  IDP_AddToGroup(angle_prop_group, type_prop);
+
+  IDProperty *angle_prop = idprop::create("value", angle).release();
+  IDP_AddToGroup(angle_prop_group, angle_prop);
+
+  md->modifier.system_properties = system_props;
 
   BKE_modifiers_persistent_uid_init(object, md->modifier);
   return &md->modifier;
@@ -2436,8 +2445,13 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
     if (data != nullptr) {
       static_assert(sizeof(FreestyleEdge) == sizeof(bool));
       static_assert(char(FREESTYLE_EDGE_MARK) == char(true));
-      CustomData_add_layer_named_with_data(
-          &mesh.edge_data, CD_PROP_BOOL, data, mesh.edges_num, "freestyle_edge", sharing_info);
+      Attribute::ArrayData array_data{};
+      array_data.data = data;
+      array_data.size = mesh.edges_num;
+      sharing_info->add_user();
+      array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      mesh.attribute_storage.wrap().add(
+          "freestyle_edge", bke::AttrDomain::Edge, bke::AttrType::Bool, std::move(array_data));
     }
     if (sharing_info != nullptr) {
       sharing_info->remove_user_and_delete_if_last();
@@ -2460,8 +2474,13 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
     if (data != nullptr) {
       static_assert(sizeof(FreestyleFace) == sizeof(bool));
       static_assert(char(FREESTYLE_FACE_MARK) == char(true));
-      CustomData_add_layer_named_with_data(
-          &mesh.face_data, CD_PROP_BOOL, data, mesh.faces_num, "freestyle_face", sharing_info);
+      Attribute::ArrayData array_data{};
+      array_data.data = data;
+      array_data.size = mesh.edges_num;
+      sharing_info->add_user();
+      array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      mesh.attribute_storage.wrap().add(
+          "freestyle_face", bke::AttrDomain::Face, bke::AttrType::Bool, std::move(array_data));
     }
     if (sharing_info != nullptr) {
       sharing_info->remove_user_and_delete_if_last();
