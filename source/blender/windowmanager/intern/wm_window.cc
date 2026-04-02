@@ -3552,7 +3552,9 @@ static wmOperatorStatus check_for_updates_exec(bContext * /*C*/, wmOperator * /*
   return OPERATOR_FINISHED;
 }
 
-wmOperatorStatus check_for_updates_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus check_for_updates_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   is_checking_for_updates_operator() = true;
   bke::check_for_available_updates(*C);
@@ -3561,7 +3563,7 @@ wmOperatorStatus check_for_updates_invoke(bContext *C, wmOperator *op, const wmE
   return OPERATOR_RUNNING_MODAL;
 }
 
-wmOperatorStatus check_for_updates_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus check_for_updates_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!(event->type == TIMER && event->customdata == op->customdata)) {
     return OPERATOR_PASS_THROUGH;
