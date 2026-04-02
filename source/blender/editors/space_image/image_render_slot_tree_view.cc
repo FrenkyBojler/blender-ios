@@ -41,17 +41,12 @@ class RenderSlotTreeView : public ui::AbstractTreeView {
   const Scene *scene_;
 
  public:
-  RenderSlotTreeView(Image &image, const bContext *C) : image_(image), scene_(CTX_data_scene(C))
+  RenderSlotTreeView(Image &image, const Scene *scene) : image_(image), scene_(scene)
   {
     is_flat_ = true;
   }
 
   void build_tree() override;
-
-  const Scene *get_scene() const
-  {
-    return scene_;
-  }
 };
 
 struct RenderSlotData {
@@ -168,26 +163,30 @@ class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
+    const int first_drag_index = BLI_findindex(&drop_data_.image->renderslots, drag_slots[0]);
+    int drop_index = BLI_findindex(&drop_data_.image->renderslots, drop_data_.slot);
+
+    switch (drag_info.drop_location) {
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
+        break;
+      case ui::DropLocation::Before:
+        drop_index -= int(first_drag_index < drop_index);
+        break;
+      case ui::DropLocation::After:
+        drop_index += int(first_drag_index > drop_index);
+        break;
+    }
+
     for (int8_t i = 0; drag_slots[i] != nullptr; i++) {
       const int drag_index = BLI_findindex(&drop_data_.image->renderslots, drag_slots[i]);
-      int drop_index = BLI_findindex(&drop_data_.image->renderslots, drop_data_.slot);
-
       if (drag_index == -1) {
         continue;
       }
-
-      switch (drag_info.drop_location) {
-        case ui::DropLocation::Into:
-          BLI_assert_unreachable();
-          break;
-        case ui::DropLocation::Before:
-          drop_index -= int(drag_index < drop_index);
-          break;
-        case ui::DropLocation::After:
-          drop_index += int(drag_index > drop_index) + i;
-          break;
+      if (i > 0) {
+        /* Place subsequent items directly after the previously moved item. */
+        drop_index += int(drag_index > drop_index);
       }
-
       BKE_image_move_renderslot(drop_data_.image, drag_index, drop_index);
     }
 
@@ -201,14 +200,16 @@ class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
 class RenderSlotItem : public ui::AbstractTreeViewItem {
  private:
   RenderSlotData slot_data_;
+  const Scene *scene_;
 
  public:
-  RenderSlotItem(Image *image, RenderSlot *slot, int index)
+  RenderSlotItem(Image *image, RenderSlot *slot, int index, const Scene *scene)
   {
     label_ = slot->name[0] != '\0' ? slot->name : fmt::format("Slot {}", index + 1);
     slot_data_.image = image;
     slot_data_.slot = slot;
     slot_data_.index = index;
+    scene_ = scene;
   }
 
   bool matches_single(const AbstractTreeViewItem &other) const override
@@ -220,15 +221,12 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
   void build_row(ui::Layout &row) override
   {
     /* Determine icon based on slot state, same logic as `ui_imageuser_slot_menu`. */
-    const RenderSlotTreeView &tree_view = static_cast<const RenderSlotTreeView &>(
-        get_tree_view());
 
     /* Default to "blank" for nicer alignment. */
     int icon = ICON_BLANK1;
 
     /* The scene isn't expected to be null, check since it's not a requirement. */
-    const Scene *scene = tree_view.get_scene();
-    const bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
+    const bool has_active_render = scene_ && (RE_GetSceneRender(scene_) != nullptr);
 
     if (slot_data_.index == slot_data_.image->last_render_slot) {
       if (has_active_render) {
@@ -318,7 +316,7 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
 void RenderSlotTreeView::build_tree()
 {
   for (const auto [index, slot] : image_.renderslots.enumerate()) {
-    this->add_tree_item<RenderSlotItem>(&image_, &slot, index);
+    this->add_tree_item<RenderSlotItem>(&image_, &slot, index, scene_);
   }
 }
 
@@ -333,9 +331,8 @@ void image_render_slot_tree_view_draw(const bContext *C, ui::Layout &layout, Ima
   ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "Render Slot Tree View",
-      std::make_unique<RenderSlotTreeView>(*image, C));
+      std::make_unique<RenderSlotTreeView>(*image, CTX_data_scene(C)));
   tree_view->set_default_rows(4);
-  /* Multi-selection (range select, X, move-on-selection): keep unless render module requests otherwise. */
   tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, layout);
