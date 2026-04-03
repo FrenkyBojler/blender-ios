@@ -271,32 +271,39 @@ class CompositorModifierContext : public CompositorContext {
 
     /* Map the inputs to the operation. */
     Vector<std::unique_ptr<Result>> inputs;
-    bool found_image_input = false;
-    bool found_mask_input = false;
-    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+    const Span<const bNodeTreeInterfaceSocket *> interface_inputs = node_group.interface_inputs();
+    for (const bNodeTreeInterfaceSocket *input_socket : interface_inputs) {
       const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
       const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
       const ResultType result_type = compositor::get_node_interface_socket_result_type(
           *input_socket);
       Result *input_result = new Result(this->create_result(result_type, ResultPrecision::Full));
-      if (!found_image_input && socket_type == SOCK_RGBA) {
-        /* First color socket is the image input. */
-        create_result_from_input(*input_result, *image_buffer_);
-        found_image_input = true;
-      }
-      else if (!found_mask_input && socket_type == SOCK_RGBA) {
-        /* Second socket is the mask input. */
-        render_mask_input(this->mod_context_, this->timeline_frame_);
-        if (this->mask_.is_allocated()) {
-          input_result->set_type(this->mask_.type());
-          input_result->set_precision(this->mask_.precision());
-          input_result->wrap_external(this->mask_);
-          input_result->set_transformation(this->mask_transform_);
+      if (input_socket == interface_inputs[0]) {
+        if (socket_type == SOCK_RGBA) {
+          /* First socket is the image input. */
+          create_result_from_input(*input_result, *image_buffer_);
         }
         else {
           input_result->allocate_invalid();
         }
-        found_mask_input = true;
+      }
+      else if (input_socket == interface_inputs[1]) {
+        if (socket_type == SOCK_RGBA) {
+          /* Second socket is the mask input. */
+          render_mask_input(this->mod_context_, this->timeline_frame_);
+          if (this->mask_.is_allocated()) {
+            input_result->set_type(this->mask_.type());
+            input_result->set_precision(this->mask_.precision());
+            input_result->wrap_external(this->mask_);
+            input_result->set_transformation(this->mask_transform_);
+          }
+          else {
+            input_result->allocate_invalid();
+          }
+        }
+        else {
+          input_result->allocate_invalid();
+        }
       }
       else {
         PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
