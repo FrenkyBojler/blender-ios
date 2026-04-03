@@ -22,7 +22,6 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
   EdgeNeighborCountFieldInput()
       : bke::MeshFieldInput(CPPType::get<int>(), "Edge Neighbor Count Field")
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
@@ -41,7 +40,7 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
     return 985671075;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const EdgeNeighborCountFieldInput *>(&other) != nullptr;
   }
@@ -54,8 +53,7 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> neighbor_count_field{std::make_shared<EdgeNeighborCountFieldInput>()};
-  params.set_output("Face Count"_ustr, std::move(neighbor_count_field));
+  params.set_output("Face Count"_ustr, Field<int>::from_input<EdgeNeighborCountFieldInput>());
 }
 
 static void node_register()

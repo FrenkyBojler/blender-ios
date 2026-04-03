@@ -32,10 +32,7 @@ static VArray<float> construct_face_area_varray(const Mesh &mesh, const AttrDoma
 
 class FaceAreaFieldInput final : public bke::MeshFieldInput {
  public:
-  FaceAreaFieldInput() : bke::MeshFieldInput(CPPType::get<float>(), "Face Area Field")
-  {
-    category_ = Category::Generated;
-  }
+  FaceAreaFieldInput() : bke::MeshFieldInput(CPPType::get<float>(), "Face Area Field") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
@@ -50,7 +47,7 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
     return 1346334523;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const FaceAreaFieldInput *>(&other) != nullptr;
   }
@@ -63,7 +60,7 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Area"_ustr, Field<float>(std::make_shared<FaceAreaFieldInput>()));
+  params.set_output("Area"_ustr, Field<float>::from_input<FaceAreaFieldInput>());
 }
 
 static void node_register()
