@@ -25,7 +25,7 @@ def add_quick_fur():
 
     curves_object = bpy.context.object
     t.assertIsNotNone(curves_object)
-    t.assertEqual(curves_object.type, 'CURVE')
+    t.assertEqual(curves_object.type, 'CURVES')
     # Multiple modifiers are added and reordered then. Just make sure there's at least one nodes
     # modifier.
     t.assertEqual(object.modifiers[0].type, 'NODES')
