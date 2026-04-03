@@ -1865,14 +1865,12 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     edges_to_keep[edge_index] = true;
   }
 
-  // auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
-  //   segment_connections[decode_index(point_1)][decode_side(point_1)] =
-  //   encode_index_and_side(
-  //       decode_index(point_2), decode_side(point_2));
-  //   segment_connections[decode_index(point_2)][decode_side(point_2)] =
-  //   encode_index_and_side(
-  //       decode_index(point_1), decode_side(point_1));
-  // };
+  auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
+    edge_connections[decode_index(point_1)][decode_side(point_1)] = encode_index_and_side(
+        decode_index(point_2), decode_side(point_2));
+    edge_connections[decode_index(point_2)][decode_side(point_2)] = encode_index_and_side(
+        decode_index(point_1), decode_side(point_1));
+  };
 
   /* TODO. Improve from O(n^2) */
   for (const int boundary_index_1 : boundary_edges.index_range()) {
@@ -1888,26 +1886,24 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       const std::pair<int, int> edge_2 = result.edge[edge_index_2];
 
       if (edge_1.first == edge_2.first) {
-        edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
-                                                                            Side::Start);
-        edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
-                                                                            Side::Start);
+        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::Start);
+        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::Start);
+        connect(point_1, point_2);
       }
       if (edge_1.second == edge_2.first) {
-        edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2,
-                                                                          Side::Start);
-        edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
-                                                                            Side::End);
+        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::End);
+        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::Start);
+        connect(point_1, point_2);
       }
       if (edge_1.first == edge_2.second) {
-        edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
-                                                                            Side::End);
-        edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1,
-                                                                          Side::Start);
+        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::Start);
+        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::End);
+        connect(point_1, point_2);
       }
       if (edge_1.second == edge_2.second) {
-        edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2, Side::End);
-        edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1, Side::End);
+        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::End);
+        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::End);
+        connect(point_1, point_2);
       }
     }
   }
