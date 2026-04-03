@@ -18,6 +18,7 @@
 #include "DNA_userdef_types.h"
 
 #include <chrono>
+#include <ctime>
 #include <format>
 
 #ifdef WITH_PYTHON
@@ -75,16 +76,24 @@ static std::chrono::sys_seconds &last_time_version_update_check()
   return last_time_version_update_check;
 }
 
-/** Parses `%Y-%m-%dT%H:%M:%SZ`formatted string timestamps as #std::chrono::sys_seconds. */
+/** Parses `%Y-%m-%dT%H:%M:%SZ` formatted timestamps strings as #std::chrono::sys_seconds. */
 static std::optional<std::chrono::sys_seconds> parse_timestamp_to_sys_seconds(
     StringRefNull timestamp)
 {
-  std::istringstream is(timestamp);
+#ifdef __APPLE__
   std::tm time;
-  if (!(is >> std::get_time(&time, "%Y-%m-%dT%H:%M:%SZ"))) {
+  if (!strptime(timestamp.data(), "%Y-%m-%dT%H:%M:%SZ", &time)) {
     return std::nullopt;
   }
   return std::chrono::sys_seconds(std::chrono::seconds(std::mktime(&time)));
+#else
+  std::istringstream is(timestamp);
+  std::chrono::sys_seconds time;
+  if (!(is >> std::chrono::parse("%Y-%m-%dT%H:%M:%SZ", time))) {
+    return std::nullopt;
+  }
+  return time;
+#endif
 }
 
 /** Parses blender version str into blender version and patch revision.  */
