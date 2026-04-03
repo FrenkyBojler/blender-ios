@@ -174,7 +174,7 @@ struct MutableString {
 
   /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
    * line count and keep the remaining indentation spaces. */
-  void erase(size_t from, size_t to)
+  bool erase_try(size_t from, size_t to)
   {
     IndexRange range = IndexRange(from, to + 1 - from);
     std::string content = str_.substr(range.start, range.size);
@@ -186,32 +186,52 @@ struct MutableString {
     else {
       spaces = content.length();
     }
-    replace(from, to, std::string(lines, '\n') + std::string(spaces, ' '));
+    return replace_try(from, to, std::string(lines, '\n') + std::string(spaces, ' '));
+  }
+  void erase(size_t from, size_t to)
+  {
+    bool result = erase_try(from, to);
+    assert(result);
   }
   /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
    * line count and keep the remaining indentation spaces. */
-  void erase(Token from, Token to)
+  bool erase_try(Token from, Token to)
   {
-    if (from.is_invalid() && to.is_invalid()) {
-      return;
+    if (from.is_invalid() || to.is_invalid()) {
+      return true;
     }
     assert(from.index_ <= to.index_);
-    erase(from.str_index_start(), to.str_index_last());
+    return erase_try(from.str_index_start(), to.str_index_last());
+  }
+  void erase(Token from, Token to)
+  {
+    bool result = erase_try(from, to);
+    assert(result);
   }
   /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
    * line count and keep the remaining indentation spaces. */
-  void erase(Token tok)
+  bool erase_try(Token tok)
   {
     if (tok.is_invalid()) {
-      return;
+      return true;
     }
-    erase(tok, tok);
+    return erase_try(tok, tok);
+  }
+  void erase(Token tok)
+  {
+    bool result = erase_try(tok);
+    assert(result);
   }
   /* Replace the content of the scope by whitespaces without changing
    * line count and keep the remaining indentation spaces. */
+  bool erase_try(Scope scope)
+  {
+    return erase_try(scope.front(), scope.back());
+  }
   void erase(Scope scope)
   {
-    erase(scope.front(), scope.back());
+    bool result = erase_try(scope);
+    assert(result);
   }
 
   /* If prepend is true, will prepend the new content to the list of modifications.
