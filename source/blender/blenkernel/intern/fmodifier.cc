@@ -1198,7 +1198,8 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
 
   /* special checks for whether modifier can be added */
   if ((modifiers->first) && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
-    /* Modifiers requiring original data must be first in stack, so for now disable the modifier. */
+    /* Modifiers requiring original data must be first in stack, so for now disable the modifier.
+     */
     fcm->flag |= FMODIFIER_FLAG_DISABLED;
   }
 
