@@ -20,6 +20,59 @@ CCL_NAMESPACE_BEGIN
  * "Practical and Controllable Subsurface Scattering for Production Path
  *  Tracing". Matt Jen-Yuan Chiang, Peter Kutz, Brent Burley. SIGGRAPH 2016. */
 
+/* Support for anisotropy from:
+ * "Path Traced Subsurface Scattering using Anisotropic Phase Functions
+ * and Non-Exponential Free Flights".
+ * Magnus Wrenninge, Ryusuke Villemin, Christophe Hery.
+ * https://graphics.pixar.com/library/PathTracedSubsurface/ */
+
+ccl_device void subsurface_random_walk_remap(const float albedo,
+                                             const float d,
+                                             const float g,
+                                             ccl_private float *sigma_t,
+                                             ccl_private float *alpha)
+{
+  /* Compute attenuation and scattering coefficients from albedo. */
+  const float g2 = g * g;
+  const float g3 = g2 * g;
+  const float g4 = g3 * g;
+  const float g5 = g4 * g;
+  const float g6 = g5 * g;
+  const float g7 = g6 * g;
+
+  const float A = 1.8260523782f + -1.28451056436f * g + -1.79904629312f * g2 +
+                  9.19393289202f * g3 + -22.8215585862f * g4 + 32.0234874259f * g5 +
+                  -23.6264803333f * g6 + 7.21067002658f * g7;
+  const float B = 4.98511194385f +
+                  0.127355959438f *
+                      expf(31.1491581433f * g + -201.847017512f * g2 + 841.576016723f * g3 +
+                           -2018.09288505f * g4 + 2731.71560286f * g5 + -1935.41424244f * g6 +
+                           559.009054474f * g7);
+  const float C = 1.09686102424f + -0.394704063468f * g + 1.05258115941f * g2 +
+                  -8.83963712726f * g3 + 28.8643230661f * g4 + -46.8802913581f * g5 +
+                  38.5402837518f * g6 + -12.7181042538f * g7;
+  const float D = 0.496310210422f + 0.360146581622f * g + -2.15139309747f * g2 +
+                  17.8896899217f * g3 + -55.2984010333f * g4 + 82.065982243f * g5 +
+                  -58.5106008578f * g6 + 15.8478295021f * g7;
+  const float E = 4.23190299701f +
+                  0.00310603949088f *
+                      expf(76.7316253952f * g + -594.356773233f * g2 + 2448.8834203f * g3 +
+                           -5576.68528998f * g4 + 7116.60171912f * g5 + -4763.54467887f * g6 +
+                           1303.5318055f * g7);
+  const float F = 2.40602999408f + -2.51814844609f * g + 9.18494908356f * g2 +
+                  -79.2191708682f * g3 + 259.082868209f * g4 + -403.613804597f * g5 +
+                  302.85712436f * g6 + -87.4370473567f * g7;
+
+  const float blend = powf(albedo, 0.25f);
+
+  *alpha = (1.0f - blend) * A * powf(atanf(B * albedo), C) +
+           blend * D * powf(atanf(E * albedo), F);
+  *alpha = clamp(*alpha, 0.0f, 0.999999f);  // because of numerical precision
+
+  const float sigma_t_prime = 1.0f / fmaxf(d, 1e-16f);
+  *sigma_t = sigma_t_prime / (1.0f - g);
+}
+
 /* Mapping from subsurface color and anisotropy to single scatter albedo, taken from
  * "A Hitchhiker's Guide to Multiple Scattering" by Eugene d'Eon, v0.3.2 Eq (53.7),
  * https://eugenedeon.com/hitchhikers
@@ -43,11 +96,23 @@ ccl_device void subsurface_random_walk_remap(const Spectrum color,
 ccl_device void subsurface_random_walk_coefficients(const Spectrum albedo,
                                                     const Spectrum radius,
                                                     const float anisotropy,
+                                                    const bool van_de_hulst,
                                                     ccl_private Spectrum *sigma_t,
                                                     ccl_private Spectrum *alpha,
                                                     ccl_private Spectrum *throughput)
 {
-  subsurface_random_walk_remap(albedo, radius, anisotropy, sigma_t, alpha);
+  if (van_de_hulst) {
+    subsurface_random_walk_remap(albedo, radius, anisotropy, sigma_t, alpha);
+  }
+  else {
+    FOREACH_SPECTRUM_CHANNEL (i) {
+      subsurface_random_walk_remap(GET_SPECTRUM_CHANNEL(albedo, i),
+                                   GET_SPECTRUM_CHANNEL(radius, i),
+                                   anisotropy,
+                                   &GET_SPECTRUM_CHANNEL(*sigma_t, i),
+                                   &GET_SPECTRUM_CHANNEL(*alpha, i));
+    }
+  }
 
   /* Throughput already contains closure weight at this point, which includes the
    * albedo, as well as closure mixing and Fresnel weights. Divide out the albedo
@@ -166,11 +231,13 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   const Spectrum albedo = INTEGRATOR_STATE(state, subsurface, albedo);
   const Spectrum radius = INTEGRATOR_STATE(state, subsurface, radius);
   const float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
+  const bool van_de_hulst = INTEGRATOR_STATE(state, subsurface, van_de_hulst);
 
   Spectrum sigma_t;
   Spectrum alpha;
   Spectrum throughput = INTEGRATOR_STATE(state, path, throughput);
-  subsurface_random_walk_coefficients(albedo, radius, anisotropy, &sigma_t, &alpha, &throughput);
+  subsurface_random_walk_coefficients(
+      albedo, radius, anisotropy, van_de_hulst, &sigma_t, &alpha, &throughput);
   const Spectrum sigma_s = sigma_t * alpha;
 
   /* Theoretically it should be better to use the exact alpha for the channel we're sampling at

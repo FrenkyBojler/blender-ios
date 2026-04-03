@@ -101,6 +101,8 @@ KERNEL_STRUCT_MEMBER_PACKED(subsurface, PackedSpectrum, albedo, KERNEL_FEATURE_S
 KERNEL_STRUCT_MEMBER_PACKED(subsurface, PackedSpectrum, radius, KERNEL_FEATURE_SUBSURFACE)
 KERNEL_STRUCT_MEMBER_PACKED(subsurface, float, anisotropy, KERNEL_FEATURE_SUBSURFACE)
 KERNEL_STRUCT_MEMBER_PACKED(subsurface, packed_float3, N, KERNEL_FEATURE_SUBSURFACE)
+/* TODO(weizhen): maybe encode the model into `anisotropy` to save storage. */
+KERNEL_STRUCT_MEMBER_PACKED(subsurface, uint8_t, van_de_hulst, KERNEL_FEATURE_SUBSURFACE)
 KERNEL_STRUCT_END(subsurface)
 
 /********************************** Volume Stack ******************************/

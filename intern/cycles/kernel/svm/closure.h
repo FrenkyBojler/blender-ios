@@ -478,7 +478,7 @@ ccl_device
             bssrdf->alpha = sqr(roughness);
             /* IOR is clamped to [1.01..3.8] inside bssrdf_setup */
             bssrdf->ior = eta;
-            /* Anisotropy is clamped to [-0.99..0.99] inside bssrdf_setup */
+            /* Anisotropy is clamped to the valid range inside bssrdf_setup */
             bssrdf->anisotropy = stack_load_float_default(
                 stack, subsurface_anisotropy_offset, 0.0f);
             if (subsurface_method == CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID) {
@@ -1106,6 +1106,7 @@ ccl_device
 #ifdef __SUBSURFACE__
     case CLOSURE_BSSRDF_BURLEY_ID:
     case CLOSURE_BSSRDF_RANDOM_WALK_ID:
+    case CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID:
     case CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID: {
       const Spectrum weight = closure_weight * mix_weight;
       ccl_private Bssrdf *bssrdf = bssrdf_alloc(sd, weight);

@@ -65,7 +65,7 @@ ccl_device float bssrdf_dipole_compute_alpha_prime(const float rd, const float f
 
 ccl_device void bssrdf_setup_radius(ccl_private Bssrdf *bssrdf, const ClosureType type)
 {
-  if (type == CLOSURE_BSSRDF_BURLEY_ID || type == CLOSURE_BSSRDF_RANDOM_WALK_ID) {
+  if (type != CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID) {
     /* Scale mean free path length so it gives similar looking result to older
      * Cubic, Gaussian and Burley models. */
     bssrdf->radius *= 0.25f * M_1_PI_F;
@@ -291,7 +291,13 @@ ccl_device int bssrdf_setup(ccl_private ShaderData *sd,
                             ClosureType type)
 {
   /* Clamp anisotropy to avoid delta function. */
-  bssrdf->anisotropy = clamp(bssrdf->anisotropy, -0.99f, 0.99f);
+  if (type == CLOSURE_BSSRDF_RANDOM_WALK_ID) {
+    bssrdf->anisotropy = clamp(bssrdf->anisotropy, -0.99f, 0.99f);
+  }
+  else {
+    bssrdf->anisotropy = clamp(bssrdf->anisotropy, 0.0f, 0.9f);
+  }
+
   bssrdf->ior = clamp(bssrdf->ior, 1.01f, 3.8f);
 
   int flag = 0;
