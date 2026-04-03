@@ -2963,6 +2963,8 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
 /** \name Remove F-Modifiers Operator
  * \{ */
 
+enum class RemovalMode { REMOVE_ALL = 0, REMOVE_FIRST = 1, REMOVE_TYPE = 2 };
+
 static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
@@ -2989,20 +2991,38 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
   ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
-  /* Remove f-modifier from each curve. */
-  for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = static_cast<FCurve *>(ale.data);
-    FModifier *fcm, *fcm_next;
+  const RemovalMode mode = RemovalMode(RNA_enum_get(op->ptr, "mode"));
 
-    for (fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm; fcm = fcm_next) {
-      fcm_next = fcm->next;
+  switch (mode) {
+    case RemovalMode::REMOVE_ALL:
+    case RemovalMode::REMOVE_TYPE: {
+      /* Remove f-modifier from each curve. */
+      for (bAnimListElem &ale : anim_data) {
+        FCurve *fcu = static_cast<FCurve *>(ale.data);
+        FModifier *fcm, *fcm_next;
 
-      if (remove_all || fcm->type == type) {
-        remove_fmodifier(&fcu->modifiers, fcm);
+        for (fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm; fcm = fcm_next) {
+          fcm_next = fcm->next;
+
+          if (remove_all || fcm->type == type) {
+            remove_fmodifier(&fcu->modifiers, fcm);
+          }
+          ale.update |= ANIM_UPDATE_DEPS;
+        }
       }
+      break;
     }
 
-    ale.update |= ANIM_UPDATE_DEPS;
+    case RemovalMode::REMOVE_FIRST: {
+      for (bAnimListElem &ale : anim_data) {
+        FCurve *fcu = static_cast<FCurve *>(ale.data);
+        FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first);
+        if (fcm) {
+          remove_fmodifier(&fcu->modifiers, fcm);
+        }
+        break;
+      }
+    }
   }
 
   ANIM_animdata_update(&ac, &anim_data);
@@ -3032,10 +3052,29 @@ void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Id-props */
-  prop = RNA_def_enum(ot->srna, "type", rna_enum_fmodifier_type_items, 0, "Type", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
-  RNA_def_enum_funcs(prop, graph_fmodifier_itemf);
-  ot->prop = prop;
+  static const EnumPropertyItem mode_items[] = {{int(RemovalMode::REMOVE_ALL),
+                                                 "REMOVE_ALL",
+                                                 0,
+                                                 "Remove All",
+                                                 "Remove all F-Curve modifiers"},
+                                                {int(RemovalMode::REMOVE_FIRST),
+                                                 "REMOVE_FIRST",
+                                                 0,
+                                                 "Remove First",
+                                                 "Remove the first F-Curve modifier"},
+                                                {int(RemovalMode::REMOVE_TYPE),
+                                                 "REMOVE_TYPE",
+                                                 0,
+                                                 "Remove Type",
+                                                 "Remove a specific type of F-Curve modifier"},
+                                                {0, nullptr, 0, nullptr, nullptr}};
+
+  RNA_def_enum(ot->srna,
+               "mode",
+               mode_items,
+               int(RemovalMode::REMOVE_ALL),
+               "Mode",
+               "Decide what the operator will remove");
 
   RNA_def_boolean(ot->srna,
                   "only_active",
@@ -3043,11 +3082,10 @@ void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
                   "Only Active",
                   "Only remove Modifier(s) from active F-Curve");
 
-  RNA_def_boolean(ot->srna,
-                  "remove_all",
-                  false,
-                  "Remove All",
-                  "Remove all modifiers instead of just the specified type");
+  prop = RNA_def_enum(ot->srna, "type", rna_enum_fmodifier_type_items, 0, "Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
+  RNA_def_enum_funcs(prop, graph_fmodifier_itemf);
+  ot->prop = prop;
 }
 
 /** \} */
