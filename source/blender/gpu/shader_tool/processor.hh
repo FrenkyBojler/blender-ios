@@ -355,6 +355,7 @@ class SourceProcessor {
       const bool is_method,
       const std::vector<std::string> &arg_list,
       const std::string &fn_decl,
+      const int template_def_line_number,
       const std::string_view &template_filename,
       const std::string_view &instance_filename,
       const bool all_template_args_in_function_signature);

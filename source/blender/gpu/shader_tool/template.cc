@@ -94,14 +94,12 @@ void SourceProcessor::lower_template_instantiation(
     const bool is_method,
     const vector<string> &arg_list,
     const string &fn_decl,
+    const int template_def_line_number,
     const string_view &template_filename,
     const string_view &instance_filename,
     const bool all_template_args_in_function_signature)
 {
-  if (full_specified_name != inst_name.str() ||
-      /* Do not match instantiation before template declaration. */
-      inst_name.str_index_start() < fn_name.str_index_start())
-  {
+  if (full_specified_name != inst_name.str()) {
     return;
   }
 
@@ -174,12 +172,12 @@ void SourceProcessor::lower_template_instantiation(
 
   if (is_method) {
     /* Method are put back in their classes. */
-    parser.insert_line_number(fn_end, fn_start.line_number(), template_filename);
+    parser.insert_line_number(fn_end, template_def_line_number, template_filename);
     parser.insert_after(fn_end, instance);
     parser.insert_line_number(fn_end, inst_end.line_number(true), instance_filename);
   }
   else {
-    parser.insert_line_number(inst_end, fn_start.line_number(), template_filename);
+    parser.insert_line_number(inst_end, template_def_line_number, template_filename);
     parser.insert_after(inst_end, instance);
     parser.insert_line_number(inst_end, inst_end.line_number(true), instance_filename);
   }
@@ -313,6 +311,7 @@ void SourceProcessor::process_template_struct(
                                  false,
                                  arg_list,
                                  struct_decl,
+                                 template_def.definition_line,
                                  template_filename,
                                  instance_filename,
                                  all_template_args_in_function_signature);
@@ -399,6 +398,7 @@ void SourceProcessor::process_template_function(
                                  template_def.is_method,
                                  arg_list,
                                  fn_decl,
+                                 template_def.definition_line,
                                  template_filename,
                                  instance_filename,
                                  all_template_args_in_function_signature);
@@ -427,7 +427,7 @@ void SourceProcessor::lower_templates(Parser &parser)
       end = end.next();
     }
     /* This can fail as it might try to erase templated method inside templated struct. */
-    parser.replace_try(toks[0], end, "");
+    parser.erase_try(toks[0], end);
   });
 
   parser.apply_mutations();

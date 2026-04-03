@@ -75,7 +75,7 @@ static void parse_namespace_symbols(SourceProcessor::Parser &parser,
 
       TemplateDefinition symbol;
       symbol.filepath = filepath;
-      symbol.definition_line = def_start.line_number();
+      symbol.definition_line = tok_type.line_number();
       symbol.is_method = is_method;
       symbol.is_static = tok_type == Static;
       symbol.is_struct = tok_type == Struct || tok_type == Class;
