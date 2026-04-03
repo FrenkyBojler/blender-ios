@@ -59,7 +59,7 @@ class GPENCIL_UL_matslots(UIList):
 
         row = layout.row(align=True)
         row.enabled = not gpcolor.lock
-        row.prop(ma, "name", text="", emboss=False, icon='NONE')
+        row.prop(ma, "name", text="", emboss=False, icon='GP_DRAW_' + gpcolor.type)
 
         row = layout.row(align=True)
 
