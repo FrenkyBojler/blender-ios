@@ -512,6 +512,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
       r_declaration.skip_updating_sockets = true;
       return;
     }
+    /* Currently the missing flag is only set on original data. */
     if (const ID *orig_group = DEG_get_original_id(&group->id)) {
       if (ID_MISSING(orig_group)) {
         r_declaration.skip_updating_sockets = true;
