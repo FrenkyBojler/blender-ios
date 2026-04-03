@@ -69,9 +69,9 @@ static BlenderUpdates &available_blender_updates()
   return available_blender_updates;
 }
 
-static std::chrono::utc_clock::time_point &last_time_version_update_check()
+static std::chrono::sys_seconds &last_time_version_update_check()
 {
-  static std::chrono::utc_clock::time_point last_time_version_update_check;
+  static std::chrono::sys_seconds last_time_version_update_check;
   return last_time_version_update_check;
 }
 
@@ -80,11 +80,11 @@ static std::optional<std::chrono::sys_seconds> parse_timestamp_to_sys_seconds(
     StringRefNull timestamp)
 {
   std::istringstream is(timestamp);
-  std::chrono::sys_seconds time;
-  if (!(is >> std::chrono::parse("%Y-%m-%dT%H:%M:%SZ", time))) {
+  std::tm time;
+  if (!(is >> std::get_time(&time, "%Y-%m-%dT%H:%M:%SZ"))) {
     return std::nullopt;
   }
-  return time;
+  return std::chrono::sys_seconds(std::chrono::seconds(std::mktime(&time)));
 }
 
 /** Parses blender version str into blender version and patch revision.  */
@@ -337,7 +337,9 @@ if result:
     register_blender_update(std::move(*update));
   }
 
-  last_time_version_update_check() = std::chrono::utc_clock::now();
+  last_time_version_update_check() = std::chrono::sys_seconds(
+      std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now().time_since_epoch()));
 
   write_blender_updates_cache_file();
 }
@@ -450,7 +452,7 @@ static void load_available_updates_cache_file_impl()
     return;
   }
 
-  last_time_version_update_check() = std::chrono::utc_clock::from_sys(*last_time_check);
+  last_time_version_update_check() = std::chrono::sys_seconds(*last_time_check);
 }
 
 void check_for_available_updates_if_expired(bContext &C);
@@ -513,8 +515,9 @@ void check_for_available_updates_if_expired(bContext &C)
     return;
   }
   const int64_t days_since_last_check = std::chrono::duration_cast<std::chrono::days>(
-                                            (std::chrono::utc_clock::now() -
-                                             last_time_version_update_check()))
+                                            (std::chrono::system_clock::now() -
+                                             std::chrono::system_clock::time_point(
+                                                 last_time_version_update_check())))
                                             .count();
 
   if (days_since_last_check >= 1) {
