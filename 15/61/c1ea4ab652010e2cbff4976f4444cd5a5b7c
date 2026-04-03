@@ -3,3 +3,4 @@ Referenced by issue #154125, Duplicating objects with array modifier shows missi
 Referenced by issue #156748, Regression: Geometry Nodes modifiers lose pointer property on save/reload
 Referenced by pull request #156825, Cleanup: Geometry Nodes: Remove legacy settings access from RNA
 Referenced by commit 9deac2f0e1193ea999cbada60f101829d0a91150, Cleanup: Geometry Nodes: Remove legacy settings access from RNA
+Referenced by pull request #156846, Cleanup: Geometry Nodes: Rename settings to settings_legacy
