@@ -94,7 +94,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 
   const bool is_integer = params.other_socket().type == SOCK_INT;
-  const int weight = is_integer ? 0 : -1;
+  const int weight = is_integer ? 1 : -1;
 
   /* Add socket A operations. */
   for (const EnumPropertyItem *item = rna_enum_node_integer_math_items;
