@@ -34,11 +34,12 @@ class DepsgraphFromCollectionIDsFilter {
 
 class DepsgraphFromCollectionIDsNodeBuilder : public DepsgraphNodeBuilder {
  public:
-  DepsgraphFromCollectionIDsNodeBuilder(Main *bmain,
-                                        Depsgraph *graph,
-                                        DepsgraphBuilderCache *cache,
-                                        bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx,
-                                        const Set<ID *> &ids)
+  DepsgraphFromCollectionIDsNodeBuilder(
+      Main *bmain,
+      Depsgraph *graph,
+      DepsgraphBuilderCache *cache,
+      std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx,
+      const Set<ID *> &ids)
       : DepsgraphNodeBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {
   }
@@ -57,11 +58,12 @@ class DepsgraphFromCollectionIDsNodeBuilder : public DepsgraphNodeBuilder {
 
 class DepsgraphFromCollectionIDsRelationBuilder : public DepsgraphRelationBuilder {
  public:
-  DepsgraphFromCollectionIDsRelationBuilder(Main *bmain,
-                                            Depsgraph *graph,
-                                            DepsgraphBuilderCache *cache,
-                                            bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx,
-                                            const Set<ID *> &ids)
+  DepsgraphFromCollectionIDsRelationBuilder(
+      Main *bmain,
+      Depsgraph *graph,
+      DepsgraphBuilderCache *cache,
+      std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx,
+      const Set<ID *> &ids)
       : DepsgraphRelationBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {
   }

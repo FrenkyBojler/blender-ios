@@ -50,7 +50,6 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
       scene(scene),
       view_layer(view_layer),
       mode(mode),
-      dynamic_override_ctx_(scene, view_layer),
       frame(BKE_scene_frame_get(scene)),
       ctime(BKE_scene_ctime_get(scene)),
       scene_cow(nullptr),
@@ -68,6 +67,8 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
   memset(id_type_updated_backup, 0, sizeof(id_type_updated_backup));
   memset(id_type_exist, 0, sizeof(id_type_exist));
   memset(physics_relations_collision, 0, sizeof(physics_relations_collision));
+
+  dynamic_override_ctx_ = std::make_shared<bke::DynamicOverrideDepsgraphCtx>(scene, view_layer);
 
   add_time_source();
 }
@@ -299,7 +300,7 @@ void DEG_graph_replace_owners(Depsgraph *depsgraph,
   deg_graph->bmain = bmain;
   deg_graph->scene = scene;
   deg_graph->view_layer = view_layer;
-  deg_graph->dynamic_override_ctx_.reset_data(scene, view_layer);
+  deg_graph->dynamic_override_ctx_->reset_data(scene, view_layer);
 
   if (do_update_register) {
     deg::register_graph(deg_graph);

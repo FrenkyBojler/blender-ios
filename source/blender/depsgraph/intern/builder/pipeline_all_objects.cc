@@ -19,7 +19,7 @@ class AllObjectsNodeBuilder : public DepsgraphNodeBuilder {
   AllObjectsNodeBuilder(Main *bmain,
                         Depsgraph *graph,
                         DepsgraphBuilderCache *cache,
-                        bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx)
+                        std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx)
       : DepsgraphNodeBuilder(bmain, graph, cache, dynamic_override_ctx)
   {
   }
@@ -35,7 +35,7 @@ class AllObjectsRelationBuilder : public DepsgraphRelationBuilder {
   AllObjectsRelationBuilder(Main *bmain,
                             Depsgraph *graph,
                             DepsgraphBuilderCache *cache,
-                            bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx)
+                            std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx)
       : DepsgraphRelationBuilder(bmain, graph, cache, dynamic_override_ctx)
   {
   }

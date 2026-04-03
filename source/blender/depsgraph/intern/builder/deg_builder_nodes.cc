@@ -121,10 +121,11 @@ namespace blender::deg {
 
 /* **** General purpose functions **** */
 
-DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain,
-                                           Depsgraph *graph,
-                                           DepsgraphBuilderCache *cache,
-                                           bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx)
+DepsgraphNodeBuilder::DepsgraphNodeBuilder(
+    Main *bmain,
+    Depsgraph *graph,
+    DepsgraphBuilderCache *cache,
+    std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx)
     : DepsgraphBuilder(bmain, graph, cache, dynamic_override_ctx),
       scene_(nullptr),
       view_layer_(nullptr),
@@ -1512,13 +1513,13 @@ void DepsgraphNodeBuilder::build_dynamic_override_target(ID *id)
   /* With dynamic overrides, the dependency is reversed: the overridde ID referenced in the
    * DynamicOverride ID depends on the latter. */
   ID *id_cow = get_cow_id(id);
-  bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx = this->dynamic_override_ctx_;
+  bke::DynamicOverrideDepsgraphCtx &dynamic_override_ctx = *this->dynamic_override_ctx_;
   add_operation_node(id,
                      NodeType::DYNAMIC_OVERRIDE,
                      OperationCode::DYNAMIC_OVERRIDE_EVAL,
-                     [dynamic_override_ctx, id_cow](blender::Depsgraph *depsgraph) {
+                     [&dynamic_override_ctx, id_cow](blender::Depsgraph *depsgraph) {
                        bke::dynamic_override_eval_for_id(
-                           *depsgraph, *dynamic_override_ctx, *id_cow);
+                           *depsgraph, dynamic_override_ctx, *id_cow);
                      });
 }
 

@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <memory>
+
 namespace blender {
 
 struct Base;
@@ -54,15 +56,18 @@ class DepsgraphBuilder {
   DepsgraphBuilder(Main *bmain,
                    Depsgraph *graph,
                    DepsgraphBuilderCache *cache,
-                   bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx);
+                   std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx);
 
   /* State which never changes, same for the whole builder time. */
   Main *bmain_;
   Depsgraph *graph_;
   DepsgraphBuilderCache *cache_;
 
-  /** Owned by the depsgraph. */
-  bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx_;
+  /**
+   * Dynamic Override evaluation data.
+   * Shared with internal builder types (#AbstractBuilderPipeline).
+   */
+  std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx_;
 };
 
 bool deg_check_id_in_depsgraph(const Depsgraph *graph, ID *id_orig);

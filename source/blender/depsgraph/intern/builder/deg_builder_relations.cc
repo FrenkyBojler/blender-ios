@@ -245,7 +245,7 @@ DepsgraphRelationBuilder::DepsgraphRelationBuilder(
     Main *bmain,
     Depsgraph *graph,
     DepsgraphBuilderCache *cache,
-    bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx)
+    std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx)
     : DepsgraphBuilder(bmain, graph, cache, dynamic_override_ctx),
       scene_(nullptr),
       rna_node_query_(graph, this)

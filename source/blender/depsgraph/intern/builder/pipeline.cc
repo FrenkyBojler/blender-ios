@@ -82,7 +82,7 @@ AbstractBuilderPipeline::AbstractBuilderPipeline(blender::Depsgraph *graph)
       bmain_(deg_graph_->bmain),
       scene_(deg_graph_->scene),
       view_layer_(deg_graph_->view_layer),
-      dynamic_override_ctx_(&deg_graph_->dynamic_override_ctx_)
+      dynamic_override_ctx_(deg_graph_->dynamic_override_ctx_)
 {
 }
 
@@ -113,7 +113,7 @@ void AbstractBuilderPipeline::build_step_sanity_check()
   BLI_assert(BLI_findindex(&scene_->view_layers, view_layer_) != -1);
   BLI_assert(deg_graph_->scene == scene_);
   BLI_assert(deg_graph_->view_layer == view_layer_);
-  BLI_assert(&deg_graph_->dynamic_override_ctx_ == dynamic_override_ctx_);
+  BLI_assert(deg_graph_->dynamic_override_ctx_ == dynamic_override_ctx_);
 }
 
 void AbstractBuilderPipeline::build_step_dynamic_overrides()

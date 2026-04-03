@@ -149,8 +149,10 @@ struct Depsgraph {
   /**
    * Stores all information required to perform dynamic overrides, for both building and
    * evaluating this depsgraph.
+   *
+   * Shared with internal builder types (#AbstractBuilderPipeline and #DepsgraphBuilder).
    */
-  bke::DynamicOverrideDepsgraphCtx dynamic_override_ctx_;
+  std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx_;
 
   /* Time at which dependency graph is being or was last evaluated.
    * frame is the value before, and ctime the value after time remapping. */

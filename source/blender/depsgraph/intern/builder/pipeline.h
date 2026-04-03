@@ -51,8 +51,11 @@ class AbstractBuilderPipeline {
   ViewLayer *view_layer_;
   DepsgraphBuilderCache builder_cache_;
 
-  /** Owned by the depsgraph. */
-  bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx_;
+  /**
+   * Dynamic Override evaluation data.
+   * Shared with the depsgraph.
+   */
+  std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx_;
 
   virtual std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
   virtual std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();

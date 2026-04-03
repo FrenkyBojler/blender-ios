@@ -90,7 +90,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   DepsgraphRelationBuilder(Main *bmain,
                            Depsgraph *graph,
                            DepsgraphBuilderCache *cache,
-                           bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx);
+                           std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx);
 
   void begin_build();
 

@@ -81,7 +81,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   DepsgraphNodeBuilder(Main *bmain,
                        Depsgraph *graph,
                        DepsgraphBuilderCache *cache,
-                       bke::DynamicOverrideDepsgraphCtx *dynamic_override_ctx);
+                       std::shared_ptr<bke::DynamicOverrideDepsgraphCtx> dynamic_override_ctx);
   ~DepsgraphNodeBuilder();
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */
