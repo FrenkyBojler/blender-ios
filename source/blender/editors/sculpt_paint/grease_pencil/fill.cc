@@ -2005,15 +2005,14 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   follow_edge_connections(
       all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
 
-  int total_i = 0;
   for (const int curve_i : edge_offset_data.index_range().drop_back(1)) {
     const int curve_size = edge_offset_data[curve_i + 1] - edge_offset_data[curve_i];
 
     geometry.append(Vector<int>());
-    for (const int i_ : IndexRange(curve_size)) {
-      const int edge_index = edges[total_i];
+    for (const int i : IndexRange(edge_offset_data[curve_i], curve_size)) {
+      const int edge_index = edges[i];
       const std::pair<int, int> edge = result.edge[edge_index];
-      const bool reversed = edge_reversed[total_i];
+      const bool reversed = edge_reversed[i];
 
       if (reversed) {
         geometry.last().append(edge.second);
@@ -2021,8 +2020,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       else {
         geometry.last().append(edge.first);
       }
-
-      total_i++;
     }
   }
 
