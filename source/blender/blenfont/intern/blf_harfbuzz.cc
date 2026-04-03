@@ -216,6 +216,16 @@ ShapingData::ShapingData(FontBLF *font,
       }
     }
 
+    /* Variable font axes. */
+    hb_variation_t variations[3];
+    variations[0].tag = HB_OT_TAG_VAR_AXIS_WEIGHT;
+    variations[0].value = segment_font->char_weight;
+    variations[1].tag = HB_OT_TAG_VAR_AXIS_WIDTH;
+    variations[1].value = segment_font->char_weight;
+    variations[2].tag = HB_OT_TAG_VAR_AXIS_SLANT;
+    variations[2].value = segment_font->char_slant;
+    hb_font_set_variations(segment_font->hb_font, variations, 3);
+
     const bool need_release = (!gc || segment_font != font);
     GlyphCacheBLF *segment_gc = need_release ? blf_glyph_cache_acquire(segment_font) : gc;
     if (segment_gc != gc) {
