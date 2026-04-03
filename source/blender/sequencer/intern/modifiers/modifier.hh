@@ -60,7 +60,7 @@ struct ModifierApplyContext {
    * full render area pixel coordinates.This is used to sample
    * modifier masks (since masks are in full render area space). */
   const float3x3 transform;
-  /* Timeline frame at wich the modifiers are being applied at. */
+  /* Timeline frame at which the modifiers are being applied at. */
   const float timeline_frame;
   ImBuf *const image;
 
