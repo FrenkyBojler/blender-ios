@@ -1872,41 +1872,42 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         decode_index(point_1), decode_side(point_1));
   };
 
-  /* TODO. Improve from O(n^2) */
-  for (const int boundary_index_1 : boundary_edges.index_range()) {
-    const int edge_index_1 = boundary_edges[boundary_index_1];
-    const std::pair<int, int> edge_1 = result.edge[edge_index_1];
+  /* Vert_index to edge Ends. */
+  Map<int, Vector<EncodedConnection>> vert_to_edge_ends;
 
-    for (const int boundary_index_2 : boundary_edges.index_range()) {
-      if (boundary_index_1 == boundary_index_2) {
-        continue;
-      }
+  for (const int boundary_index : boundary_edges.index_range()) {
+    const int edge_index = boundary_edges[boundary_index];
+    const std::pair<int, int> edge = result.edge[edge_index];
 
-      const int edge_index_2 = boundary_edges[boundary_index_2];
-      const std::pair<int, int> edge_2 = result.edge[edge_index_2];
+    const EncodedConnection point_1 = encode_index_and_side(edge_index, Side::Start);
+    const EncodedConnection point_2 = encode_index_and_side(edge_index, Side::End);
 
-      if (edge_1.first == edge_2.first) {
-        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::Start);
-        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::Start);
-        connect(point_1, point_2);
-      }
-      if (edge_1.second == edge_2.first) {
-        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::End);
-        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::Start);
-        connect(point_1, point_2);
-      }
-      if (edge_1.first == edge_2.second) {
-        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::Start);
-        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::End);
-        connect(point_1, point_2);
-      }
-      if (edge_1.second == edge_2.second) {
-        const EncodedConnection point_1 = encode_index_and_side(edge_index_1, Side::End);
-        const EncodedConnection point_2 = encode_index_and_side(edge_index_2, Side::End);
-        connect(point_1, point_2);
-      }
+    if (vert_to_edge_ends.contains(edge.first)) {
+      Vector<EncodedConnection> &edge_ends = vert_to_edge_ends.lookup(edge.first);
+      edge_ends.append(point_1);
+    }
+    else {
+      vert_to_edge_ends.add_new(edge.first, Vector<EncodedConnection>({point_1}));
+    }
+
+    if (vert_to_edge_ends.contains(edge.second)) {
+      Vector<EncodedConnection> &edge_ends = vert_to_edge_ends.lookup(edge.second);
+      edge_ends.append(point_2);
+    }
+    else {
+      vert_to_edge_ends.add_new(edge.second, Vector<EncodedConnection>({point_2}));
     }
   }
+
+  vert_to_edge_ends.foreach_item([&](int /*vert_index*/, Vector<EncodedConnection> edge_ends) {
+    BLI_assert(edge_ends.size() % 2 == 0);
+    for (const int edge_pair_index : IndexRange(edge_ends.size() / 2)) {
+      const EncodedConnection end_1 = edge_ends[edge_pair_index * 2];
+      const EncodedConnection end_2 = edge_ends[edge_pair_index * 2 + 1];
+
+      connect(end_1, end_2);
+    }
+  });
 
   follow_edge_connections(
       all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
