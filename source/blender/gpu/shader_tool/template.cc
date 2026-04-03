@@ -153,11 +153,14 @@ void SourceProcessor::lower_template_instantiation(
     }
   });
 
+  size_t symbol_name_pos = instance_parser.str().find(" " + string(fn_name.str()));
+  /* Append namespace to symbol name because appended mangled arguments make namespace
+   * resolution impossible. */
+  instance_parser.insert_after(symbol_name_pos, string(ns));
   if (!is_struct && !all_template_args_in_function_signature) {
     /* Append template args after function name.
      * `void func() {}` > `void func<a, 1>() {}`. */
-    size_t pos = instance_parser.str().find(" " + string(fn_name.str()));
-    instance_parser.insert_after(pos + fn_name.str().size(),
+    instance_parser.insert_after(symbol_name_pos + fn_name.str().size(),
                                  SourceProcessor::template_arguments_mangle(inst_args));
   }
   instance_parser.apply_mutations();
