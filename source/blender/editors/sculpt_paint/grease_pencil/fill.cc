@@ -1715,185 +1715,92 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
   }
 
-  Array<bool> tri_to_fill(result.face.size(), false);
+  Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
+  Array<float> tri_weights(result.face.size(), 0.0f);
 
-  if (invert) {
-    // fill_tris = set()
+  Vector<float2> pos_hint = {fill_point};
 
-    // for j in range(len(pos_hint)):
-    //     v = pos_hint[j]
-    //     tri = get_tri_for_point(v)
-    //     assert tri is not None
-    //     fill_tris.add(tri)
+  /* TODO. Expose to the user. */
+  const float joinning_factor = 0.4f;
 
-    // fill_tris = list(fill_tris)
+  int hint_index = 0;
+  int tri_index = get_tri_for_point(pos_hint[hint_index]);
+  add_weights_for_tri(tri_hint_index.as_mutable_span(),
+                      tri_weights.as_mutable_span(),
+                      tri_adjacency_0.as_span(),
+                      tri_adjacency_1.as_span(),
+                      tri_adjacency_2.as_span(),
+                      edge_weights.as_span(),
+                      tri_max_weight.as_span(),
+                      is_source_edge.as_span(),
+                      tri_index,
+                      hint_index);
+  Array<bool> is_tri_full_weight(result.face.size(), false);
 
-    const int first_tri = get_tri_for_point(fill_point);
-    BLI_assert(first_tri != NULL_INDEX);
+  while (hint_index < 1000) {
+    hint_index++;
 
-    VectorSet<int> fill_tris;
-    Vector<int> tris_to_check;
-
-    fill_tris.add(first_tri);
-    tris_to_check.append(first_tri);
-
-    int tep_ = 0;
-    // for (const int tep_ : IndexRange(1000)) {
-    while (!tris_to_check.is_empty()) {
-      tep_++;
-      BLI_assert(tep_ < 1000);
-      Vector<int> new_tris_to_check;
-      for (const int fill_i : tris_to_check.index_range()) {
-        const int next_tri = tris_to_check[fill_i];
-
-        {
-          auto [index, edge_index] = tri_adjacency_0[next_tri];
-          if (index != NULL_INDEX) {
-            if (!is_source_edge[edge_index]) {
-              if (!fill_tris.contains(index)) {
-                fill_tris.add(index);
-                new_tris_to_check.append(index);
-              }
-            }
-          }
-        }
-        {
-          auto [index, edge_index] = tri_adjacency_1[next_tri];
-          if (index != NULL_INDEX) {
-            if (!is_source_edge[edge_index]) {
-              if (!fill_tris.contains(index)) {
-                fill_tris.add(index);
-                new_tris_to_check.append(index);
-              }
-            }
-          }
-        }
-        {
-          auto [index, edge_index] = tri_adjacency_2[next_tri];
-          if (index != NULL_INDEX) {
-            if (!is_source_edge[edge_index]) {
-              if (!fill_tris.contains(index)) {
-                fill_tris.add(index);
-                new_tris_to_check.append(index);
-              }
-            }
-          }
-        }
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
+        is_tri_full_weight[tri_index] = true;
       }
-
-      tris_to_check = new_tris_to_check;
     }
 
-    tri_to_fill.as_mutable_span().fill(true);
-    for (const int fill_index : fill_tris.index_range()) {
-      const int tri_index = fill_tris[fill_index];
-      tri_to_fill[tri_index] = false;
+    int max_not_weight_tri_index = NULL_INDEX;
+    float max_not_weight_tri_weight = 0.0f;
+
+    for (const int tri_index : result.face.index_range()) {
+      const float tri_weight = tri_weights[tri_index];
+      if (is_tri_full_weight[tri_index]) {
+        continue;
+      }
+
+      if (max_not_weight_tri_index == NULL_INDEX) {
+
+        max_not_weight_tri_index = tri_index;
+        max_not_weight_tri_weight = tri_weight;
+      }
+
+      if (max_not_weight_tri_weight < tri_weight) {
+
+        max_not_weight_tri_index = tri_index;
+        max_not_weight_tri_weight = tri_weight;
+      }
+    }
+
+    if (max_not_weight_tri_index == NULL_INDEX) {
+      break;
+    }
+
+    const Vector<int> &tri = result.face[max_not_weight_tri_index];
+    const double2 &vert0 = result.vert[tri[0]];
+    const double2 &vert1 = result.vert[tri[1]];
+    const double2 &vert2 = result.vert[tri[2]];
+    pos_hint.append(float2((vert0 + vert1 + vert2) / 3.0f));
+
+    add_weights_for_tri(tri_hint_index.as_mutable_span(),
+                        tri_weights.as_mutable_span(),
+                        tri_adjacency_0.as_span(),
+                        tri_adjacency_1.as_span(),
+                        tri_adjacency_2.as_span(),
+                        edge_weights.as_span(),
+                        tri_max_weight.as_span(),
+                        is_source_edge.as_span(),
+                        max_not_weight_tri_index,
+                        hint_index);
+  }
+
+  Array<bool> tri_to_fill(result.face.size(), false);
+  const int fill_hint_index = 0;
+
+  if (invert) {
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_hint_index[tri_index] != fill_hint_index) {
+        tri_to_fill[tri_index] = true;
+      }
     }
   }
   else {
-    Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
-    Array<float> tri_weights(result.face.size(), 0.0f);
-
-    // Array<float2> pos_hint(2);
-    // pos_hint[0] = float2(corners[0]) + float2(1.0f, 1.0f);
-    // pos_hint[1] = fill_point;
-
-    Vector<float2> pos_hint = {fill_point};
-
-    {
-      /* TODO. Expose to the user. */
-      const float joinning_factor = 0.4f;
-
-      int hint_index = 0;
-      int tri_index = get_tri_for_point(pos_hint[hint_index]);
-      add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                          tri_weights.as_mutable_span(),
-                          tri_adjacency_0.as_span(),
-                          tri_adjacency_1.as_span(),
-                          tri_adjacency_2.as_span(),
-                          edge_weights.as_span(),
-                          tri_max_weight.as_span(),
-                          is_source_edge.as_span(),
-                          tri_index,
-                          hint_index);
-      Array<bool> is_tri_full_weight(result.face.size(), false);
-
-      while (hint_index < 1000) {
-        hint_index++;
-
-        for (const int tri_index : result.face.index_range()) {
-          if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
-            is_tri_full_weight[tri_index] = true;
-          }
-        }
-
-        int max_not_weight_tri_index = NULL_INDEX;
-        float max_not_weight_tri_weight = 0.0f;
-
-        for (const int tri_index : result.face.index_range()) {
-          const float tri_weight = tri_weights[tri_index];
-          if (is_tri_full_weight[tri_index]) {
-            continue;
-          }
-
-          if (max_not_weight_tri_index == NULL_INDEX) {
-
-            max_not_weight_tri_index = tri_index;
-            max_not_weight_tri_weight = tri_weight;
-          }
-
-          if (max_not_weight_tri_weight < tri_weight) {
-
-            max_not_weight_tri_index = tri_index;
-            max_not_weight_tri_weight = tri_weight;
-          }
-        }
-
-        if (max_not_weight_tri_index == NULL_INDEX) {
-          break;
-        }
-
-        const Vector<int> &tri = result.face[max_not_weight_tri_index];
-        const double2 &vert0 = result.vert[tri[0]];
-        const double2 &vert1 = result.vert[tri[1]];
-        const double2 &vert2 = result.vert[tri[2]];
-        pos_hint.append(float2((vert0 + vert1 + vert2) / 3.0f));
-
-        add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                            tri_weights.as_mutable_span(),
-                            tri_adjacency_0.as_span(),
-                            tri_adjacency_1.as_span(),
-                            tri_adjacency_2.as_span(),
-                            edge_weights.as_span(),
-                            tri_max_weight.as_span(),
-                            is_source_edge.as_span(),
-                            max_not_weight_tri_index,
-                            hint_index);
-      }
-    }
-
-    for (const int hint_index : pos_hint.index_range()) {
-      const float2 hint_pos = pos_hint[hint_index];
-
-      int tri_index = get_tri_for_point(hint_pos);
-      if (tri_index == NULL_INDEX) {
-        tri_index = 0;
-      }
-
-      add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                          tri_weights.as_mutable_span(),
-                          tri_adjacency_0.as_span(),
-                          tri_adjacency_1.as_span(),
-                          tri_adjacency_2.as_span(),
-                          edge_weights.as_span(),
-                          tri_max_weight.as_span(),
-                          is_source_edge.as_span(),
-                          tri_index,
-                          hint_index);
-    }
-
-    const int fill_hint_index = 0;
-
     for (const int tri_index : result.face.index_range()) {
       if (tri_hint_index[tri_index] == fill_hint_index) {
         tri_to_fill[tri_index] = true;
@@ -1926,8 +1833,11 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       }
 
       if (next_tri == NULL_INDEX) {
-        /* Return no geometry if we try to fill all of space. */
-        return {};
+        if (!invert) {
+          /* Return no geometry if we try to fill all of space. */
+          return {};
+        }
+        continue;
       }
 
       if (tri_to_fill[next_tri]) {
