@@ -78,6 +78,8 @@ struct NoExtraInfo {
   }
 };
 
+struct EmptyType {};
+
 }  // namespace blenlib_detail
 
 template<
@@ -96,7 +98,12 @@ template<
      * Required minimum alignment of the inline buffer. If this is smaller than the alignment
      * requirement of a used type, a separate allocation is necessary.
      */
-    size_t Alignment = 8>
+    size_t Alignment = 8,
+    /**
+     * Depending on the Alignment template parameter, there may be extra padding space that's
+     * available to store some data. This type is stored after the buffer to use that space.
+     */
+    typename ExtraData = blenlib_detail::EmptyType>
 class Any {
  private:
   /* Makes it possible to use void in the template parameters. */
@@ -112,6 +119,10 @@ class Any {
    */
   AlignedBuffer<RealInlineBufferCapacity, Alignment> buffer_{};
 
+ public:
+  BLI_NO_UNIQUE_ADDRESS ExtraData extra_data = {};
+
+ private:
   /**
    * Information about the type that is currently stored.
    * This is null when the #Any does not contain a value.
@@ -152,7 +163,7 @@ class Any {
  public:
   Any() = default;
 
-  Any(const Any &other) : info_(other.info_)
+  Any(const Any &other) : extra_data(other.extra_data), info_(other.info_)
   {
     if (info_ != nullptr) {
       if (info_->copy_construct != nullptr) {
@@ -170,7 +181,7 @@ class Any {
    * \note The #other #Any will not be empty afterwards if it was not before. Just its value is in
    * a moved-from state.
    */
-  Any(Any &&other) noexcept : info_(other.info_)
+  Any(Any &&other) noexcept : extra_data(std::move(other.extra_data)), info_(other.info_)
   {
     if (info_ != nullptr) {
       if (info_->move_construct != nullptr) {
