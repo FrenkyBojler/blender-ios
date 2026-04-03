@@ -17,16 +17,23 @@ namespace nodes::node_shader_subsurface_scattering_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Color").default_value({0.8f, 0.8f, 0.8f, 1.0f});
-  b.add_input<decl::Float>("Scale").default_value(0.05f).min(0.0f).max(1000.0f).description(
-      "Scale factor of the subsurface scattering radius");
-  b.add_input<decl::Vector>("Radius")
+  b.add_input<decl::Color>("Color"_ustr).default_value({0.8f, 0.8f, 0.8f, 1.0f});
+  b.add_input<decl::Float>("Scale"_ustr)
+      .default_value(0.05f)
+      .min(0.0f)
+      .max(1000.0f)
+      .description("Scale factor of the subsurface scattering radius");
+  b.add_input<decl::Vector>("Radius"_ustr)
       .default_value({1.0f, 0.2f, 0.1f})
       .min(0.0f)
       .max(100.0f)
       .description("Scattering radius per color channel (RGB), multiplied with Scale");
-  b.add_input<decl::Float>("IOR").default_value(1.4f).min(1.01f).max(3.8f).subtype(PROP_FACTOR);
-  b.add_input<decl::Float>("Roughness")
+  b.add_input<decl::Float>("IOR"_ustr)
+      .default_value(1.4f)
+      .min(1.01f)
+      .max(3.8f)
+      .subtype(PROP_FACTOR);
+  b.add_input<decl::Float>("Roughness"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
@@ -36,8 +43,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (!node) {
     return;
   }
-  auto sss_method_input =
-      b.add_input<decl::Float>("Anisotropy").default_value(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  auto sss_method_input = b.add_input<decl::Float>("Anisotropy"_ustr)
+                              .default_value(0.0f)
+                              .max(1.0f)
+                              .subtype(PROP_FACTOR);
   const int sss_method = node->custom1;
   if (sss_method == SHD_SUBSURFACE_RANDOM_WALK) {
     /* Only random walk supports negative anisotropy for now. */
@@ -55,9 +64,9 @@ static void node_declare(NodeDeclarationBuilder &b)
         "For example, skin has been measured to have an anisotropy of 0.8");
   }
 
-  b.add_input<decl::Vector>("Normal").hide_value();
-  b.add_input<decl::Float>("Weight").available(false);
-  b.add_output<decl::Shader>("BSSRDF");
+  b.add_input<decl::Vector>("Normal"_ustr).hide_value();
+  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_output<decl::Shader>("BSSRDF"_ustr);
 }
 
 static void node_shader_buts_subsurface(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
