@@ -2971,7 +2971,6 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   const short type = RNA_enum_get(op->ptr, "type");
-  const bool remove_all = RNA_boolean_get(op->ptr, "remove_all");
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -2993,36 +2992,39 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
 
   const RemovalMode mode = RemovalMode(RNA_enum_get(op->ptr, "mode"));
 
-  switch (mode) {
-    case RemovalMode::REMOVE_ALL:
-    case RemovalMode::REMOVE_TYPE: {
-      /* Remove f-modifier from each curve. */
-      for (bAnimListElem &ale : anim_data) {
-        FCurve *fcu = static_cast<FCurve *>(ale.data);
-        FModifier *fcm, *fcm_next;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
 
-        for (fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm; fcm = fcm_next) {
-          fcm_next = fcm->next;
+    switch (mode) {
+      case RemovalMode::REMOVE_ALL: {
+        for (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm != nullptr;) {
+          FModifier *next = fcm->next;
+          remove_fmodifier(&fcu->modifiers, fcm);
+          fcm = next;
+        }
+        break;
+      }
 
-          if (remove_all || fcm->type == type) {
+      case RemovalMode::REMOVE_TYPE: {
+        for (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm != nullptr;) {
+          FModifier *next = fcm->next;
+          if (fcm->type == type) {
             remove_fmodifier(&fcu->modifiers, fcm);
           }
-          ale.update |= ANIM_UPDATE_DEPS;
+          fcm = next;
         }
+        break;
       }
-      break;
-    }
 
-    case RemovalMode::REMOVE_FIRST: {
-      for (bAnimListElem &ale : anim_data) {
-        FCurve *fcu = static_cast<FCurve *>(ale.data);
-        FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first);
-        if (fcm) {
+      case RemovalMode::REMOVE_FIRST: {
+        if (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first)) {
           remove_fmodifier(&fcu->modifiers, fcm);
         }
         break;
       }
     }
+
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
