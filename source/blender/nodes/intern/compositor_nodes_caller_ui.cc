@@ -85,20 +85,17 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   /* Check #composite_node_tree_socket_type_valid for which socket types are valid and should be
    * drawn. */
-  if (ELEM(type,
-           SOCK_GEOMETRY,
-           SOCK_MATRIX,
-           SOCK_BUNDLE,
-           SOCK_CLOSURE,
-           SOCK_COLLECTION,
-           SOCK_MATERIAL,
-           SOCK_TEXTURE,
-           SOCK_FONT,
-           SOCK_SCENE,
-           SOCK_TEXT_ID,
-           SOCK_MASK,
-           SOCK_SOUND,
-           SOCK_IMAGE))
+  if (!ELEM(type,
+            SOCK_FLOAT,
+            SOCK_INT,
+            SOCK_BOOLEAN,
+            SOCK_VECTOR,
+            SOCK_INT_VECTOR,
+            SOCK_RGBA,
+            SOCK_MATRIX,
+            SOCK_MENU,
+            SOCK_STRING,
+            SOCK_OBJECT))
   {
     return;
   }
