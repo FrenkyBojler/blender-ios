@@ -362,7 +362,7 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
                                 smd.mask_strip != nullptr :
                                 smd.mask_id != nullptr;
 
-  if (cmd.node_group != nullptr) {
+  if (cmd.node_group != nullptr && !(ID_MISSING(cmd.node_group))) {
     bNodeTree &tree = *cmd.node_group;
     tree.ensure_interface_cache();
     ctx.input_usages.reinitialize(tree.interface_inputs().size());
