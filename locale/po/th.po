@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-09 09:47+0000\n"
-"PO-Revision-Date: 2026-02-01 08:12+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
 "Language: th\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.14.3"
+"X-Generator: Weblate 5.16.2"
 
 
 msgid "Shader AOV"
@@ -3706,6 +3706,10 @@ msgid "Options for this blendfile import operation"
 msgstr "ตัวเลือกสำหรับการนำเข้าไฟล์ Blendfile นี้"
 
 
+msgid "Only link data, instead of appending it"
+msgstr "เพียงแค่เชื่อมโยงข้อมูล ไม่ใช่เพิ่มข้อมูลต่อท้าย"
+
+
 msgid "Speed"
 msgstr "ความเร็ว"
 
@@ -3833,18 +3837,6 @@ msgstr "เส้นโค้ง"
 
 msgid "View"
 msgstr "มุมมอง"
-
-
-msgid "Mix"
-msgstr "ผสม"
-
-
-msgid "Screen"
-msgstr "จอภาพ"
-
-
-msgid "Difference"
-msgstr "แตกต่าง"
 
 
 msgid "Brightness"
@@ -4328,10 +4320,6 @@ msgid "Layers"
 msgstr "ชั้น"
 
 
-msgid "Add Alpha"
-msgstr "เพิ่มแอลฟา"
-
-
 msgid "Local"
 msgstr "โดยท้องถิ่น"
 
@@ -4746,6 +4734,10 @@ msgid "Final frame of the playback/rendering range"
 msgstr "เฟรมสุดท้ายของความยาวการเล่น/เรนเดอร์"
 
 
+msgid "Restore Frame"
+msgstr "คืนค่าเฟรม"
+
+
 msgid "Render Data"
 msgstr "เรนเดอร์ข้อมูล"
 
@@ -4925,6 +4917,18 @@ msgid "Rotation & Scale"
 msgstr "หมุน และ ย่อขยาย"
 
 
+msgid "Mix"
+msgstr "ผสม"
+
+
+msgid "Difference"
+msgstr "แตกต่าง"
+
+
+msgid "Screen"
+msgstr "จอภาพ"
+
+
 msgid "Squares"
 msgstr "สี่เหลี่ยม"
 
@@ -4953,64 +4957,40 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Names"
-msgstr "ชื่อ"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Merge"
-msgstr "ผสาน"
-
-
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Apply"
-msgstr "นำไปใช้"
-
-
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
-msgid "Keying"
-msgstr "คีย์"
-
-
-msgid "Hooks"
-msgstr "ตะขอ"
-
-
 msgid "Math"
 msgstr "คณิตศาสตร์"
 
 
-msgid "Light"
-msgstr "แสง"
+msgid "Names"
+msgstr "ชื่อ"
 
 
-msgid "Track"
-msgstr "แทร็ค"
+msgid "Pivot Point"
+msgstr "จุดหมุน"
 
 
-msgid "Add Image"
-msgstr "เพิ่มภาพ"
+msgid "Snap"
+msgstr "ยึดติด"
 
 
-msgid "Align View"
-msgstr "จัดมุมมอง"
+msgid "Proportional Editing Falloff"
+msgstr "แก้ไข"
 
 
-msgid "View Regions"
-msgstr "ขอบเขตมุมมอง"
+msgid "Mask Edit"
+msgstr "การแก้ไขหน้ากาก"
 
 
-msgid "Align View to Active"
-msgstr "จัดมุมมองไปยังที่วัตถุใช้งาน"
+msgid "Import"
+msgstr "นำเข้า"
+
+
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
+
+
+msgid "Local View"
+msgstr "มุมมองท้องถิ่น"
 
 
 msgid "Viewpoint"
@@ -5021,36 +5001,60 @@ msgid "Navigation"
 msgstr "การนำทาง"
 
 
-msgid "Local View"
-msgstr "มุมมองท้องถิ่น"
+msgid "Align View"
+msgstr "จัดมุมมอง"
 
 
-msgid "Snap"
-msgstr "ยึดติด"
+msgid "Align View to Active"
+msgstr "จัดมุมมองไปยังที่วัตถุใช้งาน"
 
 
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
-
-
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "Mask Edit"
-msgstr "การแก้ไขหน้ากาก"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "แก้ไข"
-
-
-msgid "Pivot Point"
-msgstr "จุดหมุน"
+msgid "View Regions"
+msgstr "ขอบเขตมุมมอง"
 
 
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "Light"
+msgstr "แสง"
+
+
+msgid "Add Image"
+msgstr "เพิ่มภาพ"
+
+
+msgid "Apply"
+msgstr "นำไปใช้"
+
+
+msgid "Track"
+msgstr "แทร็ค"
+
+
+msgid "Hooks"
+msgstr "ตะขอ"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Merge"
+msgstr "ผสาน"
 
 
 msgid "Zoom"
@@ -6074,10 +6078,6 @@ msgid "New"
 msgstr "ใหม่"
 
 
-msgid "Restore Frame"
-msgstr "คืนค่าเฟรม"
-
-
 msgctxt "Operator"
 msgid "Play Animation"
 msgstr "เล่นแอนิเมชัน"
@@ -6315,12 +6315,12 @@ msgid "Single Image"
 msgstr "ภาพเดี่ยว"
 
 
-msgid "Overlays"
-msgstr "วางซ้อน"
-
-
 msgid "View Lock"
 msgstr "ล็อกมุมมอง"
+
+
+msgid "Overlays"
+msgstr "วางซ้อน"
 
 
 msgid "Mask Display"
@@ -7348,6 +7348,11 @@ msgstr "ติดตั้งแม่แบบแอปพลิเคชั่
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "บันทึกเป็น..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "ออก"
 
@@ -7415,11 +7420,6 @@ msgstr "พื้นที่ใช้งานถัดไป"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "กลับไปยังก่อนหน้านี้"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "บันทึกเป็น..."
 
 
 msgctxt "Operator"

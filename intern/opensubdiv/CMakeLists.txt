@@ -26,11 +26,11 @@ set(LIB
 )
 
 if(WITH_OPENSUBDIV)
-  macro(OPENSUBDIV_DEFINE_COMPONENT component)
+  function(OPENSUBDIV_DEFINE_COMPONENT component)
     if(${${component}})
       add_definitions(-D${component})
     endif()
-  endmacro()
+  endfunction()
 
   list(APPEND SRC
     # Base.
@@ -74,11 +74,6 @@ if(WITH_OPENSUBDIV)
     bf::dependencies::optional::opensubdiv
     bf::dependencies::epoxy
   )
-
-  if(WIN32)
-    add_definitions(-DNOMINMAX)
-    add_definitions(-D_USE_MATH_DEFINES)
-  endif()
 
   if(WITH_METAL_BACKEND)
     add_definitions(-DWITH_METAL_BACKEND)

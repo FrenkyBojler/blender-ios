@@ -15,7 +15,9 @@ set(SRC
   debug.cpp
   guarded_allocator.cpp
   ies.cpp
+  image_maketx.cpp
   image_metadata.cpp
+  implicit_sharing.cpp
   log.cpp
   math_cdf.cpp
   md5.cpp
@@ -36,12 +38,17 @@ set(SRC
 
 set(LIB
   PUBLIC bf::dependencies::openimageio
+  PRIVATE bf::dependencies::jpeg
   PUBLIC bf::dependencies::optional::tbb
   PUBLIC bf::dependencies::optional::embree
   PUBLIC bf::dependencies::optional::openpgl
   PUBLIC bf::dependencies::optional::openvdb
   PRIVATE bf::dependencies::optional::opencolorio
   PRIVATE bf::dependencies::zstd
+  PRIVATE bf::dependencies::optional::openexr
+  # Used by OpenImageIO headers, which fallback to a bundled version. But we
+  # need to use the same version as Blender to avoid symbol conflicts.
+  PRIVATE bf::dependencies::fmt
 )
 
 set(SRC_HEADERS
@@ -51,6 +58,7 @@ set(SRC_HEADERS
   array.h
   atomic.h
   boundbox.h
+  cache_limiter.h
   color.h
   colorspace.h
   concurrent_set.h
@@ -66,7 +74,9 @@ set(SRC_HEADERS
   ies.h
   image.h
   image_impl.h
+  image_maketx.h
   image_metadata.h
+  implicit_sharing.h
   list.h
   log.h
   map.h
@@ -99,6 +109,7 @@ set(SRC_HEADERS
   queue.h
   random_access_iterator_mixin.h
   rect.h
+  scoped_defer.h
   set.h
   simd.h
   semaphore.h
