@@ -156,7 +156,7 @@ void SourceProcessor::lower_template_instantiation(
   if (!is_struct && !all_template_args_in_function_signature) {
     /* Append template args after function name.
      * `void func() {}` > `void func<a, 1>() {}`. */
-    size_t pos = fn_decl.find(" " + string(fn_name.str()));
+    size_t pos = instance_parser.str().find(" " + string(fn_name.str()));
     instance_parser.insert_after(pos + fn_name.str().size(),
                                  SourceProcessor::template_arguments_mangle(inst_args));
   }
@@ -168,7 +168,7 @@ void SourceProcessor::lower_template_instantiation(
   string instance = instance_parser.result_get();
   /* Remove added newline from the injected namespace. */
   instance = instance.substr(instance.find_first_of('\n') + 1);
-  parser.erase(inst_start, inst_end);
+
   if (is_method) {
     /* Method are put back in their classes. */
     parser.insert_line_number(fn_end, fn_start.line_number(), template_filename);
@@ -255,7 +255,6 @@ void SourceProcessor::process_template_struct(
   }
 
   SourceProcessor::Parser def_parser(template_def.definition, report_error_);
-  lower_pre_template(def_parser);
 
   assert(def_parser[0] == Template);
 
@@ -279,7 +278,7 @@ void SourceProcessor::process_template_struct(
         arg, arg_list, Scope(def_parser), all_template_args_in_function_signature, report_error_);
   });
 
-  /* Remove declaration. */
+  /* Remove template parameters declaration. */
   Token template_keyword = template_scope.front().prev();
   def_parser.erase(template_keyword, struct_end);
 
@@ -333,7 +332,12 @@ void SourceProcessor::process_template_function(
 
   /* Parse template declaration. */
   const Token fn_start = template_scope.back().next();
-  const Scope fn_args = fn_start.find_next(ParOpen).scope();
+  Token after_attr = fn_start;
+  /* Skip attributes. */
+  while (after_attr == SquareOpen) {
+    after_attr = after_attr.scope().back().next();
+  }
+  const Scope fn_args = after_attr.find_next(ParOpen).scope();
   const Token fn_name = fn_args.front().prev();
   const Token fn_end = fn_args.back().find_next(BracketOpen).scope().back();
 
@@ -352,6 +356,10 @@ void SourceProcessor::process_template_function(
     return;
   }
 
+  /* Remove template parameters declaration. */
+  Token template_keyword = template_scope.front().prev();
+  def_parser.erase(template_keyword, fn_end);
+
   vector<string> arg_list;
   bool all_template_args_in_function_signature = true;
   template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
@@ -360,10 +368,6 @@ void SourceProcessor::process_template_function(
   });
 
   const string fn_decl = def_parser.substr_range_inclusive(fn_start, fn_end);
-
-  /* Remove declaration. */
-  Token template_keyword = template_scope.front().prev();
-  def_parser.erase(template_keyword, fn_end);
 
   string full_specified_name(template_def.name_space + template_def.identifier);
   SourceProcessor::Parser name_parser(full_specified_name, report_error_);
@@ -419,8 +423,11 @@ void SourceProcessor::lower_templates(Parser &parser)
       /* Capture end semicolon. */
       end = end.next();
     }
-    parser.erase(toks[0], end);
+    /* This can fail as it might try to erase templated method inside templated struct. */
+    parser.replace_try(toks[0], end, "");
   });
+
+  parser.apply_mutations();
 
   /* Deduplicate symbols (can happen because the main file is parsed twice). */
   unordered_map<string, TemplateDefinition> unique_symbols;
@@ -440,15 +447,12 @@ void SourceProcessor::lower_templates(Parser &parser)
 
   parser.apply_mutations();
 
-  /* Check if there is no remaining declaration and instantiation that were not processed. */
-  parser().foreach_token(Template, [&](Token tok) {
-    if (tok.next() == '<') {
-      report_error_(ERROR_TOK(tok), "Template declaration unsupported syntax");
-    }
-    else {
-      report_error_(ERROR_TOK(tok), "Unknown template instantiation");
-    }
+  /* Remove template instantiation. */
+  parser().foreach_match("tA", [&](const vector<Token> &toks) {
+    parser.erase(toks[0], toks[0].find_next(SemiColon));
   });
+
+  parser.apply_mutations();
 
   /* Process calls to templated types or functions. */
   parser().foreach_match("A<..>", [&](const vector<Token> &tokens) {
