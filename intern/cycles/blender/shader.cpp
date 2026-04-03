@@ -1234,6 +1234,14 @@ static ShaderOutput *node_find_output_by_name(blender::bNode &b_node,
         output = node->output(name.c_str());
       }
     }
+    else if (b_node.is_type("FunctionNodeInputVector")) {
+      /* FunctionNodeInputVector has an output called "Vector", and it uses ColorNode Cycles node
+       * that has an output called "Color". */
+      if (name == "Vector") {
+        name = "Color";
+        output = node->output(name.c_str());
+      }
+    }
   }
 
   return output;
