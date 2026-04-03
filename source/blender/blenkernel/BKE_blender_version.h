@@ -28,6 +28,12 @@ namespace blender {
 /** Blender release type suffix. LTS or blank. */
 #define BLENDER_VERSION_SUFFIX
 
+/* Message used to notify users of this new version:
+ * - Keep it blank in `main`
+ * - Always end it with a period (.)
+ */
+#define BLENDER_VERSION_LOGLINE
+
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
 #define BLENDER_FILE_SUBVERSION 17
