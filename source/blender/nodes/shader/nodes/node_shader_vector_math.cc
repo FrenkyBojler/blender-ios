@@ -106,13 +106,6 @@ static void vector_math_input_defaults(bNode &node, const NodeVectorMathOperatio
   bNodeSocketValueVector *in_vector_3 = socket_3->default_value_typed<bNodeSocketValueVector>();
 
   switch (mode) {
-    case NODE_VECTOR_MATH_ADD:
-    case NODE_VECTOR_MATH_SUBTRACT: {
-      for (int i = 0; i < in_vector_2->dimensions; i++) {
-        in_vector_2->value[i] = 0.0f;
-      }
-      break;
-    }
     case NODE_VECTOR_MATH_MULTIPLY:
     case NODE_VECTOR_MATH_DIVIDE:
     case NODE_VECTOR_MATH_POWER:
