@@ -1498,7 +1498,7 @@ void IESLightNode::get_slot()
       slot = light_manager->add_ies_from_file(filename.string());
     }
     else {
-      slot = light_manager->add_ies(ies.string());
+      slot = light_manager->add_ies(ies.string(), true);
     }
   }
 }
@@ -2069,6 +2069,11 @@ const NodeType *(&ConvertNode::get_node_types())[ConvertNode::MAX_TYPE][ConvertN
 
   return node_types;
 }
+
+bool ConvertNode::register_on_init = NodeType::register_on_init([] {
+  ConvertNode::get_node_types();
+  return static_cast<const NodeType *>(nullptr);
+});
 
 unique_ptr<Node> ConvertNode::create(const NodeType *type)
 {

@@ -95,6 +95,7 @@ struct wmSpaceTypeListenerParams {
   ScrArea *area;
   const wmNotifier *notifier;
   const Scene *scene;
+  const Main *bmain;
 };
 
 struct SpaceType {
