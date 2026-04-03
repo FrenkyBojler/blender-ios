@@ -44,6 +44,8 @@ BLOCKLIST = [
     "principled_bsdf_transmission.blend",
     # Blocked due to platform-dependent noise differences (likely floating-point/fast-math differences).
     "raycast_bump.blend",
+    # Blocked due to platform-dependent uninitialized pixels.
+    "image_mapping_udim.blend",
 ]
 
 BLOCKLIST_METAL = [
