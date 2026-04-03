@@ -518,7 +518,7 @@ void node_mix_float(float fac,
                     float3 &outvec,
                     float4 &outcol)
 {
-  /* Avoid using mix() due to floating point precision issues caused by different implementations. */
+  /* Avoid using mix() due to float precision issues caused by different implementations. */
   outfloat = f1 * (1.0f - fac) + f2 * fac;
 }
 
@@ -535,7 +535,7 @@ void node_mix_vector(float fac,
                      float3 &outvec,
                      float4 &outcol)
 {
-  /* Avoid using mix() due to floating point precision issues caused by different implementations. */
+  /* Avoid using mix() due to float precision issues caused by different implementations. */
   outvec = v1 * (1.0f - fac) + v2 * fac;
 }
 
@@ -552,7 +552,7 @@ void node_mix_vector_non_uniform(float fac,
                                  float3 &outvec,
                                  float4 &outcol)
 {
-  /* Avoid using mix() due to floating point precision issues caused by different implementations. */
+  /* Avoid using mix() due to float precision issues caused by different implementations. */
   outvec = v1 * (float3(1.0f) - facvec) + v2 * facvec;
 }
 
