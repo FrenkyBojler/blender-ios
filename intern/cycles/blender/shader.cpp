@@ -1557,25 +1557,25 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
   TaskPool pool;
   set<Shader *> updated_shaders;
 
-  /* The two dicts old_view_layer_aovs and new_view_layer_aovs are to keep track of the AOVs in
-   * consecutive view layers that are rendered. They store a mapping of the used AOV names to their
-   * types. They're always kept up to date and not guarded by needs_resync so that the old data is
-   * available in the next run, and used when the other conditions for a resync are not met. Here
-   * there's no concept of a "first" view layer to be rendered to clear out old_view_layer_aovs,
-   * but for the purpose of what the data is used for, the results are still correct and don't skip
-   * a necessary sync by chance.
+  /* When consecutive view layers to be rendered have different AOVs or if those AOVs are merely
+   * reordered, the AOV offsets in the shaders that have AOV output nodes must be updated via
+   * OutputAOVNode::simplify_settings() further down the line.
+   * This tracking ensures that the inputs of the AOV output nodes are connected when needed,
+   * disconnected when not, and that the offsets, which also depend on the data types, are correct.
+   * Storing the new AOV data must take place even if no shaders are affected so the new data
+   * is available as the old data when the next view layer is rendered, but the check can be
+   * deferred.
    */
-  static std::unordered_map<std::string, int> old_view_layer_aovs;
-  std::unordered_map<std::string, int> new_view_layer_aovs;
-
-  /* Store info on the new AOVs */
+  blender::Vector<std::pair<std::string, int>> new_view_layer_aovs;
+  /* Store info on the new AOVs. */
   blender::ViewLayer *const b_view_layer = DEG_get_evaluated_view_layer(&b_depsgraph);
   for (blender::ViewLayerAOV &b_aov : b_view_layer->aovs) {
     if ((b_aov.flag & blender::AOV_CONFLICT) != 0) {
       continue;
     }
-    new_view_layer_aovs.insert_or_assign(b_aov.name, b_aov.type);
+    new_view_layer_aovs.append(std::pair<std::string, int>(b_aov.name, b_aov.type));
   }
+  bool aov_changes_between_view_layers_checked = false, aovs_changed_between_view_layers = false;
 
   blender::DEGIDIterData data{};
   data.graph = &b_depsgraph;
@@ -1596,44 +1596,14 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
     /* test if we need to sync */
     bool needs_resync = shader_map.add_or_update(&shader, &b_mat.id) || update_all ||
                         scene_attr_needs_recalc(shader, b_depsgraph);
-
-    if (!needs_resync) {
-      /* Here, despite the other conditions, OutputAOVNode::simplify_settings() still needs to
-       * be called further down the line when the current view layer's AOVs in relation to
-       * what's in the material disagree with those of the previously rendered view layer.
-       */
-      for (ShaderNode *const node : shader->graph->nodes) {
-        /* Loop: check all AOV output nodes of the material against the old and the new view layer
-         * AOVs. Group nodes don't exist at this stage, otherwise they would have to be
-         * stepped into.
-         */
-        if (node->special_type == SHADER_SPECIAL_TYPE_OUTPUT_AOV) {
-          OutputAOVNode *const aov_node = static_cast<OutputAOVNode *>(node);
-          std::string aov_node_name = aov_node->get_name().string();
-          if (!aov_node_name.empty()) {
-            std::unordered_map<std::string, int>::const_iterator
-                it_old_aov_type = old_view_layer_aovs.find(aov_node_name),
-                it_new_aov_type = new_view_layer_aovs.find(aov_node_name);
-            if (
-                /* Case 1: the old VL has no AOV of that name but the new one does. The inputs must
-                   be connected. */
-                (it_old_aov_type == old_view_layer_aovs.end() &&
-                 it_new_aov_type != new_view_layer_aovs.end()) ||
-                /* Case 2: the old VL has an AOV of that name but the new one doesn't. The inputs
-                   can be disconnected. */
-                (it_old_aov_type != old_view_layer_aovs.end() &&
-                 it_new_aov_type == new_view_layer_aovs.end()) ||
-                /* Case 3: the old and the new VL both have an AOV of that name, but the types
-                   differ. The offset in the node must be updated. */
-                (it_old_aov_type != old_view_layer_aovs.end() &&
-                 it_new_aov_type != new_view_layer_aovs.end() &&
-                 it_old_aov_type->second != it_new_aov_type->second))
-            {
-              needs_resync = true;
-              break;
-            }
-          }
-        }
+    /* Consecutive view layer AOV equality check */
+    if (!needs_resync && shader->has_aov_output_node) {
+      if (!aov_changes_between_view_layers_checked) {
+        aovs_changed_between_view_layers = new_view_layer_aovs != old_view_layer_aovs;
+        aov_changes_between_view_layers_checked = true;
+      }
+      if (aovs_changed_between_view_layers) {
+        needs_resync = true;
       }
     }
 
@@ -1698,7 +1668,7 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
 
   pool.wait_work();
 
-  /* Info on the new AOVs becomes info on the old AOVs */
+  /* Info on the new AOVs becomes info on the old AOVs. */
   old_view_layer_aovs = std::move(new_view_layer_aovs);
 
   for (Shader *shader : updated_shaders) {
