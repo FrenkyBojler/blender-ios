@@ -1420,12 +1420,11 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     const bke::CurvesGeometry &strokes = info.drawing.strokes();
     const bke::AttributeAccessor attributes = strokes.attributes();
     const VArray<bool> cyclic = strokes.cyclic();
+    const VArray<float> opacities = info.drawing.opacities();
     const VArray<int> materials = *attributes.lookup_or_default<int>(
         attr_material_index, bke::AttrDomain::Curve, 0);
     const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
         attr_is_fill_guide, bke::AttrDomain::Curve, false);
-
-    const int layer_offset = input_verts.size();
 
     IndexMaskMemory curve_mask_memory;
     const IndexMask curve_mask = get_visible_boundary_strokes(
@@ -1445,27 +1444,41 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       if (mat == nullptr || (mat->gp_style->flag & GP_MATERIAL_HIDE)) {
         return;
       }
+      const float material_alpha = mat->gp_style->stroke_rgba[3];
 
       /* In boundary layers only boundary strokes should be rendered. */
       if (only_boundary_strokes && !is_boundary_stroke[curve_i]) {
         return;
       }
 
+      Array<bool> is_point_visible(points.size(), false);
       for (const int point_i : points) {
+        /* Skip transparent points. */
+        if (alpha_threshold && (material_alpha * opacities[point_i] < *alpha_threshold)) {
+          continue;
+        }
+
         const float3 pos_world = math::transform_point(layer_to_world,
                                                        deformation.positions[point_i]);
         float2 pos_view;
         eV3DProjStatus result = ED_view3d_project_float_global(
             &region, pos_world, pos_view, V3D_PROJ_TEST_NOP);
-        BLI_assert(result == V3D_PROJ_RET_OK);
-
-        input_verts.append(double2(pos_view));
+        if (result == V3D_PROJ_RET_OK) {
+          input_verts.append(double2(pos_view));
+          is_point_visible[point_i - points.first()] = true;
+        }
       }
 
+      const int point_offset = input_verts.size();
       for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
         const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
-        input_edges.append(
-            order_edge(std::pair<int, int>(point_i + layer_offset, point_next + layer_offset)));
+        if (is_point_visible[point_i - points.first()] &&
+            is_point_visible[point_next - points.first()])
+        {
+          input_edges.append(
+              order_edge(std::pair<int, int>(point_i - points.first() + point_offset,
+                                             point_next - points.first() + point_offset)));
+        }
       }
     });
   }
