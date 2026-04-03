@@ -1637,7 +1637,7 @@ if(WITH_UI_TESTS)
     test_quick_effects.add_quick_fur
     test_quick_effects.add_quick_smoke
     test_quick_effects.add_quick_liquid
-    test_quick_effects.add_quick_explosion
+    test_quick_effects.add_quick_explode
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
