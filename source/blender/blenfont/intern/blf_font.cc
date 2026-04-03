@@ -789,7 +789,7 @@ float blf_font_width(FontBLF *font, const char *str, const size_t str_len, Resul
   }
 
   const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
-  return float(BLI_rcti_size_x(&box) + 1) * xa;
+  return float(BLI_rcti_size_x(&box)) * xa;
 }
 
 float blf_font_height(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -804,7 +804,7 @@ float blf_font_height(FontBLF *font, const char *str, const size_t str_len, Resu
   }
 
   const float ya = (font->flags & BLF_ASPECT) ? font->aspect[1] : 1.0f;
-  return float(BLI_rcti_size_y(&box) + 1) * ya;
+  return float(BLI_rcti_size_y(&box)) * ya;
 }
 
 float blf_font_fixed_width(FontBLF *font)

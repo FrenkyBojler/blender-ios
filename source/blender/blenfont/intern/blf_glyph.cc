@@ -114,7 +114,7 @@ static GlyphCacheBLF *blf_glyph_cache_new(FontBLF *font)
   FT_UInt gindex = blf_get_char_index(font, U'0');
   if (gindex && font->face) {
     FT_Fixed advance = 0;
-    FT_Get_Advance(font->face, gindex, FT_LOAD_NO_HINTING, &advance);
+    FT_Get_Advance(font->face, gindex, FT_LOAD_DEFAULT, &advance);
     /* Use CSS 'ch unit' width, advance of zero character. */
     gc->fixed_width = int(advance >> 16);
   }
@@ -235,7 +235,8 @@ static GlyphBLF *blf_glyph_cache_add_glyph(GlyphCacheBLF *gc,
   std::unique_ptr<GlyphBLF> g = std::make_unique<GlyphBLF>();
   g->c = charcode;
   g->idx = glyph_index;
-  g->advance_x = ft_pix(glyph->linearHoriAdvance >> 10);
+  /* use unrounded 16.16 advance value, rounded to nearest 26.6. */
+  g->advance_x = ft_pix((glyph->linearHoriAdvance + 512) >> 10);
   g->subpixel = subpixel;
 
   FT_BBox bbox;
