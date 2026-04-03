@@ -1451,6 +1451,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         return;
       }
 
+      const int point_offset = input_verts.size();
       Array<bool> is_point_visible(points.size(), false);
       for (const int point_i : points) {
         /* Skip transparent points. */
@@ -1469,7 +1470,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         }
       }
 
-      const int point_offset = input_verts.size();
       for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
         const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
         if (is_point_visible[point_i - points.first()] &&
