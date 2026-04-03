@@ -203,6 +203,7 @@ static bool cryptomatte_sample_renderlayer_fl(RenderLayer *render_layer,
     {
       BLI_assert(render_pass.channels == 4);
 
+      /* Pass was allocated but not rendered yet. */
       if (!render_pass.ibuf) {
         return false;
       }
@@ -281,15 +282,11 @@ static bool cryptomatte_sample_fl(bContext *C,
                                   float3 &r_col)
 {
   bNode *node = picker->node;
-  NodeCryptomatte *crypto = node ? (static_cast<NodeCryptomatte *>(node->storage)) : nullptr;
-
-  if (!crypto) {
-    return false;
-  }
+  NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(node->storage);
 
   ScrArea *area = nullptr;
 
-  int event_xy_win[2];
+  int event_xy_win[2] = {event_xy[0], event_xy[1]};
   wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(C), event_xy, event_xy_win);
   if (win) {
     bScreen *screen = WM_window_get_active_screen(win);
@@ -394,31 +391,21 @@ static bool cryptomatte_sample_fl(bContext *C,
 /** \name Operator Callbacks
  * \{ */
 
-static void cryptomatte_pick_sample_text_update(bContext *C,
-                                                CryptomattePicker *picker,
-                                                const int event_xy[2])
+static void cryptomatte_pick_sample_text_update(CryptomattePicker *picker, const float3 &col)
 {
-  float3 col;
   picker->sample_text[0] = '\0';
 
   if (picker->session) {
-    if (cryptomatte_sample_fl(C, picker, event_xy, col)) {
-      BKE_cryptomatte_find_name(
-          picker->session, col[0], picker->sample_text, sizeof(picker->sample_text));
-      picker->sample_text[sizeof(picker->sample_text) - 1] = '\0';
-    }
+    BKE_cryptomatte_find_name(
+        picker->session, col[0], picker->sample_text, sizeof(picker->sample_text));
+    picker->sample_text[sizeof(picker->sample_text) - 1] = '\0';
   }
 }
 
 static bool cryptomatte_pick_sample_and_apply(bContext *C,
                                               CryptomattePicker *picker,
-                                              const int event_xy[2])
+                                              const float3 &col)
 {
-  float3 col;
-  if (!cryptomatte_sample_fl(C, picker, event_xy, col)) {
-    return false;
-  }
-
   if (col[0] == picker->last_picked_hash) {
     return false;
   }
@@ -524,15 +511,15 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
   }
 
   NodeCryptomatte *crypto = static_cast<NodeCryptomatte *>(node->storage);
+  wmWindow *win = CTX_wm_window(C);
 
   CryptomattePicker *picker = MEM_new<CryptomattePicker>(__func__);
   picker->node = node;
   picker->ntree = ntree;
   picker->session = ntreeCompositCryptomatteSession(node);
   picker->is_add = STREQ(op->type->idname, "NODE_OT_cryptomatte_entry_add");
-  picker->cb_win = CTX_wm_window(C);
-  picker->draw_handle_sample_text = WM_draw_cb_activate(
-      picker->cb_win, cryptomatte_draw_cb, picker);
+  picker->cb_win = win;
+  picker->draw_handle_sample_text = WM_draw_cb_activate(win, cryptomatte_draw_cb, picker);
 
   BLI_duplicatelist(&picker->initial_entries, &crypto->entries);
   if (crypto->matte_id) {
@@ -541,7 +528,6 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
 
   op->customdata = picker;
 
-  wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
   WM_event_add_modal_handler(C, op);
@@ -552,6 +538,7 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
 static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   CryptomattePicker *picker = static_cast<CryptomattePicker *>(op->customdata);
+  bool update_status = false;
 
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
@@ -559,32 +546,52 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
         cryptomatte_pick_cancel(C, op);
         return OPERATOR_CANCELLED;
 
-      case CRYPTO_PICK_MODAL_SAMPLE_BEGIN:
+      case CRYPTO_PICK_MODAL_SAMPLE_BEGIN: {
         picker->accum_start = true;
         picker->multi_sample = (event->modifier & KM_SHIFT) != 0;
-        cryptomatte_pick_sample_and_apply(C, picker, event->xy);
-        cryptomatte_pick_sample_text_update(C, picker, event->xy);
+        float3 col;
+        if (cryptomatte_sample_fl(C, picker, event->xy, col)) {
+          cryptomatte_pick_sample_and_apply(C, picker, col);
+          cryptomatte_pick_sample_text_update(picker, col);
+        }
+        update_status = true;
         break;
+      }
 
       case CRYPTO_PICK_MODAL_SAMPLE_RELEASE:
         picker->accum_start = false;
         if (!picker->multi_sample) {
+          if (picker->accum_tot == 0) {
+            cryptomatte_pick_cancel(C, op);
+            return OPERATOR_CANCELLED;
+          }
           cryptomatte_pick_exit(C, op);
           return OPERATOR_FINISHED;
         }
+        update_status = true;
         break;
 
       case CRYPTO_PICK_MODAL_CONFIRM:
+        if (picker->accum_tot == 0) {
+          cryptomatte_pick_cancel(C, op);
+          return OPERATOR_CANCELLED;
+        }
         cryptomatte_pick_exit(C, op);
         return OPERATOR_FINISHED;
     }
   }
   else if (ISMOUSE_MOTION(event->type)) {
-    if (picker->accum_start) {
-      cryptomatte_pick_sample_and_apply(C, picker, event->xy);
+    float3 col;
+    if (cryptomatte_sample_fl(C, picker, event->xy, col)) {
+      if (picker->accum_start) {
+        cryptomatte_pick_sample_and_apply(C, picker, col);
+      }
+      cryptomatte_pick_sample_text_update(picker, col);
     }
-    cryptomatte_pick_sample_text_update(C, picker, event->xy);
+    update_status = true;
+  }
 
+  if (update_status) {
     WorkspaceStatus status(C);
     status.opmodal(IFACE_("Sample"), op->type, CRYPTO_PICK_MODAL_SAMPLE_BEGIN);
     status.item(IFACE_("Multi-Sample"), ICON_EVENT_SHIFT, ICON_MOUSE_LMB);
