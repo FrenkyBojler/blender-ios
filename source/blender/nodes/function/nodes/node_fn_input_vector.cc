@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const auto &storage = *static_cast<NodeInputVector *>(node->storage);
     dimensions = storage.dimensions;
   }
-  b.add_output<decl::Vector>("Vector")
+  b.add_output<decl::Vector>("Vector"_ustr)
       .dimensions(dimensions)
       .custom_draw([](CustomSocketDrawParams &params) {
         params.layout.alignment_set(ui::LayoutAlign::Expand);
@@ -84,7 +84,7 @@ static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr
 {
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
-  layout.prop(ptr, "dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "vector_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_register()

@@ -367,7 +367,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
     case NC_MASK: {
       Scene *scene = WM_window_get_active_scene(win);
       ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-      BKE_view_layer_synced_ensure(scene, view_layer);
+      BKE_view_layer_synced_ensure(*params->bmain, scene, view_layer);
       Object *obedit = BKE_view_layer_edit_object_get(view_layer);
       if (ED_space_image_check_show_maskedit(sima, obedit)) {
         switch (wmn->data) {
@@ -411,7 +411,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
         case ND_MODIFIER: {
           const Scene *scene = WM_window_get_active_scene(win);
           ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-          BKE_view_layer_synced_ensure(scene, view_layer);
+          BKE_view_layer_synced_ensure(*params->bmain, scene, view_layer);
           Object *ob = BKE_view_layer_active_object_get(view_layer);
           /* \note With a geometry nodes modifier, the UVs on `ob` can change in response to
            * any change on `wmn->reference`. If we could track the upstream dependencies,
@@ -582,7 +582,7 @@ static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
 
 static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
 {
-  gzgt->name = "Glare Node Widget";
+  gzgt->name = "Corner Pin Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_corner_pin";
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
@@ -610,7 +610,7 @@ static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
 
 static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
 {
-  gzgt->name = "Ellipse Mask Node Widget";
+  gzgt->name = "Split Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_split";
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
@@ -796,7 +796,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
         &render_region, center_x, render_size_x + center_x, center_y, render_size_y + center_y);
     ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
-    ED_region_image_render_region_draw(
+    ED_region_render_region_draw(
         x, y, &render_region, zoomx, zoomy, sima->overlay.passepartout_alpha);
   }
 
