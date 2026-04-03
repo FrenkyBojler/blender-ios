@@ -130,17 +130,17 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
         fmt::format(
             "Blender {} ({}) - {}", update->version_str, IFACE_(version_type), update->date()),
         ICON_NONE);
-    ui::Layout *body = panel_layout.body;
-    ui::Layout &sub = panel_layout.header->row(false);
-    sub.alignment_set(ui::LayoutAlign::Right);
-    sub.link(update->release_notes_url, IFACE_("What's new"), ICON_NONE);
     /* Avoid default layout panels spacing, to prevent last panel not matching popover bounds. */
     if (update != available_updates.last()) {
       layout.separator(0.25f);
     }
+    ui::Layout *body = panel_layout.body;
     if (!body) {
       continue;
     }
+    ui::Layout &sub = panel_layout.header->row(false);
+    sub.alignment_set(ui::LayoutAlign::Right);
+    sub.link(update->release_notes_url, IFACE_("What's new"), ICON_NONE);
     version_update_draw_body(*update, body->column(false));
   }
 }
