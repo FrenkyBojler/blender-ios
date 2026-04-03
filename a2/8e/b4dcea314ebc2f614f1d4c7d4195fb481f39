@@ -1,1 +1,2 @@
 Referenced by issue #156810, Nodes Drawing: RGB Curves node draws outside of node
+Referenced by pull request #156839, Fix #156810: Restore clipping for RGB curves node
