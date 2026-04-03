@@ -286,7 +286,7 @@ class UpdatesDownloader:
                     if num_pending:
                         logger.warning("Shutting down background downloader, %d downloads pending", num_pending)
 
-                    self._bg_downloader.shutdown()
+                self._bg_downloader.shutdown()
         finally:
             # Regardless of whether the shutdown had some issues, the timer has
             # been unregistered, so there will be no more message handling, and
