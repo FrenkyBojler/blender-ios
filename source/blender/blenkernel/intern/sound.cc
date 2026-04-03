@@ -2112,17 +2112,22 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
       return accessor->second.get();
     }
   }
+  AUD_Sound sound_handle = sound.runtime->handle;
+  if (!sound_handle) {
+    /* Maybe try to load the sound in this case instead of relying on cache. */
+    return nullptr;
+  }
   /* Slower case when the sampler is newly created. */
   bSoundFrequencySamplerMap::MutableAccessor accessor;
   if (sound.runtime->samplers.add(accessor, key)) {
     if (key.channel.has_value()) {
-      const SoundInfo info = sound_info_get(sound.runtime->handle);
+      const SoundInfo info = sound_info_get(sound_handle);
       const int channel = *key.channel;
       if (channel < 0 || channel >= info.specs.channels) {
         return nullptr;
       }
     }
-    accessor->second = std::make_shared<bSoundFrequencySampler>(sound, key);
+    accessor->second = std::make_shared<bSoundFrequencySampler>(sound_handle, key);
   }
   return accessor->second.get();
 #else
@@ -2179,14 +2184,13 @@ static const bSoundFrequencySampler::WindowWeights &get_window_function_weights(
   });
 }
 
-bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &key)
+bSoundFrequencySampler::bSoundFrequencySampler(AUD_Sound sound, const Key &key)
     : sound_(sound),
       key_(key),
       window_weights_(get_window_function_weights(key.window_function, key.fft_size))
 {
 #ifdef WITH_AUDASPACE
-  AUD_Sound sound_handle = sound.runtime->handle;
-  const SoundInfo info = bke::sound_info_get(sound_handle);
+  const SoundInfo info = bke::sound_info_get(sound_);
   samples_per_second_ = info.specs.samplerate;
   /* This could be a parameter but a single fixed value seems fine for now and makes caching much
    * simpler. */
@@ -2213,8 +2217,7 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   const int dummy_extra_samples = 2000;
 
   /* Prepare the reader. */
-  AUD_Sound sound_handle = sound_.runtime->handle;
-  std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
+  std::shared_ptr<aud::IReader> reader = sound_->createReader();
   const aud::Specs specs = reader->getSpecs();
   const int channels_num = specs.channels;
 

@@ -79,7 +79,7 @@ class bSoundFrequencySampler {
     mutable std::optional<Array<float, 0>> cumulative_amplitudes;
   };
 
-  const bSound &sound_;
+  AUD_Sound sound_;
   Key key_;
   /** Derived from the sound. */
   int samples_per_second_;
@@ -97,7 +97,7 @@ class bSoundFrequencySampler {
 
  public:
   /** Construct a new sampler, prefer using #get_cached instead. */
-  bSoundFrequencySampler(const bSound &sound, const Key &key);
+  bSoundFrequencySampler(AUD_Sound sound, const Key &key);
 
   /** Access a reusable frequency sampler for the given sound.  */
   static const bSoundFrequencySampler *get_cached(const bSound &sound, const Key &key);
