@@ -1384,15 +1384,19 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                                           const float2 &fill_point,
                                           const int stroke_material_index)
 {
+  using bke::greasepencil::Drawing;
+  using bke::greasepencil::Layer;
+
   ARegion &region = *view_context.region;
   View3D &view3d = *view_context.v3d;
   Depsgraph &depsgraph = *view_context.depsgraph;
   Object &object = *view_context.obact;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
+  GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
+  BLI_assert(grease_pencil.has_active_layer());
+
   const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
-  const float4x4 local_transform = float4x4::identity();
-  const float4x4 &projection = ED_view3d_ob_project_mat_get(view_context.rv3d, view_context.obact);
 
   ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
   if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
@@ -1402,23 +1406,72 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   meshintersect::CDT_input<double> input;
   input.need_ids = true;
 
-  const DrawingInfo &info = src_drawings.last();
-  // const Layer &layer_1 = *grease_pencil.layers()[info.layer_index];
+  Vector<double2> input_verts;
+  Vector<std::pair<int, int>> input_edges;
 
-  const bke::CurvesGeometry &strokes = info.drawing.strokes();
-  const VArray<bool> cyclic = strokes.cyclic();
-  const int num_cyclic = array_utils::count_booleans(cyclic);
+  for (const DrawingInfo &info : src_drawings) {
+    const Layer &layer = *grease_pencil.layers()[info.layer_index];
+    const float4x4 layer_to_world = layer.to_world_space(object);
+    const bke::crazyspace::GeometryDeformation deformation =
+        bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
+            &object_eval, object, info.drawing);
+    const bool only_boundary_strokes = boundary_layers[info.layer_index];
+    const VArray<float> radii = info.drawing.radii();
+    const bke::CurvesGeometry &strokes = info.drawing.strokes();
+    const bke::AttributeAccessor attributes = strokes.attributes();
+    const VArray<bool> cyclic = strokes.cyclic();
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        attr_material_index, bke::AttrDomain::Curve, 0);
+    const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
+        attr_is_fill_guide, bke::AttrDomain::Curve, false);
 
-  input.vert.reinitialize(strokes.points_num() + 4);
+    const int layer_offset = input_verts.size();
 
-  const Span<float3> strokes_pos = strokes.positions();
+    IndexMaskMemory curve_mask_memory;
+    const IndexMask curve_mask = get_visible_boundary_strokes(
+        object, info, only_boundary_strokes, curve_mask_memory);
 
-  for (const int i : strokes.points_range()) {
-    const float3 pos = strokes_pos[i];
+    curve_mask.foreach_index([&](const int curve_i) {
+      const IndexRange points = strokes.points_by_curve()[curve_i];
+      const bool is_cyclic = cyclic[curve_i];
+      /* Check if stroke can be drawn. */
+      if (points.size() < 2) {
+        return;
+      }
 
-    input.vert[i] = double2(ED_view3d_project_float_v2_m4(
-        &region, math::transform_point(local_transform, pos), projection));
+      /* Check if the color is visible. */
+      const int material_index = materials[curve_i];
+      Material *mat = BKE_object_material_get(const_cast<Object *>(&object), material_index + 1);
+      if (mat == nullptr || (mat->gp_style->flag & GP_MATERIAL_HIDE)) {
+        return;
+      }
+
+      /* In boundary layers only boundary strokes should be rendered. */
+      if (only_boundary_strokes && !is_boundary_stroke[curve_i]) {
+        return;
+      }
+
+      for (const int point_i : points) {
+        const float3 pos_world = math::transform_point(layer_to_world,
+                                                       deformation.positions[point_i]);
+        float2 pos_view;
+        eV3DProjStatus result = ED_view3d_project_float_global(
+            &region, pos_world, pos_view, V3D_PROJ_TEST_NOP);
+        BLI_assert(result == V3D_PROJ_RET_OK);
+
+        input_verts.append(double2(pos_view));
+      }
+
+      for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
+        const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
+        input_edges.append(
+            order_edge(std::pair<int, int>(point_i + layer_offset, point_next + layer_offset)));
+      }
+    });
   }
+
+  input.vert.reinitialize(input_verts.size() + 4);
+  input.vert.as_mutable_span().drop_back(4).copy_from(input_verts);
 
   const Bounds<double2> drawing_bound = *bounds::min_max(input.vert.as_span().drop_back(4));
   const Bounds<double2> screen_bound = Bounds<double2>(double2(0.0, 0.0),
@@ -1433,18 +1486,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   const std::array<double2, 4> corners = bounds::corners(bound);
   input.vert.as_mutable_span().take_back(4).copy_from(corners);
 
-  input.edge.reinitialize(strokes.points_num() - strokes.curves_num() + num_cyclic);
-
-  int idx = 0;
-
-  for (const int curve_i : strokes.curves_range()) {
-    const IndexRange points = strokes.points_by_curve()[curve_i];
-    const bool is_cyclic = cyclic[curve_i];
-    for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
-      const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
-      input.edge[idx++] = order_edge(std::pair<int, int>(point_i, point_next));
-    }
-  }
+  input.edge.reinitialize(input_edges.size());
+  input.edge.as_mutable_span().copy_from(input_edges);
 
   meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
