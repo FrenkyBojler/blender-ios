@@ -105,6 +105,12 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                      const char *description,
                                      int flags = 0);
 
+  template<>
+  Relation *add_node_handle_relation<TimeSourceKey>(const TimeSourceKey &key_from,
+                                                    const DepsNodeHandle *handle,
+                                                    const char *description,
+                                                    int flags);
+
   template<typename KeyTo>
   Relation *add_depends_on_transform_relation(ID *id,
                                               const KeyTo &key_to,
