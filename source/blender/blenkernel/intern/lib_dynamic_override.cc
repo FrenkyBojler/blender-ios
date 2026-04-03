@@ -219,7 +219,7 @@ static void dynamic_override_rule_copy(DynamicOverrideRule &dynoverride_rule_dst
       DynamicOverrideRuleIDData &rule_src = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule_src);
 
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) != 0) {
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
         id_us_plus(rule_dst.owner_id);
       }
 
@@ -466,9 +466,9 @@ static IDProperty *idproperty_from_rna_property(PointerRNA &ptr,
     const int64_t len = RNA_property_array_length(&ptr, &prop);
     switch (prop_type) {
       case PROP_FLOAT: {
-        float *values = MEM_new_array<float>(size_t(len), __func__);
-        RNA_property_float_get_array(&ptr, &prop, values);
-        return idprop::create(rna_path, {values, len}, IDP_FLAG_STATIC_TYPE).release();
+        Array<float> values{len};
+        RNA_property_float_get_array(&ptr, &prop, values.data());
+        return idprop::create(rna_path, {values.data(), len}, IDP_FLAG_STATIC_TYPE).release();
       }
     }
   }
@@ -592,7 +592,10 @@ Span<const DynamicOverrideRule *> DynamicOverrideDepsgraphCtx::get_override_rule
   BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
   /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
    * the 'root' override ID for a given ID. */
-  return id_targets_.lookup_default(&id, {});
+  if (id_targets_.contains(&id)) {
+    return id_targets_.lookup_as(&id);
+  }
+  return {};
 }
 
 DynamicOverride *DynamicOverrideDepsgraphCtx::get_evaluated_override_for_id(Depsgraph &depsgraph,
