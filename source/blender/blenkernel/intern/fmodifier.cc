@@ -1188,16 +1188,6 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
     return nullptr;
   }
 
-  /* special checks for whether modifier can be added */
-  if ((modifiers->first) && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
-    /* Modifiers requiring original data must be first in stack, so for now, don't add if it can't
-     * be. */
-    /* TODO: perhaps there is some better way, but for now, */
-    CLOG_ERROR(
-        &LOG, "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.", fmi->name);
-    return nullptr;
-  }
-
   /* add modifier itself */
   fcm = MEM_new<FModifier>("F-Curve Modifier");
   fcm->type = type;
@@ -1205,6 +1195,14 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   fcm->curve = owner_fcu;
   fcm->influence = 1.0f;
   BLI_addtail(modifiers, fcm);
+
+  /* special checks for whether modifier can be added */
+  if ((modifiers->first) && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
+    /* Modifiers requiring original data must be first in stack, so for now, don't add if it can't
+     * be. */
+    /* TODO: perhaps there is some better way, but for now, */
+    fcm->flag |= FMODIFIER_FLAG_DISABLED;
+  }
 
   /* Set modifier name and make sure it is unique. */
   BKE_fmodifier_name_set(fcm, "");
