@@ -106,6 +106,25 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
   }
 }
 
+static void update_compositor(const DEGEditorUpdateContext *update_context)
+{
+  const Scene *scene = DEG_get_evaluated(update_context->depsgraph, update_context->scene);
+  const bNodeTree *node_tree = scene->compositing_node_group;
+  if (!node_tree) {
+    return;
+  }
+
+  if (node_tree->id.recalc != 0) {
+    // TODO: Debug statement.
+    puts(DEG_stringify_recalc_flags(node_tree->id.recalc).c_str());
+  }
+
+  if (node_tree->id.recalc & ID_RECALC_NTREE_OUTPUT) {
+    WM_main_add_notifier(NC_NODE | ND_NODE_OUTPUT_CHANGED,
+                         const_cast<ID *>(DEG_get_original_id(&node_tree->id)));
+  }
+}
+
 void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool updated)
 {
   Main *bmain = update_ctx->bmain;
@@ -139,6 +158,8 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
       }
     }
   }
+
+  update_compositor(update_ctx);
 
   recursive_check = false;
 }
@@ -337,17 +358,6 @@ static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bma
   }
 }
 
-static void update_node_tree(const DEGEditorUpdateContext *update_context,
-                             const bNodeTree *node_tree)
-{
-  const bNodeTree *evaluated_node_tree = DEG_get_evaluated(update_context->depsgraph, node_tree);
-  // TODO: Debug statement.
-  puts(DEG_stringify_recalc_flags(evaluated_node_tree->id.recalc).c_str());
-  if (evaluated_node_tree->id.recalc & ID_RECALC_NTREE_OUTPUT) {
-    WM_main_add_notifier(NC_NODE | ND_NODE_OUTPUT_CHANGED, const_cast<bNodeTree *>(node_tree));
-  }
-}
-
 void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 {
   /* this can be called from render or baking thread when a python script makes
@@ -379,9 +389,6 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
       break;
     case ID_BR:
       BKE_brush_tag_unsaved_changes(reinterpret_cast<Brush *>(id));
-      break;
-    case ID_NT:
-      update_node_tree(update_ctx, id_cast<const bNodeTree *>(id));
       break;
     default:
       break;

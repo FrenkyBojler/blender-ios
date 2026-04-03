@@ -63,6 +63,8 @@ static deg::NodeType deg_build_scene_component_type(eDepsSceneComponentType comp
       return deg::NodeType::ANIMATION;
     case DEG_SCENE_COMP_SEQUENCER:
       return deg::NodeType::SEQUENCER;
+    case DEG_SCENE_COMP_COMPOSITOR:
+      return deg::NodeType::COMPOSITOR;
   }
   return deg::NodeType::UNDEFINED;
 }

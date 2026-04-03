@@ -89,6 +89,8 @@ enum eDepsSceneComponentType {
   DEG_SCENE_COMP_ANIMATION,
   /* Sequencer Component (Scene Only). */
   DEG_SCENE_COMP_SEQUENCER,
+  /* Compositor Component. */
+  DEG_SCENE_COMP_COMPOSITOR,
 };
 
 enum eDepsObjectComponentType {
