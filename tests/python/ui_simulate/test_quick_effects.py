@@ -28,7 +28,7 @@ def add_quick_fur():
     t.assertEqual(curves_object.type, 'CURVES')
     # Multiple modifiers are added and reordered then. Just make sure there's at least one nodes
     # modifier.
-    t.assertEqual(object.modifiers[0].type, 'NODES')
+    t.assertEqual(curves_object.modifiers[0].type, 'NODES')
 
 
 def add_quick_smoke():
