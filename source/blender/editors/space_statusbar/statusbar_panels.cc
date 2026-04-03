@@ -37,7 +37,12 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
   ui::Layout &row = layout.row(true);
   row.emboss_set(ui::EmbossType::None);
   row.alignment_set(ui::LayoutAlign::Expand);
-  row.label(update.description, ICON_NONE);
+  if (update.version.version == BLENDER_VERSION) {
+    row.label(IFACE_("Bugfixes releases are highly recommended to update."), ICON_NONE);
+  }
+  else {
+    row.label(update.description, ICON_NONE);
+  }
 
   layout.separator(0.0f);
 
@@ -81,8 +86,9 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   if (available_updates.size() == 1) {
     const bke::VersionUpdate &update = *available_updates[0];
     ui::Layout &header = layout.row(true);
-    const char *release_text = update.version.patch == 0 ? "New release available {} - {}" :
-                                                           "New bugfix release available: {} - {}";
+    const char *release_text = update.version.version != BLENDER_VERSION ?
+                                   "New release available {} - {}" :
+                                   "New bugfix release available: {} - {}";
     header.label(fmt::format(fmt::runtime(IFACE_(release_text)),
                              update.version_str + (update.is_lts ? " LTS" : ""),
                              update.date()),
