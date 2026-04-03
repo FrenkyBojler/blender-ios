@@ -19,7 +19,8 @@
 
 #include <chrono>
 #include <ctime>
-#include <format>
+#include <fmt/chrono.h>
+#include <fmt/format.h>
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.hh"
@@ -511,7 +512,7 @@ void write_blender_updates_cache_file()
   }
   std::chrono::time_point time_seconds = std::chrono::time_point_cast<std::chrono::seconds>(
       last_time_version_update_check());
-  dict->append_str("last_time_check", std::format("{:%FT%TZ}", time_seconds));
+  dict->append_str("last_time_check", fmt::format("{:%FT%TZ}", time_seconds));
   io::serialize::write_json_file(available_updates_file, *dict);
 }
 
