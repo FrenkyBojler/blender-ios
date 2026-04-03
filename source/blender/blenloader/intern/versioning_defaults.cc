@@ -887,6 +887,28 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       scene.grease_pencil_settings.motion_blur_steps = 8;
     }
   }
+
+  {
+    for (Material &ma : bmain->materials) {
+      if (ma.gp_style == nullptr) {
+        continue;
+      }
+      MaterialGPencilStyle &gp_mat = *ma.gp_style;
+      /* Default. */
+      gp_mat.type = GP_MATERIAL_TYPE_STROKE;
+      const bool use_stroke = gp_mat.stroke_rgba[3] != 0.0f;
+      const bool use_fill = gp_mat.fill_rgba[3] != 0.0f;
+      if (use_stroke && use_fill) {
+        gp_mat.type = GP_MATERIAL_TYPE_BOTH;
+      }
+      else if (use_stroke) {
+        gp_mat.type = GP_MATERIAL_TYPE_STROKE;
+      }
+      else if (use_fill) {
+        gp_mat.type = GP_MATERIAL_TYPE_FILL;
+      }
+    }
+  }
 }
 
 }  // namespace blender
