@@ -184,6 +184,7 @@ void GPU_polygon_smooth(bool enable);
 void GPU_program_point_size(bool enable);
 void GPU_scissor(int x, int y, int width, int height);
 void GPU_scissor_get(int coords[4]);
+bool GPU_scissor_test_get();
 void GPU_viewport(int x, int y, int width, int height);
 void GPU_viewport_size_get_f(float coords[4]);
 void GPU_viewport_size_get_i(int coords[4]);

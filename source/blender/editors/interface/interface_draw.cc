@@ -1615,6 +1615,7 @@ void draw_but_CURVE(ARegion *region, Button *but, const uiWidgetColors *wcol, co
   /* need scissor test, curve can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
+  const bool scissor_test = GPU_scissor_test_get();
   rcti scissor_new{};
   scissor_new.xmin = rect->xmin;
   scissor_new.ymin = rect->ymin;
@@ -1626,6 +1627,7 @@ void draw_but_CURVE(ARegion *region, Button *but, const uiWidgetColors *wcol, co
               scissor_new.ymin,
               BLI_rcti_size_x(&scissor_new),
               BLI_rcti_size_y(&scissor_new));
+  GPU_scissor_test(true);
 
   /* Do this first to not mess imm context */
   if (but_cumap->gradient_type == GRAD_H) {

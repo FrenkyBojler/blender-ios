@@ -186,6 +186,11 @@ void GPU_scissor(int x, int y, int width, int height)
   Context::get()->active_fb->scissor_set(scissor_rect);
 }
 
+bool GPU_scissor_test_get()
+{
+  return Context::get()->active_fb->scissor_test_get();
+}
+
 void GPU_viewport(int x, int y, int width, int height)
 {
   int viewport_rect[4] = {x, y, width, height};
