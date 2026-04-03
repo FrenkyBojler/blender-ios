@@ -110,12 +110,13 @@ static void vector_math_input_defaults(bNode &node, const NodeVectorMathOperatio
     case NODE_VECTOR_MATH_DIVIDE:
     case NODE_VECTOR_MATH_POWER:
     case NODE_VECTOR_MATH_MODULO: {
-      for (int i = 0; i < in_vector_3->dimensions; i++) {
+      for (int i = 0; i < in_vector_2->dimensions; i++) {
         in_vector_2->value[i] = 1.0f;
       }
       break;
     }
     case NODE_VECTOR_MATH_MULTIPLY_ADD: {
+      BLI_assert(in_vector_2->dimensions == in_vector_3->dimensions);
       for (int i = 0; i < in_vector_3->dimensions; i++) {
         in_vector_2->value[i] = 1.0f;
         in_vector_3->value[i] = 0.0f;
