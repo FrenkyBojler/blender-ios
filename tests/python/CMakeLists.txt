@@ -373,6 +373,11 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
 )
 
+add_blender_test(
+  script_pyapi_blf_buffer
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf_buffer.py
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 # ------------------------------------------------------------------------------
