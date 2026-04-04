@@ -1630,23 +1630,28 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                       tri_index,
                       hint_index);
 
-  Array<bool> is_tri_full_weight(result.face.size(), false);
+  Set<int> not_full_tris;
   for (const int tri_index : result.face.index_range()) {
-    if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
-      is_tri_full_weight[tri_index] = true;
+    if (tri_weights[tri_index] < tri_max_weight[tri_index] * joinning_factor) {
+      not_full_tris.add_new(tri_index);
     }
   }
 
   auto get_next_max_tri_index = [&]() {
+    if (not_full_tris.is_empty()) {
+      return NULL_INDEX;
+    }
+
+    not_full_tris.remove_if([&](const int tri_index) {
+      return tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor;
+    });
+
     int max_not_weight_tri_index = NULL_INDEX;
     float max_not_weight_tri_weight = 0.0f;
-    for (const int tri_index : result.face.index_range()) {
-      const float tri_weight = tri_weights[tri_index];
-      if (is_tri_full_weight[tri_index]) {
-        continue;
-      }
 
-      if (max_not_weight_tri_index == NULL_INDEX || max_not_weight_tri_weight < tri_weight) {
+    for (const int tri_index : not_full_tris) {
+      const float tri_weight = tri_weights[tri_index];
+      if (max_not_weight_tri_weight < tri_weight) {
         max_not_weight_tri_index = tri_index;
         max_not_weight_tri_weight = tri_weight;
       }
@@ -1658,7 +1663,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   hint_index++;
 
   while (hint_tri_index != NULL_INDEX) {
-
     const Vector<int> &tri = result.face[hint_tri_index];
     const double2 &vert0 = result.vert[tri[0]];
     const double2 &vert1 = result.vert[tri[1]];
@@ -1674,12 +1678,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                         is_source_edge.as_span(),
                         hint_tri_index,
                         hint_index);
-
-    for (const int tri_index : result.face.index_range()) {
-      if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
-        is_tri_full_weight[tri_index] = true;
-      }
-    }
 
     hint_tri_index = get_next_max_tri_index();
     hint_index++;
