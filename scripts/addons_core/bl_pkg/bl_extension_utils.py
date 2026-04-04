@@ -521,7 +521,7 @@ def url_parse_for_blender(url: str) -> tuple[str, dict[str, str]]:
                         ))
                     else:
                         value_xform = value
-            case "access_token":  # Add this case to handle access_token
+            case "access_token":
                 if value:
                     value_xform = value
         if value_xform is not None:

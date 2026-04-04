@@ -13,7 +13,6 @@ __all__ = (
 )
 
 import os
-import urllib.parse
 
 from functools import partial
 
@@ -2943,6 +2942,8 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
     _drop_variables = None
     # Optional draw & keyword-arguments, return True to terminate drawing.
     _draw_override = None
+    # Set when the user chose to enable an already-installed extension instead of re-installing.
+    _enable_existing = False
 
     repo_directory: rna_prop_directory
     repo_index: rna_prop_repo_index
@@ -2980,6 +2981,27 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         from . import bl_extension_utils
 
         if not self._is_ready_to_execute():
+            return None
+
+        # Enable an already-installed but disabled extension, no download needed.
+        if self._enable_existing:
+            if self.enable_on_install:
+                import addon_utils
+                directory = _repo_dir_and_index_get(self.repo_index, self.repo_directory, self.report)
+                if directory:
+                    if (repo_item := _extensions_repo_from_directory_and_report(directory, self.report)) is not None:
+                        addon_module_name = "{:s}.{:s}.{:s}".format(
+                            _ext_base_pkg_idname, repo_item.module, self.pkg_id,
+                        )
+                        addon_utils.enable(
+                            addon_module_name,
+                            default_set=False,
+                            handle_error=lambda ex: self.report({'ERROR'}, str(ex)),
+                        )
+                        self.report({'INFO'}, "Add-on enabled.")
+                _preferences_ui_redraw()
+                _preferences_ui_refresh_addons()
+            self._enable_existing = False
             return None
 
         # pylint: disable-next=attribute-defined-outside-init
@@ -3221,23 +3243,31 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
         _repo_index, repo_name, _pkg_id, item_remote = self._drop_variables
 
-        layout.label(
-            text=iface_("Do you want to install the following {:s}?").format(item_remote.type),
-            translate=False,
-        )
+        if self._enable_existing:
+            layout.label(
+                text=iface_("Add-on \"{:s}\" is already installed but disabled.").format(item_remote.name),
+                translate=False,
+            )
+            layout.separator()
+            layout.prop(self, "enable_on_install", text=rna_prop_enable_on_install_type_map[item_remote.type])
+        else:
+            layout.label(
+                text=iface_("Do you want to install the following {:s}?").format(item_remote.type),
+                translate=False,
+            )
 
-        col = layout.column(align=True)
-        col.label(text=iface_("Name: {:s}").format(item_remote.name), translate=False)
-        col.label(text=iface_("Repository: {:s}").format(repo_name), translate=False)
-        col.label(
-            text=iface_("Size: {:s}").format(size_as_fmt_string(item_remote.archive_size, precision=0)),
-            translate=False,
-        )
-        del col
+            col = layout.column(align=True)
+            col.label(text=iface_("Name: {:s}").format(item_remote.name), translate=False)
+            col.label(text=iface_("Repository: {:s}").format(repo_name), translate=False)
+            col.label(
+                text=iface_("Size: {:s}").format(size_as_fmt_string(item_remote.archive_size, precision=0)),
+                translate=False,
+            )
+            del col
 
-        layout.separator()
+            layout.separator()
 
-        layout.prop(self, "enable_on_install", text=rna_prop_enable_on_install_type_map[item_remote.type])
+            layout.prop(self, "enable_on_install", text=rna_prop_enable_on_install_type_map[item_remote.type])
 
     @staticmethod
     def _do_legacy_replace(pkg_id, pkg_manifest_local, error_fn):
@@ -3358,7 +3388,26 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                 return False
 
         if item_local is not None:
+            # Check if the extension is installed but disabled.
             if item_local.type == "add-on":
+                repo_item = _extensions_repo_from_directory_and_report(
+                    bpy.context.preferences.extensions.repos[repo_index].directory, self.report,
+                )
+                if repo_item is not None:
+                    addon_module_name = "{:s}.{:s}.{:s}".format(
+                        _ext_base_pkg_idname, repo_item.module, pkg_id,
+                    )
+                    import addon_utils
+                    is_enabled = addon_utils.check(addon_module_name)[1]
+                    if not is_enabled:
+                        # Allow enabling via the OK button.
+                        self._drop_variables = repo_index, repo_name, pkg_id, item_remote
+                        self._enable_existing = True
+                        self.repo_index = repo_index
+                        self.pkg_id = pkg_id
+                        self._draw_override = None
+                        return True
+
                 message = rpt_("Add-on \"{:s}\" is already installed!")
             elif item_local.type == "theme":
                 message = rpt_("Theme \"{:s}\" is already installed!")
@@ -4055,6 +4104,7 @@ class EXTENSIONS_OT_userpref_allow_online_popup(Operator):
         for line in lines:
             col.label(text=line, translate=False)
 
+
 class EXTENSIONS_OT_unified_drop_handler(Operator, _ExtCmdMixIn):
     """Handle dropping of repository and extension URLs: setup repo, sync, and install in one flow"""
     bl_idname = "extensions.unified_drop_handler"
@@ -4422,7 +4472,6 @@ class EXTENSIONS_OT_unified_drop_handler(Operator, _ExtCmdMixIn):
 # -----------------------------------------------------------------------------
 # Register
 #
-
 classes = (
     EXTENSIONS_OT_repo_sync,
     EXTENSIONS_OT_repo_sync_all,
@@ -4463,7 +4512,7 @@ classes = (
     EXTENSIONS_OT_userpref_show_online,
     EXTENSIONS_OT_userpref_allow_online,
     EXTENSIONS_OT_userpref_allow_online_popup,
-    EXTENSIONS_OT_unified_drop_handler,  # Add new operator here
+    EXTENSIONS_OT_unified_drop_handler,
 )
 
 
