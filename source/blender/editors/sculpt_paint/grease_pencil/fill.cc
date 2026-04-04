@@ -1719,9 +1719,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       if (tri_to_fill[next_tri]) {
         continue;
       }
-      else {
-        boundary_edges.add_new(edge_index);
-      }
+
+      boundary_edges.add_new(edge_index);
     }
   }
 
