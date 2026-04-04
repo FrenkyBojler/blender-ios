@@ -1169,11 +1169,8 @@ static void follow_edge_connections(const Span<int> all_edges,
     /* Loop through forwards, adding edges until ending or looping. */
     bool curve_done = false;
     while (!curve_done) {
-      // temp_3++;
-      // printf("temp_3 %i\n", temp_3);
       if (processed_edges[current_i] == true) {
         BLI_assert_unreachable();
-        // printf("BLI_assert_unreachable\n");
         break;
       }
 
@@ -1316,12 +1313,7 @@ static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
   Vector<int> tris_to_check;
   tris_to_check.append(hint_tri_index);
 
-  int temp = 0;
-
   while (!tris_to_check.is_empty()) {
-    temp++;
-    BLI_assert(temp < 1000);
-
     Vector<int> new_tris_to_check;
 
     for (const int i : tris_to_check.index_range()) {
@@ -1599,19 +1591,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     return NULL_INDEX;
   };
 
-  Vector<Vector<int>> geometry;
-
-  // {
-  //   const int tri_index = get_tri_for_point(float2(0.0f, 0.0f));
-  //   const Vector<int> &tri = result.face[tri_index];
-
-  //   geometry.append(Vector<int>());
-
-  //   for (const int i : tri.index_range()) {
-  //     geometry[0].append(tri[i]);
-  //   }
-  // }
-
   Array<float> tri_max_weight(result.face.size(), 0.0f);
 
   for (const int tri_index : result.face.index_range()) {
@@ -1813,6 +1792,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   follow_edge_connections(
       all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
 
+  Vector<Vector<int>> geometry;
   for (const int curve_i : edge_offset_data.index_range().drop_back(1)) {
     const int curve_size = edge_offset_data[curve_i + 1] - edge_offset_data[curve_i];
 
@@ -1830,21 +1810,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       }
     }
   }
-
-  // {
-
-  //   for (const int edge_i : result.edge.index_range()) {
-  //     const std::pair<int, int> &edge = result.edge[edge_i];
-
-  //     if (!is_source_edge[edge_i]) {
-  //       continue;
-  //     }
-
-  //     geometry.append(Vector<int>());
-  //     geometry.last().append(edge.first);
-  //     geometry.last().append(edge.second);
-  //   }
-  // }
 
   /**/
 
@@ -1888,7 +1853,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     copy_v3_v3(vertex_color, brush.color);
     vertex_color.a = brush.gpencil_settings->vertex_factor;
 
-    // skip_curve_attributes.add("fill_color");
     bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
         attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
                                                                  bke::AttrDomain::Curve);
@@ -1896,7 +1860,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     fill_colors.finish();
 
     if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
-      // skip_point_attributes.add("vertex_color");
       bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
           attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
                                                                    bke::AttrDomain::Point);
@@ -1908,62 +1871,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   curves.cyclic_for_write().fill(true);
   curves.fill_curve_types(CURVE_TYPE_POLY);
   curves.tag_topology_changed();
-
-  // /* Zoom and offset based on bounds, to fit all strokes within the render. */
-  // const bool uniform_zoom = true;
-  // const float max_zoom_factor = 5.0f;
-  // const float2 margin = float2(20);
-  // /* Pixel scale (aka. "fill_factor, aka. "Precision") to reduce image size. */
-  // const float pixel_scale = brush.gpencil_settings->fill_factor;
-  // const auto [zoom, offset, image_size, image_to_region] = fit_strokes_to_view(view_context,
-  //                                                                              boundary_layers,
-  //                                                                              src_drawings,
-  //                                                                              fit_method,
-  //                                                                              fill_point,
-  //                                                                              uniform_zoom,
-  //                                                                              max_zoom_factor,
-  //                                                                              margin,
-  //                                                                              pixel_scale);
-
-  // ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
-  // if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
-  //   placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-  // }
-
-  // Image *ima = render_strokes(view_context,
-  //                             brush,
-  //                             scene,
-  //                             layer,
-  //                             boundary_layers,
-  //                             src_drawings,
-  //                             image_size,
-  //                             alpha_threshold,
-  //                             fill_point,
-  //                             extensions,
-  //                             placement,
-  //                             zoom,
-  //                             offset);
-  // if (!ima) {
-  //   return {};
-  // }
-
-  // /* TODO should use the same hardness as the paint brush. */
-  // const float stroke_hardness = 1.0f;
-
-  // bke::CurvesGeometry fill_curves = process_image(*ima,
-  //                                                 scene,
-  //                                                 view_context,
-  //                                                 brush,
-  //                                                 placement,
-  //                                                 image_to_region,
-  //                                                 stroke_material_index,
-  //                                                 stroke_hardness,
-  //                                                 invert,
-  //                                                 keep_images);
-
-  // if (!keep_images) {
-  //   BKE_id_free(view_context.bmain, ima);
-  // }
 
   return curves;
 }
