@@ -1,3 +1,4 @@
 Referenced by issue #134293, heap-use-after-free crash or assert when interacting with compositor after deleting view layer
 Referenced by issue #134025, Crash when creating asset
 Referenced by issue #135647, Backdrop in Compositing does not update automatically after re-render
+Referenced by issue #156852, Compositor does not update render result if render is not visible
