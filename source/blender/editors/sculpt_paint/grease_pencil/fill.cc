@@ -1629,44 +1629,37 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                       is_source_edge.as_span(),
                       tri_index,
                       hint_index);
+
   Array<bool> is_tri_full_weight(result.face.size(), false);
-
-  while (hint_index < 1000) {
-    hint_index++;
-
-    for (const int tri_index : result.face.index_range()) {
-      if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
-        is_tri_full_weight[tri_index] = true;
-      }
+  for (const int tri_index : result.face.index_range()) {
+    if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
+      is_tri_full_weight[tri_index] = true;
     }
+  }
 
+  auto get_next_max_tri_index = [&]() {
     int max_not_weight_tri_index = NULL_INDEX;
     float max_not_weight_tri_weight = 0.0f;
-
     for (const int tri_index : result.face.index_range()) {
       const float tri_weight = tri_weights[tri_index];
       if (is_tri_full_weight[tri_index]) {
         continue;
       }
 
-      if (max_not_weight_tri_index == NULL_INDEX) {
-
-        max_not_weight_tri_index = tri_index;
-        max_not_weight_tri_weight = tri_weight;
-      }
-
-      if (max_not_weight_tri_weight < tri_weight) {
-
+      if (max_not_weight_tri_index == NULL_INDEX || max_not_weight_tri_weight < tri_weight) {
         max_not_weight_tri_index = tri_index;
         max_not_weight_tri_weight = tri_weight;
       }
     }
+    return max_not_weight_tri_index;
+  };
 
-    if (max_not_weight_tri_index == NULL_INDEX) {
-      break;
-    }
+  int hint_tri_index = get_next_max_tri_index();
+  hint_index++;
 
-    const Vector<int> &tri = result.face[max_not_weight_tri_index];
+  while (hint_tri_index != NULL_INDEX) {
+
+    const Vector<int> &tri = result.face[hint_tri_index];
     const double2 &vert0 = result.vert[tri[0]];
     const double2 &vert1 = result.vert[tri[1]];
     const double2 &vert2 = result.vert[tri[2]];
@@ -1679,8 +1672,17 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                         edge_weights.as_span(),
                         tri_max_weight.as_span(),
                         is_source_edge.as_span(),
-                        max_not_weight_tri_index,
+                        hint_tri_index,
                         hint_index);
+
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor) {
+        is_tri_full_weight[tri_index] = true;
+      }
+    }
+
+    hint_tri_index = get_next_max_tri_index();
+    hint_index++;
   }
 
   Array<bool> tri_to_fill(result.face.size(), false);
