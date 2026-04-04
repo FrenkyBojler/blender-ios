@@ -120,6 +120,7 @@ class Any {
   AlignedBuffer<RealInlineBufferCapacity, Alignment> buffer_{};
 
  public:
+  /** Extra data potentially stored within padding required by the buffer. */
   BLI_NO_UNIQUE_ADDRESS ExtraData extra = {};
 
  private:
