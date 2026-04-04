@@ -2325,7 +2325,7 @@ float bSoundFrequencySampler::sample(const float time,
       0.0f, (time * samples_per_second_ - key_.fft_size / 2) / window_cache_stride_);
   const int i_pre = floorf(i_float);
   const int i_post = i_pre + 1;
-  const float t = i_float - i_pre;
+  const float t = fractf(i_float);
 
   switch (time_interpolation) {
     case InterpolationMethod::Linear: {
@@ -2393,7 +2393,7 @@ float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> wind
   const float i_float = frequency * key_.fft_size / samples_per_second_;
   const int i_pre = std::clamp<int>(std::floor(i_float), 0, max_i);
   const int i_post = std::min(i_pre + 1, max_i);
-  const float t = i_float - i_pre;
+  const float t = fractf(i_float);
 
   switch (method) {
     case InterpolationMethod::Linear: {
@@ -2425,11 +2425,11 @@ float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> wind
   return 0.0f;
 }
 
-std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(const int window_i) const
+std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(int window_i) const
 {
-  if (window_i < 0 || window_i >= window_caches_.size()) {
-    return std::nullopt;
-  }
+  /* Clamp window so that too low or high indices get mapped to the closest valid index. */
+  window_i = std::clamp<int>(window_i, 0, window_caches_.size() - 1);
+
   const WindowCache &window = window_caches_[window_i];
   /* Compute the FFT of that window if that wasn't done already. */
   window.mutex.ensure([&]() {
