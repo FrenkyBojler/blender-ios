@@ -263,7 +263,7 @@ struct MutableString {
 
   void insert_line_number(size_t at, int line, std::string_view filename = "")
   {
-    std::string str = "#line " + std::to_string(line);
+    std::string str = "\n#line " + std::to_string(line);
     if (!filename.empty()) {
       str = str + " \"" + std::string(filename) + "\"";
     }

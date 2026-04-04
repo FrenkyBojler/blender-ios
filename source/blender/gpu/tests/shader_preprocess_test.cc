@@ -873,7 +873,7 @@ struct ATfloat {
   float a;
 #line 9
 };
-
+#line 12
 #ifndef GPU_METAL
 ATfloat ATfloat_ctor_();
 ATfloat _method(const ATfloat this_, float b);
@@ -975,15 +975,9 @@ void fn(A<int> a)
 #line 4
 struct N_ATint {
   int i;
-
-
-
-
-
-
-#line 19
+#line 10
 };
-#line 22
+#line 14
 #ifndef GPU_METAL
 N_ATint N_ATint_ctor_();
 void N_ATint_fn1(int a);

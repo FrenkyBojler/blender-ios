@@ -107,6 +107,8 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       lower_pre_template(parser);
       /* Lower templates. */
       lower_templates(parser);
+      /* Lower implicit members before we remove SRT member from their struct. */
+      lower_implicit_member(parser);
       /* Lower unions and then lint shared structures. */
       lower_unions(parser);
       lower_host_shared_structures(parser);

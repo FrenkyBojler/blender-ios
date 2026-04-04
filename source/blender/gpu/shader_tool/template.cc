@@ -168,8 +168,11 @@ void SourceProcessor::lower_template_instantiation(
 
   /* Paste template content in place of instantiation. */
   string instance = instance_parser.result_get();
+
   /* Remove added newline from the injected namespace. */
-  instance = instance.substr(instance.find_first_of('\n') + 1);
+  if (!template_def.is_method) {
+    instance = instance.substr(instance.find_first_of('\n') + 1);
+  }
 
   string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
   string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
@@ -179,19 +182,13 @@ void SourceProcessor::lower_template_instantiation(
     instance_filename = "";
   }
 
-  if (template_def.is_method) {
-    /* Method are put back in their classes. */
-    /* NOTE: This can only work if they are declared in the same file.
-     * Better make a lint pass about it. */
-    parser.insert_line_number(method_end, template_def.definition_line, template_filename);
-    parser.insert_after(method_end, instance);
-    parser.insert_line_number(method_end, inst_end.line_number(true), instance_filename);
-  }
-  else {
-    parser.insert_line_number(inst_end, template_def.definition_line, template_filename);
-    parser.insert_after(inst_end, instance);
-    parser.insert_line_number(inst_end, inst_end.line_number(true), instance_filename);
-  }
+  /* Method are put back in their classes. */
+  /* NOTE: This can only work if they are declared in the same file.
+   * Better make a lint pass about it. */
+  Token insert_at = template_def.is_method ? method_end : inst_end;
+  parser.insert_line_number(insert_at, template_def.definition_line, template_filename);
+  parser.insert_after(insert_at, instance);
+  parser.insert_line_number(insert_at, insert_at.line_number(true), instance_filename);
 }
 
 void SourceProcessor::lower_template_dependent_names(Parser &parser)
@@ -210,8 +207,6 @@ void SourceProcessor::lower_pre_template(Parser &parser)
   /* Lint and remove C++ accessor templates before lowering template. */
   lower_srt_accessor_templates(parser);
   lower_union_accessor_templates(parser);
-  /* Lower implicit members before we remove SRT member from their struct. */
-  lower_implicit_member(parser);
   /* Lower namespaces. */
   lower_using(parser);
   lower_namespaces(parser);
@@ -414,6 +409,12 @@ void SourceProcessor::lower_templates(Parser &parser)
 
   /* Delete definitions. */
   parser().foreach_match("t<..>", [&](const vector<Token> &toks) {
+    /* Default arguments are not supported. */
+    toks[1].scope().foreach_token(Assign, [&](Token tok) {
+      report_error_(ERROR_TOK(tok),
+                    "Default arguments are not supported inside template declaration");
+    });
+
     Token end = toks[0].find_next(BracketOpen).scope().back();
     if (toks[4].next() == Struct) {
       /* Capture end semicolon. */
@@ -461,9 +462,8 @@ void SourceProcessor::lower_templates(Parser &parser)
   parser.apply_mutations();
 
   /* Remove template instantiation afterward. */
-  parser().foreach_match("tA", [&](const vector<Token> &toks) {
-    parser.erase(toks[0], toks[0].find_next(SemiColon));
-  });
+  parser().foreach_token(Template,
+                         [&](const Token &tok) { parser.erase(tok, tok.find_next(SemiColon)); });
 
   parser.apply_mutations();
 
