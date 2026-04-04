@@ -120,7 +120,7 @@ class Any {
   AlignedBuffer<RealInlineBufferCapacity, Alignment> buffer_{};
 
  public:
-  BLI_NO_UNIQUE_ADDRESS ExtraData extra_data = {};
+  BLI_NO_UNIQUE_ADDRESS ExtraData extra = {};
 
  private:
   /**
@@ -163,7 +163,7 @@ class Any {
  public:
   Any() = default;
 
-  Any(const Any &other) : extra_data(other.extra_data), info_(other.info_)
+  Any(const Any &other) : extra(other.extra), info_(other.info_)
   {
     if (info_ != nullptr) {
       if (info_->copy_construct != nullptr) {
@@ -181,7 +181,7 @@ class Any {
    * \note The #other #Any will not be empty afterwards if it was not before. Just its value is in
    * a moved-from state.
    */
-  Any(Any &&other) noexcept : extra_data(std::move(other.extra_data)), info_(other.info_)
+  Any(Any &&other) noexcept : extra(std::move(other.extra)), info_(other.info_)
   {
     if (info_ != nullptr) {
       if (info_->move_construct != nullptr) {

@@ -270,8 +270,8 @@ template<typename T> void SocketValueVariant::store_impl(T value)
         geo_nodes_base_cpp_type_to_socket_type(value.cpp_type());
     BLI_assert(new_socket_type);
     value_.emplace<fn::GField>(std::move(value));
-    value_.extra_data.socket_type = *new_socket_type;
-    value_.extra_data.kind = Kind::Field;
+    value_.extra.socket_type = *new_socket_type;
+    value_.extra.kind = Kind::Field;
     static_assert(decltype(value_)::is_inline_v<fn::GField>);
   }
   else if constexpr (fn::is_field_v<T>) {
@@ -296,8 +296,8 @@ template<typename T> void SocketValueVariant::store_impl(T value)
       socket_type = *new_socket_type;
     }
     value_.emplace<nodes::ListPtr>(std::move(value));
-    value_.extra_data.socket_type = socket_type;
-    value_.extra_data.kind = Kind::List;
+    value_.extra.socket_type = socket_type;
+    value_.extra.kind = Kind::List;
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
@@ -307,8 +307,8 @@ template<typename T> void SocketValueVariant::store_impl(T value)
         volume_grid_type);
     BLI_assert(new_socket_type);
     value_.emplace<GVolumeGrid>(std::move(value));
-    value_.extra_data.socket_type = *new_socket_type;
-    value_.extra_data.kind = Kind::Grid;
+    value_.extra.socket_type = *new_socket_type;
+    value_.extra.kind = Kind::Grid;
   }
   else if constexpr (is_VolumeGrid_v<T>) {
     BLI_assert(value);
@@ -319,8 +319,8 @@ template<typename T> void SocketValueVariant::store_impl(T value)
     const std::optional<eNodeSocketDatatype> new_socket_type = static_type_to_socket_type<T>();
     BLI_assert(new_socket_type);
     value_.emplace<T>(std::move(value));
-    value_.extra_data.socket_type = *new_socket_type;
-    value_.extra_data.kind = Kind::Single;
+    value_.extra.socket_type = *new_socket_type;
+    value_.extra.kind = Kind::Single;
   }
   BLI_assert(this->kind() != Kind::None);
 }
@@ -421,8 +421,8 @@ void SocketValueVariant::store_single(const eNodeSocketDatatype socket_type, con
       break;
     }
   }
-  value_.extra_data.kind = Kind::Single;
-  value_.extra_data.socket_type = socket_type;
+  value_.extra.kind = Kind::Single;
+  value_.extra.socket_type = socket_type;
 }
 
 bool SocketValueVariant::is_context_dependent_field() const
@@ -574,8 +574,8 @@ void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
       return nullptr;
     }
   }
-  value_.extra_data.kind = Kind::Single;
-  value_.extra_data.socket_type = socket_type;
+  value_.extra.kind = Kind::Single;
+  value_.extra.socket_type = socket_type;
   return ptr;
 }
 
