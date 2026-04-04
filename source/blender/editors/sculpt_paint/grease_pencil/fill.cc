@@ -1518,9 +1518,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   /**/
 
-  Array<int> tri_edges_0(result.face.size(), NULL_INDEX);
-  Array<int> tri_edges_1(result.face.size(), NULL_INDEX);
-  Array<int> tri_edges_2(result.face.size(), NULL_INDEX);
+  Array<int3> tri_edges(result.face.size(), int3(NULL_INDEX));
 
   {
     Map<std::pair<int, int>, int> edge_to_index;
@@ -1532,13 +1530,12 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     for (const int tri_index : result.face.index_range()) {
       const Vector<int> &face = result.face[tri_index];
 
-      const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[0], face[1]));
-      const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[1], face[2]));
-      const std::pair<int, int> edge3 = order_edge(std::pair<int, int>(face[2], face[0]));
+      const std::pair<int, int> edge0 = order_edge(std::pair<int, int>(face[0], face[1]));
+      const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
+      const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
 
-      tri_edges_0[tri_index] = edge_to_index.lookup(edge1);
-      tri_edges_1[tri_index] = edge_to_index.lookup(edge2);
-      tri_edges_2[tri_index] = edge_to_index.lookup(edge3);
+      tri_edges[tri_index] = int3(
+          edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
     }
   }
 
@@ -1557,9 +1554,9 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                                             std::pair<int, int>(NULL_INDEX, NULL_INDEX));
 
     for (const int tri_index : result.face.index_range()) {
-      const int edge_0 = tri_edges_0[tri_index];
-      const int edge_1 = tri_edges_1[tri_index];
-      const int edge_2 = tri_edges_2[tri_index];
+      const int edge_0 = tri_edges[tri_index][0];
+      const int edge_1 = tri_edges[tri_index][1];
+      const int edge_2 = tri_edges[tri_index][2];
 
       BLI_assert(edge_0 != NULL_INDEX);
       BLI_assert(edge_1 != NULL_INDEX);
@@ -1590,9 +1587,9 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     /**/
 
     for (const int tri_index : result.face.index_range()) {
-      const int edge_0 = tri_edges_0[tri_index];
-      const int edge_1 = tri_edges_1[tri_index];
-      const int edge_2 = tri_edges_2[tri_index];
+      const int edge_0 = tri_edges[tri_index][0];
+      const int edge_1 = tri_edges[tri_index][1];
+      const int edge_2 = tri_edges[tri_index][2];
 
       {
         const int index_0 = edge_to_tris[edge_0].first;
