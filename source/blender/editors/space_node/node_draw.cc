@@ -12,6 +12,7 @@
 #include "BKE_idprop.hh"
 #include "MEM_guardedalloc.h"
 
+#include "DNA_image_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
@@ -44,6 +45,7 @@
 #include "BKE_curves.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -4863,9 +4865,21 @@ void node_draw_space(const bContext &C, ARegion &region)
           rcti render_region;
           BLI_rcti_init(&render_region, 0, render_size_x, 0, render_size_y);
 
+          /* Get backdrop image size to calculate render region position. */
+          Main *bmain = CTX_data_main(&C);
+          void *lock;
+          Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
+          ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, nullptr, &lock);
+          rcti viewer_region = {0, 0, 0, 0};
+          if (ibuf) {
+            BLI_rcti_init(&viewer_region, 0, ibuf->x, 0, ibuf->y);
+          }
+          BKE_image_release_ibuf(ima, ibuf, lock);
+
           ED_region_render_region_draw(region.winx / 2 + snode.xof,
                                        region.winy / 2 + snode.yof,
                                        &render_region,
+                                       &viewer_region,
                                        snode.zoom,
                                        snode.zoom,
                                        snode.overlay.passepartout_alpha);

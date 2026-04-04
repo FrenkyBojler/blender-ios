@@ -86,8 +86,13 @@ void ED_region_image_overlay_info_text_draw(const int render_size_x,
                                             const int draw_offset_x,
                                             const int draw_offset_y);
 
-void ED_region_render_region_draw(
-    int x, int y, const rcti *frame, float zoomx, float zoomy, float passepartout_alpha);
+void ED_region_render_region_draw(int x,
+                                  int y,
+                                  const rcti *render_frame,
+                                  const rcti *viewer_frame,
+                                  float zoomx,
+                                  float zoomy,
+                                  float passepartout_alpha);
 
 /* Slider */
 

@@ -987,14 +987,19 @@ void ED_region_image_overlay_info_text_draw(const int render_size_x,
                 viewer_size_y);
 }
 
-void ED_region_render_region_draw(
-    int x, int y, const rcti *frame, float zoomx, float zoomy, float passepartout_alpha)
+void ED_region_render_region_draw(int x,
+                                  int y,
+                                  const rcti *render_frame,
+                                  const rcti *viewer_frame,
+                                  float zoomx,
+                                  float zoomy,
+                                  float passepartout_alpha)
 {
   GPU_matrix_push();
 
   /* Offset and zoom using GPU viewport. */
-  const auto frame_width = BLI_rcti_size_x(frame);
-  const auto frame_height = BLI_rcti_size_y(frame);
+  const auto render_width = BLI_rcti_size_x(render_frame);
+  const auto render_height = BLI_rcti_size_y(render_frame);
   GPU_matrix_translate_2f(x, y);
   GPU_matrix_scale_2f(zoomx, zoomy);
 
@@ -1004,21 +1009,43 @@ void ED_region_render_region_draw(
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  const float x1 = frame->xmin - frame_width / 2;
-  const float x2 = frame->xmax - frame_width / 2;
-  const float y1 = frame->ymin - frame_height / 2;
-  const float y2 = frame->ymax - frame_height / 2;
+  const float render_left = render_frame->xmin - render_width / 2;
+  const float render_right = render_frame->xmax - render_width / 2;
+  const float render_bottom = render_frame->ymin - render_height / 2;
+  const float render_top = render_frame->ymax - render_height / 2;
 
-  /* Darken the area outside the frame. */
+  /* Darken the area outside the render frame but inside the viewer frame. */
   if (passepartout_alpha > 0) {
     /* Using a sufficiently large number instead of numeric_limits::infinity(), to avoid comparison
      * issues and different behavior around large numbers on different platforms. */
     constexpr float inf = 10e5;
+    float viewer_left = -inf;
+    float viewer_right = inf;
+    float viewer_bottom = -inf;
+    float viewer_top = inf;
+    if (viewer_frame) {
+      const int viewer_width = BLI_rcti_size_x(viewer_frame);
+      const int viewer_height = BLI_rcti_size_y(viewer_frame);
+      viewer_left = viewer_frame->xmin - viewer_width / 2;
+      viewer_right = viewer_frame->xmax - viewer_width / 2;
+      viewer_bottom = viewer_frame->ymin - viewer_height / 2;
+      viewer_top = viewer_frame->ymax - viewer_height / 2;
+    }
     immUniformColor4f(0.0f, 0.0f, 0.0f, passepartout_alpha);
-    immRectf(pos, -inf, y2, inf, inf);
-    immRectf(pos, -inf, y1, inf, -inf);
-    immRectf(pos, -inf, y1, x1, y2);
-    immRectf(pos, x2, y1, inf, y2);
+    if (render_top < viewer_top) {
+      immRectf(pos, viewer_left, render_top, viewer_right, viewer_top);
+    }
+    if (render_bottom > viewer_bottom) {
+      immRectf(pos, viewer_left, viewer_bottom, viewer_right, render_bottom);
+    }
+    const float clip_bottom = max_ff(render_bottom, viewer_bottom);
+    const float clip_top = min_ff(render_top, viewer_top);
+    if (render_left > viewer_left) {
+      immRectf(pos, viewer_left, clip_bottom, render_left, clip_top);
+    }
+    if (render_right < viewer_right) {
+      immRectf(pos, render_right, clip_bottom, viewer_right, clip_top);
+    }
   }
 
   float wire_color[3];
@@ -1027,7 +1054,7 @@ void ED_region_render_region_draw(
 
   /* The bounding box must be drawn last to ensure it remains visible
    * when passepartout_alpha > 0. */
-  imm_draw_box_wire_2d(pos, x1, y1, x2, y2);
+  imm_draw_box_wire_2d(pos, render_left, render_bottom, render_right, render_top);
 
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);

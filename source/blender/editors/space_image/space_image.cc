@@ -797,7 +797,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
     ED_region_render_region_draw(
-        x, y, &render_region, zoomx, zoomy, sima->overlay.passepartout_alpha);
+        x, y, &render_region, nullptr, zoomx, zoomy, sima->overlay.passepartout_alpha);
   }
 
   draw_image_main_helpers(C, region);
