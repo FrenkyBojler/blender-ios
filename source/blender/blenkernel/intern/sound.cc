@@ -2212,9 +2212,8 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
 
 #if defined(WITH_AUDASPACE) && defined(WITH_FFTW3)
   /* Read some extra samples before the ones we are actually interested in here. This is done
-   * because there appears to be some bug in the called #read function below where there first
-   * couple samples will always be zero. */
-  const int dummy_extra_samples = 2000;
+   * because the #read function may sometimes give invalid data for the first samples. */
+  const int warmup_samples = std::min(2000, start_sample);
 
   /* Prepare the reader. */
   std::shared_ptr<aud::IReader> reader = sound_->createReader();
@@ -2222,12 +2221,12 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   const int channels_num = specs.channels;
 
   /* Read the raw samples from the audio stream. */
-  Array<float> read_buffer_extra((key_.fft_size + dummy_extra_samples) * channels_num);
+  Array<float> read_buffer_extra((key_.fft_size + warmup_samples) * channels_num);
   bool is_end_of_stream = false;
-  int length = key_.fft_size + dummy_extra_samples;
-  reader->seek(std::max(start_sample - dummy_extra_samples, 0));
+  int length = key_.fft_size + warmup_samples;
+  reader->seek(std::max(start_sample - warmup_samples, 0));
   reader->read(length, is_end_of_stream, read_buffer_extra.data());
-  const Span<float> read_buffer = read_buffer_extra.as_span().drop_front(dummy_extra_samples *
+  const Span<float> read_buffer = read_buffer_extra.as_span().drop_front(warmup_samples *
                                                                          channels_num);
   const int read_length = read_buffer.size() / channels_num;
 
