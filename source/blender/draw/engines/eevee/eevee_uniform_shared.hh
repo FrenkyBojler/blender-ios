@@ -44,6 +44,11 @@ struct [[host_shared]] ShadowSceneData {
   bool32_t use_jitter;
 };
 
+struct [[host_shared]] SceneData {
+ float time;
+ float frame;
+};
+
 /* Light Clamping. */
 struct [[host_shared]] ClampData {
   float sun_threshold;
@@ -95,6 +100,7 @@ struct [[host_shared]] UniformData {
   struct SubsurfaceData subsurface;
   struct VolumesInfoData volumes;
   struct PipelineInfoData pipeline;
+  struct SceneData scene;
 };
 
 /**

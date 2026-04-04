@@ -12,6 +12,7 @@
 
 #include "BKE_global.hh"
 #include "BKE_object.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_rect.h"
 #include "BLI_time.h"
@@ -327,6 +328,9 @@ void Instance::update_eval_members()
 
 void Instance::begin_sync()
 {
+  uniform_data.data.scene.time = BKE_scene_frame_get(scene) / scene->frames_per_second(); //ctime_get is the same as frame since float framelen = 1.0; doesn't update for some reason
+  uniform_data.data.scene.frame = BKE_scene_frame_get(scene);
+
   /* Needs to be first for sun light parameters.
    * Also not skipped to be able to request world shader.
    * If engine shaders are not ready, will skip the pipeline sync. */

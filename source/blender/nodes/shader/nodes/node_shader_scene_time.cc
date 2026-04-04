@@ -22,17 +22,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 static int node_shader_gpu(GPUMaterial *mat,
-                                     bNode *node,
-                                     bNodeExecData * /*execdata*/,
-                                     GPUNodeStack *in,
-                                     GPUNodeStack *out)
+                           bNode *node,
+                           bNodeExecData * /*execdata*/,
+                           GPUNodeStack *in,
+                           GPUNodeStack *out)
 {
-
- // GPUNodeLink *cd_attr;
-
- // cd_attr = GPU_layer_attribute(mat, attr->name);
- // GPU_stack_link(mat, node, "node_attribute", in, out, cd_attr);
-
+  GPU_stack_link(mat, node, "node_scene_time", in, out);
   return 1;
 }
 
