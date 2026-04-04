@@ -87,6 +87,9 @@
 #include "tree/tree_element_seq.hh"
 #include "tree/tree_iterator.hh"
 
+#include "BLF_api.hh"
+#include "BLF_enums.hh"
+
 namespace blender {
 
 namespace ed::outliner {
@@ -3499,7 +3502,26 @@ static void outliner_draw_tree_element(ui::Block *block,
         text_color[3] = 255;
       }
       text_color[3] *= alpha_fac;
+      const bool draw_italic = [&]() -> bool {
+        if (te->idcode == ID_OB) {
+          Object *ob = id_cast<Object *>(tselem->id);
+          if (ob->type == OB_EMPTY && ob->instance_collection) {
+            return true;
+          }
+        }
+        if (ELEM(te->idcode, ID_GR, ID_OB)) {
+          return tselem->id->us > 1;
+        }
+        return te->flag & TE_CHILD_NOT_IN_COLLECTION;
+      }();
+
+      if (draw_italic) {
+        BLF_enable(fstyle->uifont_id, blender::FontFlags::BLF_ITALIC);
+      }
       ui::fontstyle_draw_simple(fstyle, startx + offsx, *starty + 5 * ufac, te->name, text_color);
+      if (draw_italic) {
+        BLF_disable(fstyle->uifont_id, blender::FontFlags::BLF_ITALIC);
+      }
     }
 
     offsx += int(UI_UNIT_X + ui::fontstyle_string_width(fstyle, te->name));
