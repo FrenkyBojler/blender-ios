@@ -63,7 +63,10 @@ enum {
   NUM_NO_NEGATIVE = (1 << 1),
   NUM_NO_ZERO = (1 << 2),
   NUM_NO_FRACTION = (1 << 3),
-  /** The input string (pre-unit-scale) evaluates to an integer value. */
+  /**
+   * The input string (pre-unit-scale) evaluates to an integer value.
+   * Used for exact quadrant rotation detection, see `transform_mode_rotate_quadrants.cc`.
+   */
   NUM_INT_INPUT_VALUE = (1 << 4),
   /* (1 << 9) and above are reserved for internal flags! */
 };
@@ -104,7 +107,8 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event);
 
 /**
  * \param r_value_no_units: Output for the evaluated value before unit scaling is applied
- * (may be null).
+ * (may be null). Useful when the caller needs the original input value for exact comparisons,
+ * e.g. detecting exact 90-degree multiples before radian conversion introduces imprecision.
  */
 bool user_string_to_number(bContext *C,
                            const char *str,
