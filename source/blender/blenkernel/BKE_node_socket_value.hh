@@ -221,7 +221,7 @@ class SocketValueVariant {
 
 inline eNodeSocketDatatype SocketValueVariant::socket_type() const
 {
-  return value_.extra_data.socket_type;
+  return value_.extra.socket_type;
 }
 
 template<typename T>
@@ -253,7 +253,7 @@ inline const void *SocketValueVariant::get_single_ptr_raw() const
 
 inline SocketValueVariant::Kind SocketValueVariant::kind() const
 {
-  return value_.extra_data.kind;
+  return value_.extra.kind;
 }
 
 }  // namespace blender::bke
