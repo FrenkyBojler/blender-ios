@@ -59,8 +59,8 @@ body:
       placeholder: |
             Blender crashes when I...
 
-            Expected result: Blender does not crash
-            Observed result: Blender crashes
+            Expected result: Blender does not crash.
+            Observed result: Blender crashes.
     validations:
       required: true
 
@@ -71,7 +71,7 @@ body:
       hide_label: false
       description: |
             Please provide clear written steps to reproduce the issue.
-            The steps should be based on the default startup file or a **simple** .blend file
+            The steps should be based on the default startup file or a **simple** .blend file.
       placeholder: |
                1. In the 3D viewport, add a sphere.
                2. ...
