@@ -336,29 +336,38 @@ class SourceProcessor {
   void process_template_struct(metadata::TemplateDefinition &template_def,
                                SourceProcessor::Parser &parser);
   void process_template_function(metadata::TemplateDefinition &template_def,
-                                 SourceProcessor::Parser &parser);
+                                 SourceProcessor::Parser &parser,
+                                 /* If method, the end token of the template inside the struct. */
+                                 const Token method_end);
 
   void lower_pre_template(Parser &parser);
 
   void lower_template_instantiation(
       Parser &parser,
+      /* If method, the end token of the template inside the struct. */
+      const Token method_end,
       const Token &inst_start,
       const Token &inst_name,
       const Scope &inst_args,
-      const std::string_view ns,
-      const Token &fn_start,
-      const Token &fn_end,
-      const Token &fn_name,
+      const metadata::TemplateDefinition template_def,
+      const Token &symbol_name,
       /* Method template instantiation reside outside of their struct.
        * For this reason they have the struct name_prepended. */
       const std::string_view full_specified_name,
-      const bool is_method,
       const std::vector<std::string> &arg_list,
       const std::string &fn_decl,
-      const int template_def_line_number,
-      const std::string_view &template_filename,
-      const std::string_view &instance_filename,
       const bool all_template_args_in_function_signature);
+
+  metadata::TemplateDefinition parse_template_definition(SourceProcessor::Parser &parser,
+                                                         Token template_tok,
+                                                         bool is_method,
+                                                         Scope ns_scope,
+                                                         std::string filepath);
+
+  void parse_namespace_symbols(SourceProcessor::Parser &parser,
+                               Scope ns,
+                               metadata::Source &metadata,
+                               std::string filepath);
 
  public:
   /* Check for existence of preprocessor pragma in file. */

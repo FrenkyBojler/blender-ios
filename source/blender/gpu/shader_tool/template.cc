@@ -35,11 +35,11 @@ string SourceProcessor::template_arguments_mangle(const Scope template_args)
   return args_concat;
 }
 
-static void parse_template_definition(const Scope arg,
-                                      vector<string> &arg_list,
-                                      const Scope fn_args,
-                                      bool &all_template_args_in_function_signature,
-                                      report_callback report_error)
+static void parse_template_definition_args(const Scope arg,
+                                           vector<string> &arg_list,
+                                           const Scope fn_args,
+                                           bool &all_template_args_in_function_signature,
+                                           report_callback report_error)
 {
   const Token type = arg.front();
   const Token name = type.str() == "enum" ? type.next().next() : type.next();
@@ -81,22 +81,18 @@ static void parse_template_definition(const Scope arg,
 
 void SourceProcessor::lower_template_instantiation(
     SourceProcessor::Parser &parser,
+    /* If method, the end token of the template inside the struct. */
+    const Token method_end,
     const Token &inst_start,
     const Token &inst_name,
     const Scope &inst_args,
-    const string_view ns,
-    const Token &fn_start,
-    const Token &fn_end,
-    const Token &fn_name,
+    const metadata::TemplateDefinition template_def,
+    const Token &symbol_name,
     /* Method template instantiation reside outside of their struct.
      * For this reason they have the struct name_prepended. */
     const string_view full_specified_name,
-    const bool is_method,
     const vector<string> &arg_list,
     const string &fn_decl,
-    const int template_def_line_number,
-    const string_view &template_filename,
-    const string_view &instance_filename,
     const bool all_template_args_in_function_signature)
 {
   if (full_specified_name != inst_name.str()) {
@@ -119,19 +115,22 @@ void SourceProcessor::lower_template_instantiation(
                   "Invalid amount of argument in template instantiation.");
   }
 
-  const bool is_struct = (fn_name.prev() == Struct);
+  const bool is_struct = (symbol_name.prev() == Struct);
 
   /* Specialize template content. */
   SourceProcessor::Parser instance_parser(fn_decl, report_error_);
 
   /* Inject namespace around definition. */
-  if (ns.empty()) {
+  if (template_def.is_method) {
+    /* Do nothing. */
+  }
+  else if (template_def.name_space.empty()) {
     instance_parser.insert_before(instance_parser.front(), "\n");
     instance_parser.insert_after(instance_parser.back(), "\n");
   }
   else {
     /* Remove suffix "::". */
-    string ns_name(ns.substr(0, ns.size() - 2));
+    string ns_name(template_def.name_space.substr(0, template_def.name_space.size() - 2));
     instance_parser.insert_before(instance_parser.front(), "namespace " + ns_name + " {\n");
     instance_parser.insert_after(instance_parser.back(), "\n}\n");
   }
@@ -143,7 +142,7 @@ void SourceProcessor::lower_template_instantiation(
         instance_parser.replace(word, arg_name_value.second, true);
       }
     }
-    if (is_struct && word.next() != AngleOpen && token_str == fn_name.str()) {
+    if (is_struct && word.next() != AngleOpen && token_str == symbol_name.str()) {
       /* Append template args after unspecified struct typename references.
        * `A func(A<T> b) {}` > `A<T> func(A<T> b) {}`. */
       instance_parser.insert_after(word.str_index_last_no_whitespace(),
@@ -151,14 +150,16 @@ void SourceProcessor::lower_template_instantiation(
     }
   });
 
-  size_t symbol_name_pos = instance_parser.str().find(" " + string(fn_name.str()));
+  size_t symbol_name_pos = instance_parser.str().find(" " + string(symbol_name.str()));
   /* Append namespace to symbol name because appended mangled arguments make namespace
    * resolution impossible. */
-  instance_parser.insert_after(symbol_name_pos, string(ns));
+  if (!template_def.is_method) {
+    instance_parser.insert_after(symbol_name_pos, string(template_def.name_space));
+  }
   if (!is_struct && !all_template_args_in_function_signature) {
     /* Append template args after function name.
      * `void func() {}` > `void func<a, 1>() {}`. */
-    instance_parser.insert_after(symbol_name_pos + fn_name.str().size(),
+    instance_parser.insert_after(symbol_name_pos + symbol_name.str().size(),
                                  SourceProcessor::template_arguments_mangle(inst_args));
   }
   instance_parser.apply_mutations();
@@ -170,14 +171,24 @@ void SourceProcessor::lower_template_instantiation(
   /* Remove added newline from the injected namespace. */
   instance = instance.substr(instance.find_first_of('\n') + 1);
 
-  if (is_method) {
+  string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
+  string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
+  if (template_filename == instance_filename) {
+    /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
+    template_filename = "";
+    instance_filename = "";
+  }
+
+  if (template_def.is_method) {
     /* Method are put back in their classes. */
-    parser.insert_line_number(fn_end, template_def_line_number, template_filename);
-    parser.insert_after(fn_end, instance);
-    parser.insert_line_number(fn_end, inst_end.line_number(true), instance_filename);
+    /* NOTE: This can only work if they are declared in the same file.
+     * Better make a lint pass about it. */
+    parser.insert_line_number(method_end, template_def.definition_line, template_filename);
+    parser.insert_after(method_end, instance);
+    parser.insert_line_number(method_end, inst_end.line_number(true), instance_filename);
   }
   else {
-    parser.insert_line_number(inst_end, template_def_line_number, template_filename);
+    parser.insert_line_number(inst_end, template_def.definition_line, template_filename);
     parser.insert_after(inst_end, instance);
     parser.insert_line_number(inst_end, inst_end.line_number(true), instance_filename);
   }
@@ -246,9 +257,8 @@ void SourceProcessor::lower_template_specialization(Parser &parser)
   parser.apply_mutations();
 }
 
-void SourceProcessor::process_template_struct(
-    blender::gpu::shader::metadata::TemplateDefinition &template_def,
-    SourceProcessor::Parser &parser)
+void SourceProcessor::process_template_struct(metadata::TemplateDefinition &template_def,
+                                              SourceProcessor::Parser &parser)
 {
   if (parser.str().find(template_def.identifier) == string::npos) {
     /* Avoid running parser if there is no instantiation. */
@@ -275,7 +285,7 @@ void SourceProcessor::process_template_struct(
   vector<string> arg_list;
   bool all_template_args_in_function_signature = false;
   template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-    parse_template_definition(
+    parse_template_definition_args(
         arg, arg_list, Scope(def_parser), all_template_args_in_function_signature, report_error_);
   });
 
@@ -288,39 +298,27 @@ void SourceProcessor::process_template_struct(
   lower_scope_resolution_operators(name_parser);
   full_specified_name = name_parser.result_get();
 
-  string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
-  string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
-
-  if (template_filename == instance_filename) {
-    /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
-    template_filename = "";
-    instance_filename = "";
-  }
-
   /* Replace instantiations. */
   parser().foreach_match("tsA<", [&](const vector<Token> &tokens) {
     lower_template_instantiation(parser,
+                                 Token::invalid(&parser),
                                  tokens[0],
                                  tokens[2],
                                  tokens[3].scope(),
-                                 template_def.name_space,
-                                 struct_start,
-                                 struct_end,
+                                 template_def,
                                  struct_name,
                                  full_specified_name,
-                                 false,
                                  arg_list,
                                  struct_decl,
-                                 template_def.definition_line,
-                                 template_filename,
-                                 instance_filename,
                                  all_template_args_in_function_signature);
   });
 }
 
 void SourceProcessor::process_template_function(
-    blender::gpu::shader::metadata::TemplateDefinition &template_def,
-    SourceProcessor::Parser &parser)
+    metadata::TemplateDefinition &template_def,
+    SourceProcessor::Parser &parser,
+    /* If method, the end token of the template inside the struct. */
+    const Token method_end)
 {
   if (parser.str().find(template_def.identifier) == string::npos) {
     /* Avoid running parser if there is no instantiation. */
@@ -365,7 +363,7 @@ void SourceProcessor::process_template_function(
   vector<string> arg_list;
   bool all_template_args_in_function_signature = true;
   template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-    parse_template_definition(
+    parse_template_definition_args(
         arg, arg_list, fn_args, all_template_args_in_function_signature, report_error_);
   });
 
@@ -387,20 +385,15 @@ void SourceProcessor::process_template_function(
 
   parser().foreach_match("tAA<", [&](const vector<Token> &tokens) {
     lower_template_instantiation(parser,
+                                 method_end,
                                  tokens[0],
                                  tokens[2],
                                  tokens[3].scope(),
-                                 template_def.name_space,
-                                 fn_start,
-                                 fn_end,
+                                 template_def,
                                  fn_name,
                                  full_specified_name,
-                                 template_def.is_method,
                                  arg_list,
                                  fn_decl,
-                                 template_def.definition_line,
-                                 template_filename,
-                                 instance_filename,
                                  all_template_args_in_function_signature);
   });
 }
@@ -438,19 +431,36 @@ void SourceProcessor::lower_templates(Parser &parser)
     unique_symbols.try_emplace(symbol.name_space + symbol.identifier, symbol);
   }
 
-  /* For each template definition, process all instantiation . */
+  /* Process struct first, so methods can instantiate inside them. */
   for (auto [_, template_def] : unique_symbols) {
     if (template_def.is_struct) {
       process_template_struct(template_def, parser);
     }
-    else {
-      process_template_function(template_def, parser);
-    }
   }
-
   parser.apply_mutations();
 
-  /* Remove template instantiation. */
+  /* Then process methods. Can only process methods if their struct exists in the same file. */
+  parser().foreach_struct([&](Token, Scope, Token, Scope body) {
+    body.foreach_match("t<..>", [&](const vector<Token> &toks) {
+      TemplateDefinition template_def = parse_template_definition(
+          parser, toks[0], true, toks[0].scope(), filepath_);
+      Token method_end = toks[0].find_next(BracketOpen).scope().back();
+      process_template_function(template_def, parser, method_end);
+
+      /* Delete definitions. */
+      parser.erase(toks[0], method_end);
+    });
+  });
+
+  /* For each template definition, process all instantiation . */
+  for (auto [_, template_def] : unique_symbols) {
+    if (!template_def.is_struct) {
+      process_template_function(template_def, parser, Token::invalid(&parser));
+    }
+  }
+  parser.apply_mutations();
+
+  /* Remove template instantiation afterward. */
   parser().foreach_match("tA", [&](const vector<Token> &toks) {
     parser.erase(toks[0], toks[0].find_next(SemiColon));
   });
