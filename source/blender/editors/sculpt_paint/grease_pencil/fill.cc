@@ -1302,9 +1302,7 @@ constexpr int NULL_INDEX = -1;
 
 static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
                                 const MutableSpan<float> tri_weights,
-                                const Span<int> tri_adjacency_0,
-                                const Span<int> tri_adjacency_1,
-                                const Span<int> tri_adjacency_2,
+                                const Span<int3> tri_adjacency,
                                 const Span<int3> tri_edges,
                                 const Span<float> edge_weights,
                                 const Span<float> tri_max_weight,
@@ -1330,18 +1328,8 @@ static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
       const int tri_index = tris_to_check[i];
 
       for (const int j : IndexRange(3)) {
-        int next_tri = NULL_INDEX;
+        const int next_tri = tri_adjacency[tri_index][j];
         const int edge_index = tri_edges[tri_index][j];
-
-        if (j == 0) {
-          next_tri = tri_adjacency_0[tri_index];
-        }
-        if (j == 1) {
-          next_tri = tri_adjacency_1[tri_index];
-        }
-        if (j == 2) {
-          next_tri = tri_adjacency_2[tri_index];
-        }
 
         if (next_tri == NULL_INDEX) {
           continue;
@@ -1539,9 +1527,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   /**/
 
-  Array<int> tri_adjacency_0(result.face.size(), NULL_INDEX);
-  Array<int> tri_adjacency_1(result.face.size(), NULL_INDEX);
-  Array<int> tri_adjacency_2(result.face.size(), NULL_INDEX);
+  Array<int3> tri_adjacency(result.face.size(), int3(NULL_INDEX));
 
   {
     Array<std::pair<int, int>> edge_to_tris(result.edge.size(),
@@ -1572,15 +1558,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       {
         const int index_0 = edge_to_tris[edge_0].first;
         if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency_0[tri_index] = index_0;
+          tri_adjacency[tri_index][0] = index_0;
         }
         else {
           const int index_1 = edge_to_tris[edge_0].second;
           if (index_1 != tri_index && index_1 != NULL_INDEX) {
-            tri_adjacency_0[tri_index] = index_1;
+            tri_adjacency[tri_index][0] = index_1;
           }
           else {
-            tri_adjacency_0[tri_index] = NULL_INDEX;
+            tri_adjacency[tri_index][0] = NULL_INDEX;
           }
         }
       }
@@ -1588,15 +1574,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       {
         const int index_0 = edge_to_tris[edge_1].first;
         if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency_1[tri_index] = index_0;
+          tri_adjacency[tri_index][1] = index_0;
         }
         else {
           const int index_1 = edge_to_tris[edge_1].second;
           if (index_1 != tri_index && index_1 != NULL_INDEX) {
-            tri_adjacency_1[tri_index] = index_1;
+            tri_adjacency[tri_index][1] = index_1;
           }
           else {
-            tri_adjacency_1[tri_index] = NULL_INDEX;
+            tri_adjacency[tri_index][1] = NULL_INDEX;
           }
         }
       }
@@ -1604,15 +1590,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       {
         const int index_0 = edge_to_tris[edge_2].first;
         if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency_2[tri_index] = index_0;
+          tri_adjacency[tri_index][2] = index_0;
         }
         else {
           const int index_1 = edge_to_tris[edge_2].second;
           if (index_1 != tri_index && index_1 != NULL_INDEX) {
-            tri_adjacency_2[tri_index] = index_1;
+            tri_adjacency[tri_index][2] = index_1;
           }
           else {
-            tri_adjacency_2[tri_index] = NULL_INDEX;
+            tri_adjacency[tri_index][2] = NULL_INDEX;
           }
         }
       }
@@ -1664,7 +1650,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   for (const int tri_index : result.face.index_range()) {
     {
-      const int next_tri = tri_adjacency_0[tri_index];
+      const int next_tri = tri_adjacency[tri_index][0];
       const int edge_index = tri_edges[tri_index][0];
 
       if (next_tri != NULL_INDEX) {
@@ -1675,7 +1661,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       }
     }
     {
-      const int next_tri = tri_adjacency_1[tri_index];
+      const int next_tri = tri_adjacency[tri_index][1];
       const int edge_index = tri_edges[tri_index][1];
 
       if (next_tri != NULL_INDEX) {
@@ -1686,7 +1672,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       }
     }
     {
-      const int next_tri = tri_adjacency_2[tri_index];
+      const int next_tri = tri_adjacency[tri_index][2];
       const int edge_index = tri_edges[tri_index][2];
 
       if (next_tri != NULL_INDEX) {
@@ -1710,9 +1696,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   int tri_index = get_tri_for_point(pos_hint[hint_index]);
   add_weights_for_tri(tri_hint_index.as_mutable_span(),
                       tri_weights.as_mutable_span(),
-                      tri_adjacency_0.as_span(),
-                      tri_adjacency_1.as_span(),
-                      tri_adjacency_2.as_span(),
+                      tri_adjacency.as_span(),
                       tri_edges.as_span(),
                       edge_weights.as_span(),
                       tri_max_weight.as_span(),
@@ -1764,9 +1748,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
     add_weights_for_tri(tri_hint_index.as_mutable_span(),
                         tri_weights.as_mutable_span(),
-                        tri_adjacency_0.as_span(),
-                        tri_adjacency_1.as_span(),
-                        tri_adjacency_2.as_span(),
+                        tri_adjacency.as_span(),
                         tri_edges.as_span(),
                         edge_weights.as_span(),
                         tri_max_weight.as_span(),
@@ -1801,18 +1783,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
 
     for (const int j : IndexRange(3)) {
-      int next_tri = NULL_INDEX;
+      const int next_tri = tri_adjacency[tri_index][j];
       const int edge_index = tri_edges[tri_index][j];
-
-      if (j == 0) {
-        next_tri = tri_adjacency_0[tri_index];
-      }
-      if (j == 1) {
-        next_tri = tri_adjacency_1[tri_index];
-      }
-      if (j == 2) {
-        next_tri = tri_adjacency_2[tri_index];
-      }
 
       if (next_tri == NULL_INDEX) {
         if (!invert) {
