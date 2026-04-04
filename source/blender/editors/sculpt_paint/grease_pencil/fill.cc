@@ -1403,6 +1403,12 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         attr_material_index, bke::AttrDomain::Curve, 0);
     const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
         attr_is_fill_guide, bke::AttrDomain::Curve, false);
+    const VArray<int> fill_id = *attributes.lookup_or_default<int>(
+        "fill_id", bke::AttrDomain::Curve, 0);
+    const VArray<int> hide_stroke = *attributes.lookup_or_default<int>(
+        "hide_stroke", bke::AttrDomain::Curve, 0);
+    const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
+        "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
     IndexMaskMemory curve_mask_memory;
     const IndexMask curve_mask = get_visible_boundary_strokes(
@@ -1410,7 +1416,9 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
     curve_mask.foreach_index([&](const int curve_i) {
       const IndexRange points = strokes.points_by_curve()[curve_i];
-      const bool is_cyclic = cyclic[curve_i];
+      const bool is_fill = fill_id[curve_i];
+      const bool is_stroke_hidden = hide_stroke[curve_i];
+      const bool is_cyclic = cyclic[curve_i] || is_fill;
       /* Check if stroke can be drawn. */
       if (points.size() < 2) {
         return;
@@ -1422,19 +1430,30 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       if (mat == nullptr || (mat->gp_style->flag & GP_MATERIAL_HIDE)) {
         return;
       }
-      const float material_alpha = mat->gp_style->stroke_rgba[3];
+      const float material_stroke_alpha = mat->gp_style->stroke_rgba[3];
+      const float material_fill_alpha = mat->gp_style->fill_rgba[3];
 
       /* In boundary layers only boundary strokes should be rendered. */
       if (only_boundary_strokes && !is_boundary_stroke[curve_i]) {
         return;
       }
 
+      if (is_fill && is_stroke_hidden) {
+        /* Skip transparent curves. */
+        if (alpha_threshold && (material_fill_alpha * fill_opacities[curve_i] < *alpha_threshold))
+        {
+          return;
+        }
+      }
+
       const int point_offset = input_verts.size();
       Array<bool> is_point_visible(points.size(), false);
       for (const int point_i : points) {
-        /* Skip transparent points. */
-        if (alpha_threshold && (material_alpha * opacities[point_i] < *alpha_threshold)) {
-          continue;
+        if (!is_fill) {
+          /* Skip transparent points. */
+          if (alpha_threshold && (material_stroke_alpha * opacities[point_i] < *alpha_threshold)) {
+            continue;
+          }
         }
 
         const float3 pos_world = math::transform_point(layer_to_world,
@@ -1860,6 +1879,10 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       vertex_colors.finish();
     }
   }
+
+  /* TODO: `fill_opacities` are currently always 1.0f for the new strokes. Maybe this should be a
+   * parameter. */
+  attributes.add<float>("fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
 
   curves.cyclic_for_write().fill(true);
   curves.fill_curve_types(CURVE_TYPE_POLY);
