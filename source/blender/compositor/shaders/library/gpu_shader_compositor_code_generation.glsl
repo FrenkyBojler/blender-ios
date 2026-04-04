@@ -481,6 +481,16 @@ void bool_to_int3(float value, float3 &output_value)
 }
 
 /* --------------------------------------------------------------------
+ * Float4x4 to other.
+ */
+
+[[node]]
+void float4x4_to_color(float4x4 value, float4 &output_value)
+{
+  output_value = float4(0.0, 0.0, 0.0, 0.0);
+}
+
+/* --------------------------------------------------------------------
  * Internal Code Generation Functions.
  */
 
@@ -542,4 +552,9 @@ float4 float4_from_float3(float3 value)
 float4 float4_from_float(float value)
 {
   return float_to_color(value);
+}
+
+float4 float4_from_float4x4(float4x4 value)
+{
+  return float4(0.0, 0.0, 0.0, 0.0);
 }
