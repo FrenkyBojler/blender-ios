@@ -1634,7 +1634,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   const float joinning_factor = 0.4f;
 
   int hint_index = 0;
-  int tri_index = get_tri_for_point(pos_hint[hint_index]);
+  int first_tri_index = get_tri_for_point(pos_hint[hint_index]);
   add_weights_for_tri(tri_hint_index.as_mutable_span(),
                       tri_weights.as_mutable_span(),
                       tri_adjacency.as_span(),
@@ -1642,7 +1642,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                       edge_weights.as_span(),
                       tri_max_weight.as_span(),
                       is_source_edge.as_span(),
-                      tri_index,
+                      first_tri_index,
                       hint_index);
 
   Set<int> not_full_tris;
@@ -1698,19 +1698,29 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     hint_index++;
   }
 
+  /* Add the mouse fill again to make sure it as highest priority. */
+  add_weights_for_tri(tri_hint_index.as_mutable_span(),
+                      tri_weights.as_mutable_span(),
+                      tri_adjacency.as_span(),
+                      tri_edges.as_span(),
+                      edge_weights.as_span(),
+                      tri_max_weight.as_span(),
+                      is_source_edge.as_span(),
+                      first_tri_index,
+                      hint_index);
+
   Array<bool> tri_to_fill(result.face.size(), false);
-  const int fill_hint_index = 0;
 
   if (invert) {
     for (const int tri_index : result.face.index_range()) {
-      if (tri_hint_index[tri_index] != fill_hint_index) {
+      if (tri_hint_index[tri_index] != hint_index) {
         tri_to_fill[tri_index] = true;
       }
     }
   }
   else {
     for (const int tri_index : result.face.index_range()) {
-      if (tri_hint_index[tri_index] == fill_hint_index) {
+      if (tri_hint_index[tri_index] == hint_index) {
         tri_to_fill[tri_index] = true;
       }
     }
