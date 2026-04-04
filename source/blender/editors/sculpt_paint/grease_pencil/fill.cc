@@ -1804,59 +1804,36 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   follow_edge_connections(
       all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
 
-  Vector<Vector<int>> geometry;
-  for (const int curve_i : edge_offset_data.index_range().drop_back(1)) {
-    const int curve_size = edge_offset_data[curve_i + 1] - edge_offset_data[curve_i];
+  /* Because all of the curves are cyclical and have more than 2 points:
+   * There are the same number of edges as vertices. */
+  const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_offset_data);
 
-    geometry.append(Vector<int>());
-    for (const int i : IndexRange(edge_offset_data[curve_i], curve_size)) {
-      const int edge_index = edges[i];
-      const std::pair<int, int> edge = result.edge[edge_index];
-      const bool reversed = edge_reversed[i];
-
-      if (reversed) {
-        geometry.last().append(edge.second);
-      }
-      else {
-        geometry.last().append(edge.first);
-      }
-    }
-  }
-
-  /**/
-
-  const int curve_num = geometry.size();
-  int point_num = 0;
-
-  for (const int curve_i : geometry.index_range()) {
-    point_num += geometry[curve_i].size();
-  }
-
-  if (point_num == 0) {
+  if (output_verts_offset.total_size() == 0) {
     return bke::CurvesGeometry();
   }
 
-  bke::CurvesGeometry curves(point_num, curve_num);
+  bke::CurvesGeometry curves(output_verts_offset.total_size(), output_verts_offset.size());
 
-  MutableSpan<int> offsets = curves.offsets_for_write();
+  curves.offsets_for_write().copy_from(output_verts_offset.data());
   MutableSpan<float3> positions = curves.positions_for_write();
+
+  for (const int curve_i : output_verts_offset.index_range()) {
+    const IndexRange edges_range = output_verts_offset[curve_i];
+
+    for (const int i : edges_range) {
+      const int edge_index = edges[i];
+      const bool reversed = edge_reversed[i];
+      const std::pair<int, int> edge = result.edge[edge_index];
+      const int vert_id = reversed ? edge.second : edge.first;
+
+      const float2 pos_2d = float2(result.vert[vert_id]);
+      positions[i] = placement.project(pos_2d);
+    }
+  }
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   attributes.add<int>(
       "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(stroke_material_index));
-
-  int i = 0;
-  for (const int curve_i : geometry.index_range()) {
-    Span<int> geometry_i = geometry[curve_i];
-    offsets[curve_i] = geometry_i.size();
-
-    for (const int geom_i : geometry_i.index_range()) {
-      const float2 pos_2d = float2(result.vert[geometry_i[geom_i]]);
-      positions[i++] = placement.project(pos_2d);
-    }
-  }
-
-  offset_indices::accumulate_counts_to_offsets(offsets);
 
   const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
       scene.toolsettings->gp_paint, &brush);
