@@ -1813,25 +1813,46 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   }
 
   bke::CurvesGeometry curves(output_verts_offset.total_size(), output_verts_offset.size());
-
   curves.offsets_for_write().copy_from(output_verts_offset.data());
+
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   MutableSpan<float3> positions = curves.positions_for_write();
+  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
+      "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+  bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
+      "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
 
   for (const int curve_i : output_verts_offset.index_range()) {
     const IndexRange edges_range = output_verts_offset[curve_i];
 
-    for (const int i : edges_range) {
-      const int edge_index = edges[i];
-      const bool reversed = edge_reversed[i];
+    for (const int point_i : edges_range) {
+      const int edge_index = edges[point_i];
+      const bool reversed = edge_reversed[point_i];
       const std::pair<int, int> edge = result.edge[edge_index];
       const int vert_id = reversed ? edge.second : edge.first;
 
       const float2 pos_2d = float2(result.vert[vert_id]);
-      positions[i] = placement.project(pos_2d);
+      const float3 position = placement.project(pos_2d);
+      positions[point_i] = position;
+
+      /* Calculate radius and opacity for the outline as if it was a user stroke with full
+       * pressure. */
+      constexpr const float pressure = 1.0f;
+      radii.span[point_i] = ed::greasepencil::radius_from_input_sample(view_context.rv3d,
+                                                                       view_context.region,
+                                                                       &brush,
+                                                                       pressure,
+                                                                       position,
+                                                                       placement.to_world_space(),
+                                                                       brush.gpencil_settings);
+      opacities.span[point_i] = ed::greasepencil::opacity_from_input_sample(
+          pressure, &brush, brush.gpencil_settings);
     }
   }
 
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  radii.finish();
+  opacities.finish();
+
   attributes.add<int>(
       "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(stroke_material_index));
 

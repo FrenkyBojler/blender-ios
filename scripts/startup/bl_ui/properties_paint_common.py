@@ -1828,6 +1828,12 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             row = layout.row(align=True)
             row.prop(brush, "size", text="Thickness")
             layout.use_property_split = use_property_split_prev
+        else:
+            size = "size"
+            if brush.use_locked_size == 'SCENE':
+                size = "unprojected_size"
+            row = layout.row(align=True)
+            row.prop(brush, size, slider=True, text="Size")
     elif grease_pencil_brush_type == 'ERASE':
         layout.prop(gp_settings, "eraser_mode", expand=True)
         layout.prop(gp_settings, "use_active_layer_only")
