@@ -1701,7 +1701,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
   }
 
-  VectorSet<int> boundary_edges;
+  Set<int> boundary_edges;
 
   for (const int tri_index : result.face.index_range()) {
     if (!tri_to_fill[tri_index]) {
@@ -1724,7 +1724,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         continue;
       }
       else {
-        boundary_edges.add(edge_index);
+        boundary_edges.add_new(edge_index);
       }
     }
   }
@@ -1740,8 +1740,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   array_utils::fill_index_range<int>(all_edges);
 
-  for (const int boundary_index : boundary_edges.index_range()) {
-    const int edge_index = boundary_edges[boundary_index];
+  for (const int edge_index : boundary_edges) {
     edges_to_keep[edge_index] = true;
   }
 
@@ -1755,8 +1754,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   /* Vert_index to edge Ends. */
   Map<int, Vector<EncodedConnection>> vert_to_edge_ends;
 
-  for (const int boundary_index : boundary_edges.index_range()) {
-    const int edge_index = boundary_edges[boundary_index];
+  for (const int edge_index : boundary_edges) {
     const std::pair<int, int> edge = result.edge[edge_index];
 
     const EncodedConnection point_1 = encode_index_and_side(edge_index, Side::Start);
