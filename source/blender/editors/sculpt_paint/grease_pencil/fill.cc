@@ -1549,38 +1549,21 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                                              std::pair<int, int>(NULL_INDEX, NULL_INDEX));
 
   {
-
     Array<std::pair<int, int>> edge_to_tris(result.edge.size(),
                                             std::pair<int, int>(NULL_INDEX, NULL_INDEX));
 
     for (const int tri_index : result.face.index_range()) {
-      const int edge_0 = tri_edges[tri_index][0];
-      const int edge_1 = tri_edges[tri_index][1];
-      const int edge_2 = tri_edges[tri_index][2];
+      for (const int j : IndexRange(3)) {
+        const int edge_index = tri_edges[tri_index][j];
 
-      BLI_assert(edge_0 != NULL_INDEX);
-      BLI_assert(edge_1 != NULL_INDEX);
-      BLI_assert(edge_2 != NULL_INDEX);
+        BLI_assert(edge_index != NULL_INDEX);
 
-      if (edge_to_tris[edge_0].first == NULL_INDEX) {
-        edge_to_tris[edge_0].first = tri_index;
-      }
-      else {
-        edge_to_tris[edge_0].second = tri_index;
-      }
-
-      if (edge_to_tris[edge_1].first == NULL_INDEX) {
-        edge_to_tris[edge_1].first = tri_index;
-      }
-      else {
-        edge_to_tris[edge_1].second = tri_index;
-      }
-
-      if (edge_to_tris[edge_2].first == NULL_INDEX) {
-        edge_to_tris[edge_2].first = tri_index;
-      }
-      else {
-        edge_to_tris[edge_2].second = tri_index;
+        if (edge_to_tris[edge_index].first == NULL_INDEX) {
+          edge_to_tris[edge_index].first = tri_index;
+        }
+        else {
+          edge_to_tris[edge_index].second = tri_index;
+        }
       }
     }
 
