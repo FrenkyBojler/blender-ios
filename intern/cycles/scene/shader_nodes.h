@@ -1861,9 +1861,9 @@ class RaycastNode : public ShaderNode {
   NODE_SOCKET_API(bool, only_local)
 };
 
-class ShaderSceneTimeNode : public ShaderNode {
+class SceneTimeNode : public ShaderNode {
  public:
-  SHADER_NODE_CLASS(ShaderSceneTimeNode)
+  SHADER_NODE_CLASS(SceneTimeNode)
 
   NODE_SOCKET_API(float, seconds)
   NODE_SOCKET_API(float, frame)
