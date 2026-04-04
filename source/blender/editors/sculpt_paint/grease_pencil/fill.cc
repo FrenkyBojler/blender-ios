@@ -1506,30 +1506,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   /**/
 
-  Map<std::pair<int, int>, int> edge_to_index;
-  for (const int edge_index : result.edge.index_range()) {
-    const std::pair<int, int> &edge = result.edge[edge_index];
-    edge_to_index.add_new(order_edge(edge), edge_index);
-  }
-
-  Array<int> tri_edges_0(result.face.size(), NULL_INDEX);
-  Array<int> tri_edges_1(result.face.size(), NULL_INDEX);
-  Array<int> tri_edges_2(result.face.size(), NULL_INDEX);
-
-  for (const int tri_index : result.face.index_range()) {
-    const Vector<int> &face = result.face[tri_index];
-
-    const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[0], face[1]));
-    const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[1], face[2]));
-    const std::pair<int, int> edge3 = order_edge(std::pair<int, int>(face[2], face[0]));
-
-    tri_edges_0[tri_index] = edge_to_index.lookup(edge1);
-    tri_edges_1[tri_index] = edge_to_index.lookup(edge2);
-    tri_edges_2[tri_index] = edge_to_index.lookup(edge3);
-  }
-
-  /**/
-
   Array<bool> is_source_edge(result.edge.size(), false);
 
   for (const int edge_i : is_source_edge.index_range()) {
@@ -1542,37 +1518,27 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   /**/
 
-  Array<std::pair<int, int>> edge_to_tris(result.edge.size(),
-                                          std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+  Array<int> tri_edges_0(result.face.size(), NULL_INDEX);
+  Array<int> tri_edges_1(result.face.size(), NULL_INDEX);
+  Array<int> tri_edges_2(result.face.size(), NULL_INDEX);
 
-  for (const int tri_index : result.face.index_range()) {
-    const int edge_0 = tri_edges_0[tri_index];
-    const int edge_1 = tri_edges_1[tri_index];
-    const int edge_2 = tri_edges_2[tri_index];
-
-    BLI_assert(edge_0 != NULL_INDEX);
-    BLI_assert(edge_1 != NULL_INDEX);
-    BLI_assert(edge_2 != NULL_INDEX);
-
-    if (edge_to_tris[edge_0].first == NULL_INDEX) {
-      edge_to_tris[edge_0].first = tri_index;
-    }
-    else {
-      edge_to_tris[edge_0].second = tri_index;
+  {
+    Map<std::pair<int, int>, int> edge_to_index;
+    for (const int edge_index : result.edge.index_range()) {
+      const std::pair<int, int> &edge = result.edge[edge_index];
+      edge_to_index.add_new(order_edge(edge), edge_index);
     }
 
-    if (edge_to_tris[edge_1].first == NULL_INDEX) {
-      edge_to_tris[edge_1].first = tri_index;
-    }
-    else {
-      edge_to_tris[edge_1].second = tri_index;
-    }
+    for (const int tri_index : result.face.index_range()) {
+      const Vector<int> &face = result.face[tri_index];
 
-    if (edge_to_tris[edge_2].first == NULL_INDEX) {
-      edge_to_tris[edge_2].first = tri_index;
-    }
-    else {
-      edge_to_tris[edge_2].second = tri_index;
+      const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[0], face[1]));
+      const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[1], face[2]));
+      const std::pair<int, int> edge3 = order_edge(std::pair<int, int>(face[2], face[0]));
+
+      tri_edges_0[tri_index] = edge_to_index.lookup(edge1);
+      tri_edges_1[tri_index] = edge_to_index.lookup(edge2);
+      tri_edges_2[tri_index] = edge_to_index.lookup(edge3);
     }
   }
 
@@ -1585,55 +1551,94 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   Array<std::pair<int, int>> tri_adjacency_2(result.face.size(),
                                              std::pair<int, int>(NULL_INDEX, NULL_INDEX));
 
-  for (const int tri_index : result.face.index_range()) {
-    const int edge_0 = tri_edges_0[tri_index];
-    const int edge_1 = tri_edges_1[tri_index];
-    const int edge_2 = tri_edges_2[tri_index];
+  {
 
-    {
-      const int index_0 = edge_to_tris[edge_0].first;
-      if (index_0 != tri_index && index_0 != NULL_INDEX) {
-        tri_adjacency_0[tri_index] = std::pair<int, int>(index_0, edge_0);
+    Array<std::pair<int, int>> edge_to_tris(result.edge.size(),
+                                            std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+
+    for (const int tri_index : result.face.index_range()) {
+      const int edge_0 = tri_edges_0[tri_index];
+      const int edge_1 = tri_edges_1[tri_index];
+      const int edge_2 = tri_edges_2[tri_index];
+
+      BLI_assert(edge_0 != NULL_INDEX);
+      BLI_assert(edge_1 != NULL_INDEX);
+      BLI_assert(edge_2 != NULL_INDEX);
+
+      if (edge_to_tris[edge_0].first == NULL_INDEX) {
+        edge_to_tris[edge_0].first = tri_index;
       }
       else {
-        const int index_1 = edge_to_tris[edge_0].second;
-        if (index_1 != tri_index && index_1 != NULL_INDEX) {
-          tri_adjacency_0[tri_index] = std::pair<int, int>(index_1, edge_0);
-        }
-        else {
-          tri_adjacency_0[tri_index] = std::pair<int, int>(NULL_INDEX, edge_0);
-        }
+        edge_to_tris[edge_0].second = tri_index;
+      }
+
+      if (edge_to_tris[edge_1].first == NULL_INDEX) {
+        edge_to_tris[edge_1].first = tri_index;
+      }
+      else {
+        edge_to_tris[edge_1].second = tri_index;
+      }
+
+      if (edge_to_tris[edge_2].first == NULL_INDEX) {
+        edge_to_tris[edge_2].first = tri_index;
+      }
+      else {
+        edge_to_tris[edge_2].second = tri_index;
       }
     }
 
-    {
-      const int index_0 = edge_to_tris[edge_1].first;
-      if (index_0 != tri_index && index_0 != NULL_INDEX) {
-        tri_adjacency_1[tri_index] = std::pair<int, int>(index_0, edge_1);
-      }
-      else {
-        const int index_1 = edge_to_tris[edge_1].second;
-        if (index_1 != tri_index && index_1 != NULL_INDEX) {
-          tri_adjacency_1[tri_index] = std::pair<int, int>(index_1, edge_1);
-        }
-        else {
-          tri_adjacency_1[tri_index] = std::pair<int, int>(NULL_INDEX, edge_1);
-        }
-      }
-    }
+    /**/
 
-    {
-      const int index_0 = edge_to_tris[edge_2].first;
-      if (index_0 != tri_index && index_0 != NULL_INDEX) {
-        tri_adjacency_2[tri_index] = std::pair<int, int>(index_0, edge_2);
-      }
-      else {
-        const int index_1 = edge_to_tris[edge_2].second;
-        if (index_1 != tri_index && index_1 != NULL_INDEX) {
-          tri_adjacency_2[tri_index] = std::pair<int, int>(index_1, edge_2);
+    for (const int tri_index : result.face.index_range()) {
+      const int edge_0 = tri_edges_0[tri_index];
+      const int edge_1 = tri_edges_1[tri_index];
+      const int edge_2 = tri_edges_2[tri_index];
+
+      {
+        const int index_0 = edge_to_tris[edge_0].first;
+        if (index_0 != tri_index && index_0 != NULL_INDEX) {
+          tri_adjacency_0[tri_index] = std::pair<int, int>(index_0, edge_0);
         }
         else {
-          tri_adjacency_2[tri_index] = std::pair<int, int>(NULL_INDEX, edge_2);
+          const int index_1 = edge_to_tris[edge_0].second;
+          if (index_1 != tri_index && index_1 != NULL_INDEX) {
+            tri_adjacency_0[tri_index] = std::pair<int, int>(index_1, edge_0);
+          }
+          else {
+            tri_adjacency_0[tri_index] = std::pair<int, int>(NULL_INDEX, edge_0);
+          }
+        }
+      }
+
+      {
+        const int index_0 = edge_to_tris[edge_1].first;
+        if (index_0 != tri_index && index_0 != NULL_INDEX) {
+          tri_adjacency_1[tri_index] = std::pair<int, int>(index_0, edge_1);
+        }
+        else {
+          const int index_1 = edge_to_tris[edge_1].second;
+          if (index_1 != tri_index && index_1 != NULL_INDEX) {
+            tri_adjacency_1[tri_index] = std::pair<int, int>(index_1, edge_1);
+          }
+          else {
+            tri_adjacency_1[tri_index] = std::pair<int, int>(NULL_INDEX, edge_1);
+          }
+        }
+      }
+
+      {
+        const int index_0 = edge_to_tris[edge_2].first;
+        if (index_0 != tri_index && index_0 != NULL_INDEX) {
+          tri_adjacency_2[tri_index] = std::pair<int, int>(index_0, edge_2);
+        }
+        else {
+          const int index_1 = edge_to_tris[edge_2].second;
+          if (index_1 != tri_index && index_1 != NULL_INDEX) {
+            tri_adjacency_2[tri_index] = std::pair<int, int>(index_1, edge_2);
+          }
+          else {
+            tri_adjacency_2[tri_index] = std::pair<int, int>(NULL_INDEX, edge_2);
+          }
         }
       }
     }
