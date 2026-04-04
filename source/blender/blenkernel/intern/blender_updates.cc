@@ -568,22 +568,67 @@ bool have_available_updates(bContext &C)
 Vector<const VersionUpdate *> available_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
-  Vector<const VersionUpdate *> tmp;
-  if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && updates.latest &&
-      (!updates.latest_lts || (updates.latest_lts->version < updates.latest->version)))
-  {
-    tmp.append(&(*updates.latest));
-  }
-  if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.latest_lts) {
-    tmp.append(&(*updates.latest_lts));
-  }
-  if (U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE && updates.current_release) {
-    tmp.append(&(*updates.current_release));
-  }
-  std::ranges::sort(
-      tmp, [](const VersionUpdate *a, const VersionUpdate *b) { return a->version < b->version; });
-  std::ranges::reverse(tmp);
-  return tmp;
+  const IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
+
+  Vector<const VersionUpdate *> result;
+  /** Add Latest Release. */
+  [&]() -> void {
+    if (!updates.latest) {
+      return;
+    }
+    if (!(U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE)) {
+      return;
+    }
+    if (updates.latest_lts && updates.latest->version < updates.latest_lts->version) {
+      return;
+    }
+    result.append(&*updates.latest);
+  }();
+  /** Add Latest LTS Release. */
+  [&]() -> void {
+    if (!updates.latest_lts) {
+      return;
+    }
+    /* Add Latest LTS Release as Latest Release when there is no Latest Release available.  */
+    if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && result.is_empty() &&
+        updates.latest_lts->version > ignored_updates.latest)
+    {
+      result.append(&*updates.latest_lts);
+      return;
+    }
+    if (!(U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE)) {
+      return;
+    }
+    result.append(&*updates.latest_lts);
+  }();
+  [&]() -> void {
+    if (!updates.current_release) {
+      return;
+    }
+    /* Add current Release Update as Latest Release when there is no Latest Release or Latest LTS
+     * Release available. */
+    if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && result.is_empty() &&
+        (updates.current_release->version > ignored_updates.latest ||
+         updates.current_release->version > ignored_updates.latest_lts))
+    {
+      result.append(&*updates.current_release);
+      return;
+    }
+    /* Add current Release Update as Latest LTS Release when the update is LTS and there is no
+     * other Latest LTS Release. */
+    if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.current_release->is_lts &&
+        (result.is_empty() || !result.last()->is_lts) &&
+        updates.current_release->version > ignored_updates.latest_lts)
+    {
+      result.append(&*updates.current_release);
+      return;
+    }
+    if (!(U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE)) {
+      return;
+    }
+    result.append(&*updates.current_release);
+  }();
+  return result;
 }
 
 static void ignore_update_impl(const VersionUpdate *update)
