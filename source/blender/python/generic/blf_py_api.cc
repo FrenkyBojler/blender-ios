@@ -33,6 +33,37 @@
 
 namespace blender {
 
+/**
+ * Extract a UTF-8 `const char *` and byte length from a `str` or `bytes` object.
+ *
+ * When the input is `str`, the returned pointer belongs to an internal UTF-8 cache
+ * on \a py_text itself (no extra reference needed).
+ * When the input is `bytes`, \a r_text points directly into the bytes object's buffer.
+ *
+ * \return true on success.  On failure a Python exception is set and false is returned.
+ */
+static bool py_blf_text_as_utf8(PyObject *py_text,
+                                const char **r_text,
+                                Py_ssize_t *r_text_len,
+                                const char *func_name)
+{
+  if (PyUnicode_Check(py_text)) {
+    *r_text = PyUnicode_AsUTF8AndSize(py_text, r_text_len);
+    if (UNLIKELY(*r_text == nullptr)) {
+      return false;
+    }
+  }
+  else if (PyBytes_Check(py_text)) {
+    *r_text = PyBytes_AS_STRING(py_text);
+    *r_text_len = PyBytes_GET_SIZE(py_text);
+  }
+  else {
+    PyErr_Format(PyExc_TypeError, "%s: expected str or bytes, got %.200s", func_name, Py_TYPE(py_text)->tp_name);
+    return false;
+  }
+  return true;
+}
+
 struct BPyBLFImBufContext {
   PyObject_HEAD /* Required Python macro. */
   PyObject *py_imbuf;
@@ -171,14 +202,18 @@ PyDoc_STRVAR(
     "font use 0.\n"
     "   :type fontid: int\n"
     "   :param text: The text to draw.\n"
-    "   :type text: str\n");
+    "   :type text: str | bytes\n");
 static PyObject *py_blf_draw(PyObject * /*self*/, PyObject *args)
 {
   const char *text;
   Py_ssize_t text_length;
   int fontid;
+  PyObject *py_text;
 
-  if (!PyArg_ParseTuple(args, "is#:blf.draw", &fontid, &text, &text_length)) {
+  if (!PyArg_ParseTuple(args, "iO:blf.draw", &fontid, &py_text)) {
+    return nullptr;
+  }
+  if (!py_blf_text_as_utf8(py_text, &text, &text_length, "blf.draw")) {
     return nullptr;
   }
 
@@ -198,14 +233,18 @@ PyDoc_STRVAR(
     "font use 0.\n"
     "   :type fontid: int\n"
     "   :param text: The text to draw into the bound image buffer.\n"
-    "   :type text: str\n");
+    "   :type text: str | bytes\n");
 static PyObject *py_blf_draw_buffer(PyObject * /*self*/, PyObject *args)
 {
   const char *text;
   Py_ssize_t text_length;
   int fontid;
+  PyObject *py_text;
 
-  if (!PyArg_ParseTuple(args, "is#:blf.draw_buffer", &fontid, &text, &text_length)) {
+  if (!PyArg_ParseTuple(args, "iO:blf.draw_buffer", &fontid, &py_text)) {
+    return nullptr;
+  }
+  if (!py_blf_text_as_utf8(py_text, &text, &text_length, "blf.draw_buffer")) {
     return nullptr;
   }
 
@@ -225,21 +264,26 @@ PyDoc_STRVAR(
     "font use 0.\n"
     "   :type fontid: int\n"
     "   :param text: The text to measure.\n"
-    "   :type text: str\n"
+    "   :type text: str | bytes\n"
     "   :return: The width and height of the text.\n"
     "   :rtype: tuple[float, float]\n");
 static PyObject *py_blf_dimensions(PyObject * /*self*/, PyObject *args)
 {
   const char *text;
+  Py_ssize_t text_length;
   float width, height;
   PyObject *ret;
   int fontid;
+  PyObject *py_text;
 
-  if (!PyArg_ParseTuple(args, "is:blf.dimensions", &fontid, &text)) {
+  if (!PyArg_ParseTuple(args, "iO:blf.dimensions", &fontid, &py_text)) {
+    return nullptr;
+  }
+  if (!py_blf_text_as_utf8(py_text, &text, &text_length, "blf.dimensions")) {
     return nullptr;
   }
 
-  BLF_width_and_height(fontid, text, INT_MAX, &width, &height);
+  BLF_width_and_height(fontid, text, size_t(text_length), &width, &height);
 
   ret = PyTuple_New(2);
   PyTuple_SET_ITEMS(ret, PyFloat_FromDouble(width), PyFloat_FromDouble(height));
