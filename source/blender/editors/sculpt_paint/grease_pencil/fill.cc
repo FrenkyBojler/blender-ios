@@ -1551,56 +1551,22 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     /**/
 
     for (const int tri_index : result.face.index_range()) {
-      const int edge_0 = tri_edges[tri_index][0];
-      const int edge_1 = tri_edges[tri_index][1];
-      const int edge_2 = tri_edges[tri_index][2];
+      for (const int j : IndexRange(3)) {
+        const int edge = tri_edges[tri_index][j];
 
-      {
-        const int index_0 = edge_to_tris[edge_0].first;
+        const int index_0 = edge_to_tris[edge].first;
         if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency[tri_index][0] = index_0;
+          tri_adjacency[tri_index][j] = index_0;
+          continue;
         }
-        else {
-          const int index_1 = edge_to_tris[edge_0].second;
-          if (index_1 != tri_index && index_1 != NULL_INDEX) {
-            tri_adjacency[tri_index][0] = index_1;
-          }
-          else {
-            tri_adjacency[tri_index][0] = NULL_INDEX;
-          }
-        }
-      }
 
-      {
-        const int index_0 = edge_to_tris[edge_1].first;
-        if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency[tri_index][1] = index_0;
+        const int index_1 = edge_to_tris[edge].second;
+        if (index_1 != tri_index && index_1 != NULL_INDEX) {
+          tri_adjacency[tri_index][j] = index_1;
+          continue;
         }
-        else {
-          const int index_1 = edge_to_tris[edge_1].second;
-          if (index_1 != tri_index && index_1 != NULL_INDEX) {
-            tri_adjacency[tri_index][1] = index_1;
-          }
-          else {
-            tri_adjacency[tri_index][1] = NULL_INDEX;
-          }
-        }
-      }
 
-      {
-        const int index_0 = edge_to_tris[edge_2].first;
-        if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency[tri_index][2] = index_0;
-        }
-        else {
-          const int index_1 = edge_to_tris[edge_2].second;
-          if (index_1 != tri_index && index_1 != NULL_INDEX) {
-            tri_adjacency[tri_index][2] = index_1;
-          }
-          else {
-            tri_adjacency[tri_index][2] = NULL_INDEX;
-          }
-        }
+        tri_adjacency[tri_index][j] = NULL_INDEX;
       }
     }
   }
@@ -1649,38 +1615,19 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   Array<float> tri_max_weight(result.face.size(), 0.0f);
 
   for (const int tri_index : result.face.index_range()) {
-    {
-      const int next_tri = tri_adjacency[tri_index][0];
-      const int edge_index = tri_edges[tri_index][0];
+    for (const int j : IndexRange(3)) {
+      const int next_tri = tri_adjacency[tri_index][j];
+      const int edge_index = tri_edges[tri_index][j];
 
-      if (next_tri != NULL_INDEX) {
-        if (!is_source_edge[edge_index]) {
-          tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index],
-                                                edge_weights[edge_index]);
-        }
+      if (next_tri == NULL_INDEX) {
+        continue;
       }
-    }
-    {
-      const int next_tri = tri_adjacency[tri_index][1];
-      const int edge_index = tri_edges[tri_index][1];
 
-      if (next_tri != NULL_INDEX) {
-        if (!is_source_edge[edge_index]) {
-          tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index],
-                                                edge_weights[edge_index]);
-        }
+      if (is_source_edge[edge_index]) {
+        continue;
       }
-    }
-    {
-      const int next_tri = tri_adjacency[tri_index][2];
-      const int edge_index = tri_edges[tri_index][2];
 
-      if (next_tri != NULL_INDEX) {
-        if (!is_source_edge[edge_index]) {
-          tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index],
-                                                edge_weights[edge_index]);
-        }
-      }
+      tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index], edge_weights[edge_index]);
     }
   }
 
