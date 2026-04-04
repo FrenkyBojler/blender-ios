@@ -38,7 +38,6 @@ class AssetRepresentation;
 namespace ui {
 struct Layout;
 struct Block;
-enum class PopupAttachDirection : int8_t;
 }  // namespace ui
 
 struct ARegion;
@@ -96,6 +95,7 @@ struct wmSpaceTypeListenerParams {
   ScrArea *area;
   const wmNotifier *notifier;
   const Scene *scene;
+  const Main *bmain;
 };
 
 struct SpaceType {
@@ -411,7 +411,6 @@ struct PanelType {
   /** Sub panels. */
   PanelType *parent;
   ListBaseT<LinkData> children;
-  ui::PopupAttachDirection popup_draw_direction;
   /** RNA integration. */
   ExtensionRNA rna_ext;
 };
