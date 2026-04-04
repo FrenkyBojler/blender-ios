@@ -148,7 +148,7 @@ static void do_glow_effect_byte(Strip *strip,
                                 int x,
                                 int y,
                                 uchar *rect1,
-                                uchar * /*rect2*/,
+                                const uchar * /*rect2*/,
                                 uchar *out)
 {
   GlowVars *glow = static_cast<GlowVars *>(strip->effectdata);
@@ -188,12 +188,12 @@ static void do_glow_effect_float(Strip *strip,
                                  float fac,
                                  int x,
                                  int y,
-                                 float *rect1,
-                                 float * /*rect2*/,
+                                 const float *rect1,
+                                 const float * /*rect2*/,
                                  float *out)
 {
   float4 *outbuf = reinterpret_cast<float4 *>(out);
-  float4 *inbuf = reinterpret_cast<float4 *>(rect1);
+  const float4 *inbuf = reinterpret_cast<const float4 *>(rect1);
   GlowVars *glow = static_cast<GlowVars *>(strip->effectdata);
 
   blur_isolate_highlights(
@@ -224,7 +224,7 @@ static ImBuf *do_glow_effect(const RenderData *context,
                          fac,
                          context->rectx,
                          context->recty,
-                         ibuf1->float_data_for_write(),
+                         ibuf1->float_data(),
                          nullptr,
                          out->float_data_for_write());
   }
