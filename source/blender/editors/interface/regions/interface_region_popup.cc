@@ -1022,7 +1022,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
     float duration = ANIMATION_DURATION_MENU;
     RegionAnimationDirection dir;
     RegionAnimationType anim_type;
-    RegionAnimationEase ease = RegionAnimationEase::QuadIn;
+    RegionAnimationEase ease = RegionAnimationEase::CircOut;
 
     if (block->direction & UI_DIR_UP) {
       dir = RegionAnimationDirection::Up;

@@ -873,22 +873,22 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
   rect_tex.xmax = 1.0f + halfx;
   rect_tex.ymax = 1.0f + halfy;
 
-  float alpha = 1.0f;
+  float alpha_easing = 1.0f;
 
   if (blend) {
     float ofs_left = 0;
     float ofs_right = 0;
     float ofs_top = 0;
     float ofs_bottom = 0;
-    ED_region_blend_animation(region, &alpha, &ofs_left, &ofs_right, &ofs_top, &ofs_bottom);
+    ED_region_blend_animation(region, &alpha_easing, &ofs_left, &ofs_right, &ofs_top, &ofs_bottom);
 
     if (ofs_left != 0.0f && ofs_right == 0.0f) {
       rect_geo.xmin += ofs_left;
-      rect_tex.xmax *= alpha;
+      rect_tex.xmax *= alpha_easing;
     }
     else if (ofs_right != 0.0f && ofs_left == 0.0f) {
       rect_geo.xmax -= ofs_right;
-      rect_tex.xmin += 1.0f - alpha;
+      rect_tex.xmin += 1.0f - alpha_easing;
     }
     else if (ofs_right != 0.0f && ofs_left != 0.0f) {
       rect_geo.xmin += ofs_left;
@@ -897,11 +897,11 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
 
     if (ofs_top != 0.0f && ofs_bottom == 0.0f) {
       rect_geo.ymax -= ofs_top;
-      rect_tex.ymin += 1.0f - alpha;
+      rect_tex.ymin += 1.0f - alpha_easing;
     }
     else if (ofs_bottom != 0.0f && ofs_top == 0.0f) {
       rect_geo.ymin += ofs_bottom;
-      rect_tex.ymax *= alpha;
+      rect_tex.ymax *= alpha_easing;
     }
     else if (ofs_bottom != 0.0f && ofs_top != 0.0f) {
       rect_geo.ymax -= ofs_top;
@@ -934,7 +934,8 @@ void wm_draw_region_blend(ARegion *region, int view, bool blend)
 
   GPU_shader_uniform_float_ex(shader, rect_tex_loc, 4, 1, rectt);
   GPU_shader_uniform_float_ex(shader, rect_geo_loc, 4, 1, rectg);
-  GPU_shader_uniform_float_ex(shader, color_loc, 4, 1, float4{alpha, alpha, alpha, alpha});
+  GPU_shader_uniform_float_ex(
+      shader, color_loc, 4, 1, float4{alpha_easing, alpha_easing, alpha_easing, alpha_easing});
 
   gpu::Batch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);

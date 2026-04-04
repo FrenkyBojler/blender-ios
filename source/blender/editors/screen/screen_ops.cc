@@ -4306,6 +4306,8 @@ static bool area_join_apply(bContext *C, wmOperator *op)
     WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
   }
 
+  CTX_wm_window(C)->tag_cursor_refresh = true;
+
   return true;
 }
 
@@ -6195,6 +6197,11 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     }
   }
 
+  /* Calling stop_playback() frees the animation timer `wt`, and `sad` with it. Instead of calling
+   * that function directly, set this boolean to `true`, which will call the function at the end of
+   * this function. */
+  bool do_stop_playback = false;
+
   /* Handle reaching the extreme frames. */
   const int start_frame = PSFRA;
   const int end_frame = PEFRA;
@@ -6206,7 +6213,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 
     switch (scene->playback_loop_mode) {
       case SCE_LOOP_MODE_STOP_START_FRAME:
-        stop_playback(C);
+        do_stop_playback = true;
         ATTR_FALLTHROUGH;
       case SCE_LOOP_MODE_INFINITE:
         scene->r.cfra = is_playing_forward ? start_frame : end_frame;
@@ -6217,11 +6224,11 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
          * clamping). If this turns out to be undesired, the `is_extreme_frame` computation will
          * have to take the loop mode into account. */
         CLAMP(scene->r.cfra, start_frame, end_frame);
-        stop_playback(C);
+        do_stop_playback = true;
         break;
       case SCE_LOOP_MODE_RESTORE:
         scene->r.cfra = sad->sfra;
-        stop_playback(C);
+        do_stop_playback = true;
         break;
       case SCE_LOOP_MODE_BOUNCE:
         if (is_playing_forward) {
@@ -6313,6 +6320,10 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   /* TODO: this may make evaluation a bit slower if the value doesn't change...
    * any way to avoid this? */
   wt->time_step = (1.0 / scene->frames_per_second());
+
+  if (do_stop_playback) {
+    stop_playback(C);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -7042,7 +7053,8 @@ void ED_region_blend_animation(ARegion *region,
   float factor = float(region->runtime->regiontimer->time_duration - rgi->delay) / rgi->duration;
   /* makes sure the blend out works 100% - without area redraws */
   if (rgi->hidden) {
-    factor = 0.9f - ANIMATION_TIMESTEP - factor;
+    //factor = 0.9f - region->runtime->regiontimer->time_step - factor;
+    factor = 1.0f - factor;
   }
 
   factor = ed_region_animation_ease(rgi->ease, factor);
@@ -7187,31 +7199,23 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
   float delay = 0.0f;
   float duration = ANIMATION_DURATION_REGION;
-
+  RegionAnimationType anim_type = RegionAnimationType::Slide;
   const bool hiding = region->flag & RGN_FLAG_HIDDEN;
+  RegionAnimationEase easing = hiding ? RegionAnimationEase::QuadIn : RegionAnimationEase::QuadOut;
 
-  if (region->next) {
-    if (region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
-      ED_region_visibility_change_update_animated(C, area, region->next);
-      if (hiding) {
-        delay = ANIMATION_DURATION_REGION;
-      }
+  if (region->next && region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
+    if (hiding) {
+      delay = ANIMATION_DURATION_REGION;
     }
+    SET_FLAG_FROM_TEST(region->next->flag, hiding, RGN_FLAG_HIDDEN);
+    ED_region_visibility_change_update_animated(C, area, region->next);
   }
 
   if (!hiding && region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
     delay = ANIMATION_DURATION_REGION;
   }
 
-  ED_region_add_animation_timer(C,
-                                area,
-                                region,
-                                delay,
-                                duration,
-                                RegionAnimationType::Slide,
-                                dir,
-                                hiding ? RegionAnimationEase::QuadIn :
-                                         RegionAnimationEase::QuadOut);
+  ED_region_add_animation_timer(C, area, region, delay, duration, anim_type, dir, easing);
 
   wmWindow *win = CTX_wm_window(C);
 
