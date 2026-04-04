@@ -1464,11 +1464,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   input.vert.reinitialize(input_verts.size() + 4);
   input.vert.as_mutable_span().drop_back(4).copy_from(input_verts);
 
-  const Bounds<double2> drawing_bound = *bounds::min_max(input.vert.as_span().drop_back(4));
-  const Bounds<double2> screen_bound = Bounds<double2>(double2(0.0, 0.0),
-                                                       double2(region.winx, region.winy));
-
-  Bounds<double2> bound = bounds::merge(drawing_bound, screen_bound);
+  Bounds<double2> bound = *bounds::min_max(input.vert.as_span().drop_back(4));
 
   /* Pad by enough that all edges connected to the boundary are longer than any edge inside the
    * shape. */
