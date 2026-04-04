@@ -3509,8 +3509,8 @@ static void outliner_draw_tree_element(ui::Block *block,
             return true;
           }
         }
-        if (ELEM(te->idcode, ID_GR, ID_OB)) {
-          return tselem->id->us > 1;
+        if (ELEM(te->idcode, ID_GR, ID_OB) && tselem->id->us > 1) {
+          return true;
         }
         return te->flag & TE_CHILD_NOT_IN_COLLECTION;
       }();
