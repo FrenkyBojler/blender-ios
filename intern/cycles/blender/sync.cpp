@@ -112,6 +112,15 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
   blender::Object *b_dicing_camera_object = get_dicing_camera_object(b_v3d, b_rv3d);
   bool dicing_camera_updated = false;
 
+  const int frame = b_scene->r.cfra;
+  if (scene->frame != frame) {
+    scene->frame = frame;
+    scene->time = (float)frame / b_scene->r.frs_sec;
+
+    has_updates_ = true;
+    scene->integrator->tag_modified(); //test, should be around scene.cpp 203
+  }
+
   /* Iterate over all blender::IDs in this depsgraph. */
   blender::DEGIDIterData deg_iter_data{};
   deg_iter_data.graph = &b_depsgraph;

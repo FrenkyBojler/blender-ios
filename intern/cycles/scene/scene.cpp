@@ -177,6 +177,9 @@ void Scene::device_update(Device *device_, Progress &progress)
   const bool print_stats = need_data_update();
   bool kernels_reloaded = false;
 
+  dscene.data.scene_time.time = this->time;
+  dscene.data.scene_time.frame = this->frame;
+
   while (true) {
     if (update_stats) {
       update_stats->clear();
