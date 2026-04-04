@@ -1021,27 +1021,23 @@ PopupBlockHandle *popup_block_create(bContext *C,
   if (!(U.uiflag & USER_REDUCE_MOTION)) {
     float duration = ANIMATION_DURATION_MENU;
     RegionAnimationDirection dir;
-    RegionAnimationType anim_type;
+    RegionAnimationType anim_type = RegionAnimationType::Slide;
     RegionAnimationEase ease = RegionAnimationEase::CircOut;
 
     if (block->direction & UI_DIR_UP) {
       dir = RegionAnimationDirection::Up;
-      anim_type = RegionAnimationType::Slide;
       duration = ANIMATION_DURATION_MENU;
     }
     else if (block->direction & UI_DIR_DOWN) {
       dir = RegionAnimationDirection::Down;
-      anim_type = RegionAnimationType::Slide;
       duration = ANIMATION_DURATION_MENU;
     }
     else if (block->direction & UI_DIR_LEFT) {
       dir = RegionAnimationDirection::Left;
-      anim_type = RegionAnimationType::Slide;
       duration = ANIMATION_DURATION_SUBMENU;
     }
     else if (block->direction & UI_DIR_RIGHT) {
       dir = RegionAnimationDirection::Right;
-      anim_type = RegionAnimationType::Slide;
       duration = ANIMATION_DURATION_SUBMENU;
     }
     else {

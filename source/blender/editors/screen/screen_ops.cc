@@ -7053,8 +7053,7 @@ void ED_region_blend_animation(ARegion *region,
   float factor = float(region->runtime->regiontimer->time_duration - rgi->delay) / rgi->duration;
   /* makes sure the blend out works 100% - without area redraws */
   if (rgi->hidden) {
-    //factor = 0.9f - region->runtime->regiontimer->time_step - factor;
-    factor = 1.0f - factor;
+    factor = 0.9f - ANIMATION_TIMESTEP - factor;
   }
 
   factor = ed_region_animation_ease(rgi->ease, factor);
@@ -7217,13 +7216,11 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
 
   ED_region_add_animation_timer(C, area, region, delay, duration, anim_type, dir, easing);
 
-  wmWindow *win = CTX_wm_window(C);
-
   RegionAlphaInfo *rgi = static_cast<RegionAlphaInfo *>(region->runtime->regiontimer->customdata);
 
   /* blend in, reinitialize regions because it got unhidden */
   if (rgi->hidden == 0) {
-    ED_area_init(C, win, area);
+    ED_area_init(C, CTX_wm_window(C), area);
   }
   else {
     ED_region_visibility_change_update_ex(C, area, region, true, false);
