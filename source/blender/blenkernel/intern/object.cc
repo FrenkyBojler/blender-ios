@@ -738,7 +738,7 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
       }
     }
 
-    BLI_assert(!nmd.settings.properties);
+    BLI_assert(!nmd.settings_legacy.properties);
     nmd.settings_legacy.properties = legacy_props;
   }
 }
