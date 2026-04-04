@@ -343,39 +343,44 @@ void IMB_blend_color_float(const MutableSpan<float4> dst,
 /** \name Crop
  * \{ */
 
-static void rect_crop_4bytes(void **buf_p, const int size_src[2], const rcti *crop)
+static uchar *rect_crop_4bytes(const uchar *src, const int size_src[2], const rcti *crop)
 {
-  if (*buf_p == nullptr) {
-    return;
+  if (src == nullptr) {
+    return nullptr;
   }
   const int size_dst[2] = {
       BLI_rcti_size_x(crop) + 1,
       BLI_rcti_size_y(crop) + 1,
   };
-  uint *src = static_cast<uint *>(*buf_p);
-  uint *dst = src + crop->ymin * size_src[0] + crop->xmin;
-  for (int y = 0; y < size_dst[1]; y++, src += size_dst[0], dst += size_src[0]) {
-    memmove(src, dst, sizeof(uint) * size_dst[0]);
+  uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(size_dst[0]) * size_t(size_dst[1]) * 4,
+                                                  __func__);
+  const uint *src_row = reinterpret_cast<const uint *>(src) + crop->ymin * size_src[0] +
+                        crop->xmin;
+  uint *dst_row = reinterpret_cast<uint *>(dst);
+  for (int y = 0; y < size_dst[1]; y++, src_row += size_src[0], dst_row += size_dst[0]) {
+    memcpy(dst_row, src_row, sizeof(uint) * size_dst[0]);
   }
-  *buf_p = MEM_realloc_uninitialized(*buf_p, sizeof(uint) * size_dst[0] * size_dst[1]);
+  return dst;
 }
 
-static void rect_crop_16bytes(void **buf_p, const int size_src[2], const rcti *crop)
+static float *rect_crop_16bytes(const float *src, const int size_src[2], const rcti *crop)
 {
-  if (*buf_p == nullptr) {
-    return;
+  if (src == nullptr) {
+    return nullptr;
   }
   const int size_dst[2] = {
       BLI_rcti_size_x(crop) + 1,
       BLI_rcti_size_y(crop) + 1,
   };
-  uint(*src)[4] = static_cast<uint(*)[4]>(*buf_p);
-  uint(*dst)[4] = src + crop->ymin * size_src[0] + crop->xmin;
-  for (int y = 0; y < size_dst[1]; y++, src += size_dst[0], dst += size_src[0]) {
-    memmove(src, dst, sizeof(uint[4]) * size_dst[0]);
+  float *dst = MEM_new_array_uninitialized<float>(size_t(size_dst[0]) * size_t(size_dst[1]) * 4,
+                                                  __func__);
+  const float (*src_row)[4] = reinterpret_cast<const float (*)[4]>(src) +
+                              crop->ymin * size_src[0] + crop->xmin;
+  float (*dst_row)[4] = reinterpret_cast<float (*)[4]>(dst);
+  for (int y = 0; y < size_dst[1]; y++, src_row += size_src[0], dst_row += size_dst[0]) {
+    memcpy(dst_row, src_row, sizeof(float[4]) * size_dst[0]);
   }
-  *buf_p = static_cast<void *>(
-      MEM_realloc_uninitialized(*buf_p, sizeof(uint[4]) * size_dst[0] * size_dst[1]));
+  return dst;
 }
 
 void IMB_rect_crop(ImBuf *ibuf, const rcti *crop)
@@ -396,9 +401,12 @@ void IMB_rect_crop(ImBuf *ibuf, const rcti *crop)
     return;
   }
 
-  /* TODO(sergey: Validate ownership. */
-  rect_crop_4bytes(reinterpret_cast<void **>(&ibuf->byte_buffer.data), size_src, crop);
-  rect_crop_16bytes(reinterpret_cast<void **>(&ibuf->float_buffer.data), size_src, crop);
+  if (uchar *new_byte_data = rect_crop_4bytes(ibuf->byte_data(), size_src, crop)) {
+    IMB_assign_byte_buffer(ibuf, new_byte_data, IB_TAKE_OWNERSHIP);
+  }
+  if (float *new_float_data = rect_crop_16bytes(ibuf->float_data(), size_src, crop)) {
+    IMB_assign_float_buffer(ibuf, new_float_data, IB_TAKE_OWNERSHIP);
+  }
 
   ibuf->x = size_dst[0];
   ibuf->y = size_dst[1];
