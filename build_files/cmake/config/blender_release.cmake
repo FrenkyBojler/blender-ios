@@ -111,3 +111,5 @@ if(NOT APPLE)
   endif()
   unset(_is_win32_arm64_target)
 endif()
+
+set(WITH_BLENDER_UPDATES_NOTIFICATIONS ON  CACHE BOOL "" FORCE)

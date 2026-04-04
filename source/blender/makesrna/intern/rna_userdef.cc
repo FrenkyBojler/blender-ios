@@ -5491,6 +5491,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Show Version", "Show Blender version string");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
 
+#  ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   prop = RNA_def_property(srna, "show_statusbar_blender_updates_dialog", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG);
@@ -5498,6 +5499,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "Show available Blender updates",
                            "Show available Blender updates notification dialog");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO, "rna_userdef_update");
+#  endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
 
   prop = RNA_def_property(srna, "show_statusbar_stats", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "statusbar_flag", STATUSBAR_SHOW_STATS);
@@ -6337,7 +6339,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       "Network Connection Limit",
       "Limit the number of simultaneous internet connections online operations may make at once. "
       "Zero disables the limit.");
-
+#  ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   prop = RNA_def_property(srna, "latest_lts_release", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_BLENDER_UPDATE_LATEST_LTS_RELEASE);
   RNA_def_property_ui_text(prop,
@@ -6361,7 +6363,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Allow Blender to access the internet to check for any new update "
                            "available for the current release");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
-
+#  endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
   /* Audio */
   prop = RNA_def_property(srna, "audio_mixing_buffer", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "mixbufsize");

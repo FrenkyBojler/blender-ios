@@ -609,6 +609,9 @@ if(WITH_BINRELOC)
   add_definitions(-DWITH_BINRELOC)
 endif()
 
+if(WITH_BLENDER_UPDATES_NOTIFICATIONS)
+  add_definitions(-DWITH_BLENDER_UPDATES_NOTIFICATIONS)
+endif()
 
 if(WIN32)
   list(APPEND INC

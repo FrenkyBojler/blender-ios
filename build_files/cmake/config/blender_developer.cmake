@@ -28,3 +28,6 @@ endif()
 # For Ninja & Makefile: Generate compile_commands.json. Used by Clang tools (that many common IDEs
 # rely on) to obtain include paths, compile flags, etc. from the build system.
 set(CMAKE_EXPORT_COMPILE_COMMANDS     ON  CACHE BOOL "" FORCE)
+
+set(WITH_BLENDER_UPDATES_NOTIFICATIONS ON  CACHE BOOL "" FORCE)
+

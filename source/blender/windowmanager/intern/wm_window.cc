@@ -3520,6 +3520,8 @@ void WM_ghost_show_message_box(const char *title,
 
 /** \} */
 
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
+
 /* Allows just one `WM_OT_check_for_updates` instance at he time. */
 static bool &is_checking_for_updates_operator()
 {
@@ -3603,5 +3605,6 @@ void WM_OT_check_for_updates(wmOperatorType *ot)
   ot->modal = check_for_updates_modal;
   ot->poll = check_for_updates_poll;
 }
+#endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
 
 }  // namespace blender

@@ -455,6 +455,12 @@ if(WITH_PYTHON)
     set(FREESTYLE_EXCLUDE_CONDITIONAL "_freestyle/*")  # Dummy, won't do anything.
   endif()
 
+  if (WITH_BLENDER_UPDATES_NOTIFICATIONS)
+    set(CONDITIONAL_BLENDER_UPDATES_SCRIPTS_EXCLUSION_REGEX "")
+  else ()
+    set(CONDITIONAL_BLENDER_UPDATES_SCRIPTS_EXCLUSION_REGEX REGEX "^${CMAKE_SOURCE_DIR}/scripts/modules/_bpy_internal/available_updates$" EXCLUDE)
+  endif ()
+
   install(
     DIRECTORY ${CMAKE_SOURCE_DIR}/scripts
     DESTINATION ${TARGETDIR_VER}
@@ -471,7 +477,11 @@ if(WITH_PYTHON)
     PATTERN "addons_core/bl_pkg/Makefile" EXCLUDE
     PATTERN "addons_core/bl_pkg/tests" EXCLUDE
     PATTERN "addons_core/bl_pkg/example_extension" EXCLUDE
+
+    # Conditional blender updates scripts exclusions.
+    ${CONDITIONAL_BLENDER_UPDATES_SCRIPTS_EXCLUSION_REGEX}
   )
+  unset(CONDITIONAL_BLENDER_UPDATES_SCRIPTS_EXCLUSION_REGEX)
 
   if(WITH_PYTHON_MODULE)
     install(

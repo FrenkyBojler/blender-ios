@@ -398,6 +398,10 @@ if(WITH_GMP)
   add_definitions(-DWITH_GMP)
 endif()
 
+if(WITH_BLENDER_UPDATES_NOTIFICATIONS)
+  add_definitions(-DWITH_BLENDER_UPDATES_NOTIFICATIONS)
+endif()
+
 # Build `makesrna` executable.
 add_c_and_cxx_flags_custom_test(makesrna)
 

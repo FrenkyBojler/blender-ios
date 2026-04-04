@@ -4259,7 +4259,9 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_call_menu_pie);
   WM_operatortype_append(WM_OT_call_panel);
   WM_operatortype_append(WM_OT_call_asset_shelf_popover);
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   WM_operatortype_append(WM_OT_check_for_updates);
+#endif
   WM_operatortype_append(WM_OT_radial_control);
   WM_operatortype_append(WM_OT_stereo3d_set);
 #if defined(WIN32)

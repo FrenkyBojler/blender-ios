@@ -1,15 +1,16 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
 
-#pragma once
+#  pragma once
 
-#include "BLI_span.hh"
-#include "BLI_string_ref.hh"
-#include "BLI_vector.hh"
+#  include "BLI_span.hh"
+#  include "BLI_string_ref.hh"
+#  include "BLI_vector.hh"
 
-#include <chrono>
-#include <string>
+#  include <chrono>
+#  include <string>
 
 namespace blender {
 struct bContext;
@@ -86,3 +87,5 @@ bool is_looking_for_updates();
 bool is_looking_for_updates_failed();
 
 }  // namespace blender::bke
+
+#endif

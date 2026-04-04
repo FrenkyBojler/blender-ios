@@ -359,7 +359,9 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   wm_homefile_read_post(C, params_file_read_post);
 
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   bke::load_available_updates_cache_file(*C);
+#endif
 }
 
 static bool wm_init_splash_show_on_startup_check()

@@ -866,6 +866,7 @@ static void rna_asset_library_status_failed_loading(const char *library_url, con
       message && message[0] ? std::optional<blender::StringRefNull>{message} : std::nullopt);
 }
 
+#  ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
 static void rna_check_for_available_updates_status_finished_loading()
 {
   bke::check_for_updates_set_finished();
@@ -875,6 +876,7 @@ static void rna_check_for_available_updates_status_failed_loading()
 {
   bke::check_for_updates_set_failed();
 }
+#  endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
 
 }  // namespace blender
 
@@ -1747,6 +1749,8 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_string(func, "message", nullptr, 0, "Message", "An error message to show to users");
 
+#  ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
+
   func = RNA_def_function(srna,
                           "check_for_available_updates_status_finished_loading",
                           "rna_check_for_available_updates_status_finished_loading");
@@ -1760,6 +1764,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_function_ui_description(
       func, "Inform that the download of the available updates has encountered some errors.");
   RNA_def_function_flag(func, FUNC_NO_SELF);
+#  endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
 }
 
 }  // namespace blender

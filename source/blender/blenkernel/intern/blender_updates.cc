@@ -2,29 +2,31 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_appdir.hh"
-#include "BKE_blender_updates.hh"
-#include "BKE_blender_version.h"
-#include "BKE_global.hh"
-#include "BKE_idprop.hh"
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
 
-#include "BLI_fileops.h"
-#include "BLI_path_utils.hh"
-#include "BLI_serialize.hh"
-#include "BLI_string_ref.hh"
+#  include "BKE_appdir.hh"
+#  include "BKE_blender_updates.hh"
+#  include "BKE_blender_version.h"
+#  include "BKE_global.hh"
+#  include "BKE_idprop.hh"
 
-#include "CLG_log.h"
+#  include "BLI_fileops.h"
+#  include "BLI_path_utils.hh"
+#  include "BLI_serialize.hh"
+#  include "BLI_string_ref.hh"
 
-#include "DNA_userdef_types.h"
+#  include "CLG_log.h"
 
-#include <chrono>
-#include <ctime>
-#include <fmt/chrono.h>
-#include <fmt/format.h>
+#  include "DNA_userdef_types.h"
 
-#ifdef WITH_PYTHON
-#  include "BPY_extern_run.hh"
-#endif
+#  include <chrono>
+#  include <ctime>
+#  include <fmt/chrono.h>
+#  include <fmt/format.h>
+
+#  ifdef WITH_PYTHON
+#    include "BPY_extern_run.hh"
+#  endif
 
 namespace blender::bke {
 
@@ -81,20 +83,20 @@ static std::chrono::sys_seconds &last_time_version_update_check()
 static std::optional<std::chrono::sys_seconds> parse_timestamp_to_sys_seconds(
     StringRefNull timestamp)
 {
-#ifdef __APPLE__
+#  ifdef __APPLE__
   std::tm time;
   if (!strptime(timestamp.data(), "%Y-%m-%dT%H:%M:%SZ", &time)) {
     return std::nullopt;
   }
   return std::chrono::sys_seconds(std::chrono::seconds(std::mktime(&time)));
-#else
+#  else
   std::istringstream is(timestamp);
   std::chrono::sys_seconds time;
   if (!(is >> std::chrono::parse("%Y-%m-%dT%H:%M:%SZ", time))) {
     return std::nullopt;
   }
   return time;
-#endif
+#  endif
 }
 
 /** Parses blender version str into blender version and patch revision.  */
@@ -175,11 +177,11 @@ static void register_blender_update(VersionUpdate &&update)
   }
 }
 
-#define TEST_JSON_ENTRY(value, name) \
-  if (!value) { \
-    CLOG_WARN(&LOG, "missing or corrupt version update entry: `" #name "`"); \
-    return std::nullopt; \
-  }
+#  define TEST_JSON_ENTRY(value, name) \
+    if (!value) { \
+      CLOG_WARN(&LOG, "missing or corrupt version update entry: `" #name "`"); \
+      return std::nullopt; \
+    }
 
 static std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
 {
@@ -280,6 +282,7 @@ bool is_looking_for_updates_failed()
 
 static void download_available_updates_list(bContext &C)
 {
+#  ifdef WITH_PYTHON
   if (check_for_updates_state() == CheckForUpdatesState::Loading) {
     return;
   }
@@ -292,12 +295,14 @@ downloader.download_available_updates_list()
 )";
   std::unique_ptr locals = bke::idprop::create_group("locals");
   BPY_run_string_exec_with_locals(&C, expr, *locals);
+#  endif /* WITH_PYTHON */
 }
 
 static void write_blender_updates_cache_file();
 
 static void load_latest_available_updates_file(bContext &C)
 {
+#  ifdef WITH_PYTHON
   if (check_for_updates_state() != CheckForUpdatesState::Done) {
     return;
   }
@@ -352,10 +357,11 @@ if result:
           std::chrono::system_clock::now().time_since_epoch()));
 
   write_blender_updates_cache_file();
+#  endif /* WITH_PYTHON */
 }
-#undef TEST_JSON_ENTRY
+#  undef TEST_JSON_ENTRY
 
-#define BLENDER_AVAILABLE_UPDATES_FILE "available_updates.json"
+#  define BLENDER_AVAILABLE_UPDATES_FILE "available_updates.json"
 
 static void load_available_updates_cache_file_impl()
 {
@@ -684,3 +690,5 @@ void ignore_all_updates()
 }
 
 }  // namespace blender::bke
+
+#endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */

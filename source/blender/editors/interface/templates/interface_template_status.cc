@@ -517,6 +517,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
           bmain, scene, view_layer, STATUSBAR_SHOW_VERSION);
       row.label(status_info_d_txt, ICON_NONE);
     }
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
     if (U.statusbar_flag & STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG) {
       if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
       }
@@ -569,6 +570,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         has_status_info = true;
       }
     }
+#endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
     return;
   }
 

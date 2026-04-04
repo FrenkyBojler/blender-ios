@@ -822,6 +822,10 @@ class USERPREF_PT_system_blender_updates(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Update Notifications"
     bl_parent_id = "USERPREF_PT_system_network"
 
+    @classmethod
+    def poll(cls, _context):
+        return bpy.app.build_options.blender_updates_notifications
+
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system

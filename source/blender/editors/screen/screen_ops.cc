@@ -5846,6 +5846,7 @@ static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
       &ptr, "show_extensions_updates", UI_ITEM_NONE, IFACE_("Extensions Updates"), ICON_NONE);
   layout.prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
 
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   ui::Layout &sub = layout.row(false);
   sub.active_set(U.flag &
                  (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
@@ -5855,6 +5856,7 @@ static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
            UI_ITEM_NONE,
            IFACE_("Blender Updates"),
            ICON_NONE);
+#endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
 }
 
 static wmOperatorStatus screen_context_menu_invoke(bContext *C,

@@ -161,7 +161,9 @@ void ED_spacetype_statusbar()
   art->message_subscribe = statusbar_header_region_message_subscribe;
   BLI_addhead(&st->regiontypes, art);
 
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   panel_blender_updates_register(art);
+#endif
 
   BKE_spacetype_register(std::move(st));
 }

@@ -8,7 +8,8 @@ namespace blender {
 
 struct ARegionType;
 
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
 void panel_blender_updates_register(ARegionType *region_type);
-void operator_check_for_updates(wmOperatorType *ot);
+#endif
 
 }  // namespace blender

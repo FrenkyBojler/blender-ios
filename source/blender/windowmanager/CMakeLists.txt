@@ -203,6 +203,10 @@ if(WITH_XR_OPENXR)
   )
 endif()
 
+if(WITH_BLENDER_UPDATES_NOTIFICATIONS)
+  add_definitions(-DWITH_BLENDER_UPDATES_NOTIFICATIONS)
+endif()
+
 blender_add_lib_nolist(bf_windowmanager "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::windowmanager ALIAS bf_windowmanager)
 

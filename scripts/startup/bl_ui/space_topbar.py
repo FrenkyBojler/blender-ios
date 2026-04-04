@@ -134,8 +134,9 @@ class TOPBAR_MT_blender(Menu):
         layout.operator("wm.splash")
         layout.operator("wm.splash_about")
 
-        layout.separator()
-        layout.operator("wm.check_for_updates")
+        if bpy.app.build_options.blender_updates_notifications:
+            layout.separator()
+            layout.operator("wm.check_for_updates")
 
         layout.separator()
 

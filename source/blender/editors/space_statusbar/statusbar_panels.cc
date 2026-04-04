@@ -2,33 +2,35 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_blender_updates.hh"
-#include "BKE_blender_version.h"
-#include "BKE_global.hh"
-#include "BKE_idprop.hh"
-#include "BKE_screen.hh"
+#ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_vector.hh"
+#  include "BKE_blender_updates.hh"
+#  include "BKE_blender_version.h"
+#  include "BKE_global.hh"
+#  include "BKE_idprop.hh"
+#  include "BKE_screen.hh"
 
-#include "BLT_translation.hh"
+#  include "BLI_listbase.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+#  include "BLI_vector.hh"
 
-#include "ED_screen.hh"
+#  include "BLT_translation.hh"
 
-#include "UI_interface.hh"
-#include "UI_interface_c.hh"
-#include "UI_interface_layout.hh"
+#  include "ED_screen.hh"
 
-#include "WM_api.hh"
+#  include "UI_interface.hh"
+#  include "UI_interface_c.hh"
+#  include "UI_interface_layout.hh"
 
-#include "RNA_access.hh"
+#  include "WM_api.hh"
 
-#include <fmt/format.h>
-#include <string>
+#  include "RNA_access.hh"
 
-#include "statusbar_intern.hh"
+#  include <fmt/format.h>
+#  include <string>
+
+#  include "statusbar_intern.hh"
 
 namespace blender {
 
@@ -169,3 +171,5 @@ void panel_blender_updates_register(ARegionType *region_type)
 }
 
 }  // namespace blender
+
+#endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */

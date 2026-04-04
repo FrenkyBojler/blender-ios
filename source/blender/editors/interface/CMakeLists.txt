@@ -157,6 +157,10 @@ if(WITH_INPUT_IME)
   add_definitions(-DWITH_INPUT_IME)
 endif()
 
+if(WITH_BLENDER_UPDATES_NOTIFICATIONS)
+  add_definitions(-DWITH_BLENDER_UPDATES_NOTIFICATIONS)
+endif()
+
 blender_add_lib(bf_editor_interface "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.hh

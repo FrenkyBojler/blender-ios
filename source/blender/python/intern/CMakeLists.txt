@@ -353,6 +353,10 @@ if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_EXPERIMENTAL_FEATURES)
 endif()
 
+if(WITH_BLENDER_UPDATES_NOTIFICATIONS)
+  add_definitions(-DWITH_BLENDER_UPDATES_NOTIFICATIONS)
+endif()
+
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.hh
