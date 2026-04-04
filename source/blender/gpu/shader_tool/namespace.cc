@@ -216,7 +216,8 @@ static void lower_namespace(string ns_prefix,
       return;
     }
 
-    const bool is_fn = (token.next() == '(');
+    const bool is_fn = (token.next() == '(') ||
+                       (token.next() == '<' && token.next().scope().back().next() == '(');
     /* Reject method definition. */
     if (is_fn && token.scope().type() == ScopeType::Struct) {
       return;

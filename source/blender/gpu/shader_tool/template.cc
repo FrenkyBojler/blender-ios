@@ -99,6 +99,15 @@ void SourceProcessor::lower_template_instantiation(
     return;
   }
 
+  string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
+  string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
+  const bool same_file = template_filename == instance_filename;
+  if (same_file) {
+    /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
+    template_filename = "";
+    instance_filename = "";
+  }
+
   const Token inst_end = inst_start.find_next(SemiColon);
 
   /* Parse template values. */
@@ -121,10 +130,7 @@ void SourceProcessor::lower_template_instantiation(
   SourceProcessor::Parser instance_parser(fn_decl, report_error_);
 
   /* Inject namespace around definition. */
-  if (template_def.is_method) {
-    /* Do nothing. */
-  }
-  else if (template_def.name_space.empty()) {
+  if (template_def.name_space.empty()) {
     instance_parser.insert_before(instance_parser.front(), "\n");
     instance_parser.insert_after(instance_parser.back(), "\n");
   }
@@ -134,6 +140,11 @@ void SourceProcessor::lower_template_instantiation(
     instance_parser.insert_before(instance_parser.front(), "namespace " + ns_name + " {\n");
     instance_parser.insert_after(instance_parser.back(), "\n}\n");
   }
+
+  /* Insert line directive. Important for symbol namespace resolution and error logging. */
+  instance_parser.insert_before(
+      instance_parser.front(),
+      "\n#line " + std::to_string(same_file ? template_def.definition_line : 0) + "\n");
 
   instance_parser().foreach_token(Word, [&](const Token &word) {
     string_view token_str = word.str();
@@ -170,23 +181,10 @@ void SourceProcessor::lower_template_instantiation(
   string instance = instance_parser.result_get();
 
   /* Remove added newline from the injected namespace. */
-  if (!template_def.is_method) {
-    instance = instance.substr(instance.find_first_of('\n') + 1);
-  }
-
-  string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
-  string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
-  if (template_filename == instance_filename) {
-    /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
-    template_filename = "";
-    instance_filename = "";
-  }
+  instance = instance.substr(instance.find_first_of('\n') + 1);
 
   /* Method are put back in their classes. */
-  /* NOTE: This can only work if they are declared in the same file.
-   * Better make a lint pass about it. */
   Token insert_at = template_def.is_method ? method_end : inst_end;
-  parser.insert_line_number(insert_at, template_def.definition_line, template_filename);
   parser.insert_after(insert_at, instance);
   parser.insert_line_number(insert_at, insert_at.line_number(true), instance_filename);
 }
@@ -453,7 +451,7 @@ void SourceProcessor::lower_templates(Parser &parser)
     });
   });
 
-  /* For each template definition, process all instantiation . */
+  /* For each template definition, process all instantiation. */
   for (auto [_, template_def] : unique_symbols) {
     if (!template_def.is_struct) {
       process_template_function(template_def, parser, Token::invalid(&parser));

@@ -90,6 +90,8 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       lower_trailing_comma_in_list(parser);
       lower_comma_separated_declarations(parser);
       lower_assert(parser, filename);
+      /* Lower implicit members before we remove SRT member from their struct. */
+      lower_implicit_member(parser);
 
       parser.apply_mutations();
 
@@ -107,8 +109,6 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       lower_pre_template(parser);
       /* Lower templates. */
       lower_templates(parser);
-      /* Lower implicit members before we remove SRT member from their struct. */
-      lower_implicit_member(parser);
       /* Lower unions and then lint shared structures. */
       lower_unions(parser);
       lower_host_shared_structures(parser);
@@ -215,6 +215,8 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
   lower_trailing_comma_in_list(parser);
   lower_comma_separated_declarations(parser);
   lower_assert(parser, filename);
+  /* Lower implicit members before we remove SRT member from their struct. */
+  lower_implicit_member(parser);
 
   parser.apply_mutations();
 
