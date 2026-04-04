@@ -2249,17 +2249,12 @@ void IMB_colormanagement_transform_byte_to_float(float *float_buffer,
       from_colorspace, to_colorspace);
   threading::parallel_for(IndexRange(height), 64, [&](const IndexRange y_range) {
     const size_t offset = size_t(channels) * y_range.first() * width;
-    IMB_buffer_float_from_byte(float_buffer + offset,
-                               byte_buffer + offset,
-                               IB_PROFILE_SRGB,
-                               IB_PROFILE_SRGB,
-                               false,
-                               width,
-                               y_range.size(),
-                               width,
-                               width);
-    cm_processor.apply(float_buffer, width, y_range.size(), channels, false);
-    IMB_premultiply_rect_float(float_buffer, 4, width, y_range.size());
+    const uchar *src = byte_buffer + offset;
+    float *dst = float_buffer + offset;
+    IMB_buffer_float_from_byte(
+        dst, src, IB_PROFILE_SRGB, IB_PROFILE_SRGB, false, width, y_range.size(), width, width);
+    cm_processor.apply(dst, width, y_range.size(), channels, false);
+    IMB_premultiply_rect_float(dst, 4, width, y_range.size());
   });
 }
 
