@@ -71,7 +71,7 @@ static void blf_font_otf_feature_set(blender::Vector<hb_feature_t> &features,
   features.append({tag, value, HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
 }
 
-blender::Vector<hb_feature_t> blf_font_otf_features_default()
+static blender::Vector<hb_feature_t> blf_font_otf_features_default()
 {
   blender::Vector<hb_feature_t> features;
 
