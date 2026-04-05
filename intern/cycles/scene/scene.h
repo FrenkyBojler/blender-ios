@@ -19,7 +19,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-class AlembicProcedural;
 class AttributeRequestSet;
 class Background;
 class BVH;
@@ -28,6 +27,11 @@ class Device;
 class DeviceInfo;
 class Film;
 class Integrator;
+class PointLight;
+class SpotLight;
+class AreaLight;
+class SunLight;
+class BackgroundLight;
 class Light;
 class LightManager;
 class LookupTables;
@@ -35,6 +39,7 @@ class Geometry;
 class GeometryManager;
 class Object;
 class ObjectManager;
+class OSLManager;
 class ParticleSystemManager;
 class ParticleSystem;
 class PointCloud;
@@ -49,6 +54,7 @@ class BakeData;
 class RenderStats;
 class SceneUpdateStats;
 class Volume;
+class VolumeManager;
 
 /* Scene Parameters */
 
@@ -70,7 +76,14 @@ class SceneParams {
   int num_bvh_time_steps;
   int hair_subdivisions;
   CurveShapeType hair_shape;
-  int texture_limit;
+  float texture_resolution;
+
+  /* Use tx files if they exist. */
+  bool use_texture_cache = true;
+  /* Auto generate tx files. */
+  bool auto_texture_cache = false;
+  /* Relative (to the image file) or absolute directory for auto generating tx files. */
+  std::string texture_cache_path;
 
   bool background;
 
@@ -85,7 +98,7 @@ class SceneParams {
     num_bvh_time_steps = 0;
     hair_subdivisions = 3;
     hair_shape = CURVE_RIBBON;
-    texture_limit = 0;
+    texture_resolution = 1.0f;
     background = true;
   }
 
@@ -98,7 +111,10 @@ class SceneParams {
              use_bvh_unaligned_nodes == params.use_bvh_unaligned_nodes &&
              num_bvh_time_steps == params.num_bvh_time_steps &&
              hair_subdivisions == params.hair_subdivisions && hair_shape == params.hair_shape &&
-             texture_limit == params.texture_limit);
+             texture_resolution == params.texture_resolution &&
+             use_texture_cache == params.use_texture_cache &&
+             auto_texture_cache == params.auto_texture_cache &&
+             texture_cache_path == params.texture_cache_path);
   }
 
   int curve_subdivisions()
@@ -143,12 +159,14 @@ class Scene : public NodeOwner {
   /* data managers */
   unique_ptr<ImageManager> image_manager;
   unique_ptr<LightManager> light_manager;
+  unique_ptr<OSLManager> osl_manager;
   unique_ptr<ShaderManager> shader_manager;
   unique_ptr<GeometryManager> geometry_manager;
   unique_ptr<ObjectManager> object_manager;
   unique_ptr<ParticleSystemManager> particle_system_manager;
   unique_ptr<BakeManager> bake_manager;
   unique_ptr<ProceduralManager> procedural_manager;
+  unique_ptr<VolumeManager> volume_manager;
 
   /* default shaders */
   Shader *default_surface;
@@ -166,6 +184,7 @@ class Scene : public NodeOwner {
 
   /* mutex must be locked manually by callers */
   thread_mutex mutex;
+  bool scene_updated_while_loading_kernels = false;
 
   /* scene update statistics */
   unique_ptr<SceneUpdateStats> update_stats;
@@ -192,11 +211,16 @@ class Scene : public NodeOwner {
 
   void enable_update_stats();
 
-  bool load_kernels(Progress &progress);
   bool update(Progress &progress);
+  bool update_camera_resolution(Progress &progress, int width, int height);
 
   bool has_shadow_catcher();
   void tag_shadow_catcher_modified();
+  bool has_volume();
+  bool has_volume_modified() const;
+  void tag_has_volume_modified();
+  /* Check if we use multiple importance sampling for any light in the scene. */
+  bool use_light_mis() const;
 
   /* This function is used to create a node of a specified type instead of
    * calling 'new', and sets the scene as the owner of the node.
@@ -226,6 +250,8 @@ class Scene : public NodeOwner {
    */
   template<typename T> void delete_nodes(const set<T *> &nodes, const NodeOwner *owner);
 
+  template<class T> T *create_light_node();
+
  protected:
   /* Check if some heavy data worth logging was updated.
    * Mainly used to suppress extra annoying logging.
@@ -241,6 +267,7 @@ class Scene : public NodeOwner {
 
   bool has_shadow_catcher_ = false;
   bool shadow_catcher_modified_ = true;
+  bool has_volume_modified_ = true;
 
   /* Maximum number of closure during session lifetime. */
   int max_closure_global;
@@ -250,9 +277,15 @@ class Scene : public NodeOwner {
 
   /* Get size of a volume stack needed to render this scene. */
   int get_volume_stack_size() const;
+
+  bool load_kernels(Progress &progress);
 };
 
-template<> Light *Scene::create_node<Light>();
+template<> PointLight *Scene::create_node<PointLight>();
+template<> SpotLight *Scene::create_node<SpotLight>();
+template<> AreaLight *Scene::create_node<AreaLight>();
+template<> SunLight *Scene::create_node<SunLight>();
+template<> BackgroundLight *Scene::create_node<BackgroundLight>();
 template<> Mesh *Scene::create_node<Mesh>();
 template<> Object *Scene::create_node<Object>();
 template<> Hair *Scene::create_node<Hair>();
@@ -260,7 +293,6 @@ template<> Volume *Scene::create_node<Volume>();
 template<> PointCloud *Scene::create_node<PointCloud>();
 template<> ParticleSystem *Scene::create_node<ParticleSystem>();
 template<> Shader *Scene::create_node<Shader>();
-template<> AlembicProcedural *Scene::create_node<AlembicProcedural>();
 template<> Pass *Scene::create_node<Pass>();
 template<> Camera *Scene::create_node<Camera>();
 template<> Background *Scene::create_node<Background>();
@@ -277,7 +309,6 @@ template<> void Scene::delete_node(Object *node);
 template<> void Scene::delete_node(ParticleSystem *node);
 template<> void Scene::delete_node(Shader *node);
 template<> void Scene::delete_node(Procedural *node);
-template<> void Scene::delete_node(AlembicProcedural *node);
 template<> void Scene::delete_node(Pass *node);
 
 template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwner *owner);

@@ -8,18 +8,22 @@
 
 #pragma once
 
+#include "BLI_string_ref.hh"
+
 #include "intern/node/deg_node.hh"
+
+namespace blender {
 
 struct ID;
 
-namespace blender::deg {
+namespace deg {
 struct DepsNodeFactory {
   virtual NodeType type() const = 0;
   virtual const char *type_name() const = 0;
 
   virtual int id_recalc_tag() const = 0;
 
-  virtual Node *create_node(const ID *id, const char *subdata, const char *name) const = 0;
+  virtual Node *create_node(const ID *id, const char *subdata, StringRef name) const = 0;
 };
 
 template<class ModeObjectType> struct DepsNodeFactoryImpl : public DepsNodeFactory {
@@ -28,7 +32,7 @@ template<class ModeObjectType> struct DepsNodeFactoryImpl : public DepsNodeFacto
 
   int id_recalc_tag() const override;
 
-  Node *create_node(const ID *id, const char *subdata, const char *name) const override;
+  Node *create_node(const ID *id, const char *subdata, StringRef name) const override;
 };
 
 /* Register typeinfo */
@@ -37,6 +41,7 @@ void register_node_typeinfo(DepsNodeFactory *factory);
 /* Get typeinfo for specified type */
 DepsNodeFactory *type_get_factory(NodeType type);
 
-}  // namespace blender::deg
+}  // namespace deg
+}  // namespace blender
 
 #include "intern/node/deg_node_factory_impl.hh"

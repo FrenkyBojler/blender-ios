@@ -11,14 +11,14 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::dependencies::optional::tbb
-  PRIVATE bf::extern::fmtlib
+  PUBLIC bf::dependencies::openimageio
+  bf::dependencies::fmt
 )
 
 add_definitions(-DWITH_DNA_GHASH)
@@ -53,7 +53,6 @@ set(BLENLIB_SRC
   ../../blenlib/intern/BLI_linklist.cc
   ../../blenlib/intern/BLI_memarena.cc
   ../../blenlib/intern/BLI_mempool.cc
-  ../../blenlib/intern/endian_switch.cc
   ../../blenlib/intern/listbase.cc
   ../../blenlib/intern/string.cc
 
@@ -83,7 +82,7 @@ endif()
 
 # `SRC_DNA_INC` is defined in the parent directory.
 
-add_cc_flags_custom_test(makesdna)
+add_c_and_cxx_flags_custom_test(makesdna)
 
 add_executable(makesdna ${SRC} ${SRC_DNA_INC})
 setup_platform_linker_flags(makesdna)
@@ -91,17 +90,14 @@ setup_platform_linker_libs(makesdna)
 blender_target_include_dirs(makesdna ${INC})
 blender_target_include_dirs_sys(makesdna ${INC_SYS})
 target_link_libraries(makesdna ${LIB})
-
-if(WIN32 AND NOT UNIX)
-  if(DEFINED PTHREADS_LIBRARIES)
-    target_link_libraries(makesdna PRIVATE ${PTHREADS_LIBRARIES})
-  endif()
-endif()
+target_link_libraries(makesdna PRIVATE bf::dependencies::pthreads)
 
 # Output dna.cc
 add_custom_command(
   OUTPUT
     ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
     ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
   COMMAND
@@ -110,6 +106,8 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
     ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
     ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
   DEPENDS makesdna
 )
@@ -118,10 +116,10 @@ add_custom_command(
 # -----------------------------------------------------------------------------
 # Build bf_dna library
 set(SRC
-  dna_defaults.c
   dna_genfile.cc
   dna_utils.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
   ${SRC_DNA_INC}
 
@@ -132,6 +130,7 @@ set(SRC
 
 set_source_files_properties(
   ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
   PROPERTIES GENERATED TRUE
@@ -140,6 +139,22 @@ set_source_files_properties(
 blender_add_lib(bf_dna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::dna ALIAS bf_dna)
 
+
+# -----------------------------------------------------------------------------
+# Build bf_dna_defaults library
+
+set(SRC
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
+  ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default_theme.c
+  ${SRC_DNA_INC}
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
+  PROPERTIES GENERATED TRUE
+)
+
+blender_add_lib(bf_dna_defaults "${SRC}" "${INC}" "${INC_SYS}" "${LIB};bf_dna")
 
 
 # -----------------------------------------------------------------------------
@@ -150,12 +165,10 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
   ${BLENLIB_SRC}
-  ${SRC_DNA_DEFAULTS_INC}
   ${SRC_DNA_OTHER_INC}
 )
 

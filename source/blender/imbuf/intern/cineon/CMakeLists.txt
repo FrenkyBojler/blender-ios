@@ -9,7 +9,6 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -33,7 +32,7 @@ set(LIB
 )
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 blender_add_lib(bf_imbuf_cineon "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

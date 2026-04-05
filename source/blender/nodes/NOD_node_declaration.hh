@@ -9,7 +9,9 @@
 #include <type_traits>
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -19,13 +21,21 @@
 
 #include "RNA_types.hh"
 
+#include "NOD_socket_usage_inference_fwd.hh"
+
+namespace blender {
+
 struct bContext;
 struct bNode;
-struct uiLayout;
 
-namespace blender::nodes {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace nodes {
 
 class NodeDeclarationBuilder;
+class PanelDeclaration;
 
 enum class InputSocketFieldType : int8_t {
   /** The input is required to be a single value. */
@@ -74,7 +84,7 @@ class OutputFieldDependency {
   OutputSocketFieldType field_type() const;
   Span<int> linked_input_indices() const;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(OutputFieldDependency, type_, linked_input_indices_)
+  friend bool operator==(const OutputFieldDependency &a, const OutputFieldDependency &b) = default;
 };
 
 /**
@@ -84,7 +94,23 @@ struct FieldInferencingInterface {
   Array<InputSocketFieldType> inputs;
   Array<OutputFieldDependency> outputs;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
+  friend bool operator==(const FieldInferencingInterface &a,
+                         const FieldInferencingInterface &b) = default;
+};
+
+struct StructureTypeInterface {
+  struct OutputDependency {
+    StructureType type;
+    Array<int> linked_inputs;
+
+    friend bool operator==(const OutputDependency &a, const OutputDependency &b) = default;
+  };
+
+  Array<StructureType> inputs;
+  Array<OutputDependency> outputs;
+
+  friend bool operator==(const StructureTypeInterface &a,
+                         const StructureTypeInterface &b) = default;
 };
 
 namespace anonymous_attribute_lifetime {
@@ -96,7 +122,7 @@ struct PropagateRelation {
   int from_geometry_input;
   int to_geometry_output;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(PropagateRelation, from_geometry_input, to_geometry_output)
+  friend bool operator==(const PropagateRelation &a, const PropagateRelation &b) = default;
 };
 
 /**
@@ -106,7 +132,7 @@ struct ReferenceRelation {
   int from_field_input;
   int to_field_output;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(ReferenceRelation, from_field_input, to_field_output)
+  friend bool operator==(const ReferenceRelation &a, const ReferenceRelation &b) = default;
 };
 
 /**
@@ -116,7 +142,7 @@ struct EvalRelation {
   int field_input;
   int geometry_input;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(EvalRelation, field_input, geometry_input)
+  friend bool operator==(const EvalRelation &a, const EvalRelation &b) = default;
 };
 
 /**
@@ -126,7 +152,7 @@ struct AvailableRelation {
   int field_output;
   int geometry_output;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(AvailableRelation, field_output, geometry_output)
+  friend bool operator==(const AvailableRelation &a, const AvailableRelation &b) = default;
 };
 
 struct RelationsInNode {
@@ -136,12 +162,7 @@ struct RelationsInNode {
   Vector<AvailableRelation> available_relations;
   Vector<int> available_on_none;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_5(RelationsInNode,
-                                  propagate_relations,
-                                  reference_relations,
-                                  eval_relations,
-                                  available_relations,
-                                  available_on_none)
+  friend bool operator==(const RelationsInNode &a, const RelationsInNode &b) = default;
 };
 
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations);
@@ -149,11 +170,11 @@ std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations)
 }  // namespace anonymous_attribute_lifetime
 namespace aal = anonymous_attribute_lifetime;
 
-using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
-
-/* Socket or panel declaration. */
+/** Socket or panel declaration. */
 class ItemDeclaration {
  public:
+  const PanelDeclaration *parent = nullptr;
+
   virtual ~ItemDeclaration() = default;
 };
 
@@ -164,14 +185,34 @@ struct SocketNameRNA {
   std::string property_name;
 };
 
+struct CustomSocketDrawParams {
+  const bContext &C;
+  ui::Layout &layout;
+  bNodeTree &tree;
+  bNode &node;
+  bNodeSocket &socket;
+  PointerRNA node_ptr;
+  PointerRNA socket_ptr;
+  StringRefNull label;
+  const Map<const bNode *, const bNode *> *menu_switch_source_by_index_switch = nullptr;
+
+  void draw_standard(ui::Layout &layout,
+                     std::optional<StringRefNull> label_override = std::nullopt);
+};
+
+using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
+using CustomSocketLabelFn = std::function<StringRefNull(bNode node)>;
+using SocketUsageInferenceFn =
+    std::function<std::optional<bool>(const socket_usage_inference::SocketUsageParams &params)>;
+
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
  */
 class SocketDeclaration : public ItemDeclaration {
  public:
-  std::string name;
+  UString name;
   std::string short_label;
-  std::string identifier;
+  UString identifier;
   std::string description;
   std::optional<std::string> translation_context;
   /** Defined by whether the socket is part of the node's input or
@@ -179,7 +220,11 @@ class SocketDeclaration : public ItemDeclaration {
   eNodeSocketInOut in_out;
   /** Socket type that corresponds to this socket declaration. */
   eNodeSocketDatatype socket_type;
-  bool hide_label = false;
+  /**
+   * Indicates that the meaning of the socket values is clear even if the label is not shown. This
+   * can result in cleaner UIs in some cases. The drawing code will still draw the label sometimes.
+   */
+  bool optional_label = false;
   bool hide_value = false;
   bool compact = false;
   bool is_multi_input = false;
@@ -191,6 +236,8 @@ class SocketDeclaration : public ItemDeclaration {
   bool align_with_previous_socket = false;
   /** This socket is used as a toggle for the parent panel. */
   bool is_panel_toggle = false;
+  bool is_layer_name = false;
+  bool is_volume_grid_name = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -198,30 +245,41 @@ class SocketDeclaration : public ItemDeclaration {
   InputSocketFieldType input_field_type = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency;
 
+  StructureType structure_type = StructureType::Single;
+
  private:
   CompositorInputRealizationMode compositor_realization_mode_ =
       CompositorInputRealizationMode::OperationDomain;
 
-  /** The priority of the input for determining the domain of the node. See
-   * compositor::InputDescriptor for more information. */
-  int compositor_domain_priority_ = 0;
-
-  /** This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information. */
-  bool compositor_expects_single_value_ = false;
+  /** The priority of the input for determining the domain of the node. If negative, then the
+   * domain priority is not set and the index of the input is assumed to be the priority instead.
+   * See compositor::InputDescriptor for more information. */
+  int compositor_domain_priority_ = -1;
 
   /** Utility method to make the socket available if there is a straightforward way to do so. */
   std::function<void(bNode &)> make_available_fn_;
 
  public:
-  /** Some input sockets can have non-trivial values in the case when they are unlinked. This
-   * callback computes the default input of a values in geometry nodes when nothing is linked. */
-  std::unique_ptr<ImplicitInputValueFn> implicit_input_fn;
+  /** Some input sockets can have non-trivial values in the case when they are unlinked. */
+  NodeDefaultInputType default_input_type = NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE;
   /**
    * Property that stores the name of the socket so that it can be modified directly from the
    * node without going to the side-bar.
    */
   std::unique_ptr<SocketNameRNA> socket_name_rna;
+  /**
+   * Draw function that overrides how the socket is drawn for a specific node.
+   */
+  std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
+  /**
+   * Custom label function so a socket can display a different text depending on what it does.
+   */
+  std::unique_ptr<CustomSocketLabelFn> label_fn;
+  /**
+   * Determines whether this socket is used based on other input values and based on which outputs
+   * are used.
+   */
+  std::unique_ptr<SocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -248,7 +306,6 @@ class SocketDeclaration : public ItemDeclaration {
 
   const CompositorInputRealizationMode &compositor_realization_mode() const;
   int compositor_domain_priority() const;
-  bool compositor_expects_single_value() const;
 
  protected:
   void set_common_flags(bNodeSocket &socket) const;
@@ -273,7 +330,7 @@ class BaseSocketDeclarationBuilder {
  public:
   virtual ~BaseSocketDeclarationBuilder() = default;
 
-  BaseSocketDeclarationBuilder &hide_label(bool value = true);
+  BaseSocketDeclarationBuilder &optional_label(bool value = true);
 
   BaseSocketDeclarationBuilder &hide_value(bool value = true);
 
@@ -300,6 +357,8 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
+  BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
+
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
 
@@ -316,13 +375,13 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &field_source();
 
   /** The input supports a field and is a field by default when nothing is connected. */
-  BaseSocketDeclarationBuilder &implicit_field(ImplicitInputValueFn fn);
+  BaseSocketDeclarationBuilder &implicit_field(NodeDefaultInputType default_input);
 
   /** The input is an implicit field that is evaluated on all geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on_all(ImplicitInputValueFn fn);
+  BaseSocketDeclarationBuilder &implicit_field_on_all(NodeDefaultInputType default_input);
 
   /** The input is evaluated on a subset of the geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on(ImplicitInputValueFn fn,
+  BaseSocketDeclarationBuilder &implicit_field_on(NodeDefaultInputType default_input,
                                                   Span<int> input_indices);
 
   /** For inputs that are evaluated or available on a subset of the geometry sockets. */
@@ -352,20 +411,16 @@ class BaseSocketDeclarationBuilder {
 
   /** Attributes from the all geometry inputs can be propagated. */
   BaseSocketDeclarationBuilder &propagate_all();
+  /** Instance attributes from all geometry inputs can be propagated. */
+  BaseSocketDeclarationBuilder &propagate_all_instance_attributes();
 
   BaseSocketDeclarationBuilder &compositor_realization_mode(CompositorInputRealizationMode value);
 
   /**
-   * The priority of the input for determining the domain of the node. See
+   * The priority of the input for determining the domain of the node. Needs to be positive. See
    * compositor::InputDescriptor for more information.
    */
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
-
-  /**
-   * This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information.
-   */
-  BaseSocketDeclarationBuilder &compositor_expects_single_value(bool value = true);
 
   /**
    * Pass a function that sets properties on the node required to make the corresponding socket
@@ -374,6 +429,42 @@ class BaseSocketDeclarationBuilder {
    * The node type's update function is called afterwards.
    */
   BaseSocketDeclarationBuilder &make_available(std::function<void(bNode &)> fn);
+
+  /**
+   * Provide a fully custom draw function for the socket that overrides any default behavior.
+   */
+  BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
+
+  /**
+   * Provide a function that determines whether this socket is used based on other input values and
+   * based on which outputs are used.
+   */
+  BaseSocketDeclarationBuilder &usage_inference(SocketUsageInferenceFn fn);
+
+  /**
+   * Provide a function that determines the UI label of this socket.
+   */
+  BaseSocketDeclarationBuilder &label_fn(CustomSocketLabelFn fn);
+
+  /**
+   * Utility method for the case when the node has a single menu input and this socket is only used
+   * when the menu input has a specific value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_single_menu(const int menu_value);
+
+  /**
+   * Utility method for the case when this socket is only used when the menu input of the given
+   * identifier has a specific value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_menu(const UString menu_input_identifier,
+                                              const int menu_value);
+
+  /**
+   * Utility method for the case when this socket is only used when the menu input of the given
+   * identifier has one of the specifies values.
+   */
+  BaseSocketDeclarationBuilder &usage_by_menu(const UString menu_input_identifier,
+                                              const Array<int> menu_values);
 
   /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is
@@ -394,6 +485,11 @@ class BaseSocketDeclarationBuilder {
    * Use the socket as a toggle in its panel.
    */
   BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
+
+  BaseSocketDeclarationBuilder &structure_type(StructureType structure_type);
+
+  BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
+  BaseSocketDeclarationBuilder &is_volume_grid_name(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
@@ -420,7 +516,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using DrawNodeLayoutFn = void(uiLayout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(ui::Layout &, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
 
@@ -440,7 +536,7 @@ class LayoutDeclaration : public ItemDeclaration {
 class PanelDeclaration : public ItemDeclaration {
  public:
   int identifier;
-  std::string name;
+  UString name;
   std::string description;
   std::optional<std::string> translation_context;
   bool default_collapsed = false;
@@ -483,33 +579,33 @@ class DeclarationListBuilder {
   }
 
   template<typename DeclType>
-  typename DeclType::Builder &add_socket(StringRef name,
-                                         StringRef identifier,
+  typename DeclType::Builder &add_socket(UString name,
+                                         UString identifier,
                                          eNodeSocketInOut in_out);
 
   template<typename DeclType>
-  typename DeclType::Builder &add_input(StringRef name, StringRef identifier = "");
+  typename DeclType::Builder &add_input(UString name, UString identifier = ""_ustr);
   template<typename DeclType>
-  typename DeclType::Builder &add_output(StringRef name, StringRef identifier = "");
+  typename DeclType::Builder &add_output(UString name, UString identifier = ""_ustr);
 
   BaseSocketDeclarationBuilder &add_input(eNodeSocketDatatype socket_type,
-                                          StringRef name,
-                                          StringRef identifier = "");
+                                          UString name,
+                                          UString identifier = ""_ustr);
   BaseSocketDeclarationBuilder &add_input(eCustomDataType data_type,
-                                          StringRef name,
-                                          StringRef identifier = "");
+                                          UString name,
+                                          UString identifier = ""_ustr);
   BaseSocketDeclarationBuilder &add_output(eNodeSocketDatatype socket_type,
-                                           StringRef name,
-                                           StringRef identifier = "");
+                                           UString name,
+                                           UString identifier = ""_ustr);
   BaseSocketDeclarationBuilder &add_output(eCustomDataType data_type,
-                                           StringRef name,
-                                           StringRef identifier = "");
+                                           UString name,
+                                           UString identifier = ""_ustr);
 
-  PanelDeclarationBuilder &add_panel(StringRef name, int identifier = -1);
+  PanelDeclarationBuilder &add_panel(UString name, int identifier = -1);
 
   void add_separator();
   void add_default_layout();
-  void add_layout(std::function<void(uiLayout *, bContext *, PointerRNA *)> draw);
+  void add_layout(std::function<void(ui::Layout &, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {
@@ -527,6 +623,7 @@ class PanelDeclarationBuilder : public DeclarationListBuilder {
   }
 
   Self &description(std::string value = "");
+  Self &translation_context(std::optional<std::string> value = std::nullopt);
   Self &default_closed(bool closed);
 };
 
@@ -534,11 +631,11 @@ using PanelDeclarationPtr = std::unique_ptr<PanelDeclaration>;
 
 class NodeDeclaration {
  public:
-  /* Contains all items including recursive children. */
+  /** Contains all items including recursive children. */
   Vector<ItemDeclarationPtr> all_items;
-  /* Contains only the items in the root. */
+  /** Contains only the items in the root. */
   Vector<ItemDeclaration *> root_items;
-  /* All input and output socket declarations. */
+  /** All input and output socket declarations. */
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
   Vector<PanelDeclaration *> panels;
@@ -641,13 +738,10 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   void build_remaining_anonymous_attribute_relations();
 };
 
-namespace implicit_field_inputs {
-void position(const bNode &node, void *r_value);
-void normal(const bNode &node, void *r_value);
-void index(const bNode &node, void *r_value);
-void id_or_index(const bNode &node, void *r_value);
-void instance_transform(const bNode &node, void *r_value);
-}  // namespace implicit_field_inputs
+using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
+std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInputType type);
+bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
+                                             NodeDefaultInputType input_type);
 
 void build_node_declaration(const bke::bNodeType &typeinfo,
                             NodeDeclaration &r_declaration,
@@ -662,22 +756,22 @@ std::unique_ptr<SocketDeclaration> make_declaration_for_socket_type(
  * \{ */
 
 template<typename DeclType>
-inline typename DeclType::Builder &DeclarationListBuilder::add_input(StringRef name,
-                                                                     StringRef identifier)
+inline typename DeclType::Builder &DeclarationListBuilder::add_input(UString name,
+                                                                     UString identifier)
 {
   return this->add_socket<DeclType>(name, identifier, SOCK_IN);
 }
 
 template<typename DeclType>
-inline typename DeclType::Builder &DeclarationListBuilder::add_output(StringRef name,
-                                                                      StringRef identifier)
+inline typename DeclType::Builder &DeclarationListBuilder::add_output(UString name,
+                                                                      UString identifier)
 {
   return this->add_socket<DeclType>(name, identifier, SOCK_OUT);
 }
 
 template<typename DeclType>
-inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef name,
-                                                                      StringRef identifier,
+inline typename DeclType::Builder &DeclarationListBuilder::add_socket(UString name,
+                                                                      UString identifier,
                                                                       eNodeSocketInOut in_out)
 {
   static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
@@ -694,6 +788,7 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef 
   this->node_decl_builder.declaration_.all_items.append(std::move(socket_decl_ptr));
   this->items.append(&socket_decl);
 
+  socket_decl.parent = this->parent_panel_decl;
   socket_decl_builder.node_decl_builder_ = &this->node_decl_builder;
 
   socket_decl_builder.decl_ = &socket_decl;
@@ -748,4 +843,5 @@ inline bool BaseSocketDeclarationBuilder::is_output() const
 
 /** \} */
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

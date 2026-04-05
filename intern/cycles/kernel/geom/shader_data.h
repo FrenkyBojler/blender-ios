@@ -35,11 +35,19 @@ ccl_device void shader_setup_object_transforms(KernelGlobals kg,
 }
 
 /* TODO: break this up if it helps reduce register pressure to load data from
- * global memory as we write it to shader-data. */
-ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
-                                             ccl_private ShaderData *ccl_restrict sd,
-                                             const ccl_private Ray *ccl_restrict ray,
-                                             const ccl_private Intersection *ccl_restrict isect)
+ * global memory as we write it to shader-data.
+ *
+ * HIP on Linux currently needs noinline to sidestep a probable compiler bug. */
+#ifdef __KERNEL_HIP__
+ccl_device_noinline
+#else
+ccl_device_inline
+#endif
+    void
+    shader_setup_from_ray(KernelGlobals kg,
+                          ccl_private ShaderData *ccl_restrict sd,
+                          const ccl_private Ray *ccl_restrict ray,
+                          const ccl_private Intersection *ccl_restrict isect)
 {
   /* Read intersection data into shader globals.
    *
@@ -86,6 +94,7 @@ ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
       triangle_shader_setup(kg, sd);
     }
     else {
+      kernel_assert(sd->type == PRIMITIVE_MOTION_TRIANGLE);
       /* motion triangle */
       motion_triangle_shader_setup(kg, sd);
     }
@@ -186,7 +195,8 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals kg,
     if (sd->type == PRIMITIVE_TRIANGLE) {
       /* smooth normal */
       if (sd->shader & SHADER_SMOOTH_NORMAL) {
-        sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
+        sd->N = triangle_smooth_normal(
+            kg, Ng, sd->object, sd->object_flag, sd->prim, sd->u, sd->v);
 
         if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
           object_normal_transform_auto(kg, sd, &sd->N);
@@ -274,6 +284,21 @@ ccl_device void shader_setup_from_displace(KernelGlobals kg,
                            0.5f,
                            !(kernel_data_fetch(object_flag, object) & SD_OBJECT_TRANSFORM_APPLIED),
                            false);
+
+  /* Assign some incoming direction to avoid division by zero. */
+  sd->wi = sd->N;
+
+#ifdef __RAY_DIFFERENTIALS__
+  /* Set ray differentials based on triangle size for texture filtering.
+   * The parametric step across the triangle is 1.0, giving dPdx = dPdu
+   * and dPdy = dPdv.
+   * TODO: consider computing this based on all triangles adjacent to the vertex. */
+  sd->du.dx = 1.0f;
+  sd->du.dy = 0.0f;
+  sd->dv.dx = 0.0f;
+  sd->dv.dy = 1.0f;
+  sd->dP = 0.5f * (len(sd->dPdu) + len(sd->dPdv));
+#endif
 }
 
 /* ShaderData setup for point on curve. */
@@ -321,9 +346,13 @@ ccl_device void shader_setup_from_curve(KernelGlobals kg,
   P_curve[3] = kernel_data_fetch(curve_keys, kb);
 
   /* Interpolate position and tangent. */
-  sd->P = make_float3(catmull_rom_basis_derivative(P_curve, sd->u));
+  sd->P = (sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+              make_float3(linear_basis_eval(P_curve, sd->u)) :
+              make_float3(catmull_rom_basis_eval(P_curve, sd->u));
 #  ifdef __DPDU__
-  sd->dPdu = make_float3(catmull_rom_basis_derivative(P_curve, sd->u));
+  sd->dPdu = (sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+                 make_float3(linear_basis_derivative(P_curve, sd->u)) :
+                 make_float3(catmull_rom_basis_derivative(P_curve, sd->u));
 #  endif
 
   /* Transform into world space */
@@ -334,12 +363,12 @@ ccl_device void shader_setup_from_curve(KernelGlobals kg,
 #  endif
   }
 
-  /* No view direction, normals or bitangent. */
-  sd->wi = zero_float3();
-  sd->N = zero_float3();
-  sd->Ng = zero_float3();
+  /* Pick arbitrary view direction, normals and bitangent to avoid NaNs elsewhere. */
+  sd->wi = normalize(cross(make_float3(0, 1, 0), sd->dPdu));
+  sd->N = sd->wi;
+  sd->Ng = sd->wi;
 #  ifdef __DPDU__
-  sd->dPdv = zero_float3();
+  sd->dPdv = cross(sd->dPdu, sd->Ng);
 #  endif
 
   /* No ray differentials currently. */
@@ -358,6 +387,7 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals kg,
                                                     ccl_private ShaderData *ccl_restrict sd,
                                                     const float3 ray_P,
                                                     const float3 ray_D,
+                                                    const float ray_dD,
                                                     const float ray_time)
 {
   /* for NDC coordinates */
@@ -382,24 +412,24 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals kg,
 
 #ifdef __DPDU__
   /* dPdu/dPdv */
-  sd->dPdu = zero_float3();
-  sd->dPdv = zero_float3();
+  /* Construct arbitrary local coordinate system. */
+  make_orthonormals(sd->Ng, &sd->dPdu, &sd->dPdv);
 #endif
 
 #ifdef __RAY_DIFFERENTIALS__
   /* differentials */
-  sd->dP = differential_zero_compact(); /* TODO: ray->dP */
-  sd->dI = differential_zero_compact();
-  sd->du = differential_zero();
-  sd->dv = differential_zero();
+  sd->dP = ray_dD;
+  sd->dI = differential_incoming_compact(ray_dD);
+  /* Make the uv coordinate system match the constructed local coordinate system. */
+  sd->du.dx = sd->dv.dy = sd->dP;
+  sd->du.dy = sd->dv.dx = 0.0f;
 #endif
 }
 
 /* ShaderData setup from point inside volume */
 
 #ifdef __VOLUME__
-ccl_device_inline void shader_setup_from_volume(KernelGlobals kg,
-                                                ccl_private ShaderData *ccl_restrict sd,
+ccl_device_inline void shader_setup_from_volume(ccl_private ShaderData *ccl_restrict sd,
                                                 const ccl_private Ray *ccl_restrict ray,
                                                 const int object)
 {

@@ -6,6 +6,8 @@
 #include "BKE_attribute_filters.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
+#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
@@ -53,13 +55,22 @@ static void reorder_attributes_group_to_group(const bke::AttributeAccessor src_a
     if (iter.domain != domain) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
     const GVArray src = *iter.get(domain);
+
+    const CommonVArrayInfo info = src.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const GPointer value(src.type(), info.data);
+      if (dst_attributes.add(iter.name, domain, iter.data_type, bke::AttributeInitValue(value))) {
+        return;
+      }
+    }
+
     bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, domain, iter.data_type);
     if (!dst) {
@@ -290,6 +301,12 @@ static void copy_and_reorder_curves(const bke::CurvesGeometry &src_curves,
                                     attribute_filter,
                                     dst_curves.attributes_for_write());
   dst_curves.tag_topology_changed();
+  if (src_curves.nurbs_has_custom_knots()) {
+    dst_curves.nurbs_custom_knots_update_size();
+    IndexMaskMemory memory;
+    bke::curves::nurbs::gather_custom_knots(
+        src_curves, IndexMask::from_indices(old_by_new_map, memory), 0, dst_curves);
+  }
 }
 
 static void copy_and_reorder_instaces(const bke::Instances &src_instances,
@@ -343,6 +360,7 @@ bke::CurvesGeometry reorder_curves_geometry(const bke::CurvesGeometry &src_curve
 {
   bke::CurvesGeometry dst_curves = bke::curves_new_no_attributes(src_curves.points_num(),
                                                                  src_curves.curves_num());
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
   copy_and_reorder_curves(src_curves, old_by_new_map, attribute_filter, dst_curves);
   return dst_curves;
 }

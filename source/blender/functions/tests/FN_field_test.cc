@@ -5,7 +5,8 @@
 #include "testing/testing.h"
 
 #include "BLI_cpp_type.hh"
-#include "FN_field.hh"
+
+#include "FN_field_evaluation.hh"
 #include "FN_multi_function_builder.hh"
 #include "FN_multi_function_test_common.hh"
 
@@ -13,8 +14,8 @@ namespace blender::fn::tests {
 
 TEST(field, ConstantFunction)
 {
-  GField constant_field{
-      FieldOperation::Create(std::make_unique<mf::CustomMF_Constant<int>>(10), {}), 0};
+  GField constant_field{FieldOperation::from(std::make_unique<mf::CustomMF_Constant<int>>(10), {}),
+                        0};
 
   Array<int> result(4);
 
@@ -37,13 +38,13 @@ class IndexFieldInput final : public FieldInput {
                                  ResourceScope & /*scope*/) const final
   {
     auto index_func = [](int i) { return i; };
-    return VArray<int>::ForFunc(mask.min_array_size(), index_func);
+    return VArray<int>::from_func(mask.min_array_size(), index_func);
   }
 };
 
 TEST(field, VArrayInput)
 {
-  GField index_field{std::make_shared<IndexFieldInput>()};
+  GField index_field = GField::from_input<IndexFieldInput>();
 
   Array<int> result_1(4);
 
@@ -74,7 +75,7 @@ TEST(field, VArrayInput)
 
 TEST(field, VArrayInputMultipleOutputs)
 {
-  std::shared_ptr<FieldInput> index_input = std::make_shared<IndexFieldInput>();
+  FieldInputPtr index_input{MEM_new<IndexFieldInput>(__func__)};
   GField field_1{index_input};
   GField field_2{index_input};
 
@@ -102,10 +103,10 @@ TEST(field, VArrayInputMultipleOutputs)
 
 TEST(field, InputAndFunction)
 {
-  GField index_field{std::make_shared<IndexFieldInput>()};
+  GField index_field = GField::from_input<IndexFieldInput>();
 
   auto add_fn = mf::build::SI2_SO<int, int, int>("add", [](int a, int b) { return a + b; });
-  GField output_field{FieldOperation::Create(add_fn, {index_field, index_field}), 0};
+  GField output_field{FieldOperation::from(add_fn, {index_field, index_field}), 0};
 
   Array<int> result(10);
 
@@ -125,13 +126,13 @@ TEST(field, InputAndFunction)
 
 TEST(field, TwoFunctions)
 {
-  GField index_field{std::make_shared<IndexFieldInput>()};
+  GField index_field = GField::from_input<IndexFieldInput>();
 
   auto add_fn = mf::build::SI2_SO<int, int, int>("add", [](int a, int b) { return a + b; });
-  GField add_field{FieldOperation::Create(add_fn, {index_field, index_field}), 0};
+  GField add_field{FieldOperation::from(add_fn, {index_field, index_field}), 0};
 
   auto add_10_fn = mf::build::SI1_SO<int, int>("add_10", [](int a) { return a + 10; });
-  GField result_field{FieldOperation::Create(add_10_fn, {add_field}), 0};
+  GField result_field{FieldOperation::from(add_10_fn, {add_field}), 0};
 
   Array<int> result(10);
 
@@ -180,11 +181,11 @@ class TwoOutputFunction : public mf::MultiFunction {
 TEST(field, FunctionTwoOutputs)
 {
   /* Also use two separate input fields, why not. */
-  GField index_field_1{std::make_shared<IndexFieldInput>()};
-  GField index_field_2{std::make_shared<IndexFieldInput>()};
+  GField index_field_1 = GField::from_input<IndexFieldInput>();
+  GField index_field_2 = GField::from_input<IndexFieldInput>();
 
-  std::shared_ptr<FieldOperation> fn = FieldOperation::Create(
-      std::make_unique<TwoOutputFunction>(), {index_field_1, index_field_2});
+  FieldOperationPtr fn = FieldOperation::from(std::make_unique<TwoOutputFunction>(),
+                                              {index_field_1, index_field_2});
 
   GField result_field_1{fn, 0};
   GField result_field_2{fn, 1};
@@ -213,10 +214,10 @@ TEST(field, FunctionTwoOutputs)
 
 TEST(field, TwoFunctionsTwoOutputs)
 {
-  GField index_field{std::make_shared<IndexFieldInput>()};
+  GField index_field = GField::from_input<IndexFieldInput>();
 
-  std::shared_ptr<FieldOperation> fn = FieldOperation::Create(
-      std::make_unique<TwoOutputFunction>(), {index_field, index_field});
+  FieldOperationPtr fn = FieldOperation::from(std::make_unique<TwoOutputFunction>(),
+                                              {index_field, index_field});
 
   Array<int64_t> mask_indices = {2, 4, 6, 8};
   IndexMaskMemory memory;
@@ -226,7 +227,7 @@ TEST(field, TwoFunctionsTwoOutputs)
   Field<int> intermediate_field{fn, 1};
 
   auto add_10_fn = mf::build::SI1_SO<int, int>("add_10", [](int a) { return a + 10; });
-  Field<int> result_field_2{FieldOperation::Create(add_10_fn, {intermediate_field}), 0};
+  Field<int> result_field_2{FieldOperation::from(add_10_fn, {intermediate_field}), 0};
 
   FieldContext field_context;
   FieldEvaluator field_evaluator{field_context, &mask};
@@ -248,7 +249,7 @@ TEST(field, TwoFunctionsTwoOutputs)
 
 TEST(field, SameFieldTwice)
 {
-  GField constant_field{FieldOperation::Create(std::make_unique<mf::CustomMF_Constant<int>>(10)),
+  GField constant_field{FieldOperation::from(std::make_unique<mf::CustomMF_Constant<int>>(10), {}),
                         0};
 
   FieldContext field_context;
@@ -269,7 +270,7 @@ TEST(field, SameFieldTwice)
 TEST(field, IgnoredOutput)
 {
   static mf::tests::OptionalOutputsFunction fn;
-  Field<int> field{FieldOperation::Create(fn), 0};
+  Field<int> field{FieldOperation::from(fn, {}), 0};
 
   FieldContext field_context;
   FieldEvaluator field_evaluator{field_context, 10};
@@ -279,6 +280,25 @@ TEST(field, IgnoredOutput)
 
   EXPECT_EQ(results.get(0), 5);
   EXPECT_EQ(results.get(3), 5);
+}
+
+TEST(field, EvaluateWithVArrayPtr)
+{
+  VArray<int> dst_a;
+  VArraySpan<int> dst_b;
+
+  FieldContext field_context;
+  FieldEvaluator field_evaluator{field_context, 2};
+  field_evaluator.add(Field<int>(10), &dst_a);
+  field_evaluator.add(Field<int>(20), &dst_b);
+  field_evaluator.evaluate();
+
+  EXPECT_EQ(dst_a.size(), 2);
+  EXPECT_EQ(dst_b.size(), 2);
+  EXPECT_EQ(dst_a[0], 10);
+  EXPECT_EQ(dst_a[1], 10);
+  EXPECT_EQ(dst_b[0], 20);
+  EXPECT_EQ(dst_b[1], 20);
 }
 
 }  // namespace blender::fn::tests

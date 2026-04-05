@@ -14,10 +14,12 @@
 #include "session/denoising.h"
 #include "session/merge.h"
 
+#include "util/colorspace.h"
 #include "util/debug.h"
-
 #include "util/guiding.h"
-#include "util/md5.h"
+#include "util/image_maketx.h"
+#include "util/image_metadata.h"
+#include "util/log.h"
 #include "util/openimagedenoise.h"
 #include "util/path.h"
 #include "util/string.h"
@@ -26,12 +28,9 @@
 
 #include "GPU_state.hh"
 
-#ifdef WITH_OSL
-#  include "scene/osl.h"
+#include "DNA_screen_types.h"
 
-#  include <OSL/oslconfig.h>
-#  include <OSL/oslquery.h>
-#endif
+#include "scene/osl.h"
 
 #ifdef WITH_METAL
 #  include "device/metal/device.h"
@@ -54,17 +53,18 @@ void *pylong_as_voidptr_typesafe(PyObject *object)
 
 PyObject *pyunicode_from_string(const char *str)
 {
-  /* Ignore errors if device API returns invalid UTF-8 strings. */
+  /* Ignore errors if device API returns invalid UTF8 strings. */
   return PyUnicode_DecodeUTF8(str, strlen(str), "ignore");
 }
 
 /* Synchronize debug flags from a given Blender scene.
  * Return truth when device list needs invalidation.
  */
-void debug_flags_sync_from_scene(BL::Scene b_scene)
+void debug_flags_sync_from_scene(blender::Scene &b_scene)
 {
   DebugFlagsRef flags = DebugFlags();
-  PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+  blender::PointerRNA scene_rna_ptr = RNA_id_pointer_create(&b_scene.id);
+  blender::PointerRNA cscene = RNA_pointer_get(&scene_rna_ptr, "cycles");
   /* Synchronize CPU flags. */
   flags.cpu.avx2 = get_boolean(cscene, "debug_use_cpu_avx2");
   flags.cpu.sse42 = get_boolean(cscene, "debug_use_cpu_sse42");
@@ -152,7 +152,8 @@ static PyObject *exit_func(PyObject * /*self*/, PyObject * /*args*/)
   device_metal_exit();
 #endif
 
-  ShaderManager::free_memory();
+  ColorSpaceManager::free_memory();
+  OSLManager::free_memory();
   TaskScheduler::free_memory();
   Device::free_memory();
   Py_RETURN_NONE;
@@ -184,44 +185,35 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
   }
 
   /* RNA */
-  ID *bScreen = (ID *)PyLong_AsVoidPtr(pyscreen);
+  blender::ID *bScreen = (blender::ID *)PyLong_AsVoidPtr(pyscreen);
 
-  const PointerRNA engineptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_RenderEngine, PyLong_AsVoidPtr(pyengine));
-  BL::RenderEngine engine(engineptr);
-
-  const PointerRNA preferencesptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_Preferences, PyLong_AsVoidPtr(pypreferences));
-  BL::Preferences preferences(preferencesptr);
-
-  const PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
-  BL::BlendData data(dataptr);
-
-  const PointerRNA regionptr = RNA_pointer_create_discrete(
-      bScreen, &RNA_Region, pylong_as_voidptr_typesafe(pyregion));
-  BL::Region region(regionptr);
-
-  const PointerRNA v3dptr = RNA_pointer_create_discrete(
-      bScreen, &RNA_SpaceView3D, pylong_as_voidptr_typesafe(pyv3d));
-  BL::SpaceView3D v3d(v3dptr);
-
-  const PointerRNA rv3dptr = RNA_pointer_create_discrete(
-      bScreen, &RNA_RegionView3D, pylong_as_voidptr_typesafe(pyrv3d));
-  BL::RegionView3D rv3d(rv3dptr);
+  blender::RenderEngine *engine = static_cast<blender::RenderEngine *>(PyLong_AsVoidPtr(pyengine));
+  blender::UserDef *preferences = static_cast<blender::UserDef *>(PyLong_AsVoidPtr(pypreferences));
+  blender::Main *data = static_cast<blender::Main *>(PyLong_AsVoidPtr(pydata));
+  blender::View3D *v3d = static_cast<blender::View3D *>(pylong_as_voidptr_typesafe(pyv3d));
+  blender::ARegion *region = static_cast<blender::ARegion *>(pylong_as_voidptr_typesafe(pyregion));
 
   /* create session */
   BlenderSession *session;
 
-  if (rv3d) {
+  if (region) {
+    blender::RegionView3D *rv3d = static_cast<blender::RegionView3D *>(region->regiondata);
     /* interactive viewport session */
-    const int width = region.width();
-    const int height = region.height();
+    const int width = region->winx;
+    const int height = region->winy;
 
-    session = new BlenderSession(engine, preferences, data, v3d, rv3d, width, height);
+    session = new BlenderSession(*engine,
+                                 *preferences,
+                                 *data,
+                                 blender::id_cast<blender::bScreen *>(bScreen),
+                                 v3d,
+                                 rv3d,
+                                 width,
+                                 height);
   }
   else {
     /* offline session or preview render */
-    session = new BlenderSession(engine, preferences, data, preview_osl);
+    session = new BlenderSession(*engine, *preferences, *data, preview_osl);
   }
 
   return PyLong_FromVoidPtr(session);
@@ -244,15 +236,13 @@ static PyObject *render_func(PyObject * /*self*/, PyObject *args)
   }
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
-
-  const PointerRNA depsgraphptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_Depsgraph, (ID *)PyLong_AsVoidPtr(pydepsgraph));
-  BL::Depsgraph b_depsgraph(depsgraphptr);
+  blender::Depsgraph *b_depsgraph = static_cast<blender::Depsgraph *>(
+      PyLong_AsVoidPtr(pydepsgraph));
 
   /* Allow Blender to execute other Python scripts. */
   python_thread_state_save(&session->python_thread_state);
 
-  session->render(b_depsgraph);
+  session->render(*b_depsgraph);
 
   python_thread_state_restore(&session->python_thread_state);
 
@@ -292,13 +282,12 @@ static PyObject *draw_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(py_session);
 
-  ID *b_screen = (ID *)PyLong_AsVoidPtr(py_screen);
+  blender::ID *b_screen = (blender::ID *)PyLong_AsVoidPtr(py_screen);
 
-  const PointerRNA b_space_image_ptr = RNA_pointer_create_discrete(
-      b_screen, &RNA_SpaceImageEditor, pylong_as_voidptr_typesafe(py_space_image));
-  BL::SpaceImageEditor b_space_image(b_space_image_ptr);
+  blender::SpaceImage *b_space_image = static_cast<blender::SpaceImage *>(
+      pylong_as_voidptr_typesafe(py_space_image));
 
-  session->draw(b_space_image);
+  session->draw(blender::id_cast<blender::bScreen &>(*b_screen), *b_space_image);
 
   Py_RETURN_NONE;
 }
@@ -329,16 +318,13 @@ static PyObject *bake_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  const PointerRNA depsgraphptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
-  BL::Depsgraph b_depsgraph(depsgraphptr);
-
-  const PointerRNA objectptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyobject));
-  BL::Object b_object(objectptr);
+  blender::Depsgraph *b_depsgraph = static_cast<blender::Depsgraph *>(
+      PyLong_AsVoidPtr(pydepsgraph));
+  blender::Object *b_object = static_cast<blender::Object *>(PyLong_AsVoidPtr(pyobject));
 
   python_thread_state_save(&session->python_thread_state);
 
-  session->bake(b_depsgraph, b_object, pass_type, pass_filter, width, height);
+  session->bake(*b_depsgraph, *b_object, pass_type, pass_filter, width, height);
 
   python_thread_state_restore(&session->python_thread_state);
 
@@ -361,7 +347,7 @@ static PyObject *view_draw_func(PyObject * /*self*/, PyObject *args)
   if (PyLong_AsVoidPtr(pyrv3d)) {
     /* 3d view drawing */
     int viewport[4];
-    GPU_viewport_size_get_i(viewport);
+    blender::GPU_viewport_size_get_i(viewport);
 
     session->view_draw(viewport[2], viewport[3]);
   }
@@ -381,16 +367,13 @@ static PyObject *reset_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  const PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
-  BL::BlendData b_data(dataptr);
-
-  const PointerRNA depsgraphptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
-  BL::Depsgraph b_depsgraph(depsgraphptr);
+  blender::Main *b_data = static_cast<blender::Main *>(PyLong_AsVoidPtr(pydata));
+  blender::Depsgraph *b_depsgraph = static_cast<blender::Depsgraph *>(
+      PyLong_AsVoidPtr(pydepsgraph));
 
   python_thread_state_save(&session->python_thread_state);
 
-  session->reset_session(b_data, b_depsgraph);
+  session->reset_session(*b_data, *b_depsgraph);
 
   python_thread_state_restore(&session->python_thread_state);
 
@@ -408,13 +391,12 @@ static PyObject *sync_func(PyObject * /*self*/, PyObject *args)
 
   BlenderSession *session = (BlenderSession *)PyLong_AsVoidPtr(pysession);
 
-  const PointerRNA depsgraphptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_Depsgraph, PyLong_AsVoidPtr(pydepsgraph));
-  BL::Depsgraph b_depsgraph(depsgraphptr);
+  blender::Depsgraph *b_depsgraph = static_cast<blender::Depsgraph *>(
+      PyLong_AsVoidPtr(pydepsgraph));
 
   python_thread_state_save(&session->python_thread_state);
 
-  session->synchronize(b_depsgraph);
+  session->synchronize(*b_depsgraph);
 
   python_thread_state_restore(&session->python_thread_state);
 
@@ -444,7 +426,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
   for (size_t i = 0; i < devices.size(); i++) {
     const DeviceInfo &device = devices[i];
     const string type_name = Device::string_from_type(device.type);
-    PyObject *device_tuple = PyTuple_New(7);
+    PyObject *device_tuple = PyTuple_New(8);
     PyTuple_SET_ITEM(device_tuple, 0, pyunicode_from_string(device.description.c_str()));
     PyTuple_SET_ITEM(device_tuple, 1, pyunicode_from_string(type_name.c_str()));
     PyTuple_SET_ITEM(device_tuple, 2, pyunicode_from_string(device.id.c_str()));
@@ -453,6 +435,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
     PyTuple_SET_ITEM(
         device_tuple, 5, PyBool_FromLong(device.denoisers & DENOISER_OPENIMAGEDENOISE));
     PyTuple_SET_ITEM(device_tuple, 6, PyBool_FromLong(device.denoisers & DENOISER_OPTIX));
+    PyTuple_SET_ITEM(device_tuple, 7, PyBool_FromLong(device.has_execution_optimization));
     PyTuple_SET_ITEM(ret, i, device_tuple);
   }
 
@@ -460,257 +443,6 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
 }
 
 #ifdef WITH_OSL
-
-static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
-{
-  PyObject *pydata;
-  PyObject *pynodegroup;
-  PyObject *pynode;
-  const char *filepath = nullptr;
-
-  if (!PyArg_ParseTuple(args, "OOOs", &pydata, &pynodegroup, &pynode, &filepath)) {
-    return nullptr;
-  }
-
-  /* RNA */
-  const PointerRNA dataptr = RNA_main_pointer_create((Main *)PyLong_AsVoidPtr(pydata));
-  BL::BlendData b_data(dataptr);
-
-  const PointerRNA nodeptr = RNA_pointer_create_discrete(
-      (ID *)PyLong_AsVoidPtr(pynodegroup), &RNA_ShaderNodeScript, PyLong_AsVoidPtr(pynode));
-  BL::ShaderNodeScript b_node(nodeptr);
-
-  /* update bytecode hash */
-  const string bytecode = b_node.bytecode();
-
-  if (!bytecode.empty()) {
-    MD5Hash md5;
-    md5.append((const uint8_t *)bytecode.c_str(), bytecode.size());
-    b_node.bytecode_hash(md5.get_hex());
-  }
-  else {
-    b_node.bytecode_hash("");
-  }
-
-  /* query from file path */
-  OSL::OSLQuery query;
-
-  if (!OSLShaderManager::osl_query(query, filepath)) {
-    Py_RETURN_FALSE;
-  }
-
-  /* add new sockets from parameters */
-  set<void *> used_sockets;
-
-  for (int i = 0; i < query.nparams(); i++) {
-    const OSL::OSLQuery::Parameter *param = query.getparam(i);
-
-    /* skip unsupported types */
-    if (param->varlenarray || param->isstruct || param->type.arraylen > 1) {
-      continue;
-    }
-
-    /* Read metadata. */
-    bool is_bool_param = false;
-    bool hide_value = !param->validdefault;
-    ustring param_label = param->name;
-
-    for (const OSL::OSLQuery::Parameter &metadata : param->metadata) {
-      if (metadata.type == TypeDesc::STRING) {
-        if (metadata.name == "widget") {
-          /* Boolean socket. */
-          if (metadata.sdefault[0] == "boolean" || metadata.sdefault[0] == "checkBox") {
-            is_bool_param = true;
-          }
-          else if (metadata.sdefault[0] == "null") {
-            hide_value = true;
-          }
-        }
-        else if (metadata.name == "label") {
-          /* Socket label. */
-          param_label = metadata.sdefault[0];
-        }
-      }
-    }
-    /* determine socket type */
-    string socket_type;
-    BL::NodeSocket::type_enum data_type = BL::NodeSocket::type_VALUE;
-    float4 default_float4 = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
-    float default_float = 0.0f;
-    int default_int = 0;
-    string default_string;
-    bool default_boolean = false;
-
-    if (param->isclosure) {
-      socket_type = "NodeSocketShader";
-      data_type = BL::NodeSocket::type_SHADER;
-    }
-    else if (param->type.vecsemantics == TypeDesc::COLOR) {
-      socket_type = "NodeSocketColor";
-      data_type = BL::NodeSocket::type_RGBA;
-
-      if (param->validdefault) {
-        default_float4[0] = param->fdefault[0];
-        default_float4[1] = param->fdefault[1];
-        default_float4[2] = param->fdefault[2];
-      }
-    }
-    else if (param->type.vecsemantics == TypeDesc::POINT ||
-             param->type.vecsemantics == TypeDesc::VECTOR ||
-             param->type.vecsemantics == TypeDesc::NORMAL)
-    {
-      socket_type = "NodeSocketVector";
-      data_type = BL::NodeSocket::type_VECTOR;
-
-      if (param->validdefault) {
-        default_float4[0] = param->fdefault[0];
-        default_float4[1] = param->fdefault[1];
-        default_float4[2] = param->fdefault[2];
-      }
-    }
-    else if (param->type.aggregate == TypeDesc::SCALAR) {
-      if (param->type.basetype == TypeDesc::INT) {
-        if (is_bool_param) {
-          socket_type = "NodeSocketBool";
-          data_type = BL::NodeSocket::type_BOOLEAN;
-          if (param->validdefault) {
-            default_boolean = bool(param->idefault[0]);
-          }
-        }
-        else {
-          socket_type = "NodeSocketInt";
-          data_type = BL::NodeSocket::type_INT;
-          if (param->validdefault) {
-            default_int = param->idefault[0];
-          }
-        }
-      }
-      else if (param->type.basetype == TypeDesc::FLOAT) {
-        socket_type = "NodeSocketFloat";
-        data_type = BL::NodeSocket::type_VALUE;
-        if (param->validdefault) {
-          default_float = param->fdefault[0];
-        }
-      }
-      else if (param->type.basetype == TypeDesc::STRING) {
-        socket_type = "NodeSocketString";
-        data_type = BL::NodeSocket::type_STRING;
-        if (param->validdefault) {
-          default_string = param->sdefault[0].string();
-        }
-      }
-      else {
-        continue;
-      }
-    }
-    else {
-      continue;
-    }
-
-    /* Update existing socket. */
-    bool found_existing = false;
-    if (param->isoutput) {
-      for (BL::NodeSocket &b_sock : b_node.outputs) {
-        if (b_sock.identifier() == param->name) {
-          if (b_sock.bl_idname() != socket_type) {
-            /* Remove if type no longer matches. */
-            b_node.outputs.remove(b_data, b_sock);
-          }
-          else {
-            /* Reuse and update label. */
-            if (b_sock.name() != param_label) {
-              b_sock.name(param_label.string());
-            }
-            used_sockets.insert(b_sock.ptr.data);
-            found_existing = true;
-          }
-          break;
-        }
-      }
-    }
-    else {
-      for (BL::NodeSocket &b_sock : b_node.inputs) {
-        if (b_sock.identifier() == param->name) {
-          if (b_sock.bl_idname() != socket_type) {
-            /* Remove if type no longer matches. */
-            b_node.inputs.remove(b_data, b_sock);
-          }
-          else {
-            /* Reuse and update label. */
-            if (b_sock.name() != param_label) {
-              b_sock.name(param_label.string());
-            }
-            if (b_sock.hide_value() != hide_value) {
-              b_sock.hide_value(hide_value);
-            }
-            used_sockets.insert(b_sock.ptr.data);
-            found_existing = true;
-          }
-          break;
-        }
-      }
-    }
-
-    if (!found_existing) {
-      /* Create new socket. */
-      BL::NodeSocket b_sock =
-          (param->isoutput) ?
-              b_node.outputs.create(
-                  b_data, socket_type.c_str(), param_label.c_str(), param->name.c_str(), false) :
-              b_node.inputs.create(
-                  b_data, socket_type.c_str(), param_label.c_str(), param->name.c_str(), false);
-
-      /* set default value */
-      if (data_type == BL::NodeSocket::type_VALUE) {
-        set_float(b_sock.ptr, "default_value", default_float);
-      }
-      else if (data_type == BL::NodeSocket::type_INT) {
-        set_int(b_sock.ptr, "default_value", default_int);
-      }
-      else if (data_type == BL::NodeSocket::type_RGBA) {
-        set_float4(b_sock.ptr, "default_value", default_float4);
-      }
-      else if (data_type == BL::NodeSocket::type_VECTOR) {
-        set_float3(b_sock.ptr, "default_value", make_float3(default_float4));
-      }
-      else if (data_type == BL::NodeSocket::type_STRING) {
-        set_string(b_sock.ptr, "default_value", default_string);
-      }
-      else if (data_type == BL::NodeSocket::type_BOOLEAN) {
-        set_boolean(b_sock.ptr, "default_value", default_boolean);
-      }
-
-      b_sock.hide_value(hide_value);
-
-      used_sockets.insert(b_sock.ptr.data);
-    }
-  }
-
-  /* remove unused parameters */
-  bool removed;
-
-  do {
-    removed = false;
-
-    for (BL::NodeSocket &b_input : b_node.inputs) {
-      if (used_sockets.find(b_input.ptr.data) == used_sockets.end()) {
-        b_node.inputs.remove(b_data, b_input);
-        removed = true;
-        break;
-      }
-    }
-
-    for (BL::NodeSocket &b_output : b_node.outputs) {
-      if (used_sockets.find(b_output.ptr.data) == used_sockets.end()) {
-        b_node.outputs.remove(b_data, b_output);
-        removed = true;
-        break;
-      }
-    }
-  } while (removed);
-
-  Py_RETURN_TRUE;
-}
 
 static PyObject *osl_compile_func(PyObject * /*self*/, PyObject *args)
 {
@@ -722,7 +454,7 @@ static PyObject *osl_compile_func(PyObject * /*self*/, PyObject *args)
   }
 
   /* return */
-  if (!OSLShaderManager::osl_compile(inputfile, outputfile)) {
+  if (!OSLManager::osl_compile(inputfile, outputfile)) {
     Py_RETURN_FALSE;
   }
 
@@ -789,24 +521,20 @@ static PyObject *denoise_func(PyObject * /*self*/, PyObject *args, PyObject *key
   }
 
   /* Get device specification from preferences and scene. */
-  const PointerRNA preferencesptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_Preferences, PyLong_AsVoidPtr(pypreferences));
-  BL::Preferences b_preferences(preferencesptr);
-
-  const PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
-  BL::Scene b_scene(sceneptr);
+  blender::UserDef *b_preferences = static_cast<blender::UserDef *>(
+      PyLong_AsVoidPtr(pypreferences));
+  blender::Scene *b_scene = static_cast<blender::Scene *>(PyLong_AsVoidPtr(pyscene));
 
   DeviceInfo preferences_device;
   const DeviceInfo pathtrace_device = blender_device_info(
-      b_preferences, b_scene, true, true, preferences_device);
+      *b_preferences, *b_scene, true, true, preferences_device);
 
   /* Get denoising parameters from view layer. */
-  const PointerRNA viewlayerptr = RNA_pointer_create_discrete(
-      (ID *)PyLong_AsVoidPtr(pyscene), &RNA_ViewLayer, PyLong_AsVoidPtr(pyviewlayer));
-  BL::ViewLayer b_view_layer(viewlayerptr);
+  blender::ViewLayer *b_view_layer = static_cast<blender::ViewLayer *>(
+      PyLong_AsVoidPtr(pyviewlayer));
 
   DenoiseParams params = BlenderSync::get_denoise_params(
-      b_scene, b_view_layer, true, preferences_device);
+      *b_scene, b_view_layer, true, preferences_device);
   params.use = true;
 
   /* Parse file paths list. */
@@ -897,10 +625,9 @@ static PyObject *debug_flags_update_func(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  const PointerRNA sceneptr = RNA_id_pointer_create((ID *)PyLong_AsVoidPtr(pyscene));
-  const BL::Scene b_scene(sceneptr);
+  blender::Scene *b_scene = static_cast<blender::Scene *>(PyLong_AsVoidPtr(pyscene));
 
-  debug_flags_sync_from_scene(b_scene);
+  debug_flags_sync_from_scene(*b_scene);
 
   debug_flags_set = true;
 
@@ -981,7 +708,7 @@ static PyObject *set_device_override_func(PyObject * /*self*/, PyObject *arg)
     BlenderSession::device_override = DEVICE_MASK_ONEAPI;
   }
   else {
-    fprintf(stderr, "\nError: %s is not a valid Cycles device.\n", override.c_str());
+    LOG_ERROR << override << " is not a valid Cycles device.";
     Py_RETURN_FALSE;
   }
 
@@ -992,6 +719,98 @@ static PyObject *set_device_override_func(PyObject * /*self*/, PyObject *arg)
 
   Py_RETURN_TRUE;
 }
+
+static PyObject *maketx_func(PyObject * /*self*/, PyObject *args, PyObject *keywords)
+{
+  static const char *keyword_list[] = {
+      "filepath", "colorspace", "alpha_type", "cache_dir", nullptr};
+
+  const char *filepath = nullptr;
+  const char *colorspace = "auto";
+  const char *alpha_type_str = "auto";
+  const char *cache_dir = "";
+
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   keywords,
+                                   "s|sss",
+                                   (char **)keyword_list,
+                                   &filepath,
+                                   &colorspace,
+                                   &alpha_type_str,
+                                   &cache_dir))
+  {
+    return nullptr;
+  }
+
+  /* Alpha type. */
+  ImageAlphaType alpha_type;
+  if (strcmp(alpha_type_str, "straight") == 0) {
+    alpha_type = IMAGE_ALPHA_UNASSOCIATED;
+  }
+  else if (strcmp(alpha_type_str, "premultiplied") == 0) {
+    alpha_type = IMAGE_ALPHA_ASSOCIATED;
+  }
+  else if (strcmp(alpha_type_str, "channel_packed") == 0) {
+    alpha_type = IMAGE_ALPHA_CHANNEL_PACKED;
+  }
+  else if (strcmp(alpha_type_str, "none") == 0) {
+    alpha_type = IMAGE_ALPHA_IGNORE;
+  }
+  else if (strcmp(alpha_type_str, "auto") == 0) {
+    alpha_type = IMAGE_ALPHA_AUTO;
+  }
+  else {
+    PyErr_Format(PyExc_ValueError, "Unknown alpha type: %s", alpha_type_str);
+    return nullptr;
+  }
+
+  /* Colorspace. */
+  const ustring colorspace_ustring = (strcmp(colorspace, "auto") == 0) ? u_colorspace_auto :
+                                                                         ustring(colorspace);
+
+  /* Resolve output path, and check if tx file is already up to date. */
+  string out_filepath;
+  ccl::ImageMetaData out_metadata;
+  const bool up_to_date = resolve_tx(filepath,
+                                     cache_dir,
+                                     colorspace_ustring,
+                                     alpha_type,
+                                     IMAGE_FORMAT_PLAIN,
+                                     out_filepath,
+                                     out_metadata);
+
+  if (out_filepath.empty()) {
+    LOG_ERROR << "Source image not found: " << filepath;
+    PyErr_Format(PyExc_RuntimeError, "Source image not found");
+    return nullptr;
+  }
+
+  /* Generate tx file if needed. */
+  if (!up_to_date) {
+    bool ok;
+    Py_BEGIN_ALLOW_THREADS;
+    ok = make_tx(filepath, out_filepath, colorspace_ustring, alpha_type, IMAGE_FORMAT_PLAIN);
+    Py_END_ALLOW_THREADS;
+
+    if (!ok) {
+      LOG_ERROR << "Failed to generate tx file";
+      PyErr_Format(PyExc_RuntimeError, "Failed to generate tx file");
+      return nullptr;
+    }
+  }
+
+  return pyunicode_from_string(out_filepath.c_str());
+}
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
 
 static PyMethodDef methods[] = {
     {"init", init_func, METH_VARARGS, ""},
@@ -1006,7 +825,6 @@ static PyMethodDef methods[] = {
     {"sync", sync_func, METH_VARARGS, ""},
     {"reset", reset_func, METH_VARARGS, ""},
 #ifdef WITH_OSL
-    {"osl_update_node", osl_update_node_func, METH_VARARGS, ""},
     {"osl_compile", osl_compile_func, METH_VARARGS, ""},
 #endif
     {"available_devices", available_devices_func, METH_VARARGS, ""},
@@ -1027,8 +845,19 @@ static PyMethodDef methods[] = {
     {"get_device_types", get_device_types_func, METH_VARARGS, ""},
     {"set_device_override", set_device_override_func, METH_O, ""},
 
+    /* Texture cache */
+    {"maketx", (PyCFunction)maketx_func, METH_VARARGS | METH_KEYWORDS, ""},
+
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 static struct PyModuleDef module = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
@@ -1044,7 +873,7 @@ static struct PyModuleDef module = {
 
 CCL_NAMESPACE_END
 
-void *CCL_python_module_init()
+void *blender::CCL_python_module_init()
 {
   PyObject *mod = PyModule_Create(&ccl::module);
 

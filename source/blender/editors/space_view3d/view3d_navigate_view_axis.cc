@@ -28,6 +28,8 @@
 
 #include "view3d_navigate.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name View Axis Operator
  * \{ */
@@ -42,7 +44,7 @@ static const EnumPropertyItem prop_view_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int view_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;
@@ -68,12 +70,13 @@ static int view_axis_exec(bContext *C, wmOperator *op)
     Object *obact = CTX_data_active_object(C);
     if (obact != nullptr) {
       float twmat[3][3];
+      const Main *bmain = CTX_data_main(C);
       const Scene *scene = CTX_data_scene(C);
       ViewLayer *view_layer = CTX_data_view_layer(C);
       Object *obedit = CTX_data_edit_object(C);
       /* same as transform gizmo when normal is set */
-      blender::ed::transform::ED_getTransformOrientationMatrix(
-          scene, view_layer, v3d, obact, obedit, V3D_AROUND_ACTIVE, twmat);
+      ed::transform::ED_getTransformOrientationMatrix(
+          *bmain, scene, view_layer, v3d, obact, obedit, V3D_AROUND_ACTIVE, twmat);
       align_quat = align_quat_buf;
       mat3_to_quat(align_quat, twmat);
       invert_qt_normalized(align_quat);
@@ -164,7 +167,7 @@ void VIEW3D_OT_view_axis(wmOperatorType *ot)
   ot->description = "Use a preset viewpoint";
   ot->idname = "VIEW3D_OT_view_axis";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_axis_exec;
   ot->poll = ED_operator_rv3d_user_region_poll;
 
@@ -184,3 +187,5 @@ void VIEW3D_OT_view_axis(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

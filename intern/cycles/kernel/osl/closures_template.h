@@ -41,6 +41,11 @@ OSL_CLOSURE_STRUCT_BEGIN(Translucent, translucent)
   OSL_CLOSURE_STRUCT_MEMBER(Translucent, VECTOR, packed_float3, N, nullptr)
 OSL_CLOSURE_STRUCT_END(Translucent, translucent)
 
+OSL_CLOSURE_STRUCT_BEGIN(TranslucentBSDF, translucent_bsdf)
+  OSL_CLOSURE_STRUCT_MEMBER(TranslucentBSDF, VECTOR, packed_float3, N, nullptr)
+  OSL_CLOSURE_STRUCT_MEMBER(TranslucentBSDF, VECTOR, packed_float3, albedo, NULL)
+OSL_CLOSURE_STRUCT_END(TranslucentBSDF, translucent_bsdf)
+
 OSL_CLOSURE_STRUCT_BEGIN(Reflection, reflection)
   OSL_CLOSURE_STRUCT_MEMBER(Reflection, VECTOR, packed_float3, N, nullptr)
 OSL_CLOSURE_STRUCT_END(Reflection, reflection)
@@ -52,6 +57,9 @@ OSL_CLOSURE_STRUCT_END(Refraction, refraction)
 
 OSL_CLOSURE_STRUCT_BEGIN(Transparent, transparent)
 OSL_CLOSURE_STRUCT_END(Transparent, transparent)
+
+OSL_CLOSURE_STRUCT_BEGIN(TransparentBSDF, transparent_bsdf)
+OSL_CLOSURE_STRUCT_END(TransparentBSDF, transparent_bsdf)
 
 OSL_CLOSURE_STRUCT_BEGIN(RayPortalBSDF, ray_portal_bsdf)
   OSL_CLOSURE_STRUCT_MEMBER(RayPortalBSDF, VECTOR, packed_float3, position, nullptr)
@@ -79,6 +87,8 @@ OSL_CLOSURE_STRUCT_BEGIN(ConductorBSDF, conductor_bsdf)
   OSL_CLOSURE_STRUCT_MEMBER(ConductorBSDF, VECTOR, packed_float3, ior, nullptr)
   OSL_CLOSURE_STRUCT_MEMBER(ConductorBSDF, VECTOR, packed_float3, extinction, nullptr)
   OSL_CLOSURE_STRUCT_MEMBER(ConductorBSDF, STRING, DeviceString, distribution, nullptr)
+  OSL_CLOSURE_STRUCT_MEMBER(ConductorBSDF, FLOAT, float, thinfilm_thickness, "thinfilm_thickness")
+  OSL_CLOSURE_STRUCT_MEMBER(ConductorBSDF, FLOAT, float, thinfilm_ior, "thinfilm_ior")
 OSL_CLOSURE_STRUCT_END(ConductorBSDF, conductor_bsdf)
 
 OSL_CLOSURE_STRUCT_BEGIN(GeneralizedSchlickBSDF, generalized_schlick_bsdf)
@@ -117,6 +127,9 @@ OSL_CLOSURE_STRUCT_BEGIN(MicrofacetF82Tint, microfacet_f82_tint)
   OSL_CLOSURE_STRUCT_MEMBER(MicrofacetF82Tint, FLOAT, float, alpha_y, nullptr)
   OSL_CLOSURE_STRUCT_MEMBER(MicrofacetF82Tint, VECTOR, packed_float3, f0, nullptr)
   OSL_CLOSURE_STRUCT_MEMBER(MicrofacetF82Tint, VECTOR, packed_float3, f82, nullptr)
+  OSL_CLOSURE_STRUCT_MEMBER(
+      MicrofacetF82Tint, FLOAT, float, thinfilm_thickness, "thinfilm_thickness")
+  OSL_CLOSURE_STRUCT_MEMBER(MicrofacetF82Tint, FLOAT, float, thinfilm_ior, "thinfilm_ior")
 OSL_CLOSURE_STRUCT_END(MicrofacetF82Tint, microfacet)
 
 OSL_CLOSURE_STRUCT_BEGIN(MicrofacetMultiGGXGlass, microfacet_multi_ggx_glass)

@@ -20,17 +20,12 @@ endif()
 set(TBB_LIBRARY tbb)
 set(TBB_STATIC_LIBRARY Off)
 
-# CMake script for TBB from https://github.com/wjakob/tbb/blob/master/CMakeLists.txt
 ExternalProject_Add(external_tbb
   URL file://${PACKAGE_DIR}/${TBB_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${TBB_HASH_TYPE}=${TBB_HASH}
   PREFIX ${BUILD_DIR}/tbb
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
-  PATCH_COMMAND
-    ${PATCH_CMD} -p 1 -d
-      ${BUILD_DIR}/tbb/src/external_tbb <
-      ${PATCH_DIR}/tbb_1478.diff
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/tbb ${DEFAULT_CMAKE_FLAGS} ${TBB_EXTRA_ARGS}
   INSTALL_DIR ${LIBDIR}/tbb
 )
@@ -59,5 +54,6 @@ if(WIN32)
   endif()
 else()
   harvest(external_tbb tbb/include tbb/include "*.h")
+  harvest(external_tbb tbb/lib/cmake/TBB tbb/lib/cmake/TBB "*.cmake")
   harvest_rpath_lib(external_tbb tbb/lib tbb/lib "*${SHAREDLIBEXT}*")
 endif()

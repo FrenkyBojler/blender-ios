@@ -75,17 +75,17 @@ class LoadFactor {
   uint8_t denominator_;
 
  public:
-  LoadFactor(uint8_t numerator, uint8_t denominator)
+  constexpr LoadFactor(uint8_t numerator, uint8_t denominator)
       : numerator_(numerator), denominator_(denominator)
   {
     BLI_assert(numerator > 0);
     BLI_assert(numerator < denominator);
   }
 
-  void compute_total_and_usable_slots(int64_t min_total_slots,
-                                      int64_t min_usable_slots,
-                                      int64_t *r_total_slots,
-                                      int64_t *r_usable_slots) const
+  constexpr void compute_total_and_usable_slots(int64_t min_total_slots,
+                                                int64_t min_usable_slots,
+                                                int64_t *r_total_slots,
+                                                int64_t *r_usable_slots) const
   {
     BLI_assert(is_power_of_2(int(min_total_slots)));
 
@@ -185,12 +185,12 @@ template<typename Key, Key EmptyValue, Key RemovedValue> struct TemplatedKeyInfo
 template<typename Pointer> struct PointerKeyInfo {
   static Pointer get_empty()
   {
-    return (Pointer)UINTPTR_MAX;
+    return Pointer(UINTPTR_MAX);
   }
 
   static void remove(Pointer &pointer)
   {
-    pointer = (Pointer)(UINTPTR_MAX - 1);
+    pointer = Pointer(UINTPTR_MAX - 1);
   }
 
   static bool is_empty(Pointer pointer)
@@ -266,9 +266,9 @@ class HashTableStats {
       total_collisions_ += collisions;
     }
 
-    average_collisions_ = (size_ == 0) ? 0 : (float)total_collisions_ / (float)size_;
-    load_factor_ = (float)size_ / (float)capacity_;
-    removed_load_factor_ = (float)removed_amount_ / (float)capacity_;
+    average_collisions_ = (size_ == 0) ? 0 : float(total_collisions_) / float(size_);
+    load_factor_ = float(size_) / float(capacity_);
+    removed_load_factor_ = float(removed_amount_) / float(capacity_);
   }
 
   void print(const char *name) const;

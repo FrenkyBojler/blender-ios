@@ -9,6 +9,8 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
 #include "bpy_app_usd.hh"
 
 #include "../generic/py_capi_utils.hh"
@@ -16,6 +18,8 @@
 #ifdef WITH_USD
 #  include "usd.hh"
 #endif
+
+namespace blender {
 
 static PyTypeObject BlenderAppUSDType;
 
@@ -52,7 +56,7 @@ static PyObject *make_usd_info()
 #define SetObjItem(obj) PyStructSequence_SET_ITEM(usd_info, pos++, obj)
 
 #ifdef WITH_USD
-  const int curversion = blender::io::usd::USD_get_version();
+  const int curversion = io::usd::USD_get_version();
   const int major = curversion / 10000;
   const int minor = (curversion / 100) % 100;
   const int patch = curversion % 100;
@@ -87,7 +91,9 @@ PyObject *BPY_app_usd_struct()
   BlenderAppUSDType.tp_init = nullptr;
   BlenderAppUSDType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppUSDType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppUSDType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
+
+}  // namespace blender

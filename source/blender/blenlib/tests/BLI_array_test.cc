@@ -37,6 +37,31 @@ TEST(array, FillConstructor)
   EXPECT_EQ(array[4], 8);
 }
 
+TEST(array, FillConstructorZero)
+{
+  Array<int> array(5, 0);
+  EXPECT_EQ(array.size(), 5);
+  EXPECT_EQ(array[0], 0);
+  EXPECT_EQ(array[1], 0);
+  EXPECT_EQ(array[2], 0);
+  EXPECT_EQ(array[3], 0);
+  EXPECT_EQ(array[4], 0);
+}
+
+TEST(array, FillConstructorZeroAligned)
+{
+  struct alignas(512) LargeAlignedType {
+    std::array<int, 857> array = {};
+  };
+  Array<LargeAlignedType> array(5, LargeAlignedType());
+  EXPECT_EQ(array.size(), 5);
+  EXPECT_EQ(array[0].array[285], 0);
+  EXPECT_EQ(array[1].array[285], 0);
+  EXPECT_EQ(array[2].array[285], 0);
+  EXPECT_EQ(array[3].array[285], 0);
+  EXPECT_EQ(array[4].array[285], 0);
+}
+
 TEST(array, InitializerListConstructor)
 {
   Array<int> array = {4, 5, 6, 7};
@@ -189,8 +214,8 @@ TEST(array, ReverseIterator)
     *it += 10;
   }
 
-  EXPECT_EQ_ARRAY(reversed_vec.data(), Span({6, 5, 4, 3}).data(), 4);
-  EXPECT_EQ_ARRAY(array.data(), Span({13, 14, 15, 16}).data(), 4);
+  EXPECT_EQ_SPAN<int>(reversed_vec, Span({6, 5, 4, 3}));
+  EXPECT_EQ_SPAN<int>(array, Span({13, 14, 15, 16}));
 }
 
 TEST(array, SpanConstructorExceptions)

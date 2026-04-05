@@ -40,6 +40,8 @@
 #include "wm.hh"
 #include "wm_event_system.hh"
 
+namespace blender {
+
 #define UNDOCUMENTED_OPERATOR_TIP N_("(undocumented operator)")
 
 static void wm_operatortype_free_macro(wmOperatorType *ot);
@@ -48,38 +50,16 @@ static void wm_operatortype_free_macro(wmOperatorType *ot);
 /** \name Operator Type Registry
  * \{ */
 
-using blender::StringRef;
-
-struct OperatorTypePointerHash {
-  uint64_t operator()(const wmOperatorType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct OperatorTypePointerNameEqual {
-  bool operator()(const wmOperatorType *a, const wmOperatorType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const wmOperatorType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_operators_map()
 {
+  struct OperatorNameGetter {
+    StringRef operator()(const wmOperatorType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
   static auto map = []() {
-    blender::VectorSet<wmOperatorType *,
-                       blender::DefaultProbingStrategy,
-                       OperatorTypePointerHash,
-                       OperatorTypePointerNameEqual>
-        map;
+    CustomIDVectorSet<wmOperatorType *, OperatorNameGetter> map;
     /* Reserve size is set based on blender default setup. */
     map.reserve(2048);
     return map;
@@ -87,7 +67,7 @@ static auto &get_operators_map()
   return map;
 }
 
-blender::Span<wmOperatorType *> WM_operatortypes_registered_get()
+Span<wmOperatorType *> WM_operatortypes_registered_get()
 {
   return get_operators_map();
 }
@@ -107,13 +87,12 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
     }
 
     if (!quiet) {
-      CLOG_INFO(
-          WM_LOG_OPERATORS, 0, "search for unknown operator '%s', '%s'\n", idname_bl, idname);
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for unknown operator '%s', '%s'", idname_bl, idname);
     }
   }
   else {
     if (!quiet) {
-      CLOG_INFO(WM_LOG_OPERATORS, 0, "search for empty operator");
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for empty operator");
     }
   }
 
@@ -126,12 +105,11 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
 
 static wmOperatorType *wm_operatortype_append__begin()
 {
-  wmOperatorType *ot = static_cast<wmOperatorType *>(
-      MEM_callocN(sizeof(wmOperatorType), "operatortype"));
+  wmOperatorType *ot = MEM_new<wmOperatorType>(__func__);
 
   BLI_assert(ot_prop_basic_count == -1);
 
-  ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_OperatorProperties);
   RNA_def_struct_property_tags(ot->srna, rna_enum_operator_property_tag_items);
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
   RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -153,10 +131,17 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
   /* XXX All ops should have a description but for now allow them not to. */
   RNA_def_struct_ui_text(
       ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-  RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), ot->srna, ot->idname);
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);
+
+  /* Needed so any operators registered after startup will have their shortcuts set,
+   * in "register" scripts for example, see: #143838.
+   *
+   * This only has run-time implications when run after startup,
+   * it's a no-op when run beforehand, see: #WM_keyconfig_update_on_startup. */
+  WM_keyconfig_update_operatortype_tag();
 }
 
 /* All ops in 1 list (for time being... needs evaluation later). */
@@ -189,7 +174,7 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
   BPY_free_srna_pytype(ot->srna);
 #endif
 
-  RNA_struct_free(&BLENDER_RNA, ot->srna);
+  RNA_struct_free(&RNA_blender_rna_get(), ot->srna);
 
   if (ot->last_properties) {
     IDP_FreeProperty(ot->last_properties);
@@ -201,9 +186,9 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 
   get_operators_map().remove(ot);
 
-  WM_keyconfig_update_operatortype();
+  WM_keyconfig_update_operatortype_tag();
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 bool WM_operatortype_remove(const char *idname)
@@ -231,10 +216,10 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
   if (ot->rna_ext.srna) {
     /* A Python operator, allocates its own string. */
-    MEM_freeN((void *)ot->idname);
+    MEM_delete(ot->idname);
   }
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 void wm_operatortype_free()
@@ -255,7 +240,6 @@ void WM_operatortype_props_advanced_begin(wmOperatorType *ot)
 
 void WM_operatortype_props_advanced_end(wmOperatorType *ot)
 {
-  PointerRNA struct_ptr;
   int counter = 0;
 
   if (ot_prop_basic_count == -1) {
@@ -263,7 +247,7 @@ void WM_operatortype_props_advanced_end(wmOperatorType *ot)
     return;
   }
 
-  WM_operator_properties_create_ptr(&struct_ptr, ot);
+  PointerRNA struct_ptr = WM_operator_properties_create_ptr(ot);
 
   RNA_STRUCT_BEGIN (&struct_ptr, prop) {
     counter++;
@@ -291,7 +275,7 @@ void WM_operatortype_idname_visit_for_search(
     PointerRNA * /*ptr*/,
     PropertyRNA * /*prop*/,
     const char * /*edit_text*/,
-    blender::FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
 {
   for (wmOperatorType *ot : get_operators_map()) {
     char idname_py[OP_MAX_TYPENAME];
@@ -311,31 +295,31 @@ void WM_operatortype_idname_visit_for_search(
  * \{ */
 
 struct MacroData {
-  int retval;
+  wmOperatorStatus retval;
 };
 
 static void wm_macro_start(wmOperator *op)
 {
   if (op->customdata == nullptr) {
-    op->customdata = MEM_callocN(sizeof(MacroData), "MacroData");
+    op->customdata = MEM_new_zeroed<MacroData>("MacroData");
   }
 }
 
-static int wm_macro_end(wmOperator *op, int retval)
+static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 {
-  if (retval & OPERATOR_CANCELLED) {
-    MacroData *md = static_cast<MacroData *>(op->customdata);
+  MacroData *md = static_cast<MacroData *>(op->customdata);
 
-    if (md->retval & OPERATOR_FINISHED) {
+  if (retval & (OPERATOR_CANCELLED | OPERATOR_INTERFACE)) {
+    if (md && (md->retval & OPERATOR_FINISHED)) {
       retval |= OPERATOR_FINISHED;
-      retval &= ~OPERATOR_CANCELLED;
+      retval &= ~(OPERATOR_CANCELLED | OPERATOR_INTERFACE);
     }
   }
 
   /* If modal is ending, free custom data. */
   if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
-    if (op->customdata) {
-      MEM_freeN(op->customdata);
+    if (md) {
+      MEM_delete(md);
       op->customdata = nullptr;
     }
   }
@@ -344,22 +328,22 @@ static int wm_macro_end(wmOperator *op, int retval)
 }
 
 /* Macro exec only runs exec calls. */
-static int wm_macro_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
 {
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
   const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
   wm_macro_start(op);
 
-  LISTBASE_FOREACH (wmOperator *, opm, &op->macro) {
-    if (opm->type->exec == nullptr) {
-      CLOG_WARN(WM_LOG_OPERATORS, "'%s' can't exec macro", opm->type->idname);
+  for (wmOperator &opm : op->macro) {
+    if (opm.type->exec == nullptr) {
+      CLOG_WARN(WM_LOG_OPERATORS, "'%s' can't exec macro", opm.type->idname);
       continue;
     }
 
-    opm->flag |= op_inherited_flag;
-    retval = opm->type->exec(C, opm);
-    opm->flag &= ~op_inherited_flag;
+    opm.flag |= op_inherited_flag;
+    retval = opm.type->exec(C, &opm);
+    opm.flag &= ~op_inherited_flag;
 
     OPERATOR_RETVAL_CHECK(retval);
 
@@ -375,12 +359,12 @@ static int wm_macro_exec(bContext *C, wmOperator *op)
   return wm_macro_end(op, retval);
 }
 
-static int wm_macro_invoke_internal(bContext *C,
-                                    wmOperator *op,
-                                    const wmEvent *event,
-                                    wmOperator *opm)
+static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent *event,
+                                                 wmOperator *opm)
 {
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
   const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
   /* Start from operator received as argument. */
@@ -411,16 +395,16 @@ static int wm_macro_invoke_internal(bContext *C,
   return wm_macro_end(op, retval);
 }
 
-static int wm_macro_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_macro_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wm_macro_start(op);
   return wm_macro_invoke_internal(C, op, event, static_cast<wmOperator *>(op->macro.first));
 }
 
-static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmOperator *opm = op->opm;
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
 
   if (opm == nullptr) {
     CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling nullptr modal()");
@@ -448,9 +432,9 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
         wmEventHandler_Op *handler;
 
         handler = static_cast<wmEventHandler_Op *>(
-            BLI_findptr(&win->modalhandlers, op, offsetof(wmEventHandler_Op, op)));
+            BLI_findptr(&win->runtime->modalhandlers, op, offsetof(wmEventHandler_Op, op)));
         if (handler) {
-          BLI_remlink(&win->modalhandlers, handler);
+          BLI_remlink(&win->runtime->modalhandlers, handler);
           wm_event_free_handler(&handler->head);
         }
 
@@ -511,8 +495,8 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
     return nullptr;
   }
 
-  ot = static_cast<wmOperatorType *>(MEM_callocN(sizeof(wmOperatorType), "operatortype"));
-  ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+  ot = MEM_new<wmOperatorType>(__func__);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_OperatorProperties);
 
   ot->idname = idname;
   ot->name = name;
@@ -530,7 +514,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
 
   RNA_def_struct_ui_text(
       ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-  RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), ot->srna, ot->idname);
   /* Use i18n context from rna_ext.srna if possible (py operators). */
   i18n_context = ot->rna_ext.srna ? RNA_struct_translation_context(ot->rna_ext.srna) :
                                     BLT_I18NCONTEXT_OPERATOR_DEFAULT;
@@ -548,8 +532,8 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 {
   wmOperatorType *ot;
 
-  ot = static_cast<wmOperatorType *>(MEM_callocN(sizeof(wmOperatorType), "operatortype"));
-  ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+  ot = MEM_new<wmOperatorType>(__func__);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", RNA_OperatorProperties);
 
   ot->flag = OPTYPE_MACRO;
   ot->exec = wm_macro_exec;
@@ -568,7 +552,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 
   RNA_def_struct_ui_text(
       ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-  RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), ot->srna, ot->idname);
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);
@@ -576,8 +560,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 
 wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname)
 {
-  wmOperatorTypeMacro *otmacro = static_cast<wmOperatorTypeMacro *>(
-      MEM_callocN(sizeof(wmOperatorTypeMacro), "wmOperatorTypeMacro"));
+  wmOperatorTypeMacro *otmacro = MEM_new<wmOperatorTypeMacro>("wmOperatorTypeMacro");
 
   STRNCPY(otmacro->idname, idname);
 
@@ -597,10 +580,10 @@ wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char
 
 static void wm_operatortype_free_macro(wmOperatorType *ot)
 {
-  LISTBASE_FOREACH (wmOperatorTypeMacro *, otmacro, &ot->macro) {
-    if (otmacro->ptr) {
-      WM_operator_properties_free(otmacro->ptr);
-      MEM_delete(otmacro->ptr);
+  for (wmOperatorTypeMacro &otmacro : ot->macro) {
+    if (otmacro.ptr) {
+      WM_operator_properties_free(otmacro.ptr);
+      MEM_delete(otmacro.ptr);
     }
   }
   BLI_freelistN(&ot->macro);
@@ -658,3 +641,5 @@ bool WM_operator_depends_on_cursor(bContext &C, wmOperatorType &ot, PointerRNA *
 }
 
 /** \} */
+
+}  // namespace blender

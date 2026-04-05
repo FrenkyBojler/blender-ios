@@ -39,7 +39,7 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
 
     TransData *td = nullptr;
     TransDataExtension *tx;
-    BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+    BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
     ParticleEditSettings *pset = PE_settings(t->scene);
     PTCacheEdit *edit = PE_get_current(t->depsgraph, t->scene, ob);
@@ -87,12 +87,11 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
     }
 
     tc->data_len = count;
-    td = tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransObData(Particle Mode)"));
+    td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransObData(Particle Mode)");
 
     if (t->mode == TFM_BAKE_TIME) {
-      tx = tc->data_ext = static_cast<TransDataExtension *>(
-          MEM_callocN(tc->data_len * sizeof(TransDataExtension), "Particle_TransExtension"));
+      tx = tc->data_ext = MEM_new_array_zeroed<TransDataExtension>(tc->data_len,
+                                                                   "Particle_TransExtension");
     }
     else {
       tx = tc->data_ext = nullptr;
@@ -144,17 +143,16 @@ static void createTransParticleVerts(bContext * /*C*/, TransInfo *t)
           td->protectflag |= OB_LOCK_LOC;
         }
 
-        td->ext = tx;
         if (t->mode == TFM_BAKE_TIME) {
           td->val = key->time;
           td->ival = *(key->time);
-          /* Abuse size and quat for min/max values. */
+          /* Abuse scale and quat for min/max values. */
           td->flag |= TD_NO_EXT;
           if (k == 0) {
-            tx->size = nullptr;
+            tx->scale = nullptr;
           }
           else {
-            tx->size = (key - 1)->time;
+            tx->scale = (key - 1)->time;
           }
 
           if (k == point->totkey - 1) {
@@ -189,7 +187,7 @@ static void flushTransParticles(TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     Scene *scene = t->scene;
     ViewLayer *view_layer = t->view_layer;
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     PTCacheEdit *edit = PE_get_current(t->depsgraph, scene, ob);
     ParticleSystem *psys = edit->psys;

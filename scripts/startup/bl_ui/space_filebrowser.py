@@ -25,7 +25,7 @@ class FILEBROWSER_HT_header(Header):
         layout.separator_spacer()
 
         if params.asset_library_reference not in {'LOCAL', 'ESSENTIALS'}:
-            layout.prop(params, "import_method", text="")
+            layout.popover("ASSETBROWSER_PT_import_settings", text="Import Settings")
 
         layout.separator_spacer()
 
@@ -210,18 +210,12 @@ class FILEBROWSER_UL_dir(UIList):
         direntry = item
         # space = context.space_data
 
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row(align=True)
-            row.enabled = direntry.is_valid
-            # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
-            if direntry.is_property_readonly("name"):
-                row.label(text=direntry.name, icon_value=icon)
-            else:
-                row.prop(direntry, "name", text="", emboss=False, icon_value=icon)
-
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(direntry, "path", text="")
+        row = layout.row(align=True)
+        # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
+        if direntry.is_property_readonly("name"):
+            row.label(text=direntry.name, icon_value=icon)
+        else:
+            row.prop(direntry, "name", text="", emboss=False, icon_value=icon)
 
 
 class FILEBROWSER_PT_bookmarks_volumes(Panel):
@@ -308,12 +302,14 @@ class FILEBROWSER_PT_bookmarks_favorites(FileBrowserPanel, Panel):
             row.template_list(
                 "FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
                 space, "bookmarks_active", item_dyntip_propname="path",
-                rows=(2 if num_rows < 2 else 4), maxrows=10,
+                rows=(3 if num_rows < 2 else 5), maxrows=10,
             )
 
             col = row.column(align=True)
             col.operator("file.bookmark_add", icon='ADD', text="")
             col.operator("file.bookmark_delete", icon='REMOVE', text="")
+
+            col.separator()
             col.menu("FILEBROWSER_MT_bookmarks_context_menu", icon='DOWNARROW_HLT', text="")
 
             if num_rows > 1:
@@ -469,7 +465,8 @@ class FILEBROWSER_PT_directory_path(Panel):
         subsubrow.popover("FILEBROWSER_PT_display", text="")
 
         subsubrow = subrow.row(align=True)
-        subsubrow.prop(params, "use_filter", toggle=True, icon='FILTER', icon_only=True)
+        subsubrow.prop(params, "use_filter", toggle=True, icon=(
+            'FILTER_FILLED' if params.use_filter else 'FILTER'), icon_only=True)
         subsubrow.popover("FILEBROWSER_PT_filter", text="")
 
         if space.active_operator:
@@ -607,14 +604,19 @@ class ASSETBROWSER_PT_display(asset_utils.AssetBrowserPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        if params.display_type == 'THUMBNAIL':
-            layout.prop(params, "display_size", text="Size")
-        else:
-            col = layout.column(heading="Columns", align=True)
-            col.prop(params, "show_details_size", text="Size")
-            col.prop(params, "show_details_datetime", text="Date")
+        col = layout.column()
+        col.prop(params, "display_type", expand=True)
 
-        layout.column().prop(params, "sort_method", text="Sort By", expand=True)
+        if params.display_type == 'THUMBNAIL':
+            col.prop(params, "display_size", text="Size")
+        else:
+            col.prop(params, "list_display_size", text="Preview Size")
+        if params.display_type == 'LIST_HORIZONTAL':
+            col.prop(params, "list_column_size", text="Column Size")
+
+        col.separator()
+
+        col.prop(params, "sort_method", text="Sort By", expand=True)
 
 
 class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
@@ -626,7 +628,9 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
         layout = self.layout
         space = context.space_data
         params = space.params
-        use_extended_browser = context.preferences.experimental.use_extended_asset_browser
+        experimental = context.preferences.experimental
+        use_extended_browser = experimental.use_extended_asset_browser
+        use_remote_asset_libraries = experimental.use_remote_asset_libraries
 
         if params.use_filter_blendid:
             col = layout.column(align=True)
@@ -640,6 +644,9 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
                     row = col.row()
                     row.label(icon=filter_id.bl_rna.properties[identifier].icon)
                     row.prop(filter_id, identifier, toggle=False)
+
+        if use_remote_asset_libraries:
+            layout.prop(params, "show_online_assets", text="Online Assets")
 
 
 class AssetBrowserMenu:
@@ -711,6 +718,27 @@ class ASSETBROWSER_MT_catalog(AssetBrowserMenu, Menu):
         layout.operator("asset.catalog_new").parent_path = ""
 
 
+class ASSETBROWSER_PT_import_settings(asset_utils.AssetBrowserPanel, Panel):
+    bl_idname = "ASSETBROWSER_PT_import_settings"
+    bl_region_type = 'HEADER'
+    bl_label = "Import Settings"
+    bl_options = {'HIDE_HEADER'}
+    bl_ui_units_x = 15
+
+    def draw(self, context):
+        layout = self.layout
+        params = context.space_data.params
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        layout.prop(params, "import_method", text="Import Method")
+
+        col = layout.column(heading="Instance Collections")
+        col.prop(params, "instance_collections_on_link", text="When Linking")
+        col.prop(params, "instance_collections_on_append", text="When Appending")
+
+
 class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
     bl_region_type = 'TOOL_PROPS'
     bl_label = "Asset Metadata"
@@ -762,7 +790,7 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
 
         row = layout.row(align=True)
         row.prop(wm, "asset_path_dummy", text="Source", icon='CURRENT_FILE' if is_local_asset else 'NONE')
-        row.operator("asset.open_containing_blend_file", text="", icon='TOOL_SETTINGS')
+        row.operator("asset.open_containing_blend_file", text="", icon='FILE_BLEND')
 
         metadata = asset.metadata
         self.metadata_prop(layout, metadata, "description")
@@ -797,6 +825,7 @@ class ASSETBROWSER_MT_metadata_preview_menu(Menu):
         layout.operator("ed.lib_id_generate_preview_from_object", text="Render Active Object")
         layout.separator()
         layout.operator("ed.lib_id_remove_preview")
+        layout.operator("asset.screenshot_preview")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):
@@ -837,8 +866,13 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         layout = self.layout
         st = context.space_data
         params = st.params
+        asset = context.asset
 
-        layout.operator("asset.library_refresh")
+        if asset and asset.is_online:
+            layout.operator("asset.assets_download")
+            layout.separator()
+
+        layout.operator("asset.library_refresh", icon='FILE_REFRESH')
 
         layout.separator()
 
@@ -849,7 +883,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
         layout.separator()
 
-        layout.operator("asset.open_containing_blend_file")
+        layout.operator("asset.open_containing_blend_file", icon='FILE_BLEND')
 
         layout.separator()
 
@@ -882,6 +916,7 @@ classes = (
     ASSETBROWSER_MT_view,
     ASSETBROWSER_MT_select,
     ASSETBROWSER_MT_catalog,
+    ASSETBROWSER_PT_import_settings,
     ASSETBROWSER_MT_metadata_preview_menu,
     ASSETBROWSER_PT_metadata,
     ASSETBROWSER_PT_metadata_preview,

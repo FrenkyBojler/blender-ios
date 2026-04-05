@@ -25,15 +25,15 @@
  * The Info.plist file should be properly configured with supported content type.
  *
  * # Codesigning
- * The plugin should be codesigned with entitlements at least for sandbox  and read-only/
+ * The plugin should be codesigned with entitlements at least for sandbox and read-only/
  * read-write (for access to the given file). It's needed to even run the plugin locally.
  * com.apple.security.get-task-allow entitlement is required for debugging.
  *
  * # Registering the plugin
  * The plugin should be registered with lsregister. Either by calling lsregister or by launching
  * the parent app.
- * /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-   -dump | grep blender-thumbnailer
+ * /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+ * \ -dump | grep blender-thumbnailer
  *
  * # Debugging
  * Since read-only entitlement is there, creating files to log is not possible. So NSLog and
@@ -47,16 +47,16 @@
  *
  * # Troubleshooting
  * - The appex shouldn't have any quarantine flag.
-     xattr -rl bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex
+ *   xattr -rl bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex
  * - Is it registered with lsregister and there isn't a conflict with another plugin taking
  *   precedence? lsregister -dump | grep blender-thumbnailer.appex
- * - For RBSLaunchRequest error: is the executable executable? chmod u+x
-  bin/Blender.app/Contents/PlugIns/blender-thumbnailer.appex/Contents/MacOS/blender-thumbnailer
+ * - For RBSLaunchRequest error: is the executable flag set? chmod u+x
+ * bin/Blender.app/Contents/PlugIns/blender-thumbnailer.appex/Contents/MacOS/blender-thumbnailer
  * - Is it codesigned and sandboxed?
  *   codesign --display --verbose --entitlements - --xml \
-  bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex codesign --deep --force --sign - \
-  --entitlements ../blender/release/darwin/thumbnailer_entitlements.plist --timestamp=none \
-  bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex
+ * bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex codesign --deep --force --sign - \
+ * --entitlements ../blender/release/darwin/thumbnailer_entitlements.plist --timestamp=none \
+ * bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex
  * - Sometimes blender-thumbnailer running in background can be killed.
  * - qlmanage -r && killall Finder
  * - The code cannot attempt to do anything outside sandbox like writing to blend.
@@ -75,7 +75,7 @@ class FileDescriptorRAII : blender::NonCopyable, blender::NonMovable {
  public:
   explicit FileDescriptorRAII(const char *file_path)
   {
-    src_fd = BLI_open(file_path, O_BINARY | O_RDONLY, 0);
+    src_fd = blender::BLI_open(file_path, O_BINARY | O_RDONLY, 0);
   }
 
   ~FileDescriptorRAII()
@@ -116,16 +116,16 @@ static NSImage *generate_nsimage_for_file(const char *src_blend_path, NSError *e
     return nil;
   }
 
-  FileReader *file_content = BLI_filereader_new_file(src_file_fd.get());
+  blender::FileReader *file_content = blender::BLI_filereader_new_file(src_file_fd.get());
   if (file_content == nullptr) {
     error = create_nserror_from_string(@"Failed to read from blend");
     return nil;
   }
 
   /* Extract thumbnail from file. */
-  Thumbnail thumb;
-  eThumbStatus err = blendthumb_create_thumb_from_file(file_content, &thumb);
-  if (err != BT_OK) {
+  blender::Thumbnail thumb;
+  blender::eThumbStatus err = blendthumb_create_thumb_from_file(file_content, &thumb);
+  if (err != blender::BT_OK) {
     error = create_nserror_from_string(@"Failed to create thumbnail from file");
     return nil;
   }
@@ -152,25 +152,35 @@ static NSImage *generate_nsimage_for_file(const char *src_blend_path, NSError *e
   NSLog(@"Generating thumbnail for %@", request.fileURL.path);
   @autoreleasepool {
     NSError *error = nil;
-    NSImage *ns_image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
-                                                  error);
-    if (ns_image == nil) {
+    NSImage *image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
+                                               error);
+    if (image == nil || image.size.width <= 0 || image.size.height <= 0) {
       handler(nil, error);
       return;
     }
-    handler([QLThumbnailReply replyWithContextSize:request.maximumSize
-                        currentContextDrawingBlock:^BOOL {
-                          [ns_image drawInRect:NSMakeRect(0,
-                                                          0,
-                                                          request.maximumSize.width,
-                                                          request.maximumSize.height)];
-                          // Release the ns_image that was strongly captured by the block.
-                          [ns_image release];
-                          return YES;
-                        }],
-            nil);
+
+    const CGFloat width_ratio = request.maximumSize.width / image.size.width;
+    const CGFloat height_ratio = request.maximumSize.height / image.size.height;
+    const CGFloat scale_factor = MIN(width_ratio, height_ratio);
+
+    const NSSize context_size = NSMakeSize(image.size.width * scale_factor,
+                                           image.size.height * scale_factor);
+
+    const NSRect context_rect = NSMakeRect(0, 0, context_size.width, context_size.height);
+
+    QLThumbnailReply *thumbnailReply = [QLThumbnailReply replyWithContextSize:context_size
+                                                   currentContextDrawingBlock:^BOOL {
+                                                     [image drawInRect:context_rect];
+                                                     /* Release the image that was strongly
+                                                      * captured by this block. */
+                                                     [image release];
+                                                     return YES;
+                                                   }];
+
+    /* Return the thumbnail reply. */
+    handler(thumbnailReply, nil);
   }
-  NSLog(@"Thumbnail generation succcessfully completed");
+  NSLog(@"Thumbnail generation successfully completed");
 }
 
 @end

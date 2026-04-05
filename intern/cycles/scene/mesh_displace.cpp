@@ -11,27 +11,9 @@
 #include "scene/scene.h"
 #include "scene/shader.h"
 
-#include "util/map.h"
 #include "util/progress.h"
-#include "util/set.h"
 
 CCL_NAMESPACE_BEGIN
-
-static float3 compute_face_normal(const Mesh::Triangle &t, float3 *verts)
-{
-  const float3 v0 = verts[t.v[0]];
-  const float3 v1 = verts[t.v[1]];
-  const float3 v2 = verts[t.v[2]];
-
-  const float3 norm = cross(v1 - v0, v2 - v0);
-  const float normlen = len(norm);
-
-  if (normlen == 0.0f) {
-    return make_float3(1.0f, 0.0f, 0.0f);
-  }
-
-  return norm / normlen;
-}
 
 /* Fill in coordinates for mesh displacement shader evaluation on device. */
 static int fill_shader_input(const Scene *scene,
@@ -144,7 +126,7 @@ static void read_shader_output(const Scene *scene,
         mesh_verts[t.v[j]] += off;
         if (attr_mP != nullptr) {
           for (int step = 0; step < num_motion_steps - 1; step++) {
-            float3 *mP = attr_mP->data_float3() + step * num_verts;
+            float3 *mP = attr_mP->data_float3_for_write() + step * num_verts;
             mP[t.v[j]] += off;
           }
         }
@@ -166,6 +148,23 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
   if (num_triangles == 0) {
     return false;
   }
+
+  /* Corner normals can't be preserved through displacement, replace with vertex normals. */
+  bool need_recompute_vertex_normals = false;
+  bool need_recompute_all_vertex_normals = false;
+
+  if (mesh->attributes.find(ATTR_STD_CORNER_NORMAL) ||
+      mesh->attributes.find(ATTR_STD_MOTION_CORNER_NORMAL))
+  {
+    mesh->attributes.remove(ATTR_STD_CORNER_NORMAL);
+    mesh->attributes.remove(ATTR_STD_MOTION_CORNER_NORMAL);
+    need_recompute_vertex_normals = true;
+    need_recompute_all_vertex_normals = true;
+    mesh->add_vertex_normals();
+  }
+
+  /* Add undisplaced attributes right before doing displacement. */
+  mesh->add_undisplaced(scene);
 
   const string msg = string_printf("Computing Displacement %s", mesh->name.c_str());
   progress.set_status("Updating Mesh", msg);
@@ -196,47 +195,9 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
     return false;
   }
 
-  /* stitch */
-  unordered_set<int> stitch_keys;
-  for (const pair<int, int> i : mesh->vert_to_stitching_key_map) {
-    stitch_keys.insert(i.second); /* stitching index */
-  }
-
-  using map_it_t = unordered_multimap<int, int>::iterator;
-
-  for (const int key : stitch_keys) {
-    const pair<map_it_t, map_it_t> verts = mesh->vert_stitching_map.equal_range(key);
-
-    float3 pos = zero_float3();
-    int num = 0;
-
-    for (map_it_t v = verts.first; v != verts.second; ++v) {
-      const int vert = v->second;
-
-      pos += mesh->verts[vert];
-      num++;
-    }
-
-    if (num <= 1) {
-      continue;
-    }
-
-    pos *= 1.0f / num;
-
-    for (map_it_t v = verts.first; v != verts.second; ++v) {
-      mesh->verts[v->second] = pos;
-    }
-  }
-
-  /* for displacement method both, we only need to recompute the face
-   * normals, as bump mapping in the shader will already alter the
-   * vertex normal, so we start from the non-displaced vertex normals
-   * to avoid applying the perturbation twice. */
-  mesh->attributes.remove(ATTR_STD_FACE_NORMAL);
-  mesh->add_face_normals();
-
-  bool need_recompute_vertex_normals = false;
-
+  /* For displacement method both, we don't need to recompute the vertex normals
+   * as bump mapping in the shader will already alter the vertex normal, so we start
+   * from the non-displaced vertex normals to avoid applying the perturbation twice. */
   for (Node *node : mesh->get_used_shaders()) {
     Shader *shader = static_cast<Shader *>(node);
     if (shader->has_displacement && shader->get_displacement_method() == DISPLACE_TRUE) {
@@ -247,82 +208,71 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
 
   if (need_recompute_vertex_normals) {
     const bool flip = mesh->transform_negative_scaled;
-    vector<bool> tri_has_true_disp(num_triangles, false);
+    vector<bool> tri_recompute(num_triangles, need_recompute_all_vertex_normals);
 
-    for (size_t i = 0; i < num_triangles; i++) {
-      const int shader_index = mesh->shader[i];
-      Shader *shader = (shader_index < mesh->used_shaders.size()) ?
-                           static_cast<Shader *>(mesh->used_shaders[shader_index]) :
-                           scene->default_surface;
+    if (!need_recompute_all_vertex_normals) {
+      for (size_t i = 0; i < num_triangles; i++) {
+        const int shader_index = mesh->shader[i];
+        Shader *shader = (shader_index < mesh->used_shaders.size()) ?
+                             static_cast<Shader *>(mesh->used_shaders[shader_index]) :
+                             scene->default_surface;
 
-      tri_has_true_disp[i] = shader->has_displacement &&
-                             shader->get_displacement_method() == DISPLACE_TRUE;
+        tri_recompute[i] = shader->has_displacement &&
+                           shader->get_displacement_method() == DISPLACE_TRUE;
+      }
     }
 
     /* static vertex normals */
 
     /* get attributes */
-    Attribute *attr_fN = mesh->attributes.find(ATTR_STD_FACE_NORMAL);
     Attribute *attr_vN = mesh->attributes.find(ATTR_STD_VERTEX_NORMAL);
 
-    float3 *fN = attr_fN->data_float3();
-    float3 *vN = attr_vN->data_float3();
-
     /* compute vertex normals */
+    vector<float3> vN_float(num_verts, zero_float3());
 
     /* zero vertex normals on triangles with true displacement */
     for (size_t i = 0; i < num_triangles; i++) {
-      if (tri_has_true_disp[i]) {
+      if (tri_recompute[i]) {
+        const Mesh::Triangle triangle = mesh->get_triangle(i);
         for (size_t j = 0; j < 3; j++) {
-          vN[mesh->get_triangle(i).v[j]] = zero_float3();
+          vN_float[triangle.v[j]] = zero_float3();
         }
       }
     }
 
     /* add face normals to vertex normals */
+    const float3 *verts_data = mesh->get_verts().data();
     for (size_t i = 0; i < num_triangles; i++) {
-      if (tri_has_true_disp[i]) {
+      if (tri_recompute[i]) {
+        const Mesh::Triangle triangle = mesh->get_triangle(i);
+        const float3 fN = triangle.compute_normal(verts_data);
+
         for (size_t j = 0; j < 3; j++) {
-          const int vert = mesh->get_triangle(i).v[j];
-          vN[vert] += fN[i];
-
-          /* add face normals to stitched vertices */
-          if (!stitch_keys.empty()) {
-            const map_it_t key = mesh->vert_to_stitching_key_map.find(vert);
-
-            if (key != mesh->vert_to_stitching_key_map.end()) {
-              const pair<map_it_t, map_it_t> verts = mesh->vert_stitching_map.equal_range(
-                  key->second);
-
-              for (map_it_t v = verts.first; v != verts.second; ++v) {
-                if (v->second == vert) {
-                  continue;
-                }
-
-                vN[v->second] += fN[i];
-              }
-            }
-          }
+          const int vert = triangle.v[j];
+          vN_float[vert] += fN;
         }
       }
     }
 
     /* normalize vertex normals */
+    packed_normal *vN = attr_vN->data_normal_for_write();
     vector<bool> done(num_verts, false);
 
     for (size_t i = 0; i < num_triangles; i++) {
-      if (tri_has_true_disp[i]) {
+      if (tri_recompute[i]) {
+        const Mesh::Triangle triangle = mesh->get_triangle(i);
         for (size_t j = 0; j < 3; j++) {
-          const int vert = mesh->get_triangle(i).v[j];
+          const int vert = triangle.v[j];
 
           if (done[vert]) {
             continue;
           }
 
-          vN[vert] = normalize(vN[vert]);
+          float3 N = normalize(vN_float[vert]);
           if (flip) {
-            vN[vert] = -vN[vert];
+            N = -N;
           }
+          vN[vert] = packed_normal(N);
 
           done[vert] = true;
         }
@@ -335,45 +285,31 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
 
     if (mesh->has_motion_blur() && attr_mP && attr_mN) {
       for (int step = 0; step < mesh->motion_steps - 1; step++) {
-        float3 *mP = attr_mP->data_float3() + step * mesh->verts.size();
-        float3 *mN = attr_mN->data_float3() + step * mesh->verts.size();
+        const float3 *mP = attr_mP->data_float3() + step * mesh->verts.size();
+        packed_normal *mN = attr_mN->data_normal_for_write() + step * mesh->verts.size();
 
         /* compute */
+        vector<float3> mN_float(num_verts, zero_float3());
 
         /* zero vertex normals on triangles with true displacement */
         for (size_t i = 0; i < num_triangles; i++) {
-          if (tri_has_true_disp[i]) {
+          if (tri_recompute[i]) {
+            const Mesh::Triangle triangle = mesh->get_triangle(i);
             for (size_t j = 0; j < 3; j++) {
-              mN[mesh->get_triangle(i).v[j]] = zero_float3();
+              mN_float[triangle.v[j]] = zero_float3();
             }
           }
         }
 
         /* add face normals to vertex normals */
         for (size_t i = 0; i < num_triangles; i++) {
-          if (tri_has_true_disp[i]) {
+          if (tri_recompute[i]) {
+            const Mesh::Triangle triangle = mesh->get_triangle(i);
+            const float3 fN = triangle.compute_normal(mP);
+
             for (size_t j = 0; j < 3; j++) {
-              const int vert = mesh->get_triangle(i).v[j];
-              const float3 fN = compute_face_normal(mesh->get_triangle(i), mP);
-              mN[vert] += fN;
-
-              /* add face normals to stitched vertices */
-              if (!stitch_keys.empty()) {
-                const map_it_t key = mesh->vert_to_stitching_key_map.find(vert);
-
-                if (key != mesh->vert_to_stitching_key_map.end()) {
-                  const pair<map_it_t, map_it_t> verts = mesh->vert_stitching_map.equal_range(
-                      key->second);
-
-                  for (map_it_t v = verts.first; v != verts.second; ++v) {
-                    if (v->second == vert) {
-                      continue;
-                    }
-
-                    mN[v->second] += fN;
-                  }
-                }
-              }
+              const int vert = triangle.v[j];
+              mN_float[vert] += fN;
             }
           }
         }
@@ -382,18 +318,20 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
         vector<bool> done(num_verts, false);
 
         for (size_t i = 0; i < num_triangles; i++) {
-          if (tri_has_true_disp[i]) {
+          if (tri_recompute[i]) {
+            const Mesh::Triangle triangle = mesh->get_triangle(i);
             for (size_t j = 0; j < 3; j++) {
-              const int vert = mesh->get_triangle(i).v[j];
+              const int vert = triangle.v[j];
 
               if (done[vert]) {
                 continue;
               }
 
-              mN[vert] = normalize(mN[vert]);
+              float3 N = normalize(mN_float[vert]);
               if (flip) {
-                mN[vert] = -mN[vert];
+                N = -N;
               }
+              mN[vert] = packed_normal(N);
 
               done[vert] = true;
             }
@@ -402,6 +340,8 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
       }
     }
   }
+
+  mesh->update_tangents(scene, false);
 
   return true;
 }

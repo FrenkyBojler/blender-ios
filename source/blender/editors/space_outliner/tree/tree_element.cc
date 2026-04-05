@@ -16,6 +16,7 @@
 #include "UI_resources.hh"
 
 #include "tree_display.hh"
+#include "tree_element_action_slot.hh"
 #include "tree_element_anim_data.hh"
 #include "tree_element_bone.hh"
 #include "tree_element_bone_collection.hh"
@@ -200,6 +201,9 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
           legacy_te,
           *reinterpret_cast<bArmature *>(owner_id),
           *static_cast<BoneCollection *>(create_data));
+    case TSE_ACTION_SLOT:
+      return std::make_unique<TreeElementActionSlot>(
+          legacy_te, *reinterpret_cast<animrig::Slot *>(create_data));
 
     default:
       break;
@@ -236,7 +240,7 @@ void AbstractTreeElement::uncollapse_by_default(TreeElement *legacy_te)
   }
 }
 
-TreeElement *AbstractTreeElement::add_element(ListBase *lb,
+TreeElement *AbstractTreeElement::add_element(ListBaseT<TreeElement> *lb,
                                               ID *owner_id,
                                               void *create_data,
                                               TreeElement *parent,
@@ -247,7 +251,7 @@ TreeElement *AbstractTreeElement::add_element(ListBase *lb,
   if (!display_) {
     BLI_assert_msg(false,
                    "Element not registered properly through AbstractTreeDisplay::add_element(), "
-                   "can't expand the tree further");
+                   "cannot expand the tree further");
     return nullptr;
   }
 

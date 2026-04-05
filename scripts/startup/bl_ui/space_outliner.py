@@ -10,6 +10,15 @@ from bpy.app.translations import (
 )
 
 
+def has_selected_ids_in_context(context):
+    if getattr(context, "id", None) is not None:
+        return True
+    if len(context.selected_ids) > 0:
+        return True
+
+    return False
+
+
 class OUTLINER_HT_header(Header):
     bl_space_type = 'OUTLINER'
 
@@ -57,7 +66,8 @@ class OUTLINER_HT_header(Header):
             )
 
         if display_mode in {'LIBRARIES', 'ORPHAN_DATA'}:
-            row.prop(space, "use_filter_id_type", text="", icon='FILTER')
+            row.prop(space, "use_filter_id_type", text="", icon=(
+                'FILTER_FILLED' if space.use_filter_id_type else 'FILTER'))
             sub = row.row(align=True)
             sub.active = space.use_filter_id_type
             sub.prop(space, "filter_id_type", text="", icon_only=True)
@@ -155,6 +165,24 @@ class OUTLINER_MT_view_pie(Menu):
         pie = layout.menu_pie()
         pie.operator("outliner.show_hierarchy")
         pie.operator("outliner.show_active", icon='ZOOM_SELECTED')
+
+
+class OUTLINER_MT_id_data(Menu):
+    bl_label = "ID Data"
+
+    @classmethod
+    def poll(cls, context):
+        return has_selected_ids_in_context(context)
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_enum("outliner.id_operation", "type")
+
+        id_linked = getattr(context, "id", None)
+        if id_linked and id_linked.library:
+            layout.separator()
+            layout.operator("outliner.id_linked_relocate", text="Relocate")
 
 
 class OUTLINER_MT_edit_datablocks(Menu):
@@ -261,7 +289,7 @@ class OUTLINER_MT_collection(Menu):
 
         layout.separator()
 
-        layout.operator_menu_enum("outliner.id_operation", "type", text="ID Data")
+        layout.menu("OUTLINER_MT_id_data")
 
         layout.separator()
 
@@ -318,20 +346,11 @@ class OUTLINER_MT_object(Menu):
 
         layout.separator()
 
-        layout.operator_menu_enum("outliner.id_operation", "type", text="ID Data")
+        layout.menu("OUTLINER_MT_id_data")
 
         layout.separator()
 
         OUTLINER_MT_context_menu.draw_common_operators(layout)
-
-
-def has_selected_ids_in_context(context):
-    if hasattr(context, "id"):
-        return True
-    if len(context.selected_ids) > 0:
-        return True
-
-    return False
 
 
 class OUTLINER_MT_asset(Menu):
@@ -454,7 +473,7 @@ class OUTLINER_PT_filter(Panel):
         row.prop(space, "use_filter_view_layers", text="All View Layers")
 
         row = col.row()
-        row.label(icon='OUTLINER_COLLECTION')
+        row.label(icon='GROUP')
         row.prop(space, "use_filter_collection", text="Collections")
 
         row = col.row()
@@ -493,7 +512,7 @@ class OUTLINER_PT_filter(Panel):
             row = sub.row()
             row.label(icon='CAMERA_DATA')
             row.prop(space, "use_filter_object_camera", text="Cameras")
-        if bpy.data.grease_pencils_v3:
+        if bpy.data.grease_pencils:
             row = sub.row()
             row.label(icon='STROKE')
             row.prop(space, "use_filter_object_grease_pencil", text="Grease Pencil")
@@ -525,6 +544,7 @@ classes = (
     OUTLINER_MT_collection_new,
     OUTLINER_MT_collection_visibility,
     OUTLINER_MT_collection_view_layer,
+    OUTLINER_MT_id_data,
     OUTLINER_MT_object,
     OUTLINER_MT_asset,
     OUTLINER_MT_liboverride,

@@ -24,7 +24,9 @@
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_time.hh"
 
-namespace deg = blender::deg;
+#include "BLI_math_bits.h"
+
+namespace blender {
 
 void DEG_debug_flags_set(Depsgraph *depsgraph, int flags)
 {
@@ -149,7 +151,7 @@ bool DEG_debug_consistency_check(Depsgraph *graph)
     }
     for (deg::Relation *rel : node->outlinks) {
       if (rel->to->type == deg::NodeType::OPERATION) {
-        deg::OperationNode *to = (deg::OperationNode *)rel->to;
+        deg::OperationNode *to = static_cast<deg::OperationNode *>(rel->to);
         BLI_assert(to->num_links_pending < to->inlinks.size());
         ++to->num_links_pending;
       }
@@ -357,3 +359,38 @@ void DEG_debug_print_eval_time(Depsgraph *depsgraph,
           time);
   fflush(stdout);
 }
+
+static std::string stringify_append_bit(const std::string &str, IDRecalcFlag tag)
+{
+  const char *tag_name = DEG_update_tag_as_string(tag);
+  if (tag_name == nullptr) {
+    return str;
+  }
+  std::string result = str;
+  if (!result.empty()) {
+    result += ", ";
+  }
+  result += tag_name;
+  return result;
+}
+
+std::string DEG_stringify_recalc_flags(uint flags)
+{
+  if (flags == 0) {
+    return "NONE";
+  }
+  std::string result;
+  uint current_flag = flags;
+  /* Special cases to avoid ALL flags from being split into individual bits. */
+  if ((current_flag & ID_RECALC_PSYS_ALL) == ID_RECALC_PSYS_ALL) {
+    result = stringify_append_bit(result, ID_RECALC_PSYS_ALL);
+  }
+  /* Handle all the rest of the flags. */
+  while (current_flag != 0) {
+    IDRecalcFlag tag = IDRecalcFlag(1 << bitscan_forward_clear_uint(&current_flag));
+    result = stringify_append_bit(result, tag);
+  }
+  return result;
+}
+
+}  // namespace blender

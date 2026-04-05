@@ -20,6 +20,8 @@
 
 #include "view3d_navigate.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name View Orbit Operator
  *
@@ -41,7 +43,7 @@ static const EnumPropertyItem prop_view_orbit_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int vieworbit_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
 {
   float angle;
   {
@@ -143,7 +145,7 @@ void VIEW3D_OT_view_orbit(wmOperatorType *ot)
   ot->description = "Orbit the view";
   ot->idname = ViewOpsType_orbit.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vieworbit_exec;
   ot->poll = ED_operator_rv3d_user_region_poll;
 
@@ -167,3 +169,5 @@ const ViewOpsType ViewOpsType_orbit = {
     /*init_fn*/ nullptr,
     /*apply_fn*/ nullptr,
 };
+
+}  // namespace blender

@@ -21,14 +21,19 @@ ccl_device_inline bool svm_node_aov_check(const uint32_t path_flag,
 
 template<uint node_feature_mask, typename ConstIntegratorGenericState>
 ccl_device void svm_node_aov_color(KernelGlobals kg,
-                                   ConstIntegratorGenericState state,
                                    ccl_private ShaderData *sd,
+                                   ConstIntegratorGenericState state,
                                    ccl_private float *stack,
                                    const uint4 node,
                                    ccl_global float *render_buffer)
 {
   IF_KERNEL_NODES_FEATURE(AOV)
   {
+    /* Don't write AOV on texture cache miss, we'll try again when the texture exists. */
+    if (sd->flag & SD_CACHE_MISS) {
+      return;
+    }
+
     const float3 val = stack_load_float3(stack, node.y);
     film_write_aov_pass_color(kg, state, render_buffer, node.z, val);
   }
@@ -36,14 +41,19 @@ ccl_device void svm_node_aov_color(KernelGlobals kg,
 
 template<uint node_feature_mask, typename ConstIntegratorGenericState>
 ccl_device void svm_node_aov_value(KernelGlobals kg,
-                                   ConstIntegratorGenericState state,
                                    ccl_private ShaderData *sd,
+                                   ConstIntegratorGenericState state,
                                    ccl_private float *stack,
                                    const uint4 node,
                                    ccl_global float *render_buffer)
 {
   IF_KERNEL_NODES_FEATURE(AOV)
   {
+    /* Don't write AOV on texture cache miss, we'll try again when the texture exists. */
+    if (sd->flag & SD_CACHE_MISS) {
+      return;
+    }
+
     const float val = stack_load_float(stack, node.y);
     film_write_aov_pass_value(kg, state, render_buffer, node.z, val);
   }

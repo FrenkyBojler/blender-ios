@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <mutex>
 
 #include <ft2build.h>
 
@@ -36,6 +35,8 @@
 #include "blf_internal.hh"
 #include "blf_internal_types.hh"
 
+namespace blender {
+
 #define BLF_RESULT_CHECK_INIT(r_info) \
   if (r_info) { \
     memset(r_info, 0, sizeof(*(r_info))); \
@@ -49,7 +50,7 @@ FontBLF *global_font[BLF_MAX_FONT] = {nullptr};
 int blf_mono_font = -1;
 int blf_mono_font_render = -1;
 
-static std::mutex g_blf_load_mutex;
+static Mutex g_blf_load_mutex;
 
 static FontBLF *blf_get(int fontid)
 {
@@ -318,28 +319,31 @@ void BLF_addref_id(int fontid)
   }
 }
 
-void BLF_enable(int fontid, int option)
+void BLF_enable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags |= option;
+    font->flags |= flag;
   }
 }
 
-void BLF_disable(int fontid, int option)
+void BLF_disable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags &= ~option;
+    font->flags &= ~flag;
   }
 }
 
 bool BLF_is_builtin(int fontid)
 {
   FontBLF *font = blf_get(fontid);
-  return font ? (font->flags & BLF_DEFAULT) : false;
+  if (font) {
+    return font->flags & BLF_DEFAULT;
+  }
+  return false;
 }
 
 void BLF_character_weight(int fontid, int weight)
@@ -591,10 +595,6 @@ void BLF_draw(int fontid, const char *str, const size_t str_len, ResultBLF *r_in
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-
-    /* Avoid bgl usage to corrupt BLF drawing. */
-    GPU_bgl_end();
-
     blf_draw_gpu__start(font);
     if (font->flags & BLF_WORD_WRAP) {
       blf_font_draw__wrap(font, str, str_len, r_info);
@@ -631,15 +631,31 @@ void BLF_draw_svg_icon(uint icon_id,
                        const float color[4],
                        float outline_alpha,
                        bool multicolor,
-                       blender::FunctionRef<void(std::string &)> edit_source_cb)
+                       FunctionRef<void(std::string &)> edit_source_cb)
 {
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
   if (font) {
-    /* Avoid bgl usage to corrupt BLF drawing. */
-    GPU_bgl_end();
-    blf_draw_gpu__start(font);
-    blf_draw_svg_icon(font, icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+    font->pos[0] = x;
+    font->pos[1] = y;
+    font->pos[2] = 0;
+
+    if (font->flags & (BLF_ROTATION | BLF_ASPECT)) {
+      GPU_matrix_push();
+
+      const float center = (font->flags & BLF_ROTATION) ? size / 2.0f : 0.0f;
+      GPU_matrix_translate_3f(font->pos[0] + center, font->pos[1] + center, font->pos[2]);
+      if (font->flags & BLF_ASPECT) {
+        GPU_matrix_scale_3fv(font->aspect);
+      }
+
+      if (font->flags & BLF_ROTATION) {
+        GPU_matrix_rotate_2d(RAD2DEG(font->angle));
+        GPU_matrix_translate_3f(-center, -center, 0);
+      }
+    }
+
+    blf_draw_svg_icon(font, icon_id, size, color, outline_alpha, multicolor, edit_source_cb);
     blf_draw_gpu__end(font);
   }
 #else
@@ -647,12 +663,12 @@ void BLF_draw_svg_icon(uint icon_id,
 #endif /* WITH_HEADLESS */
 }
 
-blender::Array<uchar> BLF_svg_icon_bitmap(uint icon_id,
-                                          float size,
-                                          int *r_width,
-                                          int *r_height,
-                                          bool multicolor,
-                                          blender::FunctionRef<void(std::string &)> edit_source_cb)
+Array<uchar> BLF_svg_icon_bitmap(uint icon_id,
+                                 float size,
+                                 int *r_width,
+                                 int *r_height,
+                                 bool multicolor,
+                                 FunctionRef<void(std::string &)> edit_source_cb)
 {
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
@@ -719,7 +735,7 @@ int BLF_str_offset_to_cursor(int fontid,
   return 0;
 }
 
-blender::Vector<blender::Bounds<int>> BLF_str_selection_boxes(
+Vector<Bounds<int>> BLF_str_selection_boxes(
     int fontid, const char *str, size_t str_len, size_t sel_start, size_t sel_length)
 {
   FontBLF *font = blf_get(fontid);
@@ -895,6 +911,15 @@ int BLF_ascender(int fontid)
   return 0.0f;
 }
 
+bool BLF_bounds_max(int fontid, rctf *r_bounds)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return blf_font_bounds_max(font, r_bounds);
+  }
+  return false;
+}
+
 void BLF_rotation(int fontid, float angle)
 {
   FontBLF *font = blf_get(fontid);
@@ -916,12 +941,13 @@ void BLF_clipping(int fontid, int xmin, int ymin, int xmax, int ymax)
   }
 }
 
-void BLF_wordwrap(int fontid, int wrap_width)
+void BLF_wordwrap(int fontid, int wrap_width, BLFWrapMode mode)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
     font->wrap_width = wrap_width;
+    font->wrap_mode = mode;
   }
 }
 
@@ -947,7 +973,7 @@ void BLF_shadow_offset(int fontid, int x, int y)
   }
 }
 
-void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, ColorManagedDisplay *display)
+void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, const ColorSpace *colorspace)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -956,16 +982,62 @@ void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, ColorManaged
     font->buf_info.cbuf = cbuf;
     font->buf_info.dims[0] = w;
     font->buf_info.dims[1] = h;
-    font->buf_info.display = display;
+    font->buf_info.colorspace = colorspace;
   }
 }
 
-void BLF_buffer_col(int fontid, const float rgba[4])
+struct BLFBufferState {
+  int fontid;
+  /**
+   * This only exists to validate the font has not been freed since the state was created.
+   * Needed because the state can be used from Python.
+   */
+  const FontBLF *font;
+
+  FontBufInfoBLF buf_info;
+};
+
+BLFBufferState *BLF_buffer_state_push(int fontid)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    BLFBufferState *buffer_state = MEM_new<BLFBufferState>(__func__);
+    buffer_state->fontid = fontid;
+    buffer_state->font = font;
+    buffer_state->buf_info = font->buf_info;
+    return buffer_state;
+  }
+  return nullptr;
+}
+
+void BLF_buffer_state_pop(BLFBufferState *buffer_state)
+{
+  FontBLF *font = blf_get(buffer_state->fontid);
+  /* It's possible the font has been removed as this is called from Python. */
+  if (font == buffer_state->font) {
+    /* From the callers perspective, don't consider the color part of the buffer info.
+     *
+     * NOTE(@ideasman42) This is done because the color is not logically part of the image binding.
+     * It looks like we can refactor color out of #FontBufInfoBLF::col_init,
+     * and use #FontBLF::color instead. */
+    copy_v4_v4(buffer_state->buf_info.col_init, font->buf_info.col_init);
+
+    font->buf_info = buffer_state->buf_info;
+  }
+  BLF_buffer_state_free(buffer_state);
+}
+
+void BLF_buffer_state_free(BLFBufferState *buffer_state)
+{
+  MEM_delete(buffer_state);
+}
+
+void BLF_buffer_col(int fontid, const float srgb_color[4])
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    copy_v4_v4(font->buf_info.col_init, rgba);
+    copy_v4_v4(font->buf_info.col_init, srgb_color);
   }
 }
 
@@ -973,14 +1045,19 @@ void blf_draw_buffer__start(FontBLF *font)
 {
   FontBufInfoBLF *buf_info = &font->buf_info;
 
-  rgba_float_to_uchar(buf_info->col_char, buf_info->col_init);
+  /* This will be written to scene linear image buffer, so convert to that. */
+  IMB_colormanagement_srgb_to_scene_linear_v3(buf_info->col_float, buf_info->col_init);
+  buf_info->col_float[3] = buf_info->col_init[3];
 
-  if (buf_info->display) {
-    copy_v4_v4(buf_info->col_float, buf_info->col_init);
-    IMB_colormanagement_display_to_scene_linear_v3(buf_info->col_float, buf_info->display);
+  /* Convert to the colorspace of the byte image buffer, assumed sRGB if not specified. */
+  if (buf_info->colorspace) {
+    float col_char[4];
+    copy_v4_v4(col_char, buf_info->col_float);
+    IMB_colormanagement_scene_linear_to_colorspace_v3(col_char, buf_info->colorspace);
+    rgba_float_to_uchar(buf_info->col_char, col_char);
   }
   else {
-    srgb_to_linearrgb_v4(buf_info->col_float, buf_info->col_init);
+    rgba_float_to_uchar(buf_info->col_char, buf_info->col_init);
   }
 }
 void blf_draw_buffer__end() {}
@@ -1001,15 +1078,16 @@ void BLF_draw_buffer(int fontid, const char *str, const size_t str_len, ResultBL
   }
 }
 
-blender::Vector<blender::StringRef> BLF_string_wrap(int fontid,
-                                                    blender::StringRef str,
-                                                    const int max_pixel_width)
+Vector<StringRef> BLF_string_wrap(int fontid,
+                                  StringRef str,
+                                  const int max_pixel_width,
+                                  BLFWrapMode mode)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
     return {};
   }
-  return blf_font_string_wrap(font, str, max_pixel_width);
+  return blf_font_string_wrap(font, str, max_pixel_width, mode);
 }
 
 char *BLF_display_name_from_file(const char *filepath)
@@ -1085,14 +1163,18 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
   return true;
 }
 
-float BLF_character_to_curves(
-    int fontid, uint unicode, ListBase *nurbsbase, const float scale, bool use_fallback)
+bool BLF_character_to_curves(int fontid,
+                             uint unicode,
+                             ListBaseT<Nurb> *nurbsbase,
+                             const float scale,
+                             bool use_fallback,
+                             float *r_advance)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
-    return 0.0f;
+    return false;
   }
-  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback);
+  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback, r_advance);
 }
 
 #ifndef NDEBUG
@@ -1100,7 +1182,7 @@ void BLF_state_print(int fontid)
 {
   FontBLF *font = blf_get(fontid);
   if (font) {
-    printf("fontid %d %p\n", fontid, (void *)font);
+    printf("fontid %d %p\n", fontid, static_cast<void *>(font));
     printf("  mem_name:    '%s'\n", font->mem_name ? font->mem_name : "<none>");
     printf("  filepath:    '%s'\n", font->filepath ? font->filepath : "<none>");
     printf("  size:     %f\n", font->size);
@@ -1117,3 +1199,5 @@ void BLF_state_print(int fontid)
   fflush(stdout);
 }
 #endif
+
+}  // namespace blender

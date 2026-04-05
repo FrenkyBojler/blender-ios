@@ -3,16 +3,20 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include "BLI_string_ref.hh"
+
 #include <pxr/usd/usdShade/material.h>
 
 #include <string>
+
+namespace blender {
 
 struct bNode;
 struct Image;
 struct Material;
 struct ReportList;
 
-namespace blender::io::usd {
+namespace io::usd {
 
 struct USDExporterContext;
 struct USDExportParams;
@@ -33,7 +37,7 @@ pxr::UsdShadeMaterial create_usd_material(const USDExporterContext &usd_export_c
  * Returns a USDPreviewSurface token name for a given Blender shader Socket name,
  * or an empty TfToken if the input name is not found in the map.
  */
-pxr::TfToken token_for_input(const char *input_name);
+pxr::TfToken token_for_input(const StringRef input_name);
 
 void export_texture(bNode *node,
                     const pxr::UsdStageRefPtr stage,
@@ -71,4 +75,5 @@ std::string get_tex_image_asset_filepath(const std::string &asset_path,
                                          const std::string &stage_path,
                                          const USDExportParams &export_params);
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

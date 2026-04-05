@@ -14,7 +14,9 @@
 
 #include "BLI_math_matrix.hh"
 
-namespace blender::math {
+namespace blender {
+
+namespace math {
 
 /* -------------------------------------------------------------------- */
 /** \name Quaternion functions.
@@ -285,7 +287,7 @@ template<typename T>
     w[1] = math::sin(t * omega) / sinom;
   }
   else {
-    /* Fallback to lerp */
+    /* Fall back to lerp */
     w[0] = T(1) - t;
     w[1] = t;
   }
@@ -320,7 +322,7 @@ template<typename T>
 #else
   /* `S = q * V`. */
   QuaternionBase<T> S;
-  S.w = /* q.w * 0.0  */ -q.x * v.x - q.y * v.y - q.z * v.z;
+  S.w = /* q.w  * 0.0 */ -q.x * v.x - q.y * v.y - q.z * v.z;
   S.x = q.w * v.x /* + q.x * 0.0 */ + q.y * v.z - q.z * v.y;
   S.y = q.w * v.y /* + q.y * 0.0 */ + q.z * v.x - q.x * v.z;
   S.z = q.w * v.z /* + q.z * 0.0 */ + q.x * v.y - q.y * v.x;
@@ -362,7 +364,7 @@ DualQuaternionBase<T>::DualQuaternionBase(const QuaternionBase<T> &non_dual,
 /* -------------- Operators -------------- */
 
 template<typename T>
-DualQuaternionBase<T> &DualQuaternionBase<T>::operator+=(const DualQuaternionBase<T> &b)
+DualQuaternionBase<T> &DualQuaternionBase<T>::operator+=(const DualQuaternionBase<T> &b) &
 {
   DualQuaternionBase<T> &a = *this;
   /* Sum rotation and translation. */
@@ -408,7 +410,7 @@ DualQuaternionBase<T> &DualQuaternionBase<T>::operator+=(const DualQuaternionBas
   return *this;
 }
 
-template<typename T> DualQuaternionBase<T> &DualQuaternionBase<T>::operator*=(const T &t)
+template<typename T> DualQuaternionBase<T> &DualQuaternionBase<T>::operator*=(const T &t) &
 {
   BLI_assert(t >= 0);
   DualQuaternionBase<T> &q = *this;
@@ -612,9 +614,9 @@ template<typename T>
 
 /** \} */
 
-}  // namespace blender::math
+}  // namespace math
 
-namespace blender::math {
+namespace math {
 
 /* -------------------------------------------------------------------- */
 /** \name Conversion to Euler
@@ -699,4 +701,5 @@ template<typename T> VecBase<T, 3> QuaternionBase<T>::expmap() const
 
 /** \} */
 
-}  // namespace blender::math
+}  // namespace math
+}  // namespace blender

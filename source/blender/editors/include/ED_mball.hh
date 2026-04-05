@@ -10,6 +10,8 @@
 
 #include "BLI_span.hh"
 
+namespace blender {
+
 struct Base;
 struct MetaElem;
 struct Object;
@@ -28,7 +30,7 @@ void ED_keymap_metaball(wmKeyConfig *keyconf);
 MetaElem *ED_mball_add_primitive(
     bContext *C, Object *obedit, bool obedit_is_new, float mat[4][4], float dia, int type);
 
-Base *ED_mball_base_and_elem_from_select_buffer(blender::Span<Base *> bases,
+Base *ED_mball_base_and_elem_from_select_buffer(Span<Base *> bases,
                                                 const uint select_id,
                                                 MetaElem **r_ml);
 
@@ -37,7 +39,7 @@ Base *ED_mball_base_and_elem_from_select_buffer(blender::Span<Base *> bases,
  *
  * \return True when pick finds an element or the selection changed.
  */
-bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Params *params);
+bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
 bool ED_mball_deselect_all_multi(bContext *C);
 
 /**
@@ -62,3 +64,5 @@ void ED_mball_undosys_type(UndoType *ut);
 #define MBALLSEL_STIFF (1u << 30)
 #define MBALLSEL_RADIUS (1u << 31)
 #define MBALLSEL_ANY (MBALLSEL_STIFF | MBALLSEL_RADIUS)
+
+}  // namespace blender

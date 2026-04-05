@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "DNA_fluid_types.h"
 
@@ -13,6 +14,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_particle.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -37,11 +39,13 @@
 
 #include "workbench_engine.h" /* Own include. */
 
-namespace blender::workbench {
+namespace blender {
+
+namespace workbench {
 
 using namespace draw;
 
-class Instance {
+class Instance : public DrawEngine {
  private:
   View view_ = {"DefaultView"};
 
@@ -63,7 +67,19 @@ class Instance {
    * They never get actually used. */
   Vector<GPUMaterial *> dummy_gpu_materials_ = {1, nullptr, {}};
 
+  /* Used to detect any scene data update. */
+  uint64_t depsgraph_last_update_ = 0;
+
+  const char *hair_buffer_overflow_error_ = nullptr;
+
  public:
+  const DRWContext *draw_ctx = nullptr;
+
+  StringRefNull name_get() final
+  {
+    return "Workbench";
+  }
+
   Span<const GPUMaterial *> get_dummy_gpu_materials(int material_count)
   {
     if (material_count > dummy_gpu_materials_.size()) {
@@ -72,18 +88,28 @@ class Instance {
     return dummy_gpu_materials_.as_span().slice(IndexRange(material_count));
   };
 
-  void init(Object *camera_ob = nullptr)
+  void init() final
   {
-    scene_state_.init(camera_ob);
+    this->draw_ctx = DRW_context_get();
+    init(draw_ctx->depsgraph);
+  }
+
+  void init(Depsgraph *depsgraph, Object *camera_ob = nullptr)
+  {
+    this->draw_ctx = DRW_context_get();
+    bool scene_updated = assign_if_different(depsgraph_last_update_,
+                                             DEG_get_update_count(depsgraph));
+
+    scene_state_.init(this->draw_ctx, scene_updated, camera_ob);
     shadow_ps_.init(scene_state_, resources_);
-    resources_.init(scene_state_);
+    resources_.init(scene_state_, this->draw_ctx);
 
     outline_ps_.init(scene_state_);
-    dof_ps_.init(scene_state_);
+    dof_ps_.init(scene_state_, this->draw_ctx);
     anti_aliasing_ps_.init(scene_state_);
   }
 
-  void begin_sync()
+  void begin_sync() final
   {
     resources_.material_buf.clear_and_trim();
 
@@ -94,11 +120,13 @@ class Instance {
     shadow_ps_.sync();
     volume_ps_.sync(resources_);
     outline_ps_.sync(resources_);
-    dof_ps_.sync(resources_);
+    dof_ps_.sync(resources_, this->draw_ctx);
     anti_aliasing_ps_.sync(scene_state_, resources_);
+
+    hair_buffer_overflow_error_ = nullptr;
   }
 
-  void end_sync()
+  void end_sync() final
   {
     resources_.material_buf.push_update();
   }
@@ -117,7 +145,7 @@ class Instance {
       case V3D_SHADING_TEXTURE_COLOR:
         ATTR_FALLTHROUGH;
       case V3D_SHADING_MATERIAL_COLOR:
-        if (::Material *_mat = BKE_object_material_get_eval(ob_ref.object, slot + 1)) {
+        if (blender::Material *_mat = BKE_object_material_get_eval(ob_ref.object, slot + 1)) {
           return Material(*_mat);
         }
         ATTR_FALLTHROUGH;
@@ -126,7 +154,7 @@ class Instance {
     }
   }
 
-  void object_sync(Manager &manager, ObjectRef &ob_ref)
+  void object_sync(ObjectRef &ob_ref, Manager &manager) final
   {
     if (scene_state_.render_finished) {
       return;
@@ -137,16 +165,16 @@ class Instance {
       return;
     }
 
-    const ObjectState object_state = ObjectState(scene_state_, resources_, ob);
+    const ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
 
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
                                    OB_VISIBLE_SELF) &&
-                                  (ob->dt >= OB_SOLID || DRW_state_is_scene_render());
+                                  (ob->dt >= OB_SOLID || draw_ctx->is_scene_render());
 
     if (!(ob->base_flag & BASE_FROM_DUPLI)) {
       ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Fluid);
       if (md && BKE_modifier_is_enabled(scene_state_.scene, md, eModifierMode_Realtime)) {
-        FluidModifierData *fmd = (FluidModifierData *)md;
+        FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
         if (fmd->domain) {
           volume_ps_.object_sync_modifier(manager, resources_, scene_state_, ob_ref, md);
 
@@ -158,20 +186,16 @@ class Instance {
       }
     }
 
-    ResourceHandle emitter_handle(0);
+    ResourceHandleRange emitter_handle = {};
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
-        const Bounds<float3> bounds = bke::pbvh::bounds_get(
-            *bke::object::pbvh_get(*ob_ref.object));
-        const float3 center = math::midpoint(bounds.min, bounds.max);
-        const float3 half_extent = bounds.max - center;
-        ResourceHandle handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
+        ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
         this->sculpt_sync(ob_ref, handle, object_state);
         emitter_handle = handle;
       }
       else if (ob->type == OB_MESH) {
-        ResourceHandle handle = manager.resource_handle(ob_ref);
+        ResourceHandleRange handle = manager.unique_handle(ob_ref);
         this->mesh_sync(ob_ref, handle, object_state);
         emitter_handle = handle;
       }
@@ -193,11 +217,11 @@ class Instance {
     }
 
     if (ob->type == OB_MESH && ob->modifiers.first != nullptr) {
-      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        if (md->type != eModifierType_ParticleSystem) {
+      for (ModifierData &md : ob->modifiers) {
+        if (md.type != eModifierType_ParticleSystem) {
           continue;
         }
-        ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
+        ParticleSystem *psys = (reinterpret_cast<ParticleSystemModifierData *>(&md))->psys;
         if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
           continue;
         }
@@ -205,7 +229,7 @@ class Instance {
         const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
 
         if (draw_as == PART_DRAW_PATH) {
-          this->hair_sync(manager, ob_ref, emitter_handle, object_state, psys, md);
+          this->hair_sync(manager, ob_ref, emitter_handle, object_state, psys, &md);
         }
       }
     }
@@ -239,7 +263,7 @@ class Instance {
   void draw_mesh(ObjectRef &ob_ref,
                  Material &material,
                  gpu::Batch *batch,
-                 ResourceHandle handle,
+                 ResourceHandleRange handle,
                  const MaterialTexture *texture = nullptr,
                  bool show_missing_texture = false)
   {
@@ -255,7 +279,7 @@ class Instance {
     });
   }
 
-  void mesh_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void mesh_sync(ObjectRef &ob_ref, ResourceHandleRange handle, const ObjectState &object_state)
   {
     bool has_transparent_material = false;
 
@@ -321,7 +345,7 @@ class Instance {
     }
   }
 
-  void sculpt_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void sculpt_sync(ObjectRef &ob_ref, ResourceHandleRange handle, const ObjectState &object_state)
   {
     SculptBatchFeature features = SCULPT_BATCH_DEFAULT;
     if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
@@ -334,7 +358,7 @@ class Instance {
     if (object_state.use_per_material_batches) {
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
         Material mat = this->get_material(ob_ref, object_state.color_type, batch.material_slot);
-        if (SCULPT_DEBUG_DRAW) {
+        if (scene_state_.show_paint_bvh_debug) {
           mat.base_color = batch.debug_color();
         }
 
@@ -350,7 +374,7 @@ class Instance {
     else {
       Material mat = this->get_material(ob_ref, object_state.color_type);
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
-        if (SCULPT_DEBUG_DRAW) {
+        if (scene_state_.show_paint_bvh_debug) {
           mat.base_color = batch.debug_color();
         }
 
@@ -361,7 +385,7 @@ class Instance {
 
   void pointcloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    ResourceHandle handle = manager.resource_handle(ob_ref);
+    ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
     Material mat = this->get_material(ob_ref, object_state.color_type);
     resources_.material_buf.append(mat);
@@ -377,13 +401,13 @@ class Instance {
 
   void hair_sync(Manager &manager,
                  ObjectRef &ob_ref,
-                 ResourceHandle emitter_handle,
+                 ResourceHandleRange emitter_handle,
                  const ObjectState &object_state,
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    /* Skip frustum culling. */
-    ResourceHandle handle = manager.resource_handle(ob_ref.object->object_to_world());
+    ResourceHandleRange handle = manager.resource_handle_for_psys(
+        ob_ref, ob_ref.object->object_to_world());
 
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
@@ -396,16 +420,15 @@ class Instance {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
-      pass.push_constant("emitter_object_id", int(emitter_handle.raw));
-      gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref.object, psys, md);
+      pass.push_constant("emitter_object_id", int(emitter_handle.raw()));
+      gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
       pass.draw(batch, handle, material_index);
     });
   }
 
   void curves_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    /* Skip frustum culling. */
-    ResourceHandle handle = manager.resource_handle(ob_ref.object->object_to_world());
+    ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
     Material mat = this->get_material(ob_ref, object_state.color_type);
     resources_.material_buf.append(mat);
@@ -413,15 +436,20 @@ class Instance {
 
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass = mesh_pass.get_subpass(eGeometryType::CURVES).sub("Curves SubPass");
-      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object);
+
+      const char *error = nullptr;
+      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object, error);
+      if (error) {
+        hair_buffer_overflow_error_ = error;
+      }
       pass.draw(batch, handle, material_index);
     });
   }
 
   void draw(Manager &manager,
-            GPUTexture *depth_tx,
-            GPUTexture *depth_in_front_tx,
-            GPUTexture *color_tx)
+            gpu::Texture *depth_tx,
+            gpu::Texture *depth_in_front_tx,
+            gpu::Texture *color_tx)
   {
     int2 resolution = scene_state_.resolution;
 
@@ -443,7 +471,7 @@ class Instance {
     if (scene_state_.render_finished) {
       /* Just copy back the already rendered result */
       anti_aliasing_ps_.draw(
-          manager, View::default_get(), scene_state_, resources_, depth_in_front_tx);
+          draw_ctx, manager, View::default_get(), scene_state_, resources_, depth_in_front_tx);
       return;
     }
 
@@ -451,16 +479,18 @@ class Instance {
 
     GPUAttachment id_attachment = GPU_ATTACHMENT_NONE;
     if (scene_state_.draw_object_id) {
-      resources_.object_id_tx.acquire(
-          resolution, GPU_R16UI, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+      resources_.object_id_tx.acquire(resolution,
+                                      gpu::TextureFormat::UINT_16,
+                                      GPU_TEXTURE_USAGE_SHADER_READ |
+                                          GPU_TEXTURE_USAGE_ATTACHMENT);
       id_attachment = GPU_ATTACHMENT_TEXTURE(resources_.object_id_tx);
     }
     resources_.clear_fb.ensure(GPU_ATTACHMENT_TEXTURE(resources_.depth_tx),
                                GPU_ATTACHMENT_TEXTURE(resources_.color_tx),
                                id_attachment);
     resources_.clear_fb.bind();
-    float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float(*)[4]>(clear_colors));
+    std::array<double4, 2> clear_colors = {double4(scene_state_.background_color), double4(0.0f)};
+    GPU_framebuffer_multi_clear(resources_.clear_fb, clear_colors);
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(
@@ -471,150 +501,111 @@ class Instance {
     volume_ps_.draw(manager, view_, resources_);
     outline_ps_.draw(manager, resources_);
     dof_ps_.draw(manager, view_, resources_, resolution);
-    anti_aliasing_ps_.draw(manager, view_, scene_state_, resources_, depth_in_front_tx);
+    anti_aliasing_ps_.draw(draw_ctx, manager, view_, scene_state_, resources_, depth_in_front_tx);
 
     resources_.object_id_tx.release();
   }
 
   void draw_viewport(Manager &manager,
-                     GPUTexture *depth_tx,
-                     GPUTexture *depth_in_front_tx,
-                     GPUTexture *color_tx)
+                     gpu::Texture *depth_tx,
+                     gpu::Texture *depth_in_front_tx,
+                     gpu::Texture *color_tx)
   {
     this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
 
     if (scene_state_.sample + 1 < scene_state_.samples_len) {
       DRW_viewport_request_redraw();
     }
+
+    if (hair_buffer_overflow_error_) {
+      STRNCPY(info, hair_buffer_overflow_error_);
+    }
+    else {
+      STRNCPY(info, "");
+    }
+  }
+
+  void draw(Manager &manager) final
+  {
+    DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
+
+    DRW_submission_start();
+    if (draw_ctx->is_viewport_image_render()) {
+      draw_image_render(manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
+    }
+    else {
+      draw_viewport(manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
+    }
+    DRW_submission_end();
   }
 
   void draw_image_render(Manager &manager,
-                         GPUTexture *depth_tx,
-                         GPUTexture *depth_in_front_tx,
-                         GPUTexture *color_tx,
+                         gpu::Texture *depth_tx,
+                         gpu::Texture *depth_in_front_tx,
+                         gpu::Texture *color_tx,
                          RenderEngine *engine = nullptr)
   {
+    if (scene_state_.render_finished) {
+      /* This can happen in viewport animation renders, if the scene didn't have any updates
+       * between frames. */
+      this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
+      return;
+    }
+
     BLI_assert(scene_state_.sample == 0);
     for (auto i : IndexRange(scene_state_.samples_len)) {
+      if (hair_buffer_overflow_error_) {
+        RE_engine_set_error_message(engine, hair_buffer_overflow_error_);
+      }
+
       if (engine && RE_engine_test_break(engine)) {
         break;
       }
       if (i != 0) {
         scene_state_.sample = i;
         /* Re-sync anything dependent on scene_state.sample. */
-        resources_.init(scene_state_);
-        dof_ps_.init(scene_state_);
+        resources_.init(scene_state_, draw_ctx);
+        dof_ps_.init(scene_state_, draw_ctx);
         anti_aliasing_ps_.sync(scene_state_, resources_);
       }
       this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
-      /* Perform render step between samples to allow
-       * flushing of freed GPUBackend resources. */
-      if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+      /* Metal: Perform render step between samples to allow flushing of freed GPUBackend
+       * resources. Vulkan: Perform render step between samples to avoid allocation of a high
+       * amount of command buffer memory that can eventually result in out-of-memory errors or a
+       * TDR when submitted as one large command buffer. */
+      if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
         GPU_flush();
       }
       GPU_render_step();
     }
   }
-
-  void reset_taa_sample()
-  {
-    scene_state_.reset_taa_next_sample = true;
-  }
 };
 
-}  // namespace blender::workbench
+DrawEngine *Engine::create_instance()
+{
+  return new Instance();
+}
+
+void Engine::free_static()
+{
+  ShaderCache::release();
+}
+
+}  // namespace workbench
 
 /* -------------------------------------------------------------------- */
 /** \name Interface with legacy C DRW manager
  * \{ */
 
-using namespace blender;
-
-struct WORKBENCH_Data {
-  DrawEngineType *engine_type;
-  workbench::Instance *instance;
-
-  char info[GPU_INFO_SIZE];
-};
-
-static void workbench_engine_init(void *vedata)
-{
-  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
-  if (ved->instance == nullptr) {
-    ved->instance = new workbench::Instance();
-  }
-
-  ved->instance->init();
-}
-
-static void workbench_cache_init(void *vedata)
-{
-  reinterpret_cast<WORKBENCH_Data *>(vedata)->instance->begin_sync();
-}
-
-static void workbench_cache_populate(void *vedata, Object *object)
-{
-  draw::Manager *manager = DRW_manager_get();
-
-  draw::ObjectRef ref;
-  ref.object = object;
-  ref.dupli_object = DRW_object_get_dupli(object);
-  ref.dupli_parent = DRW_object_get_dupli_parent(object);
-  ref.handle = draw::ResourceHandle(0);
-
-  reinterpret_cast<WORKBENCH_Data *>(vedata)->instance->object_sync(*manager, ref);
-}
-
-static void workbench_cache_finish(void *vedata)
-{
-  reinterpret_cast<WORKBENCH_Data *>(vedata)->instance->end_sync();
-}
-
-static void workbench_draw_scene(void *vedata)
-{
-  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
-  draw::Manager *manager = DRW_manager_get();
-  if (DRW_state_is_viewport_image_render()) {
-    ved->instance->draw_image_render(*manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
-  }
-  else {
-    ved->instance->draw_viewport(*manager, dtxl->depth, dtxl->depth_in_front, dtxl->color);
-  }
-}
-
-static void workbench_instance_free(void *instance)
-{
-  delete reinterpret_cast<workbench::Instance *>(instance);
-}
-
-static void workbench_engine_free()
-{
-  workbench::ShaderCache::release();
-}
-
-static void workbench_view_update(void *vedata)
-{
-  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
-  if (ved->instance) {
-    ved->instance->reset_taa_sample();
-  }
-}
-
-static void workbench_id_update(void *vedata, ID *id)
-{
-  UNUSED_VARS(vedata, id);
-}
-
 /* RENDER */
 
-static bool workbench_render_framebuffers_init()
+static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
 {
   /* For image render, allocate own buffers because we don't have a viewport. */
-  const float2 viewport_size = DRW_viewport_size_get();
+  const float2 viewport_size = draw_ctx->viewport_size_get();
   const int2 size = {int(viewport_size.x), int(viewport_size.y)};
 
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
 
   /* When doing a multi view rendering the first view will allocate the buffers
    * the other views will reuse these buffers */
@@ -622,18 +613,28 @@ static bool workbench_render_framebuffers_init()
     BLI_assert(dtxl->depth == nullptr);
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
     dtxl->color = GPU_texture_create_2d(
-        "txl.color", size.x, size.y, 1, GPU_RGBA16F, usage, nullptr);
-    dtxl->depth = GPU_texture_create_2d(
-        "txl.depth", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
-    dtxl->depth_in_front = GPU_texture_create_2d(
-        "txl.depth_in_front", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
+        "txl.color", size.x, size.y, 1, gpu::TextureFormat::SFLOAT_16_16_16_16, usage, nullptr);
+    dtxl->depth = GPU_texture_create_2d("txl.depth",
+                                        size.x,
+                                        size.y,
+                                        1,
+                                        gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                        usage,
+                                        nullptr);
+    dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
+                                                 size.x,
+                                                 size.y,
+                                                 1,
+                                                 gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                                 usage,
+                                                 nullptr);
   }
 
   if (!(dtxl->depth && dtxl->color && dtxl->depth_in_front)) {
     return false;
   }
 
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
+  DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
 
   GPU_framebuffer_ensure_config(
       &dfbl->default_fb,
@@ -652,7 +653,7 @@ static bool workbench_render_framebuffers_init()
 
 static void write_render_color_output(RenderLayer *layer,
                                       const char *viewname,
-                                      GPUFrameBuffer *fb,
+                                      gpu::FrameBuffer *fb,
                                       const rcti *rect)
 {
   RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_COMBINED, viewname);
@@ -666,17 +667,17 @@ static void write_render_color_output(RenderLayer *layer,
                                4,
                                0,
                                GPU_DATA_FLOAT,
-                               rp->ibuf->float_buffer.data);
+                               rp->ibuf->float_data_for_write());
   }
 }
 
 static void write_render_z_output(RenderLayer *layer,
                                   const char *viewname,
-                                  GPUFrameBuffer *fb,
+                                  gpu::FrameBuffer *fb,
                                   const rcti *rect,
                                   const float4x4 &winmat)
 {
-  RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_Z, viewname);
+  RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_DEPTH, viewname);
   if (rp) {
     GPU_framebuffer_bind(fb);
     GPU_framebuffer_read_depth(fb,
@@ -685,13 +686,13 @@ static void write_render_z_output(RenderLayer *layer,
                                BLI_rcti_size_x(rect),
                                BLI_rcti_size_y(rect),
                                GPU_DATA_FLOAT,
-                               rp->ibuf->float_buffer.data);
+                               rp->ibuf->float_data_for_write());
 
     int pix_num = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
 
     /* Convert GPU depth [0..1] to view Z [near..far] */
-    if (blender::draw::View::default_get().is_persp()) {
-      for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
+    if (draw::View::default_get().is_persp()) {
+      for (float &z : MutableSpan(rp->ibuf->float_data_for_write(), pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
         }
@@ -703,11 +704,11 @@ static void write_render_z_output(RenderLayer *layer,
     }
     else {
       /* Keep in mind, near and far distance are negatives. */
-      float near = blender::draw::View::default_get().near_clip();
-      float far = blender::draw::View::default_get().far_clip();
+      float near = draw::View::default_get().near_clip();
+      float far = draw::View::default_get().far_clip();
       float range = fabsf(far - near);
 
-      for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
+      for (float &z : MutableSpan(rp->ibuf->float_data_for_write(), pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
         }
@@ -719,29 +720,24 @@ static void write_render_z_output(RenderLayer *layer,
   }
 }
 
-static void workbench_render_to_image(void *vedata,
-                                      RenderEngine *engine,
-                                      RenderLayer *layer,
-                                      const rcti *rect)
+static void workbench_render_to_image(RenderEngine *engine, RenderLayer *layer, const rcti rect)
 {
   using namespace blender::draw;
-  if (!workbench_render_framebuffers_init()) {
+  const DRWContext *draw_ctx = DRW_context_get();
+
+  if (!workbench_render_framebuffers_init(draw_ctx)) {
     RE_engine_report(engine, RPT_ERROR, "Failed to allocate GPU buffers");
     return;
   }
 
   /* Setup */
-  DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
-  const DRWContextState *draw_ctx = DRW_context_state_get();
+  DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
   Depsgraph *depsgraph = draw_ctx->depsgraph;
 
-  WORKBENCH_Data *ved = reinterpret_cast<WORKBENCH_Data *>(vedata);
-  if (ved->instance == nullptr) {
-    ved->instance = new workbench::Instance();
-  }
+  workbench::Instance instance;
 
   /* TODO(sergey): Shall render hold pointer to an evaluated camera instead? */
-  Object *camera_ob = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
+  Object *camera_ob = DEG_get_evaluated(depsgraph, RE_GetCamera(engine->re));
 
   /* Set the perspective, view and window matrix. */
   float4x4 winmat, viewmat, viewinv;
@@ -752,33 +748,35 @@ static void workbench_render_to_image(void *vedata,
   /* Render */
   /* TODO: Remove old draw manager calls. */
   DRW_cache_restart();
-  blender::draw::View::default_set(float4x4(viewmat), float4x4(winmat));
+  draw::View::default_set(float4x4(viewmat), float4x4(winmat));
 
-  ved->instance->init(camera_ob);
+  instance.init(depsgraph, camera_ob);
 
   draw::Manager &manager = *DRW_manager_get();
   manager.begin_sync();
 
-  workbench_cache_init(vedata);
-  auto workbench_render_cache =
-      [](void *vedata, Object *ob, RenderEngine * /*engine*/, Depsgraph * /*depsgraph*/) {
-        workbench_cache_populate(vedata, ob);
-      };
-  DRW_render_object_iter(vedata, engine, depsgraph, workbench_render_cache);
-  workbench_cache_finish(vedata);
+  instance.begin_sync();
+  DRW_render_object_iter(
+      engine,
+      depsgraph,
+      [&](draw::ObjectRef &ob_ref, RenderEngine * /*engine*/, Depsgraph * /*depsgraph*/) {
+        instance.object_sync(ob_ref, manager);
+      });
+  instance.end_sync();
 
   manager.end_sync();
 
-  /* TODO: Remove old draw manager calls. */
-  DRW_curves_update(manager);
+  DRW_submission_start();
 
-  DefaultTextureList &dtxl = *DRW_viewport_texture_list_get();
-  ved->instance->draw_image_render(manager, dtxl.depth, dtxl.depth_in_front, dtxl.color, engine);
+  DefaultTextureList &dtxl = *draw_ctx->viewport_texture_list_get();
+  instance.draw_image_render(manager, dtxl.depth, dtxl.depth_in_front, dtxl.color, engine);
+
+  DRW_submission_end();
 
   /* Write image */
   const char *viewname = RE_GetActiveRenderView(engine->re);
-  write_render_color_output(layer, viewname, dfbl->default_fb, rect);
-  write_render_z_output(layer, viewname, dfbl->default_fb, rect, winmat);
+  write_render_color_output(layer, viewname, dfbl->default_fb, &rect);
+  write_render_z_output(layer, viewname, dfbl->default_fb, &rect, winmat);
 }
 
 static void workbench_render_update_passes(RenderEngine *engine,
@@ -788,27 +786,15 @@ static void workbench_render_update_passes(RenderEngine *engine,
   if (view_layer->passflag & SCE_PASS_COMBINED) {
     RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_COMBINED, 4, "RGBA", SOCK_RGBA);
   }
-  if (view_layer->passflag & SCE_PASS_Z) {
-    RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_Z, 1, "Z", SOCK_FLOAT);
+  if (view_layer->passflag & SCE_PASS_DEPTH) {
+    RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_DEPTH, 1, "Z", SOCK_FLOAT);
   }
 }
 
-DrawEngineType draw_engine_workbench = {
-    /*next*/ nullptr,
-    /*prev*/ nullptr,
-    /*idname*/ N_("Workbench"),
-    /*engine_init*/ &workbench_engine_init,
-    /*engine_free*/ &workbench_engine_free,
-    /*instance_free*/ &workbench_instance_free,
-    /*cache_init*/ &workbench_cache_init,
-    /*cache_populate*/ &workbench_cache_populate,
-    /*cache_finish*/ &workbench_cache_finish,
-    /*draw_scene*/ &workbench_draw_scene,
-    /*view_update*/ &workbench_view_update,
-    /*id_update*/ &workbench_id_update,
-    /*render_to_image*/ &workbench_render_to_image,
-    /*store_metadata*/ nullptr,
-};
+static void workbench_render(RenderEngine *engine, Depsgraph *depsgraph)
+{
+  DRW_render_to_image(engine, depsgraph, workbench_render_to_image, [](RenderResult *) {});
+}
 
 RenderEngineType DRW_engine_viewport_workbench_type = {
     /*next*/ nullptr,
@@ -817,7 +803,7 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*name*/ N_("Workbench"),
     /*flag*/ RE_INTERNAL | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     /*update*/ nullptr,
-    /*render*/ &DRW_render_to_image,
+    /*render*/ &workbench_render,
     /*render_frame_finish*/ nullptr,
     /*draw*/ nullptr,
     /*bake*/ nullptr,
@@ -825,7 +811,8 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*view_draw*/ nullptr,
     /*update_script_node*/ nullptr,
     /*update_render_passes*/ &workbench_render_update_passes,
-    /*draw_engine*/ &draw_engine_workbench,
+    /*update_custom_camera*/ nullptr,
+    /*draw_engine*/ nullptr,
     /*rna_ext*/
     {
         /*data*/ nullptr,
@@ -835,3 +822,5 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
 };
 
 /** \} */
+
+}  // namespace blender

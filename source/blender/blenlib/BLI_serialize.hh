@@ -171,7 +171,7 @@ class Value {
  * For generating value types that represent types that are typically known processor data types.
  */
 template<
-    /** Wrapped c/cpp data type that is used to store the value. */
+    /** Wrapped C/C++ data type that is used to store the value. */
     typename T,
     /** Value type of the class. */
     eValueType V>
@@ -229,7 +229,7 @@ class ArrayValue : public Value {
 
 /**
  * Object is a key-value container where the key must be a std::string.
- * Internally it is stored in a blender::Vector to ensure the order of keys.
+ * Internally it is stored in a Vector to ensure the order of keys.
  */
 class DictionaryValue : public Value {
  public:

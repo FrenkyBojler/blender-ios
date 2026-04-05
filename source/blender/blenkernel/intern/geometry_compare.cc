@@ -18,7 +18,14 @@
 
 #include "BKE_geometry_compare.hh"
 
+#include "CLG_log.h"
+
+#include "DNA_curve_types.h"
+#include "DNA_lattice_types.h"
+
 namespace blender::bke::compare_geometry {
+
+static CLG_LogRef LOG = {"geometry.compare"};
 
 enum class GeoMismatch : int8_t {
   NumPoints,        /* The number of points is different. */
@@ -256,18 +263,46 @@ static bool values_different(const T value1,
   if constexpr (std::is_same_v<T, float>) {
     return compare_threshold_relative(value1, value2, threshold);
   }
-  if constexpr (is_same_any_v<T, float2, float3, ColorGeometry4f>) {
+
+  /* GCC 15.x triggers an array-bounds warning unless `component_i` is assumed to be in range. */
+#if (defined(__GNUC__) && (__GNUC__ >= 15) && !defined(__clang__))
+#  define ASSERT_AND_ASSUME(expr) \
+    BLI_assert(expr); \
+    [[assume(expr)]];
+#else
+#  define ASSERT_AND_ASSUME(expr) BLI_assert(expr);
+#endif
+
+  if constexpr (is_same_any_v<T, float2>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 2);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, float3>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 3);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, float4>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, ColorGeometry4f>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, math::Quaternion>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     const float4 value1_f = float4(value1);
     const float4 value2_f = float4(value2);
     return compare_threshold_relative(value1_f[component_i], value2_f[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, float4x4>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 16);
     return compare_threshold_relative(
         value1.base_ptr()[component_i], value2.base_ptr()[component_i], threshold);
   }
+
+#undef ASSERT_AND_ASSUME
+
   BLI_assert_unreachable();
 }
 
@@ -281,7 +316,7 @@ static bool update_set_ids(MutableSpan<int> set_ids,
                            const Span<T> values1,
                            const Span<T> values2,
                            const Span<int> sorted_to_values1,
-                           MutableSpan<int> sorted_to_values2,
+                           const Span<int> sorted_to_values2,
                            const float threshold,
                            const int component_i)
 {
@@ -370,15 +405,15 @@ static void update_set_sizes(const Span<int> set_ids, MutableSpan<int> set_sizes
   }
 }
 
-static void edges_from_vertex_sets(const Span<int2> edges,
-                                   const Span<int> verts_to_sorted,
-                                   const Span<int> vertex_set_ids,
-                                   MutableSpan<OrderedEdge> r_edges)
+static void edges_from_vert_sets(const Span<int2> edges,
+                                 const Span<int> verts_to_sorted,
+                                 const Span<int> vert_set_ids,
+                                 MutableSpan<OrderedEdge> r_edges)
 {
   for (const int i : r_edges.index_range()) {
     const int2 e = edges[i];
-    r_edges[i] = OrderedEdge(vertex_set_ids[verts_to_sorted[e.x]],
-                             vertex_set_ids[verts_to_sorted[e.y]]);
+    r_edges[i] = OrderedEdge(vert_set_ids[verts_to_sorted[e.x]],
+                             vert_set_ids[verts_to_sorted[e.y]]);
   }
 }
 
@@ -393,8 +428,8 @@ static bool sort_edges(const Span<int2> edges1,
   /* Need `NoInitialization()` because OrderedEdge is not default constructible. */
   Array<OrderedEdge> ordered_edges1(edges1.size(), NoInitialization());
   Array<OrderedEdge> ordered_edges2(edges2.size(), NoInitialization());
-  edges_from_vertex_sets(edges1, verts.to_sorted1, verts.set_ids, ordered_edges1);
-  edges_from_vertex_sets(edges2, verts.to_sorted2, verts.set_ids, ordered_edges2);
+  edges_from_vert_sets(edges1, verts.to_sorted1, verts.set_ids, ordered_edges1);
+  edges_from_vert_sets(edges2, verts.to_sorted2, verts.set_ids, ordered_edges2);
   sort_per_set_based_on_attributes(edges.set_sizes,
                                    edges.from_sorted1,
                                    edges.from_sorted2,
@@ -499,17 +534,17 @@ static bool sort_faces_based_on_corners(const IndexMapping &corners,
   return true;
 }
 
-/*
- * The uv selection / pin layers are ignored in the comparisons because
+/**
+ * The UV selection & pin layers are ignored in the comparisons because
  * the original flags they replace were ignored as well. Because of the
  * lazy creation of these layers it would need careful handling of the
  * test files to compare these layers. For now it has been decided to
  * skip them.
  */
-static bool ignored_attribute(const StringRef id)
+static bool ignored_attribute(const StringRef name)
 {
-  return attribute_name_is_anonymous(id) || id.startswith(".vs.") || id.startswith(".es.") ||
-         id.startswith(".pn.");
+  return attribute_name_is_anonymous(name) || name.startswith(".pn.") ||
+         ELEM(name, ".uv_select_vert", ".uv_select_edge", ".uv_select_face");
 }
 
 /**
@@ -521,18 +556,35 @@ static bool ignored_attribute(const StringRef id)
 static std::optional<GeoMismatch> verify_attributes_compatible(
     const AttributeAccessor &attributes1, const AttributeAccessor &attributes2)
 {
-  Set<StringRefNull> attribute_ids1 = attributes1.all_ids();
-  Set<StringRefNull> attribute_ids2 = attributes2.all_ids();
-  attribute_ids1.remove_if(ignored_attribute);
-  attribute_ids2.remove_if(ignored_attribute);
+  Set<StringRefNull> names_1 = attributes1.all_names();
+  Set<StringRefNull> names_2 = attributes2.all_names();
+  names_1.remove_if(ignored_attribute);
+  names_2.remove_if(ignored_attribute);
 
-  if (attribute_ids1 != attribute_ids2) {
-    /* Disabled for now due to tests not being up to date. */
-    // return GeoMismatch::Attributes;
+  if (names_1 != names_2) {
+    std::string mismatched_names;
+    for (const StringRefNull name : names_1) {
+      if (!names_2.contains(name)) {
+        if (!mismatched_names.empty()) {
+          mismatched_names.append(", ");
+        }
+        mismatched_names.append(name);
+      }
+    }
+    for (const StringRefNull name : names_2) {
+      if (!names_1.contains(name)) {
+        if (!mismatched_names.empty()) {
+          mismatched_names.append(", ");
+        }
+        mismatched_names.append(name);
+      }
+    }
+    CLOG_WARN(&LOG, "Attribute names not the same: %s", mismatched_names.c_str());
+    return GeoMismatch::Attributes;
   }
-  for (const StringRef id : attribute_ids1) {
-    GAttributeReader reader1 = attributes1.lookup(id);
-    GAttributeReader reader2 = attributes2.lookup(id);
+  for (const StringRef name : names_1) {
+    GAttributeReader reader1 = attributes1.lookup(name);
+    GAttributeReader reader2 = attributes2.lookup(name);
     if (!reader1 || !reader2) {
       /* Necessary because of previous disabled return. */
       continue;
@@ -559,19 +611,15 @@ static std::optional<GeoMismatch> sort_domain_using_attributes(
 {
 
   /* We only need the ids from one geometry, since we know they have the same attributes. */
-  Set<StringRefNull> attribute_ids = attributes1.all_ids();
+  Set<StringRefNull> names = attributes1.all_names();
   for (const StringRef name : excluded_attributes) {
-    attribute_ids.remove_as(name);
+    names.remove_as(name);
   }
-  attribute_ids.remove_if(ignored_attribute);
+  names.remove_if(ignored_attribute);
 
-  for (const StringRef id : attribute_ids) {
-    if (!attributes2.contains(id)) {
-      /* Only needed right now since some test meshes don't have the same attributes. */
-      return GeoMismatch::Attributes;
-    }
-    GAttributeReader reader1 = attributes1.lookup(id);
-    GAttributeReader reader2 = attributes2.lookup(id);
+  for (const StringRef name : names) {
+    GAttributeReader reader1 = attributes1.lookup(name);
+    GAttributeReader reader2 = attributes2.lookup(name);
 
     if (reader1.domain != domain) {
       /* We only look at attributes of the given domain. */
@@ -580,8 +628,7 @@ static std::optional<GeoMismatch> sort_domain_using_attributes(
 
     std::optional<GeoMismatch> mismatch = {};
 
-    attribute_math::convert_to_static_type(reader1.varray.type(), [&](auto dummy) {
-      using T = decltype(dummy);
+    attribute_math::to_static_type(reader1.varray.type(), [&]<typename T>() {
       const VArraySpan<T> values1 = reader1.varray.typed<T>();
       const VArraySpan<T> values2 = reader2.varray.typed<T>();
 
@@ -699,10 +746,10 @@ static bool all_set_sizes_one(const Span<int> set_sizes)
  *
  * \returns the type of mismatch that occurred if the mapping couldn't be constructed.
  */
-static std::optional<GeoMismatch> construct_vertex_mapping(const Mesh &mesh1,
-                                                           const Mesh &mesh2,
-                                                           IndexMapping &verts,
-                                                           IndexMapping &edges)
+static std::optional<GeoMismatch> construct_vert_mapping(const Mesh &mesh1,
+                                                         const Mesh &mesh2,
+                                                         IndexMapping &verts,
+                                                         IndexMapping &edges)
 {
   if (all_set_sizes_one(verts.set_sizes)) {
     /* The vertices are already in one-to-one correspondence. */
@@ -733,7 +780,7 @@ static std::optional<GeoMismatch> construct_vertex_mapping(const Mesh &mesh1,
       if (edges1.size() != edges2.size()) {
         continue;
       }
-      bool vertex_matches = true;
+      bool vert_matches = true;
       for (const int edge1 : edges1) {
         bool found_matching_edge = false;
         for (const int edge2 : edges2) {
@@ -743,11 +790,11 @@ static std::optional<GeoMismatch> construct_vertex_mapping(const Mesh &mesh1,
           }
         }
         if (!found_matching_edge) {
-          vertex_matches = false;
+          vert_matches = false;
           break;
         }
       }
-      if (vertex_matches) {
+      if (vert_matches) {
         matching_verts.append(index_in_set);
       }
     }
@@ -877,7 +924,7 @@ std::optional<GeoMismatch> compare_meshes(const Mesh &mesh1,
     return mismatch;
   };
 
-  mismatch = construct_vertex_mapping(mesh1, mesh2, verts, edges);
+  mismatch = construct_vert_mapping(mesh1, mesh2, verts, edges);
   if (mismatch) {
     return mismatch;
   }
@@ -1015,6 +1062,37 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
   for (const int sorted_i : curves.from_sorted1.index_range()) {
     if (curves.from_sorted1[sorted_i] != curves.from_sorted2[sorted_i]) {
       return GeoMismatch::Indices;
+    }
+  }
+
+  /* No mismatches found. */
+  return std::nullopt;
+}
+
+std::optional<GeoMismatch> compare_lattices(const Lattice &lattice1,
+                                            const Lattice &lattice2,
+                                            float threshold)
+{
+  if (lattice1.pntsu != lattice2.pntsu) {
+    return GeoMismatch::NumPoints;
+  }
+  if (lattice1.pntsv != lattice2.pntsv) {
+    return GeoMismatch::NumPoints;
+  }
+  if (lattice1.pntsw != lattice2.pntsw) {
+    return GeoMismatch::NumPoints;
+  }
+
+  const int num_points = lattice1.pntsu * lattice1.pntsv * lattice1.pntsw;
+  const Span<BPoint> bpoints1 = {lattice1.def, num_points};
+  const Span<BPoint> bpoints2 = {lattice2.def, num_points};
+  for (const int i : IndexRange(num_points)) {
+    const float3 co1 = bpoints1[i].vec;
+    const float3 co2 = bpoints2[i].vec;
+    for (const int component : IndexRange(3)) {
+      if (values_different(co1, co2, threshold, component)) {
+        return GeoMismatch::PointAttributes;
+      }
     }
   }
 

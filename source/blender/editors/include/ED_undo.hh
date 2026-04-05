@@ -10,10 +10,12 @@
 
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
+struct CLG_LogRef;
+namespace blender {
 
 struct Base;
-struct CLG_LogRef;
 struct ID;
+struct Main;
 struct MemFile;
 struct PointerRNA;
 struct Object;
@@ -25,7 +27,7 @@ struct wmOperator;
 struct wmOperatorType;
 struct wmWindowManager;
 
-/* undo.c */
+/* ed_undo.cc */
 
 /**
  * Run from the main event loop, basic checks that undo is left in a correct state.
@@ -48,8 +50,10 @@ void ED_OT_undo_history(wmOperatorType *ot);
 
 /**
  * UI callbacks should call this rather than calling WM_operator_repeat() themselves.
+ *
+ * \return true when repeat succeeded.
  */
-int ED_undo_operator_repeat(bContext *C, wmOperator *op);
+bool ED_undo_operator_repeat(bContext *C, wmOperator *op);
 /**
  * Convenience since UI callbacks use this mostly.
  */
@@ -103,24 +107,30 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
                                             uint object_array_len,
                                             uint object_array_stride);
 
-blender::Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Scene *scene,
-                                                                   ViewLayer *view_layer);
-blender::Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Scene *scene,
-                                                               ViewLayer *view_layer);
+Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Main &bmain,
+                                                          const Scene *scene,
+                                                          ViewLayer *view_layer);
+Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Main &bmain,
+                                                      const Scene *scene,
+                                                      ViewLayer *view_layer);
 
 /**
  * Ideally we won't access the stack directly,
  * this is needed for modes which handle undo themselves (bypassing #ED_undo_push).
  *
  * Using global isn't great, this just avoids doing inline,
- * causing 'BKE_global.hh' & 'BKE_main.hh' includes.
+ * causing `BKE_global.hh` & `BKE_main.hh` includes.
  */
 UndoStack *ED_undo_stack_get();
 
 /* Helpers. */
 
-void ED_undo_object_set_active_or_warn(
-    Scene *scene, ViewLayer *view_layer, Object *ob, const char *info, CLG_LogRef *log);
+void ED_undo_object_set_active_or_warn(const Main &bmain,
+                                       Scene *scene,
+                                       ViewLayer *view_layer,
+                                       Object *ob,
+                                       const char *info,
+                                       CLG_LogRef *log);
 
 /* `undo_system_types.cc` */
 
@@ -146,3 +156,15 @@ MemFile *ED_undosys_stack_memfile_get_if_active(UndoStack *ustack);
  * (currently we only do that in #MemFileWriteData when writing a new step).
  */
 void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id);
+/**
+ * Get the total memory usage of all undo steps in the current undo stack.
+ *
+ * This function iterates through all undo steps and calculates their memory consumption.
+ * For sculpt undo steps, it uses the specialized sculpt memory calculation function.
+ * For other undo step types, it uses the generic `data_size` field.
+ *
+ * \return Total memory usage in bytes, or 0 if no undo stack is available.
+ */
+size_t ED_undosys_total_memory_calc(UndoStack *ustack);
+
+}  // namespace blender

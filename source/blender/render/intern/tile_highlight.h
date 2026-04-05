@@ -10,14 +10,15 @@
 
 #include "DNA_vec_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
-#include <mutex>
+namespace blender {
 
 struct RenderResult;
 
-namespace blender::render {
+namespace render {
 
 class TilesHighlight {
  public:
@@ -57,7 +58,7 @@ class TilesHighlight {
   void highlight_tile(const Tile &tile);
   void unhighlight_tile(const Tile &tile);
 
-  mutable std::mutex mutex_;
+  mutable Mutex mutex_;
   Set<Tile> highlighted_tiles_set_;
 
   /* Cached flat list of currently highlighted tiles for a fast access via API. */
@@ -65,4 +66,5 @@ class TilesHighlight {
   mutable Vector<rcti> cached_highlighted_tiles_;
 };
 
-}  // namespace blender::render
+}  // namespace render
+}  // namespace blender

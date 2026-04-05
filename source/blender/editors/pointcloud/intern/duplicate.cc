@@ -23,6 +23,13 @@ static void duplicate_points(PointCloud &pointcloud, const IndexMask &mask)
   bke::MutableAttributeAccessor dst_attributes = new_pointcloud->attributes_for_write();
   pointcloud.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     const GVArray src = *iter.get();
+    const CommonVArrayInfo info = src.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
     bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
     array_utils::copy(src, dst.span.take_front(pointcloud.totpoint));
@@ -32,7 +39,7 @@ static void duplicate_points(PointCloud &pointcloud, const IndexMask &mask)
   BKE_pointcloud_nomain_to_pointcloud(new_pointcloud, &pointcloud);
 }
 
-static int duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus duplicate_exec(bContext *C, wmOperator * /*op*/)
 {
   for (PointCloud *pointcloud : get_unique_editable_pointclouds(*C)) {
     IndexMaskMemory memory;
@@ -61,7 +68,7 @@ void POINTCLOUD_OT_duplicate(wmOperatorType *ot)
 {
   ot->name = "Duplicate";
   ot->idname = "POINTCLOUD_OT_duplicate";
-  ot->description = "Copy selected points ";
+  ot->description = "Copy selected points";
 
   ot->exec = duplicate_exec;
   ot->poll = editable_pointcloud_in_edit_mode_poll;

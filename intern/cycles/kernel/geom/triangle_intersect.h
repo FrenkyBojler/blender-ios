@@ -12,9 +12,9 @@
 
 #include "kernel/globals.h"
 
+#include "kernel/geom/geom_intersect.h"
 #include "kernel/geom/object.h"
 #include "kernel/geom/triangle.h"
-#include "kernel/sample/lcg.h"
 
 #include "util/math_float3.h"
 #include "util/math_intersect.h"
@@ -73,7 +73,6 @@ ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
                                                 const float3 dir,
                                                 const int object,
                                                 const int prim,
-                                                const int prim_addr,
                                                 const float tmin,
                                                 const float tmax,
                                                 ccl_private uint *lcg_state,
@@ -96,42 +95,13 @@ ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
     return true;
   }
 
-  int hit;
-  if (lcg_state) {
-    /* Record up to max_hits intersections. */
-    for (int i = min(max_hits, local_isect->num_hits) - 1; i >= 0; --i) {
-      if (local_isect->hits[i].t == t) {
-        return false;
-      }
-    }
-
-    local_isect->num_hits++;
-
-    if (local_isect->num_hits <= max_hits) {
-      hit = local_isect->num_hits - 1;
-    }
-    else {
-      /* reservoir sampling: if we are at the maximum number of
-       * hits, randomly replace element or skip it */
-      hit = lcg_step_uint(lcg_state) % local_isect->num_hits;
-
-      if (hit >= max_hits) {
-        return false;
-      }
-    }
-  }
-  else {
-    /* Record closest intersection only. */
-    if (local_isect->num_hits && t > local_isect->hits[0].t) {
-      return false;
-    }
-
-    hit = 0;
-    local_isect->num_hits = 1;
+  const int hit_index = local_intersect_get_record_index(local_isect, t, lcg_state, max_hits);
+  if (hit_index == -1) {
+    return false;
   }
 
   /* Record intersection. */
-  ccl_private Intersection *isect = &local_isect->hits[hit];
+  ccl_private Intersection *isect = &local_isect->hits[hit_index];
   isect->prim = prim;
   isect->object = object;
   isect->type = PRIMITIVE_TRIANGLE;
@@ -140,7 +110,7 @@ ccl_device_inline bool triangle_intersect_local(KernelGlobals kg,
   isect->t = t;
 
   /* Record geometric normal. */
-  local_isect->Ng[hit] = normalize(cross(tri_b - tri_a, tri_c - tri_a));
+  local_isect->Ng[hit_index] = normalize(cross(tri_b - tri_a, tri_c - tri_a));
 
   return false;
 }
@@ -171,6 +141,27 @@ ccl_device_inline float3 triangle_point_from_uv(KernelGlobals kg,
   return P;
 }
 
+/**
+ * Use the barycentric coordinates to get the intersection location,
+ * but with vertex coordinates specified.
+ */
+ccl_device_inline float3 triangle_point_from_uv_and_verts(KernelGlobals kg,
+                                                          ccl_private ShaderData *sd,
+                                                          const float u,
+                                                          const float v,
+                                                          const float3 verts[3])
+{
+  /* This appears to give slightly better precision than interpolating with w = (1 - u - v). */
+  float3 P = verts[0] + u * (verts[1] - verts[0]) + v * (verts[2] - verts[0]);
+
+  if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
+    const Transform tfm = object_get_transform(kg, sd);
+    P = transform_point(&tfm, P);
+  }
+
+  return P;
+}
+
 ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private ShaderData *sd)
 {
   sd->shader = kernel_data_fetch(tri_shader, sd->prim);
@@ -184,7 +175,7 @@ ccl_device_inline void triangle_shader_setup(KernelGlobals kg, ccl_private Shade
 
   /* Smooth normal. */
   if (sd->shader & SHADER_SMOOTH_NORMAL) {
-    sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
+    sd->N = triangle_smooth_normal(kg, Ng, sd->object, sd->object_flag, sd->prim, sd->u, sd->v);
   }
 
 #ifdef __DPDU__

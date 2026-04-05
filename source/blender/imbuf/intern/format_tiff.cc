@@ -12,6 +12,10 @@
 #include "IMB_filetype.hh"
 #include "IMB_imbuf_types.hh"
 
+namespace blender {
+
+const char *imb_file_extensions_tiff[] = {".tif", ".tiff", ".tx", nullptr};
+
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
 
@@ -20,17 +24,14 @@ bool imb_is_a_tiff(const uchar *mem, size_t size)
   return imb_oiio_check(mem, size, "tif");
 }
 
-ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
   config.attribute("oiio:UnassociatedAlpha", 1);
 
   ReadContext ctx{mem, size, "tif", IMB_FTYPE_TIF, flags};
 
-  /* All TIFFs should be in default byte colorspace. */
-  ctx.use_colorspace_role = COLOR_ROLE_DEFAULT_BYTE;
-
-  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
+  ImBuf *ibuf = imb_oiio_read(ctx, config, r_colorspace, spec);
   if (ibuf) {
     if (flags & IB_alphamode_detect) {
       if (spec.nchannels == 4 && spec.format == TypeDesc::UINT16) {
@@ -39,12 +40,15 @@ ImBuf *imb_load_tiff(const uchar *mem, size_t size, int flags, char colorspace[I
     }
   }
 
+  /* All TIFFs should be in default byte colorspace. */
+  r_colorspace.is_hdr_float = false;
+
   return ibuf;
 }
 
 bool imb_save_tiff(ImBuf *ibuf, const char *filepath, int flags)
 {
-  const bool is_16bit = ((ibuf->foptions.flag & TIF_16BIT) && ibuf->float_buffer.data);
+  const bool is_16bit = ((ibuf->foptions.flag & TIF_16BIT) && ibuf->float_data());
   const int file_channels = ibuf->planes >> 3;
   const TypeDesc data_format = is_16bit ? TypeDesc::UINT16 : TypeDesc::UINT8;
 
@@ -73,3 +77,5 @@ bool imb_save_tiff(ImBuf *ibuf, const char *filepath, int flags)
 
   return imb_oiio_write(ctx, filepath, file_spec);
 }
+
+}  // namespace blender

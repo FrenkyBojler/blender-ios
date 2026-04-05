@@ -9,9 +9,13 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
 #include "bpy_app_sdl.hh"
 
 #include "../generic/py_capi_utils.hh"
+
+namespace blender {
 
 #ifdef WITH_SDL
 /* SDL force defines __SSE__ and __SSE2__ flags, which generates warnings
@@ -101,7 +105,9 @@ PyObject *BPY_app_sdl_struct()
   BlenderAppSDLType.tp_init = nullptr;
   BlenderAppSDLType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppSDLType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppSDLType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
+
+}  // namespace blender

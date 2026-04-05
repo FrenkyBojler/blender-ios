@@ -20,15 +20,17 @@
 #include "UI_abstract_view.hh"
 #include "UI_resources.hh"
 
+namespace blender {
+
 struct bContext;
-struct uiBlock;
-struct uiLayout;
 struct View2D;
 
-namespace blender::ui {
+namespace ui {
 
 class AbstractGridView;
 class GridViewItemDropTarget;
+
+struct Layout;
 
 /* ---------------------------------------------------------------------- */
 /** \name Grid-View Item Type
@@ -39,13 +41,17 @@ class AbstractGridViewItem : public AbstractViewItem {
   friend class GridViewLayoutBuilder;
 
  protected:
-  /** Reference to a string that uniquely identifies this item in the view. */
-  StringRef identifier_{};
+  /**
+   * A string that uniquely identifies this item in the view.
+   *
+   * Ideally this would just be a StringRef to save memory. This was made a
+   * std::string to fix #141882 in a relatively safe way. */
+  std::string identifier_{};
 
  public:
   /* virtual */ ~AbstractGridViewItem() override = default;
 
-  virtual void build_grid_tile(const bContext &C, uiLayout &layout) const = 0;
+  virtual void build_grid_tile(const bContext &C, Layout &layout) const = 0;
 
   /* virtual */ std::optional<std::string> debug_name() const override;
 
@@ -61,8 +67,7 @@ class AbstractGridViewItem : public AbstractViewItem {
   virtual std::unique_ptr<GridViewItemDropTarget> create_drop_target();
 
  private:
-  static void grid_tile_click_fn(bContext *, void *but_arg1, void *);
-  void add_grid_tile_button(uiBlock &block);
+  void add_grid_tile_button(Block &block);
 };
 
 /** \} */
@@ -168,11 +173,11 @@ class GridViewItemDropTarget : public DropTargetInterface {
 
 class GridViewBuilder {
  public:
-  GridViewBuilder(uiBlock &block);
+  GridViewBuilder(Block &block);
 
   void build_grid_view(const bContext &C,
                        AbstractGridView &grid_view,
-                       uiLayout &layout,
+                       Layout &layout,
                        std::optional<StringRef> search_string = {});
 };
 
@@ -206,9 +211,9 @@ class PreviewGridItem : public AbstractGridViewItem {
 
   PreviewGridItem(StringRef identifier, StringRef label, int preview_icon_id);
 
-  void build_grid_tile(const bContext &C, uiLayout &layout) const override;
+  void build_grid_tile(const bContext &C, Layout &layout) const override;
 
-  void build_grid_tile_button(uiLayout &layout,
+  void build_grid_tile_button(Layout &layout,
                               BIFIconID override_preview_icon_id = ICON_NONE) const;
 
   /**
@@ -248,4 +253,5 @@ template<class ViewType> ViewType &GridViewItemDropTarget::get_view() const
   return dynamic_cast<ViewType &>(view_);
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

@@ -15,8 +15,8 @@ namespace blender::nodes::node_geo_material_selection_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Material>("Material").hide_label(true);
-  b.add_output<decl::Bool>("Selection").field_source();
+  b.add_input<decl::Material>("Material"_ustr).optional_label(true);
+  b.add_output<decl::Bool>("Selection"_ustr).field_source();
 }
 
 static VArray<bool> select_by_material(const Span<Material *> materials,
@@ -33,22 +33,24 @@ static VArray<bool> select_by_material(const Span<Material *> materials,
     }
   }
   if (slots.is_empty()) {
-    return VArray<bool>::ForSingle(false, domain_size);
+    return VArray<bool>::from_single(false, domain_size);
   }
 
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
       "material_index", domain, 0);
   if (const std::optional<int> single = material_indices.get_if_single()) {
-    return VArray<bool>::ForSingle(slots.contains(*single), domain_size);
+    return VArray<bool>::from_single(slots.contains(*single), domain_size);
   }
 
   const VArraySpan<int> material_indices_span(material_indices);
   Array<bool> domain_selection(domain_mask.min_array_size());
-  domain_mask.foreach_index_optimized<int>(GrainSize(1024), [&](const int domain_index) {
-    const int slot_i = material_indices_span[domain_index];
-    domain_selection[domain_index] = slots.contains(slot_i);
-  });
-  return VArray<bool>::ForContainer(std::move(domain_selection));
+  domain_mask.foreach_index_optimized<int>(
+      [&](const int domain_index) {
+        const int slot_i = material_indices_span[domain_index];
+        domain_selection[domain_index] = slots.contains(slot_i);
+      },
+      exec_mode::grain_size(4096));
+  return VArray<bool>::from_container(std::move(domain_selection));
 }
 
 class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
@@ -59,7 +61,6 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
       : bke::GeometryFieldInput(CPPType::get<bool>(), "Material Selection node"),
         material_(material)
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -133,7 +134,7 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
     return get_default_hash(material_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const MaterialSelectionFieldInput *other_material_selection =
             dynamic_cast<const MaterialSelectionFieldInput *>(&other))
@@ -152,14 +153,14 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Material *material = params.extract_input<Material *>("Material");
-  Field<bool> material_field{std::make_shared<MaterialSelectionFieldInput>(material)};
-  params.set_output("Selection", std::move(material_field));
+  Material *material = params.extract_input<Material *>("Material"_ustr);
+  params.set_output("Selection"_ustr,
+                    Field<bool>::from_input<MaterialSelectionFieldInput>(material));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMaterialSelection", GEO_NODE_MATERIAL_SELECTION);
   ntype.ui_name = "Material Selection";
@@ -168,7 +169,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

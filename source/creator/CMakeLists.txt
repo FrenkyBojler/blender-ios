@@ -14,13 +14,16 @@ set(LIB
   PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
 if(HAVE_FEENABLEEXCEPT)
@@ -40,12 +43,6 @@ if(WITH_TBB)
   list(INSERT LIB 0 bf_blenkernel)
 endif()
 
-if(WITH_OPENMP AND WITH_OPENMP_STATIC)
-  list(APPEND LIB
-    ${OpenMP_LIBRARIES}
-  )
-endif()
-
 if(WIN32)
   list(APPEND INC ../../intern/utfconv)
 endif()
@@ -57,10 +54,7 @@ endif()
 
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
-  if(WITH_CYCLES_LOGGING)
-    list(APPEND INC ../../intern/cycles/blender)
-    add_definitions(-DWITH_CYCLES_LOGGING)
-  endif()
+  list(APPEND INC ../../intern/cycles/blender)
 endif()
 
 if(WITH_OPENGL_BACKEND)
@@ -79,17 +73,14 @@ if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()
 
-if(WITH_TBB)
+if(WITH_TBB OR WITH_TBB_MALLOC_PROXY)
   list(APPEND INC ${TBB_INCLUDE_DIRS})
+endif()
+if(WITH_TBB)
   if(WIN32)
     # For `pragma` that links `tbbmalloc_proxy.lib`.
     link_directories(${LIBDIR}/tbb/lib)
   endif()
-endif()
-
-if(WIN32)
-  # Windows.h will define min/max macros that will collide with the STL versions.
-  add_definitions(-DNOMINMAX)
 endif()
 
 if(WITH_USD)
@@ -122,6 +113,10 @@ if(WITH_SDL)
   add_definitions(-DWITH_SDL)
 endif()
 
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
+endif()
+
 if(WITH_BINRELOC)
   list(APPEND INC ${BINRELOC_INCLUDE_DIRS})
   add_definitions(-DWITH_BINRELOC)
@@ -141,8 +136,8 @@ if(WITH_GMP)
   add_definitions(-DWITH_GMP)
 endif()
 
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
+if(WITH_TBB_MALLOC_PROXY)
+  add_definitions(-DWITH_TBB_MALLOC)
 endif()
 
 # Setup the EXE sources and `buildinfo`.
@@ -294,7 +289,7 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj buildinfo)
 endif()
 
-add_cc_flags_custom_test(blender)
+add_c_and_cxx_flags_custom_test(blender)
 
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
@@ -570,6 +565,18 @@ if(WIN32)
       CONFIGURATIONS Debug
     )
   endif()
+  if(EXISTS ${LIBDIR}/ceres/bin/ceres.dll) # 5.1+
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres-debug.dll
+      DEBUG
+    )
+  endif()
   if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
     windows_install_shared_manifest(
       FILES
@@ -598,14 +605,31 @@ if(WIN32)
       DEBUG
     )
   endif()
-  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll) # 4.1
+  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll) # 5.1
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll
       RELEASE
     )
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_5.dll
       DEBUG
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/openjph/bin/openjph.0.25.dll) # 5.1
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25d.dll
+      DEBUG
+    )
+  endif()
+  if(EXISTS "${LIBDIR}/aom/bin/aom.dll") # 5.1
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/aom/bin/aom.dll
+      ALL
     )
   endif()
   install(
@@ -668,7 +692,8 @@ endif()
 unset(_install_cmd)
 
 # macro to help install files without dragging in unnecessary data.
-macro(install_dir from to)
+# Install a directory, excluding common junk files.
+function(install_dir from to)
   install(
     DIRECTORY ${from}
     DESTINATION ${to}
@@ -695,7 +720,7 @@ macro(install_dir from to)
     PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
     PATTERN "wininst*.exe" EXCLUDE              # from distutils, avoid malware false positive
   )
-endmacro()
+endfunction()
 
 # -----------------------------------------------------------------------------
 # Install Targets (Platform Specific)
@@ -1032,12 +1057,6 @@ elseif(WIN32)
     )
   endif()
 
-  if(WITH_OPENMP AND MSVC_CLANG)
-    windows_install_shared_manifest(
-      FILES ${CLANG_OPENMP_DLL}
-      ALL
-    )
-  endif()
   # 4.1 FFTW libs need to be installed, in 4.2 FFTW got turned into a static lib
   # and the files below no longer exist.
   if(EXISTS ${LIBDIR}/fftw3/lib/fftw3.dll)
@@ -1135,9 +1154,35 @@ elseif(WIN32)
   )
 
   if(WITH_WINDOWS_RELEASE_PDB)
-    # Skip install of stripped PDB if compiling with clang since there doesn't seem
-    # to be a PDB-stripped version for `clang-cl`.
-    if(WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
+    if(MSVC_CLANG AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
+      # clang-cl doesn't support stripped pdbs yet, it takes the /PDBSTRIPPED argument
+      # without errors, but will just proceed to not do anything with it. So for now
+      # just call pdbcopy manually to create the stripped pdb.
+      if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+        set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/arm64)
+      else()
+        set(SDK_SEARCH_DIR $ENV{WindowsSdkDir}/Debuggers/x64)
+      endif()
+      find_program(PDBCOPY_EXECUTABLE
+        NAMES
+          pdbcopy
+        HINTS
+          ${SDK_SEARCH_DIR}
+      )
+      if(PDBCOPY_EXECUTABLE)
+        add_custom_command(
+          TARGET blender POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb
+          COMMAND ${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb -p
+          COMMENT "Stripping PDB file..."
+        )
+      else()
+        message(WARNING "pdbcopy not found in ${SDK_SEARCH_DIR}. PDB stripping will be skipped.")
+        set(WITH_WINDOWS_RELEASE_STRIPPED_PDB off)
+      endif()
+    endif()
+
+    if(WITH_WINDOWS_RELEASE_STRIPPED_PDB)
       # Icky hack for older CMAKE from https://stackoverflow.com/a/21198501
       # `$<CONFIG>` will work in newer CMAKE but the version currently (3.12)
       # on the build-bot does not support this endeavor.
@@ -1221,7 +1266,7 @@ elseif(WIN32)
     string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
     if(NOT WITH_PYTHON_MODULE)
-      if(NOT CMAKE_COMPILER_IS_GNUCC)
+      if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
         install(
           FILES
             ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
@@ -1284,6 +1329,7 @@ elseif(WIN32)
       install(
         FILES
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
+          ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python3.dll
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python.exe
         DESTINATION ${BLENDER_VERSION}/python/bin
         CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
@@ -1291,6 +1337,7 @@ elseif(WIN32)
       install(
         FILES
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+          ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python3_d.dll
           ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python_d.exe
         DESTINATION ${BLENDER_VERSION}/python/bin
         CONFIGURATIONS Debug
@@ -1435,7 +1482,25 @@ elseif(WIN32)
 
   # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
-  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avfilter-10.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avfilter-10.dll
+      ALL
+    )
+  endif()
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avcodec-61.dll
+        ${LIBDIR}/ffmpeg/lib/avformat-61.dll
+        ${LIBDIR}/ffmpeg/lib/avdevice-61.dll
+        ${LIBDIR}/ffmpeg/lib/avutil-59.dll
+        ${LIBDIR}/ffmpeg/lib/swscale-8.dll
+        ${LIBDIR}/ffmpeg/lib/swresample-5.dll
+      ALL
+    )
+  elseif(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
     windows_install_shared_manifest(
       FILES
         ${LIBDIR}/ffmpeg/lib/avcodec-60.dll
@@ -1511,12 +1576,7 @@ elseif(WIN32)
 
   windows_install_shared_manifest(
     FILES ${LIBDIR}/shaderc/bin/shaderc_shared.dll
-    RELEASE
-  )
-
-  windows_install_shared_manifest(
-    FILES ${LIBDIR}/shaderc/bin/shaderc_shared_d.dll
-    DEBUG
+    ALL
   )
 
   windows_install_shared_manifest(
@@ -1576,6 +1636,9 @@ elseif(WIN32)
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_gpu_glitchworkaround.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_debug_log.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_factory_startup.cmd
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_factory_startup_vulkan.cmd
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_startup_opengl.cmd
+        ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_startup_vulkan.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/blender_oculus.cmd
         ${CMAKE_SOURCE_DIR}/release/windows/batch/oculus.json
       DESTINATION ${TARGETDIR_EXE}
@@ -1618,6 +1681,12 @@ elseif(APPLE)
     MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
+  )
+
+  # Xcode Archiving support for distributing the application (Testflight, App Store Connect, etc...)
+  set_target_properties(blender PROPERTIES
+    XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
+    XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
   )
 
   if(WITH_BLENDER_THUMBNAILER)
@@ -1679,7 +1748,7 @@ elseif(APPLE)
 
   if(WITH_VULKAN_BACKEND)
     install(
-      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY}
+      FILES ${VULKAN_LIBRARY}
       DESTINATION ${TARGETDIR_LIB}
     )
   endif()
@@ -1814,7 +1883,7 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files)
+set(_icon_files "")
 foreach(_f ${_icon_names})
   list(APPEND _icon_files
     "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
@@ -1842,7 +1911,7 @@ install(
 # -----------------------------------------------------------------------------
 # Bundle assets
 
-set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/release/datafiles/assets/publish/)
+set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/assets/)
 
 if(EXISTS "${ASSET_BUNDLE_DIR}")
   install(
@@ -1861,10 +1930,7 @@ unset(LIB)
 
 setup_platform_linker_flags(blender)
 setup_platform_linker_libs(blender)
-
-if(DEFINED PLATFORM_SYMBOLS_MAP)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
-endif()
+setup_platform_linker_symbol_hiding(blender)
 
 blender_target_include_dirs(blender ${INC})
 
@@ -1960,34 +2026,17 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32 AND EXISTS ${BOOST_LIBPATH})
-  set(BOOST_COMPONENTS atomic chrono date_time filesystem
-    iostreams locale program_options regex
-    serialization system thread wave wserialization
-    python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
-  )
-  foreach(component ${BOOST_COMPONENTS})
-    if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
-      windows_install_shared_manifest(
-        FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
-        RELEASE
-      )
-      windows_install_shared_manifest(
-        FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
-        DEBUG
-      )
-    endif()
-  endforeach()
-endif()
-
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
-    if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      install(
-        FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        DESTINATION "./"
-      )
-    endif()
+    # Cycles does `find_package(HIPRT)` for its compilation purposes, and the variables defined by
+    # the FindHIPRT.cmake are only available in Cycles. In order to access HIPRT_VERSION need to
+    # find the package from here as well.
+    # For the strict compilation rely on Cycles to take care of set_and_warn_library_found().
+    find_package(HIPRT)
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/hiprt/bin/hiprt${HIPRT_VERSION}64.dll
+      ALL
+    )
   endif()
 endif()
 
@@ -2001,7 +2050,7 @@ if(WIN32)
   )
   # If compiling with clang-cl we skip PDBSTRIPPED.
   # There's doesn't seem to be a switch for it currently
-  if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB AND NOT MSVC_CLANG)
+  if(WITH_WINDOWS_RELEASE_PDB AND WITH_WINDOWS_RELEASE_STRIPPED_PDB)
     # This is slightly messy, but single target generators like ninja will not have the
     # `CMAKE_CFG_INTDIR` variable and multi-target generators like `msbuild` will not have
     # `CMAKE_BUILD_TYPE`. This can be simplified by `target_link_options` and the `$<CONFIG>`

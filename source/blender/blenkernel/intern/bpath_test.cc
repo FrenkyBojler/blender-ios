@@ -20,7 +20,11 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-namespace blender::bke::tests {
+namespace blender {
+
+struct PathStore;
+
+namespace bke::tests {
 
 #ifdef WIN32
 #  define ABSOLUTE_ROOT "C:" SEP_STR
@@ -37,7 +41,6 @@ namespace blender::bke::tests {
 
 #define TEXT_PATH_ITEM "texts" SEP_STR "text.txt"
 #define TEXT_PATH_ABSOLUTE ABSOLUTE_ROOT TEXT_PATH_ITEM
-#define TEXT_PATH_ABSOLUTE_MADE_RELATIVE RELATIVE_ROOT ".." SEP_STR TEXT_PATH_ITEM
 #define TEXT_PATH_RELATIVE RELATIVE_ROOT TEXT_PATH_ITEM
 #define TEXT_PATH_RELATIVE_MADE_ABSOLUTE BASE_DIR TEXT_PATH_ITEM
 
@@ -64,8 +67,8 @@ class BPathTest : public testing::Test {
     bmain = BKE_main_new();
     STRNCPY(bmain->filepath, BLENDFILE_PATH);
 
-    BKE_id_new(bmain, ID_TXT, nullptr);
-    BKE_id_new(bmain, ID_MC, nullptr);
+    BKE_id_new<Text>(bmain, nullptr);
+    BKE_id_new<MovieClip>(bmain, nullptr);
   }
 
   void TearDown() override
@@ -148,10 +151,10 @@ TEST_F(BPathTest, list_backup_restore)
 
   void *path_list_handle = BKE_bpath_list_backup(bmain, static_cast<eBPathForeachFlag>(0));
 
-  ListBase *path_list = reinterpret_cast<ListBase *>(path_list_handle);
+  ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
   EXPECT_EQ(BLI_listbase_count(path_list), 2);
 
-  MEM_freeN(text->filepath);
+  MEM_delete(text->filepath);
   text->filepath = BLI_strdup(TEXT_PATH_ABSOLUTE);
   STRNCPY(movie_clip->filepath, MOVIECLIP_PATH_RELATIVE);
 
@@ -164,4 +167,5 @@ TEST_F(BPathTest, list_backup_restore)
   BKE_bpath_list_free(path_list_handle);
 }
 
-}  // namespace blender::bke::tests
+}  // namespace bke::tests
+}  // namespace blender

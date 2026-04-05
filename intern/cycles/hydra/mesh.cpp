@@ -199,7 +199,6 @@ void HdCyclesMesh::PopulatePoints(HdSceneDelegate *sceneDelegate)
 
 void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
 {
-  _geom->attributes.remove(ATTR_STD_FACE_NORMAL);
   _geom->attributes.remove(ATTR_STD_VERTEX_NORMAL);
 
   // Authored normals should only exist on triangle meshes
@@ -248,33 +247,31 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
 
     const GfVec3f constantNormal = normals[0];
 
-    float3 *const N = _geom->attributes.add(ATTR_STD_VERTEX_NORMAL)->data_float3();
+    packed_normal *const N =
+        _geom->attributes.add(ATTR_STD_VERTEX_NORMAL)->data_normal_for_write();
     for (size_t i = 0; i < _geom->get_verts().size(); ++i) {
-      N[i] = make_float3(constantNormal[0], constantNormal[1], constantNormal[2]);
+      N[i] = packed_normal(make_float3(constantNormal[0], constantNormal[1], constantNormal[2]));
     }
   }
   else if (interpolation == HdInterpolationUniform) {
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumFaces()));
-
-    float3 *const N = _geom->attributes.add(ATTR_STD_FACE_NORMAL)->data_float3();
-    for (size_t i = 0; i < _geom->num_triangles(); ++i) {
-      const int faceIndex = HdMeshUtil::DecodeFaceIndexFromCoarseFaceParam(_primitiveParams[i]);
-
-      N[i] = make_float3(normals[faceIndex][0], normals[faceIndex][1], normals[faceIndex][2]);
-    }
+    /* Nothing to do, face normals are computed on demand in the kernel. */
   }
   else if (interpolation == HdInterpolationVertex || interpolation == HdInterpolationVarying) {
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumPoints()) &&
               static_cast<size_t>(_topology.GetNumPoints()) == _geom->get_verts().size());
 
-    float3 *const N = _geom->attributes.add(ATTR_STD_VERTEX_NORMAL)->data_float3();
+    packed_normal *const N =
+        _geom->attributes.add(ATTR_STD_VERTEX_NORMAL)->data_normal_for_write();
     for (size_t i = 0; i < _geom->get_verts().size(); ++i) {
-      N[i] = make_float3(normals[i][0], normals[i][1], normals[i][2]);
+      N[i] = packed_normal(make_float3(normals[i][0], normals[i][1], normals[i][2]));
     }
   }
   else if (interpolation == HdInterpolationFaceVarying) {
     TF_VERIFY(normals.size() == static_cast<size_t>(_topology.GetNumFaceVaryings()));
 
+    // TODO: Cycles has no per-corner normals, so ignore until supported.
+#if 0
     if (!_util.ComputeTriangulatedFaceVaryingPrimvar(
             normals.data(), normals.size(), HdTypeFloatVec3, &value))
     {
@@ -282,16 +279,7 @@ void HdCyclesMesh::PopulateNormals(HdSceneDelegate *sceneDelegate)
     }
 
     const auto &normalsTriangulated = value.UncheckedGet<VtVec3fArray>();
-
-    // Cycles has no standard attribute for face-varying normals, so this is a lossy transformation
-    float3 *const N = _geom->attributes.add(ATTR_STD_FACE_NORMAL)->data_float3();
-    for (size_t i = 0; i < _geom->num_triangles(); ++i) {
-      GfVec3f averageNormal = normalsTriangulated[i * 3] + normalsTriangulated[i * 3 + 1] +
-                              normalsTriangulated[i * 3 + 2];
-      GfNormalize(&averageNormal);
-
-      N[i] = make_float3(averageNormal[0], averageNormal[1], averageNormal[2]);
-    }
+#endif
   }
 }
 
@@ -444,37 +432,69 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     VtVec3iArray triangles;
     _util.ComputeTriangleIndices(&triangles, &_primitiveParams);
 
-    _geom->reserve_mesh(_topology.GetNumPoints(), triangles.size());
+    _geom->resize_mesh(_topology.GetNumPoints(), triangles.size());
 
+    int *geom_indices = _geom->get_triangles().data();
+    for (size_t i = 0; i < _primitiveParams.size(); ++i) {
+      const GfVec3i triangle = triangles[i];
+      geom_indices[i * 3 + 0] = triangle[0];
+      geom_indices[i * 3 + 1] = triangle[1];
+      geom_indices[i * 3 + 2] = triangle[2];
+    }
+
+    int *shader = _geom->get_shader().data();
     for (size_t i = 0; i < _primitiveParams.size(); ++i) {
       const int faceIndex = HdMeshUtil::DecodeFaceIndexFromCoarseFaceParam(_primitiveParams[i]);
-
-      const GfVec3i triangle = triangles[i];
-      _geom->add_triangle(triangle[0], triangle[1], triangle[2], faceShaders[faceIndex], smooth);
+      shader[i] = faceShaders[faceIndex];
     }
+
+    std::ranges::fill(_geom->get_smooth(), smooth);
+
+    _geom->tag_triangles_modified();
+    _geom->tag_shader_modified();
+    _geom->tag_smooth_modified();
   }
   else {
     const PxOsdSubdivTags subdivTags = GetSubdivTags(sceneDelegate);
     _topology.SetSubdivTags(subdivTags);
 
-    size_t numNgons = 0;
     size_t numCorners = 0;
     for (const int vertCount : vertCounts) {
-      numNgons += (vertCount == 4) ? 0 : 1;
       numCorners += vertCount;
     }
 
-    _geom->reserve_subd_faces(_topology.GetNumFaces(), numNgons, numCorners);
+    _geom->resize_subd_faces(_topology.GetNumFaces(), numCorners);
+
+    std::copy_n(vertIndx.data(), vertIndx.size(), _geom->get_subd_face_corners().data());
+
+    int *subd_start_corner = _geom->get_subd_start_corner().data();
+    int *subd_num_corners = _geom->get_subd_num_corners().data();
+    int *subd_ptex_offset = _geom->get_subd_ptex_offset().data();
 
     // TODO: Handle hole indices
+    int ptex_offset = 0;
     size_t faceIndex = 0;
     size_t indexOffset = 0;
     for (const int vertCount : vertCounts) {
-      _geom->add_subd_face(&vertIndx[indexOffset], vertCount, faceShaders[faceIndex], smooth);
+      subd_start_corner[faceIndex] = indexOffset;
+      subd_num_corners[faceIndex] = vertCount;
+      subd_ptex_offset[faceIndex] = ptex_offset;
+      const int num_ptex = (vertCount == 4) ? 1 : vertCount;
+      ptex_offset += num_ptex;
 
       faceIndex++;
       indexOffset += vertCount;
     }
+
+    std::copy_n(faceShaders.data(), faceShaders.size(), _geom->get_subd_shader().data());
+    std::ranges::fill(_geom->get_subd_smooth(), smooth);
+
+    _geom->tag_subd_face_corners_modified();
+    _geom->tag_subd_start_corner_modified();
+    _geom->tag_subd_num_corners_modified();
+    _geom->tag_subd_shader_modified();
+    _geom->tag_subd_smooth_modified();
+    _geom->tag_subd_ptex_offset_modified();
 
     const VtIntArray creaseLengths = subdivTags.GetCreaseLengths();
     if (!creaseLengths.empty()) {

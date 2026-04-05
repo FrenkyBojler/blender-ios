@@ -6,12 +6,14 @@
 
 /* ** Combine/Separate XYZ ** */
 
-void node_composite_combine_xyz(float x, float y, float z, out vec3 vector)
+[[node]]
+void node_composite_combine_xyz(float x, float y, float z, float3 &vector)
 {
-  vector = vec3(x, y, z);
+  vector = float3(x, y, z);
 }
 
-void node_composite_separate_xyz(vec3 vector, out float x, out float y, out float z)
+[[node]]
+void node_composite_separate_xyz(float3 vector, float &x, float &y, float &z)
 {
   x = vector.x;
   y = vector.y;
@@ -20,12 +22,14 @@ void node_composite_separate_xyz(vec3 vector, out float x, out float y, out floa
 
 /* ** Combine/Separate RGBA ** */
 
-void node_composite_combine_rgba(float r, float g, float b, float a, out vec4 color)
+[[node]]
+void node_composite_combine_rgba(float r, float g, float b, float a, float4 &color)
 {
-  color = vec4(r, g, b, a);
+  color = float4(r, g, b, a);
 }
 
-void node_composite_separate_rgba(vec4 color, out float r, out float g, out float b, out float a)
+[[node]]
+void node_composite_separate_rgba(float4 color, float &r, float &g, float &b, float &a)
 {
   r = color.r;
   g = color.g;
@@ -35,15 +39,16 @@ void node_composite_separate_rgba(vec4 color, out float r, out float g, out floa
 
 /* ** Combine/Separate HSVA ** */
 
-void node_composite_combine_hsva(float h, float s, float v, float a, out vec4 color)
+[[node]]
+void node_composite_combine_hsva(float h, float s, float v, float a, float4 &color)
 {
-  hsv_to_rgb(vec4(h, s, v, a), color);
-  color.rgb = max(color.rgb, vec3(0.0));
+  hsv_to_rgb(float4(h, s, v, a), color);
 }
 
-void node_composite_separate_hsva(vec4 color, out float h, out float s, out float v, out float a)
+[[node]]
+void node_composite_separate_hsva(float4 color, float &h, float &s, float &v, float &a)
 {
-  vec4 hsva;
+  float4 hsva;
   rgb_to_hsv(color, hsva);
   h = hsva.x;
   s = hsva.y;
@@ -53,15 +58,17 @@ void node_composite_separate_hsva(vec4 color, out float h, out float s, out floa
 
 /* ** Combine/Separate HSLA ** */
 
-void node_composite_combine_hsla(float h, float s, float l, float a, out vec4 color)
+[[node]]
+void node_composite_combine_hsla(float h, float s, float l, float a, float4 &color)
 {
-  hsl_to_rgb(vec4(h, s, l, a), color);
-  color.rgb = max(color.rgb, vec3(0.0));
+  hsl_to_rgb(float4(h, s, l, a), color);
+  color.rgb = max(color.rgb, float3(0.0f));
 }
 
-void node_composite_separate_hsla(vec4 color, out float h, out float s, out float l, out float a)
+[[node]]
+void node_composite_separate_hsla(float4 color, float &h, float &s, float &l, float &a)
 {
-  vec4 hsla;
+  float4 hsla;
   rgb_to_hsl(color, hsla);
   h = hsla.x;
   s = hsla.y;
@@ -71,25 +78,28 @@ void node_composite_separate_hsla(vec4 color, out float h, out float s, out floa
 
 /* ** Combine/Separate YCCA ** */
 
-void node_composite_combine_ycca_itu_601(float y, float cb, float cr, float a, out vec4 color)
+[[node]]
+void node_composite_combine_ycca_itu_601(float y, float cb, float cr, float a, float4 &color)
 {
-  ycca_to_rgba_itu_601(vec4(y, cb, cr, a), color);
+  ycca_to_rgba_itu_601(float4(y, cb, cr, a), color);
 }
 
-void node_composite_combine_ycca_itu_709(float y, float cb, float cr, float a, out vec4 color)
+[[node]]
+void node_composite_combine_ycca_itu_709(float y, float cb, float cr, float a, float4 &color)
 {
-  ycca_to_rgba_itu_709(vec4(y, cb, cr, a), color);
+  ycca_to_rgba_itu_709(float4(y, cb, cr, a), color);
 }
 
-void node_composite_combine_ycca_jpeg(float y, float cb, float cr, float a, out vec4 color)
+[[node]]
+void node_composite_combine_ycca_jpeg(float y, float cb, float cr, float a, float4 &color)
 {
-  ycca_to_rgba_jpeg(vec4(y, cb, cr, a), color);
+  ycca_to_rgba_jpeg(float4(y, cb, cr, a), color);
 }
 
-void node_composite_separate_ycca_itu_601(
-    vec4 color, out float y, out float cb, out float cr, out float a)
+[[node]]
+void node_composite_separate_ycca_itu_601(float4 color, float &y, float &cb, float &cr, float &a)
 {
-  vec4 ycca;
+  float4 ycca;
   rgba_to_ycca_itu_601(color, ycca);
   y = ycca.x;
   cb = ycca.y;
@@ -97,10 +107,10 @@ void node_composite_separate_ycca_itu_601(
   a = ycca.a;
 }
 
-void node_composite_separate_ycca_itu_709(
-    vec4 color, out float y, out float cb, out float cr, out float a)
+[[node]]
+void node_composite_separate_ycca_itu_709(float4 color, float &y, float &cb, float &cr, float &a)
 {
-  vec4 ycca;
+  float4 ycca;
   rgba_to_ycca_itu_709(color, ycca);
   y = ycca.x;
   cb = ycca.y;
@@ -108,10 +118,10 @@ void node_composite_separate_ycca_itu_709(
   a = ycca.a;
 }
 
-void node_composite_separate_ycca_jpeg(
-    vec4 color, out float y, out float cb, out float cr, out float a)
+[[node]]
+void node_composite_separate_ycca_jpeg(float4 color, float &y, float &cb, float &cr, float &a)
 {
-  vec4 ycca;
+  float4 ycca;
   rgba_to_ycca_jpeg(color, ycca);
   y = ycca.x;
   cb = ycca.y;
@@ -121,15 +131,16 @@ void node_composite_separate_ycca_jpeg(
 
 /* ** Combine/Separate YUVA ** */
 
-void node_composite_combine_yuva_itu_709(float y, float u, float v, float a, out vec4 color)
+[[node]]
+void node_composite_combine_yuva_itu_709(float y, float u, float v, float a, float4 &color)
 {
-  yuva_to_rgba_itu_709(vec4(y, u, v, a), color);
+  yuva_to_rgba_itu_709(float4(y, u, v, a), color);
 }
 
-void node_composite_separate_yuva_itu_709(
-    vec4 color, out float y, out float u, out float v, out float a)
+[[node]]
+void node_composite_separate_yuva_itu_709(float4 color, float &y, float &u, float &v, float &a)
 {
-  vec4 yuva;
+  float4 yuva;
   rgba_to_yuva_itu_709(color, yuva);
   y = yuva.x;
   u = yuva.y;

@@ -11,6 +11,7 @@ set(INC_SYS
 
 set(SRC
   buffers.cpp
+  display_driver.cpp
   denoising.cpp
   merge.cpp
   session.cpp
@@ -28,9 +29,9 @@ set(SRC_HEADERS
 )
 
 set(LIB
-  cycles_device
-  cycles_integrator
-  cycles_util
+  PUBLIC cycles_device
+  PUBLIC cycles_integrator
+  PUBLIC cycles_util
 )
 
 include_directories(${INC})

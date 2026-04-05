@@ -53,8 +53,8 @@ class RealizeOnDomainOperation : public SimpleOperation {
    * to interpolation. See the implementation for more information. */
   float2 compute_corrective_translation();
 
-  void realize_on_domain_gpu(const float3x3 &inverse_transformation);
-  void realize_on_domain_cpu(const float3x3 &inverse_transformation);
+  void realize_on_domain_gpu(const float3x3 &transformation);
+  void realize_on_domain_cpu(const float3x3 &transformation);
 };
 
 }  // namespace blender::compositor

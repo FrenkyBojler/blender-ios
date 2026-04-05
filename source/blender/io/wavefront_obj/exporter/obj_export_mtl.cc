@@ -21,9 +21,12 @@
 #include "obj_export_mtl.hh"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.obj"};
 
-namespace blender::io::obj {
+namespace io::obj {
 
 const char *tex_map_type_to_socket_id[] = {
     "Base Color",
@@ -147,7 +150,6 @@ static std::string get_image_filepath(const bNode *tex_node)
     /* Put image in the same directory as the `.MTL` file. */
     const char *filename = BLI_path_basename(tex_image->filepath);
     CLOG_INFO(&LOG,
-              1,
               "Packed image found:'%s'. Unpack and place the image in the same "
               "directory as the .MTL file.",
               filename);
@@ -393,4 +395,5 @@ MTLMaterial mtlmaterial_for_material(const Material *material)
   return mtlmat;
 }
 
-}  // namespace blender::io::obj
+}  // namespace io::obj
+}  // namespace blender

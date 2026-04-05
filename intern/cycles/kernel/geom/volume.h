@@ -14,10 +14,11 @@
 #pragma once
 
 #include "kernel/globals.h"
-#include "kernel/image.h"
 
 #include "kernel/geom/attribute.h"
 #include "kernel/geom/object.h"
+
+#include "kernel/util/image_3d.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -25,15 +26,14 @@ CCL_NAMESPACE_BEGIN
 
 /* Return position normalized to 0..1 in mesh bounds */
 
-ccl_device_inline float3 volume_normalized_position(KernelGlobals kg,
-                                                    const ccl_private ShaderData *sd,
-                                                    float3 P)
+template<typename Float3Type>
+ccl_device_inline Float3Type volume_normalized_position(KernelGlobals kg,
+                                                        const ccl_private ShaderData *sd,
+                                                        Float3Type P)
 {
-  /* todo: optimize this so it's just a single matrix multiplication when
-   * possible (not motion blur), or perhaps even just translation + scale */
   const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM);
 
-  object_inverse_position_transform(kg, sd, &P);
+  object_inverse_position_transform_if_object(kg, sd, &P);
 
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     const Transform tfm = primitive_attribute_matrix(kg, desc);
@@ -50,7 +50,7 @@ ccl_device_template_spec float volume_attribute_value(const float4 value)
   return average(make_float3(value));
 }
 
-ccl_device_template_spec float2 volume_attribute_value(const float4 value)
+ccl_device_template_spec float2 volume_attribute_value(const float4 /*value*/)
 {
   kernel_assert(!"Float2 attribute not supported for volumes");
   return zero_float2();
@@ -76,21 +76,22 @@ ccl_device float volume_attribute_alpha(const float4 value)
 }
 
 ccl_device float4 volume_attribute_float4(KernelGlobals kg,
-                                          const ccl_private ShaderData *sd,
-                                          const AttributeDescriptor desc)
+                                          ccl_private ShaderData *sd,
+                                          const AttributeDescriptor desc,
+                                          const bool stochastic)
 {
   if (desc.element & (ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
     return kernel_data_fetch(attributes_float4, desc.offset);
   }
-  if (desc.element == ATTR_ELEMENT_VOXEL) {
+  if (desc.element & ATTR_ELEMENT_VOXEL) {
     /* todo: optimize this so we don't have to transform both here and in
-     * kernel_tex_image_interp_3d when possible. Also could optimize for the
+     * kernel_image_interp_3d when possible. Also could optimize for the
      * common case where transform is translation/scale only. */
     float3 P = sd->P;
     object_inverse_position_transform(kg, sd, &P);
     const InterpolationType interp = (sd->flag & SD_VOLUME_CUBIC) ? INTERPOLATION_CUBIC :
                                                                     INTERPOLATION_NONE;
-    return kernel_tex_image_interp_3d(kg, desc.offset, P, interp);
+    return kernel_image_interp_3d(kg, sd, desc.offset, P, interp, stochastic);
   }
   return zero_float4();
 }

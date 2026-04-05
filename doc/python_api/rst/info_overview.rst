@@ -166,7 +166,7 @@ Class mix-in example:
    Modal operators are an exception, keeping their instance variable as Blender runs, see modal operator template.
 
 So once the class is registered with Blender, instancing the class and calling the functions is left up to Blender.
-In fact you cannot instance these classes from the script as you would expect with most Python API's.
+In fact you cannot instantiate these classes from the script as you would expect with most Python APIs.
 To run operators you can call them through the operator API, e.g:
 
 .. code-block:: python
@@ -221,7 +221,7 @@ otherwise Blender's internal initialization won't happen properly:
    be fairly cryptic and unhelping. Generally they should be about failure to create a (python)
    object:
 
-      MemoryError: couldn't create bpy_struct object\_
+      MemoryError: couldn't create bpy_struct object
 
    With Operators, it might be something like that:
 
@@ -328,7 +328,7 @@ using the ``bl_idname`` rather than the classes original name.
 
 .. note::
 
-   There are some exceptions to this for class names which aren't guarantee to be unique.
+   There are some exceptions to this for class names which aren't guaranteed to be unique.
    In this case use: :func:`bpy.types.Struct.bl_rna_get_subclass_py`.
 
 
@@ -362,7 +362,7 @@ For example, if you want to store material settings for a custom engine:
 
 .. code-block:: python
 
-   # Create new property
+   # Create new property:
    # bpy.data.materials[0].my_custom_props.my_float
    import bpy
 
@@ -371,7 +371,7 @@ For example, if you want to store material settings for a custom engine:
 
    def register():
        bpy.utils.register_class(MyMaterialProps)
-       bpy.types.Material.my_custom_props: bpy.props.PointerProperty(type=MyMaterialProps)
+       bpy.types.Material.my_custom_props = bpy.props.PointerProperty(type=MyMaterialProps)
 
    def unregister():
        del bpy.types.Material.my_custom_props
@@ -389,7 +389,7 @@ For example, if you want to store material settings for a custom engine:
 
 .. code-block:: python
 
-   # Create new property group with a sub property
+   # Create new property group with a sub property:
    # bpy.data.materials[0].my_custom_props.sub_group.my_float
    import bpy
 
@@ -402,7 +402,7 @@ For example, if you want to store material settings for a custom engine:
    def register():
        bpy.utils.register_class(MyMaterialSubProps)
        bpy.utils.register_class(MyMaterialGroupProps)
-       bpy.types.Material.my_custom_props: bpy.props.PointerProperty(type=MyMaterialGroupProps)
+       bpy.types.Material.my_custom_props = bpy.props.PointerProperty(type=MyMaterialGroupProps)
 
    def unregister():
        del bpy.types.Material.my_custom_props
@@ -428,9 +428,9 @@ For example:
 
 .. code-block:: python
 
-   # add a new property to an existing type
+   # Add a new property to an existing type.
    bpy.types.Object.my_float: bpy.props.FloatProperty()
-   # remove
+   # Remove it.
    del bpy.types.Object.my_float
 
 This works just as well for ``PropertyGroup`` subclasses you define yourself.
@@ -452,7 +452,7 @@ This is equivalent to:
 Dynamic Class Definition (Advanced)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In some cases the specifier for data may not be in Blender, for example a external render engines shader definitions,
+In some cases the specifier for data may not be in Blender, for example an external render engine's shader definitions,
 and it may be useful to define them as types and remove them on the fly.
 
 .. code-block:: python

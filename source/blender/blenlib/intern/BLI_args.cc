@@ -18,6 +18,19 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+namespace blender {
+
+/**
+ * Needed so printing `--help` doesn't cause a naming collision with:
+ * The `-a` argument which is used twice.
+ * This works for argument parsing because the arguments are used in different passes,
+ * but causes problems when printing documentation which matches all passes.
+ *
+ * NOTE(@ideasman42): Longer term we might want to avoid duplicating
+ * arguments because it's confusing and not especially helpful.
+ */
+#define USE_DUPLICATE_ARG_WORKAROUND
+
 static char NO_DOCS[] = "NO DOCUMENTATION SPECIFIED";
 
 struct bArgDoc;
@@ -43,7 +56,7 @@ struct bArgument {
 };
 
 struct bArgs {
-  ListBase docs;
+  ListBaseT<bArgDoc> docs;
   GHash *items;
   int argc;
   const char **argv;
@@ -52,8 +65,12 @@ struct bArgs {
   bArgPrintFn print_fn;
   void *print_user_data;
 
-  /* Only use when initializing arguments. */
+  /** Only use when initializing arguments. */
   int current_pass;
+#ifdef USE_DUPLICATE_ARG_WORKAROUND
+  /** The maximum pass (inclusive). */
+  int pass_max;
+#endif
 };
 
 static uint case_strhash(const void *ptr)
@@ -85,7 +102,8 @@ static bool keycmp(const void *a, const void *b)
     }
     return !STREQ(ka->arg, kb->arg);
   }
-  return BLI_ghashutil_intcmp((const void *)ka->pass, (const void *)kb->pass);
+  return BLI_ghashutil_intcmp(reinterpret_cast<const void *>(ka->pass),
+                              reinterpret_cast<const void *>(kb->pass));
 }
 
 static bArgument *lookUp(bArgs *ba, const char *arg, int pass, int case_str)
@@ -108,8 +126,8 @@ static void args_print_wrapper(void * /*user_data*/, const char *format, va_list
 
 bArgs *BLI_args_create(int argc, const char **argv)
 {
-  bArgs *ba = MEM_cnew<bArgs>("bArgs");
-  ba->passes = MEM_cnew_array<int>(argc, "bArgs passes");
+  bArgs *ba = MEM_new_zeroed<bArgs>("bArgs");
+  ba->passes = MEM_new_array_zeroed<int>(argc, "bArgs passes");
   ba->items = BLI_ghash_new(keyhash, keycmp, "bArgs passes gh");
   BLI_listbase_clear(&ba->docs);
   ba->argc = argc;
@@ -117,6 +135,9 @@ bArgs *BLI_args_create(int argc, const char **argv)
 
   /* Must be initialized by #BLI_args_pass_set. */
   ba->current_pass = 0;
+#ifdef USE_DUPLICATE_ARG_WORKAROUND
+  ba->pass_max = 0;
+#endif
 
   BLI_args_print_fn_set(ba, args_print_wrapper, nullptr);
 
@@ -125,10 +146,10 @@ bArgs *BLI_args_create(int argc, const char **argv)
 
 void BLI_args_destroy(bArgs *ba)
 {
-  BLI_ghash_free(ba->items, MEM_freeN, MEM_freeN);
-  MEM_freeN(ba->passes);
+  BLI_ghash_free(ba->items, MEM_delete_void, MEM_delete_void);
+  MEM_delete(ba->passes);
   BLI_freelistN(&ba->docs);
-  MEM_freeN(ba);
+  MEM_delete(ba);
 }
 
 void BLI_args_printf(bArgs *ba, const char *format, ...)
@@ -149,6 +170,10 @@ void BLI_args_pass_set(bArgs *ba, int current_pass)
 {
   BLI_assert((current_pass != 0) && (current_pass >= -1));
   ba->current_pass = current_pass;
+
+#ifdef USE_DUPLICATE_ARG_WORKAROUND
+  ba->pass_max = std::max(ba->pass_max, current_pass);
+#endif
 }
 
 void BLI_args_print(const bArgs *ba)
@@ -166,7 +191,7 @@ static bArgDoc *internalDocs(bArgs *ba,
 {
   bArgDoc *d;
 
-  d = MEM_cnew<bArgDoc>("bArgDoc");
+  d = MEM_new_zeroed<bArgDoc>("bArgDoc");
 
   if (doc == nullptr) {
     doc = NO_DOCS;
@@ -202,8 +227,8 @@ static void internalAdd(
            a->key->case_str == 1 ? "not " : "");
   }
 
-  a = MEM_cnew<bArgument>("bArgument");
-  key = MEM_cnew<bAKey>("bAKey");
+  a = MEM_new_zeroed<bArgument>("bArgument");
+  key = MEM_new_zeroed<bAKey>("bAKey");
 
   key->arg = arg;
   key->pass = pass;
@@ -264,7 +289,24 @@ static void internalDocPrint(bArgs *ba, bArgDoc *d)
 
 void BLI_args_print_arg_doc(bArgs *ba, const char *arg)
 {
+#ifdef USE_DUPLICATE_ARG_WORKAROUND
+  bArgument *a = nullptr;
+  /* Find the first argument which has not been printed. */
+  for (int pass = 0; pass <= ba->pass_max; pass++) {
+    a = lookUp(ba, arg, pass, -1);
+    if (a != nullptr) {
+      const bArgDoc *d = a->doc;
+      if (d->done == true) {
+        a = nullptr;
+      }
+    }
+    if (a) {
+      break;
+    }
+  }
+#else
   bArgument *a = lookUp(ba, arg, -1, -1);
+#endif
 
   if (a) {
     bArgDoc *d = a->doc;
@@ -277,17 +319,17 @@ void BLI_args_print_arg_doc(bArgs *ba, const char *arg)
 
 void BLI_args_print_other_doc(bArgs *ba)
 {
-  LISTBASE_FOREACH (bArgDoc *, d, &ba->docs) {
-    if (d->done == 0) {
-      internalDocPrint(ba, d);
+  for (bArgDoc &d : ba->docs) {
+    if (d.done == 0) {
+      internalDocPrint(ba, &d);
     }
   }
 }
 
 bool BLI_args_has_other_doc(const bArgs *ba)
 {
-  LISTBASE_FOREACH (const bArgDoc *, d, &ba->docs) {
-    if (d->done == 0) {
+  for (const bArgDoc &d : ba->docs) {
+    if (d.done == 0) {
       return true;
     }
   }
@@ -339,3 +381,5 @@ void BLI_args_parse(bArgs *ba, int pass, BA_ArgCallback default_cb, void *defaul
     }
   }
 }
+
+}  // namespace blender

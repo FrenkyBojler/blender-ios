@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_screen.hh"
@@ -42,7 +43,9 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
-namespace blender::ed::transform {
+namespace blender {
+
+namespace ed::transform {
 
 struct TransformModeItem {
   const char *idname;
@@ -119,63 +122,47 @@ static TransformModeItem transform_modes[] = {
     {nullptr, 0},
 };
 
-}  // namespace blender::ed::transform
+}  // namespace ed::transform
 
 const EnumPropertyItem rna_enum_transform_mode_type_items[] = {
-    {blender::ed::transform::TFM_INIT, "INIT", 0, "Init", ""},
-    {blender::ed::transform::TFM_DUMMY, "DUMMY", 0, "Dummy", ""},
-    {blender::ed::transform::TFM_TRANSLATION, "TRANSLATION", 0, "Translation", ""},
-    {blender::ed::transform::TFM_ROTATION, "ROTATION", 0, "Rotation", ""},
-    {blender::ed::transform::TFM_RESIZE, "RESIZE", 0, "Resize", ""},
-    {blender::ed::transform::TFM_SKIN_RESIZE, "SKIN_RESIZE", 0, "Skin Resize", ""},
-    {blender::ed::transform::TFM_TOSPHERE, "TOSPHERE", 0, "To Sphere", ""},
-    {blender::ed::transform::TFM_SHEAR, "SHEAR", 0, "Shear", ""},
-    {blender::ed::transform::TFM_BEND, "BEND", 0, "Bend", ""},
-    {blender::ed::transform::TFM_SHRINKFATTEN, "SHRINKFATTEN", 0, "Shrink/Fatten", ""},
-    {blender::ed::transform::TFM_TILT, "TILT", 0, "Tilt", ""},
-    {blender::ed::transform::TFM_TRACKBALL, "TRACKBALL", 0, "Trackball", ""},
-    {blender::ed::transform::TFM_PUSHPULL, "PUSHPULL", 0, "Push/Pull", ""},
-    {blender::ed::transform::TFM_EDGE_CREASE, "CREASE", 0, "Crease", ""},
-    {blender::ed::transform::TFM_VERT_CREASE, "VERTEX_CREASE", 0, "Vertex Crease", ""},
-    {blender::ed::transform::TFM_MIRROR, "MIRROR", 0, "Mirror", ""},
-    {blender::ed::transform::TFM_BONESIZE, "BONE_SIZE", 0, "Bone Size", ""},
-    {blender::ed::transform::TFM_BONE_ENVELOPE, "BONE_ENVELOPE", 0, "Bone Envelope", ""},
-    {blender::ed::transform::TFM_BONE_ENVELOPE_DIST,
-     "BONE_ENVELOPE_DIST",
-     0,
-     "Bone Envelope Distance",
-     ""},
-    {blender::ed::transform::TFM_CURVE_SHRINKFATTEN,
-     "CURVE_SHRINKFATTEN",
-     0,
-     "Curve Shrink/Fatten",
-     ""},
-    {blender::ed::transform::TFM_MASK_SHRINKFATTEN,
-     "MASK_SHRINKFATTEN",
-     0,
-     "Mask Shrink/Fatten",
-     ""},
-    {blender::ed::transform::TFM_BONE_ROLL, "BONE_ROLL", 0, "Bone Roll", ""},
-    {blender::ed::transform::TFM_TIME_TRANSLATE, "TIME_TRANSLATE", 0, "Time Translate", ""},
-    {blender::ed::transform::TFM_TIME_SLIDE, "TIME_SLIDE", 0, "Time Slide", ""},
-    {blender::ed::transform::TFM_TIME_SCALE, "TIME_SCALE", 0, "Time Scale", ""},
-    {blender::ed::transform::TFM_TIME_EXTEND, "TIME_EXTEND", 0, "Time Extend", ""},
-    {blender::ed::transform::TFM_BAKE_TIME, "BAKE_TIME", 0, "Bake Time", ""},
-    {blender::ed::transform::TFM_BWEIGHT, "BWEIGHT", 0, "Bevel Weight", ""},
-    {blender::ed::transform::TFM_ALIGN, "ALIGN", 0, "Align", ""},
-    {blender::ed::transform::TFM_EDGE_SLIDE, "EDGESLIDE", 0, "Edge Slide", ""},
-    {blender::ed::transform::TFM_SEQ_SLIDE, "SEQSLIDE", 0, "Sequence Slide", ""},
-    {blender::ed::transform::TFM_GPENCIL_OPACITY,
-     "GPENCIL_OPACITY",
-     0,
-     "Grease Pencil Opacity",
-     ""},
+    {ed::transform::TFM_INIT, "INIT", 0, "Init", ""},
+    {ed::transform::TFM_DUMMY, "DUMMY", 0, "Dummy", ""},
+    {ed::transform::TFM_TRANSLATION, "TRANSLATION", 0, "Translation", ""},
+    {ed::transform::TFM_ROTATION, "ROTATION", 0, "Rotation", ""},
+    {ed::transform::TFM_RESIZE, "RESIZE", 0, "Resize", ""},
+    {ed::transform::TFM_SKIN_RESIZE, "SKIN_RESIZE", 0, "Skin Resize", ""},
+    {ed::transform::TFM_TOSPHERE, "TOSPHERE", 0, "To Sphere", ""},
+    {ed::transform::TFM_SHEAR, "SHEAR", 0, "Shear", ""},
+    {ed::transform::TFM_BEND, "BEND", 0, "Bend", ""},
+    {ed::transform::TFM_SHRINKFATTEN, "SHRINKFATTEN", 0, "Shrink/Fatten", ""},
+    {ed::transform::TFM_TILT, "TILT", 0, "Tilt", ""},
+    {ed::transform::TFM_TRACKBALL, "TRACKBALL", 0, "Trackball", ""},
+    {ed::transform::TFM_PUSHPULL, "PUSHPULL", 0, "Push/Pull", ""},
+    {ed::transform::TFM_EDGE_CREASE, "CREASE", 0, "Crease", ""},
+    {ed::transform::TFM_VERT_CREASE, "VERTEX_CREASE", 0, "Vertex Crease", ""},
+    {ed::transform::TFM_MIRROR, "MIRROR", 0, "Mirror", ""},
+    {ed::transform::TFM_BONESIZE, "BONE_SIZE", 0, "Bone Size", ""},
+    {ed::transform::TFM_BONE_ENVELOPE, "BONE_ENVELOPE", 0, "Bone Envelope", ""},
+    {ed::transform::TFM_BONE_ENVELOPE_DIST, "BONE_ENVELOPE_DIST", 0, "Bone Envelope Distance", ""},
+    {ed::transform::TFM_CURVE_SHRINKFATTEN, "CURVE_SHRINKFATTEN", 0, "Curve Shrink/Fatten", ""},
+    {ed::transform::TFM_MASK_SHRINKFATTEN, "MASK_SHRINKFATTEN", 0, "Mask Shrink/Fatten", ""},
+    {ed::transform::TFM_BONE_ROLL, "BONE_ROLL", 0, "Bone Roll", ""},
+    {ed::transform::TFM_TIME_TRANSLATE, "TIME_TRANSLATE", 0, "Time Translate", ""},
+    {ed::transform::TFM_TIME_SLIDE, "TIME_SLIDE", 0, "Time Slide", ""},
+    {ed::transform::TFM_TIME_SCALE, "TIME_SCALE", 0, "Time Scale", ""},
+    {ed::transform::TFM_TIME_EXTEND, "TIME_EXTEND", 0, "Time Extend", ""},
+    {ed::transform::TFM_BAKE_TIME, "BAKE_TIME", 0, "Bake Time", ""},
+    {ed::transform::TFM_BWEIGHT, "BWEIGHT", 0, "Bevel Weight", ""},
+    {ed::transform::TFM_ALIGN, "ALIGN", 0, "Align", ""},
+    {ed::transform::TFM_EDGE_SLIDE, "EDGESLIDE", 0, "Edge Slide", ""},
+    {ed::transform::TFM_SEQ_SLIDE, "SEQSLIDE", 0, "Sequence Slide", ""},
+    {ed::transform::TFM_GPENCIL_OPACITY, "GPENCIL_OPACITY", 0, "Grease Pencil Opacity", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-namespace blender::ed::transform {
+namespace ed::transform {
 
-static int select_orientation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_orientation_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -192,15 +179,14 @@ static int select_orientation_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int select_orientation_invoke(bContext *C, wmOperator * /*op*/, const wmEvent * /*event*/)
+static wmOperatorStatus select_orientation_invoke(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
-  pup = UI_popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
-  uiItemsEnumO(layout, "TRANSFORM_OT_select_orientation", "orientation");
-  UI_popup_menu_end(C, pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
+  ui::Layout &layout = *ui::popup_menu_layout(pup);
+  layout.op_enum("TRANSFORM_OT_select_orientation", "orientation");
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -225,7 +211,7 @@ static void TRANSFORM_OT_select_orientation(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, rna_TransformOrientation_itemf);
 }
 
-static int delete_orientation_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_orientation_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   BIF_removeTransformOrientationIndex(C,
@@ -239,7 +225,9 @@ static int delete_orientation_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static int delete_orientation_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus delete_orientation_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
 {
   return delete_orientation_exec(C, op);
 }
@@ -269,7 +257,7 @@ static void TRANSFORM_OT_delete_orientation(wmOperatorType *ot)
   ot->poll = delete_orientation_poll;
 }
 
-static int create_orientation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus create_orientation_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_NAME];
   const bool use = RNA_boolean_get(op->ptr, "use");
@@ -337,9 +325,9 @@ static void TRANSFORM_OT_create_orientation(wmOperatorType *ot)
 
 #ifdef USE_LOOPSLIDE_HACK
 /**
- * Special hack for MESH_OT_loopcut_slide so we get back to the selection mode
- * Do this for all meshes in multi-object editmode so their selectmode is in sync for following
- * operators
+ * Special hack for #MESH_OT_loopcut_slide so we get back to the selection mode
+ * Do this for all meshes in multi-object edit-mode so their select-mode is in sync
+ * for following operators
  */
 static void transformops_loopsel_hack(bContext *C, wmOperator *op)
 {
@@ -379,8 +367,9 @@ static void transformops_exit(bContext *C, wmOperator *op)
   transformops_loopsel_hack(C, op);
 #endif
 
-  saveTransform(C, static_cast<TransInfo *>(op->customdata), op);
-  MEM_freeN(op->customdata);
+  TransInfo *t = static_cast<TransInfo *>(op->customdata);
+  saveTransform(C, t, op);
+  MEM_delete(t);
   op->customdata = nullptr;
   G.moving = 0;
 }
@@ -400,7 +389,7 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
 {
   int retval = 1;
   if (op->customdata == nullptr) {
-    TransInfo *t = static_cast<TransInfo *>(MEM_callocN(sizeof(TransInfo), "TransInfo data2"));
+    TransInfo *t = MEM_new_zeroed<TransInfo>("TransInfo data2");
 
     t->undo_name = op->type->name;
 
@@ -413,16 +402,16 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
       op->customdata = t;
     }
     else {
-      MEM_freeN(t);
+      MEM_delete(t);
     }
   }
 
   return retval; /* Return 0 on error. */
 }
 
-static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int exit_code = OPERATOR_PASS_THROUGH;
+  wmOperatorStatus exit_code = OPERATOR_PASS_THROUGH;
 
   TransInfo *t = static_cast<TransInfo *>(op->customdata);
   const eTfmMode mode_prev = t->mode;
@@ -439,10 +428,6 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   /* XXX insert keys are called here, and require context. */
   t->context = C;
-
-  if (t->helpline != HLP_ERROR && t->helpline != HLP_ERROR_DASH) {
-    ED_workspace_status_text(t->context, nullptr);
-  }
 
   exit_code = transformEvent(t, op, event);
   t->context = nullptr;
@@ -527,7 +512,7 @@ static void transform_cancel(bContext *C, wmOperator *op)
   transformops_exit(C, op);
 }
 
-static int transform_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus transform_exec(bContext *C, wmOperator *op)
 {
   TransInfo *t;
 
@@ -551,7 +536,7 @@ static int transform_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!transformops_data(C, op, event)) {
     G.moving = 0;
@@ -603,7 +588,7 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 
   /* Orientation Axis. */
   if (STREQ(prop_id, "orient_axis")) {
-    eTfmMode mode = (eTfmMode)transformops_mode(op);
+    eTfmMode mode = eTfmMode(transformops_mode(op));
     return mode != TFM_ALIGN;
   }
 
@@ -630,6 +615,14 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
   /* Snapping. */
   if (STREQ(prop_id, "use_snap_project")) {
     return RNA_boolean_get(op->ptr, "snap");
+  }
+
+  if (STREQ(prop_id, "use_even_offset")) {
+    /* Even offset isn't meaningful for individual faces. */
+    if (op->opm && STREQ(op->opm->idname, "MESH_OT_extrude_faces_move")) {
+      return false;
+    }
+    return true;
   }
 
   /* #P_CORRECT_UV. */
@@ -720,13 +713,13 @@ void properties_register(wmOperatorType *ot, int flags)
     RNA_def_property_flag(prop, PROP_HIDDEN);
 
     if ((flags & P_GEO_SNAP) == P_GEO_SNAP) {
-      prop = RNA_def_enum(ot->srna,
-                          "snap_elements",
-                          rna_enum_snap_element_items,
-                          SCE_SNAP_TO_INCREMENT,
-                          "Snap to Elements",
-                          "");
-      RNA_def_property_flag(prop, PROP_HIDDEN | PROP_ENUM_FLAG);
+      prop = RNA_def_enum_flag(ot->srna,
+                               "snap_elements",
+                               rna_enum_snap_element_items,
+                               SCE_SNAP_TO_INCREMENT,
+                               "Snap to Elements",
+                               "");
+      RNA_def_property_flag(prop, PROP_HIDDEN);
 
       RNA_def_boolean(ot->srna, "use_snap_project", false, "Project Individual Elements", "");
 
@@ -843,6 +836,15 @@ void properties_register(wmOperatorType *ot, int flags)
                            "Forces the use of Auto Merge and Split");
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
+
+  if (flags & P_TRANSLATE_ORIGIN) {
+    prop = RNA_def_boolean(ot->srna,
+                           "translate_origin",
+                           false,
+                           "Translate Origin",
+                           "Translate origin instead of selection");
+    RNA_def_property_flag(prop, PROP_HIDDEN);
+  }
 }
 
 static void TRANSFORM_OT_translate(wmOperatorType *ot)
@@ -858,7 +860,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_translation(
@@ -869,7 +871,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   properties_register(ot,
                       P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP |
                           P_OPTIONS | P_GPENCIL_EDIT | P_CURSOR_EDIT | P_VIEW2D_EDGE_PAN |
-                          P_POST_TRANSFORM);
+                          P_POST_TRANSFORM | P_TRANSLATE_ORIGIN);
 }
 
 static void TRANSFORM_OT_resize(wmOperatorType *ot)
@@ -885,7 +887,7 @@ static void TRANSFORM_OT_resize(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_vector(
@@ -975,7 +977,7 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(
@@ -995,7 +997,7 @@ static bool tilt_poll(bContext *C)
     return false;
   }
   if (obedit->type == OB_CURVES_LEGACY) {
-    Curve *cu = (Curve *)obedit->data;
+    Curve *cu = id_cast<Curve *>(obedit->data);
     return (cu->flag & CU_3D) && (nullptr != cu->editnurb);
   }
   if (obedit->type == OB_CURVES) {
@@ -1082,7 +1084,8 @@ static void TRANSFORM_OT_shear(wmOperatorType *ot)
   ot->poll = transform_shear_poll;
   ot->poll_property = transform_poll_property;
 
-  RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
+  RNA_def_float_rotation(
+      ot->srna, "angle", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
   WM_operatortype_props_advanced_begin(ot);
 
@@ -1179,7 +1182,7 @@ static void TRANSFORM_OT_mirror(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   properties_register(ot, P_ORIENT_MATRIX | P_CONSTRAINT | P_GPENCIL_EDIT | P_CENTER);
@@ -1265,6 +1268,7 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
   ot->poll = ED_operator_editmesh;
   ot->poll_property = transform_poll_property;
 
+  PropertyRNA *prop;
   RNA_def_float_factor(ot->srna, "value", 0, -10.0f, 10.0f, "Factor", "", -1.0f, 1.0f);
   RNA_def_boolean(ot->srna,
                   "use_even",
@@ -1280,6 +1284,18 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
                   "Flipped",
                   "When Even mode is active, flips between the two adjacent edge loops");
   RNA_def_boolean(ot->srna, "use_clamp", true, "Clamp", "Clamp within the edge extents");
+  /* The direction is only needed to support "redo", see: #147956. */
+  prop = RNA_def_float_vector(ot->srna,
+                              "direction",
+                              3,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Slide Direction",
+                              "World-space direction",
+                              -FLT_MAX,
+                              FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   properties_register(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV);
 }
@@ -1372,7 +1388,7 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   prop = RNA_def_float_vector(
       ot->srna, "value", 2, nullptr, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 0);
+  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, 0);
 
   prop = RNA_def_boolean(ot->srna,
                          "use_restore_handle_selection",
@@ -1383,14 +1399,14 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   WM_operatortype_props_advanced_begin(ot);
 
-  properties_register(ot, P_SNAP | P_VIEW2D_EDGE_PAN);
+  properties_register(ot, P_OPTIONS | P_SNAP | P_VIEW2D_EDGE_PAN);
 }
 
 static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Rotate Normals";
-  ot->description = "Rotate split normal of selected items";
+  ot->description = "Rotate custom normal of selected items";
   ot->idname = OP_NORMAL_ROTATION;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
@@ -1400,6 +1416,7 @@ static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_editmesh;
+  ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(
       ot->srna, "value", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
@@ -1422,7 +1439,7 @@ static void TRANSFORM_OT_transform(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   prop = RNA_def_enum(
@@ -1439,7 +1456,9 @@ static void TRANSFORM_OT_transform(wmOperatorType *ot)
                           P_ALIGN_SNAP | P_GPENCIL_EDIT | P_CENTER | P_POST_TRANSFORM | P_OPTIONS);
 }
 
-static int transform_from_gizmo_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus transform_from_gizmo_invoke(bContext *C,
+                                                    wmOperator * /*op*/,
+                                                    const wmEvent *event)
 {
   bToolRef *tref = WM_toolsystem_ref_from_context(C);
   if (tref) {
@@ -1467,10 +1486,9 @@ static int transform_from_gizmo_invoke(bContext *C, wmOperator * /*op*/, const w
       }
       if (op_id) {
         wmOperatorType *ot = WM_operatortype_find(op_id, true);
-        PointerRNA op_ptr;
-        WM_operator_properties_create_ptr(&op_ptr, ot);
+        PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
         RNA_boolean_set(&op_ptr, "release_confirm", true);
-        WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_ptr, event);
+        WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
         WM_operator_properties_free(&op_ptr);
         return OPERATOR_FINISHED;
       }
@@ -1489,6 +1507,7 @@ static void TRANSFORM_OT_from_gizmo(wmOperatorType *ot)
   ot->flag = 0;
 
   /* API callbacks. */
+  ot->poll = ED_operator_regionactive;
   ot->invoke = transform_from_gizmo_invoke;
 }
 
@@ -1521,4 +1540,5 @@ void keymap_transform(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(modalmap, "TRANSFORM_OT_transform");
 }
 
-}  // namespace blender::ed::transform
+}  // namespace ed::transform
+}  // namespace blender

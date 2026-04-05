@@ -6,6 +6,8 @@
 
 #include "kernel/types.h"
 
+#include "util/types_image.h"
+
 #include "device/device.h"
 #include "device/memory.h"
 
@@ -26,16 +28,11 @@ class DeviceScene {
   /* mesh */
   device_vector<packed_float3> tri_verts;
   device_vector<uint> tri_shader;
-  device_vector<packed_float3> tri_vnormal;
   device_vector<packed_uint3> tri_vindex;
-  device_vector<uint> tri_patch;
-  device_vector<float2> tri_patch_uv;
 
   device_vector<KernelCurve> curves;
   device_vector<float4> curve_keys;
   device_vector<KernelCurveSegment> curve_segments;
-
-  device_vector<uint> patches;
 
   /* point-cloud */
   device_vector<float4> points;
@@ -46,7 +43,6 @@ class DeviceScene {
   device_vector<Transform> object_motion_pass;
   device_vector<DecomposedTransform> object_motion;
   device_vector<uint> object_flag;
-  device_vector<float> object_volume_step;
   device_vector<uint> object_prim_offset;
 
   /* cameras */
@@ -59,6 +55,7 @@ class DeviceScene {
   device_vector<packed_float3> attributes_float3;
   device_vector<float4> attributes_float4;
   device_vector<uchar4> attributes_uchar4;
+  device_vector<packed_normal> attributes_normal;
 
   /* lights */
   device_vector<KernelLightDistribution> light_distribution;
@@ -70,7 +67,6 @@ class DeviceScene {
   device_vector<KernelLightTreeNode> light_tree_nodes;
   device_vector<KernelLightTreeEmitter> light_tree_emitters;
   device_vector<uint> light_to_tree;
-  device_vector<uint> object_to_tree;
   device_vector<uint> object_lookup_offset;
   device_vector<uint> triangle_to_tree;
 
@@ -89,6 +85,18 @@ class DeviceScene {
 
   /* IES lights */
   device_vector<float> ies_lights;
+
+  /* Volume. */
+  device_vector<KernelOctreeNode> volume_tree_nodes;
+  device_vector<KernelOctreeRoot> volume_tree_roots;
+  device_vector<int> volume_tree_root_ids;
+  device_vector<float> volume_step_size;
+
+  /* Image textures */
+  device_vector<KernelImageTexture> image_textures;
+  device_vector<KernelTileDescriptor> image_texture_tile_descriptors;
+  device_vector<uint8_t> image_texture_tile_request_mask;
+  device_vector<KernelImageUDIM> image_texture_udims;
 
   KernelData data;
 

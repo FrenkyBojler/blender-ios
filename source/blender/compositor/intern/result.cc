@@ -3,12 +3,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <variant>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
+#include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -33,84 +36,203 @@ Result::Result(Context &context, ResultType type, ResultPrecision precision)
 {
 }
 
-Result::Result(Context &context, eGPUTextureFormat format)
+Result::Result(Context &context, gpu::TextureFormat format)
     : context_(&context), type_(Result::type(format)), precision_(Result::precision(format))
 {
 }
 
-eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision precision)
+bool Result::is_single_value_only_type(ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+    case ResultType::Color:
+    case ResultType::Float4:
+    case ResultType::Float3:
+    case ResultType::Float2:
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Int3:
+    case ResultType::Bool:
+    case ResultType::Float4x4:
+    case ResultType::Menu:
+      return false;
+    case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      return true;
+  }
+
+  BLI_assert_unreachable();
+  return true;
+}
+
+gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision precision)
 {
   switch (precision) {
     case ResultPrecision::Half:
       switch (type) {
         case ResultType::Float:
-          return GPU_R16F;
+          return gpu::TextureFormat::SFLOAT_16;
         case ResultType::Color:
         case ResultType::Float4:
-          return GPU_RGBA16F;
+          return gpu::TextureFormat::SFLOAT_16_16_16_16;
         case ResultType::Float3:
           /* RGB textures are not fully supported by hardware, so we store Float3 results in RGBA
            * textures. */
-          return GPU_RGBA16F;
+          return gpu::TextureFormat::SFLOAT_16_16_16_16;
         case ResultType::Float2:
-          return GPU_RG16F;
+          return gpu::TextureFormat::SFLOAT_16_16;
         case ResultType::Int:
-          return GPU_R16I;
+          return gpu::TextureFormat::SINT_16;
         case ResultType::Int2:
-          return GPU_RG16I;
+          return gpu::TextureFormat::SINT_16_16;
+        case ResultType::Int3:
+          /* RGB textures are not fully supported by hardware, so we store Int3 results in RGBA
+           * textures. */
+          return gpu::TextureFormat::SINT_16_16_16_16;
+        case ResultType::Bool:
+          /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
+          return gpu::TextureFormat::SINT_8;
+        case ResultType::Float4x4:
+          /* Stored as an array of 4 RGBA texture. */
+          return gpu::TextureFormat::SFLOAT_16_16_16_16;
+        case ResultType::Menu:
+          /* Menu values are technically stored in 32-bit integers, but 8 is sufficient in
+           * practice. */
+          return gpu::TextureFormat::SINT_8;
+        case ResultType::String:
+        case ResultType::Object:
+        case ResultType::Image:
+        case ResultType::Font:
+        case ResultType::Scene:
+        case ResultType::Text:
+        case ResultType::Mask:
+          /* Single only types do not support GPU code path. */
+          BLI_assert(Result::is_single_value_only_type(type));
+          BLI_assert_unreachable();
+          break;
       }
       break;
     case ResultPrecision::Full:
       switch (type) {
         case ResultType::Float:
-          return GPU_R32F;
+          return gpu::TextureFormat::SFLOAT_32;
         case ResultType::Color:
         case ResultType::Float4:
-          return GPU_RGBA32F;
+          return gpu::TextureFormat::SFLOAT_32_32_32_32;
         case ResultType::Float3:
           /* RGB textures are not fully supported by hardware, so we store Float3 results in RGBA
            * textures. */
-          return GPU_RGBA32F;
+          return gpu::TextureFormat::SFLOAT_32_32_32_32;
         case ResultType::Float2:
-          return GPU_RG32F;
+          return gpu::TextureFormat::SFLOAT_32_32;
         case ResultType::Int:
-          return GPU_R32I;
+          return gpu::TextureFormat::SINT_32;
         case ResultType::Int2:
-          return GPU_RG32I;
+          return gpu::TextureFormat::SINT_32_32;
+        case ResultType::Int3:
+          /* RGB textures are not fully supported by hardware, so we store Int3 results in RGBA
+           * textures. */
+          return gpu::TextureFormat::SINT_32_32_32_32;
+        case ResultType::Bool:
+          /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
+          return gpu::TextureFormat::SINT_8;
+        case ResultType::Float4x4:
+          /* Stored as an array of 4 RGBA texture. */
+          return gpu::TextureFormat::SFLOAT_32_32_32_32;
+        case ResultType::Menu:
+          /* Menu values are technically stored in 32-bit integers, but 8 is sufficient in
+           * practice. */
+          return gpu::TextureFormat::SINT_8;
+        case ResultType::String:
+        case ResultType::Object:
+        case ResultType::Image:
+        case ResultType::Font:
+        case ResultType::Scene:
+        case ResultType::Text:
+        case ResultType::Mask:
+          /* Single only types do not support GPU storage. */
+          BLI_assert(Result::is_single_value_only_type(type));
+          BLI_assert_unreachable();
+          break;
       }
       break;
   }
 
   BLI_assert_unreachable();
-  return GPU_RGBA32F;
+  return gpu::TextureFormat::SFLOAT_32_32_32_32;
 }
 
-eGPUTextureFormat Result::gpu_texture_format(eGPUTextureFormat format, ResultPrecision precision)
+eGPUDataFormat Result::gpu_data_format(ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+    case ResultType::Color:
+    case ResultType::Float4:
+    case ResultType::Float3:
+    case ResultType::Float2:
+    case ResultType::Float4x4:
+      return GPU_DATA_FLOAT;
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Int3:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      return GPU_DATA_INT;
+    case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      /* Single only types do not support GPU storage. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return GPU_DATA_FLOAT;
+}
+
+gpu::TextureFormat Result::gpu_texture_format(gpu::TextureFormat format, ResultPrecision precision)
 {
   switch (precision) {
     case ResultPrecision::Half:
       switch (format) {
         /* Already half precision, return the input format. */
-        case GPU_R16F:
-        case GPU_RG16F:
-        case GPU_RGB16F:
-        case GPU_RGBA16F:
-        case GPU_R16I:
-        case GPU_RG16I:
+        case gpu::TextureFormat::SFLOAT_16:
+        case gpu::TextureFormat::SFLOAT_16_16:
+        case gpu::TextureFormat::SFLOAT_16_16_16:
+        case gpu::TextureFormat::SFLOAT_16_16_16_16:
+        case gpu::TextureFormat::SINT_16:
+        case gpu::TextureFormat::SINT_16_16:
+        case gpu::TextureFormat::SINT_16_16_16_16:
           return format;
 
-        case GPU_R32F:
-          return GPU_R16F;
-        case GPU_RG32F:
-          return GPU_RG16F;
-        case GPU_RGB32F:
-          return GPU_RGB16F;
-        case GPU_RGBA32F:
-          return GPU_RGBA16F;
-        case GPU_R32I:
-          return GPU_R16I;
-        case GPU_RG32I:
-          return GPU_RG16I;
+        /* Used to store booleans where precision doesn't matter. */
+        case gpu::TextureFormat::SINT_8:
+          return format;
+
+        case gpu::TextureFormat::SFLOAT_32:
+          return gpu::TextureFormat::SFLOAT_16;
+        case gpu::TextureFormat::SFLOAT_32_32:
+          return gpu::TextureFormat::SFLOAT_16_16;
+        case gpu::TextureFormat::SFLOAT_32_32_32:
+          return gpu::TextureFormat::SFLOAT_16_16_16;
+        case gpu::TextureFormat::SFLOAT_32_32_32_32:
+          return gpu::TextureFormat::SFLOAT_16_16_16_16;
+        case gpu::TextureFormat::SINT_32:
+          return gpu::TextureFormat::SINT_16;
+        case gpu::TextureFormat::SINT_32_32:
+          return gpu::TextureFormat::SINT_16_16;
+        case gpu::TextureFormat::SINT_32_32_32_32:
+          return gpu::TextureFormat::SINT_16_16_16_16;
         default:
           break;
       }
@@ -118,26 +240,33 @@ eGPUTextureFormat Result::gpu_texture_format(eGPUTextureFormat format, ResultPre
     case ResultPrecision::Full:
       switch (format) {
         /* Already full precision, return the input format. */
-        case GPU_R32F:
-        case GPU_RG32F:
-        case GPU_RGB32F:
-        case GPU_RGBA32F:
-        case GPU_R32I:
-        case GPU_RG32I:
+        case gpu::TextureFormat::SFLOAT_32:
+        case gpu::TextureFormat::SFLOAT_32_32:
+        case gpu::TextureFormat::SFLOAT_32_32_32:
+        case gpu::TextureFormat::SFLOAT_32_32_32_32:
+        case gpu::TextureFormat::SINT_32:
+        case gpu::TextureFormat::SINT_32_32:
+        case gpu::TextureFormat::SINT_32_32_32_32:
           return format;
 
-        case GPU_R16F:
-          return GPU_R32F;
-        case GPU_RG16F:
-          return GPU_RG32F;
-        case GPU_RGB16F:
-          return GPU_RGB32F;
-        case GPU_RGBA16F:
-          return GPU_RGBA32F;
-        case GPU_R16I:
-          return GPU_R32I;
-        case GPU_RG16I:
-          return GPU_RG32I;
+        /* Used to store booleans where precision doesn't matter. */
+        case gpu::TextureFormat::SINT_8:
+          return format;
+
+        case gpu::TextureFormat::SFLOAT_16:
+          return gpu::TextureFormat::SFLOAT_32;
+        case gpu::TextureFormat::SFLOAT_16_16:
+          return gpu::TextureFormat::SFLOAT_32_32;
+        case gpu::TextureFormat::SFLOAT_16_16_16:
+          return gpu::TextureFormat::SFLOAT_32_32_32;
+        case gpu::TextureFormat::SFLOAT_16_16_16_16:
+          return gpu::TextureFormat::SFLOAT_32_32_32_32;
+        case gpu::TextureFormat::SINT_16:
+          return gpu::TextureFormat::SINT_32;
+        case gpu::TextureFormat::SINT_16_16:
+          return gpu::TextureFormat::SINT_32_32;
+        case gpu::TextureFormat::SINT_16_16_16_16:
+          return gpu::TextureFormat::SINT_32_32_32_32;
         default:
           break;
       }
@@ -148,22 +277,27 @@ eGPUTextureFormat Result::gpu_texture_format(eGPUTextureFormat format, ResultPre
   return format;
 }
 
-ResultPrecision Result::precision(eGPUTextureFormat format)
+ResultPrecision Result::precision(gpu::TextureFormat format)
 {
   switch (format) {
-    case GPU_R16F:
-    case GPU_RG16F:
-    case GPU_RGB16F:
-    case GPU_RGBA16F:
-    case GPU_R16I:
-    case GPU_RG16I:
+    case gpu::TextureFormat::SFLOAT_16:
+    case gpu::TextureFormat::SFLOAT_16_16:
+    case gpu::TextureFormat::SFLOAT_16_16_16:
+    case gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case gpu::TextureFormat::SINT_16:
+    case gpu::TextureFormat::SINT_16_16:
+    case gpu::TextureFormat::SINT_16_16_16_16:
       return ResultPrecision::Half;
-    case GPU_R32F:
-    case GPU_RG32F:
-    case GPU_RGB32F:
-    case GPU_RGBA32F:
-    case GPU_R32I:
-    case GPU_RG32I:
+    case gpu::TextureFormat::SFLOAT_32:
+    case gpu::TextureFormat::SFLOAT_32_32:
+    case gpu::TextureFormat::SFLOAT_32_32_32:
+    case gpu::TextureFormat::SFLOAT_32_32_32_32:
+    case gpu::TextureFormat::SINT_32:
+    case gpu::TextureFormat::SINT_32_32:
+    case gpu::TextureFormat::SINT_32_32_32_32:
+      return ResultPrecision::Full;
+    /* Used to store booleans where precision doesn't matter. */
+    case gpu::TextureFormat::SINT_8:
       return ResultPrecision::Full;
     default:
       break;
@@ -173,46 +307,33 @@ ResultPrecision Result::precision(eGPUTextureFormat format)
   return ResultPrecision::Full;
 }
 
-ResultType Result::type(eGPUTextureFormat format)
+ResultType Result::type(gpu::TextureFormat format)
 {
   switch (format) {
-    case GPU_R16F:
-    case GPU_R32F:
+    case gpu::TextureFormat::SFLOAT_16:
+    case gpu::TextureFormat::SFLOAT_32:
       return ResultType::Float;
-    case GPU_RG16F:
-    case GPU_RG32F:
+    case gpu::TextureFormat::SFLOAT_16_16:
+    case gpu::TextureFormat::SFLOAT_32_32:
       return ResultType::Float2;
-    case GPU_RGB16F:
-    case GPU_RGB32F:
+    case gpu::TextureFormat::SFLOAT_16_16_16:
+    case gpu::TextureFormat::SFLOAT_32_32_32:
       return ResultType::Float3;
-    case GPU_RGBA16F:
-    case GPU_RGBA32F:
+    case gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case gpu::TextureFormat::SFLOAT_32_32_32_32:
       return ResultType::Color;
-    case GPU_R16I:
-    case GPU_R32I:
+    case gpu::TextureFormat::SINT_16:
+    case gpu::TextureFormat::SINT_32:
       return ResultType::Int;
-    case GPU_RG16I:
-    case GPU_RG32I:
+    case gpu::TextureFormat::SINT_16_16:
+    case gpu::TextureFormat::SINT_32_32:
       return ResultType::Int2;
-    default:
-      break;
-  }
-
-  BLI_assert_unreachable();
-  return ResultType::Color;
-}
-
-ResultType Result::float_type(const int channels_count)
-{
-  switch (channels_count) {
-    case 1:
-      return ResultType::Float;
-    case 2:
-      return ResultType::Float2;
-    case 3:
-      return ResultType::Float3;
-    case 4:
-      return ResultType::Color;
+    case gpu::TextureFormat::SINT_16_16_16_16:
+    case gpu::TextureFormat::SINT_32_32_32_32:
+      /* Stores Int3, see Result::gpu_texture_format. */
+      return ResultType::Int3;
+    case gpu::TextureFormat::SINT_8:
+      return ResultType::Bool;
     default:
       break;
   }
@@ -226,25 +347,92 @@ const CPPType &Result::cpp_type(const ResultType type)
   switch (type) {
     case ResultType::Float:
       return CPPType::get<float>();
-    case ResultType::Int:
-      return CPPType::get<int32_t>();
-    case ResultType::Color:
-      return CPPType::get<float4>();
-    case ResultType::Float4:
-      return CPPType::get<float4>();
     case ResultType::Float2:
       return CPPType::get<float2>();
     case ResultType::Float3:
       return CPPType::get<float3>();
+    case ResultType::Float4:
+      return CPPType::get<float4>();
+    case ResultType::Color:
+      return CPPType::get<Color>();
+    case ResultType::Int:
+      return CPPType::get<int32_t>();
     case ResultType::Int2:
       return CPPType::get<int2>();
+    case ResultType::Int3:
+      return CPPType::get<int3>();
+    case ResultType::Bool:
+      return CPPType::get<bool>();
+    case ResultType::Float4x4:
+      return CPPType::get<float4x4>();
+    case ResultType::Menu:
+      return CPPType::get<nodes::MenuValue>();
+    case ResultType::String:
+      return CPPType::get<std::string>();
+    case ResultType::Object:
+      return CPPType::get<Object *>();
+    case ResultType::Image:
+      return CPPType::get<Image *>();
+    case ResultType::Font:
+      return CPPType::get<VFont *>();
+    case ResultType::Scene:
+      return CPPType::get<Scene *>();
+    case ResultType::Text:
+      return CPPType::get<Text *>();
+    case ResultType::Mask:
+      return CPPType::get<Mask *>();
   }
 
   BLI_assert_unreachable();
   return CPPType::get<float>();
 }
 
-Result::operator GPUTexture *() const
+const char *Result::type_name(const ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+      return "float";
+    case ResultType::Float2:
+      return "float2";
+    case ResultType::Float3:
+      return "float3";
+    case ResultType::Float4:
+      return "float4";
+    case ResultType::Color:
+      return "color";
+    case ResultType::Int:
+      return "int";
+    case ResultType::Int2:
+      return "int2";
+    case ResultType::Int3:
+      return "int3";
+    case ResultType::Bool:
+      return "bool";
+    case ResultType::Float4x4:
+      return "float4x4";
+    case ResultType::Menu:
+      return "menu";
+    case ResultType::String:
+      return "string";
+    case ResultType::Object:
+      return "object";
+    case ResultType::Image:
+      return "image";
+    case ResultType::Font:
+      return "font";
+    case ResultType::Scene:
+      return "scene";
+    case ResultType::Text:
+      return "text";
+    case ResultType::Mask:
+      return "mask";
+  }
+
+  BLI_assert_unreachable();
+  return "";
+}
+
+Result::operator gpu::Texture *() const
 {
   return this->gpu_texture();
 }
@@ -254,32 +442,58 @@ const CPPType &Result::get_cpp_type() const
   return Result::cpp_type(this->type());
 }
 
-eGPUTextureFormat Result::get_gpu_texture_format() const
+gpu::TextureFormat Result::get_gpu_texture_format() const
 {
   return Result::gpu_texture_format(type_, precision_);
 }
 
-void Result::allocate_texture(Domain domain, bool from_pool)
+eGPUDataFormat Result::get_gpu_data_format() const
 {
-  /* The result is not actually needed, so allocate a dummy single value texture instead. See the
-   * method description for more information. */
-  if (!should_compute()) {
-    allocate_single_value();
-    increment_reference_count();
-    return;
-  }
+  return Result::gpu_data_format(type_);
+}
+
+static Domain sanitize_domain_data_size(const Domain domain,
+                                        const Context &context,
+                                        const std::optional<ResultStorageType> storage_type)
+{
+  Domain sanitized_domain = domain;
+  const bool use_gpu = storage_type.has_value() ? storage_type.value() == ResultStorageType::GPU :
+                                                  context.use_gpu();
+  const int max_size = use_gpu ? 8192 : 32768;
+  sanitized_domain.data_size = math::clamp(domain.data_size, int2(1), int2(max_size));
+  return sanitized_domain;
+}
+
+void Result::allocate_texture(const Domain domain,
+                              const bool from_pool,
+                              const std::optional<ResultStorageType> storage_type)
+{
+  /* Make sure we are not allocating a result that should not be computed. */
+  BLI_assert(this->should_compute());
+  BLI_assert(!Result::is_single_value_only_type(this->type()));
 
   is_single_value_ = false;
-  this->allocate_data(domain.size, from_pool);
-  domain_ = domain;
+  domain_ = sanitize_domain_data_size(domain, *context_, storage_type);
+  this->allocate_data(domain_.data_size, from_pool, storage_type);
 }
 
 void Result::allocate_single_value()
 {
-  /* Single values are stored in 1x1 image as well as the single value members. Further, they
-   * are always allocated from the pool. */
+  /* Make sure we are not allocating a result that should not be computed. */
+  BLI_assert(this->should_compute());
+
   is_single_value_ = true;
-  this->allocate_data(int2(1), true);
+
+  /* Single values are stored in 1x1 image as well as the single value members. Further, they are
+   * always allocated from the pool. Finally, single value only types do not support GPU code
+   * paths, so we always allocate on CPU. */
+  if (Result::is_single_value_only_type(this->type())) {
+    this->allocate_data(int2(1), true, ResultStorageType::CPU);
+  }
+  else {
+    this->allocate_data(int2(1), true);
+  }
+
   domain_ = Domain::identity();
 
   /* It is important that we initialize single values because the variant member that stores single
@@ -288,23 +502,56 @@ void Result::allocate_single_value()
     case ResultType::Float:
       this->set_single_value(0.0f);
       break;
-    case ResultType::Color:
-      this->set_single_value(float4(0.0f));
-      break;
-    case ResultType::Float4:
-      this->set_single_value(float4(0.0f));
-      break;
     case ResultType::Float2:
       this->set_single_value(float2(0.0f));
       break;
     case ResultType::Float3:
       this->set_single_value(float3(0.0f));
       break;
+    case ResultType::Float4:
+      this->set_single_value(float4(0.0f));
+      break;
+    case ResultType::Color:
+      this->set_single_value(Color(0.0f));
+      break;
     case ResultType::Int:
       this->set_single_value(0);
       break;
     case ResultType::Int2:
       this->set_single_value(int2(0));
+      break;
+    case ResultType::Int3:
+      this->set_single_value(int3(0));
+      break;
+    case ResultType::Bool:
+      this->set_single_value(false);
+      break;
+    case ResultType::Float4x4:
+      this->set_single_value(float4x4::zero());
+      break;
+    case ResultType::Menu:
+      this->set_single_value(nodes::MenuValue(0));
+      break;
+    case ResultType::String:
+      this->set_single_value(std::string(""));
+      break;
+    case ResultType::Object:
+      this->set_single_value(static_cast<Object *>(nullptr));
+      break;
+    case ResultType::Image:
+      this->set_single_value(static_cast<Image *>(nullptr));
+      break;
+    case ResultType::Font:
+      this->set_single_value(static_cast<VFont *>(nullptr));
+      break;
+    case ResultType::Scene:
+      this->set_single_value(static_cast<Scene *>(nullptr));
+      break;
+    case ResultType::Text:
+      this->set_single_value(static_cast<Text *>(nullptr));
+      break;
+    case ResultType::Mask:
+      this->set_single_value(static_cast<Mask *>(nullptr));
       break;
   }
 }
@@ -314,7 +561,32 @@ void Result::allocate_invalid()
   this->allocate_single_value();
 }
 
-void Result::bind_as_texture(GPUShader *shader, const char *texture_name) const
+Result Result::upload_to_gpu(const bool from_pool) const
+{
+  BLI_assert(storage_type_ == ResultStorageType::CPU);
+  BLI_assert(this->is_allocated());
+
+  Result result = Result(*context_, this->type(), this->precision());
+  result.allocate_texture(this->domain(), from_pool, ResultStorageType::GPU);
+
+  GPU_texture_update(result, this->get_gpu_data_format(), this->cpu_data().data());
+  return result;
+}
+
+Result Result::download_to_cpu() const
+{
+  BLI_assert(storage_type_ == ResultStorageType::GPU);
+  BLI_assert(this->is_allocated());
+
+  Result result = Result(*context_, this->type(), this->precision());
+  GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+  void *data = GPU_texture_read(*this, this->get_gpu_data_format(), 0);
+  result.steal_data(data, this->domain());
+
+  return result;
+}
+
+void Result::bind_as_texture(gpu::Shader *shader, const char *texture_name) const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
 
@@ -325,7 +597,7 @@ void Result::bind_as_texture(GPUShader *shader, const char *texture_name) const
   GPU_texture_bind(this->gpu_texture(), texture_image_unit);
 }
 
-void Result::bind_as_image(GPUShader *shader, const char *image_name, bool read) const
+void Result::bind_as_image(gpu::Shader *shader, const char *image_name, bool read) const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
 
@@ -350,46 +622,60 @@ void Result::unbind_as_image() const
   GPU_texture_image_unbind(this->gpu_texture());
 }
 
-void Result::pass_through(Result &target)
+void Result::share_data(const Result &source)
 {
-  /* Increment the reference count of the master by the original reference count of the target. */
-  increment_reference_count(target.reference_count());
+  BLI_assert(type_ == source.type_);
+  BLI_assert(!this->is_allocated() && source.is_allocated());
 
-  /* Make the target an exact copy of this result, but keep the initial reference count, as this is
-   * a property of the original result and is needed for correctly resetting the result before the
-   * next evaluation. */
-  const int initial_reference_count = target.initial_reference_count_;
-  target = *this;
-  target.initial_reference_count_ = initial_reference_count;
+  /* Overwrite everything except reference count. */
+  const int reference_count = reference_count_;
+  *this = source;
+  reference_count_ = reference_count;
 
-  target.master_ = this;
+  (*data_reference_count_)++;
 }
 
 void Result::steal_data(Result &source)
 {
   BLI_assert(type_ == source.type_);
-  BLI_assert(precision_ == source.precision_);
   BLI_assert(!this->is_allocated() && source.is_allocated());
-  BLI_assert(master_ == nullptr && source.master_ == nullptr);
 
   /* Overwrite everything except reference counts. */
   const int reference_count = reference_count_;
-  const int initial_reference_count = initial_reference_count_;
   *this = source;
   reference_count_ = reference_count;
-  initial_reference_count_ = initial_reference_count;
 
-  source.reset();
+  source = Result(*context_, type_, precision_);
+}
+
+void Result::steal_data(void *data, const Domain &domain)
+{
+  BLI_assert(!this->is_allocated());
+
+  const int64_t array_size = int64_t(domain.data_size.x) * int64_t(domain.data_size.y);
+  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
+  storage_type_ = ResultStorageType::CPU;
+  domain_ = domain;
+  data_reference_count_ = new int(1);
 }
 
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
  * result. */
-[[maybe_unused]] static bool is_compatible_texture(const GPUTexture *texture, const Result &result)
+[[maybe_unused]] static bool is_compatible_texture(const gpu::Texture *texture,
+                                                   const Result &result)
 {
-  /* Float3 types are an exception, see the documentation on the get_gpu_texture_format method for
-   * more information. */
+  /* Float3 and Int3 types are an exception, see the documentation on the get_gpu_texture_format
+   * method for more information. */
   if (result.type() == ResultType::Float3) {
-    if (GPU_texture_format(texture) == Result::gpu_texture_format(GPU_RGB32F, result.precision()))
+    if (GPU_texture_format(texture) ==
+        Result::gpu_texture_format(gpu::TextureFormat::SFLOAT_32_32_32, result.precision()))
+    {
+      return true;
+    }
+  }
+  else if (result.type() == ResultType::Int3) {
+    if (GPU_texture_format(texture) ==
+        Result::gpu_texture_format(gpu::TextureFormat::SINT_32_32_32, result.precision()))
     {
       return true;
     }
@@ -398,29 +684,29 @@ void Result::steal_data(Result &source)
   return GPU_texture_format(texture) == result.get_gpu_texture_format();
 }
 
-void Result::wrap_external(GPUTexture *texture)
+void Result::wrap_external(gpu::Texture *texture)
 {
   BLI_assert(is_compatible_texture(texture, *this));
   BLI_assert(!this->is_allocated());
-  BLI_assert(!master_);
 
   gpu_texture_ = texture;
   storage_type_ = ResultStorageType::GPU;
   is_external_ = true;
   is_single_value_ = false;
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(void *data, int2 size)
 {
   BLI_assert(!this->is_allocated());
-  BLI_assert(!master_);
 
   const int64_t array_size = int64_t(size.x) * int64_t(size.y);
   cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
   storage_type_ = ResultStorageType::CPU;
   is_external_ = true;
   domain_ = Domain(size);
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(const Result &result)
@@ -428,13 +714,13 @@ void Result::wrap_external(const Result &result)
   BLI_assert(type_ == result.type());
   BLI_assert(precision_ == result.precision());
   BLI_assert(!this->is_allocated());
-  BLI_assert(!master_);
 
   /* Steal the data of the given result and mark it as wrapping external data, but create a
    * temporary copy of the result first, since steal_data will reset it. */
   Result result_copy = result;
   this->steal_data(result_copy);
   is_external_ = true;
+  (*data_reference_count_)++;
 }
 
 void Result::set_transformation(const float3x3 &transformation)
@@ -452,49 +738,28 @@ RealizationOptions &Result::get_realization_options()
   return domain_.realization_options;
 }
 
-void Result::set_initial_reference_count(int count)
+const RealizationOptions &Result::get_realization_options() const
 {
-  initial_reference_count_ = count;
+  return domain_.realization_options;
 }
 
-void Result::reset()
+void Result::set_reference_count(int count)
 {
-  const int initial_reference_count = initial_reference_count_;
-  *this = Result(*context_, type_, precision_);
-  initial_reference_count_ = initial_reference_count;
-  reference_count_ = initial_reference_count;
+  reference_count_ = count;
 }
 
 void Result::increment_reference_count(int count)
 {
-  /* If there is a master result, increment its reference count instead. */
-  if (master_) {
-    master_->increment_reference_count(count);
-    return;
-  }
-
   reference_count_ += count;
 }
 
 void Result::decrement_reference_count(int count)
 {
-  /* If there is a master result, decrement its reference count instead. */
-  if (master_) {
-    master_->decrement_reference_count(count);
-    return;
-  }
-
   reference_count_ -= count;
 }
 
 void Result::release()
 {
-  /* If there is a master result, release it instead. */
-  if (master_) {
-    master_->release();
-    return;
-  }
-
   /* Decrement the reference count, and if it is not yet zero, return and do not free. */
   reference_count_--;
   BLI_assert(reference_count_ >= 0);
@@ -507,17 +772,46 @@ void Result::release()
 
 void Result::free()
 {
-  /* If there is a master result, free it instead. */
-  if (master_) {
-    master_->free();
+  if (!this->is_allocated()) {
     return;
   }
+
+  /* Data is still shared with some other result, so decrement data reference count and reset data
+   * members without actually freeing the data itself. */
+  BLI_assert(*data_reference_count_ >= 1);
+  if (*data_reference_count_ != 1) {
+    (*data_reference_count_)--;
+
+    switch (storage_type_) {
+      case ResultStorageType::GPU:
+        gpu_texture_ = nullptr;
+        break;
+      case ResultStorageType::CPU:
+        cpu_data_ = GMutableSpan();
+        break;
+    }
+
+    data_reference_count_ = nullptr;
+    derived_resources_ = nullptr;
+
+    return;
+  }
+
+  delete data_reference_count_;
+  data_reference_count_ = nullptr;
+
+  delete derived_resources_;
+  derived_resources_ = nullptr;
 
   if (is_external_) {
-    return;
-  }
-
-  if (!this->is_allocated()) {
+    switch (storage_type_) {
+      case ResultStorageType::GPU:
+        gpu_texture_ = nullptr;
+        break;
+      case ResultStorageType::CPU:
+        cpu_data_ = GMutableSpan();
+        break;
+    }
     return;
   }
 
@@ -532,18 +826,15 @@ void Result::free()
       gpu_texture_ = nullptr;
       break;
     case ResultStorageType::CPU:
-      MEM_freeN(this->cpu_data().data());
+      MEM_delete_void(this->cpu_data().data());
       cpu_data_ = GMutableSpan();
       break;
   }
-
-  delete derived_resources_;
-  derived_resources_ = nullptr;
 }
 
 bool Result::should_compute()
 {
-  return initial_reference_count_ != 0;
+  return reference_count_ != 0;
 }
 
 DerivedResources &Result::derived_resources()
@@ -597,25 +888,151 @@ bool Result::is_allocated() const
 
 int Result::reference_count() const
 {
-  /* If there is a master result, return its reference count instead. */
-  if (master_) {
-    return master_->reference_count();
-  }
   return reference_count_;
 }
 
-void Result::allocate_data(int2 size, bool from_pool)
+int64_t Result::channels_count() const
 {
-  if (context_->use_gpu()) {
-    storage_type_ = ResultStorageType::GPU;
-    is_from_pool_ = from_pool;
+  if (storage_type_ == ResultStorageType::GPU) {
+    return GPU_texture_component_len(GPU_texture_format(this->gpu_texture()));
+  }
 
-    const eGPUTextureFormat format = this->get_gpu_texture_format();
+  switch (type_) {
+    case ResultType::Float:
+    case ResultType::Int:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      return 1;
+    case ResultType::Float2:
+    case ResultType::Int2:
+      return 2;
+    case ResultType::Float3:
+    case ResultType::Int3:
+      return 3;
+    case ResultType::Color:
+    case ResultType::Float4:
+      return 4;
+    case ResultType::Float4x4:
+      return 16;
+    case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      /* Single only types do not have channels. */
+      BLI_assert(Result::is_single_value_only_type(type_));
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return 4;
+}
+
+int64_t Result::size_in_bytes() const
+{
+  const int64_t pixel_size = this->get_cpp_type().size;
+  if (this->is_single_value()) {
+    return pixel_size;
+  }
+  const int2 image_size = this->domain().data_size;
+  return pixel_size * image_size.x * image_size.y;
+}
+
+GPointer Result::single_value() const
+{
+  return std::visit([](const auto &value) { return GPointer(&value); }, single_value_);
+}
+
+GMutablePointer Result::single_value()
+{
+  return std::visit([](auto &value) { return GMutablePointer(&value); }, single_value_);
+}
+
+void Result::update_single_value_data()
+{
+  BLI_assert(this->is_single_value());
+  BLI_assert(this->is_allocated());
+
+  switch (storage_type_) {
+    case ResultStorageType::GPU:
+      switch (type_) {
+        case ResultType::Float:
+        case ResultType::Float2:
+        case ResultType::Float4:
+        case ResultType::Color:
+        case ResultType::Int:
+        case ResultType::Int2:
+        case ResultType::Bool:
+        case ResultType::Menu:
+          GPU_texture_update(
+              this->gpu_texture(), this->get_gpu_data_format(), this->single_value().get());
+          break;
+        case ResultType::Float3: {
+          /* Float3 results are stored in 4-component textures due to hardware limitations. So
+           * pad the value with a zero before updating. */
+          const float4 vector_value = float4(this->get_single_value<float3>(), 0.0f);
+          GPU_texture_update(this->gpu_texture(), GPU_DATA_FLOAT, vector_value);
+          break;
+        }
+        case ResultType::Int3: {
+          /* Int3 results are stored in 4-component textures due to hardware limitations. So
+           * pad the value with a zero before updating. */
+          const int4 vector_value = int4(this->get_single_value<int3>(), 0);
+          GPU_texture_update(this->gpu_texture(), GPU_DATA_INT, vector_value);
+          break;
+        }
+        case ResultType::Float4x4: {
+          /* Float4x4 stores each column in one texture layer in a 4-layer texture. */
+          GPU_texture_update_sub(
+              this->gpu_texture(), GPU_DATA_FLOAT, this->single_value().get(), 0, 0, 0, 1, 1, 4);
+          break;
+        }
+        case ResultType::String:
+        case ResultType::Object:
+        case ResultType::Image:
+        case ResultType::Font:
+        case ResultType::Scene:
+        case ResultType::Text:
+        case ResultType::Mask:
+          /* Single only types do not support GPU storage. */
+          BLI_assert(Result::is_single_value_only_type(this->type()));
+          BLI_assert_unreachable();
+          break;
+      }
+      break;
+    case ResultStorageType::CPU:
+      this->get_cpp_type().copy_assign(this->single_value().get(), this->cpu_data().data());
+      break;
+  }
+}
+
+void Result::allocate_data(const int2 size,
+                           const bool from_pool,
+                           const std::optional<ResultStorageType> storage_type)
+{
+  BLI_assert(!this->is_allocated());
+
+  const bool use_gpu = storage_type.has_value() ? storage_type.value() == ResultStorageType::GPU :
+                                                  context_->use_gpu();
+  if (use_gpu) {
+    storage_type_ = ResultStorageType::GPU;
+
+    const gpu::TextureFormat format = this->get_gpu_texture_format();
     const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
-    if (from_pool) {
-      gpu_texture_ = gpu::TexturePool::get().acquire_texture(size.x, size.y, format, usage);
+    if (this->type() == ResultType::Float4x4) {
+      is_from_pool_ = false;
+      gpu_texture_ = GPU_texture_create_2d_array(
+          __func__, size.x, size.y, 4, 1, format, usage, nullptr);
+    }
+    else if (from_pool) {
+      is_from_pool_ = true;
+      gpu_texture_ = gpu::TexturePool::get().acquire_texture(size, format, usage);
     }
     else {
+      is_from_pool_ = false;
       gpu_texture_ = GPU_texture_create_2d(__func__, size.x, size.y, 1, format, usage, nullptr);
     }
   }
@@ -623,16 +1040,18 @@ void Result::allocate_data(int2 size, bool from_pool)
     storage_type_ = ResultStorageType::CPU;
 
     const CPPType &cpp_type = this->get_cpp_type();
-    const int64_t item_size = cpp_type.size();
-    const int64_t alignment = cpp_type.alignment();
+    const int64_t item_size = cpp_type.size;
+    const int64_t alignment = cpp_type.alignment;
     const int64_t array_size = int64_t(size.x) * int64_t(size.y);
     const int64_t memory_size = array_size * item_size;
 
-    void *data = MEM_mallocN_aligned(memory_size, alignment, AT);
+    void *data = MEM_new_uninitialized_aligned(memory_size, alignment, AT);
     cpp_type.default_construct_n(data, array_size);
 
     cpu_data_ = GMutableSpan(cpp_type, data, array_size);
   }
+
+  data_reference_count_ = new int(1);
 }
 
 }  // namespace blender::compositor

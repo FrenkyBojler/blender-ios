@@ -9,6 +9,8 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
 #include "bpy_app_opensubdiv.hh"
 
 #include "../generic/py_capi_utils.hh"
@@ -16,6 +18,8 @@
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi.hh"
 #endif
+
+namespace blender {
 
 static PyTypeObject BlenderAppOpenSubdivType;
 
@@ -85,7 +89,9 @@ PyObject *BPY_app_opensubdiv_struct()
   BlenderAppOpenSubdivType.tp_init = nullptr;
   BlenderAppOpenSubdivType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppOpenSubdivType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppOpenSubdivType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
+
+}  // namespace blender

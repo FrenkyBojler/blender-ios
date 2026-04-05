@@ -8,9 +8,17 @@
  * \ingroup sequencer
  */
 
+namespace blender {
+
 struct Scene;
 struct Strip;
 
-Strip *SEQ_select_active_get(const Scene *scene);
-bool SEQ_select_active_get_pair(Scene *scene, Strip **r_seq_act, Strip **r_seq_other);
-void SEQ_select_active_set(Scene *scene, Strip *strip);
+namespace seq {
+
+Strip *select_active_get(const Scene *scene);
+bool select_active_get_pair(Scene *scene, Strip **r_strip_act, Strip **r_strip_other);
+void select_active_set(Scene *scene, Strip *strip);
+bool select_has_any(const Scene *scene);
+
+}  // namespace seq
+}  // namespace blender

@@ -22,12 +22,13 @@ ccl_device void displacement_shader_eval(KernelGlobals kg,
                                          ConstIntegratorGenericState state,
                                          ccl_private ShaderData *sd)
 {
+  sd->lcg_state = 0;
   sd->num_closure = 0;
   sd->num_closure_left = 0;
 
   /* this will modify sd->P */
 #ifdef __OSL__
-  if (kernel_data.kernel_features & KERNEL_FEATURE_OSL) {
+  if (kernel_data.kernel_features & KERNEL_FEATURE_OSL_SHADING) {
     osl_eval_nodes<SHADER_TYPE_DISPLACEMENT>(kg, state, sd, 0);
   }
   else

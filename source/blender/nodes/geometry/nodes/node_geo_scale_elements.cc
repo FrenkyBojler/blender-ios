@@ -14,9 +14,10 @@
 
 #include "DNA_mesh_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_selection.hh"
 
 #include "NOD_rna_define.hh"
@@ -25,49 +26,60 @@
 
 namespace blender::nodes::node_geo_scale_elements_cc {
 
+static const EnumPropertyItem scale_mode_items[] = {
+    {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
+     "UNIFORM",
+     ICON_NONE,
+     N_("Uniform"),
+     N_("Scale elements by the same factor in every direction")},
+    {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
+     "SINGLE_AXIS",
+     ICON_NONE,
+     N_("Single Axis"),
+     N_("Scale elements in a single direction")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry").supported_type(GeometryComponent::Type::Mesh);
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Float>("Scale", "Scale").default_value(1.0f).min(0.0f).field_on_all();
-  b.add_input<decl::Vector>("Center")
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+  b.add_input<decl::Geometry>("Geometry"_ustr)
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Geometry to scale elements of");
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Float>("Scale"_ustr, "Scale"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .field_on_all();
+  b.add_input<decl::Vector>("Center"_ustr)
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(implicit_field_inputs::position)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description(
           "Origin of the scaling for each element. If multiple elements are connected, their "
           "center is averaged");
-  auto &axis = b.add_input<decl::Vector>("Axis")
-                   .default_value({1.0f, 0.0f, 0.0f})
-                   .field_on_all()
-                   .description("Direction in which to scale the element")
-                   .make_available(
-                       [](bNode &node) { node.custom2 = GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS; });
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
-
-  const bNode *node = b.node_or_null();
-  if (node != nullptr) {
-    const GeometryNodeScaleElementsMode mode = GeometryNodeScaleElementsMode(node->custom2);
-    axis.available(mode == GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS);
-  }
+  b.add_input<decl::Menu>("Scale Mode"_ustr)
+      .static_items(scale_mode_items)
+      .default_value(GEO_NODE_SCALE_ELEMENTS_UNIFORM)
+      .optional_label();
+  b.add_input<decl::Vector>("Axis"_ustr)
+      .default_value({1.0f, 0.0f, 0.0f})
+      .field_on_all()
+      .description("Direction in which to scale the element")
+      .usage_by_single_menu(GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS);
 };
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "scale_mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = int16_t(AttrDomain::Face);
-  node->custom2 = GEO_NODE_SCALE_ELEMENTS_UNIFORM;
-}
-
-static Array<int> create_reverse_offsets(const Span<int> indices, const int items_num)
-{
-  Array<int> offsets(items_num + 1, 0);
-  offset_indices::build_reverse_offsets(indices, offsets);
-  return offsets;
 }
 
 static Span<int> front_indices_to_same_value(const Span<int> indices, const Span<int> values)
@@ -123,32 +135,6 @@ static void from_indices_large_groups(const Span<int> group_indices,
   });
 }
 
-static Array<int> reverse_indices_in_groups(const Span<int> group_indices,
-                                            const OffsetIndices<int> offsets)
-{
-  if (group_indices.is_empty()) {
-    return {};
-  }
-  BLI_assert(*std::max_element(group_indices.begin(), group_indices.end()) < offsets.size());
-  BLI_assert(*std::min_element(group_indices.begin(), group_indices.end()) >= 0);
-
-  /* `counts` keeps track of how many elements have been added to each group, and is incremented
-   * atomically by many threads in parallel. `calloc` can be measurably faster than a parallel fill
-   * of zero. Alternatively the offsets could be copied and incremented directly, but the cost of
-   * the copy is slightly higher than the cost of `calloc`. */
-  int *counts = MEM_cnew_array<int>(size_t(offsets.size()), __func__);
-  BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
-  Array<int> results(group_indices.size());
-  threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {
-    for (const int64_t i : range) {
-      const int group_index = group_indices[i];
-      const int index_in_group = atomic_fetch_and_add_int32(&counts[group_index], 1);
-      results[offsets[group_index][index_in_group]] = int(i);
-    }
-  });
-  return results;
-}
-
 static GroupedSpan<int> gather_groups(const Span<int> group_indices,
                                       const int groups_num,
                                       Array<int> &r_offsets,
@@ -161,8 +147,7 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
     from_indices_large_groups(group_indices, r_offsets, r_indices);
   }
   else {
-    r_offsets = create_reverse_offsets(group_indices, groups_num);
-    r_indices = reverse_indices_in_groups(group_indices, r_offsets.as_span());
+    offset_indices::build_groups_from_indices(group_indices, groups_num, r_offsets, r_indices);
   }
   return {OffsetIndices<int>(r_offsets), r_indices};
 }
@@ -182,7 +167,7 @@ template<typename T> static T gather_mean(const VArray<T> &values, const Span<in
 
   T value;
   devirtualize_varray(values, [&](const auto values) {
-    const auto accumulator = threading::parallel_reduce<MeanAccumulator>(
+    const auto accumulator = threading::parallel_deterministic_reduce<MeanAccumulator>(
         indices.index_range(),
         2048,
         MeanAccumulator(T(), 0),
@@ -325,23 +310,27 @@ static int face_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const GroupedSpan<int> face_verts(mesh.faces(), mesh.corner_verts());
 
-  face_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int face_i) {
-    const Span<int> verts = face_verts[face_i];
-    const int v1 = verts_pos[verts.first()];
-    for (const int vert_i : verts.drop_front(1)) {
-      const int v2 = verts_pos[vert_i];
-      disjoint_set.join(v1, v2);
-    }
-  });
+  face_mask.foreach_index_optimized<int>(
+      [&](const int face_i) {
+        const Span<int> verts = face_verts[face_i];
+        const int v1 = verts_pos[verts.first()];
+        for (const int vert_i : verts.drop_front(1)) {
+          const int v2 = verts_pos[vert_i];
+          disjoint_set.join(v1, v2);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  face_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int face_pos) {
-    const int face_vert_i = face_verts[face_i].first();
-    const int vert_pos = verts_pos[face_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    face_island_indices[face_pos] = vert_island;
-  });
+  face_mask.foreach_index(
+      [&](const int face_i, const int face_pos) {
+        const int face_vert_i = face_verts[face_i].first();
+        const int vert_pos = verts_pos[face_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        face_island_indices[face_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }
@@ -393,22 +382,26 @@ static int edge_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const Span<int2> edges = mesh.edges();
 
-  edge_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int edge_i) {
-    const int2 edge = edges[edge_i];
-    const int v1 = verts_pos[edge[0]];
-    const int v2 = verts_pos[edge[1]];
-    disjoint_set.join(v1, v2);
-  });
+  edge_mask.foreach_index_optimized<int>(
+      [&](const int edge_i) {
+        const int2 edge = edges[edge_i];
+        const int v1 = verts_pos[edge[0]];
+        const int v2 = verts_pos[edge[1]];
+        disjoint_set.join(v1, v2);
+      },
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  edge_mask.foreach_index(GrainSize(4096), [&](const int edge_i, const int edge_pos) {
-    const int2 edge = edges[edge_i];
-    const int edge_vert_i = edge[0];
-    const int vert_pos = verts_pos[edge_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    edge_island_indices[edge_pos] = vert_island;
-  });
+  edge_mask.foreach_index(
+      [&](const int edge_i, const int edge_pos) {
+        const int2 edge = edges[edge_i];
+        const int edge_vert_i = edge[0];
+        const int vert_pos = verts_pos[edge_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        edge_island_indices[edge_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }
@@ -452,15 +445,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
   const AttrDomain domain = AttrDomain(node.custom1);
-  const GeometryNodeScaleElementsMode scale_mode = GeometryNodeScaleElementsMode(node.custom2);
+  const auto scale_mode = params.get_input<GeometryNodeScaleElementsMode>("Scale Mode"_ustr);
 
-  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry"_ustr);
 
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const Field<float> scale_field = params.extract_input<Field<float>>("Scale");
-  const Field<float3> center_field = params.extract_input<Field<float3>>("Center");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const Field<float> scale_field = params.extract_input<Field<float>>("Scale"_ustr);
+  const Field<float3> center_field = params.extract_input<Field<float3>>("Center"_ustr);
 
-  geometry.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       const bke::MeshFieldContext context{*mesh, domain};
       FieldEvaluator evaluator{context, mesh->attributes().domain_size(domain)};
@@ -468,7 +461,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       evaluator.add(scale_field);
       evaluator.add(center_field);
       if (scale_mode == GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS) {
-        evaluator.add(params.get_input<Field<float3>>("Axis"));
+        evaluator.add(params.get_input<Field<float3>>("Axis"_ustr));
       }
       evaluator.evaluate();
       const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
@@ -514,7 +507,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  params.set_output("Geometry", std::move(geometry));
+  params.set_output("Geometry"_ustr, std::move(geometry));
 }
 
 static void node_rna(StructRNA *srna)
@@ -533,20 +526,6 @@ static void node_rna(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem scale_mode_items[] = {
-      {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
-       "UNIFORM",
-       ICON_NONE,
-       "Uniform",
-       "Scale elements by the same factor in every direction"},
-      {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
-       "SINGLE_AXIS",
-       ICON_NONE,
-       "Single Axis",
-       "Scale elements in a single direction"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   RNA_def_node_enum(srna,
                     "domain",
                     "Domain",
@@ -554,14 +533,11 @@ static void node_rna(StructRNA *srna)
                     domain_items,
                     NOD_inline_enum_accessors(custom1),
                     int(AttrDomain::Face));
-
-  RNA_def_node_enum(
-      srna, "scale_mode", "Scale Mode", "", scale_mode_items, NOD_inline_enum_accessors(custom2));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeScaleElements", GEO_NODE_SCALE_ELEMENTS);
   ntype.ui_name = "Scale Elements";
@@ -572,7 +548,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

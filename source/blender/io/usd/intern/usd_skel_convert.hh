@@ -4,10 +4,13 @@
 #pragma once
 
 #include "BLI_map.hh"
+#include "BLI_string_ref.hh"
 
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
+
+namespace blender {
 
 struct Depsgraph;
 struct Main;
@@ -15,7 +18,7 @@ struct Mesh;
 struct Object;
 struct ReportList;
 
-namespace blender::io::usd {
+namespace io::usd {
 
 /**
  * This file contains utilities for converting between `UsdSkel` data and
@@ -133,6 +136,7 @@ void shape_key_export_chaser(pxr::UsdStageRefPtr stage,
  */
 void export_deform_verts(const Mesh *mesh,
                          const pxr::UsdSkelBindingAPI &skel_api,
-                         Span<std::string> bone_names);
+                         Span<StringRef> bone_names);
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

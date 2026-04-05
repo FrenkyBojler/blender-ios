@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_id.hh"
@@ -16,10 +18,12 @@
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
+namespace blender {
+
 struct ID;
 struct bPoseChannel;
 
-namespace blender::deg {
+namespace deg {
 
 struct Depsgraph;
 struct IDNode;
@@ -29,17 +33,23 @@ struct OperationNode;
 struct ComponentNode : public Node {
   /* Key used to look up operations within a component */
   struct OperationIDKey {
-    OperationCode opcode;
-    const char *name;
-    int name_tag;
+    OperationCode opcode = OperationCode::OPERATION;
+    int name_tag = -1;
+    StringRef name = "";
 
-    OperationIDKey();
-    OperationIDKey(OperationCode opcode);
-    OperationIDKey(OperationCode opcode, const char *name, int name_tag);
+    OperationIDKey() = default;
+    OperationIDKey(const OperationCode opcode) : opcode(opcode) {}
+    OperationIDKey(const OperationCode opcode, const StringRef name, const int name_tag)
+        : opcode(opcode), name_tag(name_tag), name(name)
+    {
+    }
 
     std::string identifier() const;
-    bool operator==(const OperationIDKey &other) const;
-    uint64_t hash() const;
+    friend bool operator==(const OperationIDKey &a, const OperationIDKey &b) = default;
+    uint64_t hash() const
+    {
+      return get_default_hash(opcode, name_tag, name);
+    }
   };
 
   /* Typedef for container of operations */
@@ -56,19 +66,17 @@ struct ComponentNode : public Node {
    */
   OperationNode *find_operation(OperationIDKey key) const;
   OperationNode *find_operation(OperationCode opcode,
-                                const char *name = "",
+                                StringRef name = "",
                                 int name_tag = -1) const;
 
   /* Find an existing operation, will throw an assert() if it does not exist.
    * See #add_operation for the meaning and examples of #name and #name_tag. */
   OperationNode *get_operation(OperationIDKey key) const;
-  OperationNode *get_operation(OperationCode opcode,
-                               const char *name = "",
-                               int name_tag = -1) const;
+  OperationNode *get_operation(OperationCode opcode, StringRef name = "", int name_tag = -1) const;
 
   /* Check operation exists and return it. */
   bool has_operation(OperationIDKey key) const;
-  bool has_operation(OperationCode opcode, const char *name = "", int name_tag = -1) const;
+  bool has_operation(OperationCode opcode, StringRef name = "", int name_tag = -1) const;
 
   /**
    * Create a new node for representing an operation and add this to graph
@@ -88,7 +96,7 @@ struct ComponentNode : public Node {
    */
   OperationNode *add_operation(const DepsEvalOperationCb &op,
                                OperationCode opcode,
-                               const char *name = "",
+                               const StringRef name = "",
                                int name_tag = -1);
 
   /* Entry/exit operations management.
@@ -248,4 +256,5 @@ struct AudioComponentNode : public ComponentNode {
 
 void deg_register_component_depsnodes();
 
-}  // namespace blender::deg
+}  // namespace deg
+}  // namespace blender

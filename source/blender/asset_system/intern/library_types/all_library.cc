@@ -8,6 +8,9 @@
 
 #include <memory>
 
+/* For getting the experimental flag for remote library support. */
+#include "DNA_userdef_types.h"
+
 #include "AS_asset_catalog_tree.hh"
 #include "asset_catalog_collection.hh"
 #include "asset_catalog_definition_file.hh"
@@ -16,11 +19,17 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"asset_system.all_asset_library"};
+namespace blender {
 
-namespace blender::asset_system {
+static CLG_LogRef LOG = {"asset.library"};
 
-AllAssetLibrary::AllAssetLibrary() : AssetLibrary(ASSET_LIBRARY_ALL) {}
+namespace asset_system {
+
+AllAssetLibrary::AllAssetLibrary()
+    : AssetLibrary(ASSET_LIBRARY_ALL,
+                   /*is_read_only=*/true)
+{
+}
 
 std::optional<AssetLibraryReference> AllAssetLibrary::library_reference() const
 {
@@ -34,8 +43,15 @@ void AllAssetLibrary::rebuild_catalogs_from_nested(const bool reload_nested_cata
   std::unique_ptr<AssetCatalogService> new_catalog_service = std::make_unique<AssetCatalogService>(
       AssetCatalogService::read_only_tag());
 
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+
   AssetLibrary::foreach_loaded(
       [&](AssetLibrary &nested) {
+        const bool is_online_lib = nested.remote_url().has_value();
+        if (is_online_lib && skip_remote_libraries) {
+          return;
+        }
+
         if (reload_nested_catalogs) {
           nested.catalog_service().reload_catalogs();
         }
@@ -45,11 +61,10 @@ void AllAssetLibrary::rebuild_catalogs_from_nested(const bool reload_nested_cata
             /*on_duplicate_items=*/[](const AssetCatalog &existing,
                                       const AssetCatalog &to_be_ignored) {
               if (existing.path == to_be_ignored.path) {
-                CLOG_INFO(&LOG,
-                          2,
-                          "multiple definitions of catalog %s (path: %s), ignoring duplicate",
-                          existing.catalog_id.str().c_str(),
-                          existing.path.c_str());
+                CLOG_DEBUG(&LOG,
+                           "multiple definitions of catalog %s (path: %s), ignoring duplicate",
+                           existing.catalog_id.str().c_str(),
+                           existing.path.c_str());
               }
               else {
                 CLOG_ERROR(&LOG,
@@ -83,4 +98,6 @@ void AllAssetLibrary::refresh_catalogs()
   this->rebuild_catalogs_from_nested(/*reload_nested_catalogs=*/true);
 }
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

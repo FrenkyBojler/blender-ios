@@ -14,8 +14,17 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 
+#ifdef __cplusplus
+#  include <string>
+#endif
+
+namespace blender {
+
 /* Buffer size of maximum `uint64` plus commas and terminator. */
 #define BLI_STR_FORMAT_UINT64_GROUPED_SIZE 27
+
+/* Buffer size of maximum `int64` plus commas and terminator. */
+#define BLI_STR_FORMAT_INT64_GROUPED_SIZE 28
 
 /* Buffer size of maximum `int32` with commas and terminator. */
 #define BLI_STR_FORMAT_INT32_GROUPED_SIZE 15
@@ -207,13 +216,13 @@ char *BLI_vsprintfN_with_buffer(char *fixed_buf,
     ATTR_PRINTF_FORMAT(4, 0);
 
 /**
- * Print formatted string into a newly #MEM_mallocN'd string
+ * Print formatted string into a newly #MEM_new_uninitialized'd string
  * and return it.
  */
 char *BLI_sprintfN(const char *__restrict format, ...) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1) ATTR_MALLOC ATTR_PRINTF_FORMAT(1, 2);
 /** A version of #BLI_sprintfN that takes a #va_list. */
-char *BLI_vsprintfN(const char *__restrict format, va_list args) ATTR_NONNULL(1, 2) ATTR_MALLOC
+char *BLI_vsprintfN(const char *__restrict format, va_list args) ATTR_NONNULL(1) ATTR_MALLOC
     ATTR_PRINTF_FORMAT(1, 0);
 
 /**
@@ -230,6 +239,12 @@ char *BLI_vsprintfN(const char *__restrict format, va_list args) ATTR_NONNULL(1,
  */
 size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
     ATTR_NONNULL(1, 2);
+
+#ifdef __cplusplus
+/** Same as above, but returns an std::string. */
+std::string BLI_str_escape(const char *str);
+#endif
+
 /**
  * This roughly matches C and Python's string escaping with double quotes - `"`.
  *
@@ -290,6 +305,8 @@ size_t BLI_str_format_int_grouped(char dst[BLI_STR_FORMAT_INT32_GROUPED_SIZE], i
  * \return The length of \a dst.
  */
 size_t BLI_str_format_uint64_grouped(char dst[BLI_STR_FORMAT_UINT64_GROUPED_SIZE], uint64_t num)
+    ATTR_NONNULL(1);
+size_t BLI_str_format_int64_grouped(char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE], int64_t num)
     ATTR_NONNULL(1);
 /**
  * Format a size in bytes using binary units.
@@ -595,6 +612,7 @@ bool BLI_string_elem_split_by_delim(const char *haystack,
   len += BLI_strncpy_rlen(dst + len, suffix, ARRAY_SIZE(dst) - len)
 #define STR_CONCATF(dst, len, format, ...) \
   len += BLI_snprintf_rlen(dst + len, ARRAY_SIZE(dst) - len, format, __VA_ARGS__)
+#define STRNLEN(str) BLI_strnlen(str, ARRAY_SIZE(str))
 
 /** \} */
 
@@ -678,3 +696,5 @@ template<size_t N> inline char *STRNCPY(char (&dst)[N], const char *src)
 {
   return BLI_strncpy(dst, src, N);
 }
+
+}  // namespace blender

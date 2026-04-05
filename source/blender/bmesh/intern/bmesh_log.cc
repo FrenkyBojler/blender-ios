@@ -22,7 +22,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
-#include "BLI_mempool.h"
+#include "BLI_pool.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_customdata.hh"
@@ -34,6 +34,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 struct BMLogFace;
 struct BMLogVert;
 
@@ -43,19 +45,22 @@ struct BMLogEntry {
   /* The following members map from an element ID to one of the log types above. */
 
   /** Elements that were in the previous entry, but have been deleted. */
-  blender::Map<uint, BMLogVert *, 0> deleted_verts;
-  blender::Map<uint, BMLogFace *, 0> deleted_faces;
+  Map<uint, BMLogVert *, 0> deleted_verts;
+  Map<uint, BMLogFace *, 0> deleted_faces;
 
   /** Elements that were not in the previous entry, but are in the result of this entry. */
-  blender::Map<uint, BMLogVert *, 0> added_verts;
-  blender::Map<uint, BMLogFace *, 0> added_faces;
+  Map<uint, BMLogVert *, 0> added_verts;
+  Map<uint, BMLogFace *, 0> added_faces;
 
   /** Vertices whose coordinates, mask value, or hflag have changed. */
-  blender::Map<uint, BMLogVert *, 0> modified_verts;
-  blender::Map<uint, BMLogFace *, 0> modified_faces;
+  Map<uint, BMLogVert *, 0> modified_verts;
+  Map<uint, BMLogFace *, 0> modified_faces;
 
-  BLI_mempool *pool_verts;
-  BLI_mempool *pool_faces;
+  Pool<BMLogVert> vert_pool;
+  Pool<BMLogFace> face_pool;
+
+  Vector<BMLogVert *, 0> allocated_verts;
+  Vector<BMLogFace *, 0> allocated_faces;
 
   /**
    * This is only needed for dropping BMLogEntries while still in
@@ -82,11 +87,11 @@ struct BMLog {
    * The ID is needed because element pointers will change as they
    * are created and deleted.
    */
-  blender::Map<uint, BMElem *, 0> id_to_elem;
-  blender::Map<BMElem *, uint, 0> elem_to_id;
+  Map<uint, BMElem *, 0> id_to_elem;
+  Map<BMElem *, uint, 0> elem_to_id;
 
   /** All #BMLogEntrys, ordered from earliest to most recent. */
-  ListBase entries;
+  ListBaseT<BMLogEntry> entries;
 
   /**
    * The current log entry from entries list
@@ -101,8 +106,8 @@ struct BMLog {
 };
 
 struct BMLogVert {
-  blender::float3 position;
-  blender::float3 normal;
+  float3 position;
+  float3 normal;
   char hflag;
   float mask;
 };
@@ -188,7 +193,8 @@ static void bm_log_vert_bmvert_copy(BMLogVert *lv, BMVert *v, const int cd_vert_
 static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mask_offset)
 {
   BMLogEntry *entry = log->current_entry;
-  BMLogVert *lv = static_cast<BMLogVert *>(BLI_mempool_alloc(entry->pool_verts));
+  BMLogVert *lv = &entry->vert_pool.construct();
+  entry->allocated_verts.append(lv);
 
   bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset);
 
@@ -199,7 +205,8 @@ static BMLogVert *bm_log_vert_alloc(BMLog *log, BMVert *v, const int cd_vert_mas
 static BMLogFace *bm_log_face_alloc(BMLog *log, BMFace *f)
 {
   BMLogEntry *entry = log->current_entry;
-  BMLogFace *lf = static_cast<BMLogFace *>(BLI_mempool_alloc(entry->pool_faces));
+  BMLogFace *lf = &entry->face_pool.construct();
+  entry->allocated_faces.append(lf);
   BMVert *v[3];
 
   BLI_assert(f->len == 3);
@@ -217,9 +224,7 @@ static BMLogFace *bm_log_face_alloc(BMLog *log, BMFace *f)
 
 /************************ Helpers for undo/redo ***********************/
 
-static void bm_log_verts_unmake(BMesh *bm,
-                                BMLog *log,
-                                const blender::Map<uint, BMLogVert *, 0> &verts)
+static void bm_log_verts_unmake(BMesh *bm, BMLog *log, const Map<uint, BMLogVert *, 0> &verts)
 {
   const int cd_vert_mask_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
@@ -235,9 +240,7 @@ static void bm_log_verts_unmake(BMesh *bm,
   }
 }
 
-static void bm_log_faces_unmake(BMesh *bm,
-                                BMLog *log,
-                                const blender::Map<uint, BMLogFace *, 0> &faces)
+static void bm_log_faces_unmake(BMesh *bm, BMLog *log, const Map<uint, BMLogFace *, 0> &faces)
 {
   for (const uint id : faces.keys()) {
     BMFace *f = bm_log_face_from_id(log, id);
@@ -258,9 +261,7 @@ static void bm_log_faces_unmake(BMesh *bm,
   }
 }
 
-static void bm_log_verts_restore(BMesh *bm,
-                                 BMLog *log,
-                                 const blender::Map<uint, BMLogVert *, 0> &verts)
+static void bm_log_verts_restore(BMesh *bm, BMLog *log, const Map<uint, BMLogVert *, 0> &verts)
 {
   const int cd_vert_mask_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
@@ -275,9 +276,7 @@ static void bm_log_verts_restore(BMesh *bm,
   }
 }
 
-static void bm_log_faces_restore(BMesh *bm,
-                                 BMLog *log,
-                                 const blender::Map<uint, BMLogFace *, 0> &faces)
+static void bm_log_faces_restore(BMesh *bm, BMLog *log, const Map<uint, BMLogFace *, 0> &faces)
 {
   const int cd_face_sets = CustomData_get_offset_named(
       &bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
@@ -301,9 +300,7 @@ static void bm_log_faces_restore(BMesh *bm,
   }
 }
 
-static void bm_log_vert_values_swap(BMesh *bm,
-                                    BMLog *log,
-                                    const blender::Map<uint, BMLogVert *, 0> &verts)
+static void bm_log_vert_values_swap(BMesh *bm, BMLog *log, const Map<uint, BMLogVert *, 0> &verts)
 {
   const int cd_vert_mask_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
@@ -321,7 +318,7 @@ static void bm_log_vert_values_swap(BMesh *bm,
   }
 }
 
-static void bm_log_face_values_swap(BMLog *log, const blender::Map<uint, BMLogFace *, 0> &faces)
+static void bm_log_face_values_swap(BMLog *log, const Map<uint, BMLogFace *, 0> &faces)
 {
 
   for (const auto item : faces.items()) {
@@ -359,9 +356,6 @@ static BMLogEntry *bm_log_entry_create()
 {
   BMLogEntry *entry = MEM_new<BMLogEntry>(__func__);
 
-  entry->pool_verts = BLI_mempool_create(sizeof(BMLogVert), 0, 64, BLI_MEMPOOL_NOP);
-  entry->pool_faces = BLI_mempool_create(sizeof(BMLogFace), 0, 64, BLI_MEMPOOL_NOP);
-
   return entry;
 }
 
@@ -370,35 +364,19 @@ static BMLogEntry *bm_log_entry_create()
  * NOTE: does not free the log entry itself. */
 static void bm_log_entry_free(BMLogEntry *entry)
 {
-  BLI_mempool_destroy(entry->pool_verts);
-  BLI_mempool_destroy(entry->pool_faces);
-}
+  BLI_assert(entry->vert_pool.size() == entry->allocated_verts.size());
+  BLI_assert(entry->face_pool.size() == entry->allocated_faces.size());
 
-static int uint_compare(const void *a_v, const void *b_v)
-{
-  const uint *a = static_cast<const uint *>(a_v);
-  const uint *b = static_cast<const uint *>(b_v);
-  return *a < *b;
-}
-
-/* Remap IDs to contiguous indices
- *
- * E.g. if the vertex IDs are (4, 1, 10, 3), the mapping will be:
- *    4 -> 2
- *    1 -> 0
- *   10 -> 3
- *    3 -> 1
- */
-static blender::Map<uint, uint> bm_log_compress_ids_to_indices(uint *ids, uint totid)
-{
-  blender::Map<uint, uint> result;
-  qsort(ids, totid, sizeof(*ids), uint_compare);
-
-  for (uint i = 0; i < totid; i++) {
-    result.add(ids[i], i);
+  for (BMLogVert *log_vert : entry->allocated_verts) {
+    entry->vert_pool.destruct(*log_vert);
   }
 
-  return result;
+  for (BMLogFace *log_face : entry->allocated_faces) {
+    entry->face_pool.destruct(*log_face);
+  }
+
+  BLI_assert(entry->vert_pool.is_empty());
+  BLI_assert(entry->face_pool.is_empty());
 }
 
 /***************************** Public API *****************************/
@@ -516,58 +494,11 @@ void BM_log_free(BMLog *log)
 
   /* Clear the BMLog references within each entry, but do not free
    * the entries themselves */
-  LISTBASE_FOREACH (BMLogEntry *, entry, &log->entries) {
-    entry->log = nullptr;
+  for (BMLogEntry &entry : log->entries) {
+    entry.log = nullptr;
   }
 
   MEM_delete(log);
-}
-
-int BM_log_length(const BMLog *log)
-{
-  return BLI_listbase_count(&log->entries);
-}
-
-void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log)
-{
-  BMIter bm_iter;
-
-  uint i;
-
-  BMVert *v;
-  /* Put all vertex IDs into an array */
-  uint *varr = static_cast<uint *>(MEM_mallocN(sizeof(int) * size_t(bm->totvert), __func__));
-  BM_ITER_MESH_INDEX (v, &bm_iter, bm, BM_VERTS_OF_MESH, i) {
-    varr[i] = bm_log_vert_id_get(log, v);
-  }
-
-  BMFace *f;
-  /* Put all face IDs into an array */
-  uint *farr = static_cast<uint *>(MEM_mallocN(sizeof(int) * size_t(bm->totface), __func__));
-  BM_ITER_MESH_INDEX (f, &bm_iter, bm, BM_FACES_OF_MESH, i) {
-    farr[i] = bm_log_face_id_get(log, f);
-  }
-
-  /* Create BMVert index remap array */
-  blender::Map<uint, uint> vert_compression_map = bm_log_compress_ids_to_indices(
-      varr, uint(bm->totvert));
-  BM_ITER_MESH_INDEX (v, &bm_iter, bm, BM_VERTS_OF_MESH, i) {
-    const uint id = bm_log_vert_id_get(log, v);
-    varr[i] = vert_compression_map.lookup(id);
-  }
-
-  /* Create BMFace index remap array */
-  blender::Map<uint, uint> face_compression_map = bm_log_compress_ids_to_indices(
-      farr, uint(bm->totface));
-  BM_ITER_MESH_INDEX (f, &bm_iter, bm, BM_FACES_OF_MESH, i) {
-    const uint id = bm_log_face_id_get(log, f);
-    farr[i] = face_compression_map.lookup(id);
-  }
-
-  BM_mesh_remap(bm, varr, nullptr, farr);
-
-  MEM_freeN(varr);
-  MEM_freeN(farr);
 }
 
 BMLogEntry *BM_log_entry_add(BMLog *log)
@@ -864,39 +795,6 @@ const float *BM_log_find_original_vert_mask(BMLog *log, BMVert *v)
   return nullptr;
 }
 
-const float *BM_log_original_vert_co(BMLog *log, BMVert *v)
-{
-  BMLogEntry *entry = log->current_entry;
-  BLI_assert(entry);
-
-  const uint v_id = bm_log_vert_id_get(log, v);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
-  return entry->modified_verts.lookup(v_id)->position;
-}
-
-const float *BM_log_original_vert_no(BMLog *log, BMVert *v)
-{
-  BMLogEntry *entry = log->current_entry;
-  BLI_assert(entry);
-
-  const uint v_id = bm_log_vert_id_get(log, v);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
-  return entry->modified_verts.lookup(v_id)->normal;
-}
-
-float BM_log_original_mask(BMLog *log, BMVert *v)
-{
-  BMLogEntry *entry = log->current_entry;
-  BLI_assert(entry);
-
-  const uint v_id = bm_log_vert_id_get(log, v);
-
-  BLI_assert(entry->modified_verts.contains(v_id));
-  return entry->modified_verts.lookup(v_id)->mask;
-}
-
 void BM_log_original_vert_data(BMLog *log, BMVert *v, const float **r_co, const float **r_no)
 {
   BMLogEntry *entry = log->current_entry;
@@ -970,3 +868,5 @@ void BM_log_print_entry(BMesh *bm, BMLogEntry *entry)
   printf("}\n");
 }
 #endif
+
+}  // namespace blender

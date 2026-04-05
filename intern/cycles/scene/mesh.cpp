@@ -9,6 +9,7 @@
 
 #include "device/device.h"
 
+#include "scene/attribute.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/scene.h"
@@ -19,7 +20,160 @@
 #include "util/log.h"
 #include "util/set.h"
 
+#include "mikktspace.hh"
+
 CCL_NAMESPACE_BEGIN
+
+/* Tangent Space */
+
+struct MikkMeshWrapper {
+  MikkMeshWrapper(const Mesh *mesh,
+                  const packed_normal *vertex_normal,
+                  const packed_normal *corner_normal,
+                  const float2 *uv,
+                  float3 *tangent,
+                  float *tangent_sign)
+      : mesh(mesh),
+        vertex_normal(vertex_normal),
+        corner_normal(corner_normal),
+        uv(uv),
+        tangent(tangent),
+        tangent_sign(tangent_sign)
+  {
+  }
+
+  int GetNumFaces()
+  {
+    return mesh->num_triangles();
+  }
+
+  int GetNumVerticesOfFace(const int /*face_num*/)
+  {
+    return 3;
+  }
+
+  int CornerIndex(const int face_num, const int vert_num)
+  {
+    return face_num * 3 + vert_num;
+  }
+
+  int VertexIndex(const int face_num, const int vert_num)
+  {
+    const int corner = CornerIndex(face_num, vert_num);
+    return mesh->get_triangles()[corner];
+  }
+
+  mikk::float3 GetPosition(const int face_num, const int vert_num)
+  {
+    const float3 vP = mesh->get_verts()[VertexIndex(face_num, vert_num)];
+    return mikk::float3(vP.x, vP.y, vP.z);
+  }
+
+  mikk::float3 GetTexCoord(const int face_num, const int vert_num)
+  {
+    /* TODO: Check whether introducing a template boolean in order to
+     * turn this into a constexpr is worth it. */
+    if (has_uv()) {
+      const int corner_index = CornerIndex(face_num, vert_num);
+      const float2 tfuv = uv[corner_index];
+      return mikk::float3(tfuv.x, tfuv.y, 1.0f);
+    }
+    /* revert to vertex position */
+    const float3 vP = mesh->get_verts()[VertexIndex(face_num, vert_num)];
+    const float2 uv = map_to_sphere(vP);
+    return mikk::float3(uv.x, uv.y, 1.0f);
+  }
+
+  mikk::float3 GetNormal(const int face_num, const int vert_num)
+  {
+    float3 vN;
+    if (mesh->get_smooth()[face_num]) {
+      vN = ((corner_normal) ? corner_normal[CornerIndex(face_num, vert_num)] :
+                              vertex_normal[VertexIndex(face_num, vert_num)])
+               .decode();
+    }
+    else {
+      const Mesh::Triangle tri = mesh->get_triangle(face_num);
+      vN = tri.compute_normal(mesh->get_verts().data());
+    }
+    return mikk::float3(vN.x, vN.y, vN.z);
+  }
+
+  void SetTangentSpace(const int face_num, const int vert_num, mikk::float3 T, bool orientation)
+  {
+    const int corner_index = CornerIndex(face_num, vert_num);
+    tangent[corner_index] = make_float3(T.x, T.y, T.z);
+    if (tangent_sign != nullptr) {
+      tangent_sign[corner_index] = orientation ? 1.0f : -1.0f;
+    }
+  }
+
+  bool has_uv() const
+  {
+    return uv != nullptr;
+  }
+
+  const Mesh *mesh;
+
+  const packed_normal *vertex_normal;
+  const packed_normal *corner_normal;
+  const float2 *uv;
+
+  float3 *tangent;
+  float *tangent_sign;
+};
+
+static void mikk_compute_tangents(Attribute *attr_uv,
+                                  Mesh *mesh,
+                                  const bool need_sign,
+                                  const AttributeStandard tangent_std,
+                                  const AttributeStandard tangent_sign_std,
+                                  const char *tangent_postfix,
+                                  const char *tangent_sign_postfix)
+{
+  /* Create tangent attributes. */
+  AttributeSet &attributes = mesh->attributes;
+
+  Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
+  Attribute *attr_cN = attributes.find(ATTR_STD_CORNER_NORMAL);
+  if (attr_vN == nullptr && attr_cN == nullptr) {
+    /* no normals */
+    return;
+  }
+
+  const packed_normal *vertex_normal = attr_vN ? attr_vN->data_normal() : nullptr;
+  const packed_normal *corner_normal = attr_cN ? attr_cN->data_normal() : nullptr;
+  const float2 *uv = (attr_uv) ? attr_uv->data_float2() : nullptr;
+
+  const ustring name = ustring((attr_uv) ? attr_uv->name.string() + tangent_postfix :
+                                           Attribute::standard_name(tangent_std));
+  Attribute *attr;
+  if (attr_uv == nullptr || attr_uv->std == ATTR_STD_UV) {
+    attr = attributes.add(tangent_std, name);
+  }
+  else {
+    attr = attributes.add(name, TypeVector, ATTR_ELEMENT_CORNER);
+  }
+  float3 *tangent = attr->data_float3_for_write();
+  /* Create bitangent sign attribute. */
+  float *tangent_sign = nullptr;
+  if (need_sign) {
+    const ustring name_sign = ustring((attr_uv) ? attr_uv->name.string() + tangent_sign_postfix :
+                                                  Attribute::standard_name(tangent_sign_std));
+    Attribute *attr_sign;
+    if (attr_uv == nullptr || attr_uv->std == ATTR_STD_UV) {
+      attr_sign = attributes.add(tangent_sign_std, name_sign);
+    }
+    else {
+      attr_sign = attributes.add(name_sign, TypeFloat, ATTR_ELEMENT_CORNER);
+    }
+    tangent_sign = attr_sign->data_float_for_write();
+  }
+
+  MikkMeshWrapper userdata(mesh, vertex_normal, corner_normal, uv, tangent, tangent_sign);
+  /* Compute tangents. */
+  mikk::Mikktspace(userdata).genTangSpace();
+}
 
 /* Triangle */
 
@@ -118,14 +272,35 @@ NODE_DEFINE(Mesh)
   SOCKET_INT_ARRAY(shader, "Shader", array<int>());
   SOCKET_BOOLEAN_ARRAY(smooth, "Smooth", array<bool>());
 
-  SOCKET_INT_ARRAY(triangle_patch, "Triangle Patch", array<int>());
-  SOCKET_POINT2_ARRAY(vert_patch_uv, "Patch UVs", array<float2>());
-
   static NodeEnum subdivision_type_enum;
   subdivision_type_enum.insert("none", SUBDIVISION_NONE);
   subdivision_type_enum.insert("linear", SUBDIVISION_LINEAR);
   subdivision_type_enum.insert("catmull_clark", SUBDIVISION_CATMULL_CLARK);
   SOCKET_ENUM(subdivision_type, "Subdivision Type", subdivision_type_enum, SUBDIVISION_NONE);
+
+  static NodeEnum subdivision_boundary_interpolation_enum;
+  subdivision_boundary_interpolation_enum.insert("none", SUBDIVISION_BOUNDARY_NONE);
+  subdivision_boundary_interpolation_enum.insert("edge_only", SUBDIVISION_BOUNDARY_EDGE_ONLY);
+  subdivision_boundary_interpolation_enum.insert("edge_and_corner",
+                                                 SUBDIVISION_BOUNDARY_EDGE_AND_CORNER);
+  SOCKET_ENUM(subdivision_boundary_interpolation,
+              "Subdivision Boundary Interpolation",
+              subdivision_boundary_interpolation_enum,
+              SUBDIVISION_BOUNDARY_EDGE_AND_CORNER);
+
+  static NodeEnum subdivision_fvar_interpolation_enum;
+  subdivision_fvar_interpolation_enum.insert("none", SUBDIVISION_FVAR_LINEAR_NONE);
+  subdivision_fvar_interpolation_enum.insert("corners_only", SUBDIVISION_FVAR_LINEAR_CORNERS_ONLY);
+  subdivision_fvar_interpolation_enum.insert("corners_plus1",
+                                             SUBDIVISION_FVAR_LINEAR_CORNERS_PLUS1);
+  subdivision_fvar_interpolation_enum.insert("corners_plus2",
+                                             SUBDIVISION_FVAR_LINEAR_CORNERS_PLUS2);
+  subdivision_fvar_interpolation_enum.insert("boundaries", SUBDIVISION_FVAR_LINEAR_BOUNDARIES);
+  subdivision_fvar_interpolation_enum.insert("all", SUBDIVISION_FVAR_LINEAR_ALL);
+  SOCKET_ENUM(subdivision_fvar_interpolation,
+              "Subdivision Face-Varying Interpolation",
+              subdivision_fvar_interpolation_enum,
+              SUBDIVISION_FVAR_LINEAR_BOUNDARIES);
 
   SOCKET_INT_ARRAY(subd_vert_creases, "Subdivision Vertex Crease", array<int>());
   SOCKET_FLOAT_ARRAY(
@@ -138,9 +313,16 @@ NODE_DEFINE(Mesh)
   SOCKET_INT_ARRAY(subd_shader, "Subdivision Face Shader", array<int>());
   SOCKET_BOOLEAN_ARRAY(subd_smooth, "Subdivision Face Smooth", array<bool>());
   SOCKET_INT_ARRAY(subd_ptex_offset, "Subdivision Face PTex Offset", array<int>());
-  SOCKET_INT(num_ngons, "NGons Number", 0);
 
   /* Subdivisions parameters */
+  static NodeEnum subd_adaptive_space_enum;
+  subd_adaptive_space_enum.insert("pixel", SUBDIVISION_ADAPTIVE_SPACE_PIXEL);
+  subd_adaptive_space_enum.insert("object", SUBDIVISION_ADAPTIVE_SPACE_OBJECT);
+
+  SOCKET_ENUM(subd_adaptive_space,
+              "Subdivision Adaptive Space",
+              subd_adaptive_space_enum,
+              SUBDIVISION_ADAPTIVE_SPACE_PIXEL);
   SOCKET_FLOAT(subd_dicing_rate, "Subdivision Dicing Rate", 1.0f)
   SOCKET_INT(subd_max_level, "Max Subdivision Level", 1);
   SOCKET_TRANSFORM(subd_objecttoworld, "Subdivision Object Transform", transform_identity());
@@ -148,27 +330,12 @@ NODE_DEFINE(Mesh)
   return type;
 }
 
-SubdParams *Mesh::get_subd_params()
-{
-  if (subdivision_type == SubdivisionType::SUBDIVISION_NONE) {
-    return nullptr;
-  }
-
-  if (!subd_params) {
-    subd_params = make_unique<SubdParams>(this);
-  }
-
-  subd_params->dicing_rate = subd_dicing_rate;
-  subd_params->max_level = subd_max_level;
-  subd_params->objecttoworld = subd_objecttoworld;
-
-  return subd_params.get();
-}
-
 bool Mesh::need_tesselation()
 {
-  return get_subd_params() && (verts_is_modified() || subd_dicing_rate_is_modified() ||
-                               subd_objecttoworld_is_modified() || subd_max_level_is_modified());
+  return (subdivision_type != SUBDIVISION_NONE) &&
+         (verts_is_modified() || subd_dicing_rate_is_modified() ||
+          subd_adaptive_space_is_modified() || subd_objecttoworld_is_modified() ||
+          subd_max_level_is_modified());
 }
 
 Mesh::Mesh(const NodeType *node_type, Type geom_type_)
@@ -176,14 +343,11 @@ Mesh::Mesh(const NodeType *node_type, Type geom_type_)
 {
   vert_offset = 0;
 
-  patch_offset = 0;
   face_offset = 0;
   corner_offset = 0;
 
-  num_subd_verts = 0;
+  num_subd_added_verts = 0;
   num_subd_faces = 0;
-
-  num_ngons = 0;
 
   subdivision_type = SUBDIVISION_NONE;
 }
@@ -197,31 +361,10 @@ void Mesh::resize_mesh(const int numverts, const int numtris)
   shader.resize(numtris);
   smooth.resize(numtris);
 
-  if (get_num_subd_faces()) {
-    triangle_patch.resize(numtris);
-    vert_patch_uv.resize(numverts);
-  }
-
   attributes.resize();
 }
 
-void Mesh::reserve_mesh(const int numverts, const int numtris)
-{
-  /* reserve space to add verts and triangles later */
-  verts.reserve(numverts);
-  triangles.reserve(numtris * 3);
-  shader.reserve(numtris);
-  smooth.reserve(numtris);
-
-  if (get_num_subd_faces()) {
-    triangle_patch.reserve(numtris);
-    vert_patch_uv.reserve(numverts);
-  }
-
-  attributes.resize(true);
-}
-
-void Mesh::resize_subd_faces(const int numfaces, const int num_ngons_, int numcorners)
+void Mesh::resize_subd_faces(const int numfaces, const int numcorners)
 {
   subd_start_corner.resize(numfaces);
   subd_num_corners.resize(numfaces);
@@ -229,24 +372,9 @@ void Mesh::resize_subd_faces(const int numfaces, const int num_ngons_, int numco
   subd_smooth.resize(numfaces);
   subd_ptex_offset.resize(numfaces);
   subd_face_corners.resize(numcorners);
-  num_ngons = num_ngons_;
   num_subd_faces = numfaces;
 
   subd_attributes.resize();
-}
-
-void Mesh::reserve_subd_faces(const int numfaces, const int num_ngons_, int numcorners)
-{
-  subd_start_corner.reserve(numfaces);
-  subd_num_corners.reserve(numfaces);
-  subd_shader.reserve(numfaces);
-  subd_smooth.reserve(numfaces);
-  subd_ptex_offset.reserve(numfaces);
-  subd_face_corners.reserve(numcorners);
-  num_ngons = num_ngons_;
-  num_subd_faces = numfaces;
-
-  subd_attributes.resize(true);
 }
 
 void Mesh::reserve_subd_creases(const size_t num_creases)
@@ -259,13 +387,8 @@ void Mesh::clear_non_sockets()
 {
   Geometry::clear(true);
 
-  num_subd_verts = 0;
+  num_subd_added_verts = 0;
   num_subd_faces = 0;
-
-  vert_to_stitching_key_map.clear();
-  vert_stitching_map.clear();
-
-  patch_table.reset();
 }
 
 void Mesh::clear(bool preserve_shaders, bool preserve_voxel_data)
@@ -277,9 +400,6 @@ void Mesh::clear(bool preserve_shaders, bool preserve_voxel_data)
   triangles.clear();
   shader.clear();
   smooth.clear();
-
-  triangle_patch.clear();
-  vert_patch_uv.clear();
 
   subd_start_corner.clear();
   subd_num_corners.clear();
@@ -302,79 +422,6 @@ void Mesh::clear(bool preserve_shaders, bool preserve_voxel_data)
 void Mesh::clear(bool preserve_shaders)
 {
   clear(preserve_shaders, false);
-}
-
-void Mesh::add_vertex(const float3 P)
-{
-  verts.push_back_reserved(P);
-  tag_verts_modified();
-
-  if (get_num_subd_faces()) {
-    vert_patch_uv.push_back_reserved(zero_float2());
-    tag_vert_patch_uv_modified();
-  }
-}
-
-void Mesh::add_vertex_slow(const float3 P)
-{
-  verts.push_back_slow(P);
-  tag_verts_modified();
-
-  if (get_num_subd_faces()) {
-    vert_patch_uv.push_back_slow(zero_float2());
-    tag_vert_patch_uv_modified();
-  }
-}
-
-void Mesh::add_triangle(const int v0, const int v1, const int v2, const int shader_, bool smooth_)
-{
-  triangles.push_back_reserved(v0);
-  triangles.push_back_reserved(v1);
-  triangles.push_back_reserved(v2);
-  shader.push_back_reserved(shader_);
-  smooth.push_back_reserved(smooth_);
-
-  tag_triangles_modified();
-  tag_shader_modified();
-  tag_smooth_modified();
-
-  if (get_num_subd_faces()) {
-    triangle_patch.push_back_reserved(-1);
-    tag_triangle_patch_modified();
-  }
-}
-
-void Mesh::add_subd_face(const int *corners,
-                         const int num_corners,
-                         const int shader_,
-                         bool smooth_)
-{
-  const int start_corner = subd_face_corners.size();
-
-  for (int i = 0; i < num_corners; i++) {
-    subd_face_corners.push_back_reserved(corners[i]);
-  }
-
-  int ptex_offset = 0;
-  // cannot use get_num_subd_faces here as it holds the total number of subd_faces, but we do not
-  // have the total amount of data yet
-  if (subd_shader.size()) {
-    const SubdFace s = get_subd_face(subd_shader.size() - 1);
-    ptex_offset = s.ptex_offset + s.num_ptex_faces();
-  }
-
-  subd_start_corner.push_back_reserved(start_corner);
-  subd_num_corners.push_back_reserved(num_corners);
-  subd_shader.push_back_reserved(shader_);
-  subd_smooth.push_back_reserved(smooth_);
-  subd_ptex_offset.push_back_reserved(ptex_offset);
-
-  tag_subd_face_corners_modified();
-  tag_subd_start_corner_modified();
-  tag_subd_num_corners_modified();
-  tag_subd_shader_modified();
-  tag_subd_smooth_modified();
-  tag_subd_ptex_offset_modified();
 }
 
 Mesh::SubdFace Mesh::get_subd_face(const size_t index) const
@@ -415,13 +462,21 @@ void Mesh::copy_center_to_motion_step(const int motion_step)
   if (attr_mP) {
     Attribute *attr_mN = attributes.find(ATTR_STD_MOTION_VERTEX_NORMAL);
     Attribute *attr_N = attributes.find(ATTR_STD_VERTEX_NORMAL);
-    float3 *P = verts.data();
-    float3 *N = (attr_N) ? attr_N->data_float3() : nullptr;
+    const float3 *P = verts.data();
     const size_t numverts = verts.size();
 
-    std::copy_n(P, numverts, attr_mP->data_float3() + motion_step * numverts);
-    if (attr_mN) {
-      std::copy_n(N, numverts, attr_mN->data_float3() + motion_step * numverts);
+    std::copy_n(P, numverts, attr_mP->data_float3_for_write() + motion_step * numverts);
+    if (attr_mN && attr_N) {
+      const packed_normal *N = attr_N->data_normal();
+      std::copy_n(N, numverts, attr_mN->data_normal_for_write() + motion_step * numverts);
+    }
+
+    Attribute *attr_mcN = attributes.find(ATTR_STD_MOTION_CORNER_NORMAL);
+    Attribute *attr_cN = attributes.find(ATTR_STD_CORNER_NORMAL);
+    if (attr_mcN && attr_cN) {
+      const size_t numcorners = triangles.size();
+      const packed_normal *N = attr_cN->data_normal();
+      std::copy_n(N, numcorners, attr_mcN->data_normal_for_write() + motion_step * numcorners);
     }
   }
 }
@@ -461,7 +516,7 @@ void Mesh::compute_bounds()
     Attribute *attr = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
     if (use_motion_blur && attr) {
       const size_t steps_size = verts.size() * (motion_steps - 1);
-      float3 *vert_steps = attr->data_float3();
+      const float3 *vert_steps = attr->data_float3();
 
       for (size_t i = 0; i < steps_size; i++) {
         bnds.grow(vert_steps[i]);
@@ -478,7 +533,7 @@ void Mesh::compute_bounds()
 
       if (use_motion_blur && attr) {
         const size_t steps_size = verts.size() * (motion_steps - 1);
-        float3 *vert_steps = attr->data_float3();
+        const float3 *vert_steps = attr->data_float3();
 
         for (size_t i = 0; i < steps_size; i++) {
           bnds.grow_safe(vert_steps[i]);
@@ -500,18 +555,41 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
   transform_normal = transform_transposed_inverse(tfm);
 
   /* apply to mesh vertices */
-  for (size_t i = 0; i < verts.size(); i++) {
+  const size_t num_verts = verts.size();
+  for (size_t i = 0; i < num_verts; i++) {
     verts[i] = transform_point(&tfm, verts[i]);
   }
 
   tag_verts_modified();
+
+  Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
+  if (attr_vN) {
+    const Transform ntfm = transform_normal;
+    const size_t num_verts = verts.size();
+    packed_normal *vN = attr_vN->data_normal_for_write();
+
+    for (size_t i = 0; i < num_verts; i++) {
+      vN[i] = packed_normal(normalize(transform_direction(&ntfm, vN[i].decode())));
+    }
+  }
+
+  Attribute *attr_cN = attributes.find(ATTR_STD_CORNER_NORMAL);
+  if (attr_cN) {
+    const Transform ntfm = transform_normal;
+    const size_t num_corners = triangles.size();
+    packed_normal *cN = attr_cN->data_normal_for_write();
+
+    for (size_t i = 0; i < num_corners; i++) {
+      cN[i] = packed_normal(normalize(transform_direction(&ntfm, cN[i].decode())));
+    }
+  }
 
   if (apply_to_motion) {
     Attribute *attr = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 
     if (attr) {
       const size_t steps_size = verts.size() * (motion_steps - 1);
-      float3 *vert_steps = attr->data_float3();
+      float3 *vert_steps = attr->data_float3_for_write();
 
       for (size_t i = 0; i < steps_size; i++) {
         vert_steps[i] = transform_point(&tfm, vert_steps[i]);
@@ -523,49 +601,43 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
     if (attr_N) {
       const Transform ntfm = transform_normal;
       const size_t steps_size = verts.size() * (motion_steps - 1);
-      float3 *normal_steps = attr_N->data_float3();
+      packed_normal *normal_steps = attr_N->data_normal_for_write();
 
       for (size_t i = 0; i < steps_size; i++) {
-        normal_steps[i] = normalize(transform_direction(&ntfm, normal_steps[i]));
+        normal_steps[i] = packed_normal(
+            normalize(transform_direction(&ntfm, normal_steps[i].decode())));
       }
     }
-  }
-}
 
-void Mesh::add_face_normals()
-{
-  /* don't compute if already there */
-  if (attributes.find(ATTR_STD_FACE_NORMAL)) {
-    return;
-  }
+    Attribute *attr_mcN = attributes.find(ATTR_STD_MOTION_CORNER_NORMAL);
 
-  /* get attributes */
-  Attribute *attr_fN = attributes.add(ATTR_STD_FACE_NORMAL);
-  float3 *fN = attr_fN->data_float3();
+    if (attr_mcN) {
+      const Transform ntfm = transform_normal;
+      const size_t steps_size = triangles.size() * (motion_steps - 1);
+      packed_normal *normal_steps = attr_mcN->data_normal_for_write();
 
-  /* compute face normals */
-  const size_t triangles_size = num_triangles();
-
-  if (triangles_size) {
-    float3 *verts_ptr = verts.data();
-
-    for (size_t i = 0; i < triangles_size; i++) {
-      fN[i] = get_triangle(i).compute_normal(verts_ptr);
-    }
-  }
-
-  /* expected to be in local space */
-  if (transform_applied) {
-    const Transform ntfm = transform_inverse(transform_normal);
-
-    for (size_t i = 0; i < triangles_size; i++) {
-      fN[i] = normalize(transform_direction(&ntfm, fN[i]));
+      for (size_t i = 0; i < steps_size; i++) {
+        normal_steps[i] = packed_normal(
+            normalize(transform_direction(&ntfm, normal_steps[i].decode())));
+      }
     }
   }
 }
 
 void Mesh::add_vertex_normals()
 {
+  if (attributes.find(ATTR_STD_CORNER_NORMAL)) {
+    /* Not needed if we already have corner normals overriding these.
+     * If there is motion blur without motion corner normals we can't
+     * render correctly, discard corner normals. */
+    if (has_motion_blur() && !attributes.find(ATTR_STD_MOTION_CORNER_NORMAL)) {
+      attributes.remove(ATTR_STD_CORNER_NORMAL);
+    }
+    else {
+      return;
+    }
+  }
+
   const bool flip = transform_negative_scaled;
   const size_t verts_size = verts.size();
   const size_t triangles_size = num_triangles();
@@ -573,29 +645,29 @@ void Mesh::add_vertex_normals()
   /* static vertex normals */
   if (!attributes.find(ATTR_STD_VERTEX_NORMAL) && triangles_size) {
     /* get attributes */
-    Attribute *attr_fN = attributes.find(ATTR_STD_FACE_NORMAL);
     Attribute *attr_vN = attributes.add(ATTR_STD_VERTEX_NORMAL);
 
-    float3 *fN = attr_fN->data_float3();
-    float3 *vN = attr_vN->data_float3();
+    float3 *verts_ptr = verts.data();
+    packed_normal *vN = attr_vN->data_normal_for_write();
 
     /* compute vertex normals */
-    std::fill_n(vN, verts.size(), zero_float3());
+    vector<float3> vN_float(verts_size, zero_float3());
 
     for (size_t i = 0; i < triangles_size; i++) {
+      const float3 fN = get_triangle(i).compute_normal(verts_ptr);
       for (size_t j = 0; j < 3; j++) {
-        vN[get_triangle(i).v[j]] += fN[i];
+        vN_float[get_triangle(i).v[j]] += fN;
       }
     }
 
     if (flip) {
       for (size_t i = 0; i < verts_size; i++) {
-        vN[i] = -normalize(vN[i]);
+        vN[i] = packed_normal(-normalize(vN_float[i]));
       }
     }
     else {
       for (size_t i = 0; i < verts_size; i++) {
-        vN[i] = normalize(vN[i]);
+        vN[i] = packed_normal(normalize(vN_float[i]));
       }
     }
   }
@@ -609,28 +681,28 @@ void Mesh::add_vertex_normals()
     attr_mN = attributes.add(ATTR_STD_MOTION_VERTEX_NORMAL);
 
     for (int step = 0; step < motion_steps - 1; step++) {
-      float3 *mP = attr_mP->data_float3() + step * verts.size();
-      float3 *mN = attr_mN->data_float3() + step * verts.size();
+      const float3 *mP = attr_mP->data_float3() + step * verts.size();
+      packed_normal *mN = attr_mN->data_normal_for_write() + step * verts.size();
 
       /* compute */
-      std::fill_n(mN, verts.size(), zero_float3());
+      vector<float3> mN_float(verts_size, zero_float3());
 
       for (size_t i = 0; i < triangles_size; i++) {
         const Triangle tri = get_triangle(i);
         const float3 fN = tri.compute_normal(mP);
         for (size_t j = 0; j < 3; j++) {
-          mN[tri.v[j]] += fN;
+          mN_float[tri.v[j]] += fN;
         }
       }
 
       if (flip) {
         for (size_t i = 0; i < verts_size; i++) {
-          mN[i] = -normalize(mN[i]);
+          mN[i] = packed_normal(-normalize(mN_float[i]));
         }
       }
       else {
         for (size_t i = 0; i < verts_size; i++) {
-          mN[i] = normalize(mN[i]);
+          mN[i] = packed_normal(normalize(mN_float[i]));
         }
       }
     }
@@ -640,10 +712,10 @@ void Mesh::add_vertex_normals()
   if (!subd_attributes.find(ATTR_STD_VERTEX_NORMAL) && get_num_subd_faces()) {
     /* get attributes */
     Attribute *attr_vN = subd_attributes.add(ATTR_STD_VERTEX_NORMAL);
-    float3 *vN = attr_vN->data_float3();
+    packed_normal *vN = attr_vN->data_normal_for_write();
 
     /* compute vertex normals */
-    std::fill_n(vN, verts.size(), zero_float3());
+    vector<float3> vN_float(verts_size, zero_float3());
 
     for (size_t i = 0; i < get_num_subd_faces(); i++) {
       const SubdFace face = get_subd_face(i);
@@ -651,49 +723,119 @@ void Mesh::add_vertex_normals()
 
       for (size_t j = 0; j < face.num_corners; j++) {
         const size_t corner = subd_face_corners[face.start_corner + j];
-        vN[corner] += fN;
+        vN_float[corner] += fN;
       }
     }
 
     if (flip) {
       for (size_t i = 0; i < verts_size; i++) {
-        vN[i] = -normalize(vN[i]);
+        vN[i] = packed_normal(-normalize(vN_float[i]));
       }
     }
     else {
       for (size_t i = 0; i < verts_size; i++) {
-        vN[i] = normalize(vN[i]);
+        vN[i] = packed_normal(normalize(vN_float[i]));
       }
     }
   }
 }
 
-void Mesh::add_undisplaced()
+void Mesh::add_undisplaced(Scene *scene)
 {
-  AttributeSet &attrs = (subdivision_type == SUBDIVISION_NONE) ? attributes : subd_attributes;
+  if (need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED) &&
+      !attributes.find(ATTR_STD_POSITION_UNDISPLACED))
+  {
+    /* Copy position to attribute. */
+    Attribute *attr = attributes.add(ATTR_STD_POSITION_UNDISPLACED);
 
-  /* don't compute if already there */
-  if (attrs.find(ATTR_STD_POSITION_UNDISPLACED)) {
+    size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
+    std::copy_n(verts.data(), size, attr->data_float3_for_write());
+  }
+
+  if (need_attribute(scene, ATTR_STD_NORMAL_UNDISPLACED) &&
+      !attributes.find(ATTR_STD_NORMAL_UNDISPLACED))
+  {
+    /* Copy vertex normal to attribute */
+    Attribute *attr_N = attributes.find(ATTR_STD_VERTEX_NORMAL);
+    if (attr_N) {
+      Attribute *attr = attributes.add(ATTR_STD_NORMAL_UNDISPLACED);
+
+      size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(packed_normal);
+      std::copy_n(attr_N->data_normal(), size, attr->data_normal_for_write());
+    }
+  }
+}
+
+void Mesh::update_generated(Scene *scene)
+{
+  if (!num_triangles()) {
     return;
   }
 
-  /* get attribute */
-  Attribute *attr = attrs.add(ATTR_STD_POSITION_UNDISPLACED);
-  attr->flags |= ATTR_SUBDIVIDED;
+  AttributeSet &attrs = num_subd_faces ? subd_attributes : attributes;
 
-  float3 *data = attr->data_float3();
+  /* apply generated attributes if needed or missing */
+  if (need_attribute(scene, ATTR_STD_GENERATED) && !attrs.find(ATTR_STD_GENERATED)) {
+    const size_t verts_size = verts.size();
+    Attribute *attr_generated = attrs.add(ATTR_STD_GENERATED);
+    float3 *generated = attr_generated->data_float3_for_write();
+    for (size_t i = 0; i < verts_size; ++i) {
+      generated[i] = verts[i];
+    }
+  }
+}
 
-  /* copy verts */
-  size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
+void Mesh::update_tangents(Scene *scene, bool undisplaced)
+{
+  if (!num_triangles()) {
+    return;
+  }
 
-  /* Center points for ngons aren't stored in Mesh::verts but are included in size since they will
-   * be calculated later, we subtract them from size here so we don't have an overflow while
-   * copying.
-   */
-  size -= num_ngons;
+  assert(attributes.find(ATTR_STD_VERTEX_NORMAL) || attributes.find(ATTR_STD_CORNER_NORMAL));
 
-  if (size) {
-    std::copy_n(verts.data(), size, data);
+  ccl::set<ustring> uv_maps;
+  Attribute *attr_std_uv = attributes.find(ATTR_STD_UV);
+
+  AttributeStandard tangent_std = (undisplaced) ? ATTR_STD_UV_TANGENT_UNDISPLACED :
+                                                  ATTR_STD_UV_TANGENT;
+  AttributeStandard tangent_sign_std = (undisplaced) ? ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED :
+                                                       ATTR_STD_UV_TANGENT_SIGN;
+  const char *tangent_postfix = (undisplaced) ? ".undisplaced_tangent" : ".tangent";
+  const char *tangent_sign_postfix = (undisplaced) ? ".undisplaced_tangent_sign" : ".tangent_sign";
+
+  /* standard UVs */
+  if ((need_attribute(scene, tangent_std) || need_attribute(scene, tangent_sign_std)) &&
+      !attributes.find(tangent_std))
+  {
+    mikk_compute_tangents(attr_std_uv,
+                          this,
+                          true,
+                          tangent_std,
+                          tangent_sign_std,
+                          tangent_postfix,
+                          tangent_sign_postfix); /* sign */
+  }
+
+  /* now generate for any other UVs requested */
+  for (Attribute &attr : attributes.attributes) {
+    if (!(attr.type == TypeFloat2 && attr.element == ATTR_ELEMENT_CORNER)) {
+      continue;
+    }
+
+    const ustring tangent_name = ustring(attr.name.string() + tangent_postfix);
+    const ustring tangent_sign_name = ustring(attr.name.string() + tangent_sign_postfix);
+
+    if ((need_attribute(scene, tangent_name) || need_attribute(scene, tangent_sign_name)) &&
+        !attributes.find(tangent_name))
+    {
+      mikk_compute_tangents(&attr,
+                            this,
+                            true,
+                            tangent_std,
+                            tangent_sign_std,
+                            tangent_postfix,
+                            tangent_sign_postfix); /* sign */
+    }
   }
 }
 
@@ -705,11 +847,16 @@ void Mesh::pack_shaders(Scene *scene, uint *tri_shader)
 
   const size_t triangles_size = num_triangles();
   const int *shader_ptr = shader.data();
-  const bool *smooth_ptr = smooth.data();
+
+  /* Corner normals override the smooth flag, as the flatness is already
+   * encoded in the corner normals and we always interpolate them. */
+  const bool use_corner_normals = attributes.find(ATTR_STD_CORNER_NORMAL) != nullptr;
+  const bool *smooth_ptr = (use_corner_normals) ? nullptr : smooth.data();
+  const bool smooth_constant = (use_corner_normals) ? true : false;
 
   for (size_t i = 0; i < triangles_size; i++) {
     const int new_shader = shader_ptr ? shader_ptr[i] : INT_MAX;
-    const bool new_smooth = smooth_ptr ? smooth_ptr[i] : false;
+    const bool new_smooth = smooth_ptr ? smooth_ptr[i] : smooth_constant;
 
     if (new_shader != last_shader || last_smooth != new_smooth) {
       last_shader = new_shader;
@@ -724,114 +871,28 @@ void Mesh::pack_shaders(Scene *scene, uint *tri_shader)
   }
 }
 
-void Mesh::pack_normals(packed_float3 *vnormal)
-{
-  Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
-  if (attr_vN == nullptr) {
-    /* Happens on objects with just hair. */
-    return;
-  }
-
-  const bool do_transform = transform_applied;
-  const Transform ntfm = transform_normal;
-
-  float3 *vN = attr_vN->data_float3();
-  const size_t verts_size = verts.size();
-
-  if (do_transform) {
-    for (size_t i = 0; i < verts_size; i++) {
-      vnormal[i] = safe_normalize(transform_direction(&ntfm, vN[i]));
-    }
-  }
-  else {
-    for (size_t i = 0; i < verts_size; i++) {
-      vnormal[i] = vN[i];
-    }
-  }
-}
-
-void Mesh::pack_verts(packed_float3 *tri_verts,
-                      packed_uint3 *tri_vindex,
-                      uint *tri_patch,
-                      float2 *tri_patch_uv)
+void Mesh::pack_verts(packed_float3 *tri_verts, packed_uint3 *tri_vindex)
 {
   const size_t verts_size = verts.size();
   const size_t triangles_size = num_triangles();
   const int *p_tris = triangles.data();
   int off = 0;
-  if (verts_size && get_num_subd_faces()) {
-    float2 *vert_patch_uv_ptr = vert_patch_uv.data();
-
-    for (size_t i = 0; i < verts_size; i++) {
-      tri_verts[i] = verts[i];
-      tri_patch_uv[i] = vert_patch_uv_ptr[i];
-    }
-    for (size_t i = 0; i < triangles_size; i++) {
-      tri_vindex[i] = make_packed_uint3(p_tris[off + 0] + vert_offset,
-                                        p_tris[off + 1] + vert_offset,
-                                        p_tris[off + 2] + vert_offset);
-      tri_patch[i] = triangle_patch[i] * 8 + patch_offset;
-      off += 3;
-    }
+  for (size_t i = 0; i < verts_size; i++) {
+    tri_verts[i] = verts[i];
   }
-  else {
-    for (size_t i = 0; i < verts_size; i++) {
-      tri_verts[i] = verts[i];
-    }
-    for (size_t i = 0; i < triangles_size; i++) {
-      tri_vindex[i] = make_packed_uint3(p_tris[off + 0] + vert_offset,
-                                        p_tris[off + 1] + vert_offset,
-                                        p_tris[off + 2] + vert_offset);
-      tri_patch[i] = -1;
-      off += 3;
-    }
+  for (size_t i = 0; i < triangles_size; i++) {
+    tri_vindex[i] = make_packed_uint3(p_tris[off + 0] + vert_offset,
+                                      p_tris[off + 1] + vert_offset,
+                                      p_tris[off + 2] + vert_offset);
+    off += 3;
   }
 }
 
-void Mesh::pack_patches(uint *patch_data)
+bool Mesh::has_motion_blur() const
 {
-  const size_t num_faces = get_num_subd_faces();
-  int ngons = 0;
-
-  for (size_t f = 0; f < num_faces; f++) {
-    SubdFace face = get_subd_face(f);
-
-    if (face.is_quad()) {
-      int c[4];
-      memcpy(c, &subd_face_corners[face.start_corner], sizeof(int) * 4);
-
-      *(patch_data++) = c[0] + vert_offset;
-      *(patch_data++) = c[1] + vert_offset;
-      *(patch_data++) = c[2] + vert_offset;
-      *(patch_data++) = c[3] + vert_offset;
-
-      *(patch_data++) = f + face_offset;
-      *(patch_data++) = face.num_corners;
-      *(patch_data++) = face.start_corner + corner_offset;
-      *(patch_data++) = 0;
-    }
-    else {
-      for (int i = 0; i < face.num_corners; i++) {
-        int c[4];
-        c[0] = subd_face_corners[face.start_corner + mod(i + 0, face.num_corners)];
-        c[1] = subd_face_corners[face.start_corner + mod(i + 1, face.num_corners)];
-        c[2] = verts.size() - num_subd_verts + ngons;
-        c[3] = subd_face_corners[face.start_corner + mod(i - 1, face.num_corners)];
-
-        *(patch_data++) = c[0] + vert_offset;
-        *(patch_data++) = c[1] + vert_offset;
-        *(patch_data++) = c[2] + vert_offset;
-        *(patch_data++) = c[3] + vert_offset;
-
-        *(patch_data++) = f + face_offset;
-        *(patch_data++) = face.num_corners | (i << 16);
-        *(patch_data++) = face.start_corner + corner_offset;
-        *(patch_data++) = subd_face_corners.size() + ngons + corner_offset;
-      }
-
-      ngons++;
-    }
-  }
+  return use_motion_blur && (attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
+                             (get_subdivision_type() != Mesh::SUBDIVISION_NONE &&
+                              subd_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)));
 }
 
 PrimitiveType Mesh::primitive_type() const

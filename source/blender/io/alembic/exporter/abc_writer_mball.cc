@@ -55,7 +55,7 @@ Mesh *ABCMetaballWriter::get_export_mesh(Object *object_eval, bool &r_needsfree)
     return mesh_eval;
   }
   r_needsfree = true;
-  return BKE_mesh_new_from_object(args_.depsgraph, object_eval, false, false);
+  return BKE_mesh_new_from_object(args_.depsgraph, object_eval, false, false, true);
 }
 
 void ABCMetaballWriter::free_export_mesh(Mesh *mesh)
@@ -65,7 +65,7 @@ void ABCMetaballWriter::free_export_mesh(Mesh *mesh)
 
 bool ABCMetaballWriter::is_basis_ball(Scene *scene, Object *ob) const
 {
-  Object *basis_ob = BKE_mball_basis_find(scene, ob);
+  Object *basis_ob = BKE_mball_basis_find(*DEG_get_bmain(args_.depsgraph), scene, ob);
   return ob == basis_ob;
 }
 

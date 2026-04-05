@@ -19,19 +19,19 @@
 
 namespace blender::io::usd {
 
-void USDPointsReader::create_object(Main *bmain, double /*motionSampleTime*/)
+void USDPointsReader::create_object(Main *bmain)
 {
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, name_.c_str());
   object_ = BKE_object_add_only_object(bmain, OB_POINTCLOUD, name_.c_str());
-  object_->data = pointcloud;
+  object_->data = id_cast<ID *>(pointcloud);
 }
 
-void USDPointsReader::read_object_data(Main *bmain, double motionSampleTime)
+void USDPointsReader::read_object_data(Main *bmain, pxr::UsdTimeCode time)
 {
-  const USDMeshReadParams params = create_mesh_read_params(motionSampleTime,
+  const USDMeshReadParams params = create_mesh_read_params(time.GetValue(),
                                                            import_params_.mesh_read_flag);
 
-  PointCloud *pointcloud = static_cast<PointCloud *>(object_->data);
+  PointCloud *pointcloud = id_cast<PointCloud *>(object_->data);
 
   bke::GeometrySet geometry_set = bke::GeometrySet::from_pointcloud(
       pointcloud, bke::GeometryOwnershipType::Editable);
@@ -52,7 +52,7 @@ void USDPointsReader::read_object_data(Main *bmain, double motionSampleTime)
   }
 
   /* Update the transform. */
-  USDXformReader::read_object_data(bmain, motionSampleTime);
+  USDXformReader::read_object_data(bmain, time);
 }
 
 void USDPointsReader::read_geometry(bke::GeometrySet &geometry_set,
@@ -73,52 +73,74 @@ void USDPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   /* Update point positions and radii */
   static_assert(sizeof(pxr::GfVec3f) == sizeof(float3));
   MutableSpan<float3> positions = pointcloud->positions_for_write();
-  positions.copy_from(Span(usd_positions.data(), usd_positions.size()).cast<float3>());
+  positions.copy_from(Span(usd_positions.cdata(), usd_positions.size()).cast<float3>());
 
   pxr::VtFloatArray usd_widths;
   points_prim_.GetWidthsAttr().Get(&usd_widths, params.motion_sample_time);
 
   if (!usd_widths.empty()) {
     MutableSpan<float> radii = pointcloud->radius_for_write();
+    Span<float> widths = Span(usd_widths.cdata(), usd_widths.size());
 
     const pxr::TfToken widths_interp = points_prim_.GetWidthsInterpolation();
     if (widths_interp == pxr::UsdGeomTokens->constant) {
-      radii.fill(usd_widths[0] / 2.0f);
+      radii.fill(widths[0] / 2.0f);
     }
     else {
-      for (int i_point = 0; i_point < usd_widths.size(); i_point++) {
-        radii[i_point] = usd_widths[i_point] / 2.0f;
+      for (const int i_point : IndexRange(std::min(radii.size(), widths.size()))) {
+        radii[i_point] = widths[i_point] / 2.0f;
       }
     }
   }
 
-  /* TODO: Read in ID and normal data.
-   * See UsdGeomPoints::GetIdsAttr and UsdGeomPointBased::GetNormalsAttr */
+  /* TODO: Once Blender supports custom normals for points, we can consider reading in normals.
+   * See UsdGeomPointBased::GetNormalsAttr */
 
-  /* Read in velocity and generic data. */
-  read_velocities(pointcloud, params.motion_sample_time);
-  read_custom_data(pointcloud, params.motion_sample_time);
+  /* Read in IDs, velocity, and generic data. */
+  this->read_ids(pointcloud, params.motion_sample_time);
+  this->read_velocities(pointcloud, params.motion_sample_time);
+  this->read_custom_data(pointcloud, params.motion_sample_time);
 
   geometry_set.replace_pointcloud(pointcloud);
 }
 
-void USDPointsReader::read_velocities(PointCloud *pointcloud, const double motionSampleTime) const
+void USDPointsReader::read_ids(PointCloud *pointcloud, const pxr::UsdTimeCode time) const
+{
+  pxr::VtInt64Array usd_ids;
+  points_prim_.GetIdsAttr().Get(&usd_ids, time);
+
+  if (!usd_ids.empty()) {
+    bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+    bke::SpanAttributeWriter<int> ids = attributes.lookup_or_add_for_write_only_span<int>(
+        "id", bke::AttrDomain::Point);
+
+    const Span<int64_t> usd_data(usd_ids.cdata(), usd_ids.size());
+    for (const int i_point : IndexRange(std::min(ids.span.size(), usd_data.size()))) {
+      /* Blender only supports int ID attributes so we have to narrow the value. */
+      ids.span[i_point] = int(usd_ids[i_point]);
+    }
+
+    ids.finish();
+  }
+}
+
+void USDPointsReader::read_velocities(PointCloud *pointcloud, const pxr::UsdTimeCode time) const
 {
   pxr::VtVec3fArray velocities;
-  points_prim_.GetVelocitiesAttr().Get(&velocities, motionSampleTime);
+  points_prim_.GetVelocitiesAttr().Get(&velocities, time);
 
   if (!velocities.empty()) {
     bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
     bke::SpanAttributeWriter<float3> velocity =
         attributes.lookup_or_add_for_write_only_span<float3>("velocity", bke::AttrDomain::Point);
 
-    Span<pxr::GfVec3f> usd_data(velocities.data(), velocities.size());
+    Span<pxr::GfVec3f> usd_data(velocities.cdata(), velocities.size());
     velocity.span.copy_from(usd_data.cast<float3>());
     velocity.finish();
   }
 }
 
-void USDPointsReader::read_custom_data(PointCloud *pointcloud, const double motionSampleTime) const
+void USDPointsReader::read_custom_data(PointCloud *pointcloud, const pxr::UsdTimeCode time) const
 {
   pxr::UsdGeomPrimvarsAPI pv_api(points_prim_);
 
@@ -130,13 +152,13 @@ void USDPointsReader::read_custom_data(PointCloud *pointcloud, const double moti
     }
 
     const bke::AttrDomain domain = bke::AttrDomain::Point;
-    const std::optional<eCustomDataType> type = convert_usd_type_to_blender(pv_type);
+    const std::optional<bke::AttrType> type = convert_usd_type_to_blender(pv_type);
     if (!type.has_value()) {
       return;
     }
 
     bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
-    copy_primvar_to_blender_attribute(pv, motionSampleTime, *type, domain, {}, attributes);
+    copy_primvar_to_blender_attribute(pv, time, *type, domain, {}, attributes);
   }
 }
 

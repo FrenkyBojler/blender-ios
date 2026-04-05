@@ -18,12 +18,14 @@ set(SRC
   graph_draw.cc
   graph_edit.cc
   graph_ops.cc
+  graph_query.cc
   graph_select.cc
   graph_slider_ops.cc
   graph_utils.cc
   graph_view.cc
   space_graph.cc
 
+  ED_space_graph.hh
   graph_intern.hh
 )
 
@@ -34,29 +36,12 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::audaspace
 )
-
-if(WITH_AUDASPACE)
-  list(APPEND LIB
-    bf_intern_audaspace
-  )
-  list(APPEND INC_SYS
-    ${AUDASPACE_C_INCLUDE_DIRS}
-  )
-  if(WITH_SYSTEM_AUDASPACE)
-    list(APPEND LIB
-      ${AUDASPACE_C_LIBRARIES}
-      ${AUDASPACE_PY_LIBRARIES}
-    )
-  endif()
-  add_definitions(-DWITH_AUDASPACE)
-endif()
-
 
 blender_add_lib(bf_editor_space_graph "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
