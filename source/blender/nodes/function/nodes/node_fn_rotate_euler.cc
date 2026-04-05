@@ -55,12 +55,12 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     params.add_item(IFACE_("Rotation (By Euler)"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("FunctionNodeRotateEuler");
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_EULER);
-      params.update_and_connect_available_socket(node, "Rotation");
+      params.update_and_connect_available_socket(node, "Rotation"_ustr);
     });
     params.add_item(IFACE_("Rotation (By Axis Angle)"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("FunctionNodeRotateEuler");
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
-      params.update_and_connect_available_socket(node, "Rotation");
+      params.update_and_connect_available_socket(node, "Rotation"_ustr);
     });
   }
 
@@ -72,12 +72,12 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     params.add_item(IFACE_("Rotate By"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("FunctionNodeRotateEuler");
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_EULER);
-      params.update_and_connect_available_socket(node, "Rotate By");
+      params.update_and_connect_available_socket(node, "Rotate By"_ustr);
     });
     params.add_item(IFACE_("Axis"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("FunctionNodeRotateEuler");
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
-      params.update_and_connect_available_socket(node, "Axis");
+      params.update_and_connect_available_socket(node, "Axis"_ustr);
     });
   }
 
@@ -87,7 +87,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     params.add_item(IFACE_("Angle"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("FunctionNodeRotateEuler");
       node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
-      params.update_and_connect_available_socket(node, "Angle");
+      params.update_and_connect_available_socket(node, "Angle"_ustr);
     });
   }
 }
