@@ -3277,18 +3277,18 @@ static void object_set_rotation_from_matrix(Object *ob,
   }
 }
 
-static void light_orbit_direction(float result[3], float azimuth, float elevation)
+static void object_orbit_direction(float result[3], float azimuth, float elevation)
 {
   result[0] = cosf(elevation) * sinf(azimuth);
   result[1] = cosf(elevation) * cosf(azimuth);
   result[2] = sinf(elevation);
 }
 
-static void light_orbit_update_position(
+static void object_orbit_update_position(
     Object *light_ob, const float center[3], float azimuth, float elevation, float distance)
 {
   float3 new_dir;
-  light_orbit_direction(new_dir, azimuth, elevation);
+  object_orbit_direction(new_dir, azimuth, elevation);
 
   /* Handle negative distances with automatic direction inversion. */
   float actual_distance = distance;
@@ -3302,7 +3302,7 @@ static void light_orbit_update_position(
   madd_v3_v3v3fl(light_ob->loc, center, new_dir, actual_distance);
 }
 
-static void light_orbit_update_rotation(Object *light_ob,
+static void object_orbit_update_rotation(Object *light_ob,
                                         const float center[3],
                                         const float orig_rot[3])
 {
@@ -3440,12 +3440,12 @@ static wmOperatorStatus object_orbit_around_target_modal(bContext *C,
         }
 
         /* Update position and rotation. */
-        light_orbit_update_position(light.ob,
+        object_orbit_update_position(light.ob,
                                     ooatd->center,
                                     light.current_azimuth,
                                     light.current_elevation,
                                     light.current_distance);
-        light_orbit_update_rotation(light.ob, ooatd->center, light.orig_rot);
+        object_orbit_update_rotation(light.ob, ooatd->center, light.orig_rot);
 
         DEG_id_tag_update(&light.ob->id, ID_RECALC_TRANSFORM);
         WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, light.ob);
