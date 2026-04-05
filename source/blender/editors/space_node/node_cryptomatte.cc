@@ -554,6 +554,9 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
           cryptomatte_pick_sample_and_apply(C, picker, col);
           cryptomatte_pick_sample_text_update(picker, col);
         }
+        else {
+          picker->sample_text[0] = '\0';
+        }
         update_status = true;
         break;
       }
@@ -587,6 +590,9 @@ static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, cons
         cryptomatte_pick_sample_and_apply(C, picker, col);
       }
       cryptomatte_pick_sample_text_update(picker, col);
+    }
+    else {
+      picker->sample_text[0] = '\0';
     }
     update_status = true;
   }
