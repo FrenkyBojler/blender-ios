@@ -17,12 +17,12 @@ namespace blender::nodes::node_geo_input_mesh_cluster_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(false).hide_value().supports_field();
   b.add_input<decl::Vector>("Position"_ustr)
       .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .supports_field();
   b.add_input<decl::Float>("Weight"_ustr).default_value(1.0f).hide_value().supports_field();
   b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(false).hide_value().supports_field();
 
   b.add_output<decl::Int>("Cluster ID"_ustr).field_source().reference_pass_all();
 }
