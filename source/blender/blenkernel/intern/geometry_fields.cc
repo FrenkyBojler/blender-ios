@@ -5,6 +5,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_bounds_types.hh"
+#include "BLI_math_base.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
@@ -702,16 +703,17 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
         const std::optional<fn::Polynom<int>> bounds_transform = fn::field_as_polynom_try(
             index_field_);
         if (bounds_transform.has_value()) {
-          if (bounds_transform->is_const()) {
+          const fn::Polynom<int> transform = bounds_transform->to_canonical_form();
+          if (transform.is_const()) {
             BUFFER_FOR_CPP_TYPE_VALUE(type, value);
             BLI_SCOPED_DEFER([&]() { type.destruct(value); });
-            const int index = bounds_transform->as_const();
+            const int index = math::clamp<int>(transform.as_const(), 0, values.size() - 1);
             values.get_to_uninitialized(index, value);
             return GVArray::from_single(type, mask.min_array_size(), value);
           }
 
-          if (bounds_transform->is_unit_line()) {
-            return copy_with_transform(bounds_transform->as_unit_line(), values, mask);
+          if (transform.is_unit_line()) {
+            return copy_with_transform(transform.as_unit_line(), values, mask);
           }
         }
       }

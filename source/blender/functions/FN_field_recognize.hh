@@ -42,6 +42,34 @@ template<typename T> struct Polynom {
     return sum_value;
   }
 
+  /* Kind of optimization. There is infinitely many equal polynoms of non-canonical forms, but only
+   * one of canonical. */
+  Polynom<T> to_canonical_form() const
+  {
+    int sufix_size = 0;
+    for (const int i : this->factors.index_range()) {
+      if (this->factors.as_span().last(i) != 0) {
+        break;
+      }
+      sufix_size++;
+    }
+
+    if (sufix_size == this->size()) {
+      return Polynom<T>::from_const(0);
+    }
+
+    return {this->factors.as_span().drop_back(sufix_size)};
+  }
+
+  bool is_canonical_form() const
+  {
+    if (this->size() == 1) {
+      return true;
+    }
+
+    return this->factors.last() != 0;
+  }
+
   int size() const
   {
     return this->factors.size();
@@ -49,6 +77,7 @@ template<typename T> struct Polynom {
 
   bool is_const() const
   {
+    BLI_assert(this->is_canonical_form());
     return this->size() == 1;
   }
 
@@ -60,6 +89,7 @@ template<typename T> struct Polynom {
 
   bool is_unit_line() const
   {
+    BLI_assert(this->is_canonical_form());
     if (this->size() != 2) {
       return false;
     }
@@ -72,6 +102,8 @@ template<typename T> struct Polynom {
     BLI_assert(this->is_unit_line());
     return {this->factors[0], this->factors[1] < 0};
   }
+
+  friend bool operator==(const Polynom<T> &a, const Polynom<T> &b) = default;
 
   friend Polynom<T> operator+(const Polynom<T> &a, const Polynom<T> &b)
   {

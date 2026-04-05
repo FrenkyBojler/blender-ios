@@ -67,15 +67,11 @@ std::optional<Polynom<int>> field_as_polynom_try(const Field<int> &entry_field)
             known_fields.add(field, Polynom<int>::from_const(constant));
             return LoopState::Continue;
           }
-          else
-
-              if constexpr (std::is_same_v<T, GFieldRef::Input>)
-          {
+          else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
             known_fields.add(field, Polynom<int>::from_degree_variable(1, 1));
             return LoopState::Continue;
           }
           else {
-
             static_assert(std::is_same_v<T, GFieldRef::MultiFn>);
             const fn::FieldOperation &operation = *field_data.node;
             BLI_assert(field_data.output_i == 0);

@@ -21,6 +21,10 @@ TEST(field, PolynomConst)
 
 TEST(field, PolynomValue)
 {
+  EXPECT_EQ(Polynom<int>({1, 2, 3}),
+            Polynom<int>::from_degree_variable(0, 1) + Polynom<int>::from_degree_variable(1, 2) +
+                Polynom<int>::from_degree_variable(2, 3));
+
   EXPECT_EQ(Polynom<int>::from_const(555).value_at(0), 555);
   EXPECT_EQ(Polynom<int>::from_const(555).value_at(std::numeric_limits<int>::min()), 555);
   EXPECT_EQ(Polynom<int>::from_const(555).value_at(std::numeric_limits<int>::max()), 555);
@@ -51,6 +55,12 @@ TEST(field, PolynomLine)
   EXPECT_FALSE(Polynom<int>::from_degree_variable(0, 1).is_unit_line());
   EXPECT_FALSE(Polynom<int>::from_degree_variable(2, 1).is_unit_line());
   EXPECT_FALSE(Polynom<int>::from_degree_variable(3, 1).is_unit_line());
+}
+
+TEST(field, CanonicalForm)
+{
+  EXPECT_EQ(Polynom<int>({1, 2}), Polynom<int>({1, 2, 0}).to_canonical_form());
+  EXPECT_EQ(Polynom<int>({1, 0, 3}), Polynom<int>({1, 0, 3}).to_canonical_form());
 }
 
 TEST(field, PolynomValueOps1)
