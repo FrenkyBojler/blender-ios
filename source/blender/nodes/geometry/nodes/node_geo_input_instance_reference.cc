@@ -8,13 +8,13 @@ namespace blender::nodes::node_geo_input_instance_reference_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Reference Index").field_source();
+  b.add_output<decl::Int>("Reference Index"_ustr).field_source();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> reference_index{AttributeFieldInput::from<int>(".reference_index")};
-  params.set_output("Reference Index", std::move(reference_index));
+  Field<int> reference_index{AttributeFieldInput::get_field<int, ".reference_index">()};
+  params.set_output("Reference Index"_ustr, std::move(reference_index));
 }
 
 static void node_register()
