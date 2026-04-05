@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
   b.add_input<decl::Bool>("Selection"_ustr).default_value(false).hide_value().supports_field();
 
-  b.add_output<decl::Int>("Cluster ID"_ustr).field_source().reference_pass_all();
+  b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
 }
 
 class MeshClusterFieldInput final : public bke::MeshFieldInput {
