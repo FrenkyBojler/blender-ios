@@ -374,6 +374,7 @@ class GVolumeGrid {
 template<typename T> class VolumeGrid : public GVolumeGrid {
  public:
   using base_type = T;
+  using generic_type = GVolumeGrid;
 
   VolumeGrid() = default;
   explicit VolumeGrid(const VolumeGridData *data);
