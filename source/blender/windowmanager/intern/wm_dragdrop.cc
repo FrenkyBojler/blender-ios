@@ -496,6 +496,13 @@ static wmDropBox *dropbox_active(bContext *C,
                                  wmDrag *drag,
                                  const wmEvent *event)
 {
+  if (wmDragAsset *asset_data = WM_drag_get_asset_data(drag, 0)) {
+    if (asset_data->asset->is_online()) {
+      drag->drop_state.disabled_info = RPT_("Downloading asset...");
+      return nullptr;
+    }
+  }
+
   for (wmEventHandler &handler_base : *handlers) {
     if (handler_base.type == WM_HANDLER_TYPE_DROPBOX) {
       wmEventHandler_Dropbox *handler = reinterpret_cast<wmEventHandler_Dropbox *>(&handler_base);
@@ -1135,7 +1142,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
                                   drag->imb->y,
                                   gpu::TextureFormat::UNORM_8_8_8_8,
                                   false,
-                                  drag->imb->byte_buffer.data,
+                                  drag->imb->byte_data(),
                                   drag->imbuf_scale,
                                   drag->imbuf_scale,
                                   1.0f,

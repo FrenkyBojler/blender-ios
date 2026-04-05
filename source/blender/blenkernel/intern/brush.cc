@@ -912,8 +912,8 @@ const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode ob
 float BKE_brush_sample_tex_3d(const Paint *paint,
                               const Brush *br,
                               const MTex *mtex,
-                              const float point[3],
-                              float rgba[4],
+                              const float3 &point,
+                              float4 &rgba,
                               const int thread,
                               ImagePool *pool)
 {
@@ -931,9 +931,8 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
   }
   else if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point.xy();
     float x, y;
-    float co[3];
 
     x = point_2d[0] - br->stencil_pos[0];
     y = point_2d[1] - br->stencil_pos[1];
@@ -953,18 +952,14 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     x /= (br->stencil_dimension[0]);
     y /= (br->stencil_dimension[1]);
 
-    co[0] = x;
-    co[1] = y;
-    co[2] = 0.0f;
-
+    float3 co(x, y, 0.0f);
     hasrgb = RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
   }
   else {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point.xy();
     float x = 0.0f, y = 0.0f; /* Quite warnings */
     float invradius = 1.0f;   /* Quite warnings */
-    float co[3];
 
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
@@ -1009,9 +1004,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
       y = flen * sinf(angle);
     }
 
-    co[0] = x;
-    co[1] = y;
-    co[2] = 0.0f;
+    float3 co(x, y, 0.0f);
 
     hasrgb = RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
   }
@@ -1033,18 +1026,19 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 }
 
 float BKE_brush_sample_masktex(
-    const Paint *paint, Brush *br, const float point[2], const int thread, ImagePool *pool)
+    const Paint *paint, Brush *br, const float2 &point, const int thread, ImagePool *pool)
 {
   const bke::PaintRuntime *paint_runtime = paint->runtime;
   MTex *mtex = &br->mask_mtex;
-  float rgba[4], intensity;
+  float intensity;
+  float4 dummy_rgba;
 
   if (!mtex->tex) {
     return 1.0f;
   }
   if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point;
     float x, y;
     float co[3];
 
@@ -1060,7 +1054,7 @@ float BKE_brush_sample_masktex(
     }
 
     if (fabsf(x) > br->mask_stencil_dimension[0] || fabsf(y) > br->mask_stencil_dimension[1]) {
-      zero_v4(rgba);
+      zero_v4(dummy_rgba);
       return 0.0f;
     }
     x /= (br->mask_stencil_dimension[0]);
@@ -1070,11 +1064,11 @@ float BKE_brush_sample_masktex(
     co[1] = y;
     co[2] = 0.0f;
 
-    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
+    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, dummy_rgba);
   }
   else {
     float rotation = -mtex->rot;
-    const float point_2d[2] = {point[0], point[1]};
+    const float2 point_2d = point;
     float x = 0.0f, y = 0.0f; /* Quite warnings */
     float invradius = 1.0f;   /* Quite warnings */
     float co[3];
@@ -1126,7 +1120,7 @@ float BKE_brush_sample_masktex(
     co[1] = y;
     co[2] = 0.0f;
 
-    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, rgba);
+    RE_texture_evaluate(mtex, co, thread, pool, false, false, &intensity, dummy_rgba);
   }
 
   CLAMP(intensity, 0.0f, 1.0f);
@@ -1150,7 +1144,7 @@ float BKE_brush_sample_masktex(
 /** \name Unified Settings
  * \{ */
 
-const float *BKE_brush_color_get(const Paint *paint, const Brush *brush)
+float3 BKE_brush_color_get(const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(paint)) {
     return paint->unified_paint_settings.color;
@@ -1194,7 +1188,7 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
   };
 }
 
-const float *BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush)
+float3 BKE_brush_secondary_color_get(const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(paint)) {
     return paint->unified_paint_settings.secondary_color;
@@ -1202,7 +1196,7 @@ const float *BKE_brush_secondary_color_get(const Paint *paint, const Brush *brus
   return brush->secondary_color;
 }
 
-void BKE_brush_color_set(Paint *paint, Brush *brush, const float color[3])
+void BKE_brush_color_set(Paint *paint, Brush *brush, const float3 &color)
 {
   if (BKE_paint_use_unified_color(paint)) {
     UnifiedPaintSettings *ups = &paint->unified_paint_settings;
@@ -1244,7 +1238,7 @@ void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
   /* make sure range is sane */
   CLAMP(size, 1, MAX_BRUSH_PIXEL_DIAMETER);
 
-  if (ups->flag & UNIFIED_PAINT_SIZE) {
+  if (BKE_paint_use_unified_size(paint)) {
     ups->size = size;
   }
   else {
@@ -1256,9 +1250,11 @@ void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
 int BKE_brush_size_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  int size = (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
 
-  return size;
+  if (BKE_paint_use_unified_size(paint)) {
+    return ups->size;
+  }
+  return brush->size;
 }
 
 float BKE_brush_radius_get(const Paint *paint, const Brush *brush)
@@ -1288,7 +1284,7 @@ void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojecte
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (ups->flag & UNIFIED_PAINT_SIZE) {
+  if (BKE_paint_use_unified_size(paint)) {
     ups->unprojected_size = unprojected_size;
   }
   else {
@@ -1300,8 +1296,10 @@ void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojecte
 float BKE_brush_unprojected_size_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-
-  return (ups->flag & UNIFIED_PAINT_SIZE) ? ups->unprojected_size : brush->unprojected_size;
+  if (BKE_paint_use_unified_size(paint)) {
+    return ups->unprojected_size;
+  }
+  return brush->unprojected_size;
 }
 
 float BKE_brush_unprojected_radius_get(const Paint *paint, const Brush *brush)
@@ -1337,7 +1335,7 @@ void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (ups->flag & UNIFIED_PAINT_ALPHA) {
+  if (BKE_paint_use_unified_strength(paint)) {
     ups->alpha = alpha;
   }
   else {
@@ -1350,7 +1348,10 @@ float BKE_brush_alpha_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  return (ups->flag & UNIFIED_PAINT_ALPHA) ? ups->alpha : brush->alpha;
+  if (BKE_paint_use_unified_strength(paint)) {
+    return ups->alpha;
+  }
+  return brush->alpha;
 }
 
 float BKE_brush_weight_get(const Paint *paint, const Brush *brush)
@@ -1395,12 +1396,9 @@ void BKE_brush_input_samples_set(Paint *paint, Brush *brush, int value)
 
 /** \} */
 
-void BKE_brush_jitter_pos(const Paint &paint,
-                          const Brush &brush,
-                          const float pos[2],
-                          float jitterpos[2])
+float2 BKE_brush_jitter_pos(const Paint &paint, const Brush &brush, const float2 &pos)
 {
-  float rand_pos[2];
+  float2 rand_pos;
   float spread;
   int diameter;
 
@@ -1418,8 +1416,8 @@ void BKE_brush_jitter_pos(const Paint &paint,
     spread = brush.jitter;
   }
   /* find random position within a circle of diameter 1 */
-  jitterpos[0] = pos[0] + 2 * rand_pos[0] * diameter * spread;
-  jitterpos[1] = pos[1] + 2 * rand_pos[1] * diameter * spread;
+  return float2(pos[0] + 2 * rand_pos[0] * diameter * spread,
+                pos[1] + 2 * rand_pos[1] * diameter * spread);
 }
 
 void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
@@ -1690,16 +1688,15 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 
   im->x = im->y = side;
 
-  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_buffer.data);
+  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_data_for_write());
 
   if (display_gradient || have_texture) {
+    float *float_data = im->float_data_for_write();
     for (int i = 0; i < side; i++) {
       for (int j = 0; j < side; j++) {
         const float magn = sqrtf(pow2f(i - half) + pow2f(j - half));
         const float strength = BKE_brush_curve_strength_clamped(br, magn, half);
-        im->float_buffer.data[i * side + j] = (have_texture) ?
-                                                  im->float_buffer.data[i * side + j] * strength :
-                                                  strength;
+        float_data[i * side + j] = (have_texture) ? float_data[i * side + j] * strength : strength;
       }
     }
   }
@@ -1731,6 +1728,18 @@ bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
   return false;
 }
 
+namespace bke::brush {
+float normal_weight_get(const Brush &brush, const bool invert)
+{
+  BLI_assert(supports_normal_weight(brush));
+  if (!invert) {
+    return brush.normal_weight;
+  }
+
+  return brush.normal_weight == 0.0f;
+}
+}  // namespace bke::brush
+
 /* -------------------------------------------------------------------- */
 /** \name Brush Capabilities
  * \{ */
@@ -1742,6 +1751,25 @@ static bool is_paint_tool(const Brush &brush)
               SCULPT_BRUSH_TYPE_PAINT,
               SCULPT_BRUSH_TYPE_SMEAR,
               SCULPT_BRUSH_TYPE_BLUR);
+}
+/**
+ * A helper method for classifying a certain subset of brush types.
+ *
+ * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
+ * start point.
+ */
+static bool is_grab_tool(const Brush &brush)
+{
+  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
+          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
+         ELEM(brush.sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_GRAB,
+              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
+              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+              SCULPT_BRUSH_TYPE_POSE,
+              SCULPT_BRUSH_TYPE_BOUNDARY,
+              SCULPT_BRUSH_TYPE_THUMB,
+              SCULPT_BRUSH_TYPE_ROTATE);
 }
 bool supports_dyntopo(const Brush &brush)
 {
@@ -1779,7 +1807,8 @@ bool supports_accumulate(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
               SCULPT_BRUSH_TYPE_ROTATE,
-              SCULPT_BRUSH_TYPE_PLANE);
+              SCULPT_BRUSH_TYPE_PLANE,
+              SCULPT_BRUSH_TYPE_SCENE_PROJECT);
 }
 bool supports_topology_rake(const Brush &brush)
 {
@@ -1823,11 +1852,7 @@ bool supports_plane_depth(const Brush &brush)
 bool supports_jitter(const Brush &brush)
 {
   return !(ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) &&
-         !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
+         !is_grab_tool(brush);
 }
 bool supports_normal_weight(const Brush &brush)
 {
@@ -1861,11 +1886,7 @@ bool supports_plane_offset(const Brush &brush)
 }
 bool supports_random_texture_angle(const Brush &brush)
 {
-  return !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
+  return !is_grab_tool(brush);
 }
 bool supports_sculpt_plane(const Brush &brush)
 {
@@ -1903,40 +1924,12 @@ bool supports_smooth_stroke(const Brush &brush)
                 BRUSH_STROKE_DRAG_DOT,
                 BRUSH_STROKE_LINE,
                 BRUSH_STROKE_CURVE)) &&
-         !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-               SCULPT_BRUSH_TYPE_THUMB);
+         !is_grab_tool(brush);
 }
 bool supports_space_attenuation(const Brush &brush)
 {
   return ELEM(brush.stroke_method, BRUSH_STROKE_SPACE, BRUSH_STROKE_LINE, BRUSH_STROKE_CURVE) &&
-         !ELEM(brush.sculpt_brush_type,
-               SCULPT_BRUSH_TYPE_GRAB,
-               SCULPT_BRUSH_TYPE_ROTATE,
-               SCULPT_BRUSH_TYPE_SMOOTH,
-               SCULPT_BRUSH_TYPE_SNAKE_HOOK);
-}
-
-/**
- * A helper method for classifying a certain subset of brush types.
- *
- * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
- * start point.
- */
-static bool is_grab_tool(const Brush &brush)
-{
-  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
-          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
-         ELEM(brush.sculpt_brush_type,
-              SCULPT_BRUSH_TYPE_GRAB,
-              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
-              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
-              SCULPT_BRUSH_TYPE_POSE,
-              SCULPT_BRUSH_TYPE_BOUNDARY,
-              SCULPT_BRUSH_TYPE_THUMB,
-              SCULPT_BRUSH_TYPE_ROTATE);
+         !is_grab_tool(brush);
 }
 bool supports_strength_pressure(const Brush &brush)
 {
@@ -1969,7 +1962,8 @@ bool supports_inverted_direction(const Brush &brush)
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_PINCH,
-              SCULPT_BRUSH_TYPE_MASK);
+              SCULPT_BRUSH_TYPE_MASK,
+              SCULPT_BRUSH_TYPE_SCENE_PROJECT);
 }
 bool supports_gravity(const Brush &brush)
 {
