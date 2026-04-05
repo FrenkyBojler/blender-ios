@@ -18,18 +18,18 @@ namespace blender::nodes::node_fn_rotate_euler_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Rotation").subtype(PROP_EULER).hide_value();
+  b.add_input<decl::Vector>("Rotation"_ustr).subtype(PROP_EULER).hide_value();
 
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
     const auto type = FunctionNodeRotateEulerType(node->custom1);
     switch (type) {
       case FN_NODE_ROTATE_EULER_TYPE_EULER:
-        b.add_input<decl::Vector>("Rotate By").subtype(PROP_EULER);
+        b.add_input<decl::Vector>("Rotate By"_ustr).subtype(PROP_EULER);
         break;
       case FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE: {
-        b.add_input<decl::Vector>("Axis").default_value({0.0, 0.0, 1.0}).subtype(PROP_XYZ);
-        b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE);
+        b.add_input<decl::Vector>("Axis"_ustr).default_value({0.0, 0.0, 1.0}).subtype(PROP_XYZ);
+        b.add_input<decl::Float>("Angle"_ustr).subtype(PROP_ANGLE);
         break;
       }
       default:
@@ -37,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         break;
     }
   }
-  b.add_output<decl::Vector>("Rotation");
+  b.add_output<decl::Vector>("Rotation"_ustr);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

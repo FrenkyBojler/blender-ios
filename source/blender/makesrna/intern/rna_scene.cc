@@ -792,6 +792,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
+#  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_sequencer.hh"
 #  include "SEQ_sound.hh"
@@ -1320,6 +1321,22 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
   return "render.bake";
 }
 
+Strip *rna_strip_find_by_colorspace_settings(
+    Editing *ed, const ColorManagedColorspaceSettings *colorspace_settings)
+{
+  Strip *found_strip = nullptr;
+
+  seq::foreach_strip(&ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->data && &strip->data->colorspace_settings == colorspace_settings) {
+      found_strip = strip;
+      return false;
+    }
+    return true;
+  });
+
+  return found_strip;
+}
+
 static std::optional<std::string> rna_ImageFormatSettings_path(
     const PointerRNA *ptr, FunctionRef<bool(ImageFormatData *)> match)
 {
@@ -1417,6 +1434,26 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
   if (path) {
     return *path + ".linear_colorspace_settings";
   }
+
+  /* Images and Movieclips have this directly. */
+  if (ELEM(GS(ptr->owner_id->name), ID_IM, ID_MC)) {
+    return "colorspace_settings";
+  }
+
+  /* Search VSE for ImageStrips/MovieStrips. */
+  if (GS(ptr->owner_id->name) == ID_SCE) {
+    Scene *scene = id_cast<Scene *>(ptr->owner_id);
+    if (scene->ed) {
+      Strip *strip = rna_strip_find_by_colorspace_settings(scene->ed, data);
+
+      if (strip) {
+        char name_esc[(sizeof(strip->name) - 2) * 2];
+        BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
+        return fmt::format("sequence_editor.strips_all[\"{}\"].colorspace_settings", name_esc);
+      }
+    }
+  }
+
   return std::nullopt;
 }
 
@@ -2127,7 +2164,9 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
       const Scene *scene = WM_window_get_active_scene(&win);
       ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
       if (view_layer) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        /* FIXME Using G_MAIN is weak, but should work in practrice given current context (code
+         * already relies on 'G_MAIN data'). */
+        BKE_view_layer_synced_ensure(*G_MAIN, scene, view_layer);
         Object *object = BKE_view_layer_active_object_get(view_layer);
         if (object && object->type == OB_MESH) {
           if (BMEditMesh *em = BKE_editmesh_from_object(object)) {
@@ -2143,11 +2182,12 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
 
 static void rna_Scene_editmesh_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Mesh *mesh = nullptr;
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *object = BKE_view_layer_active_object_get(view_layer);
   if (object) {
     mesh = BKE_mesh_from_object(object);
@@ -2250,7 +2290,7 @@ static void rna_Scene_simplify_update_impl(Main *bmain,
   }
   FOREACH_SCENE_OBJECT_END;
 
-  for (SETLOOPER_SET_ONLY(sce, sce_iter, base)) {
+  for (SETLOOPER_SET_ONLY(*bmain, sce, sce_iter, base)) {
     object_simplify_update(sce, base->object, update_normals, depsgraph);
   }
 
@@ -2520,12 +2560,13 @@ static std::optional<std::string> rna_SequencerToolSettings_path(const PointerRN
 /* generic function to recalc geometry */
 static void rna_EditMesh_update(bContext *C, PointerRNA * /*ptr*/)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Mesh *mesh = BKE_mesh_from_object(obedit);
 
@@ -2546,9 +2587,10 @@ static std::optional<std::string> rna_MeshStatVis_path(const PointerRNA * /*ptr*
  * given its own notifier. */
 static void rna_Scene_update_active_object_data(bContext *C, PointerRNA * /*ptr*/)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   if (ob) {
@@ -2725,7 +2767,7 @@ static void rna_Stereo3dFormat_update(Main *bmain, Scene * /*scene*/, PointerRNA
 static ViewLayer *rna_ViewLayer_new(ID *id, Scene * /*sce*/, Main *bmain, const char *name)
 {
   Scene *scene = id_cast<Scene *>(id);
-  ViewLayer *view_layer = BKE_view_layer_add(scene, name, nullptr, VIEWLAYER_ADD_NEW);
+  ViewLayer *view_layer = BKE_view_layer_add(bmain, scene, name, nullptr, VIEWLAYER_ADD_NEW);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   DEG_relations_tag_update(bmain);
@@ -6894,6 +6936,31 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem anisotropic_items[] = {
+      {1, "FILTER_0", 0, "Off", "Turn off anisotropic filtering"},
+      {2,
+       "FILTER_2",
+       0,
+       "2" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 2 samples for anisotropic filtering"},
+      {4,
+       "FILTER_4",
+       0,
+       "4" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 4 samples for anisotropic filtering"},
+      {8,
+       "FILTER_8",
+       0,
+       "8" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 8 samples for anisotropic filtering"},
+      {16,
+       "FILTER_16",
+       0,
+       "16" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 16 samples for anisotropic filtering"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem threads_mode_items[] = {
       {0,
        "AUTO",
@@ -7235,6 +7302,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "Use high quality tangent space at the cost of lower performance");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_mesh_quality_update");
 
+  prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");
+  RNA_def_property_enum_items(prop, anisotropic_items);
+  RNA_def_property_ui_text(
+      prop, "Anisotropic Filtering", "Quality of anisotropic filtering in materials");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_render_update");
+
   /* border */
   prop = RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_BORDER);
@@ -7515,8 +7589,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "seq_flag", R_SEQ_OVERRIDE_SCENE_SETTINGS);
   RNA_def_property_ui_text(prop,
                            "Override Scene Settings",
-                           "Use workbench render settings from the sequencer scene, instead of "
-                           "each individual scene used in the strip");
+                           "Use workbench render and world settings from the sequencer scene, "
+                           "instead of each strip's scene");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SceneSequencer_update");
 
   prop = RNA_def_property(srna, "use_single_layer", PROP_BOOLEAN, PROP_NONE);
@@ -7629,6 +7703,27 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "Skip computing custom normals and face corner normals for displaying "
                            "meshes in the viewport");
   RNA_def_property_update(prop, 0, "rna_Scene_use_simplify_normals_update");
+
+  /* Texture Cache */
+  prop = RNA_def_property(srna, "use_texture_cache", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "scemode", R_USE_TEXTURE_CACHE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Texture Cache",
+      "Load texture tiles at appropriate resolution on demand to reduce memory usage. This avoids "
+      "loading all textures into memory, at the cost of extra disk space and some performance");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "use_auto_generate_texture_cache", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "scemode", R_TEXTURE_CACHE_AUTO_GENERATE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Auto Generate Texture Cache",
+                           "Automatically create tx files from image files when rendering, if the "
+                           "files do not exist or are outdated. The path to store the texture "
+                           "cache files is configured in the preferences");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   /* Grease Pencil - Simplify Options */
   prop = RNA_def_property(srna, "simplify_gpencil", PROP_BOOLEAN, PROP_NONE);
@@ -8895,6 +8990,13 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Lock Frame Selection",
                            "Don't allow frame to be selected with mouse outside of frame range");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
+
+  prop = RNA_def_property(srna, "allow_preroll", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "r.flag", SCER_ALLOW_PREROLL);
+  RNA_def_property_ui_text(
+      prop, "Allow Preroll", "Allows playing back frames before the playback start frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
 
   /* Preview Range (frame-range for UI playback) */

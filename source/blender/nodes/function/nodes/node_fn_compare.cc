@@ -40,8 +40,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     const bool type_is_floating = !ELEM(data_type, SOCK_INT, SOCK_STRING);
     const bool is_vector = data_type == SOCK_VECTOR;
 
-    auto &a_input = b.add_input(data_type, "A").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-    auto &b_input = b.add_input(data_type, "B").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+    auto &a_input = b.add_input(data_type, "A"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+    auto &b_input = b.add_input(data_type, "B"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
     if (data_type == SOCK_STRING) {
       a_input.optional_label();
@@ -49,19 +49,19 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
 
     if (is_vector && mode == NODE_COMPARE_MODE_DOT_PRODUCT) {
-      b.add_input<decl::Float>("C").default_value(0.9f);
+      b.add_input<decl::Float>("C"_ustr).default_value(0.9f);
     }
 
     if (is_vector && mode == NODE_COMPARE_MODE_DIRECTION) {
-      b.add_input<decl::Float>("Angle").default_value(0.0872665f).subtype(PROP_ANGLE);
+      b.add_input<decl::Float>("Angle"_ustr).default_value(0.0872665f).subtype(PROP_ANGLE);
     }
 
     if (type_is_floating && ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
-      b.add_input<decl::Float>("Epsilon").default_value(0.001);
+      b.add_input<decl::Float>("Epsilon"_ustr).default_value(0.001);
     }
   }
 
-  b.add_output<decl::Bool>("Result");
+  b.add_output<decl::Bool>("Result"_ustr);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -85,7 +85,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype data_type;
   NodeCompareOperation operation;
   NodeCompareMode mode = NODE_COMPARE_MODE_ELEMENT;
@@ -142,7 +142,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING)) {
     return;
   }
-  const StringRef socket_name = params.in_out() == SOCK_IN ? "A" : "Result";
+  const UString socket_name = params.in_out() == SOCK_IN ? "A"_ustr : "Result"_ustr;
   for (const EnumPropertyItem *item = rna_enum_node_compare_operation_items;
        item->identifier != nullptr;
        item++)
@@ -161,7 +161,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
-            "Angle", SOCK_VECTOR, NODE_COMPARE_GREATER_THAN, NODE_COMPARE_MODE_DIRECTION});
+            "Angle"_ustr, SOCK_VECTOR, NODE_COMPARE_GREATER_THAN, NODE_COMPARE_MODE_DIRECTION});
   }
 }
 

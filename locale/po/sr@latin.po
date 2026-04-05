@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -1535,6 +1535,10 @@ msgstr "Potez"
 
 msgid "Fill"
 msgstr "Ispuna"
+
+
+msgid "Both"
+msgstr "Obe"
 
 
 msgid "Background Image"
@@ -5026,6 +5030,10 @@ msgid "Deformation"
 msgstr "Deformacija"
 
 
+msgid "Plane Normal"
+msgstr "Normala ploče"
+
+
 msgid "Rake"
 msgstr "Grabulje"
 
@@ -7046,6 +7054,10 @@ msgid "All Keying Sets"
 msgstr "Sve zbirke ključeva"
 
 
+msgid "Restore Frame"
+msgstr "Povrati kadar"
+
+
 msgid "Render Data"
 msgstr "Demon renderinga"
 
@@ -8477,16 +8489,8 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
-msgid "Show/Hide"
-msgstr "Prikaži/sakrij"
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Names"
@@ -8497,8 +8501,16 @@ msgid "Bone Roll"
 msgstr "Rolna kostiju"
 
 
+msgid "Show/Hide"
+msgstr "Prikaži/sakrij"
+
+
 msgid "Snap"
 msgstr "Lepljenje"
+
+
+msgid "Import"
+msgstr "Uvoz"
 
 
 msgid "Mirror"
@@ -8521,20 +8533,16 @@ msgid "Align View"
 msgstr "Poravnaj pogled"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Select Linked"
 msgstr "Izaberi povezano"
 
 
-msgid "Keying"
-msgstr "Zbirka tastera"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
-
-
-msgid "Math"
-msgstr "Matematika"
+msgid "Metaball"
+msgstr "Meta lopta"
 
 
 msgid "Light"
@@ -8577,6 +8585,14 @@ msgid "Propagate"
 msgstr "Prenesi"
 
 
+msgid "Keying"
+msgstr "Zbirka tastera"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
+
+
 msgid "Toggle Bone Options"
 msgstr "Manje/više informacija"
 
@@ -8591,10 +8607,6 @@ msgstr "Onemogući opcije kostiju"
 
 msgid "Mesh Select Mode"
 msgstr "Mod izbora mreže"
-
-
-msgid "Import"
-msgstr "Uvoz"
 
 
 msgid "Merge"
@@ -13806,10 +13818,6 @@ msgid "Side"
 msgstr "Sa strane"
 
 
-msgid "Both"
-msgstr "Obe"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Dodaj modifikator F-krive"
@@ -14431,10 +14439,6 @@ msgid "Clear Outer"
 msgstr "Očisti spoljašnje"
 
 
-msgid "Plane Normal"
-msgstr "Normala ploče"
-
-
 msgid "Axis Threshold"
 msgstr "Prag osa"
 
@@ -14791,22 +14795,6 @@ msgstr "Spoji izabrana temena"
 
 msgid "Merge method to use"
 msgstr "Izbor metoda spajanja."
-
-
-msgid "At Center"
-msgstr "U centar"
-
-
-msgid "At Cursor"
-msgstr "Za kursor"
-
-
-msgid "At First"
-msgstr "Za prvo"
-
-
-msgid "At Last"
-msgstr "Za poslednje"
 
 
 msgid "Median"
@@ -17147,10 +17135,6 @@ msgstr "Prekini animaciju"
 
 msgid "Cancel animation, returning to the original frame"
 msgstr "Prekida animaciju i vraća se na početni kadar"
-
-
-msgid "Restore Frame"
-msgstr "Povrati kadar"
 
 
 msgctxt "Operator"
@@ -21409,10 +21393,6 @@ msgid "Sound"
 msgstr "Zvuk"
 
 
-msgid "Use Linear Modifiers"
-msgstr "Koristi linearni modifikator"
-
-
 msgid "Multiply Colors"
 msgstr "Umnožene boje"
 
@@ -22588,6 +22568,10 @@ msgid "Report a Bug"
 msgstr "Prijava greške"
 
 
+msgid "Object Index"
+msgstr "Indeks objekta"
+
+
 msgid "No output node"
 msgstr "Bez izlaznog čvora"
 
@@ -22864,11 +22848,6 @@ msgstr "Strukturno"
 msgctxt "Operator"
 msgid "Force Field"
 msgstr "Polje uticaja"
-
-
-msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Ispeci svu fiziku"
 
 
 msgid "Cache is disabled until the file is saved"
@@ -23298,6 +23277,11 @@ msgstr "Dupliraj marker na scenu..."
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Sačuvaj umnožak..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Izlaz"
 
@@ -23310,11 +23294,6 @@ msgstr "Renderuj animaciju"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "Nazad na prethodno"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Sačuvaj umnožak..."
 
 
 msgctxt "Operator"
@@ -25263,10 +25242,6 @@ msgstr "Boja1"
 
 msgid "Color2"
 msgstr "Boja2"
-
-
-msgid "Object Index"
-msgstr "Indeks objekta"
 
 
 msgid "Color Fac"

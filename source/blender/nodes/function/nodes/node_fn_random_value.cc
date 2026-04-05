@@ -25,19 +25,19 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
     switch (data_type) {
       case CD_PROP_FLOAT3:
-        b.add_input<decl::Vector>("Min");
-        b.add_input<decl::Vector>("Max").default_value({1.0f, 1.0f, 1.0f});
+        b.add_input<decl::Vector>("Min"_ustr);
+        b.add_input<decl::Vector>("Max"_ustr).default_value({1.0f, 1.0f, 1.0f});
         break;
       case CD_PROP_FLOAT:
-        b.add_input<decl::Float>("Min");
-        b.add_input<decl::Float>("Max").default_value(1.0f);
+        b.add_input<decl::Float>("Min"_ustr);
+        b.add_input<decl::Float>("Max"_ustr).default_value(1.0f);
         break;
       case CD_PROP_INT32:
-        b.add_input<decl::Int>("Min");
-        b.add_input<decl::Int>("Max").default_value(100);
+        b.add_input<decl::Int>("Min"_ustr);
+        b.add_input<decl::Int>("Max"_ustr).default_value(100);
         break;
       case CD_PROP_BOOL:
-        b.add_input<decl::Float>("Probability")
+        b.add_input<decl::Float>("Probability"_ustr)
             .min(0.0f)
             .max(1.0f)
             .default_value(0.5f)
@@ -49,13 +49,13 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  b.add_input<decl::Int>("ID").implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD);
-  b.add_input<decl::Int>("Seed");
+  b.add_input<decl::Int>("ID"_ustr).implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD);
+  b.add_input<decl::Int>("Seed"_ustr);
 
   if (node != nullptr) {
     const NodeRandomValue &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    b.add_output(data_type, "Value");
+    b.add_output(data_type, "Value"_ustr);
   }
 }
 
@@ -100,12 +100,12 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Min"), [type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("FunctionNodeRandomValue");
         node_storage(node).data_type = *type;
-        params.update_and_connect_available_socket(node, "Min");
+        params.update_and_connect_available_socket(node, "Min"_ustr);
       });
       params.add_item(IFACE_("Max"), [type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("FunctionNodeRandomValue");
         node_storage(node).data_type = *type;
-        params.update_and_connect_available_socket(node, "Max");
+        params.update_and_connect_available_socket(node, "Max"_ustr);
       });
     }
     params.add_item(IFACE_("Probability"), [type](LinkSearchOpParams &params) {
@@ -118,7 +118,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("FunctionNodeRandomValue");
       node_storage(node).data_type = *type;
-      params.update_and_connect_available_socket(node, "Value");
+      params.update_and_connect_available_socket(node, "Value"_ustr);
     });
   }
 }

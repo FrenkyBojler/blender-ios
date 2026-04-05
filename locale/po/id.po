@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -1420,6 +1420,10 @@ msgstr "Default"
 
 msgid "Annotation Stroke"
 msgstr "Anotasi Guratan"
+
+
+msgid "Display Mode"
+msgstr "Mode Layar"
 
 
 msgid "Stroke Points"
@@ -5672,24 +5676,8 @@ msgid "Stroke"
 msgstr "Sapuan"
 
 
-msgid "Vertex Color affects to Stroke only"
-msgstr "Warna Titik Sudut hanya mempengaruhi Sapuan"
-
-
 msgid "Fill"
 msgstr "Isi"
-
-
-msgid "Vertex Color affects to Fill only"
-msgstr "Warna Titik Sudut mempengaruhi Isi saja"
-
-
-msgid "Stroke & Fill"
-msgstr "Sapuan & Isi"
-
-
-msgid "Vertex Color affects to Stroke and Fill"
-msgstr "Warna Titik Sudut mempengaruhi Sapuan dan Isi"
 
 
 msgid "Byte Color Attribute Value"
@@ -10251,10 +10239,6 @@ msgid "Medium"
 msgstr "Sedang"
 
 
-msgid "Display Mode"
-msgstr "Mode Layar"
-
-
 msgid "Vertical List"
 msgstr "Daftar Vertikal"
 
@@ -12167,6 +12151,10 @@ msgstr "Skala/Translasi"
 
 msgid "Topology"
 msgstr "Topologi"
+
+
+msgid "Plane Normal"
+msgstr "Bidang Normal"
 
 
 msgid "Rate"
@@ -15679,24 +15667,36 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metabola"
-
-
-msgid "Sample"
-msgstr "Sampel"
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Names"
 msgstr "Nama"
 
 
+msgid "Utilities"
+msgstr "Utilitas"
+
+
 msgid "Snap"
 msgstr "Jepret"
+
+
+msgid "Sample"
+msgstr "Sampel"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
+msgid "Import"
+msgstr "Impor"
 
 
 msgid "Mirror"
@@ -15707,8 +15707,8 @@ msgid "Navigation"
 msgstr "Navigasi"
 
 
-msgid "Layout"
-msgstr "Tata Letak"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Linked"
@@ -15719,16 +15719,8 @@ msgid "Assign Material"
 msgstr "Tugaskan Bahan"
 
 
-msgid "Tracking"
-msgstr "Pelacakan"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Math"
-msgstr "Matematika"
+msgid "Metaball"
+msgstr "Metabola"
 
 
 msgid "Light"
@@ -15759,16 +15751,12 @@ msgid "Hooks"
 msgstr "Kait"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
+msgid "Layout"
+msgstr "Tata Letak"
 
 
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Import"
-msgstr "Impor"
+msgid "Tracking"
+msgstr "Pelacakan"
 
 
 msgid "Merge"
@@ -16498,6 +16486,10 @@ msgstr "Tumbuh"
 
 msgid "Vanish"
 msgstr "Hilang"
+
+
+msgid "Stroke & Fill"
+msgstr "Sapuan & Isi"
 
 
 msgid "Fills"
@@ -17843,14 +17835,6 @@ msgid "Custom color of the node body"
 msgstr "Warna kustom badan simpul"
 
 
-msgid "Absolute bounding box dimensions of the node"
-msgstr "Dimensi box terbatas absolut simpul"
-
-
-msgid "Height of the node"
-msgstr "Tinggi node"
-
-
 msgid "Internal Links"
 msgstr "Tautan Internal"
 
@@ -17873,10 +17857,6 @@ msgstr "Pengenal simpul unik"
 
 msgid "Outputs"
 msgstr "Keluaran"
-
-
-msgid "Parent this node is attached to"
-msgstr "Induk simpul ini terikat ke"
 
 
 msgid "Node selection state"
@@ -21293,10 +21273,6 @@ msgstr "Batas sudut"
 
 msgid "Clear Inner"
 msgstr "Bebaskan bagian dalam"
-
-
-msgid "Plane Normal"
-msgstr "Bidang Normal"
 
 
 msgid "Interpolation method"
@@ -26447,14 +26423,6 @@ msgid "Surface Guiding Probability"
 msgstr "Probabilitas Pemandu Permukaan"
 
 
-msgid "No Limit"
-msgstr "Tidak Ada Batas"
-
-
-msgid "No texture size limit"
-msgstr "Tidak ada batas ukuran tekstur"
-
-
 msgid "Tile Size"
 msgstr "Ukurang"
 
@@ -27181,6 +27149,10 @@ msgid "Edit animation/keyframes displayed as 2D curves"
 msgstr "Mengedit animasi/bingkai kunci ditampilkan sebagai kurva 2D"
 
 
+msgid "Context sensitive gizmo for the active node"
+msgstr "Gizmo yang peka terhadap konteks untuk node aktif"
+
+
 msgid "Show Mask Editor"
 msgstr "Penyunting Grafik"
 
@@ -27215,10 +27187,6 @@ msgstr "Edit node shader dari Dunia"
 
 msgid "Edit shader nodes from Line Style"
 msgstr "Edit node shader dari Gaya Garis"
-
-
-msgid "Context sensitive gizmo for the active node"
-msgstr "Gizmo yang peka terhadap konteks untuk node aktif"
 
 
 msgid "Texture Node Editor"
@@ -27459,10 +27427,6 @@ msgstr "Masker"
 msgctxt "Sequence"
 msgid "Sound"
 msgstr "Suara"
-
-
-msgid "Use Linear Modifiers"
-msgstr "Modus Pahat"
 
 
 msgid "Multiply Colors"
@@ -28547,10 +28511,6 @@ msgstr "Render"
 
 msgid "No output node"
 msgstr "Tidak ada node keluaran"
-
-
-msgid "Texture Limit"
-msgstr "Batas Tekstur"
 
 
 msgid "Distance Culling"
@@ -32509,16 +32469,16 @@ msgid "Subtype"
 msgstr "Subtipe"
 
 
+msgid "Compositing..."
+msgstr "Pengomposisian..."
+
+
 msgid " Named Attribute"
 msgstr " Atribut bernama"
 
 
 msgid " Named Attributes"
 msgstr " Atribut Bernama"
-
-
-msgid "Compositing..."
-msgstr "Pengomposisian..."
 
 
 msgid "3D Float Vector"

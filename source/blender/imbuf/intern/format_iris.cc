@@ -30,6 +30,8 @@ namespace blender {
 
 static CLG_LogRef LOG = {"image.iris"};
 
+const char *imb_file_extensions_iris[] = {".sgi", ".rgb", ".rgba", ".bw", nullptr};
+
 /**
  * The SGI IRIS magic number.
  * The value is `[0x01 0xda]` when read as a big-endian ushort.
@@ -321,7 +323,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
         goto fail_rle;
       }
       ibuf->planes = std::min<int>(ibuf->planes, 32);
-      base = reinterpret_cast<uint *>(ibuf->byte_buffer.data);
+      base = reinterpret_cast<uint *>(ibuf->byte_data_for_write());
 
       if (badorder) {
         for (size_t z = 0; z < zsize_read; z++) {
@@ -376,7 +378,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
         goto fail_rle;
       }
 
-      fbase = ibuf->float_buffer.data;
+      fbase = ibuf->float_data_for_write();
 
       if (badorder) {
         for (size_t z = 0; z < zsize_read; z++) {
@@ -437,7 +439,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
       }
       ibuf->planes = std::min<int>(ibuf->planes, 32);
 
-      base = reinterpret_cast<uint *>(ibuf->byte_buffer.data);
+      base = reinterpret_cast<uint *>(ibuf->byte_data_for_write());
 
       MFILE_SEEK(inf, HEADER_SIZE);
       rledat = MFILE_DATA(inf);
@@ -467,7 +469,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
         goto fail_uncompressed;
       }
 
-      fbase = ibuf->float_buffer.data;
+      fbase = ibuf->float_data_for_write();
 
       MFILE_SEEK(inf, HEADER_SIZE);
       rledat = MFILE_DATA(inf);
@@ -496,7 +498,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     uchar *rect;
 
     if (image.zsize == 1) {
-      rect = ibuf->byte_buffer.data;
+      rect = ibuf->byte_data_for_write();
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         rect[1] = rect[2] = rect[0];
         rect[3] = 255;
@@ -505,7 +507,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else if (image.zsize == 2) {
       /* Gray-scale with alpha. */
-      rect = ibuf->byte_buffer.data;
+      rect = ibuf->byte_data_for_write();
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         rect[3] = rect[1];
         rect[1] = rect[2] = rect[0];
@@ -514,7 +516,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else if (image.zsize == 3) {
       /* add alpha */
-      rect = ibuf->byte_buffer.data;
+      rect = ibuf->byte_data_for_write();
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         rect[3] = 255;
         rect += 4;
@@ -524,7 +526,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
   else { /* bpp == 2 */
 
     if (image.zsize == 1) {
-      fbase = ibuf->float_buffer.data;
+      fbase = ibuf->float_data_for_write();
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         fbase[1] = fbase[2] = fbase[0];
         fbase[3] = 1;
@@ -533,7 +535,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else if (image.zsize == 2) {
       /* Gray-scale with alpha. */
-      fbase = ibuf->float_buffer.data;
+      fbase = ibuf->float_data_for_write();
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         fbase[3] = fbase[1];
         fbase[1] = fbase[2] = fbase[0];
@@ -542,7 +544,7 @@ ImBuf *imb_loadiris(const uchar *mem, size_t size, int flags, ImFileColorSpace &
     }
     else if (image.zsize == 3) {
       /* add alpha */
-      fbase = ibuf->float_buffer.data;
+      fbase = ibuf->float_data_for_write();
       for (size_t x = size_t(ibuf->x) * size_t(ibuf->y); x > 0; x--) {
         fbase[3] = 1;
         fbase += 4;
@@ -825,6 +827,11 @@ static bool output_iris(const char *filepath,
         lumrow(reinterpret_cast<const uchar *>(lptr), reinterpret_cast<uchar *>(lumbuf), xsize);
         len = compressrow(reinterpret_cast<const uchar *>(lumbuf), rlebuf, z, xsize);
       }
+      else if (zsize == 2) {
+        /* Map: gray=0, alpha=3 (alpha is #ImBuf byte offset 3, not 1). */
+        const int z_ofs[] = {0, 3};
+        len = compressrow(reinterpret_cast<const uchar *>(lptr), rlebuf, z_ofs[z], xsize);
+      }
       else {
         if (z < 4) {
           len = compressrow(reinterpret_cast<const uchar *>(lptr), rlebuf, z, xsize);
@@ -947,7 +954,7 @@ bool imb_saveiris(ImBuf *ibuf, const char *filepath, int /*flags*/)
   const short zsize = (ibuf->planes + 7) >> 3;
 
   const bool ok = output_iris(filepath,
-                              reinterpret_cast<const uint *>(ibuf->byte_buffer.data),
+                              reinterpret_cast<const uint *>(ibuf->byte_data()),
                               nullptr,
                               ibuf->x,
                               ibuf->y,

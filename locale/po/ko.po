@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
-"PO-Revision-Date: 2026-02-19 06:12+0000\n"
-"Last-Translator: Yegoun Lee <yegoeun.lee@gmail.com>\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"PO-Revision-Date: 2026-03-27 12:12+0000\n"
+"Last-Translator: kim nahyeong <weiing0123@ajou.ac.kr>\n"
 "Language-Team: Korean <https://translate.blender.org/projects/blender-ui/ui/ko/>\n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.15.2"
+"X-Generator: Weblate 5.16.2"
 
 
 msgid "Shader AOV"
@@ -21,6 +21,10 @@ msgstr "셰이더 AOV"
 
 msgid "Valid"
 msgstr "유효"
+
+
+msgid "Is the name of the AOV conflicting"
+msgstr "AOV의 이름이 충돌합니까"
 
 
 msgid "Name"
@@ -1506,6 +1510,10 @@ msgstr "주석 스트로크"
 
 msgid "Freehand curve defining part of a sketch"
 msgstr "스케치의 일부를 정의하는 자유형 커브"
+
+
+msgid "Display Mode"
+msgstr "표시 모드"
 
 
 msgid "Stroke Points"
@@ -3278,6 +3286,10 @@ msgstr ".blend 파일과 모든 데이터-블록을 나타내는 메인 데이�
 
 msgid "Action data-blocks"
 msgstr "액션 데이터-블럭"
+
+
+msgid "All Data-Blocks"
+msgstr "모든 데이터 블록"
 
 
 msgid "Annotation"
@@ -6263,24 +6275,12 @@ msgid "Stroke"
 msgstr "스트로크"
 
 
-msgid "Vertex Color affects to Stroke only"
-msgstr "스트로크에만 영향이 가는 버텍스 색상"
-
-
 msgid "Fill"
 msgstr "채우기"
 
 
-msgid "Vertex Color affects to Fill only"
-msgstr "채우기에만 영향이 가는 버텍스 색상"
-
-
-msgid "Stroke & Fill"
-msgstr "스트로크 & 채우기"
-
-
-msgid "Vertex Color affects to Stroke and Fill"
-msgstr "스트로크와 채우기에 영향이 가는 버텍스 색상"
+msgid "Both"
+msgstr "양쪽"
 
 
 msgid "Byte Color Attribute Value"
@@ -14703,10 +14703,6 @@ msgid "Large"
 msgstr "대형"
 
 
-msgid "Display Mode"
-msgstr "표시 모드"
-
-
 msgid "Display mode for the file list"
 msgstr "파일 목록에 대한 모드를 표시"
 
@@ -16765,6 +16761,10 @@ msgstr "마스크"
 
 msgid "Sound"
 msgstr "사운드"
+
+
+msgid "Integer Vector"
+msgstr "정수 벡터"
 
 
 msgid "Freestyle Line Set"
@@ -20164,6 +20164,14 @@ msgid "Smooth iterations applied after calculating the pose factor of each verte
 msgstr "각 버텍스의 포즈 팩터를 계산 한 후 부드럽게 반복 적용"
 
 
+msgid "View Normal"
+msgstr "뷰 노멀"
+
+
+msgid "Plane Normal"
+msgstr "평면 노멀"
+
+
 msgid "Rake"
 msgstr "레이크"
 
@@ -20637,10 +20645,6 @@ msgstr "스트로크가 시작되는 위치와 비슷한 법선을 가진 버텍
 
 msgid "Affect only vertices connected to the active vertex under the brush"
 msgstr "브러시 아래의 활성 버텍스에 연결된 버텍스에만 영향을줍니다"
-
-
-msgid "View Normal"
-msgstr "뷰 노멀"
 
 
 msgid "Affect only vertices with a normal that faces the viewer"
@@ -23691,10 +23695,6 @@ msgid "Half Float Precision"
 msgstr "절반의 실수 정밀도"
 
 
-msgid "Use 16 bits per channel to lower the memory usage during rendering"
-msgstr "채널당 16비트를 사용하여 렌더링 중 메모리 사용량을 줄함"
-
-
 msgid "Use Multi-View"
 msgstr "멀티 뷰를 사용"
 
@@ -26090,7 +26090,7 @@ msgstr "오브젝트가 속한 라이트그룹"
 
 
 msgid "Line Art"
-msgstr "선 아트"
+msgstr "라인 아트"
 
 
 msgid "Line Art settings for the object"
@@ -28163,6 +28163,10 @@ msgstr "프레임 선택을 잠금"
 
 msgid "Don't allow frame to be selected with mouse outside of frame range"
 msgstr "프레임 범위의 외부 마우스와 함께 선택되는 프레임을 허용하지 않음"
+
+
+msgid "Restore Frame"
+msgstr "프레임을 복원"
 
 
 msgid "Render Data"
@@ -34899,40 +34903,24 @@ msgid "Editor menu containing buttons"
 msgstr "버튼이 포함된 에디터 메뉴"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "메타볼"
-
-
-msgid "Read"
-msgstr "읽기"
-
-
-msgid "Show/Hide"
-msgstr "표시/숨기기"
-
-
-msgid "Write"
-msgstr "쓰기"
-
-
-msgid "Sample"
-msgstr "샘플"
-
-
-msgid "Primitives"
-msgstr "프리미티브"
+msgid "Math"
+msgstr "수학"
 
 
 msgid "Names"
 msgstr "이름"
 
 
+msgid "Utilities"
+msgstr "유틸리티"
+
+
 msgid "Bone Roll"
 msgstr "뼈대 롤"
+
+
+msgid "Show/Hide"
+msgstr "표시/숨기기"
 
 
 msgid "Clean Up"
@@ -34951,20 +34939,48 @@ msgid "Proportional Editing Falloff"
 msgstr "비례 편집 감소"
 
 
+msgid "Read"
+msgstr "읽기"
+
+
 msgid "Mask Edit"
 msgstr "마스크 편집"
+
+
+msgid "Sample"
+msgstr "샘플"
 
 
 msgid "Automasking"
 msgstr "오토마스킹"
 
 
+msgid "Write"
+msgstr "쓰기"
+
+
 msgid "Face Sets Edit"
 msgstr "페이스 세트 편집"
 
 
+msgid "Primitives"
+msgstr "프리미티브"
+
+
 msgid "Vertex Group Locks"
 msgstr "버텍스 그룹 잠금"
+
+
+msgid "Gizmo"
+msgstr "기즈모"
+
+
+msgid "Instances"
+msgstr "인스턴스"
+
+
+msgid "Import"
+msgstr "가져오기"
 
 
 msgid "Mirror"
@@ -34987,6 +35003,10 @@ msgid "Navigation"
 msgstr "네비게이션"
 
 
+msgid "Deprecated"
+msgstr "사용 중단"
+
+
 msgid "Align View"
 msgstr "뷰를 정렬"
 
@@ -35003,8 +35023,12 @@ msgid "Select More/Less"
 msgstr "선택 증가/감소"
 
 
-msgid "Layout"
-msgstr "레이아웃"
+msgid "List"
+msgstr "목록"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -35019,40 +35043,16 @@ msgid "Select Linked"
 msgstr "연결된 선택"
 
 
-msgid "Render Preview"
-msgstr "렌더링 미리보기"
-
-
 msgid "Select Loops"
 msgstr "루프를 선택"
-
-
-msgid "Adjust"
-msgstr "조정"
 
 
 msgid "Assign Material"
 msgstr "머티리얼을 할당"
 
 
-msgid "Keying"
-msgstr "키잉"
-
-
-msgid "Tracking"
-msgstr "트래킹"
-
-
-msgid "Utilities"
-msgstr "유틸리티"
-
-
-msgid "Math"
-msgstr "수학"
-
-
-msgid "Creative"
-msgstr "크리에이티브"
+msgid "Metaball"
+msgstr "메타볼"
 
 
 msgid "Light"
@@ -35111,6 +35111,10 @@ msgid "Trim/Add"
 msgstr "트림/추가"
 
 
+msgid "Layout"
+msgstr "레이아웃"
+
+
 msgid "Sculpt Set Pivot"
 msgstr "스컬프트 설정 피벗"
 
@@ -35139,8 +35143,24 @@ msgid "Bone Collections"
 msgstr "뼈대 컬렉션"
 
 
+msgid "Adjust"
+msgstr "조정"
+
+
+msgid "Keying"
+msgstr "키잉"
+
+
+msgid "Tracking"
+msgstr "트래킹"
+
+
 msgid "Toggle Bone Options"
 msgstr "뼈대 옵션을 토글"
+
+
+msgid "Render Preview"
+msgstr "렌더링 미리보기"
 
 
 msgid "Enable Bone Options"
@@ -35155,16 +35175,12 @@ msgid "Mesh Select Mode"
 msgstr "메시 선택 모드"
 
 
-msgid "Gizmo"
-msgstr "기즈모"
+msgid "Creative"
+msgstr "크리에이티브"
 
 
 msgid "Face Data"
 msgstr "페이스 데이터"
-
-
-msgid "Instances"
-msgstr "인스턴스"
 
 
 msgid "Select by Face Strength"
@@ -35175,24 +35191,12 @@ msgid "Set Face Strength"
 msgstr "페이스 강도를 설정"
 
 
-msgid "Import"
-msgstr "가져오기"
-
-
 msgid "Merge"
 msgstr "병합"
 
 
-msgid "Deprecated"
-msgstr "사용 중단"
-
-
 msgid "Special Characters"
 msgstr "특수 문자"
-
-
-msgid "List"
-msgstr "목록"
 
 
 msgid "Kerning"
@@ -38941,6 +38945,10 @@ msgstr "그리스 펜슬 색상 모디파이어"
 
 msgid "Attributes to modify"
 msgstr "수정할 속성"
+
+
+msgid "Stroke & Fill"
+msgstr "스트로크 & 채우기"
 
 
 msgid "Modify fill and stroke colors"
@@ -44778,14 +44786,6 @@ msgid "Node header color tag"
 msgstr "노드 헤더 색상 태그"
 
 
-msgid "Absolute bounding box dimensions of the node"
-msgstr "노드의 절대적인 경계 박스 크기"
-
-
-msgid "Height of the node"
-msgstr "이 노드의 높이"
-
-
 msgid "Collapse"
 msgstr "축소"
 
@@ -44820,10 +44820,6 @@ msgstr "고유 노드 식별자"
 
 msgid "Outputs"
 msgstr "출력"
-
-
-msgid "Parent this node is attached to"
-msgstr "이 노드가 다음으로 연결되어있는 부모"
 
 
 msgid "Node selection state"
@@ -46225,6 +46221,10 @@ msgstr "색상 선택 위젯으로 선택한 색상 값을 출력함"
 
 msgid "Provide an integer value that can be connected to other nodes in the tree"
 msgstr "트리의 다른 노드에 연결할 수 있는 정수 값을 입력함"
+
+
+msgid "Dimensions of the vector socket"
+msgstr "벡터 소켓의 크기"
 
 
 msgid "Provide a rotation value that can be connected to other nodes in the tree"
@@ -48903,10 +48903,6 @@ msgid "3D double vector"
 msgstr "3D 더블 벡터"
 
 
-msgid "Integer Vector"
-msgstr "정수 벡터"
-
-
 msgid "3D integer vector"
 msgstr "3D 정수 벡터"
 
@@ -49244,6 +49240,10 @@ msgid "True if this node is used as the active group output"
 msgstr "이 노드가 활성 그룹 내보내기로 사용되는 경우 True"
 
 
+msgid "Type of socket"
+msgstr "소켓 유형"
+
+
 msgid "Join Bundle"
 msgstr "가입 번들"
 
@@ -49258,10 +49258,6 @@ msgstr "경로 변경"
 
 msgid "A single-socket organization tool that supports one input and multiple outputs"
 msgstr "하나의 입력과 여러 출력을 지원하는 단일 소켓 구성 도구"
-
-
-msgid "Type of socket"
-msgstr "소켓 유형"
 
 
 msgid "Separate Bundle"
@@ -51646,10 +51642,6 @@ msgstr "오버라이드 노드 포맷"
 
 msgid "Use a different format instead of the node format for this file"
 msgstr "이 파일에 노드 포맷 대신 다른 포맷 사용"
-
-
-msgid "Dimensions of the vector socket"
-msgstr "벡터 소켓의 크기"
 
 
 msgid "Collection of file output items"
@@ -59941,7 +59933,7 @@ msgid "Set Handle Type"
 msgstr "핸들 유형을 설정"
 
 
-msgid "Set the handle type for bezier curves"
+msgid "Set the handle type for Bézier curves"
 msgstr "베지어 커브의 핸들 유형 설정하기"
 
 
@@ -63998,10 +63990,6 @@ msgid "Equalize selected keyframes' right handles"
 msgstr "선택한 키프레임의 오른쪽 핸들 균등화하기"
 
 
-msgid "Both"
-msgstr "양쪽"
-
-
 msgid "Equalize both of a keyframe's handles"
 msgstr "키프레임의 양쪽 핸들을 동일하게 맞추기"
 
@@ -65789,10 +65777,6 @@ msgstr "선택한 커브의 해상도 설정"
 
 msgid "The resolution to use for each curve segment"
 msgstr "각 커브 세그먼트에 사용할 해상도"
-
-
-msgid "Set the handle type for Bézier curves"
-msgstr "베지어 커브의 핸들 유형 설정하기"
 
 
 msgid "Set active material"
@@ -68145,10 +68129,6 @@ msgid "A point on the plane"
 msgstr "평면 위의 포인트"
 
 
-msgid "Plane Normal"
-msgstr "평면 노멀"
-
-
 msgid "The direction the plane points"
 msgstr "방향 평면 포인트"
 
@@ -69284,24 +69264,13 @@ msgid "Merge selected vertices"
 msgstr "선택된 버텍스를 병합"
 
 
+msgctxt "Mesh"
+msgid "Type"
+msgstr "유형"
+
+
 msgid "Merge method to use"
 msgstr "사용하는 메서드를 병합"
-
-
-msgid "At Center"
-msgstr "중심에"
-
-
-msgid "At Cursor"
-msgstr "커서에"
-
-
-msgid "At First"
-msgstr "처음에"
-
-
-msgid "At Last"
-msgstr "마지막에"
 
 
 msgid "Move UVs according to merge"
@@ -70190,11 +70159,6 @@ msgstr "랜덤으로 버텍스를 선택"
 
 msgid "Select similar vertices, edges or faces by property types"
 msgstr "속성 유형별로 유사한 버텍스, 에지 또는 페이스를 선택"
-
-
-msgctxt "Mesh"
-msgid "Type"
-msgstr "유형"
 
 
 msgctxt "Mesh"
@@ -75892,15 +75856,6 @@ msgstr "커브 버텍스 반경, 폰트 크기 및 뼈대 엔벨로프와 같은
 
 
 msgctxt "Operator"
-msgid "Interactive Light Track to Cursor"
-msgstr "커서에 대화형 라이트 트랙"
-
-
-msgid "Interactively point cameras and lights to a location (Ctrl translates)"
-msgstr "카메라와 라이트를 위치에 대화식으로 가리킴 (Ctrl 옮기기)"
-
-
-msgctxt "Operator"
 msgid "Place Object Under Mouse"
 msgstr "마우스 아래에 오브젝트 배치"
 
@@ -79204,6 +79159,10 @@ msgid "Add a directory to be used by the Asset Browser as source of assets"
 msgstr "어셋 브라우저에서 에셋의 소스로 사용할 디렉토리를 추가함"
 
 
+msgid "Identifier (not necessarily unique) for the asset library"
+msgstr "어셋 라이브러리의 식별자(반드시 고유할 필요는 없음)"
+
+
 msgctxt "Operator"
 msgid "Remove Asset Library"
 msgstr "어셋 라이브러리 제거"
@@ -79441,10 +79400,6 @@ msgstr "피직스를 베이크"
 
 msgctxt "Operator"
 msgid "Bake All Physics"
-msgstr "모든 피직스를 베이크"
-
-
-msgid "Bake all physics"
 msgstr "모든 피직스를 베이크"
 
 
@@ -80279,10 +80234,6 @@ msgid "Cancel animation, returning to the original frame"
 msgstr "원래 프레임에 복귀, 애니메이션을 취소"
 
 
-msgid "Restore Frame"
-msgstr "프레임을 복원"
-
-
 msgid "Restore the frame when animation was initialized"
 msgstr "애니메이션이 초기화될 때 프레임을 복원"
 
@@ -80693,6 +80644,10 @@ msgstr "확장 프로그램을 통해 설치된 애드온 관리"
 
 msgid "Edit and save themes installed via Extensions"
 msgstr "확장 프로그램을 통해 설치된 테마 편집 및 저장"
+
+
+msgid "Asset Libraries"
+msgstr "어셋 라이브러리"
 
 
 msgid "Keymap"
@@ -82129,6 +82084,11 @@ msgstr "색상 조합"
 
 msgid "Combine two strips using blend modes"
 msgstr "블렌딩 모드를 사용하여 두 개의 스트립을 결합함"
+
+
+msgctxt "Sequence"
+msgid "Compositor"
+msgstr "합성사"
 
 
 msgctxt "Operator"
@@ -90282,18 +90242,6 @@ msgid "Editable cavity curve"
 msgstr "편집 가능한 캐비티 커브"
 
 
-msgid "Default Eraser Brush"
-msgstr "기본 지우개 브러시"
-
-
-msgid "Default eraser brush for quickly alternating with the main brush"
-msgstr "기본 브러시와 빠르게 교체할 수 있는 기본 지우개 브러시"
-
-
-msgid "Eraser Brush Asset Reference"
-msgstr "지우개 브러시 어셋 참조"
-
-
 msgid "Active Palette"
 msgstr "활성 팔레트"
 
@@ -90794,6 +90742,14 @@ msgid "Panel containing UI elements"
 msgstr "UI 요소가 포함된 패널"
 
 
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTF 애니메이션"
+
+
 msgid "Active Tool"
 msgstr "활성 도구"
 
@@ -90804,10 +90760,6 @@ msgstr "뷰 잠금"
 
 msgid "Selectability & Visibility"
 msgstr "선택성 및 가시성"
-
-
-msgid "Wireframe Color"
-msgstr "와이어프레임 색상"
 
 
 msgid "Shadow Settings"
@@ -90862,14 +90814,6 @@ msgid "Curves Edit Mode"
 msgstr "커브 편집 모드"
 
 
-msgid "glTF Variants"
-msgstr "glTF 변형"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF 머티리얼 배리언트"
-
-
 msgid "Transform Orientations"
 msgstr "변환 오리엔테이션"
 
@@ -90896,14 +90840,6 @@ msgstr "어니언 스킨"
 
 msgid "Stereoscopy"
 msgstr "입체 영상"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTF 애니메이션"
 
 
 msgid "Multi Frame"
@@ -90936,6 +90872,14 @@ msgstr "VR"
 
 msgid "VR Info"
 msgstr "VR 정보"
+
+
+msgid "glTF Variants"
+msgstr "glTF 변형"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF 머티리얼 배리언트"
 
 
 msgid "Import Settings"
@@ -91980,10 +91924,6 @@ msgstr "리포지토리"
 
 msgid "Applications"
 msgstr "어플리케이션"
-
-
-msgid "Asset Libraries"
-msgstr "어셋 라이브러리"
 
 
 msgid "Development"
@@ -96091,16 +96031,8 @@ msgid "Catalan - Català"
 msgstr "카탈루냐어 - 카탈루냐어"
 
 
-msgid "Locale code: ca_AD. Translation progress: 100%"
-msgstr "로캘 코드: ca_AD. 번역 진행률: 100%"
-
-
 msgid "Chinese (Simplified) - 简体中文"
 msgstr "중국어(간체) - 简体中文"
-
-
-msgid "Locale code: zh_HANS. Translation progress: 100%"
-msgstr "로캘 코드: zh_HANS. 번역 진행률: 100%"
 
 
 msgid "Chinese (Traditional) - 繁體中文"
@@ -96163,16 +96095,8 @@ msgid "Georgian - ქართული"
 msgstr "그루지야어 - ქართული"
 
 
-msgid "Locale code: ka. Translation progress: 100%"
-msgstr "로캘 코드: ka. 번역 진행률: 100%"
-
-
 msgid "German - Deutsch"
 msgstr "독일어 - Deutsch"
-
-
-msgid "Locale code: de_DE. Translation progress: 37%"
-msgstr "로캘 코드: de_DE. 번역 진행률: 37%"
 
 
 msgid "Greek - Ελληνικά"
@@ -96279,10 +96203,6 @@ msgid "Russian - Русский"
 msgstr "러시아어 - Русский"
 
 
-msgid "Locale code: ru_RU. Translation progress: 100%"
-msgstr "로캘 코드: ru_RU. 번역 진행률: 100%"
-
-
 msgid "Serbian (Cyrillic) - Српски"
 msgstr "세르비아어(키릴어) - Српски"
 
@@ -96303,20 +96223,12 @@ msgid "Slovak - Slovenčina"
 msgstr "슬로바키아어 - Slovenčina"
 
 
-msgid "Locale code: sk_SK. Translation progress: 100%"
-msgstr "로캘 코드: sk_SK. 번역 진행률: 100%"
-
-
 msgid "Slovenian - Slovenščina"
 msgstr "슬로베니아어 - Slovenščina"
 
 
 msgid "Spanish - Español"
 msgstr "스페인어 - Español"
-
-
-msgid "Locale code: es. Translation progress: 100%"
-msgstr "로캘 코드: es. 번역 진행률: 100%"
 
 
 msgid "Swahili - Kiswahili"
@@ -98082,10 +97994,6 @@ msgid "Passes used by the denoiser to distinguish noise from shader and geometry
 msgstr "디노이저가 노이즈와 셰이더 및 지오메트리 디테일을 구분하는 데 사용하는 패스"
 
 
-msgid "Don't use utility passes for denoising"
-msgstr "노이즈 제거에 유틸리티 패스를 사용하지 마세요"
-
-
 msgid "Albedo"
 msgstr "알베도"
 
@@ -98582,58 +98490,6 @@ msgid "The probability of guiding a direction on a surface"
 msgstr "표면에서 방향을 안내할 확률"
 
 
-msgid "Viewport Texture Limit"
-msgstr "뷰포트 텍스처 제한"
-
-
-msgid "Limit texture size used by viewport rendering"
-msgstr "뷰포트 렌더링에 사용되는 텍스처 크기를 제한"
-
-
-msgid "No Limit"
-msgstr "제한이 없음"
-
-
-msgid "No texture size limit"
-msgstr "텍스처 크기 제한이 없음"
-
-
-msgid "Limit texture size to 128 pixels"
-msgstr "텍스처 크기를 128 픽셀로 제한"
-
-
-msgid "Limit texture size to 256 pixels"
-msgstr "텍스처 크기를 256 픽셀로 제한"
-
-
-msgid "Limit texture size to 512 pixels"
-msgstr "텍스처 크기를 512 픽셀로 제한"
-
-
-msgid "Limit texture size to 1024 pixels"
-msgstr "텍스처 크기를 1024 픽셀로 제한"
-
-
-msgid "Limit texture size to 2048 pixels"
-msgstr "텍스처 크기를 2048 픽셀로 제한"
-
-
-msgid "Limit texture size to 4096 pixels"
-msgstr "텍스처 크기를 4096 픽셀로 제한"
-
-
-msgid "Limit texture size to 8192 pixels"
-msgstr "텍스처 크기를 8192 픽셀로 제한"
-
-
-msgid "Render Texture Limit"
-msgstr "렌더 텍스처 제한"
-
-
-msgid "Limit texture size used by final rendering"
-msgstr "최종 렌더링에서 사용되는 텍스처 크기를 제한"
-
-
 msgid "Tile Size"
 msgstr "타일 크기"
 
@@ -99024,10 +98880,6 @@ msgstr "샘플링 메서드"
 
 msgid "How to sample the background light"
 msgstr "배경 라이트를 샘플링하는 방법"
-
-
-msgid "Don't sample the background, faster but might cause noise for non-solid backgrounds"
-msgstr "배경을 샘플링하지 마십시오. 빠르지만 단색이 아닌 배경에 노이즈가 발생할 수 있습니다"
 
 
 msgid "Automatically try to determine the best setting"
@@ -101171,10 +101023,6 @@ msgid "Override Scene Settings"
 msgstr "씬 설정을 오버라이드"
 
 
-msgid "Use workbench render settings from the sequencer scene, instead of each individual scene used in the strip"
-msgstr "스트립에서 사용되는 각각의 개별 씬 대신 시퀀서 씬의 워크벤치 렌더 설정을 사용"
-
-
 msgid "Use Simplify"
 msgstr "단순화를 사용"
 
@@ -103082,14 +102930,6 @@ msgid "Display the strip color tags in the sequencer"
 msgstr "시퀀서에 스트립 색상 태그를 표시함"
 
 
-msgid "Show Thumbnails"
-msgstr "썸네일 보기"
-
-
-msgid "Show strip thumbnails"
-msgstr "스트립 썸네일 표시"
-
-
 msgid "Waveform Style"
 msgstr "파형 스타일"
 
@@ -104815,6 +104655,10 @@ msgid "Scopes to visualize image statistics"
 msgstr "이미지 통계를 시각화하는 범위"
 
 
+msgid "Context sensitive gizmo for the active node"
+msgstr "활성 노드에 대한 컨텍스트 감지 기즈모"
+
+
 msgid "Show Mask Editor"
 msgstr "마스크 에디터를 표시"
 
@@ -105086,10 +104930,6 @@ msgstr "라인 스타일에서 셰이더 노드를 편집"
 
 msgid "Use active Viewer Node output as backdrop for compositing nodes"
 msgstr "컴포지팅 노드에 대해 배경 화면으로 활성 뷰어 노드 출력을 사용"
-
-
-msgid "Context sensitive gizmo for the active node"
-msgstr "활성 노드에 대한 컨텍스트 감지 기즈모"
 
 
 msgid "Supports Previews"
@@ -107201,14 +107041,6 @@ msgid "Fade effect using the built-in default (usually makes the transition as l
 msgstr "기본 제공 기본값을 사용한 페이드 효과(일반적으로 효과 스트립만큼 길게 전환됨)"
 
 
-msgid "Use Linear Modifiers"
-msgstr "선형 모디파이어 사용"
-
-
-msgid "Calculate modifiers in linear space instead of sequencer's space"
-msgstr "시퀀서의 공간의 대신 선형 공간에서 모디파이어를 계산"
-
-
 msgid "Sequence strip applying an effect on the images created by other strips"
 msgstr "다른 스트립으로 생성된 이미지에 이펙트를 적용하는 시퀀스 스트립"
 
@@ -108096,11 +107928,6 @@ msgstr "밝기/대비함"
 msgctxt "Sequence"
 msgid "Color Balance"
 msgstr "색상 균형 조정함"
-
-
-msgctxt "Sequence"
-msgid "Compositor"
-msgstr "합성사"
 
 
 msgctxt "Sequence"
@@ -110728,10 +110555,6 @@ msgid "Auto-Keying Mode"
 msgstr "자동-키잉 모드"
 
 
-msgid "Mode of automatic keyframe insertion for objects, bones and masks"
-msgstr "오브젝트, 뼈대 및 마스크에 대한 자동 키프레임 삽입 모드"
-
-
 msgid "Add & Replace"
 msgstr "추가 & 교체"
 
@@ -111196,10 +111019,6 @@ msgstr "주기적 외삽을 사용하는 채널의 경우 키프레임 삽입은
 
 msgid "Auto Keying"
 msgstr "자동 키잉"
-
-
-msgid "Automatic keyframe insertion for objects, bones and masks"
-msgstr "오브젝트, 뼈대 및 마스크에 대한 자동 키프레임 삽입"
 
 
 msgid "Auto Keyframe Insert Keying Set"
@@ -111949,16 +111768,16 @@ msgid "Import the assets as copied data-block while avoiding multiple copies of 
 msgstr "에셋을 복사된 데이터 블록으로 가져오면 일반적으로 무거운 중첩된 데이터의 여러 복사본을 피할 수 있습니다. 예를 들어 머티리얼 어셋의 텍스처나 오브젝트 어셋의 메시는 이 어셋을 임포트할 때마다 복사할 필요가 없습니다. 대신 어셋의 인스턴스가 데이터를 공유함"
 
 
-msgid "Identifier (not necessarily unique) for the asset library"
-msgstr "어셋 라이브러리의 식별자(반드시 고유할 필요는 없음)"
-
-
 msgid "Path to a directory with .blend files to use as an asset library"
 msgstr "어셋 라이브러리로 사용할 .블렌딩 파일이 있는 디렉토리 경로"
 
 
 msgid "Use relative path when linking assets from this asset library"
 msgstr "이 어셋 라이브러리에서 에셋을 연결할 때 상대 경로 사용"
+
+
+msgid "Use Remote"
+msgstr "원격 사용"
 
 
 msgid "Extension Repository"
@@ -112010,10 +111829,6 @@ msgstr "설치 후 파일 정리"
 
 msgid "Downloaded package files are deleted after installation"
 msgstr "다운로드한 패키지 파일은 설치 후 삭제함"
-
-
-msgid "Use Remote"
-msgstr "원격 사용"
 
 
 msgid "Synchronize the repository with a remote URL"
@@ -114355,10 +114170,6 @@ msgid "Follow a custom transformation to define the VR view's base pose"
 msgstr "커스텀 변환에 따라 VR 뷰의 기본 포즈를 정의함"
 
 
-msgid "Uniform scale to apply to VR view"
-msgstr "VR에 적용할 유니폼 스케일 뷰"
-
-
 msgid "VR viewport far clipping distance"
 msgstr "VR 뷰포트 원거리 클리핑 거리"
 
@@ -114502,10 +114313,6 @@ msgstr "뷰어 로테이션이나 회전을 결정할 때 기본 포즈에 적�
 
 msgid "Navigation Scale"
 msgstr "내비게이션 스케일"
-
-
-msgid "Additional scale multiplier to apply to base scale when determining viewer scale"
-msgstr "뷰어 스케일을 결정할 때 기본 스케일에 적용할 추가 스케일 승수"
 
 
 msgid "Selected Action Map"
@@ -116879,16 +116686,6 @@ msgstr "시퀀서 도구: 선택 상자 (폴백)"
 
 
 msgctxt "WindowManager"
-msgid "Sequencer Tool: Select Lasso"
-msgstr "시퀀서 도구: 올가미 선택"
-
-
-msgctxt "WindowManager"
-msgid "Sequencer Tool: Select Lasso (fallback)"
-msgstr "시퀀서 도구: 올가미 (폴백) 선택"
-
-
-msgctxt "WindowManager"
 msgid "Sequencer Tool: Select Circle"
 msgstr "시퀀서 도구: 원 선택"
 
@@ -116896,6 +116693,16 @@ msgstr "시퀀서 도구: 원 선택"
 msgctxt "WindowManager"
 msgid "Sequencer Tool: Select Circle (fallback)"
 msgstr "시퀀서 도구: 원형 선택 (폴백)"
+
+
+msgctxt "WindowManager"
+msgid "Sequencer Tool: Select Lasso"
+msgstr "시퀀서 도구: 올가미 선택"
+
+
+msgctxt "WindowManager"
+msgid "Sequencer Tool: Select Lasso (fallback)"
+msgstr "시퀀서 도구: 올가미 (폴백) 선택"
 
 
 msgctxt "WindowManager"
@@ -116944,16 +116751,6 @@ msgstr "미리보기 도구: 선택 상자 (폴백)"
 
 
 msgctxt "WindowManager"
-msgid "Preview Tool: Select Lasso"
-msgstr "미리보기 도구: 올가미 선택"
-
-
-msgctxt "WindowManager"
-msgid "Preview Tool: Select Lasso (fallback)"
-msgstr "미리보기 도구: 올가미 (폴백) 선택"
-
-
-msgctxt "WindowManager"
 msgid "Preview Tool: Select Circle"
 msgstr "미리보기 도구: 원 선택"
 
@@ -116961,6 +116758,16 @@ msgstr "미리보기 도구: 원 선택"
 msgctxt "WindowManager"
 msgid "Preview Tool: Select Circle (fallback)"
 msgstr "미리보기 도구: 원 선택(폴백)"
+
+
+msgctxt "WindowManager"
+msgid "Preview Tool: Select Lasso"
+msgstr "미리보기 도구: 올가미 선택"
+
+
+msgctxt "WindowManager"
+msgid "Preview Tool: Select Lasso (fallback)"
+msgstr "미리보기 도구: 올가미 (폴백) 선택"
 
 
 msgctxt "WindowManager"
@@ -118008,6 +117815,10 @@ msgid "OSL support disabled in this build"
 msgstr "이 빌드에서는 OSL 지원이 비활성화되었음"
 
 
+msgid "Object Index"
+msgstr "객체 인덱스함"
+
+
 msgid "Denoising completed"
 msgstr "노이즈 제거 완료"
 
@@ -118250,10 +118061,6 @@ msgstr "뷰포트 BVH"
 
 msgid "Max Subdivision"
 msgstr "최대 분할"
-
-
-msgid "Texture Limit"
-msgstr "텍스처 제한"
 
 
 msgid "Volume Resolution"
@@ -121103,6 +120910,10 @@ msgid "Mix Vector"
 msgstr "믹스 벡터"
 
 
+msgid "Determinant"
+msgstr "결정 요인"
+
+
 msgid "CSV (.csv)"
 msgstr "CSV(.csv)"
 
@@ -121131,12 +120942,12 @@ msgid "For Each Element"
 msgstr "각 요소에 대해"
 
 
-msgid "Determinant"
-msgstr "결정 요인"
-
-
 msgid "Calculation Range"
 msgstr "계산 범위"
+
+
+msgid "Frame Range Start"
+msgstr "프레임 범위 시작"
 
 
 msgid "Bake to Active Camera"
@@ -121188,10 +120999,6 @@ msgstr "+ 그룹 되지 않은 키 프레임"
 
 msgid "Before"
 msgstr "이전"
-
-
-msgid "Frame Range Start"
-msgstr "프레임 범위 시작"
 
 
 msgid "Collection Mask"
@@ -122197,16 +122004,16 @@ msgid "Pixels/{:s}"
 msgstr "픽셀/{:s}"
 
 
+msgid "By Active Tool"
+msgstr "활성 도구별"
+
+
 msgid "Mask Mapping"
 msgstr "마스크 매핑"
 
 
 msgid "Pressure Masking"
 msgstr "압력 마스킹"
-
-
-msgid "By Active Tool"
-msgstr "활성 도구별"
 
 
 msgid "Falloff Opacity"
@@ -122633,11 +122440,6 @@ msgstr "베이킹(디스크 캐시 필수)"
 msgctxt "Operator"
 msgid "Calculate to Frame"
 msgstr "프레임으로 계산"
-
-
-msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "모든 역학을 베이크"
 
 
 msgctxt "Operator"
@@ -123206,10 +123008,6 @@ msgstr "자르기"
 
 msgid "Two or more channels are needed below this strip"
 msgstr "이 스트립 아래에 두 개 이상의 채널이 필요합니다"
-
-
-msgid "Linear Modifiers"
-msgstr "선형 수정자"
 
 
 msgid "Second Basis"
@@ -125168,6 +124966,10 @@ msgid "Resolutions"
 msgstr "해상도"
 
 
+msgid "Workbench"
+msgstr "Workbench"
+
+
 msgid "Preview Zoom"
 msgstr "미리보기 Zoom"
 
@@ -125230,10 +125032,6 @@ msgstr "내부 속성"
 
 msgid "Wrap Around"
 msgstr "랩 어라운드"
-
-
-msgid "All Data-Blocks"
-msgstr "모든 데이터 블록"
 
 
 msgctxt "Text"
@@ -125525,6 +125323,16 @@ msgstr "신규"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "사본으로 저장..."
+
+
+msgctxt "Operator"
+msgid "Save Incremental"
+msgstr "증분 저장"
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "끝내기"
 
@@ -125636,16 +125444,6 @@ msgstr "마커 이름"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "이전으로 돌아 가기"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "사본으로 저장..."
-
-
-msgctxt "Operator"
-msgid "Save Incremental"
-msgstr "증분 저장"
 
 
 msgctxt "Operator"
@@ -127358,6 +127156,10 @@ msgid "Attribute Text"
 msgstr "속성 텍스트"
 
 
+msgid "Marker Names"
+msgstr "마커 이름"
+
+
 msgid "Mesh Edit Mode Overlays"
 msgstr "메시지 편집 모드 오버레이"
 
@@ -127969,16 +127771,24 @@ msgid "Specular Lighting"
 msgstr "반사 라이트닝"
 
 
+msgid "Ridge"
+msgstr "능선"
+
+
+msgid "Valley"
+msgstr "계곡"
+
+
+msgid "Screen Space"
+msgstr "화면 공간"
+
+
 msgid "Camera Guides"
 msgstr "카메라 가이드"
 
 
 msgid "Fade Inactive Geometry"
 msgstr "비활성 지오메트리 페이드"
-
-
-msgid "Marker Names"
-msgstr "마커 이름"
 
 
 msgid "Fade Geometry"
@@ -128158,18 +127968,6 @@ msgstr "프리스타일 에지를 지우기"
 msgctxt "Operator"
 msgid "Clear Freestyle Face"
 msgstr "프리스타일 페이스를 지우기"
-
-
-msgid "Ridge"
-msgstr "능선"
-
-
-msgid "Valley"
-msgstr "계곡"
-
-
-msgid "Screen Space"
-msgstr "화면 공간"
 
 
 msgid "Include Active"
@@ -128616,20 +128414,8 @@ msgid "Inserting keyframes failed:"
 msgstr "키프레임 삽입에 실패했습니다:"
 
 
-msgid "<No ID pointer>"
-msgstr "<No ID pointer>"
-
-
 msgid "Encountered unhandled error during keyframing"
 msgstr "키프레임 중 처리되지 않은 오차 발생"
-
-
-msgid "No F-Curve to add keyframes to"
-msgstr "다음으로 키 프레임을 추가하는 F-커브이 없음"
-
-
-msgid "No RNA pointer available to retrieve values for keyframing from"
-msgstr "키 프레임에 대한 값을 검색 할 수 있는 RNA 포인터가 없습니다"
 
 
 msgid "No ID block and/or AnimData to delete keyframe from"
@@ -128638,18 +128424,6 @@ msgstr "다음에서 키 프레임을 삭제하는 ID 블록 및/또는 AnimData
 
 msgid "No keys have been inserted and no errors have been reported."
 msgstr "키가 삽입되지 않았고 오류가 보고되지 않았음"
-
-
-msgid "Could not insert %i keyframe(s) due to zero NLA influence, base value, or value remapping failed: %s.%s for indices [%s]"
-msgstr "NLA 영향이 0이거나 기본값 또는 값 재매핑에 실패하여 %i 키 프레임을 삽입할 수 없습니다: 인덱스 [%s]의 경우 %s.%s"
-
-
-msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
-msgstr "RNA 경로가 지정된 ID에 유효하지 않으므로 키 프레임을 삽입 할 수 없습니다 (ID = %s, 경로 = %s)"
-
-
-msgid "Failed to insert keys on F-Curve with path '%s[%d]', ensure that it is not locked or sampled, and try removing F-Modifiers"
-msgstr "경로 '%s[%d]'로 F-커브에 키를 삽입하지 못했습니다. 잠겨 있거나 샘플링되지 않았는지 확인한 후 F-수정자를 제거해 보세요"
 
 
 msgid "Could not delete keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
@@ -128666,6 +128440,30 @@ msgstr "RNA 경로가 지정된 ID에 유효하지 않으므로 키 프레임을
 
 msgid "Skipping path in keying set, as it has no ID (KS = '%s', path = '%s[%d]')"
 msgstr "ID가 없기 때문에 키잉 설정에서 경로를 건너 뜁니다 (KS = '%s', path = '%s[%d]')"
+
+
+msgid "<No ID pointer>"
+msgstr "<No ID pointer>"
+
+
+msgid "No F-Curve to add keyframes to"
+msgstr "다음으로 키 프레임을 추가하는 F-커브이 없음"
+
+
+msgid "No RNA pointer available to retrieve values for keyframing from"
+msgstr "키 프레임에 대한 값을 검색 할 수 있는 RNA 포인터가 없습니다"
+
+
+msgid "Could not insert %i keyframe(s) due to zero NLA influence, base value, or value remapping failed: %s.%s for indices [%s]"
+msgstr "NLA 영향이 0이거나 기본값 또는 값 재매핑에 실패하여 %i 키 프레임을 삽입할 수 없습니다: 인덱스 [%s]의 경우 %s.%s"
+
+
+msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
+msgstr "RNA 경로가 지정된 ID에 유효하지 않으므로 키 프레임을 삽입 할 수 없습니다 (ID = %s, 경로 = %s)"
+
+
+msgid "Failed to insert keys on F-Curve with path '%s[%d]', ensure that it is not locked or sampled, and try removing F-Modifiers"
+msgstr "경로 '%s[%d]'로 F-커브에 키를 삽입하지 못했습니다. 잠겨 있거나 샘플링되지 않았는지 확인한 후 F-수정자를 제거해 보세요"
 
 
 msgid "\"%s\" is using Action \"%s\", which does not have a slot with identifier \"%s\" or \"%s\". Manually assign the right action slot to \"%s\"."
@@ -128982,10 +128780,6 @@ msgstr "4 x 4 실수 매트릭스"
 
 msgid "2D 16-Bit Integer"
 msgstr "2D 16비트 정수"
-
-
-msgid "Recast"
-msgstr "리캐스트"
 
 
 msgid "NGon Face"
@@ -130365,10 +130159,6 @@ msgstr "오차: 최대 쉐도우 업데이트에 도달함"
 
 msgid "Warning: Volume rendering data could not be allocated. Now using a resolution of 1:{} instead of 1:{}."
 msgstr "경고: 볼륨 렌더링 데이터를 할당할 수 없습니다. 이제 1:{} 대신 1:{}의 해상도를 사용함"
-
-
-msgid "Workbench"
-msgstr "Workbench"
 
 
 msgid "Error: Curves object contains too many points. Reduce curve resolution or curve count to fix this issue."
@@ -132120,10 +131910,6 @@ msgstr "예상 숫자"
 
 msgid "Paste expected 3 numbers, formatted: '[n, n, n]'"
 msgstr "예상 숫자 3개 붙여넣기 형식: '[n, n, n]'"
-
-
-msgid "Paste expected 4 numbers, formatted: '[n, n, n, n]'"
-msgstr "예상 숫자 4개 붙여넣기 형식: '[n, n, n, n]'"
 
 
 msgid "Unsupported key: Unknown"
@@ -134296,20 +134082,8 @@ msgid "Active object contains no collections"
 msgstr "활성 오브젝트에 컬렉션이 없습니다"
 
 
-msgid "Could not add the collection because it is overridden"
-msgstr "컬렉션이 오버라이드되어 추가할 수 없음"
-
-
-msgid "Could not add the collection because it is linked"
-msgstr "컬렉션이 연결되어 있어 추가할 수 없음"
-
-
 msgid "Could not add the collection because of dependency cycle detected"
 msgstr "종속성 사이클이 감지되어 컬렉션을 추가 할 수 없습니다"
-
-
-msgid "Cannot remove an object from a linked or library override collection"
-msgstr "링크된 또는 라이브러리 오버라이드 컬렉션에서 오브젝트를 제거할 수 없음"
 
 
 msgid "Cannot unlink a library override collection which is not the root of its override hierarchy"
@@ -134506,10 +134280,6 @@ msgstr "선택된 컬렉션이 없음"
 
 msgid "Unexpected error, collection not found"
 msgstr "예기치 않은 오류, 컬렉션을 찾을 수 없습니다"
-
-
-msgid "Cannot add objects to a library override or linked collection"
-msgstr "라이브러리 오버라이드 또는 연결된 컬렉션에 개체를 추가할 수 없음"
 
 
 msgid "Unable to change object mode while transforming"
@@ -136282,14 +136052,6 @@ msgid "Move the mouse to change the dyntopo detail size. LMB: confirm size, ESC/
 msgstr "마우스를 움직여 다이토포 디테일 크기를 변경합니다. LMB: 크기 확인, ESC/RMB: 취소, SHIFT: 정밀 모드, CTRL: 샘플 디테일 크기"
 
 
-msgid "Attribute Data Detected"
-msgstr "감지된 속성 데이터"
-
-
-msgid "Dyntopo will not preserve colors, UVs, or other attributes"
-msgstr "다이토포는 색상, UV 또는 기타 속성을 보존하지 없음"
-
-
 msgid "Generative Modifiers Detected!"
 msgstr "생성 모디파이어 감지됨!"
 
@@ -136849,14 +136611,6 @@ msgstr "다섯 명의 복싱 마법사가 빠르게 점프합니다! 0123456789"
 
 msgid "Path to asset library does not exist:"
 msgstr "어셋 라이브러리에 대한 경로가 존재하지 않습니다:"
-
-
-msgid ""
-"Asset Libraries are local directories that can contain .blend files with assets inside.\n"
-"Manage Asset Libraries from the File Paths section in Preferences"
-msgstr ""
-"어셋 라이브러리는 내부에 에셋이 포함된 .블렌딩 파일을 포함할 수 있는 로컬 디렉토리입니다.\n"
-"환경설정의 파일 경로 섹션에서 어셋 라이브러리를 관리함"
 
 
 msgid "Unreadable Blender library file:"
@@ -137834,6 +137588,14 @@ msgid "Cannot drag panel with no inputs"
 msgstr "입력이 없는 패널을 드래그할 수 없음"
 
 
+msgid "Render size too large for GPU, use CPU compositor instead"
+msgstr "렌더링 크기가 GPU에 비해 너무 커서 CPU 컴포지터를 대신 사용함"
+
+
+msgid "Compositing..."
+msgstr "합성 중..."
+
+
 msgid "Accessed named attributes:"
 msgstr "명명된 속성에 액세스했습니다:"
 
@@ -137868,14 +137630,6 @@ msgstr " 명명된 속성"
 
 msgid " Named Attributes"
 msgstr " 명명된 속성"
-
-
-msgid "Render size too large for GPU, use CPU compositor instead"
-msgstr "렌더링 크기가 GPU에 비해 너무 커서 CPU 컴포지터를 대신 사용함"
-
-
-msgid "Compositing..."
-msgstr "합성 중..."
 
 
 msgctxt "Operator"
@@ -138192,10 +137946,6 @@ msgstr "둘 이상의 컬렉션이 선택됨"
 
 msgid "Cannot add a new collection to linked/override scene"
 msgstr "링크된/오버라이드 씬에 새 컬렉션을 추가할 수 없음"
-
-
-msgid "No active collection"
-msgstr "활성 컬렉션이 없음"
 
 
 msgid "Cannot add a collection to a linked/override collection/scene"
@@ -141548,10 +141298,6 @@ msgstr "각형 굽힘 스프링이 있어야만 사용 가능함."
 
 msgid "Collection '%s' is not an original ID"
 msgstr "컬렉션 '%s'이 기존의 ID가 아님"
-
-
-msgid "Could not (un)link the object '%s' because the collection '%s' is linked"
-msgstr "해당 객체 '%s'를 컬렉션 '%s'에서 연결 해제할 수 없음"
 
 
 msgid "Object '%s' already in collection '%s'"
@@ -148543,14 +148289,6 @@ msgid "Inspection index is out of range"
 msgstr "검사 인덱스 범위 벗어남"
 
 
-msgid "Wrong Image Input Type"
-msgstr "잘못된 이미지 입력 유형"
-
-
-msgid "Wrong Mask Input Type"
-msgstr "잘못된 마스크 입력 유형"
-
-
 msgid "Unsupported Inputs"
 msgstr "지원되지 않는 입력"
 
@@ -148569,18 +148307,6 @@ msgstr "무시된 출력"
 
 msgid "Unused Output"
 msgstr "사용되지 않는 출력"
-
-
-msgid "Node group's main Image input should be of type Color"
-msgstr "노드 그룹의 주요 이미지 입력은 컬러 유형이어야 합니다."
-
-
-msgid "Node group's Mask input should be of type Color"
-msgstr "노드 그룹의 마스크 입력은 컬러 유형이어야 합니다."
-
-
-msgid "Only a main Image and Mask inputs are supported, the rest are unsupported and will return zero"
-msgstr "주요 이미지와 마스크 입력만 지원되며 나머지는 지원되지 않아 0을 반환합니다."
 
 
 msgid "Node group must have a Color output socket"
@@ -148605,11 +148331,6 @@ msgstr "자신 내부에 노드 그룹을 중첩하는 것은 허용되지 않�
 
 msgid "Node group has different type"
 msgstr "노드 그룹 유형이 다름"
-
-
-msgctxt "NodeTree"
-msgid "Missing Data-Block"
-msgstr "데이터 블록 누락"
 
 
 msgid "Instances in input geometry are ignored"
@@ -149439,10 +149160,6 @@ msgid "Color that encodes the normal map in the specified space"
 msgstr "지정된 공간에서 정규 맵을 인코딩하는 색상함"
 
 
-msgid "Object Index"
-msgstr "객체 인덱스함"
-
-
 msgid "Color Fac"
 msgstr "컬러 페이스함"
 
@@ -150169,6 +149886,10 @@ msgid "unable to open the file"
 msgstr "파일을 열 수 없음"
 
 
+msgid "Save %u modified image(s)"
+msgstr "%u개의 수정된 이미지 저장함"
+
+
 msgid "For security reasons, automatic execution of Python scripts in this file was disabled:"
 msgstr "보안 이유로 이 파일에서 Python 스크립트의 자동 실행이 비활성화되었습니다:"
 
@@ -150231,10 +149952,6 @@ msgstr "현재 OpenColorIO 설정으로 파일 덮어쓰시겠습니까?"
 
 msgid "Save changes before closing?"
 msgstr "닫기 전 변경 사항 저장하시겠습니까?"
-
-
-msgid "Save %u modified image(s)"
-msgstr "%u개의 수정된 이미지 저장함"
 
 
 msgid "Loaded a pre-2.50 blend file, animation data has not been loaded. Open & save the file with Blender v4.5 to convert animation data."

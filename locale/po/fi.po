@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3181,24 +3181,8 @@ msgid "Stroke"
 msgstr "Piirto"
 
 
-msgid "Vertex Color affects to Stroke only"
-msgstr "Kärkiväri vaikuttaa ainoastaan viivaan"
-
-
 msgid "Fill"
 msgstr "Täytä"
-
-
-msgid "Vertex Color affects to Fill only"
-msgstr "Kärkiväri vaikuttaa ainoastaan täyttöön"
-
-
-msgid "Stroke & Fill"
-msgstr "Piirrä & täytä"
-
-
-msgid "Vertex Color affects to Stroke and Fill"
-msgstr "Kärkiväri vaikuttaa viivaan ja täyttöön"
 
 
 msgid "Byte Color Attribute Value"
@@ -7248,28 +7232,36 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Math"
+msgstr "Matematiikka"
 
 
-msgid "Metaball"
-msgstr "Metapallo"
+msgid "Names"
+msgstr "Nimet"
 
 
-msgid "Read"
-msgstr "Lue"
+msgid "Utilities"
+msgstr "Työkalut"
 
 
 msgid "Show/Hide"
 msgstr "Näytä/Piilota"
 
 
+msgid "Read"
+msgstr "Lue"
+
+
 msgid "Write"
 msgstr "Kirjoita"
 
 
-msgid "Names"
-msgstr "Nimet"
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
 
 
 msgid "UV Mapping"
@@ -7278,6 +7270,10 @@ msgstr "UV-kartoittaminen"
 
 msgid "Select More/Less"
 msgstr "Valitse enemmän/vähemmän"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -7292,12 +7288,8 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "Utilities"
-msgstr "Työkalut"
-
-
-msgid "Math"
-msgstr "Matematiikka"
+msgid "Metaball"
+msgstr "Metapallo"
 
 
 msgid "Light"
@@ -7326,14 +7318,6 @@ msgstr "Satunnainen maski"
 
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
 
 
 msgid "Basic"
@@ -7597,6 +7581,10 @@ msgstr "UV-partikkeli"
 
 msgid "Protect"
 msgstr "Suojaa"
+
+
+msgid "Stroke & Fill"
+msgstr "Piirrä & täytä"
 
 
 msgid "Read Data"
@@ -12158,6 +12146,10 @@ msgid "Downloading..."
 msgstr "Ladataan..."
 
 
+msgid "Object Index"
+msgstr "Objekti-indeksi"
+
+
 msgid "Viewports"
 msgstr "Näkymät"
 
@@ -13228,6 +13220,10 @@ msgid "Text"
 msgstr "Teksti"
 
 
+msgid "Workbench"
+msgstr "Työtila"
+
+
 msgid "Add Transition"
 msgstr "Lisää siirtymä"
 
@@ -13265,6 +13261,11 @@ msgstr "Uusi"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Tallenna kopio..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Poistu"
 
@@ -13297,11 +13298,6 @@ msgstr "Toista historia..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Mieltymykset..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Tallenna kopio..."
 
 
 msgid "More..."
@@ -13671,10 +13667,6 @@ msgstr "Veistäminen"
 
 msgid "VFX"
 msgstr "VFX"
-
-
-msgid "Workbench"
-msgstr "Työtila"
 
 
 msgid "Create"
@@ -14508,10 +14500,6 @@ msgstr "Kuvaa ei kyetty löytämään"
 
 msgid "No active camera set"
 msgstr "Ei aktiivista kamerasarjaa"
-
-
-msgid "Attribute Data Detected"
-msgstr "Attribuutti-data havaittu"
 
 
 msgid "PaintCurve"
@@ -16395,10 +16383,6 @@ msgstr "Väri2"
 
 msgid "Dot"
 msgstr "Piste"
-
-
-msgid "Object Index"
-msgstr "Objekti-indeksi"
 
 
 msgid "Color Fac"
