@@ -124,7 +124,7 @@ ShapePoint shape_point_get(const Point pt, const float3 V, const float3 up_axis)
 float3 get_point_position(const int point_id)
 {
   auto &buf = sampler_get(draw_pointcloud, ptcloud_pos_tx);
-  return texelFetch(buf, point_id);
+  return texelFetch(buf, point_id).rgb;
 }
 
 float get_customdata_float(const int point_id, const samplerBuffer cd_buf)
