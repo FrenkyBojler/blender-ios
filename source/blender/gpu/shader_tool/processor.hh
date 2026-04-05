@@ -333,8 +333,10 @@ class SourceProcessor {
    * Return the fallback value in any case of non-literal value, or failed conversion. */
   int static_array_size(const Scope &array, int fallback_value);
 
+  /* Process struct declaration and instantiate it in this file. */
   void process_template_struct(metadata::TemplateDefinition &template_def,
                                SourceProcessor::Parser &parser);
+  /* Process templated function (or class method) declaration and instantiate it in this file. */
   void process_template_function(metadata::TemplateDefinition &template_def,
                                  SourceProcessor::Parser &parser,
                                  /* If method, the end token of the template inside the struct. */
@@ -347,13 +349,9 @@ class SourceProcessor {
       /* If method, the end token of the template inside the struct. */
       const Token method_end,
       const Token &inst_start,
-      const Token &inst_name,
       const Scope &inst_args,
       const metadata::TemplateDefinition template_def,
       const Token &symbol_name,
-      /* Method template instantiation reside outside of their struct.
-       * For this reason they have the struct name_prepended. */
-      const std::string_view full_specified_name,
       const std::vector<std::string> &arg_list,
       const std::string &fn_decl,
       const bool all_template_args_in_function_signature);
@@ -368,6 +366,8 @@ class SourceProcessor {
                                Scope ns,
                                metadata::Source &metadata,
                                std::string filepath);
+
+  std::string template_full_specified_name(metadata::TemplateDefinition &template_def);
 
  public:
   /* Check for existence of preprocessor pragma in file. */

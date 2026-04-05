@@ -103,15 +103,6 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
         /* Template specialization.*/
         return;
       }
-      /* Template definition.*/
-      Token def_start = t;
-      Scope template_args = def_start.next().scope();
-      /* Skip arguments. */
-      Token tok_type = template_args.back().next();
-
-      Token body_start = t.find_next(BracketOpen);
-      Token def_end = body_start.scope().back();
-
       TemplateDefinition symbol = SourceProcessor::parse_template_definition(
           parser, t, is_method, ns_scope, filepath);
       metadata.template_definitions.emplace_back(symbol);

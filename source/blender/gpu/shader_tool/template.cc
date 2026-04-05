@@ -35,6 +35,14 @@ string SourceProcessor::template_arguments_mangle(const Scope template_args)
   return args_concat;
 }
 
+string SourceProcessor::template_full_specified_name(metadata::TemplateDefinition &template_def)
+{
+  SourceProcessor::Parser name_parser(template_def.name_space + template_def.identifier,
+                                      report_error_);
+  lower_scope_resolution_operators(name_parser);
+  return name_parser.result_get();
+}
+
 static void parse_template_definition_args(const Scope arg,
                                            vector<string> &arg_list,
                                            const Scope fn_args,
@@ -47,11 +55,6 @@ static void parse_template_definition_args(const Scope arg,
   const string_view type_str = type.str();
 
   arg_list.emplace_back(name_str);
-
-  if (arg.contains_token('=')) {
-    report_error(ERROR_TOK(arg[0]),
-                 "Default arguments are not supported inside template declaration");
-  }
 
   if (type_str == "typename") {
     bool found = false;
@@ -84,108 +87,110 @@ void SourceProcessor::lower_template_instantiation(
     /* If method, the end token of the template inside the struct. */
     const Token method_end,
     const Token &inst_start,
-    const Token &inst_name,
     const Scope &inst_args,
     const metadata::TemplateDefinition template_def,
     const Token &symbol_name,
-    /* Method template instantiation reside outside of their struct.
-     * For this reason they have the struct name_prepended. */
-    const string_view full_specified_name,
     const vector<string> &arg_list,
     const string &fn_decl,
     const bool all_template_args_in_function_signature)
 {
-  if (full_specified_name != inst_name.str()) {
-    return;
-  }
-
-  string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
-  string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
-  const bool same_file = template_filename == instance_filename;
-  if (same_file) {
-    /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
-    template_filename = "";
-    instance_filename = "";
-  }
-
-  const Token inst_end = inst_start.find_next(SemiColon);
+  const bool same_file = template_def.filepath == filepath_;
+  /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
+  const string instance_filename = same_file ? string("") :
+                                               filepath_.substr(filepath_.find_last_of('/') + 1);
+  const string template_filename = same_file ? string("") :
+                                               template_def.filepath.substr(
+                                                   filepath_.find_last_of('/') + 1);
 
   /* Parse template values. */
   vector<pair<string, string>> arg_name_value_pairs;
-  int i = 0;
-  inst_args.foreach_scope(ScopeType::TemplateArg, [&](const Scope &arg) {
-    if (i < arg_list.size()) {
-      arg_name_value_pairs.emplace_back(arg_list[i], arg.str());
+  {
+    int arg_count = 0;
+    inst_args.foreach_scope(ScopeType::TemplateArg, [&](const Scope &arg) {
+      if (arg_count < arg_list.size()) {
+        arg_name_value_pairs.emplace_back(arg_list[arg_count], arg.str());
+      }
+      arg_count++;
+    });
+    if (arg_count != arg_list.size()) {
+      report_error_(ERROR_TOK(inst_args.front()),
+                    "Invalid amount of argument in template instantiation.");
+      return;
     }
-    i++;
-  });
-  if (i != arg_list.size()) {
-    report_error_(ERROR_TOK(inst_args.front()),
-                  "Invalid amount of argument in template instantiation.");
   }
-
-  const bool is_struct = (symbol_name.prev() == Struct);
 
   /* Specialize template content. */
-  SourceProcessor::Parser instance_parser(fn_decl, report_error_);
+  string instance_content;
+  {
+    SourceProcessor::Parser instance_parser(fn_decl, report_error_);
 
-  /* Inject namespace around definition. */
-  if (template_def.name_space.empty()) {
-    instance_parser.insert_before(instance_parser.front(), "\n");
-    instance_parser.insert_after(instance_parser.back(), "\n");
-  }
-  else {
-    /* Remove suffix "::". */
-    string ns_name(template_def.name_space.substr(0, template_def.name_space.size() - 2));
-    instance_parser.insert_before(instance_parser.front(), "namespace " + ns_name + " {\n");
-    instance_parser.insert_after(instance_parser.back(), "\n}\n");
-  }
-
-  /* Insert line directive. Important for symbol namespace resolution and error logging. */
-  instance_parser.insert_before(
-      instance_parser.front(),
-      "\n#line " + std::to_string(same_file ? template_def.definition_line : 0) + "\n");
-
-  instance_parser().foreach_token(Word, [&](const Token &word) {
-    string_view token_str = word.str();
-    for (const auto &arg_name_value : arg_name_value_pairs) {
-      if (token_str == arg_name_value.first) {
-        instance_parser.replace(word, arg_name_value.second, true);
-      }
+    /* Inject namespace around definition for symbols namespaces resolution. */
+    if (template_def.name_space.empty()) {
+      instance_parser.insert_before(instance_parser.front(), "\n");
+      instance_parser.insert_after(instance_parser.back(), "\n");
     }
-    if (is_struct && word.next() != AngleOpen && token_str == symbol_name.str()) {
+    else {
+      /* Remove suffix "::". */
+      string ns_name(template_def.name_space.substr(0, template_def.name_space.size() - 2));
+      instance_parser.insert_before(instance_parser.front(), "namespace " + ns_name + " {\n");
+      instance_parser.insert_after(instance_parser.back(), "\n}\n");
+    }
+
+    /* Insert line directive. Important for symbol namespace resolution and error logging. */
+    instance_parser.insert_before(
+        instance_parser.front(),
+        "\n#line " + std::to_string(same_file ? template_def.definition_line : 0) + " " +
+            template_filename + "\n");
+
+    instance_parser().foreach_token(Word, [&](const Token &word) {
+      string_view token_str = word.str();
+
+      /* Replace each parameter appearance inside the instance. */
+      for (const auto &arg_name_value : arg_name_value_pairs) {
+        if (token_str == arg_name_value.first) {
+          instance_parser.replace(word, arg_name_value.second, true);
+        }
+      }
       /* Append template args after unspecified struct typename references.
        * `A func(A<T> b) {}` > `A<T> func(A<T> b) {}`. */
-      instance_parser.insert_after(word.str_index_last_no_whitespace(),
+      if (template_def.is_struct && word.next() != AngleOpen && token_str == symbol_name.str()) {
+        instance_parser.insert_after(word.str_index_last_no_whitespace(),
+                                     SourceProcessor::template_arguments_mangle(inst_args));
+      }
+    });
+
+    /* Position of symbol name declaration. */
+    size_t symbol_name_pos = instance_parser.str().find(" " + string(symbol_name.str()));
+
+    /* Append template args after function name if needed. This is required by BSL specification.
+     * `void func() {}` > `void func<a, 1>() {}`. */
+    if (!template_def.is_struct && !all_template_args_in_function_signature) {
+      instance_parser.insert_after(symbol_name_pos + symbol_name.str().size(),
                                    SourceProcessor::template_arguments_mangle(inst_args));
     }
-  });
+    /* Append namespace to symbol name because the appended mangled arguments (above) make
+     * namespace resolution impossible. Methods do not need it because they are instanciated inside
+     * their struct. They will get the correct namespace prefix (if they are static) later on. */
+    if (!template_def.is_method) {
+      instance_parser.insert_after(symbol_name_pos, string(template_def.name_space));
+    }
 
-  size_t symbol_name_pos = instance_parser.str().find(" " + string(symbol_name.str()));
-  /* Append namespace to symbol name because appended mangled arguments make namespace
-   * resolution impossible. */
-  if (!template_def.is_method) {
-    instance_parser.insert_after(symbol_name_pos, string(template_def.name_space));
+    instance_parser.apply_mutations();
+
+    lower_pre_template(instance_parser);
+
+    /* Paste template content in place of instantiation. */
+    instance_content = instance_parser.result_get();
+    /* Remove added first line from the injected namespace. */
+    instance_content = instance_content.substr(instance_content.find_first_of('\n') + 1);
   }
-  if (!is_struct && !all_template_args_in_function_signature) {
-    /* Append template args after function name.
-     * `void func() {}` > `void func<a, 1>() {}`. */
-    instance_parser.insert_after(symbol_name_pos + symbol_name.str().size(),
-                                 SourceProcessor::template_arguments_mangle(inst_args));
-  }
-  instance_parser.apply_mutations();
 
-  lower_pre_template(instance_parser);
-
-  /* Paste template content in place of instantiation. */
-  string instance = instance_parser.result_get();
-
-  /* Remove added newline from the injected namespace. */
-  instance = instance.substr(instance.find_first_of('\n') + 1);
-
+  const Token inst_end = inst_start.find_next(SemiColon);
   /* Method are put back in their classes. */
-  Token insert_at = template_def.is_method ? method_end : inst_end;
-  parser.insert_after(insert_at, instance);
+  const Token insert_at = template_def.is_method ? method_end : inst_end;
+
+  /* Insert instantiation content. Instance line directived was already added. */
+  parser.insert_after(insert_at, instance_content);
   parser.insert_line_number(insert_at, insert_at.line_number(true), instance_filename);
 }
 
@@ -253,57 +258,56 @@ void SourceProcessor::lower_template_specialization(Parser &parser)
 void SourceProcessor::process_template_struct(metadata::TemplateDefinition &template_def,
                                               SourceProcessor::Parser &parser)
 {
-  if (parser.str().find(template_def.identifier) == string::npos) {
-    /* Avoid running parser if there is no instantiation. */
-    return;
-  }
+  struct DefinitionParser {
+    SourceProcessor::Parser def_parser;
+    const Scope template_scope = def_parser[1].scope();
+    const Token struct_start = template_scope.back().next();
+    const Token struct_name = struct_start.next();
+    const Scope struct_body = struct_name.next().scope();
+    const Token struct_end = struct_body.back().next();
+    const string struct_decl = def_parser.substr_range_inclusive(struct_start, struct_end);
+    bool all_template_args_in_function_signature = false;
+    vector<string> arg_list;
 
-  SourceProcessor::Parser def_parser(template_def.definition, report_error_);
+    /* Parse template declaration. */
+    DefinitionParser(metadata::TemplateDefinition &template_def,
+                     SourceProcessor::report_callback report_error)
+        : def_parser(template_def.definition, report_error)
+    {
+      template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
+        parse_template_definition_args(arg,
+                                       arg_list,
+                                       Scope(def_parser),
+                                       all_template_args_in_function_signature,
+                                       report_error);
+      });
+    }
+  };
 
-  assert(def_parser[0] == Template);
-
-  Scope template_scope = def_parser[1].scope();
-  assert(template_scope.type() == ScopeType::Template);
-
-  /* Parse template declaration. */
-  Token struct_start = template_scope.back().next();
-  assert(struct_start == Struct);
-
-  Token struct_name = struct_start.next();
-  Scope struct_body = struct_name.next().scope();
-
-  Token struct_end = struct_body.back().next();
-  const string struct_decl = def_parser.substr_range_inclusive(struct_start, struct_end);
-
-  vector<string> arg_list;
-  bool all_template_args_in_function_signature = false;
-  template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-    parse_template_definition_args(
-        arg, arg_list, Scope(def_parser), all_template_args_in_function_signature, report_error_);
-  });
-
-  /* Remove template parameters declaration. */
-  Token template_keyword = template_scope.front().prev();
-  def_parser.erase(template_keyword, struct_end);
-
-  string full_specified_name(template_def.name_space + template_def.identifier);
-  SourceProcessor::Parser name_parser(full_specified_name, report_error_);
-  lower_scope_resolution_operators(name_parser);
-  full_specified_name = name_parser.result_get();
-
+  /* Only parse if there is an instantiation. */
+  unique_ptr<DefinitionParser> def_parser;
+  /* Since we already lowered the namespaces in main parser, we need to search for the namespace
+   * resolved symbol name. */
+  const string full_specified_name = template_full_specified_name(template_def);
   /* Replace instantiations. */
   parser().foreach_match("tsA<", [&](const vector<Token> &tokens) {
+    if (full_specified_name != tokens[2].str()) {
+      return;
+    }
+
+    if (!def_parser) {
+      def_parser = make_unique<DefinitionParser>(template_def, report_error_);
+    }
+
     lower_template_instantiation(parser,
                                  Token::invalid(&parser),
                                  tokens[0],
-                                 tokens[2],
                                  tokens[3].scope(),
                                  template_def,
-                                 struct_name,
-                                 full_specified_name,
-                                 arg_list,
-                                 struct_decl,
-                                 all_template_args_in_function_signature);
+                                 def_parser->struct_name,
+                                 def_parser->arg_list,
+                                 def_parser->struct_decl,
+                                 def_parser->all_template_args_in_function_signature);
   });
 }
 
@@ -313,86 +317,66 @@ void SourceProcessor::process_template_function(
     /* If method, the end token of the template inside the struct. */
     const Token method_end)
 {
-  if (parser.str().find(template_def.identifier) == string::npos) {
-    /* Avoid running parser if there is no instantiation. */
-    return;
-  }
+  struct DefinitionParser {
+    SourceProcessor::Parser def_parser;
+    const Scope template_scope = def_parser[1].scope();
+    const Token fn_start = template_scope.back().next();
+    /* Skip attributes */
+    const Token after_attr = fn_start == SquareOpen ? fn_start.scope().back().next() : fn_start;
+    const Scope fn_args = after_attr.find_next(ParOpen).scope();
+    const Token fn_name = fn_args.front().prev();
+    const Token fn_end = fn_args.back().find_next(BracketOpen).scope().back();
+    const string fn_decl = def_parser.substr_range_inclusive(fn_start, fn_end);
 
-  SourceProcessor::Parser def_parser(template_def.definition, report_error_);
+    bool all_template_args_in_function_signature = true;
+    vector<string> arg_list;
 
-  const Scope template_scope = def_parser[1].scope();
-  assert(template_scope.type() == ScopeType::Template);
+    /* Parse template declaration. */
+    DefinitionParser(metadata::TemplateDefinition &template_def,
+                     SourceProcessor::report_callback report_error)
+        : def_parser(template_def.definition, report_error)
+    {
+      assert(fn_start.is_valid() && fn_name.is_valid() && fn_args.is_valid() &&
+             template_scope.is_valid() && fn_end.is_valid());
 
-  /* Parse template declaration. */
-  const Token fn_start = template_scope.back().next();
-  Token after_attr = fn_start;
-  /* Skip attributes. */
-  while (after_attr == SquareOpen) {
-    after_attr = after_attr.scope().back().next();
-  }
-  const Scope fn_args = after_attr.find_next(ParOpen).scope();
-  const Token fn_name = fn_args.front().prev();
-  const Token fn_end = fn_args.back().find_next(BracketOpen).scope().back();
+      template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
+        parse_template_definition_args(
+            arg, arg_list, fn_args, all_template_args_in_function_signature, report_error);
+      });
+    }
+  };
 
-  assert(fn_start.is_valid() && fn_name.is_valid() && fn_args.is_valid() &&
-         template_scope.is_valid() && fn_end.is_valid());
-
-  bool error = false;
-  template_scope.foreach_match("=", [&](const vector<Token> &tokens) {
-    report_error_(tokens[0].line_number(),
-                  tokens[0].char_number(),
-                  tokens[0].line_str(),
-                  "Default arguments are not supported inside template declaration");
-    error = true;
-  });
-  if (error) {
-    return;
-  }
-
-  /* Remove template parameters declaration. */
-  Token template_keyword = template_scope.front().prev();
-  def_parser.erase(template_keyword, fn_end);
-
-  vector<string> arg_list;
-  bool all_template_args_in_function_signature = true;
-  template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-    parse_template_definition_args(
-        arg, arg_list, fn_args, all_template_args_in_function_signature, report_error_);
-  });
-
-  const string fn_decl = def_parser.substr_range_inclusive(fn_start, fn_end);
-
-  string full_specified_name(template_def.name_space + template_def.identifier);
-  SourceProcessor::Parser name_parser(full_specified_name, report_error_);
-  lower_scope_resolution_operators(name_parser);
-  full_specified_name = name_parser.result_get();
-
-  string template_filename = template_def.filepath.substr(filepath_.find_last_of('/') + 1);
-  string instance_filename = filepath_.substr(filepath_.find_last_of('/') + 1);
-
-  if (template_filename == instance_filename) {
-    /* Avoid adding noise in the source file if instance is inside the same file as declaration. */
-    template_filename = "";
-    instance_filename = "";
-  }
-
+  /* Only parse if there is an instantiation. */
+  unique_ptr<DefinitionParser> def_parser;
+  /* Since we already lowered the namespaces in main parser, we need to search for the namespace
+   * resolved symbol name. */
+  const string full_specified_name = template_full_specified_name(template_def);
+  /* Replace instantiations. */
   parser().foreach_match("tAA<", [&](const vector<Token> &tokens) {
+    if (full_specified_name != tokens[2].str()) {
+      return;
+    }
+
+    if (!def_parser) {
+      def_parser = make_unique<DefinitionParser>(template_def, report_error_);
+    }
+
     lower_template_instantiation(parser,
                                  method_end,
                                  tokens[0],
-                                 tokens[2],
                                  tokens[3].scope(),
                                  template_def,
-                                 fn_name,
-                                 full_specified_name,
-                                 arg_list,
-                                 fn_decl,
-                                 all_template_args_in_function_signature);
+                                 def_parser->fn_name,
+                                 def_parser->arg_list,
+                                 def_parser->fn_decl,
+                                 def_parser->all_template_args_in_function_signature);
   });
 }
 
 void SourceProcessor::lower_templates(Parser &parser)
 {
+  /* Lint missing template arguments in instantiation and specialization.
+   * This is required by the BSL spec in order to simplify implementation. */
   auto lint_explicit = [&](const Token symbol_name) {
     if (symbol_name.next().scope().type() != parser::ScopeType::Template) {
       report_error_(
@@ -405,12 +389,15 @@ void SourceProcessor::lower_templates(Parser &parser)
   parser().foreach_match("tAA", [&](const vector<Token> &toks) { lint_explicit(toks[2]); });
   parser().foreach_match("tA<..>A", [&](const vector<Token> &toks) { lint_explicit(toks[6]); });
 
-  /* Delete definitions. */
+  /* Delete templated struct and function definitions (not methods! see later).
+   * They were already parsed by `SourceProcessor::parse_namespace_symbols`. */
+  bool error = false;
   parser().foreach_match("t<..>", [&](const vector<Token> &toks) {
     /* Default arguments are not supported. */
     toks[1].scope().foreach_token(Assign, [&](Token tok) {
       report_error_(ERROR_TOK(tok),
                     "Default arguments are not supported inside template declaration");
+      error = true;
     });
 
     Token end = toks[0].find_next(BracketOpen).scope().back();
@@ -438,14 +425,18 @@ void SourceProcessor::lower_templates(Parser &parser)
   }
   parser.apply_mutations();
 
-  /* Then process methods. Can only process methods if their struct exists in the same file. */
+  /* Then process methods. We can only process methods if their struct exists in the same file.
+   * This holds true for instanciated struct templates. */
   parser().foreach_struct([&](Token, Scope, Token, Scope body) {
     body.foreach_match("t<..>", [&](const vector<Token> &toks) {
+      /* Sincte this can be an instanciated struct, we need to make sure to instanciate its own
+       * methods. Hence the need to parse the definition. */
       TemplateDefinition template_def = parse_template_definition(
           parser, toks[0], true, toks[0].scope(), filepath_);
+      /* Insertion point of the instantiation. */
       Token method_end = toks[0].find_next(BracketOpen).scope().back();
-      process_template_function(template_def, parser, method_end);
 
+      process_template_function(template_def, parser, method_end);
       /* Delete definitions. */
       parser.erase(toks[0], method_end);
     });
