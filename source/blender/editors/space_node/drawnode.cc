@@ -1365,7 +1365,28 @@ static void std_node_socket_draw(
     case SOCK_MATERIAL:
     case SOCK_SCENE:
     case SOCK_TEXT_ID:
-    case SOCK_MASK:
+    case SOCK_MASK: {
+      if (optional_label) {
+        layout->prop(ptr,
+                     RNA_struct_find_property(ptr, "default_value"),
+                     -1,
+                     0,
+                     DEFAULT_FLAGS,
+                     "",
+                     ICON_NONE,
+                     std::optional(label));
+      }
+      else {
+        layout->prop(ptr,
+                     RNA_struct_find_property(ptr, "default_value"),
+                     -1,
+                     0,
+                     DEFAULT_FLAGS,
+                     label,
+                     ICON_NONE);
+      }
+      break;
+    }
     case SOCK_SOUND: {
       if (optional_label) {
         template_id(layout, C, ptr, "default_value", nullptr, "SOUND_OT_open", nullptr);
