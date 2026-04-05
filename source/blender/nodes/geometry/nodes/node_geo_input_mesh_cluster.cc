@@ -19,14 +19,14 @@ namespace blender::nodes::node_geo_input_mesh_cluster_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("Selection").default_value(false).hide_value().supports_field();
-  b.add_input<decl::Vector>("Position")
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(false).hide_value().supports_field();
+  b.add_input<decl::Vector>("Position"_ustr)
       .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .supports_field();
-  b.add_input<decl::Float>("Weight").default_value(1.0f).hide_value().supports_field();
-  b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Float>("Weight"_ustr).default_value(1.0f).hide_value().supports_field();
+  b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
 
-  b.add_output<decl::Int>("Cluster ID").field_source().reference_pass_all();
+  b.add_output<decl::Int>("Cluster ID"_ustr).field_source().reference_pass_all();
 }
 
 class MeshClusterFieldInput final : public bke::MeshFieldInput {
@@ -47,7 +47,6 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
         weight_field_(std::move(weight_field)),
         min_distance_(min_distance)
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
@@ -147,11 +146,11 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
         VArray<int>::from_container(std::move(cluster_indices)), AttrDomain::Point, domain);
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    selection_field_.node().for_each_field_input_recursive(fn);
-    position_field_.node().for_each_field_input_recursive(fn);
-    weight_field_.node().for_each_field_input_recursive(fn);
+    fn(selection_field_);
+    fn(position_field_);
+    fn(weight_field_);
   }
 
   uint64_t hash() const override
@@ -159,7 +158,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
     return get_default_hash(selection_field_, position_field_, weight_field_, min_distance_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const MeshClusterFieldInput *other_field = dynamic_cast<const MeshClusterFieldInput *>(
             &other))
@@ -189,12 +188,12 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Cluster ID",
-                    Field<int>(std::make_shared<MeshClusterFieldInput>(
-                        params.extract_input<Field<bool>>("Selection"),
-                        params.extract_input<Field<float3>>("Position"),
-                        params.extract_input<Field<float>>("Weight"),
-                        params.extract_input<float>("Distance"))));
+  params.set_output("Cluster ID"_ustr,
+                    Field<int>::from_input<MeshClusterFieldInput>(
+                        params.extract_input<Field<bool>>("Selection"_ustr),
+                        params.extract_input<Field<float3>>("Position"_ustr),
+                        params.extract_input<Field<float>>("Weight"_ustr),
+                        params.extract_input<float>("Distance"_ustr)));
 }
 
 static void node_register()

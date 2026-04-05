@@ -14,15 +14,15 @@ namespace blender::nodes::node_geo_cluster_field_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Position")
+  b.add_input<decl::Vector>("Position"_ustr)
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .structure_type(StructureType::Field);
 
-  b.add_input<decl::Int>("Group ID").supports_field().hide_value();
-  b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
-  b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
+  b.add_input<decl::Int>("Group ID"_ustr).supports_field().hide_value();
+  b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).supports_field().hide_value();
 
-  b.add_output<decl::Int>("Cluster ID").field_source_reference_all();
+  b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
 }
 
 static constexpr int no_cluster_value = -1;
@@ -63,7 +63,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
                     Field<int> group_field,
                     Field<bool> selection_field,
                     const float distance)
-      : bke::GeometryFieldInput(CPPType::get<int>(), "Index of Nearest"),
+      : bke::GeometryFieldInput(CPPType::get<int>(), "Cluster Field"),
         positions_field_(std::move(positions_field)),
         group_field_(std::move(group_field)),
         selection_field_(std::move(selection_field)),
@@ -176,11 +176,11 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     return VArray<int>::from_container(std::move(cluster_ids));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    positions_field_.node().for_each_field_input_recursive(fn);
-    group_field_.node().for_each_field_input_recursive(fn);
-    selection_field_.node().for_each_field_input_recursive(fn);
+    fn(positions_field_);
+    fn(group_field_);
+    fn(selection_field_);
   }
 
   uint64_t hash() const final
@@ -188,7 +188,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     return get_default_hash(positions_field_, group_field_, selection_field_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     if (const auto *other_field = dynamic_cast<const ClusterFieldInput *>(&other)) {
       return distance_ == other_field->distance_ &&
@@ -207,12 +207,12 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Cluster ID",
-                    Field<int>(std::make_shared<ClusterFieldInput>(
-                        params.extract_input<Field<float3>>("Position"),
-                        params.extract_input<Field<int>>("Group ID"),
-                        params.extract_input<Field<bool>>("Selection"),
-                        params.extract_input<float>("Distance"))));
+  params.set_output("Cluster ID"_ustr,
+                    Field<int>::from_input<ClusterFieldInput>(
+                        params.extract_input<Field<float3>>("Position"_ustr),
+                        params.extract_input<Field<int>>("Group ID"_ustr),
+                        params.extract_input<Field<bool>>("Selection"_ustr),
+                        params.extract_input<float>("Distance"_ustr)));
 }
 
 static void node_register()

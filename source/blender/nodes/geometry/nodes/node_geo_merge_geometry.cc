@@ -20,12 +20,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh})
       .description("Point cloud or mesh to merge points of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Merge ID")
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("Merge ID"_ustr)
       .hide_value()
       .field_on_all()
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
@@ -92,11 +92,11 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const Field<int> group_id_field = params.extract_input<Field<int>>("Merge ID");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const Field<int> group_id_field = params.extract_input<Field<int>>("Merge ID"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
 
-  const AttributeFilter &attribute_filter = params.get_attribute_filter("Geometry");
+  const AttributeFilter &attribute_filter = params.get_attribute_filter("Geometry"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
@@ -126,7 +126,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  params.set_output("Geometry", std::move(geometry_set));
+  params.set_output("Geometry"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
