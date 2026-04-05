@@ -91,8 +91,9 @@ template<typename T = int64_t> class DisjointSet {
     return root;
   }
 
-  /* Same as #find_root but can be used in multiple threads since read-only. */
-  T find_root_safe(const T x) const
+  /* Same as above but intended to be threadsafe. Better to use even if this is expected to be not
+   * an issue. */
+  T find_root(const T x) const
   {
     /* Find root by following parents. */
     T root = x;
