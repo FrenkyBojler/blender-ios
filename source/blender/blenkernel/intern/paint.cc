@@ -1981,8 +1981,7 @@ static bool paint_rake_rotation_active(const MTex &mtex)
 
 static bool paint_rake_rotation_active(const Brush &brush, PaintMode paint_mode)
 {
-  return paint_rake_rotation_active(brush.mtex) || paint_rake_rotation_active(brush.mask_mtex) ||
-         BKE_brush_has_cube_tip(&brush, paint_mode);
+  return paint_rake_rotation_active(brush.mtex) || paint_rake_rotation_active(brush.mask_mtex);
 }
 
 bool paint_calculate_rake_rotation(Paint &paint,
