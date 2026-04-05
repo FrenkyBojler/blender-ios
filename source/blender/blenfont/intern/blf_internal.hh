@@ -114,11 +114,6 @@ Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
                                  bool multicolor = false,
                                  FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
-Vector<size_t> blf_font_wrap_get_byte_offsets(FontBLF *font,
-                                              StringRef str,
-                                              int max_pixel_width,
-                                              BLFWrapMode mode);
-
 Vector<StringRef> blf_font_string_wrap(FontBLF *font,
                                        StringRef str,
                                        int max_pixel_width,

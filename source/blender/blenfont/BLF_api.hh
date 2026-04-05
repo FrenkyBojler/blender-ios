@@ -338,11 +338,6 @@ void BLF_rotation(int fontid, float angle);
 void BLF_clipping(int fontid, int xmin, int ymin, int xmax, int ymax);
 void BLF_wordwrap(int fontid, int wrap_width, BLFWrapMode mode = BLFWrapMode::Minimal);
 
-Vector<size_t> BLF_wordwrap_offsets(int fontid,
-                                    StringRef str,
-                                    int wrap_width,
-                                    BLFWrapMode mode = BLFWrapMode::Minimal);
-
 Vector<StringRef> BLF_string_wrap(int fontid,
                                   StringRef str,
                                   const int max_pixel_width,

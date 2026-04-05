@@ -1078,18 +1078,6 @@ void BLF_draw_buffer(int fontid, const char *str, const size_t str_len, ResultBL
   }
 }
 
-Vector<size_t> BLF_wordwrap_offsets(int fontid,
-                                    StringRef str,
-                                    const int max_pixel_width,
-                                    BLFWrapMode mode)
-{
-  FontBLF *font = blf_get(fontid);
-  if (!font) {
-    return {};
-  }
-  return blf_font_wrap_get_byte_offsets(font, str, max_pixel_width, mode);
-}
-
 Vector<StringRef> BLF_string_wrap(int fontid,
                                   StringRef str,
                                   const int max_pixel_width,
