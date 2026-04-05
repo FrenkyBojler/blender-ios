@@ -100,7 +100,7 @@ void SourceProcessor::lower_template_instantiation(
                                                filepath_.substr(filepath_.find_last_of('/') + 1);
   const string template_filename = same_file ? string("") :
                                                template_def.filepath.substr(
-                                                   filepath_.find_last_of('/') + 1);
+                                                   template_def.filepath.find_last_of('/') + 1);
 
   /* Parse template values. */
   vector<pair<string, string>> arg_name_value_pairs;
@@ -136,11 +136,13 @@ void SourceProcessor::lower_template_instantiation(
       instance_parser.insert_after(instance_parser.back(), "\n}\n");
     }
 
-    /* Insert line directive. Important for symbol namespace resolution and error logging. */
-    instance_parser.insert_before(
-        instance_parser.front(),
-        "\n#line " + std::to_string(same_file ? template_def.definition_line : 0) + " " +
-            template_filename + "\n");
+    /* Insert line directive. Important for symbol namespace resolution and error logging.
+     * Not using insert_line_number because it uses insert_after. */
+    string line_str = "\n#line " + std::to_string(template_def.definition_line);
+    if (!template_filename.empty()) {
+      line_str += " \"" + template_filename + '\"';
+    }
+    instance_parser.insert_before(instance_parser.front(), line_str + "\n");
 
     instance_parser().foreach_token(Word, [&](const Token &word) {
       string_view token_str = word.str();

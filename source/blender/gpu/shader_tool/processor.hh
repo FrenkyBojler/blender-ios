@@ -92,7 +92,7 @@ class SourceProcessor {
 
   /* Convert to intermediate language. Also outputs metadata.
    * symbols_set is the set of namespace symbols from external files / dependencies. */
-  Result convert(std::vector<metadata::Symbol> symbols_set = {});
+  Result convert(metadata::Source external_sources_symbols = {});
 
   /* Lightweight parsing. Only Source::dependencies and Source::symbol_table are populated. */
   metadata::Source parse_include_and_symbols();

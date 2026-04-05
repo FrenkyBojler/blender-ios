@@ -25,7 +25,7 @@ using namespace metadata;
 
 #define ERROR_TOK(token) (token).line_number(), (token).char_number(), (token).line_str()
 
-SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
+SourceProcessor::Result SourceProcessor::convert(metadata::Source external_sources_symbols)
 {
   metadata_ = {};
 
@@ -33,9 +33,18 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
     report_error_(0, 0, "", "Unknown file type");
     return {"", metadata_};
   }
-  /* Extend. */
-  metadata_.symbol_table.insert(
-      metadata_.symbol_table.end(), symbols_set.begin(), symbols_set.end());
+  /* Only use symbols and templates from external sources. */
+  metadata_.symbol_table.insert(metadata_.symbol_table.end(),
+                                external_sources_symbols.symbol_table.begin(),
+                                external_sources_symbols.symbol_table.end());
+  metadata_.template_definitions.insert(metadata_.template_definitions.end(),
+                                        external_sources_symbols.template_definitions.begin(),
+                                        external_sources_symbols.template_definitions.end());
+
+  /* Set line number for each symbol to 0 as they are defined outside of the target file. */
+  for (auto &symbol : metadata_.symbol_table) {
+    symbol.definition_line = 0;
+  }
 
   const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
 
