@@ -22,18 +22,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::Volume,
                        GeometryComponent::Type::PointCloud,
                        GeometryComponent::Type::Curve,
                        GeometryComponent::Type::GreasePencil});
-  b.add_output<decl::Geometry>("Geometry")
+  b.add_output<decl::Geometry>("Geometry"_ustr)
       .propagate_all()
       .align_with_previous()
       .description("Geometry to assign a material to");
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Material>("Material").optional_label();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Material>("Material"_ustr).optional_label();
 }
 
 static void assign_material_to_id_geometry(ID *id,
@@ -118,19 +118,19 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     if (Volume *volume = geometry_set.get_volume_for_write()) {
       BKE_id_material_eval_assign(&volume->id, 1, material);
-      if (selection_field.node().depends_on_input()) {
+      if (selection_field.depends_on_input()) {
         volume_selection_warning = true;
       }
     }
     if (PointCloud *pointcloud = geometry_set.get_pointcloud_for_write()) {
       BKE_id_material_eval_assign(&pointcloud->id, 1, material);
-      if (selection_field.node().depends_on_input()) {
+      if (selection_field.depends_on_input()) {
         point_selection_warning = true;
       }
     }
     if (Curves *curves = geometry_set.get_curves_for_write()) {
       BKE_id_material_eval_assign(&curves->id, 1, material);
-      if (selection_field.node().depends_on_input()) {
+      if (selection_field.depends_on_input()) {
         curves_selection_warning = true;
       }
     }
