@@ -55,6 +55,8 @@ struct BevList {
   /** Cyclic when set to any value besides -1. */
   int poly;
   int hole;
+  /** Set when the winding direction is reversed. */
+  bool reversed;
   int charidx;
   int *segbevcount;
   float *seglen;
@@ -269,7 +271,11 @@ struct Curve {
    * specified. The effective radius is a function of the bevel point radius and the taper radius.
    */
   char taper_radius_mode = CU_TAPER_RADIUS_OVERRIDE;
-  char _pad[3] = {};
+  /** Triangulation solver for filling 2D curves. */
+  char fill_solver = CU_FILL_SOLVER_SWEEP_LINE;
+  /** Fill rule for CDT fill solver. */
+  char fill_rule = CU_FILL_RULE_EVEN_ODD;
+  char _pad[1] = {};
 
   /* font part */
   float spacing = 1.0f, linedist = 1.0, shear = 0, fsize = 1.0, wordspace = 1.0, ulpos = 0,
