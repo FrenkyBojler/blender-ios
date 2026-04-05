@@ -102,6 +102,11 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     }
 
     Array<int> cluster_ids(mask.min_array_size());
+
+#ifndef NDEBUG
+    cluster_ids.as_mutable_span().fill(no_cluster_value);
+#endif
+
     mask_to_fallback.foreach_index_optimized<int>(
         [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
@@ -155,13 +160,13 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       Vector<int, 64> buffer;
       for (const int group_i : range) {
         const IndexMask &group_indices = all_indices_by_group_id[group_i];
-        BLI_assert(!mask_to_cluster.bounds().intersect(group_indices.bounds()).is_empty());
         buffer.reinitialize(group_indices.size() * 2);
+
         MutableSpan<int> group_cluser_ids = buffer.as_mutable_span().take_front(
             group_indices.size());
-        MutableSpan<int> mask_indices = buffer.as_mutable_span().take_back(group_indices.size());
-
         masked_cluster_ids(positions, group_indices, distance_, group_cluser_ids);
+
+        MutableSpan<int> mask_indices = buffer.as_mutable_span().take_back(group_indices.size());
         group_indices.to_indices(mask_indices);
 
         group_indices.foreach_index_optimized<int>(
@@ -172,7 +177,10 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       }
     });
 
-    BLI_assert(!cluster_ids.as_span().contains(no_cluster_value));
+#ifndef NDEBUG
+    mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != no_cluster_value); });
+#endif
+
     return VArray<int>::from_container(std::move(cluster_ids));
   }
 
