@@ -235,8 +235,7 @@ static GlyphBLF *blf_glyph_cache_add_glyph(GlyphCacheBLF *gc,
   std::unique_ptr<GlyphBLF> g = std::make_unique<GlyphBLF>();
   g->c = charcode;
   g->idx = glyph_index;
-  /* use unrounded 16.16 advance value, rounded to nearest 26.6. */
-  g->advance_x = ft_pix((glyph->linearHoriAdvance + 512) >> 10);
+  g->advance_x = ft_pix(glyph->advance.x);
   g->subpixel = subpixel;
 
   FT_BBox bbox;

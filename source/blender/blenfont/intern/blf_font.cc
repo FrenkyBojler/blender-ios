@@ -1047,7 +1047,9 @@ static void blf_font_wrap_apply(FontBLF *font,
 
     uint codepoint = BLI_str_utf8_as_unicode_step_safe(str, str_len, &i);
     g = blf_glyph_ensure(font, gc, codepoint);
-    g = blf_glyph_ensure_subpixel(font, gc, g, pen_x);
+    if (g) {
+      g = blf_glyph_ensure_subpixel(font, gc, g, pen_x);
+    }
     const ft_pix advance_x = g ? g->advance_x : 0;
     const uint codepoint_prev = g_prev ? g_prev->c : 0;
 
