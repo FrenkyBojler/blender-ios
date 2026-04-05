@@ -693,11 +693,11 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   const GVArray &values = value_evaluator.get_evaluated(0);
   const CPPType &type = values.type();
 
-  const std::shared_ptr<const fn::FieldInputs> &dependencys = index_field_.node().field_inputs();
+  const fn::FieldInputsPtr &dependencys = fn::GField(index_field_).field_inputs();
   if (dependencys) {
-    if (dependencys->deduplicated_nodes.size() == 1) {
+    if (dependencys->inputs.size() == 1) {
       if (dynamic_cast<const fn::IndexFieldInput *>(
-              &dependencys->deduplicated_nodes.as_span().first().get()) != nullptr)
+              &dependencys->inputs.as_span().first().get()) != nullptr)
       {
         const std::optional<fn::Polynom<int>> bounds_transform = fn::field_as_polynom_try(
             index_field_);
