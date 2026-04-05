@@ -4493,6 +4493,7 @@ def km_object_mode(params):
         # Transform Actions.
         *_template_items_transform_actions(params, use_mirror=True),
         ("object.transform_axis_target", {"type": 'T', "value": 'PRESS', "shift": True}, None),
+        ("object.orbit_around_target", {"type": 'O', "value": 'PRESS', "alt": True}, None),
         ("object.location_clear", {"type": 'G', "value": 'PRESS', "alt": True},
          {"properties": [("clear_delta", False)]}),
         ("object.rotation_clear", {"type": 'R', "value": 'PRESS', "alt": True},
@@ -6513,10 +6514,10 @@ def km_view3d_fly_modal(_params):
     return keymap
 
 
-def km_light_orbit_around_target_modal(_params):
+def km_object_orbit_around_target_modal(_params):
     items = []
     keymap = (
-        "Light Orbit Around Target Modal Map",
+        "Object Orbit Around Target Modal Map",
         {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
         {"items": items},
     )
@@ -9015,7 +9016,7 @@ def generate_keymaps(params=None):
         km_custom_normals_modal_map(params),
         km_bevel_modal_map(params),
         km_view3d_fly_modal(params),
-        km_light_orbit_around_target_modal(params),
+        km_object_orbit_around_target_modal(params),
         km_view3d_walk_modal(params),
         km_view3d_rotate_modal(params),
         km_view3d_move_modal(params),
