@@ -87,8 +87,10 @@ gpu::Batch *pointcloud_sub_pass_setup_implementation(PassT &sub_ps,
   sub_ps.bind_texture("c", module.dummy_vbo);
   sub_ps.bind_texture("ac", module.dummy_vbo);
 
-  gpu::VertBuf *pos_rad_buf = pointcloud_position_and_radius_get(&pointcloud);
-  sub_ps.bind_texture("ptcloud_pos_rad_tx", is_empty ? module.dummy_vbo : pos_rad_buf);
+  gpu::VertBuf *pos_buf = pointcloud_position_get(&pointcloud);
+  gpu::VertBuf *radius_buf = pointcloud_radius_get(&pointcloud);
+  sub_ps.bind_texture("ptcloud_pos_tx", is_empty ? module.dummy_vbo : pos_buf);
+  sub_ps.bind_texture("ptcloud_radius_tx", is_empty ? module.dummy_vbo : radius_buf);
 
   if (gpu_material != nullptr) {
     ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpu_material);

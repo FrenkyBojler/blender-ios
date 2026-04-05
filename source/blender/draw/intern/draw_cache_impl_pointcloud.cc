@@ -14,7 +14,6 @@
 
 #include "BLI_color_types.hh"
 #include "BLI_listbase.h"
-#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
@@ -51,7 +50,8 @@ struct PointCloudEvalCache {
   gpu::Batch **surface_per_mat;
 
   /* Position and radius. */
-  gpu::VertBuf *pos_rad;
+  gpu::VertBuf *pos;
+  gpu::VertBuf *radius;
   /* Active attribute in 3D view. */
   gpu::VertBuf *attr_viewer;
   /* Requested attributes */
@@ -157,7 +157,8 @@ static void pointcloud_batch_cache_clear(PointCloud &pointcloud)
 
   GPU_BATCH_DISCARD_SAFE(cache->eval_cache.dots);
   GPU_BATCH_DISCARD_SAFE(cache->eval_cache.surface);
-  GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.pos_rad);
+  GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.pos);
+  GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.radius);
   GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.attr_viewer);
 
   GPU_INDEXBUF_DISCARD_SAFE(cache->edit_selection_indices);
@@ -219,45 +220,27 @@ void DRW_pointcloud_batch_cache_free_old(PointCloud *pointcloud, int ctime)
 /** \name PointCloud extraction
  * \{ */
 
-static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
-                                                   PointCloudBatchCache &cache)
+static void pointcloud_extract_position(const PointCloud &pointcloud, PointCloudBatchCache &cache)
+{
+  const Span<float3> positions = pointcloud.positions();
+  static const GPUVertFormat format = GPU_vertformat_from_attribute(
+      "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  GPU_vertbuf_init_with_format_ex(
+      *cache.eval_cache.pos, format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  GPU_vertbuf_data_alloc(*cache.eval_cache.pos, positions.size());
+  cache.eval_cache.pos->data<float3>().copy_from(positions);
+}
+
+static void pointcloud_extract_radius(const PointCloud &pointcloud, PointCloudBatchCache &cache)
 {
   const bke::AttributeAccessor attributes = pointcloud.attributes();
-  const Span<float3> positions = pointcloud.positions();
   const VArray<float> radii = *attributes.lookup<float>("radius");
-  static const GPUVertFormat format = [&]() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
-    GPU_vertformat_alias_add(&format, "pos_rad");
-    return format;
-  }();
-
-  GPUUsageType usage_flag = GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY;
-  GPU_vertbuf_init_with_format_ex(*cache.eval_cache.pos_rad, format, usage_flag);
-
-  GPU_vertbuf_data_alloc(*cache.eval_cache.pos_rad, positions.size());
-  MutableSpan<float4> vbo_data = cache.eval_cache.pos_rad->data<float4>();
-  if (radii) {
-    const VArraySpan<float> radii_span(std::move(radii));
-    threading::parallel_for(vbo_data.index_range(), 4096, [&](IndexRange range) {
-      for (const int i : range) {
-        vbo_data[i].x = positions[i].x;
-        vbo_data[i].y = positions[i].y;
-        vbo_data[i].z = positions[i].z;
-        vbo_data[i].w = radii_span[i];
-      }
-    });
-  }
-  else {
-    threading::parallel_for(vbo_data.index_range(), 4096, [&](IndexRange range) {
-      for (const int i : range) {
-        vbo_data[i].x = positions[i].x;
-        vbo_data[i].y = positions[i].y;
-        vbo_data[i].z = positions[i].z;
-        vbo_data[i].w = 0.01f;
-      }
-    });
-  }
+  static const GPUVertFormat format = GPU_vertformat_from_attribute("radius",
+                                                                    gpu::VertAttrType::SFLOAT_32);
+  GPU_vertbuf_init_with_format_ex(
+      *cache.eval_cache.radius, format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  GPU_vertbuf_data_alloc(*cache.eval_cache.radius, radii.size());
+  radii.materialize(cache.eval_cache.radius->data<float>());
 }
 
 static void pointcloud_extract_attribute(const PointCloud &pointcloud,
@@ -295,11 +278,18 @@ static void pointcloud_extract_attribute(const PointCloud &pointcloud,
 /** \name Private API
  * \{ */
 
-gpu::VertBuf *pointcloud_position_and_radius_get(PointCloud *pointcloud)
+gpu::VertBuf *pointcloud_position_get(PointCloud *pointcloud)
 {
   PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
-  DRW_vbo_request(nullptr, &cache->eval_cache.pos_rad);
-  return cache->eval_cache.pos_rad;
+  DRW_vbo_request(nullptr, &cache->eval_cache.pos);
+  return cache->eval_cache.pos;
+}
+
+gpu::VertBuf *pointcloud_radius_get(PointCloud *pointcloud)
+{
+  PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
+  DRW_vbo_request(nullptr, &cache->eval_cache.radius);
+  return cache->eval_cache.radius;
 }
 
 gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
@@ -343,7 +333,8 @@ gpu::Batch *pointcloud_surface_get(PointCloud *pointcloud)
 
   cache.eval_cache.surface = GPU_batch_create_procedural(
       GPU_PRIM_TRI_STRIP, DRW_POINTCLOUD_STRIP_TILE_SIZE * pointcloud->totpoint);
-  DRW_vbo_request(nullptr, &cache.eval_cache.pos_rad);
+  DRW_vbo_request(nullptr, &cache.eval_cache.pos);
+  DRW_vbo_request(nullptr, &cache.eval_cache.radius);
   return cache.eval_cache.surface;
 }
 
@@ -360,10 +351,16 @@ gpu::Batch *DRW_pointcloud_batch_cache_get_dots(Object *ob)
   return DRW_batch_request(&cache->eval_cache.dots);
 }
 
-gpu::VertBuf *DRW_pointcloud_position_and_radius_buffer_get(Object *ob)
+gpu::VertBuf *DRW_pointcloud_position_buffer_get(Object *ob)
 {
   PointCloud &pointcloud = DRW_object_get_data_for_drawing<PointCloud>(*ob);
-  return pointcloud_position_and_radius_get(&pointcloud);
+  return pointcloud_position_get(&pointcloud);
+}
+
+gpu::VertBuf *DRW_pointcloud_radius_buffer_get(Object *ob)
+{
+  PointCloud &pointcloud = DRW_object_get_data_for_drawing<PointCloud>(*ob);
+  return pointcloud_radius_get(&pointcloud);
 }
 
 gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const StringRef name)
@@ -421,12 +418,14 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
   PointCloudBatchCache &cache = *pointcloud_batch_cache_get(pointcloud);
 
   if (DRW_batch_requested(cache.eval_cache.dots, GPU_PRIM_POINTS)) {
-    DRW_vbo_request(cache.eval_cache.dots, &cache.eval_cache.pos_rad);
+    DRW_vbo_request(cache.eval_cache.dots, &cache.eval_cache.pos);
+    DRW_vbo_request(cache.eval_cache.dots, &cache.eval_cache.radius);
   }
 
   if (DRW_batch_requested(cache.edit_selection, GPU_PRIM_POINTS)) {
     DRW_ibo_request(cache.edit_selection, &cache.edit_selection_indices);
-    DRW_vbo_request(cache.edit_selection, &cache.eval_cache.pos_rad);
+    DRW_vbo_request(cache.edit_selection, &cache.eval_cache.pos);
+    DRW_vbo_request(cache.edit_selection, &cache.eval_cache.radius);
   }
 
   for (int i = 0; i < cache.eval_cache.mat_len; i++) {
@@ -446,8 +445,11 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
     build_edit_selection_indices(pointcloud, *cache.edit_selection_indices);
   }
 
-  if (DRW_vbo_requested(cache.eval_cache.pos_rad)) {
-    pointcloud_extract_position_and_radius(pointcloud, cache);
+  if (DRW_vbo_requested(cache.eval_cache.pos)) {
+    pointcloud_extract_position(pointcloud, cache);
+  }
+  if (DRW_vbo_requested(cache.eval_cache.radius)) {
+    pointcloud_extract_radius(pointcloud, cache);
   }
 }
 

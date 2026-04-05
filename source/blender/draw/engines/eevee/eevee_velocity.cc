@@ -185,7 +185,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
           data.pos_buf = draw::curves_pos_buffer_get(ob);
           break;
         case OB_POINTCLOUD:
-          data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);
+          data.pos_buf = DRW_pointcloud_position_buffer_get(ob);
           break;
         case OB_MESH:
           data.pos_buf = DRW_cache_mesh_surface_get(ob);

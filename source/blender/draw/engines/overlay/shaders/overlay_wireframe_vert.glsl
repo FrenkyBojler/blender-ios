@@ -96,8 +96,8 @@ void main()
   float no_nor_facing = (color_type == V3D_SHADING_SINGLE_COLOR) ? 0.0f : 0.5f;
 
 #ifdef WITH_RADIUS
-  float3 wpos = drw_point_object_to_world(pos_rad.xyz);
-  wpos += drw_world_incident_vector(wpos) * pos_rad.w;
+  float3 wpos = drw_point_object_to_world(pos);
+  wpos += drw_world_incident_vector(wpos) * radius;
 #else
   float3 wpos = drw_point_object_to_world(pos);
 #endif

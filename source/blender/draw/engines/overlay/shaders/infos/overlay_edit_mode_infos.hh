@@ -749,7 +749,8 @@ CREATE_INFO_VARIANT(overlay_edit_particle_point_clipped, overlay_edit_particle_p
  * \{ */
 
 GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud)
-VERTEX_IN(0, float4, pos_rad)
+VERTEX_IN(0, float3, pos)
+VERTEX_IN(1, float, radius)
 VERTEX_OUT(overlay_edit_flat_color_iface)
 DEFINE("LINE_OUTPUT")
 FRAGMENT_OUT(0, float4, frag_color)

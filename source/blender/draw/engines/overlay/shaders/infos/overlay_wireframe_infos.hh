@@ -117,7 +117,8 @@ CREATE_INFO_VARIANT(overlay_wireframe_points_selectable_clipped, overlay_wirefra
 
 GPU_SHADER_CREATE_INFO(overlay_wireframe_points_with_radius_base)
 DEFINE("WITH_RADIUS")
-VERTEX_IN(0, float4, pos_rad)
+VERTEX_IN(0, float3, pos)
+VERTEX_IN(1, float, radius)
 ADDITIONAL_INFO(overlay_wireframe_points_common)
 GPU_SHADER_CREATE_END()
 

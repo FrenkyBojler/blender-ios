@@ -14,8 +14,7 @@ void main()
 {
   final_color = theme.colors.vert_select;
 
-  float radius = pos_rad.w;
-  float3 world_pos = drw_point_object_to_world(pos_rad.xyz);
+  float3 world_pos = drw_point_object_to_world(pos);
   float3 V = drw_world_incident_vector(world_pos);
 
   /* Offset the position so the selection point is always

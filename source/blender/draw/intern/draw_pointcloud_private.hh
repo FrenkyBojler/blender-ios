@@ -19,7 +19,8 @@ struct GPUMaterial;
 
 namespace draw {
 
-gpu::VertBuf *pointcloud_position_and_radius_get(PointCloud *pointcloud);
+gpu::VertBuf *pointcloud_position_get(PointCloud *pointcloud);
+gpu::VertBuf *pointcloud_radius_get(PointCloud *pointcloud);
 gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
                                            GPUMaterial **gpu_materials,
                                            int mat_len);

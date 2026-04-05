@@ -40,10 +40,13 @@ Point point_get(uint vert_id)
   Point pt;
   pt.point_id = point_id_get(vert_id);
 
-  auto &buf = sampler_get(draw_pointcloud, ptcloud_pos_rad_tx);
-  float4 pos_rad = texelFetch(buf, pt.point_id);
-  pt.P = pos_rad.xyz;
-  pt.radius = pos_rad.w;
+  auto &pos_buf = sampler_get(draw_pointcloud, ptcloud_pos_tx);
+  float3 pos = texelFetch(pos_buf, pt.point_id).rgb;
+  auto &radius_buf = sampler_get(draw_pointcloud, ptcloud_radius_tx);
+  float radius = texelFetch(radius_buf, pt.point_id).r;
+
+  pt.P = pos;
+  pt.radius = radius;
   pt.shape_pos = float3(NAN_FLT);
   switch (vert_id % DRW_POINTCLOUD_STRIP_TILE_SIZE) {
     case 0:
@@ -120,8 +123,8 @@ ShapePoint shape_point_get(const Point pt, const float3 V, const float3 up_axis)
 
 float3 get_point_position(const int point_id)
 {
-  auto &buf = sampler_get(draw_pointcloud, ptcloud_pos_rad_tx);
-  return texelFetch(buf, point_id).xyz;
+  auto &buf = sampler_get(draw_pointcloud, ptcloud_pos_tx);
+  return texelFetch(buf, point_id);
 }
 
 float get_customdata_float(const int point_id, const samplerBuffer cd_buf)
