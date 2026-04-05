@@ -3276,7 +3276,7 @@ static bool number_from_string_units(
     bContext *C, const char *str, const int unit_type, const UnitSettings *unit, double *r_value)
 {
   char *error = nullptr;
-  const bool ok = user_string_to_number(C, str, *unit, unit_type, r_value, true, &error);
+  const bool ok = user_string_to_number(C, str, *unit, unit_type, r_value, nullptr, true, &error);
   if (error) {
     ReportList *reports = CTX_wm_reports(C);
     BKE_reportf(reports, RPT_ERROR, "%s: %s", UI_NUMBER_EVAL_ERROR_PREFIX, error);
@@ -4326,6 +4326,15 @@ static std::unique_ptr<Button> but_new(const ButtonType type)
       break;
     case ButtonType::Grip:
       but = std::make_unique<ButtonGrip>();
+      break;
+    case ButtonType::Menu:
+      ATTR_FALLTHROUGH;
+    case ButtonType::Block:
+      ATTR_FALLTHROUGH;
+    case ButtonType::Pulldown:
+      ATTR_FALLTHROUGH;
+    case ButtonType::Popover:
+      but = std::make_unique<ButtonMenu>();
       break;
     case ButtonType::But:
       but = std::make_unique<ButtonPush>();
@@ -7153,6 +7162,8 @@ std::string button_get_link(const Button *button, bContext *C)
     MEM_delete(expr_result);
   }
   return link;
+#else
+  return "";
 #endif
 }
 
