@@ -343,7 +343,7 @@ void keymap_object(wmKeyConfig *keyconf)
   keymap->poll = object_mode_poll;
 
   /* Modal keymaps */
-  target_modal_keymap(keyconf);
+  object_target_modal_keymap(keyconf);
 }
 
 }  // namespace blender::ed::object

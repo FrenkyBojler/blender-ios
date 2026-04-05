@@ -2070,7 +2070,7 @@ enum {
   TGT_MODAL_PRECISION_DISABLE,
 };
 
-void target_modal_keymap(wmKeyConfig *keyconf)
+void object_target_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
       {TGT_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
@@ -2102,14 +2102,14 @@ void target_modal_keymap(wmKeyConfig *keyconf)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Light Target Modal Map");
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Object Target Modal Map");
 
   /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
     return;
   }
 
-  keymap = WM_modalkeymap_ensure(keyconf, "Light Target Modal Map", modal_items);
+  keymap = WM_modalkeymap_ensure(keyconf, "Object Target Modal Map", modal_items);
   /* Assign map to operators. */
   WM_modalkeymap_assign(keymap, "OBJECT_OT_transform_axis_target");
 }
