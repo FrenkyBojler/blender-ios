@@ -103,27 +103,28 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Geometry>("Points");
-  b.add_input<decl::Menu>("Grid Transform Mode")
+  b.add_input<decl::Geometry>("Points"_ustr);
+  b.add_input<decl::Menu>("Grid Transform Mode"_ustr)
       .static_items(grid_transform_mode_items)
       .default_value(GridTransformMode::VoxelSize)
       .expanded()
       .optional_label()
       .description("Method of defining the grid transform");
-  b.add_input<decl::Float>("Voxel Size")
+  b.add_input<decl::Float>("Voxel Size"_ustr)
       .default_value(0.3f)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
       .usage_by_menu("Grid Transform Mode"_ustr, int(GridTransformMode::VoxelSize));
-  b.add_input<decl::Matrix>("Matrix").usage_by_menu("Grid Transform Mode"_ustr,
-                                                    int(GridTransformMode::Matrix));
-  b.add_input<decl::Menu>("Kernel Type")
+  b.add_input<decl::Matrix>("Matrix"_ustr)
+      .usage_by_menu("Grid Transform Mode"_ustr, int(GridTransformMode::Matrix));
+  b.add_input<decl::Menu>("Kernel Type"_ustr)
       .static_items(kernel_type_items)
       .default_value(geometry::KernelType::Linear)
       .optional_label()
       .description("Kernel function for computing weights at each voxel");
 
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Position"_ustr)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -143,18 +144,18 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype output_type = *bke::geo_nodes_base_cpp_type_to_socket_type(
           grid_type);
 
-      auto &input_decl = b.add_input(input_type, name, identifier);
+      auto &input_decl = b.add_input(input_type, UString(name), UString(identifier));
       input_decl.socket_name_ptr(
           &tree->id, *RasterizePointsItemsAccessor::item_srna, &item, "name");
       input_decl.field_on_all();
 
-      b.add_output(output_type, name, identifier)
+      b.add_output(output_type, UString(name), UString(identifier))
           .structure_type(StructureType::Grid)
           .align_with_previous();
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr).align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

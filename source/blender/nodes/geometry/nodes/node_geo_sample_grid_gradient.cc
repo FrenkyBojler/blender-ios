@@ -74,9 +74,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_input<decl::Menu>("Interpolation")
+  b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_input<decl::Vector>("Position"_ustr).implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Menu>("Interpolation"_ustr)
       .static_items(interpolation_mode_items)
       .default_value(InterpolationMode::TriLinear)
       .optional_label()
@@ -85,7 +85,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (const std::optional<eNodeSocketDatatype> gradient_type = gradient_type_from_data_type(
           data_type))
   {
-    b.add_output(*gradient_type, "Gradient").dependent_field({1});
+    b.add_output(*gradient_type, "Gradient"_ustr).dependent_field({1});
   }
 }
 
@@ -116,14 +116,14 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridGradient");
         node.custom1 = *node_type;
-        params.update_and_connect_available_socket(node, "Grid");
+        params.update_and_connect_available_socket(node, "Grid"_ustr);
       });
     }
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
       params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridGradient");
-        params.update_and_connect_available_socket(node, "Position");
+        params.update_and_connect_available_socket(node, "Position"_ustr);
       });
     }
   }
@@ -134,7 +134,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Gradient"), [data_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridGradient");
         node.custom1 = *data_type;
-        params.update_and_connect_available_socket(node, "Gradient");
+        params.update_and_connect_available_socket(node, "Gradient"_ustr);
       });
     }
   }

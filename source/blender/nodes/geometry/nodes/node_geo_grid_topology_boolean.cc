@@ -42,7 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const Operation operation = Operation(node->custom2);
 
   auto &first_grid =
-      b.add_input(data_type, "Grid 1").hide_value().structure_type(StructureType::Grid);
+      b.add_input(data_type, "Grid 1"_ustr).hide_value().structure_type(StructureType::Grid);
 
   static const auto make_available = [](bNode &node) {
     node.custom2 = int16_t(Operation::Difference);
@@ -50,14 +50,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   switch (operation) {
     case Operation::Intersect:
     case Operation::Union:
-      b.add_input(data_type, "Grid", "Grid 2")
+      b.add_input(data_type, "Grid"_ustr, "Grid 2"_ustr)
           .hide_value()
           .multi_input()
           .make_available(make_available)
           .structure_type(StructureType::Grid);
       break;
     case Operation::Difference:
-      b.add_input(data_type, "Grid 2")
+      b.add_input(data_type, "Grid 2"_ustr)
           .hide_value()
           .multi_input()
           .make_available(make_available)
@@ -65,7 +65,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       break;
   }
 
-  b.add_output(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
+  b.add_output(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
 
   if (node) {
     switch (Operation(node->custom2)) {

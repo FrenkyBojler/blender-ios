@@ -16,8 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Bool>("Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output<decl::Bool>("Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_input<decl::Bool>("Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output<decl::Bool>("Grid"_ustr).structure_type(StructureType::Grid).align_with_previous();
 }
 
 #ifdef WITH_OPENVDB

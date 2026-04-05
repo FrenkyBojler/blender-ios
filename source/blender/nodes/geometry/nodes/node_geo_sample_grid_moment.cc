@@ -104,15 +104,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype input_type = get_input_type(moment_type);
   const eNodeSocketDatatype output_type = get_output_type(moment_type);
 
-  b.add_input(input_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_input<decl::Menu>("Interpolation")
+  b.add_input(input_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_input<decl::Vector>("Position"_ustr).implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Menu>("Interpolation"_ustr)
       .static_items(interpolation_mode_items)
       .default_value(InterpolationMode::TriLinear)
       .optional_label()
       .description("How to interpolate the values between neighboring voxels");
 
-  b.add_output(output_type, "Moment").dependent_field({1});
+  b.add_output(output_type, "Moment"_ustr).dependent_field({1});
 }
 
 static std::optional<MomentType> moment_type_for_input_type(const bNodeSocket &socket)
@@ -153,14 +153,14 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Grid"), [moment_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridMoment");
         node.custom1 = int(*moment_type);
-        params.update_and_connect_available_socket(node, "Grid");
+        params.update_and_connect_available_socket(node, "Grid"_ustr);
       });
     }
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
       params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridMoment");
-        params.update_and_connect_available_socket(node, "Position");
+        params.update_and_connect_available_socket(node, "Position"_ustr);
       });
     }
   }
@@ -171,7 +171,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("Moment"), [moment_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSampleGridMoment");
         node.custom1 = int(*moment_type);
-        params.update_and_connect_available_socket(node, "Moment");
+        params.update_and_connect_available_socket(node, "Moment"_ustr);
       });
     }
   }
