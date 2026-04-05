@@ -34,19 +34,19 @@ NODE_STORAGE_FUNCS(NodeGeometryDuplicateElements);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry").description("Geometry to duplicate elements of");
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Amount")
+  b.add_input<decl::Geometry>("Geometry"_ustr).description("Geometry to duplicate elements of");
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("Amount"_ustr)
       .min(0)
       .default_value(1)
       .field_on_all()
       .description("The number of duplicates to create for each element")
       .translation_context(BLT_I18NCONTEXT_COUNTABLE);
 
-  b.add_output<decl::Geometry>("Geometry")
+  b.add_output<decl::Geometry>("Geometry"_ustr)
       .propagate_all()
       .description("The duplicated geometry, not including the original geometry");
-  b.add_output<decl::Int>("Duplicate Index")
+  b.add_output<decl::Int>("Duplicate Index"_ustr)
       .field_on_all()
       .description("The indices of the duplicates for each element");
 }
@@ -1209,9 +1209,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryDuplicateElements &storage = node_storage(params.node());
   const AttrDomain duplicate_domain = AttrDomain(storage.domain);
 
-  const Field<int> count_field(FieldOperation::from(
-      fn::multi_function::registry::lookup("max(int, int)"_ustr),
-      {fn::make_constant_field<int>(0), params.extract_input<Field<int>>("Amount"_ustr)}));
+  const Field<int> count_field(
+      FieldOperation::from(fn::multi_function::registry::lookup("max(int, int)"_ustr),
+                           {fn::Field<int>(0), params.extract_input<Field<int>>("Amount"_ustr)}));
 
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   IndexAttributes attribute_outputs;
