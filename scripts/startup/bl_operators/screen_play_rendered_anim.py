@@ -25,23 +25,47 @@ def guess_player_path(preset):
         elif sys.platform == "win32":
             import winreg
 
-            # NOTE: This can be removed if/when DJV adds their executable to the PATH.
-            # See issue 449 on their GITHUB project page.
-            reg_path = r"SOFTWARE\Classes\djv\shell\open\command"
             reg_value = None
             try:
-                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_READ) as regkey:
-                    reg_value = winreg.QueryValue(regkey, None)
+                def extract_version(key_name):
+                    """Given a key_name like "key name 3.3.4" extract version as (3, 3, 4)"""
+                    version = None
+                    parts = key_name.rsplit(" ", 1)
+                    if len(parts) == 2:
+                        try:
+                            version = tuple(int(x) for x in parts[1].split("."))
+                        except ValueError:
+                            pass
+                    return version
+
+                # Enumerate versioned subkeys (e.g. "DJV 3.3.3", "DJV 3.3.4", etc.) and
+                # pick the key with the greatest version.
+                reg_base = r"SOFTWARE\WOW6432Node\Grizzly Peak 3D"
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_base, 0, winreg.KEY_READ) as base_key:
+                    best_version = None
+                    best_subkey = None
+                    index = 0
+                    while True:
+                        try:
+                            subkey_name = winreg.EnumKey(base_key, index)
+                        except OSError:
+                            break
+                        index += 1
+
+                        if (version := extract_version(subkey_name)) is not None:
+                            if best_version is None or version > best_version:
+                                best_version = version
+                                best_subkey = subkey_name
+
+                    if best_subkey is not None:
+                        reg_path = reg_base + "\\" + best_subkey
+                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_READ) as regkey:
+                            reg_value = winreg.QueryValue(regkey, None)
             except OSError:
                 pass
 
             if reg_value:
-                # Remove trailing command line arguments from the path. The
-                # registry value looks like: `<full path>\djv.exe "%1"`.
-                binary = "djv.exe"
-                index = reg_value.find(binary)
-                if index > 0:
-                    player_path = reg_value[:index + len(binary)]
+                player_path = reg_value.strip() + "\\bin\\djv.exe"
 
     elif preset == 'FRAMECYCLER':
         player_path = "framecycler"
@@ -163,9 +187,9 @@ class PlayRenderedAnim(Operator):
             opts = [
                 file,
                 "-speed", str(fps_final),
-                "-in_out", str(frame_start), str(frame_end),
-                "-frame", str(scene.frame_current),
-                "-time_units", "Frames",
+                # "-in_out", str(frame_start), str(frame_end),
+                # "-frame", str(scene.frame_current),
+                # "-time_units", "Frames",
             ]
             cmd.extend(opts)
         elif preset == 'FRAMECYCLER':
