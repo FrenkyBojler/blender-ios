@@ -46,10 +46,10 @@ static int roots_by_distance(const Span<float3> positions,
   return total_merge_ops;
 }
 
-PointCloud *point_merge_by_distance(const PointCloud &src_points,
-                                    const Span<int> root_indices,
-                                    const int total_roots,
-                                    const bke::AttributeFilter &attribute_filter)
+PointCloud *point_merge_indices(const PointCloud &src_points,
+                                const Span<int> root_indices,
+                                const int total_roots,
+                                const bke::AttributeFilter &attribute_filter)
 {
   const bke::AttributeAccessor src_attributes = src_points.attributes();
   const Span<float3> positions = src_points.positions();
@@ -160,7 +160,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   Array<int> root_indices(src_points.totpoint);
   const int total_merge_ops = roots_by_distance(
       src_points.positions(), selection, merge_distance, root_indices);
-  return point_merge_by_distance(
+  return point_merge_indices(
       src_points, root_indices.as_span(), src_points.totpoint - total_merge_ops, attribute_filter);
 }
 

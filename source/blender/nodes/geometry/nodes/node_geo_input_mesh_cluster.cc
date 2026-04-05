@@ -2,16 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <queue>
-
 #include "BLI_array_utils.hh"
 #include "BLI_disjoint_set.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sort.hh"
 #include "BLI_task.hh"
 
+#include "BKE_geometry_fields.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 
 #include "node_geometry_util.hh"
 
@@ -51,7 +49,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
-                                 const IndexMask & /*mask*/) const final
+                                 const IndexMask &mask) const final
   {
     const Span<int2> edges = mesh.edges();
 
@@ -64,8 +62,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
     const IndexMask selection = edge_evaluator.get_evaluated_selection_as_mask();
 
     if (selection.is_empty()) {
-      /* TODO: VArray from index range. */
-      return VArray<int>::from_func(mesh.edges_num, [](int i) { return i; });
+      return fn::IndexFieldInput::get_index_varray(mask);
     }
 
     const bke::MeshFieldContext vert_context(mesh, AttrDomain::Point);
@@ -117,12 +114,12 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 
       const int new_cluster_size = vert_cluster_size[edge_clusters[0]] +
                                    vert_cluster_size[edge_clusters[1]];
-      const float3 new_cluster_centre = math::interpolate(vert_a_cluster,
+      const float3 new_cluster_center = math::interpolate(vert_a_cluster,
                                                           vert_b_cluster,
                                                           vert_cluster_size[edge_clusters[1]] /
                                                               float(new_cluster_size));
 
-      vert_cluster_centre[new_cluster_root] = new_cluster_centre;
+      vert_cluster_centre[new_cluster_root] = new_cluster_center;
       vert_cluster_size[new_cluster_root] = new_cluster_size;
     };
 

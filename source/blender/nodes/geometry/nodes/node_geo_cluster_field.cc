@@ -8,6 +8,8 @@
 #include "BLI_index_mask_expression.hh"
 #include "BLI_kdtree.hh"
 
+#include "BKE_geometry_fields.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_cluster_field_cc {
@@ -89,16 +91,15 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
     IndexMaskMemory memory;
-    /* With context info about mask to compute we can skip processing of rest values. But in
-     * current case this will affect result values since some cluster might have lowest ID of
-     * element outside of visible mask. */
+    /* With context info about mask to compute we can skip processing of the rest of the values.
+     * But in current case this will affect result values since some cluster might have lowest ID
+     * of element outside of visible mask. */
     const IndexMask mask_to_cluster = IndexMask::from_intersection(mask, selection, memory);
     const IndexMask mask_to_fallback = index_mask::evaluate_expression(
         (index_mask::ExprBuilder{}).subtract(&mask, {&selection}), memory);
 
     if (mask_to_cluster.is_empty()) {
-      /* TODO: VArray from index range. */
-      return VArray<int>::from_func(mask.min_array_size(), [](int i) { return i; });
+      return fn::IndexFieldInput::get_index_varray(mask);
     }
 
     Array<int> cluster_ids(mask.min_array_size());
@@ -111,12 +112,16 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
     if (distance_ == 0.0f) {
-      /* TODO: Is this is really faster then explicit creation of groups for parallel processing
-       * (#IndexMask::from_groups)? */
+      /* Using a map provides better time complexity compare to kdtree, while yet both are not
+       * parallel at the moment, so map is better choose. */
       Map<std::pair<float3, int>, int> clusters;
       mask_to_cluster.foreach_index([&](const int index) {
         clusters.add(std::make_pair(positions[index], group_ids[index]), index);
       });
+
+      if (clusters.size() == mask_to_cluster.size()) {
+        return fn::IndexFieldInput::get_index_varray(mask);
+      }
 
       if (clusters.size() == 1) {
         const int first_selected = mask_to_cluster.first();

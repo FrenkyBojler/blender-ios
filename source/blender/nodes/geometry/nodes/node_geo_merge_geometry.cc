@@ -105,11 +105,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       const std::optional<int> total_merge_ops = masked_ids_to_merging_roots(
           context, group_id_field, selection_field, pointcloud->totpoint, masked_group_ids);
       if (total_merge_ops.has_value()) {
-        PointCloud *new_pointcloud = geometry::point_merge_by_distance(*pointcloud,
-                                                                       masked_group_ids.as_span(),
-                                                                       pointcloud->totpoint -
-                                                                           *total_merge_ops,
-                                                                       attribute_filter);
+        PointCloud *new_pointcloud = geometry::point_merge_indices(*pointcloud,
+                                                                   masked_group_ids.as_span(),
+                                                                   pointcloud->totpoint -
+                                                                       *total_merge_ops,
+                                                                   attribute_filter);
         geometry_set.replace_pointcloud(new_pointcloud);
       }
     }
