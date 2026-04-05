@@ -18,10 +18,10 @@ namespace blender::nodes::node_geo_input_mesh_edge_rings_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Parallel Group Index")
+  b.add_output<decl::Int>("Parallel Group Index"_ustr)
       .field_source()
       .description("Edge group index of the edge ring from parallel edges");
-  b.add_output<decl::Int>("Linear Group Index").field_source();
+  b.add_output<decl::Int>("Linear Group Index"_ustr).field_source();
 }
 
 static void make_ordered(const int2 prev, int2 &current)
@@ -70,37 +70,39 @@ static void sort_corner_edge_pairs(const IndexMask mask,
                                    MutableSpan<int2> r_pairs,
                                    MutableSpan<int> r_indices)
 {
-  mask.foreach_index(GrainSize(1024), [&](const int vert_index) {
-    if (offset[vert_index].is_empty()) {
-      return;
-    }
-    MutableSpan<int2> vertex_stars = r_pairs.slice(offset[vert_index]);
-    MutableSpan<int> vertex_star_index = r_indices.slice(offset[vert_index]);
-    vertex_star_index.first() = 0;
-    for (const int index : vertex_stars.index_range().drop_back(1)) {
-      int2 &current = vertex_stars[index];
-      MutableSpan<int2> next_range = vertex_stars.drop_front(index + 1);
-      vertex_star_index[index + 1] = vertex_star_index[index];
-      int2 &next = find_if(next_range,
-                           [&](const int2 next) { return ELEM(current[1], next[0], next[1]); });
-      if (&next != next_range.end()) {
-        make_ordered(current, next);
-        std::swap(next_range.first(), next);
-        continue;
-      }
-      /* This is the first element in a non-cyclic star and looking for unconnected edge was
-       * failure. Try again. */
-      int2 &other_next = find_if(
-          next_range, [&](const int2 next) { return ELEM(current[0], next[0], next[1]); });
-      if (&other_next != next_range.end()) {
-        std::swap(current[0], current[1]);
-        make_ordered(current, other_next);
-        std::swap(next_range.first(), other_next);
-        continue;
-      }
-      vertex_star_index[index + 1]++;
-    }
-  });
+  mask.foreach_index(
+      [&](const int vert_index) {
+        if (offset[vert_index].is_empty()) {
+          return;
+        }
+        MutableSpan<int2> vertex_stars = r_pairs.slice(offset[vert_index]);
+        MutableSpan<int> vertex_star_index = r_indices.slice(offset[vert_index]);
+        vertex_star_index.first() = 0;
+        for (const int index : vertex_stars.index_range().drop_back(1)) {
+          int2 &current = vertex_stars[index];
+          MutableSpan<int2> next_range = vertex_stars.drop_front(index + 1);
+          vertex_star_index[index + 1] = vertex_star_index[index];
+          int2 &next = find_if(
+              next_range, [&](const int2 next) { return ELEM(current[1], next[0], next[1]); });
+          if (&next != next_range.end()) {
+            make_ordered(current, next);
+            std::swap(next_range.first(), next);
+            continue;
+          }
+          /* This is the first element in a non-cyclic star and looking for unconnected edge was
+           * failure. Try again. */
+          int2 &other_next = find_if(
+              next_range, [&](const int2 next) { return ELEM(current[0], next[0], next[1]); });
+          if (&other_next != next_range.end()) {
+            std::swap(current[0], current[1]);
+            make_ordered(current, other_next);
+            std::swap(next_range.first(), other_next);
+            continue;
+          }
+          vertex_star_index[index + 1]++;
+        }
+      },
+      exec_mode::parallel);
 }
 
 class EdgesLineGroupFieldInput final : public bke::MeshFieldInput {
@@ -133,14 +135,17 @@ class EdgesLineGroupFieldInput final : public bke::MeshFieldInput {
 
     IndexMaskMemory memory;
     const IndexMask vert_mask = IndexMask::from_predicate(
-        IndexMask(mesh.verts_num), GrainSize(1024), memory, [&](const int vert_index) {
+        IndexMask(mesh.verts_num),
+        memory,
+        [&](const int vert_index) {
           for (const int edge_index : vert_to_edge_map[vert_index]) {
             if (!ELEM(edge_faces_total[edge_index], 0, 1, 2)) {
               return false;
             }
           }
           return true;
-        });
+        },
+        exec_mode::parallel);
 
     Array<int2> stars_pairs(mesh.corners_num);
     const Array<int2> corner_pairs = corner_edge_pairs(
@@ -153,31 +158,34 @@ class EdgesLineGroupFieldInput final : public bke::MeshFieldInput {
 
     AtomicDisjointSet linear_edges(mesh.edges_num);
 
-    vert_mask.foreach_index(GrainSize(1024), [&](const int vert_index) {
-      for (IndexRange range = vert_to_loop_offset[vert_index]; !range.is_empty();) {
-        const Span<int> vertex_star_index = star_indices.as_span().slice(range);
-        const int &first = vertex_star_index.first();
-        const int &end = find_if(vertex_star_index,
-                                 [&](const int other) { return other != first; });
-        const int size = int(&end - &first);
-        const Span<int2> current_edge_star = stars_pairs.as_span().slice(range.take_front(size));
-        range = range.drop_front(size);
-        const bool is_cyclic = current_edge_star.first()[0] == current_edge_star.last()[1];
-        if (!is_cyclic) {
-          linear_edges.join(current_edge_star.first()[0], current_edge_star.last()[1]);
-          continue;
-        }
-        if (size % 2) {
-          continue;
-        }
-        const int semicircle_size = size / 2;
-        const Span<int2> north_corners = current_edge_star.take_front(semicircle_size);
-        const Span<int2> south_corners = current_edge_star.take_back(semicircle_size);
-        for (const int index : IndexRange(semicircle_size)) {
-          linear_edges.join(north_corners[index][0], south_corners[index][0]);
-        }
-      }
-    });
+    vert_mask.foreach_index(
+        [&](const int vert_index) {
+          for (IndexRange range = vert_to_loop_offset[vert_index]; !range.is_empty();) {
+            const Span<int> vertex_star_index = star_indices.as_span().slice(range);
+            const int &first = vertex_star_index.first();
+            const int &end = find_if(vertex_star_index,
+                                     [&](const int other) { return other != first; });
+            const int size = int(&end - &first);
+            const Span<int2> current_edge_star = stars_pairs.as_span().slice(
+                range.take_front(size));
+            range = range.drop_front(size);
+            const bool is_cyclic = current_edge_star.first()[0] == current_edge_star.last()[1];
+            if (!is_cyclic) {
+              linear_edges.join(current_edge_star.first()[0], current_edge_star.last()[1]);
+              continue;
+            }
+            if (size % 2) {
+              continue;
+            }
+            const int semicircle_size = size / 2;
+            const Span<int2> north_corners = current_edge_star.take_front(semicircle_size);
+            const Span<int2> south_corners = current_edge_star.take_back(semicircle_size);
+            for (const int index : IndexRange(semicircle_size)) {
+              linear_edges.join(north_corners[index][0], south_corners[index][0]);
+            }
+          }
+        },
+        exec_mode::parallel);
 
     threading::parallel_for(IndexRange(mesh.verts_num), 2048, [&](const IndexRange range) {
       for (const int vert_index : range) {
@@ -194,38 +202,41 @@ class EdgesLineGroupFieldInput final : public bke::MeshFieldInput {
       }
     });
 
-    vert_mask.foreach_index(GrainSize(1024), [&](const int vert_index) {
-      if (vert_to_edge_map[vert_index].size() != 4) {
-        return;
-      }
-      const IndexRange range = vert_to_loop_offset[vert_index];
-      if (range.size() != 2) {
-        return;
-      }
-      const Span<int> vertex_star_index = star_indices.as_span().slice(range);
-      const int &first = vertex_star_index.first();
-      const int &end = find_if(vertex_star_index, [&](const int other) { return other != first; });
-      const int size = int(&end - &first);
-      if (size != range.size()) {
-        return;
-      }
-      const int central_edge = stars_pairs.as_span().slice(range).first()[1];
-      const int loos_edge = [&]() {
-        for (const int edge_index : vert_to_edge_map[vert_index]) {
-          if (edge_faces_total[edge_index] == 0) {
-            return edge_index;
+    vert_mask.foreach_index(
+        [&](const int vert_index) {
+          if (vert_to_edge_map[vert_index].size() != 4) {
+            return;
           }
-        }
-        BLI_assert_unreachable();
-        return 0;
-      }();
-      linear_edges.join(central_edge, loos_edge);
-    });
+          const IndexRange range = vert_to_loop_offset[vert_index];
+          if (range.size() != 2) {
+            return;
+          }
+          const Span<int> vertex_star_index = star_indices.as_span().slice(range);
+          const int &first = vertex_star_index.first();
+          const int &end = find_if(vertex_star_index,
+                                   [&](const int other) { return other != first; });
+          const int size = int(&end - &first);
+          if (size != range.size()) {
+            return;
+          }
+          const int central_edge = stars_pairs.as_span().slice(range).first()[1];
+          const int loos_edge = [&]() {
+            for (const int edge_index : vert_to_edge_map[vert_index]) {
+              if (edge_faces_total[edge_index] == 0) {
+                return edge_index;
+              }
+            }
+            BLI_assert_unreachable();
+            return 0;
+          }();
+          linear_edges.join(central_edge, loos_edge);
+        },
+        exec_mode::parallel);
 
     Array<int> edge_group(mesh.edges_num);
     linear_edges.calc_reduced_ids(edge_group);
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(edge_group)), AttrDomain::Edge, domain);
+        VArray<int>::from_container(std::move(edge_group)), AttrDomain::Edge, domain);
   }
 
   uint64_t hash() const final
@@ -233,7 +244,7 @@ class EdgesLineGroupFieldInput final : public bke::MeshFieldInput {
     return 736758993181174;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     return dynamic_cast<const EdgesLineGroupFieldInput *>(&other) != nullptr;
   }
@@ -281,7 +292,7 @@ class ParallelEdgeGroupFieldInput final : public bke::MeshFieldInput {
     parallel_edges.calc_reduced_ids(edge_group);
 
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(edge_group)), AttrDomain::Edge, domain);
+        VArray<int>::from_container(std::move(edge_group)), AttrDomain::Edge, domain);
   }
 
   uint64_t hash() const final
@@ -289,7 +300,7 @@ class ParallelEdgeGroupFieldInput final : public bke::MeshFieldInput {
     return 736758776181174;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     return dynamic_cast<const ParallelEdgeGroupFieldInput *>(&other) != nullptr;
   }
@@ -302,10 +313,9 @@ class ParallelEdgeGroupFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> parallel_edges{std::make_shared<ParallelEdgeGroupFieldInput>()};
-  params.set_output("Parallel Group Index", std::move(parallel_edges));
-  Field<int> linear_edges{std::make_shared<EdgesLineGroupFieldInput>()};
-  params.set_output("Linear Group Index", std::move(linear_edges));
+  params.set_output("Parallel Group Index"_ustr,
+                    Field<int>::from_input<ParallelEdgeGroupFieldInput>());
+  params.set_output("Linear Group Index"_ustr, Field<int>::from_input<EdgesLineGroupFieldInput>());
 }
 
 static void node_register()
