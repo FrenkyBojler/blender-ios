@@ -1635,6 +1635,31 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   int hint_index = 0;
   int first_tri_index = get_tri_for_point(pos_hint[hint_index]);
+
+  /* Check if the user clicked outside of the bounding box. */
+  if (first_tri_index == NULL_INDEX) {
+    if (invert) {
+      /* Get the first triangle that is touching the bounding box. */
+      auto get_first_boundery_tri = [&]() {
+        for (const int tri_index : result.face.index_range()) {
+          for (const int j : IndexRange(3)) {
+            const int next_tri = tri_adjacency[tri_index][j];
+
+            if (next_tri == NULL_INDEX) {
+              return tri_index;
+            }
+          }
+        }
+        BLI_assert_unreachable();
+        return NULL_INDEX;
+      };
+      first_tri_index = get_first_boundery_tri();
+    }
+    else {
+      return bke::CurvesGeometry();
+    }
+  }
+
   add_weights_for_tri(tri_hint_index.as_mutable_span(),
                       tri_weights.as_mutable_span(),
                       tri_adjacency.as_span(),
@@ -1698,27 +1723,27 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     hint_index++;
   }
 
-  /* Add the mouse fill again to make sure it as highest priority. */
-  add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                      tri_weights.as_mutable_span(),
-                      tri_adjacency.as_span(),
-                      tri_edges.as_span(),
-                      edge_weights.as_span(),
-                      tri_max_weight.as_span(),
-                      is_source_edge.as_span(),
-                      first_tri_index,
-                      hint_index);
-
   Array<bool> tri_to_fill(result.face.size(), false);
 
   if (invert) {
     for (const int tri_index : result.face.index_range()) {
-      if (tri_hint_index[tri_index] != hint_index) {
+      if (tri_hint_index[tri_index] != 0) {
         tri_to_fill[tri_index] = true;
       }
     }
   }
   else {
+    /* Add the mouse fill again to make sure it as highest priority. */
+    add_weights_for_tri(tri_hint_index.as_mutable_span(),
+                        tri_weights.as_mutable_span(),
+                        tri_adjacency.as_span(),
+                        tri_edges.as_span(),
+                        edge_weights.as_span(),
+                        tri_max_weight.as_span(),
+                        is_source_edge.as_span(),
+                        first_tri_index,
+                        hint_index);
+
     for (const int tri_index : result.face.index_range()) {
       if (tri_hint_index[tri_index] == hint_index) {
         tri_to_fill[tri_index] = true;
@@ -1742,6 +1767,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
           /* Return no geometry if we try to fill all of space. */
           return {};
         }
+        /* When inverting just skip the edge without returning. */
         continue;
       }
 
