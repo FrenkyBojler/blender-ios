@@ -11,6 +11,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_multi_value_map.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
@@ -1801,8 +1802,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         decode_index(point_1), decode_side(point_1));
   };
 
-  /* Vert_index to edge Ends. */
-  Map<int, Vector<EncodedConnection>> vert_to_edge_ends;
+  /* vert index to edge ends. */
+  MultiValueMap<int, EncodedConnection> vert_to_edge_ends;
 
   for (const int edge_index : boundary_edges) {
     const std::pair<int, int> edge = result.edge[edge_index];
@@ -1810,24 +1811,11 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     const EncodedConnection point_1 = encode_index_and_side(edge_index, Side::Start);
     const EncodedConnection point_2 = encode_index_and_side(edge_index, Side::End);
 
-    if (vert_to_edge_ends.contains(edge.first)) {
-      Vector<EncodedConnection> &edge_ends = vert_to_edge_ends.lookup(edge.first);
-      edge_ends.append(point_1);
-    }
-    else {
-      vert_to_edge_ends.add_new(edge.first, Vector<EncodedConnection>({point_1}));
-    }
-
-    if (vert_to_edge_ends.contains(edge.second)) {
-      Vector<EncodedConnection> &edge_ends = vert_to_edge_ends.lookup(edge.second);
-      edge_ends.append(point_2);
-    }
-    else {
-      vert_to_edge_ends.add_new(edge.second, Vector<EncodedConnection>({point_2}));
-    }
+    vert_to_edge_ends.add(edge.first, point_1);
+    vert_to_edge_ends.add(edge.second, point_2);
   }
 
-  vert_to_edge_ends.foreach_item([&](int /*vert_index*/, Vector<EncodedConnection> edge_ends) {
+  for (Span<EncodedConnection> edge_ends : vert_to_edge_ends.values()) {
     BLI_assert(edge_ends.size() % 2 == 0);
     for (const int edge_pair_index : IndexRange(edge_ends.size() / 2)) {
       const EncodedConnection end_1 = edge_ends[edge_pair_index * 2];
@@ -1835,7 +1823,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
       connect(end_1, end_2);
     }
-  });
+  }
 
   follow_edge_connections(
       all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
