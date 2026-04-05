@@ -32,6 +32,10 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#ifdef WITH_INPUT_IME
+#  include "wm_window.hh"
+#endif
+
 #include "RNA_access.hh"
 
 #include "UI_interface_layout.hh"
@@ -670,7 +674,12 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
 void popup_block_invoke_ex(
     bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, const bool can_refresh)
 {
+#ifdef WITH_INPUT_IME
   wmWindow *window = CTX_wm_window(C);
+  if (window->runtime->ime_data) {
+    wm_window_IME_end(window);
+  }
+#endif
 
   PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, arg_free, can_refresh);

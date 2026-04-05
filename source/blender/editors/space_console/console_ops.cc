@@ -545,6 +545,22 @@ static wmOperatorStatus console_insert_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus console_insert_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+#ifdef WITH_INPUT_IME
+  {
+    wmWindow *win = CTX_wm_window(C);
+    if (event->type == WM_IME_COMPOSITE_EVENT) {
+      const wmIMEData *ime_data = win->runtime->ime_data;
+      if (ime_data && !ime_data->result.empty()) {
+        RNA_string_set(op->ptr, "text", ime_data->result.c_str());
+        return console_insert_exec(C, op);
+      }
+    }
+    if (win->runtime->ime_data_is_composing) {
+      return OPERATOR_CANCELLED;
+    }
+  }
+#endif
+
   /* NOTE: the "text" property is always set from key-map,
    * so we can't use #RNA_struct_property_is_set, check the length instead. */
   if (!RNA_string_length(op->ptr, "text")) {
@@ -749,6 +765,12 @@ static const EnumPropertyItem console_delete_type_items[] = {
 
 static wmOperatorStatus console_delete_exec(bContext *C, wmOperator *op)
 {
+#ifdef WITH_INPUT_IME
+  if (CTX_wm_window(C)->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+#endif
+
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);

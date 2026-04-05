@@ -2483,6 +2483,12 @@ static const EnumPropertyItem delete_type_items[] = {
 
 static wmOperatorStatus text_delete_exec(bContext *C, wmOperator *op)
 {
+#ifdef WITH_INPUT_IME
+  if (CTX_wm_window(C)->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+#endif
+
   SpaceText *st = CTX_wm_space_text(C);
   Text *text = CTX_data_edit_text(C);
   int type = RNA_enum_get(op->ptr, "type");
@@ -3568,8 +3574,6 @@ static wmOperatorStatus text_insert_exec(bContext *C, wmOperator *op)
 
   str = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, &str_len);
 
-  ED_text_undo_push_init(C);
-
   if (st && st->overwrite) {
     while (str[i]) {
       code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &i);
@@ -3588,6 +3592,8 @@ static wmOperatorStatus text_insert_exec(bContext *C, wmOperator *op)
   if (!done) {
     return OPERATOR_CANCELLED;
   }
+
+  ED_text_undo_push_init(C);
 
   text_update_line_edited(text->curl);
 
@@ -3615,6 +3621,22 @@ static wmOperatorStatus text_insert_invoke(bContext *C, wmOperator *op, const wm
     int selc;
     int curc;
   } auto_close_select = {nullptr}, auto_close_select_backup = {nullptr};
+
+#ifdef WITH_INPUT_IME
+  {
+    wmWindow *win = CTX_wm_window(C);
+    if (event->type == WM_IME_COMPOSITE_EVENT) {
+      const wmIMEData *ime_data = win->runtime->ime_data;
+      if (ime_data && !ime_data->result.empty()) {
+        RNA_string_set(op->ptr, "text", ime_data->result.c_str());
+        return text_insert_exec(C, op);
+      }
+    }
+    if (win->runtime->ime_data_is_composing) {
+      return OPERATOR_CANCELLED;
+    }
+  }
+#endif
 
   /* NOTE: the "text" property is always set from key-map,
    * so we can't use #RNA_struct_property_is_set, check the length instead. */

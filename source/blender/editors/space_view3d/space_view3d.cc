@@ -12,6 +12,7 @@
 #include <cstring>
 
 #include "DNA_collection_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
@@ -22,6 +23,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -40,6 +42,7 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_vfont.hh"
 #include "BKE_viewer_path.hh"
 
 #include "ED_asset_shelf.hh"
@@ -553,6 +556,48 @@ static void *view3d_main_region_duplicate(void *poin)
   }
   return nullptr;
 }
+
+#ifdef WITH_INPUT_IME
+static std::optional<blender::int2> view3d_main_region_cursor_ime(wmWindow *win,
+                                                                  ScrArea * /*area*/,
+                                                                  ARegion *region)
+{
+  /* Defer during viewport navigation (orbit, pan, zoom, fly, walk). */
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+  if (rv3d->rflag & RV3D_NAVIGATING) {
+    return std::nullopt;
+  }
+
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  if (!view_layer) {
+    return std::nullopt;
+  }
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (!ob || ob->type != OB_FONT || ob->mode != OB_MODE_EDIT) {
+    return std::nullopt;
+  }
+
+  Curve *cu = id_cast<Curve *>(ob->data);
+  EditFont *ef = cu->editfont;
+
+  float2 cursor_screen = float2(0);
+  /* cu->editfont can be nullptr on Blender startup. */
+  if (ef) {
+    /* Bottom right corner of the text cursor to get its center in local space. */
+    float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
+    /* Transform to world space, then project to region coordinates. */
+    const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
+    if (ED_view3d_project_float_global(region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) !=
+        V3D_PROJ_RET_OK)
+    {
+      cursor_screen = float2(0);
+    }
+  }
+
+  return blender::int2(int(cursor_screen[0]), int(cursor_screen[1]));
+}
+
+#endif
 
 static void view3d_main_region_listener(const wmRegionListenerParams *params)
 {
@@ -1630,6 +1675,9 @@ void ED_spacetype_view3d()
   art->exit = view3d_main_region_exit;
   art->free = view3d_main_region_free;
   art->duplicate = view3d_main_region_duplicate;
+#ifdef WITH_INPUT_IME
+  art->cursor_ime = view3d_main_region_cursor_ime;
+#endif
   art->listener = view3d_main_region_listener;
   art->message_subscribe = view3d_main_region_message_subscribe;
   art->cursor = view3d_main_region_cursor;

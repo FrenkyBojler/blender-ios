@@ -856,6 +856,25 @@ static void sequencer_preview_region_view2d_changed(const bContext *C, ARegion *
   sseq->flag &= ~SEQ_ZOOM_TO_FIT;
 }
 
+#ifdef WITH_INPUT_IME
+static std::optional<blender::int2> sequencer_preview_region_cursor_ime(wmWindow *win,
+                                                                        ScrArea * /*area*/,
+                                                                        ARegion *region)
+{
+  WorkSpace *workspace = WM_window_get_active_workspace(win);
+  Scene *scene = workspace->sequencer_scene;
+  if (!scene) {
+    return std::nullopt;
+  }
+  std::optional<blender::int2> pos = sequencer_text_editing_cursor_region_xy_get(scene, region);
+  if (pos) {
+    pos->x = std::clamp(pos->x, 0, BLI_rcti_size_x(&region->winrct));
+    pos->y = std::clamp(pos->y, 0, BLI_rcti_size_y(&region->winrct));
+  }
+  return pos;
+}
+#endif
+
 static void sequencer_preview_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
@@ -1167,6 +1186,9 @@ void ED_spacetype_sequencer()
   art->layout = sequencer_preview_region_layout;
   art->on_view2d_changed = sequencer_preview_region_view2d_changed;
   art->draw = sequencer_preview_region_draw;
+#ifdef WITH_INPUT_IME
+  art->cursor_ime = sequencer_preview_region_cursor_ime;
+#endif
   art->listener = sequencer_preview_region_listener;
   art->keymapflag = ED_KEYMAP_TOOL | ED_KEYMAP_GIZMO | ED_KEYMAP_GPENCIL;
   BLI_addhead(&st->regiontypes, art);

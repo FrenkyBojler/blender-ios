@@ -212,6 +212,30 @@ static void console_dropboxes()
 
 /* ************* end drop *********** */
 
+#ifdef WITH_INPUT_IME
+static std::optional<blender::int2> console_main_region_cursor_ime(wmWindow * /*win*/,
+                                                                   ScrArea *area,
+                                                                   ARegion *region)
+{
+  /* Defer during View2D navigation (pan, zoom, scroll). */
+  if (region->v2d.flag & V2D_IS_NAVIGATING) {
+    return std::nullopt;
+  }
+  SpaceConsole *sc = static_cast<SpaceConsole *>(area->spacedata.first);
+  const ConsoleLine *cl = static_cast<const ConsoleLine *>(sc->history.last);
+  if (cl == nullptr) {
+    return std::nullopt;
+  }
+  int cursor_xy[2];
+  console_cursor_region_xy_get(sc, region, cl->cursor, cursor_xy);
+  /* The cursor may be scrolled out of view. */
+  cursor_xy[0] = std::clamp(cursor_xy[0], 0, BLI_rcti_size_x(&region->winrct));
+  cursor_xy[1] = std::clamp(cursor_xy[1], 0, BLI_rcti_size_y(&region->winrct));
+  return blender::int2(cursor_xy[0], cursor_xy[1]);
+}
+
+#endif
+
 static void console_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
@@ -377,6 +401,9 @@ void ED_spacetype_console()
   art->cursor = console_cursor;
   art->event_cursor = true;
   art->listener = console_main_region_listener;
+#ifdef WITH_INPUT_IME
+  art->cursor_ime = console_main_region_cursor_ime;
+#endif
 
   BLI_addhead(&st->regiontypes, art);
 

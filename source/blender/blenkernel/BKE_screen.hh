@@ -8,6 +8,7 @@
  */
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "BLI_compiler_attrs.h"
@@ -316,6 +317,17 @@ struct ARegionType {
    */
   void (*on_view2d_changed)(const bContext *C, ARegion *region);
 
+  /**
+   * Return the IME cursor position in region-relative coordinates,
+   * or nullopt if IME should not be active in this region
+   * (e.g. during navigation, or when no text is being edited).
+   *
+   * Called on region activation and after each draw (when `ARegionRuntime::do_ime` is set)
+   * to position the IME candidate window.
+   * The caller converts to window coordinates and calls `wm_window_IME_begin`/`end`.
+   */
+  std::optional<blender::int2> (*cursor_ime)(wmWindow *win, ScrArea *area, ARegion *region);
+
   ARegionTypeFlag flag;
 
   /** Custom drawing callbacks. */
@@ -562,6 +574,9 @@ struct ARegionRuntime {
 
   /** Private, cached notifier events. */
   short do_draw_paintcursor;
+
+  /** Tag for IME cursor position refresh on next draw. */
+  bool do_ime = false;
 
   ARegionQuadviewIndex quadview_index = ARegionQuadviewIndex::None;
 

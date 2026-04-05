@@ -20,6 +20,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
+#include "BKE_text.h"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -111,6 +112,33 @@ static SpaceLink *text_duplicate(SpaceLink *sl)
 
   return reinterpret_cast<SpaceLink *>(stextn);
 }
+
+#ifdef WITH_INPUT_IME
+static std::optional<blender::int2> text_main_region_cursor_ime(wmWindow * /*win*/,
+                                                                ScrArea *area,
+                                                                ARegion *region)
+{
+  SpaceText *st = static_cast<SpaceText *>(area->spacedata.first);
+  /* Defer while the scrollbar is being dragged. */
+  if (st->flags & ST_SCROLL_SELECT) {
+    return std::nullopt;
+  }
+  if (!st->text) {
+    return std::nullopt;
+  }
+  int offl, offc;
+  space_text_wrap_offset(st, region, st->text->sell, st->text->selc, &offl, &offc);
+  const int lheight = TXT_LINE_HEIGHT(st);
+  const int vsell = txt_get_span(static_cast<TextLine *>(st->text->lines.first), st->text->sell) -
+                    st->top + offl;
+  const int vselc = space_text_get_char_pos(st, st->text->sell->line, st->text->selc) - st->left +
+                    offc;
+  int x = TXT_BODY_LEFT(st) + (vselc * st->runtime->cwidth_px);
+  int y = region->winy - vsell * lheight;
+  return blender::int2(x, y - lheight);
+}
+
+#endif
 
 static void text_listener(const wmSpaceTypeListenerParams *params)
 {
@@ -453,6 +481,9 @@ void ED_spacetype_text()
   art->draw = text_main_region_draw;
   art->cursor = text_cursor;
   art->event_cursor = true;
+#ifdef WITH_INPUT_IME
+  art->cursor_ime = text_main_region_cursor_ime;
+#endif
 
   BLI_addhead(&st->regiontypes, art);
 

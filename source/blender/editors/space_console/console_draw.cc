@@ -17,6 +17,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLF_api.hh"
+
 #include "GPU_immediate.hh"
 
 #include "UI_resources.hh"
@@ -255,6 +257,37 @@ int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2]
 
   console_textview_main__internal(sc, region, false, mval, &mval_pick_item, &mval_pick_offset);
   return mval_pick_offset;
+}
+
+void console_cursor_region_xy_get(SpaceConsole *sc, const ARegion *region, int offset, int r_xy[2])
+{
+  const ConsoleLine *cl = static_cast<const ConsoleLine *>(sc->history.last);
+  if (cl == nullptr) {
+    r_xy[0] = 0;
+    r_xy[1] = 0;
+    return;
+  }
+
+  rcti draw_rect, draw_rect_outer;
+  console_textview_draw_rect_calc(region, &draw_rect, &draw_rect_outer);
+
+  const int lheight = sc->lheight * UI_SCALE_FAC;
+  /* Match textview_draw: `blf_mono_font` at `0.8 * lheight`. */
+  BLF_size(blf_mono_font, 0.8f * lheight);
+  const int cwidth = int(BLF_fixed_width(blf_mono_font));
+  const int columns = std::max((draw_rect.xmax - draw_rect.xmin) / std::max(cwidth, 1), 1);
+
+  int offl = 0, offc = 0;
+  console_cursor_wrap_offset(sc->prompt, columns, &offl, &offc, nullptr);
+  console_cursor_wrap_offset(cl->line, columns, &offl, &offc, cl->line + offset);
+  r_xy[0] = cwidth * offc;
+  r_xy[1] = -lheight * offl;
+
+  console_cursor_wrap_offset(cl->line + offset, columns, &offl, &offc, nullptr);
+  r_xy[1] += lheight * offl;
+
+  r_xy[0] += draw_rect.xmin;
+  r_xy[1] += draw_rect.ymin;
 }
 
 }  // namespace blender
