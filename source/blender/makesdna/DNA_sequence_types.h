@@ -620,7 +620,8 @@ struct Editing {
   int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
   int cache_flag = 0;              /* eEditingCacheFlag */
 
-  SeqTimelineChannel *captions_act_channel = nullptr;
+  int captions_act_channel_index = 0;
+  char _pad[4] = {};
   
   seq::EditingRuntime *runtime = nullptr;
 

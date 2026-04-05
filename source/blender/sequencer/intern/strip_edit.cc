@@ -189,7 +189,7 @@ void edit_remove_flagged_strips(Scene *scene, ListBaseT<Strip> *seqbase)
         edit_remove_flagged_strips(scene, &strip.seqbase);
         
         /* Handle captions removal*/
-      } else if(strip.type == STRIP_TYPE_TEXT && strip.channel == ed->captions_act_channel->index) {
+      } else if(strip.type == STRIP_TYPE_TEXT && strip.channel == ed->captions_act_channel_index) {
         seq::caption_strips_remove(scene, &strip);
       }
 

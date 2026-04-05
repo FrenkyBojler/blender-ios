@@ -2164,9 +2164,14 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
         strips = ed.caption_strips
         layout.prop(ed, "captions_active_channel_index", text="Active Channel")
         
+        has_strips = False
         for index, strip in enumerate(strips):
             if strip:
+                has_strips = True
                 self.draw_caption(layout, strip, index)
+        
+        if not has_strips:
+            layout.label(text="No captions found in active channel.")
         
         layout.operator("sequencer.caption_add", text="Add", icon='ADD')
         

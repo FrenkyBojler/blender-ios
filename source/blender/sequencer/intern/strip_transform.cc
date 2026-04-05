@@ -100,7 +100,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
   strip_time_update_effects_strip_range(evil_scene, effects);
   time_update_meta_strip_range(evil_scene, lookup_meta_by_strip(evil_scene->ed, strip));
 
-  if(strip->type == STRIP_TYPE_TEXT && strip->channel == evil_scene->ed->captions_act_channel->index){
+  if(strip->type == STRIP_TYPE_TEXT && strip->channel == evil_scene->ed->captions_act_channel_index){
     seq::caption_strips_sort(evil_scene);
   }
 }
@@ -579,9 +579,9 @@ void strip_channel_set(Strip *strip, int channel, Scene *scene)
   if(scene != nullptr) {
     Editing *ed = seq::editing_get(scene);
     if (strip->type == STRIP_TYPE_TEXT) {
-      if(strip->channel == ed->captions_act_channel->index) { /* When the strip is moved out of the active channel, it's removed from the captions cache */
+      if(strip->channel == ed->captions_act_channel_index) { /* When the strip is moved out of the active channel, it's removed from the captions cache */
         seq::caption_strips_remove(scene, strip);
-      } else if(channel == ed->captions_act_channel->index) { /* When the strip is moved into the active channel, it's added to the captions cache */
+      } else if(channel == ed->captions_act_channel_index) { /* When the strip is moved into the active channel, it's added to the captions cache */
         seq::caption_strips_append(scene, strip);
       }
     }

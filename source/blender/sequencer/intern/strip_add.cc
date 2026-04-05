@@ -190,7 +190,7 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
   strip_add_generic_update(scene, strip);
 
   /* Handle captions removal*/
-  SeqTimelineChannel *captions_channel = seq::editing_get(scene)->captions_act_channel;
+  SeqTimelineChannel *captions_channel = seq::captions_active_channel_get(seq::editing_get(scene));
   if(strip->type == STRIP_TYPE_TEXT && strip->channel == captions_channel->index) {
     seq::caption_strips_append(scene, strip);
   }

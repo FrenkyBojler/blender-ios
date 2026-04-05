@@ -19,7 +19,8 @@ namespace blender {
   struct TextVars;
 
 namespace seq {
-    
+
+SeqTimelineChannel *captions_active_channel_get(Editing *ed);
 void captions_apply_style_single(Scene *scene, SeqTimelineChannel *channel, Strip *strip);
 void captions_apply_style_active(Scene *scene);
 void captions_update_active(Scene *scene);
@@ -33,8 +34,7 @@ void caption_strips_append(Scene *scene, Strip *strip);
 void caption_strips_remove(Scene *scene, Strip *strip);
 void caption_strips_rebuild(struct Scene *scene);
 
-/** Pass nullptr as default, which will default to the first channel */
-void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel=nullptr);
+void captions_active_channel_set(Editing *ed, int index=1);
 
 }  // namespace seq
 }  // namespace blender

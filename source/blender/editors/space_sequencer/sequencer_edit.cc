@@ -2856,7 +2856,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
     /* Update captions because one of the changed strips can be caption */
     if(strip->type == STRIP_TYPE_TEXT) {
-      if(strip->channel == ed->captions_act_channel->index){
+      if(strip->channel == ed->captions_act_channel_index){
         seq::caption_strips_remove(scene, strip);
       }
     }
@@ -4338,7 +4338,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
     Editing *ed = seq::editing_ensure(scene);
 
     int start_frame = scene->r.cfra;
-    int channel = ed->captions_act_channel->index;
+    int channel = ed->captions_act_channel_index;
 
     /* Maybe add RNA option for that */
     load_data.start_frame = start_frame;
@@ -4427,7 +4427,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       Scene *scene = CTX_data_sequencer_scene(C);
       Editing *ed = seq::editing_ensure(scene);
   
-      int channel = ed->captions_act_channel->index;
+      int channel = ed->captions_act_channel_index;
   
       /* Maybe add RNA option for that */
       load_data.channel = channel;

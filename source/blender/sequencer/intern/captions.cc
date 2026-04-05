@@ -84,13 +84,17 @@ static void captions_init_default_style(SeqTimelineChannel *channel)
     data->wrap_width = 1.0f;
 }
 
+SeqTimelineChannel *captions_active_channel_get(Editing *ed){
+  return seq::channel_get_by_index(&ed->channels, ed->captions_act_channel_index);
+}
+
 static TextVars *captions_active_style_get(Scene *scene){
   Editing *ed = seq::editing_get(scene);
   if(ed == nullptr){
     return nullptr;
   }
 
-  return ed->captions_act_channel->captions_style;
+  return captions_active_channel_get(ed)->captions_style;
 }
 
 void captions_apply_style_single(Scene *scene, SeqTimelineChannel *channel, Strip *strip)
@@ -153,24 +157,21 @@ void captions_apply_style_active(Scene *scene)
     }
 
     for (Strip *strip : caption_strips_query(scene)) {
-      captions_apply_style_single(scene, ed->captions_act_channel, strip);
+      captions_apply_style_single(scene, seq::captions_active_channel_get(ed), strip);
     }
 }
 
-void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel) {
+void captions_active_channel_set(Editing *ed, int index) {
   if(ed == nullptr) {
     return;
   }
-  
-  if(channel == nullptr){
-    channel = seq::channel_get_by_index(&ed->channels, 1);
-  }
 
+  SeqTimelineChannel *channel = captions_active_channel_get(ed);
   if(channel->captions_style == nullptr) {
     captions_init_default_style(channel);
   }
 
-  ed->captions_act_channel = channel;
+  ed->captions_act_channel_index = index;
 }
 
 const Vector<Strip *> caption_strips_query(Scene *scene) {
@@ -231,14 +232,14 @@ void caption_strips_rebuild(Scene *scene)
     return;
   }
 
-  if (ed->captions_act_channel == nullptr) {
-    captions_active_channel_set(ed, nullptr);
+  if (ed->captions_act_channel_index == 0) {
+    captions_active_channel_set(ed);
   }
 
   ed->runtime->caption_strips.clear();
   
   for (Strip &strip : ed->seqbase) {
-    if (strip.channel == ed->captions_act_channel->index) {
+    if (strip.channel == ed->captions_act_channel_index) {
       if (strip.type == STRIP_TYPE_TEXT) {
         ed->runtime->caption_strips.append(&strip);
       }

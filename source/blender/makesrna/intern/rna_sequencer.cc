@@ -1549,15 +1549,14 @@ static void rna_SequenceEditor_caption_strips_update(Main * /*bmain*/, Scene * s
 
 static int rna_SequenceEditor_captions_channel_get(PointerRNA *ptr) {
   Editing *ed = (Editing *)ptr->data;
-  return seq::channel_index_get(ed->captions_act_channel);
+  return ed->captions_act_channel_index;
 }
 static void rna_SequenceEditor_captions_channel_set(PointerRNA *ptr, int value)
 {
     Editing *ed = (Editing *)ptr->data;
     Scene *scene = (Scene *)ptr->owner_id;
 
-    SeqTimelineChannel *channel = seq::channel_get_by_index(&ed->channels, value);
-    seq::captions_active_channel_set(ed, channel);
+    seq::captions_active_channel_set(ed, value);
     seq::captions_update_active(scene);
    // seq::captions_update_active() -> Should pass Scene here somehow, what about simply toggle cache flag?
     // Maybe make it update here? buggy

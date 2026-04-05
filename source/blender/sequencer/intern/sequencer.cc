@@ -762,8 +762,8 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
     if(strip->type == STRIP_TYPE_TEXT) {      
       Editing *ed = seq::editing_get(ctx.scene_dst);
 
-      if(ed->captions_act_channel != nullptr){
-        if(strip->channel == ed->captions_act_channel->index){
+      if(ed->captions_act_channel_index != 0){
+        if(strip->channel == ed->captions_act_channel_index){
           seq::caption_strips_append(ctx.scene_dst, strip);
         }
       }
