@@ -6,6 +6,10 @@
 
 #include "gpu_shader_compat.hh"
 
+#include "eevee_light_shared.hh"
+
+namespace eevee::light {
+
 uint bitfield_mask(uint bit_width, uint bit_min)
 {
   /* Cannot bit shift more than 31 positions. */
@@ -45,6 +49,18 @@ int culling_z_to_zbin(float scale, float bias, float z)
 #  define subgroupOr(a) a
 #  define subgroupBroadcastFirst(a) a
 #endif
+
+struct LightCulling {
+  [[storage(0, read)]] LightCullingData &light_cull_buf;
+};
+
+template<typename CallbackT>
+void foreach_directional([[resource_table]] const LightCullingData &culling, CallbackT cb)
+{
+  for (uint index = culling.local_lights_len; index < culling.items_count; index++) {
+    cb.eval(index);
+  }
+}
 
 #define LIGHT_FOREACH_BEGIN_DIRECTIONAL(_culling, _index) \
   { \
@@ -98,3 +114,5 @@ int culling_z_to_zbin(float scale, float bias, float z)
   } \
   } \
   }
+
+}

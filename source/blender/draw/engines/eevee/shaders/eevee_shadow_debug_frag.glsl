@@ -12,7 +12,7 @@
 FRAGMENT_SHADER_CREATE_INFO(eevee_shadow_debug)
 
 #include "draw_view_lib.glsl"
-#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_iter.bsl.hh"
 #include "eevee_light_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_shadow_lib.glsl"

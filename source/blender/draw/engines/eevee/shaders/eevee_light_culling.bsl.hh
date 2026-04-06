@@ -13,7 +13,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 #include "draw_intersect_lib.glsl"
 #include "draw_shape_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_iter.bsl.hh"
 #include "eevee_light_lib.glsl"
 #include "eevee_light_shared.hh"
 #include "gpu_shader_debug_gradients_lib.glsl"

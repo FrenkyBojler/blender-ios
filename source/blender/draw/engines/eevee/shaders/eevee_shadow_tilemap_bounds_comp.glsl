@@ -15,7 +15,7 @@
 COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tilemap_bounds)
 
 #include "draw_shape_lib.glsl"
-#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_iter.bsl.hh"
 #include "gpu_shader_utildefines_lib.glsl"
 
 shared int global_min;

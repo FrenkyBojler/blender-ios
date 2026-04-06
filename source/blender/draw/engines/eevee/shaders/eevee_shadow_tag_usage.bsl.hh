@@ -21,7 +21,7 @@ COMPUTE_SHADER_CREATE_INFO(draw_resource_id_varying)
 
 #include "draw_view_lib.glsl"
 #include "eevee_defines.hh"
-#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_iter.bsl.hh"
 #include "eevee_light_lib.glsl"
 #include "eevee_lightprobe_shared.hh"
 #include "eevee_sampling_lib.glsl"

@@ -460,7 +460,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_light_culling.bsl.hh
   engines/eevee/shaders/eevee_light_shadow_setup.bsl.hh
   engines/eevee/shaders/eevee_light_eval_lib.glsl
-  engines/eevee/shaders/eevee_light_iter_lib.glsl
+  engines/eevee/shaders/eevee_light_iter.bsl.hh
   engines/eevee/shaders/eevee_light_lib.glsl
   engines/eevee/shaders/eevee_lightprobe_eval_lib.glsl
   engines/eevee/shaders/eevee_lightprobe_volume_bounds_comp.glsl

@@ -157,7 +157,6 @@ set(SRC_GLSL_LIB
   # eevee_forward_lib.glsl
   eevee_gbuffer_lib.glsl
   eevee_light_eval_lib.glsl
-  eevee_light_iter_lib.glsl
   eevee_light_lib.glsl
   eevee_lightprobe_eval_lib.glsl
   eevee_lightprobe_lib.glsl

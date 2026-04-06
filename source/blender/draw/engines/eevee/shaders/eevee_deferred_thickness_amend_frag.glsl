@@ -16,73 +16,96 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
 
 #include "draw_view_lib.glsl"
 #include "eevee_gbuffer_lib.glsl"
-#include "eevee_light_iter_lib.glsl"
+#include "eevee_light_iter.bsl.hh"
 #include "eevee_light_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_shadow_tracing_lib.glsl"
 
-void thickness_from_shadow_single(uint l_idx,
-                                  const bool is_directional,
-                                  float3 P,
-                                  float3 Ng,
-                                  Thickness gbuffer_thickness,
-                                  float &thickness_accum,
-                                  float &weight_accum)
-{
-  LightData light = light_buf[l_idx];
+namespace eevee::thickness {
 
-  if (light.tilemap_index == LIGHT_NO_SHADOW) {
-    return;
-  }
+struct FromShadowEvalCtx {
+  bool is_directional;
+  float3 P;
+  float3 Ng;
+  Thickness gbuffer_thickness;
+  float thickness_accum;
+  float weight_accum;
 
-  LightVector lv = light_vector_get(light, is_directional, P);
-  float attenuation = light_attenuation_surface(light, is_directional, lv);
-  attenuation *= light_attenuation_facing(light, lv.L, lv.dist, -Ng, true);
+  void eval(uint l_idx)
+  {
+    LightData light = light_buf[l_idx];
 
-  if (attenuation < LIGHT_ATTENUATION_THRESHOLD) {
-    return;
-  }
+    if (light.tilemap_index == LIGHT_NO_SHADOW) {
+      return;
+    }
 
-  float texel_radius = shadow_texel_radius_at_position(light, is_directional, P);
+    LightVector lv = light_vector_get(light, is_directional, P);
+    float attenuation = light_attenuation_surface(light, is_directional, lv);
+    attenuation *= light_attenuation_facing(light, lv.L, lv.dist, -Ng, true);
 
-  float2 pcf_random = pcg4d(float4(gl_FragCoord.xyz, sampling_rng_1D_get(SAMPLING_SHADOW_X))).xy;
+    if (attenuation < LIGHT_ATTENUATION_THRESHOLD) {
+      return;
+    }
 
-  float3 P_offset = P;
-  /* Invert all biases to get value inside the surface.
-   * The additional offset is to make the pcf kernel fully inside the object. */
-  float normal_offset = shadow_normal_offset(Ng, lv.L, texel_radius);
-  P_offset -= Ng * normal_offset;
-  /* Inverting this bias means we will over estimate the distance. Which removes some artifacts. */
-  P_offset -= texel_radius * shadow_pcf_offset(lv.L, Ng, pcf_random);
+    float texel_radius = shadow_texel_radius_at_position(light, is_directional, P);
 
-  float occluder_delta = shadow_sample(
-      is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P_offset);
-  if (occluder_delta > 0.0f) {
-    float hit_distance = abs(occluder_delta);
-    /* Add back the amount of offset we added to the original position.
-     * This avoids self shadowing issue. */
-    hit_distance += (normal_offset + 1.0f) * texel_radius;
+    float2 pcf_random = pcg4d(float4(gl_FragCoord.xyz, sampling_rng_1D_get(SAMPLING_SHADOW_X))).xy;
 
-    if ((hit_distance > gbuffer_thickness.value() * 0.001f) &&
-        (hit_distance < gbuffer_thickness.value() * 1.0f))
-    {
-      float weight = 1.0f;
-      saturate(dot(lv.L, -Ng));
-      thickness_accum += hit_distance * weight;
-      weight_accum += weight;
+    float3 P_offset = P;
+    /* Invert all biases to get value inside the surface.
+     * The additional offset is to make the pcf kernel fully inside the object. */
+    float normal_offset = shadow_normal_offset(Ng, lv.L, texel_radius);
+    P_offset -= Ng * normal_offset;
+    /* Inverting this bias means we will over estimate the distance. Which removes some artifacts.
+     */
+    P_offset -= texel_radius * shadow_pcf_offset(lv.L, Ng, pcf_random);
+
+    float occluder_delta = shadow_sample(
+        is_directional, shadow_atlas_tx, shadow_tilemaps_tx, light, P_offset);
+    if (occluder_delta > 0.0f) {
+      float hit_distance = abs(occluder_delta);
+      /* Add back the amount of offset we added to the original position.
+       * This avoids self shadowing issue. */
+      hit_distance += (normal_offset + 1.0f) * texel_radius;
+
+      if ((hit_distance > gbuffer_thickness.value() * 0.001f) &&
+          (hit_distance < gbuffer_thickness.value() * 1.0f))
+      {
+        float weight = 1.0f;
+        saturate(dot(lv.L, -Ng));
+        thickness_accum += hit_distance * weight;
+        weight_accum += weight;
+      }
     }
   }
-}
+};
+
+}  // namespace eevee::thickness
+
+namespace eevee {
+template void light::foreach_directional<thickness::FromShadowEvalCtx>(
+    const LightCullingData &, thickness::FromShadowEvalCtx);
+}  // namespace eevee
+
+namespace eevee::thickness {
 
 /**
  * Return the apparent thickness of an object behind surface considering all shadow maps
  * available. If no shadow-map has a record of the other side of the surface, this function
  * returns -1.
  */
-float thickness_from_shadow(float3 P, float3 Ng, float vPz, Thickness gbuffer_thickness)
+float from_shadow([[resource_table]] const LightCullingData &culling,
+                  float3 P,
+                  float3 Ng,
+                  float vPz,
+                  Thickness gbuffer_thickness)
 {
+  FromShadowEvalCtx ctx;
+
   float thickness_accum = 0.0f;
   float weight_accum = 0.0f;
+
+  light::foreach_directional(ctx, );
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
     thickness_from_shadow_single(
@@ -90,12 +113,13 @@ float thickness_from_shadow(float3 P, float3 Ng, float vPz, Thickness gbuffer_th
   }
   LIGHT_FOREACH_END
 
-  float2 pixel = gl_FragCoord.xy;
-  LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, pixel, vPz, l_idx) {
-    thickness_from_shadow_single(
-        l_idx, false, P, Ng, gbuffer_thickness, thickness_accum, weight_accum);
-  }
-  LIGHT_FOREACH_END
+  // float2 pixel = gl_FragCoord.xy;
+  // LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, pixel, vPz, l_idx)
+  // {
+  //   thickness_from_shadow_single(
+  //       l_idx, false, P, Ng, gbuffer_thickness, thickness_accum, weight_accum);
+  // }
+  // LIGHT_FOREACH_END
 
   if (weight_accum == 0.0f) {
     return -1.0f;
@@ -105,6 +129,7 @@ float thickness_from_shadow(float3 P, float3 Ng, float vPz, Thickness gbuffer_th
   /* Add a bias because it is usually too small to prevent self shadowing. */
   return thickness;
 }
+}  // namespace eevee::thickness
 
 void main()
 {
