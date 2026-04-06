@@ -183,7 +183,8 @@ bool BKE_blender_version_is_alpha()
 
 bool BKE_blender_version_is_lts()
 {
-  return STREQ(STRINGIFY(BLENDER_VERSION_SUFFIX), "LTS");
+  return STREQ(STRINGIFY(BLENDER_VERSION_SUFFIX), "LTS") ||
+         true; /* TODO: Revert this before merge. */
 }
 
 /** \} */

@@ -519,12 +519,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
     }
 #ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
     if (U.statusbar_flag & STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG) {
-      if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
-      }
-      else if ((U.flag &
-                (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                 USER_BLENDER_UPDATE_CURRENT_RELEASE)) == 0)
-      {
+      if (bool(G.f & G_FLAG_INTERNET_ALLOW) && !bke::updates_notifications_flags()) {
         if (has_status_info) {
           row.separator(-0.5f);
           row.label("|", ICON_NONE);
@@ -541,11 +536,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         row.separator(1.0f);
         has_status_info = true;
       }
-      else if (U.flag &
-                   (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                    USER_BLENDER_UPDATE_CURRENT_RELEASE) &&
-               bke::have_available_updates(*C))
-      {
+      else if (bke::have_available_updates(*C)) {
         if (has_status_info) {
           row.separator(-0.5f);
           row.label("|", ICON_NONE);

@@ -86,6 +86,13 @@ bool is_looking_for_updates();
 /** Checks is there was as issue when downloading the file of the latest available updates. */
 bool is_looking_for_updates_failed();
 
+/**
+ * Return enabled update notifications flags when `G_FLAG_INTERNET_ALLOW` is enabled, if the
+ * current version is a non LTS version it will only return the
+ * `USER_BLENDER_UPDATE_LATEST_RELEASE` flag.
+ */
+int updates_notifications_flags();
+
 }  // namespace blender::bke
 
 #endif

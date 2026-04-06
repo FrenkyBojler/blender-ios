@@ -3536,9 +3536,7 @@ static bool check_for_updates_poll(blender::bContext *C)
     return false;
   }
 
-  if (!(U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                  USER_BLENDER_UPDATE_CURRENT_RELEASE)))
-  {
+  if (!bke::updates_notifications_flags()) {
     CTX_wm_operator_poll_msg_set(C, "Update Notifications for release updates has to be enabled");
     return false;
   }

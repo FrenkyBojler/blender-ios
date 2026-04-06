@@ -831,6 +831,8 @@ class USERPREF_PT_system_blender_updates(SystemPanel, CenterAlignMixIn, Panel):
         system = prefs.system
         layout.active = system.use_online_access
         layout.prop(system, "latest_release", text=iface_("Latest Release"))
+        if "LTS" not in bpy.app.version_string:
+            return
         layout.prop(system, "latest_lts_release", text=iface_("Latest LTS Release"))
         layout.prop(system, "current_release", text=iface_("Current Release"))
 

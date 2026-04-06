@@ -522,12 +522,21 @@ void write_blender_updates_cache_file()
   io::serialize::write_json_file(available_updates_file, *dict);
 }
 
+int updates_notifications_flags()
+{
+  if (!(G.f & G_FLAG_INTERNET_ALLOW)) {
+    return 0;
+  }
+  if (BKE_blender_version_is_lts()) {
+    return (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                      USER_BLENDER_UPDATE_CURRENT_RELEASE));
+  }
+  return U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE;
+}
+
 void check_for_available_updates_if_expired(bContext &C)
 {
-  if (!(G.f & G_FLAG_INTERNET_ALLOW &&
-        (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                   USER_BLENDER_UPDATE_CURRENT_RELEASE))))
-  {
+  if (!updates_notifications_flags()) {
     return;
   }
   const int64_t days_since_last_check = std::chrono::duration_cast<std::chrono::days>(
@@ -543,10 +552,7 @@ void check_for_available_updates_if_expired(bContext &C)
 
 void check_for_available_updates(bContext &C)
 {
-  if (!(G.f & G_FLAG_INTERNET_ALLOW &&
-        (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                   USER_BLENDER_UPDATE_CURRENT_RELEASE))))
-  {
+  if (!updates_notifications_flags()) {
     return;
   }
   ignored_blender_updates() = {
@@ -559,10 +565,7 @@ void check_for_available_updates(bContext &C)
 
 bool have_available_updates(bContext &C)
 {
-  if (!(G.f & G_FLAG_INTERNET_ALLOW &&
-        (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                   USER_BLENDER_UPDATE_CURRENT_RELEASE))))
-  {
+  if (!updates_notifications_flags()) {
     return false;
   }
   if (check_for_updates_state() == CheckForUpdatesState::Done) {
@@ -575,6 +578,7 @@ Vector<const VersionUpdate *> available_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
   const IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
+  const int notifications_flags = updates_notifications_flags();
 
   Vector<const VersionUpdate *> result;
   /** Add Latest Release. */
@@ -582,7 +586,7 @@ Vector<const VersionUpdate *> available_updates()
     if (!updates.latest) {
       return;
     }
-    if (!(U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE)) {
+    if (!(notifications_flags & USER_BLENDER_UPDATE_LATEST_RELEASE)) {
       return;
     }
     if (updates.latest_lts && updates.latest->version < updates.latest_lts->version) {
@@ -596,13 +600,13 @@ Vector<const VersionUpdate *> available_updates()
       return;
     }
     /* Add Latest LTS Release as Latest Release when there is no Latest Release available.  */
-    if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && result.is_empty() &&
+    if (notifications_flags & USER_BLENDER_UPDATE_LATEST_RELEASE && result.is_empty() &&
         updates.latest_lts->version > ignored_updates.latest)
     {
       result.append(&*updates.latest_lts);
       return;
     }
-    if (!(U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE)) {
+    if (!(notifications_flags & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE)) {
       return;
     }
     result.append(&*updates.latest_lts);
@@ -613,23 +617,22 @@ Vector<const VersionUpdate *> available_updates()
     }
     /* Add current Release Update as Latest Release when there is no Latest Release or Latest LTS
      * Release available. */
-    if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && result.is_empty() &&
-        (updates.current_release->version > ignored_updates.latest ||
-         updates.current_release->version > ignored_updates.latest_lts))
+    if ((notifications_flags & USER_BLENDER_UPDATE_LATEST_RELEASE) && result.is_empty() &&
+        (updates.current_release->version > ignored_updates.latest))
     {
       result.append(&*updates.current_release);
       return;
     }
     /* Add current Release Update as Latest LTS Release when the update is LTS and there is no
      * other Latest LTS Release. */
-    if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.current_release->is_lts &&
-        (result.is_empty() || !result.last()->is_lts) &&
+    if ((notifications_flags & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE) &&
+        updates.current_release->is_lts && (result.is_empty() || !result.last()->is_lts) &&
         updates.current_release->version > ignored_updates.latest_lts)
     {
       result.append(&*updates.current_release);
       return;
     }
-    if (!(U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE)) {
+    if (!(notifications_flags & USER_BLENDER_UPDATE_CURRENT_RELEASE)) {
       return;
     }
     result.append(&*updates.current_release);
@@ -644,7 +647,7 @@ static void ignore_update_impl(const VersionUpdate *update)
   BlenderUpdates &updates = available_blender_updates();
 
   if (update->version.version == BLENDER_VERSION &&
-      update->version.patch > ignored_updates.current_release.patch)
+      update->version > ignored_updates.current_release)
   {
     ignored_updates.current_release = update->version;
   }
