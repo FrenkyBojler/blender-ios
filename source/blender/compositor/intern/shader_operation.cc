@@ -585,14 +585,16 @@ void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bN
 
   ShaderNode &input_node = *shader_nodes_.lookup(&input.owner_node());
   GPUNodeStack &input_stack = input_node.get_input(input.identifier);
-    /* Conversion is not possible, link a zero constant instead. */
-    const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-    if (!conversions.is_convertible(Result::cpp_type(source_type), Result::cpp_type(target_type))) {
-      const char *function_name = get_set_function_name(target_type);
-      static const float zero_data[GPU_MAX_CONSTANT_DATA] = {0.0f};
-      GPU_link(material_, function_name, GPU_constant(zero_data), &input_stack.link);
-      return;
-    }
+
+  /* Conversion is not possible, link a zero constant instead. */
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (!conversions.is_convertible(Result::cpp_type(source_type), Result::cpp_type(target_type))) {
+    const char *function_name = get_set_function_name(target_type);
+    const float *default_value = static_cast<const float *>(
+        Result::cpp_type(target_type).default_value());
+    GPU_link(material_, function_name, GPU_constant(default_value), &input_stack.link);
+    return;
+  }
 
   const UString function_name = UString(
       fmt::format("{}_to_{}", Result::type_name(source_type), Result::type_name(target_type)));
