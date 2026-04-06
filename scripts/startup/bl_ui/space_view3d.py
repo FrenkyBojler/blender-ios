@@ -1269,7 +1269,8 @@ class VIEW3D_MT_transform_base:
         layout.separator()
 
         layout.operator("transform.tosphere", text="To Sphere")
-        layout.operator("mesh.circularize", text="To Circle")
+        if context.mode == 'EDIT_MESH':
+            layout.operator("mesh.circularize", text="To Circle")
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
@@ -1898,11 +1899,12 @@ class VIEW3D_MT_edit_mesh_select_loops(Menu):
 
         layout.operator("mesh.select_edge_loop_multi", text="Edge Loops")
         layout.operator("mesh.select_edge_ring_multi", text="Edge Rings")
+        layout.operator("mesh.select_boundary_loop_multi", text="Boundary Loops")
 
         layout.separator()
 
-        layout.operator("mesh.loop_to_region")
-        layout.operator("mesh.region_to_loop")
+        layout.operator("mesh.loop_to_region", text="Loop Inner-Region")
+        layout.operator("mesh.region_to_loop", text="Boundary of Selected")
 
 
 class VIEW3D_MT_select_edit_mesh(Menu):

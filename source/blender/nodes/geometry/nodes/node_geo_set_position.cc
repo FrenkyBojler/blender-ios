@@ -19,11 +19,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry").description("Points to modify the positions of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_input<decl::Vector>("Offset").subtype(PROP_TRANSLATION).field_on_all();
+  b.add_input<decl::Geometry>("Geometry"_ustr).description("Points to modify the positions of");
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Vector>("Position"_ustr)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Offset"_ustr).subtype(PROP_TRANSLATION).field_on_all();
 }
 
 static const auto &get_add_fn()
@@ -65,7 +66,8 @@ static void set_curves_position(bke::CurvesGeometry &curves,
 
   if (attributes.contains("handle_right") && attributes.contains("handle_left")) {
     fn::Field<float3> delta(fn::FieldOperation::from(
-        get_sub_fn(), {position_field, bke::AttributeFieldInput::from<float3>("position")}));
+        get_sub_fn(),
+        {position_field, bke::AttributeFieldInput::get_field<float3, "position">()}));
     for (const StringRef name : {"handle_left", "handle_right"}) {
       attribute_names.append(name);
       fields.append(Field<float3>(fn::FieldOperation::from(
