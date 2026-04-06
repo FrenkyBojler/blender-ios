@@ -95,10 +95,10 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0x003D, {U'=', 0}}, /* Equals sign. */
       {0xFF1D, {U'=', 1}}, /* Half width Equals sign. */
 
-      {0x0025, {U'%', 0}}, /* Percent sign. */
-      {0x0026, {U'&', 0}}, /* Ampersand sign. */
-      {0x002F, {U'/', 0}}, /* Forward slash. */
-      {0x0040, {U'@', 0}}, /* Commercial at. */
+      {0x0025, {U'%', 0}},  /* Percent sign. */
+      {0x0026, {U'&', 0}},  /* Ampersand sign. */
+      {0x002F, {U'/', 0}},  /* Forward slash. */
+      {0x0040, {U'@', 0}},  /* Commercial at. */
       {0x005C, {U'\\', 0}}, /* Backslash sign */
       {0x005E, {U'^', 0}},  /* Caret sign. */
       {0x005F, {U'_', 0}},  /* Underscore sign. */
@@ -155,8 +155,8 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0x00E0, {U'a', 1, false}},  /* Small Letter a Grave. */
       {0x01FA, {U'a', 2, true}},   /* Capital Letter Ring Acute. */
       {0x01FB, {U'a', 2, false}},  /* Small Letter Ring Acute. */
-      {0x01FC, {U'a', 3, true}},  /* Capital Letter AE Ligature Acute. */
-      {0x01FD, {U'a', 3, false}}, /* Small Letter ae Ligature Acute. */
+      {0x01FC, {U'a', 3, true}},   /* Capital Letter AE Ligature Acute. */
+      {0x01FD, {U'a', 3, false}},  /* Small Letter ae Ligature Acute. */
       {0x00C1, {U'a', 4, true}},   /* Capital Letter A Acute. */
       {0x00E1, {U'a', 4, false}},  /* Small Letter a Acute. */
       {0x00C2, {U'a', 5, true}},   /* Capital Letter A Circumflex. */
@@ -167,12 +167,12 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0x00E4, {U'a', 7, false}},  /* Small Letter a Diaeresis. */
       {0x00C5, {U'a', 8, true}},   /* Capital Letter A Ring. */
       {0x00E5, {U'a', 8, false}},  /* Small Letter a Ring. */
-      {0x00C6, {U'a', 9, true}},  /* Capital Letter AE Ligature. */
-      {0x00E6, {U'a', 9, false}}, /* Small Letter ae Ligature. */
+      {0x00C6, {U'a', 9, true}},   /* Capital Letter AE Ligature. */
+      {0x00E6, {U'a', 9, false}},  /* Small Letter ae Ligature. */
       {0x0100, {U'a', 10, true}},  /* Capital Letter A Macron. */
       {0x0101, {U'a', 10, false}}, /* Small Letter a Macron. */
-      {0x0102, {U'a', 11, true}},   /* Capital Letter A Breve. */
-      {0x0103, {U'a', 11, false}},  /* Small Letter a Breve. */
+      {0x0102, {U'a', 11, true}},  /* Capital Letter A Breve. */
+      {0x0103, {U'a', 11, false}}, /* Small Letter a Breve. */
       {0x0104, {U'a', 12, true}},  /* Capital Letter A Ogonek. */
       {0x0105, {U'a', 12, false}}, /* Small Letter a Ogonek. */
       {0x01DE, {U'a', 13, true}},  /* Capital Letter A Diaeresis Macron. */
@@ -215,27 +215,27 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0xFF24, {U'd', 4, true}},  /* Half width Capital Letter D. */
       {0xFF44, {U'd', 4, false}}, /* Half width Small Letter D. */
 
-      {0x0045, {U'e', 0, true}},  /* Capital Letter E. */
-      {0x0065, {U'e', 0, false}}, /* Small Letter e. */
-      {0x00C8, {U'e', 1, true}},  /* Capital Letter E with Grave. */
+      {0x0045, {U'e', 0, true}},   /* Capital Letter E. */
+      {0x0065, {U'e', 0, false}},  /* Small Letter e. */
+      {0x00C8, {U'e', 1, true}},   /* Capital Letter E with Grave. */
       {0x00E8, {U'e', 1, false}},  /* Small Letter e with Grave. */
       {0x00C9, {U'e', 2, true}},   /* Capital Letter E with Acute. */
       {0x00E9, {U'e', 2, false}},  /* Small Letter e with Acute. */
       {0x00CA, {U'e', 3, true}},   /* Capital Letter E with Circumflex. */
       {0x00EA, {U'e', 3, false}},  /* Small Letter e with Circumflex. */
       {0x00CB, {U'e', 4, true}},   /* Capital Letter E with Diaeresis. */
-      {0x00EB, {U'e', 4, false}}, /* Small Letter e with Diaeresis. */
-      {0x0112, {U'e', 5, true}},  /* Capital Letter E with Macron. */
-      {0x0113, {U'e', 5, false}}, /* Small Letter e with Macron. */
-      {0x0114, {U'e', 6, true}},  /* Capital Letter E with Breve. */
-      {0x0115, {U'e', 6, false}}, /* Small Letter e with Breve. */
-      {0x0116, {U'e', 7, true}},  /* Capital Letter E with Dot Above. */
-      {0x0117, {U'e', 7, false}}, /* Small Letter e with Dot Above. */
-      {0x0118, {U'e', 8, true}},  /* Capital Letter E with Ogonek. */
-      {0x0119, {U'e', 8, false}}, /* Small Letter e with Ogonek. */
-      {0x011A, {U'e', 9, true}},  /* Capital Letter E with Caron. */
-      {0x011B, {U'e', 9, false}}, /* Small Letter e with Caron. */
-      {0x018F, {U'e', 10, true}}, /* Capital Letter Schwa. */
+      {0x00EB, {U'e', 4, false}},  /* Small Letter e with Diaeresis. */
+      {0x0112, {U'e', 5, true}},   /* Capital Letter E with Macron. */
+      {0x0113, {U'e', 5, false}},  /* Small Letter e with Macron. */
+      {0x0114, {U'e', 6, true}},   /* Capital Letter E with Breve. */
+      {0x0115, {U'e', 6, false}},  /* Small Letter e with Breve. */
+      {0x0116, {U'e', 7, true}},   /* Capital Letter E with Dot Above. */
+      {0x0117, {U'e', 7, false}},  /* Small Letter e with Dot Above. */
+      {0x0118, {U'e', 8, true}},   /* Capital Letter E with Ogonek. */
+      {0x0119, {U'e', 8, false}},  /* Small Letter e with Ogonek. */
+      {0x011A, {U'e', 9, true}},   /* Capital Letter E with Caron. */
+      {0x011B, {U'e', 9, false}},  /* Small Letter e with Caron. */
+      {0x018F, {U'e', 10, true}},  /* Capital Letter Schwa. */
       {0x0259, {U'e', 10, false}}, /* Small Letter Schwa. */
       {0xFF25, {U'e', 11, true}},  /* Half width Capital Letter E. */
       {0xFF45, {U'e', 11, false}}, /* Half width Small Letter E. */
@@ -276,16 +276,16 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0xFF28, {U'h', 4, true}},  /* Half width Capital Letter H. */
       {0xFF48, {U'h', 4, false}}, /* Half width Small Letter H. */
 
-      {0x0049, {U'i', 0, true}},  /* Capital Letter I. */
-      {0x0069, {U'i', 0, false}}, /* Small Letter i. */
-      {0x00CC, {U'i', 1, true}},  /* Capital Letter I with Grave. */
-      {0x00EC, {U'i', 1, false}}, /* Small Letter i with Grave. */
-      {0x00CD, {U'i', 2, true}},  /* Capital Letter I with Acute. */
-      {0x00ED, {U'i', 2, false}}, /* Small Letter i with Acute. */
-      {0x00CE, {U'i', 3, true}},  /* Capital Letter I with Circumflex. */
-      {0x00EE, {U'i', 3, false}}, /* Small Letter i with Circumflex. */
-      {0x00CF, {U'i', 4, true}},  /* Capital Letter I with Diaeresis. */
-      {0x00EF, {U'i', 4, false}}, /* Small Letter i with Diaeresis. */
+      {0x0049, {U'i', 0, true}},   /* Capital Letter I. */
+      {0x0069, {U'i', 0, false}},  /* Small Letter i. */
+      {0x00CC, {U'i', 1, true}},   /* Capital Letter I with Grave. */
+      {0x00EC, {U'i', 1, false}},  /* Small Letter i with Grave. */
+      {0x00CD, {U'i', 2, true}},   /* Capital Letter I with Acute. */
+      {0x00ED, {U'i', 2, false}},  /* Small Letter i with Acute. */
+      {0x00CE, {U'i', 3, true}},   /* Capital Letter I with Circumflex. */
+      {0x00EE, {U'i', 3, false}},  /* Small Letter i with Circumflex. */
+      {0x00CF, {U'i', 4, true}},   /* Capital Letter I with Diaeresis. */
+      {0x00EF, {U'i', 4, false}},  /* Small Letter i with Diaeresis. */
       {0x0128, {U'i', 5, true}},   /* Capital Letter I with Tilde. */
       {0x0129, {U'i', 5, false}},  /* Small Letter i with Tilde. */
       {0x012A, {U'i', 6, true}},   /* Capital Letter I with Macron. */
@@ -359,28 +359,28 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0x006F, {U'o', 0, false}}, /* Small Letter o. */
       {0x00BA, {U'o', 1, false}}, /* Masculine Ordinal Indicator. */
       {0x00D2, {U'o', 2, true}},  /* Capital Letter O with Grave. */
-      {0x00F2, {U'o', 2, false}},  /* Small Letter o with Grave. */
-      {0x00D3, {U'o', 3, true}},   /* Capital Letter O with Acute. */
-      {0x00F3, {U'o', 3, false}},  /* Small Letter o with Acute. */
-      {0x00D4, {U'o', 4, true}},   /* Capital Letter O with Circumflex. */
-      {0x00F4, {U'o', 4, false}},  /* Small Letter o with Circumflex. */
-      {0x00D5, {U'o', 5, true}},   /* Capital Letter O with Tilde. */
-      {0x00F5, {U'o', 5, false}},  /* Small Letter o with Tilde. */
-      {0x00D6, {U'o', 6, true}},   /* Capital Letter O with Diaeresis. */
-      {0x00F6, {U'o', 6, false}},  /* Small Letter o with Diaeresis. */
+      {0x00F2, {U'o', 2, false}}, /* Small Letter o with Grave. */
+      {0x00D3, {U'o', 3, true}},  /* Capital Letter O with Acute. */
+      {0x00F3, {U'o', 3, false}}, /* Small Letter o with Acute. */
+      {0x00D4, {U'o', 4, true}},  /* Capital Letter O with Circumflex. */
+      {0x00F4, {U'o', 4, false}}, /* Small Letter o with Circumflex. */
+      {0x00D5, {U'o', 5, true}},  /* Capital Letter O with Tilde. */
+      {0x00F5, {U'o', 5, false}}, /* Small Letter o with Tilde. */
+      {0x00D6, {U'o', 6, true}},  /* Capital Letter O with Diaeresis. */
+      {0x00F6, {U'o', 6, false}}, /* Small Letter o with Diaeresis. */
 
-      {0x00D8, {U'o', 7, true}},  /* Capital Letter O with Stroke. */
-      {0x00F8, {U'o', 7, false}}, /* Small Letter o with Stroke. */
-      {0x014C, {U'o', 8, true}},  /* Capital Letter O with Macron. */
-      {0x014D, {U'o', 8, false}}, /* Small Letter o with Macron. */
+      {0x00D8, {U'o', 7, true}},   /* Capital Letter O with Stroke. */
+      {0x00F8, {U'o', 7, false}},  /* Small Letter o with Stroke. */
+      {0x014C, {U'o', 8, true}},   /* Capital Letter O with Macron. */
+      {0x014D, {U'o', 8, false}},  /* Small Letter o with Macron. */
       {0x014E, {U'o', 9, true}},   /* Capital Letter O with Breve. */
       {0x014F, {U'o', 9, false}},  /* Small Letter o with Breve. */
-      {0x0150, {U'o', 10, true}},   /* Capital Letter O with Double Acute. */
-      {0x0151, {U'o', 10, false}},  /* Small Letter o with Double Acute. */
+      {0x0150, {U'o', 10, true}},  /* Capital Letter O with Double Acute. */
+      {0x0151, {U'o', 10, false}}, /* Small Letter o with Double Acute. */
       {0x0152, {U'o', 11, true}},  /* Capital Ligature OE. */
       {0x0153, {U'o', 11, false}}, /* Small Ligature oe. */
-      {0x01EA, {U'o', 12, true}},   /* Capital Letter O with Ogonek. */
-      {0x01EB, {U'o', 12, false}},  /* Small Letter o with Ogonek. */
+      {0x01EA, {U'o', 12, true}},  /* Capital Letter O with Ogonek. */
+      {0x01EB, {U'o', 12, false}}, /* Small Letter o with Ogonek. */
       {0x01EC, {U'o', 13, true}},  /* Capital Letter O with Ogonek and Macron. */
       {0x01ED, {U'o', 13, false}}, /* Small Letter o with Ogonek and Macron. */
       {0x01FE, {U'o', 14, true}},  /* Capital Letter O with Stroke and Acute. */
@@ -424,7 +424,7 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0x017F, {U's', 6, false}}, /* Small Letter Long s. */
       {0x0218, {U's', 7, true}},  /* Capital Letter S with Comma Below. */
       {0x0219, {U's', 7, false}}, /* Small Letter s with Comma Below. */
-      {0xFF33, {U's', 8, true}}, /* Half width Capital Letter S. */
+      {0xFF33, {U's', 8, true}},  /* Half width Capital Letter S. */
       {0xFF53, {U's', 8, false}}, /* Half width Small Letter S. */
 
       {0x0054, {U't', 0, true}},  /* Capital Letter T. */
@@ -441,18 +441,18 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0xFF34, {U't', 6, true}},  /* Half width Capital Letter T. */
       {0xFF54, {U't', 6, false}}, /* Half width Small Letter T. */
 
-      {0x0055, {U'u', 0, true}},  /* Capital Letter U. */
-      {0x0075, {U'u', 0, false}}, /* Small Letter u. */
-      {0x00DA, {U'u', 1, true}},  /* Capital Letter U with Acute. */
+      {0x0055, {U'u', 0, true}},   /* Capital Letter U. */
+      {0x0075, {U'u', 0, false}},  /* Small Letter u. */
+      {0x00DA, {U'u', 1, true}},   /* Capital Letter U with Acute. */
       {0x00FA, {U'u', 1, false}},  /* Small Letter u with Acute. */
       {0x00DB, {U'u', 2, true}},   /* Capital Letter U with Circumflex. */
       {0x00FB, {U'u', 2, false}},  /* Small Letter u with Circumflex. */
       {0x00DC, {U'u', 3, true}},   /* Capital Letter U with Diaeresis. */
-      {0x00FC, {U'u', 3, false}}, /* Small Letter u with Diaeresis. */
+      {0x00FC, {U'u', 3, false}},  /* Small Letter u with Diaeresis. */
       {0x0168, {U'u', 4, true}},   /* Capital Letter U with Tilde. */
       {0x0169, {U'u', 4, false}},  /* Small Letter u with Tilde. */
-      {0x016A, {U'u', 5, true}},  /* Capital Letter U with Macron. */
-      {0x016B, {U'u', 5, false}}, /* Small Letter u with Macron. */
+      {0x016A, {U'u', 5, true}},   /* Capital Letter U with Macron. */
+      {0x016B, {U'u', 5, false}},  /* Small Letter u with Macron. */
       {0x016C, {U'u', 6, true}},   /* Capital Letter U with Breve. */
       {0x016D, {U'u', 6, false}},  /* Small Letter u with Breve. */
       {0x016E, {U'u', 7, true}},   /* Capital Letter U with Ring Above. */
@@ -507,14 +507,14 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0xFF3A, {U'z', 6, true}},  /* Half width Capital Letter Z. */
       {0xFF5A, {U'z', 6, false}}, /* Half width Small Letter Z. */
 
-      {0x00DE, {U'Þ', 0, true}},   /* Capital Letter Thorn. */
-      {0x00FE, {U'þ', 0, false}},  /* Small Letter Thorn. */
+      {0x00DE, {U'Þ', 0, true}},  /* Capital Letter Thorn. */
+      {0x00FE, {U'þ', 0, false}}, /* Small Letter Thorn. */
       {0x00B5, {U'μ', 0, false}}, /* Micro sign */
       {0x039C, {U'μ', 1, true}},  /* Greek capital mu */
       {0x03BC, {U'μ', 1, false}}, /* Greek small mu */
 
-      {0x0391, {U'α', 0, true}},   /* Capital Greek alpha. */
-      {0x03B1, {U'α', 0, false}},  /* Small Greek alpha. */
+      {0x0391, {U'α', 0, true}},  /* Capital Greek alpha. */
+      {0x03B1, {U'α', 0, false}}, /* Small Greek alpha. */
       {0x0386, {U'α', 1, true}},  /* Greek capital alpha with tonos */
       {0x03AC, {U'α', 1, false}}, /* Greek small alpha with tonos */
 
