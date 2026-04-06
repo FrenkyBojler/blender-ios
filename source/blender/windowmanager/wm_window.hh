@@ -128,6 +128,7 @@ void wm_cursor_position_to_ghost_client_coords(wmWindow *win, int *x, int *y);
 
 #ifdef WITH_INPUT_IME
 void wm_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complete);
+void wm_window_IME_begin(wmWindow *win, ScrArea *area, ARegion *region);
 void wm_window_IME_end(wmWindow *win);
 #endif
 

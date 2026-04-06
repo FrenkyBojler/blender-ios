@@ -674,11 +674,10 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
 void popup_block_invoke_ex(
     bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, const bool can_refresh)
 {
-#ifdef WITH_INPUT_IME
   wmWindow *window = CTX_wm_window(C);
-  if (window->runtime->ime_data) {
-    wm_window_IME_end(window);
-  }
+
+#ifdef WITH_INPUT_IME
+  wm_window_IME_end(window);
 #endif
 
   PopupBlockHandle *handle = popup_block_create(

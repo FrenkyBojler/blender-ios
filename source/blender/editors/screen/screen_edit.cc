@@ -1185,24 +1185,7 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
 
 #ifdef WITH_INPUT_IME
   if (region_prev != screen->active_region) {
-    /* End all IME sessions when changing regions. */
-    wm_window_IME_end(win);
-
-    /* Start IME in the new active region if it provides a cursor position. */
-    if (screen->active_region != nullptr &&
-        screen->active_region->runtime->type->cursor_ime != nullptr)
-    {
-      const std::optional<blender::int2> pos = screen->active_region->runtime->type->cursor_ime(
-          win, area, screen->active_region);
-      if (pos) {
-        wm_window_IME_begin(win,
-                            screen->active_region->winrct.xmin + pos->x,
-                            screen->active_region->winrct.ymin + pos->y,
-                            0,
-                            0,
-                            true);
-      }
-    }
+    wm_window_IME_begin(win, area, screen->active_region);
   }
 #endif
 }

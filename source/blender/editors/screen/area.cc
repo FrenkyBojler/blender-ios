@@ -523,19 +523,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   if (at->cursor_ime && region->runtime->do_ime) {
     const bScreen *screen = WM_window_get_active_screen(win);
     if (!screen->animtimer && !screen->scrubbing && region == screen->active_region) {
-      const std::optional<blender::int2> pos = at->cursor_ime(win, area, region);
-      if (pos) {
-        /* Start fresh when no IME session exists, reposition otherwise. */
-        const bool complete = (win->runtime->ime_data == nullptr);
-        wm_window_IME_begin(
-            win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, complete);
-      }
-      else {
-        /* cursor_ime returned nullopt (e.g. exited edit mode, or navigating).
-         * End any active IME session. After navigation ends, the next redraw
-         * sets `do_ime` and cursor_ime will restart IME if appropriate. */
-        wm_window_IME_end(win);
-      }
+      wm_window_IME_begin(win, area, region);
       region->runtime->do_ime = false;
     }
   }
