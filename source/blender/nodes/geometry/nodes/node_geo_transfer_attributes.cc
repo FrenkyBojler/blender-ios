@@ -279,6 +279,8 @@ class AttributeTransferer {
 
   bool should_transfer(const StringRef name) const
   {
+    // TODO: This list is not complete at all and it doesn't make sense to have it here
+    // semantically.
     if (ELEM(name, ".corner_vert", ".corner_edge", ".edge_verts")) {
       return false;
     }
