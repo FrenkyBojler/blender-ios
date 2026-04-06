@@ -63,6 +63,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Ignore Names"_ustr).default_value(false);
 }
 
+// TODO: Why does this have to be a class?
 class AttributeTransferer {
  private:
   ResourceScope scope_;
