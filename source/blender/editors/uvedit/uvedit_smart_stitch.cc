@@ -2307,7 +2307,7 @@ int stitch_init_all(bContext *C,
     return 0;
   }
 
-    Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
