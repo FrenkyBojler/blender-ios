@@ -52,7 +52,7 @@ const Cache *active_cache_get(const SculptSession &ss)
   return nullptr;
 }
 
-bool mode_enabled(const Paint &paint, const Brush *br, const eAutomasking_flag mode)
+static bool mode_enabled(const Paint &paint, const Brush *br, const eAutomasking_flag mode)
 {
   int automasking = paint.mesh_automasking_settings->flags;
 
