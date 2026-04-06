@@ -76,7 +76,7 @@ def on_done_callback(
 def downloader_status() -> DownloadStatus:
     """Returns the downloader status.
 
-    Raises a KeyError if there never was a downloader for this URL.
+    Raises a NoneType error if there is no active download.
     """
     return _blender_updates_listing.downloader.status
 
