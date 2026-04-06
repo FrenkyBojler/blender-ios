@@ -1713,10 +1713,6 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
         col.prop(uvedit, "edge_display_type", text="")
         col.prop(uvedit, "show_modified_edges", text="Modified Edges")
 
-        # Faces
-        row = col.row()
-        row.active = not uvedit.show_stretch
-
         row = col.row(align=True)
         row.prop(uvedit, "show_edge_bevel_weight", text="Bevel", icon='EDGE_BEVEL', toggle=True)
         row.prop(uvedit, "show_edge_crease", text="Crease", icon='EDGE_CREASE', toggle=True)
@@ -1729,6 +1725,12 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
             text_ctxt=i18n_contexts.plural,
             toggle=True,
         )
+
+        col.separator()
+
+        # Faces
+        row = col.row()
+        row.active = not uvedit.show_stretch
         row.prop(uvedit, "show_faces", text="Faces")
 
 
