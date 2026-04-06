@@ -301,6 +301,8 @@ struct IDsSelectedData {
 
 TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void *customdata);
 TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *customdata);
+TreeTraversalAction outliner_collect_selected_objects_with_children(TreeElement *te,
+                                                                    void *customdata);
 
 /* `outliner_draw.cc` */
 

@@ -1525,7 +1525,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
                              &space_outliner->tree,
                              0,
                              TSE_SELECTED,
-                             outliner_collect_selected_objects,
+                             outliner_collect_selected_objects_with_children,
                              &selected);
     }
     else {
