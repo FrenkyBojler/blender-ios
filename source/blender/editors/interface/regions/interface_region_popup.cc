@@ -31,7 +31,9 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "wm_window.hh"
+#ifdef WITH_INPUT_IME
+#  include "wm_window.hh"
+#endif
 
 #include "ED_screen.hh"
 

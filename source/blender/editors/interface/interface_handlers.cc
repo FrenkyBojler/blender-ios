@@ -3542,9 +3542,7 @@ static void textedit_ime_begin(wmWindow *win, Button *but)
   int x, y;
 
   /* If we were in an IME elsewhere, end it so we can start fresh. */
-  if (win->runtime->ime_data) {
-    wm_window_IME_end(win);
-  }
+  wm_window_IME_end(win);
 
   /* enable IME and position to cursor, it's a trick */
   x = win->runtime->eventstate->xy[0];
@@ -4349,9 +4347,7 @@ static void numedit_begin_set_values(Button *but, HandleButtonData *data)
 static void numedit_begin(Button *but, HandleButtonData *data)
 {
 #ifdef WITH_INPUT_IME
-  if (data->window->runtime->ime_data) {
-    wm_window_IME_end(data->window);
-  }
+  wm_window_IME_end(data->window);
 #endif
 
   if (but->type == ButtonType::Curve) {
