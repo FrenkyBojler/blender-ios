@@ -4,10 +4,8 @@
 
 import os
 from pathlib import Path
-import tomllib
 import logging
 
-import cattrs
 from attrs import define
 
 import bpy
@@ -193,6 +191,9 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
 
         Returns the configuration (`ProjectConfig`).
     """
+    import tomllib
+    import cattrs
+
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with open(config_path, "rb") as f:
