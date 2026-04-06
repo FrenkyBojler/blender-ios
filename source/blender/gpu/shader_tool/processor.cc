@@ -488,7 +488,7 @@ void SourceProcessor::lint_pragma_once(Parser &parser, const string &filename)
     return;
   }
   if (!has_pragma(parser, "once")) {
-    report_error(0, 0, "", "Header files must contain #pragma once directive.");
+    report_error(parser[0], "Header files must contain #pragma once directive.");
   }
 }
 

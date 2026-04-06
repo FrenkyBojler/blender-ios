@@ -46,10 +46,7 @@ void SourceProcessor::lower_enums(Parser &parser)
    */
 
   auto missing_underlying_type = [&](vector<Token> tokens) {
-    report_error(tokens[0].line_number(),
-                 tokens[0].char_number(),
-                 tokens[0].line_str(),
-                 "enum declaration must explicitly use an underlying type");
+    report_error(tokens[0], "enum declaration must explicitly use an underlying type");
   };
 
   parser().foreach_match("MA{", missing_underlying_type);
