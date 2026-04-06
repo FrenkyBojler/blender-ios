@@ -211,7 +211,7 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
             report({'ERROR'}, rpt_("Project's {} file contains invalid TOML.").format(PROJECT_CONFIG))
         raise ProjectLoadException
 
-    # Validate schema and covert to ProjectConfig class.
+    # Validate schema and convert to ProjectConfig class.
     converter = cattrs.Converter()
     project_config = converter.structure(config_dict, ProjectConfig)
 
