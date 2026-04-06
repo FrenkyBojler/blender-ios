@@ -87,7 +87,7 @@ def save_project(project, report=None):
             report({'ERROR'}, "Cannot save project because there is no project to save.")
         raise ProjectSaveException
 
-    logger.info("Saving project '{}' at '{}'...".format(project.name, project.root_path))
+    logger.info("Saving project '{:s}' at '{:s}'...".format(project.name, project.root_path))
 
     root_path = Path(project.root_path)
 
@@ -103,7 +103,7 @@ def save_project(project, report=None):
             raise ProjectSaveException
     except PermissionError:
         if report:
-            report({'ERROR'}, rpt_("Cannot access '{}' due to filesystem permissions.").format(PROJECT_DIR))
+            report({'ERROR'}, rpt_("Cannot access '{:s}' due to filesystem permissions.").format(PROJECT_DIR))
         raise ProjectSaveException
 
     config_dir_path = root_path.joinpath(PROJECT_DIR)
@@ -112,21 +112,21 @@ def save_project(project, report=None):
         config_dir_path.mkdir(parents=True, exist_ok=True)
     except FileExistsError:
         if report:
-            report({'ERROR'}, rpt_("A file named '{}' already exists, but it needs to be a directory.").format(PROJECT_DIR))
+            report({'ERROR'}, rpt_("A file named '{:s}' already exists, but it needs to be a directory.").format(PROJECT_DIR))
         raise ProjectSaveException
     except PermissionError:
         if report:
-            report({'ERROR'}, "Cannot create '{}' directory due to filesystem permissions.".format(PROJECT_DIR))
+            report({'ERROR'}, "Cannot create '{:s}' directory due to filesystem permissions.".format(PROJECT_DIR))
         raise ProjectSaveException
 
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with config_path.open(mode='w', encoding='utf-8') as f:
             # The actual project file writing.
-            f.write("name = \"{}\"\n".format(escape_string_toml(project.name)))
+            f.write("name = \"{:s}\"\n".format(escape_string_toml(project.name)))
     except PermissionError:
         if report:
-            report({'ERROR'}, rpt_("Cannot write to '{}' due to filesystem permissions.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Cannot write to '{:s}' due to filesystem permissions.").format(PROJECT_CONFIG))
         raise ProjectSaveException
 
     project.is_dirty = False
@@ -199,15 +199,15 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
             config_dict = tomllib.load(f)
     except FileNotFoundError:
         if report:
-            report({'ERROR'}, rpt_("Project has no {} file.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Project has no {:s} file.").format(PROJECT_CONFIG))
         raise ProjectLoadException
     except PermissionError:
         if report:
-            report({'ERROR'}, rpt_("Cannot access {} file due to filesystem permissions.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Cannot access {:s} file due to filesystem permissions.").format(PROJECT_CONFIG))
         raise ProjectLoadException
     except tomllib.TOMLDecodeError as e:
         if report:
-            report({'ERROR'}, rpt_("Project's {} file contains invalid TOML.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Project's {:s} file contains invalid TOML.").format(PROJECT_CONFIG))
         raise ProjectLoadException
 
     # Validate schema and convert to ProjectConfig class.
@@ -336,7 +336,7 @@ class PROJECT_OP_SaveProject(Operator):
         try:
             save_project(bpy.data.project)
         except ProjectSaveException as e:
-            self.report({'ERROR'}, "Failed to save project: {}".format(e))
+            self.report({'ERROR'}, "Failed to save project: {:s}".format(str(e)))
             return {'CANCELLED'}
 
         return {'FINISHED'}
