@@ -3711,6 +3711,20 @@ static bool any_gaps_between_anchors(const int anchor1,
   return false;
 }
 
+static float2 average_uvs_for_corners(const SmallIntArray &corners,
+                                      const int uv_map_index,
+                                      const Vector<Array<float2>> &uv_attributes)
+{
+  float2 ans(0.0f, 0.0f);
+  for (const int c : corners) {
+    ans = ans + uv_attributes[uv_map_index][c];
+  }
+  if (corners.size() > 0) {
+    ans = ans / float(corners.size());
+  }
+  return ans;
+}
+
 /** Merge the UVs for the adj pattern when there are an even number of segments. */
 static void merge_even_adj_face_uvs(const int bv,
                                     const int uv_map_index,
@@ -3721,6 +3735,8 @@ static void merge_even_adj_face_uvs(const int bv,
   fmt::println("merge_even_adj_face_uvs for bv ={}", bv);
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   BLI_assert(pat.kind == MeshKind::Adj && (pat.num_segs % 2) == 0);
+  const int bv_first_newface = bs.bevvert_newfaces()[bv][0];
+  const int bv_first_corner = bs.newface_faces_face()[bv_first_newface][0];
   for (const int a : IndexRange(pat.num_anchors)) {
     const int anext = pat.next_anchor(a);
     if (any_gaps_between_anchors(a, anext, bv, true, gaps, bs)) {
@@ -3728,6 +3744,33 @@ static void merge_even_adj_face_uvs(const int bv,
     }
     SmallIntArray cline = pat.verts_for_centerline(a);
     print_span(cline.as_span(), "cline");
+    for (const int v : cline) {
+      SmallIntArray corners = pat.corners_for_vert(v);
+      fmt::println("vert {} has corners:", v);
+      print_span(corners.as_span(), "corners");
+      if (corners.size() > 1) {
+        /* Offset the pattern space corners to get real newcorner indices. */
+        for (const int i : corners.index_range()) {
+          corners[i] += bv_first_corner;
+        }
+        float2 avg_uv = average_uvs_for_corners(corners, uv_map_index, uv_attributes);
+        fmt::println("average uv value = {},{}", avg_uv[0], avg_uv[1]);
+        for (const int c : corners) {
+          // assign avg_uv to uv value of corner c of bv in map uv_map_index
+          uv_attributes[uv_map_index][c] = avg_uv;
+        }
+      }
+    }
+  }
+  /* Now do the center. */
+  SmallIntArray corners = pat.corners_for_vert(0);
+  for (const int i : corners.index_range()) {
+    corners[i] += bv_first_corner;
+  }
+  float2 avg_uv = average_uvs_for_corners(corners, uv_map_index, uv_attributes);
+  fmt::println("average center uv_value = {}, {} ", avg_uv[0], avg_uv[1]);
+  for (const int c : corners) {
+    uv_attributes[uv_map_index][c] = avg_uv;
   }
 }
 
@@ -4328,10 +4371,9 @@ SmallIntArray MeshPattern::verts_for_centerline(const int first_anchor) const
 
 /** Return the corners attached to \a vert, counting the first corner in the vmesh as 0.
  * For verts at anchors there will be only one corner.
- * For verts on the outer boundary, there will be two, and we put them in the order of going
- * counterclockwise around the boundary.
  * For internal verts with offsets (from anchor) of zero, start at the face towards the outer
  * ring and go ccw. For the rest, start at the "lower left" face and go ccw.
+ * For verts on the outer boundary, it is like the previous case but skipping the first two.
  */
 SmallIntArray MeshPattern::corners_for_vert(const int vert) const
 {
@@ -4378,73 +4420,24 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
       raoc.append({fr_o, va, vo + 1, 3});
       raoc.append({fr_i, va, vo, 0});
       raoc.append({fr_i, va, vo - 1, 1});
-    }
-#if 0
-    const int inside_face_r = odd ? r : r - 1;
-    const int outside_face_r = inside_face_r + 1;
-    const int outer_r = adj::v_num_rings(num_segs) - 1;
-    if (o == 0) {
-      if (r == outer_r) {
-        /* Only one corner: the one at the start of the corresponding face. */
-        const int f = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs);
-        if (odd && inside_face_r == 0) {
-          return SmallIntArray({a});
-        }
-        return SmallIntArray({adj::face_start_corner(f, num_anchors, num_segs)});
-      }
-      else {
-        /* Along the "anchor line" but not on the outer ring.
-         * Start with the face towards the outside at vert, and go ccw. */
-        const int f0 = adj::rao_to_face(outside_face_r, a, 0, num_anchors, num_segs);
-        const int f1 = f0 + 1;
-        const int f2 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs);
-        const int f3 = (a == 0) ? f0 + adj::f_ringlen(outside_face_r, num_anchors, num_segs) - 1 :
-                                  f0 - 1;
-        return SmallIntArray({adj::face_start_corner(f0, num_anchors, num_segs) + 2,
-                              adj::face_start_corner(f1, num_anchors, num_segs) + 3,
-                              adj::face_start_corner(f2, num_anchors, num_segs),
-                              adj::face_start_corner(f3, num_anchors, num_segs) + 1});
+      const int fr_sidelen = adj::f_ringlen(fr_i, num_anchors, num_segs) / num_anchors + 1;
+      if (vo == fr_sidelen - 1) {
+        raoc[2][3] = 3;
       }
     }
-    else if (o == 1) {
-      /* Vert is oorner just after anchor. */
-      if (r == outer_r) {
-        const int f0 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs);
-      }
-      else {
-      }
-    }
-    else if (o == div - 1) {
-      /* Vert is corner just before next anchor. */
-      if (r == outer_r) {
-      }
-      else {
+    Vector<int, 4> ans_vec;
+    for (const int i : raoc.index_range()) {
+      if (raoc[i][0] != -1) {
+        const int f = adj::rao_to_face(raoc[i][0], raoc[i][1], raoc[i][2], num_anchors, num_segs);
+        const int corner = adj::face_start_corner(f, num_anchors, num_segs) + raoc[i][3];
+        ans_vec.append(corner);
       }
     }
-    else {
-      /* Vert is between two internal-to-anchor faces. */
-      if (r == outer_r) {
-        /* Two boundary verts only. Put them in CCW order around boundary. */
-        const int f1 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs) + o;
-        const int f0 = f1 - 1;
-        return SmallIntArray({adj::face_start_corner(f0, num_anchors, num_segs) + 1,
-                              adj::face_start_corner(f1, num_anchors, num_segs)});
-      }
-      else {
-        /* Interior vert, not on "anchor line". */
-        /* Note that "o" is offset on inside face ring, so using o on the outer one gets preceding
-         * face. */
-        const int f0 = adj::rao_to_face(outside_face_r, a, 0, num_anchors, num_segs) + o;
-        const int f1 = f0 + 1;
-        const int f2 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs) + o;
-        const int f3 = f2 - 1;
-        return SmallIntArray({adj::face_start_corner(f0, num_anchors, num_segs) + 2,
-                              adj::face_start_corner(f1, num_anchors, num_segs) + 3,
-                              adj::face_start_corner(f2, num_anchors, num_segs),
-                              adj::face_start_corner(f3, num_anchors, num_segs) + 1});
-      }
+    SmallIntArray ans(ans_vec.size());
+    for (const int i : ans_vec.index_range()) {
+      ans[i] = ans_vec[i];
     }
-#endif
+    return ans;
   }
   /* TODO? other kinds of Meshes if needed. */
   return SmallIntArray(0);
