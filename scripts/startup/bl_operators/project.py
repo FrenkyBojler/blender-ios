@@ -41,7 +41,7 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
-def escape_string(text):
+def escape_string_toml(text):
     """ Escape a string according the required escapes in
         https://toml.io/en/v1.1.0#string
     """
@@ -122,7 +122,7 @@ def save_project(project, report=None):
     try:
         with config_path.open(mode='w', encoding='utf-8') as f:
             # The actual project file writing.
-            f.write("name = \"{}\"\n".format(escape_string(project.name)))
+            f.write("name = \"{}\"\n".format(escape_string_toml(project.name)))
     except PermissionError:
         if report:
             report({'ERROR'}, rpt_("Cannot write to '{}' due to filesystem permissions.").format(PROJECT_CONFIG))
