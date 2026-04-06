@@ -410,7 +410,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_deferred_aov_clear_frag.glsl
   engines/eevee/shaders/eevee_deferred_capture_frag.glsl
   engines/eevee/shaders/eevee_deferred_combine_frag.glsl
-  engines/eevee/shaders/eevee_deferred_thickness_amend_frag.glsl
+  engines/eevee/shaders/eevee_deferred_thickness_amend.bsl.hh
   engines/eevee/shaders/eevee_deferred_light_frag.glsl
   engines/eevee/shaders/eevee_deferred_planar_frag.glsl
   engines/eevee/shaders/eevee_deferred_tile_classify_frag.glsl

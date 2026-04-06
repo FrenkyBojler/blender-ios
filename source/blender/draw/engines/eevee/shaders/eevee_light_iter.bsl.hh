@@ -8,6 +8,17 @@
 
 #include "eevee_light_shared.hh"
 
+namespace eevee {
+
+struct LightRenderData {
+  [[storage(LIGHT_CULL_BUF_SLOT, read)]] const LightCullingData &light_cull_buf;
+  [[storage(LIGHT_BUF_SLOT, read)]] const LightData (&light_buf)[];
+  [[storage(LIGHT_ZBIN_BUF_SLOT, read)]] const uint (&light_zbin_buf)[];
+  [[storage(LIGHT_TILE_BUF_SLOT, read)]] const uint (&light_tile_buf)[];
+};
+
+}  // namespace eevee
+
 namespace eevee::light {
 
 uint bitfield_mask(uint bit_width, uint bit_min)
@@ -32,35 +43,82 @@ int culling_z_to_zbin(float scale, float bias, float z)
   return int(z * scale + bias);
 }
 
-/* Waiting to implement extensions support. We need:
- * - GL_KHR_shader_subgroup_ballot
- * - GL_KHR_shader_subgroup_arithmetic
- * or
- * - Vulkan 1.1
- */
-#ifdef GPU_METAL
-#  define subgroupMin(a) simd_min(a)
-#  define subgroupMax(a) simd_max(a)
-#  define subgroupOr(a) simd_or(a)
-#  define subgroupBroadcastFirst(a) simd_broadcast_first(a)
-#else
-#  define subgroupMin(a) a
-#  define subgroupMax(a) a
-#  define subgroupOr(a) a
-#  define subgroupBroadcastFirst(a) a
-#endif
-
-struct LightCulling {
-  [[storage(0, read)]] LightCullingData &light_cull_buf;
-};
-
 template<typename CallbackT>
-void foreach_directional([[resource_table]] const LightCullingData &culling, CallbackT cb)
+void foreach([[resource_table]] const LightRenderData &srt, CallbackT cb)
 {
+  const LightCullingData &culling = srt.light_cull_buf;
+
   for (uint index = culling.local_lights_len; index < culling.items_count; index++) {
-    cb.eval(index);
+    cb.eval_directional(index, srt.light_buf[index]);
+  }
+
+  for (uint index = 0; index < culling.visible_count; index++) {
+    cb.eval_local(index, srt.light_buf[index]);
   }
 }
+
+template<typename CallbackT>
+void foreach_visible([[resource_table]] const LightRenderData &srt,
+                     float2 pixel,
+                     float linear_view_z,
+                     CallbackT cb)
+{
+  const LightCullingData &culling = srt.light_cull_buf;
+  const uint(&zbins)[] = srt.light_zbin_buf;
+  const uint(&words)[] = srt.light_tile_buf;
+
+  for (uint index = culling.local_lights_len; index < culling.items_count; index++) {
+    cb.eval_directional(index, srt.light_buf[index]);
+  }
+
+  {
+    uint2 tile_co = uint2(pixel / culling.tile_size);
+    uint tile_word_offset = (tile_co.x + tile_co.y * culling.tile_x_len) * culling.tile_word_len;
+    int zbin_index = culling_z_to_zbin(culling.zbin_scale, culling.zbin_bias, linear_view_z);
+    zbin_index = clamp(zbin_index, 0, CULLING_ZBIN_COUNT - 1);
+    uint zbin_data = zbins[zbin_index];
+    uint min_index = zbin_data & 0xFFFFu;
+    uint max_index = zbin_data >> 16u;
+    /* Ensure all threads inside a subgroup get the same value to reduce VGPR usage. */
+#ifdef GPU_METAL
+    /* Waiting to implement extensions support. We need:
+     * - GL_KHR_shader_subgroup_ballot
+     * - GL_KHR_shader_subgroup_arithmetic
+     * or
+     * - Vulkan 1.1
+     */
+    min_index = simd_broadcast_first(simd_min(min_index));
+    max_index = simd_broadcast_first(simd_max(max_index));
+#endif
+    /* Same as divide by 32 but avoid integer division. */
+    uint word_min = min_index >> 5u;
+    uint word_max = max_index >> 5u;
+    for (uint word_idx = word_min; word_idx <= word_max; word_idx++) {
+      uint word = words[tile_word_offset + word_idx];
+      word &= zbin_mask(word_idx, min_index, max_index);
+      /* Ensure all threads inside a subgroup get the same value to reduce VGPR usage. */
+#ifdef GPU_METAL
+      /* Waiting to implement extensions support. We need:
+       * - GL_KHR_shader_subgroup_ballot
+       * - GL_KHR_shader_subgroup_arithmetic
+       * or
+       * - Vulkan 1.1
+       */
+      word = simd_broadcast_first(subgroupOr(word));
+#endif
+      int bit_index;
+      while ((bit_index = findLSB(word)) != -1) {
+        word &= ~1u << uint(bit_index);
+        uint index = word_idx * 32u + uint(bit_index);
+        cb.eval_local(index, srt.light_buf[index]);
+      }
+    }
+  }
+}
+
+}  // namespace eevee::light
+
+/* Legacy code below.  */
 
 #define LIGHT_FOREACH_BEGIN_DIRECTIONAL(_culling, _index) \
   { \
@@ -92,17 +150,12 @@ void foreach_directional([[resource_table]] const LightCullingData &culling, Cal
       uint zbin_data = _zbins[zbin_index]; \
       uint min_index = zbin_data & 0xFFFFu; \
       uint max_index = zbin_data >> 16u; \
-      /* Ensure all threads inside a subgroup get the same value to reduce VGPR usage. */ \
-      min_index = subgroupBroadcastFirst(subgroupMin(min_index)); \
-      max_index = subgroupBroadcastFirst(subgroupMax(max_index)); \
       /* Same as divide by 32 but avoid integer division. */ \
       uint word_min = min_index >> 5u; \
       uint word_max = max_index >> 5u; \
       for (uint word_idx = word_min; word_idx <= word_max; word_idx++) { \
         uint word = _words[tile_word_offset + word_idx]; \
         word &= zbin_mask(word_idx, min_index, max_index); \
-        /* Ensure all threads inside a subgroup get the same value to reduce VGPR usage. */ \
-        word = subgroupBroadcastFirst(subgroupOr(word)); \
         int bit_index; \
         while ((bit_index = findLSB(word)) != -1) { \
           word &= ~1u << uint(bit_index); \
@@ -114,5 +167,3 @@ void foreach_directional([[resource_table]] const LightCullingData &culling, Cal
   } \
   } \
   }
-
-}
