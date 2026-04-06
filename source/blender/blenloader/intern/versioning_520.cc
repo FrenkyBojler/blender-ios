@@ -31,11 +31,14 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_screen.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
+
+#include "UI_interface_c.hh"
 
 #include "versioning_common.hh"
 
@@ -352,6 +355,21 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 15)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.scemode |= R_USE_TEXTURE_CACHE;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 99)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_SEQ) {
+            if (ARegion *region = BKE_area_find_region_type(&area, RGN_TYPE_UI)) {
+              region->flag &= ~RGN_FLAG_HIDDEN;
+              region->sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
+            }
+          }
+        }
+      }
     }
   }
 
