@@ -47,7 +47,7 @@ struct VersionUpdate {
 };
 
 /**
- * Check if there is any new available blender update in the background, this resets previously
+ * Checks in the background if there is any new available blender update, this resets previously
  * ignored notifications.
  */
 void check_for_available_updates(bContext &C);
