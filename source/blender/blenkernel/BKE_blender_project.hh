@@ -22,14 +22,21 @@ namespace bke {
  * There is at most one active project at a time in Blender.
  */
 class BlenderProject {
-  /* Whether the project has been modified since the last time it was saved. */
-
-  /* The name and root path should never be empty. */
+  /** The project name. Should never be empty. */
   std::string name_;
+
+  /**
+   * The project root path. Should never be empty.
+   *
+   * This should generally be a directory that exists, is accessible, and
+   * contains a ".blender_project" directory with the project's config in it.
+   * This is not, however, guaranteed because via Python a project can be
+   * initialized with an arbitrary path.
+   */
   std::string root_path_;
 
  public:
-  /* Whether the project has unsaved changes. */
+  /** Whether the project has unsaved changes. */
   bool is_dirty = false;
 
   /**
