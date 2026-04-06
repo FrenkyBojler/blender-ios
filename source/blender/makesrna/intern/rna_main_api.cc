@@ -937,7 +937,7 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(
+  parm = RNA_def_string_dir_path(
       func, "project_root", nullptr, 0, nullptr, "The filepath of the project's root folder");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
