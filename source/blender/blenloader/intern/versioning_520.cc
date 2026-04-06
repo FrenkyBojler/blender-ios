@@ -53,14 +53,14 @@ static void version_geometry_nodes_properties(FileData &fd,
                                               Object &object,
                                               NodesModifierData &nmd)
 {
-  const IDProperty *old_props = nmd.settings.properties;
+  const IDProperty *old_props = nmd.settings_legacy.properties;
   if (!old_props) {
     /* Versioning has already been done, this check makes the function idempotent. */
     return;
   }
   if (!nmd.node_group) {
-    IDP_FreeProperty(nmd.settings.properties);
-    nmd.settings.properties = nullptr;
+    IDP_FreeProperty(nmd.settings_legacy.properties);
+    nmd.settings_legacy.properties = nullptr;
     BLO_reportf_wrap(fd.reports,
                      RPT_WARNING,
                      "Modifier '%s' from Object '%s' is missing its Geometry Node Group, its "
@@ -80,8 +80,8 @@ static void version_geometry_nodes_properties(FileData &fd,
      * saved in this state, next loading will do the versionning if the nodegroup is available
      * again, otherwise that data is lost.
      */
-    IDP_FreeProperty(nmd.settings.properties);
-    nmd.settings.properties = nullptr;
+    IDP_FreeProperty(nmd.settings_legacy.properties);
+    nmd.settings_legacy.properties = nullptr;
     BLO_reportf_wrap(
         fd.reports,
         RPT_WARNING,
@@ -203,8 +203,8 @@ static void version_geometry_nodes_properties(FileData &fd,
     IDP_FreeProperty(nmd.modifier.system_properties);
   }
   nmd.modifier.system_properties = system_props;
-  IDP_FreeProperty(nmd.settings.properties);
-  nmd.settings.properties = nullptr;
+  IDP_FreeProperty(nmd.settings_legacy.properties);
+  nmd.settings_legacy.properties = nullptr;
 }
 
 /* Saving file extension is now a property of the File Output node. So inherit this
