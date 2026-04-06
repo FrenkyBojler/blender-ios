@@ -1,2 +1,3 @@
 Referenced by issue #156830, Compositor alpha over crashing Blender 5.1 high res output
 Referenced by pull request #156927, Fix #156830: GPU Compositor crashes for huge resolutions
+Referenced by commit 44c83593b3a14b05653274fee118185e62455793, Fix #156830: GPU Compositor crashes for huge resolutions
