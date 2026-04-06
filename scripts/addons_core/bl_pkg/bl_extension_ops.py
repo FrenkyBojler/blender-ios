@@ -793,6 +793,36 @@ def _preferences_install_post_enable_on_install(
             has_theme = True
 
 
+def _addon_module_name_from_repo_index(repo_index, pkg_id):
+    """Build the full addon module name from a repo index and package ID, or return None.
+
+    NOTE: ``repo_index`` must be an index into ``extension_repos_read()``,
+    not into ``bpy.context.preferences.extensions.repos``.
+    """
+    repo_item = extension_repos_read_index(repo_index)
+    if repo_item is None:
+        return None
+    return "{:s}.{:s}.{:s}".format(_ext_base_pkg_idname, repo_item.module, pkg_id)
+
+
+def _addon_enable_if_disabled(repo_index, pkg_id, report_fn):
+    """Enable an installed but disabled add-on. Returns True if enabled."""
+    import addon_utils
+    addon_module_name = _addon_module_name_from_repo_index(repo_index, pkg_id)
+    if addon_module_name is None:
+        return False
+    is_enabled = addon_utils.check(addon_module_name)[1]
+    if is_enabled:
+        return False
+    mod = addon_utils.enable(
+        addon_module_name,
+        default_set=True,
+        refresh_handled=True,
+        handle_error=lambda ex: report_fn({'ERROR'}, str(ex)),
+    )
+    return mod is not None
+
+
 def _preferences_ui_redraw():
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
@@ -2986,19 +3016,8 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
         # Enable an already-installed but disabled extension, no download needed.
         if self._enable_existing:
             if self.enable_on_install:
-                import addon_utils
-                directory = _repo_dir_and_index_get(self.repo_index, self.repo_directory, self.report)
-                if directory:
-                    if (repo_item := _extensions_repo_from_directory_and_report(directory, self.report)) is not None:
-                        addon_module_name = "{:s}.{:s}.{:s}".format(
-                            _ext_base_pkg_idname, repo_item.module, self.pkg_id,
-                        )
-                        addon_utils.enable(
-                            addon_module_name,
-                            default_set=False,
-                            handle_error=lambda ex: self.report({'ERROR'}, str(ex)),
-                        )
-                        self.report({'INFO'}, "Add-on enabled.")
+                if _addon_enable_if_disabled(self.repo_index, self.pkg_id, self.report):
+                    self.report({'INFO'}, "Add-on enabled.")
                 _preferences_ui_redraw()
                 _preferences_ui_refresh_addons()
             self._enable_existing = False
@@ -3388,19 +3407,12 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                 return False
 
         if item_local is not None:
-            # Check if the extension is installed but disabled.
+            # Check if the add-on is installed but disabled, offer to enable.
             if item_local.type == "add-on":
-                repo_item = _extensions_repo_from_directory_and_report(
-                    bpy.context.preferences.extensions.repos[repo_index].directory, self.report,
-                )
-                if repo_item is not None:
-                    addon_module_name = "{:s}.{:s}.{:s}".format(
-                        _ext_base_pkg_idname, repo_item.module, pkg_id,
-                    )
+                addon_module_name = _addon_module_name_from_repo_index(repo_index, pkg_id)
+                if addon_module_name is not None:
                     import addon_utils
-                    is_enabled = addon_utils.check(addon_module_name)[1]
-                    if not is_enabled:
-                        # Allow enabling via the OK button.
+                    if not addon_utils.check(addon_module_name)[1]:
                         self._drop_variables = repo_index, repo_name, pkg_id, item_remote
                         self._enable_existing = True
                         self.repo_index = repo_index
@@ -4188,18 +4200,15 @@ class EXTENSIONS_OT_unified_drop_handler(Operator, _ExtCmdMixIn):
                 if not repo_data.enabled:
                     self.ui_repo_action = 'ENABLE'
                 else:
-                    has_url_token = bool(self._parsed_access_token)
-                    repo_uses_token = repo_data.use_access_token
-                    repo_token_matches = repo_data.access_token == self._parsed_access_token
-
-                    if has_url_token and (not repo_uses_token or not repo_token_matches):
-                        self.ui_repo_action = 'CONFIG_TOKEN'
-                        self.ui_repo_config_use_access_token = True
-                        self.ui_repo_config_access_token = self._parsed_access_token
-                    elif not has_url_token and repo_uses_token:
-                        self.ui_repo_action = 'CONFIG_TOKEN'
-                        self.ui_repo_config_use_access_token = False
-                        self.ui_repo_config_access_token = ""
+                    # Only offer to update the token if the URL explicitly
+                    # provides one that differs from the current config.
+                    if self._parsed_access_token:
+                        repo_uses_token = repo_data.use_access_token
+                        repo_token_matches = repo_data.access_token == self._parsed_access_token
+                        if not repo_uses_token or not repo_token_matches:
+                            self.ui_repo_action = 'CONFIG_TOKEN'
+                            self.ui_repo_config_use_access_token = True
+                            self.ui_repo_config_access_token = self._parsed_access_token
             else:
                 self.ui_repo_action = 'ADD'
                 self.ui_repo_add_remote_url = self._parsed_repo_remote_url
@@ -4453,6 +4462,14 @@ class EXTENSIONS_OT_unified_drop_handler(Operator, _ExtCmdMixIn):
             return
 
         if item_local is not None:
+            if self.enable_on_install and item_local.type == "add-on":
+                if _addon_enable_if_disabled(repo_index, pkg_id, self.report):
+                    self.report({'INFO'}, iface_(
+                        "Add-on \"{:s}\" was already installed, now enabled."
+                    ).format(item_remote.name))
+                    _preferences_ui_redraw()
+                    _preferences_ui_refresh_addons()
+                    return
             self.report({'INFO'}, iface_("Extension \"{:s}\" is already installed.").format(item_remote.name))
             return
 
