@@ -338,6 +338,7 @@ void editing_free(Scene *scene, const bool do_id_user)
   final_image_cache_destroy(scene);
   preview_cache_destroy(scene);
   channels_free(&ed->channels);
+  ed->runtime->caption_strips.clear();
 
   MEM_delete(ed);
 
