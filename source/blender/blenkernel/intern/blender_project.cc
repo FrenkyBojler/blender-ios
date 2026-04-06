@@ -64,13 +64,14 @@ bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_p
   return true;
 }
 
-/* At the moment this is quite anemic, and doesn't really justify being a
- * separate function. However, as future milestones like project-specific addons
- * and asset libraries are added, this will collect in one place the code for
- * ensuring those things are properly unloaded when the active project is
- * cleared. */
 void BKE_blender_project_clear()
 {
+  /* At the moment this function is quite anemic, and doesn't really justify
+   * being a separate function. However, as future milestones like
+   * project-specific addons and asset libraries are added, this will collect in
+   * one place the code for ensuring those things are properly unloaded when the
+   * active project is cleared. */
+
   if (!G_MAIN->project.has_value()) {
     return;
   }
