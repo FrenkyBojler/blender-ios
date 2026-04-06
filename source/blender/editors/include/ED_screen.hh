@@ -168,7 +168,8 @@ void ED_region_visibility_change_update(bContext *C, ScrArea *area, ARegion *reg
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region);
 
 #define ANIMATION_TIMESTEP (1.0f / 60.0f)
-#define ANIMATION_DURATION_REGION 0.22f
+#define ANIMATION_DURATION_REGION_H 0.1f
+#define ANIMATION_DURATION_REGION_V 0.15f
 #define ANIMATION_DURATION_MENU 0.1f
 #define ANIMATION_DURATION_SUBMENU 0.08f
 #define ANIMATION_DURATION_LARGE_DIALOG 0.3f

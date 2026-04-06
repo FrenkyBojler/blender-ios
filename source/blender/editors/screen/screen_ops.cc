@@ -7183,35 +7183,39 @@ void ED_region_add_animation_timer(bContext *C,
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region)
 {
   RegionAnimationDirection dir = RegionAnimationDirection::None;
+  float duration;
+  float delay = 0.0f;
   if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_RIGHT) {
     dir = RegionAnimationDirection::Left;
+    duration = ANIMATION_DURATION_REGION_H;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_LEFT) {
     dir = RegionAnimationDirection::Right;
+    duration = ANIMATION_DURATION_REGION_H;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
     dir = RegionAnimationDirection::Up;
+    duration = ANIMATION_DURATION_REGION_V;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) {
     dir = RegionAnimationDirection::Down;
+    duration = ANIMATION_DURATION_REGION_V;
   }
 
-  float delay = 0.0f;
-  float duration = ANIMATION_DURATION_REGION;
   RegionAnimationType anim_type = RegionAnimationType::Slide;
   const bool hiding = region->flag & RGN_FLAG_HIDDEN;
   RegionAnimationEase easing = hiding ? RegionAnimationEase::QuadIn : RegionAnimationEase::QuadOut;
 
   if (region->next && region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
     if (hiding) {
-      delay = ANIMATION_DURATION_REGION;
+      delay = ANIMATION_DURATION_REGION_V;
     }
     SET_FLAG_FROM_TEST(region->next->flag, hiding, RGN_FLAG_HIDDEN);
     ED_region_visibility_change_update_animated(C, area, region->next);
   }
 
   if (!hiding && region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
-    delay = ANIMATION_DURATION_REGION;
+    delay = ANIMATION_DURATION_REGION_V;
   }
 
   ED_region_add_animation_timer(C, area, region, delay, duration, anim_type, dir, easing);
