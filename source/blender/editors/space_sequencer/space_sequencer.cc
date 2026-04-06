@@ -116,6 +116,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
+  region->sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
 
   /* Toolbar. */
   region = BKE_area_region_new();
@@ -1173,7 +1174,7 @@ void ED_spacetype_sequencer()
   /* List-view/buttons. */
   art = MEM_new_zeroed<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_UI;
-  art->prefsizex = UI_PANEL_CATEGORY_MIN_WIDTH;
+  art->prefsizex = art->prefsizex = UI_SIDEBAR_PANEL_WIDTH * 1.3f;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_ui;
   art->listener = sequencer_buttons_region_listener;
