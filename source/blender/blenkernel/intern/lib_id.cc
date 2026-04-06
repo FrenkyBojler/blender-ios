@@ -1078,8 +1078,12 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
       newid = BKE_id_copy_ex(bmain, id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS);
       if (newid != nullptr) {
         /* us is 1 by convention with new IDs, but RNA_property_pointer_set
-         * will also increment it, decrement it here. */
+         * will also increment it if it's a user-reference-counting usage, decrement it here. */
         id_us_min(newid);
+        /* 'Never unused' IDs types should always have an extra 'virtual' user ensured. */
+        if (BKE_idtype_get_info_from_id(newid)->flags & IDTYPE_FLAGS_NEVER_UNUSED) {
+          id_us_ensure_real(newid);
+        }
 
         /* assign copy */
         PointerRNA idptr = RNA_id_pointer_create(newid);
@@ -2066,11 +2070,18 @@ void BKE_main_id_refcount_recompute(Main *bmain, const bool do_linked_only)
 
   /* Go over whole Main database to re-generate proper user-counts. */
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    BKE_library_foreach_ID_link(bmain,
-                                id,
-                                id_refcount_recompute_callback,
-                                POINTER_FROM_INT(int(do_linked_only)),
-                                IDWALK_READONLY | IDWALK_INCLUDE_UI);
+    /* NOTE: This function is called from readfile context, where some IDs in newly read Main may
+     * have been copied over from the old one, and therefore reference old IDs (e.g. UI-related
+     * Outliner space...). See `UFO_Rig_OldVersion.blend` from #156601 for a reproducible case.
+     *
+     * So using `IDWALK_NO_ORIG_POINTERS_ACCESS` here. Currently, access to ID pointers should not
+     * be needed for basic refcounting anyway. */
+    BKE_library_foreach_ID_link(
+        bmain,
+        id,
+        id_refcount_recompute_callback,
+        POINTER_FROM_INT(int(do_linked_only)),
+        (IDWALK_READONLY | IDWALK_INCLUDE_UI | IDWALK_NO_ORIG_POINTERS_ACCESS));
   }
   FOREACH_MAIN_ID_END;
 }
