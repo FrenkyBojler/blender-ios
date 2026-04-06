@@ -119,6 +119,11 @@ struct VKWorkarounds {
    */
   bool not_aligned_pixel_formats = false;
 
+  /**
+   * Intel 7th to 10th Gen GPUs show visual artifacts with texture pool usage.
+   */
+  bool no_texture_pool = false;
+
   /** Log enabled workarounds. */
   void log() const;
 };
@@ -266,6 +271,10 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_EXT_host_image_copy */
     PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImage = nullptr;
     PFN_vkTransitionImageLayoutEXT vkTransitionImageLayout = nullptr;
+
+    /* Extension: VK_KHR_mainentance4 */
+    PFN_vkGetDeviceImageMemoryRequirements vkGetDeviceImageMemoryRequirements = nullptr;
+    PFN_vkGetDeviceBufferMemoryRequirements vkGetDeviceBufferMemoryRequirements = nullptr;
 
 #ifdef _WIN32
     /* Extension: VK_KHR_external_memory_win32 */

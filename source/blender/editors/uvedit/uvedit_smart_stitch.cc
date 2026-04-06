@@ -2230,11 +2230,12 @@ static StitchStateInit *stitch_extract_rna_selection(wmOperator *op,
 static StitchStateContainer *stitch_operator_settings_init(bContext *C, wmOperator *op)
 {
 
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
 
   if (objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No objects selected");
@@ -2306,12 +2307,13 @@ int stitch_init_all(bContext *C,
     return 0;
   }
 
+    Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
   if (objects.is_empty() || objects.size() > RNA_MAX_ARRAY_LENGTH) {
     return 0;
   }

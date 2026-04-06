@@ -1251,7 +1251,7 @@ static wmOperatorStatus node_add_import_node_exec(bContext *C, wmOperator *op)
     }
 
     if (node) {
-      bNodeSocket &path_socket = *node->input_by_identifier("Path");
+      bNodeSocket &path_socket = *node->input_by_identifier("Path"_ustr);
       BLI_assert(path_socket.type == SOCK_STRING);
       auto *socket_data = static_cast<bNodeSocketValueString *>(path_socket.default_value);
       STRNCPY(socket_data->value, path.c_str());
@@ -1962,6 +1962,8 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
     }
 
     if (assigned_node_tree) {
+      /* Which strips are used by which node trees has changed. */
+      seq::strip_lookup_invalidate(scene->ed);
       seq::relations_invalidate_cache(scene, strip);
       /* Tag depsgraph relations for an update since the modifier should now be referencing a
        * different node tree. */

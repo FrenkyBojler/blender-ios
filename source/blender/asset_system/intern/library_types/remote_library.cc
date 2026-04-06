@@ -12,7 +12,6 @@
 #include "BLI_fileops.h"
 #include "BLI_hash_md5.hh"
 #include "BLI_listbase.h"
-#include "BLI_memory_utils.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -45,32 +44,39 @@
 
 namespace blender::asset_system {
 
-RemoteAssetLibrary::RemoteAssetLibrary(const StringRef remote_url,
-                                       const StringRef name,
-                                       const StringRef cache_root_path)
-    : AssetLibrary(ASSET_LIBRARY_CUSTOM, name, cache_root_path)
+RemoteAssetLibrary::RemoteAssetLibrary(const bUserAssetLibrary &custom_library)
+    : AssetLibrary(ASSET_LIBRARY_CUSTOM,
+                   /*is_read_only=*/true,
+                   custom_library.name,
+                   custom_library.dirpath),
+      user_library_(custom_library)
 {
+  BLI_assert(custom_library.flag & ASSET_LIBRARY_USE_REMOTE_URL);
+
   import_method_ = ASSET_IMPORT_APPEND_REUSE;
   may_override_import_method_ = false;
-  remote_url_ = remote_url;
+  remote_url_ = custom_library.remote_url;
 }
 
 std::optional<AssetLibraryReference> RemoteAssetLibrary::library_reference() const
 {
-  for (auto [i, asset_library] : U.asset_libraries.enumerate()) {
-    if ((asset_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) == 0) {
-      continue;
-    }
-
-    if (asset_library.remote_url == this->remote_url_) {
-      AssetLibraryReference library_ref{};
-      library_ref.type = ASSET_LIBRARY_CUSTOM;
-      library_ref.custom_library_index = i;
-      return library_ref;
-    }
+  const bUserAssetLibrary *library_definition = user_library_.user_asset_library();
+  if (library_definition == nullptr) {
+    return {};
   }
 
-  return {};
+  const int index = BLI_findindex(&U.asset_libraries, library_definition);
+  if (index == -1) {
+    /* Should have been caught by the #user_asset_library() call above already. */
+    BLI_assert_unreachable();
+    return {};
+  }
+
+  BLI_assert(library_definition->flag & ASSET_LIBRARY_USE_REMOTE_URL);
+  AssetLibraryReference library_ref{};
+  library_ref.type = ASSET_LIBRARY_CUSTOM;
+  library_ref.custom_library_index = index;
+  return library_ref;
 }
 
 std::optional<StringRefNull> RemoteAssetLibrary::remote_url() const
@@ -88,12 +94,12 @@ void RemoteAssetLibrary::refresh_catalogs()
  * \{ */
 
 /*
- * Note: Some of the status setters here only modify status if the current status is
+ * NOTE: Some of the status setters here only modify status if the current status is
  * #RemoteLibraryLoadingStatus::Loading. That is done to avoid status changes after loading ended,
  * mostly after a timeout. E.g. after a timeout of the C++ status because Python didn't send status
  * updates, Python might eventually resume sending updates. These shouldn't affect the C++ status
  * anymore, since the earlier failure aborted the C++ side asset library loading. Plus, the UI
- * might show an error, and would suddenly switch to showing an incompletly loaded asset library.
+ * might show an error, and would suddenly switch to showing an incompletely loaded asset library.
  */
 
 using UrlToLibraryStatusMap = Map<std::string /*url*/, asset_system::RemoteLibraryLoadingStatus>;
@@ -101,6 +107,9 @@ using UrlToLibraryStatusMap = Map<std::string /*url*/, asset_system::RemoteLibra
 static UrlToLibraryStatusMap &library_to_status_map()
 {
   static UrlToLibraryStatusMap map = UrlToLibraryStatusMap{};
+  BLI_assert_msg(
+      BLI_thread_is_main(),
+      "Remote library status isn't synchronized and should only be accessed from the main thread");
   return map;
 }
 
