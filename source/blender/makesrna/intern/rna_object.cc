@@ -2021,6 +2021,27 @@ static float rna_VertexGroup_weight(ID *id, bDeformGroup *dg, ReportList *report
   return weight;
 }
 
+static bool rna_VertexGroup_is_empty(ID *id, bDeformGroup *dg)
+{
+  Object *ob = reinterpret_cast<Object *>(id);
+  MDeformVert *dv = nullptr;
+  int tot;
+  BKE_object_defgroup_array_get(ob->data, &dv, &tot);
+  if (dv == nullptr) {
+    return true;
+  }
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
+  const int def_nr = BLI_findindex(defbase, dg);
+  bool is_empty = true;
+  for (int i = 0; i < tot; i++) {
+    if (BKE_defvert_find_index(&dv[i], def_nr)) {
+      is_empty = false;
+      break;
+    }
+  }
+  return is_empty;
+}
+
 /* generic poll functions */
 bool rna_Lattice_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
@@ -2364,6 +2385,12 @@ static void rna_def_vertex_group(BlenderRNA *brna)
   parm = RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "The index of the vertex", 0, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight", 0.0f, 1.0f);
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "is_empty", "rna_VertexGroup_is_empty");
+  RNA_def_function_ui_description(func, "Check if the vertex group is empty");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+  parm = RNA_def_boolean(func, "is_empty", false, "", "Whether the vertex group is empty");
   RNA_def_function_return(func, parm);
 }
 

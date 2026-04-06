@@ -126,6 +126,8 @@ class MESH_UL_vgroups(UIList):
         vgroup = item
         layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
         icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
+        if (vgroup.is_empty()):
+            layout.label(text="", icon='LAYER_USED')
         layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
 
 
