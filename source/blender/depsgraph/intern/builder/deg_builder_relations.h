@@ -100,16 +100,16 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                          int flags = 0);
 
   template<typename KeyType>
+    requires(!std::is_same_v<KeyType, TimeSourceKey>)
   Relation *add_node_handle_relation(const KeyType &key_from,
                                      const DepsNodeHandle *handle,
                                      const char *description,
                                      int flags = 0);
 
-  template<>
-  Relation *add_node_handle_relation<TimeSourceKey>(const TimeSourceKey &key_from,
-                                                    const DepsNodeHandle *handle,
-                                                    const char *description,
-                                                    int flags);
+  Relation *add_node_handle_relation(const TimeSourceKey &key_from,
+                                     const DepsNodeHandle *handle,
+                                     const char *description,
+                                     int flags = 0);
 
   template<typename KeyTo>
   Relation *add_depends_on_transform_relation(ID *id,
