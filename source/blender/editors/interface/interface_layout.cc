@@ -2768,7 +2768,7 @@ void Layout::prop_textbox(PointerRNA *ptr,
         "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
-  else if (!visible_lines_prop) {
+  if (!visible_lines_prop) {
     item_disabled(this, visible_lines_propname.c_str());
     RNA_warning("int property not found: %s.%s",
                 RNA_struct_identifier(visible_lines_ptr->type),
