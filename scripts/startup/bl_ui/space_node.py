@@ -193,6 +193,11 @@ class NODE_HT_header(Header):
                     row.enabled = False
                     row.template_ID(snode, "node_tree", new="node.new_geometry_node_group_assign")
                 elif ob:
+                    types_that_support_geonodes = {
+                        'MESH', 'CURVE', 'FONT', 'GPENCIL', 'CURVES', 'POINTCLOUD', 'VOLUME',
+                    }
+                    row.enabled = ob.type in types_that_support_geonodes
+
                     active_modifier = ob.modifiers.active
                     if active_modifier and active_modifier.type == 'NODES':
                         if active_modifier.node_group:
