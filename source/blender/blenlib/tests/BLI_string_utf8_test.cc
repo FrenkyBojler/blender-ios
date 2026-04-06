@@ -1463,33 +1463,12 @@ TEST(string, BLI_str_utf32_char_to_lower)
 
 TEST(string, BLI_str_utf8_normalized)
 {
-  std::string st1 = "aAzZ";
-  std::string st2 = "aazz";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
-
-  st1 = "aAzZ";
-  st2 = "aAzZ";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, true) == st2);
-
-  st1 = "\xBC \xC6 \xC5\x92 \xEF\xAC\x82";
-  st2 = "1/4 ae oe fl";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
-
-  st1 = "\xBC \xC6 \xC5\x92 \xEF\xAC\x82";
-  st2 = "1/4 AE OE fl";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, true) == st2);
-
-  st1 = "\xC0 \xDD \xC7\xBE";
-  st2 = "a y o";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
-
-  st1 = "\xC0 \xDD \xC7\xBE";
-  st2 = "A Y O";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, true) == st2);
-
-  st1 = "\xE2\x80\x8A \xEF\xBC\x99 \xEF\xBC\xBA";
-  st2 = "  9 z";
-  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
+  EXPECT_EQ(BLI_str_utf8_normalized("aAzZ", false), "aazz");
+  EXPECT_EQ(BLI_str_utf8_normalized("\xBC \xC6 \xC5\x92 \xEF\xAC\x82", false), "1/4 ae oe fl");
+  EXPECT_EQ(BLI_str_utf8_normalized("\xBC \xC6 \xC5\x92 \xEF\xAC\x82", true), "1/4 AE OE fl");
+  EXPECT_EQ(BLI_str_utf8_normalized("\xC0 \xDD \xC7\xBE", false), "a y o");
+  EXPECT_EQ(BLI_str_utf8_normalized("\xC0 \xDD \xC7\xBE", true), "A Y O");
+  EXPECT_EQ(BLI_str_utf8_normalized("\xE2\x80\x8A \xEF\xBC\x99 \xEF\xBC\xBA", false), "  9 z");
 }
 
 /* -------------------------------------------------------------------- */
