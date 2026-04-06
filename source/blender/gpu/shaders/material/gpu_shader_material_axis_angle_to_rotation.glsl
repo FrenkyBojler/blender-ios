@@ -12,7 +12,7 @@ void axis_angle_to_rotation(float3 axis, float angle, out float4 rotation)
   }
   else {
     const float3 naxis = normalize(axis);
-    
+
     const float half_angle = angle * 0.5f;
     const float hs = sin(half_angle);
     const float hc = cos(half_angle);

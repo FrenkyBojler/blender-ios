@@ -6,7 +6,7 @@
 #include "gpu_shader_math_rotation_conversion_lib.glsl"
 
 [[node]]
-void rotation_to_euler(float4 rotation, float3 &euler)
+void rotation_to_euler(float4 rotation, out float3 euler)
 {
   Quaternion quat;
   quat.x = rotation.x;

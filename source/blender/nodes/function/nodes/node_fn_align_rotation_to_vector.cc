@@ -198,19 +198,15 @@ static int gpu_shader_align_rotation_to_vector(GPUMaterial *mat,
   local_main_axis[main_axis_mode.as_int()] = 1.0f;
 
   if (pivot_axis_mode == FN_NODE_ALIGN_EULER_TO_VECTOR_PIVOT_AXIS_AUTO) {
-    return GPU_stack_link(mat,
-                          node,
-                          "node_align_rotation_to_vector_auto_pivot",
-                          in,
-                          out,
-                          GPU_constant(local_main_axis));
+    return GPU_stack_link(
+        mat, node, "align_rotation_to_vector_auto_pivot", in, out, GPU_constant(local_main_axis));
   }
 
   float3 local_pivot_axis = {0.0f, 0.0f, 0.0f};
   local_pivot_axis[pivot_axis_mode - 1] = 1.0f;
   return GPU_stack_link(mat,
                         node,
-                        "node_align_rotation_to_vector_fixed_pivot",
+                        "align_rotation_to_vector_fixed_pivot",
                         in,
                         out,
                         GPU_constant(local_main_axis),

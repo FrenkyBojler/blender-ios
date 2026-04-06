@@ -40,18 +40,18 @@ float angle_signed_on_axis_v3v3_v3(float3 v1, float3 v2, float3 axis)
 }
 
 [[node]]
-void node_align_rotation_to_vector_auto_pivot(float4 old_rotation,
-                                              float factor,
-                                              float3 input_vector,
-                                              float3 local_main_axis,
-                                              out float4 out_rotation)
+void align_rotation_to_vector_auto_pivot(float4 rotation_in,
+                                         float factor,
+                                         float3 input_vector,
+                                         float3 local_main_axis,
+                                         out float4 rotation)
 {
   if (is_zero(input_vector)) {
-    out_rotation = old_rotation;
+    rotation = rotation_in;
     return;
   }
 
-  const float3 old_axis = transform_point_by_quaternion(old_rotation, local_main_axis);
+  const float3 old_axis = transform_point_by_quaternion(rotation_in, local_main_axis);
   const float3 new_axis = normalize(input_vector);
 
   float3 rotation_axis = cross(old_axis, new_axis);
@@ -71,29 +71,29 @@ void node_align_rotation_to_vector_auto_pivot(float4 old_rotation,
   aa.axis = normalize(rotation_axis);
   aa.angle = angle;
 
-  out_rotation = math_quaternion_multiply(to_axis_angle(aa).as_float4(), old_rotation);
+  rotation = math_quaternion_multiply(to_axis_angle(aa).as_float4(), rotation_in);
 }
 
 [[node]]
-void node_align_rotation_to_vector_fixed_pivot(float4 old_rotation,
-                                               float factor,
-                                               float3 input_vector,
-                                               float3 local_main_axis,
-                                               float3 local_pivot_axis,
-                                               out float4 out_rotation)
+void align_rotation_to_vector_fixed_pivot(float4 rotation_in,
+                                          float factor,
+                                          float3 input_vector,
+                                          float3 local_main_axis,
+                                          float3 local_pivot_axis,
+                                          out float4 rotation)
 {
   if (local_main_axis == local_pivot_axis) {
     /* Can't compute any meaningful rotation angle in this case. */
-    out_rotation = old_rotation;
+    rotation = rotation_in;
     return;
   }
   if (is_zero(input_vector)) {
-    out_rotation = old_rotation;
+    rotation = rotation_in;
     return;
   }
 
-  const float3 old_axis = transform_point_by_quaternion(old_rotation, local_main_axis);
-  const float3 pivot_axis = transform_point_by_quaternion(old_rotation, local_pivot_axis);
+  const float3 old_axis = transform_point_by_quaternion(rotation_in, local_main_axis);
+  const float3 pivot_axis = transform_point_by_quaternion(rotation_in, local_pivot_axis);
 
   float full_angle = angle_signed_on_axis_v3v3_v3(input_vector, old_axis, pivot_axis);
   if (full_angle > M_PI) {
@@ -107,5 +107,5 @@ void node_align_rotation_to_vector_fixed_pivot(float4 old_rotation,
   aa.axis = normalize(pivot_axis);
   aa.angle = angle;
 
-  out_rotation = math_quaternion_multiply(to_axis_angle(aa).as_float4(), old_rotation);
+  rotation = math_quaternion_multiply(to_axis_angle(aa).as_float4(), rotation_in);
 }

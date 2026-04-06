@@ -17,13 +17,13 @@ float3 get_orthogonal_of_non_zero_vector(float3 v)
 }
 
 [[node]]
-void node_axes_to_rotation(float3 primary_in,
-                           float3 secondary_in,
-                           float primary_idx_f,
-                           float secondary_idx_f,
-                           float tertiary_idx_f,
-                           float tertiary_factor,
-                           out float4 out_rotation)
+void axes_to_rotation(float3 primary_in,
+                      float3 secondary_in,
+                      float primary_idx_f,
+                      float secondary_idx_f,
+                      float tertiary_idx_f,
+                      float tertiary_factor,
+                      out float4 rotation)
 {
   float3 primary = normalize(primary_in);
   float3 secondary = secondary_in;
@@ -52,7 +52,7 @@ void node_axes_to_rotation(float3 primary_in,
     tertiary = cross(primary, secondary);
   }
   else {
-    out_rotation = float4(1.0f, 0.0f, 0.0f, 0.0f);
+    rotation = float4(1.0f, 0.0f, 0.0f, 0.0f);
     return;
   }
 
@@ -65,11 +65,11 @@ void node_axes_to_rotation(float3 primary_in,
   mat[secondary_axis] = secondary;
   mat[tertiary_axis] = tertiary_factor * tertiary;
 
-  out_rotation = to_quaternion(mat).as_float4();
+  rotation = to_quaternion(mat).as_float4();
 }
 
 [[node]]
-void node_axes_to_rotation_identity(float3 primary, float3 secondary, out float4 out_rotation)
+void axes_to_rotation_identity(float3 primary_in, float3 secondary_in, out float4 rotation)
 {
-  out_rotation = float4(1.0f, 0.0f, 0.0f, 0.0f);
+  rotation = float4(1.0f, 0.0f, 0.0f, 0.0f);
 }
