@@ -18,30 +18,22 @@ namespace blender {
 
 namespace bke {
 
-bool BlenderProject::set_name(StringRef name)
+void BlenderProject::set_name(StringRef name)
 {
-  if (name.is_empty()) {
-    return false;
-  }
+  BLI_assert(!name.is_empty());
 
   this->name_ = name;
 
   this->is_dirty = true;
-
-  return true;
 }
 
-bool BlenderProject::set_root_path(StringRef root_path)
+void BlenderProject::set_root_path(StringRef root_path)
 {
-  if (root_path.is_empty()) {
-    return false;
-  }
+  BLI_assert(!root_path.is_empty());
 
   this->root_path_ = root_path;
 
   this->is_dirty = true;
-
-  return true;
 }
 
 StringRefNull BlenderProject::get_name() const

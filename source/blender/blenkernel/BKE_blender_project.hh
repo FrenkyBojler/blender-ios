@@ -42,19 +42,20 @@ class BlenderProject {
   /**
    * Set the project's name.
    *
-   * If `name` is empty (which is invalid), the project's name remains as-is and
-   * false is returned.  Otherwise the name is set and true is returned.
+   * Also marks the project as dirty.
+   *
+   * The passed `name` should never be empty (which is invalid).
    */
-  bool set_name(StringRef name);
+  void set_name(StringRef name);
 
   /**
    * Set the project's root path.
    *
-   * If `root_path` is empty (which is invalid), the project's root path remains
-   * as-is and false is returned.  Otherwise the name is set and true is
-   * returned.
+   * Also marks the project as dirty.
+   *
+   * The passed `root_path` should never be empty (which is invalid).
    */
-  bool set_root_path(StringRef root_path);
+  void set_root_path(StringRef root_path);
 
   StringRefNull get_name() const;
   StringRefNull get_root_path() const;
