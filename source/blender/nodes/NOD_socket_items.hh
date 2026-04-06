@@ -307,11 +307,15 @@ template<typename Accessor>
 {
   using ItemT = typename Accessor::ItemT;
   bNodeSocket *src_socket = nullptr;
+  bNode *src_node = nullptr;
+
   if (link.tosock == &extend_socket) {
     src_socket = link.fromsock;
+    src_node = link.fromnode;
   }
   else if (link.fromsock == &extend_socket) {
     src_socket = link.tosock;
+    src_node = link.tonode;
   }
   else {
     return false;
@@ -327,7 +331,7 @@ template<typename Accessor>
     if (!added_socket_type) {
       return false;
     }
-    std::string name = src_socket->name;
+    std::string name = bke::node_socket_extend_label(*src_node, *src_socket);
     if constexpr (Accessor::has_custom_initial_name) {
       name = Accessor::custom_initial_name(storage_node, name);
     }

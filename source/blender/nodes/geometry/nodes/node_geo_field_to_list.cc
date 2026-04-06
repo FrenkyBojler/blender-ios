@@ -87,18 +87,20 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       });
     }
     params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
+      const UString name(bke::node_socket_extend_label(params.node, params.socket));
       bNode &node = params.add_node("GeometryNodeFieldToList");
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
-          params.node_tree, node, data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, UString(params.socket.name));
+          params.node_tree, node, data_type, name.c_str());
+      params.update_and_connect_available_socket(node, name);
     });
   }
   else {
     params.add_item(IFACE_("List"), [data_type](LinkSearchOpParams &params) {
+      const UString name(bke::node_socket_extend_label(params.node, params.socket));
       bNode &node = params.add_node("GeometryNodeFieldToList");
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
-          params.node_tree, node, data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, UString(params.socket.name));
+          params.node_tree, node, data_type, name.c_str());
+      params.update_and_connect_available_socket(node, name);
     });
   }
 }

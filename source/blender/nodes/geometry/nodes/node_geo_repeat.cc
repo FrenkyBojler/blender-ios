@@ -262,7 +262,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     input_storage.output_node_id = output_node.identifier;
 
     socket_items::clear<RepeatItemsAccessor>(output_node);
-    const UString name(params.socket.name);
+    const UString name(bke::node_socket_extend_label(params.node, params.socket));
     socket_items::add_item_with_socket_type_and_name<RepeatItemsAccessor>(
         params.node_tree, output_node, eNodeSocketDatatype(params.socket.type), name.c_str());
     update_node_declaration_and_sockets(params.node_tree, input_node);

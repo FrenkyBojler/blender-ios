@@ -5559,6 +5559,15 @@ StringRefNull node_socket_label(const bNodeSocket &sock)
   return sock.name;
 }
 
+StringRef node_socket_extend_label(const bNode &node, const bNodeSocket &sock)
+{
+  StringRef name = node.is_type("NodeReroute") && (node.label[0] != '\0') ?
+                       node.label :
+                       (sock.name ? sock.name : bke::node_socket_label(sock));
+
+  return name;
+}
+
 const char *node_socket_translation_context(const bNodeSocket &sock)
 {
   /* The node is not explicitly defined. */

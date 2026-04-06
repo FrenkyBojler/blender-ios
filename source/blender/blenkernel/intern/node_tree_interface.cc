@@ -1418,7 +1418,7 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
       }
     }
 
-    const StringRef io_name = name ? *name : node_socket_label(from_sock);
+    const StringRef io_name = bke::node_socket_extend_label(from_node, from_sock);
     iosock = ntree.tree_interface.add_socket(io_name, description, socket_type, flag, nullptr);
 
     if (iosock) {

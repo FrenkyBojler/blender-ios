@@ -249,10 +249,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 
   params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
+    const UString name(bke::node_socket_extend_label(params.node, params.socket));
+
     bNode &node = params.add_node("GeometryNodeCaptureAttribute");
     socket_items::add_item_with_socket_type_and_name<CaptureAttributeItemsAccessor>(
-        params.node_tree, node, type, params.socket.name);
-    params.update_and_connect_available_socket(node, UString(params.socket.name));
+        params.node_tree, node, type, name.c_str());
+    params.update_and_connect_available_socket(node, name);
   });
 }
 

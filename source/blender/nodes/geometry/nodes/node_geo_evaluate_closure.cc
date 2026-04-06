@@ -159,10 +159,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_IN) {
     params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
+      const UString name(bke::node_socket_extend_label(params.node, params.socket));
       bNode &node = params.add_node("NodeEvaluateClosure");
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<EvaluateClosureOutputItemsAccessor>(
-              params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
+              params.node_tree, node, params.socket.typeinfo->type, name.c_str());
       params.update_and_connect_available_socket(node, UString(item->name));
     });
     return;
@@ -183,9 +184,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         IFACE_("Item"),
         [](LinkSearchOpParams &params) {
           bNode &node = params.add_node("NodeEvaluateClosure");
+
+          const UString name(bke::node_socket_extend_label(params.node, params.socket));
           const auto *item =
               socket_items::add_item_with_socket_type_and_name<EvaluateClosureInputItemsAccessor>(
-                  params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
+                  params.node_tree, node, params.socket.typeinfo->type, name.c_str());
           nodes::update_node_declaration_and_sockets(params.node_tree, node);
           params.connect_available_socket_by_identifier(
               node, UString(EvaluateClosureInputItemsAccessor::socket_identifier_for_item(*item)));

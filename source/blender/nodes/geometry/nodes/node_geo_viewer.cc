@@ -290,9 +290,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_OUT) {
     params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
+      const UString name(bke::node_socket_extend_label(params.node, params.socket));
       bNode &node = params.add_node("GeometryNodeViewer");
       const auto *item = socket_items::add_item_with_socket_type_and_name<GeoViewerItemsAccessor>(
-          params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
+          params.node_tree, node, params.socket.typeinfo->type, name.c_str());
       params.update_and_connect_available_socket(node, UString(item->name));
       SpaceNode *snode = CTX_wm_space_node(&params.C);
       Main *bmain = CTX_data_main(&params.C);

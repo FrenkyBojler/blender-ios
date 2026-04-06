@@ -411,6 +411,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   params.add_item("File Output", [](LinkSearchOpParams &params) {
     bNode &node = params.add_node("CompositorNodeOutputFile");
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.socket.type);
+
+    const UString name(bke::node_socket_extend_label(params.node, params.socket));
     if (socket_type == SOCK_VECTOR) {
       socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
           params.node_tree,
@@ -421,9 +423,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
     else {
       socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
-          params.node_tree, node, socket_type, params.socket.name);
+          params.node_tree, node, socket_type, name.c_str());
     }
-    params.update_and_connect_available_socket(node, UString(params.socket.name));
+    params.update_and_connect_available_socket(node, name);
   });
 }
 
