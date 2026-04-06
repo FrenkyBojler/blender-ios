@@ -1,2 +1,2 @@
 Referenced by issue #156892, Regression: EEVEE with Vulkan when rendering complex shaders
-Referenced by pull request #156934, WIP: Fix #156892: EEVEE: Regression in max allowed number of samplers
+Referenced by pull request #156934, Fix #156892: EEVEE: Regression in max allowed number of samplers
