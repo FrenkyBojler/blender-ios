@@ -390,7 +390,7 @@ struct ButtonTextBox : public Button {
  * Wraps input text into lines, this may overwrite draw string if there is IME data available.
  * This also may override active font style.
  */
-Vector<StringRef> textbox_wrap_lines(ButtonTextBox *but);
+Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox);
 float textbox_grip_ui_height();
 
 /** Derived struct for #ButType::Grip */
@@ -1346,7 +1346,7 @@ bool button_rna_equals_ex(const Button *but,
                           int index);
 Button *button_find_old(Block *block_old, const Button *but_new);
 Button *button_find_new(Block *block_new, const Button *but_old);
-/** Scaled text padding within the but widged box. */
+/** Scaled text padding within the but widget box. */
 int button_text_padding(const Button *but);
 
 #ifdef WITH_INPUT_IME
