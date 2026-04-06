@@ -2,9 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <cstring>
-#include <fmt/format.h>
-
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
