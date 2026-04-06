@@ -201,8 +201,8 @@ class AttributeTransferer {
       const Field<int> &src_id_field = src_id_fields_.lookup(item.domain);
       const Field<int> &dst_id_field = dst_id_fields_.lookup(item.domain);
 
-      if (dynamic_cast<const fn::IndexFieldInput *>(&src_id_field.node()) &&
-          dynamic_cast<const fn::IndexFieldInput *>(&dst_id_field.node()))
+      if (src_id_field.get_input_if<fn::IndexFieldInput>() &&
+          dst_id_field.get_input_if<fn::IndexFieldInput>())
       {
         ids->transfer_by_index = true;
         continue;

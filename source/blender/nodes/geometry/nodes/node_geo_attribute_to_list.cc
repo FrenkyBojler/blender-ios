@@ -200,11 +200,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Vector<GField> input_fields(storage.items_num);
+  Vector<GField> input_fields;
   for (const int item_i : IndexRange(storage.items_num)) {
     const NodeGeometryAttributeToListItem &item = storage.items[item_i];
     const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
-    input_fields[item_i] = params.extract_input<GField>(UString(identifier));
+    input_fields.append(params.extract_input<GField>(UString(identifier)));
   }
 
   for (fn::FieldEvaluator *field_evaluator : field_evaluators) {
