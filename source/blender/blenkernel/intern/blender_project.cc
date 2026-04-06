@@ -61,10 +61,6 @@ bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_p
   G_MAIN->project->set_name(name);
   G_MAIN->project->set_root_path(root_path);
 
-  /* Initializing the in-memory project does not save to disk, so it's dirty by
-   * default. */
-  G_MAIN->project->is_dirty = true;
-
   return true;
 }
 

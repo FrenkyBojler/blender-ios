@@ -36,8 +36,13 @@ class BlenderProject {
   std::string root_path_;
 
  public:
-  /** Whether the project has unsaved changes. */
-  bool is_dirty = false;
+  /**
+   * Whether the project has unsaved changes.
+   *
+   * Default initializes to `true` because a freshly constructed
+   * `BlenderProject` is unsaved by definition.
+   */
+  bool is_dirty = true;
 
   /**
    * Set the project's name.
