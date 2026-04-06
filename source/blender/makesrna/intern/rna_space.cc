@@ -4199,7 +4199,25 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_seams", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SI_SHOW_SEAMS);
-  RNA_def_property_ui_text(prop, "Seams", "Display seam overlay");
+  RNA_def_property_ui_text(prop, "Display Seams", "Display UV unwrapping seams");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "show_edge_sharp", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SI_SHOW_SHARP);
+  RNA_def_property_ui_text(
+      prop, "Display Sharp", "Display sharp edges, used with the Edge Split modifier");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "show_edge_crease", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SI_SHOW_CREASE);
+  RNA_def_property_ui_text(
+      prop, "Display Creases", "Display creases created for Subdivision Surface modifier");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "show_edge_bevel_weight", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SI_SHOW_BEVEL_WEIGHT);
+  RNA_def_property_ui_text(
+      prop, "Display Bevel Weights", "Display weights created for the Bevel modifier");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   prop = RNA_def_property(srna, "show_faces", PROP_BOOLEAN, PROP_NONE);

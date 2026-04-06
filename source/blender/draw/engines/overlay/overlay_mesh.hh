@@ -694,6 +694,9 @@ class MeshUVs : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.push_constant("line_style", int(edit_uv_line_style_from_space_image(space_image)));
       pass.push_constant("use_seam", space_image->flag & SI_SHOW_SEAMS);
+      pass.push_constant("use_sharp", space_image->flag & SI_SHOW_SHARP);
+      pass.push_constant("use_crease", space_image->flag & SI_SHOW_CREASE);
+      pass.push_constant("use_bweight", space_image->flag & SI_SHOW_BEVEL_WEIGHT);
 
       /* The `uv_opacity` setting does not apply to vertices & face-dots.
        * This means it may be useful show vertices/faces while hiding the wire-frame.

@@ -766,12 +766,12 @@ enum eSpaceImage_Flag {
    * in the image view, it's unrelated to UDIM tiles.
    */
   SI_DRAW_TILE = (1 << 19),
-  SI_FLAG_UNUSED_20 = (1 << 20), /* cleared */
+  SI_SHOW_BEVEL_WEIGHT = (1 << 20),
   SI_DRAW_STRETCH = (1 << 21),
   SI_SHOW_GPENCIL = (1 << 22),
-  SI_FLAG_UNUSED_23 = (1 << 23), /* cleared */
+  SI_SHOW_SHARP = (1 << 23),
 
-  SI_FLAG_UNUSED_24 = (1 << 24),
+  SI_SHOW_CREASE = (1 << 24),
   SI_SHOW_SEAMS = (1 << 25),
 
 #ifdef DNA_DEPRECATED_ALLOW

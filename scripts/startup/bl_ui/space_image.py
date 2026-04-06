@@ -1716,8 +1716,20 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
         # Faces
         row = col.row()
         row.active = not uvedit.show_stretch
+
+        row = col.row(align=True)
+        row.prop(uvedit, "show_edge_bevel_weight", text="Bevel", icon='EDGE_BEVEL', toggle=True)
+        row.prop(uvedit, "show_edge_crease", text="Crease", icon='EDGE_CREASE', toggle=True)
+        row.prop(uvedit, "show_seams", text="Seam", icon='EDGE_SEAM', toggle=True)
+        row.prop(
+            uvedit,
+            "show_edge_sharp",
+            text="Sharp",
+            icon='EDGE_SHARP',
+            text_ctxt=i18n_contexts.plural,
+            toggle=True,
+        )
         row.prop(uvedit, "show_faces", text="Faces")
-        row.prop(uvedit, "show_seams", text="Seams")
 
 
 class IMAGE_PT_overlay_uv_display(Panel):

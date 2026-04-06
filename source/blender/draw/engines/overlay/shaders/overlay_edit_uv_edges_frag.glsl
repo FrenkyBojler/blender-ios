@@ -13,15 +13,22 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_edit_uv_edges)
 
 float4 get_edge_color(float4 base_color)
 {
-  if (seam_fac != 0.0f && selection_fac != 0.0f) {
-    return mix(theme.colors.edge_seam, theme.colors.edge_select, 0.5f);
+  float4 overlay_color = float4(0.0f);
+  overlay_color = (sharp_fac != 0.0f) ? theme.colors.edge_sharp : overlay_color;
+  overlay_color = (crease_fac != 0.0f) ? float4(theme.colors.edge_crease.rgb, crease_fac) :
+                                         overlay_color;
+  overlay_color = (bweight_fac != 0.0f) ? float4(theme.colors.edge_bweight.rgb, bweight_fac) :
+                                          overlay_color;
+  overlay_color = (seam_fac != 0.0f) ? theme.colors.edge_seam : overlay_color;
+
+  if (overlay_color.a != 0.0f) {
+    if (selection_fac != 0.0f) {
+      return mix(overlay_color, theme.colors.edge_select, 0.5f);
+    }
+    return mix(base_color, overlay_color, overlay_color.a);
   }
-  else if (seam_fac != 0.0f) {
-    return theme.colors.edge_seam;
-  }
-  else {
-    return mix(base_color, theme.colors.edge_select, selection_fac);
-  }
+
+  return mix(base_color, theme.colors.edge_select, selection_fac);
 }
 
 void main()

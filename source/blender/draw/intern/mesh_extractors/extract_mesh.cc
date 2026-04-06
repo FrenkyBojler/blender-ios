@@ -80,8 +80,24 @@ void mesh_render_data_loop_edge_flag(const MeshRenderData &mr,
     eattr.v_flag |= VFLAG_EDGE_UV_SELECT;
     eattr.v_flag |= VFLAG_VERT_UV_SELECT;
   }
-  if (BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
+  const BMEdge *edge = l->e;
+  if (BM_elem_flag_test(edge, BM_ELEM_SEAM)) {
     eattr.e_flag |= VFLAG_EDGE_SEAM;
+  }
+  if (!BM_elem_flag_test(edge, BM_ELEM_SMOOTH)) {
+    eattr.e_flag |= VFLAG_EDGE_SHARP;
+  }
+  if (mr.edge_crease_ofs != -1) {
+    const float crease = BM_ELEM_CD_GET_FLOAT(edge, mr.edge_crease_ofs);
+    if (crease > 0.0f) {
+      eattr.crease = uchar(ceilf(crease * 15.0f));
+    }
+  }
+  if (mr.bweight_ofs != -1) {
+    const float bweight = BM_ELEM_CD_GET_FLOAT(edge, mr.bweight_ofs);
+    if (bweight > 0.0f) {
+      eattr.bweight = uchar(bweight * 255.0f);
+    }
   }
 }
 
