@@ -38,6 +38,7 @@
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
+#include "./buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
 #include "GPU_batch.hh"
@@ -50,7 +51,6 @@
 #include "UI_abstract_view.hh"
 
 #include "IMB_colormanagement.hh"
-#include <fmt/format.h>
 
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
@@ -2015,73 +2015,6 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
   }
 }
 #endif /* WITH_INPUT_IME */
-
-Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
-{
-  const uiFontStyle &fstyle = style_get()->widget;
-  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&textbox->rect) -
-                                            2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f),
-                                  0);
-  StringRef text = textbox->drawstr;
-#ifdef WITH_INPUT_IME
-  const wmIMEData *ime_data = button_ime_data_get(textbox);
-  if (ime_data && ime_data->composite.size() > 0) {
-    StringRef edit_str = textbox->editstr;
-    StringRef l = edit_str.is_empty() ? StringRef("") : edit_str.substr(0, textbox->pos);
-    StringRef r = edit_str.is_empty() ? StringRef("") : edit_str.substr(textbox->pos);
-    StringRef ime_str = ime_data->composite;
-    textbox->drawstr = fmt::format("{}{}{}", l, ime_str, r);
-    text = textbox->drawstr;
-  }
-  else
-#endif
-      if (textbox->editstr)
-  {
-    text = textbox->editstr;
-  }
-  constexpr int textbox_min_string_size_for_wrap_cache = sizeof(std::string);
-  if (text.size() >= textbox_min_string_size_for_wrap_cache) {
-    if (!textbox->wrap_cache) {
-      textbox->wrap_cache = std::make_unique<TextWrapCache>();
-    }
-    TextWrapCache &cache = *textbox->wrap_cache;
-    if (cache.wrap_width == width && text == cache.text) {
-      return cache.wrapped_lines;
-    }
-    cache.text = text;
-    text = cache.text;
-    cache.wrap_width = width;
-  }
-  else {
-    textbox->wrap_cache.reset();
-  }
-  fontstyle_set(&fstyle);
-  Vector<StringRef> lines = BLF_string_wrap(fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
-  if (lines.is_empty()) {
-    lines.append(text);
-  }
-  /* Add empty trailing line to put cursor in a new line. */
-  if (text.endswith("\n")) {
-    lines.append(StringRef(text.end(), text.end()));
-  }
-  textbox->last_total_lines = lines.size();
-  if (textbox->wrap_cache) {
-    textbox->wrap_cache->wrapped_lines = lines;
-  }
-  /* WORKAROUND: Textbox event handling and drawing requires lines to not include line breaks, but
-   * sometimes text wrapp adds them and other times not. */
-  for (int i : lines.index_range()) {
-    if (lines[i].endswith("\n")) {
-      lines[i] = lines[i].drop_suffix(1);
-    }
-  }
-  return lines;
-}
-
-float textbox_grip_ui_height()
-{
-  return UI_UNIT_Y * ButtonTextBox::grip_height_factor;
-}
 
 static void widget_draw_textbox(const uiFontStyle *fstyle,
                                 const uiWidgetColors *wcol,

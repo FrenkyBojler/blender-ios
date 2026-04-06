@@ -6758,14 +6758,6 @@ void button_node_link_set(Button *but, bNodeSocket *socket, const float draw_col
   rgba_float_to_uchar(but->col, draw_color);
 }
 
-void ButtonTextBox::line_scroll_set(int line_scroll)
-{
-  this->line_scroll = line_scroll;
-  /* Clamp line scroll. */
-  const int max_scroll = std::max(this->last_total_lines - this->visible_lines, 0);
-  this->line_scroll = std::clamp(this->line_scroll, 0, max_scroll);
-}
-
 void button_number_step_size_set(Button *but, float step_size)
 {
   ButtonNumber *but_number = static_cast<ButtonNumber *>(but);
@@ -7104,19 +7096,6 @@ void update_text_styles()
   style->grouplabel.character_weight = weight;
   style->widget.character_weight = weight;
   style->tooltip.character_weight = weight;
-}
-
-void invalidate_text_wrap_cache(const ARegion &region)
-{
-  for (Block &block : region.runtime->uiblocks) {
-    for (Button &button : block.buttons()) {
-      if (button.type != ButtonType::TextBox) {
-        continue;
-      }
-      ButtonTextBox &textbox = static_cast<ButtonTextBox &>(button);
-      textbox.wrap_cache.reset();
-    }
-  }
 }
 
 void exit()

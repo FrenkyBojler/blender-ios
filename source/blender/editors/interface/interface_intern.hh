@@ -386,13 +386,6 @@ struct ButtonTextBox : public Button {
   void line_scroll_set(int line_scroll);
 };
 
-/**
- * Wraps input text into lines, this may overwrite draw string if there is IME data available.
- * This also may override active font style.
- */
-Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox);
-float textbox_grip_ui_height();
-
 /** Derived struct for #ButType::Grip */
 struct ButtonGrip : public Button {
   /**

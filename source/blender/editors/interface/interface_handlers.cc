@@ -66,6 +66,7 @@
 
 #include "BLF_api.hh"
 
+#include "./buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
 #include "RNA_access.hh"
@@ -3239,91 +3240,6 @@ static bool textedit_delete_selection(Button *but, TextEdit &text_edit)
   return changed;
 }
 
-static void textbox_add_scroll(ButtonTextBox *textbox, int step)
-{
-  textbox->last_total_lines = textbox_wrap_lines(textbox).size();
-  textbox->line_scroll_set(textbox->line_scroll + step);
-}
-
-static void textbox_scroll_to_cursor(ButtonTextBox *textbox)
-{
-  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
-  int line_cursor = 0;
-  int but_pos = textbox->pos;
-#ifdef WITH_INPUT_IME
-  /* Include the ime composition string when scrolling to the cursor. */
-  const wmIMEData *ime_data = button_ime_data_get(textbox);
-  if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
-    but_pos += ime_data->cursor_pos;
-  }
-#endif
-  const char *cursor = lines[0].begin() + but_pos;
-  for (const StringRef line : lines) {
-    if (line.begin() > cursor) {
-      line_cursor = std::max(0, line_cursor - 1);
-      break;
-    }
-    line_cursor++;
-  }
-  const int visible_bounds[] = {textbox->line_scroll,
-                                textbox->line_scroll + textbox->visible_lines};
-  if (visible_bounds[0] <= line_cursor && line_cursor < visible_bounds[1]) {
-    return;
-  }
-  if (visible_bounds[0] > line_cursor) {
-    textbox_add_scroll(textbox, line_cursor - visible_bounds[0]);
-  }
-  else {
-    textbox_add_scroll(textbox, line_cursor - visible_bounds[1] + 1);
-  }
-}
-
-static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *region, const float2 xy)
-{
-  BLI_assert(button->type == ButtonType::TextBox);
-  ButtonTextBox *textbox = static_cast<ButtonTextBox *>(button);
-
-  /* Don't include grip bounds when selecting text with the mouse.*/
-  float2 start = {textbox->rect.xmin, textbox->rect.ymin + textbox_grip_ui_height()};
-  float2 end = {textbox->rect.xmax, textbox->rect.ymax};
-
-  block_to_window_fl(region, textbox->block, &start.x, &start.y);
-  block_to_window_fl(region, textbox->block, &end.x, &end.y);
-
-  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
-  uiFontStyle fstyle = style_get()->widget;
-  const float aspect = textbox->block->aspect;
-  fontscale(&fstyle.points, aspect);
-  fontstyle_set(&fstyle);
-  int line_under_mouse = textbox->line_scroll +
-                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines);
-  line_under_mouse = std::clamp<int>(
-      line_under_mouse, textbox->line_scroll, textbox->line_scroll + textbox->visible_lines - 1);
-  line_under_mouse = std::clamp<int>(line_under_mouse, 0, lines.size() - 1);
-
-  const StringRef line = lines[line_under_mouse];
-
-  start.x -= U.pixelsize / aspect;
-  if (!(textbox->drawflag & BUT_NO_TEXT_PADDING)) {
-    start.x += button_text_padding(button);
-  }
-  const int offset = BLF_str_offset_from_cursor_position(
-      fstyle.uifont_id, line.data(), line.size(), int(xy.x - start.x));
-  int position = line.begin() - lines[0].data() + offset;
-#ifdef WITH_INPUT_IME
-  /* Textbox text wrap includes the IME composition string, remove the ime string pad from the
-   * selection.
-   */
-  const wmIMEData *ime_data = button_ime_data_get(textbox);
-  if (ime_data && position > int(textbox->pos)) {
-    position = std::max<int>(int(textbox->pos), position - int(ime_data->composite.size()));
-  }
-#endif
-  textbox->pos = position;
-  /* Do not scroll to cursor now, wait the HandleButtonData::text_select_auto_scroll timer or the
-   * #LEFTMOUSE release event for scrolling to the cursor. */
-}
-
 /**
  * \param x: Screen space cursor location - #wmEvent.x
  *
@@ -3332,7 +3248,7 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
 static void textedit_set_cursor_pos(Button *but, const ARegion *region, const float2 xy)
 {
   if (but->type == ButtonType::TextBox) {
-    textbox_textedit_set_cursor_pos(but, region, xy);
+    textbox_textedit_set_cursor_pos(static_cast<ButtonTextBox *>(but), region, xy);
     return;
   }
   float x = xy.x;
@@ -3462,85 +3378,6 @@ static bool textedit_insert_ascii(Button *but, HandleButtonData *data, const cha
 }
 #endif
 
-static int textbox_wrapped_line_from_char_offset(Span<StringRef> lines, int offset)
-{
-  const char *dest = lines.first().begin() + offset;
-  int i = 0;
-  for (const StringRef line : lines) {
-    if (line.begin() > dest) {
-      i = i - 1;
-      break;
-    }
-    i++;
-  }
-  i = std::clamp<int>(i, 0, lines.size() - 1);
-  return i;
-}
-
-/**
- * Moves te cursor in the textbox one line up/down and tries to maintain the horizontal offset in
- * pixels from the current line.
- */
-static void textbox_jump_line(ButtonTextBox *textbox,
-                              TextEdit & /*text_edit*/,
-                              eStrCursorJumpDirection direction,
-                              const bool select)
-{
-  button_update(textbox);
-  if (textbox->selend == textbox->selsta) {
-    textbox->selsta = textbox->selend = textbox->pos;
-  }
-  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
-  const char *str = lines.first().begin();
-  const bool append_selection = textbox->selend == textbox->pos;
-  const int line_cursor = textbox_wrapped_line_from_char_offset(lines, textbox->pos);
-  uiFontStyle fstyle = style_get()->widget;
-  fontscale(&fstyle.points, textbox->block->aspect);
-  fontstyle_set(&fstyle);
-  const int fontid = fstyle.uifont_id;
-  int offset = BLF_str_offset_to_cursor(fontid,
-                                        lines[line_cursor].begin(),
-                                        lines[line_cursor].size(),
-                                        textbox->pos - (lines[line_cursor].begin() - str),
-                                        0);
-  StringRef dest_line = nullptr;
-  if (direction == STRCUR_DIR_NEXT) {
-    if (line_cursor == lines.size() - 1) {
-      textbox->pos = lines.last().end() - str;
-    }
-    else {
-      dest_line = lines[line_cursor + 1];
-    }
-  }
-  else {
-    if (line_cursor == 0) {
-      textbox->pos = 0;
-    }
-    else {
-      dest_line = lines[line_cursor - 1];
-    }
-  }
-  if (dest_line.data()) {
-    textbox->pos = dest_line.begin() - str +
-                   BLF_str_offset_from_cursor_position(
-                       fontid, dest_line.data(), dest_line.size(), offset);
-  }
-  if (!select) {
-    textbox->selsta = textbox->selend = textbox->pos;
-    return;
-  }
-
-  if (append_selection) {
-    textbox->selend = textbox->pos;
-  }
-  else {
-    textbox->selsta = textbox->pos;
-  }
-  if (textbox->selend < textbox->selsta) {
-    std::swap(textbox->selend, textbox->selsta);
-  }
-}
-
 static void textedit_move(Button *but,
                           TextEdit &text_edit,
                           eStrCursorJumpDirection direction,
@@ -3553,7 +3390,8 @@ static void textedit_move(Button *but,
     lines = textbox_wrap_lines(static_cast<ButtonTextBox *>(but));
   }
   const char *str = lines.first().begin();
-  const StringRef line_cursor = lines[textbox_wrapped_line_from_char_offset(lines, but->pos)];
+  const StringRef line_cursor =
+      lines[textbox_wrapped_line_index_from_char_offset(lines, but->pos)];
   const int pos_prev = but->pos;
   const bool has_sel = (but->selend - but->selsta) > 0;
 
@@ -4300,7 +4138,7 @@ static int do_but_textedit(
           break;
         }
         if (textbox && event->type == EVT_DOWNARROWKEY) {
-          textbox_jump_line(textbox, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT);
+          textbox_jump_line(textbox, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
@@ -4329,7 +4167,7 @@ static int do_but_textedit(
           break;
         }
         if (textbox && event->type == EVT_UPARROWKEY) {
-          textbox_jump_line(textbox, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT);
+          textbox_jump_line(textbox, STRCUR_DIR_PREV, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
