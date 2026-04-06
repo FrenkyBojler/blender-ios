@@ -42,8 +42,9 @@ class ProjectLoadException(Exception):
 # -------------------------------------------------------------
 
 def escape_string_toml(text):
-    """ Escape a string according the required escapes in
-        https://toml.io/en/v1.1.0#string
+    """Escape a string according TOML 1.1 spec.
+
+    See https://toml.io/en/v1.1.0#string
     """
 
     # First replace literal backslashes.
@@ -69,16 +70,16 @@ def escape_string_toml(text):
 
 
 def save_project(project, report=None):
-    """ Saves the passed project to disk.
+    """Save the passed project to disk.
 
-        Throws a ProjectSaveException in any of the following cases:
+    Throws a ProjectSaveException in any of the following cases:
 
-        - There is no project to save.
-        - The project's root path is relative or doesn't exist.
-        - The project can't be written due to any of a number of filesystem
-          issues (directory isn't writable, etc.).
+    - There is no project to save.
+    - The project's root path is relative or doesn't exist.
+    - The project can't be written due to any of a number of filesystem
+      issues (directory isn't writable, etc.).
 
-        Optionally takes an `Operator.report` for reporting errors to the user.
+    Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
     if project is None:
@@ -134,13 +135,12 @@ def save_project(project, report=None):
 
 
 def find_and_load_project_for_blend_path(context, blend_path, report=None):
-    """ Finds and loads the project that the specified blend file belongs to, or
-        clears the project if no project is found.
+    """Load the project the blend file is in, or clears the project if none is found.
 
-        Throws a ProjectLoadException if a project is found but is invalid
-        (missing config file, config validation error, etc.).
+    Throws a ProjectLoadException if a project is found but is invalid
+    (missing config file, config validation error, etc.).
 
-        Optionally takes an `Operator.report` for reporting errors to the user.
+    Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
     if blend_path == "":
@@ -168,10 +168,9 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
 
 def find_project_root_from_blend_file_path(blend_path):
-    """ Searches for a Blender project root in the parent directories of the
-        given path.
+    """Search for a project root in the parent directories of the given path.
 
-        Returns the project root if found, or None otherwise.
+    Returns the project root if found, or None otherwise.
     """
 
     for parent in blend_path.parents:
@@ -181,15 +180,15 @@ def find_project_root_from_blend_file_path(blend_path):
 
 
 def read_project_toml_config(root_path, report=None) -> ProjectConfig:
-    """ Reads the project config for the given project root path.
+    """Read the project config for the given project root path.
 
-        Throws a ProjectLoadException if no config is found, if the config is
-        not readable due to filesystem permissions, or if it's not a valid
-        project config (e.g. contains invalid TOML or doesn't match the schema).
+    Throws a ProjectLoadException if no config is found, if the config is
+    not readable due to filesystem permissions, or if it's not a valid
+    project config (e.g. contains invalid TOML or doesn't match the schema).
 
-        Optionally takes an `Operator.report` for reporting errors to the user.
+    Optionally takes an `Operator.report` for reporting errors to the user.
 
-        Returns the configuration (`ProjectConfig`).
+    Returns the configuration (`ProjectConfig`).
     """
     import tomllib
     import cattrs
@@ -225,11 +224,13 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
 
 
 def blend_file_is_in_valid_project(blend_file_path):
-    """ Returns true if the specified blend file is inside a valid project,
-        false if there is no project or it's invalid.
+    """Return whether the blend file is inside a valid project or not.
 
-        An "invalid project" is one whose TOML config is non-existent or doesn't
-        validate. See `read_project_toml_config()`.
+    True if the blend file is inside a valid project, false if no project is
+    found or if the project is invalid.
+
+    An "invalid project" is one whose TOML config is non-existent or doesn't
+    validate. See `read_project_toml_config()`.
     """
     project_root = find_project_root_from_blend_file_path(blend_file_path)
     if project_root is None:
