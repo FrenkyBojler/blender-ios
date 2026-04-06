@@ -124,21 +124,4 @@ GPUSamplerExtendMode map_extension_mode_to_extend_mode(Extension mode)
   return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 }
 
-GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode)
-{
-  switch (mode) {
-    case math::InterpWrapMode::Border:
-      return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
-
-    case math::InterpWrapMode::Extend:
-      return GPU_SAMPLER_EXTEND_MODE_EXTEND;
-
-    case math::InterpWrapMode::Repeat:
-      return GPU_SAMPLER_EXTEND_MODE_REPEAT;
-  }
-
-  BLI_assert_unreachable();
-  return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
-}
-
 }  // namespace blender::compositor

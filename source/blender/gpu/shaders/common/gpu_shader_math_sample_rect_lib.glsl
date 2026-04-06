@@ -6,7 +6,7 @@
 
 #include "gpu_shader_compat.hh"
 
-enum Sampler : uchar { Nearest, Bilinear, Box, Bspline, Anisotropic };
+enum Sampler : uchar { Nearest, Box, Bspline, Anisotropic };
 
 template<enum Sampler sampler> static inline float weight(float x) {}
 

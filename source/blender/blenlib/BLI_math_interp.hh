@@ -76,8 +76,6 @@ BLI_INLINE int32_t wrap_coord(float u, int32_t size, InterpWrapMode wrap)
 enum class Sampler {
   /** only the pixel containing the center */
   Nearest,
-  /** two nearest pixels are lerp'ed */
-  Bilinear,
   /** Insersect rectangle with pixels. Same as bilinear for a size of 1 */
   Box,
   /** Only non-negative cubic. Same as Bicubic for a size of 1 */
@@ -536,25 +534,6 @@ inline float4 sample_rect<Sampler::Nearest>(const sampler2D &source,
   const int x = wrap_coord(uv.x, source.width, source.wrap_x);
   const int y = wrap_coord(uv.y, source.height, source.wrap_y);
   return (x < 0 || y < 0) ? float4(0.0f) : *(float4 *)(source.row(y) + x * source.step);
-}
-
-/* wh is ignored. Current version also ignores stride/step from sampler2D! */
-template<>
-inline float4 sample_rect<Sampler::Bilinear>(const sampler2D &source,
-                                             const float2 &uv,
-                                             const float2 &)
-{
-  float4 ret;
-  interpolate_bilinear_wrapmode_fl(source.buffer,
-                                   &ret[0],
-                                   source.width,
-                                   source.height,
-                                   source.components,
-                                   uv.x - 0.5f,
-                                   uv.y - 0.5f,
-                                   source.wrap_x,
-                                   source.wrap_y);
-  return ret;
 }
 
 }  // namespace math

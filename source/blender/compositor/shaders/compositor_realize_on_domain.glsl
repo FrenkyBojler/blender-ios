@@ -10,7 +10,8 @@ template<enum Sampler sampler> void realize_on_domain()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   const float2 uv = to_float2x2(transformation) * float2(texel) + transformation[2].xy;
-  imageStore(domain_img, texel, sample_rect<sampler>(input_tx, uv, wh));
+  const float2 scale = float2(textureSize(input_tx, 0)); // temporary convert from normalized to texels
+  imageStore(domain_img, texel, sample_rect<sampler>(input_tx, uv * scale, wh * scale));
 }
 
 template void realize_on_domain<Sampler::Box>;

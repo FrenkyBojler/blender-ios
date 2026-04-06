@@ -206,6 +206,5 @@ bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(Extension mode);
-GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode);
 
 }  // namespace blender::compositor
