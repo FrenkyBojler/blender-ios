@@ -50,7 +50,7 @@
 #include "UI_abstract_view.hh"
 
 #include "IMB_colormanagement.hh"
-#include "fmt/format.h"
+#include <fmt/format.h>
 
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
