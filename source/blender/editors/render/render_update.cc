@@ -114,14 +114,9 @@ static void update_compositor(const DEGEditorUpdateContext *update_context)
     return;
   }
 
-  if (node_tree->id.recalc != 0) {
-    // TODO: Debug statement.
-    puts(DEG_stringify_recalc_flags(node_tree->id.recalc).c_str());
-  }
-
   if (node_tree->id.recalc & ID_RECALC_NTREE_OUTPUT) {
-    WM_main_add_notifier(NC_NODE | ND_NODE_OUTPUT_CHANGED,
-                         const_cast<ID *>(DEG_get_original_id(&node_tree->id)));
+    ED_node_compositor_job(
+        update_context->bmain, update_context->scene, update_context->view_layer);
   }
 }
 

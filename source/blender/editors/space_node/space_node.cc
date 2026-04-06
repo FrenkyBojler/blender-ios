@@ -781,13 +781,6 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
       }
       break;
     case NC_NODE:
-      if (wmn->data == ND_NODE_OUTPUT_CHANGED && wmn->reference == snode->nodetree &&
-          wmn->reference == params->scene->compositing_node_group)
-      {
-        snode->runtime->recalc_regular_compositing = true;
-        ED_area_tag_refresh(area);
-      }
-
       if (wmn->action == NA_EDITED) {
         if (ELEM(wmn->reference, snode->nodetree, snode->id, nullptr) || snode->id == nullptr) {
           node_area_tag_tree_recalc(snode, area);
@@ -853,21 +846,9 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
   }
 }
 
-static void node_area_refresh(const bContext *C, ScrArea *area)
+static void node_area_refresh(const bContext *C, ScrArea * /*area*/)
 {
-  /* default now: refresh node is starting preview */
-  SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-
   snode_set_context(*C);
-
-  Scene *scene = CTX_data_scene(C);
-  if (snode->nodetree && snode->nodetree == scene->compositing_node_group) {
-    if (snode->runtime->recalc_regular_compositing) {
-      snode->runtime->recalc_regular_compositing = false;
-      ED_node_compositor_job(
-          CTX_data_main(C), CTX_wm_window(C), CTX_data_scene(C), CTX_data_view_layer(C));
-    }
-  }
 }
 
 static SpaceLink *node_duplicate(SpaceLink *sl)
