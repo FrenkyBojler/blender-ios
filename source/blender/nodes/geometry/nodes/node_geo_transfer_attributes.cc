@@ -69,7 +69,7 @@ class AttributeTransferer {
   ResourceScope scope_;
   IndexMaskMemory mask_memory_;
   GeometrySet &dst_geo_;
-  GeometrySet &src_geo_;
+  const GeometrySet &src_geo_;
   bool ignore_names_;
   const VectorSet<std::string> &attribute_patterns_;
   const Map<bke::AttrDomain, Field<int>> &dst_id_fields_;
@@ -175,7 +175,7 @@ class AttributeTransferer {
       FunctionRef<fn::FieldContext &(const AttrDomain domain)> create_dst_field_context)
   {
     struct AttrItem {
-      std::string name;
+      StringRef name;
       AttrDomain domain;
       bke::AttrType type;
     };
@@ -232,46 +232,67 @@ class AttributeTransferer {
         src_index_by_id.add(id, i);
       }
       ids->src_by_dst_index.reinitialize(dst_size);
-      Array<bool> dst_mask_bools(dst_size);
       threading::parallel_for(IndexRange(dst_size), 2048, [&](const IndexRange range) {
         for (const int dst_i : range) {
           const int dst_id = dst_ids[dst_i];
           const int src_i = src_index_by_id.lookup_default(dst_id, -1);
           ids->src_by_dst_index[dst_i] = src_i;
-          dst_mask_bools[dst_i] = src_i != -1;
         }
       });
-      ids->dst_mask = IndexMask::from_bools(dst_mask_bools, mask_memory_);
+      ids->dst_mask = array_utils::indices_non_negative(
+          IndexMask(dst_size), ids->src_by_dst_index, mask_memory_);
     }
 
     for (const AttrItem &item : items) {
-      const GVArraySpan src_attr = *src_attributes.lookup(item.name);
-      bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_span(
-          item.name, item.domain, item.type);
+      const bke::GAttributeReader src_attr = src_attributes.lookup(item.name);
+      const CommonVArrayInfo info = src_attr.varray.common_info();
+      const IDs &ids = *ids_by_domain[int(item.domain)];
+      if (info.type == CommonVArrayInfo::Type::Single) {
+        if (ids.dst_mask.size() == dst_attributes.domain_size(item.domain)) {
+          if (dst_attributes.add(
+                  item.name, item.domain, item.type, bke::AttributeInitValue(info.data)))
+          {
+            continue;
+          }
+        }
+      }
+      if (info.type == CommonVArrayInfo::Type::Span) {
+        if (ids.transfer_by_index) {
+          if (ids.dst_mask.size() == dst_attributes.domain_size(item.domain)) {
+            if (src_attr.sharing_info) {
+              if (dst_attributes.add(item.name,
+                                     item.domain,
+                                     item.type,
+                                     bke::AttributeInitShared(info.data, *src_attr.sharing_info)))
+              {
+                continue;
+              }
+            }
+          }
+        }
+      }
+
+      bke::GSpanAttributeWriter dst_attr;
+      if (ids.dst_mask.size() == dst_attributes.domain_size(item.domain)) {
+        dst_attr = dst_attributes.lookup_or_add_for_write_span(item.name, item.domain, item.type);
+      }
+      else {
+        dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
+            item.name, item.domain, item.type);
+      }
       if (!dst_attr) {
         continue;
       }
-      const int src_size = src_attr.size();
+      const int src_size = src_attr.varray.size();
       const int dst_size = dst_attr.span.size();
 
-      const IDs &ids = *ids_by_domain[int(item.domain)];
-      const CPPType &cpp_type = src_attr.type();
       if (ids.transfer_by_index) {
         const int copy_num = std::min(src_size, dst_size);
         const IndexRange slice(copy_num);
-        cpp_type.copy_assign_n(src_attr.data(), dst_attr.span.data(), copy_num);
+        array_utils::copy(src_attr.varray.slice(slice), dst_attr.span.slice(slice));
       }
       else {
-        bke::attribute_math::to_static_type(cpp_type, [&]<typename T>() {
-          const Span<T> src_span = src_attr.typed<T>();
-          const MutableSpan<T> dst_span = dst_attr.span.typed<T>();
-          /* Should probably use some array_utils::gather overload, but the right one doesn't seem
-           * to exist yet. */
-          ids.dst_mask.foreach_index([&](const int dst_i) {
-            const int src_i = ids.src_by_dst_index[dst_i];
-            dst_span[dst_i] = src_span[src_i];
-          });
-        });
+        bke::attribute_math::gather(*src_attr, ids.src_by_dst_index, ids.dst_mask, dst_attr.span);
       }
       dst_attr.finish();
       any_transferred_ = true;
@@ -344,8 +365,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (attribute_patterns_list) {
     const CPPType &cpp_type = attribute_patterns_list->cpp_type();
     if (cpp_type.is<std::string>()) {
-      attribute_patterns_list->foreach<std::string>(
-          [&](const StringRef pattern) { attribute_patterns.add_as(pattern); });
+      const VArray<std::string> values = attribute_patterns_list->varray<std::string>();
+      for (const int i : values.index_range()) {
+        attribute_patterns.add(values[i]);
+      }
     }
   }
 
