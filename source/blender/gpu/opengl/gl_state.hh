@@ -16,8 +16,7 @@
 
 #include <epoxy/gl.h>
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class GLFrameBuffer;
 class GLTexture;
@@ -37,8 +36,6 @@ class GLStateManager : public StateManager {
   GPUStateMutable current_mutable_;
   /** Limits. */
   float line_width_range_[2];
-  /** Pixel storage modes. */
-  uint texture_unpack_row_length_ = 0;
 
   /**
    * Texture state:
@@ -82,14 +79,6 @@ class GLStateManager : public StateManager {
 
   uint64_t bound_texture_slots();
   uint8_t bound_image_slots();
-
-  /**
-   * Row length for unpacking host data when uploading texture data.
-   *
-   * When set to zero (0), host data can be assumed to be stored sequentially.
-   */
-  void texture_unpack_row_length_set(uint len) override;
-  uint texture_unpack_row_length_get() const;
 
  private:
   static void set_write_mask(GPUWriteMask value);
@@ -164,5 +153,4 @@ static inline GLbitfield to_gl(GPUBarrier barrier_bits)
   return barrier;
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

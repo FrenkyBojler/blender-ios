@@ -16,11 +16,13 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_render.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 
 #include "modifier.hh"
+#include "render.hh"
 
 namespace blender::seq {
 
@@ -53,9 +55,12 @@ struct BrightContrastApplyOp {
 
 static void brightcontrast_apply(ModifierApplyContext &context,
                                  StripModifierData *smd,
-                                 ImBuf *mask)
+                                 int timeline_frame)
 {
-  const BrightContrastModifierData *bcmd = (BrightContrastModifierData *)smd;
+  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
+  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
+
+  const BrightContrastModifierData *bcmd = reinterpret_cast<BrightContrastModifierData *>(smd);
 
   BrightContrastApplyOp op;
 
@@ -78,22 +83,25 @@ static void brightcontrast_apply(ModifierApplyContext &context,
   }
 
   apply_modifier_op(op, context.image, mask, context.transform);
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void brightcontrast_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "bright", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "contrast", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "bright", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "contrast", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (uiLayout *mask_input_layout = layout->panel_prop(
+  if (ui::Layout *mask_input_layout = layout.panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
   {
-    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
   }
 }
 

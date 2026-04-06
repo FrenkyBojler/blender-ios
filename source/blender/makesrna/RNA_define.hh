@@ -18,6 +18,8 @@
 
 #include "RNA_types.hh"
 
+namespace blender {
+
 #ifdef UNIT_TEST
 #  define RNA_MAX_ARRAY_LENGTH 64
 #else
@@ -31,6 +33,11 @@
 struct Scene;
 
 BlenderRNA *RNA_create();
+/**
+ * Create a container for RNA types that are defined at runtime (in contrast to the main global
+ * #BlenderRNA which contains RNA types defined at startup from static data).
+ */
+BlenderRNA *RNA_create_runtime();
 void RNA_define_free(BlenderRNA *brna);
 void RNA_free(BlenderRNA *brna);
 
@@ -69,7 +76,13 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
 StructRNA *RNA_def_struct(BlenderRNA *brna, const char *identifier, const char *from);
 void RNA_def_struct_sdna(StructRNA *srna, const char *structname);
 void RNA_def_struct_sdna_from(StructRNA *srna, const char *structname, const char *propname);
-void RNA_def_struct_name_property(StructRNA *srna, PropertyRNA *prop);
+/**
+ * Define the struct's String property used to retrieve the name of a PointerRNA of that type.
+ * Used e.g. in several UI widget displaying content of RNA collections.
+ *
+ * \param allow_replace If true, allow replacing an already defined struct name property.
+ */
+void RNA_def_struct_name_property(StructRNA *srna, PropertyRNA *prop, bool allow_replace = false);
 void RNA_def_struct_nested(BlenderRNA *brna, StructRNA *srna, const char *structname);
 void RNA_def_struct_flag(StructRNA *srna, int flag);
 void RNA_def_struct_clear_flag(StructRNA *srna, int flag);
@@ -93,6 +106,7 @@ void RNA_def_struct_register_funcs(StructRNA *srna,
  * Paths must be compatible with #RNA_path_resolve & related functions.
  */
 void RNA_def_struct_path_func(StructRNA *srna, const char *path);
+void RNA_def_struct_path_func_runtime(StructRNA *srna, StructPathFunc path_fn);
 /**
  * Only used in one case when we name the struct for the purpose of useful error messages.
  */
@@ -646,6 +660,10 @@ void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
 void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
                                                  StringPropertySearchFunc search_fn,
                                                  eStringPropertySearchFlag search_flag);
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc);
 
 void RNA_def_property_translation_context(PropertyRNA *prop, const char *context);
 
@@ -726,3 +744,5 @@ extern const float rna_default_scale_3d[3];
 
 /** Maximum size for dynamic defined type descriptors, this value is arbitrary. */
 #define RNA_DYN_DESCR_MAX 1024
+
+}  // namespace blender

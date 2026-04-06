@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Shared code between host and client codebases.
+ * Shared code between host and client code-bases.
  */
 
 #pragma once
@@ -14,11 +14,13 @@
 namespace blender::eevee {
 #endif
 
-struct RayTraceData {
+struct [[host_shared]] RayTraceData {
   /** ViewProjection matrix used to render the previous frame. */
   float4x4 history_persmat;
   /** ViewProjection matrix used to render the radiance texture. */
   float4x4 radiance_persmat;
+  /** ViewProjection matrix used to denoise the previous frame. */
+  float4x4 denoise_history_persmat;
   /** Input resolution. */
   int2 full_resolution;
   /** Inverse of input resolution to get screen UVs. */
@@ -44,10 +46,10 @@ struct RayTraceData {
   int closure_index;
   int _pad0;
   int _pad1;
+  int _pad2;
 };
-BLI_STATIC_ASSERT_ALIGN(RayTraceData, 16)
 
-struct AOData {
+struct [[host_shared]] AOData {
   float2 pixel_size;
   float distance;
   float lod_factor;
@@ -62,7 +64,6 @@ struct AOData {
   float _pad1;
   float _pad2;
 };
-BLI_STATIC_ASSERT_ALIGN(AOData, 16)
 
 #ifndef GPU_SHADER
 }  // namespace blender::eevee

@@ -25,6 +25,7 @@
 
 #  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
+#  include "BLI_math_base.hh"
 #  include "BLI_math_color.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
@@ -46,7 +47,11 @@
 
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"
+#endif
 
+namespace blender {
+
+#ifdef WITH_FFMPEG
 static CLG_LogRef LOG = {"video.write"};
 static constexpr int64_t ffmpeg_autosplit_size = 2'000'000'000;
 
@@ -162,20 +167,20 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
   else if (c->color_trc == AVCOL_TRC_SMPTEST2084) {
     /* PQ uses heuristic based on view transform name. In the future this could become
      * a user control, but this solves the common cases. */
-    blender::StringRefNull view_name = imf->view_settings.view_transform;
-    if (view_name.find("HDR 500 nits") != blender::StringRef::not_found) {
+    StringRefNull view_name = imf->view_settings.view_transform;
+    if (view_name.find("HDR 500 nits") != StringRef::not_found) {
       max_luminance = 500;
     }
-    else if (view_name.find("HDR 1000 nits") != blender::StringRef::not_found) {
+    else if (view_name.find("HDR 1000 nits") != StringRef::not_found) {
       max_luminance = 1000;
     }
-    else if (view_name.find("HDR 2000 nits") != blender::StringRef::not_found) {
+    else if (view_name.find("HDR 2000 nits") != StringRef::not_found) {
       max_luminance = 2000;
     }
-    else if (view_name.find("HDR 4000 nits") != blender::StringRef::not_found) {
+    else if (view_name.find("HDR 4000 nits") != StringRef::not_found) {
       max_luminance = 4000;
     }
-    else if (view_name.find("HDR 10000 nits") != blender::StringRef::not_found) {
+    else if (view_name.find("HDR 10000 nits") != StringRef::not_found) {
       max_luminance = 10000;
     }
   }
@@ -295,21 +300,22 @@ static ImBuf *alloc_imbuf_for_colorspace_transform(const ImBuf *input_ibuf)
    * This is a common pattern used in few areas with the goal to bypass the hardcoded number of
    * channels used by IMB_allocImBuf(). */
   ImBuf *result_ibuf = IMB_allocImBuf(input_ibuf->x, input_ibuf->y, input_ibuf->planes, 0);
-  result_ibuf->channels = input_ibuf->float_buffer.data ? input_ibuf->channels : 4;
+  result_ibuf->channels = input_ibuf->float_data() ? input_ibuf->channels : 4;
 
   /* Allocate float buffer with the proper number of channels. */
   const size_t num_pixels = IMB_get_pixel_count(input_ibuf);
-  float *buffer = MEM_malloc_arrayN<float>(num_pixels * result_ibuf->channels, "movie hdr image");
+  float *buffer = MEM_new_array_uninitialized<float>(num_pixels * result_ibuf->channels,
+                                                     "movie hdr image");
   IMB_assign_float_buffer(result_ibuf, buffer, IB_TAKE_OWNERSHIP);
 
   /* Transfer flags related to color space conversion from the original image buffer. */
   result_ibuf->flags |= (input_ibuf->flags & IB_alphamode_channel_packed);
 
-  if (input_ibuf->float_buffer.data) {
+  if (input_ibuf->float_data()) {
     /* Simple case: copy pixels from the source image as-is, without any conversion.
      * The result has the same colorspace as the input. */
-    memcpy(result_ibuf->float_buffer.data,
-           input_ibuf->float_buffer.data,
+    memcpy(result_ibuf->float_data_for_write(),
+           input_ibuf->float_data(),
            num_pixels * input_ibuf->channels * sizeof(float));
     result_ibuf->float_buffer.colorspace = input_ibuf->float_buffer.colorspace;
   }
@@ -319,7 +325,7 @@ static ImBuf *alloc_imbuf_for_colorspace_transform(const ImBuf *input_ibuf)
      * that the function only does alpha and byte->float conversions. */
     const bool predivide = IMB_alpha_affects_rgb(input_ibuf);
     IMB_buffer_float_from_byte(buffer,
-                               input_ibuf->byte_buffer.data,
+                               input_ibuf->byte_data(),
                                IB_PROFILE_SRGB,
                                IB_PROFILE_SRGB,
                                predivide,
@@ -341,12 +347,12 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *input_ib
       !(context->img_convert_frame->format == AV_PIX_FMT_RGBA &&
         ELEM(context->img_convert_frame->colorspace, AVCOL_SPC_RGB, AVCOL_SPC_UNSPECIFIED));
 
-  const ImBuf *image = (use_float && input_ibuf->float_buffer.data == nullptr) ?
+  const ImBuf *image = (use_float && input_ibuf->float_data() == nullptr) ?
                            alloc_imbuf_for_colorspace_transform(input_ibuf) :
                            input_ibuf;
 
-  const uint8_t *pixels = image->byte_buffer.data;
-  const float *pixels_fl = image->float_buffer.data;
+  const uint8_t *pixels = image->byte_data();
+  const float *pixels_fl = image->float_data();
 
   if ((!use_float && (pixels == nullptr)) || (use_float && (pixels_fl == nullptr))) {
     if (image != input_ibuf) {
@@ -770,7 +776,9 @@ static void set_quality_rate_options(const MovieWriter *context,
     crf = remap_crf_to_h264_10bpp_crf(crf);
   }
   else if (codec_id == AV_CODEC_ID_H265) {
-    crf = remap_crf_to_h265_crf(crf, is_10_bpp || is_12_bpp);
+    if (!context->custom_crf) {
+      crf = remap_crf_to_h265_crf(crf, is_10_bpp || is_12_bpp);
+    }
     /* Make H.265 much less verbose. */
     av_dict_set(opts, "x265-params", "log-level=1", 0);
   }
@@ -1205,6 +1213,10 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_gop_size = rd->ffcodecdata.gop_size;
   context->ffmpeg_autosplit = (rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT) != 0;
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
+  context->custom_crf = rd->ffcodecdata.constant_rate_factor == FFM_CRF_CUSTOM;
+  if (context->custom_crf) {
+    context->ffmpeg_crf = rd->ffcodecdata.custom_constant_rate_factor;
+  }
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
   context->ffmpeg_profile = 0;
 
@@ -1290,7 +1302,21 @@ static bool start_ffmpeg_impl(MovieWriter *context,
       break;
   }
 
-    /* Returns after this must 'goto fail;' */
+  if (context->custom_crf) {
+    if ((video_codec == AV_CODEC_ID_AV1) || (video_codec == AV_CODEC_ID_H264) ||
+        (video_codec == AV_CODEC_ID_H265))
+    {
+      context->ffmpeg_crf = math::clamp(context->ffmpeg_crf, 0, 51);
+    }
+    else if (video_codec == AV_CODEC_ID_VP9) {
+      context->ffmpeg_crf = math::clamp(context->ffmpeg_crf, 0, 63);
+    }
+    else if (video_codec == AV_CODEC_ID_MPEG4) {
+      context->ffmpeg_crf = math::clamp(context->ffmpeg_crf, 1, 31);
+    }
+  }
+
+  /* Returns after this must 'goto fail;' */
 
 #  if LIBAVFORMAT_VERSION_MAJOR >= 59
   of->oformat = fmt;
@@ -1352,7 +1378,8 @@ static bool start_ffmpeg_impl(MovieWriter *context,
                                                audio_codec,
                                                of,
                                                error,
-                                               sizeof(error));
+                                               sizeof(error),
+                                               reports);
     if (!context->audio_stream) {
       if (error[0]) {
         BKE_report(reports, RPT_ERROR, error);
@@ -1485,11 +1512,11 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
-  blender::bke::path_templates::VariableMap template_variables;
+  bke::path_templates::VariableMap template_variables;
   BKE_add_template_variables_general(template_variables, &scene->id);
   BKE_add_template_variables_for_render_path(template_variables, *scene);
 
-  const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+  const Vector<bke::path_templates::Error> errors = BKE_path_apply_template(
       filepath, FILE_MAX, template_variables);
   if (!errors.is_empty()) {
     BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
@@ -1788,3 +1815,5 @@ void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
 #endif
   filepath[0] = '\0';
 }
+
+}  // namespace blender

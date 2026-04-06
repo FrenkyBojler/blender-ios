@@ -9,16 +9,18 @@
 #include "BLI_array.hh"
 #include "NOD_socket_usage_inference_fwd.hh"
 
+namespace blender {
+
 struct NodesModifierData;
 struct NodesModifierDataBlock;
 struct Object;
 struct NodesModifierPackedBake;
 struct NodesModifierBake;
 
-namespace blender::bke::bake {
+namespace bke::bake {
 struct ModifierCache;
 }
-namespace blender::nodes::geo_eval_log {
+namespace nodes::geo_eval_log {
 class GeoNodesLog;
 }
 
@@ -29,8 +31,6 @@ class GeoNodesLog;
  */
 void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd);
 
-namespace blender {
-
 class NodesModifierUsageInferenceCache {
  private:
   uint64_t input_values_hash_ = 0;
@@ -39,7 +39,7 @@ class NodesModifierUsageInferenceCache {
   Array<nodes::socket_usage_inference::SocketUsage> inputs;
   Array<nodes::socket_usage_inference::SocketUsage> outputs;
 
-  void ensure(const NodesModifierData &nmd);
+  void ensure(const Object &object, const NodesModifierData &nmd);
   void reset();
 };
 
