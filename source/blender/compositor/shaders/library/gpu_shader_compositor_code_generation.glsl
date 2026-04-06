@@ -505,6 +505,16 @@ void bool_to_int3(float value, float3 &output_value)
 }
 
 /* --------------------------------------------------------------------
+ * Float4x4 to other.
+ */
+
+[[node]]
+void float4x4_to_quaternion(float4x4 mat, float4 &output_value)
+{
+  output_value = float4x4_to_quaternion(mat);
+}
+
+/* --------------------------------------------------------------------
  * Quaternion to other.
  */
 
@@ -530,16 +540,6 @@ void quaternion_to_float4(float4 value, float4 &output_value)
 void quaternion_to_float4x4(float4 value, float4x4 &output_value)
 {
   output_value = quaternion_to_float4x4(value);
-}
-
-/* --------------------------------------------------------------------
- * Float4x4 to other.
- */
-
-[[node]]
-void float4x4_to_quaternion(float4x4 mat, float4 &output_value)
-{
-  output_value = float4x4_to_quaternion(mat);
 }
 
 /* --------------------------------------------------------------------
