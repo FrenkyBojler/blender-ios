@@ -154,7 +154,7 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
         bpy.data.project_clear()
         return
 
-    if bpy.data.project is not None and root_path == Path(bpy.data.project.root_path):
+    if bpy.data.project is not None and os.path.normpath(root_path) == os.path.normpath(bpy.data.project.root_path):
         # We already have this project loaded, and we don't want to obliterate
         # local unsaved changes if auto-save isn't turned on.
         return
