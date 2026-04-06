@@ -64,8 +64,8 @@ void foreach_visible([[resource_table]] const LightRenderData &srt,
                      CallbackT cb)
 {
   const LightCullingData &culling = srt.light_cull_buf;
-  const uint(&zbins)[] = srt.light_zbin_buf;
-  const uint(&words)[] = srt.light_tile_buf;
+  const auto &zbins = srt.light_zbin_buf;
+  const auto &words = srt.light_tile_buf;
 
   for (uint index = culling.local_lights_len; index < culling.items_count; index++) {
     cb.eval_directional(index, srt.light_buf[index]);
@@ -104,7 +104,7 @@ void foreach_visible([[resource_table]] const LightRenderData &srt,
        * or
        * - Vulkan 1.1
        */
-      word = simd_broadcast_first(subgroupOr(word));
+      word = simd_broadcast_first(simd_or(word));
 #endif
       int bit_index;
       while ((bit_index = findLSB(word)) != -1) {
@@ -145,7 +145,8 @@ void foreach_visible([[resource_table]] const LightRenderData &srt,
       uint2 tile_co = uint2(_pixel / _culling.tile_size); \
       uint tile_word_offset = (tile_co.x + tile_co.y * _culling.tile_x_len) * \
                               _culling.tile_word_len; \
-      int zbin_index = culling_z_to_zbin(_culling.zbin_scale, _culling.zbin_bias, _linearz); \
+      int zbin_index = eevee::light::culling_z_to_zbin( \
+          _culling.zbin_scale, _culling.zbin_bias, _linearz); \
       zbin_index = clamp(zbin_index, 0, CULLING_ZBIN_COUNT - 1); \
       uint zbin_data = _zbins[zbin_index]; \
       uint min_index = zbin_data & 0xFFFFu; \
@@ -155,7 +156,7 @@ void foreach_visible([[resource_table]] const LightRenderData &srt,
       uint word_max = max_index >> 5u; \
       for (uint word_idx = word_min; word_idx <= word_max; word_idx++) { \
         uint word = _words[tile_word_offset + word_idx]; \
-        word &= zbin_mask(word_idx, min_index, max_index); \
+        word &= eevee::light::zbin_mask(word_idx, min_index, max_index); \
         int bit_index; \
         while ((bit_index = findLSB(word)) != -1) { \
           word &= ~1u << uint(bit_index); \
