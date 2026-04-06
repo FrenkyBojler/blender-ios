@@ -2781,7 +2781,7 @@ void Layout::prop_textbox(PointerRNA *ptr,
   Layout &row = overlap.row(true);
   row.row(true).alignment_set(LayoutAlign::Expand);
 
-  const float line_heigth = UI_UNIT_Y;
+  const float line_heigth = fontstyle_height_max(UI_FSTYLE_WIDGET);
   row.row(true);
   constexpr int minimun_visible_lines = 3;
   const int visible_lines = std::max(
@@ -2797,7 +2797,8 @@ void Layout::prop_textbox(PointerRNA *ptr,
                                0,
                                0,
                                w,
-                               line_heigth * visible_lines + textbox_grip_ui_height(),
+                               line_heigth * visible_lines + textbox_padding_top() +
+                                   textbox_padding_bottom(),
                                ptr,
                                prop,
                                0,
@@ -2821,7 +2822,8 @@ void Layout::prop_textbox(PointerRNA *ptr,
            0,
            0,
            0,
-           line_heigth * float(textbox->visible_lines),
+           line_heigth * float(textbox->visible_lines) + textbox_padding_top() +
+               textbox_padding_bottom() - textbox_grip_height(),
            nullptr,
            0.0,
            0.0,
@@ -2832,7 +2834,7 @@ void Layout::prop_textbox(PointerRNA *ptr,
                       0,
                       0,
                       UI_UNIT_X,
-                      textbox_grip_ui_height(),
+                      textbox_grip_height(),
                       visible_lines_ptr,
                       visible_lines_propname,
                       0,

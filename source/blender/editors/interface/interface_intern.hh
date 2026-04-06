@@ -374,7 +374,6 @@ struct TextWrapCache {
 
 /** Derived struct for #ButtonType::TextBox */
 struct ButtonTextBox : public Button {
-  static constexpr float grip_height_factor = 0.75f;
 
   int line_scroll = 0;
   /** Total number of wrapped lines in the last textbox redraw/event handling. */

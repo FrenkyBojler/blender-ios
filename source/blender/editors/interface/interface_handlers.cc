@@ -4388,9 +4388,10 @@ static int do_but_textedit_select(
       }
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &but->rect);
-      const float grip_factor = ButtonTextBox::grip_height_factor /
-                                (textbox->visible_lines + ButtonTextBox::grip_height_factor);
-      rect.ymin = rect.ymin + BLI_rctf_size_y(&rect) * grip_factor;
+
+      rect.ymax -= textbox_padding_top() / block->aspect;
+      rect.ymin += textbox_padding_bottom() / block->aspect;
+
       if (BLI_rctf_isect_y(&rect, event->xy[1])) {
         break;
       }

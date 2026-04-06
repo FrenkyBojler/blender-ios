@@ -2031,6 +2031,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   const int caret_width = std::max(round_fl_to_int(2.0f * U.pixelsize), 1);
 
   rect.xmax = std::max<int>(rect.xmin, rect.xmax - text_padding - scrollbar_pad);
+
+  rect.ymax -= textbox_padding_top() / but->block->aspect;
+  rect.ymin += textbox_padding_bottom() / but->block->aspect;
+
   BLI_assert(but->type == ButtonType::TextBox);
 
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
@@ -2043,8 +2047,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     BLI_assert(grip.type == ButtonType::Grip);
     grip.flag |= UI_HIDDEN;
   }
-  const float line_height = BLI_rcti_size_y(&rect) /
-                            float(visible_lines + ButtonTextBox::grip_height_factor);
+  const float line_height = BLI_rcti_size_y(&rect) / float(visible_lines);
   textbox->line_scroll_set(textbox->line_scroll);
 
   const int scroll = textbox->line_scroll;
@@ -2312,7 +2315,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   rcti scroll_rect = *button_rect;
   BLI_rcti_pad(&scroll_rect, -scrollbar_pad, -scrollbar_pad);
   scroll_rect.xmin = scroll_rect.xmax - text_padding;
-  scroll_rect.ymin += textbox_grip_ui_height() / but->block->aspect;
+  scroll_rect.ymin += textbox_padding_bottom() / but->block->aspect;
 
   rcti slider_rect = scroll_rect;
 

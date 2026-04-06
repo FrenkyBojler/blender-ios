@@ -72,11 +72,14 @@ void textbox_textedit_set_cursor_pos(ButtonTextBox *textbox,
 {
 
   /* Don't include grip bounds when selecting text with the mouse.*/
-  float2 start = {textbox->rect.xmin, textbox->rect.ymin + textbox_grip_ui_height()};
+  float2 start = {textbox->rect.xmin, textbox->rect.ymin};
   float2 end = {textbox->rect.xmax, textbox->rect.ymax};
 
   block_to_window_fl(region, textbox->block, &start.x, &start.y);
   block_to_window_fl(region, textbox->block, &end.x, &end.y);
+
+  start.y += textbox_padding_bottom() / textbox->block->aspect;
+  end.y -= textbox_padding_top() / textbox->block->aspect;
 
   const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   uiFontStyle fstyle = style_get()->widget;
@@ -252,9 +255,9 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
   return lines;
 }
 
-float textbox_grip_ui_height()
+float textbox_grip_height()
 {
-  return UI_UNIT_Y * ButtonTextBox::grip_height_factor;
+  return UI_UNIT_Y * 0.55f;
 }
 
 void ButtonTextBox::line_scroll_set(int line_scroll)
@@ -263,6 +266,16 @@ void ButtonTextBox::line_scroll_set(int line_scroll)
   /* Clamp line scroll. */
   const int max_scroll = std::max(this->last_total_lines - this->visible_lines, 0);
   this->line_scroll = std::clamp(this->line_scroll, 0, max_scroll);
+}
+
+float textbox_padding_top()
+{
+  return U.pixelsize + 2.0f * UI_SCALE_FAC;
+}
+
+float textbox_padding_bottom()
+{
+  return textbox_grip_height() + 0.25f * UI_SCALE_FAC;
 }
 
 }  // namespace blender::ui
