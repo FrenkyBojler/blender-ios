@@ -162,7 +162,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<CombineBundleItemsAccessor>(
               params.node_tree, node, params.socket.typeinfo->type, name.c_str());
-      params.update_and_connect_available_socket(node, name);
+      params.update_and_connect_available_socket(node, UString(item->name));
     });
   }
   else {
