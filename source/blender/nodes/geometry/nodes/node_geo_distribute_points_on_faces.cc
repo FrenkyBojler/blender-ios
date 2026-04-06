@@ -9,7 +9,6 @@
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "DNA_pointcloud_types.h"
 
@@ -627,7 +626,6 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
 
   const GeometryNodeDistributePointsOnFacesMode method = GeometryNodeDistributePointsOnFacesMode(
