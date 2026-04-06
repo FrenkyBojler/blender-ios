@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -14,8 +14,8 @@
 namespace blender {
 
 struct OrderWeights {
-  char32_t codepoint;
-  char32_t weight;   /* primary weight as codepoint or 0 */
+  char32_t code_point;
+  char32_t weight;   /* primary weight as code_point or 0 */
   uint8_t alternate; /* secondary differenciation without case */
   bool uppercase;    /* True if upper case, false if lowercase*/
 };
@@ -25,7 +25,7 @@ static const OrderWeights OrderWeightsTable[] = {
      * https://www.open-std.org/cen/tc304/EOR/eorhome.html
      * Three levels of weights for sort/collation. Primary considers "A" and "ã"
      * same, secondary differentiates these without considering case (Ã = ã),
-     * tertiary is for case. Sorted by Unicode codepoint for quick lookup. */
+     * tertiary is for case. Sorted by Unicode code point for quick lookup. */
     {0x0020, U' ', 0, false},  /* Space. */
     {0x0021, 0, 25, false},    /* Exclamation mark ignored. */
     {0x0022, 0, 15, false},    /* Double quotation mark ignored. */
@@ -758,14 +758,14 @@ static const OrderWeights OrderWeightsTable[] = {
     {0xFF5A, U'z', 6, false},  /* Half width Small Letter Z. */
 };
 
-static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
+static const OrderWeights *bli_str_utf32_orderweights(char32_t code_point)
 {
   auto weights = std::lower_bound(
       std::begin(OrderWeightsTable),
       std::end(OrderWeightsTable),
-      codepoint,
-      [](const OrderWeights &s, char32_t val) { return s.codepoint < val; });
-  if (weights != std::end(OrderWeightsTable) && weights->codepoint == codepoint) {
+      code_point,
+      [](const OrderWeights &s, char32_t val) { return s.code_point < val; });
+  if (weights != std::end(OrderWeightsTable) && weights->code_point == code_point) {
     return &(*weights);
   }
   return nullptr;
@@ -790,7 +790,7 @@ static int bli_str_utf32_weight(const OrderWeights *weights,
 }
 
 struct Ligature {
-  char32_t codepoint;
+  char32_t code_point;
   char32_t replace[3] = {0};
   bool uppercase;
 };
@@ -827,14 +827,14 @@ static const Ligature LigatureTable[] = {
     {0xFB02, {U'f', U'l'}, false},       /* Latin small ligature FL. */
 };
 
-static const Ligature *bli_str_utf32_ligature(char32_t codepoint)
+static const Ligature *bli_str_utf32_ligature(char32_t code_point)
 {
   auto ligature = std::lower_bound(
       std::begin(LigatureTable),
       std::end(LigatureTable),
-      codepoint,
-      [](const Ligature &s, char32_t val) { return s.codepoint < val; });
-  if (ligature != std::end(LigatureTable) && ligature->codepoint == codepoint) {
+      code_point,
+      [](const Ligature &s, char32_t val) { return s.code_point < val; });
+  if (ligature != std::end(LigatureTable) && ligature->code_point == code_point) {
     return &(*ligature);
   }
   return nullptr;
@@ -879,7 +879,7 @@ std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sens
     const bool ucase = case_sensitive && weights && weights->uppercase;
     int normalized = weights ? bli_str_utf32_weight(weights, false, false) : wc;
     if (weights && normalized == 0) {
-      normalized = wc; /* For search use original codepoint if no weight is defined. */
+      normalized = wc; /* For search use original code point if no weight is defined. */
     }
     if (!weights && mk_wcwidth(wc) < 1) {
       normalized = 0; /* No weight for combining characters. */
