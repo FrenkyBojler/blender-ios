@@ -6,6 +6,8 @@
  * \ingroup shader_tool
  */
 
+#include <unordered_map>
+
 #include "intermediate.hh"
 #include "metadata.hh"
 #include "processor.hh"
