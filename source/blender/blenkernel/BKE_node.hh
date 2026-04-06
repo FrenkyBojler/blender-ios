@@ -1146,7 +1146,7 @@ std::string node_label(const bNodeTree &ntree, const bNode &node);
 StringRefNull node_socket_label(const bNodeSocket &sock);
 
 /**
- * Get label for a new socket derived from another socket
+ * Get label for a new socket derived from another socket.
  */
 StringRef node_socket_extend_label(const bNode &node, const bNodeSocket &sock);
 

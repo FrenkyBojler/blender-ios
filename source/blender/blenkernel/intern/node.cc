@@ -5563,7 +5563,7 @@ StringRef node_socket_extend_label(const bNode &node, const bNodeSocket &sock)
 {
   StringRef name = node.is_type("NodeReroute") && (node.label[0] != '\0') ?
                        node.label :
-                       (sock.name ? sock.name : bke::node_socket_label(sock));
+                       (sock.name ? sock.name : node_socket_label(sock));
 
   return name;
 }
