@@ -143,7 +143,8 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
   return TRAVERSE_CONTINUE;
 }
 
-TreeTraversalAction outliner_collect_selected_objects_with_children(TreeElement *te, void *customdata)
+TreeTraversalAction outliner_collect_selected_objects_with_children(TreeElement *te,
+                                                                    void *customdata)
 {
   outliner_collect_selected_objects(te, customdata);
   for (TreeElement &techild : te->subtree) {
