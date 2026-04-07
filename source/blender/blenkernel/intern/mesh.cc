@@ -336,7 +336,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   Vector<CustomDataLayer, 16> edge_layers;
   Vector<CustomDataLayer, 16> loop_layers;
   Vector<CustomDataLayer, 16> face_layers;
-  bke::AttributeStorage::BlendWriteData attribute_data{scope};
+  bke::AttributeStorage::BlendWriteData attribute_data{writer, scope};
 
   /* Cache only - don't write. */
   mesh->mface = nullptr;
@@ -386,7 +386,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   const bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
 
-  BLO_write_shared_tag(writer, mesh->face_offset_indices);
+  BLO_write_generated_pointer_tag(writer, mesh->attribute_storage.dna_attributes);
 
   writer->write_id_struct(id_address, mesh);
   BKE_id_blend_write(writer, &mesh->id);
@@ -614,6 +614,35 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   attributes.add(".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, attribute_init);
   attributes.add(".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
   attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
+}
+
+static StringRefNull get_first_uv_map_name(const Mesh &mesh)
+{
+  StringRefNull found;
+  mesh.attributes().foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.domain == AttrDomain::Corner && iter.data_type == AttrType::Float2) {
+      found = iter.name;
+      iter.stop();
+    }
+  });
+  return found;
+}
+
+void mesh_ensure_active_uv_map(Mesh &mesh)
+{
+  const StringRefNull active_name = mesh.active_uv_map_name();
+  if (!active_name.is_empty()) {
+    return;
+  }
+  const StringRefNull default_name = mesh.default_uv_map_name();
+  if (!default_name.is_empty()) {
+    mesh.uv_maps_active_set(default_name);
+    return;
+  }
+  const StringRefNull found = get_first_uv_map_name(mesh);
+  if (!found.is_empty()) {
+    mesh.uv_maps_active_set(found);
+  }
 }
 
 void mesh_remove_invalid_attribute_strings(Mesh &mesh)
