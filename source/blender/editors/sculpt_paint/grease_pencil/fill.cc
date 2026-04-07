@@ -1170,14 +1170,6 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
   return fill_curves;
 }
 
-static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
-{
-  if (edge.first > edge.second) {
-    return std::pair<int, int>(edge.second, edge.first);
-  }
-  return edge;
-}
-
 enum Side : uint8_t { Start = 0, End = 1 };
 
 using EncodedConnection = int;
@@ -1296,6 +1288,14 @@ static void follow_edge_connections(const Span<int> all_edges,
 
     start_edge = get_next_unprocessed_edge();
   }
+}
+
+static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
+{
+  if (edge.first > edge.second) {
+    return std::pair<int, int>(edge.second, edge.first);
+  }
+  return edge;
 }
 
 static void get_all_triangle_edges(MutableSpan<int3> tri_edges,
