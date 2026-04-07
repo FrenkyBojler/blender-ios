@@ -10,8 +10,7 @@ VERTEX_SHADER_CREATE_INFO(draw_modelmat_with_custom_id)
 
 #include "draw_curves_lib.glsl"
 #include "draw_model.bsl.hh"
-/* TODO make pointcloud not rely on drw_model_lib.glsl. */
-// #include "draw_pointcloud_lib.glsl"
+#include "draw_pointcloud_lib.glsl"
 #include "draw_view.bsl.hh"
 #include "draw_view_clipping_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
@@ -257,11 +256,12 @@ struct PointCloud {
   int custom_id = int(resources.get_custom_id(inst_id));
 
   draw::ID id = resources.get(inst_id);
-  ViewMatrices view = views.get(id.view_id<1>());
-  ObjectMatrices obj = models.get(id.resource_id<1>());
+  uint res_id = id.resource_id<1>();
 
-#if 0 /* TODO make pointcloud not rely on drw_model_lib.glsl. */
-  const eObjectInfoFlag ob_flag = buffer_get(draw_object_infos, drw_infos)[drw_resource_id()].flag;
+  ViewMatrices view = views.get(id.view_id<1>());
+  ObjectMatrices obj = models.get(res_id);
+
+  const eObjectInfoFlag ob_flag = buffer_get(draw_object_infos, drw_infos)[res_id].flag;
 
   const pointcloud::Point ls_pt = pointcloud::point_get(uint(gl_VertexID));
   const pointcloud::Point ws_pt = pointcloud::object_to_world(ls_pt, obj.model);
@@ -275,7 +275,6 @@ struct PointCloud {
   if (point_cloud.use_clipping) [[static_branch]] {
     view_clipping_distances(pt.P);
   }
-#endif
 
   v_out.uv = float2(0.0f);
 
