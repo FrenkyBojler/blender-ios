@@ -352,17 +352,18 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
 
   const float factor = ED_slider_factor_get(pso.slider);
   animrig::Transformable *transformable = pfl.transformable;
-  const std::string path = transformable->rna_path_to_property(prop_type);
-  const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
   Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
-  float prev_frame, next_frame;
-  pose_frame_range_from_id_get(&pso, transformable->owner_id(), &prev_frame, &next_frame);
-
-  for (const FCurve *fcurve : fcurves) {
-    prev_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
-    next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
+  {
+    const std::string path = transformable->rna_path_to_property(prop_type);
+    const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
+    float prev_frame, next_frame;
+    pose_frame_range_from_id_get(&pso, transformable->owner_id(), &prev_frame, &next_frame);
+    for (const FCurve *fcurve : fcurves) {
+      prev_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
+      next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
+    }
   }
 
   const float current_frame = float(pso.current_frame);
@@ -502,9 +503,9 @@ static void pose_slide_apply_additional_properties(tPoseSlideOp &pso, tPChanFCur
     Array<float> base_values = snapshot.backup_values;
     Array<float> next_frame_values = base_values;
     Array<float> prev_frame_values = base_values;
-    float prev_frame, next_frame;
-    pose_frame_range_from_id_get(&pso, pfl.transformable->owner_id(), &prev_frame, &next_frame);
     {
+      float prev_frame, next_frame;
+      pose_frame_range_from_id_get(&pso, pfl.transformable->owner_id(), &prev_frame, &next_frame);
       const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path.value());
       for (const FCurve *fcurve : fcurves) {
         prev_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
@@ -711,13 +712,9 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   normalize_qt(rot_prev_frame.values.data());
   normalize_qt(rot_next_frame.values.data());
 
-  if (ELEM(pso->mode, POSESLIDE_BREAKDOWN, POSESLIDE_PUSH, POSESLIDE_RELAX)) {
-
-    if (pso->mode == POSESLIDE_BREAKDOWN) {
-      transformable->set_rotation(rot_prev_frame);
-      transformable->blend_rotation_to(rot_next_frame, factor, animrig::AXIS_FLAG_NONE);
-    }
-    else {
+  switch (pso->mode) {
+    case POSESLIDE_PUSH:
+    case POSESLIDE_RELAX: {
       /* Compute breakdown based on actual frame range. */
       const float interp_factor = (current_frame - pso->prev_frame) /
                                   float(pso->next_frame - pso->prev_frame);
@@ -734,16 +731,28 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
         transformable->set_rotation(current);
         transformable->blend_rotation_to(breakdown, factor, animrig::AXIS_FLAG_NONE);
       }
+      break;
     }
-  }
-  else if (pso->mode == POSESLIDE_BLEND) {
-    const float blend_factor = fabs((factor - 0.5f) * 2);
-    if (factor < 0.5) {
-      transformable->blend_rotation_to(rot_prev_frame, blend_factor, animrig::AXIS_FLAG_NONE);
+
+    case POSESLIDE_BREAKDOWN:
+      transformable->set_rotation(rot_prev_frame);
+      transformable->blend_rotation_to(rot_next_frame, factor, animrig::AXIS_FLAG_NONE);
+      break;
+
+    case POSESLIDE_BLEND: {
+      const float blend_factor = fabs((factor - 0.5f) * 2);
+      if (factor < 0.5) {
+        transformable->blend_rotation_to(rot_prev_frame, blend_factor, animrig::AXIS_FLAG_NONE);
+      }
+      else {
+        transformable->blend_rotation_to(rot_next_frame, blend_factor, animrig::AXIS_FLAG_NONE);
+      }
+      break;
     }
-    else {
-      transformable->blend_rotation_to(rot_next_frame, blend_factor, animrig::AXIS_FLAG_NONE);
-    }
+
+    case POSESLIDE_BLEND_REST:
+      BLI_assert_unreachable();
+      break;
   }
 }
 
