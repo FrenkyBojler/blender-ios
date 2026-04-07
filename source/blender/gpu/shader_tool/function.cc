@@ -148,11 +148,11 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "instance_index" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error_(ERROR_TOK(attributes[1]),
+          report_error(attributes[1],
                         "[[instance_index]] is only supported in vertex functions.");
         }
         else if (!is_const || srt_type != "int") {
-          report_error_(ERROR_TOK(type), "[[instance_index]] must be declared as `const int`.");
+          report_error(type, "[[instance_index]] must be declared as `const int`.");
         }
         replace_word(srt_var, "gpu_InstanceIndex");
         metadata_.builtins.emplace_back(Builtin(hash("gpu_InstanceIndex")));

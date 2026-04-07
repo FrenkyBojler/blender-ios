@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include "draw_view.bsl.hh"
+#include "gpu_shader_compat.hh"
+
+#include "draw_shader_shared.hh"
 
 namespace draw {
 
