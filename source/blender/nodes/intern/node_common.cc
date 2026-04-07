@@ -1111,7 +1111,6 @@ static void node_group_output_layout(ui::Layout &layout, bContext *C, PointerRNA
 
 }  // namespace nodes
 
-
 void register_node_type_group_input()
 {
   /* used for all tree types, needs dynamic allocation */
