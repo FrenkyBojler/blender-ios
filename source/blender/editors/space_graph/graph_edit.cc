@@ -2960,7 +2960,7 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
 }
 
 /* -------------------------------------------------------------------- */
-/** \name Remove F-Modifiers Operator
+/** \name Delete F-Modifiers Operator
  * \{ */
 
 enum class RemovalMode { ALL = 0, FIRST = 1, TYPE = 2 };
@@ -2978,9 +2978,8 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   }
 
   /* Filter data. */
-  int filter;
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
-            ANIMFILTER_FCURVESONLY);
+  eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
+                              ANIMFILTER_FCURVESONLY);
   if (RNA_boolean_get(op->ptr, "only_active")) {
     filter |= ANIMFILTER_ACTIVE;
   }
