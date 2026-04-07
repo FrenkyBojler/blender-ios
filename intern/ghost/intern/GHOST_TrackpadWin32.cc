@@ -130,7 +130,7 @@ bool GHOST_DirectManipulationHelper::getScrollDirectionFromReg()
   if (!SUCCEEDED(hr)) {
     GHOST_PRINT("Failed to get scroll direction from registry\n");
     /* This is the default value for scroll direction, not a failure/success indicator. */
-    return false;
+    return true;
   }
 
   /* Return false for normal scrolling direction, and true for inverted. */
