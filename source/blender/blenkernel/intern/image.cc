@@ -1169,7 +1169,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
 
     if (ibuf != nullptr) {
       rect_float = ibuf->float_data_for_write();
-      IMB_colormanagement_assign_float_colorspace(ibuf, ima->colorspace_settings.name);
+      IMB_colormanagement_check_is_data(ibuf, ima->colorspace_settings.name);
     }
 
     if (IMB_colormanagement_space_name_is_data(ima->colorspace_settings.name)) {
