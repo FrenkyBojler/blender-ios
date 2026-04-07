@@ -518,23 +518,13 @@ void interpolate_cubic_mitchell_fl(
 
 /**
  * New sampling api. Uses a template argument to choose the sampler and a "sampler2D"
- * so cpu and gpu code can match. Takes derivatives so scales less than one work.
- * All coordinates are in pixels with integers at pixel corners.
- * If you have derivative vectors, use wh = hypot(dPdx,dPdy).
+ * so cpu and gpu code can match.
+ * Coordinates are normalized (1,1 is upper-right corner, 0,0 is lower-left), to
+ * match GLSL and BLI_ewa_filter.
+ * wh is the size of a box filter (other filters are larger)
  */
 template<enum Sampler sampler>
 extern float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh);
-
-/* wh is ignored and it reads exactly one pixel */
-template<>
-inline float4 sample_rect<Sampler::Nearest>(const sampler2D &source,
-                                            const float2 &uv,
-                                            const float2 &)
-{
-  const int x = wrap_coord(uv.x, source.width, source.wrap_x);
-  const int y = wrap_coord(uv.y, source.height, source.wrap_y);
-  return (x < 0 || y < 0) ? float4(0.0f) : *(float4 *)(source.row(y) + x * source.step);
-}
 
 }  // namespace math
 

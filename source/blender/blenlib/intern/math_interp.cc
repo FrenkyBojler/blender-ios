@@ -586,10 +586,12 @@ template<enum Sampler sampler> BLI_INLINE float weight(float x);
  * todo: fix for filters with radius != 2
  */
 template<enum Sampler sampler>
-float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect(const sampler2D &source, const float2 &uvn, const float2 &whn)
 {
-  const float2 w1 = max(wh, 1.0f);
+  const float2 size(float(source.width), float(source.height));
+  const float2 w1 = max(whn * size, 1.0f);
   const float2 r = 2 * w1;
+  const float2 uv = uvn * size;
   const float2 a = (floor(uv - r + 0.5f) + 0.5f);  // first non-zero sample
   const float2 d = ceil(r / 16.0f);                // distance between samples
   // precompute the horizontal filter so it can be reused
@@ -625,9 +627,11 @@ float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
  * Fortunately it is pretty easy to calculate this integration, it results in a trapazoid.
  */
 template<>
-float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uvn, const float2 &whn)
 {
-  const float2 r = max((wh + 1.0f) / 2.0f, 1.0f);
+  const float2 size(float(source.width), float(source.height));
+  const float2 r = max((whn * size + 1.0f) / 2.0f, 1.0f);
+  const float2 uv = uvn * size;
   const float2 a = floor(uv - r + 0.5f) + 0.5f;  // first non-zero sample
   const float2 d = ceil(r / 8.0f);               // distance between samples
   // precompute the horizontal filter so it can be reused

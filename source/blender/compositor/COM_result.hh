@@ -730,17 +730,15 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
   if (interpolation != Interpolation::Nearest) {
     if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
       const int2 size = domain_.data_size;
-      const float2 uv = coordinates * float2(size);
-      const float2 wh = rect * float2(size);
       math::sampler2D source = sampler2D();
       source.wrap_x = map_extension_mode_to_wrap_mode(extension_mode_x);
       source.wrap_y = map_extension_mode_to_wrap_mode(extension_mode_y);
 
       switch (interpolation) {
         default:
-          return cast<T>(math::sample_rect<math::Sampler::Box>(source, uv, wh));
+          return cast<T>(math::sample_rect<math::Sampler::Box>(source, coordinates, rect));
         case Interpolation::Bicubic:
-          return cast<T>(math::sample_rect<math::Sampler::Bspline>(source, uv, wh));
+          return cast<T>(math::sample_rect<math::Sampler::Bspline>(source, coordinates, rect));
 #if 0  // use ewa filter. Without this Box filter is used
         case Interpolation::Anisotropic:
           return sample<T>(coordinates, Interpolation::Anisotropic,
