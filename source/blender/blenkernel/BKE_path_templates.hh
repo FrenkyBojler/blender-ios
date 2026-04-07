@@ -288,8 +288,7 @@ std::optional<bke::path_templates::VariableMap> BKE_build_template_variables_for
  * pass nullptr when that is actually true, not just out of convenience, because
  * it alters the produced variables.
  *
- * \param project: the currently active Blender project, if any. Passing nullptr
- * is allowed, and means that there is currently no active project.
+ * \param project: the currently active Blender project, if any.
  *
  * \see #BKE_path_apply_template()
  */
