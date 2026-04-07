@@ -19,6 +19,8 @@
 
 #  include "DNA_userdef_types.h"
 
+#  include "WM_api.hh"
+
 #  include <chrono>
 #  include <ctime>
 #  include <fmt/chrono.h>
@@ -344,6 +346,10 @@ if result:
   if (updates_json->type() != eValueType::Array) {
     return;
   }
+
+  /* Reset notifications before reading new list. */
+  available_blender_updates() = {};
+
   for (const std::shared_ptr<Value> &entry : updates_json->as_array_value()->elements()) {
     std::optional<VersionUpdate> update = read_version_update(entry.get());
     if (!update) {
@@ -560,6 +566,7 @@ void check_for_available_updates(bContext &C)
       {BLENDER_VERSION, BLENDER_VERSION_PATCH},
       {BLENDER_VERSION, BLENDER_VERSION_PATCH},
   };
+  available_blender_updates() = {};
   download_available_updates_list(C);
 }
 
