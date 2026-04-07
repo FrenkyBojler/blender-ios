@@ -251,7 +251,7 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
     mat_data->alignment_rot[0] = cosf(gp_style->alignment_rotation);
     mat_data->alignment_rot[1] = sinf(gp_style->alignment_rotation);
     if (gp_style->mode == GP_MATERIAL_MODE_LINE) {
-      /* Convert pixel size to stroke u, the factor of `500` is from legacy grease pencil. */
+      /* Convert pixel size to stroke u, the factor of `500` is from legacy Grease Pencil. */
       mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
     }
     else {
