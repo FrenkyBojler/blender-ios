@@ -517,276 +517,276 @@ static const Map<uint32_t, OrderWeight> &weights = *([]() {
       {0x03B1, {U'α', 0, false}}, /* Small Greek alpha. */
       {0x0386, {U'α', 1, true}},  /* Greek capital alpha with tonos */
       {0x03AC, {U'α', 1, false}}, /* Greek small alpha with tonos */
+      {0x0395, {U'ε', 0, true}},  /* Greek capital epsilon */
+      {0x03B5, {U'ε', 0, false}}, /* Greek small epsilon */
+      {0x0388, {U'ε', 1, true}},  /* Greek capital epsilon with tonos */
+      {0x03AD, {U'ε', 1, false}}, /* Greek small epsilon with tonos */
+      {0x0397, {U'η', 0, true}},  /* Greek capital eta */
+      {0x03B7, {U'η', 0, false}}, /* Greek small eta */
+      {0x0389, {U'η', 1, true}},  /* Greek capital eta with tonos */
+      {0x03AE, {U'η', 1, false}}, /* Greek small eta with tonos */
+      {0x0399, {U'ι', 0, true}},  /* Greek capital iota */
+      {0x03B9, {U'ι', 0, false}}, /* Greek small iota */
+      {0x038A, {U'ι', 1, true}},  /* Greek capital iota with tonos */
+      {0x03AF, {U'ι', 1, false}}, /* Greek small iota with tonos */
+      {0x03AA, {U'ι', 2, true}},  /* Greek capital iota with dialytika */
+      {0x03CA, {U'ι', 2, false}}, /* Greek small iota with dialytika */
+      {0x0390, {U'ι', 3, false}}, /* Greek small iota with dialytika and tonos */
+      {0x039F, {U'ο', 0, true}},  /* Greek capital omicron */
+      {0x03BF, {U'ο', 0, false}}, /* Greek small omicron */
+      {0x038C, {U'ο', 1, true}},  /* Greek capital omicron with tonos */
+      {0x03CC, {U'ο', 1, false}}, /* Greek small omicron with tonos */
+      {0x03A5, {U'υ', 0, true}},  /* Greek capital upsilon */
+      {0x03C5, {U'υ', 0, false}}, /* Greek small upsilon */
+      {0x038E, {U'υ', 1, true}},  /* Greek capital upsilon with tonos */
+      {0x03CD, {U'υ', 1, false}}, /* Greek small upsilon with tonos */
+      {0x03AB, {U'υ', 2, true}},  /* Greek capital upsilon with dialytika */
+      {0x03CB, {U'υ', 2, false}}, /* Greek small upsilon with dialytika */
+      {0x03B0, {U'υ', 3, false}}, /* Greek small upsilon with dialytika and tonos */
+      {0x03A9, {U'ω', 0, true}},  /* Greek capital omega */
+      {0x03C9, {U'ω', 0, false}}, /* Greek small omega */
+      {0x038F, {U'ω', 1, true}},  /* Greek capital omega with tonos */
+      {0x03CE, {U'ω', 1, false}}, /* Greek small omega with tonos */
+      {0x2126, {U'ω', 2, false}}, /* Ohm sign */
+      {0x0392, {U'β', 0, true}},  /* Greek capital beta */
+      {0x03B2, {U'β', 0, false}}, /* Greek small beta */
+      {0x03D0, {U'β', 1, false}}, /* Greek small beta symbol */
+      {0x0393, {U'γ', 0, true}},  /* Greek capital gamma */
+      {0x03B3, {U'γ', 0, false}}, /* Greek small gamma */
+      {0x0394, {U'δ', 0, true}},  /* Greek capital delta */
+      {0x03B4, {U'δ', 0, false}}, /* Greek small delta */
+      {0x0396, {U'ζ', 0, true}},  /* Greek capital zeta */
+      {0x03B6, {U'ζ', 0, false}}, /* Greek small zeta */
+      {0x0398, {U'θ', 0, true}},  /* Greek capital theta */
+      {0x03B8, {U'θ', 0, false}}, /* Greek small theta */
+      {0x03D1, {U'θ', 1, false}}, /* Greek theta symbol */
+      {0x039A, {U'κ', 0, true}},  /* Greek capital kappa */
+      {0x03BA, {U'κ', 0, false}}, /* Greek small kappa */
+      {0x03D7, {U'κ', 1, false}}, /* Greek kai symbol */
+      {0x03F0, {U'κ', 2, false}}, /* Greek kappa symbol */
+      {0x039B, {U'λ', 0, true}},  /* Greek capital lamda */
+      {0x03BB, {U'λ', 0, false}}, /* Greek small lamda */
+      {0x039D, {U'ν', 0, true}},  /* Greek capital nu */
+      {0x03BD, {U'ν', 0, false}}, /* Greek small nu */
+      {0x039E, {U'ξ', 0, true}},  /* Greek capital xi */
+      {0x03BE, {U'ξ', 0, false}}, /* Greek small xi */
+      {0x03A0, {U'π', 0, true}},  /* Greek capital pi */
+      {0x03C0, {U'π', 0, false}}, /* Greek small pi */
+      {0x03D6, {U'π', 1, false}}, /* Greek pi symbol */
+      {0x03A1, {U'ρ', 0, true}},  /* Greek capital rho */
+      {0x03C1, {U'ρ', 0, false}}, /* Greek small rho */
+      {0x03F1, {U'ρ', 1, false}}, /* Greek rho symbol */
+      {0x03A3, {U'ς', 0, true}},  /* Greek capital sigma */
+      {0x03C3, {U'ς', 0, false}}, /* Greek small sigma */
+      {0x03C2, {U'ς', 1, false}}, /* Greek small final sigma */
+      {0x03A4, {U'τ', 0, true}},  /* Greek capital tau */
+      {0x03C4, {U'τ', 0, false}}, /* Greek small tau */
+      {0x03A6, {U'φ', 0, true}},  /* Greek capital phi */
+      {0x03C6, {U'φ', 0, false}}, /* Greek small phi */
+      {0x03A7, {U'χ', 0, true}},  /* Greek capital chi */
+      {0x03C7, {U'χ', 0, false}}, /* Greek small chi */
+      {0x03A8, {U'ψ', 0, true}},  /* Greek capital psi */
+      {0x03C8, {U'ψ', 0, false}}, /* Greek small psi */
+      {0x03DA, {U'ϛ', 0, true}},  /* Greek capital stigma */
+      {0x03DB, {U'ϛ', 0, false}}, /* Greek small stigma */
+      {0x03DC, {U'ϝ', 0, true}},  /* Greek capital digamma */
+      {0x03DD, {U'ϝ', 0, false}}, /* Greek small digamma */
+      {0x03DE, {U'ϙ', 0, true}},  /* Greek capital koppa */
+      {0x03DF, {U'ϙ', 0, false}}, /* Greek small koppa */
+      {0x03E0, {U'ϡ', 0, true}},  /* Greek capital sampi */
+      {0x03E1, {U'ϡ', 0, false}}, /* Greek small sampi */
 
-      {0x0388, {U'ε', 9, true}},   /* Greek capital epsilon with tonos */
-      {0x0389, {U'η', 12, true}},  /* Greek capital eta with tonos */
-      {0x038A, {U'ι', 13, true}},  /* Greek capital iota with tonos */
-      {0x038C, {U'ο', 9, true}},   /* Greek capital omicron with tonos */
-      {0x038E, {U'υ', 12, true}},  /* Greek capital upsilon with tonos */
-      {0x038F, {U'ω', 13, true}},  /* Greek capital omega with tonos */
-      {0x0390, {U'ι', 19, false}}, /* Greek small iota with dialytika and tonos */
-      {0x0392, {U'β', 0, true}},   /* Greek capital beta */
-      {0x0393, {U'γ', 0, true}},   /* Greek capital gamma */
-      {0x0394, {U'δ', 0, true}},   /* Greek capital delta */
-      {0x0395, {U'ε', 0, true}},   /* Greek capital epsilon */
-      {0x0396, {U'ζ', 0, true}},   /* Greek capital zeta */
-      {0x0397, {U'η', 0, true}},   /* Greek capital eta */
-      {0x0398, {U'θ', 0, true}},   /* Greek capital theta */
-      {0x0399, {U'ι', 0, true}},   /* Greek capital iota */
-      {0x039A, {U'κ', 0, true}},   /* Greek capital kappa */
-      {0x039B, {U'λ', 0, true}},   /* Greek capital lamda */
-      {0x039D, {U'ν', 0, true}},   /* Greek capital nu */
-      {0x039E, {U'ξ', 0, true}},   /* Greek capital xi */
-      {0x039F, {U'ο', 0, true}},   /* Greek capital omicron */
-      {0x03A0, {U'π', 0, true}},   /* Greek capital pi */
-      {0x03A1, {U'ρ', 0, true}},   /* Greek capital rho */
-      {0x03A3, {U'ς', 0, true}},   /* Greek capital sigma */
-      {0x03A4, {U'τ', 0, true}},   /* Greek capital tau */
-      {0x03A5, {U'υ', 0, true}},   /* Greek capital upsilon */
-      {0x03A6, {U'φ', 0, true}},   /* Greek capital phi */
-      {0x03A7, {U'χ', 0, true}},   /* Greek capital chi */
-      {0x03A8, {U'ψ', 0, true}},   /* Greek capital psi */
-      {0x03A9, {U'ω', 0, true}},   /* Greek capital omega */
-      {0x03AA, {U'ι', 15, true}},  /* Greek capital iota with dialytika */
-      {0x03AB, {U'υ', 14, true}},  /* Greek capital upsilon with dialytika */
-      {0x03AD, {U'ε', 9, false}},  /* Greek small epsilon with tonos */
-      {0x03AE, {U'η', 12, false}}, /* Greek small eta with tonos */
-      {0x03AF, {U'ι', 13, false}}, /* Greek small iota with tonos */
-      {0x03B0, {U'υ', 18, false}}, /* Greek small upsilon with dialytika and tonos */
-      {0x03B2, {U'β', 0, false}},  /* Greek small beta */
-      {0x03B3, {U'γ', 0, false}},  /* Greek small gamma */
-      {0x03B4, {U'δ', 0, false}},  /* Greek small delta */
-      {0x03B5, {U'ε', 0, false}},  /* Greek small epsilon */
-      {0x03B6, {U'ζ', 0, false}},  /* Greek small zeta */
-      {0x03B7, {U'η', 0, false}},  /* Greek small eta */
-      {0x03B8, {U'θ', 0, false}},  /* Greek small theta */
-      {0x03B9, {U'ι', 0, false}},  /* Greek small iota */
-      {0x03BA, {U'κ', 0, false}},  /* Greek small kappa */
-      {0x03BB, {U'λ', 0, false}},  /* Greek small lamda */
-      {0x03BD, {U'ν', 0, false}},  /* Greek small nu */
-      {0x03BE, {U'ξ', 0, false}},  /* Greek small xi */
-      {0x03BF, {U'ο', 0, false}},  /* Greek small omicron */
-      {0x03C0, {U'π', 0, false}},  /* Greek small pi */
-      {0x03C1, {U'ρ', 0, false}},  /* Greek small rho */
-      {0x03C2, {U'ς', 1, false}},  /* Greek small final sigma */
-      {0x03C3, {U'ς', 0, false}},  /* Greek small sigma */
-      {0x03C4, {U'τ', 0, false}},  /* Greek small tau */
-      {0x03C5, {U'υ', 0, false}},  /* Greek small upsilon */
-      {0x03C6, {U'φ', 0, false}},  /* Greek small phi */
-      {0x03C7, {U'χ', 0, false}},  /* Greek small chi */
-      {0x03C8, {U'ψ', 0, false}},  /* Greek small psi */
-      {0x03C9, {U'ω', 0, false}},  /* Greek small omega */
-      {0x03CA, {U'ι', 15, false}}, /* Greek small iota with dialytika */
-      {0x03CB, {U'υ', 14, false}}, /* Greek small upsilon with dialytika */
-      {0x03CC, {U'ο', 9, false}},  /* Greek small omicron with tonos */
-      {0x03CD, {U'υ', 12, false}}, /* Greek small upsilon with tonos */
-      {0x03CE, {U'ω', 13, false}}, /* Greek small omega with tonos */
-      {0x03D0, {U'β', 0, false}},  /* Greek small beta symbol */
-      {0x03D1, {U'θ', 1, false}},  /* Greek theta symbol */
-      {0x03D6, {U'π', 1, false}},  /* Greek pi symbol */
-      {0x03D7, {U'κ', 2, false}},  /* Greek kai symbol */
-      {0x03DA, {U'ϛ', 0, true}},   /* Greek capital stigma */
-      {0x03DB, {U'ϛ', 0, false}},  /* Greek small stigma */
-      {0x03DC, {U'ϝ', 0, true}},   /* Greek capital digamma */
-      {0x03DD, {U'ϝ', 0, false}},  /* Greek small digamma */
-      {0x03DE, {U'ϙ', 0, true}},   /* Greek capital koppa */
-      {0x03DF, {U'ϙ', 0, false}},  /* Greek small koppa */
-      {0x03E0, {U'ϡ', 0, true}},   /* Greek capital sampi */
-      {0x03E1, {U'ϡ', 0, false}},  /* Greek small sampi */
-      {0x03F0, {U'κ', 1, false}},  /* Greek kappa symbol */
-      {0x03F1, {U'ρ', 1, false}},  /* Greek rho symbol */
-      {0x0400, {U'е', 1, true}},   /* Cyrillic capital letter ie with grave */
-      {0x0401, {U'е', 2, true}},   /* Cyrillic capital letter io */
-      {0x0402, {U'ђ', 0, true}},   /* Cyrillic capital letter dje */
-      {0x0403, {U'ђ', 1, true}},   /* Cyrillic capital letter gje */
-      {0x0404, {U'е', 4, true}},   /* Cyrillic capital letter ukrainian ie */
-      {0x0405, {U'ѕ', 0, true}},   /* Cyrillic capital letter dze */
-      {0x0406, {U'и', 4, true}},   /* Cyrillic capital letter byelorussian-ukrainian i */
-      {0x0407, {U'ї', 0, true}},   /* Cyrillic capital letter yi */
-      {0x0408, {U'ј', 0, true}},   /* Cyrillic capital letter je */
-      {0x0409, {U'љ', 0, true}},   /* Cyrillic capital letter lje */
-      {0x040A, {U'њ', 0, true}},   /* Cyrillic capital letter nje */
-      {0x040B, {U'ћ', 0, true}},   /* Cyrillic capital letter tshe */
-      {0x040C, {U'ќ', 1, true}},   /* Cyrillic capital letter kje */
-      {0x040D, {U'и', 1, true}},   /* Cyrillic capital letter i with grave */
-      {0x040E, {U'у', 2, true}},   /* Cyrillic capital letter short u */
-      {0x040F, {U'џ', 0, true}},   /* Cyrillic capital letter dzhe */
-      {0x0410, {U'а', 0, true}},   /* Cyrillic capital letter a */
-      {0x0411, {U'б', 0, true}},   /* Cyrillic capital letter be */
-      {0x0412, {U'в', 0, true}},   /* Cyrillic capital letter ve */
-      {0x0413, {U'г', 0, true}},   /* Cyrillic capital letter ghe */
-      {0x0414, {U'д', 0, true}},   /* Cyrillic capital letter de */
-      {0x0415, {U'е', 0, true}},   /* Cyrillic capital letter ie */
-      {0x0416, {U'ж', 0, true}},   /* Cyrillic capital letter zhe */
-      {0x0417, {U'з', 0, true}},   /* Cyrillic capital letter ze */
-      {0x0418, {U'и', 0, true}},   /* Cyrillic capital letter i */
-      {0x0419, {U'и', 5, true}},   /* Cyrillic capital letter short i */
-      {0x041A, {U'к', 0, true}},   /* Cyrillic capital letter ka */
-      {0x041B, {U'л', 0, true}},   /* Cyrillic capital letter el */
-      {0x041C, {U'м', 0, true}},   /* Cyrillic capital letter em */
-      {0x041D, {U'н', 0, true}},   /* Cyrillic capital letter en */
-      {0x041E, {U'о', 0, true}},   /* Cyrillic capital letter o */
-      {0x041F, {U'п', 0, true}},   /* Cyrillic capital letter pe */
-      {0x0420, {U'р', 0, true}},   /* Cyrillic capital letter er */
-      {0x0421, {U'с', 0, true}},   /* Cyrillic capital letter es */
-      {0x0422, {U'т', 0, true}},   /* Cyrillic capital letter te */
-      {0x0423, {U'у', 0, true}},   /* Cyrillic capital letter u */
-      {0x0424, {U'ф', 0, true}},   /* Cyrillic capital letter ef */
-      {0x0425, {U'х', 0, true}},   /* Cyrillic capital letter ha */
-      {0x0426, {U'ц', 0, true}},   /* Cyrillic capital letter tse */
-      {0x0427, {U'ч', 0, true}},   /* Cyrillic capital letter che */
-      {0x0428, {U'ш', 0, true}},   /* Cyrillic capital letter sha */
-      {0x0429, {U'щ', 0, true}},   /* Cyrillic capital letter shcha */
-      {0x042A, {U'ъ', 0, true}},   /* Cyrillic capital letter hard sign */
-      {0x042B, {U'ы', 0, true}},   /* Cyrillic capital letter yeru */
-      {0x042C, {U'ь', 0, true}},   /* Cyrillic capital letter soft sign */
-      {0x042D, {U'э', 0, true}},   /* Cyrillic capital letter e */
-      {0x042E, {U'ю', 0, true}},   /* Cyrillic capital letter yu */
-      {0x042F, {U'я', 0, true}},   /* Cyrillic capital letter ya */
-      {0x0430, {U'а', 0, false}},  /* Cyrillic small letter a */
-      {0x0431, {U'б', 0, false}},  /* Cyrillic small letter be */
-      {0x0432, {U'в', 0, false}},  /* Cyrillic small letter ve */
-      {0x0433, {U'г', 0, false}},  /* Cyrillic small letter ghe */
-      {0x0434, {U'д', 0, false}},  /* Cyrillic small letter de */
-      {0x0435, {U'е', 0, false}},  /* Cyrillic small letter ie */
-      {0x0436, {U'ж', 0, false}},  /* Cyrillic small letter zhe */
-      {0x0437, {U'з', 0, false}},  /* Cyrillic small letter ze */
-      {0x0438, {U'и', 0, false}},  /* Cyrillic small letter i */
-      {0x0439, {U'и', 5, false}},  /* Cyrillic small letter short i */
-      {0x043A, {U'к', 0, false}},  /* Cyrillic small letter ka */
-      {0x043B, {U'л', 0, false}},  /* Cyrillic small letter el */
-      {0x043C, {U'м', 0, false}},  /* Cyrillic small letter em */
-      {0x043D, {U'н', 0, false}},  /* Cyrillic small letter en */
-      {0x043E, {U'о', 0, false}},  /* Cyrillic small letter o */
-      {0x043F, {U'п', 0, false}},  /* Cyrillic small letter pe */
-      {0x0440, {U'р', 0, false}},  /* Cyrillic small letter er */
-      {0x0441, {U'с', 0, false}},  /* Cyrillic small letter es */
-      {0x0442, {U'т', 0, false}},  /* Cyrillic small letter te */
-      {0x0443, {U'у', 0, false}},  /* Cyrillic small letter u */
-      {0x0444, {U'ф', 0, false}},  /* Cyrillic small letter ef */
-      {0x0445, {U'х', 0, false}},  /* Cyrillic small letter ha */
-      {0x0446, {U'ц', 0, false}},  /* Cyrillic small letter tse */
-      {0x0447, {U'ч', 0, false}},  /* Cyrillic small letter che */
-      {0x0448, {U'ш', 0, false}},  /* Cyrillic small letter sha */
-      {0x0449, {U'щ', 0, false}},  /* Cyrillic small letter shcha */
-      {0x044A, {U'ъ', 0, false}},  /* Cyrillic small letter hard sign */
-      {0x044B, {U'ы', 0, false}},  /* Cyrillic small letter yeru */
-      {0x044C, {U'ь', 0, false}},  /* Cyrillic small letter soft sign */
-      {0x044D, {U'э', 0, false}},  /* Cyrillic small letter e */
-      {0x044E, {U'ю', 0, false}},  /* Cyrillic small letter yu */
-      {0x044F, {U'я', 0, false}},  /* Cyrillic small letter ya */
-      {0x0450, {U'е', 1, false}},  /* Cyrillic small letter ie with grave */
-      {0x0451, {U'е', 2, false}},  /* Cyrillic small letter io */
-      {0x0452, {U'ђ', 0, false}},  /* Cyrillic small letter dje */
-      {0x0453, {U'ђ', 1, false}},  /* Cyrillic small letter gje */
-      {0x0454, {U'е', 4, false}},  /* Cyrillic small letter ukrainian ie */
-      {0x0455, {U'ѕ', 0, false}},  /* Cyrillic small letter dze */
-      {0x0456, {U'и', 4, false}},  /* Cyrillic small letter byelorussian-ukrainian i */
-      {0x0457, {U'ї', 0, false}},  /* Cyrillic small letter yi */
-      {0x0458, {U'ј', 0, false}},  /* Cyrillic small letter je */
-      {0x0459, {U'љ', 0, false}},  /* Cyrillic small letter lje */
-      {0x045A, {U'њ', 0, false}},  /* Cyrillic small letter nje */
-      {0x045B, {U'ћ', 0, false}},  /* Cyrillic small letter tshe */
-      {0x045C, {U'ќ', 1, false}},  /* Cyrillic small letter kje */
-      {0x045D, {U'и', 1, false}},  /* Cyrillic small letter i with grave */
-      {0x045E, {U'у', 2, false}},  /* Cyrillic small letter short u */
-      {0x045F, {U'џ', 0, false}},  /* Cyrillic small letter dzhe */
-      {0x0490, {U'г', 1, true}},   /* Cyrillic capital letter ghe with upturn */
-      {0x0491, {U'г', 1, false}},  /* Cyrillic small letter ghe with upturn */
-      {0x0492, {U'г', 2, true}},   /* Cyrillic capital letter ghe with stroke */
-      {0x0493, {U'г', 2, false}},  /* Cyrillic small letter ghe with stroke */
-      {0x0494, {U'г', 3, true}},   /* Cyrillic capital letter ghe with middle hook */
-      {0x0495, {U'г', 3, false}},  /* Cyrillic small letter ghe with middle hook */
-      {0x0496, {U'ж', 3, true}},   /* Cyrillic capital letter zhe with descender */
-      {0x0497, {U'ж', 3, false}},  /* Cyrillic small letter zhe with descender */
-      {0x0498, {U'з', 1, true}},   /* Cyrillic capital letter ze with descender */
-      {0x0499, {U'з', 1, false}},  /* Cyrillic small letter ze with descender */
-      {0x049A, {U'к', 1, true}},   /* Cyrillic capital letter ka with descender */
-      {0x049B, {U'к', 1, false}},  /* Cyrillic small letter ka with descender */
-      {0x049C, {U'к', 5, true}},   /* Cyrillic capital letter ka with vertical stroke */
-      {0x049D, {U'к', 5, false}},  /* Cyrillic small letter ka with vertical stroke */
-      {0x049E, {U'к', 4, true}},   /* Cyrillic capital letter ka with stroke */
-      {0x049F, {U'к', 4, false}},  /* Cyrillic small letter ka with stroke */
-      {0x04A0, {U'к', 3, true}},   /* Cyrillic capital letter bashkir ka */
-      {0x04A1, {U'к', 3, false}},  /* Cyrillic small letter bashkir ka */
-      {0x04A2, {U'н', 1, true}},   /* Cyrillic capital letter en with descender */
-      {0x04A3, {U'н', 1, false}},  /* Cyrillic small letter en with descender */
-      {0x04A4, {U'н', 3, true}},   /* Cyrillic capital ligature en ghe */
-      {0x04A5, {U'н', 3, false}},  /* Cyrillic small ligature en ghe */
-      {0x04A6, {U'п', 1, true}},   /* Cyrillic capital letter pe with middle hook */
-      {0x04A7, {U'п', 1, false}},  /* Cyrillic small letter pe with middle hook */
-      {0x04A8, {U'ҩ', 0, true}},   /* Cyrillic capital letter abkhasian ha */
-      {0x04A9, {U'ҩ', 0, false}},  /* Cyrillic small letter abkhasian ha */
-      {0x04AA, {U'с', 1, true}},   /* Cyrillic capital letter es with descender */
-      {0x04AB, {U'с', 1, false}},  /* Cyrillic small letter es with descender */
-      {0x04AC, {U'т', 1, true}},   /* Cyrillic capital letter te with descender */
-      {0x04AD, {U'т', 1, false}},  /* Cyrillic small letter te with descender */
-      {0x04AE, {U'у', 5, true}},   /* Cyrillic capital letter straight u */
-      {0x04AF, {U'у', 5, false}},  /* Cyrillic small letter straight u */
-      {0x04B0, {U'у', 6, true}},   /* Cyrillic capital letter straight u with stroke */
-      {0x04B1, {U'у', 6, false}},  /* Cyrillic small letter straight u with stroke */
-      {0x04B2, {U'х', 1, true}},   /* Cyrillic capital letter ha with descender */
-      {0x04B3, {U'х', 1, false}},  /* Cyrillic small letter ha with descender */
-      {0x04B4, {U'ц', 1, true}},   /* Cyrillic capital ligature te tse */
-      {0x04B5, {U'ц', 1, false}},  /* Cyrillic small ligature te tse */
-      {0x04B6, {U'ч', 2, true}},   /* Cyrillic capital letter che with descender */
-      {0x04B7, {U'ч', 2, false}},  /* Cyrillic small letter che with descender */
-      {0x04B8, {U'ч', 4, true}},   /* Cyrillic capital letter che with vertical stroke */
-      {0x04B9, {U'ч', 4, false}},  /* Cyrillic small letter che with vertical stroke */
-      {0x04BA, {U'һ', 0, true}},   /* Cyrillic capital letter shha */
-      {0x04BB, {U'һ', 0, false}},  /* Cyrillic small letter shha */
-      {0x04BC, {U'ч', 5, true}},   /* Cyrillic capital letter abkhasian che */
-      {0x04BD, {U'ч', 5, false}},  /* Cyrillic small letter abkhasian che */
-      {0x04BE, {U'ч', 6, true}},   /* Cyrillic capital letter abkhasian che with descender */
-      {0x04BF, {U'ч', 6, false}},  /* Cyrillic small letter abkhasian che with descender */
-      {0x04C0, {U'Ӏ', 0, true}},   /* Cyrillic letter palochka */
-      {0x04C1, {U'ж', 1, true}},   /* Cyrillic capital letter zhe with breve */
-      {0x04C2, {U'ж', 1, false}},  /* Cyrillic small letter zhe with breve */
-      {0x04C3, {U'к', 2, true}},   /* Cyrillic capital letter ka with hook */
-      {0x04C4, {U'к', 2, false}},  /* Cyrillic small letter ka with hook */
-      {0x04C7, {U'н', 2, true}},   /* Cyrillic capital letter en with hook */
-      {0x04C8, {U'н', 2, false}},  /* Cyrillic small letter en with hook */
-      {0x04CB, {U'ч', 3, true}},   /* Cyrillic capital letter khakassian che */
-      {0x04CC, {U'ч', 3, false}},  /* Cyrillic small letter khakassian che */
-      {0x04D0, {U'а', 1, true}},   /* Cyrillic capital letter a with breve */
-      {0x04D1, {U'а', 1, false}},  /* Cyrillic small letter a with breve */
-      {0x04D2, {U'а', 2, true}},   /* Cyrillic capital letter a with diaeresis */
-      {0x04D3, {U'а', 2, false}},  /* Cyrillic small letter a with diaeresis */
-      {0x04D4, {U'ӕ', 0, true}},   /* Cyrillic capital ligature a ie */
-      {0x04D5, {U'ӕ', 0, false}},  /* Cyrillic small ligature a ie */
-      {0x04D6, {U'е', 3, true}},   /* Cyrillic capital letter ie with breve */
-      {0x04D7, {U'е', 3, false}},  /* Cyrillic small letter ie with breve */
-      {0x04D8, {U'ә', 0, true}},   /* Cyrillic capital letter schwa */
-      {0x04D9, {U'ә', 0, false}},  /* Cyrillic small letter schwa */
-      {0x04DA, {U'ә', 1, true}},   /* Cyrillic capital letter schwa with diaeresis */
-      {0x04DB, {U'ә', 1, false}},  /* Cyrillic small letter schwa with diaeresis */
-      {0x04DC, {U'ж', 2, true}},   /* Cyrillic capital letter zhe with diaeresis */
-      {0x04DD, {U'ж', 2, false}},  /* Cyrillic small letter zhe with diaeresis */
-      {0x04DE, {U'з', 2, true}},   /* Cyrillic capital letter ze with diaeresis */
-      {0x04DF, {U'з', 2, false}},  /* Cyrillic small letter ze with diaeresis */
-      {0x04E0, {U'ѕ', 1, true}},   /* Cyrillic capital letter abkhasian dze */
-      {0x04E1, {U'ѕ', 1, false}},  /* Cyrillic small letter abkhasian dze */
-      {0x04E2, {U'и', 2, true}},   /* Cyrillic capital letter i with macron */
-      {0x04E3, {U'и', 2, false}},  /* Cyrillic small letter i with macron */
-      {0x04E4, {U'и', 3, true}},   /* Cyrillic capital letter i with diaeresis */
-      {0x04E5, {U'и', 3, false}},  /* Cyrillic small letter i with diaeresis */
-      {0x04E6, {U'о', 1, true}},   /* Cyrillic capital letter o with diaeresis */
-      {0x04E7, {U'о', 1, false}},  /* Cyrillic small letter o with diaeresis */
-      {0x04E8, {U'о', 2, true}},   /* Cyrillic capital letter barred o */
-      {0x04E9, {U'о', 2, false}},  /* Cyrillic small letter barred o */
-      {0x04EA, {U'о', 3, true}},   /* Cyrillic capital letter barred o with diaeresis */
-      {0x04EB, {U'о', 3, false}},  /* Cyrillic small letter barred o with diaeresis */
-      {0x04EE, {U'у', 1, true}},   /* Cyrillic capital letter u with macron */
-      {0x04EF, {U'у', 1, false}},  /* Cyrillic small letter u with macron */
-      {0x04F0, {U'у', 3, true}},   /* Cyrillic capital letter u with diaeresis */
-      {0x04F1, {U'у', 3, false}},  /* Cyrillic small letter u with diaeresis */
-      {0x04F2, {U'у', 4, true}},   /* Cyrillic capital letter u with double acute */
-      {0x04F3, {U'у', 4, false}},  /* Cyrillic small letter u with double acute */
-      {0x04F4, {U'ч', 1, true}},   /* Cyrillic capital letter che with diaeresis */
-      {0x04F5, {U'ч', 1, false}},  /* Cyrillic small letter che with diaeresis */
-      {0x04F8, {U'ы', 1, true}},   /* Cyrillic capital letter yeru with diaeresis */
-      {0x04F9, {U'ы', 1, false}},  /* Cyrillic small letter yeru with diaeresis */
-      {0x2126, {U'ω', 1, false}},  /* Ohm sign */
+      {0x0415, {U'е', 0, true}},  /* Cyrillic capital letter ie */
+      {0x0435, {U'е', 0, false}}, /* Cyrillic small letter ie */
+      {0x0404, {U'е', 1, true}},  /* Cyrillic capital letter ukrainian ie */
+      {0x0454, {U'е', 1, false}}, /* Cyrillic small letter ukrainian ie */
+      {0x0400, {U'е', 2, true}},  /* Cyrillic capital letter ie with grave */
+      {0x0450, {U'е', 2, false}}, /* Cyrillic small letter ie with grave */
+      {0x04D6, {U'е', 3, true}},  /* Cyrillic capital letter ie with breve */
+      {0x04D7, {U'е', 4, false}}, /* Cyrillic small letter ie with breve */
+      {0x0401, {U'е', 4, true}},  /* Cyrillic capital letter io */
+      {0x0451, {U'е', 4, false}}, /* Cyrillic small letter io */
+      {0x0402, {U'ђ', 0, true}},  /* Cyrillic capital letter dje */
+      {0x0452, {U'ђ', 0, false}}, /* Cyrillic small letter dje */
+      {0x0403, {U'ђ', 1, true}},  /* Cyrillic capital letter gje */
+      {0x0453, {U'ђ', 1, false}}, /* Cyrillic small letter gje */
+      {0x0405, {U'ѕ', 0, true}},  /* Cyrillic capital letter dze */
+      {0x0455, {U'ѕ', 0, false}}, /* Cyrillic small letter dze */
+      {0x04E0, {U'ѕ', 1, true}},  /* Cyrillic capital letter abkhasian dze */
+      {0x04E1, {U'ѕ', 1, false}}, /* Cyrillic small letter abkhasian dze */
+      {0x0418, {U'и', 0, true}},  /* Cyrillic capital letter i */
+      {0x0438, {U'и', 0, false}}, /* Cyrillic small letter i */
+      {0x0419, {U'и', 1, true}},  /* Cyrillic capital letter short i */
+      {0x0439, {U'и', 1, false}}, /* Cyrillic small letter short i */
+      {0x0406, {U'и', 2, true}},  /* Cyrillic capital letter byelorussian-ukrainian i */
+      {0x0456, {U'и', 2, false}}, /* Cyrillic small letter byelorussian-ukrainian i */
+      {0x040D, {U'и', 3, true}},  /* Cyrillic capital letter i with grave */
+      {0x045D, {U'и', 3, false}}, /* Cyrillic small letter i with grave */
+      {0x04E2, {U'и', 4, true}},  /* Cyrillic capital letter i with macron */
+      {0x04E3, {U'и', 4, false}}, /* Cyrillic small letter i with macron */
+      {0x04E4, {U'и', 5, true}},  /* Cyrillic capital letter i with diaeresis */
+      {0x04E5, {U'и', 5, false}}, /* Cyrillic small letter i with diaeresis */
+      {0x0407, {U'ї', 0, true}},  /* Cyrillic capital letter yi */
+      {0x0457, {U'ї', 0, false}}, /* Cyrillic small letter yi */
+      {0x0408, {U'ј', 0, true}},  /* Cyrillic capital letter je */
+      {0x0458, {U'ј', 0, false}}, /* Cyrillic small letter je */
+      {0x0409, {U'љ', 0, true}},  /* Cyrillic capital letter lje */
+      {0x0459, {U'љ', 0, false}}, /* Cyrillic small letter lje */
+      {0x040A, {U'њ', 0, true}},  /* Cyrillic capital letter nje */
+      {0x045A, {U'њ', 0, false}}, /* Cyrillic small letter nje */
+      {0x040B, {U'ћ', 0, true}},  /* Cyrillic capital letter tshe */
+      {0x045B, {U'ћ', 0, false}}, /* Cyrillic small letter tshe */
+      {0x040C, {U'ќ', 0, true}},  /* Cyrillic capital letter kje */
+      {0x045C, {U'ќ', 0, false}}, /* Cyrillic small letter kje */
+      {0x0423, {U'у', 0, true}},  /* Cyrillic capital letter u */
+      {0x0443, {U'у', 0, false}}, /* Cyrillic small letter u */
+      {0x040E, {U'у', 1, true}},  /* Cyrillic capital letter short u */
+      {0x045E, {U'у', 1, false}}, /* Cyrillic small letter short u */
+      {0x04AE, {U'у', 2, true}},  /* Cyrillic capital letter straight u */
+      {0x04AF, {U'у', 2, false}}, /* Cyrillic small letter straight u */
+      {0x04B0, {U'у', 3, true}},  /* Cyrillic capital letter straight u with stroke */
+      {0x04B1, {U'у', 3, false}}, /* Cyrillic small letter straight u with stroke */
+      {0x04EE, {U'у', 4, true}},  /* Cyrillic capital letter u with macron */
+      {0x04EF, {U'у', 4, false}}, /* Cyrillic small letter u with macron */
+      {0x04F0, {U'у', 5, true}},  /* Cyrillic capital letter u with diaeresis */
+      {0x04F1, {U'у', 5, false}}, /* Cyrillic small letter u with diaeresis */
+      {0x04F2, {U'у', 6, true}},  /* Cyrillic capital letter u with double acute */
+      {0x04F3, {U'у', 6, false}}, /* Cyrillic small letter u with double acute */
+      {0x040F, {U'џ', 0, true}},  /* Cyrillic capital letter dzhe */
+      {0x045F, {U'џ', 0, false}}, /* Cyrillic small letter dzhe */
+      {0x0410, {U'а', 0, true}},  /* Cyrillic capital letter a */
+      {0x0430, {U'а', 0, false}}, /* Cyrillic small letter a */
+      {0x04D0, {U'а', 1, true}},  /* Cyrillic capital letter a with breve */
+      {0x04D1, {U'а', 1, false}}, /* Cyrillic small letter a with breve */
+      {0x04D2, {U'а', 2, true}},  /* Cyrillic capital letter a with diaeresis */
+      {0x04D3, {U'а', 2, false}}, /* Cyrillic small letter a with diaeresis */
+      {0x0411, {U'б', 0, true}},  /* Cyrillic capital letter be */
+      {0x0431, {U'б', 0, false}}, /* Cyrillic small letter be */
+      {0x0412, {U'в', 0, true}},  /* Cyrillic capital letter ve */
+      {0x0432, {U'в', 0, false}}, /* Cyrillic small letter ve */
+      {0x0413, {U'г', 0, true}},  /* Cyrillic capital letter ghe */
+      {0x0433, {U'г', 0, false}}, /* Cyrillic small letter ghe */
+      {0x0490, {U'г', 1, true}},  /* Cyrillic capital letter ghe with upturn */
+      {0x0491, {U'г', 1, false}}, /* Cyrillic small letter ghe with upturn */
+      {0x0492, {U'г', 2, true}},  /* Cyrillic capital letter ghe with stroke */
+      {0x0493, {U'г', 2, false}}, /* Cyrillic small letter ghe with stroke */
+      {0x0494, {U'г', 3, true}},  /* Cyrillic capital letter ghe with middle hook */
+      {0x0495, {U'г', 3, false}}, /* Cyrillic small letter ghe with middle hook */
+      {0x0414, {U'д', 0, true}},  /* Cyrillic capital letter de */
+      {0x0434, {U'д', 0, false}}, /* Cyrillic small letter de */
+      {0x0416, {U'ж', 0, true}},  /* Cyrillic capital letter zhe */
+      {0x0436, {U'ж', 0, false}}, /* Cyrillic small letter zhe */
+      {0x0496, {U'ж', 1, true}},  /* Cyrillic capital letter zhe with descender */
+      {0x0497, {U'ж', 1, false}}, /* Cyrillic small letter zhe with descender */
+      {0x04C1, {U'ж', 2, true}},  /* Cyrillic capital letter zhe with breve */
+      {0x04C2, {U'ж', 2, false}}, /* Cyrillic small letter zhe with breve */
+      {0x04DC, {U'ж', 3, true}},  /* Cyrillic capital letter zhe with diaeresis */
+      {0x04DD, {U'ж', 3, false}}, /* Cyrillic small letter zhe with diaeresis */
+      {0x0417, {U'з', 0, true}},  /* Cyrillic capital letter ze */
+      {0x0437, {U'з', 0, false}}, /* Cyrillic small letter ze */
+      {0x0498, {U'з', 1, true}},  /* Cyrillic capital letter ze with descender */
+      {0x0499, {U'з', 1, false}}, /* Cyrillic small letter ze with descender */
+      {0x04DE, {U'з', 2, true}},  /* Cyrillic capital letter ze with diaeresis */
+      {0x04DF, {U'з', 2, false}}, /* Cyrillic small letter ze with diaeresis */
+      {0x041A, {U'к', 0, true}},  /* Cyrillic capital letter ka */
+      {0x043A, {U'к', 0, false}}, /* Cyrillic small letter ka */
+      {0x049A, {U'к', 1, true}},  /* Cyrillic capital letter ka with descender */
+      {0x049B, {U'к', 1, false}}, /* Cyrillic small letter ka with descender */
+      {0x049C, {U'к', 2, true}},  /* Cyrillic capital letter ka with vertical stroke */
+      {0x049D, {U'к', 2, false}}, /* Cyrillic small letter ka with vertical stroke */
+      {0x049E, {U'к', 3, true}},  /* Cyrillic capital letter ka with stroke */
+      {0x049F, {U'к', 3, false}}, /* Cyrillic small letter ka with stroke */
+      {0x04A0, {U'к', 4, true}},  /* Cyrillic capital letter bashkir ka */
+      {0x04A1, {U'к', 4, false}}, /* Cyrillic small letter bashkir ka */
+      {0x04C3, {U'к', 5, true}},  /* Cyrillic capital letter ka with hook */
+      {0x04C4, {U'к', 5, false}}, /* Cyrillic small letter ka with hook */
+      {0x041B, {U'л', 0, true}},  /* Cyrillic capital letter el */
+      {0x043B, {U'л', 0, false}}, /* Cyrillic small letter el */
+      {0x041C, {U'м', 0, true}},  /* Cyrillic capital letter em */
+      {0x043C, {U'м', 0, false}}, /* Cyrillic small letter em */
+      {0x041D, {U'н', 0, true}},  /* Cyrillic capital letter en */
+      {0x043D, {U'н', 0, false}}, /* Cyrillic small letter en */
+      {0x04A2, {U'н', 1, true}},  /* Cyrillic capital letter en with descender */
+      {0x04A3, {U'н', 1, false}}, /* Cyrillic small letter en with descender */
+      {0x04A4, {U'н', 2, true}},  /* Cyrillic capital ligature en ghe */
+      {0x04A5, {U'н', 2, false}}, /* Cyrillic small ligature en ghe */
+      {0x04C7, {U'н', 3, true}},  /* Cyrillic capital letter en with hook */
+      {0x04C8, {U'н', 3, false}}, /* Cyrillic small letter en with hook */
+      {0x041E, {U'о', 0, true}},  /* Cyrillic capital letter o */
+      {0x043E, {U'о', 0, false}}, /* Cyrillic small letter o */
+      {0x04E6, {U'о', 1, true}},  /* Cyrillic capital letter o with diaeresis */
+      {0x04E7, {U'о', 1, false}}, /* Cyrillic small letter o with diaeresis */
+      {0x04E8, {U'о', 2, true}},  /* Cyrillic capital letter barred o */
+      {0x04E9, {U'о', 2, false}}, /* Cyrillic small letter barred o */
+      {0x04EA, {U'о', 3, true}},  /* Cyrillic capital letter barred o with diaeresis */
+      {0x04EB, {U'о', 3, false}}, /* Cyrillic small letter barred o with diaeresis */
+      {0x041F, {U'п', 0, true}},  /* Cyrillic capital letter pe */
+      {0x043F, {U'п', 0, false}}, /* Cyrillic small letter pe */
+      {0x04A6, {U'п', 1, true}},  /* Cyrillic capital letter pe with middle hook */
+      {0x04A7, {U'п', 1, false}}, /* Cyrillic small letter pe with middle hook */
+      {0x0420, {U'р', 0, true}},  /* Cyrillic capital letter er */
+      {0x0440, {U'р', 0, false}}, /* Cyrillic small letter er */
+      {0x0421, {U'с', 0, true}},  /* Cyrillic capital letter es */
+      {0x0441, {U'с', 0, false}}, /* Cyrillic small letter es */
+      {0x04AA, {U'с', 1, true}},  /* Cyrillic capital letter es with descender */
+      {0x04AB, {U'с', 1, false}}, /* Cyrillic small letter es with descender */
+      {0x0422, {U'т', 0, true}},  /* Cyrillic capital letter te */
+      {0x0442, {U'т', 0, false}}, /* Cyrillic small letter te */
+      {0x04AC, {U'т', 1, true}},  /* Cyrillic capital letter te with descender */
+      {0x04AD, {U'т', 1, false}}, /* Cyrillic small letter te with descender */
+      {0x0424, {U'ф', 0, true}},  /* Cyrillic capital letter ef */
+      {0x0444, {U'ф', 0, false}}, /* Cyrillic small letter ef */
+      {0x0425, {U'х', 0, true}},  /* Cyrillic capital letter ha */
+      {0x0445, {U'х', 0, false}}, /* Cyrillic small letter ha */
+      {0x04B2, {U'х', 1, true}},  /* Cyrillic capital letter ha with descender */
+      {0x04B3, {U'х', 1, false}}, /* Cyrillic small letter ha with descender */
+      {0x0426, {U'ц', 0, true}},  /* Cyrillic capital letter tse */
+      {0x0446, {U'ц', 0, false}}, /* Cyrillic small letter tse */
+      {0x04B4, {U'ц', 1, true}},  /* Cyrillic capital ligature te tse */
+      {0x04B5, {U'ц', 1, false}}, /* Cyrillic small ligature te tse */
+      {0x0427, {U'ч', 0, true}},  /* Cyrillic capital letter che */
+      {0x0447, {U'ч', 0, false}}, /* Cyrillic small letter che */
+      {0x04B6, {U'ч', 1, true}},  /* Cyrillic capital letter che with descender */
+      {0x04B7, {U'ч', 1, false}}, /* Cyrillic small letter che with descender */
+      {0x04B8, {U'ч', 2, true}},  /* Cyrillic capital letter che with vertical stroke */
+      {0x04B9, {U'ч', 2, false}}, /* Cyrillic small letter che with vertical stroke */
+      {0x04BC, {U'ч', 3, true}},  /* Cyrillic capital letter abkhasian che */
+      {0x04BD, {U'ч', 3, false}}, /* Cyrillic small letter abkhasian che */
+      {0x04BE, {U'ч', 4, true}},  /* Cyrillic capital letter abkhasian che with descender */
+      {0x04BF, {U'ч', 4, false}}, /* Cyrillic small letter abkhasian che with descender */
+      {0x04CB, {U'ч', 5, true}},  /* Cyrillic capital letter khakassian che */
+      {0x04CC, {U'ч', 5, false}}, /* Cyrillic small letter khakassian che */
+      {0x04F4, {U'ч', 6, true}},  /* Cyrillic capital letter che with diaeresis */
+      {0x04F5, {U'ч', 6, false}}, /* Cyrillic small letter che with diaeresis */
+      {0x0428, {U'ш', 0, true}},  /* Cyrillic capital letter sha */
+      {0x0448, {U'ш', 0, false}}, /* Cyrillic small letter sha */
+      {0x0429, {U'щ', 0, true}},  /* Cyrillic capital letter shcha */
+      {0x0449, {U'щ', 0, false}}, /* Cyrillic small letter shcha */
+      {0x042A, {U'ъ', 0, true}},  /* Cyrillic capital letter hard sign */
+      {0x044A, {U'ъ', 0, false}}, /* Cyrillic small letter hard sign */
+      {0x042B, {U'ы', 0, true}},  /* Cyrillic capital letter yeru */
+      {0x044B, {U'ы', 0, false}}, /* Cyrillic small letter yeru */
+      {0x04F8, {U'ы', 1, true}},  /* Cyrillic capital letter yeru with diaeresis */
+      {0x04F9, {U'ы', 1, false}}, /* Cyrillic small letter yeru with diaeresis */
+      {0x042C, {U'ь', 0, true}},  /* Cyrillic capital letter soft sign */
+      {0x044C, {U'ь', 0, false}}, /* Cyrillic small letter soft sign */
+      {0x042D, {U'э', 0, true}},  /* Cyrillic capital letter e */
+      {0x044D, {U'э', 0, false}}, /* Cyrillic small letter e */
+      {0x042E, {U'ю', 0, true}},  /* Cyrillic capital letter yu */
+      {0x044E, {U'ю', 0, false}}, /* Cyrillic small letter yu */
+      {0x042F, {U'я', 0, true}},  /* Cyrillic capital letter ya */
+      {0x044F, {U'я', 0, false}}, /* Cyrillic small letter ya */
+      {0x04A8, {U'ҩ', 0, true}},  /* Cyrillic capital letter abkhasian ha */
+      {0x04A9, {U'ҩ', 0, false}}, /* Cyrillic small letter abkhasian ha */
+      {0x04BA, {U'һ', 0, true}},  /* Cyrillic capital letter shha */
+      {0x04BB, {U'һ', 0, false}}, /* Cyrillic small letter shha */
+      {0x04C0, {U'Ӏ', 0, true}},  /* Cyrillic letter palochka */
+      {0x04D4, {U'ӕ', 0, true}},  /* Cyrillic capital ligature a ie */
+      {0x04D5, {U'ӕ', 0, false}}, /* Cyrillic small ligature a ie */
+      {0x04D8, {U'ә', 0, true}},  /* Cyrillic capital letter schwa */
+      {0x04D9, {U'ә', 0, false}}, /* Cyrillic small letter schwa */
+      {0x04DA, {U'ә', 1, true}},  /* Cyrillic capital letter schwa with diaeresis */
+      {0x04DB, {U'ә', 1, false}}, /* Cyrillic small letter schwa with diaeresis */
   };
 }());
 
@@ -817,12 +817,16 @@ struct Ligature {
 
 static const Map<uint32_t, Ligature> &ligatures = *([]() {
   return new Map<uint32_t, Ligature>{
+      {0x215B, {U'1', U'/', U'8', false}}, /* Vulgar fraction one eighth. */
       {0x00BC, {U'1', U'/', U'4', false}}, /* Vulgar fraction one quarter. */
+      {0x215C, {U'3', U'/', U'8', false}}, /* Vulgar fraction three eighths. */
       {0x00BD, {U'1', U'/', U'2', false}}, /* Vulgar fraction one half. */
+      {0x215D, {U'3', U'/', U'5', false}}, /* Vulgar fraction three fifths. */
       {0x00BE, {U'3', U'/', U'4', false}}, /* Vulgar fraction three quarters. */
+      {0x215E, {U'7', U'/', U'8', false}}, /* Vulgar fraction seven eighths. */
       {0x00C6, {U'a', U'e', 0, true}},     /* Latin capital letter AE */
-      {0x00DF, {U's', U's', 0, false}},    /* Latin small letter sharp S. */
       {0x00E6, {U'a', U'e', 0, false}},    /* Latin small letter AE */
+      {0x00DF, {U's', U's', 0, false}},    /* Latin small letter sharp S. */
       {0x0132, {U'i', U'j', 0, true}},     /* Latin capital ligature FL. */
       {0x0133, {U'i', U'j', 0, false}},    /* Latin small ligature FL. */
       {0x0152, {U'o', U'e', 0, true}},     /* Latin capital ligature OE. */
@@ -831,21 +835,17 @@ static const Map<uint32_t, Ligature> &ligatures = *([]() {
       {0x01E3, {U'a', U'e', 0, false}},    /* Latin small letter AE with macron. */
       {0x01FC, {U'a', U'e', 0, true}},     /* Latin capital letter AE with acute. */
       {0x01FD, {U'a', U'e', 0, false}},    /* Latin small letter AE with acute. */
-      {0x2105, {U'c', U'o', 0, false}},    /* Care of. */
+      {0xFB01, {U'f', U'i', 0, false}},    /* Latin small ligature FI. */
+      {0xFB02, {U'f', U'l', 0, false}},    /* Latin small ligature FL. */
       {0x04A4, {U'н', U'г', 0, true}},     /* Cyrillic capital ligature EN GHE. */
       {0x04A5, {U'н', U'г', 0, false}},    /* Cyrillic small ligature EN GHE. */
       {0x04B4, {U'т', U'ц', 0, true}},     /* Cyrillic capital ligature TE TSE. */
       {0x04B5, {U'т', U'ц', 0, false}},    /* Cyrillic small ligature TE TSE. */
       {0x04D4, {U'а', U'е', 0, true}},     /* Cyrillic capital ligature A IE.  */
       {0x04D5, {U'а', U'е', 0, false}},    /* Cyrillic small ligature A IE.  */
+      {0x2105, {U'c', U'o', 0, false}},    /* Care of. */
       {0x2116, {U'n', U'o', 0, false}},    /* Numero sign. */
       {0x2122, {U't', U'm', 0, false}},    /* Trade mark sign. */
-      {0x215B, {U'1', U'/', U'8', false}}, /* Vulgar fraction one eighth. */
-      {0x215C, {U'3', U'/', U'8', false}}, /* Vulgar fraction three eighths. */
-      {0x215D, {U'3', U'/', U'5', false}}, /* Vulgar fraction three fifths. */
-      {0x215E, {U'7', U'/', U'8', false}}, /* Vulgar fraction seven eighths. */
-      {0xFB01, {U'f', U'i', 0, false}},    /* Latin small ligature FI. */
-      {0xFB02, {U'f', U'l', 0, false}}     /* Latin small ligature FL. */
   };
 }());
 
