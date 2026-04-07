@@ -16,18 +16,20 @@ template<enum Sampler sampler> static inline float weight(float x) {}
  * at the center of the pixel is correct. This results in a small sharpening effect that looks
  * better, and is also simpler to calculate.
  * This differs from the C implementation in math_interp as it relies on texture() to do the
- * wrapping and to bilinear sample 4 pixels at a time.
+ * wrapping and bilinear sample 4 pixels at a time.
  * todo: using bilinear sampling does not work if one of the samples is negative
  * todo: fix for filters with radius != 2
  */
 template<enum Sampler sampler>
-float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect(const sampler2D &source, const float2 &uvn, const float2 &whn)
 {
-  const float2 w1 = max(wh, 1.0f);
+  const float2 size = float2(textureSize(source, 0));
+  const float2 w1 = max(whn * size, 1.0f);
   const float2 r = 2 * w1;
-  const float2 a = (floor(uv - r + 0.5f) + 0.5f);              // first non-zero sample
-  const float2 d = ceil(r / 16.0f);                            // distance between samples
-  const float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
+  const float2 uv = uvn * size;
+  const float2 a = (floor(uv - r + 0.5f) + 0.5f); // first non-zero sample
+  const float2 d = ceil(r / 16.0f);               // distance between samples
+  const float2 scale = 1.0f / size;               // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
   float divx = 0.0f;
@@ -61,12 +63,14 @@ float4 sample_rect(const sampler2D &source, const float2 &uv, const float2 &wh)
 
 /* specialized as r is smaller and weight function needs to know size of a pixel */
 template<>
-float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uv, const float2 &wh)
+float4 sample_rect<Sampler::Box>(const sampler2D &source, const float2 &uvn, const float2 &whn)
 {
-  const float2 r = max((wh + 1) / 2.0f, 1.0f);
-  const float2 a = floor(uv - r + 0.5f) + 0.5f;                // first non-zero sample
-  const float2 d = ceil(r / 8.0f);                             // distance between samples
-  const float2 scale = 1.0f / float2(textureSize(source, 0));  // convert to texture coordinates
+  const float2 size = float2(textureSize(source, 0));
+  const float2 r = max((whn * size + 1) / 2.0f, 1.0f);
+  const float2 uv = uvn * size;
+  const float2 a = floor(uv - r + 0.5f) + 0.5f; // first non-zero sample
+  const float2 d = ceil(r / 8.0f);              // distance between samples
+  const float2 scale = 1.0f / size;             // convert to texture coordinates
   // precompute the horizontal filter so it can be reused
   float2 xfilter[33];  // pairs of u,weight
   float divx = 0.0f;
@@ -104,5 +108,5 @@ template<> float weight<Sampler::Bspline>(float x)
                     ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
 template float4 sample_rect<Sampler::Bspline>(const sampler2D &source,
-                                              const float2 &uv,
-                                              const float2 &wh);
+                                              const float2 &uvn,
+                                              const float2 &whn);
