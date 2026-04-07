@@ -48,23 +48,28 @@ StringRefNull BlenderProject::get_root_path() const
 
 }  // namespace bke
 
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain)
 {
+  BLI_assert(bmain->is_global_main);
+  if (!bmain->is_global_main) {
+    return false;
+  }
+
   if (name.is_empty() || root_path.is_empty()) {
     return false;
   }
 
-  BKE_blender_project_clear();
+  BKE_blender_project_clear(bmain);
 
-  G_MAIN->project = blender::bke::BlenderProject();
+  bmain->project = blender::bke::BlenderProject();
 
-  G_MAIN->project->set_name(name);
-  G_MAIN->project->set_root_path(root_path);
+  bmain->project->set_name(name);
+  bmain->project->set_root_path(root_path);
 
   return true;
 }
 
-void BKE_blender_project_clear()
+void BKE_blender_project_clear(Main *bmain)
 {
   /* At the moment this function is quite anemic, and doesn't really justify
    * being a separate function. However, as future milestones like
@@ -72,11 +77,16 @@ void BKE_blender_project_clear()
    * one place the code for ensuring those things are properly unloaded when the
    * active project is cleared. */
 
-  if (!G_MAIN->project.has_value()) {
+  BLI_assert(bmain->is_global_main);
+  if (!bmain->is_global_main) {
     return;
   }
 
-  G_MAIN->project = std::nullopt;
+  if (!bmain->project.has_value()) {
+    return;
+  }
+
+  bmain->project = std::nullopt;
 }
 
 }  // namespace blender

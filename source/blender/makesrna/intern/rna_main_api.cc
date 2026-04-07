@@ -177,12 +177,19 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
 }
 
 #  ifdef WITH_BLENDER_PROJECTS
-static void rna_Main_blender_project_init(PointerRNA /* ptr */,
+static void rna_Main_blender_project_init(struct BlendData *blenddata,
                                           ReportList *reports,
                                           const char *name,
                                           const char *project_root)
 {
-  if (!BKE_blender_project_init(name, project_root)) {
+  Main *bmain = reinterpret_cast<Main *>(blenddata);
+
+  if (!bmain->is_global_main) {
+    BKE_reportf(reports, RPT_ERROR, "Only the main (global) data can have a project.");
+    return;
+  }
+
+  if (!BKE_blender_project_init(name, project_root, bmain)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Failed to initialize project. Ensure that both the name and project_root "
@@ -193,9 +200,16 @@ static void rna_Main_blender_project_init(PointerRNA /* ptr */,
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
-static void rna_Main_blender_project_clear(PointerRNA /* ptr */)
+static void rna_Main_blender_project_clear(struct BlendData *blenddata, ReportList *reports)
 {
-  BKE_blender_project_clear();
+  Main *bmain = reinterpret_cast<Main *>(blenddata);
+
+  if (!bmain->is_global_main) {
+    BKE_reportf(reports, RPT_ERROR, "Only the main (global) data can have a project.");
+    return;
+  }
+
+  BKE_blender_project_clear(bmain);
 
   /* Force full redraw of all windows. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -934,7 +948,7 @@ void RNA_api_main(StructRNA *srna)
 
 #  ifdef WITH_BLENDER_PROJECTS
   func = RNA_def_function(srna, "project_init", "rna_Main_blender_project_init");
-  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_string_dir_path(
@@ -942,7 +956,7 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "project_clear", "rna_Main_blender_project_clear");
-  RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
 #  endif
 }
 

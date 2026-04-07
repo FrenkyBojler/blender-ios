@@ -14,6 +14,8 @@
 
 namespace blender {
 
+struct Main;
+
 namespace bke {
 
 /**
@@ -76,17 +78,21 @@ class BlenderProject {
  * existing project (if any) is cleared, the project is initialized with the
  * given values, and true is returned.
  *
- * NOTE: the active Blender Project (which this operates on) lives in the global
- * Main (a.k.a. `G_MAIN`).
+ * WARNING: this should only ever be called with the global Main (a.k.a.
+ * `G_MAIN`) passed as `bmain`.  Projects on Mains other than the global one,
+ * and more generally more than one simultaneously active project, ARE NOT
+ * CURRENTLY SUPPORTED and you are likely to break things if you naively try.
  */
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain);
 
 /**
  * Clears and unloads the current active project, if any.
  *
- * NOTE: the active Blender Project (which this operates on) lives in the global
- * Main (a.k.a. `G_MAIN`).
+ * WARNING: this should only ever be called with the global Main (a.k.a.
+ * `G_MAIN`) passed as `bmain`.  Projects on Mains other than the global one,
+ * and more generally more than one simultaneously active project, ARE NOT
+ * CURRENTLY SUPPORTED and you are likely to break things if you naively try.
  */
-void BKE_blender_project_clear();
+void BKE_blender_project_clear(Main *bmain);
 
 }  // namespace blender
