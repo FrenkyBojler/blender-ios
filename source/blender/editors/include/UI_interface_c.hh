@@ -1245,6 +1245,13 @@ std::optional<std::string> button_online_manual_id_from_active(const bContext *C
     ATTR_WARN_UNUSED_RESULT;
 bool button_is_userdef(const Button *but);
 
+void *button_func_argN_get(const Button *but);
+void button_poin_menu_argN_set(Button *but,
+                               void *poin,
+                               void *argN,
+                               ButtonArgNFree func_argN_free_fn,
+                               ButtonArgNCopy func_argN_copy_fn);
+
 /* Buttons
  *
  * Functions to define various types of buttons in a block. Postfixes:
@@ -3043,7 +3050,7 @@ void butstore_register(ButStore *bs_handle, Button **but_p);
 bool butstore_register_update(Block *block, Button *but_dst, const Button *but_src);
 void butstore_unregister(ButStore *bs_handle, Button **but_p);
 
-/* ui_interface_region_tooltip.c */
+/* interface_region_tooltip.cc */
 
 /**
  * \param is_quick_tip: See #button_func_quick_tooltip_set for what a quick tooltip is.
