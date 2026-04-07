@@ -7,6 +7,7 @@
 #include "BLI_array.hh"
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
+#include "BLI_span.hh"
 #include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
@@ -220,6 +221,48 @@ static void draw_mask_input_type_settings(const bContext &C, ui::Layout &layout,
   }
 }
 
+static void draw_error_message(const bNodeTree &tree, ui::Layout &layout, const bool is_mask_used)
+{
+  const Span<const bNodeTreeInterfaceSocket *> interface_inputs = tree.interface_inputs();
+  const Span<const bNodeTreeInterfaceSocket *> interface_ouputs = tree.interface_outputs();
+
+  if (interface_inputs.size() > 0) {
+    const bke::bNodeSocketType *typeinfo = interface_inputs[0]->socket_typeinfo();
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    if (socket_type != SOCK_RGBA) {
+      ui::Layout &row = layout.row(false);
+      row.label(RPT_("The first node group input must have the Color type"), ICON_ERROR);
+    }
+  }
+
+  if (is_mask_used) {
+    if (interface_inputs.size() < 1) {
+      ui::Layout &row = layout.row(false);
+      row.label(RPT_("Node group must have at least two inputs to use the mask input"),
+                ICON_ERROR);
+    }
+    const bke::bNodeSocketType *typeinfo = interface_inputs[1]->socket_typeinfo();
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    if (socket_type != SOCK_RGBA) {
+      ui::Layout &row = layout.row(false);
+      row.label(RPT_("The second node group input must have the Color type"), ICON_ERROR);
+    }
+  }
+
+  if (interface_ouputs.is_empty()) {
+    ui::Layout &row = layout.row(false);
+    row.label(RPT_("Node group must have an output"), ICON_ERROR);
+  }
+  else {
+    const bke::bNodeSocketType *typeinfo = interface_ouputs[0]->socket_typeinfo();
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    if (socket_type != SOCK_RGBA) {
+      ui::Layout &row = layout.row(false);
+      row.label(RPT_("The first node group output must have the Color type"), ICON_ERROR);
+    }
+  }
+}
+
 void draw_compositor_nodes_modifier_ui(const bContext &C,
                                        PointerRNA *modifier_ptr,
                                        ui::Layout &layout)
@@ -241,6 +284,8 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
   const bool is_mask_used = smd.mask_input_type == STRIP_MASK_INPUT_STRIP ?
                                 smd.mask_strip != nullptr :
                                 smd.mask_id != nullptr;
+
+  draw_error_message(*cmd.node_group, layout, is_mask_used);
 
   if (cmd.node_group != nullptr && !(ID_MISSING(cmd.node_group))) {
     bNodeTree &tree = *cmd.node_group;

@@ -1111,37 +1111,6 @@ static void node_group_output_layout(ui::Layout &layout, bContext *C, PointerRNA
 
 }  // namespace nodes
 
-static void node_group_input_extra_info(nodes::NodeExtraInfoParams &parameters)
-{
-  if (parameters.tree.type != NTREE_COMPOSIT) {
-    return;
-  }
-
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
-  if (space_node->edittree != space_node->nodetree) {
-    return;
-  }
-
-  if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SEQUENCER) {
-    return;
-  }
-
-  Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
-  if (group_inputs[0]->type != SOCK_RGBA) {
-    nodes::NodeExtraInfoRow row;
-    row.text = IFACE_("Unsupported Input");
-    row.icon = ICON_WARNING_LARGE;
-    row.tooltip = TIP_("The first input needs to be an Image input for the strip input");
-    parameters.rows.append(std::move(row));
-  }
-  if (group_inputs[1]->type != SOCK_RGBA) {
-    nodes::NodeExtraInfoRow row;
-    row.text = IFACE_("Unsupported Input");
-    row.icon = ICON_WARNING_LARGE;
-    row.tooltip = TIP_("The second input needs to be an Image input for the mask input");
-    parameters.rows.append(std::move(row));
-  }
-}
 
 void register_node_type_group_input()
 {
@@ -1158,7 +1127,6 @@ void register_node_type_group_input()
   bke::node_type_size(*ntype, 140, 80, 400);
   ntype->declare = nodes::group_input_declare;
   ntype->insert_link = nodes::group_input_insert_link;
-  ntype->get_extra_info = node_group_input_extra_info;
   ntype->draw_buttons_ex = nodes::node_group_input_layout;
   ntype->no_muting = true;
 
