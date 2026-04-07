@@ -2038,7 +2038,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   BLI_assert(but->type == ButtonType::TextBox);
 
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
-  const int visible_lines = textbox->visible_lines;
+  const int visible_lines = textbox->state->visible_lines;
   const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   fontstyle_set(fstyle);
 
@@ -2048,9 +2048,9 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     grip.flag |= UI_HIDDEN;
   }
   const float line_height = BLI_rcti_size_y(&rect) / float(visible_lines);
-  textbox->line_scroll_set(textbox->line_scroll);
+  textbox->line_scroll_set(textbox->state->scroll);
 
-  const int scroll = textbox->line_scroll;
+  const int scroll = textbox->state->scroll;
   const char *str = lines[0].begin();
 
   int line_cursor = 0;
@@ -2321,7 +2321,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   const float factor = float(scroll_rect.ymax - scroll_rect.ymin) / float(lines.size());
 
-  slider_rect.ymax -= std::ceil(factor * textbox->line_scroll);
+  slider_rect.ymax -= std::ceil(factor * textbox->state->scroll);
   slider_rect.ymin = slider_rect.ymax - std::ceil(factor * visible_lines);
   if (BLI_rcti_size_y(&slider_rect) < (10.0f / but->block->aspect)) {
     float center = BLI_rcti_cent_y_fl(&slider_rect);

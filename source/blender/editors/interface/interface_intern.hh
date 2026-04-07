@@ -375,10 +375,10 @@ struct TextWrapCache {
 /** Derived struct for #ButtonType::TextBox */
 struct ButtonTextBox : public Button {
 
-  int line_scroll = 0;
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
-  int visible_lines = 0;
+
+  uiTextboxState *state;
 
   /** Wrap cache from last redraw/event handling. */
   std::unique_ptr<TextWrapCache> wrap_cache;

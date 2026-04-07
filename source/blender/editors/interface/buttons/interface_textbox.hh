@@ -16,10 +16,13 @@
 
 namespace blender {
 struct ARegion;
+struct uiTextboxState;
 
 namespace ui {
 
 struct ButtonTextBox;
+
+constexpr int textbox_minimum_visible_lines = 3;
 
 void textbox_add_scroll(ButtonTextBox *textbox, int step);
 
@@ -51,6 +54,8 @@ float textbox_grip_height();
 float textbox_padding_top();
 /* Bottom padding for text in a textbox, this includes grip height. */
 float textbox_padding_bottom();
+
+uiTextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname);
 
 }  // namespace ui
 }  // namespace blender

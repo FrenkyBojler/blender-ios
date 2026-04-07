@@ -1121,7 +1121,6 @@ static bool but_update_from_old_block(Block *block,
   if (oldbut->type == ButtonType::TextBox) {
     ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
     ButtonTextBox *old_textbox = static_cast<ButtonTextBox *>(oldbut);
-    textbox->line_scroll = old_textbox->line_scroll;
     textbox->last_total_lines = old_textbox->last_total_lines;
     /* Steal text wrap cache if the old textbox is not active. */
     if (!(oldbut->active || oldbut->semi_modal_state)) {

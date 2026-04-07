@@ -658,10 +658,15 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    StringRefNull searchpropname,
                    std::optional<StringRefNull> name,
                    int icon);
-  void prop_textbox(PointerRNA *ptr,
+  /* Adds a string property item as textbox, this will let multiline text editing.
+   * \param visible_lines_ptr: Optional RNA pointer to store textbox visible lines, which can be
+   * shared between multiple regions.
+   * \param visible_lines_propname: Property in \a visible_lines_ptr. */
+  void prop_textbox(const bContext *C,
+                    PointerRNA *ptr,
                     StringRefNull propname,
                     PointerRNA *visible_lines_ptr,
-                    StringRefNull visible_lines_propname);
+                    std::optional<StringRefNull> visible_lines_propname);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.

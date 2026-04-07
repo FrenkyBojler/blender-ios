@@ -2,8 +2,10 @@
 
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "BLF_api.hh"
 
@@ -30,7 +32,7 @@ void invalidate_text_wrap_cache(const ARegion &region)
 void textbox_add_scroll(ButtonTextBox *textbox, int step)
 {
   textbox->last_total_lines = textbox_wrap_lines(textbox).size();
-  textbox->line_scroll_set(textbox->line_scroll + step);
+  textbox->line_scroll_set(textbox->state->scroll + step);
 }
 
 void textbox_scroll_to_cursor(ButtonTextBox *textbox)
@@ -53,8 +55,8 @@ void textbox_scroll_to_cursor(ButtonTextBox *textbox)
     }
     line_cursor++;
   }
-  const int visible_bounds[] = {textbox->line_scroll,
-                                textbox->line_scroll + textbox->visible_lines};
+  const int visible_bounds[] = {textbox->state->scroll,
+                                textbox->state->scroll + textbox->state->visible_lines};
   if (visible_bounds[0] <= line_cursor && line_cursor < visible_bounds[1]) {
     return;
   }
@@ -86,10 +88,11 @@ void textbox_textedit_set_cursor_pos(ButtonTextBox *textbox,
   const float aspect = textbox->block->aspect;
   fontscale(&fstyle.points, aspect);
   fontstyle_set(&fstyle);
-  int line_under_mouse = textbox->line_scroll +
-                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines);
-  line_under_mouse = std::clamp<int>(
-      line_under_mouse, textbox->line_scroll, textbox->line_scroll + textbox->visible_lines - 1);
+  int line_under_mouse = textbox->state->scroll +
+                         (end.y - xy.y) / (end.y - start.y) * (textbox->state->visible_lines);
+  line_under_mouse = std::clamp<int>(line_under_mouse,
+                                     textbox->state->scroll,
+                                     textbox->state->scroll + textbox->state->visible_lines - 1);
   line_under_mouse = std::clamp<int>(line_under_mouse, 0, lines.size() - 1);
 
   const StringRef line = lines[line_under_mouse];
@@ -262,10 +265,10 @@ float textbox_grip_height()
 
 void ButtonTextBox::line_scroll_set(int line_scroll)
 {
-  this->line_scroll = line_scroll;
+  this->state->scroll = line_scroll;
   /* Clamp line scroll. */
-  const int max_scroll = std::max(this->last_total_lines - this->visible_lines, 0);
-  this->line_scroll = std::clamp(this->line_scroll, 0, max_scroll);
+  const int max_scroll = std::max(this->last_total_lines - this->state->visible_lines, 0);
+  this->state->scroll = std::clamp(this->state->scroll, 0, max_scroll);
 }
 
 float textbox_padding_top()
@@ -276,6 +279,20 @@ float textbox_padding_top()
 float textbox_padding_bottom()
 {
   return textbox_grip_height() + 0.25f * UI_SCALE_FAC;
+}
+
+uiTextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname)
+{
+  for (uiTextboxStateLink &link : region->textbox_states) {
+    if (link.idname == idname) {
+      return &link.state;
+    }
+  }
+  uiTextboxStateLink *link = MEM_new<uiTextboxStateLink>(__func__);
+  link->idname = BLI_strdupn(idname.data(), idname.size());
+  link->state.visible_lines = textbox_minimum_visible_lines;
+  BLI_addtail(&region->textbox_states, link);
+  return &link->state;
 }
 
 }  // namespace blender::ui

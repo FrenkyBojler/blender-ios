@@ -106,12 +106,19 @@ std::optional<StringRefNull> rna_translate_ui_text(
 }
 
 static void rna_uiItemTextBox(Layout *layout,
+                              bContext *C,
                               PointerRNA *ptr,
                               const char *propname,
                               PointerRNA *visible_lines_ptr,
                               const char *visible_lines_propname)
 {
-  layout->prop_textbox(ptr, propname, visible_lines_ptr, visible_lines_propname);
+  layout->prop_textbox(C,
+                       ptr,
+                       propname,
+                       visible_lines_ptr,
+                       visible_lines_propname ?
+                           std::make_optional<StringRefNull>(visible_lines_propname) :
+                           std::nullopt);
 }
 
 static void rna_uiItemR(Layout *layout,
@@ -1509,20 +1516,22 @@ void RNA_api_ui_layout(StructRNA *srna)
 
   /* items */
   func = RNA_def_function(srna, "prop_textbox", "rna_uiItemTextBox");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
   parm = RNA_def_pointer(func,
                          "visible_lines_dataptr",
                          "AnyType",
                          "",
-                         "Data from which to take the textbox visible lines property");
-  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+                         "Optional data storage for storing textbox visible lines, so it can be "
+                         "shared between multiple regions");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   parm = RNA_def_string(func,
                         "visible_lines_propname",
                         nullptr,
                         0,
                         "",
                         "Identifier of property in visible_lines_dataptr");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), ParameterFlag(0));
 
   func = RNA_def_function(srna, "prop", "rna_uiItemR");
   RNA_def_function_ui_description(func,

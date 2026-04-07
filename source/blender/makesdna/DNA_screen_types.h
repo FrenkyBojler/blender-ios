@@ -505,6 +505,25 @@ struct uiPreview {
   /** #ID.session_uid of the ID this preview is made for. Unset on file read. */
   unsigned int id_session_uid = 0;
 };
+/** See #uiTextboxStateLink. */
+struct uiTextboxState {
+  int visible_lines = 0;
+  int scroll = 0;
+};
+/**
+ * Persistent storage for text-boxes (#ui::ButtonTextBox) in a region. The state is matched to the
+ * text-box using the RNA struct identifier + property name.
+ *
+ * The actual state is stored in #uiTextboxState, so text-boxes can manage this conveniently
+ * without having to care about the idname and listbase pointers themselves.
+ */
+struct uiTextboxStateLink {
+  struct uiTextboxStateLink *next = nullptr, *prev = nullptr;
+
+  char *idname = nullptr;
+
+  uiTextboxState state = {};
+};
 
 enum GlobalAreaFlag {
   GLOBAL_AREA_IS_HIDDEN = (1 << 0),
@@ -807,6 +826,12 @@ struct ARegion {
    * loading files remembers the view state.
    */
   ListBaseT<uiViewStateLink> view_states = {nullptr, nullptr};
+
+  /**
+   * Permanent state storage of #ui::ButtonTextBox instances, so hiding regions with text-boxes or
+   * loading files remembers the text-box state.
+   */
+  ListBaseT<uiTextboxStateLink> textbox_states = {nullptr, nullptr};
 
   /** XXX 2.50, need spacedata equivalent? */
   void *regiondata = nullptr;

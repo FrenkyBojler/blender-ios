@@ -5214,7 +5214,7 @@ static int do_but_TEX(
                                                               nullptr;
   if (textbox && ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
       event->val == KM_PRESS && event->type == LEFTMOUSE &&
-      textbox->last_total_lines > textbox->visible_lines)
+      textbox->last_total_lines > textbox->state->visible_lines)
   {
     float xmax = but->rect.xmax;
     float ymax = but->rect.ymax;
@@ -5250,8 +5250,9 @@ static int do_but_TEX(
     const float ymin = but->rect.ymin + UI_UNIT_Y * (0.75f);
     const float range = but->rect.ymax - ymin;
 
-    textbox->line_scroll_set(round_fl_to_int(
-        (range - (my - ymin)) / range * (textbox->last_total_lines - textbox->visible_lines)));
+    textbox->line_scroll_set(
+        round_fl_to_int((range - (my - ymin)) / range *
+                        (textbox->last_total_lines - textbox->state->visible_lines)));
     ED_region_tag_redraw(data->region);
     return WM_UI_HANDLER_BREAK;
   }
