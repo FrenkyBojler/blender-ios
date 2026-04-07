@@ -1506,11 +1506,13 @@ static void grease_pencil_geom_batch_ensure(Object &object,
             const float u = i > 0 ? radii_lengths[i - 1] : 0.0f;
             return u + u_translation;
           }
-          case GP_MATERIAL_PLACEMENT_DENSITY:
-          default:
+          case GP_MATERIAL_PLACEMENT_DENSITY: {
             const float u = i > 0 ? lengths[i - 1] : 0.0f;
             return u_scale * u + u_translation;
+          }
         }
+        /* Fallback to single dot per point. */
+        return float(i + int(u_translation));
       };
 
       /* First vertex is not drawn. */
