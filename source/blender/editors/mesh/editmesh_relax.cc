@@ -45,16 +45,16 @@ static const EnumPropertyItem prop_iterations_items[] = {
 
 static wmOperatorStatus edbm_relax_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   const int iterations = RNA_enum_get(op->ptr, "iterations");
   const bool regular = RNA_boolean_get(op->ptr, "regular");
   bool changed = false;
-
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
