@@ -1542,10 +1542,10 @@ Array<PointTransferData> compute_topology_change(
 
   /* Display intersections with flat caps. */
   if (!keep_caps) {
-    bke::SpanAttributeWriter<int> dst_start_caps =
-        dst_attributes.lookup_or_add_for_write_span<int>("start_cap", bke::AttrDomain::Curve);
-    bke::SpanAttributeWriter<int> dst_end_caps =
-        dst_attributes.lookup_or_add_for_write_span<int>("end_cap", bke::AttrDomain::Curve);
+    bke::SpanAttributeWriter<int8_t> dst_start_caps =
+        dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
+    bke::SpanAttributeWriter<int8_t> dst_end_caps =
+        dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
 
     threading::parallel_for(dst.curves_range(), 4096, [&](const IndexRange dst_curves) {
       for (const int dst_curve : dst_curves) {
