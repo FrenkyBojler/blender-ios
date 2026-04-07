@@ -230,8 +230,12 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
    * The single-scattering albedo is named alpha to avoid confusion with the surface albedo. */
   const Spectrum albedo = INTEGRATOR_STATE(state, subsurface, albedo);
   const Spectrum radius = INTEGRATOR_STATE(state, subsurface, radius);
-  const float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
-  const bool van_de_hulst = INTEGRATOR_STATE(state, subsurface, van_de_hulst);
+  float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
+  bool van_de_hulst = true;
+  if (anisotropy >= 1.0f) {
+    van_de_hulst = false;
+    anisotropy -= 1.0f;
+  }
 
   Spectrum sigma_t;
   Spectrum alpha;
