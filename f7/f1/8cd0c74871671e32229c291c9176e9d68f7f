@@ -3,3 +3,4 @@ Referenced by pull request #143026, Fix #142828: broken socket usage inference f
 Referenced by commit a57709ca253bb7a20fa24f2ab3e1b2486601de1d, Fix #142828: broken socket usage inference for some nodes
 Referenced by issue #145103, Completely Wrong Socket in Use Inference logic for unknown reason
 Referenced by issue #151486, 5.0 Regression: Menu switch node can't be animated
+Referenced by issue #156975, Menu Switch node value can be copied as a Driver but not assigned a driver
