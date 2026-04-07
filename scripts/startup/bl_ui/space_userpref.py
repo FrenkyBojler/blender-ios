@@ -829,12 +829,13 @@ class USERPREF_PT_system_blender_updates(SystemPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
-        layout.active = system.use_online_access
-        layout.prop(system, "latest_release", text=iface_("Latest Release"))
+        col = layout.column(align=True)
+        col.active = system.use_online_access
+        col.prop(system, "latest_release", text=iface_("Latest Release"))
         if "LTS" not in bpy.app.version_string:
             return
-        layout.prop(system, "latest_lts_release", text=iface_("Latest LTS Release"))
-        layout.prop(system, "current_release", text=iface_("Current Release"))
+        col.prop(system, "latest_lts_release", text=iface_("Latest LTS Release"))
+        col.prop(system, "current_release", text=iface_("Current Release"))
 
 
 class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
