@@ -231,8 +231,8 @@ static bool paint_row_byte(const Brush &brush,
   bool pixels_painted = false;
   for (int x = 0; x < pixel_row.num_pixels; x++) {
     float4 color;
-    rgba_uchar_to_float(
-        color, reinterpret_cast<const uchar *>(&(image_buffer->byte_data()[4 * offset])));
+    rgba_uchar_to_float(color,
+                        reinterpret_cast<const uchar *>(&(image_buffer->byte_data()[4 * offset])));
     if (!processors.is_noop) {
       processors.buffer_to_linear_processor.apply_v4(color);
     }
@@ -254,8 +254,8 @@ static bool paint_row_byte(const Brush &brush,
     if (!processors.is_noop) {
       processors.linear_to_buffer_processor.apply_v4(color);
     }
-    rgba_float_to_uchar(reinterpret_cast<uchar *>(&image_buffer->byte_data_for_write()[4 * offset]),
-                        color);
+    rgba_float_to_uchar(
+        reinterpret_cast<uchar *>(&image_buffer->byte_data_for_write()[4 * offset]), color);
     pixels_painted = true;
 
     offset++;

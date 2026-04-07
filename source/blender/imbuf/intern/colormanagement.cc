@@ -4330,7 +4330,7 @@ bool ColormanageProcessor::is_noop() const
     return false;
   }
 
-  const ocio::CPUProcessor* cpu_processor = get_cpu_processor();
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
   if (!cpu_processor) {
     /* The CPU processor might have failed to be created, for example when the requested color
      * space does not exist in the configuration, or if there is a missing lookup table, or the
@@ -4353,7 +4353,7 @@ void ColormanageProcessor::apply_v4(float pixel[4]) const
     BKE_curvemapping_evaluate_premulRGBF(curve_mapping_, pixel, pixel);
   }
 
-  const ocio::CPUProcessor* cpu_processor = get_cpu_processor();
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
   if (cpu_processor) {
     cpu_processor->apply_rgba(pixel);
   }
@@ -4365,7 +4365,7 @@ void ColormanageProcessor::apply_v4_predivide(float pixel[4]) const
     BKE_curvemapping_evaluate_premulRGBF(curve_mapping_, pixel, pixel);
   }
 
-  const ocio::CPUProcessor* cpu_processor = get_cpu_processor();
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
   if (cpu_processor) {
     cpu_processor->apply_rgba_predivide(pixel);
   }
@@ -4377,7 +4377,7 @@ void ColormanageProcessor::apply_v3(float pixel[3]) const
     BKE_curvemapping_evaluate_premulRGBF(curve_mapping_, pixel, pixel);
   }
 
-  const ocio::CPUProcessor* cpu_processor = get_cpu_processor();
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
   if (cpu_processor) {
     cpu_processor->apply_rgb(pixel);
   }
@@ -4418,7 +4418,7 @@ void ColormanageProcessor::apply(
     }
   }
 
-  const ocio::CPUProcessor* cpu_processor = get_cpu_processor();
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
   if (cpu_processor && channels >= 3) {
     /* apply OCIO processor */
     const ocio::PackedImage img(buffer,

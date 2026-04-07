@@ -554,7 +554,7 @@ class ColormanageProcessor : NonCopyable {
   void apply(float *buffer, int width, int height, int channels, bool predivide) const;
   void apply_byte(unsigned char *buffer, int width, int height, int channels) const;
 
-private:
+ private:
   const ocio::CPUProcessor *get_cpu_processor() const
   {
     if (std::holds_alternative<std::shared_ptr<const ocio::CPUProcessor>>(cpu_processor_)) {
