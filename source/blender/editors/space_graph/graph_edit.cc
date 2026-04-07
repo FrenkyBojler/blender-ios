@@ -993,10 +993,10 @@ static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext *C, wmOperator *
 
   /* For now, init start/end from preview-range extents. */
   /* TODO: add properties for this. (Joshua Leung 2009) */
-  const int2 playback_range = BKE_scene_get_playback_range(ac.scene);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(ac.scene);
 
   /* Sample keyframes. */
-  convert_keys_to_samples(&ac, playback_range[0], playback_range[1]);
+  convert_keys_to_samples(&ac, playback_range.start_frame, playback_range.end_frame);
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */
@@ -1066,8 +1066,8 @@ static wmOperatorStatus graphkeys_samples_to_keys_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  const int2 playback_range = BKE_scene_get_playback_range(ac.scene);
-  convert_samples_to_keys(&ac, playback_range[0], playback_range[1]);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(ac.scene);
+  convert_samples_to_keys(&ac, playback_range.start_frame, playback_range.end_frame);
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */

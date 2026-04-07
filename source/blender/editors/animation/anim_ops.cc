@@ -618,8 +618,8 @@ static float frame_from_event(bContext *C, const wmEvent *event)
 
   /* respect preview range restrictions (if only allowed to move around within that range) */
   if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
-    const int2 playback_range = BKE_scene_get_playback_range(scene);
-    CLAMP(frame, playback_range[0], playback_range[1]);
+    const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
+    CLAMP(frame, playback_range.start_frame, playback_range.end_frame);
   }
 
   return frame;
@@ -1198,9 +1198,9 @@ static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
   BLI_assert(region);
 
   View2D &v2d = region->v2d;
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  v2d.cur.xmin = playback_range[0];
-  v2d.cur.xmax = playback_range[1];
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
+  v2d.cur.xmin = playback_range.start_frame;
+  v2d.cur.xmax = playback_range.end_frame;
 
   v2d.cur = ANIM_frame_range_view2d_add_xmargin(v2d, v2d.cur);
 

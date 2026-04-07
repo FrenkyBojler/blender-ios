@@ -3617,7 +3617,7 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   wmTimer *animtimer = CTX_wm_screen(C)->animtimer;
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
 
   /* Don't change scene->r.cfra directly if animtimer is running as this can cause
    * first/last frame not to be actually shown (bad since for example physics
@@ -3629,18 +3629,18 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     sad->flag |= ANIMPLAY_FLAG_USE_NEXT_FRAME;
 
     if (RNA_boolean_get(op->ptr, "end")) {
-      sad->nextfra = playback_range[1];
+      sad->nextfra = playback_range.end_frame;
     }
     else {
-      sad->nextfra = playback_range[0];
+      sad->nextfra = playback_range.start_frame;
     }
   }
   else {
     if (RNA_boolean_get(op->ptr, "end")) {
-      scene->r.cfra = playback_range[1];
+      scene->r.cfra = playback_range.end_frame;
     }
     else {
-      scene->r.cfra = playback_range[0];
+      scene->r.cfra = playback_range.start_frame;
     }
 
     ED_areas_do_frame_follow(C, true);

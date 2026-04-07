@@ -677,11 +677,11 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
  */
 static void gather_frames_to_render(bContext *C, OGLRender *oglrender)
 {
-  const int2 playback_range = BKE_scene_get_playback_range(oglrender->scene);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(oglrender->scene);
 
   /* Will be freed in screen_opengl_render_end(). */
-  oglrender->render_frames = BLI_BITMAP_NEW(playback_range[1] - playback_range[0] + 1,
-                                            "OGLRender::render_frames");
+  oglrender->render_frames = BLI_BITMAP_NEW(
+      playback_range.end_frame - playback_range.start_frame + 1, "OGLRender::render_frames");
 
   /* The first frame should always be rendered, otherwise there is nothing to write to file. */
   BLI_BITMAP_ENABLE(oglrender->render_frames, 0);
@@ -1287,7 +1287,7 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
 
   bool canceled = false;
   bool finished = false;
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
 
   while (!finished && !canceled) {
     /* Render while blocking main thread, since we use 3D viewport resources. */
@@ -1298,8 +1298,8 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
     }
     else {
       finished = !screen_opengl_render_anim_step(oglrender);
-      worker_status->progress = float(scene->r.cfra - playback_range[0] + 1) /
-                                float(playback_range[1] - playback_range[0] + 1);
+      worker_status->progress = float(scene->r.cfra - playback_range.start_frame + 1) /
+                                float(playback_range.end_frame - playback_range.start_frame + 1);
       worker_status->do_update = true;
     }
 

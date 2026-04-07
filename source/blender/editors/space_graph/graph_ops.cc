@@ -81,8 +81,8 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
        * NOTE: Preview range won't go into negative values,
        *       so only clamping once should be fine.
        */
-      const int2 playback_range = BKE_scene_get_playback_range(scene);
-      CLAMP(scene->r.cfra, playback_range[0], playback_range[1]);
+      const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
+      CLAMP(scene->r.cfra, playback_range.start_frame, playback_range.end_frame);
     }
     else {
       /* Prevent negative frames */
