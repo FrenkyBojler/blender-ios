@@ -488,13 +488,47 @@ class OUTLINER_PT_filter(Panel):
 
         sub = col.column(align=True)
         sub.active = space.use_filter_object
+    
+        header, body = sub.panel("OUTLINER_filter_objectdata", default_closed=True)
+        header.use_property_split = False
+        header.prop(space, "use_filter_object_content", text="")
+        header.label(text="Object Contents")
 
-        row = sub.row()
-        row.label(icon='BLANK1')
-        row.prop(space, "use_filter_object_content", text="Object Contents")
-        row = sub.row()
-        row.label(icon='BLANK1')
-        row.prop(space, "use_filter_object_data", text="Object Data")
+        if body:
+            body.active = space.use_filter_object and space.use_filter_object_content
+            body.use_property_split = True
+            panel_column = body.column(align=True)
+            panel_column.use_property_split = False
+            panel_column.use_property_decorate = False
+
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_data", text="Object Data")
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_animation", text="Animation Data")
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_constraints", text="Constraints")
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_shape_keys", text="Shape Keys")
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_materials", text="Materials")
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_vertex_groups", text="Vertex Groups")
+            row = panel_column.row(align=True)
+            row.label(icon='BLANK1')
+            row.separator()
+            row.prop(space, "use_filter_object_modifiers", text="Modifiers")
 
         row = sub.row()
         row.label(icon='BLANK1')
