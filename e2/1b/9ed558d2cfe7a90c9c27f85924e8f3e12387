@@ -1,2 +1,3 @@
 Referenced by pull request #156853, Refactor: Nodes: Use UString for idnames in API some functions
 Referenced by pull request #156976, Fix: GPU: Shader assert condition not escaped in printf
+Referenced by commit ceeaabe731d5abbe3c5cf07524b90d9dd43a9724, Fix: GPU: Shader assert condition not escaped in printf
