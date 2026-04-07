@@ -606,8 +606,8 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
 
     const int compression = ibuf->foptions.flag & OPENEXR_CODEC_MASK;
     openexr_header_compression(&header, compression, ibuf->foptions.quality);
-    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
     openexr_header_metadata_global(&header, ibuf->metadata);
+    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
     openexr_header_metadata_colorspace(&header, ibuf);
 
     const float half_max_val = compression_half_max(compression, ibuf->foptions.quality);
@@ -712,8 +712,8 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int 
 
     openexr_header_compression(
         &header, ibuf->foptions.flag & OPENEXR_CODEC_MASK, ibuf->foptions.quality);
-    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
     openexr_header_metadata_global(&header, ibuf->metadata);
+    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
     openexr_header_metadata_colorspace(&header, ibuf);
 
     /* create channels */
