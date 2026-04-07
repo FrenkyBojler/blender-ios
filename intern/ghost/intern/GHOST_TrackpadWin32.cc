@@ -117,7 +117,8 @@ GHOST_DirectManipulationHelper *GHOST_DirectManipulationHelper::create(HWND hWnd
 
 bool GHOST_DirectManipulationHelper::getScrollDirectionFromReg()
 {
-  DWORD scrollDirectionRegValue, pcbData;
+  DWORD scrollDirectionRegValue = 0;
+  DWORD pcbData = 0;
   HRESULT hr = HRESULT_FROM_WIN32(
       RegGetValueW(HKEY_CURRENT_USER,
                    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PrecisionTouchPad\\",
