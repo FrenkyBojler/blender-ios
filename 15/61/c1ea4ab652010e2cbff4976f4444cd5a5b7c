@@ -7,3 +7,4 @@ Referenced by pull request #156846, Cleanup: Geometry Nodes: Rename settings to 
 Referenced by commit a89c8a08c23e9f0d156d70b99bfd51fa93beb96d, Cleanup: Geometry Nodes: Rename settings to settings_legacy
 Referenced by issue #156952, Error if Brushstroke Tools add-on is enabled
 Referenced by issue #156955, Node tools menu cannot find tools marked as assets anymore
+Referenced by pull request #157016, Fix: Geometry Nodes: Color input soft limits are broken
