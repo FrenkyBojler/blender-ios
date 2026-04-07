@@ -110,8 +110,6 @@ void ED_region_do_listen(wmRegionListenerParams *params)
       break;
     case NC_UI:
       if (notifier->data == ND_UI_FONT) {
-        static int i = 0;
-        printf("asdasda %d\n", i++);
         ui::invalidate_text_wrap_cache(*region);
         ED_region_tag_redraw(region);
       }

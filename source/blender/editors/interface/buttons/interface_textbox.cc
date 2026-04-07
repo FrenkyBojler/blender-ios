@@ -236,7 +236,8 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
     textbox->wrap_cache.reset();
   }
   fontstyle_set(&fstyle);
-  Vector<StringRef> lines = BLF_string_wrap(fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
+  Vector<StringRef> lines = BLF_string_wrap(
+      fstyle.uifont_id, text, width, BLFWrapMode::HardLimit | BLFWrapMode::Typographical);
   if (lines.is_empty()) {
     lines.append(text);
   }
