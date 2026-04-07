@@ -112,7 +112,7 @@ float2x2 calculate_rotation_matrix(float2 x_axis)
 
 float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
 {
-  uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
+  uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
   gpMaterial gp_mat = gp_materials[matid];
 
   float random_size = gpencil_decode_random_size(gp_mat.random_packed);
@@ -472,6 +472,7 @@ void main()
         }
       }
       else {
+        int i = int(gp_interp_flat.point_length.x);
         float2 dx = gpu_dfdx(gp_interp.uv);
         float2 dy = gpu_dfdy(gp_interp.uv);
 
