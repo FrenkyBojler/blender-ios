@@ -1020,28 +1020,28 @@ PopupBlockHandle *popup_block_create(bContext *C,
 
   if (!(U.uiflag & USER_REDUCE_MOTION)) {
     float duration = ANIMATION_DURATION_MENU;
-    RegionAnimationDirection dir;
+    RegionAnimationEdge edge;
     RegionAnimationType anim_type = RegionAnimationType::Slide;
     RegionAnimationEase ease = RegionAnimationEase::CircOut;
 
     if (block->direction & UI_DIR_UP) {
-      dir = RegionAnimationDirection::Up;
+      edge = RegionAnimationEdge::Top;
       duration = ANIMATION_DURATION_MENU;
     }
     else if (block->direction & UI_DIR_DOWN) {
-      dir = RegionAnimationDirection::Down;
+      edge = RegionAnimationEdge::Bottom;
       duration = ANIMATION_DURATION_MENU;
     }
     else if (block->direction & UI_DIR_LEFT) {
-      dir = RegionAnimationDirection::Left;
+      edge = RegionAnimationEdge::Left;
       duration = ANIMATION_DURATION_SUBMENU;
     }
     else if (block->direction & UI_DIR_RIGHT) {
-      dir = RegionAnimationDirection::Right;
+      edge = RegionAnimationEdge::Right;
       duration = ANIMATION_DURATION_SUBMENU;
     }
     else {
-      dir = RegionAnimationDirection::None;
+      edge = RegionAnimationEdge::All;
       if (block->flag & BLOCK_MOVEMOUSE_QUIT) {
         anim_type = RegionAnimationType::Fade;
         duration = ANIMATION_DURATION_SMALL_DIALOG;
@@ -1054,7 +1054,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
     }
 
     ED_region_add_animation_timer(
-        C, handle->ctx_area, region, 0.0f, duration, anim_type, dir, ease);
+        C, handle->ctx_area, region, 0.0f, duration, anim_type, edge, ease);
   }
 
   return handle;

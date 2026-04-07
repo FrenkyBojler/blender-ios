@@ -6963,7 +6963,7 @@ struct RegionAlphaInfo {
   float delay;
   float duration;
   RegionAnimationType type;
-  RegionAnimationDirection direction;
+  RegionAnimationEdge edge;
   RegionAnimationEase ease;
 };
 
@@ -7064,34 +7064,34 @@ void ED_region_blend_animation(ARegion *region,
   const float height = float(BLI_rcti_size_y(&region->winrct));
 
   if (rgi->type == RegionAnimationType::Slide) {
-    if (rgi->direction == RegionAnimationDirection::Left) {
+    if (rgi->edge == RegionAnimationEdge::Left) {
       *offset_left = width * (1.0f - factor);
     }
-    else if (rgi->direction == RegionAnimationDirection::Right) {
+    else if (rgi->edge == RegionAnimationEdge::Right) {
       *offset_right = width * (1.0f - factor);
     }
-    else if (rgi->direction == RegionAnimationDirection::Up) {
+    else if (rgi->edge == RegionAnimationEdge::Top) {
       *offset_top = height * (1.0f - factor);
     }
-    else if (rgi->direction == RegionAnimationDirection::Down) {
+    else if (rgi->edge == RegionAnimationEdge::Bottom) {
       *offset_bottom = height * (1.0f - factor);
     }
   }
 
   else if (rgi->type == RegionAnimationType::Stretch) {
-    if (rgi->direction == RegionAnimationDirection::Left) {
+    if (rgi->edge == RegionAnimationEdge::Left) {
       *offset_left = width * (1.0f - factor);
       *offset_right = 1.0f * (1.0f - factor);
     }
-    else if (rgi->direction == RegionAnimationDirection::Right) {
+    else if (rgi->edge == RegionAnimationEdge::Right) {
       *offset_right = width * (1.0f - factor);
       *offset_left = 1.0f * (1.0f - factor);
     }
-    else if (rgi->direction == RegionAnimationDirection::Up) {
+    else if (rgi->edge == RegionAnimationEdge::Top) {
       *offset_top = height * (1.0f - factor);
       *offset_bottom = 1.0f * (1.0f - factor);
     }
-    else if (rgi->direction == RegionAnimationDirection::Down) {
+    else if (rgi->edge == RegionAnimationEdge::Bottom) {
       *offset_bottom = height * (1.0f - factor);
       *offset_top = 1.0f * (1.0f - factor);
     }
@@ -7152,7 +7152,7 @@ void ED_region_add_animation_timer(bContext *C,
                                    float delay,
                                    float duration,
                                    RegionAnimationType type,
-                                   RegionAnimationDirection direction,
+                                   RegionAnimationEdge edge,
                                    RegionAnimationEase ease)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -7169,7 +7169,7 @@ void ED_region_add_animation_timer(bContext *C,
   rgi->area = area;
   rgi->region = region;
   rgi->type = type;
-  rgi->direction = direction;
+  rgi->edge = edge;
   rgi->ease = ease;
   rgi->delay = delay;
   rgi->duration = duration;
@@ -7182,23 +7182,23 @@ void ED_region_add_animation_timer(bContext *C,
 
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region)
 {
-  RegionAnimationDirection dir = RegionAnimationDirection::None;
+  RegionAnimationEdge dir = RegionAnimationEdge::All;
   float duration;
   float delay = 0.0f;
   if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_RIGHT) {
-    dir = RegionAnimationDirection::Left;
+    dir = RegionAnimationEdge::Left;
     duration = ANIMATION_DURATION_REGION_H;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_LEFT) {
-    dir = RegionAnimationDirection::Right;
+    dir = RegionAnimationEdge::Right;
     duration = ANIMATION_DURATION_REGION_H;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
-    dir = RegionAnimationDirection::Up;
+    dir = RegionAnimationEdge::Top;
     duration = ANIMATION_DURATION_REGION_V;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) {
-    dir = RegionAnimationDirection::Down;
+    dir = RegionAnimationEdge::Bottom;
     duration = ANIMATION_DURATION_REGION_V;
   }
 

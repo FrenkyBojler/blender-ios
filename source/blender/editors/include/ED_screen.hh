@@ -183,10 +183,10 @@ enum class RegionAnimationType : uint8_t {
   Shrink,
 };
 
-enum class RegionAnimationDirection : uint8_t {
-  None,
-  Up,
-  Down,
+enum class RegionAnimationEdge : uint8_t {
+  All,
+  Top,
+  Bottom,
   Left,
   Right,
 };
@@ -221,7 +221,7 @@ void ED_region_add_animation_timer(bContext *C,
                                    float delay,
                                    float duration,
                                    RegionAnimationType type,
-                                   RegionAnimationDirection direction,
+                                   RegionAnimationEdge edge,
                                    RegionAnimationEase ease);
 
 void ED_region_clear(const bContext *C, const ARegion *region, int /*ThemeColorID*/ colorid);
