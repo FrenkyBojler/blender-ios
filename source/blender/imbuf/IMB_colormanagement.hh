@@ -14,6 +14,7 @@
 #include "BLI_vector.hh"
 
 #include <optional>
+#include <variant>
 
 #define BCM_CONFIG_FILE "config.ocio"
 
@@ -513,22 +514,26 @@ void IMB_partial_display_buffer_update_delayed(
 /* -------------------------------------------------------------------- */
 /** \name Pixel Processor Functions
  * \{ */
+using ProcessorType =
+    std::variant<std::shared_ptr<const ocio::CPUProcessor>, const ocio::CPUProcessor *>;
 
 class ColormanageProcessor : NonCopyable {
- public:
-  ColormanageProcessor() = default;
-  ColormanageProcessor(ColormanageProcessor &&other) noexcept;
-  ColormanageProcessor &operator=(ColormanageProcessor &&other) noexcept;
-  ~ColormanageProcessor();
-
- private:
-  std::shared_ptr<const ocio::CPUProcessor> cpu_processor_ = nullptr;
+  ProcessorType cpu_processor_ = nullptr;
   CurveMapping *curve_mapping_ = nullptr;
   bool is_data_result_ = false;
 
  public:
+  ColormanageProcessor() = default;
+  ColormanageProcessor(ColormanageProcessor &&other) noexcept;
+  ~ColormanageProcessor();
+  ColormanageProcessor &operator=(ColormanageProcessor &&other) noexcept;
+
   static ColormanageProcessor colorspace_processor_new(StringRefNull from_colorspace,
                                                        StringRefNull to_colorspace);
+  static ColormanageProcessor colorspace_processor_from_scene_linear_new(
+      const ColorSpace &to_colorspace);
+  static ColormanageProcessor colorspace_processor_to_scene_linear_new(
+      const ColorSpace &from_colorspace);
   static ColormanageProcessor display_processor_new(
       const ColorManagedViewSettings *view_settings,
       const ColorManagedDisplaySettings *display_settings,
@@ -548,6 +553,15 @@ class ColormanageProcessor : NonCopyable {
   void apply_pixel(float *pixel, int channels) const;
   void apply(float *buffer, int width, int height, int channels, bool predivide) const;
   void apply_byte(unsigned char *buffer, int width, int height, int channels) const;
+
+private:
+  const ocio::CPUProcessor *get_cpu_processor() const
+  {
+    if (std::holds_alternative<std::shared_ptr<const ocio::CPUProcessor>>(cpu_processor_)) {
+      return std::get<std::shared_ptr<const ocio::CPUProcessor>>(cpu_processor_).get();
+    }
+    return std::get<const ocio::CPUProcessor *>(cpu_processor_);
+  }
 };
 
 bool IMB_colormanagement_display_processor_needed(

@@ -28,6 +28,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
+#include "CLG_log.h"
 
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
@@ -39,6 +40,8 @@ namespace ed::sculpt_paint::paint::image {
 
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
+
+static CLG_LogRef LOG = {"ed.sculpt"};
 
 ImageData::~ImageData()
 {
@@ -82,24 +85,28 @@ static void fetch_image_buffers(ImageData &image_data,
 
     if (buffer) {
       image_data.processors.lookup_or_add_cb(tile.tile_number, [&]() {
-        StringRefNull buffer_colorspace = buffer->float_data() ?
-                                              IMB_colormanagement_get_float_colorspace(buffer) :
-                                              IMB_colormanagement_get_byte_colorspace(buffer);
-        StringRefNull linear_colorspace = IMB_colormanagement_role_colorspace_name_get(
-            COLOR_ROLE_SCENE_LINEAR);
+        const ColorSpace *buffer_colorspace = buffer->float_data() ?
+                                                  buffer->float_buffer.colorspace :
+                                                  buffer->byte_buffer.colorspace;
 
         std::unique_ptr<TileProcessorWrapper> processor = std::make_unique<TileProcessorWrapper>();
 
-        ColormanageProcessor buffer_to_linear = ColormanageProcessor::colorspace_processor_new(
-            buffer_colorspace, linear_colorspace);
+        if (!buffer_colorspace) {
+          CLOG_WARN(&LOG, "UNKNOWN COLORSPACE!");
+          processor->is_noop = true;
+          return processor;
+        }
+
+        ColormanageProcessor buffer_to_linear =
+            ColormanageProcessor::colorspace_processor_to_scene_linear_new(*buffer_colorspace);
         if (buffer_to_linear.is_noop()) {
           processor->is_noop = true;
           return processor;
         }
 
         processor->buffer_to_linear_processor = std::move(buffer_to_linear);
-        processor->linear_to_buffer_processor = std::move(ColormanageProcessor::colorspace_processor_new(
-            linear_colorspace, buffer_colorspace));
+        processor->linear_to_buffer_processor = std::move(
+            ColormanageProcessor::colorspace_processor_from_scene_linear_new(*buffer_colorspace));
 
         return processor;
       });
