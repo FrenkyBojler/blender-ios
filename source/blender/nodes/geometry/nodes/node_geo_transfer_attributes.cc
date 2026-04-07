@@ -249,8 +249,11 @@ class AttributeTransferer {
       const IDs &ids = *ids_by_domain[int(item.domain)];
       if (info.type == CommonVArrayInfo::Type::Single) {
         if (ids.dst_mask.size() == dst_attributes.domain_size(item.domain)) {
-          if (dst_attributes.add(
-                  item.name, item.domain, item.type, bke::AttributeInitValue(info.data)))
+          if (dst_attributes.add(item.name,
+                                 item.domain,
+                                 item.type,
+                                 bke::AttributeInitValue(GPointer{
+                                     bke::attribute_type_to_cpp_type(item.type), info.data})))
           {
             continue;
           }
