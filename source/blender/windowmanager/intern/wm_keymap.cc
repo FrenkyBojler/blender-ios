@@ -435,6 +435,7 @@ static void wm_keymap_copy_data(wmKeyMap *keymapn, wmKeyMap *keymap)
   keymapn->modal_items = keymap->modal_items;
   keymapn->poll = keymap->poll;
   keymapn->poll_modal_item = keymap->poll_modal_item;
+  BLI_listbase_clear(&keymapn->diff_items);
   BLI_listbase_clear(&keymapn->items);
   keymapn->flag &= ~(KEYMAP_UPDATE | KEYMAP_EXPANDED);
 
