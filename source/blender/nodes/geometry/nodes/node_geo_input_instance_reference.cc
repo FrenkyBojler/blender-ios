@@ -23,7 +23,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeInputInstanceReference");
   ntype.ui_name = "Instance Reference";
-  ntype.ui_description = "Output the reference index of the instance";
+  ntype.ui_description = "Output the reference index of the instance. Useful for identifying instances with shared geometry sets";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
