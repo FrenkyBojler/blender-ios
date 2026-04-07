@@ -188,8 +188,7 @@ int main(int argc, char **argv)
     external_symbols = scan_external_symbols(file_list, visited_files, buffer.str(), filename);
   }
 
-  dep_file << input_file_name << " : ";
-
+  dep_file << output_file_name << " : ";
   for (const auto &file : visited_files) {
     dep_file << file << " ";
   }
