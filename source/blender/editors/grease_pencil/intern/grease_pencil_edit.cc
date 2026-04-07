@@ -1502,8 +1502,8 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
 static void GREASE_PENCIL_OT_caps_set(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_caps_types[] = {
-      {int(CapsMode::ROUND), "ROUND", 0, "Rounded", "Set as default rounded"},
-      {int(CapsMode::FLAT), "FLAT", 0, "Flat", ""},
+      {int(CapsMode::ROUND), "ROUND", ICON_GP_CAPS_ROUND, "Rounded", "Set as default rounded"},
+      {int(CapsMode::FLAT), "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
       RNA_ENUM_ITEM_SEPR,
       {int(CapsMode::START), "START", 0, "Toggle Start", ""},
       {int(CapsMode::END), "END", 0, "Toggle End", ""},
@@ -2214,7 +2214,8 @@ static Object *duplicate_grease_pencil_object(Main *bmain,
                                               Base *base_prev,
                                               const GreasePencil &grease_pencil_src)
 {
-  const eDupli_ID_Flags dupflag = eDupli_ID_Flags(U.dupflag & USER_DUP_GPENCIL);
+  const eDupli_ID_Flags dupflag = eDupli_ID_Flags((U.dupflag & USER_DUP_GPENCIL) |
+                                                  (U.dupflag & USER_DUP_ACT));
   Base *base_new = object::add_duplicate(bmain, scene, view_layer, base_prev, dupflag);
   Object *object_dst = base_new->object;
   object_dst->mode = OB_MODE_OBJECT;
@@ -5164,9 +5165,9 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
 static void GREASE_PENCIL_OT_set_stroke_type(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_stroke_type_types[] = {
-      {int(StrokeType::Stroke), "STROKE", 0, "Stroke", ""},
-      {int(StrokeType::Fill), "FILL", 0, "Fill", ""},
-      {int(StrokeType::Both), "BOTH", 0, "Both", ""},
+      {int(StrokeType::Stroke), "STROKE", ICON_GP_DRAW_STROKE, "Stroke", ""},
+      {int(StrokeType::Fill), "FILL", ICON_GP_DRAW_FILL, "Fill", ""},
+      {int(StrokeType::Both), "BOTH", ICON_GP_DRAW_BOTH, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

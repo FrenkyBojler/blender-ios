@@ -276,7 +276,7 @@ float2 gpencil_project_to_screenspace(float4 v, float4 viewport_res)
   return ((v.xy / v.w) * 0.5f + 0.5f) * viewport_res.xy;
 }
 
-float gpencil_stroke_thickness_modulate(float thickness, float4 ndc_pos, float4 viewport_res)
+float gpencil_stroke_thickness_modulate(float thickness, float4 viewport_res)
 {
   /* Modify stroke thickness by object scale. */
   thickness = length(to_float3x3(drw_modelmat()) * float3(thickness * M_SQRT1_3));
@@ -588,8 +588,8 @@ float4 gpencil_vertex(float4 viewport_res,
     out_P = (use_curr) ? wpos1 : wpos2;
     out_strength = abs((use_curr) ? strength1 : strength2);
 
-    float radius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_res) / 2.0;
-    float radius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_res) / 2.0;
+    float radius1 = gpencil_stroke_thickness_modulate(thickness1, viewport_res) / 2.0;
+    float radius2 = gpencil_stroke_thickness_modulate(thickness2, viewport_res) / 2.0;
 
     float2 ss0 = gpencil_project_to_screenspace(ndc0, viewport_res);
     float4 ss1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_res.xy);
@@ -603,7 +603,7 @@ float4 gpencil_vertex(float4 viewport_res,
     float2 line_adj = (use_curr) ? line1 : line2;
 
     float thickness = abs((use_curr) ? thickness1 : thickness2);
-    thickness = gpencil_stroke_thickness_modulate(thickness, out_ndc, viewport_res);
+    thickness = gpencil_stroke_thickness_modulate(thickness, viewport_res);
     /* The radius attribute can have negative values. Make sure that it's not negative by clamping
      * to 0. */
     float clamped_thickness = max(0.0f, thickness);
