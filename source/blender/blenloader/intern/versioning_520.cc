@@ -338,17 +338,6 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 10)) {
-    for (Material &materials : bmain->materials) {
-      if (materials.gp_style != nullptr) {
-        materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
-        materials.gp_style->placement_count = 1;
-        materials.gp_style->placement_density = 10.0f;
-        materials.gp_style->placement_radius_spacing = 100.0f;
-      }
-    }
-  }
-
   /* Convert H.264 codec value for older files (2.79), see #155775. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 10)) {
     for (Scene &scene : bmain->scenes) {
@@ -359,7 +348,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   /* Disable "unified" flags for Grease Pencil Draw mode. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 11)) {
     for (Scene &scene : bmain->scenes) {
       if (scene.toolsettings->gp_paint) {
         UnifiedPaintSettings &settings =
@@ -407,6 +396,17 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 17)) {
+    for (Material &materials : bmain->materials) {
+      if (materials.gp_style != nullptr) {
+        materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
+        materials.gp_style->placement_count = 1;
+        materials.gp_style->placement_density = 10.0f;
+        materials.gp_style->placement_radius_spacing = 100.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 18)) {
     for (Material &materials : bmain->materials) {
       if (materials.gp_style != nullptr) {
         materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
