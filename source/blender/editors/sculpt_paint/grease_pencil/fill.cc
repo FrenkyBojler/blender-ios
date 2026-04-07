@@ -1533,14 +1533,11 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         }
       }
 
-      for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
-        const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
-        if (is_point_visible[point_i - points.first()] &&
-            is_point_visible[point_next - points.first()])
-        {
+      for (const int local_i : points.index_range().drop_back(is_cyclic ? 0 : 1)) {
+        const int local_next = (local_i + 1) % points.size();
+        if (is_point_visible[local_i] && is_point_visible[local_next]) {
           input_edges.append(
-              order_edge(std::pair<int, int>(point_i - points.first() + point_offset,
-                                             point_next - points.first() + point_offset)));
+              order_edge(std::pair<int, int>(local_i + point_offset, local_next + point_offset)));
         }
       }
     });
