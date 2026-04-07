@@ -17,16 +17,16 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curve")
+  b.add_input<decl::Geometry>("Curve"_ustr)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to change the normals on");
-  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Menu>("Mode")
+  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Menu>("Mode"_ustr)
       .static_items(rna_enum_curve_normal_mode_items)
       .optional_label()
       .description("Mode for curve normal evaluation");
-  b.add_input<decl::Vector>("Normal")
+  b.add_input<decl::Vector>("Normal"_ustr)
       .default_value({0.0f, 0.0f, 1.0f})
       .subtype(PROP_XYZ)
       .field_on_all()
@@ -48,13 +48,13 @@ static void set_curve_normal(bke::CurvesGeometry &curves,
   const IndexMask curve_mask = evaluator.get_evaluated_selection_as_mask();
 
   if (mode == NORMAL_MODE_FREE) {
-    bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                       point_context,
-                                       "custom_normal",
-                                       AttrDomain::Point,
-                                       Field<bool>(std::make_shared<bke::EvaluateOnDomainInput>(
-                                           selection_field, AttrDomain::Curve)),
-                                       custom_normal);
+    bke::try_capture_field_on_geometry(
+        curves.attributes_for_write(),
+        point_context,
+        "custom_normal",
+        AttrDomain::Point,
+        Field<bool>::from_input<bke::EvaluateOnDomainInput>(selection_field, AttrDomain::Curve),
+        custom_normal);
   }
 
   index_mask::masked_fill(curves.normal_mode_for_write(), int8_t(mode), curve_mask);

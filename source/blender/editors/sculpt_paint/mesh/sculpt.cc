@@ -4551,7 +4551,7 @@ std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const 
   Object &ob = *vc.obact;
   SculptSession &ss = *ob.runtime->sculpt_session;
 
-  BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
+  BKE_view_layer_synced_ensure(*vc.bmain, vc.scene, vc.view_layer);
 
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
@@ -6110,11 +6110,12 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "provided \"mouse_event\" positions");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-  RNA_def_boolean(ot->srna,
-                  "ignore_background_click",
-                  false,
-                  "Ignore Background Click",
-                  "Clicks on the background do not start the stroke");
+  prop = RNA_def_boolean(ot->srna,
+                         "ignore_background_click",
+                         false,
+                         "Ignore Background Click",
+                         "Clicks on the background do not start the stroke");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* Fake Neighbors. */
