@@ -159,10 +159,10 @@ struct ProjectBrushTarget {
 
 namespace paint::image {
 
-struct TileProcessorWrapper : NonCopyable {
+struct TileColorspaceProcessor : NonCopyable {
   ColormanageProcessor buffer_to_linear_processor = {};
   ColormanageProcessor linear_to_buffer_processor = {};
-  bool is_noop = false;
+  bool is_noop = true;
 };
 
 struct ImageData : NonCopyable {
@@ -170,7 +170,7 @@ struct ImageData : NonCopyable {
   ImageUser *image_user = nullptr;
 
   Map<bke::image::TileNumber, ImBuf *> buffers = {};
-  Map<bke::image::TileNumber, std::unique_ptr<TileProcessorWrapper>> processors = {};
+  Map<bke::image::TileNumber, TileColorspaceProcessor> processors = {};
 
   ~ImageData();
 
