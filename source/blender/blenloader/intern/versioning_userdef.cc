@@ -435,7 +435,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.link);
   }
 
-  if (!USER_VERSION_ATLEAST(502, 17)) {
+  if (!USER_VERSION_ATLEAST(502, 18)) {
     FROM_DEFAULT_V4_UCHAR(tui.wcol_state.update_available);
   }
 
@@ -1775,7 +1775,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->geometry_nodes_stack_limit = 100;
   }
 
-  if (!USER_VERSION_ATLEAST(502, 17)) {
+  if (!USER_VERSION_ATLEAST(502, 18)) {
     userdef->flag |= USER_BLENDER_UPDATE_LATEST_RELEASE;
     userdef->statusbar_flag |= STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG;
   }
