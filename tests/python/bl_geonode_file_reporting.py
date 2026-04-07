@@ -34,7 +34,7 @@ class FileReportingTest(unittest.TestCase):
 
     def test_geonodes_sim_cache(self):
         """Test that the simulation caches are reported via bpy.data.foreach_path()."""
-        blend_path = self.testdir / "geometry_nodes/155953-sim-cache-foreach-path/geonodes-sim-cache-bugreport.blend"
+        blend_path = self.testdir / "modeling/geometry_nodes/155953-sim-cache-foreach-path/geonodes-sim-cache-bugreport.blend"
 
         bpy.ops.wm.open_mainfile(filepath=str(blend_path))
 
