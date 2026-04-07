@@ -117,7 +117,7 @@ GHOST_DirectManipulationHelper *GHOST_DirectManipulationHelper::create(HWND hWnd
 
 bool GHOST_DirectManipulationHelper::getScrollDirectionFromReg()
 {
-  DWORD scrollDirectionRegValue;
+  DWORD scrollDirectionRegValue = 0;
   DWORD pcbData = sizeof(scrollDirectionRegValue);
   HRESULT hr = HRESULT_FROM_WIN32(
       RegGetValueW(HKEY_CURRENT_USER,
