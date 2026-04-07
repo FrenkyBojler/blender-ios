@@ -76,10 +76,7 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
       }
     }
     else {
-      t = normalize(camera_right - I * dot(I, camera_right));
-      if (len_squared(t) < 1e-6f) {
-        t = normalize(camera_up - I * dot(I, camera_up));
-      }
+      t = normalize(cross(-I, (fabsf(dot(I, camera_up)) < 0.999f) ? camera_up : camera_right));
       b = cross(I, t);
     }
 
@@ -149,14 +146,13 @@ ccl_device_inline
 #  else
 ccl_device_noinline
 #  endif
-    int
-    svm_node_raycast(KernelGlobals kg,
-                     ConstIntegratorGenericState state,
-                     ccl_private ShaderData *sd,
-                     ccl_private float *stack,
-                     const uint4 node,
-                     int offset,
-                     uint32_t path_flag)
+    int svm_node_raycast(KernelGlobals kg,
+                         ConstIntegratorGenericState state,
+                         ccl_private ShaderData *sd,
+                         ccl_private float *stack,
+                         const uint4 node,
+                         int offset,
+                         uint32_t path_flag)
 {
   uint position_offset;
   uint direction_offset;
