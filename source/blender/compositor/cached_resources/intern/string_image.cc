@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstdint>
+#include <limits>
 #include <string>
 
 #include "BLI_hash.hh"
@@ -82,13 +83,26 @@ StringImage::StringImage(Context &context,
   }
   BLI_SCOPED_DEFER([&]() { BLF_unload_id(font_identifier); });
 
-  rcti box;
   BLF_size(font_identifier, size);
-  BLF_boundbox(font_identifier, string.c_str(), string.length(), &box);
-  const int width = BLI_rcti_size_x(&box);
-  const int height = BLI_rcti_size_y(&box);
 
-  this->result.allocate_texture(int2(width, height), false, ResultStorageType::CPU);
+  Vector<StringRef> lines = BLF_string_wrap(
+      font_identifier, string, -1, BLFWrapMode::Typographical);
+
+  int lines_width = 0;
+  Array<int> line_widths(lines.size());
+  int lines_horizontal_offset = std::numeric_limits<int>::max();
+  for (const int64_t i : lines.index_range()) {
+    rcti line_bounding_box;
+    BLF_boundbox(font_identifier, lines[i].data(), lines[i].size(), &line_bounding_box);
+    line_widths[i] = BLI_rcti_size_x(&line_bounding_box);
+    lines_width = math::max(lines_width, line_widths[i]);
+    lines_horizontal_offset = math::min(lines_horizontal_offset, line_bounding_box.xmin);
+  }
+
+  const int line_height = BLF_height_max(font_identifier);
+  const int lines_height = line_height * lines.size();
+
+  this->result.allocate_texture(int2(lines_width, lines_height), false, ResultStorageType::CPU);
   parallel_for(this->result.domain().data_size,
                [&](const int2 texel) { this->result.store_pixel(texel, Color(float4(0.0f))); });
 
@@ -96,14 +110,20 @@ StringImage::StringImage(Context &context,
   BLF_buffer(font_identifier,
              static_cast<float *>(this->result.cpu_data().data()),
              nullptr,
-             width,
-             height,
+             lines_width,
+             lines_height,
              nullptr);
 
-  BLF_position(font_identifier, -float(box.xmin), -float(box.ymin), 0.0f);
-  BLF_draw_buffer(font_identifier, string.c_str(), string.length());
+  const int descender = BLF_descender(font_identifier);
+  for (const int64_t i : lines.index_range()) {
+    const float vertical_offset = (lines.size() - 1 - i) * line_height - float(descender);
+    BLF_position(font_identifier, -lines_horizontal_offset, vertical_offset, 0.0f);
+    BLF_draw_buffer(font_identifier, lines[i].data(), lines[i].size());
+  }
 
   BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, nullptr);
+
+  this->result.domain().transformation.location() = float2(lines_horizontal_offset, descender);
 
   if (context.use_gpu()) {
     const Result gpu_result = this->result.upload_to_gpu(false);

@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value_fn(
           [](const bNode & /*node*/) { return id_cast<ID *>(BKE_vfont_builtin_ensure()); })
       .optional_label();
-  b.add_input<decl::Float>("Size"_ustr).default_value(256.0f).min(0.0f);
+  b.add_input<decl::Float>("Size"_ustr).default_value(256.0f).subtype(PROP_UNSIGNED).min(0.0f);
 
   b.add_output<decl::Color>("Image"_ustr)
       .structure_type(StructureType::Dynamic)
