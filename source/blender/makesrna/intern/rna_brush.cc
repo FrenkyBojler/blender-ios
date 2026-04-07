@@ -371,8 +371,8 @@ static EnumPropertyItem rna_enum_gpencil_fill_direction_items[] = {
 };
 
 static EnumPropertyItem rna_enum_gpencil_fill_method_items[] = {
-    {GP_FILL_METHOD_EXACT, "EXACT", 0, "Exact", "Use exact geometry"},
-    {GP_FILL_METHOD_FLOOD, "FLOOD", 0, "Flood", "Use pixel for filling"},
+    {GP_FILL_METHOD_EXACT, "EXACT", 0, "Exact", "Use exact geometry to create fills"},
+    {GP_FILL_METHOD_FLOOD, "FLOOD", 0, "Flood", "Use pixel based flooding to create fills"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
@@ -1967,7 +1967,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   prop = RNA_def_property(srna, "fill_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "fill_method");
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_method_items);
-  RNA_def_property_ui_text(prop, "Fill-Method", "Method used for when filling");
+  RNA_def_property_ui_text(prop, "Fill Method", "Method used for when filling");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
