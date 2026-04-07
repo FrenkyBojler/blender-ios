@@ -1238,7 +1238,7 @@ void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
   /* make sure range is sane */
   CLAMP(size, 1, MAX_BRUSH_PIXEL_DIAMETER);
 
-  if (ups->flag & UNIFIED_PAINT_SIZE) {
+  if (BKE_paint_use_unified_size(paint)) {
     ups->size = size;
   }
   else {
@@ -1250,9 +1250,11 @@ void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
 int BKE_brush_size_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  int size = (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
 
-  return size;
+  if (BKE_paint_use_unified_size(paint)) {
+    return ups->size;
+  }
+  return brush->size;
 }
 
 float BKE_brush_radius_get(const Paint *paint, const Brush *brush)
@@ -1282,7 +1284,7 @@ void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojecte
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (ups->flag & UNIFIED_PAINT_SIZE) {
+  if (BKE_paint_use_unified_size(paint)) {
     ups->unprojected_size = unprojected_size;
   }
   else {
@@ -1294,8 +1296,10 @@ void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojecte
 float BKE_brush_unprojected_size_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-
-  return (ups->flag & UNIFIED_PAINT_SIZE) ? ups->unprojected_size : brush->unprojected_size;
+  if (BKE_paint_use_unified_size(paint)) {
+    return ups->unprojected_size;
+  }
+  return brush->unprojected_size;
 }
 
 float BKE_brush_unprojected_radius_get(const Paint *paint, const Brush *brush)
@@ -1331,7 +1335,7 @@ void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha)
 {
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  if (ups->flag & UNIFIED_PAINT_ALPHA) {
+  if (BKE_paint_use_unified_strength(paint)) {
     ups->alpha = alpha;
   }
   else {
@@ -1344,7 +1348,10 @@ float BKE_brush_alpha_get(const Paint *paint, const Brush *brush)
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
-  return (ups->flag & UNIFIED_PAINT_ALPHA) ? ups->alpha : brush->alpha;
+  if (BKE_paint_use_unified_strength(paint)) {
+    return ups->alpha;
+  }
+  return brush->alpha;
 }
 
 float BKE_brush_weight_get(const Paint *paint, const Brush *brush)
@@ -1669,28 +1676,22 @@ static bool brush_gen_texture(const Brush *br,
 
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
-  ImBuf *im = MEM_new<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 
   BKE_curvemapping_init(br->curve_distance_falloff);
 
-  float *rect_float = MEM_new_array_zeroed<float>(size_t(side) * size_t(side),
-                                                  "radial control rect");
-  IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
+  ImBuf *im = IMB_allocImBuf(side, side, 32, IB_float_data);
 
-  im->x = im->y = side;
-
-  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_buffer.data);
+  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_data_for_write());
 
   if (display_gradient || have_texture) {
+    float *float_data = im->float_data_for_write();
     for (int i = 0; i < side; i++) {
       for (int j = 0; j < side; j++) {
         const float magn = sqrtf(pow2f(i - half) + pow2f(j - half));
         const float strength = BKE_brush_curve_strength_clamped(br, magn, half);
-        im->float_buffer.data[i * side + j] = (have_texture) ?
-                                                  im->float_buffer.data[i * side + j] * strength :
-                                                  strength;
+        float_data[i * side + j] = (have_texture) ? float_data[i * side + j] * strength : strength;
       }
     }
   }
@@ -1721,6 +1722,18 @@ bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
 
   return false;
 }
+
+namespace bke::brush {
+float normal_weight_get(const Brush &brush, const bool invert)
+{
+  BLI_assert(supports_normal_weight(brush));
+  if (!invert) {
+    return brush.normal_weight;
+  }
+
+  return brush.normal_weight == 0.0f;
+}
+}  // namespace bke::brush
 
 /* -------------------------------------------------------------------- */
 /** \name Brush Capabilities
