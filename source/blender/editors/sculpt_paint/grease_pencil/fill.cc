@@ -1298,6 +1298,28 @@ static void follow_edge_connections(const Span<int> all_edges,
   }
 }
 
+static void get_all_triangle_edges(MutableSpan<int3> tri_edges,
+                                   const Span<std::pair<int, int>> edges,
+                                   const Span<Vector<int>> tris)
+{
+  Map<std::pair<int, int>, int> edge_to_index;
+  for (const int edge_index : edges.index_range()) {
+    const std::pair<int, int> &edge = edges[edge_index];
+    edge_to_index.add_new(order_edge(edge), edge_index);
+  }
+
+  for (const int tri_index : tris.index_range()) {
+    const Vector<int> &face = tris[tri_index];
+
+    const std::pair<int, int> edge0 = order_edge(std::pair<int, int>(face[0], face[1]));
+    const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
+    const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
+
+    tri_edges[tri_index] = int3(
+        edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
+  }
+}
+
 static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
                                 const MutableSpan<float> tri_weights,
                                 const Span<int3> tri_adjacency,
@@ -1510,24 +1532,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Array<int3> tri_edges(result.face.size(), int3(NULL_INDEX));
 
-  {
-    Map<std::pair<int, int>, int> edge_to_index;
-    for (const int edge_index : result.edge.index_range()) {
-      const std::pair<int, int> &edge = result.edge[edge_index];
-      edge_to_index.add_new(order_edge(edge), edge_index);
-    }
-
-    for (const int tri_index : result.face.index_range()) {
-      const Vector<int> &face = result.face[tri_index];
-
-      const std::pair<int, int> edge0 = order_edge(std::pair<int, int>(face[0], face[1]));
-      const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
-      const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
-
-      tri_edges[tri_index] = int3(
-          edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
-    }
-  }
+  get_all_triangle_edges(
+      tri_edges.as_mutable_span(), result.edge.as_span(), result.face.as_span());
 
   Array<int3> tri_adjacency(result.face.size(), int3(NULL_INDEX));
 
