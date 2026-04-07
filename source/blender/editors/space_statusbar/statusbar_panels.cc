@@ -66,7 +66,7 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
       "");
   ui::button_func_set(button, [update_info = &update](blender::bContext &C) {
     bke::ignore_update(update_info);
-    ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(&C), CTX_wm_screen(&C)));
+    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   });
   ui::Layout &right_row = buttons_row.row(false);
   right_row.alignment_set(ui::LayoutAlign::Right);
@@ -120,7 +120,7 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
                                 "");
   ui::button_func_set(button, [](blender::bContext &C) {
     bke::ignore_all_updates();
-    ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(&C), CTX_wm_screen(&C)));
+    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   });
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {

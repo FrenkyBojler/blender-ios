@@ -364,6 +364,8 @@ if result:
 
   write_blender_updates_cache_file();
 #  endif /* WITH_PYTHON */
+
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 }
 #  undef TEST_JSON_ENTRY
 
