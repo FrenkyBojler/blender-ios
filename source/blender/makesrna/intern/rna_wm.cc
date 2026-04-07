@@ -96,9 +96,6 @@ static const EnumPropertyItem event_timer_type_items[] = {
 
 static const EnumPropertyItem event_textinput_type_items[] = {
     {KM_TEXTINPUT, "TEXTINPUT", 0, "Text Input", ""},
-    {WM_IME_COMPOSITE_START, "IMESTART", 0, "IME Start", ""},
-    {WM_IME_COMPOSITE_EVENT, "IMEEVENT", 0, "IME Event", ""},
-    {WM_IME_COMPOSITE_END, "IMEEND", 0, "IME End", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
