@@ -16,6 +16,10 @@ struct RenderLayer;
 struct RenderResult;
 
 RenderLayer *render_get_single_layer(Render *re, RenderResult *rr);
-void render_copy_renderdata(RenderData *to, RenderData *from);
+/**
+ * Copy `from` -> `to`.
+ * \note These must not be the same pointers.
+ */
+void render_copy_renderdata(RenderData *to, const RenderData *from);
 
 }  // namespace blender

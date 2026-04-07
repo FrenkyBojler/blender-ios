@@ -769,8 +769,9 @@ static void re_init_resolution(
   }
 }
 
-void render_copy_renderdata(RenderData *to, RenderData *from)
+void render_copy_renderdata(RenderData *to, const RenderData *from)
 {
+  BLI_assert(to != from);
   /* Mostly shallow copy referencing pointers in scene renderdata. */
   BKE_curvemapping_free_data(&to->mblur_shutter_curve);
 
@@ -794,8 +795,10 @@ void RE_InitState(Render *re,
 
   re->i.starttime = BLI_time_now_seconds();
 
-  /* copy render data and render layers for thread safety */
-  render_copy_renderdata(&re->r, rd);
+  if (&re->r != rd) {
+    /* Copy render data and render layers for thread safety. */
+    render_copy_renderdata(&re->r, rd);
+  }
   re->single_view_layer[0] = '\0';
 
   if (source) {
