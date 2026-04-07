@@ -25,14 +25,14 @@ namespace blender::nodes::node_composite_string_to_image_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("String").optional_label();
-  b.add_input<decl::Font>("Font")
+  b.add_input<decl::String>("String"_ustr).optional_label();
+  b.add_input<decl::Font>("Font"_ustr)
       .default_value_fn(
           [](const bNode & /*node*/) { return id_cast<ID *>(BKE_vfont_builtin_ensure()); })
       .optional_label();
-  b.add_input<decl::Float>("Size").default_value(256.0f).min(0.0f);
+  b.add_input<decl::Float>("Size"_ustr).default_value(256.0f).min(0.0f);
 
-  b.add_output<decl::Color>("Image")
+  b.add_output<decl::Color>("Image"_ustr)
       .structure_type(StructureType::Dynamic)
       .description("The image containing the paragraph of text");
 }
