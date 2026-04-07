@@ -1,1 +1,2 @@
 Referenced by issue #141156, 3D Stereoscopic mode does not take covergence plane distance into account in EEVEE viewport
+Referenced by issue #157029, Blender (5.1.0-5.2.0) crashes on launch / freezes system when using Vulkan backend
