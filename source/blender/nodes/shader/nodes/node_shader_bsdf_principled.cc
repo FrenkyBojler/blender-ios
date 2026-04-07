@@ -163,11 +163,12 @@ static void node_declare(NodeDeclarationBuilder &b)
           "reflection at near-grazing incidence to simulate complex index of refraction")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 #define SOCK_SPECULAR_TINT_ID 14
-  spec.add_input<decl::Float>("Anisotropy"_ustr, "Anisotropic"_ustr)
+  spec.add_input<decl::Float>("Anisotropic"_ustr)
       .default_value(0.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
+      .short_label("Anisotropy")
       .description(
           "Amount of anisotropy for specular reflection. "
           "Higher values give elongated highlights along the tangent direction");
