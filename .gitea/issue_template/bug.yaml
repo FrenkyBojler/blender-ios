@@ -35,7 +35,7 @@ body:
   - type: textarea
     id: blender-version
     attributes:
-      label: "Blender version"
+      label: "Blender Version"
       hide_label: false
       description: |
             Please provide information about the verison of Blender you're experiencing issues with.
@@ -51,7 +51,7 @@ body:
   - type: textarea
     id: issue-desciption
     attributes:
-      label: "Description"
+      label: "Description of the Issue"
       hide_label: false
       description: |
             Please provide a short description of the issue, including images or videos when neccesary.
@@ -67,7 +67,7 @@ body:
   - type: textarea
     id: steps-to-reproduce
     attributes:
-      label: "Steps to reproduce"
+      label: "Steps to Reproduce the Issue"
       hide_label: false
       description: |
             Please provide clear written steps to reproduce the issue.
