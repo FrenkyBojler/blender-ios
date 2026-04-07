@@ -1001,6 +1001,12 @@ static bool outliner_element_visible_get(const Main &bmain,
     if (exclude_filter & SO_FILTER_NO_OB_CONTENT) {
       return false;
     }
+
+    if (TREESTORE(te)->type == TSE_SOME_ID && te->idcode != ID_OB) {
+      if (exclude_filter & SO_FILTER_NO_OB_DATA) {
+        return false;
+      }
+    }
   }
 
   return true;

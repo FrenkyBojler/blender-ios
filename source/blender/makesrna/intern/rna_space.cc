@@ -4538,6 +4538,12 @@ static void rna_def_space_outliner(BlenderRNA *brna)
       "defined/controlled automatically (e.g. to make users of an overridden data-block point to "
       "the override data, not the original linked data)");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  /* Object data filters. */
+  prop = RNA_def_property(srna, "use_filter_object_data", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "filter", SO_FILTER_NO_OB_DATA);
+  RNA_def_property_ui_text(prop, "Show Data Objects", "Show data objects");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 }
 
 static void rna_def_space_view3d_shading(BlenderRNA *brna)

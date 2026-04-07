@@ -181,6 +181,7 @@ enum eSpaceOutliner_Filter {
   SO_FILTER_ID_TYPE = (1 << 19),
 
   SO_FILTER_NO_OB_GREASE_PENCIL = (1 << 20),
+  SO_FILTER_NO_OB_DATA = (1 << 21),
 };
 
 #define SO_FILTER_OB_TYPE \
