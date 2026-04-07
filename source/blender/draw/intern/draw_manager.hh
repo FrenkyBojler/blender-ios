@@ -20,6 +20,7 @@
 
 #include "GPU_material.hh"
 
+#include "draw_handle.hh"
 #include "draw_resource.hh"
 #include "draw_view.hh"
 
@@ -430,7 +431,7 @@ inline void Manager::update_handle_bounds(ResourceHandle handle,
                                           const ObjectRef &ref,
                                           float inflate_bounds)
 {
-  bounds_buf.current()[handle.resource_index()].sync(*ref.object, inflate_bounds);
+  bounds_buf.current()[handle.index()].sync(*ref.object, inflate_bounds);
 }
 
 inline void Manager::extract_object_attributes(ResourceHandleRange handle,
@@ -443,8 +444,8 @@ inline void Manager::extract_object_attributes(ResourceHandleRange handle,
   }
 
   int instance_index = 0;
-  for (ResourceIndex resource_index : handle.index_range()) {
-    ObjectInfos &infos = infos_buf.current().get_or_resize(resource_index.resource_index());
+  for (ResourceID resource_id : handle.id_range()) {
+    ObjectInfos &infos = infos_buf.current().get_or_resize(resource_id.index());
     infos.object_attrs_offset = attribute_len_;
     for (const GPUUniformAttr &attr : attr_list->list) {
       if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *&attr, instance_index)) {
@@ -473,8 +474,8 @@ inline void Manager::extract_object_attributes(ResourceHandleRange handle,
   }
 
   int instance_index = 0;
-  for (ResourceIndex resource_index : handle.index_range()) {
-    ObjectInfos &infos = infos_buf.current().get_or_resize(resource_index.resource_index());
+  for (ResourceID resource_id : handle.id_range()) {
+    ObjectInfos &infos = infos_buf.current().get_or_resize(resource_id.index());
     infos.object_attrs_offset = attribute_len_;
     for (const GPUUniformAttr *attr : attributes.values()) {
       if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *attr, instance_index)) {

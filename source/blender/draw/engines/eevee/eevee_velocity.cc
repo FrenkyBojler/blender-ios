@@ -175,7 +175,7 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
      * We live with that until we have a correct way of identifying new objects. */
     VelocityObjectData &vel = velocity_map.lookup_or_add_default(ObjectKey(ob_handle, i));
     vel.obj.ofs[step_] = object_steps_usage[step_]++;
-    vel.obj.resource_id = ob_handle.res_handle.sub_handle(i).resource_index();
+    vel.obj.resource_index = ob_handle.res_handle.sub_handle(i).index();
     vel.id = velocity_id;
     object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob_handle.object_to_world(i);
     if (step_ == STEP_CURRENT) {
@@ -342,14 +342,14 @@ void VelocityModule::end_sync()
 {
   Vector<ObjectKey, 0> deleted_obj;
 
-  uint32_t max_resource_id_ = 0u;
+  uint32_t max_resource_index_ = 0u;
 
   for (MapItem<ObjectKey, VelocityObjectData> item : velocity_map.items()) {
-    if (item.value.obj.resource_id == uint32_t(-1)) {
+    if (item.value.obj.resource_index == uint32_t(-1)) {
       deleted_obj.append(item.key);
     }
     else {
-      max_resource_id_ = max_uu(max_resource_id_, item.value.obj.resource_id);
+      max_resource_index_ = max_uu(max_resource_index_, item.value.obj.resource_index);
     }
   }
 
@@ -357,7 +357,7 @@ void VelocityModule::end_sync()
     velocity_map.remove(key);
   }
 
-  indirection_buf.resize(ceil_to_multiple_u(max_resource_id_ + 1, 128));
+  indirection_buf.resize(ceil_to_multiple_u(max_resource_index_ + 1, 128));
 
   /* Avoid uploading more data to the GPU as well as an extra level of
    * indirection on the GPU by copying back offsets the to VelocityIndex. */
@@ -377,9 +377,9 @@ void VelocityModule::end_sync()
                           (vel.geo.len[STEP_CURRENT] == vel.geo.len[STEP_PREVIOUS]) &&
                           (vel.geo.len[STEP_CURRENT] == vel.geo.len[STEP_NEXT]);
     }
-    indirection_buf[vel.obj.resource_id] = vel;
+    indirection_buf[vel.obj.resource_index] = vel;
     /* Reset for next sync. */
-    vel.obj.resource_id = uint(-1);
+    vel.obj.resource_index = uint(-1);
   }
 
   object_steps[STEP_PREVIOUS]->push_update();

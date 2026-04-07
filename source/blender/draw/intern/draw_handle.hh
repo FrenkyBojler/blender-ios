@@ -55,12 +55,12 @@ namespace draw {
  * NOTE: From the draw_pass and draw_command perspective, the 0 index is still valid and points to
  * default initialized Manager resources. Valid ResourceHandles start at index 1.
  */
-struct ResourceIndex {
+struct ResourceID {
   uint32_t raw;
 
-  ResourceIndex() = default;
-  ResourceIndex(uint raw_) : raw(raw_) {};
-  ResourceIndex(uint index, bool inverted_handedness)
+  ResourceID() = default;
+  ResourceID(uint raw_) : raw(raw_) {};
+  ResourceID(uint index, bool inverted_handedness)
   {
     raw = index;
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
@@ -71,7 +71,7 @@ struct ResourceIndex {
     return (raw & 0x80000000u) != 0;
   }
 
-  uint resource_index() const
+  uint index() const
   {
     return (raw & 0x7FFFFFFFu);
   }
@@ -82,22 +82,22 @@ struct ResourceIndex {
  * Typically used to render instances of an object, but can represent a single instance too.
  * The associated objects must share handedness and state so they can be rendered together.
  */
-struct ResourceIndexRange {
+struct ResourceIDRange {
   /* First handle in the range. */
-  ResourceIndex first = 0;
+  ResourceID first = 0;
   /* Number of handles in the range. */
   uint32_t count = 1;
 
-  ResourceIndexRange() = default;
-  ResourceIndexRange(ResourceIndex index) : first(index), count(1) {}
-  ResourceIndexRange(ResourceIndex index, uint len) : first(index), count(len) {}
+  ResourceIDRange() = default;
+  ResourceIDRange(ResourceID index) : first(index), count(1) {}
+  ResourceIDRange(ResourceID index, uint len) : first(index), count(len) {}
 
   bool has_inverted_handedness() const
   {
     return first.has_inverted_handedness();
   }
 
-  IndexRange index_range() const
+  IndexRange id_range() const
   {
     BLI_assert(count > 0);
     BLI_assert(first.raw != 0 || count == 1);
@@ -106,7 +106,7 @@ struct ResourceIndexRange {
 };
 
 /**
- * Safety wrapper around ResourceIndex, meant to be used by engine code.
+ * Safety wrapper around ResourceID, meant to be used by engine code.
  * Valid handles can only be created by the Draw Manager.
  *
  * Generally, ResourceHandleRange is preferred over this class.
@@ -116,76 +116,76 @@ class ResourceHandle {
   friend class Manager;
   friend class ResourceHandleRange;
 
-  ResourceIndex index_ = {};
+  ResourceID id_ = {};
 
-  ResourceHandle(uint raw) : index_(raw) {}
-  ResourceHandle(uint index, bool inverted_handedness) : index_(index, inverted_handedness) {}
+  ResourceHandle(uint raw) : id_(raw) {}
+  ResourceHandle(uint index, bool inverted_handedness) : id_(index, inverted_handedness) {}
 
  public:
   ResourceHandle() = default;
 
   bool is_valid() const
   {
-    return index_.raw != 0;
+    return id_.raw != 0;
   }
 
   bool has_inverted_handedness() const
   {
-    return index_.has_inverted_handedness();
+    return id_.has_inverted_handedness();
   }
 
-  uint32_t raw() const
+  uint raw() const
   {
-    return index_.raw;
+    return id_.raw;
   }
 
-  uint resource_index() const
+  uint index() const
   {
-    return index_.resource_index();
+    return id_.index();
   }
 
-  operator ResourceIndexRange() const
+  operator ResourceID() const
   {
     BLI_assert(is_valid());
-    return index_;
+    return id_;
   }
 };
 
 /**
- * Safety wrapper around ResourceIndexRange, meant to be used by engine code.
+ * Safety wrapper around ResourceIDRange, meant to be used by engine code.
  * Valid handles can only be created by the Draw Manager.
  */
 class ResourceHandleRange {
   friend class Manager;
   friend class ResourceHandle;
 
-  ResourceIndexRange index_ = {};
+  ResourceIDRange id_ = {};
 
-  ResourceHandleRange(ResourceHandle handle, uint len) : index_(handle.index_, len) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : id_(handle.id_, len) {}
 
  public:
   ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : index_(handle.index_, 1) {}
+  ResourceHandleRange(ResourceHandle handle) : id_(handle.id_) {}
 
   bool is_valid() const
   {
-    return index_.first.raw != 0;
+    return id_.first.raw != 0;
   }
 
   bool has_inverted_handedness() const
   {
-    return index_.has_inverted_handedness();
+    return id_.has_inverted_handedness();
   }
 
-  IndexRange index_range() const
+  IndexRange id_range() const
   {
-    return index_.index_range();
+    return id_.id_range();
   }
 
-  operator ResourceIndexRange() const
+  operator ResourceIDRange() const
   {
     BLI_assert(is_valid());
-    return index_;
+    return id_;
   }
 
   /* Returns a single handle within this range.
@@ -193,15 +193,26 @@ class ResourceHandleRange {
    * so their drawing can't be batched into a single draw call. */
   ResourceHandle sub_handle(int index) const
   {
-    BLI_assert(index < index_.count);
-    return ResourceHandle(index_.first.resource_index() + index,
-                          index_.first.has_inverted_handedness());
+    BLI_assert(index < id_.count);
+    return ResourceHandle(id_.first.index() + index, id_.first.has_inverted_handedness());
   }
 
   operator ResourceHandle() const
   {
-    BLI_assert(index_.count == 1);
-    return ResourceHandle(index_.first.raw);
+    BLI_assert(id_.count == 1);
+    return ResourceHandle(id_.first.raw);
+  }
+
+  uint raw() const
+  {
+    BLI_assert(id_.count == 1);
+    return id_.first.raw;
+  }
+
+  uint index() const
+  {
+    BLI_assert(id_.count == 1);
+    return id_.first.index();
   }
 };
 

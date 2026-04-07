@@ -73,8 +73,8 @@ void Cryptomatte::sync_object(const ObjectHandle &ob_handle)
     object_hashes[1] = register_id(EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET, asset->id);
   }
 
-  for (ResourceIndex resource_index : ob_handle.res_handle.index_range()) {
-    cryptomatte_object_buf.get_or_resize(resource_index.resource_index()) = object_hashes;
+  for (ResourceID resource_id : ob_handle.res_handle.id_range()) {
+    cryptomatte_object_buf.get_or_resize(resource_id.index()) = object_hashes;
   }
 }
 

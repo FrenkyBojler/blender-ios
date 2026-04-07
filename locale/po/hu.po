@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-04-06 09:15+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -397,10 +397,6 @@ msgstr "Közép"
 
 msgid "Bottom"
 msgstr "Alulnézet"
-
-
-msgid "Show Hotkey List"
-msgstr "Gyorsbillentyűk listája mutatása"
 
 
 msgid "Action"
@@ -1242,6 +1238,15 @@ msgid "Material"
 msgstr "Anyag"
 
 
+msgid "Threshold"
+msgstr "Küszöbszint"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Vonallánc"
+
+
 msgid "All"
 msgstr "Mind"
 
@@ -1252,10 +1257,6 @@ msgstr "Pontosság"
 
 msgid "Simplify"
 msgstr "Egyszerűsítés"
-
-
-msgid "Threshold"
-msgstr "Küszöbszint"
 
 
 msgid "Iterations"
@@ -1280,6 +1281,10 @@ msgstr "Az ecsethez rendelt anyag megtartása"
 
 msgid "Outline"
 msgstr "Körvonal"
+
+
+msgid "Both"
+msgstr "Mindkettő"
 
 
 msgid "Stretch"
@@ -6621,20 +6626,16 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "Import"
-msgstr "Importálás"
-
-
 msgid "Metaball"
 msgstr "Meta test"
 
 
+msgid "Import"
+msgstr "Importálás"
+
+
 msgid "Light"
 msgstr "Fényforrás"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Relations"
@@ -6643,6 +6644,10 @@ msgstr "Kapcsolatok"
 
 msgid "Rigid Body"
 msgstr "Szilárd test"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Apply"
@@ -10434,10 +10439,6 @@ msgstr "Alapértelmezett kitöltő szín"
 msgctxt "Operator"
 msgid "Decimate Keyframes"
 msgstr "Kulcs-képkockák tizedelése"
-
-
-msgid "Both"
-msgstr "Mindkettő"
 
 
 msgid "Jump to previous/next keyframe"
@@ -15127,6 +15128,10 @@ msgid "Report a Bug"
 msgstr "Hiba bejelentése"
 
 
+msgid "Object Index"
+msgstr "Objektum index"
+
+
 msgctxt "Operator"
 msgid "Assign"
 msgstr "Hozzárendelés"
@@ -15359,11 +15364,6 @@ msgstr "Alap vastagság"
 
 msgid "Image Border"
 msgstr "Képkeret"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Vonallánc"
 
 
 msgid "Parent:"
@@ -16920,10 +16920,6 @@ msgstr "Átlátszóság"
 
 msgid "Tangent Normal"
 msgstr "Érintőre merőleges"
-
-
-msgid "Object Index"
-msgstr "Objektum index"
 
 
 msgid "iScale"
