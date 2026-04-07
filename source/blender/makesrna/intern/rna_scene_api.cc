@@ -128,11 +128,17 @@ static void rna_SceneRender_get_frame_path(ID *id,
   }
 
   if (BKE_imtype_is_movie(rd->im_format.imtype)) {
-    MOV_filepath_from_settings(filepath, scene, rd, preview != 0, suffix, reports);
+    /* Project should always come from global main, otherwise variables will be
+     * missing/wrong. */
+    BLI_assert(bmain->is_global_main);
+    MOV_filepath_from_settings(filepath, scene, bmain->project, rd, preview != 0, suffix, reports);
   }
   else {
     bke::path_templates::VariableMap template_variables;
-    BKE_add_template_variables_general(template_variables, &scene->id);
+    /* Project should always come from global main, otherwise variables will be
+     * missing/wrong. */
+    BLI_assert(bmain->is_global_main);
+    BKE_add_template_variables_general(template_variables, &scene->id, bmain->project);
     BKE_add_template_variables_for_render_path(template_variables, *scene);
 
     const char *relbase = BKE_main_blendfile_path(bmain);

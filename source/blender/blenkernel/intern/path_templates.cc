@@ -237,7 +237,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   VariableMap variables;
 
   /* General variables. */
-  BKE_add_template_variables_general(variables, ptr->owner_id);
+  BKE_add_template_variables_general(variables, ptr->owner_id, CTX_data_main(C)->project);
 
   /* Purpose-specific variables. */
   switch (RNA_property_path_template_type(prop)) {
@@ -274,12 +274,14 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   return variables;
 }
 
-void BKE_add_template_variables_general(VariableMap &variables, const ID *path_owner_id)
+void BKE_add_template_variables_general(bke::path_templates::VariableMap &variables,
+                                        const ID *path_owner_id,
+                                        const std::optional<bke::BlenderProject> &project)
 {
   /* Project variables. */
-  if (G_MAIN->project) {
-    variables.add_string("project_name", G_MAIN->project->get_name());
-    variables.add_filepath("project_root", G_MAIN->project->get_root_path());
+  if (project) {
+    variables.add_string("project_name", project->get_name());
+    variables.add_filepath("project_root", project->get_root_path());
   }
 
   /* Global blend filepath (a.k.a. path to the blend file that's currently

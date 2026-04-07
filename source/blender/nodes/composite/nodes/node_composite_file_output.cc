@@ -23,6 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_main.hh"
@@ -174,7 +175,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
 
   bke::path_templates::VariableMap template_variables;
-  BKE_add_template_variables_general(template_variables, &node.owner_tree().id);
+  BKE_add_template_variables_general(template_variables, &node.owner_tree().id, G_MAIN->project);
   BKE_add_template_variables_for_render_path(template_variables, scene);
   BKE_add_template_variables_for_node(template_variables, node);
 

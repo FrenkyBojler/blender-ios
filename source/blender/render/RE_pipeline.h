@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
@@ -18,6 +20,10 @@ namespace blender {
 
 namespace gpu {
 class Texture;
+}
+
+namespace bke {
+class BlenderProject;
 }
 
 struct ExrHandle;
@@ -350,6 +356,7 @@ void RE_init_threadcount(Render *re);
 
 bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
+                              const std::optional<bke::BlenderProject> &project,
                               struct Scene *scene,
                               struct RenderData *rd,
                               struct MovieWriter **movie_writers,
