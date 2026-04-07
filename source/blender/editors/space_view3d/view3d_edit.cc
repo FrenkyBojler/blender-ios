@@ -815,7 +815,7 @@ static bool view3d_wire_or_solid_poll(bContext *C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(C, "Expected Wireframe or Solid Viewport Shading");
+  CTX_wm_operator_poll_msg_set(C, "Clipping works in Wireframe and Solid viewport shading only");
   return false;
 }
 
