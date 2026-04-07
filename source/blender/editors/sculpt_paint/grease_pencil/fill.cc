@@ -1202,6 +1202,8 @@ static Side decode_side(const EncodedConnection encoded)
 /* Both the start and end of every segment is connected to two other edges or null. */
 using EdgeConnections = VecBase<EncodedConnection, 2>;
 
+constexpr int NULL_INDEX = -1;
+
 static void follow_edge_connections(const Span<int> all_edges,
                                     const Span<bool> edges_to_keep,
                                     const Span<EdgeConnections> edge_connections,
@@ -1225,7 +1227,7 @@ static void follow_edge_connections(const Span<int> all_edges,
         false);
 
     if (first_segment == -1) {
-      return -1;
+      return NULL_INDEX;
     }
     return first_segment + empty_num;
   };
@@ -1240,7 +1242,7 @@ static void follow_edge_connections(const Span<int> all_edges,
   start_edge = get_next_unprocessed_edge();
 
   /* Follow each segment until it loops or ends. */
-  while (start_edge != -1) {
+  while (start_edge != NULL_INDEX) {
     Vector<int> curve_edges;
     Vector<bool> curve_edge_reversed;
 
@@ -1295,8 +1297,6 @@ static void follow_edge_connections(const Span<int> all_edges,
     start_edge = get_next_unprocessed_edge();
   }
 }
-
-constexpr int NULL_INDEX = -1;
 
 static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
                                 const MutableSpan<float> tri_weights,
