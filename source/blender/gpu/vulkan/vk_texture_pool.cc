@@ -312,8 +312,7 @@ VKTexturePool::VKTexturePool()
    * As most platforms have fast VkImage handle creation, it is simply not instantiated there. */
   bool use_image_cache_workaround =
       GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) ||
-      GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY) ||
-      GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_ANY);
+      GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_ANY);
   if (!use_image_cache_workaround) {
     image_cache_ = VKImageCache();
   }
