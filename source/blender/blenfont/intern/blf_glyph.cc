@@ -1368,7 +1368,7 @@ GlyphBLF *blf_glyph_ensure(
     FontBLF *font, GlyphCacheBLF *gc, const uint charcode, uint glyph_index, uint8_t subpixel)
 {
   if (charcode < 32) {
-    if (ELEM(charcode, 0x10, 0x13)) {
+    if (ELEM(charcode, '\n', '\r')) {
       /* Do not render line feed or carriage return. #134972. */
       return nullptr;
     }
