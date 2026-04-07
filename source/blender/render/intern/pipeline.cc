@@ -795,6 +795,7 @@ void RE_InitState(Render *re,
 
   re->i.starttime = BLI_time_now_seconds();
 
+  BLI_assert(&re->r != rd);
   if (&re->r != rd) {
     /* Copy render data and render layers for thread safety. */
     render_copy_renderdata(&re->r, rd);
