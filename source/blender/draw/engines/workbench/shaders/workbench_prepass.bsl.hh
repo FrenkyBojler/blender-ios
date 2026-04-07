@@ -261,10 +261,12 @@ struct PointCloud {
   ObjectMatrices obj = models.get(id.resource_id<1>());
 
 #if 0 /* TODO make pointcloud not rely on drw_model_lib.glsl. */
+  const eObjectInfoFlag ob_flag = buffer_get(draw_object_infos, drw_infos)[drw_resource_id()].flag;
+
   const pointcloud::Point ls_pt = pointcloud::point_get(uint(gl_VertexID));
   const pointcloud::Point ws_pt = pointcloud::object_to_world(ls_pt, obj.model);
   const pointcloud::ShapePoint pt = pointcloud::shape_point_get(
-      ws_pt, view.world_incident_vector(ws_pt.P), view.up());
+      ws_pt, view.world_incident_vector(ws_pt.P), view.up(), ob_flag);
 
   v_out.normal = normalize(view.normal_world_to_view(pt.N));
 
