@@ -68,7 +68,7 @@ static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
   bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
 
   if (strlen(value) == 0) {
-    // Leave the name as-is when passed an empty (which is invalid) name.
+    /* Leave the name as-is when passed an empty (which is invalid) name. */
     return;
   }
 
