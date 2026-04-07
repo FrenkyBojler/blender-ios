@@ -1234,12 +1234,13 @@ static VArray<float> interpolate_corners(const bke::CurvesGeometry &curves)
  */
 static float segment_radius_length(const float l, const float r1, const float r2)
 {
+  const float a = r2 - r1;
+
   /* Avoid division by zero. */
-  if (r1 == 0.0f || l == 0.0f) {
+  if (r1 <= 0.0f || l <= 0.0f || l == a) {
     return 0.0f;
   }
 
-  const float a = r2 - r1;
   /* If the two radii are close to being the same, calculate as if they were. */
   if (abs(a) < 0.001f * l) {
     return l / r1;
