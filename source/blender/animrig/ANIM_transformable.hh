@@ -41,7 +41,7 @@ enum AxisFlag : int8_t {
 
 /**
  * Interpolated the values linearly based on `factor` and returns a new Array. Asserts that boths
- * spans are the same length.
+ * spans are the same length. With the factor at `0` the values will match `a`.
  */
 Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
 

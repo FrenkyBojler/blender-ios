@@ -200,6 +200,7 @@ void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
 /**
  * Reset changes made to current pose.
  */
+void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values);
 void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks);
 /** Perform auto-key-framing after changes were made + confirmed. */
 void poseAnim_mapping_autoKeyframe(bContext *C,

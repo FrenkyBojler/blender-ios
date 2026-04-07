@@ -328,7 +328,7 @@ void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
 }
 /* Abstraction around the different property types to set them all with a float value cast to the
  * correct type. */
-static void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values)
+void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values)
 {
   const bool is_array = RNA_property_array_check(&prop);
   BLI_assert(!is_array || RNA_property_array_length(&ptr, &prop) == values.size());

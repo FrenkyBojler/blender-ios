@@ -314,12 +314,12 @@ static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
  * I (christoph) don't know why the frame range is stored per object. There doesn't seem to be a
  * good reason for it. Ideally this is just one value.
  */
-static bool pose_frame_range_from_id_get(tPoseSlideOp *pso,
-                                         ID *id,
+static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
+                                         const ID *id,
                                          float *prev_frame,
                                          float *next_frame)
 {
-  for (tPoseSlideObject &ob_data : pso->ob_data_array) {
+  for (const tPoseSlideObject &ob_data : pso->ob_data_array) {
 
     if (&ob_data.ob->id == id) {
       *prev_frame = ob_data.prev_frame;
@@ -364,8 +364,8 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
     prev_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
     next_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
   }
-  const float current_frame = float(pso.current_frame);
 
+  const float current_frame = float(pso.current_frame);
   /* Encodes a percentage value of where the current frame is between prev_- and next_frame. At 0
    * it is at prev_frame. */
   const float current_frame_factor = (current_frame - pso.prev_frame) /
@@ -373,7 +373,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
   /* Note christoph: After looking at POSESLIDE_PUSH and _RELAX for a long time I finally realized
    * what they do. They take the linear interpolation of the values based on the current frame and
    * blend the current pose towards or away from it. The usefulness of this is likely limited and
-   * the naming could be better. */
+   * the naming could be better. Also this could be combined into a single slider. */
   Array<float> current_frame_breakdown = animrig::property_interpolated(
       prev_values, next_values, current_frame_factor);
 
@@ -424,7 +424,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
 /**
  * Helper for apply() - perform sliding for some value.
  */
-static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, float *val)
+static void pose_slide_apply_val(const tPoseSlideOp *pso, const FCurve *fcu, ID *id, float *val)
 {
   float prev_frame, next_frame;
   pose_frame_range_from_id_get(pso, id, &prev_frame, &next_frame);
@@ -490,6 +490,68 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, f
   }
 }
 
+static void pose_slide_apply_additional_properties(tPoseSlideOp &pso, tPChanFCurveLink &pfl)
+{
+  for (const PropertySnapshot &snapshot : pfl.additional_properties) {
+    std::optional<std::string> path = RNA_path_from_ID_to_property(&pfl.ptr, snapshot.property);
+    if (!path) {
+      BLI_assert_unreachable();
+      continue;
+    }
+    const float factor = ED_slider_factor_get(pso.slider);
+    Array<float> base_values = snapshot.backup_values;
+    Array<float> next_frame_values = base_values;
+    Array<float> prev_frame_values = base_values;
+    float prev_frame, next_frame;
+    pose_frame_range_from_id_get(&pso, pfl.transformable->owner_id(), &prev_frame, &next_frame);
+    {
+      const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path.value());
+      for (const FCurve *fcurve : fcurves) {
+        prev_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
+        next_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
+      }
+    }
+
+    /* See comment in `pose_slide_apply_linear` for the meaning of those values and push/relax. */
+    const float current_frame = float(pso.current_frame);
+    const float current_frame_factor = (current_frame - pso.prev_frame) /
+                                       (pso.next_frame - pso.prev_frame);
+    Array<float> current_frame_breakdown = animrig::property_interpolated(
+        next_frame_values, next_frame_values, current_frame_factor);
+
+    Array<float> values;
+    switch (pso.mode) {
+      case POSESLIDE_PUSH:
+        values = animrig::property_interpolated(base_values, current_frame_breakdown, -factor);
+        break;
+      case POSESLIDE_RELAX:
+        values = animrig::property_interpolated(base_values, current_frame_breakdown, factor);
+        break;
+
+      case POSESLIDE_BREAKDOWN:
+        values = animrig::property_interpolated(prev_frame_values, next_frame_values, factor);
+        break;
+
+      case POSESLIDE_BLEND: {
+        const float blend_factor = fabs((factor - 0.5f) * 2);
+        if (factor < 0.5) {
+          values = animrig::property_interpolated(base_values, prev_frame_values, blend_factor);
+        }
+        else {
+          values = animrig::property_interpolated(base_values, next_frame_values, blend_factor);
+        }
+        break;
+      }
+      case POSESLIDE_BLEND_REST:
+        /* Those are handled in pose_slide_rest_pose_apply. */
+        BLI_assert_unreachable();
+        values = base_values;
+        break;
+    }
+    rna_property_set_as_float(pfl.ptr, *snapshot.property, values);
+  }
+}
+
 /**
  * Helper for apply() - perform sliding for custom properties or bbone properties.
  */
@@ -499,17 +561,12 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
 {
   const int len = pfl->transformable->rna_path().size();
 
-  /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->transformable->data());
-
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
    * - bbone properties are similar, but they always start with a prefix "bbone_*",
    *   so a similar method should work here for those too
    */
   for (FCurve *fcu : pfl->fcurves) {
-    const char *bPtr, *pPtr;
-
     if (fcu->rna_path == nullptr) {
       continue;
     }
@@ -518,12 +575,14 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
      * - bPtr is the RNA Path with the standard part chopped off.
      * - pPtr is the chunk of the path which is left over.
      */
-    bPtr = strstr(fcu->rna_path, pfl->transformable->rna_path().data()) + len;
-    pPtr = strstr(bPtr, prop_prefix);
+    const char *bPtr = strstr(fcu->rna_path, pfl->transformable->rna_path().data()) + len;
+    const char *pPtr = strstr(bPtr, prop_prefix);
 
     if (!pPtr) {
       continue;
     }
+
+    PointerRNA &ptr = pfl->ptr;
     /* Use RNA to try and get a handle on this property, then, assuming that it is just
      * numerical, try and grab the value as a float for temp editing before setting back. */
     PropertyRNA *prop = RNA_struct_find_property(&ptr, pPtr);
@@ -531,14 +590,14 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
     if (!prop) {
       continue;
     }
-
+    const bool is_array = RNA_property_array_check(prop);
+    const int array_length = RNA_property_array_length(&ptr, prop);
     switch (RNA_property_type(prop)) {
       /* Continuous values that can be smoothly interpolated. */
       case PROP_FLOAT: {
-        const bool is_array = RNA_property_array_check(prop);
         float tval;
         if (is_array) {
-          if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
+          if (UNLIKELY(uint(fcu->array_index) >= array_length)) {
             break; /* Out of range, skip. */
           }
           tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
@@ -557,11 +616,11 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
         }
         break;
       }
+
       case PROP_INT: {
-        const bool is_array = RNA_property_array_check(prop);
         float tval;
         if (is_array) {
-          if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
+          if (UNLIKELY(uint(fcu->array_index) >= array_length)) {
             break; /* Out of range, skip. */
           }
           tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
@@ -583,10 +642,9 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
 
       /* Values which can only take discrete values. */
       case PROP_BOOLEAN: {
-        const bool is_array = RNA_property_array_check(prop);
         float tval;
         if (is_array) {
-          if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
+          if (UNLIKELY(uint(fcu->array_index) >= array_length)) {
             break; /* Out of range, skip. */
           }
           tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
@@ -606,6 +664,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
         }
         break;
       }
+
       case PROP_ENUM: {
         /* Don't handle this case - these don't usually represent interchangeable
          * set of values which should be interpolated between. */
@@ -795,8 +854,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
         (pfl.transform_flag & ACT_TRANS_BBONE))
     {
-      /* Bbone properties - they all start a "bbone_" prefix. */
-      pose_slide_apply_props(pso, &pfl, "bbone_");
+      pose_slide_apply_additional_properties(*pso, pfl);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (pfl.oldprops)) {

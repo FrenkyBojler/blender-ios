@@ -78,12 +78,12 @@ static void blend_linear(MutableSpan<float> values,
   }
 }
 
-Array<float> property_interpolated(Span<float> a, Span<float> b, float factor)
+Array<float> property_interpolated(const Span<float> a, const Span<float> b, float factor)
 {
   BLI_assert(a.size() == b.size());
   Array<float> interpolated(a.size());
   for (int i : a.index_range()) {
-    interpolated[i] = interpf(a[i], b[i], factor);
+    interpolated[i] = interpf(b[i], a[i], factor);
   }
   return interpolated;
 }
@@ -170,7 +170,7 @@ Rotation Rotation::interpolated(const Rotation &a, const Rotation &b, const floa
     default:
       /* Should axis angle use a different interpolation mode? */
       for (int i : interpolated.values.index_range()) {
-        interpolated.values[i] = interpf(a.values[i], b.values[i], factor);
+        interpolated.values[i] = interpf(b.values[i], a.values[i], factor);
       }
       break;
   }
@@ -201,7 +201,7 @@ std::string Transformable::rna_path_to_property(const PropertyType prop_type) co
   if (rna_path_from_id_.empty()) {
     return std::string(property_name);
   }
-  return fmt::format("{}.{}", rna_path_from_id_, "location");
+  return fmt::format("{}.{}", rna_path_from_id_, property_name);
 }
 
 Array<float> Transformable::get_property(const PropertyType prop_type) const
