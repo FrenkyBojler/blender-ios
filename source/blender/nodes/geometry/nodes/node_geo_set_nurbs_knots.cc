@@ -19,12 +19,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curves")
+  b.add_input<decl::Geometry>("Curves"_ustr)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("NURBS Curve to change the knot sequence of");
-  b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input(SOCK_FLOAT, "Knot").structure_type(StructureType::List).hide_value();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input(SOCK_FLOAT, "Knot"_ustr).structure_type(StructureType::List).hide_value();
 }
 
 /**
@@ -127,16 +127,16 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const ListPtr input_knot = params.extract_input<ListPtr>("Knot");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const ListPtr input_knot = params.extract_input<ListPtr>("Knot"_ustr);
 
   std::atomic<bool> has_selected_curve = false;
   std::atomic<bool> has_nurbs = false;
   std::atomic<bool> any_affected = false;
 
   if (!input_knot) {
-    params.set_output("Curves", std::move(geometry_set));
+    params.set_output("Curves"_ustr, std::move(geometry_set));
     return;
   }
 
@@ -147,7 +147,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (knot_validator.first() == 0) {
     params.error_message_add(NodeWarningType::Error, TIP_("Invalid knot sequence"));
-    params.set_output("Curves", std::move(geometry_set));
+    params.set_output("Curves"_ustr, std::move(geometry_set));
     return;
   }
 
@@ -196,7 +196,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  params.set_output("Curves", std::move(geometry_set));
+  params.set_output("Curves"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
