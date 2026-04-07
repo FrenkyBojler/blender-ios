@@ -274,9 +274,8 @@ Object *poseAnim_object_get(Object *ob_)
   return nullptr;
 }
 
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
+static void get_pose_bones_for_slide(bContext *C, ListBaseT<tPChanFCurveLink> &pfLinks)
 {
-  BLI_assert(pfLinks != nullptr);
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags... */
   Object *prev_ob, *ob_pose_armature;
@@ -298,14 +297,14 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
       continue;
     }
 
-    fcurves_to_pchan_links_get(*pfLinks, *ob_pose_armature, *pchan);
+    fcurves_to_pchan_links_get(pfLinks, *ob_pose_armature, *pchan);
   }
   CTX_DATA_END;
 
   /* If no PoseChannels were found, try a second pass, doing visible ones instead.
    * i.e. if nothing selected, do whole pose.
    */
-  if (BLI_listbase_is_empty(pfLinks)) {
+  if (BLI_listbase_is_empty(&pfLinks)) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
     CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
@@ -323,9 +322,23 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
         continue;
       }
 
-      fcurves_to_pchan_links_get(*pfLinks, *ob_pose_armature, *pchan);
+      fcurves_to_pchan_links_get(pfLinks, *ob_pose_armature, *pchan);
     }
     CTX_DATA_END;
+  }
+}
+
+void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
+{
+  BLI_assert(pfLinks != nullptr);
+  const eContextObjectMode mode = CTX_data_mode_enum(C);
+  switch (mode) {
+    case CTX_MODE_POSE:
+      get_pose_bones_for_slide(C, *pfLinks);
+      break;
+
+    default:
+      break;
   }
 }
 
