@@ -347,13 +347,13 @@ static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcur
 /* Apply linear blending to the values of the given `prop_type`. */
 static void pose_slide_apply_linear(tPoseSlideOp &pso,
                                     tPChanFCurveLink &pfl,
-                                    const StringRef path,
                                     const animrig::Transformable::PropertyType prop_type)
 {
 
   const float factor = ED_slider_factor_get(pso.slider);
-  const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
   animrig::Transformable *transformable = pfl.transformable;
+  const std::string path = transformable->rna_path_to_property(prop_type);
+  const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
   Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
@@ -633,7 +633,8 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
     return;
   }
 
-  std::string path = fmt::format("{}.{}", transformable->rna_path(), "rotation_quaternion");
+  const std::string path = transformable->rna_path_to_property(
+      animrig::Transformable::PropertyType::ROTATION);
 
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
@@ -768,22 +769,19 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
       /* Calculate these for the 'location' vector, and use location curves. */
-      std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "location");
-      pose_slide_apply_linear(*pso, pfl, path, animrig::Transformable::PropertyType::LOCATION);
+      pose_slide_apply_linear(*pso, pfl, animrig::Transformable::PropertyType::LOCATION);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "scale");
-      pose_slide_apply_linear(*pso, pfl, path, animrig::Transformable::PropertyType::SCALE);
+      pose_slide_apply_linear(*pso, pfl, animrig::Transformable::PropertyType::SCALE);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
       /* Everything depends on the rotation mode. */
       const eRotationModes rot_mode = transformable->get_rotation_mode();
       if (rot_mode > 0) {
-        std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "rotation_euler");
-        pose_slide_apply_linear(*pso, pfl, path, animrig::Transformable::PropertyType::ROTATION);
+        pose_slide_apply_linear(*pso, pfl, animrig::Transformable::PropertyType::ROTATION);
       }
       else if (rot_mode == ROT_MODE_AXISANGLE) {
         /* TODO: need to figure out how to do this! */

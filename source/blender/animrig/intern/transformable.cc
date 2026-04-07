@@ -10,6 +10,7 @@
 
 #include "DNA_object_types.h"
 
+#include "ANIM_rna.hh"
 #include "ANIM_transformable.hh"
 
 #include "RNA_access.hh"
@@ -180,6 +181,27 @@ Rotation Rotation::interpolated(const Rotation &a, const Rotation &b, const floa
 StringRefNull Transformable::rna_path() const
 {
   return rna_path_from_id_;
+}
+
+std::string Transformable::rna_path_to_property(const PropertyType prop_type) const
+{
+  StringRefNull property_name;
+  switch (prop_type) {
+    case PropertyType::LOCATION:
+      property_name = "location";
+      break;
+    case PropertyType::ROTATION: {
+      property_name = get_rotation_mode_path(eRotationModes(*rotation_mode_));
+      break;
+    }
+    case PropertyType::SCALE:
+      property_name = "scale";
+      break;
+  }
+  if (rna_path_from_id_.empty()) {
+    return std::string(property_name);
+  }
+  return fmt::format("{}.{}", rna_path_from_id_, "location");
 }
 
 Array<float> Transformable::get_property(const PropertyType prop_type) const

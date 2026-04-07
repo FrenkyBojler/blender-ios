@@ -117,6 +117,7 @@ class Transformable {
   /* Returns the rna path from the ID to the struct represented by this transformable. If the
    * struct is an ID this is an empty string. */
   StringRefNull rna_path() const;
+  std::string rna_path_to_property(PropertyType prop_type) const;
 
   /**
    * Returns a copy of the property values for the given property type.
