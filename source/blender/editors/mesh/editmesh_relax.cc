@@ -51,7 +51,6 @@ static wmOperatorStatus edbm_relax_exec(bContext *C, wmOperator *op)
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   const int iterations = RNA_enum_get(op->ptr, "iterations");
   const bool regular = RNA_boolean_get(op->ptr, "regular");
-  const bool use_parallel = RNA_boolean_get(op->ptr, "use_parallel");
   bool changed = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -59,26 +58,18 @@ static wmOperatorStatus edbm_relax_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
 
-    if (bm->totvert < 3) {
+    if (!EDBM_op_callf(em,
+                       op,
+                       "relax geom=%hvef interpolation=%i iterations=%i regular=%b ",
+                       BM_ELEM_SELECT,
+                       interpolation,
+                       iterations,
+                       regular))
+    {
       continue;
     }
 
-    for (int i = 0; i < iterations; i++) {
-      if (!EDBM_op_callf(em,
-                         op,
-                         "relax geom=%hvef interpolation=%i iterations=%i regular=%b "
-                         "use_parallel=%b",
-                         BM_ELEM_SELECT,
-                         interpolation,
-                         iterations,
-                         regular,
-                         use_parallel))
-      {
-        continue;
-      }
-    }
     changed = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -93,10 +84,8 @@ static void edbm_relax_ui(bContext * /*C*/, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
-
   layout.prop(op->ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "regular", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "use_parallel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -132,11 +121,6 @@ void MESH_OT_relax(wmOperatorType *ot)
                   true,
                   "Space evenly",
                   "Distribute vertices at constant distances along the loop");
-  RNA_def_boolean(ot->srna,
-                  "use_parallel",
-                  false,
-                  "Parallel Loops",
-                  "Also use non-selected parallel loops as input");
 }
 
 }  // namespace blender

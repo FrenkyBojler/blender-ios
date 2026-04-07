@@ -561,9 +561,6 @@ static BMOpDefine bmo_relax_def = {
         {"iterations", BMO_OP_SLOT_INT},
         /* Distribute vertices at constant distances along the loop. */
         {"regular", BMO_OP_SLOT_BOOL},
-        /* Also use non selected parallel loops as input. */
-        {"use_parallel", BMO_OP_SLOT_BOOL},
-        {{'\0'}},
     },
     /*slot_types_out*/
     {{{'\0'}}},
