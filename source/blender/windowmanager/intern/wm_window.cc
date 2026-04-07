@@ -3427,22 +3427,6 @@ void WM_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complet
   ghost_window->beginIME(x, win->sizey - y, w, h, complete);
 }
 
-void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region)
-{
-  if (!region || !region->runtime->type->cursor_ime) {
-    return;
-  }
-
-  WM_window_IME_end(win);
-
-  const std::optional<blender::int2> pos = region->runtime->type->cursor_ime(win, area, region);
-  if (pos) {
-    const bool complete = win->runtime->ime_data == nullptr;
-    WM_window_IME_begin(
-        win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, complete);
-  }
-}
-
 void WM_window_IME_end(wmWindow *win)
 {
   if ((WM_capabilities_flag() & WM_CAPABILITY_INPUT_IME) == 0) {
@@ -3463,6 +3447,22 @@ void WM_window_IME_end(wmWindow *win)
   MEM_delete(win->runtime->ime_data);
   win->runtime->ime_data = nullptr;
   win->runtime->ime_data_is_composing = false;
+}
+
+void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region)
+{
+  if (!region || !region->runtime->type->cursor_ime) {
+    return;
+  }
+
+  WM_window_IME_end(win);
+
+  const std::optional<blender::int2> pos = region->runtime->type->cursor_ime(win, area, region);
+  if (pos) {
+    const bool complete = win->runtime->ime_data == nullptr;
+    WM_window_IME_begin(
+        win, region->winrct.xmin + pos->x, region->winrct.ymin + pos->y, 0, 0, complete);
+  }
 }
 #endif /* WITH_INPUT_IME */
 
