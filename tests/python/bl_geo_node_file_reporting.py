@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# blender -b -P tests/python/bl_geonode_file_reporting.py -- --verbose --testdir tests/files
+# blender -b -P tests/python/bl_geo_node_file_reporting.py -- --verbose --testdir tests/files
 import unittest
 from pathlib import Path
 
