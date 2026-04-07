@@ -558,8 +558,8 @@ float4 gpencil_vertex(float4 viewport_res,
     out_P = (use_curr) ? wpos1 : wpos2;
     out_strength = abs((use_curr) ? strength1 : strength2);
 
-    float radius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_res) / 2.0;
-    float radius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_res) / 2.0;
+    float radius1 = gpencil_stroke_thickness_modulate(thickness1, viewport_res) / 2.0;
+    float radius2 = gpencil_stroke_thickness_modulate(thickness2, viewport_res) / 2.0;
 
     float2 ss0 = gpencil_project_to_screenspace(ndc0, viewport_res);
     float4 ss1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_res.xy);
