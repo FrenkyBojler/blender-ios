@@ -4219,12 +4219,12 @@ ColormanageProcessor ColormanageProcessor::colorspace_processor_new(StringRefNul
 {
   ColormanageProcessor processor;
 
+  processor.is_data_result_ = IMB_colormanagement_space_name_is_data(to_colorspace.c_str());
+
   if (from_colorspace == to_colorspace) {
-    BLI_assert(processor.curve_mapping_ == nullptr);
     return processor;
   }
 
-  processor.is_data_result_ = IMB_colormanagement_space_name_is_data(to_colorspace.c_str());
   processor.cpu_processor_ = g_config()->get_cpu_processor(from_colorspace, to_colorspace);
 
   return processor;
