@@ -5279,7 +5279,7 @@ static wmOperatorStatus repeat_last_exec(bContext *C, wmOperator * /*op*/)
 
   /* Seek last registered operator */
   while (lastop) {
-    if (lastop->type->flag & OPTYPE_REGISTER) {
+    if ((lastop->type->flag & OPTYPE_REGISTER) && !(lastop->type->flag & OPTYPE_SKIP_REPEAT)) {
       break;
     }
     lastop = lastop->prev;

@@ -226,6 +226,11 @@ enum {
 
   /** Operator is registered from a local node group or a node group asset. */
   OPTYPE_NODE_TOOL = (1 << 13),
+  /**
+   * Exclude from "Repeat last", even when #OPTYPE_REGISTER is set.
+   * Used for operators that support redo but shouldn't override the last repeatable action.
+   */
+  OPTYPE_SKIP_REPEAT = (1 << 14),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
