@@ -1498,8 +1498,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
-  /**/
-
   Array<bool> is_source_edge(result.edge.size(), false);
 
   for (const int edge_i : is_source_edge.index_range()) {
@@ -1509,8 +1507,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       }
     }
   }
-
-  /**/
 
   Array<int3> tri_edges(result.face.size(), int3(NULL_INDEX));
 
@@ -1533,8 +1529,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
   }
 
-  /**/
-
   Array<int3> tri_adjacency(result.face.size(), int3(NULL_INDEX));
 
   {
@@ -1555,8 +1549,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
         }
       }
     }
-
-    /**/
 
     for (const int tri_index : result.face.index_range()) {
       for (const int j : IndexRange(3)) {
@@ -1579,8 +1571,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
   }
 
-  /**/
-
   Array<float> edge_weights(result.edge.size());
 
   for (const int edge_i : result.edge.index_range()) {
@@ -1589,8 +1579,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     const double2 &v2 = result.vert[edge.second];
     edge_weights[edge_i] = math::distance(v1, v2);
   }
-
-  /**/
 
   auto get_tri_for_point = [&](const float2 &v) {
     for (const int tri_index : result.face.index_range()) {
