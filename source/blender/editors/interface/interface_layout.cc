@@ -2763,7 +2763,7 @@ void Layout::prop_textbox(const bContext *C,
   PropertyRNA *prop = RNA_struct_find_property_check(*ptr, propname.c_str(), PROP_STRING);
 
   PropertyRNA *visible_lines_prop = nullptr;
-  if (visible_lines_ptr && visible_lines_ptr->data && visible_lines_propname) {
+  if (visible_lines_ptr && !RNA_pointer_is_null(visible_lines_ptr) && visible_lines_propname) {
     visible_lines_prop = RNA_struct_find_property(visible_lines_ptr,
                                                   visible_lines_propname->c_str());
   }
@@ -2774,11 +2774,11 @@ void Layout::prop_textbox(const bContext *C,
         "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
-  if (visible_lines_ptr && visible_lines_ptr->data && !visible_lines_propname) {
+  if (visible_lines_ptr && !RNA_pointer_is_null(visible_lines_ptr) && !visible_lines_propname) {
     RNA_warning("visible_lines_propname required");
     return;
   }
-  if (visible_lines_ptr && visible_lines_ptr->data && !visible_lines_prop) {
+  if (visible_lines_ptr && !RNA_pointer_is_null(visible_lines_ptr) && !visible_lines_prop) {
     item_disabled(this, visible_lines_propname->c_str());
     RNA_warning("int property not found: %s.%s",
                 RNA_struct_identifier(visible_lines_ptr->type),
