@@ -5,3 +5,4 @@ Referenced by pull request #156825, Cleanup: Geometry Nodes: Remove legacy setti
 Referenced by commit 9deac2f0e1193ea999cbada60f101829d0a91150, Cleanup: Geometry Nodes: Remove legacy settings access from RNA
 Referenced by pull request #156846, Cleanup: Geometry Nodes: Rename settings to settings_legacy
 Referenced by commit a89c8a08c23e9f0d156d70b99bfd51fa93beb96d, Cleanup: Geometry Nodes: Rename settings to settings_legacy
+Referenced by issue #156952, Error if Brushstroke Tools add-on is enabled
