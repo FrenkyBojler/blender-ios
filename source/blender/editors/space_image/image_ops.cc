@@ -4019,13 +4019,14 @@ static wmOperatorStatus image_render_slot_move_exec(bContext *C, wmOperator *op)
   const int totslot = BLI_listbase_count(&ima->renderslots);
   bool changed = false;
 
-  if (type == SLOT_MOVE_UP) { /* Moving upwards. */
+  if (type == SLOT_MOVE_UP) {
+    /* Moving upwards. */
     for (int index = 0; index < totslot; index++) {
       const RenderSlot *slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
       if (!render_slot_is_selected(*ima, *slot, index)) {
         continue;
       }
-      const int new_index = max_ii(index - 1, 0);
+      const int new_index = std::max(index - 1, 0);
       changed |= BKE_image_move_renderslot(ima, index, new_index);
     }
   }
@@ -4035,7 +4036,7 @@ static wmOperatorStatus image_render_slot_move_exec(bContext *C, wmOperator *op)
       if (!render_slot_is_selected(*ima, *slot, index)) {
         continue;
       }
-      const int new_index = min_ii(index + 1, totslot - 1);
+      const int new_index = std::min(index + 1, totslot - 1);
       changed |= BKE_image_move_renderslot(ima, index, new_index);
     }
   }

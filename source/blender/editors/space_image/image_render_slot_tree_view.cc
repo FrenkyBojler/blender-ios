@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -125,11 +125,7 @@ class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
     }
 
     const RenderSlot **drag_slots = static_cast<const RenderSlot **>(drag.poin);
-    if (!drag_slots || !drag_slots[0]) {
-      return false;
-    }
-
-    return true;
+    return drag_slots && drag_slots[0];
   }
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
@@ -220,9 +216,8 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
 
   void build_row(ui::Layout &row) override
   {
-    /* Determine icon based on slot state, same logic as `ui_imageuser_slot_menu`. */
-
-    /* Default to "blank" for nicer alignment. */
+    /* Determine icon based on slot state (same logic as `ui_imageuser_slot_menu`), defaulting
+     * to "blank" for nicer alignment. */
     int icon = ICON_BLANK1;
 
     /* The scene isn't expected to be null, check since it's not a requirement. */
