@@ -90,6 +90,7 @@ set(SRC
   intern/inverse_eval.cc
   intern/list_function_eval.cc
   intern/math_functions.cc
+  intern/node_caller_ui.cc
   intern/node_common.cc
   intern/node_declaration.cc
   intern/node_exec.cc
@@ -111,6 +112,7 @@ set(SRC
   intern/value_elem.cc
   intern/volume_grid_function_eval.cc
 
+  NOD_caller_ui.hh
   NOD_common.hh
   NOD_composite.hh
   NOD_compositor_gizmos.hh
