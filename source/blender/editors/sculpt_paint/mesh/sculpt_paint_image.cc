@@ -92,7 +92,6 @@ static void fetch_image_buffers(ImageData &image_data,
         std::unique_ptr<TileProcessorWrapper> processor = std::make_unique<TileProcessorWrapper>();
 
         if (!buffer_colorspace) {
-          CLOG_WARN(&LOG, "UNKNOWN COLORSPACE!");
           processor->is_noop = true;
           return processor;
         }
