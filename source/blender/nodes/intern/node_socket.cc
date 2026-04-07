@@ -1668,8 +1668,8 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                                             FLT_MAX,
                                             socket.name,
                                             socket.description,
-                                            -FLT_MAX,
-                                            FLT_MAX);
+                                            0.0f,
+                                            1.0f);
     set_common_sequencer_update_function(prop);
     make_common_type_prop(srna,
                           socket,
