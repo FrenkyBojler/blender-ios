@@ -1,2 +1,3 @@
 Referenced by issue #111039, Texture paint Backface culling option does not work if symmetry is enabled
 Referenced by pull request #156692, Fix #111039: Texture Paint Backface Culling does not work with symmetry
+Referenced by commit 18938df8d8db0247755c7c6e210412b675848885, Fix #111039: Texture Paint Backface Culling does not work with symmetry
