@@ -355,7 +355,7 @@ class GRAPH_MT_channel(Menu):
         layout.operator_menu_enum("graph.fmodifier_add", "type").only_active = False
         
         layout.operator_context = 'EXEC_DEFAULT'
-        op = layout.operator("graph.fmodifier_remove", text="Remove F-Curve Modifier(s)")
+        op = layout.operator("graph.fmodifier_delete", text="Remove F-Curve Modifier(s)")
         op.only_active = False
         op.mode = 'REMOVE_ALL'
         

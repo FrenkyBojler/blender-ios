@@ -2965,7 +2965,7 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
 
 enum class RemovalMode { ALL = 0, FIRST = 1, TYPE = 2 };
 
-static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -3036,18 +3036,18 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
+void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
   /* Identifiers */
   ot->name = "Remove F-Curve Modifier(s)";
-  ot->idname = "GRAPH_OT_fmodifier_remove";
+  ot->idname = "GRAPH_OT_fmodifier_delete";
   ot->description = "Remove Modifier(s) from the active/selected F-Curves";
 
   /* API callbacks */
   ot->invoke = WM_menu_invoke;
-  ot->exec = graph_fmodifier_remove_exec;
+  ot->exec = graph_fmodifier_delete_exec;
   ot->poll = graphop_selected_fcurve_poll;
 
   /* Flags */
