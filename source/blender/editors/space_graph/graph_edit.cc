@@ -2963,7 +2963,7 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
 /** \name Remove F-Modifiers Operator
  * \{ */
 
-enum class RemovalMode { REMOVE_ALL = 0, REMOVE_FIRST = 1, REMOVE_TYPE = 2 };
+enum class RemovalMode { ALL = 0, FIRST = 1, TYPE = 2 };
 
 static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
 {
@@ -2996,7 +2996,7 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
     FCurve *fcu = static_cast<FCurve *>(ale.data);
 
     switch (mode) {
-      case RemovalMode::REMOVE_ALL: {
+      case RemovalMode::ALL: {
         for (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm != nullptr;) {
           FModifier *next = fcm->next;
           remove_fmodifier(&fcu->modifiers, fcm);
@@ -3005,7 +3005,7 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
         break;
       }
 
-      case RemovalMode::REMOVE_TYPE: {
+      case RemovalMode::TYPE: {
         for (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm != nullptr;) {
           FModifier *next = fcm->next;
           if (fcm->type == type) {
@@ -3016,7 +3016,7 @@ static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
         break;
       }
 
-      case RemovalMode::REMOVE_FIRST: {
+      case RemovalMode::FIRST: {
         if (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first)) {
           remove_fmodifier(&fcu->modifiers, fcm);
         }
@@ -3055,18 +3055,14 @@ void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
 
   /* Id-props */
   static const EnumPropertyItem mode_items[] = {
-      {int(RemovalMode::REMOVE_ALL),
-       "REMOVE_ALL",
-       0,
-       "Remove All",
-       "Remove all F-Curve modifiers"},
-      {int(RemovalMode::REMOVE_FIRST),
-       "REMOVE_FIRST",
+      {int(RemovalMode::ALL), "ALL", 0, "Remove All", "Remove all F-Curve modifiers"},
+      {int(RemovalMode::FIRST),
+       "FIRST",
        0,
        "Remove First",
        "Only remove the first F-Curve modifier regardless of type"},
-      {int(RemovalMode::REMOVE_TYPE),
-       "REMOVE_TYPE",
+      {int(RemovalMode::TYPE),
+       "TYPE",
        0,
        "Remove Type",
        "Only remove the specified type of F-Curve modifier"},
@@ -3075,7 +3071,7 @@ void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "mode",
                mode_items,
-               int(RemovalMode::REMOVE_ALL),
+               int(RemovalMode::ALL),
                "Mode",
                "Decide what the operator will remove");
 
