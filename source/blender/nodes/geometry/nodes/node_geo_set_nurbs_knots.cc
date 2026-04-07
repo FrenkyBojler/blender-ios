@@ -95,18 +95,31 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
   if (curves_to_write.is_empty()) {
     return;
   }
+
+  const Array<int> custom_knots_by_curve_src(curves.nurbs_custom_knots_by_curve().data());
+  const Array<float> custom_knots_src(curves.nurbs_custom_knots());
+
   index_mask::masked_fill(
       curves.nurbs_knots_modes_for_write(), int8_t(NURBS_KNOT_MODE_CUSTOM), curves_to_write);
   any_affected = true;
-
   curves.nurbs_custom_knots_update_size();
 
-  /* Writes new knots. */
-  const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
   MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
+  const OffsetIndices custom_knots_by_curve_dst = curves.nurbs_custom_knots_by_curve();
+  const IndexMask curves_to_preserve = IndexMask::from_difference(
+      IndexMask(curves.curves_num()), curves_to_write, memory);
+
+  /* Writes back existing knots. */
+  array_utils::copy_group_to_group(OffsetIndices<int>(custom_knots_by_curve_src),
+                                   custom_knots_by_curve_dst,
+                                   curves_to_preserve,
+                                   custom_knots_src.as_span(),
+                                   custom_knots);
+
+  /* Writes new knots. */
   curves_to_write.foreach_index(
       [&](const int i_curve) {
-        const IndexRange dst = custom_knots_by_curve[i_curve];
+        const IndexRange dst = custom_knots_by_curve_dst[i_curve];
         new_knot_sequence.materialize(custom_knots.slice(dst));
       },
       exec_mode::grain_size(1024));
