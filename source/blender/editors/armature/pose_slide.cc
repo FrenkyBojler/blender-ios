@@ -67,6 +67,7 @@
 #include "ED_util.hh"
 
 #include "ANIM_fcurve.hh"
+#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -422,76 +423,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
   }
 }
 
-/**
- * Helper for apply() - perform sliding for some value.
- */
-static void pose_slide_apply_val(const tPoseSlideOp *pso, const FCurve *fcu, ID *id, float *val)
-{
-  float prev_frame, next_frame;
-  pose_frame_range_from_id_get(pso, id, &prev_frame, &next_frame);
-
-  const float factor = ED_slider_factor_get(pso->slider);
-  const float current_frame = float(pso->current_frame);
-
-  /* Encodes a percentage value of where the current frame is between prev_- and next_frame. At 0
-   * it is at prev_frame. */
-  const float current_frame_factor = (current_frame - pso->prev_frame) /
-                                     (pso->next_frame - pso->prev_frame);
-
-  /* Get keyframe values for endpoint poses to blend with. */
-  /* Previous/start. */
-  const float prev_frame_y = evaluate_fcurve(fcu, prev_frame);
-  const float next_frame_y = evaluate_fcurve(fcu, next_frame);
-
-  /* Depending on the mode, calculate the new value. */
-  switch (pso->mode) {
-    case POSESLIDE_PUSH: /* Make the current pose more pronounced. */
-    {
-      /* Slide the pose away from the breakdown pose in the timeline */
-      (*val) -= ((prev_frame_y * (1 - current_frame_factor)) +
-                 (next_frame_y * current_frame_factor) - (*val)) *
-                factor;
-      break;
-    }
-    case POSESLIDE_RELAX: /* Make the current pose more like its surrounding ones. */
-    {
-      /* Slide the pose towards the breakdown pose in the timeline */
-      (*val) += ((prev_frame_y * (1 - current_frame_factor)) +
-                 (next_frame_y * current_frame_factor) - (*val)) *
-                factor;
-      break;
-    }
-    case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
-    {
-      /* Perform simple linear interpolation. */
-      (*val) = interpf(next_frame_y, prev_frame_y, factor);
-      break;
-    }
-    case POSESLIDE_BLEND: /* Blend the current pose with the previous (<50%) or next key (>50%). */
-    {
-      const float current_frame_y = evaluate_fcurve(fcu, current_frame);
-      /* Convert factor to absolute 0-1 range which is needed for `interpf`. */
-      const float blend_factor = fabs((factor - 0.5f) * 2);
-
-      if (factor < 0.5) {
-        /* Blend to previous key. */
-        (*val) = interpf(prev_frame_y, current_frame_y, blend_factor);
-      }
-      else {
-        /* Blend to next key. */
-        (*val) = interpf(next_frame_y, current_frame_y, blend_factor);
-      }
-
-      break;
-    }
-    /* Those are handled in pose_slide_rest_pose_apply. */
-    case POSESLIDE_BLEND_REST: {
-      break;
-    }
-  }
-}
-
-static void pose_slide_blend_property_snapshots(tPoseSlideOp &pso,
+static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
                                                 tPChanFCurveLink &pfl,
                                                 const Span<PropertySnapshot> snapshots)
 {
@@ -555,7 +487,7 @@ static void pose_slide_blend_property_snapshots(tPoseSlideOp &pso,
         values = base_values;
         break;
     }
-    rna_property_set_as_float(pfl.ptr, *snapshot.property, values);
+    animrig::rna_property_set_as_float(pfl.ptr, *snapshot.property, values);
   }
 }
 
@@ -737,11 +669,11 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
         (pfl.transform_flag & ACT_TRANS_BBONE))
     {
-      pose_slide_blend_property_snapshots(*pso, pfl, pfl.additional_properties);
+      pose_slide_apply_property_snapshots(*pso, pfl, pfl.additional_properties);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
-      pose_slide_blend_property_snapshots(*pso, pfl, pfl.custom_properties);
+      pose_slide_apply_property_snapshots(*pso, pfl, pfl.custom_properties);
     }
   }
 

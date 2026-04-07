@@ -41,6 +41,7 @@
 #include "ANIM_action_iterators.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
+#include "ANIM_rna.hh"
 #include "ANIM_transformable.hh"
 
 #include "armature_intern.hh"
@@ -156,7 +157,7 @@ static void store_property_snapshot(PointerRNA &ptr,
                                     PropertyRNA &prop,
                                     Vector<PropertySnapshot> &snapshots)
 {
-  Array<float> property_values = rna_property_get_as_float(ptr, prop);
+  Array<float> property_values = animrig::rna_property_get_as_float(ptr, prop);
   if (property_values.size() == 0) {
     /* Unsupported property type. */
     return;
@@ -358,98 +359,6 @@ void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
   }
 }
 
-Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop)
-{
-  const bool is_array = RNA_property_array_check(&prop);
-  Array<float> values;
-  if (is_array) {
-    values.reinitialize(RNA_property_array_length(&ptr, &prop));
-  }
-  else {
-    values.reinitialize(1);
-  }
-  switch (RNA_property_type(&prop)) {
-    case PROP_BOOLEAN:
-      if (is_array) {
-        for (int i : values.index_range()) {
-          values[i] = RNA_property_boolean_get_index(&ptr, &prop, i);
-        }
-      }
-      else {
-        values[0] = RNA_property_boolean_get(&ptr, &prop);
-      }
-      break;
-
-    case PROP_INT:
-      if (is_array) {
-        for (int i : values.index_range()) {
-          values[i] = RNA_property_int_get_index(&ptr, &prop, i);
-        }
-      }
-      else {
-        values[0] = RNA_property_int_get(&ptr, &prop);
-      }
-      break;
-
-    case PROP_FLOAT:
-      if (is_array) {
-        RNA_property_float_get_array(&ptr, &prop, values.data());
-      }
-      else {
-        values[0] = RNA_property_float_get(&ptr, &prop);
-      }
-      break;
-    default:
-      /* Unsupported property type. */
-      BLI_assert_unreachable();
-      return {};
-  }
-  return values;
-}
-
-/* Abstraction around the different property types to set them all with a float value cast to the
- * correct type. */
-void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, const Span<float> values)
-{
-  const bool is_array = RNA_property_array_check(&prop);
-  BLI_assert(!is_array || RNA_property_array_length(&ptr, &prop) == values.size());
-
-  switch (RNA_property_type(&prop)) {
-    case PROP_BOOLEAN:
-      if (is_array) {
-        for (int i : values.index_range()) {
-          RNA_property_boolean_set_index(&ptr, &prop, i, values[i]);
-        }
-      }
-      else {
-        RNA_property_boolean_set(&ptr, &prop, values[0]);
-      }
-      break;
-    case PROP_INT:
-      if (is_array) {
-        for (int i : values.index_range()) {
-          RNA_property_int_set_index(&ptr, &prop, i, values[i]);
-        }
-      }
-      else {
-        RNA_property_int_set(&ptr, &prop, values[0]);
-      }
-      break;
-    case PROP_FLOAT:
-      if (is_array) {
-        RNA_property_float_set_array(&ptr, &prop, values.data());
-      }
-      else {
-        RNA_property_float_set(&ptr, &prop, values[0]);
-      }
-      break;
-    default:
-      /* Unsupported property type. */
-      BLI_assert_unreachable();
-      return;
-  }
-}
-
 void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   /* Iterate over each transformable affected, restoring all channels to their original values. */
@@ -462,11 +371,12 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
     transformable->set_scale(pfl.old_scale);
 
     for (PropertySnapshot &extra_prop : pfl.additional_properties) {
-      rna_property_set_as_float(pfl.ptr, *extra_prop.property, extra_prop.backup_values);
+      animrig::rna_property_set_as_float(pfl.ptr, *extra_prop.property, extra_prop.backup_values);
     }
 
     for (PropertySnapshot &custom_prop : pfl.custom_properties) {
-      rna_property_set_as_float(pfl.ptr, *custom_prop.property, custom_prop.backup_values);
+      animrig::rna_property_set_as_float(
+          pfl.ptr, *custom_prop.property, custom_prop.backup_values);
     }
   }
 }

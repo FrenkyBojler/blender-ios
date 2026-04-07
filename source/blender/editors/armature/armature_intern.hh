@@ -196,8 +196,6 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
  * Helper for apply() / reset() - refresh the data.
  */
 void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
-Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop);
-void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values);
 /**
  * Reset changes made to current pose.
  */

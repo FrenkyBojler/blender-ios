@@ -8,6 +8,7 @@
  * \brief Helper functions for animation to interact with the RNA system.
  */
 
+#include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 #include "DNA_action_types.h"
@@ -61,6 +62,9 @@ bool is_rotation_path(StringRefNull rna_path);
  * types are supported. Unsupported pointer types will return an empty vector.
  */
 Vector<RNAPath> get_keyable_id_property_paths(const PointerRNA &ptr);
+
+Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop);
+void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values);
 
 }  // namespace animrig
 }  // namespace blender
