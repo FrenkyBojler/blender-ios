@@ -105,6 +105,10 @@ def save_project(project, report=None):
         if report:
             report({'ERROR'}, rpt_("Cannot access '{:s}' due to filesystem permissions.").format(PROJECT_DIR))
         raise ProjectSaveException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
+        raise ProjectSaveException
 
     config_dir_path = root_path.joinpath(PROJECT_DIR)
 
@@ -116,7 +120,11 @@ def save_project(project, report=None):
         raise ProjectSaveException
     except PermissionError:
         if report:
-            report({'ERROR'}, "Cannot create '{:s}' directory due to filesystem permissions.".format(PROJECT_DIR))
+            report({'ERROR'}, rpt_("Cannot create '{:s}' directory due to filesystem permissions.").format(PROJECT_DIR))
+        raise ProjectSaveException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectSaveException
 
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
@@ -127,6 +135,10 @@ def save_project(project, report=None):
     except PermissionError:
         if report:
             report({'ERROR'}, rpt_("Cannot write to '{:s}' due to filesystem permissions.").format(PROJECT_CONFIG))
+        raise ProjectSaveException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectSaveException
 
     project.is_dirty = False
@@ -207,12 +219,21 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
         raise ProjectLoadException
     except tomllib.TOMLDecodeError as e:
         if report:
-            report({'ERROR'}, rpt_("Project's {:s} file contains invalid TOML.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Project's {:s} file contains invalid TOML: {:s}").format(PROJECT_CONFIG, str(e)))
+        raise ProjectLoadException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectLoadException
 
     # Validate schema and convert to ProjectConfig class.
     converter = cattrs.Converter()
-    project_config = converter.structure(config_dict, ProjectConfig)
+    try:
+        project_config = converter.structure(config_dict, ProjectConfig)
+    except cattrs.BaseValidationError as e:
+        if report:
+            report({'ERROR'}, rpt_("Invalid project configuration file: {:s}").format(str(e)))
+        raise ProjectLoadException
 
     # Other validation not handled by the schema.
     if project_config.name == "":
@@ -302,8 +323,8 @@ class PROJECT_OP_NewProject(Operator):
         # Immediately save the project.
         try:
             save_project(bpy.data.project, self.report)
-        except ProjectSaveException as e:
-
+        except ProjectSaveException:
+            # Reporting is handled by `save_project()` call in the `try` block.
             return {'CANCELLED'}
 
         return {'FINISHED'}
@@ -334,9 +355,9 @@ class PROJECT_OP_SaveProject(Operator):
             return {'CANCELLED'}
 
         try:
-            save_project(bpy.data.project)
-        except ProjectSaveException as e:
-            self.report({'ERROR'}, "Failed to save project: {:s}".format(str(e)))
+            save_project(bpy.data.project, self.report)
+        except ProjectSaveException:
+            # Reporting is handled by `save_project()` call in the `try` block.
             return {'CANCELLED'}
 
         return {'FINISHED'}
