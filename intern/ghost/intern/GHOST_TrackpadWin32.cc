@@ -117,8 +117,8 @@ GHOST_DirectManipulationHelper *GHOST_DirectManipulationHelper::create(HWND hWnd
 
 bool GHOST_DirectManipulationHelper::getScrollDirectionFromReg()
 {
-  DWORD scrollDirectionRegValue = 0;
-  DWORD pcbData = 0;
+  DWORD scrollDirectionRegValue;
+  DWORD pcbData = sizeof(scrollDirectionRegValue);
   HRESULT hr = HRESULT_FROM_WIN32(
       RegGetValueW(HKEY_CURRENT_USER,
                    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PrecisionTouchPad\\",
@@ -129,7 +129,8 @@ bool GHOST_DirectManipulationHelper::getScrollDirectionFromReg()
                    &pcbData));
   if (!SUCCEEDED(hr)) {
     GHOST_PRINT("Failed to get scroll direction from registry\n");
-    return false;
+    /* This is the default value for scroll direction, not a failure/success indicator. */
+    return true;
   }
 
   return scrollDirectionRegValue == 0;
