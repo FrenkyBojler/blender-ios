@@ -70,9 +70,10 @@ static void shader_get_from_context(const bContext *C,
                                     ID **r_from)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   if (snode->shaderfrom == SNODE_SHADER_OBJECT) {
@@ -188,7 +189,7 @@ void register_node_tree_type_sh()
   bke::bNodeTreeType *tt = ntreeType_Shader = MEM_new<bke::bNodeTreeType>(__func__);
 
   tt->type = NTREE_SHADER;
-  tt->idname = "ShaderNodeTree";
+  tt->idname = "ShaderNodeTree"_ustr;
   tt->group_idname = "ShaderNodeGroup";
   tt->ui_name = N_("Shader Editor");
   tt->ui_icon = ICON_NODE_MATERIAL;
