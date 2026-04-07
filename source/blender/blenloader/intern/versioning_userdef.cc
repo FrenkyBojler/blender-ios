@@ -1777,6 +1777,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(502, 17)) {
     userdef->flag |= USER_BLENDER_UPDATE_LATEST_RELEASE;
+    userdef->statusbar_flag |= STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG;
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
