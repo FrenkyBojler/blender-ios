@@ -51,8 +51,8 @@ struct AlphaOverEffectOp {
     }
 
     for (int64_t idx = 0; idx < size; idx++) {
-      if (src1[3] <= 0.0f) {
-        /* Alpha of zero. No color addition will happen as the colors are pre-multiplied. */
+      if (src1[0] <= 0.0f && src1[1] <= 0.0f && src1[2] <= 0.0f && src1[3] <= 0.0f) {
+        /* Pixel emits no light and has no opacity. */
         memcpy(dst, src2, sizeof(T) * 4);
       }
       else if (fac == 1.0f && alpha_opaque(src1[3])) {
