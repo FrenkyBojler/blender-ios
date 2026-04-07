@@ -324,7 +324,7 @@ struct ARegionType {
    *
    * Called on region activation and after each draw (when `ARegionRuntime::do_ime` is set)
    * to position the IME candidate window.
-   * The caller converts to window coordinates and calls `wm_window_IME_begin`/`end`.
+   * The caller converts to window coordinates and calls `WM_window_IME_begin`/`end`.
    */
   std::optional<blender::int2> (*cursor_ime)(wmWindow *win, ScrArea *area, ARegion *region);
 

@@ -35,10 +35,6 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#ifdef WITH_INPUT_IME
-#  include "wm_window.hh"
-#endif
-
 #include "ED_asset_shelf.hh"
 #include "ED_buttons.hh"
 #include "ED_screen.hh"
@@ -523,7 +519,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   if (at->cursor_ime && region->runtime->do_ime) {
     const bScreen *screen = WM_window_get_active_screen(win);
     if (!screen->animtimer && !screen->scrubbing && region == screen->active_region) {
-      wm_window_IME_begin(win, area, region);
+      WM_window_IME_region_refresh(win, area, region);
       region->runtime->do_ime = false;
     }
   }
@@ -2826,7 +2822,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
     /* Will be null for newly opened windows (file selector for e.g.). */
     if (win->runtime && win->runtime->ghostwin) {
       /* End any active IME session - the old space type's cursor_ime is no longer valid. */
-      wm_window_IME_end(win);
+      WM_window_IME_end(win);
     }
 #endif
 

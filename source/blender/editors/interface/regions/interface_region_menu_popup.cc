@@ -32,10 +32,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#ifdef WITH_INPUT_IME
-#  include "wm_window.hh"
-#endif
-
 #include "RNA_access.hh"
 
 #include "UI_interface_layout.hh"
@@ -677,7 +673,7 @@ void popup_block_invoke_ex(
   wmWindow *window = CTX_wm_window(C);
 
 #ifdef WITH_INPUT_IME
-  wm_window_IME_end(window);
+  WM_window_IME_end(window);
 #endif
 
   PopupBlockHandle *handle = popup_block_create(

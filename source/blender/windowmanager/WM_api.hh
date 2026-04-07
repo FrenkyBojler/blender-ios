@@ -345,6 +345,20 @@ bool WM_window_is_main_top_level(const wmWindow *win);
 bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
 
+#ifdef WITH_INPUT_IME
+/**
+ * Start and end an IME composition session for a window.
+ */
+void WM_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complete);
+void WM_window_IME_end(wmWindow *win);
+
+/**
+ * Refresh IME status for regions that have their own IME positioning
+ * logic using a cursor_ime callback.
+ */
+void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region);
+#endif
+
 /**
  * Support for wide gamut and HDR colors.
  */

@@ -31,10 +31,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#ifdef WITH_INPUT_IME
-#  include "wm_window.hh"
-#endif
-
 #include "ED_screen.hh"
 
 #include "interface_intern.hh"
@@ -1055,7 +1051,7 @@ void popup_block_free(bContext *C, PopupBlockHandle *handle)
   MEM_delete(handle);
 
 #ifdef WITH_INPUT_IME
-  wm_window_IME_begin(CTX_wm_window(C), CTX_wm_area(C), CTX_wm_region(C));
+  WM_window_IME_region_refresh(CTX_wm_window(C), CTX_wm_area(C), CTX_wm_region(C));
 #endif
 }
 

@@ -77,10 +77,6 @@
 #include "WM_types.hh"
 #include "wm_event_system.hh"
 
-#ifdef WITH_INPUT_IME
-#  include "wm_window.hh"
-#endif
-
 namespace blender::ui {
 
 static CLG_LogRef LOG = {"ui.handler"};
@@ -3542,14 +3538,14 @@ static void textedit_ime_begin(wmWindow *win, Button *but)
   int x, y;
 
   /* If we were in an IME elsewhere, end it so we can start fresh. */
-  wm_window_IME_end(win);
+  WM_window_IME_end(win);
 
   /* enable IME and position to cursor, it's a trick */
   x = win->runtime->eventstate->xy[0];
   /* flip y and move down a bit, prevent the IME panel cover the edit button */
   y = win->runtime->eventstate->xy[1] - 12;
 
-  wm_window_IME_begin(win, x, y, 0, 0, true);
+  WM_window_IME_begin(win, x, y, 0, 0, true);
 }
 
 /* Disable IME, and clear #Button IME data. */
@@ -3558,7 +3554,7 @@ static void textedit_ime_end(wmWindow *win, Button *but)
   if (ELEM(but->type, ButtonType::Num, ButtonType::NumSlider)) {
     return;
   }
-  wm_window_IME_end(win);
+  WM_window_IME_end(win);
 }
 
 void button_ime_reposition(Button *but, int x, int y, bool complete)
@@ -3570,7 +3566,7 @@ void button_ime_reposition(Button *but, int x, int y, bool complete)
   HandleButtonData *data = but->semi_modal_state ? but->semi_modal_state : but->active;
 
   region_to_window(data->region, &x, &y);
-  wm_window_IME_begin(data->window, x, y - 4, 0, 0, complete);
+  WM_window_IME_begin(data->window, x, y - 4, 0, 0, complete);
 }
 
 const wmIMEData *button_ime_data_get(Button *but)
@@ -3795,7 +3791,7 @@ static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
   text_edit.undo_stack_text = nullptr;
 
 #ifdef WITH_INPUT_IME
-  /* See #wm_window_IME_end code-comments for details. */
+  /* See #WM_window_IME_end code-comments for details. */
 #  ifdef __APPLE__
   if (win->runtime->ime_data)
 #  endif
@@ -4347,7 +4343,7 @@ static void numedit_begin_set_values(Button *but, HandleButtonData *data)
 static void numedit_begin(Button *but, HandleButtonData *data)
 {
 #ifdef WITH_INPUT_IME
-  wm_window_IME_end(data->window);
+  WM_window_IME_end(data->window);
 #endif
 
   if (but->type == ButtonType::Curve) {
