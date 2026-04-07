@@ -1356,11 +1356,6 @@ bool IMB_colormanagement_space_name_is_data(const char *name)
   const ColorSpace *colorspace = g_config()->get_color_space(name);
   return (colorspace && colorspace->is_data());
 }
-bool IMB_colormanagement_space_name_is_data(StringRefNull name)
-{
-  const ColorSpace *colorspace = g_config()->get_color_space(name);
-  return (colorspace && colorspace->is_data());
-}
 
 bool IMB_colormanagement_space_name_is_scene_linear(const char *name)
 {

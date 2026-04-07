@@ -87,7 +87,6 @@ const ColorSpace *IMB_colormanagement_space_get_named(const char *name);
 bool IMB_colormanagement_space_is_data(const ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_scene_linear(const ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_srgb(const ColorSpace *colorspace);
-bool IMB_colormanagement_space_name_is_data(StringRefNull name);
 bool IMB_colormanagement_space_name_is_data(const char *name);
 bool IMB_colormanagement_space_name_is_scene_linear(const char *name);
 bool IMB_colormanagement_space_name_is_srgb(const char *name);
@@ -514,10 +513,10 @@ void IMB_partial_display_buffer_update_delayed(
 /* -------------------------------------------------------------------- */
 /** \name Pixel Processor Functions
  * \{ */
-using ProcessorType =
-    std::variant<std::shared_ptr<const ocio::CPUProcessor>, const ocio::CPUProcessor *>;
-
 class ColormanageProcessor : NonCopyable {
+  using ProcessorType =
+      std::variant<std::shared_ptr<const ocio::CPUProcessor>, const ocio::CPUProcessor *>;
+
   ProcessorType cpu_processor_ = nullptr;
   CurveMapping *curve_mapping_ = nullptr;
   bool is_data_result_ = false;
