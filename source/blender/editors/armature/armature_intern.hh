@@ -176,9 +176,8 @@ struct tPChanFCurveLink {
   /* Additional properties of the transformable to affect which are not custom properties. */
   Vector<PropertySnapshot> additional_properties;
 
-  /** copy of custom properties at start of operator (to be restored before each modal step) */
-  IDProperty *oldprops = nullptr;
-  IDProperty *old_system_properties = nullptr;
+  /* User defined properties, either by addon or through UI. */
+  Vector<PropertySnapshot> custom_properties;
 };
 
 /* ----------- */
@@ -197,10 +196,11 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
  * Helper for apply() / reset() - refresh the data.
  */
 void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
+Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop);
+void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values);
 /**
  * Reset changes made to current pose.
  */
-void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values);
 void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks);
 /** Perform auto-key-framing after changes were made + confirmed. */
 void poseAnim_mapping_autoKeyframe(bContext *C,

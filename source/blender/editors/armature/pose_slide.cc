@@ -491,9 +491,11 @@ static void pose_slide_apply_val(const tPoseSlideOp *pso, const FCurve *fcu, ID 
   }
 }
 
-static void pose_slide_apply_additional_properties(tPoseSlideOp &pso, tPChanFCurveLink &pfl)
+static void pose_slide_blend_property_snapshots(tPoseSlideOp &pso,
+                                                tPChanFCurveLink &pfl,
+                                                const Span<PropertySnapshot> snapshots)
 {
-  for (const PropertySnapshot &snapshot : pfl.additional_properties) {
+  for (const PropertySnapshot &snapshot : snapshots) {
     std::optional<std::string> path = RNA_path_from_ID_to_property(&pfl.ptr, snapshot.property);
     if (!path) {
       BLI_assert_unreachable();
@@ -505,8 +507,12 @@ static void pose_slide_apply_additional_properties(tPoseSlideOp &pso, tPChanFCur
     Array<float> prev_frame_values = base_values;
     {
       float prev_frame, next_frame;
-      pose_frame_range_from_id_get(&pso, pfl.transformable->owner_id(), &prev_frame, &next_frame);
+      pose_frame_range_from_id_get(&pso, pfl.ptr.owner_id, &prev_frame, &next_frame);
       const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path.value());
+      if (fcurves.size() == 0) {
+        /* Property is not animated. */
+        continue;
+      }
       for (const FCurve *fcurve : fcurves) {
         prev_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
         next_frame_values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
@@ -550,133 +556,6 @@ static void pose_slide_apply_additional_properties(tPoseSlideOp &pso, tPChanFCur
         break;
     }
     rna_property_set_as_float(pfl.ptr, *snapshot.property, values);
-  }
-}
-
-/**
- * Helper for apply() - perform sliding for custom properties or bbone properties.
- */
-static void pose_slide_apply_props(tPoseSlideOp *pso,
-                                   tPChanFCurveLink *pfl,
-                                   const char prop_prefix[])
-{
-  const int len = pfl->transformable->rna_path().size();
-
-  /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
-   *   so just check for opening pair after the end of the path
-   * - bbone properties are similar, but they always start with a prefix "bbone_*",
-   *   so a similar method should work here for those too
-   */
-  for (FCurve *fcu : pfl->fcurves) {
-    if (fcu->rna_path == nullptr) {
-      continue;
-    }
-
-    /* Do we have a match?
-     * - bPtr is the RNA Path with the standard part chopped off.
-     * - pPtr is the chunk of the path which is left over.
-     */
-    const char *bPtr = strstr(fcu->rna_path, pfl->transformable->rna_path().data()) + len;
-    const char *pPtr = strstr(bPtr, prop_prefix);
-
-    if (!pPtr) {
-      continue;
-    }
-
-    PointerRNA &ptr = pfl->ptr;
-    /* Use RNA to try and get a handle on this property, then, assuming that it is just
-     * numerical, try and grab the value as a float for temp editing before setting back. */
-    PropertyRNA *prop = RNA_struct_find_property(&ptr, pPtr);
-
-    if (!prop) {
-      continue;
-    }
-    const bool is_array = RNA_property_array_check(prop);
-    const int array_length = RNA_property_array_length(&ptr, prop);
-    switch (RNA_property_type(prop)) {
-      /* Continuous values that can be smoothly interpolated. */
-      case PROP_FLOAT: {
-        float tval;
-        if (is_array) {
-          if (UNLIKELY(uint(fcu->array_index) >= array_length)) {
-            break; /* Out of range, skip. */
-          }
-          tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
-        }
-        else {
-          tval = RNA_property_float_get(&ptr, prop);
-        }
-
-        pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
-
-        if (is_array) {
-          RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
-        }
-        else {
-          RNA_property_float_set(&ptr, prop, tval);
-        }
-        break;
-      }
-
-      case PROP_INT: {
-        float tval;
-        if (is_array) {
-          if (UNLIKELY(uint(fcu->array_index) >= array_length)) {
-            break; /* Out of range, skip. */
-          }
-          tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
-        }
-        else {
-          tval = RNA_property_int_get(&ptr, prop);
-        }
-
-        pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
-
-        if (is_array) {
-          RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
-        }
-        else {
-          RNA_property_int_set(&ptr, prop, tval);
-        }
-        break;
-      }
-
-      /* Values which can only take discrete values. */
-      case PROP_BOOLEAN: {
-        float tval;
-        if (is_array) {
-          if (UNLIKELY(uint(fcu->array_index) >= array_length)) {
-            break; /* Out of range, skip. */
-          }
-          tval = float(RNA_property_boolean_get_index(&ptr, prop, fcu->array_index));
-        }
-        else {
-          tval = float(RNA_property_boolean_get(&ptr, prop));
-        }
-
-        pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
-
-        /* XXX: do we need threshold clamping here? */
-        if (is_array) {
-          RNA_property_boolean_set_index(&ptr, prop, fcu->array_index, tval);
-        }
-        else {
-          RNA_property_boolean_set(&ptr, prop, tval);
-        }
-        break;
-      }
-
-      case PROP_ENUM: {
-        /* Don't handle this case - these don't usually represent interchangeable
-         * set of values which should be interpolated between. */
-        break;
-      }
-
-      default:
-        /* Cannot handle. */
-        // printf("Cannot Pose Slide non-numerical property\n");
-        break;
-    }
   }
 }
 
@@ -795,7 +674,7 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
       // pose_slide_apply_props(pso, pfl, "bbone_");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (pfl.oldprops)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
       /* Not strictly a transform, but custom properties contribute
        * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
       /* TODO: Not implemented. */
@@ -863,13 +742,11 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
         (pfl.transform_flag & ACT_TRANS_BBONE))
     {
-      pose_slide_apply_additional_properties(*pso, pfl);
+      pose_slide_blend_property_snapshots(*pso, pfl, pfl.additional_properties);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS) && (pfl.oldprops)) {
-      /* Not strictly a transform, but custom properties contribute
-       * to the pose produced in many rigs (e.g. the facial rigs used in Sintel). */
-      pose_slide_apply_props(pso, &pfl, "[\"");
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
+      pose_slide_blend_property_snapshots(*pso, pfl, pfl.custom_properties);
     }
   }
 

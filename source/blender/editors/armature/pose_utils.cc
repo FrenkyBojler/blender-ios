@@ -152,6 +152,18 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
   return eAction_TransformFlags(flags);
 }
 
+static void store_property_snapshot(PointerRNA &ptr,
+                                    PropertyRNA &prop,
+                                    Vector<PropertySnapshot> &snapshots)
+{
+  Array<float> property_values = rna_property_get_as_float(ptr, prop);
+  if (property_values.size() == 0) {
+    /* Unsupported property type. */
+    return;
+  }
+  snapshots.append({&prop, std::move(property_values)});
+}
+
 /* helper for poseAnim_mapping_get() -> get the relevant F-Curves per PoseChannel */
 static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
                                        Object &ob,
@@ -184,46 +196,70 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   pfl->ptr = bone_ptr;
 
   /* Store current bbone values. */
-  PropertyRNA *prop = RNA_struct_find_property(&bone_ptr, "bbone_rollin");
-  pfl->additional_properties.append({prop, {pchan.roll1}});
+  if (transFlags & ACT_TRANS_BBONE) {
+    PropertyRNA *prop = RNA_struct_find_property(&bone_ptr, "bbone_rollin");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_rollout");
-  pfl->additional_properties.append({prop, {pchan.roll2}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_rollout");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_curveinx");
-  pfl->additional_properties.append({prop, {pchan.curve_in_x}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveinx");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutx");
-  pfl->additional_properties.append({prop, {pchan.curve_out_x}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutx");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_curveinz");
-  pfl->additional_properties.append({prop, {pchan.curve_in_z}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveinz");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutz");
-  pfl->additional_properties.append({prop, {pchan.curve_out_z}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutz");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutz");
-  pfl->additional_properties.append({prop, {pchan.curve_out_z}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutz");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_easein");
-  pfl->additional_properties.append({prop, {pchan.ease1}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_easein");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_easeout");
-  pfl->additional_properties.append({prop, {pchan.ease2}});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_easeout");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_scalein");
-  pfl->additional_properties.append({prop, Span<float>(pchan.scale_in, 3)});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_scalein");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
 
-  prop = RNA_struct_find_property(&bone_ptr, "bbone_scaleout");
-  pfl->additional_properties.append({prop, Span<float>(pchan.scale_out, 3)});
+    prop = RNA_struct_find_property(&bone_ptr, "bbone_scaleout");
+    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
+  }
 
   /* Make copy of custom properties. */
   if (transFlags & ACT_TRANS_PROP) {
+    PropertyRNA *prop;
     if (pchan.prop) {
-      pfl->oldprops = IDP_CopyProperty(pchan.prop);
+      for (const IDProperty &id_prop : pchan.prop->data.group) {
+        if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+          continue;
+        }
+        char name_escaped[MAX_IDPROP_NAME * 2];
+        BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
+        std::string path = fmt::format("[\"{}\"]", name_escaped);
+        prop = RNA_struct_find_property(&bone_ptr, path.c_str());
+        if (!prop) {
+          continue;
+        }
+        store_property_snapshot(bone_ptr, *prop, pfl->custom_properties);
+      }
     }
     if (pchan.system_properties) {
-      pfl->old_system_properties = IDP_CopyProperty(pchan.system_properties);
+      for (const IDProperty &id_prop : pchan.prop->data.group) {
+        if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+          continue;
+        }
+        prop = RNA_struct_find_property(&bone_ptr, id_prop.name);
+        if (!prop) {
+          continue;
+        }
+        store_property_snapshot(bone_ptr, *prop, pfl->custom_properties);
+      }
     }
   }
 }
@@ -300,11 +336,6 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
   for (pfl = static_cast<tPChanFCurveLink *>(pfLinks->first); pfl; pfl = pfln) {
     pfln = pfl->next;
 
-    /* free custom properties */
-    if (pfl->oldprops) {
-      IDP_FreeProperty(pfl->oldprops);
-    }
-
     MEM_delete(pfl->transformable);
 
     /* We cannot use BLI_freelinkN because that casts the tPChanFCurveLink to a C-style struct
@@ -326,9 +357,59 @@ void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
     DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 }
+
+Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop)
+{
+  const bool is_array = RNA_property_array_check(&prop);
+  Array<float> values;
+  if (is_array) {
+    values.reinitialize(RNA_property_array_length(&ptr, &prop));
+  }
+  else {
+    values.reinitialize(1);
+  }
+  switch (RNA_property_type(&prop)) {
+    case PROP_BOOLEAN:
+      if (is_array) {
+        for (int i : values.index_range()) {
+          values[i] = RNA_property_boolean_get_index(&ptr, &prop, i);
+        }
+      }
+      else {
+        values[0] = RNA_property_boolean_get(&ptr, &prop);
+      }
+      break;
+
+    case PROP_INT:
+      if (is_array) {
+        for (int i : values.index_range()) {
+          values[i] = RNA_property_int_get_index(&ptr, &prop, i);
+        }
+      }
+      else {
+        values[0] = RNA_property_int_get(&ptr, &prop);
+      }
+      break;
+
+    case PROP_FLOAT:
+      if (is_array) {
+        RNA_property_float_get_array(&ptr, &prop, values.data());
+      }
+      else {
+        values[0] = RNA_property_float_get(&ptr, &prop);
+      }
+      break;
+    default:
+      /* Unsupported property type. */
+      BLI_assert_unreachable();
+      return {};
+  }
+  return values;
+}
+
 /* Abstraction around the different property types to set them all with a float value cast to the
  * correct type. */
-void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, Span<float> values)
+void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, const Span<float> values)
 {
   const bool is_array = RNA_property_array_check(&prop);
   BLI_assert(!is_array || RNA_property_array_length(&ptr, &prop) == values.size());
@@ -380,21 +461,12 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
     transformable->set_rotation(pfl.old_rot);
     transformable->set_scale(pfl.old_scale);
 
-    for (PropertySnapshot &slide_prop : pfl.additional_properties) {
-      rna_property_set_as_float(pfl.ptr, *slide_prop.property, slide_prop.backup_values);
+    for (PropertySnapshot &extra_prop : pfl.additional_properties) {
+      rna_property_set_as_float(pfl.ptr, *extra_prop.property, extra_prop.backup_values);
     }
 
-    if (transformable->type() == animrig::Transformable::Type::POSE_BONE) {
-      bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
-
-      /* TODO: implement custom property support for other transformables. */
-      /* just overwrite values of properties from the stored copies (there should be some) */
-      if (pfl.oldprops) {
-        IDP_SyncGroupValues(pchan->prop, pfl.oldprops);
-      }
-      if (pfl.old_system_properties) {
-        IDP_SyncGroupValues(pchan->system_properties, pfl.old_system_properties);
-      }
+    for (PropertySnapshot &custom_prop : pfl.custom_properties) {
+      rna_property_set_as_float(pfl.ptr, *custom_prop.property, custom_prop.backup_values);
     }
   }
 }
