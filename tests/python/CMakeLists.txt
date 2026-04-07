@@ -1052,6 +1052,7 @@ if(TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    rotation
     group
 
     pixel_nodes
@@ -1090,6 +1091,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    rotation
     group
 
     pixel_nodes
