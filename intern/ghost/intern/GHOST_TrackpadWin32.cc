@@ -133,7 +133,8 @@ bool GHOST_DirectManipulationHelper::getScrollDirectionFromReg()
     return true;
   }
 
-  /* Return false for normal scrolling direction, and true for inverted. */
+  /* Return false for natural scrolling direction (upward motion results in content scrolling
+   * downward), and true for reversed direction. */
   return scrollDirectionRegValue == 0;
 }
 
