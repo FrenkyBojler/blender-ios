@@ -47,8 +47,6 @@ struct ObjectHandle : ObjectRef, BaseHandle {
 
 struct WorldHandle : public BaseHandle {};
 
-struct SceneHandle : public BaseHandle {};
-
 struct Material;
 struct MaterialPass;
 

@@ -109,7 +109,7 @@ struct ResourceIDRange {
  * Safety wrapper around ResourceID, meant to be used by engine code.
  * Valid handles can only be created by the Draw Manager.
  *
- * Generally, ResourceHandleRange is preferred over this class.
+ * ResourceHandleRange is usually preferred over this class.
  * ResourceHandle should only be used in paths where handling objects in batches is not possible.
  */
 class ResourceHandle {
