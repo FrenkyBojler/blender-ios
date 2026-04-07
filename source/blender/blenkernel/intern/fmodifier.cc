@@ -1188,6 +1188,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
     return nullptr;
   }
 
+  const bool is_first_modifier = BLI_listbase_is_empty(modifiers);
   /* add modifier itself */
   fcm = MEM_new<FModifier>("F-Curve Modifier");
   fcm->type = type;
@@ -1197,8 +1198,8 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   BLI_addtail(modifiers, fcm);
 
   /* special checks for whether modifier can be added */
-  if ((modifiers->first) && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
-    /* Modifiers requiring original data must be first in stack, so for now disable the modifier.
+  if (!is_first_modifier && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
+    /* Modifiers requiring original data, disable modifier if it's not first in the stack.
      */
     fcm->flag |= FMODIFIER_FLAG_DISABLED;
   }
