@@ -417,9 +417,7 @@ void object_sculpt_mode_enter(Main &bmain,
     Image *image;
     ImageUser *image_user;
 
-    BKE_paint_canvas_image_get(paint_settings, &ob, &image, &image_user);
-
-    if (image) {
+    if (BKE_paint_canvas_image_get(paint_settings, &ob, &image, &image_user)) {
       ED_space_image_sync(&bmain, image, false);
     }
   }
