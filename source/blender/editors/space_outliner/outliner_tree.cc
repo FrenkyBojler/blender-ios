@@ -995,6 +995,9 @@ static bool outliner_element_visible_get(const Main &bmain,
       }
     }
   }
+  else if ((te->idcode == ID_MA) && (exclude_filter & SO_FILTER_NO_OB_MATERIAL)) {
+    return false;
+  }
   else if ((te->parent != nullptr) && (TREESTORE(te->parent)->type == TSE_SOME_ID) &&
            (te->parent->idcode == ID_OB))
   {
@@ -1008,9 +1011,6 @@ static bool outliner_element_visible_get(const Main &bmain,
       }
     }
     if ((te->idcode == ID_KE) && (exclude_filter & SO_FILTER_NO_OB_SHAPE_KEYS)) {
-      return false;
-    }
-    else if ((te->idcode == ID_MA) && (exclude_filter & SO_FILTER_NO_OB_MATERIAL)) {
       return false;
     }
     else if ((type == TSE_ANIM_DATA) && (exclude_filter & SO_FILTER_NO_OB_ANIMATION)) {
