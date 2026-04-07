@@ -302,7 +302,7 @@ def run(
 
         # Handle `is_event_handling_break` here so we don't incorrectly detect
         # consecutive `is_event_handling_break` based on other functions exiting early.
-        is_event_handling_break = bpy.context.window_manager.is_event_handling_break
+        is_event_handling_break = getattr(bpy.context.window_manager, 'is_event_handling_break', False)
         if is_event_handling_break:
             if event_step._ticks_handling_break_consecutive > TICKS_HANDLING_BREAK_MAX:
                 raise RuntimeError(
