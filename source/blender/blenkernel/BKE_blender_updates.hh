@@ -24,6 +24,11 @@ struct BlenderVersion {
   int patch;
   friend auto operator<=>(const BlenderVersion &a, const BlenderVersion &b) = default;
 };
+enum class TrackType {
+  Latest,
+  LatestLTS,
+  CurrentRelease,
+};
 
 /** Version update notification. */
 struct VersionUpdate {
@@ -41,6 +46,7 @@ struct VersionUpdate {
   std::time_t time;
 
   BlenderVersion version;
+  TrackType track_type;
 
   /** UI string representation of #VersionUpdate::time. */
   std::string date() const;

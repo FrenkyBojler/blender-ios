@@ -589,7 +589,7 @@ Vector<const VersionUpdate *> available_updates()
   const IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
   const int notifications_flags = updates_notifications_flags();
 
-  Vector<const VersionUpdate *> result;
+  Vector<VersionUpdate *> result;
   /** Add Latest Release. */
   [&]() -> void {
     if (!updates.latest) {
@@ -602,6 +602,7 @@ Vector<const VersionUpdate *> available_updates()
       return;
     }
     result.append(&*updates.latest);
+    result.last()->track_type = TrackType::Latest;
   }();
   /** Add Latest LTS Release. */
   [&]() -> void {
@@ -613,15 +614,22 @@ Vector<const VersionUpdate *> available_updates()
         updates.latest_lts->version > ignored_updates.latest)
     {
       result.append(&*updates.latest_lts);
+      result.last()->track_type = TrackType::Latest;
       return;
     }
     if (!(notifications_flags & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE)) {
       return;
     }
     result.append(&*updates.latest_lts);
+    result.last()->track_type = TrackType::LatestLTS;
   }();
   [&]() -> void {
     if (!updates.current_release) {
+      return;
+    }
+    if (notifications_flags & USER_BLENDER_UPDATE_CURRENT_RELEASE) {
+      result.append(&*updates.current_release);
+      result.last()->track_type = TrackType::CurrentRelease;
       return;
     }
     /* Add current Release Update as Latest Release when there is no Latest Release or Latest LTS
@@ -630,6 +638,7 @@ Vector<const VersionUpdate *> available_updates()
         (updates.current_release->version > ignored_updates.latest))
     {
       result.append(&*updates.current_release);
+      result.last()->track_type = TrackType::Latest;
       return;
     }
     /* Add current Release Update as Latest LTS Release when the update is LTS and there is no
@@ -639,14 +648,11 @@ Vector<const VersionUpdate *> available_updates()
         updates.current_release->version > ignored_updates.latest_lts)
     {
       result.append(&*updates.current_release);
+      result.last()->track_type = TrackType::LatestLTS;
       return;
     }
-    if (!(notifications_flags & USER_BLENDER_UPDATE_CURRENT_RELEASE)) {
-      return;
-    }
-    result.append(&*updates.current_release);
   }();
-  return result;
+  return result.as_span();
 }
 
 static void ignore_update_impl(const VersionUpdate *update)

@@ -17,10 +17,7 @@
 
 #  include "BLT_translation.hh"
 
-#  include "ED_screen.hh"
-
 #  include "UI_interface.hh"
-#  include "UI_interface_c.hh"
 #  include "UI_interface_layout.hh"
 
 #  include "WM_api.hh"
@@ -34,7 +31,9 @@
 
 namespace blender {
 
-static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layout &layout)
+static void version_update_draw_body(const bke::VersionUpdate &update,
+                                     ui::Layout &layout,
+                                     bool is_unique_update = false)
 {
   ui::Layout &row = layout.row(true);
   row.emboss_set(ui::EmbossType::None);
@@ -55,7 +54,8 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
   ui::Button *button = uiDefBut(
       layout.block(),
       ui::ButtonType::But,
-      fmt::format(fmt::runtime(IFACE_("Skip {}")), update.version_str).c_str(),
+      is_unique_update ? IFACE_("Skip This Version") :
+                         fmt::format(fmt::runtime(IFACE_("Skip {}")), update.version_str).c_str(),
       0,
       0,
       5.0f * UI_UNIT_X,
@@ -98,12 +98,12 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
     ui::Layout &sub = header.row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
     sub.link(update.release_notes_url, IFACE_("What's new"), ICON_NONE);
-    version_update_draw_body(update, layout.column(false));
+    version_update_draw_body(update, layout.column(false), true);
     return;
   }
 
   ui::Layout &header = layout.row(true);
-  header.label("New Blender Updates Available", ICON_NONE);
+  header.label(IFACE_("New Releases Available"), ICON_NONE);
 
   ui::Layout &skip_all_row = header.row(true);
   skip_all_row.alignment_set(ui::LayoutAlign::Right);
@@ -125,9 +125,11 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {
     ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version_str, false);
-    std::string version_type = update->version.version == BLENDER_VERSION ? "current release" :
-                               update->is_lts                             ? "latest LTS" :
-                                                                            "latest";
+    std::string version_type = update->track_type == bke::TrackType::CurrentRelease ?
+                                   "current release" :
+                                   (update->track_type == bke::TrackType::LatestLTS ?
+                                        "latest LTS" :
+                                        "latest");
     panel_layout.header->label(
         fmt::format(
             "Blender {} ({}) - {}", update->version_str, IFACE_(version_type), update->date()),
