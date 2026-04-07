@@ -1,1 +1,2 @@
 Referenced by issue #156651, GeoNodes: Failed assertion in `build_reference_sets_outside_of_zones()`
+Referenced by issue #156985, GeoNodes: Failed assertion in assert_valid_panels_recursive()
