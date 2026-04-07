@@ -1,4 +1,4 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by issue #156234, 5.1: Appending Object with Geometry Nodes instancing a collection will import the object(s) from the instanced collection if Instance Collections is ticked
 Referenced by issue #156423, Color Fill in Sculpt Mode crashes when Topology Auto-Masking is enabled
-Referenced by issue #156955, Geometry Node based tools - broken.
+Referenced by issue #156955, Node tools menu cannot find tools marked as assets anymore
