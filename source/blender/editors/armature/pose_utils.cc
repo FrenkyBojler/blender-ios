@@ -286,8 +286,10 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
 
     MEM_delete(pfl->transformable);
 
-    /* free link itself */
-    BLI_freelinkN(pfLinks, pfl);
+    /* We cannot use BLI_freelinkN because that casts the tPChanFCurveLink to a C-style struct
+     * causing MEM_delete to do a C-style delete and not deallocating the Vector. */
+    BLI_remlink(pfLinks, pfl);
+    MEM_delete(pfl);
   }
 }
 
