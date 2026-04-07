@@ -1372,12 +1372,37 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
 static void node_link_cancel(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree &ntree = *snode->edittree;
   bNodeLinkDrag *nldrag = static_cast<bNodeLinkDrag *>(op->customdata);
+
+  if (nldrag->in_out == SOCK_OUT) {
+    /* Restore links. */
+    for (bNodeLink &link : nldrag->links) {
+      bNodeLink &link_restored = bke::node_add_link(
+          ntree, *link.fromnode, *link.fromsock, *nldrag->start_node, *nldrag->start_socket);
+
+      if (link_restored.fromnode->typeinfo->insert_link) {
+        bke::NodeInsertLinkParams params{ntree, *link_restored.fromnode, link_restored, C};
+        if (!link_restored.fromnode->typeinfo->insert_link(params)) {
+          bke::node_remove_link(&ntree, link_restored);
+          continue;
+        }
+      }
+      if (link_restored.tonode->typeinfo->insert_link) {
+        bke::NodeInsertLinkParams params{ntree, *link_restored.tonode, link_restored, C};
+        if (!link_restored.tonode->typeinfo->insert_link(params)) {
+          bke::node_remove_link(&ntree, link_restored);
+          continue;
+        }
+      }
+    }
+  }
+
   draw_draglink_tooltip_deactivate(*CTX_wm_region(C), *nldrag);
   view2d_edge_pan_cancel(C, &nldrag->pan_data);
   snode->runtime->linkdrag.reset();
   clear_picking_highlight(&snode->edittree->links);
-  BKE_ntree_update_tag_link_removed(snode->edittree);
+  BKE_ntree_update_tag_link_changed(snode->edittree);
   BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 }
 
