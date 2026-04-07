@@ -1320,6 +1320,49 @@ static void get_all_triangle_edges(MutableSpan<int3> tri_edges,
   }
 }
 
+static void get_all_triangle_adjacency(MutableSpan<int3> tri_adjacency,
+                                       const int num_edges,
+                                       const Span<Vector<int>> tris,
+                                       const Span<int3> tri_edges)
+{
+  Array<std::pair<int, int>> edge_to_tris(num_edges, std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+
+  for (const int tri_index : tris.index_range()) {
+    for (const int j : IndexRange(3)) {
+      const int edge_index = tri_edges[tri_index][j];
+
+      BLI_assert(edge_index != NULL_INDEX);
+
+      if (edge_to_tris[edge_index].first == NULL_INDEX) {
+        edge_to_tris[edge_index].first = tri_index;
+      }
+      else {
+        edge_to_tris[edge_index].second = tri_index;
+      }
+    }
+  }
+
+  for (const int tri_index : tris.index_range()) {
+    for (const int j : IndexRange(3)) {
+      const int edge = tri_edges[tri_index][j];
+
+      const int index_0 = edge_to_tris[edge].first;
+      if (index_0 != tri_index && index_0 != NULL_INDEX) {
+        tri_adjacency[tri_index][j] = index_0;
+        continue;
+      }
+
+      const int index_1 = edge_to_tris[edge].second;
+      if (index_1 != tri_index && index_1 != NULL_INDEX) {
+        tri_adjacency[tri_index][j] = index_1;
+        continue;
+      }
+
+      tri_adjacency[tri_index][j] = NULL_INDEX;
+    }
+  }
+}
+
 static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
                                 const MutableSpan<float> tri_weights,
                                 const Span<int3> tri_adjacency,
@@ -1537,45 +1580,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Array<int3> tri_adjacency(result.face.size(), int3(NULL_INDEX));
 
-  {
-    Array<std::pair<int, int>> edge_to_tris(result.edge.size(),
-                                            std::pair<int, int>(NULL_INDEX, NULL_INDEX));
-
-    for (const int tri_index : result.face.index_range()) {
-      for (const int j : IndexRange(3)) {
-        const int edge_index = tri_edges[tri_index][j];
-
-        BLI_assert(edge_index != NULL_INDEX);
-
-        if (edge_to_tris[edge_index].first == NULL_INDEX) {
-          edge_to_tris[edge_index].first = tri_index;
-        }
-        else {
-          edge_to_tris[edge_index].second = tri_index;
-        }
-      }
-    }
-
-    for (const int tri_index : result.face.index_range()) {
-      for (const int j : IndexRange(3)) {
-        const int edge = tri_edges[tri_index][j];
-
-        const int index_0 = edge_to_tris[edge].first;
-        if (index_0 != tri_index && index_0 != NULL_INDEX) {
-          tri_adjacency[tri_index][j] = index_0;
-          continue;
-        }
-
-        const int index_1 = edge_to_tris[edge].second;
-        if (index_1 != tri_index && index_1 != NULL_INDEX) {
-          tri_adjacency[tri_index][j] = index_1;
-          continue;
-        }
-
-        tri_adjacency[tri_index][j] = NULL_INDEX;
-      }
-    }
-  }
+  get_all_triangle_adjacency(
+      tri_adjacency.as_mutable_span(), result.edge.size(), result.face.as_span(), tri_edges);
 
   Array<float> edge_weights(result.edge.size());
 
