@@ -90,7 +90,6 @@ static void fetch_image_buffers(ImageData &image_data,
 
         std::unique_ptr<TileProcessorWrapper> processor = std::make_unique<TileProcessorWrapper>();
 
-        /* TODO: Fix after merge */
         ColormanageProcessor buffer_to_linear = ColormanageProcessor::colorspace_processor_new(
             buffer_colorspace, linear_colorspace);
         if (buffer_to_linear.is_noop()) {
