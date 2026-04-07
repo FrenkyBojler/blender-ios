@@ -1,3 +1,4 @@
 Referenced by issue #156483, Raycast node does not work properly if a direction is specified
 Referenced by issue #156600, Raycast Lines demo file broken
 Referenced by pull request #156493, Fix #156483: Raycast node does not work properly if a direction is specified
+Referenced by commit 9d766c7799c92070f5a1f3dd79b04ade8dd67208, Fix #156483: Raycast node does not work properly if a direction is specified
