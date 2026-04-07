@@ -488,7 +488,7 @@ class OUTLINER_PT_filter(Panel):
 
         sub = col.column(align=True)
         sub.active = space.use_filter_object
-    
+
         header, body = sub.panel("OUTLINER_filter_objectdata", default_closed=True)
         header.use_property_split = False
         header.prop(space, "use_filter_object_content", text="")
