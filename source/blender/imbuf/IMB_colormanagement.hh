@@ -194,7 +194,7 @@ void IMB_colormanagement_transform_byte(unsigned char *buffer,
  * Convert a byte image buffer into a float buffer, changing the color spaces too.
  */
 void IMB_colormanagement_transform_byte_to_float(float *float_buffer,
-                                                 unsigned char *byte_buffer,
+                                                 const unsigned char *byte_buffer,
                                                  int width,
                                                  int height,
                                                  int channels,
@@ -343,14 +343,14 @@ void IMB_colormanagement_display_settings_from_ctx(
 /**
  * Acquire display buffer for given image buffer using specified view and display settings.
  */
-unsigned char *IMB_display_buffer_acquire(ImBuf *ibuf,
-                                          const ColorManagedViewSettings *view_settings,
-                                          const ColorManagedDisplaySettings *display_settings,
-                                          void **cache_handle);
+const uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
+                                        const ColorManagedViewSettings *view_settings,
+                                        const ColorManagedDisplaySettings *display_settings,
+                                        void **cache_handle);
 /**
  * Same as #IMB_display_buffer_acquire but gets view and display settings from context.
  */
-unsigned char *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle);
+const uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle);
 
 void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
                                         float *linear_buffer,
@@ -514,18 +514,15 @@ void IMB_partial_display_buffer_update_delayed(
  * \{ */
 
 class ColormanageProcessor : NonCopyable {
- public:
-  ColormanageProcessor(ColormanageProcessor &&other) noexcept;
-  ColormanageProcessor &operator=(ColormanageProcessor &&other) noexcept;
-  ~ColormanageProcessor();
-
- private:
-  ColormanageProcessor() = default;
   std::shared_ptr<const ocio::CPUProcessor> cpu_processor_ = nullptr;
   CurveMapping *curve_mapping_ = nullptr;
   bool is_data_result_ = false;
 
  public:
+  ColormanageProcessor(ColormanageProcessor &&other) noexcept;
+  ~ColormanageProcessor();
+  ColormanageProcessor &operator=(ColormanageProcessor &&other) noexcept;
+
   static ColormanageProcessor colorspace_processor_new(StringRefNull from_colorspace,
                                                        StringRefNull to_colorspace);
   static ColormanageProcessor display_processor_new(
@@ -547,6 +544,9 @@ class ColormanageProcessor : NonCopyable {
   void apply_pixel(float *pixel, int channels) const;
   void apply(float *buffer, int width, int height, int channels, bool predivide) const;
   void apply_byte(unsigned char *buffer, int width, int height, int channels) const;
+
+ private:
+  ColormanageProcessor() = default;
 };
 
 bool IMB_colormanagement_display_processor_needed(
