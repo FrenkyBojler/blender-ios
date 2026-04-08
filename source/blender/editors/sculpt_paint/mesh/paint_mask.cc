@@ -223,33 +223,46 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   node_mask.foreach_index(
       [&](const int i) {
         LocalData &tls = all_tls.local();
-        const Span<int> verts = hide::node_visible_all_verts(
-            nodes[i], hide_vert, tls.visible_verts);
-        old_masks[i].resize(verts.size() - nodes[i].unique_verts_num_);
-        gather_data_mesh(mask.span.as_span(),
-                         verts.slice(nodes[i].unique_verts_num_, verts.size()),
-                         old_masks[i].as_mutable_span());
+        int unique_visible_verts_num = 0;
+        const Span<int> all_visible_verts = hide::node_visible_all_verts(
+            nodes[i], hide_vert, tls.visible_verts, unique_visible_verts_num);
+        const int shared_visible_verts_num = all_visible_verts.size() - unique_visible_verts_num;
+        old_masks[i].resize(shared_visible_verts_num);
+        if (shared_visible_verts_num > 0) {
+          gather_data_mesh(
+              mask.span.as_span(),
+              all_visible_verts.slice(unique_visible_verts_num, shared_visible_verts_num),
+              old_masks[i].as_mutable_span());
+        }
       },
       exec_mode::grain_size(1));
 
   node_mask.foreach_index(
       [&](const int i) {
         LocalData &tls = all_tls.local();
-        const Span<int> verts = hide::node_visible_all_verts(
-            nodes[i], hide_vert, tls.visible_verts);
-        tls.mask.resize(verts.size());
-        gather_data_mesh(mask.span.as_span(), verts, tls.mask.as_mutable_span());
-        update_fn(tls.mask, verts);
+        int unique_visible_verts_num = 0;
+        const Span<int> all_visible_verts = hide::node_visible_all_verts(
+            nodes[i], hide_vert, tls.visible_verts, unique_visible_verts_num);
+        const int shared_verts_num = all_visible_verts.size() - unique_visible_verts_num;
+        tls.mask.resize(all_visible_verts.size());
+        gather_data_mesh(mask.span.as_span(), all_visible_verts, tls.mask.as_mutable_span());
+        update_fn(tls.mask, all_visible_verts);
         if (array_utils::indexed_data_equal<float>(
-                mask.span, verts, tls.mask.as_span().slice(0, nodes[i].unique_verts_num_)) &&
-            old_masks[i].as_span() ==
-                tls.mask.as_span().slice(nodes[i].unique_verts_num_, tls.mask.size()))
+                mask.span,
+                all_visible_verts.slice(0, unique_visible_verts_num),
+                tls.mask.as_span().slice(0, unique_visible_verts_num)))
         {
-          return;
+          if (shared_verts_num == 0 ||
+              old_masks[i].as_span() ==
+                  tls.mask.as_span().slice(unique_visible_verts_num, shared_verts_num))
+          {
+            return;
+          }
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
-        scatter_data_mesh(
-            tls.mask.as_span(), verts.slice(0, nodes[i].unique_verts_num_), mask.span);
+        scatter_data_mesh(tls.mask.as_span().slice(0, unique_visible_verts_num),
+                          all_visible_verts.slice(0, unique_visible_verts_num),
+                          mask.span);
         bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
         node_changed[i] = true;
       },
