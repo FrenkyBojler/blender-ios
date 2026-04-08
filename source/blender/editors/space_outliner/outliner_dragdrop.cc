@@ -1236,7 +1236,7 @@ static bool collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
   bool changed = outliner_flag_set(*space_outliner, TSE_HIGHLIGHTED_ANY | TSE_DRAG_ANY, false);
 
   CollectionDrop data;
-  if (((event->modifier & KM_SHIFT) == 0) && collection_drop_init(C, drag, event->xy, &data)) {
+  if (((event->modifier != KM_SHIFT)) && collection_drop_init(C, drag, event->xy, &data)) {
     TreeElement *te = data.te;
     TreeStoreElem *tselem = TREESTORE(te);
     switch (data.insert_type) {
