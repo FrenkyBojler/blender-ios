@@ -178,6 +178,58 @@ Rotation Rotation::interpolated(const Rotation &a, const Rotation &b, const floa
   return interpolated;
 }
 
+static std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
+{
+  char name_esc[sizeof(pose_bone.name) * 2];
+  BLI_str_escape(name_esc, pose_bone.name, sizeof(name_esc));
+  return fmt::format("pose.bones[\"{}\"]", name_esc);
+}
+
+static void build_rotations_array(
+    Array<Array<float *>> &rotations, float *euler, float *quat, float *axis, float *angle)
+{
+  rotations.reinitialize(RotationModeIndex::MAX_ENUM);
+  rotations[RotationModeIndex::EULER] = Array<float *>(3);
+  for (int i : IndexRange(3)) {
+    rotations[RotationModeIndex::EULER][i] = &euler[i];
+  }
+
+  rotations[RotationModeIndex::QUATERNION] = Array<float *>(4);
+  for (int i : IndexRange(4)) {
+    rotations[RotationModeIndex::QUATERNION][i] = &quat[i];
+  }
+
+  rotations[RotationModeIndex::AXIS_ANGLE] = Array<float *>(4);
+  for (int i : IndexRange(3)) {
+    rotations[RotationModeIndex::AXIS_ANGLE][i] = &axis[i];
+  }
+  rotations[RotationModeIndex::AXIS_ANGLE][3] = angle;
+}
+
+Transformable::Transformable(Object &obj, bPoseChannel &pchan)
+    : type_(Transformable::Type::POSE_BONE),
+      owner_id_(&obj.id),
+      data_(&pchan),
+      location_({pchan.loc, 3}),
+      rotation_mode_(&pchan.rotmode),
+      scale_({pchan.scale, 3})
+{
+  build_rotations_array(rotations_, pchan.eul, pchan.quat, pchan.rotAxis, &pchan.rotAngle);
+  rna_path_from_id_ = get_pose_bone_rna_path(pchan);
+}
+
+Transformable::Transformable(Object &obj)
+    : type_(Transformable::Type::OBJECT),
+      owner_id_(&obj.id),
+      data_(&obj),
+      location_({obj.loc, 3}),
+      rotation_mode_(&obj.rotmode),
+      scale_({obj.scale, 3})
+{
+  build_rotations_array(rotations_, obj.rot, obj.quat, obj.rotAxis, &obj.rotAngle);
+  rna_path_from_id_ = "";
+}
+
 StringRefNull Transformable::rna_path() const
 {
   return rna_path_from_id_;
@@ -280,58 +332,6 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       blend_linear(scale_, values, factor, axis_flag);
       break;
   }
-}
-
-static std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
-{
-  char name_esc[sizeof(pose_bone.name) * 2];
-  BLI_str_escape(name_esc, pose_bone.name, sizeof(name_esc));
-  return fmt::format("pose.bones[\"{}\"]", name_esc);
-}
-
-static void build_rotations_array(
-    Array<Array<float *>> &rotations, float *euler, float *quat, float *axis, float *angle)
-{
-  rotations.reinitialize(RotationModeIndex::MAX_ENUM);
-  rotations[RotationModeIndex::EULER] = Array<float *>(3);
-  for (int i : IndexRange(3)) {
-    rotations[RotationModeIndex::EULER][i] = &euler[i];
-  }
-
-  rotations[RotationModeIndex::QUATERNION] = Array<float *>(4);
-  for (int i : IndexRange(4)) {
-    rotations[RotationModeIndex::QUATERNION][i] = &quat[i];
-  }
-
-  rotations[RotationModeIndex::AXIS_ANGLE] = Array<float *>(4);
-  for (int i : IndexRange(3)) {
-    rotations[RotationModeIndex::AXIS_ANGLE][i] = &axis[i];
-  }
-  rotations[RotationModeIndex::AXIS_ANGLE][3] = angle;
-}
-
-Transformable::Transformable(Object &obj, bPoseChannel &pchan)
-    : type_(Transformable::Type::POSE_BONE),
-      owner_id_(&obj.id),
-      data_(&pchan),
-      location_({pchan.loc, 3}),
-      rotation_mode_(&pchan.rotmode),
-      scale_({pchan.scale, 3})
-{
-  build_rotations_array(rotations_, pchan.eul, pchan.quat, pchan.rotAxis, &pchan.rotAngle);
-  rna_path_from_id_ = get_pose_bone_rna_path(pchan);
-}
-
-Transformable::Transformable(Object &obj)
-    : type_(Transformable::Type::OBJECT),
-      owner_id_(&obj.id),
-      data_(&obj),
-      location_({obj.loc, 3}),
-      rotation_mode_(&obj.rotmode),
-      scale_({obj.scale, 3})
-{
-  build_rotations_array(rotations_, obj.rot, obj.quat, obj.rotAxis, &obj.rotAngle);
-  rna_path_from_id_ = "";
 }
 
 Array<float> Transformable::get_location() const

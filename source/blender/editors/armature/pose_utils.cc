@@ -130,14 +130,12 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
         property_name == "rotation_axis_angle")
     {
       flags |= ACT_TRANS_ROT;
-
       r_curves.append(&fcurve);
       return;
     }
 
     if (property_name.startswith("bbone_")) {
       flags |= ACT_TRANS_BBONE;
-
       r_curves.append(&fcurve);
       return;
     }
@@ -145,7 +143,6 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
     /* Custom properties only. */
     if (property_name.startswith("[\"")) {
       flags |= ACT_TRANS_PROP;
-
       r_curves.append(&fcurve);
       return;
     }
