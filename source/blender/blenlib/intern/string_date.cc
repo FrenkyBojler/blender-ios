@@ -4,9 +4,6 @@
 
 /** \file
  * \ingroup bli
- * \brief Hmmm...
- *
- * This..
  */
 
 #include <fmt/format.h>
@@ -16,7 +13,7 @@
 #include "BLI_map.hh"
 #include "BLI_string_date.hh"
 
-namespace blender {
+namespace blender::date_format {
 
 struct CLDRPatterns {
   const char date[17];
@@ -129,13 +126,15 @@ static std::string format_with_pattern(const std::tm *tm,
   return oss.str();
 }
 
-std::string BLI_date_format_time(const std::tm *date_time, const char *locale_iso)
+/* Public functions. */
+
+std::string time(const std::tm *date_time, const char *locale_iso)
 {
   const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
   return format_with_pattern(date_time, pattern->time, locale_iso);
 }
 
-std::string BLI_date_format_date(const std::tm *date_time, const char *locale_iso)
+std::string date(const std::tm *date_time, const char *locale_iso)
 {
   const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
   std::string out = format_with_pattern(date_time, pattern->date, locale_iso);
@@ -146,11 +145,11 @@ std::string BLI_date_format_date(const std::tm *date_time, const char *locale_is
   return out;
 }
 
-std::string BLI_date_format_datetime(const std::tm *datetime,
-                                     const char *locale_iso,
-                                     const std::tm *now,
-                                     const StringRef &today,
-                                     const StringRef &yesterday)
+std::string datetime(const std::tm *datetime,
+                     const char *locale_iso,
+                     const std::tm *now,
+                     const StringRef &today,
+                     const StringRef &yesterday)
 {
   bool is_today = false;
   bool is_yesterday = false;
@@ -163,7 +162,7 @@ std::string BLI_date_format_datetime(const std::tm *datetime,
                     datetime->tm_year == yesterday.tm_year);
   }
 
-  const std::string time_s = BLI_date_format_time(datetime, locale_iso);
+  const std::string time_s = time(datetime, locale_iso);
 
   if (is_today) {
     return std::string(today) + " " + time_s;
@@ -172,9 +171,9 @@ std::string BLI_date_format_datetime(const std::tm *datetime,
     return std::string(yesterday) + " " + time_s;
   }
   else {
-    const std::string date_s = BLI_date_format_date(datetime, locale_iso);
+    const std::string date_s = date(datetime, locale_iso);
     return date_s + " " + time_s;
   }
 }
 
-}  // namespace blender
+}  // namespace blender::date_format

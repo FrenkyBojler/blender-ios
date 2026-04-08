@@ -7,7 +7,8 @@
 /** \file
  * \ingroup bli
  *
- * This file...
+ * This allows converting std::tm datetime structures to localized date and
+ * time strings. The localization is based on the CLDR from the current locale.
  */
 
 #include <chrono>
@@ -15,16 +16,16 @@
 
 #include "BLI_string_ref.hh"
 
-namespace blender {
+namespace blender::date_format {
 
-std::string BLI_date_format_date(const std::tm *date_time, const char *locale_iso = nullptr);
+std::string date(const std::tm *date_time, const char *locale_iso = nullptr);
 
-std::string BLI_date_format_time(const std::tm *date_time, const char *locale_iso = nullptr);
+std::string time(const std::tm *date_time, const char *locale_iso = nullptr);
 
-std::string BLI_date_format_datetime(const std::tm *date_time,
-                                     const char *locale_iso = nullptr,
-                                     const std::tm *now = nullptr,
-                                     const StringRef &today = {},
-                                     const StringRef &yesterday = {});
+std::string datetime(const std::tm *date_time,
+                     const char *locale_iso = nullptr,
+                     const std::tm *now = nullptr,
+                     const StringRef &today = {},
+                     const StringRef &yesterday = {});
 
-}  // namespace blender
+}  // namespace blender::date_format

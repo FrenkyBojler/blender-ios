@@ -3295,7 +3295,7 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   const time_t ts_now = time(nullptr);
   const tm now = *localtime(&ts_now);
   const char *lang = BLT_lang_get();
-  std::string modified_s = BLI_date_format_datetime(
+  std::string modified_s = date_format::datetime(
       &mod_time, lang, &now, TIP_("Today"), TIP_("Yesterday"));
 
   /* Size. */
