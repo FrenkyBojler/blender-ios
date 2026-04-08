@@ -8,6 +8,7 @@
  * Relaxes vertices along edge loops so they are smoother.
  */
 
+#include "BLI_array_utils.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"
@@ -164,10 +165,8 @@ static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase>
     return;
   }
 
-  Vector<int> vert_indices;
-  for (const int i : IndexRange(num_verts)) {
-    vert_indices.append(i);
-  }
+  Vector<int> vert_indices(num_verts);
+  array_utils::fill_index_range(vert_indices.as_mutable_span());
 
   for (const int j : IndexRange(2)) {
     const bool extend = num_verts % 2 == 1 ? j == 1 : j == 0;
