@@ -22,6 +22,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_asset.hh"
 #include "BKE_blender_version.h"
 #include "BKE_blendfile_link_append.hh"
 #include "BKE_context.hh"
@@ -533,8 +534,13 @@ static PyObject *_bpy_ids_info(BPy_Library *self, int blocktype)
       PyList_SET_ITEM(list, i, PyUnicode_FromString(id_info->name));
     }
     /* free linklist *and* each node's data */
-    BLI_linklist_free(
-        ids_info, [](void *link) -> void { MEM_delete(static_cast<BLODataBlockInfo *>(link)); });
+    BLI_linklist_free(ids_info, [](void *link) -> void {
+      BLODataBlockInfo *id_info = static_cast<BLODataBlockInfo *>(link);
+      if (id_info->free_asset_data) {
+        BKE_asset_metadata_free(&id_info->asset_data);
+      }
+      MEM_delete(id_info);
+    });
   }
 
   return list;
