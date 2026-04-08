@@ -91,16 +91,13 @@ static void edbm_relax_ui(bContext * /*C*/, wmOperator *op)
 
 void MESH_OT_relax(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Relax";
   ot->description = "Relax the loop, so it is smoother";
   ot->idname = "MESH_OT_relax";
 
-  /* API callbacks */
   ot->exec = edbm_relax_exec;
   ot->poll = ED_operator_editmesh;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
   ot->ui = edbm_relax_ui;
 
