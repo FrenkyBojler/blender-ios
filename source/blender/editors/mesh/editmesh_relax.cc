@@ -97,9 +97,9 @@ void MESH_OT_relax(wmOperatorType *ot)
 
   ot->exec = edbm_relax_exec;
   ot->poll = ED_operator_editmesh;
+  ot->ui = edbm_relax_ui;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  ot->ui = edbm_relax_ui;
 
   RNA_def_enum(ot->srna,
                "interpolation",
