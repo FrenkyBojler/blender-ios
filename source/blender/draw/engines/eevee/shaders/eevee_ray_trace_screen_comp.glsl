@@ -112,7 +112,7 @@ void main()
     if (hit.valid) {
       float3 hit_P = transform_point(drw_view().viewinv, hit.v_hit_P);
       /* TODO(@fclem): Split matrix multiply for precision. */
-      float3 history_ndc_hit_P = project_point(uniform_buf.raytrace.radiance_persmat, hit_P);
+      float3 history_ndc_hit_P = project_point(uniform_buf.raytrace.history_persmat, hit_P);
       float3 history_ss_hit_P = history_ndc_hit_P * 0.5f + 0.5f;
       /* Fetch radiance at hit-point. */
       radiance = textureLod(radiance_front_tx, history_ss_hit_P.xy, 0.0f).rgb;

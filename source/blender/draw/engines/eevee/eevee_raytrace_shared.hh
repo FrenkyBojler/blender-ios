@@ -17,8 +17,6 @@ namespace blender::eevee {
 struct [[host_shared]] RayTraceData {
   /** ViewProjection matrix used to render the previous frame. */
   float4x4 history_persmat;
-  /** ViewProjection matrix used to render the radiance texture. */
-  float4x4 radiance_persmat;
   /** ViewProjection matrix used to denoise the previous frame. */
   float4x4 denoise_history_persmat;
   /** Input resolution. */

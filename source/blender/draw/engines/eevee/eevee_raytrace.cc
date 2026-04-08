@@ -473,7 +473,6 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   data_.resolution_scale = resolution_scale;
   data_.resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) * resolution_scale);
   data_.history_persmat = rt_buffer.history_persmat;
-  data_.radiance_persmat = render_view.persmat();
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);
 
@@ -601,7 +600,6 @@ RayTraceResultTexture RayTraceModule::trace(
   data_.resolution_scale = resolution_scale;
   data_.resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) * resolution_scale);
   data_.denoise_history_persmat = denoise_buf->history_persmat;
-  data_.radiance_persmat = render_view.persmat();
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);
   data_.skip_denoise = !use_spatial_denoise;
