@@ -500,7 +500,7 @@ static std::optional<std::string> rna_MeshAutomaskingSettings_path(const Pointer
   if (rna_MeshAutomaskingSettings_address_get(reinterpret_cast<Paint *>(tool_settings->sculpt)) ==
       ptr->data)
   {
-    return "tool_settings.sculpt.automasking_settings";
+    return "tool_settings.sculpt.mesh_automasking_settings";
   }
   return std::nullopt;
 }
