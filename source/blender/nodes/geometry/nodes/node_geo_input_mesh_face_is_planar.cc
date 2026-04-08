@@ -98,7 +98,7 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
 
   bke::FieldDomainInfo domain_info(const Mesh & /*mesh*/) const override
   {
-    return {.index_dependent = false, .domain = AttrDomain::Face};
+    return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Face};
   }
 };
 

@@ -103,10 +103,6 @@ class HandlePositionFieldInput final : public bke::GeometryFieldInput {
   {
     return AttrDomain::Point;
   }
-  bke::FieldDomainInfo domain_info(const bke::GeometryComponent & /*component*/) const final
-  {
-    return {.index_dependent = false, .domain = AttrDomain::Point};
-  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)

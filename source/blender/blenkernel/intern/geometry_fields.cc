@@ -307,7 +307,7 @@ std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
 
 FieldDomainInfo GeometryFieldInput::domain_info(const GeometryComponent & /*component*/) const
 {
-  return FieldDomainInfo();
+  return FieldDomainInfo::IndexDependent();
 }
 
 GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -334,7 +334,7 @@ std::optional<AttrDomain> MeshFieldInput::preferred_domain(const Mesh & /*mesh*/
 
 FieldDomainInfo MeshFieldInput::domain_info(const Mesh & /*mesh*/) const
 {
-  return FieldDomainInfo();
+  return FieldDomainInfo::IndexDependent();
 }
 
 GVArray CurvesFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -463,7 +463,7 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
 FieldDomainInfo AttributeExistsFieldInput::domain_info(
     const GeometryComponent & /*component*/) const
 {
-  return {.index_dependent = false, .domain = std::nullopt};
+  return FieldDomainInfo::AnyDomain();
 }
 
 std::string AttributeFieldInput::socket_inspection_name() const
@@ -490,20 +490,20 @@ bool AttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
-  return this->domain_info(component).domain;
+  return std::get<FieldDomainInfo::DataOnDomain>(this->domain_info(component).variant).domain;
 }
 
 FieldDomainInfo AttributeFieldInput::domain_info(const GeometryComponent &component) const
 {
   const std::optional<AttributeAccessor> attributes = component.attributes();
   if (!attributes.has_value()) {
-    return {.index_dependent = false, .domain = std::nullopt};
+    return FieldDomainInfo::AnyDomain();
   }
   const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(name_);
   if (!meta_data.has_value()) {
-    return {.index_dependent = false, .domain = std::nullopt};
+    return FieldDomainInfo::AnyDomain();
   }
-  return {.index_dependent = false, .domain = meta_data->domain};
+  return FieldDomainInfo(FieldDomainInfo::DataOnDomain{meta_data->domain});
 }
 
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
@@ -790,7 +790,7 @@ std::optional<AttrDomain> EvaluateOnDomainInput::preferred_domain(
 
 FieldDomainInfo EvaluateOnDomainInput::domain_info(const GeometryComponent & /*component*/) const
 {
-  return {.index_dependent = false, .domain = src_domain_};
+  return bke::FieldDomainInfo::DataOnDomain{src_domain_};
 }
 
 }  // namespace bke
@@ -840,21 +840,21 @@ FieldDomainInfo NormalFieldInput::domain_info(const GeometryComponent &component
       if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
         switch (mesh->normals_domain()) {
           case MeshNormalDomain::Face:
-            return {.index_dependent = false, .domain = AttrDomain::Face};
+            return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Face};
           case MeshNormalDomain::Point:
-            return {.index_dependent = false, .domain = AttrDomain::Point};
+            return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Point};
           case MeshNormalDomain::Corner:
-            return {.index_dependent = false, .domain = AttrDomain::Corner};
+            return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Corner};
         }
       }
       break;
     }
     case GeometryComponent::Type::Curve:
-      return {.index_dependent = false, .domain = AttrDomain::Point};
+      return bke::FieldDomainInfo::DataOnDomain{AttrDomain::Point};
     default:
-      return {.index_dependent = false, .domain = std::nullopt};
+      return bke::FieldDomainInfo::AnyDomain();
   }
-  return {.index_dependent = false, .domain = std::nullopt};
+  return bke::FieldDomainInfo::AnyDomain();
 }
 
 const fn::Field<float3> &NormalFieldInput::get_field()
@@ -1171,22 +1171,23 @@ std::optional<AttrDomain> try_detect_required_field_domain(const GeometryCompone
   for (const fn::FieldInput &field_input : field_inputs->inputs) {
     if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
       const FieldDomainInfo domain_info = input->domain_info(component);
-      if (domain_info.index_dependent) {
+      if (std::holds_alternative<FieldDomainInfo::IndexDependent>(domain_info.variant)) {
         return std::nullopt;
       }
-      if (domain_info.domain) {
-        domains.append(*domain_info.domain);
+      if (const auto *value = std::get_if<FieldDomainInfo::DataOnDomain>(&domain_info.variant)) {
+        domains.append(value->domain);
       }
     }
     if (component.type() == GeometryComponent::Type::Mesh) {
       if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
         if (const auto *input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
           const FieldDomainInfo domain_info = input->domain_info(*mesh);
-          if (domain_info.index_dependent) {
+          if (std::holds_alternative<FieldDomainInfo::IndexDependent>(domain_info.variant)) {
             return std::nullopt;
           }
-          if (domain_info.domain) {
-            domains.append(*domain_info.domain);
+          if (const auto *value = std::get_if<FieldDomainInfo::DataOnDomain>(&domain_info.variant))
+          {
+            domains.append(value->domain);
           }
         }
       }

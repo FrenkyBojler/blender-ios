@@ -218,9 +218,26 @@ class GeometryFieldContext : public fn::FieldContext {
   const Curves *curves_id() const;
 };
 
+/** Information about a field input's relationship with the domain of the data it represents. */
 struct FieldDomainInfo {
-  bool index_dependent = true;
-  std::optional<AttrDomain> domain = std::nullopt;
+  /**
+   * The input may depend on the order of the domain. For example, the index field, can't be
+   * transparently evaluated on a different domain unlike attribute fields which are more flexible
+   * because of domain interpolation.
+   */
+  struct IndexDependent {};
+  /** The input represents data on a specific domain. */
+  struct DataOnDomain {
+    AttrDomain domain;
+  };
+  /** The input will have the same value on any domain.  */
+  struct AnyDomain {};
+
+  std::variant<IndexDependent, DataOnDomain, AnyDomain> variant;
+
+  FieldDomainInfo(const IndexDependent & /*tag*/) : variant(IndexDependent{}) {}
+  FieldDomainInfo(const DataOnDomain &domain) : variant(domain) {}
+  FieldDomainInfo(const AnyDomain & /*tag*/) : variant(AnyDomain{}) {}
 };
 
 class GeometryFieldInput : public fn::FieldInput {
@@ -545,6 +562,14 @@ inline bool try_capture_field_on_geometry(GeometryComponent &component,
  */
 std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
                                                   const fn::GField &field);
+
+/**
+ * Try to detect the domain that the field's inputs represent. If any field may depend on the
+ * order of the domain, none is returned, and if the fields will give the same value regardless of
+ * the domain, none is also returned.
+ */
+std::optional<AttrDomain> try_detect_required_field_domain(const GeometryComponent &component,
+                                                           const fn::GField &field);
 
 }  // namespace bke
 }  // namespace blender
