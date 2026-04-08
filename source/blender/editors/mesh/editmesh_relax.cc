@@ -61,7 +61,7 @@ static wmOperatorStatus edbm_relax_exec(bContext *C, wmOperator *op)
 
     if (!EDBM_op_callf(em,
                        op,
-                       "relax geom=%hvef interpolation=%i iterations=%i regular=%b ",
+                       "relax geom=%hvef interpolation=%i iterations=%i regular=%b",
                        BM_ELEM_SELECT,
                        interpolation,
                        iterations,
