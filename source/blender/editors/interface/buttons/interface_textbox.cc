@@ -1,13 +1,17 @@
-#include "DNA_screen_types.h"
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_screen.hh"
+
+#include "BLF_api.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 
-#include "BLF_api.hh"
+#include "DNA_screen_types.h"
 
 #include "UI_interface_c.hh"
 
