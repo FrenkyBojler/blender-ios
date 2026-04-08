@@ -94,7 +94,7 @@ class SVMCompiler {
                 const ShaderNodeType type,
                 const T &node,
                 const bool use_derivatives = false)
-    requires(std::is_class_v<T> && sizeof(T) % sizeof(int) == 0)
+    requires(std::is_class_v<T> && sizeof(T) % sizeof(int) == 0 && alignof(T) <= sizeof(uint))
   {
     const ShaderNodeType resolved_type = node_type(shader_node, type, use_derivatives);
     current_svm_nodes.push_back_slow(resolved_type);
