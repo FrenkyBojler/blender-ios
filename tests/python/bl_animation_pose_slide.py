@@ -32,9 +32,16 @@ _BONE_NAME = "bone"
 _CUSTOM_PROP = "test"
 
 
-class BreakdownerTestPoseBone(unittest.TestCase):
+class AbstractPoseSlideTest(unittest.TestCase):
     armature_ob: bpy.types.Object
     pose_bone: bpy.types.PoseBone
+
+    def _keyframe_all(self):
+        self.pose_bone.keyframe_insert("location")
+        self.pose_bone.keyframe_insert("rotation_euler")
+        self.pose_bone.keyframe_insert("scale")
+        self.pose_bone.keyframe_insert("bbone_curveinx")
+        self.pose_bone.keyframe_insert(f'["{_CUSTOM_PROP}"]')
 
     def setUp(self) -> None:
         bpy.ops.wm.read_homefile(use_factory_startup=True)
@@ -50,12 +57,73 @@ class BreakdownerTestPoseBone(unittest.TestCase):
         self.pose_bone[_CUSTOM_PROP] = 1.0
         self.pose_bone.select = True
 
-    def _keyframe_all(self):
-        self.pose_bone.keyframe_insert("location")
-        self.pose_bone.keyframe_insert("rotation_euler")
-        self.pose_bone.keyframe_insert("scale")
-        self.pose_bone.keyframe_insert("bbone_curveinx")
-        self.pose_bone.keyframe_insert(f'["{_CUSTOM_PROP}"]')
+
+class BlendToDefaultPoseBone(AbstractPoseSlideTest):
+
+    def test_blend_to_default_all_properties(self):
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.location = (1, 1, 1)
+        self.pose_bone.rotation_euler = (1, 1, 1)
+        self.pose_bone.scale = (1, 1, 1)
+        self.pose_bone.bbone_curveinx = 1
+        self.pose_bone[_CUSTOM_PROP] = 1.0
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.location = (2, 2, 2)
+        self.pose_bone.rotation_euler = (2, 2, 2)
+        self.pose_bone.scale = (2, 2, 2)
+        self.pose_bone.bbone_curveinx = 2
+        self.pose_bone[_CUSTOM_PROP] = 2.0
+        self._keyframe_all()
+
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.pose.blend_with_rest(factor=1.0)
+
+        for i in range(3):
+            self.assertAlmostEqual(self.pose_bone.location[i], 0, 3)
+            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 0, 3)
+            self.assertAlmostEqual(self.pose_bone.scale[i], 1, 3)
+
+        # Custom properties and bbone properties are not supported by this operator.
+        self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 2, 3)
+        self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 2, 3)
+
+
+class BlendToNeighborPoseBone(AbstractPoseSlideTest):
+
+    def test_blend_to_default_all_properties(self):
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.location = (1, 1, 1)
+        self.pose_bone.rotation_euler = (1, 1, 1)
+        self.pose_bone.scale = (1, 1, 1)
+        self.pose_bone.bbone_curveinx = 1
+        self.pose_bone[_CUSTOM_PROP] = 1.0
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.location = (2, 2, 2)
+        self.pose_bone.rotation_euler = (2, 2, 2)
+        self.pose_bone.scale = (2, 2, 2)
+        self.pose_bone.bbone_curveinx = 2
+        self.pose_bone[_CUSTOM_PROP] = 2.0
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(1)
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.pose.blend_to_neighbor(factor=1.0, prev_frame=0, next_frame=10)
+
+        for i in range(3):
+            self.assertAlmostEqual(self.pose_bone.location[i], 2, 3)
+            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 2, 3)
+            self.assertAlmostEqual(self.pose_bone.scale[i], 2, 3)
+
+        # Custom properties and bbone properties are not supported by this operator.
+        self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 2, 3)
+        self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 2, 3)
+
+
+class BreakdownerTestPoseBone(AbstractPoseSlideTest):
 
     def test_break_down_no_keys(self):
         # The case of no keys will produce no interpolation.
