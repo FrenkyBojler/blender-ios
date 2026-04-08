@@ -97,7 +97,7 @@ void main()
   hit.valid = false;
   /* This huge branch is likely to be a huge issue for performance.
    * We could split the shader but that would mean to dispatch some area twice for the same closure
-   * index. Another idea is to put both HiZ buffer int he same texture and dynamically access one
+   * index. Another idea is to put both HiZ buffer in the same texture and dynamically access one
    * or the other. But that might also impact performance. */
   if (is_reflection) {
     hit = raytrace_screen(uniform_buf.raytrace,
@@ -112,10 +112,13 @@ void main()
     if (hit.valid) {
       float3 hit_P = transform_point(drw_view().viewinv, hit.v_hit_P);
       /* TODO(@fclem): Split matrix multiply for precision. */
-      float3 history_ndc_hit_P = project_point(uniform_buf.raytrace.history_persmat, hit_P);
-      float3 history_ss_hit_P = history_ndc_hit_P * 0.5f + 0.5f;
+      float2 history_ndc_hit_P = project_point(uniform_buf.raytrace.history_persmat, hit_P).xy;
+      /* Make sure to tag hits that _were_ out of view as no hit. Otherwise the history is sampled
+       * with clamp to border mode, which can introduce too much energy if the border pixels are
+       * bright. */
+      hit.valid = all(lessThan(abs(history_ndc_hit_P), float2(1.0f)));
       /* Fetch radiance at hit-point. */
-      radiance = textureLod(radiance_front_tx, history_ss_hit_P.xy, 0.0f).rgb;
+      radiance = textureLod(radiance_front_tx, history_ndc_hit_P * 0.5f + 0.5f, 0.0f).rgb;
     }
   }
   else if (trace_refraction) {
