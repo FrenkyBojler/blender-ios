@@ -266,7 +266,7 @@ static void get_relax_input_chains(BMesh *bm, Vector<RelaxChainData> &r_chains)
   }
 }
 
-static void calculate_relax_t(const Vector<BMVert *> &verts,
+static void calculate_relax_t(Span<BMVert *> verts,
                               const RelaxPhase &phase,
                               const bool regular,
                               Vector<float> &r_t_knots,
@@ -310,9 +310,9 @@ static void calculate_relax_t(const Vector<BMVert *> &verts,
   }
 }
 
-static void calculate_relax_splines(Span<BMVert *> &verts,
-                                    Span<int> &knot_indices,
-                                    Span<float> &t_params,
+static void calculate_relax_splines(Span<BMVert *> verts,
+                                    Span<int> knot_indices,
+                                    Span<float> t_params,
                                     int interpolation,
                                     Vector<SplineCoeffs> (&r_coeffs)[3])
 {
@@ -367,7 +367,7 @@ static void calculate_relax_splines(Span<BMVert *> &verts,
   }
 }
 
-static void execute_relax_phase(Vector<BMVert *> &verts,
+static void execute_relax_phase(Span<BMVert *> verts,
                                 const RelaxPhase &phase,
                                 int interpolation,
                                 bool regular,
