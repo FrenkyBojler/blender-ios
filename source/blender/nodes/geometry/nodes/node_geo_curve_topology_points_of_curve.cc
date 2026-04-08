@@ -163,6 +163,11 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
   {
     return AttrDomain::Curve;
   }
+
+  bke::FieldDomainInfo domain_info(const GeometryComponent & /*component*/) const final
+  {
+    return {.index_dependent = false, .domain = AttrDomain::Curve};
+  }
 };
 
 class CurvePointCountInput final : public bke::CurvesFieldInput {

@@ -305,6 +305,11 @@ std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
   return std::nullopt;
 }
 
+FieldDomainInfo GeometryFieldInput::domain_info(const GeometryComponent & /*component*/) const
+{
+  return FieldDomainInfo();
+}
+
 GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
                                                const IndexMask &mask,
                                                ResourceScope & /*scope*/) const
@@ -325,6 +330,11 @@ GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
 std::optional<AttrDomain> MeshFieldInput::preferred_domain(const Mesh & /*mesh*/) const
 {
   return std::nullopt;
+}
+
+FieldDomainInfo MeshFieldInput::domain_info(const Mesh & /*mesh*/) const
+{
+  return FieldDomainInfo();
 }
 
 GVArray CurvesFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -450,6 +460,12 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
   return VArray<bool>::from_single(exists, domain_size);
 }
 
+FieldDomainInfo AttributeExistsFieldInput::domain_info(
+    const GeometryComponent & /*component*/) const
+{
+  return {.index_dependent = false, .domain = std::nullopt};
+}
+
 std::string AttributeFieldInput::socket_inspection_name() const
 {
   if (socket_inspection_name_) {
@@ -474,15 +490,20 @@ bool AttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
+  return this->domain_info(component).domain;
+}
+
+FieldDomainInfo AttributeFieldInput::domain_info(const GeometryComponent &component) const
+{
   const std::optional<AttributeAccessor> attributes = component.attributes();
   if (!attributes.has_value()) {
-    return std::nullopt;
+    return {.index_dependent = false, .domain = std::nullopt};
   }
   const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(name_);
   if (!meta_data.has_value()) {
-    return std::nullopt;
+    return {.index_dependent = false, .domain = std::nullopt};
   }
-  return meta_data->domain;
+  return {.index_dependent = false, .domain = meta_data->domain};
 }
 
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
@@ -767,6 +788,11 @@ std::optional<AttrDomain> EvaluateOnDomainInput::preferred_domain(
   return src_domain_;
 }
 
+FieldDomainInfo EvaluateOnDomainInput::domain_info(const GeometryComponent & /*component*/) const
+{
+  return {.index_dependent = false, .domain = src_domain_};
+}
+
 }  // namespace bke
 
 /* -------------------------------------------------------------------- */
@@ -805,6 +831,30 @@ bool NormalFieldInput::is_equal_to(const fn::FieldInput &other) const
            true_normals_ == other_typed->true_normals_;
   }
   return false;
+}
+
+FieldDomainInfo NormalFieldInput::domain_info(const GeometryComponent &component) const
+{
+  switch (component.type()) {
+    case GeometryComponent::Type::Mesh: {
+      if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
+        switch (mesh->normals_domain()) {
+          case MeshNormalDomain::Face:
+            return {.index_dependent = false, .domain = AttrDomain::Face};
+          case MeshNormalDomain::Point:
+            return {.index_dependent = false, .domain = AttrDomain::Point};
+          case MeshNormalDomain::Corner:
+            return {.index_dependent = false, .domain = AttrDomain::Corner};
+        }
+      }
+      break;
+    }
+    case GeometryComponent::Type::Curve:
+      return {.index_dependent = false, .domain = AttrDomain::Point};
+    default:
+      return {.index_dependent = false, .domain = std::nullopt};
+  }
+  return {.index_dependent = false, .domain = std::nullopt};
 }
 
 const fn::Field<float3> &NormalFieldInput::get_field()
@@ -1108,6 +1158,42 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
 {
   const fn::Field<bool> selection = fn::Field<bool>(true);
   return try_capture_fields_on_geometry(component, names, domain, selection, fields);
+}
+
+std::optional<AttrDomain> try_detect_required_field_domain(const GeometryComponent &component,
+                                                           const fn::GField &field)
+{
+  const fn::FieldInputsPtr &field_inputs = field.field_inputs();
+  if (!field_inputs) {
+    return std::nullopt;
+  }
+  Vector<AttrDomain, 8> domains;
+  for (const fn::FieldInput &field_input : field_inputs->inputs) {
+    if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
+      const FieldDomainInfo domain_info = input->domain_info(component);
+      if (domain_info.index_dependent) {
+        return std::nullopt;
+      }
+      if (domain_info.domain) {
+        domains.append(*domain_info.domain);
+      }
+    }
+    if (component.type() == GeometryComponent::Type::Mesh) {
+      if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
+        if (const auto *input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
+          const FieldDomainInfo domain_info = input->domain_info(*mesh);
+          if (domain_info.index_dependent) {
+            return std::nullopt;
+          }
+          if (domain_info.domain) {
+            domains.append(*domain_info.domain);
+          }
+        }
+      }
+    }
+    return std::nullopt;
+  }
+  return attribute_domain_highest_priority(domains);
 }
 
 std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,

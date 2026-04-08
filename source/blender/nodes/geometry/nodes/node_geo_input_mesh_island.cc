@@ -62,6 +62,11 @@ class IslandFieldInput final : public bke::MeshFieldInput {
   {
     return AttrDomain::Point;
   }
+
+  bke::FieldDomainInfo domain_info(const Mesh & /*mesh*/) const override
+  {
+    return {.index_dependent = false, .domain = AttrDomain::Face};
+  }
 };
 
 class IslandCountFieldInput final : public bke::MeshFieldInput {
@@ -99,6 +104,11 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Point;
+  }
+
+  bke::FieldDomainInfo domain_info(const Mesh & /*mesh*/) const override
+  {
+    return {.index_dependent = false, .domain = AttrDomain::Face};
   }
 };
 

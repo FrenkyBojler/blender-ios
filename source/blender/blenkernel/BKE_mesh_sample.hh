@@ -180,11 +180,13 @@ class BaryWeightSampleFn : public mf::MultiFunction {
   mf::Signature signature_;
 
   GeometrySet source_;
+  Span<int> corner_verts_;
   Span<int3> corner_tris_;
+  Span<int> tri_faces_;
+  AttrDomain src_domain_;
   std::optional<bke::MeshFieldContext> source_context_;
   std::unique_ptr<fn::FieldEvaluator> source_evaluator_;
   const GVArray *source_data_;
-  AttrDomain domain_;
 
  public:
   BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field);

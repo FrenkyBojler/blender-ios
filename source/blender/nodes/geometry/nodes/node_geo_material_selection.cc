@@ -149,6 +149,10 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
   {
     return AttrDomain::Face;
   }
+  bke::FieldDomainInfo domain_info(const GeometryComponent & /*component*/) const override
+  {
+    return {.index_dependent = false, .domain = AttrDomain::Face};
+  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
