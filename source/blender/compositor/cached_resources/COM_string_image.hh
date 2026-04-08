@@ -10,6 +10,7 @@
 
 #include "BLI_map.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_vfont_types.h"
 
 #include "COM_cached_resource.hh"
@@ -27,8 +28,12 @@ class StringImageKey {
   const std::string string;
   const VFont *font;
   const float size;
+  const CMPNodeStringToImageHorizontalAlignment horizontal_alignment;
 
-  StringImageKey(const std::string string, const VFont *font, const float size);
+  StringImageKey(const std::string string,
+                 const VFont *font,
+                 const float size,
+                 const CMPNodeStringToImageHorizontalAlignment horizontal_alignment);
 
   uint64_t hash() const;
   friend bool operator==(const StringImageKey &a, const StringImageKey &b) = default;
@@ -37,12 +42,17 @@ class StringImageKey {
 /* -------------------------------------------------------------------------------------------------
  * String Image.
  *
- * A cached resource that computes and caches a result containing a string. */
+ * A cached resource that computes and caches a result containing a string with the given
+ * parameters. */
 class StringImage : public CachedResource {
  public:
   Result result;
 
-  StringImage(Context &context, const std::string string, const VFont *font, const float size);
+  StringImage(Context &context,
+              const std::string string,
+              const VFont *font,
+              const float size,
+              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment);
 
   ~StringImage();
 };
@@ -61,7 +71,11 @@ class StringImageContainer : CachedResourceContainer {
    * container, if one exists, return it, otherwise, return a newly created one and add it to the
    * container. In both cases, tag the cached resource as needed to keep it cached for the next
    * evaluation. */
-  Result &get(Context &context, const std::string string, const VFont *font, const float size);
+  Result &get(Context &context,
+              const std::string string,
+              const VFont *font,
+              const float size,
+              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment);
 };
 
 }  // namespace blender::compositor

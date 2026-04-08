@@ -6,6 +6,7 @@
 #include <limits>
 #include <string>
 
+#include "BLI_assert.h"
 #include "BLI_hash.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_path_utils.hh"
@@ -32,14 +33,17 @@ namespace blender::compositor {
  * String Image Key.
  */
 
-StringImageKey::StringImageKey(const std::string string, const VFont *font, const float size)
-    : string(string), font(font), size(size)
+StringImageKey::StringImageKey(const std::string string,
+                               const VFont *font,
+                               const float size,
+                               const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+    : string(string), font(font), size(size), horizontal_alignment(horizontal_alignment)
 {
 }
 
 uint64_t StringImageKey::hash() const
 {
-  return get_default_hash(string, font, size);
+  return get_default_hash(string, font, size, horizontal_alignment);
 }
 
 /* --------------------------------------------------------------------
@@ -65,10 +69,48 @@ static int load_font(const VFont *font)
   return BLF_load_unique(file_path);
 }
 
+static float compute_draw_horizontal_offset(
+    const int start_offset,
+    const int line_width,
+    const int total_width,
+    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+{
+  switch (horizontal_alignment) {
+    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT:
+      return float(-start_offset);
+    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER:
+      return -start_offset + (total_width - line_width) / 2.0f;
+    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT:
+      return float(-start_offset + total_width - line_width);
+  }
+
+  BLI_assert_unreachable();
+  return float(-start_offset);
+}
+
+static float compute_horizontal_offset(
+    const int start_offset,
+    const int total_width,
+    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+{
+  switch (horizontal_alignment) {
+    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT:
+      return start_offset + total_width / 2.0f;
+    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER:
+      return float(start_offset);
+    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT:
+      return start_offset - total_width / 2.0f;
+  }
+
+  BLI_assert_unreachable();
+  return float(start_offset);
+}
+
 StringImage::StringImage(Context &context,
                          const std::string string,
                          const VFont *font,
-                         const float size)
+                         const float size,
+                         const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
     : result(context.create_result(ResultType::Color))
 {
   if (string.empty() || !font || size <= 0.0f) {
@@ -88,21 +130,21 @@ StringImage::StringImage(Context &context,
   Vector<StringRef> lines = BLF_string_wrap(
       font_identifier, string, -1, BLFWrapMode::Typographical);
 
-  int lines_width = 0;
+  int total_width = 0;
   Array<int> line_widths(lines.size());
-  int lines_horizontal_offset = std::numeric_limits<int>::max();
+  int start_offset = std::numeric_limits<int>::max();
   for (const int64_t i : lines.index_range()) {
     rcti line_bounding_box;
     BLF_boundbox(font_identifier, lines[i].data(), lines[i].size(), &line_bounding_box);
     line_widths[i] = BLI_rcti_size_x(&line_bounding_box);
-    lines_width = math::max(lines_width, line_widths[i]);
-    lines_horizontal_offset = math::min(lines_horizontal_offset, line_bounding_box.xmin);
+    total_width = math::max(total_width, line_widths[i]);
+    start_offset = math::min(start_offset, line_bounding_box.xmin);
   }
 
   const int line_height = BLF_height_max(font_identifier);
   const int lines_height = line_height * lines.size();
 
-  this->result.allocate_texture(int2(lines_width, lines_height), false, ResultStorageType::CPU);
+  this->result.allocate_texture(int2(total_width, lines_height), false, ResultStorageType::CPU);
   parallel_for(this->result.domain().data_size,
                [&](const int2 texel) { this->result.store_pixel(texel, Color(float4(0.0f))); });
 
@@ -110,20 +152,23 @@ StringImage::StringImage(Context &context,
   BLF_buffer(font_identifier,
              static_cast<float *>(this->result.cpu_data().data()),
              nullptr,
-             lines_width,
+             total_width,
              lines_height,
              nullptr);
 
   const int descender = BLF_descender(font_identifier);
   for (const int64_t i : lines.index_range()) {
     const float vertical_offset = (lines.size() - 1 - i) * line_height - float(descender);
-    BLF_position(font_identifier, -lines_horizontal_offset, vertical_offset, 0.0f);
+    const float horizontal_offset = compute_draw_horizontal_offset(
+        start_offset, line_widths[i], total_width, horizontal_alignment);
+    BLF_position(font_identifier, horizontal_offset, vertical_offset, 0.0f);
     BLF_draw_buffer(font_identifier, lines[i].data(), lines[i].size());
   }
 
   BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, nullptr);
 
-  this->result.domain().transformation.location() = float2(lines_horizontal_offset, descender);
+  this->result.domain().transformation.location() = float2(
+      compute_horizontal_offset(start_offset, total_width, horizontal_alignment), descender);
 
   if (context.use_gpu()) {
     const Result gpu_result = this->result.upload_to_gpu(false);
@@ -153,15 +198,18 @@ void StringImageContainer::reset()
   }
 }
 
-Result &StringImageContainer::get(Context &context,
-                                  const std::string string,
-                                  const VFont *font,
-                                  const float size)
+Result &StringImageContainer::get(
+    Context &context,
+    const std::string string,
+    const VFont *font,
+    const float size,
+    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
 {
-  const StringImageKey key(string, font, size);
+  const StringImageKey key(string, font, size, horizontal_alignment);
 
-  auto &string_image = *map_.lookup_or_add_cb(
-      key, [&]() { return std::make_unique<StringImage>(context, string, font, size); });
+  auto &string_image = *map_.lookup_or_add_cb(key, [&]() {
+    return std::make_unique<StringImage>(context, string, font, size, horizontal_alignment);
+  });
 
   string_image.needed = true;
   return string_image.result;
