@@ -1324,43 +1324,35 @@ static void draw_text_decoration(SpaceText *st, ARegion *region)
 /** \name Draw Matching Brackets
  * \{ */
 
-static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegion *region)
+std::optional<BracketsPositions> text_get_brackets_positions(const Text *text)
 {
-  TextLine *startl, *endl, *linep;
-  Text *text = st->text;
-  int b, fc, find, stack, viewc, viewl, offl, offc, x, y;
-  int startc, endc, c;
-
-  char ch;
-
-  /* Syntax_highlight must be on or else the format string will be null. */
-  if (!text->curl || !tdc->syntax_highlight) {
-    return;
+  TextLine *startl = text->curl;
+  if (!startl->format) {
+    return {};
   }
 
-  startl = text->curl;
-  startc = text->curc;
-  b = text_check_bracket(startl->line[startc]);
+  int startc = text->curc;
+  int b = text_check_bracket(startl->line[startc]);
   if (b == 0 && startc > 0) {
     b = text_check_bracket(startl->line[--startc]);
   }
   if (b == 0) {
-    return;
+    return {};
   }
 
-  linep = startl;
-  c = startc;
-  fc = BLI_str_utf8_offset_to_index(linep->line, linep->len, startc);
-  endl = nullptr;
-  endc = -1;
-  find = -b;
-  stack = 0;
+  TextLine *linep = startl;
+  int c = startc;
+  int fc = BLI_str_utf8_offset_to_index(linep->line, linep->len, startc);
+  TextLine *endl = nullptr;
+  int endc = -1;
+  int find = -b;
+  int stack = 0;
 
   /* Don't highlight brackets if syntax HL is off or bracket in string or comment. */
   if (!linep->format || linep->format[fc] == FMT_TYPE_STRING ||
       linep->format[fc] == FMT_TYPE_COMMENT)
   {
-    return;
+    return {};
   }
 
   if (b > 0) {
@@ -1447,8 +1439,40 @@ static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegi
   }
 
   if (!endl || endc == -1) {
+    return {};
+  }
+
+  BracketsPositions positions;
+  positions.startl = startl;
+  positions.startc = startc;
+  positions.endl = endl;
+  positions.endc = endc;
+  return positions;
+}
+
+static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegion *region)
+{
+  TextLine *startl, *endl;
+  Text *text = st->text;
+  int viewc, viewl, offl, offc, x, y;
+  int startc, endc;
+
+  char ch;
+
+  /* Syntax_highlight must be on or else the format string will be null. */
+  if (!text->curl || !tdc->syntax_highlight) {
     return;
   }
+
+  std::optional<BracketsPositions> brackets = text_get_brackets_positions(text);
+  if (!brackets.has_value()) {
+    return;
+  }
+
+  startl = brackets->startl;
+  startc = brackets->startc;
+  endl = brackets->endl;
+  endc = brackets->endc;
 
   ui::theme::font_theme_color_set(tdc->font_id, TH_HILITE);
   x = TXT_BODY_LEFT(st);

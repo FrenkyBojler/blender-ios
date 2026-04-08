@@ -202,6 +202,10 @@ class TEXT_MT_view_navigation(Menu):
         layout.operator("text.move", text="Previous Word").type = 'PREVIOUS_WORD'
         layout.operator("text.move", text="Next Word").type = 'NEXT_WORD'
 
+        layout.separator()
+
+        layout.operator("text.move", text="Matching Bracket").type = 'BRACKET'
+
 
 class TEXT_MT_view(Menu):
     bl_label = "View"
@@ -353,6 +357,10 @@ class TEXT_MT_select(Menu):
 
         layout.operator("text.move_select", text="Previous Word").type = 'PREVIOUS_WORD'
         layout.operator("text.move_select", text="Next Word").type = 'NEXT_WORD'
+
+        layout.separator()
+
+        layout.operator("text.move_select", text="Matching Bracket").type = 'BRACKET'
 
 
 class TEXT_MT_format(Menu):

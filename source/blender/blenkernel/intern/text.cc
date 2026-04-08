@@ -47,7 +47,6 @@ namespace blender {
 /** \name Prototypes
  * \{ */
 
-static void txt_pop_first(Text *text);
 static void txt_pop_last(Text *text);
 static void txt_delete_line(Text *text, TextLine *line);
 static void txt_delete_sel(Text *text);
@@ -1155,7 +1154,7 @@ static void txt_curs_swap(Text *text)
   text->selc = tmpc;
 }
 
-static void txt_pop_first(Text *text)
+void txt_pop_first(Text *text)
 {
   if (txt_get_span(text->curl, text->sell) < 0 ||
       (text->curl == text->sell && text->curc > text->selc))

@@ -97,6 +97,22 @@ int space_text_get_span_wrap(const SpaceText *st,
                              const TextLine *to);
 int space_text_get_total_lines(SpaceText *st, const ARegion *region);
 
+struct BracketsPositions {
+  /* The current bracket position. */
+  TextLine *startl = nullptr;
+  int startc = 0;
+  /* The next bracket position. It could be the begin or end bracket depending on which is the
+   * current one. */
+  TextLine *endl = nullptr;
+  int endc = 0;
+};
+
+/* Returns the positions of the opening and closing brackets at the cursor's position.
+ * Returns null if the text cursor is not currently on a open or close bracket, or if there is no
+ * match.
+ */
+std::optional<BracketsPositions> text_get_brackets_positions(const Text *text);
+
 /* `text_ops.cc` */
 
 enum {
@@ -111,7 +127,8 @@ enum {
   PREV_LINE,
   NEXT_LINE,
   PREV_PAGE,
-  NEXT_PAGE
+  NEXT_PAGE,
+  MATCHING_BRACKET,
 };
 enum { DEL_NEXT_CHAR, DEL_PREV_CHAR, DEL_NEXT_WORD, DEL_PREV_WORD };
 

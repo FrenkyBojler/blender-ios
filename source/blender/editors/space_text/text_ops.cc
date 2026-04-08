@@ -1740,6 +1740,7 @@ static const EnumPropertyItem move_type_items[] = {
     {NEXT_LINE, "NEXT_LINE", 0, "Next Line", ""},
     {PREV_PAGE, "PREVIOUS_PAGE", 0, "Previous Page", ""},
     {NEXT_PAGE, "NEXT_PAGE", 0, "Next Page", ""},
+    {MATCHING_BRACKET, "BRACKET", 0, "Matching Bracket", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2345,6 +2346,22 @@ static wmOperatorStatus text_move_cursor(bContext *C, int type, bool select)
       }
       else {
         space_text_cursor_skip(nullptr, nullptr, text, 10, select);
+      }
+      break;
+
+    case MATCHING_BRACKET:
+      std::optional<BracketsPositions> brackets = text_get_brackets_positions(text);
+      if (brackets.has_value()) {
+        if (select) {
+          txt_pop_first(text);
+          text->sell = brackets->endl;
+          text->selc = brackets->endc;
+        }
+        else {
+          text->curl = brackets->endl;
+          text->curc = brackets->endc;
+          txt_pop_sel(text);
+        }
       }
       break;
   }
