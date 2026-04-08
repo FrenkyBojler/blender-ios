@@ -55,12 +55,12 @@ body:
       hide_label: false
       description: |
             Please provide a short description of the issue, including images or videos when neccesary.
-            Please include both the expected and observed results.
+            Please include both the expected and actual results.
       placeholder: |
             Blender crashes when I...
 
             Expected result: Blender does not crash.
-            Observed result: Blender crashes.
+            Actual result: Blender crashes.
     validations:
       required: true
 
