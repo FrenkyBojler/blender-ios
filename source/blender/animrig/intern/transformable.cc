@@ -327,6 +327,7 @@ Transformable::Transformable(Object &obj)
       owner_id_(&obj.id),
       data_(&obj),
       location_({obj.loc, 3}),
+      rotation_mode_(&obj.rotmode),
       scale_({obj.scale, 3})
 {
   build_rotations_array(rotations_, obj.rot, obj.quat, obj.rotAxis, &obj.rotAngle);

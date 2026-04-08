@@ -46,6 +46,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_unit.hh"
@@ -72,6 +73,29 @@
 #include "armature_intern.hh"
 
 namespace blender {
+
+static bool pose_slide_poll(bContext *C)
+{
+  Object *obact = CTX_data_active_object(C);
+  if (!obact) {
+    return false;
+  }
+  const eContextObjectMode mode = CTX_data_mode_enum(C);
+  if (mode == CTX_MODE_OBJECT) {
+    return true;
+  }
+
+  if (!(obact->mode & OB_MODE_EDIT)) {
+    Object *obpose = BKE_object_pose_armature_get(obact);
+    if (obpose != nullptr) {
+      if ((obact == obpose) || (obact->mode & OB_MODE_ALL_WEIGHT_PAINT)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 /* **************************************************** */
 /* A) Push & Relax, Breakdowner */
@@ -130,7 +154,7 @@ struct tPoseSlideOp {
   /** len of the PoseSlideObject array. */
 
   /** Links between pose-channels and f-curves for all the pose objects. */
-  ListBaseT<tPChanFCurveLink> pfLinks;
+  ListBaseT<TransformableFCurveLink> pfLinks;
   /** binary tree for quicker searching for keyframes (when applicable) */
   AnimKeylist *keylist;
 
@@ -347,7 +371,7 @@ static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcur
 
 /* Apply linear blending to the values of the given `prop_type`. */
 static void pose_slide_apply_linear(tPoseSlideOp &pso,
-                                    tPChanFCurveLink &pfl,
+                                    TransformableFCurveLink &pfl,
                                     const animrig::Transformable::PropertyType prop_type)
 {
 
@@ -424,7 +448,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
 }
 
 static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
-                                                tPChanFCurveLink &pfl,
+                                                TransformableFCurveLink &pfl,
                                                 const Span<PropertySnapshot> snapshots)
 {
   for (const PropertySnapshot &snapshot : snapshots) {
@@ -494,7 +518,7 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
 /**
  * Helper for apply() - perform sliding for quaternion rotations (using quat blending).
  */
-static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
+static void pose_slide_apply_quat(tPoseSlideOp *pso, TransformableFCurveLink *pfl)
 {
   animrig::Transformable *transformable = pfl->transformable;
   float prev_frame, next_frame;
@@ -575,7 +599,7 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
   const animrig::AxisFlag axis_flag = animrig::AxisFlag(pso->axislock);
   const float slider_factor = ED_slider_factor_get(pso->slider);
   /* For each link, handle each set of transforms. */
-  for (tPChanFCurveLink &pfl : pso->pfLinks) {
+  for (TransformableFCurveLink &pfl : pso->pfLinks) {
     /* Valid transforms for each #bPoseChannel should have been noted already.
      * - Sliding the pose should be a straightforward exercise for location+rotation,
      *   but rotations get more complicated since we may want to use quaternion blending
@@ -638,7 +662,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
   }
 
   /* For each link, handle each set of transforms. */
-  for (tPChanFCurveLink &pfl : pso->pfLinks) {
+  for (TransformableFCurveLink &pfl : pso->pfLinks) {
     animrig::Transformable *transformable = pfl.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
@@ -798,7 +822,7 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   ED_slider_init(pso->slider, event);
 
   /* For each link, add all its keyframes to the search tree. */
-  for (tPChanFCurveLink &pfl : pso->pfLinks) {
+  for (TransformableFCurveLink &pfl : pso->pfLinks) {
     /* Do this for each F-Curve. */
     for (FCurve *fcu : pfl.fcurves) {
       AnimData *adt = BKE_animdata_from_id(pfl.transformable->owner_id());
@@ -1252,7 +1276,7 @@ void POSE_OT_push(wmOperatorType *ot)
   ot->invoke = pose_slide_push_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = ED_operator_posemode;
+  ot->poll = pose_slide_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1311,7 +1335,7 @@ void POSE_OT_relax(wmOperatorType *ot)
   ot->invoke = pose_slide_relax_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = ED_operator_posemode;
+  ot->poll = pose_slide_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1373,7 +1397,7 @@ void POSE_OT_blend_with_rest(wmOperatorType *ot)
   ot->invoke = pose_slide_blend_rest_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = ED_operator_posemode;
+  ot->poll = pose_slide_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1432,7 +1456,7 @@ void POSE_OT_breakdown(wmOperatorType *ot)
   ot->invoke = pose_slide_breakdown_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = ED_operator_posemode;
+  ot->poll = pose_slide_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1484,7 +1508,7 @@ void POSE_OT_blend_to_neighbors(wmOperatorType *ot)
   ot->invoke = pose_slide_blend_to_neighbors_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = ED_operator_posemode;
+  ot->poll = pose_slide_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1520,13 +1544,13 @@ struct FrameLink {
   float frame;
 };
 
-static void propagate_curve_values(ListBaseT<tPChanFCurveLink> *pflinks,
+static void propagate_curve_values(ListBaseT<TransformableFCurveLink> *pflinks,
                                    const float source_frame,
                                    ListBaseT<FrameLink> *target_frames)
 {
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
-  for (const tPChanFCurveLink &pfl : *pflinks) {
+  for (const TransformableFCurveLink &pfl : *pflinks) {
     for (FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
@@ -1540,10 +1564,11 @@ static void propagate_curve_values(ListBaseT<tPChanFCurveLink> *pflinks,
   }
 }
 
-static float find_next_key(const ListBaseT<tPChanFCurveLink> *pflinks, const float start_frame)
+static float find_next_key(const ListBaseT<TransformableFCurveLink> *pflinks,
+                           const float start_frame)
 {
   float target_frame = FLT_MAX;
-  for (const tPChanFCurveLink &pfl : *pflinks) {
+  for (const TransformableFCurveLink &pfl : *pflinks) {
     for (const FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
@@ -1562,10 +1587,10 @@ static float find_next_key(const ListBaseT<tPChanFCurveLink> *pflinks, const flo
   return target_frame;
 }
 
-static float find_last_key(const ListBaseT<tPChanFCurveLink> *pflinks)
+static float find_last_key(const ListBaseT<TransformableFCurveLink> *pflinks)
 {
   float target_frame = FLT_MIN;
-  for (const tPChanFCurveLink &pfl : *pflinks) {
+  for (const TransformableFCurveLink &pfl : *pflinks) {
     for (const FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
@@ -1589,13 +1614,13 @@ static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *ta
   BLI_freelistN(&selected_markers);
 }
 
-static void get_keyed_frames_in_range(ListBaseT<tPChanFCurveLink> *pflinks,
+static void get_keyed_frames_in_range(ListBaseT<TransformableFCurveLink> *pflinks,
                                       const float start_frame,
                                       const float end_frame,
                                       ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  for (const tPChanFCurveLink &pfl : *pflinks) {
+  for (const TransformableFCurveLink &pfl : *pflinks) {
     for (FCurve *fcu : pfl.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
@@ -1614,11 +1639,11 @@ static void get_keyed_frames_in_range(ListBaseT<tPChanFCurveLink> *pflinks,
   ED_keylist_free(keylist);
 }
 
-static void get_selected_frames(const ListBaseT<tPChanFCurveLink> *pflinks,
+static void get_selected_frames(const ListBaseT<TransformableFCurveLink> *pflinks,
                                 ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  for (const tPChanFCurveLink &pfl : *pflinks) {
+  for (const TransformableFCurveLink &pfl : *pflinks) {
     for (FCurve *fcu : pfl.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
     }
@@ -1643,7 +1668,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  ListBaseT<tPChanFCurveLink> pflinks = {nullptr, nullptr};
+  ListBaseT<TransformableFCurveLink> pflinks = {nullptr, nullptr};
 
   const int mode = RNA_enum_get(op->ptr, "mode");
 

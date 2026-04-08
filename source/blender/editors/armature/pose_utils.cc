@@ -64,75 +64,76 @@ namespace blender {
  * - these are the return flags for get_item_transform_flags()
  */
 
-static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
-                                                                   bPoseChannel &pchan,
+static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
+                                                                   PointerRNA &ptr,
                                                                    Vector<FCurve *> &r_curves)
 {
-  if (!ob.adt || !ob.adt->action) {
+  AnimData *adt = BKE_animdata_from_id(&id);
+  if (!adt || !adt->action) {
     return eAction_TransformFlags(0);
   }
-  animrig::Action &action = ob.adt->action->wrap();
+  animrig::Action &action = adt->action->wrap();
 
   short flags = 0;
 
-  /* Build PointerRNA from provided data to obtain the paths to use. */
-  PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(&ob), RNA_PoseBone, &pchan);
-
   /* Get the basic path to the properties of interest. */
-  const std::optional<std::string> basePath = RNA_path_from_ID_to_struct(&ptr);
-  if (!basePath) {
-    return eAction_TransformFlags(0);
+  StringRef base_path;
+  if (RNA_struct_is_ID(ptr.type)) {
+    base_path = "";
+  }
+  else {
+    const std::optional<std::string> path_to_struct = RNA_path_from_ID_to_struct(&ptr);
+    if (!path_to_struct.has_value()) {
+      BLI_assert_unreachable();
+      return eAction_TransformFlags(0);
+    }
+    base_path = path_to_struct.value();
   }
 
-  /* Search F-Curves for the given properties
-   * - we cannot use the groups, since they may not be grouped in that way...
-   */
-  animrig::foreach_fcurve_in_action_slot(action, ob.adt->slot_handle, [&](FCurve &fcurve) {
-    const char *bPtr = nullptr, *pPtr = nullptr;
-
+  animrig::foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
     if (fcurve.rna_path == nullptr) {
       return;
     }
+    StringRefNull fcurve_path(fcurve.rna_path);
 
-    /* Step 1: check for matching base path */
-    bPtr = strstr(fcurve.rna_path, basePath->c_str());
-
-    if (!bPtr) {
+    if (!base_path.is_empty() && !fcurve_path.startswith(base_path)) {
       return;
     }
 
-    /* We must add `len(basePath)` bytes to the match so that we are at the end of the
+    /* We must add `len(base_path)` bytes to the match so that we are at the end of the
      * base path so that we don't get false positives with these strings in the names
      */
-    bPtr += strlen(basePath->c_str());
+    StringRef property_path;
+    if (base_path.is_empty()) {
+      property_path = fcurve_path;
+    }
+    else {
+      property_path = fcurve_path.substr(base_path.size());
+    }
 
     /* Step 2: check for some property with transforms
      * - once a match has been found, the curve cannot possibly be any other one
      */
-    pPtr = strstr(bPtr, "location");
-    if (pPtr) {
+    if (property_path == "location") {
       flags |= ACT_TRANS_LOC;
       r_curves.append(&fcurve);
       return;
     }
 
-    pPtr = strstr(bPtr, "scale");
-    if (pPtr) {
+    if (property_path == "scale") {
       flags |= ACT_TRANS_SCALE;
       r_curves.append(&fcurve);
       return;
     }
 
-    pPtr = strstr(bPtr, "rotation");
-    if (pPtr) {
+    if (property_path.startswith("rotation")) {
       flags |= ACT_TRANS_ROT;
 
       r_curves.append(&fcurve);
       return;
     }
 
-    pPtr = strstr(bPtr, "bbone_");
-    if (pPtr) {
+    if (property_path.startswith("bbone_")) {
       flags |= ACT_TRANS_BBONE;
 
       r_curves.append(&fcurve);
@@ -140,8 +141,7 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
     }
 
     /* Custom properties only. */
-    pPtr = strstr(bPtr, "[\"");
-    if (pPtr) {
+    if (property_path.startswith("[\"")) {
       flags |= ACT_TRANS_PROP;
 
       r_curves.append(&fcurve);
@@ -166,19 +166,20 @@ static void store_property_snapshot(PointerRNA &ptr,
 }
 
 /* helper for poseAnim_mapping_get() -> get the relevant F-Curves per PoseChannel */
-static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
+static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLinks,
                                        Object &ob,
                                        bPoseChannel &pchan)
 {
+  PointerRNA bone_ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
   Vector<FCurve *> curves;
   const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
-      ob, pchan, curves);
+      ob.id, bone_ptr, curves);
 
   if (!transFlags) {
     return;
   }
 
-  tPChanFCurveLink *pfl = MEM_new<tPChanFCurveLink>("tPChanFCurveLink");
+  TransformableFCurveLink *pfl = MEM_new<TransformableFCurveLink>("tPChanFCurveLink");
   BLI_addtail(&pfLinks, pfl);
   pfl->fcurves = curves;
 
@@ -193,7 +194,6 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   pfl->old_rot = transformable->get_rotation();
   pfl->old_scale = transformable->get_scale();
 
-  PointerRNA bone_ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
   pfl->ptr = bone_ptr;
 
   /* Store current bbone values. */
@@ -274,7 +274,7 @@ Object *poseAnim_object_get(Object *ob_)
   return nullptr;
 }
 
-static void get_pose_bones_for_slide(bContext *C, ListBaseT<tPChanFCurveLink> &pfLinks)
+static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveLink> &pfLinks)
 {
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags... */
@@ -328,7 +328,45 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<tPChanFCurveLink> &p
   }
 }
 
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
+static void foo(ListBaseT<TransformableFCurveLink> &pfLinks, Object &ob)
+{
+  PointerRNA object_ptr = RNA_pointer_create_discrete(&ob.id, RNA_Object, &ob);
+
+  Vector<FCurve *> curves;
+  const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
+      ob.id, object_ptr, curves);
+
+  if (!transFlags) {
+    return;
+  }
+
+  TransformableFCurveLink *pfl = MEM_new<TransformableFCurveLink>("TransformableFCurveLink");
+  BLI_addtail(&pfLinks, pfl);
+  pfl->fcurves = curves;
+
+  animrig::Transformable *transformable = MEM_new<animrig::Transformable>("transformable_object",
+                                                                          ob);
+  pfl->transformable = transformable;
+
+  /* Set pchan's transform flags. */
+  pfl->transform_flag = transFlags;
+
+  pfl->old_loc = transformable->get_location();
+  pfl->old_rot = transformable->get_rotation();
+  pfl->old_scale = transformable->get_scale();
+
+  pfl->ptr = object_ptr;
+}
+
+static void get_objects_for_slide(bContext *C, ListBaseT<TransformableFCurveLink> &slider_data)
+{
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    foo(slider_data, *ob);
+  }
+  CTX_DATA_END;
+}
+
+void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLinks)
 {
   BLI_assert(pfLinks != nullptr);
   const eContextObjectMode mode = CTX_data_mode_enum(C);
@@ -337,23 +375,29 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
       get_pose_bones_for_slide(C, *pfLinks);
       break;
 
+    case CTX_MODE_OBJECT:
+      get_objects_for_slide(C, *pfLinks);
+      break;
+
     default:
+      /* Not implemented. */
+      BLI_assert_unreachable();
       break;
   }
 }
 
-void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
+void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks)
 {
-  tPChanFCurveLink *pfl, *pfln = nullptr;
+  TransformableFCurveLink *pfl, *pfln = nullptr;
 
   /* free the temp pchan links and their data */
-  for (pfl = static_cast<tPChanFCurveLink *>(pfLinks->first); pfl; pfl = pfln) {
+  for (pfl = static_cast<TransformableFCurveLink *>(pfLinks->first); pfl; pfl = pfln) {
     pfln = pfl->next;
 
     MEM_delete(pfl->transformable);
 
-    /* We cannot use BLI_freelinkN because that casts the tPChanFCurveLink to a C-style struct
-     * causing MEM_delete to do a C-style delete and not deallocating the Vector. */
+    /* We cannot use BLI_freelinkN because that casts the TransformableFCurveLink to a C-style
+     * struct causing MEM_delete to do a C-style delete and not deallocating the Vector. */
     BLI_remlink(pfLinks, pfl);
     MEM_delete(pfl);
   }
@@ -372,10 +416,10 @@ void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
   }
 }
 
-void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
+void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks)
 {
   /* Iterate over each transformable affected, restoring all channels to their original values. */
-  for (tPChanFCurveLink &pfl : *pfLinks) {
+  for (TransformableFCurveLink &pfl : *pfLinks) {
     animrig::Transformable *transformable = pfl.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
@@ -396,7 +440,7 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
 
 void poseAnim_mapping_autoKeyframe(bContext *C,
                                    Scene *scene,
-                                   ListBaseT<tPChanFCurveLink> *pfLinks,
+                                   ListBaseT<TransformableFCurveLink> *pfLinks,
                                    float cframe)
 {
   const Main *bmain = CTX_data_main(C);
@@ -432,7 +476,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
   /* XXX: here we already have the information about what transforms exist, though
    * it might be easier to just overwrite all using normal mechanisms
    */
-  for (tPChanFCurveLink &pfl : *pfLinks) {
+  for (TransformableFCurveLink &pfl : *pfLinks) {
     animrig::Transformable *transformable = pfl.transformable;
     bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
 

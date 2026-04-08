@@ -154,9 +154,9 @@ struct PropertySnapshot {
   Array<float> backup_values;
 };
 
-/* Temporary data linking PoseChannels with the F-Curves they affect */
-struct tPChanFCurveLink {
-  tPChanFCurveLink *next, *prev = nullptr;
+/* Temporary data linking a Transformable with the F-Curves it affects. */
+struct TransformableFCurveLink {
+  TransformableFCurveLink *next, *prev = nullptr;
 
   /** The Transformable which the data is attached to */
   animrig::Transformable *transformable = nullptr;
@@ -185,12 +185,12 @@ struct tPChanFCurveLink {
 /** Returns a valid pose armature for this object, else returns NULL. */
 Object *poseAnim_object_get(Object *ob_);
 /**
- * Build up a list of tPChanFCurveLink. First only selected, and if that yields no result, all
- * visible.
+ * Build up a list of TransformableFCurveLink. First only selected, and if that yields no result,
+ * all visible.
  */
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks);
+void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLinks);
 /** Free F-Curve <-> PoseChannel links. */
-void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
+void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks);
 
 /**
  * Helper for apply() / reset() - refresh the data.
@@ -199,16 +199,16 @@ void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
 /**
  * Reset changes made to current pose.
  */
-void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks);
+void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks);
 /** Perform auto-key-framing after changes were made + confirmed. */
 void poseAnim_mapping_autoKeyframe(bContext *C,
                                    Scene *scene,
-                                   ListBaseT<tPChanFCurveLink> *pfLinks,
+                                   ListBaseT<TransformableFCurveLink> *pfLinks,
                                    float cframe);
 
 /**
  * Find the next F-Curve for a PoseChannel with matching path.
- * - `path` is not just the #tPChanFCurveLink (`pfl`) rna_path,
+ * - `path` is not just the #TransformableFCurveLink (`pfl`) rna_path,
  *   since that path doesn't have property info yet.
  */
 LinkData *poseAnim_mapping_getNextFCurve(ListBaseT<LinkData> *fcuLinks,
