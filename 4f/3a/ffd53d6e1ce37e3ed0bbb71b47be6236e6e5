@@ -8,3 +8,4 @@ Referenced by issue #151430, Blender 5.0/5.1 selecting object is noticeable slow
 Referenced by issue #152087, crashing in sculpt mode, multires, Ctrl+Z
 Referenced by issue #155387, Performance regression doing Ctrl+Z & Ctrl+Shift+Z in a heavy scene.
 Referenced by pull request #155426, "Fix" #155387: Performance regression on undo in mesh-heavy scenes.
+Referenced by issue #155835, Blender 5.1 LTS selecting object is noticeable slower(Delay) than blender 4.5.X in large scale/Lots of collections files
