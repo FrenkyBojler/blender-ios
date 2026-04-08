@@ -310,9 +310,9 @@ static void calculate_relax_t(const Vector<BMVert *> &verts,
   }
 }
 
-static void calculate_relax_splines(const Vector<BMVert *> &verts,
-                                    const Vector<int> &knot_indices,
-                                    const Vector<float> &t_params,
+static void calculate_relax_splines(Span<BMVert *> &verts,
+                                    Span<int> &knot_indices,
+                                    Span<float> &t_params,
                                     int interpolation,
                                     Vector<SplineCoeffs> (&r_coeffs)[3])
 {
