@@ -1757,8 +1757,8 @@ static bool update_mask_bmesh(SculptSession &ss,
     }
     BM_ELEM_CD_SET_FLOAT(vert, mask_offset, new_mask);
   }
-  int i = 0;
   if (!any_changed) {
+    int i = 0;
     for (BMVert *vert : BKE_pbvh_bmesh_node_other_verts(node)) {
       if (calc_new_mask_bmesh(ss, expand_cache, old_mask[i], enabled_verts, vert) != old_mask[i]) {
         any_changed = true;
