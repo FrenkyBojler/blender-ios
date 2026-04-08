@@ -340,7 +340,7 @@ static void calculate_relax_splines(Span<BMVert *> &verts,
       for (int i = -padding; i < n + padding; i++) {
         const int wrapped_index = mod_i(i, period);
 
-        const float lap_offset = floorf((float)i / period) * t_params[period];
+        const float lap_offset = floorf(float(i) / period) * t_params[period];
         t_ext.append(t_params[wrapped_index] + lap_offset);
 
         x_ext.append(coords_x[wrapped_index]);
