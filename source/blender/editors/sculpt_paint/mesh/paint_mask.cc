@@ -249,7 +249,7 @@ void update_mask_mesh(const Depsgraph &depsgraph,
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
         scatter_data_mesh(
-            tls.mask.as_span().slice(0, nodes[i].unique_verts_num_), verts, mask.span);
+            tls.mask.as_span(), verts.slice(0, nodes[i].unique_verts_num_), mask.span);
         bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
         node_changed[i] = true;
       },
