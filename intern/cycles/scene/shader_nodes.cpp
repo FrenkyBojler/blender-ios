@@ -168,10 +168,8 @@ void TextureMapping::compile(SVMCompiler &compiler,
                     SVMNodeTextureMapping{
                         .vec_offset = offset_in,
                         .out_offset = offset_out,
+                        .tfm = tfm,
                     });
-  compiler.add_node_data_float4(tfm.x);
-  compiler.add_node_data_float4(tfm.y);
-  compiler.add_node_data_float4(tfm.z);
 
   if (use_minmax) {
     compiler.add_node(nullptr,
@@ -4147,10 +4145,8 @@ void TextureCoordinateNode::compile(SVMCompiler &compiler)
         },
         use_derivative);
     if (use_transform) {
-      const Transform ob_itfm = transform_inverse(ob_tfm);
-      compiler.add_node_data_float4(ob_itfm.x);
-      compiler.add_node_data_float4(ob_itfm.y);
-      compiler.add_node_data_float4(ob_itfm.z);
+      const PackedTransform ob_itfm = transform_inverse(ob_tfm);
+      compiler.add_node_data(ob_itfm);
     }
   }
 

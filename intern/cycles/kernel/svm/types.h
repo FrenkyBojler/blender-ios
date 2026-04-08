@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "util/transform.h"
 #include "util/types.h"
 
 CCL_NAMESPACE_BEGIN

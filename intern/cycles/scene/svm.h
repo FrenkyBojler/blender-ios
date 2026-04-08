@@ -110,7 +110,9 @@ class SVMCompiler {
   void add_value_node(const ShaderNode *shader_node, const float3 &value, const int stack_offset);
 
   /* Add extra node data following add_node. */
-  template<typename T> void add_node_data(const T &data)
+  template<typename T>
+  void add_node_data(const T &data)
+    requires(std::is_class_v<T> && sizeof(T) % sizeof(int) == 0 && alignof(T) <= sizeof(uint))
   {
     const int *ptr = reinterpret_cast<const int *>(&data);
     for (size_t i = 0; i < sizeof(T) / sizeof(int); i++) {

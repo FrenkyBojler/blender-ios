@@ -1279,6 +1279,7 @@ struct SVMNodeTextureMapping {
   SVMStackOffset vec_offset;
   SVMStackOffset out_offset;
   uint8_t _pad[2];
+  PackedTransform tfm;
 };
 static_assert(alignof(SVMNodeTextureMapping) <= alignof(uint));
 static_assert(sizeof(SVMNodeTextureMapping) % sizeof(uint) == 0);
