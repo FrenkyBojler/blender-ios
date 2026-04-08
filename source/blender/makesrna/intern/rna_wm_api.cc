@@ -84,6 +84,8 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 #  include "BKE_report.hh"
 #  include "BKE_undo_system.hh"
 
+#  include "ED_geometry.hh"
+
 #  include "UI_interface_c.hh"
 
 #  include "WM_types.hh"
@@ -862,6 +864,11 @@ static void rna_asset_library_status_failed_loading(const char *library_url, con
   RemoteLibraryLoadingStatus::set_failure(
       library_url,
       message && message[0] ? std::optional<blender::StringRefNull>{message} : std::nullopt);
+}
+
+static void rna_register_node_group_operators(bContext *C)
+{
+  ed::geometry::register_node_group_operators(*C);
 }
 
 }  // namespace blender
@@ -1734,6 +1741,13 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_string(func, "message", nullptr, 0, "Message", "An error message to show to users");
+
+  func = RNA_def_function(
+      srna, "register_node_group_operators", "rna_register_node_group_operators");
+  RNA_def_function_ui_description(func,
+                                  "Trigger manual re-registration of node group operators. Useful "
+                                  "in background mode where this doesn't happen automatically.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
 }
 
 }  // namespace blender

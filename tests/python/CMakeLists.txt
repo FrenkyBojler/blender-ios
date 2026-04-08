@@ -537,6 +537,11 @@ if(TEST_SRC_DIR_EXISTS)
     object_api
     --python ${TEST_PYTHON_DIR}/bl_object.py
   )
+
+  add_blender_test(
+    node_tools
+    --python ${TEST_PYTHON_DIR}/bl_node_tool.py
+  )
 endif()
 
 add_blender_test(
@@ -875,12 +880,12 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(APPEND render_tests render_layer)
     list(APPEND workbench_tests render_layer)
     endif()
-    
+
     if(WITH_MOD_FLUID)
     list(APPEND render_tests motion_blur reports volume)
     list(APPEND workbench_tests volume)
     endif()
-    
+
     if(WITH_OPENVDB AND WITH_MOD_FLUID)
     # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
