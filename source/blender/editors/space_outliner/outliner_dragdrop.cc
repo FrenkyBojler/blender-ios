@@ -1320,7 +1320,7 @@ static std::string collection_drop_tooltip(bContext *C,
         if (is_object) {
           return TIP_(
               "Move inside collection (Ctrl to link, Shift to parent,\n Ctrl + Shift to move "
-              "children objects)");
+              "only parent)");
         }
         return TIP_("Move inside collection (Ctrl to link)");
       }
@@ -1397,7 +1397,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
-        if (event->modifier & (KM_CTRL | KM_SHIFT)) {
+        if ((event->modifier & (KM_CTRL | KM_SHIFT)) == 0) {
           Vector<Object *> child_objects;
           find_child_objects_recursive(C, object, child_objects);
           for (Object *child_ob : child_objects) {
