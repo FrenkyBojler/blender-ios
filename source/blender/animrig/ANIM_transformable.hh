@@ -61,7 +61,7 @@ struct Rotation {
 /**
  * Provides a common interface to transform values for multiple structs.
  * In a way this is similar to RNA, however RNA has the issue that the properties don't have
- * consistent naming making it not possible to work with them in a generic way.
+ * consistent naming making it impossible to work with them in a generic way.
  */
 class Transformable {
  public:

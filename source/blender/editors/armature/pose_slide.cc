@@ -135,7 +135,7 @@ enum ePoseSlide_Channels {
 
 struct tPoseSlideObject {
   /** Active object that Pose Info comes from. */
-  Object *ob;
+  ID *id;
   /** `prev_frame`, but in local action time (for F-Curve look-ups to work). */
   float prev_frame;
   /** `next_frame`, but in local action time (for F-Curve look-ups to work). */
@@ -240,37 +240,27 @@ static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags. */
   poseAnim_mapping_get(C, &pso->pfLinks);
-  ObjectsInModeParams params = {0};
-  params.object_mode = OB_MODE_POSE;
-  /* Explicitly setting this to false because we *do* want this to work for armature instances. */
-  params.no_dup_data = false;
-  const Main *bmain = CTX_data_main(C);
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_params(
-      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
-  pso->ob_data_array.reinitialize(objects.size());
+  Set<ID *> unique_objects;
+  for (const TransformableFCurveLink &tflink : pso->pfLinks) {
+    unique_objects.add(tflink.ptr.owner_id);
+  }
+  pso->ob_data_array.reinitialize(unique_objects.size());
+  int i = 0;
+  for (ID *id : unique_objects) {
+    tPoseSlideObject *ob_data = &pso->ob_data_array[i];
+    i++;
 
-  for (const int ob_index : objects.index_range()) {
-    tPoseSlideObject *ob_data = &pso->ob_data_array[ob_index];
-    Object *ob_iter = poseAnim_object_get(objects[ob_index]);
-
-    /* Ensure validity of the settings from the context. */
-    if (ob_iter == nullptr) {
-      continue;
-    }
-
-    ob_data->ob = ob_iter;
+    ob_data->id = id;
     ob_data->valid = true;
-
+    AnimData *adt = BKE_animdata_from_id(id);
     /* Apply NLA mapping corrections so the frame look-ups work. */
-    ob_data->prev_frame = BKE_nla_tweakedit_remap(
-        ob_data->ob->adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-    ob_data->next_frame = BKE_nla_tweakedit_remap(
-        ob_data->ob->adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
+    ob_data->prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
+    ob_data->next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
 
     /* Set depsgraph flags. */
     /* Make sure the lock is set OK, unlock can be accidentally saved? */
-    ob_data->ob->pose->flag |= POSE_LOCKED;
-    ob_data->ob->pose->flag &= ~POSE_DO_UNLOCK;
+    /* ob_data->ob->pose->flag |= POSE_LOCKED;
+    ob_data->ob->pose->flag &= ~POSE_DO_UNLOCK; */
   }
 
   /* Do basic initialize of RB-BST used for finding keyframes, but leave the filling of it up
@@ -330,7 +320,7 @@ static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
   for (tPoseSlideObject &ob_data : pso->ob_data_array) {
     if (ob_data.valid) {
-      poseAnim_mapping_refresh(C, pso->scene, ob_data.ob);
+      poseAnim_mapping_refresh(C, ob_data.id);
     }
   }
 }
@@ -346,7 +336,7 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
 {
   for (const tPoseSlideObject &ob_data : pso->ob_data_array) {
 
-    if (&ob_data.ob->id == id) {
+    if (ob_data.id == id) {
       *prev_frame = ob_data.prev_frame;
       *next_frame = ob_data.next_frame;
       return true;
@@ -652,12 +642,10 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
       if (!ob_data.valid) {
         continue;
       }
-
+      AnimData *adt = BKE_animdata_from_id(ob_data.id);
       /* Apply NLA mapping corrections so the frame look-ups work. */
-      ob_data.prev_frame = BKE_nla_tweakedit_remap(
-          ob_data.ob->adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-      ob_data.next_frame = BKE_nla_tweakedit_remap(
-          ob_data.ob->adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
+      ob_data.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
+      ob_data.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
     }
   }
 
@@ -869,10 +857,9 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   /* Apply NLA mapping corrections so the frame look-ups work. */
   for (tPoseSlideObject &ob_data : pso->ob_data_array) {
     if (ob_data.valid) {
-      ob_data.prev_frame = BKE_nla_tweakedit_remap(
-          ob_data.ob->adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
-      ob_data.next_frame = BKE_nla_tweakedit_remap(
-          ob_data.ob->adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
+      AnimData *adt = BKE_animdata_from_id(ob_data.id);
+      ob_data.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
+      ob_data.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
     }
   }
 
@@ -1737,7 +1724,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 
   /* Updates + notifiers. */
   FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    poseAnim_mapping_refresh(C, scene, ob);
+    poseAnim_mapping_refresh(C, &ob->id);
   }
   FOREACH_OBJECT_IN_MODE_END;
 

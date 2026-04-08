@@ -404,12 +404,20 @@ void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks)
 
 /* ------------------------- */
 
-void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
+void poseAnim_mapping_refresh(bContext *C, ID *id)
 {
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+  switch (GS(id->name)) {
+    case ID_OB:
+      WM_event_add_notifier(C, NC_OBJECT | ND_POSE | ND_TRANSFORM, id_cast<Object *>(id));
+      break;
+    default:
+      /* Not implemented. */
+      BLI_assert_unreachable();
+      break;
+  }
 
-  AnimData *adt = BKE_animdata_from_id(&ob->id);
+  AnimData *adt = BKE_animdata_from_id(id);
   if (adt && adt->action) {
     DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
