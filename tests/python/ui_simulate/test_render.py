@@ -288,6 +288,10 @@ def _render_override_renderdata(kind, write_still, temp_dir):
                 "file_format",
             )),
     ):
+        # NOTE: imperfect workaround depsgraph race condition #157084.
+        import time
+        time.sleep(1.0)
+
         rd.image_settings.file_format = 'PNG'
         rd.resolution_x = override_resolution[0]
         rd.resolution_y = override_resolution[1]

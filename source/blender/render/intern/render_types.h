@@ -170,6 +170,16 @@ struct Render : public BaseRender {
   /* main, scene, and its full copy of renderdata and world */
   struct Main *main = nullptr;
   Scene *scene = nullptr;
+  /**
+   * Render settings, often a copy from #Scene::r.
+   * While rendering these values should be used since when using a #wmJob,
+   * the scenes settings may be changed while rendering.
+   *
+   * There are some exceptions to this rule: frame & time members
+   * (start/end/current frame, frame-step ... etc).
+   *
+   * These will be used directly from the scene.
+   */
   RenderData r = {};
   char single_view_layer[MAX_NAME] = "";
   struct Object *camera_override = nullptr;

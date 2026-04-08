@@ -780,12 +780,8 @@ static void re_init_resolution(
 
 void render_copy_renderdata(RenderData *to, const RenderData *from)
 {
-  /* Self-copy is a no-op. Required because the destructive
-   * `BKE_curvemapping_free_data` below would otherwise free data still
-   * referenced via the source. */
-  if (to == from) {
-    return;
-  }
+  /* No-op but callers must prevent it as it would free curve data. */
+  BLI_assert(to != from);
 
   /* Mostly shallow copy referencing pointers in scene renderdata. */
   BKE_curvemapping_free_data(&to->mblur_shutter_curve);
@@ -810,9 +806,10 @@ void RE_InitState(Render *re,
 
   re->i.starttime = BLI_time_now_seconds();
 
-  /* Copy render data and render layers for thread safety
-   * (no-op if `rd == &re->r`). */
-  render_copy_renderdata(&re->r, rd);
+  /* Copy render data and render layers for thread safety. */
+  if (&re->r != rd) {
+    render_copy_renderdata(&re->r, rd);
+  }
   re->single_view_layer[0] = '\0';
 
   if (source) {
