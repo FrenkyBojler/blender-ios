@@ -155,7 +155,7 @@ struct tPChanFCurveLink {
   Object *ob;
 
   /** F-Curves for this PoseChannel (wrapped with LinkData) */
-  ListBaseT<LinkData> fcurves;
+  Vector<FCurve *> fcurves;
   /* This is used as an optimization to only do blending on transform types that actually have
    * animation. */
   eAction_TransformFlags transform_flag;
@@ -212,15 +212,6 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
                                    Scene *scene,
                                    ListBaseT<tPChanFCurveLink> *pfLinks,
                                    float cframe);
-
-/**
- * Find the next F-Curve for a PoseChannel with matching path.
- * - `path` is not just the #tPChanFCurveLink (`pfl`) rna_path,
- *   since that path doesn't have property info yet.
- */
-LinkData *poseAnim_mapping_getNextFCurve(ListBaseT<LinkData> *fcuLinks,
-                                         LinkData *prev,
-                                         const char *path);
 
 /** \} */
 
