@@ -12,6 +12,11 @@
 #  include "draw_defines.hh"
 
 #  if defined(__cplusplus) && !defined(GPU_SHADER)
+
+/* Defined on windows in `windows.h`. */
+#    undef far
+#    undef near
+
 namespace blender {
 #  endif
 
