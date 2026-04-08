@@ -143,18 +143,6 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
   return TRAVERSE_CONTINUE;
 }
 
-TreeTraversalAction outliner_collect_selected_objects_with_children(TreeElement *te,
-                                                                    void *customdata)
-{
-  outliner_collect_selected_objects(te, customdata);
-  for (TreeElement &techild : te->subtree) {
-    if (techild.idcode == ID_OB) {
-      outliner_collect_selected_objects_with_children(&techild, customdata);
-    }
-  }
-  return TRAVERSE_SKIP_CHILDS;
-}
-
 }  // namespace ed::outliner
 
 void ED_outliner_selected_objects_get(const bContext *C, ListBaseT<LinkData> *objects)
