@@ -212,6 +212,22 @@ static const EnumPropertyItem prop_axis_lock_types[] = {
 
 /* ------------------------------------ */
 
+/**
+ * Returns a subset of the given curves where the rna_path matches the given path.
+ */
+static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcurves,
+                                                 const StringRef path)
+{
+  Vector<FCurve *> fcurves;
+  for (FCurve *fcurve : input_fcurves) {
+    if (StringRefNull(fcurve->rna_path) != path) {
+      continue;
+    }
+    fcurves.append(fcurve);
+  }
+  return fcurves;
+}
+
 /** Operator custom-data initialization. */
 static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 {
