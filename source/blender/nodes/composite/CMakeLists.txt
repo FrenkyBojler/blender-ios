@@ -28,6 +28,7 @@ set(SRC
   nodes/node_composite_alpha_over.cc
   nodes/node_composite_anti_aliasing.cc
   nodes/node_composite_bilateral_blur.cc
+  nodes/node_composite_blank_image.cc
   nodes/node_composite_blur.cc
   nodes/node_composite_bokeh_blur.cc
   nodes/node_composite_bokeh_image.cc
@@ -128,7 +129,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   bf_compositor
   PRIVATE bf::render
   PRIVATE bf::windowmanager

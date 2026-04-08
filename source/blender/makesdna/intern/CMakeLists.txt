@@ -16,8 +16,9 @@ set(INC_SYS
 set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::dependencies::optional::tbb
+  PUBLIC bf::dependencies::openimageio
+  bf::dependencies::fmt
 )
 
 add_definitions(-DWITH_DNA_GHASH)
@@ -81,7 +82,7 @@ endif()
 
 # `SRC_DNA_INC` is defined in the parent directory.
 
-add_cc_flags_custom_test(makesdna)
+add_c_and_cxx_flags_custom_test(makesdna)
 
 add_executable(makesdna ${SRC} ${SRC_DNA_INC})
 setup_platform_linker_flags(makesdna)

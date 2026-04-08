@@ -50,9 +50,9 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/,
         return;
       }
 
-      if (!ibuf->float_buffer.data) {
+      if (!ibuf->float_data()) {
         BLI_thread_lock(LOCK_IMAGE);
-        if (!ibuf->float_buffer.data) {
+        if (!ibuf->float_data()) {
           IMB_float_from_byte(ibuf);
         }
         BLI_thread_unlock(LOCK_IMAGE);
@@ -71,7 +71,7 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/,
         py -= ibuf->y;
       }
 
-      result = ibuf->float_buffer.data + py * ibuf->x * 4 + px * 4;
+      result = ibuf->float_data() + py * ibuf->x * 4 + px * 4;
       copy_v4_v4(out, result);
 
       BKE_image_release_ibuf(ima, ibuf, nullptr);
@@ -91,7 +91,7 @@ static void exec(void *data,
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  ImageUser *iuser = MEM_new_for_free<ImageUser>("node image user");
+  ImageUser *iuser = MEM_new<ImageUser>("node image user");
   node->storage = iuser;
   iuser->sfra = 1;
   iuser->flag |= IMA_ANIM_ALWAYS;

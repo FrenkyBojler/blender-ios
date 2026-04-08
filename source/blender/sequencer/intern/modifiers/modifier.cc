@@ -92,6 +92,57 @@ bool modifier_persistent_uids_are_valid(const Strip &strip)
   return true;
 }
 
+static void modifier_ops_extra_draw(bContext *C, ui::Layout *layout, void *smd_v)
+{
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(sequencer_scene);
+  if (!strip) {
+    return;
+  }
+  StripModifierData *smd = static_cast<StripModifierData *>(smd_v);
+
+  PointerRNA op_ptr;
+  /* Duplicate. */
+  op_ptr = layout->op("SEQUENCER_OT_strip_modifier_duplicate",
+                      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
+                      ICON_DUPLICATE);
+  RNA_string_set(&op_ptr, "modifier", smd->name);
+  /* Copy to selected. */
+  op_ptr = layout->op("SEQUENCER_OT_strip_modifier_copy",
+                      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy to Selected"),
+                      0);
+  RNA_enum_set(&op_ptr, "type", /*SEQ_MODIFIER_COPY_APPEND*/ 1);
+  RNA_string_set(&op_ptr, "modifier", smd->name);
+
+  layout->separator();
+
+  /* Move to first. */
+  {
+    ui::Layout &row = layout->row(false);
+    op_ptr = row.op("SEQUENCER_OT_strip_modifier_move_to_index",
+                    IFACE_("Move to First"),
+                    ICON_TRIA_UP,
+                    wm::OpCallContext::InvokeDefault,
+                    UI_ITEM_NONE);
+    RNA_string_set(&op_ptr, "modifier", smd->name);
+    RNA_int_set(&op_ptr, "index", 0);
+    row.enabled_set(smd->prev != nullptr);
+  }
+
+  /* Move to last. */
+  {
+    ui::Layout &row = layout->row(false);
+    op_ptr = row.op("SEQUENCER_OT_strip_modifier_move_to_index",
+                    IFACE_("Move to Last"),
+                    ICON_TRIA_DOWN,
+                    wm::OpCallContext::InvokeDefault,
+                    UI_ITEM_NONE);
+    RNA_string_set(&op_ptr, "modifier", smd->name);
+    RNA_int_set(&op_ptr, "index", BLI_listbase_count(&strip->modifiers) - 1);
+    row.enabled_set(smd->next != nullptr);
+  }
+}
+
 static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
@@ -119,6 +170,9 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
   sub = &row.row(true);
   sub->prop(ptr, "enable", UI_ITEM_NONE, "", ICON_NONE);
   buttons_number++;
+
+  /* Extra operators menu. */
+  row.menu_fn("", ICON_DOWNARROW_HLT, modifier_ops_extra_draw, smd);
 
   /* Delete button. */
   sub = &row.row(false);
@@ -209,7 +263,7 @@ PanelType *modifier_panel_register(ARegionType *region_type,
                                    const eStripModifierType type,
                                    PanelDrawFn draw)
 {
-  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+  PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
 
   modifier_type_panel_id(type, panel_type->idname);
   STRNCPY_UTF8(panel_type->label, "");
@@ -279,38 +333,40 @@ void store_pixel_raw(float4 pix, float *ptr)
   *reinterpret_cast<float4 *>(ptr) = pix;
 }
 
-/**
- * \a timeline_frame is offset by \a fra_offset only in case we are using a real mask.
- */
-static ImBuf *modifier_render_mask_input(const RenderData &context,
-                                         SeqRenderState &state,
-                                         int mask_input_type,
-                                         Strip *mask_strip,
-                                         Mask *mask_id,
-                                         int timeline_frame,
-                                         int fra_offset)
+ImBuf *modifier_render_mask_input(const ModifierApplyContext &context,
+                                  const StripModifierData &smd,
+                                  int timeline_frame)
 {
-  ImBuf *mask_input = nullptr;
+  ImBuf *mask = nullptr;
 
-  if (mask_input_type == STRIP_MASK_INPUT_STRIP) {
-    if (mask_strip) {
-      mask_input = seq_render_strip(&context, &state, mask_strip, timeline_frame);
+  if (smd.mask_input_type == STRIP_MASK_INPUT_STRIP) {
+    if (smd.mask_strip) {
+      mask = seq_render_strip(
+          &context.render_data, &context.render_state, smd.mask_strip, timeline_frame);
     }
   }
-  else if (mask_input_type == STRIP_MASK_INPUT_ID) {
+  else if (smd.mask_input_type == STRIP_MASK_INPUT_ID) {
+    int frame_offset = 0;
+    if (smd.mask_time == STRIP_MASK_TIME_RELATIVE) {
+      frame_offset = context.strip.start;
+    }
+    else if (smd.mask_time == STRIP_MASK_TIME_ABSOLUTE) {
+      frame_offset = smd.mask_id ? smd.mask_id->sfra : 0;
+    }
+
     /* Note that we do not request mask to be float image: if it is that is
      * fine, but if it is a byte image then we also just take that without
      * extra memory allocations or conversions. All modifiers are expected
      * to handle mask being either type. */
-    mask_input = seq_render_mask(context.depsgraph,
-                                 context.rectx,
-                                 context.recty,
-                                 mask_id,
-                                 timeline_frame - fra_offset,
-                                 false);
+    mask = seq_render_mask(context.render_data.depsgraph,
+                           context.render_data.rectx,
+                           context.render_data.recty,
+                           smd.mask_id,
+                           timeline_frame - frame_offset,
+                           false);
   }
 
-  return mask_input;
+  return mask;
 }
 
 /* -------------------------------------------------------------------- */
@@ -355,7 +411,7 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
   StripModifierData *smd;
   const StripModifierTypeInfo *smti = modifier_type_info_get(type);
 
-  smd = static_cast<StripModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
+  smd = static_cast<StripModifierData *>(MEM_new_zeroed(smti->struct_size, "sequence modifier"));
 
   smd->type = type;
   smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED;
@@ -422,7 +478,7 @@ void modifier_free(StripModifierData *smd)
     MEM_delete(smd->runtime);
   }
 
-  MEM_freeN(smd);
+  MEM_delete(smd);
 }
 
 void modifier_unique_name(Strip *strip, StripModifierData *smd)
@@ -465,10 +521,6 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
     return;
   }
 
-  if (context.strip.flag & SEQ_USE_LINEAR_MODIFIERS) {
-    render_imbuf_from_sequencer_space(context.render_data.scene, context.image);
-  }
-
   for (StripModifierData &smd : context.strip.modifiers) {
     const StripModifierTypeInfo *smti = modifier_type_info_get(smd.type);
 
@@ -483,37 +535,17 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
     }
 
     if (smti->apply && !skip_modifier(context.render_data.scene, &smd, timeline_frame)) {
-      int frame_offset;
-      if (smd.mask_time == STRIP_MASK_TIME_RELATIVE) {
-        frame_offset = context.strip.start;
-      }
-      else /* if (smd->mask_time == STRIP_MASK_TIME_ABSOLUTE) */ {
-        frame_offset = smd.mask_id ? (static_cast<Mask *>(smd.mask_id))->sfra : 0;
-      }
-
-      ImBuf *mask = modifier_render_mask_input(context.render_data,
-                                               context.render_state,
-                                               smd.mask_input_type,
-                                               smd.mask_strip,
-                                               smd.mask_id,
-                                               timeline_frame,
-                                               frame_offset);
-      smti->apply(context, &smd, mask);
-      if (mask) {
-        IMB_freeImBuf(mask);
-      }
+      smti->apply(context, &smd, timeline_frame);
     }
-  }
-
-  if (context.strip.flag & SEQ_USE_LINEAR_MODIFIERS) {
-    seq_imbuf_to_sequencer_space(context.render_data.scene, context.image, false);
   }
 }
 
 StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
-  StripModifierData *mod_new = static_cast<StripModifierData *>(MEM_dupallocN(mod_src));
+  StripModifierData *mod_new = MEM_dupalloc(mod_src);
+  /* Ensure at most one active modifier at a time. */
+  mod_new->flag &= ~STRIP_MODIFIER_FLAG_ACTIVE;
   mod_new->runtime = MEM_new<StripModifierDataRuntime>(__func__);
 
   if (smti && smti->copy_data) {

@@ -220,7 +220,7 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
      * obj.pose.bones[].bone in a driver attached to the Object,
      * redirect to its data. */
     if (GS(node_identifier.id->name) == ID_OB) {
-      node_identifier.id = static_cast<ID *>((id_cast<Object *>(node_identifier.id))->data);
+      node_identifier.id = id_cast<Object *>(node_identifier.id)->data;
     }
     return node_identifier;
   }
@@ -283,7 +283,8 @@ RNANodeIdentifier RNANodeQuery::construct_node_identifier(const PointerRNA *ptr,
            RNA_struct_is_a(ptr->type, RNA_MeshUVLoop) ||
            RNA_struct_is_a(ptr->type, RNA_MeshLoopColor) ||
            RNA_struct_is_a(ptr->type, RNA_VertexGroupElement) ||
-           RNA_struct_is_a(ptr->type, RNA_ShaderFx))
+           RNA_struct_is_a(ptr->type, RNA_ShaderFx) ||
+           (RNA_property_flag(const_cast<PropertyRNA *>(prop)) & PROP_FORCE_GEOMETRY_EVAL) != 0)
   {
     /* When modifier is used as FROM operation this is likely referencing to
      * the property (for example, modifier's influence).

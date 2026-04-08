@@ -296,7 +296,8 @@ static void view3d_stereo3d_setup(
   else { /* SCE_VIEWS_FORMAT_MULTIVIEW */
     float viewmat[4][4];
     Object *view_ob = v3d->camera;
-    Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
+    Object *camera = BKE_camera_multiview_render(
+        *DEG_get_bmain(depsgraph), scene, v3d->camera, viewname);
 
     BLI_thread_lock(LOCK_VIEW3D);
     v3d->camera = camera;
@@ -1339,7 +1340,7 @@ static void draw_viewport_name(ARegion *region, View3D *v3d, int xoffset, int *y
   }
 
   /* Indicate that clipping region is enabled. */
-  if (rv3d->rflag & RV3D_CLIPPING) {
+  if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
     name_array[name_array_len++] = IFACE_(" (Clipped)");
   }
 
@@ -1371,8 +1372,13 @@ static bool is_grease_pencil_with_layer_keyframe(const Object &ob)
  * Draw info beside axes in top-left corner:
  * frame-number, collection, object name, bone name (if available), marker name (if available).
  */
-static void draw_selected_name(
-    const View3D *v3d, Scene *scene, ViewLayer *view_layer, Object *ob, int xoffset, int *yoffset)
+static void draw_selected_name(const Main &bmain,
+                               const View3D *v3d,
+                               Scene *scene,
+                               ViewLayer *view_layer,
+                               Object *ob,
+                               int xoffset,
+                               int *yoffset)
 {
   const int cfra = scene->r.cfra;
   const char *msg_pin = " (Soloed)";
@@ -1403,7 +1409,7 @@ static void draw_selected_name(
   info_array[i++] = info_buffers.frame;
 
   if ((ob == nullptr) || (ob->mode == OB_MODE_OBJECT)) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(bmain, scene, view_layer);
     LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
     info_array[i++] = msg_space;
     info_array[i++] = BKE_collection_ui_name_get(layer_collection->collection);
@@ -1660,7 +1666,11 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
         /* The gizmo handles its own drawing. */
         break;
       case USER_MINI_AXIS_TYPE_MINIMAL:
-        draw_view_axis(rv3d, rect);
+        if (region->alignment != RGN_ALIGN_QSPLIT ||
+            region->runtime->quadview_index == bke::ARegionQuadviewIndex::TopRight)
+        {
+          draw_view_axis(rv3d, rect);
+        }
       case USER_MINI_AXIS_TYPE_NONE:
         break;
     }
@@ -1697,9 +1707,9 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
       }
 
       if (U.uiflag & USER_DRAWVIEWINFO && region_ok) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         Object *ob = BKE_view_layer_active_object_get(view_layer);
-        draw_selected_name(v3d, scene, view_layer, ob, xoffset, &yoffset);
+        draw_selected_name(*bmain, v3d, scene, view_layer, ob, xoffset, &yoffset);
         BLF_color4fv(font_id, text_color);
       }
 
@@ -1824,7 +1834,8 @@ static void view3d_stereo3d_setup_offscreen(Depsgraph *depsgraph,
   }
   else { /* SCE_VIEWS_FORMAT_MULTIVIEW */
     float viewmat[4][4];
-    Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
+    Object *camera = BKE_camera_multiview_render(
+        *DEG_get_bmain(depsgraph), scene, v3d->camera, viewname);
 
     BKE_camera_multiview_view_matrix(&scene->r, camera, false, viewmat);
     view3d_main_region_setup_offscreen(depsgraph, scene, v3d, region, viewmat, winmat);
@@ -1836,6 +1847,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
                               eDrawType drawtype,
                               View3D *v3d,
                               ARegion *region,
+                              bContext *context,
                               int winx,
                               int winy,
                               const float viewmat[4][4],
@@ -1859,7 +1871,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     /* #View3D */
     eDrawType v3d_shading_type;
     Object *v3d_camera;
-    float v3d_lens;
+    short v3d_flag;
 
     /* #Region */
     int region_winx, region_winy;
@@ -1875,7 +1887,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   } orig{};
   orig.v3d_shading_type = eDrawType(v3d->shading.type);
   orig.v3d_camera = v3d->camera;
-  orig.v3d_lens = v3d->lens;
+  orig.v3d_flag = v3d->flag;
   orig.region_winx = region->winx;
   orig.region_winy = region->winy;
   orig.region_winrct = region->winrct;
@@ -1906,16 +1918,6 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     BKE_image_free_anim_gputextures(G.main);
   }
 
-  if (viewmat) {
-    /* WORKAROUND: Disable camera view to avoid EEVEE being confused and try to
-     * get the projection matrix from the camera.
-     * Set the `lens` parameter to 0 to make EEVEE prefer the `winmat` from the rv3d instead of
-     * trying to rederive it. Note that this produces incorrect result with over-scan. */
-    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
-    v3d->camera = nullptr;
-    v3d->lens = 0.0f;
-  }
-
   GPU_matrix_push_projection();
   GPU_matrix_identity_set();
   GPU_matrix_push();
@@ -1930,6 +1932,15 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     view3d_main_region_setup_offscreen(depsgraph, scene, v3d, region, viewmat, winmat);
   }
 
+  if (viewmat || winmat) {
+    /* Now that rv3d data has been updated taking into account viewmat and winmat,
+     * we can remove the camera and flag the view as using custom matrices,
+     * to ensure engines don't recompute them. */
+    v3d->camera = nullptr;
+    v3d->flag |= V3D_CUSTOM_MATRIX;
+    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
+  }
+
   if (viewport) {
     GPU_viewport_tag_update(viewport);
   }
@@ -1939,6 +1950,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
                                  engine_type,
                                  region,
                                  v3d,
+                                 context,
                                  is_image_render,
                                  draw_background,
                                  do_color_management,
@@ -1958,14 +1970,14 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   if (restore_rv3d_mats) {
     ED_view3d_mats_rv3d_restore(static_cast<RegionView3D *>(region->regiondata), orig.rv3d_mats);
   }
-  MEM_freeN(orig.rv3d_mats);
+  MEM_delete(orig.rv3d_mats);
   rv3d->persp = orig.rv3d_persp;
 
   ui::theme::theme_restore(&orig.theme_state);
 
   v3d->shading.type = orig.v3d_shading_type;
   v3d->camera = orig.v3d_camera;
-  v3d->lens = orig.v3d_lens;
+  v3d->flag = orig.v3d_flag;
 
   G.f &= ~G_FLAG_RENDER_VIEWPORT;
 }
@@ -1973,6 +1985,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      Scene *scene,
                                      View3DShading *shading_override,
+                                     bContext *context,
                                      eDrawType drawtype,
                                      int object_type_exclude_viewport_override,
                                      int object_type_exclude_select_override,
@@ -1983,7 +1996,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      const float winmat[4][4],
                                      float clip_start,
                                      float clip_end,
-                                     float vignette_aperture,
+                                     float xr_vignette_aperture,
                                      bool is_xr_surface,
                                      bool is_image_render,
                                      bool draw_background,
@@ -1993,14 +2006,14 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      GPUViewport *viewport)
 {
   View3D v3d = dna::shallow_zero_initialize();
-  ARegion ar = {nullptr};
+  ARegion region = {nullptr};
   bke::ARegionRuntime region_runtime{};
-  ar.runtime = &region_runtime;
+  region.runtime = &region_runtime;
   RegionView3D rv3d;
 
-  v3d.regionbase.first = v3d.regionbase.last = &ar;
-  ar.regiondata = &rv3d;
-  ar.regiontype = RGN_TYPE_WINDOW;
+  v3d.regionbase.first = v3d.regionbase.last = &region;
+  region.regiondata = &rv3d;
+  region.regiontype = RGN_TYPE_WINDOW;
 
   View3DShading *source_shading_settings = &scene->display.shading;
   if (draw_flags & V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS && shading_override != nullptr) {
@@ -2065,7 +2078,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
   v3d.clip_end = clip_end;
   /* Actually not used since we pass in the projection matrix. */
   v3d.lens = 0;
-  v3d.vignette_aperture = vignette_aperture;
+  v3d.xr_vignette_aperture = xr_vignette_aperture;
 
   /* WORKAROUND: Disable overscan because it is not supported for arbitrary input matrices.
    * The proper fix to this would be to support arbitrary matrices in `eevee::Camera::sync()`. */
@@ -2076,7 +2089,8 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                            scene,
                            drawtype,
                            &v3d,
-                           &ar,
+                           &region,
+                           context,
                            winx,
                            winy,
                            viewmat,
@@ -2161,7 +2175,8 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   /* render 3d view */
   if (use_camera_view_bounds && rv3d->persp == RV3D_CAMOB && v3d->camera) {
     CameraParams params;
-    Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
+    Object *camera = BKE_camera_multiview_render(
+        *DEG_get_bmain(depsgraph), scene, v3d->camera, viewname);
     const Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
 
     BKE_camera_params_init(&params);
@@ -2212,12 +2227,13 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
    * When using workbench the color differences haven't been reported as a bug. But users also use
    * the viewport rendering to render Eevee scenes. In the later situation the saved colors are
    * totally wrong. */
-  const bool do_color_management = (ibuf->float_buffer.data == nullptr);
+  const bool do_color_management = (ibuf->float_data() == nullptr);
   ED_view3d_draw_offscreen(depsgraph,
                            scene,
                            drawtype,
                            v3d,
                            region,
+                           nullptr,
                            sizex,
                            sizey,
                            nullptr,
@@ -2230,11 +2246,11 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                            ofs,
                            viewport);
 
-  if (ibuf->float_buffer.data) {
-    GPU_offscreen_read_color(ofs, GPU_DATA_FLOAT, ibuf->float_buffer.data);
+  if (ibuf->float_data()) {
+    GPU_offscreen_read_color(ofs, GPU_DATA_FLOAT, ibuf->float_data_for_write());
   }
-  else if (ibuf->byte_buffer.data) {
-    GPU_offscreen_read_color(ofs, GPU_DATA_UBYTE, ibuf->byte_buffer.data);
+  else if (ibuf->byte_data()) {
+    GPU_offscreen_read_color(ofs, GPU_DATA_UBYTE, ibuf->byte_data_for_write());
   }
 
   /* unbind */
@@ -2250,7 +2266,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
     GPU_framebuffer_bind(old_fb);
   }
 
-  if (ibuf->float_buffer.data && ibuf->byte_buffer.data) {
+  if (ibuf->float_data() && ibuf->byte_data()) {
     IMB_byte_from_float(ibuf);
   }
 
@@ -2332,7 +2348,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
     v3d.gridflag |= V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y;
   }
 
-  v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+  if ((draw_flags & V3D_OFSDRAW_NO_WORLD_BACKGROUND_OVERRIDE) == 0) {
+    v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+  }
 
   rv3d.persp = RV3D_CAMOB;
 
@@ -2343,7 +2361,8 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
   {
     CameraParams params;
     const Object *view_camera_eval = DEG_get_evaluated(
-        depsgraph, BKE_camera_multiview_render(scene, v3d.camera, viewname));
+        depsgraph,
+        BKE_camera_multiview_render(*DEG_get_bmain(depsgraph), scene, v3d.camera, viewname));
 
     BKE_camera_params_init(&params);
     BKE_camera_params_from_object(&params, view_camera_eval);
@@ -2412,7 +2431,8 @@ bool ED_view3d_clipping_test(const RegionView3D *rv3d, const float co[3], const 
 /**
  * \note Only use in object mode.
  */
-static void validate_object_select_id(Depsgraph *depsgraph,
+static void validate_object_select_id(const Main &bmain,
+                                      Depsgraph *depsgraph,
                                       const Scene *scene,
                                       ViewLayer *view_layer,
                                       ARegion *region,
@@ -2448,7 +2468,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
   }
 
   if (obact_eval && ((obact_eval->base_flag & BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT) != 0)) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(bmain, scene, view_layer);
     Base *base = BKE_view_layer_base_find(view_layer, obact);
     DRW_select_buffer_context_create(depsgraph, {base}, -1);
   }
@@ -2485,7 +2505,7 @@ static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *da
 void ED_view3d_select_id_validate(const ViewContext *vc)
 {
   validate_object_select_id(
-      vc->depsgraph, vc->scene, vc->view_layer, vc->region, vc->v3d, vc->obact);
+      *vc->bmain, vc->depsgraph, vc->scene, vc->view_layer, vc->region, vc->v3d, vc->obact);
 }
 
 int ED_view3d_backbuf_sample_size_clamp(ARegion *region, const float dist)
@@ -2528,7 +2548,7 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d)
   r_d->w = w;
   r_d->h = h;
 
-  r_d->depths = MEM_malloc_arrayN<float>(w * h, "View depths Subset");
+  r_d->depths = MEM_new_array_uninitialized<float>(w * h, "View depths Subset");
 
   {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -2542,7 +2562,7 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d)
 /* NOTE: with NOUVEAU drivers the #glReadPixels() is very slow. #24339. */
 static ViewDepths *view3d_depths_create(ARegion *region)
 {
-  ViewDepths *d = MEM_callocN<ViewDepths>("ViewDepths");
+  ViewDepths *d = MEM_new_zeroed<ViewDepths>("ViewDepths");
 
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
   gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
@@ -2696,9 +2716,9 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
 void ED_view3d_depths_free(ViewDepths *depths)
 {
   if (depths->depths) {
-    MEM_freeN(depths->depths);
+    MEM_delete(depths->depths);
   }
-  MEM_freeN(depths);
+  MEM_delete(depths);
 }
 
 bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D *v3d)
@@ -2739,7 +2759,8 @@ bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D
 /** \name Custom-data Utilities
  * \{ */
 
-void ED_view3d_datamask(const Scene *scene,
+void ED_view3d_datamask(const Main &bmain,
+                        const Scene *scene,
                         ViewLayer *view_layer,
                         const View3D *v3d,
                         CustomData_MeshMasks *r_cddata_masks)
@@ -2761,7 +2782,7 @@ void ED_view3d_datamask(const Scene *scene,
     }
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   if (obact) {
     switch (obact->type) {
@@ -2780,7 +2801,8 @@ void ED_view3d_datamask(const Scene *scene,
   }
 }
 
-void ED_view3d_screen_datamask(const Scene *scene,
+void ED_view3d_screen_datamask(const Main &bmain,
+                               const Scene *scene,
                                ViewLayer *view_layer,
                                const bScreen *screen,
                                CustomData_MeshMasks *r_cddata_masks)
@@ -2791,7 +2813,7 @@ void ED_view3d_screen_datamask(const Scene *scene,
   for (const ScrArea &area : screen->areabase) {
     if (area.spacetype == SPACE_VIEW3D) {
       ED_view3d_datamask(
-          scene, view_layer, static_cast<View3D *>(area.spacedata.first), r_cddata_masks);
+          bmain, scene, view_layer, static_cast<View3D *>(area.spacedata.first), r_cddata_masks);
     }
   }
 }
@@ -2821,7 +2843,7 @@ struct RV3DMatrixStore {
 
 RV3DMatrixStore *ED_view3d_mats_rv3d_backup(RegionView3D *rv3d)
 {
-  RV3DMatrixStore *rv3dmat = MEM_mallocN<RV3DMatrixStore>(__func__);
+  RV3DMatrixStore *rv3dmat = MEM_new_uninitialized<RV3DMatrixStore>(__func__);
   copy_m4_m4(rv3dmat->winmat, rv3d->winmat);
   copy_m4_m4(rv3dmat->viewmat, rv3d->viewmat);
   copy_m4_m4(rv3dmat->persmat, rv3d->persmat);
@@ -2846,7 +2868,7 @@ void ED_view3d_mats_rv3d_restore(RegionView3D *rv3d, RV3DMatrixStore *rv3dmat_pt
 
 void ED_view3D_mats_rv3d_free(RV3DMatrixStore *rv3d_mat)
 {
-  MEM_freeN(rv3d_mat);
+  MEM_delete(rv3d_mat);
 }
 
 /** \} */
@@ -3022,7 +3044,7 @@ bool ViewportColorSampleSession::sample(const int mval[2], float r_col[3])
 ViewportColorSampleSession::~ViewportColorSampleSession()
 {
   if (data != nullptr) {
-    MEM_freeN(data);
+    MEM_delete(data);
   }
   if (tex != nullptr) {
     GPU_texture_free(tex);

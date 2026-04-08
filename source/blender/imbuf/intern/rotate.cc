@@ -69,20 +69,21 @@ bool IMB_rotate_orthogonal(ImBuf *ibuf, int degrees)
   if (ELEM(degrees, 90, 270)) {
     std::swap(ibuf->x, ibuf->y);
   }
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     const int channels = ibuf->channels;
-    const float *src_pixels = ibuf->float_buffer.data;
-    float *dst_pixels = MEM_malloc_arrayN<float>(
+    const float *src_pixels = ibuf->float_data();
+    float *dst_pixels = MEM_new_array_uninitialized<float>(
         size_t(channels) * size_t(size_x) * size_t(size_y), __func__);
     rotate_pixels<float>(degrees, size_x, size_y, src_pixels, dst_pixels, ibuf->channels);
     IMB_assign_float_buffer(ibuf, dst_pixels, IB_TAKE_OWNERSHIP);
-    if (ibuf->byte_buffer.data) {
+    if (ibuf->byte_data()) {
       IMB_byte_from_float(ibuf);
     }
   }
-  else if (ibuf->byte_buffer.data) {
-    const uchar *src_pixels = ibuf->byte_buffer.data;
-    uchar *dst_pixels = MEM_malloc_arrayN<uchar>(4 * size_t(size_x) * size_t(size_y), __func__);
+  else if (ibuf->byte_data()) {
+    const uchar *src_pixels = ibuf->byte_data();
+    uchar *dst_pixels = MEM_new_array_uninitialized<uchar>(4 * size_t(size_x) * size_t(size_y),
+                                                           __func__);
     rotate_pixels<uchar>(degrees, size_x, size_y, src_pixels, dst_pixels, 4);
     IMB_assign_byte_buffer(ibuf, dst_pixels, IB_TAKE_OWNERSHIP);
   }
@@ -98,7 +99,7 @@ void IMB_flipy(ImBuf *ibuf)
     return;
   }
 
-  if (ibuf->byte_buffer.data) {
+  if (ibuf->byte_data()) {
     uint *top, *bottom, *line;
 
     x_size = ibuf->x;
@@ -106,9 +107,9 @@ void IMB_flipy(ImBuf *ibuf)
 
     const size_t stride = x_size * sizeof(int);
 
-    top = reinterpret_cast<uint *>(ibuf->byte_buffer.data);
+    top = reinterpret_cast<uint *>(ibuf->byte_data_for_write());
     bottom = top + ((y_size - 1) * x_size);
-    line = MEM_malloc_arrayN<uint>(x_size, "linebuf");
+    line = MEM_new_array_uninitialized<uint>(x_size, "linebuf");
 
     y_size >>= 1;
 
@@ -120,10 +121,10 @@ void IMB_flipy(ImBuf *ibuf)
       top += x_size;
     }
 
-    MEM_freeN(line);
+    MEM_delete(line);
   }
 
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     float *topf = nullptr, *bottomf = nullptr, *linef = nullptr;
 
     x_size = ibuf->x;
@@ -131,9 +132,9 @@ void IMB_flipy(ImBuf *ibuf)
 
     const size_t stride = x_size * 4 * sizeof(float);
 
-    topf = ibuf->float_buffer.data;
+    topf = ibuf->float_data_for_write();
     bottomf = topf + 4 * ((y_size - 1) * x_size);
-    linef = MEM_malloc_arrayN<float>(4 * x_size, "linebuf");
+    linef = MEM_new_array_uninitialized<float>(4 * x_size, "linebuf");
 
     y_size >>= 1;
 
@@ -145,7 +146,7 @@ void IMB_flipy(ImBuf *ibuf)
       topf += 4 * x_size;
     }
 
-    MEM_freeN(linef);
+    MEM_delete(linef);
   }
 }
 
@@ -161,8 +162,8 @@ void IMB_flipx(ImBuf *ibuf)
   x = ibuf->x;
   y = ibuf->y;
 
-  if (ibuf->byte_buffer.data) {
-    uint *rect = reinterpret_cast<uint *>(ibuf->byte_buffer.data);
+  if (ibuf->byte_data()) {
+    uint *rect = reinterpret_cast<uint *>(ibuf->byte_data_for_write());
     for (yi = y - 1; yi >= 0; yi--) {
       const size_t x_offset = size_t(x) * yi;
       for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {
@@ -171,8 +172,8 @@ void IMB_flipx(ImBuf *ibuf)
     }
   }
 
-  if (ibuf->float_buffer.data) {
-    float *rect_float = ibuf->float_buffer.data;
+  if (ibuf->float_data()) {
+    float *rect_float = ibuf->float_data_for_write();
     for (yi = y - 1; yi >= 0; yi--) {
       const size_t x_offset = size_t(x) * yi;
       for (xr = x - 1, xl = 0; xr >= xl; xr--, xl++) {

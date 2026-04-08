@@ -82,7 +82,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
-  PRIVATE bf::extern::fmtlib
   PUBLIC bf::dependencies::optional::opencolorio
 )
 
@@ -109,7 +108,7 @@ set(GLSL_INC
   shaders
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()

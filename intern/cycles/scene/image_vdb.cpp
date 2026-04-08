@@ -4,6 +4,7 @@
 
 #include "scene/image_vdb.h"
 
+#include "util/image_metadata.h"
 #include "util/log.h"
 #include "util/nanovdb.h"
 #include "util/openvdb.h"
@@ -31,7 +32,9 @@ VDBImageLoader::VDBImageLoader(const string &grid_name, const float clipping)
 
 VDBImageLoader::~VDBImageLoader() = default;
 
-bool VDBImageLoader::load_metadata(ImageMetaData &metadata)
+bool VDBImageLoader::load_metadata(ImageMetaData &metadata,
+                                   const ImageLoaderParams & /*params*/,
+                                   Progress & /*progress*/)
 {
 #ifdef WITH_NANOVDB
   load_grid();
@@ -87,7 +90,13 @@ bool VDBImageLoader::load_metadata(ImageMetaData &metadata)
     return false;
   }
 
+#  if NANOVDB_MAJOR_VERSION_NUMBER > 32 || \
+      (NANOVDB_MAJOR_VERSION_NUMBER == 32 && NANOVDB_MINOR_VERSION_NUMBER >= 9)
+  /* size() was deprecated in this version. */
+  metadata.nanovdb_byte_size = nanogrid.bufferSize();
+#  else
   metadata.nanovdb_byte_size = nanogrid.size();
+#  endif
 
   /* Set transform from object space to voxel index. */
   openvdb::math::Mat4f grid_matrix = grid->transform().baseMap()->getAffineMap()->getMat4();
@@ -119,7 +128,7 @@ bool VDBImageLoader::load_pixels(const ImageMetaData &metadata, void *pixels)
     return true;
   }
   if (nanogrid) {
-    memcpy(pixels, nanogrid.data(), nanogrid.size());
+    memcpy(pixels, nanogrid.data(), metadata.nanovdb_byte_size);
     return true;
   }
 #else
@@ -208,9 +217,9 @@ openvdb::GridBase::ConstPtr create_grid(const float *voxels,
                                           0.0,
                                           (double)(voxel_size.z * transform_3d[2][2]),
                                           0.0,
-                                          (double)transform_3d[0][3] + voxel_size.x,
-                                          (double)transform_3d[1][3] + voxel_size.y,
-                                          (double)transform_3d[2][3] + voxel_size.z,
+                                          (double)transform_3d[0][3],
+                                          (double)transform_3d[1][3],
+                                          (double)transform_3d[2][3],
                                           1.0);
 
   const openvdb::math::Transform::Ptr index_to_world_tfm =

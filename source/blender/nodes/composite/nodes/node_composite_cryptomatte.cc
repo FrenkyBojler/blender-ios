@@ -13,7 +13,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_memory_utils.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -134,7 +133,7 @@ static void cryptomatte_add(bNode &node, NodeCryptomatte &node_cryptomatte, floa
     return;
   }
 
-  CryptomatteEntry *entry = MEM_new_for_free<CryptomatteEntry>(__func__);
+  CryptomatteEntry *entry = MEM_new<CryptomatteEntry>(__func__);
   entry->encoded_hash = encoded_hash;
   bke::cryptomatte::CryptomatteSessionPtr session = cryptomatte_init_from_node(node, true);
   if (session) {
@@ -151,7 +150,7 @@ static void cryptomatte_remove(NodeCryptomatte &n, float encoded_hash)
     return;
   }
   BLI_remlink(&n.entries, entry);
-  MEM_freeN(entry);
+  MEM_delete(entry);
 }
 
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node)
@@ -184,7 +183,7 @@ void ntreeCompositCryptomatteUpdateLayerNames(bNode *node)
 
   if (session) {
     for (StringRef layer_name : bke::cryptomatte::BKE_cryptomatte_layer_names_get(*session)) {
-      CryptomatteLayer *layer = MEM_new_for_free<CryptomatteLayer>(__func__);
+      CryptomatteLayer *layer = MEM_new<CryptomatteLayer>(__func__);
       layer_name.copy_utf8_truncated(layer->name);
       BLI_addtail(&n->runtime.layers, layer);
     }
@@ -229,10 +228,10 @@ static void node_free_cryptomatte(bNode *node)
   NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
 
   if (nc) {
-    MEM_SAFE_FREE(nc->matte_id);
+    MEM_SAFE_DELETE(nc->matte_id);
     BLI_freelistN(&nc->runtime.layers);
     BLI_freelistN(&nc->entries);
-    MEM_freeN(nc);
+    MEM_delete(nc);
   }
 }
 
@@ -241,11 +240,11 @@ static void node_copy_cryptomatte(bNodeTree * /*dst_ntree*/,
                                   const bNode *src_node)
 {
   NodeCryptomatte *src_nc = static_cast<NodeCryptomatte *>(src_node->storage);
-  NodeCryptomatte *dest_nc = static_cast<NodeCryptomatte *>(MEM_dupallocN(src_nc));
+  NodeCryptomatte *dest_nc = static_cast<NodeCryptomatte *>(MEM_dupalloc(src_nc));
 
   BLI_duplicatelist(&dest_nc->entries, &src_nc->entries);
   BLI_listbase_clear(&dest_nc->runtime.layers);
-  dest_nc->matte_id = static_cast<char *>(MEM_dupallocN(src_nc->matte_id));
+  dest_nc->matte_id = static_cast<char *>(MEM_dupalloc(src_nc->matte_id));
   dest_node->storage = dest_nc;
 }
 
@@ -268,7 +267,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
   {
     Vector<Result> layers = get_layers();
     if (layers.is_empty()) {
-      allocate_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
@@ -300,24 +299,6 @@ class BaseCryptoMatteOperation : public NodeOperation {
     }
     else {
       matte.release();
-    }
-  }
-
-  void allocate_invalid()
-  {
-    Result &pick = get_result("Pick");
-    if (pick.should_compute()) {
-      pick.allocate_invalid();
-    }
-
-    Result &matte = get_result("Matte");
-    if (matte.should_compute()) {
-      matte.allocate_invalid();
-    }
-
-    Result &image = get_result("Image");
-    if (image.should_compute()) {
-      image.allocate_invalid();
     }
   }
 
@@ -604,18 +585,18 @@ NODE_STORAGE_FUNCS(NodeCryptomatte)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick"_ustr).structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeCryptomatte *user = MEM_new_for_free<NodeCryptomatte>(__func__);
+  NodeCryptomatte *user = MEM_new<NodeCryptomatte>(__func__);
   node->storage = user;
 }
 
@@ -970,30 +951,30 @@ namespace nodes::node_composite_legacy_cryptomatte_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick"_ustr).structure_type(StructureType::Dynamic);
 
   const bNode *node = b.node_or_null();
   if (!node) {
-    b.add_input<decl::Color>("Crypto 00").structure_type(StructureType::Dynamic);
+    b.add_input<decl::Color>("Crypto 00"_ustr).structure_type(StructureType::Dynamic);
     return;
   }
 
   const int inputs_count = static_cast<NodeCryptomatte *>(node->storage)->inputs_num;
   for (int i = 0; i < inputs_count; i++) {
     const std::string name = fmt::format("Crypto {:02}", i);
-    b.add_input<decl::Color>(name).structure_type(StructureType::Dynamic);
+    b.add_input<decl::Color>(UString(name)).structure_type(StructureType::Dynamic);
   }
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeCryptomatte *storage = MEM_new_for_free<NodeCryptomatte>(__func__);
+  NodeCryptomatte *storage = MEM_new<NodeCryptomatte>(__func__);
   node->storage = storage;
 
   /* Add three inputs by default, as recommended by the Cryptomatte specification. */

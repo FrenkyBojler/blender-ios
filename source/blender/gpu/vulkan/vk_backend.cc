@@ -8,8 +8,6 @@
 
 #include <sstream>
 
-#include "GHOST_C-api.h"
-
 #include "BLI_path_utils.hh"
 #include "BLI_threads.h"
 
@@ -77,7 +75,8 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
     const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
     uint32_t driver_version_major = driver_version >> 14u;
     uint32_t driver_version_minor = driver_version & 0x3fffu;
-    if (driver_version_major < 101 || driver_version_major == 101 && driver_version_minor < 2140) {
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 2140))
+    {
       return false;
     }
   }
@@ -154,10 +153,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+#endif
   if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("vertex pipeline stores and atomics");
   }
-#endif
   if (features.features.multiViewport == VK_FALSE) {
     missing_capabilities.append("multi viewport");
   }
@@ -337,10 +336,10 @@ void VKBackend::platform_init()
            GPU_ARCHITECTURE_IMR);
 }
 
-static void init_device_list(GHOST_ContextHandle ghost_context)
+static void init_device_list(GHOST_IContext *ghost_context)
 {
   GHOST_VulkanHandles vulkan_handles = {};
-  GHOST_GetVulkanHandles(ghost_context, &vulkan_handles);
+  ghost_context->getVulkanHandles(vulkan_handles);
 
   uint32_t physical_devices_count = 0;
   vkEnumeratePhysicalDevices(vulkan_handles.instance, &physical_devices_count, nullptr);
@@ -366,7 +365,7 @@ static void init_device_list(GHOST_ContextHandle ghost_context)
     index++;
   }
 
-  std::sort(GPG.devices.begin(), GPG.devices.end(), [&](const GPUDevice &a, const GPUDevice &b) {
+  std::ranges::sort(GPG.devices, [&](const GPUDevice &a, const GPUDevice &b) {
     if (a.name == b.name) {
       return a.index < b.index;
     }
@@ -431,6 +430,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
 
     /* Force workarounds and disable extensions. */
     workarounds.not_aligned_pixel_formats = true;
+    workarounds.no_texture_pool = true;
     extensions.shader_output_layer = false;
     extensions.shader_output_viewport_index = false;
     extensions.fragment_shader_barycentric = false;
@@ -445,6 +445,10 @@ void VKBackend::detect_workarounds(VKDevice &device)
     device.workarounds_ = workarounds;
     device.extensions_ = extensions;
     return;
+  }
+
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    workarounds.no_texture_pool = true;
   }
 
   extensions.shader_output_layer =
@@ -500,6 +504,16 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.vertex_input_dynamic_state = false;
   }
 
+  /* Disable vertex input dynamic state for Qualcomm devices (#153414).
+   *
+   * TODO: We should re-validate vertex input dynamic state as there are multiple vendors with
+   * similar issues. It might be an oversight. Will wait for feedback from the driver developers
+   * and perform some out of bounds error checks.
+   */
+  if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+    extensions.vertex_input_dynamic_state = false;
+  }
+
   /* Only enable by default dynamic rendering local read on Qualcomm devices. NVIDIA, AMD and Intel
    * performance is better when disabled (20%). On Qualcomm devices the improvement can be
    * substantial (16% on shader_balls.blend).
@@ -526,6 +540,25 @@ void VKBackend::detect_workarounds(VKDevice &device)
   if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
     extensions.host_image_copy = false;
   }
+
+#ifdef _WIN32
+  /* Intel 7th to 10th Gen Processor iGPUs show a black screen at application startup when using
+   * VK_EXT_vertex_input_dynamic_state. Furthermore, texture pool usage leads to visual artifacts.
+   * The used driver version for these iGPUs is 101.2xxx or older.
+   *
+   * See #147721
+   */
+  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
+    const uint32_t driver_version = device.physical_device_properties_get().driverVersion;
+    uint32_t driver_version_major = driver_version >> 14u;
+    uint32_t driver_version_minor = driver_version & 0x3fffu;
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 3000))
+    {
+      extensions.vertex_input_dynamic_state = false;
+      workarounds.no_texture_pool = true;
+    }
+  }
+#endif
 
 #ifdef __APPLE__
   extensions.extended_dynamic_state = false;
@@ -555,14 +588,6 @@ void VKBackend::delete_resources()
   MEM_delete(compiler_);
 }
 
-void VKBackend::samplers_update()
-{
-  VKDevice &device = VKBackend::get().device;
-  if (device.is_initialized()) {
-    device.reinit();
-  }
-}
-
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)
 {
   VKContext &context = *VKContext::get();
@@ -588,11 +613,11 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
   context.render_graph().add_node(dispatch_indirect_info);
 }
 
-Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
+Context *VKBackend::context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
 {
   if (ghost_window) {
     BLI_assert(ghost_context == nullptr);
-    ghost_context = GHOST_GetDrawingContext(static_cast<GHOST_WindowHandle>(ghost_window));
+    ghost_context = ghost_window->getDrawingContext();
   }
 
   BLI_assert(ghost_context != nullptr);
@@ -600,16 +625,16 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
     device.init(ghost_context);
     device.extensions_get().log();
     device.workarounds_get().log();
-    init_device_list(static_cast<GHOST_ContextHandle>(ghost_context));
+    init_device_list(ghost_context);
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
   device.context_register(*context);
-  GHOST_SetVulkanSwapBuffersCallbacks(static_cast<GHOST_ContextHandle>(ghost_context),
-                                      VKContext::swap_buffer_draw_callback,
-                                      VKContext::swap_buffer_acquired_callback,
-                                      VKContext::openxr_acquire_framebuffer_image_callback,
-                                      VKContext::openxr_release_framebuffer_image_callback);
+  ghost_context->setVulkanSwapBuffersCallbacks(
+      VKContext::swap_buffer_draw_callback,
+      VKContext::swap_buffer_acquired_callback,
+      VKContext::openxr_acquire_framebuffer_image_callback,
+      VKContext::openxr_release_framebuffer_image_callback);
 
   return context;
 }
@@ -656,11 +681,11 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
-  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
-    CLOG_INFO(&LOG, "Using texture pool \"TexturePoolImpl\".");
+  if (device.workarounds_get().no_texture_pool) {
+    CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
     return new TexturePoolImpl();
   }
-  CLOG_INFO(&LOG, "Using texture pool \"VKTexturePool\".");
+  CLOG_TRACE(&LOG, "Using texture pool \"VKTexturePool\".");
   return new VKTexturePool();
 }
 
@@ -737,10 +762,7 @@ void VKBackend::capabilities_init(VKDevice &device)
   GCaps.max_texture_3d_size = min_uu(limits.maxImageDimension3D, INT_MAX);
   GCaps.max_buffer_texture_size = min_uu(limits.maxTexelBufferElements, UINT_MAX);
   GCaps.max_texture_layers = min_uu(limits.maxImageArrayLayers, INT_MAX);
-  GCaps.max_textures = min_uu(limits.maxDescriptorSetSampledImages, INT_MAX);
-  GCaps.max_textures_vert = GCaps.max_textures_geom = GCaps.max_textures_frag = min_uu(
-      limits.maxPerStageDescriptorSampledImages, INT_MAX);
-  GCaps.max_samplers = min_uu(limits.maxSamplerAllocationCount, INT_MAX);
+  GCaps.max_textures = min_uu(limits.maxPerStageDescriptorSampledImages, INT_MAX);
   GCaps.max_images = min_uu(limits.maxPerStageDescriptorStorageImages, INT_MAX);
   for (int i = 0; i < 3; i++) {
     GCaps.max_work_group_count[i] = min_uu(limits.maxComputeWorkGroupCount[i], INT_MAX);

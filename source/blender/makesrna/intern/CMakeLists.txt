@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # add here so we fail early.
   string(APPEND CMAKE_C_FLAGS " -Werror=implicit-function-declaration")
 endif()
@@ -159,17 +159,17 @@ set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 # CFLAGS for Generated Files
 #
 # less strict flags for generated source
-set(GENSRC_FLAGS)
-set(GENSRC_CFLAGS)
-set(GENSRC_CXXFLAGS)
-if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+set(GENSRC_FLAGS "")
+set(GENSRC_CFLAGS "")
+set(GENSRC_CXXFLAGS "")
+if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
   set(GENSRC_CFLAGS "-Wno-missing-prototypes")
   set(GENSRC_CXXFLAGS "-Wno-missing-declarations")
 endif()
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   string(APPEND GENSRC_FLAGS " -Wno-missing-variable-declarations")
 elseif(MSVC)
-  remove_cc_flag(
+  remove_c_and_cxx_flag(
     # Restore warn C4100 (unreferenced formal parameter) back to w4.
     "/w34100"
   )
@@ -399,7 +399,7 @@ if(WITH_GMP)
 endif()
 
 # Build `makesrna` executable.
-add_cc_flags_custom_test(makesrna)
+add_c_and_cxx_flags_custom_test(makesrna)
 
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
 setup_platform_linker_flags(makesrna)
@@ -411,10 +411,10 @@ target_link_libraries(makesrna PRIVATE bf_dna)
 target_link_libraries(makesrna PRIVATE bf::intern::atomic)
 target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
-target_link_libraries(makesrna PRIVATE bf::extern::fmtlib)
 target_link_libraries(makesrna PRIVATE bf_dna_defaults)
 target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
 target_link_libraries(makesrna PRIVATE bf::dependencies::pthreads)
+target_link_libraries(makesrna PRIVATE bf::dependencies::fmt)
 
 # Output `rna_*_gen.cc`.
 # NOTE: (Linux only): with crashes try add this after COMMAND:
@@ -430,8 +430,8 @@ add_custom_command(
 # Build bf_rna
 set(SRC
   rna_access.cc
-  rna_define.cc
   rna_access_compare_override.cc
+  rna_define.cc
   rna_path.cc
   ${GENSRC}
 
@@ -446,6 +446,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   bf_editor_space_api
 
@@ -468,10 +469,10 @@ set(LIB
   bf_editor_transform
   bf_editor_undo
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::dependencies::optional::openvdb
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::optional::audaspace
+  PUBLIC bf::dependencies::fmt
 )
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

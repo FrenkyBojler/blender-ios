@@ -35,10 +35,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::String>("Format").optional_label().description(
-      "Format string using a Python and path template compatible syntax. For example, \"Count: "
-      "{}\" would replace the {} with the first input value.");
-  b.add_output<decl::String>("String").align_with_previous();
+  b.add_input<decl::String>("Format"_ustr)
+      .optional_label()
+      .description(
+          "Format string using a Python and path template compatible syntax. For example, "
+          "\"Count: "
+          "{}\" would replace the {} with the first input value.");
+  b.add_output<decl::String>("String"_ustr).align_with_previous();
 
   const bNodeTree *ntree = b.tree_or_null();
   const bNode *node = b.node_or_null();
@@ -50,26 +53,25 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(storage.items_num)) {
     const NodeFunctionFormatStringItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const StringRef name = item.name;
+    const UString name(item.name);
     const std::string identifier = FormatStringItemsAccessor::socket_identifier_for_item(item);
-    b.add_input(socket_type, name, identifier)
+    b.add_input(socket_type, name, UString(identifier))
         .socket_name_ptr(&ntree->id, *FormatStringItemsAccessor::item_srna, &item, "name");
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionFormatString *data = MEM_new_for_free<NodeFunctionFormatString>(__func__);
+  NodeFunctionFormatString *data = MEM_new<NodeFunctionFormatString>(__func__);
   node->storage = data;
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeFunctionFormatString &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeFunctionFormatString>(__func__,
-                                                                 dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeFunctionFormatString>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<FormatStringItemsAccessor>(*src_node, *dst_node);
@@ -78,7 +80,7 @@ static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<FormatStringItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeFunctionFormatString *>(node->storage));
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -751,14 +753,20 @@ class FormatStringMultiFunction : public mf::MultiFunction {
       }
     }
     else {
-      mask.foreach_index(GrainSize(256), [&](const int64_t i) {
-        const StringRef format = formats[i];
-        if (!format_strings(
-                format, inputs, input_names_, IndexRange::from_single(i), outputs, error_message))
-        {
-          outputs[i].clear();
-        }
-      });
+      mask.foreach_index(
+          [&](const int64_t i) {
+            const StringRef format = formats[i];
+            if (!format_strings(format,
+                                inputs,
+                                input_names_,
+                                IndexRange::from_single(i),
+                                outputs,
+                                error_message))
+            {
+              outputs[i].clear();
+            }
+          },
+          exec_mode::grain_size(256));
     }
 
     if (error_message.has_value()) {
@@ -803,7 +811,7 @@ StructRNA **FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatString
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void FormatStringItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

@@ -388,15 +388,15 @@ static void bake_geometry_nodes_startjob(void *customdata, wmJobWorkerStatus *wo
       continue;
     }
 
-    NodesModifierPackedBake *packed_bake = MEM_new_for_free<NodesModifierPackedBake>(__func__);
+    NodesModifierPackedBake *packed_bake = MEM_new<NodesModifierPackedBake>(__func__);
 
     packed_bake->meta_files_num = packed_data->meta_files.size();
     packed_bake->blob_files_num = packed_data->blob_files.size();
 
-    packed_bake->meta_files = MEM_new_array_for_free<NodesModifierBakeFile>(
-        packed_bake->meta_files_num, __func__);
-    packed_bake->blob_files = MEM_new_array_for_free<NodesModifierBakeFile>(
-        packed_bake->blob_files_num, __func__);
+    packed_bake->meta_files = MEM_new_array<NodesModifierBakeFile>(packed_bake->meta_files_num,
+                                                                   __func__);
+    packed_bake->blob_files = MEM_new_array<NodesModifierBakeFile>(packed_bake->blob_files_num,
+                                                                   __func__);
 
     auto transfer_to_bake = [&](NodesModifierBakeFile *bake_files,
                                 MemoryBakeFile *memory_bake_files,
@@ -631,7 +631,7 @@ static Vector<NodeBakeRequest> collect_simulations_to_bake(Main &bmain,
         continue;
       }
       NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-      if (!nmd->node_group) {
+      if (!nmd->node_group || ID_MISSING(nmd->node_group)) {
         continue;
       }
       if (!nmd->runtime->cache) {
@@ -949,7 +949,7 @@ static Vector<NodeBakeRequest> bake_single_node_gather_bake_request(bContext *C,
     return {};
   }
   NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-  if (nmd.node_group == nullptr) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return {};
   }
   if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {

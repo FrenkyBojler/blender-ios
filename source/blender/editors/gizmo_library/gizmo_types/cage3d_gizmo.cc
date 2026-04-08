@@ -49,7 +49,7 @@ static void gizmo_calc_matrix_final_no_offset(const wmGizmo *gz,
                                               bool use_space)
 {
   float mat_identity[4][4];
-  WM_GizmoMatrixParams params = {nullptr};
+  wmGizmoMatrixParams params = {nullptr};
   unit_m4(mat_identity);
   if (use_space == false) {
     params.matrix_basis = mat_identity;
@@ -450,7 +450,7 @@ static void gizmo_cage3d_setup(wmGizmo *gz)
 
 static wmOperatorStatus gizmo_cage3d_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 {
-  RectTransformInteraction *data = MEM_callocN<RectTransformInteraction>("cage_interaction");
+  RectTransformInteraction *data = MEM_new_zeroed<RectTransformInteraction>("cage_interaction");
 
   copy_m4_m4(data->orig_matrix_offset, gz->matrix_offset);
   gizmo_calc_matrix_final_no_offset(gz, data->orig_matrix_final_no_offset, true);

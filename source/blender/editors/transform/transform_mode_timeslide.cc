@@ -15,6 +15,7 @@
 #include "BLI_string_utf8.h"
 
 #include "BKE_nla.hh"
+#include "BKE_scene.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
@@ -179,7 +180,7 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
   {
     Scene *scene = t->scene;
     float *range;
-    t->custom.mode.data = range = MEM_malloc_arrayN<float>(2, "TimeSlide Min/Max");
+    t->custom.mode.data = range = MEM_new_array_uninitialized<float>(2, "TimeSlide Min/Max");
     t->custom.mode.use_free = true;
 
     float min = 999999999.0f, max = -999999999.0f;
@@ -202,8 +203,8 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
 
     if (min == max) {
       /* Just use the current frame ranges. */
-      min = float(PSFRA);
-      max = float(PEFRA);
+      min = float(scene->playback_start());
+      max = float(scene->playback_end());
     }
 
     range[0] = min;

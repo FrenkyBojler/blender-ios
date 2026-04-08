@@ -54,11 +54,7 @@ void MTLBackend::delete_resources()
   MEM_delete(compiler_);
 }
 
-void MTLBackend::samplers_update() {
-  /* Placeholder -- Handled in MTLContext. */
-};
-
-Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
+Context *MTLBackend::context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
 {
   return new MTLContext(ghost_window, ghost_context);
 };
@@ -507,14 +503,8 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_textures = (MTLBackend::capabilities.supports_family_mac1) ?
                            128 :
                            (([device supportsFamily:MTLGPUFamilyApple4]) ? 96 : 31);
-  if (GCaps.max_textures <= 32) {
-    BLI_assert(false);
-  }
-  GCaps.max_samplers = (MTLBackend::capabilities.supports_argument_buffers_tier2) ? 1024 : 16;
-
-  GCaps.max_textures_vert = GCaps.max_textures;
-  GCaps.max_textures_geom = 0; /* N/A geometry shaders not supported. */
-  GCaps.max_textures_frag = GCaps.max_textures;
+  /* Hardcoded limit due to ShaderInterface::enabled_tex_mask_. */
+  GCaps.max_textures = std::min(GCaps.max_textures, 64);
 
   GCaps.max_images = GCaps.max_textures;
 

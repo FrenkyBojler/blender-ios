@@ -73,9 +73,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_output<decl::Int>("Iteration")
+  b.add_output<decl::Int>("Iteration"_ustr)
       .description("Index of the current iteration. Starts counting at zero");
-  b.add_input<decl::Int>("Iterations").min(0).default_value(1);
+  b.add_input<decl::Int>("Iterations"_ustr).min(0).default_value(1);
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -87,13 +87,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       for (const int i : IndexRange(output_storage.items_num)) {
         const NodeRepeatItem &item = output_storage.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-        const StringRef name = item.name ? item.name : "";
-        const std::string identifier = RepeatItemsAccessor::socket_identifier_for_item(item);
+        const UString name = item.name ? UString(item.name) : ""_ustr;
+        const UString identifier(RepeatItemsAccessor::socket_identifier_for_item(item));
         auto &input_decl = b.add_input(socket_type, name, identifier)
                                .socket_name_ptr(
                                    &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
         auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-        if (socket_type_supports_fields(socket_type)) {
+        if (socket_type_supports_attributes(socket_type)) {
           input_decl.supports_field();
           output_decl.dependent_field({input_decl.index()});
         }
@@ -102,15 +102,15 @@ static void node_declare(NodeDeclarationBuilder &b)
       }
     }
   }
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryRepeatInput *data = MEM_new_for_free<NodeGeometryRepeatInput>(__func__);
+  NodeGeometryRepeatInput *data = MEM_new<NodeGeometryRepeatInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -182,13 +182,13 @@ static void node_declare(NodeDeclarationBuilder &b)
     for (const int i : IndexRange(storage.items_num)) {
       const NodeRepeatItem &item = storage.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const StringRef name = item.name ? item.name : "";
-      const std::string identifier = RepeatItemsAccessor::socket_identifier_for_item(item);
+      const UString name = item.name ? UString(item.name) : ""_ustr;
+      const UString identifier(RepeatItemsAccessor::socket_identifier_for_item(item));
       auto &input_decl = b.add_input(socket_type, name, identifier)
                              .socket_name_ptr(
                                  &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
       auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-      if (socket_type_supports_fields(socket_type)) {
+      if (socket_type_supports_attributes(socket_type)) {
         input_decl.supports_field();
         output_decl.dependent_field({input_decl.index()});
       }
@@ -196,20 +196,20 @@ static void node_declare(NodeDeclarationBuilder &b)
       output_decl.structure_type(StructureType::Dynamic);
     }
   }
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
 }
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeGeometryRepeatOutput *data = MEM_new_for_free<NodeGeometryRepeatOutput>(__func__);
+  NodeGeometryRepeatOutput *data = MEM_new<NodeGeometryRepeatOutput>(__func__);
 
   data->next_identifier = 0;
 
   if (tree->type == NTREE_GEOMETRY) {
-    data->items = MEM_new_array_for_free<NodeRepeatItem>(1, __func__);
+    data->items = MEM_new_array<NodeRepeatItem>(1, __func__);
     data->items[0].name = BLI_strdup(DATA_("Geometry"));
     data->items[0].socket_type = SOCK_GEOMETRY;
     data->items[0].identifier = data->next_identifier++;
@@ -222,14 +222,13 @@ static void node_init(bNodeTree *tree, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<RepeatItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeGeometryRepeatOutput *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeGeometryRepeatOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeGeometryRepeatOutput>(__func__,
-                                                                 dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeGeometryRepeatOutput>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);
@@ -263,18 +262,16 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     input_storage.output_node_id = output_node.identifier;
 
     socket_items::clear<RepeatItemsAccessor>(output_node);
+    const UString name(params.socket.name);
     socket_items::add_item_with_socket_type_and_name<RepeatItemsAccessor>(
-        params.node_tree,
-        output_node,
-        eNodeSocketDatatype(params.socket.type),
-        params.socket.name);
+        params.node_tree, output_node, eNodeSocketDatatype(params.socket.type), name.c_str());
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
     if (params.socket.in_out == SOCK_IN) {
-      params.connect_available_socket(output_node, params.socket.name);
+      params.connect_available_socket(output_node, name);
     }
     else {
-      params.connect_available_socket(input_node, params.socket.name);
+      params.connect_available_socket(input_node, name);
     }
     params.node_tree.ensure_topology_cache();
     bke::node_add_link(params.node_tree,
@@ -338,7 +335,7 @@ StructRNA **RepeatItemsAccessor::item_srna = &RNA_RepeatItem;
 
 void RepeatItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void RepeatItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

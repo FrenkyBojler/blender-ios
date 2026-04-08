@@ -56,7 +56,7 @@ static void render_result_views_free(RenderResult *rr)
 
     IMB_freeImBuf(rv->ibuf);
 
-    MEM_freeN(rv);
+    MEM_delete(rv);
   }
 
   rr->have_combined = false;
@@ -88,7 +88,7 @@ void render_result_free(RenderResult *rr)
       BLI_freelinkN(&rl->passes, rpass);
     }
     BLI_remlink(&rr->layers, rl);
-    MEM_freeN(rl);
+    MEM_delete(rl);
   }
 
   render_result_views_free(rr);
@@ -96,15 +96,15 @@ void render_result_free(RenderResult *rr)
   IMB_freeImBuf(rr->ibuf);
 
   if (rr->text) {
-    MEM_freeN(rr->text);
+    MEM_delete(rr->text);
   }
   if (rr->error) {
-    MEM_freeN(rr->error);
+    MEM_delete(rr->error);
   }
 
   BKE_stamp_data_free(rr->stamp_data);
 
-  MEM_freeN(rr);
+  MEM_delete(rr);
 }
 
 void render_result_free_list(ListBaseT<RenderResult> *lb, RenderResult *rr)
@@ -146,7 +146,7 @@ void render_result_views_shallowcopy(RenderResult *dst, RenderResult *src)
   for (RenderView &rview : src->views) {
     RenderView *rv;
 
-    rv = MEM_new_for_free<RenderView>("new render view");
+    rv = MEM_new<RenderView>("new render view");
     BLI_addtail(&dst->views, rv);
 
     STRNCPY_UTF8(rv->name, rview.name);
@@ -164,7 +164,7 @@ void render_result_views_shallowdelete(RenderResult *rr)
   while (rr->views.first) {
     RenderView *rv = static_cast<RenderView *>(rr->views.first);
     BLI_remlink(&rr->views, rv);
-    MEM_freeN(rv);
+    MEM_delete(rv);
   }
 }
 
@@ -201,7 +201,7 @@ static void assign_render_pass_ibuf_colorspace(RenderPass &render_pass)
 
 static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
 {
-  if (rp->ibuf && rp->ibuf->float_buffer.data) {
+  if (rp->ibuf && rp->ibuf->float_data()) {
     return;
   }
 
@@ -209,7 +209,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
    * channels. */
 
   const size_t rectsize = size_t(rr->rectx) * rr->recty * rp->channels;
-  float *buffer_data = MEM_calloc_arrayN<float>(rectsize, rp->name);
+  float *buffer_data = MEM_new_array_zeroed<float>(rectsize, rp->name);
 
   rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
   rp->ibuf->channels = rp->channels;
@@ -239,7 +239,7 @@ RenderPass *render_layer_add_pass(RenderResult *rr,
                                   const bool allocate)
 {
   const int view_id = BLI_findstringindex(&rr->views, viewname, offsetof(RenderView, name));
-  RenderPass *rpass = MEM_new_for_free<RenderPass>(name);
+  RenderPass *rpass = MEM_new<RenderPass>(name);
 
   rpass->channels = channels;
   rpass->rectx = rl->rectx;
@@ -281,7 +281,7 @@ RenderResult *render_result_new(Render *re,
     return nullptr;
   }
 
-  rr = MEM_new_for_free<RenderResult>("new render result");
+  rr = MEM_new<RenderResult>("new render result");
   rr->rectx = rectx;
   rr->recty = recty;
 
@@ -305,7 +305,7 @@ RenderResult *render_result_new(Render *re,
       }
     }
 
-    rl = MEM_new_for_free<RenderLayer>("new render layer");
+    rl = MEM_new<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
     STRNCPY_UTF8(rl->name, view_layer->name);
@@ -333,7 +333,7 @@ RenderResult *render_result_new(Render *re,
 
   /* Preview-render doesn't do layers, so we make a default one. */
   if (BLI_listbase_is_empty(&rr->layers) && !(layername && layername[0])) {
-    rl = MEM_new_for_free<RenderLayer>("new render layer");
+    rl = MEM_new<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
     rl->rectx = rectx;
@@ -460,7 +460,7 @@ gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
     return ibuf->gpu.texture;
   }
 
-  if (ibuf->float_buffer.data == nullptr) {
+  if (ibuf->float_data() == nullptr) {
     /* No CPU side data to create the texture from. */
     return nullptr;
   }
@@ -471,19 +471,19 @@ gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
                                         gpu::TextureFormat::SFLOAT_32_32_32 :
                                         gpu::TextureFormat::SFLOAT_32_32_32_32;
 
-  /* TODO(sergey): Use utility to assign the texture. */
-  ibuf->gpu.texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
-                                            rpass->rectx,
-                                            rpass->recty,
-                                            1,
-                                            format,
-                                            GPU_TEXTURE_USAGE_GENERAL,
-                                            nullptr);
-
-  if (ibuf->gpu.texture) {
-    GPU_texture_update(ibuf->gpu.texture, GPU_DATA_FLOAT, ibuf->float_buffer.data);
+  gpu::Texture *texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
+                                                rpass->rectx,
+                                                rpass->recty,
+                                                1,
+                                                format,
+                                                GPU_TEXTURE_USAGE_GENERAL,
+                                                nullptr);
+  if (texture) {
+    GPU_texture_update(texture, GPU_DATA_FLOAT, ibuf->float_data());
     re->result_has_gpu_texture_caches = true;
   }
+
+  IMB_assign_gpu_texture(ibuf, texture);
 
   return ibuf->gpu.texture;
 }
@@ -564,7 +564,7 @@ static void *ml_addlayer_cb(void *base, const char *str)
 {
   RenderResult *rr = static_cast<RenderResult *>(base);
 
-  RenderLayer *rl = MEM_new_for_free<RenderLayer>("new render layer");
+  RenderLayer *rl = MEM_new<RenderLayer>("new render layer");
   BLI_addtail(&rr->layers, rl);
 
   BLI_strncpy(rl->name, str, EXR_LAY_MAXNAME);
@@ -581,7 +581,7 @@ static void ml_addpass_cb(void *base,
 {
   RenderResult *rr = static_cast<RenderResult *>(base);
   RenderLayer *rl = static_cast<RenderLayer *>(lay);
-  RenderPass *rpass = MEM_new_for_free<RenderPass>("loaded pass");
+  RenderPass *rpass = MEM_new<RenderPass>("loaded pass");
 
   BLI_addtail(&rl->passes, rpass);
   rpass->rectx = rr->rectx;
@@ -610,7 +610,7 @@ static void *ml_addview_cb(void *base, const char *str)
 {
   RenderResult *rr = static_cast<RenderResult *>(base);
 
-  RenderView *rv = MEM_new_for_free<RenderView>("new render view");
+  RenderView *rv = MEM_new<RenderView>("new render view");
   STRNCPY_UTF8(rv->name, str);
 
   /* For stereo drawing we need to ensure:
@@ -696,7 +696,7 @@ static int order_render_passes(const void *a, const void *b)
 RenderResult *render_result_new_from_exr(
     ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
-  RenderResult *rr = MEM_new_for_free<RenderResult>(__func__);
+  RenderResult *rr = MEM_new<RenderResult>(__func__);
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);
   const char *data_colorspace = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA);
@@ -730,7 +730,7 @@ RenderResult *render_result_new_from_exr(
       copy_v2_v2_int(rpass.ibuf->data_offset, data_offset);
 
       if (RE_RenderPassIsColor(&rpass)) {
-        IMB_colormanagement_transform_float(rpass.ibuf->float_buffer.data,
+        IMB_colormanagement_transform_float(rpass.ibuf->float_data_for_write(),
                                             rpass.rectx,
                                             rpass.recty,
                                             rpass.channels,
@@ -749,7 +749,7 @@ RenderResult *render_result_new_from_exr(
 
 void render_result_view_new(RenderResult *rr, const char *viewname)
 {
-  RenderView *rv = MEM_new_for_free<RenderView>("new render view");
+  RenderView *rv = MEM_new<RenderView>("new render view");
   BLI_addtail(&rr->views, rv);
   STRNCPY_UTF8(rv->name, viewname);
 }
@@ -820,9 +820,7 @@ void render_result_merge(RenderResult *rr, RenderResult *rrpart)
         if (rpass->ibuf == nullptr || rpassp->ibuf == nullptr) {
           continue;
         }
-        if (rpass->ibuf->float_buffer.data == nullptr ||
-            rpassp->ibuf->float_buffer.data == nullptr)
-        {
+        if (rpass->ibuf->float_data() == nullptr || rpassp->ibuf->float_data() == nullptr) {
           continue;
         }
         /* Render-result have all passes, render-part only the active view's passes. */
@@ -832,8 +830,8 @@ void render_result_merge(RenderResult *rr, RenderResult *rrpart)
 
         do_merge_tile(rr,
                       rrpart,
-                      rpass->ibuf->float_buffer.data,
-                      rpassp->ibuf->float_buffer.data,
+                      rpass->ibuf->float_data_for_write(),
+                      rpassp->ibuf->float_data_for_write(),
                       rpass->channels);
 
         /* manually get next render pass */
@@ -943,7 +941,7 @@ bool render_result_exr_file_read_path(RenderResult *rr,
         RE_render_result_full_channel_name(
             fullname, rl.name, rpass.name, rpass.view, rpass.chan_id, a);
         if (IMB_exr_set_channel(
-                exrhandle, fullname, xstride, ystride, rpass.ibuf->float_buffer.data + a))
+                exrhandle, fullname, xstride, ystride, rpass.ibuf->float_data_for_write() + a))
         {
           found_channels = true;
         }
@@ -952,7 +950,7 @@ bool render_result_exr_file_read_path(RenderResult *rr,
           RE_render_result_full_channel_name(
               fullname, nullptr, rpass.name, rpass.view, rpass.chan_id, a);
           if (IMB_exr_set_channel(
-                  exrhandle, fullname, xstride, ystride, rpass.ibuf->float_buffer.data + a))
+                  exrhandle, fullname, xstride, ystride, rpass.ibuf->float_data_for_write() + a))
           {
             found_channels = true;
           }
@@ -1095,8 +1093,8 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
 
   /* if not exists, BKE_imbuf_write makes one */
   if (rv->ibuf) {
-    IMB_assign_byte_buffer(ibuf, rv->ibuf->byte_buffer.data, IB_DO_NOT_TAKE_OWNERSHIP);
-    IMB_assign_float_buffer(ibuf, rv->ibuf->float_buffer.data, IB_DO_NOT_TAKE_OWNERSHIP);
+    IMB_assign_byte_buffer(ibuf, rv->ibuf->byte_data_for_write(), IB_DO_NOT_TAKE_OWNERSHIP);
+    IMB_assign_float_buffer(ibuf, rv->ibuf->float_data_for_write(), IB_DO_NOT_TAKE_OWNERSHIP);
     ibuf->channels = rv->ibuf->channels;
   }
 
@@ -1111,7 +1109,7 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
   /* prepare to gamma correct to sRGB color space
    * note that sequence editor can generate 8bpc render buffers
    */
-  if (ibuf->byte_buffer.data) {
+  if (ibuf->byte_data()) {
     if (BKE_imtype_valid_depths(imf->imtype) &
         (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32))
     {
@@ -1132,7 +1130,7 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
   /* Color -> gray-scale. */
   /* editing directly would alter the render view */
   if (imf->planes == R_IMF_PLANES_BW && imf->imtype != R_IMF_IMTYPE_MULTILAYER &&
-      !(ibuf->float_buffer.data && !ibuf->byte_buffer.data && ibuf->channels == 1))
+      !(ibuf->float_data() && !ibuf->byte_data() && ibuf->channels == 1))
   {
     ImBuf *ibuf_bw = IMB_dupImBuf(ibuf);
     IMB_color_to_bw(ibuf_bw);
@@ -1149,33 +1147,33 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
 
   ImBuf *rv_ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     rr->have_combined = true;
 
-    if (!rv_ibuf->float_buffer.data) {
-      float *data = MEM_malloc_arrayN<float>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                             "render_seq float");
+    if (!rv_ibuf->float_data()) {
+      float *data = MEM_new_array_uninitialized<float>(4 * size_t(rr->rectx) * size_t(rr->recty),
+                                                       "render_seq float");
       IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
-    memcpy(rv_ibuf->float_buffer.data,
-           ibuf->float_buffer.data,
+    memcpy(rv_ibuf->float_data_for_write(),
+           ibuf->float_data(),
            sizeof(float[4]) * rr->rectx * rr->recty);
 
     /* TSK! Since sequence render doesn't free the *rr render result, the old rect32
      * can hang around when sequence render has rendered a 32 bits one before */
     IMB_free_byte_pixels(rv_ibuf);
   }
-  else if (ibuf->byte_buffer.data) {
+  else if (ibuf->byte_data()) {
     rr->have_combined = true;
 
-    if (!rv_ibuf->byte_buffer.data) {
-      uint8_t *data = MEM_malloc_arrayN<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                                 "render_seq byte");
+    if (!rv_ibuf->byte_data()) {
+      uint8_t *data = MEM_new_array_uninitialized<uint8_t>(
+          4 * size_t(rr->rectx) * size_t(rr->recty), "render_seq byte");
       IMB_assign_byte_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 
-    memcpy(rv_ibuf->byte_buffer.data, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
+    memcpy(rv_ibuf->byte_data_for_write(), ibuf->byte_data(), sizeof(int) * rr->rectx * rr->recty);
 
     /* Same things as above, old rectf can hang around from previous render. */
     IMB_free_float_pixels(rv_ibuf);
@@ -1188,19 +1186,19 @@ void render_result_rect_fill_zero(RenderResult *rr, const int view_id)
 
   ImBuf *ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
-  if (!ibuf->float_buffer.data && !ibuf->byte_buffer.data) {
-    uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                               "render_seq rect");
+  if (!ibuf->float_data() && !ibuf->byte_data()) {
+    uint8_t *data = MEM_new_array_zeroed<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
+                                                  "render_seq rect");
     IMB_assign_byte_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
     return;
   }
 
-  if (ibuf->float_buffer.data) {
-    memset(ibuf->float_buffer.data, 0, sizeof(float[4]) * rr->rectx * rr->recty);
+  if (ibuf->float_data()) {
+    memset(ibuf->float_data_for_write(), 0, sizeof(float[4]) * rr->rectx * rr->recty);
   }
 
-  if (ibuf->byte_buffer.data) {
-    memset(ibuf->byte_buffer.data, 0, 4 * rr->rectx * rr->recty);
+  if (ibuf->byte_data()) {
+    memset(ibuf->byte_data_for_write(), 0, 4 * rr->rectx * rr->recty);
   }
 }
 
@@ -1214,13 +1212,13 @@ void render_result_rect_get_pixels(RenderResult *rr,
 {
   RenderView *rv = RE_RenderViewGetById(rr, view_id);
   if (ImBuf *ibuf = rv ? rv->ibuf : nullptr) {
-    if (ibuf->byte_buffer.data) {
-      memcpy(rect, ibuf->byte_buffer.data, sizeof(int) * rr->rectx * rr->recty);
+    if (ibuf->byte_data()) {
+      memcpy(rect, ibuf->byte_data_for_write(), sizeof(int) * rr->rectx * rr->recty);
       return;
     }
-    if (ibuf->float_buffer.data) {
+    if (ibuf->float_data()) {
       IMB_display_buffer_transform_apply(reinterpret_cast<uchar *>(rect),
-                                         ibuf->float_buffer.data,
+                                         ibuf->float_data_for_write(),
                                          rr->rectx,
                                          rr->recty,
                                          4,
@@ -1262,7 +1260,7 @@ bool RE_HasFloatPixels(const RenderResult *result)
     if (!ibuf) {
       continue;
     }
-    if (ibuf->byte_buffer.data && !ibuf->float_buffer.data) {
+    if (ibuf->byte_data() && !ibuf->float_data()) {
       return false;
     }
   }
@@ -1300,7 +1298,7 @@ RenderView *RE_RenderViewGetByName(RenderResult *rr, const char *viewname)
 
 static RenderPass *duplicate_render_pass(RenderPass *rpass)
 {
-  RenderPass *new_rpass = MEM_new_for_free<RenderPass>("new render pass", *rpass);
+  RenderPass *new_rpass = MEM_new<RenderPass>("new render pass", *rpass);
   new_rpass->next = new_rpass->prev = nullptr;
 
   new_rpass->ibuf = IMB_dupImBuf(rpass->ibuf);
@@ -1310,7 +1308,7 @@ static RenderPass *duplicate_render_pass(RenderPass *rpass)
 
 static RenderLayer *duplicate_render_layer(RenderLayer *rl)
 {
-  RenderLayer *new_rl = MEM_new_for_free<RenderLayer>("new render layer", *rl);
+  RenderLayer *new_rl = MEM_new<RenderLayer>("new render layer", *rl);
   new_rl->next = new_rl->prev = nullptr;
   new_rl->passes.first = new_rl->passes.last = nullptr;
   for (RenderPass &rpass : rl->passes) {
@@ -1322,7 +1320,7 @@ static RenderLayer *duplicate_render_layer(RenderLayer *rl)
 
 static RenderView *duplicate_render_view(RenderView *rview)
 {
-  RenderView *new_rview = MEM_new_for_free<RenderView>("new render view", *rview);
+  RenderView *new_rview = MEM_new<RenderView>("new render view", *rview);
 
   new_rview->ibuf = IMB_dupImBuf(rview->ibuf);
 
@@ -1331,7 +1329,7 @@ static RenderView *duplicate_render_view(RenderView *rview)
 
 RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
 {
-  RenderResult *new_rr = MEM_new_for_free<RenderResult>("new duplicated render result", *rr);
+  RenderResult *new_rr = MEM_new<RenderResult>("new duplicated render result", *rr);
   new_rr->next = new_rr->prev = nullptr;
   new_rr->layers.first = new_rr->layers.last = nullptr;
   new_rr->views.first = new_rr->views.last = nullptr;

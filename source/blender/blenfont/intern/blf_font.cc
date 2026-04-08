@@ -532,8 +532,6 @@ int blf_font_draw_mono(
 #ifndef WITH_HEADLESS
 void blf_draw_svg_icon(FontBLF *font,
                        const uint icon_id,
-                       const float x,
-                       const float y,
                        const float size,
                        const float color[4],
                        const float outline_alpha,
@@ -542,9 +540,6 @@ void blf_draw_svg_icon(FontBLF *font,
 {
   BLI_assert(outline_alpha <= 1.0f); /* Higher values overflow, caller must ensure. */
   blf_font_size(font, size);
-  font->pos[0] = int(x);
-  font->pos[1] = int(y);
-  font->pos[2] = 0;
 
   if (color != nullptr) {
     rgba_float_to_uchar(font->color, color);
@@ -633,11 +628,15 @@ static void blf_glyph_draw_buffer(FontBufInfoBLF *buf_info,
                                   const ft_pix pen_x,
                                   const ft_pix pen_y_basis)
 {
-  const int chx = ft_pix_to_int(pen_x + ft_pix_from_int(g->pos[0]));
-  const int chy = ft_pix_to_int(pen_y_basis + ft_pix_from_int(g->dims[1]));
+  /* Match the GPU path: floor pen_x then add pos[0] in integer space. */
+  const int chx = ft_pix_to_int_floor(pen_x) + g->pos[0];
 
-  ft_pix pen_y = (g->pitch < 0) ? (pen_y_basis + ft_pix_from_int(g->dims[1] - g->pos[1])) :
-                                  (pen_y_basis - ft_pix_from_int(g->dims[1] - g->pos[1]));
+  /* Match the GPU path's Y calculation: baseline + pos[1] gives the top of the glyph
+   * (in bottom-up coordinates). The bitmap rows start from pen_y upward. */
+  const int glyph_y = ft_pix_to_int_floor(pen_y_basis) + g->pos[1] - g->dims[1];
+  const int chy = glyph_y + g->dims[1];
+
+  ft_pix pen_y = ft_pix_from_int(glyph_y);
 
   if ((chx + g->dims[0]) < 0 ||                  /* Out of bounds: left. */
       chx >= buf_info->dims[0] ||                /* Out of bounds: right. */
@@ -1479,6 +1478,13 @@ void blf_font_boundbox__wrap(
                       r_info,
                       blf_font_boundbox_wrap_cb,
                       r_box);
+
+  if (r_box->xmin > r_box->xmax) {
+    r_box->xmin = 0;
+    r_box->ymin = 0;
+    r_box->xmax = 0;
+    r_box->ymax = 0;
+  }
 }
 
 /** Utility for  #blf_font_draw_buffer__wrap. */
@@ -1888,7 +1894,7 @@ static bool blf_setup_face(FontBLF *font)
 
   if (FT_HAS_KERNING(font) && !font->kerning_cache) {
     /* Create kerning cache table and fill with value indicating "unset". */
-    font->kerning_cache = MEM_mallocN<KerningCacheBLF>(__func__);
+    font->kerning_cache = MEM_new_uninitialized<KerningCacheBLF>(__func__);
     for (uint i = 0; i < KERNING_CACHE_TABLE_SIZE; i++) {
       for (uint j = 0; j < KERNING_CACHE_TABLE_SIZE; j++) {
         font->kerning_cache->ascii_table[i][j] = KERNING_ENTRY_UNSET;
@@ -1950,7 +1956,7 @@ bool blf_ensure_face(FontBLF *font)
                 font->filepath,
                 int(err));
       }
-      MEM_freeN(mfile);
+      MEM_delete(mfile);
     }
   }
 
@@ -1969,11 +1975,12 @@ struct FaceDetails {
 /* Details about the fallback fonts we ship, so that we can load only when needed. */
 static const FaceDetails static_face_details[] = {
     {"Noto Sans CJK Regular.woff2",
-     0,
+     TT_UCR_HANGUL_JAMO,
      TT_UCR_CJK_SYMBOLS | TT_UCR_HIRAGANA | TT_UCR_KATAKANA | TT_UCR_BOPOMOFO | TT_UCR_CJK_MISC |
          TT_UCR_ENCLOSED_CJK_LETTERS_MONTHS | TT_UCR_CJK_COMPATIBILITY |
-         TT_UCR_CJK_UNIFIED_IDEOGRAPHS | TT_UCR_CJK_COMPATIBILITY_IDEOGRAPHS,
-     TT_UCR_CJK_COMPATIBILITY_FORMS,
+         TT_UCR_CJK_UNIFIED_IDEOGRAPHS | TT_UCR_CJK_COMPATIBILITY_IDEOGRAPHS |
+         TT_UCR_HANGUL_COMPATIBILITY_JAMO | TT_UCR_HANGUL,
+     TT_UCR_CJK_COMPATIBILITY_FORMS | TT_UCR_HALFWIDTH_FULLWIDTH_FORMS,
      0},
     {"NotoEmoji-VariableFont_wght.woff2", 0x80000003L, 0x241E4ACL, 0x14000000L, 0x4000000L},
     {"NotoSansArabic-VariableFont_wdth,wght.woff2",
@@ -2093,7 +2100,7 @@ void blf_font_free(FontBLF *font)
   blf_glyph_cache_clear(font);
 
   if (font->kerning_cache) {
-    MEM_freeN(font->kerning_cache);
+    MEM_delete(font->kerning_cache);
   }
 
   if (font->variations) {
@@ -2106,10 +2113,10 @@ void blf_font_free(FontBLF *font)
     font->face = nullptr;
   }
   if (font->filepath) {
-    MEM_freeN(font->filepath);
+    MEM_delete(font->filepath);
   }
   if (font->mem_name) {
-    MEM_freeN(font->mem_name);
+    MEM_delete(font->mem_name);
   }
 
   MEM_delete(font);

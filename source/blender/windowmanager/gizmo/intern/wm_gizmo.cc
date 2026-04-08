@@ -52,7 +52,7 @@ static wmGizmo *wm_gizmo_create(const wmGizmoType *gzt, PointerRNA *properties)
   /* FIXME: Old C-style allocation is not trivial to port to C++ here, because actual allocation
    * depends on the 'subtype' of gizmo. The whole gizmo type hierarchy should probably be moved to
    * proper C++ virtual inheritance at some point. */
-  wmGizmo *gz = static_cast<wmGizmo *>(MEM_callocN(gzt->struct_size, __func__));
+  wmGizmo *gz = static_cast<wmGizmo *>(MEM_new_zeroed(gzt->struct_size, __func__));
   new (gz) wmGizmo();
   gz->type = gzt;
 
@@ -156,10 +156,7 @@ void WM_gizmo_free(wmGizmo *gz)
     }
   }
 
-  /* Explicit calling of the destructor is needed here because allocation still happens 'the C
-   * way', see FIXME note in #wm_gizmo_create. */
-  gz->~wmGizmo();
-  MEM_freeN(static_cast<void *>(gz));
+  MEM_delete(gz);
 }
 
 void WM_gizmo_unlink(ListBaseT<wmGizmo> *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C)
@@ -520,7 +517,7 @@ int wm_gizmo_is_visible(wmGizmo *gz)
 }
 
 void WM_gizmo_calc_matrix_final_params(const wmGizmo *gz,
-                                       const WM_GizmoMatrixParams *params,
+                                       const wmGizmoMatrixParams *params,
                                        float r_mat[4][4])
 {
   const float (*const matrix_space)[4] = params->matrix_space ? params->matrix_space :
@@ -561,7 +558,7 @@ void WM_gizmo_calc_matrix_final_no_offset(const wmGizmo *gz, float r_mat[4][4])
   float mat_identity[4][4];
   unit_m4(mat_identity);
 
-  WM_GizmoMatrixParams params{};
+  wmGizmoMatrixParams params{};
   params.matrix_space = nullptr;
   params.matrix_basis = nullptr;
   params.matrix_offset = mat_identity;
@@ -571,7 +568,7 @@ void WM_gizmo_calc_matrix_final_no_offset(const wmGizmo *gz, float r_mat[4][4])
 
 void WM_gizmo_calc_matrix_final(const wmGizmo *gz, float r_mat[4][4])
 {
-  WM_GizmoMatrixParams params{};
+  wmGizmoMatrixParams params{};
   params.matrix_space = nullptr;
   params.matrix_basis = nullptr;
   params.matrix_offset = nullptr;

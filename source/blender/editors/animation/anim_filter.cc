@@ -102,7 +102,8 @@ namespace blender {
 /* ************************************************************ */
 /* Blender Context <-> Animation Context mapping */
 
-bAction *ANIM_active_action_from_area(Scene *scene,
+bAction *ANIM_active_action_from_area(const Main &bmain,
+                                      Scene *scene,
                                       ViewLayer *view_layer,
                                       const ScrArea *area,
                                       ID **r_action_user)
@@ -111,7 +112,7 @@ bAction *ANIM_active_action_from_area(Scene *scene,
     return nullptr;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   if (!ob) {
     return nullptr;
@@ -161,7 +162,7 @@ static Key *actedit_get_shapekeys(bAnimContext *ac)
   ViewLayer *view_layer = ac->view_layer;
   Object *ob;
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*ac->bmain, scene, view_layer);
   ob = BKE_view_layer_active_object_get(view_layer);
   if (ob == nullptr) {
     return nullptr;
@@ -186,7 +187,7 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
   ac->filters.flag2 = eDopeSheet_FilterFlag2(ac->ads->filterflag2);
 
   ac->active_action = ANIM_active_action_from_area(
-      ac->scene, ac->view_layer, ac->area, &ac->active_action_user);
+      *ac->bmain, ac->scene, ac->view_layer, ac->area, &ac->active_action_user);
 
   /* sync settings with current view status, then return appropriate data */
   switch (saction->mode) {
@@ -282,7 +283,7 @@ static bool graphedit_get_context(bAnimContext *ac, SpaceGraph *sipo)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (sipo->ads == nullptr) {
-    sipo->ads = MEM_new_for_free<bDopeSheet>("GraphEdit DopeSheet");
+    sipo->ads = MEM_new<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = reinterpret_cast<ID *>(ac->scene);
   }
   ac->ads = sipo->ads;
@@ -340,7 +341,7 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (snla->ads == nullptr) {
-    snla->ads = MEM_new_for_free<bDopeSheet>("NlaEdit DopeSheet");
+    snla->ads = MEM_new<bDopeSheet>("NlaEdit DopeSheet");
   }
   ac->ads = snla->ads;
 
@@ -429,7 +430,7 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
     ac->markers = &scene->markers;
   }
   if (scene && ac->view_layer) {
-    BKE_view_layer_synced_ensure(scene, ac->view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, ac->view_layer);
     ac->obact = BKE_view_layer_active_object_get(ac->view_layer);
   }
   ac->depsgraph = CTX_data_depsgraph_pointer(C);
@@ -663,7 +664,7 @@ static bAnimListElem *make_new_animlistelem(
   }
 
   /* Allocate and set generic data. */
-  bAnimListElem *ale = MEM_callocN<bAnimListElem>("bAnimListElem");
+  bAnimListElem *ale = MEM_new_zeroed<bAnimListElem>("bAnimListElem");
 
   ale->data = data;
   ale->type = datatype;
@@ -1453,13 +1454,13 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
     /* Filtering by name needs a way to look up the name, which is easiest if
      * there is already an #bAnimListElem. */
     if (filter_by_name && !ale_name_matches_dopesheet_filter(*ac->ads, *ale)) {
-      MEM_freeN(ale);
+      MEM_delete(ale);
       continue;
     }
 
     if (filter_mode & ANIMFILTER_TMP_PEEK) {
       /* Found an animation channel, which is good enough for the 'TMP_PEEK' mode. */
-      MEM_freeN(ale);
+      MEM_delete(ale);
       return 1;
     }
 
@@ -2273,7 +2274,7 @@ static size_t animdata_filter_grease_pencil(bAnimContext *ac,
   ViewLayer *view_layer = ac->view_layer;
   bDopeSheet *ads = ac->ads;
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*ac->bmain, scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     if (!base.object || (base.object->type != OB_GREASE_PENCIL)) {
       continue;
@@ -3447,10 +3448,16 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
           ac, &tmp_data, reinterpret_cast<ID *>(sce), ntree, filter_mode);
     }
 
-    /* Strip modifier node trees. */
+    /* VSE strip node trees. */
     if (ed && !(ac->filters.flag & ADS_FILTER_NONTREE)) {
       VectorSet<ID *> node_trees;
       seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+        if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+          CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+          if (comp_data->node_group) {
+            node_trees.add(reinterpret_cast<ID *>(comp_data->node_group));
+          }
+        }
         seq::foreach_strip_modifier_id(strip, [&](ID *id) {
           if (GS(id->name) == ID_NT) {
             node_trees.add(id);
@@ -3654,12 +3661,12 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
                                               size_t *r_usable_bases)
 {
   /* Create an array with space for all the bases, but only containing the usable ones */
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*ac->bmain, scene, view_layer);
   ListBaseT<Base> *object_bases = BKE_view_layer_object_bases_get(view_layer);
   size_t tot_bases = BLI_listbase_count(object_bases);
   size_t num_bases = 0;
 
-  Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
+  Base **sorted_bases = MEM_new_array_zeroed<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   for (Base &base : *object_bases) {
     const eObjectMode object_mode = eObjectMode(base.object->mode);
     if (animdata_filter_base_is_ok(ac, &base, object_mode, filter_mode)) {
@@ -3738,7 +3745,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
    * - Don't do this if this behavior has been turned off (i.e. due to it being too slow)
    * - Don't do this if there's just a single object
    */
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*ac->bmain, scene, view_layer);
   ListBaseT<Base> *object_bases = BKE_view_layer_object_bases_get(view_layer);
   if ((filter_mode & ANIMFILTER_LIST_CHANNELS) && !(ads->flag & ADS_FLAG_NO_DB_SORT) &&
       (object_bases->first != object_bases->last))
@@ -3758,7 +3765,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
       /* TODO: store something to validate whether any changes are needed? */
 
       /* free temporary data */
-      MEM_freeN(sorted_bases);
+      MEM_delete(sorted_bases);
     }
   }
   else {

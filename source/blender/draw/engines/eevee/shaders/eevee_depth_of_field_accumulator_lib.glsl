@@ -18,9 +18,9 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_gather)
 #endif
 
 #include "draw_view_lib.glsl"
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_depth_of_field_lib.glsl"
-#include "eevee_reverse_z_lib.glsl"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_debug_gradients_lib.glsl"
 #include "gpu_shader_math_angle_lib.glsl"
@@ -442,7 +442,7 @@ void dof_gather_accumulator(sampler2D color_tx,
      * ring. So we need to compensate for fast gather that does not check CoC intersection. */
     base_radius += (0.5f - noise.x) * 1.5f * unit_ring_radius * base_radius;
   }
-  /* TODO(fclem) another seed? For now Cranly-Partterson rotation with golden ratio. */
+  /* TODO(@fclem): another seed? For now Cranley-Patterson rotation with golden ratio. */
   noise.x = fract(noise.x * 6.1803398875f);
 
   float lod, isect_mul;

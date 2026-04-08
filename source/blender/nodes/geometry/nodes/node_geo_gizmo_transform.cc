@@ -15,18 +15,18 @@ NODE_STORAGE_FUNCS(NodeGeometryTransformGizmo)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Matrix>("Value").multi_input();
-  b.add_input<decl::Vector>("Position").subtype(PROP_TRANSLATION);
-  b.add_input<decl::Rotation>("Rotation")
+  b.add_input<decl::Matrix>("Value"_ustr).multi_input();
+  b.add_input<decl::Vector>("Position"_ustr).subtype(PROP_TRANSLATION);
+  b.add_input<decl::Rotation>("Rotation"_ustr)
       .description(
           "Local rotation of the gizmo. Only used if the local transforms are used in the 3D "
           "view");
-  b.add_output<decl::Geometry>("Transform");
+  b.add_output<decl::Geometry>("Transform"_ustr);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryTransformGizmo *storage = MEM_new_for_free<NodeGeometryTransformGizmo>(__func__);
+  NodeGeometryTransformGizmo *storage = MEM_new<NodeGeometryTransformGizmo>(__func__);
   storage->flag = (GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_X |
                    GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Y |
                    GEO_NODE_TRANSFORM_GIZMO_USE_TRANSLATION_Z |

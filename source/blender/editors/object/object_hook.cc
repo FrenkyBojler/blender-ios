@@ -74,7 +74,7 @@ static int return_editmesh_indexar(BMEditMesh *em,
     return 0;
   }
 
-  *r_indexar = index = MEM_malloc_arrayN<int>(indexar_num, "hook indexar");
+  *r_indexar = index = MEM_new_array_uninitialized<int>(indexar_num, "hook indexar");
   *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
@@ -179,7 +179,7 @@ static int return_editlattice_indexar(Lattice *editlatt,
     return 0;
   }
 
-  *r_indexar = index = MEM_malloc_arrayN<int>(indexar_num, "hook indexar");
+  *r_indexar = index = MEM_new_array_uninitialized<int>(indexar_num, "hook indexar");
   *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
@@ -267,7 +267,7 @@ static int return_editcurve_indexar(Object *obedit,
     return 0;
   }
 
-  *r_indexar = index = MEM_malloc_arrayN<int>(indexar_num, "hook indexar");
+  *r_indexar = index = MEM_new_array_uninitialized<int>(indexar_num, "hook indexar");
   *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
@@ -337,7 +337,7 @@ static bool object_hook_index_array(Main *bmain,
       EDBM_mesh_load(bmain, obedit);
       EDBM_mesh_make(obedit, scene->toolsettings->selectmode, true);
 
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
 
       BMEditMesh *em = mesh->runtime->edit_mesh.get();
 
@@ -490,7 +490,7 @@ static Object *add_hook_object_new(
   Base *basedit;
   Object *ob;
   ob = BKE_object_add(bmain, scene, view_layer, OB_EMPTY, nullptr);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *basact = BKE_view_layer_active_base_get(view_layer);
   BLI_assert(basact->object == ob);
   if (v3d && v3d->localvd) {
@@ -904,7 +904,7 @@ static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   if (hmd->indexar) {
-    MEM_freeN(hmd->indexar);
+    MEM_delete(hmd->indexar);
   }
 
   copy_v3_v3(hmd->cent, cent);
@@ -962,7 +962,7 @@ static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
   /* select functionality */
   object_hook_select(ob, hmd);
 
-  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+  DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
 
   return OPERATOR_FINISHED;

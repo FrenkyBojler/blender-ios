@@ -96,7 +96,6 @@
 #include "readfile.hh"
 
 #include "SEQ_channels.hh"
-#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
@@ -149,7 +148,8 @@ static void version_idproperty_move_data_int(IDPropertyUIDataInt *ui_data,
   if (default_value != nullptr) {
     if (default_value->type == IDP_ARRAY) {
       if (default_value->subtype == IDP_INT) {
-        ui_data->default_array = MEM_malloc_arrayN<int>(size_t(default_value->len), __func__);
+        ui_data->default_array = MEM_new_array_uninitialized<int>(size_t(default_value->len),
+                                                                  __func__);
         memcpy(ui_data->default_array,
                IDP_array_int_get(default_value),
                sizeof(int) * default_value->len);
@@ -197,14 +197,14 @@ static void version_idproperty_move_data_float(IDPropertyUIDataFloat *ui_data,
       const int array_len = default_value->len;
       ui_data->default_array_len = array_len;
       if (default_value->subtype == IDP_FLOAT) {
-        ui_data->default_array = MEM_malloc_arrayN<double>(size_t(array_len), __func__);
+        ui_data->default_array = MEM_new_array_uninitialized<double>(size_t(array_len), __func__);
         const float *old_default_array = IDP_array_float_get(default_value);
         for (int i = 0; i < ui_data->default_array_len; i++) {
           ui_data->default_array[i] = double(old_default_array[i]);
         }
       }
       else if (default_value->subtype == IDP_DOUBLE) {
-        ui_data->default_array = MEM_malloc_arrayN<double>(size_t(array_len), __func__);
+        ui_data->default_array = MEM_new_array_uninitialized<double>(size_t(array_len), __func__);
         memcpy(ui_data->default_array,
                IDP_array_double_get(default_value),
                sizeof(double) * array_len);
@@ -353,7 +353,7 @@ static void do_versions_idproperty_ui_data(Main *bmain)
     for (ModifierData &md : ob.modifiers) {
       if (md.type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-        version_idproperty_ui_data(nmd->settings.properties);
+        version_idproperty_ui_data(nmd->settings_legacy.properties);
       }
     }
 
@@ -486,7 +486,7 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene,
           }
           if (substr) {
             char *new_path = BLI_string_replaceN(fcu->rna_path, "speed_factor", substr);
-            MEM_freeN(fcu->rna_path);
+            MEM_delete(fcu->rna_path);
             fcu->rna_path = new_path;
           }
         }
@@ -646,10 +646,10 @@ static void strip_speed_factor_fix_rna_path(Strip *strip, ListBaseT<FCurve> *fcu
   char *path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].pitch", name_esc);
   FCurve *fcu = BKE_fcurve_find(fcurves, path, 0);
   if (fcu != nullptr) {
-    MEM_freeN(fcu->rna_path);
+    MEM_delete(fcu->rna_path);
     fcu->rna_path = BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].speed_factor", name_esc);
   }
-  MEM_freeN(path);
+  MEM_delete(path);
 }
 
 static bool version_fix_seq_meta_range(Strip *strip, void *user_data)
@@ -693,6 +693,9 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
   bke::node_tree_set_type(*ntree);
   for (bNode &node : ntree->nodes.items_mutable()) {
     if (node.type_legacy != GEO_NODE_TRANSFER_ATTRIBUTE_DEPRECATED) {
+      continue;
+    }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
       continue;
     }
     bNodeSocket *old_geometry_socket = bke::node_find_socket(node, SOCK_IN, "Source");
@@ -826,7 +829,7 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
       }
     }
     /* The storage must be freed manually because the node type isn't defined anymore. */
-    MEM_freeN(node.storage);
+    MEM_delete(storage);
     bke::node_remove_node(nullptr, *ntree, node, false);
   }
 }
@@ -872,7 +875,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
     store_attribute_node->parent = node.parent;
     store_attribute_node->locx_legacy = node.locx_legacy + 25;
     store_attribute_node->locy_legacy = node.locy_legacy;
-    auto &storage = *MEM_new_for_free<NodeGeometryStoreNamedAttribute>(__func__);
+    auto &storage = *MEM_new<NodeGeometryStoreNamedAttribute>(__func__);
     store_attribute_node->storage = &storage;
     storage.domain = int8_t(bke::AttrDomain::Corner);
     /* Intentionally use 3D instead of 2D vectors, because 2D vectors did not exist in older
@@ -931,6 +934,9 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     if (node.idname != StringRef("GeometryNodeExtrudeMesh")) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
     if (static_cast<const NodeGeometryExtrudeMesh *>(node.storage)->mode !=
         GEO_NODE_EXTRUDE_MESH_EDGES)
     {
@@ -954,6 +960,9 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
 
     const bool versioning_already_done = [&]() {
       if (geometry_in_link->fromnode->idname != StringRef("GeometryNodeCaptureAttribute")) {
+        return false;
+      }
+      if (!version_node_ensure_storage_or_invalidate(node)) {
         return false;
       }
       bNode *capture_node = geometry_in_link->fromnode;
@@ -1000,7 +1009,7 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     capture_node.locx_legacy = node.locx_legacy - 25;
     capture_node.locy_legacy = node.locy_legacy;
     new_nodes.append(&capture_node);
-    auto *capture_node_storage = MEM_new_for_free<NodeGeometryAttributeCapture>(__func__);
+    auto *capture_node_storage = MEM_new<NodeGeometryAttributeCapture>(__func__);
     capture_node.storage = capture_node_storage;
     capture_node_storage->data_type_legacy = CD_PROP_BOOL;
     capture_node_storage->domain = int8_t(bke::AttrDomain::Face);
@@ -1166,15 +1175,17 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
           if (STREQ(link.tosock->identifier, "Switch")) {
             bNode *to_node = link.tonode;
 
-            uint8_t mode = (static_cast<NodeSwitch *>(to_node->storage))->input_type;
-            if (ELEM(mode,
-                     SOCK_GEOMETRY,
-                     SOCK_OBJECT,
-                     SOCK_COLLECTION,
-                     SOCK_TEXTURE,
-                     SOCK_MATERIAL))
-            {
-              link.tosock = link.tosock->next;
+            if (version_node_ensure_storage_or_invalidate(*to_node)) {
+              uint8_t mode = (static_cast<NodeSwitch *>(to_node->storage))->input_type;
+              if (ELEM(mode,
+                       SOCK_GEOMETRY,
+                       SOCK_OBJECT,
+                       SOCK_COLLECTION,
+                       SOCK_TEXTURE,
+                       SOCK_MATERIAL))
+              {
+                link.tosock = link.tosock->next;
+              }
             }
           }
         }
@@ -1210,7 +1221,7 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
           continue;
         }
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-        if (nmd->node_group == nullptr) {
+        if (nmd->node_group == nullptr || ID_MISSING(nmd->node_group)) {
           continue;
         }
 
@@ -1424,7 +1435,7 @@ static bool replace_bbone_len_scale_rnapath(char **p_old_path, int *p_index)
     }
     else {
       *p_old_path = BLI_sprintfN("%s[%d]", old_path, index);
-      MEM_freeN(old_path);
+      MEM_delete(old_path);
     }
 
     return true;
@@ -1539,17 +1550,17 @@ static void do_version_subsurface_methods(bNode *node)
 
 static void version_geometry_nodes_add_attribute_input_settings(NodesModifierData *nmd)
 {
-  if (nmd->settings.properties == nullptr) {
+  if (nmd->settings_legacy.properties == nullptr) {
     return;
   }
   /* Before versioning the properties, make sure it hasn't been done already. */
-  for (const IDProperty &property : nmd->settings.properties->data.group) {
+  for (const IDProperty &property : nmd->settings_legacy.properties->data.group) {
     if (strstr(property.name, "_use_attribute") || strstr(property.name, "_attribute_name")) {
       return;
     }
   }
 
-  for (IDProperty &property : nmd->settings.properties->data.group.items_mutable()) {
+  for (IDProperty &property : nmd->settings_legacy.properties->data.group.items_mutable()) {
     if (!ELEM(property.type, IDP_FLOAT, IDP_INT, IDP_ARRAY)) {
       continue;
     }
@@ -1562,13 +1573,13 @@ static void version_geometry_nodes_add_attribute_input_settings(NodesModifierDat
     SNPRINTF(use_attribute_prop_name, "%s%s", property.name, "_use_attribute");
 
     IDProperty *use_attribute_prop = bke::idprop::create(use_attribute_prop_name, 0).release();
-    IDP_AddToGroup(nmd->settings.properties, use_attribute_prop);
+    IDP_AddToGroup(nmd->settings_legacy.properties, use_attribute_prop);
 
     char attribute_name_prop_name[MAX_IDPROP_NAME];
     SNPRINTF(attribute_name_prop_name, "%s%s", property.name, "_attribute_name");
 
     IDProperty *attribute_prop = bke::idprop::create(attribute_name_prop_name, "").release();
-    IDP_AddToGroup(nmd->settings.properties, attribute_prop);
+    IDP_AddToGroup(nmd->settings_legacy.properties, attribute_prop);
   }
 }
 
@@ -1695,7 +1706,7 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
       return;
     }
     /* Change identifier of old socket, so that there is no name collision. */
-    STRNCPY_UTF8(old_offset_socket->identifier, "Offset_old");
+    version_node_socket_identifier_set(*old_offset_socket, "Offset_old");
     bke::node_add_static_socket(
         *ntree, node, SOCK_IN, SOCK_VECTOR, PROP_TRANSLATION, "Offset", "Offset");
   }
@@ -1753,9 +1764,7 @@ static bool version_merge_still_offsets(Strip *strip, void * /*user_data*/)
 
 static bool version_set_seq_single_frame_content(Strip *strip, void * /*user_data*/)
 {
-  if ((strip->len == 1) && (strip->type == STRIP_TYPE_IMAGE ||
-                            (strip->is_effect() && seq::effect_get_num_inputs(strip->type) == 0)))
-  {
+  if ((strip->len == 1) && (strip->type == STRIP_TYPE_IMAGE || !strip->is_effect_with_inputs())) {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
   }
   return true;
@@ -1939,7 +1948,7 @@ static void versioning_replace_legacy_mix_rgb_node(bNodeTree *ntree)
     if (node.type_legacy == SH_NODE_MIX_RGB_LEGACY) {
       STRNCPY_UTF8(node.idname, "ShaderNodeMix");
       node.type_legacy = SH_NODE_MIX;
-      NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
+      NodeShaderMix *data = MEM_new<NodeShaderMix>(__func__);
       data->blend_type = node.custom1;
       data->clamp_result = (node.custom2 & SHD_MIXRGB_CLAMP) ? 1 : 0;
       data->clamp_factor = 1;
@@ -2114,7 +2123,7 @@ static void version_liboverride_nla_frame_start_end(ID *id, AnimData *adt)
       version_liboverride_nla_strip_frame_start_end(liboverride, rna_path_track, &strip);
     }
 
-    MEM_freeN(rna_path_track);
+    MEM_delete(rna_path_track);
   }
 }
 
@@ -2971,7 +2980,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       for (bNode &node : ntree.nodes) {
         if (node.type_legacy == GEO_NODE_VIEWER) {
           if (node.storage == nullptr) {
-            NodeGeometryViewer *data = MEM_new_for_free<NodeGeometryViewer>(__func__);
+            NodeGeometryViewer *data = MEM_new<NodeGeometryViewer>(__func__);
             data->data_type_legacy = CD_PROP_FLOAT;
             node.storage = data;
           }
@@ -3094,7 +3103,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         /* Convert float compare into a more general compare node. */
         if (node.type_legacy == FN_NODE_COMPARE) {
           if (node.storage == nullptr) {
-            NodeFunctionCompare *data = MEM_new_for_free<NodeFunctionCompare>(__func__);
+            NodeFunctionCompare *data = MEM_new<NodeFunctionCompare>(__func__);
             data->data_type = SOCK_FLOAT;
             data->operation = node.custom1;
             STRNCPY_UTF8(node.idname, "FunctionNodeCompare");
@@ -3123,7 +3132,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       for (bNode &node : ntree->nodes) {
         if (node.type_legacy == SH_NODE_MAP_RANGE) {
           if (node.storage == nullptr) {
-            NodeMapRange *data = MEM_new_for_free<NodeMapRange>(__func__);
+            NodeMapRange *data = MEM_new<NodeMapRange>(__func__);
             data->clamp = node.custom1;
             data->data_type = CD_PROP_FLOAT;
             data->interpolation_type = node.custom2;
@@ -3367,7 +3376,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       if (brush.curves_sculpt_settings != nullptr) {
         continue;
       }
-      brush.curves_sculpt_settings = MEM_new_for_free<BrushCurvesSculptSettings>(__func__);
+      brush.curves_sculpt_settings = MEM_new<BrushCurvesSculptSettings>(__func__);
       brush.curves_sculpt_settings->add_amount = 1;
     }
 
@@ -3530,8 +3539,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == GEO_NODE_MERGE_BY_DISTANCE) {
             if (node.storage == nullptr) {
-              NodeGeometryMergeByDistance *data = MEM_new_for_free<NodeGeometryMergeByDistance>(
-                  __func__);
+              NodeGeometryMergeByDistance *data = MEM_new<NodeGeometryMergeByDistance>(__func__);
               data->mode = GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL;
               node.storage = data;
             }
@@ -3623,18 +3631,20 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_GEOMETRY) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == GEO_NODE_CURVE_SPLINE_TYPE) {
-            NodeGeometryCurveSplineType *storage = static_cast<NodeGeometryCurveSplineType *>(
-                node.storage);
-            switch (storage->spline_type) {
-              case 0: /* GEO_NODE_SPLINE_TYPE_BEZIER */
-                storage->spline_type = CURVE_TYPE_BEZIER;
-                break;
-              case 1: /* GEO_NODE_SPLINE_TYPE_NURBS */
-                storage->spline_type = CURVE_TYPE_NURBS;
-                break;
-              case 2: /* GEO_NODE_SPLINE_TYPE_POLY */
-                storage->spline_type = CURVE_TYPE_POLY;
-                break;
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeGeometryCurveSplineType *storage = static_cast<NodeGeometryCurveSplineType *>(
+                  node.storage);
+              switch (storage->spline_type) {
+                case 0: /* GEO_NODE_SPLINE_TYPE_BEZIER */
+                  storage->spline_type = CURVE_TYPE_BEZIER;
+                  break;
+                case 1: /* GEO_NODE_SPLINE_TYPE_NURBS */
+                  storage->spline_type = CURVE_TYPE_NURBS;
+                  break;
+                case 2: /* GEO_NODE_SPLINE_TYPE_POLY */
+                  storage->spline_type = CURVE_TYPE_POLY;
+                  break;
+              }
             }
           }
         }
@@ -3887,12 +3897,14 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node.type_legacy != GEO_NODE_SAMPLE_CURVE) {
           continue;
         }
-        static_cast<NodeGeometryCurveSample *>(node.storage)->use_all_curves = true;
-        static_cast<NodeGeometryCurveSample *>(node.storage)->data_type = CD_PROP_FLOAT;
-        bNodeSocket *curve_socket = bke::node_find_socket(node, SOCK_IN, "Curve");
-        BLI_assert(curve_socket != nullptr);
-        STRNCPY_UTF8(curve_socket->name, "Curves");
-        STRNCPY_UTF8(curve_socket->identifier, "Curves");
+        if (version_node_ensure_storage_or_invalidate(node)) {
+          static_cast<NodeGeometryCurveSample *>(node.storage)->use_all_curves = true;
+          static_cast<NodeGeometryCurveSample *>(node.storage)->data_type = CD_PROP_FLOAT;
+          bNodeSocket *curve_socket = bke::node_find_socket(node, SOCK_IN, "Curve");
+          BLI_assert(curve_socket != nullptr);
+          STRNCPY_UTF8(curve_socket->name, "Curves");
+          version_node_socket_identifier_set(*curve_socket, "Curves");
+        }
       }
     }
   }

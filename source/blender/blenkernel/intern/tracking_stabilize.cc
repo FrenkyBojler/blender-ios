@@ -117,7 +117,7 @@ static void attach_stabilization_baseline_data(StabContext *ctx,
 static void discard_stabilization_baseline_data(TrackStabilizationBase *val)
 {
   if (val != nullptr) {
-    MEM_freeN(val);
+    MEM_delete(val);
   }
 }
 
@@ -204,7 +204,7 @@ static void use_values_from_fcurves(StabContext *ctx, bool toggle)
  */
 static StabContext *init_stabilization_working_context(MovieClip *clip)
 {
-  StabContext *ctx = MEM_callocN<StabContext>("2D stabilization animation runtime data");
+  StabContext *ctx = MEM_new_zeroed<StabContext>("2D stabilization animation runtime data");
   ctx->clip = clip;
   ctx->tracking = &clip->tracking;
   ctx->stab = &clip->tracking.stabilization;
@@ -236,7 +236,7 @@ static void discard_stabilization_working_context(StabContext *ctx)
       discard_stabilization_baseline_data(data);
     }
     MEM_delete(ctx->private_track_data);
-    MEM_freeN(ctx);
+    MEM_delete(ctx);
   }
 }
 
@@ -875,7 +875,8 @@ static void init_all_tracks(StabContext *ctx, float aspect)
   for (MovieTrackingTrack &track : tracking_camera_object->tracks) {
     TrackStabilizationBase *local_data = access_stabilization_baseline_data(ctx, &track);
     if (!local_data) {
-      local_data = MEM_callocN<TrackStabilizationBase>("2D stabilization per track baseline data");
+      local_data = MEM_new_zeroed<TrackStabilizationBase>(
+          "2D stabilization per track baseline data");
       attach_stabilization_baseline_data(ctx, &track, local_data);
     }
     BLI_assert(local_data != nullptr);
@@ -888,7 +889,7 @@ static void init_all_tracks(StabContext *ctx, float aspect)
     return;
   }
 
-  order = MEM_calloc_arrayN<TrackInitOrder>(track_len, "stabilization track order");
+  order = MEM_new_array_zeroed<TrackInitOrder>(track_len, "stabilization track order");
   if (!order) {
     return;
   }
@@ -925,7 +926,7 @@ static void init_all_tracks(StabContext *ctx, float aspect)
   }
 
 cleanup:
-  MEM_freeN(order);
+  MEM_delete(order);
 }
 
 /* Retrieve the measurement of frame movement by averaging contributions of
@@ -1310,9 +1311,9 @@ static void tracking_stabilize_frame_interpolation_cb(void *__restrict userdata,
   float vec[3] = {0.0f, float(y), 0.0f};
   float rvec[3];
 
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     /* Float image. */
-    float4 *dst = reinterpret_cast<float4 *>(tmpibuf->float_buffer.data) + y * tmpibuf->x;
+    float4 *dst = reinterpret_cast<float4 *>(tmpibuf->float_data_for_write()) + y * tmpibuf->x;
     if (data->tracking_filter == TRACKING_FILTER_BILINEAR) {
       for (int x = 0; x < tmpibuf->x; x++, dst++) {
         vec[0] = float(x);
@@ -1336,9 +1337,9 @@ static void tracking_stabilize_frame_interpolation_cb(void *__restrict userdata,
       }
     }
   }
-  else if (ibuf->byte_buffer.data) {
+  else if (ibuf->byte_data()) {
     /* Byte image. */
-    uchar4 *dst = reinterpret_cast<uchar4 *>(tmpibuf->byte_buffer.data) + y * tmpibuf->x;
+    uchar4 *dst = reinterpret_cast<uchar4 *>(tmpibuf->byte_data_for_write()) + y * tmpibuf->x;
     if (data->tracking_filter == TRACKING_FILTER_BILINEAR) {
       for (int x = 0; x < tmpibuf->x; x++, dst++) {
         vec[0] = float(x);
@@ -1403,15 +1404,15 @@ ImBuf *BKE_tracking_stabilize_frame(
 
   /* Allocate frame for stabilization result, copy alpha mode and color-space. */
   ibuf_flags = 0;
-  if (ibuf->byte_buffer.data) {
+  if (ibuf->byte_data()) {
     ibuf_flags |= IB_byte_data;
   }
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     ibuf_flags |= IB_float_data;
   }
 
   tmpibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, ibuf_flags);
-  IMB_colormanagegent_copy_settings(ibuf, tmpibuf);
+  IMB_colormanagement_copy_settings(ibuf, tmpibuf);
 
   /* Calculate stabilization matrix. */
   BKE_tracking_stabilization_data_get(clip, framenr, width, height, tloc, &tscale, &tangle);
@@ -1435,7 +1436,7 @@ ImBuf *BKE_tracking_stabilize_frame(
   BLI_task_parallel_range(
       0, tmpibuf->y, &data, tracking_stabilize_frame_interpolation_cb, &settings);
 
-  if (tmpibuf->float_buffer.data) {
+  if (tmpibuf->float_data()) {
     tmpibuf->userflags |= IB_RECT_INVALID;
   }
 

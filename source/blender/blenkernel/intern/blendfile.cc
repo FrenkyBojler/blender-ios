@@ -869,7 +869,7 @@ static void view3d_data_consistency_ensure(wmWindow *win, Scene *scene, ViewLaye
       }
 
       /* No valid object found for the local view3D, it has to be cleared off. */
-      MEM_freeN(v3d->localvd);
+      MEM_delete(v3d->localvd);
       v3d->localvd = nullptr;
       v3d->local_view_uid = 0;
 
@@ -882,7 +882,7 @@ static void view3d_data_consistency_ensure(wmWindow *win, Scene *scene, ViewLaye
         }
 
         RegionView3D *rv3d = static_cast<RegionView3D *>(region.regiondata);
-        MEM_SAFE_FREE(rv3d->localvd);
+        MEM_SAFE_DELETE(rv3d->localvd);
       }
     }
   }
@@ -1095,11 +1095,16 @@ static void setup_app_data(bContext *C,
      * in file reading code itself, so there should never be any remapping to do here. */
     BLI_assert(mode != LOAD_UNDO);
 
-    /* Handle all pending remapping from swapping old and new IDs around. */
+    /* Handle all pending remapping from swapping old and new IDs around.
+     *
+     * Note that since some data has been freed from the old Main, access to the ID pointers while
+     * handling them in the foreach_id callback should be forbidden, to prevent read-after-free
+     * errors. See `UFO_Rig_OldVersion.blend` from #156601 for a reproducible case. */
     BKE_libblock_remap_multiple_raw(bfd->main,
                                     *reuse_data.remapper,
                                     (ID_REMAP_FORCE_UI_POINTERS | ID_REMAP_SKIP_USER_REFCOUNT |
-                                     ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_CLEAR));
+                                     ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_CLEAR |
+                                     ID_REMAP_NO_ORIG_POINTERS_ACCESS));
 
     /* Fix potential invalid usages of now-locale-data created by remapping above. Should never
      * be needed in undo case, this is to address cases like:
@@ -1514,7 +1519,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *file_buf,
 
 UserDef *BKE_blendfile_userdef_from_defaults()
 {
-  UserDef *userdef = MEM_new_for_free<UserDef>(__func__);
+  UserDef *userdef = MEM_new<UserDef>(__func__);
 
   userdef->versionfile = BLENDER_FILE_VERSION;
   userdef->subversionfile = BLENDER_FILE_SUBVERSION;
@@ -1540,7 +1545,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
   /* Theme. */
   {
-    bTheme *btheme = MEM_mallocN<bTheme>(__func__);
+    bTheme *btheme = MEM_new_uninitialized<bTheme>(__func__);
     memcpy(btheme, &U_theme_default, sizeof(*btheme));
 
     BLI_addtail(&userdef->themes, btheme);
@@ -1660,7 +1665,7 @@ bool BKE_blendfile_userdef_write_app_template(const char *filepath, ReportList *
   bool ok = BKE_blendfile_userdef_write(filepath, reports);
   BKE_blender_userdef_app_template_data_swap(&U, userdef_default);
   BKE_blender_userdef_data_free(userdef_default, false);
-  MEM_freeN(userdef_default);
+  MEM_delete(userdef_default);
   return ok;
 }
 
@@ -1745,7 +1750,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
   }
 
   if (bfd) {
-    workspace_config = MEM_callocN<WorkspaceConfigFileData>(__func__);
+    workspace_config = MEM_new_zeroed<WorkspaceConfigFileData>(__func__);
     workspace_config->main = bfd->main;
 
     /* Only 2.80+ files have actual workspaces, don't try to use screens
@@ -1763,7 +1768,7 @@ WorkspaceConfigFileData *BKE_blendfile_workspace_config_read(const char *filepat
 void BKE_blendfile_workspace_config_data_free(WorkspaceConfigFileData *workspace_config)
 {
   BKE_main_free(workspace_config->main);
-  MEM_freeN(workspace_config);
+  MEM_delete(workspace_config);
 }
 
 /** \} */

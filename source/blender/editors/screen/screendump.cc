@@ -68,7 +68,7 @@ static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
   if (dumprect) {
-    ScreenshotData *scd = MEM_new_for_free<ScreenshotData>("screenshot");
+    ScreenshotData *scd = MEM_new<ScreenshotData>("screenshot");
 
     scd->dumpsx = dumprect_size[0];
     scd->dumpsy = dumprect_size[1];
@@ -93,9 +93,9 @@ static void screenshot_data_free(wmOperator *op)
 
   if (scd) {
     if (scd->dumprect) {
-      MEM_freeN(scd->dumprect);
+      MEM_delete(scd->dumprect);
     }
-    MEM_freeN(scd);
+    MEM_delete(scd);
     op->customdata = nullptr;
   }
 }
@@ -127,7 +127,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
       /* crop to show only single editor */
       if (use_crop) {
         IMB_rect_crop(ibuf, &scd->crop);
-        scd->dumprect = ibuf->byte_buffer.data;
+        scd->dumprect = ibuf->byte_data_for_write();
       }
 
       if ((scd->im_format.planes == R_IMF_PLANES_BW) &&

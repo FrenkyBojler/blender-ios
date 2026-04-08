@@ -32,6 +32,7 @@
  */
 
 #include <cstring>
+#include <fmt/ranges.h>
 #include <string>
 #include <string_view>
 
@@ -105,6 +106,9 @@ class StringRefBase {
   /**
    * The behavior of those functions matches the standard library implementation of
    * std::string_view.
+   *
+   * \return the offset at which the char/string was found, or StringRefBase::not_found when
+   * nothing was found.
    */
   constexpr int64_t find(char c, int64_t pos = 0) const;
   constexpr int64_t find(StringRef str, int64_t pos = 0) const;
@@ -664,3 +668,14 @@ inline std::string_view format_as(StringRef str)
 /** \} */
 
 }  // namespace blender
+
+/**
+ * Disable conflicting range formatter in fmtlib. Otherwise we will get compile errors
+ * where fmtlib doesn't know if it should use the formatter from format.h or ranges.h.
+ */
+namespace fmt {
+
+template<> struct is_range<blender::StringRef, char> : std::false_type {};
+template<> struct is_range<blender::StringRefNull, char> : std::false_type {};
+
+}  // namespace fmt

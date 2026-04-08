@@ -221,7 +221,7 @@ static Scene *preview_prepare_scene(const Main *bmain,
 
   ED_preview_set_visibility(pr_main, scene_preview, view_layer, preview_type, PR_BUTS_RENDER);
 
-  BKE_view_layer_synced_ensure(scene_preview, view_layer);
+  BKE_view_layer_synced_ensure(*pr_main, scene_preview, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     if (base.object->id.name[2] == 'p') {
       if (OB_TYPE_SUPPORT_MATERIAL(base.object->type)) {
@@ -602,7 +602,7 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
   ViewLayer *AOV_layer = static_cast<ViewLayer *>(scene->view_layers.first);
   for (const NodeSocketPair &nodesocket_iter : job_data.shader_nodes) {
     ViewLayer *vl = BKE_view_layer_add(
-        scene, nodesocket_iter.first->name, AOV_layer, VIEWLAYER_ADD_COPY);
+        job_data.bmain, scene, nodesocket_iter.first->name, AOV_layer, VIEWLAYER_ADD_COPY);
     STRNCPY_UTF8(vl->name, nodesocket_iter.first->name);
   }
   for (const NodeSocketPair &nodesocket_iter : job_data.AOV_nodes) {
@@ -743,7 +743,7 @@ static void shader_preview_free(void *customdata)
 {
   ShaderNodesPreviewJob *job_data = static_cast<ShaderNodesPreviewJob *>(customdata);
   for (bNodeTreePath *path : job_data->treepath_copy) {
-    MEM_freeN(path);
+    MEM_delete(path);
   }
   job_data->treepath_copy.clear();
   job_data->tree_previews->rendering = false;
@@ -806,7 +806,7 @@ static void ensure_nodetree_previews(const bContext &C,
   job_data->preview_type = preview_type;
 
   /* Update the treepath copied to fit the structure of the nodetree copied. */
-  bNodeTreePath *root_path = MEM_new_for_free<bNodeTreePath>(__func__);
+  bNodeTreePath *root_path = MEM_new<bNodeTreePath>(__func__);
   root_path->nodetree = job_data->mat_copy->nodetree;
   job_data->treepath_copy.append(root_path);
   for (bNodeTreePath *original_path = static_cast<bNodeTreePath *>(treepath.first)->next;
@@ -820,7 +820,7 @@ static void ensure_nodetree_previews(const bContext &C,
        * nodetree. In that case, just skip the node. */
       continue;
     }
-    bNodeTreePath *new_path = MEM_new_for_free<bNodeTreePath>(__func__);
+    bNodeTreePath *new_path = MEM_new<bNodeTreePath>(__func__);
     memcpy(new_path, original_path, sizeof(bNodeTreePath));
     new_path->nodetree = reinterpret_cast<bNodeTree *>(parent->id);
     job_data->treepath_copy.append(new_path);

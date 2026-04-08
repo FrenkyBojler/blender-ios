@@ -103,11 +103,10 @@ CryptomatteSession::CryptomatteSession(const ViewLayer *view_layer)
 CryptomatteSession::CryptomatteSession(const Scene *scene, bool build_meta_data)
 {
 
-  if (build_meta_data) {
-    BKE_scene_view_layers_synced_ensure(scene);
-  }
-
   for (const ViewLayer &view_layer : scene->view_layers) {
+    if (build_meta_data) {
+      BLI_assert(BKE_view_layer_is_synced(view_layer));
+    }
     init(&view_layer, build_meta_data);
   }
 }
@@ -304,7 +303,7 @@ void BKE_cryptomatte_matte_id_to_entries(NodeCryptomatte *node_storage, const ch
   BLI_freelistN(&node_storage->entries);
 
   if (matte_id == nullptr) {
-    MEM_SAFE_FREE(node_storage->matte_id);
+    MEM_SAFE_DELETE(node_storage->matte_id);
     return;
   }
   /* Update the matte_id so the files can be opened in versions that don't
@@ -312,8 +311,8 @@ void BKE_cryptomatte_matte_id_to_entries(NodeCryptomatte *node_storage, const ch
   if (matte_id != node_storage->matte_id && node_storage->matte_id &&
       STREQ(node_storage->matte_id, matte_id))
   {
-    MEM_SAFE_FREE(node_storage->matte_id);
-    node_storage->matte_id = static_cast<char *>(MEM_dupallocN(matte_id));
+    MEM_SAFE_DELETE(node_storage->matte_id);
+    node_storage->matte_id = MEM_dupalloc(matte_id);
   }
 
   std::istringstream ss(matte_id);
@@ -331,13 +330,13 @@ void BKE_cryptomatte_matte_id_to_entries(NodeCryptomatte *node_storage, const ch
       token = token.substr(first, (last - first + 1));
       if (*token.begin() == '<' && *(--token.end()) == '>') {
         float encoded_hash = atof(token.substr(1, token.length() - 2).c_str());
-        entry = MEM_new_for_free<CryptomatteEntry>(__func__);
+        entry = MEM_new<CryptomatteEntry>(__func__);
         entry->encoded_hash = encoded_hash;
       }
       else {
         const char *name = token.c_str();
         int name_len = token.length();
-        entry = MEM_new_for_free<CryptomatteEntry>(__func__);
+        entry = MEM_new<CryptomatteEntry>(__func__);
         STRNCPY(entry->name, name);
         uint32_t hash = BKE_cryptomatte_hash(name, name_len);
         entry->encoded_hash = BKE_cryptomatte_hash_to_float(hash);
