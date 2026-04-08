@@ -7788,6 +7788,7 @@ static int do_but_CURVE(
     bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
   bool changed = false;
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -7939,7 +7940,7 @@ static int do_but_CURVE(
         }
         else {
           BKE_curvemapping_changed(cumap, true); /* remove doubles */
-          BKE_paint_invalidate_cursor_overlay(scene, view_layer, cumap);
+          BKE_paint_invalidate_cursor_overlay(*bmain, scene, view_layer, cumap);
         }
       }
 
@@ -11091,7 +11092,9 @@ static int handle_menu_event(bContext *C,
     }
   }
 #endif
-  retval = handle_menu_mmb_event(C, event, menu, level, is_parent_menu);
+  if (retval == WM_UI_HANDLER_CONTINUE) {
+    retval = handle_menu_mmb_event(C, event, menu, level, is_parent_menu);
+  }
   if (retval != WM_UI_HANDLER_CONTINUE) {
   }
   else if (but && button_modal_state(but->active->state)) {
