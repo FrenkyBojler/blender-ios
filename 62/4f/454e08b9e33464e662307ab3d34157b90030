@@ -1,2 +1,3 @@
 Referenced by issue #154517, Geometry Nodes: Depsgraph error after loading a String-to-Curves node
 Referenced by issue #156996, Geometry Nodes: String To Curves node Truncate mode has no Height input
+Referenced by pull request #157037, Fix #156996: String To Curves node Truncate mode has no Height input
