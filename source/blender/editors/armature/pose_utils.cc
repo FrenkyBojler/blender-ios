@@ -77,12 +77,12 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
   short flags = 0;
 
   /* Get the basic path to the properties of interest. */
+  const std::optional<std::string> path_to_struct = RNA_path_from_ID_to_struct(&ptr);
   StringRef base_path;
   if (RNA_struct_is_ID(ptr.type)) {
     base_path = "";
   }
   else {
-    const std::optional<std::string> path_to_struct = RNA_path_from_ID_to_struct(&ptr);
     if (!path_to_struct.has_value()) {
       BLI_assert_unreachable();
       return eAction_TransformFlags(0);
@@ -100,40 +100,42 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
       return;
     }
 
-    /* We must add `len(base_path)` bytes to the match so that we are at the end of the
-     * base path so that we don't get false positives with these strings in the names
-     */
-    StringRef property_path;
+    StringRef property_name;
     if (base_path.is_empty()) {
-      property_path = fcurve_path;
+      property_name = fcurve_path;
     }
     else {
-      property_path = fcurve_path.substr(base_path.size());
+      /* Normal properties are separated by a dot, custom properties don't have that. */
+      if (fcurve_path[base_path.size()] == '.') {
+        property_name = fcurve_path.substr(base_path.size() + 1);
+      }
+      else {
+        property_name = fcurve_path.substr(base_path.size());
+      }
     }
 
-    /* Step 2: check for some property with transforms
-     * - once a match has been found, the curve cannot possibly be any other one
-     */
-    if (property_path == "location") {
+    if (property_name == "location") {
       flags |= ACT_TRANS_LOC;
       r_curves.append(&fcurve);
       return;
     }
 
-    if (property_path == "scale") {
+    if (property_name == "scale") {
       flags |= ACT_TRANS_SCALE;
       r_curves.append(&fcurve);
       return;
     }
 
-    if (property_path.startswith("rotation")) {
+    if (property_name == "rotation_euler" || property_name == "rotation_quaternion" ||
+        property_name == "rotation_axis_angle")
+    {
       flags |= ACT_TRANS_ROT;
 
       r_curves.append(&fcurve);
       return;
     }
 
-    if (property_path.startswith("bbone_")) {
+    if (property_name.startswith("bbone_")) {
       flags |= ACT_TRANS_BBONE;
 
       r_curves.append(&fcurve);
@@ -141,7 +143,7 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
     }
 
     /* Custom properties only. */
-    if (property_path.startswith("[\"")) {
+    if (property_name.startswith("[\"")) {
       flags |= ACT_TRANS_PROP;
 
       r_curves.append(&fcurve);
