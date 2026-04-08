@@ -1318,13 +1318,24 @@ static std::string collection_drop_tooltip(bContext *C,
         wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
         const bool is_object = (GS(drag_id->id->name) == ID_OB);
         if (is_object) {
-          return TIP_("Move inside collection (Ctrl to link, Shift to parent)");
+          return TIP_("Move inside collection (Ctrl to link, Shift to parent,\n Ctrl + Shift to move children objects)");
         }
         return TIP_("Move inside collection (Ctrl to link)");
       }
     }
   }
   return {};
+}
+
+static void find_child_objects_recursive(bContext *C, Object *ob, Vector<Object *> &child_objects)
+{
+  CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
+    if (base->object->parent == ob) {
+      child_objects.append(base->object);
+      find_child_objects_recursive(C, base->object, child_objects);
+    }
+  }
+  CTX_DATA_END;
 }
 
 static wmOperatorStatus collection_drop_invoke(bContext *C,
@@ -1374,7 +1385,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 
   for (wmDragID &drag_id : drag->ids) {
     /* Ctrl enables linking, so we don't need a from collection then. */
-    Collection *from = (event->modifier & KM_CTRL) ?
+    Collection *from = (event->modifier == KM_CTRL) ?
                            nullptr :
                            collection_parent_from_ID(drag_id.from_parent);
 
@@ -1384,6 +1395,13 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 
       if (from) {
         BKE_collection_object_move(bmain, scene, data.to, from, object);
+        if (event->modifier & (KM_CTRL | KM_SHIFT)) {
+          Vector<Object *> child_objects;
+          find_child_objects_recursive(C, object, child_objects);
+          for (Object *child_ob : child_objects) {
+            BKE_collection_object_move(bmain, scene, data.to, from, child_ob);
+          }
+        }
       }
       else {
         BKE_collection_object_add(bmain, data.to, object);
