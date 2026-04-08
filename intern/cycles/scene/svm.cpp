@@ -499,14 +499,12 @@ void SVMCompiler::stack_zero_incomplete_derivatives(const ShaderNode *node)
     }
     const int base_size = stack_size(output->type());
     if (base_size == 3) {
-      add_node(NODE_VALUE_V, output->stack_offset + 3);
-      add_node(NODE_VALUE_V, zero_float3(), false);
-      add_node(NODE_VALUE_V, output->stack_offset + 6);
-      add_node(NODE_VALUE_V, zero_float3(), false);
+      add_value_node(nullptr, zero_float3(), output->stack_offset + 3);
+      add_value_node(nullptr, zero_float3(), output->stack_offset + 6);
     }
     else if (base_size == 1) {
-      add_node(NODE_VALUE_F, __float_as_int(0.0f), output->stack_offset + 1);
-      add_node(NODE_VALUE_F, __float_as_int(0.0f), output->stack_offset + 2);
+      add_value_node(nullptr, 0.0f, output->stack_offset + 1);
+      add_value_node(nullptr, 0.0f, output->stack_offset + 2);
     }
   }
 }
