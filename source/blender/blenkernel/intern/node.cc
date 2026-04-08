@@ -2248,6 +2248,15 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
   }
   IDP_AddToGroup(properties.get(), panels.release());
 
+  auto outputs = idprop::create_group("outputs");
+  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
+    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
+    if (!IDP_AddToGroup(outputs.get(), prop)) {
+      IDP_FreeProperty(prop);
+    }
+  }
+  IDP_AddToGroup(properties.get(), outputs.release());
+
   return properties.release();
 }
 
@@ -2259,15 +2268,7 @@ void node_update_asset_metadata(bNodeTree &node_tree)
   }
 
   BKE_asset_metadata_idprop_ensure(asset_data, idprop::create("type", node_tree.type).release());
-  auto outputs = idprop::create_group("outputs");
-  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
-    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
-    if (!IDP_AddToGroup(outputs.get(), prop)) {
-      IDP_FreeProperty(prop);
-    }
-  }
   BKE_asset_metadata_idprop_ensure(asset_data, node_create_asset_meta_data_properties(node_tree));
-  BKE_asset_metadata_idprop_ensure(asset_data, outputs.release());
   if (node_tree.geometry_node_asset_traits) {
     auto property = idprop::create("geometry_node_asset_traits_flag",
                                    node_tree.geometry_node_asset_traits->flag);
@@ -2562,9 +2563,9 @@ void node_tree_set_type(bNodeTree &ntree)
 }
 
 template<typename T> struct NodeStructIDNameGetter {
-  StringRef operator()(const T *value) const
+  UString operator()(const T *value) const
   {
-    return StringRef(value->idname);
+    return value->idname;
   }
 };
 
@@ -2582,7 +2583,7 @@ static auto &get_node_type_map()
 
 static auto &get_node_type_alias_map()
 {
-  static Map<std::string, std::string> map;
+  static Map<UString, UString> map;
   return map;
 }
 
@@ -2594,7 +2595,7 @@ static auto &get_socket_type_map()
 
 bNodeTreeType *node_tree_type_find(const StringRef idname)
 {
-  bNodeTreeType *const *value = get_node_tree_type_map().lookup_key_ptr_as(idname);
+  bNodeTreeType *const *value = get_node_tree_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
     return nullptr;
   }
@@ -2680,16 +2681,16 @@ Span<bNodeTreeType *> node_tree_types_get()
 
 bNodeType *node_type_find(const StringRef idname)
 {
-  bNodeType *const *value = get_node_type_map().lookup_key_ptr_as(idname);
+  bNodeType *const *value = get_node_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
     return nullptr;
   }
   return *value;
 }
 
-StringRefNull node_type_find_alias(const StringRefNull alias)
+UString node_type_find_alias(const UString alias)
 {
-  const std::string *idname = get_node_type_alias_map().lookup_ptr_as(alias);
+  const UString *idname = get_node_type_alias_map().lookup_ptr_as(alias);
   if (!idname) {
     return alias;
   }
@@ -2718,7 +2719,7 @@ static void node_free_type(void *nodetype_v)
 void node_register_type(bNodeType &nt)
 {
   /* debug only: basic verification of registered types */
-  BLI_assert(!nt.idname.empty());
+  BLI_assert(!nt.idname.is_empty());
   BLI_assert(nt.poll != nullptr);
 
   RNA_def_struct_ui_text(nt.rna_ext.srna, nt.ui_name.c_str(), nt.ui_description.c_str());
@@ -2751,7 +2752,7 @@ Span<bNodeType *> node_types_get()
   return get_node_type_map().as_span();
 }
 
-void node_register_alias(bNodeType &nt, const StringRef alias)
+void node_register_alias(bNodeType &nt, const UString alias)
 {
   get_node_type_alias_map().add_new(alias, nt.idname);
 }
@@ -2763,7 +2764,7 @@ Span<bNodeSocketType *> node_socket_types_get()
 
 bNodeSocketType *node_socket_type_find(const StringRef idname)
 {
-  bNodeSocketType *const *value = get_socket_type_map().lookup_key_ptr_as(idname);
+  bNodeSocketType *const *value = get_socket_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
     return nullptr;
   }
@@ -4045,7 +4046,7 @@ bNode *node_add_node(const bContext *C,
 
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
 {
-  std::optional<StringRefNull> idname;
+  std::optional<UString> idname;
 
   for (bNodeType *ntype : node_types_get()) {
     /* Do an extra poll here, because some int types are used
@@ -4064,7 +4065,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
     CLOG_ERROR(&LOG, "static node type %d undefined", type);
     return nullptr;
   }
-  return node_add_node(C, ntree, *idname);
+  return node_add_node(C, ntree, idname->ref());
 }
 
 static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src, const int flag)
@@ -4745,7 +4746,7 @@ bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
 
   const uint size[2] = {uint(xsize), uint(ysize)};
   IMB_rect_size_set(preview->ibuf, size);
-  if (preview->ibuf->byte_buffer.data == nullptr) {
+  if (!preview->ibuf->byte_data()) {
     IMB_alloc_byte_pixels(preview->ibuf);
   }
 
@@ -5665,7 +5666,7 @@ static int16_t get_next_auto_legacy_type()
 
 void node_type_base(bNodeType &ntype, std::string idname, std::optional<int16_t> legacy_type)
 {
-  ntype.idname = std::move(idname);
+  ntype.idname = UString(idname);
 
   if (!legacy_type.has_value()) {
     /* Still auto-generate a legacy type for this node type if none was specified. This is
@@ -5699,7 +5700,7 @@ void node_type_base_custom(bNodeType &ntype,
                            const StringRefNull enum_name,
                            const short nclass)
 {
-  ntype.idname = idname;
+  ntype.idname = UString(idname);
   ntype.type_legacy = NODE_CUSTOM;
   ntype.ui_name = name;
   ntype.nclass = nclass;
