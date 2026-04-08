@@ -317,16 +317,15 @@ static void calculate_relax_splines(Span<BMVert *> &verts,
                                     Vector<SplineCoeffs> (&r_coeffs)[3])
 {
   const int n = knot_indices.size();
-  Vector<float> coords_x, coords_y, coords_z;
-  coords_x.reserve(n);
-  coords_y.reserve(n);
-  coords_z.reserve(n);
+  Array<float> coords_x(n);
+  Array<float> coords_y(n);
+  Array<float> coords_z(n);
 
   for (const int i : IndexRange(n)) {
     const float *co = verts[knot_indices[i]]->co;
-    coords_x.append(co[0]);
-    coords_y.append(co[1]);
-    coords_z.append(co[2]);
+    coords_x[i] = co[0];
+    coords_y[i] = co[1];
+    coords_z[i] = co[2];
   }
 
   const bool is_circular = (knot_indices.first() == knot_indices.last());
