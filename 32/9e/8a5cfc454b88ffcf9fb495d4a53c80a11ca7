@@ -1,2 +1,3 @@
 Referenced by issue #156734, Cycles texture cache ignores certain UV map modifications
 Referenced by pull request #156998, Fix #156734: Cycles texture cache issue with missing derivatives
+Referenced by commit f72ac9b986124a2ee88aea16f5c14e52b91eb4cc, Fix #156734: Cycles texture cache issue with missing derivatives
