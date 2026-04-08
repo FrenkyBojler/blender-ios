@@ -242,6 +242,20 @@ static TreeTraversalAction collection_find_selected_to_add(TreeElement *te, void
   return TRAVERSE_CONTINUE;
 }
 
+static Collection *find_parent_collection(bContext *C, TreeElement *te)
+{
+  if (te->parent) {
+    for (TreeElement *te_parent = te->parent; te_parent; te_parent = te_parent->parent) {
+      if (outliner_is_collection_tree_element(te_parent)) {
+        return outliner_collection_from_tree_element(te_parent);
+      }
+    }
+  }
+
+  Scene *scene = CTX_data_scene(C);
+  return scene->master_collection;
+}
+
 static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
 {
   WorkSpace *workspace = CTX_wm_workspace(C);
@@ -280,7 +294,27 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  BKE_collection_add(bmain, data.collection, nullptr);
+  Collection *collection = BKE_collection_add(bmain, data.collection, nullptr);
+
+  if (RNA_boolean_get(op->ptr, "group_selected_objects")) {
+    IDsSelectedData selected{};
+
+    outliner_tree_traverse(space_outliner,
+                            &space_outliner->tree,
+                            0,
+                            TSE_SELECTED,
+                            outliner_collect_selected_objects,
+                            &selected);
+
+    for (LinkData &link : selected.selected_array) {
+      TreeElement *te = static_cast<TreeElement *>(link.data);
+      TreeStoreElem *tselem = TREESTORE(te);
+      Object *ob = id_cast<Object *>(tselem->id);
+      BKE_collection_object_move(bmain, scene, collection, find_parent_collection(C, te), ob);
+    }
+
+    BLI_freelistN(&selected.selected_array);
+  }
 
   DEG_id_tag_update(&data.collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
@@ -288,6 +322,16 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   outliner_cleanup_tree(space_outliner);
   WM_main_add_notifier(NC_SCENE | ND_LAYER, nullptr);
   return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus collection_new_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
+{
+  if (event->modifier == KM_CTRL) {
+    RNA_boolean_set(op->ptr, "group_selected_objects", true);
+  }
+  return collection_new_exec(C, op);
 }
 
 void OUTLINER_OT_collection_new(wmOperatorType *ot)
@@ -298,6 +342,7 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
   ot->description = "Add a new collection inside selected collection";
 
   /* API callbacks. */
+  ot->invoke = collection_new_invoke;
   ot->exec = collection_new_exec;
   ot->poll = collection_new_poll;
 
@@ -307,6 +352,10 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop = RNA_def_boolean(
       ot->srna, "nested", true, "Nested", "Add as child of selected collection");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna, "group_selected_objects", false, "Group Selected Objects", "Add selected objects to the new collection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
