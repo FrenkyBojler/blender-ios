@@ -37,7 +37,10 @@ void textbox_textedit_set_cursor_pos(ButtonTextBox *textbox,
 /** Returns the index of the which containings the string offset. */
 int textbox_wrapped_line_index_from_char_offset(Span<StringRef> lines, int offset);
 
-/** Moves the text cursor one line up/down, or to te top/bottom of the text. */
+/**
+ * Moves te cursor in the textbox one line up/down and tries to maintain the horizontal offset in
+ * pixels from the current line.
+ */
 void textbox_jump_line(ButtonTextBox *textbox,
                        eStrCursorJumpDirection direction,
                        const bool select);

@@ -137,10 +137,6 @@ int textbox_wrapped_line_index_from_char_offset(Span<StringRef> lines, int offse
   return i;
 }
 
-/**
- * Moves te cursor in the textbox one line up/down and tries to maintain the horizontal offset in
- * pixels from the current line.
- */
 void textbox_jump_line(ButtonTextBox *textbox,
                        eStrCursorJumpDirection direction,
                        const bool select)
