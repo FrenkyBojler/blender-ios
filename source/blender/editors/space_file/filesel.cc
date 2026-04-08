@@ -998,7 +998,7 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
     std::string modified_s = compact ? BLI_date_format_date(&test, lang) :
                                        BLI_date_format_datetime(&test, lang);
     int width = file_string_width(modified_s.c_str());
-    columns[COLUMN_DATETIME].width = width + pad + (0.2f * UI_UNIT_X);
+    columns[COLUMN_DATETIME].width = width + pad + (0.5f * UI_UNIT_X);
   }
   if (file_attribute_column_type_enabled(params, COLUMN_SIZE, layout)) {
     columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;

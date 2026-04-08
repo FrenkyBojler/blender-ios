@@ -9,93 +9,91 @@
  * This..
  */
 
+#include <fmt/format.h>
 #include <regex>
 #include <string>
-#include <unordered_map>
 
-#include <fmt/format.h>
-
+#include "BLI_map.hh"
 #include "BLI_string_date.hh"
 
 namespace blender {
 
-struct CLDRLocalePatterns {
+struct CLDRPatterns {
   const char date[17];
   const char time[9];
 };
 
-static const std::unordered_map<std::string, CLDRLocalePatterns> cldr_locale_table = {
-    {"default", {"%d %b %Y", "%H:%M"}},
-    {"en_US", {"%b %d, %Y", "%I:%M %p"}},   /* English (US).*/
-    {"en_GB", {"%d %b %Y", "%H:%M"}},       /* English (UK). */
-    {"ar_EG", {"%d %b %Y", "%I:%M %p"}},    /* Arabic (Egypt). */
-    {"eu_EU", {"%d %b %Y", "%H:%M"}},       /* Basque. */
-    {"bg_BG", {"%d %b %Y", "%H:%M"}},       /* Bulgarian. */
-    {"ca_AD", {"%d %b %Y", "%H:%M"}},       /* Catalan. */
-    {"zh_HANS", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Simplified). */
-    {"zh_HANT", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Traditional). */
-    {"hr", {"%d %b %Y", "%H:%M"}},          /* Croatian. */
-    {"cs_CZ", {"%d %b %Y", "%H:%M"}},       /* Czech. */
-    {"da", {"%d %b %Y", "%H:%M"}},          /* Danish. */
-    {"nl_NL", {"%d %b %Y", "%H:%M"}},       /* Dutch - Nederlands. */
-    {"fi_FI", {"%d %b %Y", "%H:%M"}},       /* Finnish. */
-    {"fr_FR", {"%d %b %Y", "%H:%M"}},       /* French. */
-    {"ka", {"%d %b %Y", "%H:%M"}},          /* Georgian. */
-    {"de_DE", {"%d %b %Y", "%H:%M"}},       /* German. */
-    {"el_GR", {"%d %b %Y", "%H:%M"}},       /* Greek. */
-    {"he_IL", {"%d %b %Y", "%H:%M"}},       /* Hebrew. */
-    {"hi_IN", {"%d %b %Y", "%H:%M"}},       /* Hindi. */
-    {"hu_HU", {"%Y. %b %d", "%H:%M"}},      /* Hungarian. */
-    {"id_ID", {"%d %b %Y", "%H:%M"}},       /* Indonesian. */
-    {"it_IT", {"%d %b %Y", "%H:%M"}},       /* Italian. */
-    {"ja_JP", {"%Y年%b月%d日", "%H:%M"}},   /* Japanese. */
-    {"ko_KR", {"%Y년 %B월%d일", "%H:%M"}},  /* Korean. */
-    {"nb", {"%d %b %Y", "%H:%M"}},          /* Norwegian. */
-    {"fa_IR", {"%d %b %Y", "%H:%M"}},       /* Persian. */
-    {"pl_PL", {"%d %b %Y", "%H:%M"}},       /* Polish. */
-    {"pt_BR", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Brazil). */
-    {"pt_PT", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Portugal). */
-    {"ro_RO", {"%d %b %Y", "%H:%M"}},       /* Romanian. */
-    {"ru_RU", {"%d %b %Y", "%H:%M"}},       /* Russian. */
-    {"sr_RS", {"%d %b %Y", "%H:%M"}},       /* Serbian (Cyrillic). */
-    {"sr_RS@latin", {"%d %b %Y", "%H:%M"}}, /* Serbian (Latin). */
-    {"sk_SK", {"%d %b %Y", "%H:%M"}},       /* Slovak. */
-    {"sl", {"%d %b %Y", "%H:%M"}},          /* Slovenian. */
-    {"es", {"%d %b %Y", "%H:%M"}},          /* Spanish. */
-    {"sv_SE", {"%d %b %Y", "%H:%M"}},       /* Swedish. */
-    {"sw", {"%d %b %Y", "%H:%M"}},          /* Swahili. */
-    {"ta", {"%d %b %Y", "%H:%M"}},          /* Tamil. */
-    {"th_TH", {"%d %b %Y", "%H:%M"}},       /* Thai. */
-    {"tr_TR", {"%d %b %Y", "%H:%M"}},       /* Turkish. */
-    {"uk_UA", {"%d %b %Y", "%H:%M"}},       /* Ukrainian. */
-    {"ur", {"%d %b %Y", "%I:%M %p"}},       /* Urdu. */
-    {"vi_VN", {"%d %b %Y", "%H:%M"}},       /* Vietnamese. */
-};
+static const Map<std::string, CLDRPatterns> &locale_patterns = *([]() {
+  return new Map<std::string, CLDRPatterns>{
+      {"default", {"%d %b %Y", "%H:%M"}},
+      {"en_US", {"%b %d, %Y", "%I:%M %p"}},   /* English (US).*/
+      {"en_GB", {"%d %b %Y", "%H:%M"}},       /* English (UK). */
+      {"ar_EG", {"%d %b %Y", "%I:%M %p"}},    /* Arabic (Egypt). */
+      {"eu_EU", {"%d %b %Y", "%H:%M"}},       /* Basque. */
+      {"bg_BG", {"%d %b %Y", "%H:%M"}},       /* Bulgarian. */
+      {"ca_AD", {"%d %b %Y", "%H:%M"}},       /* Catalan. */
+      {"zh_HANS", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Simplified). */
+      {"zh_HANT", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Traditional). */
+      {"hr", {"%d %b %Y", "%H:%M"}},          /* Croatian. */
+      {"cs_CZ", {"%d %b %Y", "%H:%M"}},       /* Czech. */
+      {"da", {"%d %b %Y", "%H:%M"}},          /* Danish. */
+      {"nl_NL", {"%d %b %Y", "%H:%M"}},       /* Dutch - Nederlands. */
+      {"fi_FI", {"%d %b %Y", "%H:%M"}},       /* Finnish. */
+      {"fr_FR", {"%d %b %Y", "%H:%M"}},       /* French. */
+      {"ka", {"%d %b %Y", "%H:%M"}},          /* Georgian. */
+      {"de_DE", {"%d %b %Y", "%H:%M"}},       /* German. */
+      {"el_GR", {"%d %b %Y", "%H:%M"}},       /* Greek. */
+      {"he_IL", {"%d %b %Y", "%H:%M"}},       /* Hebrew. */
+      {"hi_IN", {"%d %b %Y", "%H:%M"}},       /* Hindi. */
+      {"hu_HU", {"%Y. %b %d", "%H:%M"}},      /* Hungarian. */
+      {"id_ID", {"%d %b %Y", "%H:%M"}},       /* Indonesian. */
+      {"it_IT", {"%d %b %Y", "%H:%M"}},       /* Italian. */
+      {"ja_JP", {"%Y年%b月%d日", "%H:%M"}},   /* Japanese. */
+      {"ko_KR", {"%Y년 %B월%d일", "%H:%M"}},  /* Korean. */
+      {"nb", {"%d %b %Y", "%H:%M"}},          /* Norwegian. */
+      {"fa_IR", {"%d %b %Y", "%H:%M"}},       /* Persian. */
+      {"pl_PL", {"%d %b %Y", "%H:%M"}},       /* Polish. */
+      {"pt_BR", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Brazil). */
+      {"pt_PT", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Portugal). */
+      {"ro_RO", {"%d %b %Y", "%H:%M"}},       /* Romanian. */
+      {"ru_RU", {"%d %b %Y", "%H:%M"}},       /* Russian. */
+      {"sr_RS", {"%d %b %Y", "%H:%M"}},       /* Serbian (Cyrillic). */
+      {"sr_RS@latin", {"%d %b %Y", "%H:%M"}}, /* Serbian (Latin). */
+      {"sk_SK", {"%d %b %Y", "%H:%M"}},       /* Slovak. */
+      {"sl", {"%d %b %Y", "%H:%M"}},          /* Slovenian. */
+      {"es", {"%d %b %Y", "%H:%M"}},          /* Spanish. */
+      {"sv_SE", {"%d %b %Y", "%H:%M"}},       /* Swedish. */
+      {"sw", {"%d %b %Y", "%H:%M"}},          /* Swahili. */
+      {"ta", {"%d %b %Y", "%H:%M"}},          /* Tamil. */
+      {"th_TH", {"%d %b %Y", "%H:%M"}},       /* Thai. */
+      {"tr_TR", {"%d %b %Y", "%H:%M"}},       /* Turkish. */
+      {"uk_UA", {"%d %b %Y", "%H:%M"}},       /* Ukrainian. */
+      {"ur", {"%d %b %Y", "%I:%M %p"}},       /* Urdu. */
+      {"vi_VN", {"%d %b %Y", "%H:%M"}},       /* Vietnamese. */
+  };
+}());
 
-static const CLDRLocalePatterns &get_locale_patterns(const char *locale_iso)
+static const CLDRPatterns *get_locale_patterns(const char *locale_iso)
 {
-  static const CLDRLocalePatterns default_patterns = cldr_locale_table.at("default");
-
-  const char *loc_in = locale_iso;
-  if (loc_in == nullptr || loc_in[0] == '\0') {
-    return default_patterns;
+  if (locale_iso == nullptr || locale_iso[0] == '\0') {
+    return locale_patterns.lookup_ptr("default");
   }
 
-  std::string loc(loc_in);
-  auto it = cldr_locale_table.find(loc);
-  if (it != cldr_locale_table.end()) {
-    return it->second;
+  const CLDRPatterns *pattern = locale_patterns.lookup_ptr(locale_iso);
+  if (pattern) {
+    return pattern;
   }
 
+  std::string loc(locale_iso);
   if (loc.size() >= 2) {
     std::string lang = loc.substr(0, 2);
-    it = cldr_locale_table.find(lang);
-    if (it != cldr_locale_table.end()) {
-      return it->second;
+    pattern = locale_patterns.lookup_ptr(lang);
+    if (pattern) {
+      return pattern;
     }
   }
 
-  return default_patterns;
+  return locale_patterns.lookup_ptr("default");
 }
 
 static std::locale make_locale_fallbacks(const char *iso)
@@ -133,14 +131,14 @@ static std::string format_with_pattern(const std::tm *tm,
 
 std::string BLI_date_format_time(const std::tm *date_time, const char *locale_iso)
 {
-  const auto &pattern = get_locale_patterns(locale_iso);
-  return format_with_pattern(date_time, pattern.time, locale_iso);
+  const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
+  return format_with_pattern(date_time, pattern->time, locale_iso);
 }
 
 std::string BLI_date_format_date(const std::tm *date_time, const char *locale_iso)
 {
-  const auto &pattern = get_locale_patterns(locale_iso);
-  std::string out = format_with_pattern(date_time, pattern.date, locale_iso);
+  const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
+  std::string out = format_with_pattern(date_time, pattern->date, locale_iso);
 
   /* Remove the leading zero from the day. */
   std::regex leading_zero_re(R"((^|[\s,\.])0([1-9])(\b))");
