@@ -27,7 +27,7 @@ struct SVMNodeShaderJump {
   int offset_volume;
   int offset_displacement;
 };
-
+static_assert(alignof(SVMNodeShaderJump) <= alignof(uint));
 static_assert(sizeof(SVMNodeShaderJump) % sizeof(uint) == 0);
 
 /* NODE_JUMP_IF_ZERO */
@@ -36,7 +36,7 @@ struct SVMNodeJumpIfZero {
   SVMStackOffset stack_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeJumpIfZero) <= alignof(uint));
 static_assert(sizeof(SVMNodeJumpIfZero) % sizeof(uint) == 0);
 
 /* NODE_JUMP_IF_ONE */
@@ -45,7 +45,7 @@ struct SVMNodeJumpIfOne {
   SVMStackOffset stack_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeJumpIfOne) <= alignof(uint));
 static_assert(sizeof(SVMNodeJumpIfOne) % sizeof(uint) == 0);
 
 /* NODE_MATH */
@@ -57,7 +57,7 @@ struct SVMNodeMath {
   SVMStackOffset result_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeMath) <= alignof(uint));
 static_assert(sizeof(SVMNodeMath) % sizeof(uint) == 0);
 
 /* NODE_CLAMP */
@@ -69,7 +69,7 @@ struct SVMNodeClamp {
   SVMStackOffset result_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClamp) <= alignof(uint));
 static_assert(sizeof(SVMNodeClamp) % sizeof(uint) == 0);
 
 /* NODE_MAPPING / NODE_MAPPING_DERIVATIVE */
@@ -82,7 +82,7 @@ struct SVMNodeMapping {
   SVMStackOffset result_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeMapping) <= alignof(uint));
 static_assert(sizeof(SVMNodeMapping) % sizeof(uint) == 0);
 
 /* NODE_NORMAL_MAP */
@@ -97,7 +97,7 @@ struct SVMNodeNormalMap {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeNormalMap) <= alignof(uint));
 static_assert(sizeof(SVMNodeNormalMap) % sizeof(uint) == 0);
 
 /* NODE_VALUE_F / NODE_VALUE_F_DERIVATIVE */
@@ -106,7 +106,7 @@ struct SVMNodeValueF {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeValueF) <= alignof(uint));
 static_assert(sizeof(SVMNodeValueF) % sizeof(uint) == 0);
 
 /* NODE_VALUE_V / NODE_VALUE_V_DERIVATIVE */
@@ -115,7 +115,7 @@ struct SVMNodeValueV {
   uint8_t _pad[3];
   packed_float3 value;
 };
-
+static_assert(alignof(SVMNodeValueV) <= alignof(uint));
 static_assert(sizeof(SVMNodeValueV) % sizeof(uint) == 0);
 
 /* NODE_CONVERT / NODE_CONVERT_DERIVATIVE */
@@ -125,7 +125,7 @@ struct SVMNodeConvert {
   SVMStackOffset to_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeConvert) <= alignof(uint));
 static_assert(sizeof(SVMNodeConvert) % sizeof(uint) == 0);
 
 /* NODE_GEOMETRY / NODE_GEOMETRY_DERIVATIVE */
@@ -136,7 +136,7 @@ struct SVMNodeGeometry {
   SVMStackOffset out_offset;
   float bump_filter_width;
 };
-
+static_assert(alignof(SVMNodeGeometry) <= alignof(uint));
 static_assert(sizeof(SVMNodeGeometry) % sizeof(uint) == 0);
 
 /* NODE_OBJECT_INFO */
@@ -145,7 +145,7 @@ struct SVMNodeObjectInfo {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeObjectInfo) <= alignof(uint));
 static_assert(sizeof(SVMNodeObjectInfo) % sizeof(uint) == 0);
 
 /* NODE_PARTICLE_INFO */
@@ -154,7 +154,7 @@ struct SVMNodeParticleInfo {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeParticleInfo) <= alignof(uint));
 static_assert(sizeof(SVMNodeParticleInfo) % sizeof(uint) == 0);
 
 /* NODE_HAIR_INFO */
@@ -163,7 +163,7 @@ struct SVMNodeHairInfo {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeHairInfo) <= alignof(uint));
 static_assert(sizeof(SVMNodeHairInfo) % sizeof(uint) == 0);
 
 /* NODE_POINT_INFO */
@@ -172,7 +172,7 @@ struct SVMNodePointInfo {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodePointInfo) <= alignof(uint));
 static_assert(sizeof(SVMNodePointInfo) % sizeof(uint) == 0);
 
 /* NODE_LIGHT_PATH */
@@ -181,7 +181,7 @@ struct SVMNodeLightPath {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeLightPath) <= alignof(uint));
 static_assert(sizeof(SVMNodeLightPath) % sizeof(uint) == 0);
 
 /* NODE_ATTR / NODE_ATTR_DERIVATIVE */
@@ -193,7 +193,7 @@ struct SVMNodeAttr {
   uint8_t store_derivatives;
   float bump_filter_width;
 };
-
+static_assert(alignof(SVMNodeAttr) <= alignof(uint));
 static_assert(sizeof(SVMNodeAttr) % sizeof(uint) == 0);
 
 /* NODE_VERTEX_COLOR / NODE_VERTEX_COLOR_DERIVATIVE */
@@ -204,7 +204,7 @@ struct SVMNodeVertexColor {
   NodeBumpOffset bump_offset;
   float bump_filter_width;
 };
-
+static_assert(alignof(SVMNodeVertexColor) <= alignof(uint));
 static_assert(sizeof(SVMNodeVertexColor) % sizeof(uint) == 0);
 
 /* NODE_TEX_COORD / NODE_TEX_COORD_DERIVATIVE */
@@ -215,7 +215,7 @@ struct SVMNodeTexCoord {
   SVMStackOffset out_offset;
   float bump_filter_width;
 };
-
+static_assert(alignof(SVMNodeTexCoord) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexCoord) % sizeof(uint) == 0);
 
 /* NODE_GAMMA */
@@ -225,7 +225,7 @@ struct SVMNodeGamma {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeGamma) <= alignof(uint));
 static_assert(sizeof(SVMNodeGamma) % sizeof(uint) == 0);
 
 /* Bright/ NODE_BRIGHTCONTRAST */
@@ -236,7 +236,7 @@ struct SVMNodeBrightContrast {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeBrightContrast) <= alignof(uint));
 static_assert(sizeof(SVMNodeBrightContrast) % sizeof(uint) == 0);
 
 /* NODE_INVERT */
@@ -246,7 +246,7 @@ struct SVMNodeInvert {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeInvert) <= alignof(uint));
 static_assert(sizeof(SVMNodeInvert) % sizeof(uint) == 0);
 
 /* NODE_FRESNEL */
@@ -256,7 +256,7 @@ struct SVMNodeFresnel {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeFresnel) <= alignof(uint));
 static_assert(sizeof(SVMNodeFresnel) % sizeof(uint) == 0);
 
 /* NODE_LAYER_WEIGHT */
@@ -267,7 +267,7 @@ struct SVMNodeLayerWeight {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeLayerWeight) <= alignof(uint));
 static_assert(sizeof(SVMNodeLayerWeight) % sizeof(uint) == 0);
 
 /* NODE_HSV */
@@ -280,7 +280,7 @@ struct SVMNodeHSV {
   SVMStackOffset out_color_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeHSV) <= alignof(uint));
 static_assert(sizeof(SVMNodeHSV) % sizeof(uint) == 0);
 
 /* NODE_CAMERA */
@@ -290,7 +290,7 @@ struct SVMNodeCamera {
   SVMStackOffset distance_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeCamera) <= alignof(uint));
 static_assert(sizeof(SVMNodeCamera) % sizeof(uint) == 0);
 
 /* NODE_BLACKBODY */
@@ -299,7 +299,7 @@ struct SVMNodeBlackbody {
   SVMStackOffset color_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeBlackbody) <= alignof(uint));
 static_assert(sizeof(SVMNodeBlackbody) % sizeof(uint) == 0);
 
 /* NODE_WAVELENGTH */
@@ -308,7 +308,7 @@ struct SVMNodeWavelength {
   SVMStackOffset color_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeWavelength) <= alignof(uint));
 static_assert(sizeof(SVMNodeWavelength) % sizeof(uint) == 0);
 
 /* NODE_VECTOR_MATH / NODE_VECTOR_MATH_DERIVATIVE */
@@ -322,7 +322,7 @@ struct SVMNodeVectorMath {
   SVMStackOffset vector_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeVectorMath) <= alignof(uint));
 static_assert(sizeof(SVMNodeVectorMath) % sizeof(uint) == 0);
 
 /* NODE_VECTOR_ROTATE */
@@ -337,7 +337,7 @@ struct SVMNodeVectorRotate {
   SVMStackOffset result_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeVectorRotate) <= alignof(uint));
 static_assert(sizeof(SVMNodeVectorRotate) % sizeof(uint) == 0);
 
 /* NODE_VECTOR_TRANSFORM */
@@ -349,7 +349,7 @@ struct SVMNodeVectorTransform {
   SVMStackOffset vector_out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeVectorTransform) <= alignof(uint));
 static_assert(sizeof(SVMNodeVectorTransform) % sizeof(uint) == 0);
 
 /* NODE_SEPARATE_VECTOR / NODE_SEPARATE_VECTOR_DERIVATIVE
@@ -360,7 +360,7 @@ struct SVMNodeSeparateVector {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeSeparateVector) <= alignof(uint));
 static_assert(sizeof(SVMNodeSeparateVector) % sizeof(uint) == 0);
 
 /* NODE_COMBINE_VECTOR / NODE_COMBINE_VECTOR_DERIVATIVE
@@ -371,7 +371,7 @@ struct SVMNodeCombineVector {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeCombineVector) <= alignof(uint));
 static_assert(sizeof(SVMNodeCombineVector) % sizeof(uint) == 0);
 
 /* NODE_SEPARATE_COLOR */
@@ -383,7 +383,7 @@ struct SVMNodeSeparateColor {
   SVMStackOffset blue_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeSeparateColor) <= alignof(uint));
 static_assert(sizeof(SVMNodeSeparateColor) % sizeof(uint) == 0);
 
 /* NODE_COMBINE_COLOR */
@@ -395,7 +395,7 @@ struct SVMNodeCombineColor {
   SVMStackOffset color_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeCombineColor) <= alignof(uint));
 static_assert(sizeof(SVMNodeCombineColor) % sizeof(uint) == 0);
 
 /* NODE_MIX_COLOR */
@@ -409,7 +409,7 @@ struct SVMNodeMixColor {
   SVMStackOffset result_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeMixColor) <= alignof(uint));
 static_assert(sizeof(SVMNodeMixColor) % sizeof(uint) == 0);
 
 /* NODE_MIX_FLOAT */
@@ -421,7 +421,7 @@ struct SVMNodeMixFloat {
   SVMStackOffset result_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeMixFloat) <= alignof(uint));
 static_assert(sizeof(SVMNodeMixFloat) % sizeof(uint) == 0);
 
 /* Mix node (legacy) NODE_MIX */
@@ -433,7 +433,7 @@ struct SVMNodeMix {
   SVMStackOffset result_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeMix) <= alignof(uint));
 static_assert(sizeof(SVMNodeMix) % sizeof(uint) == 0);
 
 /* NODE_MIX_VECTOR */
@@ -445,7 +445,7 @@ struct SVMNodeMixVector {
   SVMStackOffset result_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeMixVector) <= alignof(uint));
 static_assert(sizeof(SVMNodeMixVector) % sizeof(uint) == 0);
 
 /* Mix Vector Non- NODE_MIX_VECTOR_NON_UNIFORM */
@@ -457,7 +457,7 @@ struct SVMNodeMixVectorNonUniform {
   SVMStackOffset result_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeMixVectorNonUniform) <= alignof(uint));
 static_assert(sizeof(SVMNodeMixVectorNonUniform) % sizeof(uint) == 0);
 
 /* NODE_MAP_RANGE */
@@ -472,7 +472,7 @@ struct SVMNodeMapRange {
   SVMStackOffset result_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeMapRange) <= alignof(uint));
 static_assert(sizeof(SVMNodeMapRange) % sizeof(uint) == 0);
 
 /* NODE_VECTOR_MAP_RANGE */
@@ -489,7 +489,7 @@ struct SVMNodeVectorMapRange {
   SVMStackOffset result_offset;
   uint8_t _pad2[3];
 };
-
+static_assert(alignof(SVMNodeVectorMapRange) <= alignof(uint));
 static_assert(sizeof(SVMNodeVectorMapRange) % sizeof(uint) == 0);
 
 /* NODE_NORMAL */
@@ -502,7 +502,7 @@ struct SVMNodeNormal {
   float direction_y;
   float direction_z;
 };
-
+static_assert(alignof(SVMNodeNormal) <= alignof(uint));
 static_assert(sizeof(SVMNodeNormal) % sizeof(uint) == 0);
 
 /* NODE_SET_BUMP */
@@ -519,7 +519,7 @@ struct SVMNodeSetBump {
   SVMStackOffset out_offset;
   SVMStackOffset bump_state_offset;
 };
-
+static_assert(alignof(SVMNodeSetBump) <= alignof(uint));
 static_assert(sizeof(SVMNodeSetBump) % sizeof(uint) == 0);
 
 /* NODE_ENTER_BUMP_EVAL */
@@ -527,7 +527,7 @@ struct SVMNodeEnterBumpEval {
   SVMStackOffset state_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeEnterBumpEval) <= alignof(uint));
 static_assert(sizeof(SVMNodeEnterBumpEval) % sizeof(uint) == 0);
 
 /* NODE_SET_DISPLACEMENT */
@@ -535,7 +535,7 @@ struct SVMNodeSetDisplacement {
   SVMStackOffset fac_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeSetDisplacement) <= alignof(uint));
 static_assert(sizeof(SVMNodeSetDisplacement) % sizeof(uint) == 0);
 
 /* NODE_DISPLACEMENT */
@@ -548,7 +548,7 @@ struct SVMNodeDisplacement {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeDisplacement) <= alignof(uint));
 static_assert(sizeof(SVMNodeDisplacement) % sizeof(uint) == 0);
 
 /* NODE_VECTOR_DISPLACEMENT */
@@ -562,7 +562,7 @@ struct SVMNodeVectorDisplacement {
   SVMStackOffset displacement_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeVectorDisplacement) <= alignof(uint));
 static_assert(sizeof(SVMNodeVectorDisplacement) % sizeof(uint) == 0);
 
 /* NODE_LEAVE_BUMP_EVAL */
@@ -570,7 +570,7 @@ struct SVMNodeLeaveBumpEval {
   SVMStackOffset state_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeLeaveBumpEval) <= alignof(uint));
 static_assert(sizeof(SVMNodeLeaveBumpEval) % sizeof(uint) == 0);
 
 /* NODE_TEX_NOISE */
@@ -591,7 +591,7 @@ struct SVMNodeTexNoise {
   SVMStackOffset color_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeTexNoise) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexNoise) % sizeof(uint) == 0);
 
 /* NODE_TEX_VORONOI */
@@ -616,7 +616,7 @@ struct SVMNodeTexVoronoi {
   SVMStackOffset radius_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeTexVoronoi) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexVoronoi) % sizeof(uint) == 0);
 
 /* NODE_TEX_GABOR */
@@ -632,7 +632,7 @@ struct SVMNodeTexGabor {
   SVMStackOffset phase_offset;
   SVMStackOffset intensity_offset;
 };
-
+static_assert(alignof(SVMNodeTexGabor) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexGabor) % sizeof(uint) == 0);
 
 /* NODE_TEX_WAVE */
@@ -652,7 +652,7 @@ struct SVMNodeTexWave {
   SVMStackOffset fac_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeTexWave) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexWave) % sizeof(uint) == 0);
 
 /* NODE_TEX_MAGIC */
@@ -664,7 +664,7 @@ struct SVMNodeTexMagic {
   SVMStackOffset color_offset;
   SVMStackOffset fac_offset;
 };
-
+static_assert(alignof(SVMNodeTexMagic) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexMagic) % sizeof(uint) == 0);
 
 /* NODE_TEX_CHECKER */
@@ -677,7 +677,7 @@ struct SVMNodeTexChecker {
   SVMStackOffset fac_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeTexChecker) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexChecker) % sizeof(uint) == 0);
 
 /* NODE_TEX_BRICK */
@@ -700,7 +700,7 @@ struct SVMNodeTexBrick {
   SVMStackOffset fac_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeTexBrick) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexBrick) % sizeof(uint) == 0);
 
 /* NODE_TEX_WHITE_NOISE */
@@ -712,7 +712,7 @@ struct SVMNodeTexWhiteNoise {
   SVMStackOffset color_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeTexWhiteNoise) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexWhiteNoise) % sizeof(uint) == 0);
 
 /* NODE_TEX_GRADIENT */
@@ -723,7 +723,7 @@ struct SVMNodeTexGradient {
   SVMStackOffset color_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeTexGradient) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexGradient) % sizeof(uint) == 0);
 
 /* NODE_TEX_IMAGE / NODE_TEX_IMAGE_DERIVATIVE */
@@ -735,7 +735,7 @@ struct SVMNodeTexImage {
   SVMStackOffset out_offset;
   SVMStackOffset alpha_offset;
 };
-
+static_assert(alignof(SVMNodeTexImage) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexImage) % sizeof(uint) == 0);
 
 /* NODE_TEX_IMAGE_BOX / NODE_TEX_IMAGE_BOX_DERIVATIVE */
@@ -747,7 +747,7 @@ struct SVMNodeTexImageBox {
   SVMStackOffset out_offset;
   SVMStackOffset alpha_offset;
 };
-
+static_assert(alignof(SVMNodeTexImageBox) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexImageBox) % sizeof(uint) == 0);
 
 /* NODE_TEX_ENVIRONMENT / NODE_TEX_ENVIRONMENT_DERIVATIVE */
@@ -759,7 +759,7 @@ struct SVMNodeTexEnvironment {
   SVMStackOffset out_offset;
   SVMStackOffset alpha_offset;
 };
-
+static_assert(alignof(SVMNodeTexEnvironment) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexEnvironment) % sizeof(uint) == 0);
 
 /* NODE_TEX_SKY */
@@ -769,7 +769,7 @@ struct SVMNodeTexSky {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeTexSky) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexSky) % sizeof(uint) == 0);
 
 /* Sky Texture Preetham/Hosek data: follows SVMNodeTexSky header. */
@@ -783,7 +783,7 @@ struct SVMNodeTexSkyPreethamData {
   float config_y[9];
   float config_z[9];
 };
-
+static_assert(alignof(SVMNodeTexSkyPreethamData) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexSkyPreethamData) % sizeof(uint) == 0);
 
 /* Sky Texture Nishita data: follows SVMNodeTexSky header. */
@@ -801,7 +801,7 @@ struct SVMNodeTexSkyNishitaData {
   float earth_intersection_angle;
   uint texture_id;
 };
-
+static_assert(alignof(SVMNodeTexSkyNishitaData) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexSkyNishitaData) % sizeof(uint) == 0);
 
 /* NODE_RGB_RAMP
@@ -814,7 +814,7 @@ struct SVMNodeRGBRamp {
   SVMStackOffset alpha_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeRGBRamp) <= alignof(uint));
 static_assert(sizeof(SVMNodeRGBRamp) % sizeof(uint) == 0);
 
 /* NODE_CURVES
@@ -829,7 +829,7 @@ struct SVMNodeCurves {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeCurves) <= alignof(uint));
 static_assert(sizeof(SVMNodeCurves) % sizeof(uint) == 0);
 
 /* NODE_FLOAT_CURVE
@@ -844,7 +844,7 @@ struct SVMNodeFloatCurve {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeFloatCurve) <= alignof(uint));
 static_assert(sizeof(SVMNodeFloatCurve) % sizeof(uint) == 0);
 
 /* NODE_TANGENT / NODE_TANGENT_DERIVATIVE */
@@ -855,7 +855,7 @@ struct SVMNodeTangent {
   SVMStackOffset tangent_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeTangent) <= alignof(uint));
 static_assert(sizeof(SVMNodeTangent) % sizeof(uint) == 0);
 
 /* NODE_WIREFRAME */
@@ -867,7 +867,7 @@ struct SVMNodeWireframe {
   SVMStackOffset out_fac_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeWireframe) <= alignof(uint));
 static_assert(sizeof(SVMNodeWireframe) % sizeof(uint) == 0);
 
 /* NODE_IES */
@@ -878,14 +878,14 @@ struct SVMNodeIES {
   SVMStackOffset fac_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeIES) <= alignof(uint));
 static_assert(sizeof(SVMNodeIES) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_SET_WEIGHT */
 struct SVMNodeClosureSetWeight {
   packed_float3 rgb;
 };
-
+static_assert(alignof(SVMNodeClosureSetWeight) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureSetWeight) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_WEIGHT */
@@ -893,7 +893,7 @@ struct SVMNodeClosureWeight {
   SVMStackOffset weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClosureWeight) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureWeight) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_SET_NORMAL */
@@ -902,7 +902,7 @@ struct SVMNodeClosureSetNormal {
   SVMStackOffset normal_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeClosureSetNormal) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureSetNormal) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_EMISSION */
@@ -910,7 +910,7 @@ struct SVMNodeClosureEmission {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClosureEmission) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureEmission) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_BACKGROUND */
@@ -918,7 +918,7 @@ struct SVMNodeClosureBackground {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClosureBackground) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureBackground) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_HOLDOUT */
@@ -926,7 +926,7 @@ struct SVMNodeClosureHoldout {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClosureHoldout) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureHoldout) % sizeof(uint) == 0);
 
 /* NODE_EMISSION_WEIGHT */
@@ -934,7 +934,7 @@ struct SVMNodeEmissionWeight {
   SVMInputFloat3 color;
   SVMInputFloat strength;
 };
-
+static_assert(alignof(SVMNodeEmissionWeight) <= alignof(uint));
 static_assert(sizeof(SVMNodeEmissionWeight) % sizeof(uint) == 0);
 
 /* NODE_MIX_CLOSURE */
@@ -945,7 +945,7 @@ struct SVMNodeMixClosure {
   SVMStackOffset weight2_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeMixClosure) <= alignof(uint));
 static_assert(sizeof(SVMNodeMixClosure) % sizeof(uint) == 0);
 
 /* NODE_LIGHT_FALLOFF */
@@ -956,7 +956,7 @@ struct SVMNodeLightFalloff {
   SVMStackOffset out_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeLightFalloff) <= alignof(uint));
 static_assert(sizeof(SVMNodeLightFalloff) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_VOLUME */
@@ -968,7 +968,7 @@ struct SVMNodeClosureVolume {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClosureVolume) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureVolume) % sizeof(uint) == 0);
 
 /* NODE_VOLUME_COEFFICIENTS */
@@ -981,7 +981,7 @@ struct SVMNodeVolumeCoefficients {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeVolumeCoefficients) <= alignof(uint));
 static_assert(sizeof(SVMNodeVolumeCoefficients) % sizeof(uint) == 0);
 
 /* NODE_PRINCIPLED_VOLUME */
@@ -1000,7 +1000,7 @@ struct SVMNodePrincipledVolume {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodePrincipledVolume) <= alignof(uint));
 static_assert(sizeof(SVMNodePrincipledVolume) % sizeof(uint) == 0);
 
 /* NODE_CLOSURE_BSDF. Common header for all BSDFs, followed by data defined below. */
@@ -1009,7 +1009,7 @@ struct SVMNodeClosureBsdf {
   SVMStackOffset mix_weight_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeClosureBsdf) <= alignof(uint));
 static_assert(sizeof(SVMNodeClosureBsdf) % sizeof(uint) == 0);
 
 /* Simple BSDFs. */
@@ -1018,7 +1018,7 @@ struct SVMNodeSimpleBsdfData {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeSimpleBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeSimpleBsdfData) % sizeof(uint) == 0);
 
 /* Diffuse BSDF. */
@@ -1028,7 +1028,7 @@ struct SVMNodeDiffuseBsdfData {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeDiffuseBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeDiffuseBsdfData) % sizeof(uint) == 0);
 
 /* Toon BSDF. */
@@ -1038,7 +1038,7 @@ struct SVMNodeToonBsdfData {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeToonBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeToonBsdfData) % sizeof(uint) == 0);
 
 /* Ray Portal BSDF. */
@@ -1047,7 +1047,7 @@ struct SVMNodeRayPortalBsdfData {
   SVMStackOffset position_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeRayPortalBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeRayPortalBsdfData) % sizeof(uint) == 0);
 
 /* Glossy BSDF. */
@@ -1060,7 +1060,7 @@ struct SVMNodeGlossyBsdfData {
   SVMStackOffset tangent_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeGlossyBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeGlossyBsdfData) % sizeof(uint) == 0);
 
 /* Refraction BSDF. */
@@ -1070,7 +1070,7 @@ struct SVMNodeRefractionBsdfData {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeRefractionBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeRefractionBsdfData) % sizeof(uint) == 0);
 
 /* Glass BSDF. */
@@ -1083,7 +1083,7 @@ struct SVMNodeGlassBsdfData {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeGlassBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeGlassBsdfData) % sizeof(uint) == 0);
 
 /* Metallic BSDF. */
@@ -1100,7 +1100,7 @@ struct SVMNodeMetallicBsdfData {
   SVMStackOffset tangent_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeMetallicBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeMetallicBsdfData) % sizeof(uint) == 0);
 
 /* Hair BSDF. */
@@ -1111,7 +1111,7 @@ struct SVMNodeHairBsdfData {
   SVMStackOffset tangent_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeHairBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeHairBsdfData) % sizeof(uint) == 0);
 
 /* Bssrdf. */
@@ -1124,7 +1124,7 @@ struct SVMNodeBssrdfData {
   SVMStackOffset normal_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeBssrdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodeBssrdfData) % sizeof(uint) == 0);
 
 /* Principled BSDF. */
@@ -1172,7 +1172,7 @@ struct SVMNodePrincipledBsdfData {
   SVMInputFloat thin_film_thickness;
   SVMInputFloat thin_film_ior;
 };
-
+static_assert(alignof(SVMNodePrincipledBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodePrincipledBsdfData) % sizeof(uint) == 0);
 
 /* Principled Hair BSDF. */
@@ -1198,7 +1198,7 @@ struct SVMNodePrincipledHairBsdfData {
   int attr_random;
   int attr_normal;
 };
-
+static_assert(alignof(SVMNodePrincipledHairBsdfData) <= alignof(uint));
 static_assert(sizeof(SVMNodePrincipledHairBsdfData) % sizeof(uint) == 0);
 
 /* NODE_BEVEL */
@@ -1209,7 +1209,7 @@ struct SVMNodeBevel {
   SVMStackOffset out_offset;
   uint8_t _pad[1];
 };
-
+static_assert(alignof(SVMNodeBevel) <= alignof(uint));
 static_assert(sizeof(SVMNodeBevel) % sizeof(uint) == 0);
 
 /* NODE_AMBIENT_OCCLUSION */
@@ -1223,7 +1223,7 @@ struct SVMNodeAmbientOcclusion {
   SVMStackOffset out_color_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeAmbientOcclusion) <= alignof(uint));
 static_assert(sizeof(SVMNodeAmbientOcclusion) % sizeof(uint) == 0);
 
 /* NODE_RAYCAST */
@@ -1240,7 +1240,7 @@ struct SVMNodeRaycast {
   SVMStackOffset hit_normal_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeRaycast) <= alignof(uint));
 static_assert(sizeof(SVMNodeRaycast) % sizeof(uint) == 0);
 
 /* NODE_AOV_COLOR */
@@ -1248,7 +1248,7 @@ struct SVMNodeAOVColor {
   int aov_offset;
   SVMInputFloat3 color;
 };
-
+static_assert(alignof(SVMNodeAOVColor) <= alignof(uint));
 static_assert(sizeof(SVMNodeAOVColor) % sizeof(uint) == 0);
 
 /* NODE_AOV_VALUE */
@@ -1256,7 +1256,7 @@ struct SVMNodeAOVValue {
   int aov_offset;
   SVMInputFloat value;
 };
-
+static_assert(alignof(SVMNodeAOVValue) <= alignof(uint));
 static_assert(sizeof(SVMNodeAOVValue) % sizeof(uint) == 0);
 
 /* NODE_RADIAL_TILING */
@@ -1271,7 +1271,7 @@ struct SVMNodeRadialTiling {
   SVMStackOffset x_axis_A_angle_bisector_offset;
   uint8_t _pad[3];
 };
-
+static_assert(alignof(SVMNodeRadialTiling) <= alignof(uint));
 static_assert(sizeof(SVMNodeRadialTiling) % sizeof(uint) == 0);
 
 /* NODE_TEXTURE_MAPPING, followed by Transform data in the bytecode. */
@@ -1280,7 +1280,7 @@ struct SVMNodeTextureMapping {
   SVMStackOffset out_offset;
   uint8_t _pad[2];
 };
-
+static_assert(alignof(SVMNodeTextureMapping) <= alignof(uint));
 static_assert(sizeof(SVMNodeTextureMapping) % sizeof(uint) == 0);
 
 /* NODE_MIN_MAX */
@@ -1291,7 +1291,7 @@ struct SVMNodeMinMax {
   packed_float3 mn;
   packed_float3 mx;
 };
-
+static_assert(alignof(SVMNodeMinMax) <= alignof(uint));
 static_assert(sizeof(SVMNodeMinMax) % sizeof(uint) == 0);
 
 CCL_NAMESPACE_END
