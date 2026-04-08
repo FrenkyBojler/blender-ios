@@ -185,17 +185,6 @@ void VKCommandBuilder::groups_extract_barriers(VKRenderGraph &render_graph,
       }
     }
     if (rendering_active) {
-      /* Suspend layered image tracker. When active the next group will always be a compute/data
-       * transfer group.
-       *
-       * Any specific layout changes needs to be reverted, so the global resource state tracker
-       * reflects the correct state. These barriers needs to be added as node post barriers.
-       */
-      Barrier barrier = {};
-      image_tracker.suspend(barrier, use_local_read);
-      if (!barrier.is_empty()) {
-        post_barriers.append(barrier);
-      }
       rendering_active = false;
     }
 

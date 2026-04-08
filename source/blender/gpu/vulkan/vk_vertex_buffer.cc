@@ -83,9 +83,8 @@ void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, cons
   else {
     VKContext &context = *VKContext::get();
     VKStagingBuffer staging_buffer(
-        buffer_, VKStagingBuffer::Direction::HostToDevice, start_offset, data_size_in_bytes);
-    memcpy(staging_buffer.host_buffer_get().mapped_memory_get(), data, data_size_in_bytes);
-    staging_buffer.copy_to_device(context);
+        buffer_, start_offset, data_size_in_bytes);
+    staging_buffer.copy_to_device(context, data);
   }
 }
 
@@ -99,11 +98,10 @@ void VKVertexBuffer::read(void *data) const
 
   /* Allocating huge buffers can fail, in that case we skip copying data. */
   if (buffer_.is_allocated()) {
-    VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::DeviceToHost);
-    VKBuffer &buffer = staging_buffer.host_buffer_get();
-    if (buffer.is_mapped()) {
+    VKStagingBuffer staging_buffer(buffer_);
+    if (staging_buffer.is_mapped()) {
       staging_buffer.copy_from_device(context);
-      staging_buffer.host_buffer_get().read(context, data);
+      staging_buffer.read(data);
     }
     else {
       CLOG_ERROR(
@@ -154,11 +152,9 @@ void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
 void VKVertexBuffer::upload_data_via_staging_buffer(VKContext &context)
 {
   VKStagingBuffer staging_buffer(
-      buffer_, VKStagingBuffer::Direction::HostToDevice, 0, this->size_used_get());
-  VKBuffer &buffer = staging_buffer.host_buffer_get();
-  if (buffer.is_allocated()) {
-    upload_data_direct(buffer);
-    staging_buffer.copy_to_device(context);
+      buffer_, 0, this->size_used_get());
+  if (staging_buffer.is_allocated()) {
+    staging_buffer.copy_to_device(context, data_);
   }
   else {
     CLOG_ERROR(&LOG,

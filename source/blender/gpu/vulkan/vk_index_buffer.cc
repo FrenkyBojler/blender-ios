@@ -45,11 +45,10 @@ void VKIndexBuffer::ensure_updated()
   }
   else {
     VKContext &context = *VKContext::get();
-    VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::HostToDevice);
-    VKBuffer &buffer = staging_buffer.host_buffer_get();
-    if (buffer.is_allocated()) {
-      staging_buffer.host_buffer_get().update_immediately(data_);
-      staging_buffer.copy_to_device(context);
+    VKStagingBuffer staging_buffer(buffer_);
+
+    if (staging_buffer.is_allocated()) {
+      staging_buffer.copy_to_device(context, data_);
     }
     else {
       buffer_.clear(context, 0u);
@@ -85,11 +84,11 @@ void VKIndexBuffer::bind_as_ssbo(uint binding)
 void VKIndexBuffer::read(uint32_t *data) const
 {
   VKContext &context = *VKContext::get();
-  VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::DeviceToHost);
-  VKBuffer &buffer = staging_buffer.host_buffer_get();
-  if (buffer.is_mapped()) {
+  VKStagingBuffer staging_buffer(buffer_);
+
+  if (staging_buffer.is_mapped()) {
     staging_buffer.copy_from_device(context);
-    staging_buffer.host_buffer_get().read(context, data);
+    staging_buffer.read(data);
   }
   else {
     CLOG_ERROR(&LOG,
