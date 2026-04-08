@@ -78,15 +78,15 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
     return;
   }
   /* Parameter interval between consecutive knots. */
-  Vector<float> h(n - 1);
+  Array<float> h(n - 1);
   /* Forward elimination variables. */
-  Vector<float> l(n);
-  Vector<float> u(n);
-  Vector<float> z(n);
+  Array<float> l(n);
+  Array<float> u(n);
+  Array<float> z(n);
   /* The final polynomial coefficients. */
-  Vector<float> c(n);
-  Vector<float> b(n);
-  Vector<float> d(n);
+  Array<float> c(n);
+  Array<float> b(n);
+  Array<float> d(n);
 
   /* Calculate the length of each segment between consecutive knots. */
   for (const int i : IndexRange(n - 1)) {
