@@ -3055,7 +3055,7 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
   PropertyRNA *prop;
 
   /* Identifiers */
-  ot->name = "Remove F-Curve Modifier(s)";
+  ot->name = "Delete F-Curve Modifier(s)";
   ot->idname = "GRAPH_OT_fmodifier_delete";
   ot->description = "Remove Modifier(s) from the active/selected F-Curves";
 
