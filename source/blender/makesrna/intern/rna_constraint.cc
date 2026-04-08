@@ -537,11 +537,6 @@ static void rna_ConstraintTarget_dependency_update(Main *bmain, Scene * /*scene*
 static void rna_Constraint_influence_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   Object *ob = id_cast<Object *>(ptr->owner_id);
-
-  if (ob->pose) {
-    ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK);
-  }
-
   rna_Constraint_update(bmain, scene, ptr);
 }
 
