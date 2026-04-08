@@ -300,11 +300,11 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
     IDsSelectedData selected{};
 
     outliner_tree_traverse(space_outliner,
-                            &space_outliner->tree,
-                            0,
-                            TSE_SELECTED,
-                            outliner_collect_selected_objects,
-                            &selected);
+                           &space_outliner->tree,
+                           0,
+                           TSE_SELECTED,
+                           outliner_collect_selected_objects,
+                           &selected);
 
     for (LinkData &link : selected.selected_array) {
       TreeElement *te = static_cast<TreeElement *>(link.data);
@@ -324,9 +324,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus collection_new_invoke(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static wmOperatorStatus collection_new_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (event->modifier == KM_CTRL) {
     RNA_boolean_set(op->ptr, "group_selected_objects", true);
@@ -339,7 +337,8 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
   /* identifiers */
   ot->name = "New Collection";
   ot->idname = "OUTLINER_OT_collection_new";
-  ot->description = "Add a new collection inside selected collection (Ctrl to group selected objects)";
+  ot->description =
+      "Add a new collection inside selected collection (Ctrl to group selected objects)";
 
   /* API callbacks. */
   ot->invoke = collection_new_invoke;
@@ -354,8 +353,11 @@ void OUTLINER_OT_collection_new(wmOperatorType *ot)
       ot->srna, "nested", true, "Nested", "Add as child of selected collection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  prop = RNA_def_boolean(
-      ot->srna, "group_selected_objects", false, "Group Selected Objects", "Add selected objects to the new collection");
+  prop = RNA_def_boolean(ot->srna,
+                         "group_selected_objects",
+                         false,
+                         "Group Selected Objects",
+                         "Add selected objects to the new collection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
