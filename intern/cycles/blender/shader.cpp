@@ -1563,19 +1563,20 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
    * This tracking ensures that the inputs of the AOV output nodes are connected when needed,
    * disconnected when not, and that the offsets, which also depend on the data types, are correct.
    * Storing the new AOV data must take place even if no shaders are affected so the new data
-   * is available as the old data when the next view layer is rendered, but the check can be
+   * is available as the old data when the next view layer is rendered, but the check could be
    * deferred.
    */
-  blender::Vector<std::pair<std::string, int>> new_view_layer_aovs;
+  blender::Vector<std::pair<std::string, int>> new_shader_view_layer_aovs;
   /* Store info on the new AOVs. */
   blender::ViewLayer *const b_view_layer = DEG_get_evaluated_view_layer(&b_depsgraph);
   for (blender::ViewLayerAOV &b_aov : b_view_layer->aovs) {
     if ((b_aov.flag & blender::AOV_CONFLICT) != 0) {
       continue;
     }
-    new_view_layer_aovs.append(std::pair<std::string, int>(b_aov.name, b_aov.type));
+    new_shader_view_layer_aovs.append({b_aov.name, b_aov.type});
   }
-  bool aov_changes_between_view_layers_checked = false, aovs_changed_between_view_layers = false;
+  const bool aovs_changed_between_view_layers = new_shader_view_layer_aovs !=
+                                                shader_view_layer_aovs;
 
   blender::DEGIDIterData data{};
   data.graph = &b_depsgraph;
@@ -1594,20 +1595,9 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
     Shader *shader;
 
     /* test if we need to sync */
-    bool needs_resync = shader_map.add_or_update(&shader, &b_mat.id) || update_all ||
-                        scene_attr_needs_recalc(shader, b_depsgraph);
-    /* Consecutive view layer AOV equality check */
-    if (!needs_resync && shader->has_aov_output_node) {
-      if (!aov_changes_between_view_layers_checked) {
-        aovs_changed_between_view_layers = new_view_layer_aovs != old_view_layer_aovs;
-        aov_changes_between_view_layers_checked = true;
-      }
-      if (aovs_changed_between_view_layers) {
-        needs_resync = true;
-      }
-    }
-
-    if (needs_resync) {
+    if (shader_map.add_or_update(&shader, &b_mat.id) || update_all ||
+        scene_attr_needs_recalc(shader, b_depsgraph) || aovs_changed_between_view_layers)
+    {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
       shader->name = BKE_id_name(b_mat.id);
@@ -1669,7 +1659,7 @@ void BlenderSync::sync_materials(blender::Depsgraph &b_depsgraph, bool update_al
   pool.wait_work();
 
   /* Info on the new AOVs becomes info on the old AOVs. */
-  old_view_layer_aovs = std::move(new_view_layer_aovs);
+  shader_view_layer_aovs = std::move(new_shader_view_layer_aovs);
 
   for (Shader *shader : updated_shaders) {
     shader->tag_update(scene);
