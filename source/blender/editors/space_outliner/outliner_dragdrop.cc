@@ -1318,7 +1318,9 @@ static std::string collection_drop_tooltip(bContext *C,
         wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
         const bool is_object = (GS(drag_id->id->name) == ID_OB);
         if (is_object) {
-          return TIP_("Move inside collection (Ctrl to link, Shift to parent,\n Ctrl + Shift to move children objects)");
+          return TIP_(
+              "Move inside collection (Ctrl to link, Shift to parent,\n Ctrl + Shift to move "
+              "children objects)");
         }
         return TIP_("Move inside collection (Ctrl to link)");
       }
