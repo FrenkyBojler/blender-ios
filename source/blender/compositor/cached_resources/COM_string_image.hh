@@ -21,6 +21,20 @@ namespace blender::compositor {
 
 class Context;
 
+enum class HorizontalAlignment : uint8_t {
+  Left = 0,
+  Center = 1,
+  Right = 2,
+};
+
+enum class VerticalAlignment : uint8_t {
+  Top = 0,
+  TopBaseline = 1,
+  Middle = 2,
+  BottomBaseline = 3,
+  Bottom = 4,
+};
+
 /* ------------------------------------------------------------------------------------------------
  * String Image Key.
  */
@@ -29,15 +43,15 @@ class StringImageKey {
   const std::string string;
   const VFont *font;
   const float size;
-  const CMPNodeStringToImageHorizontalAlignment horizontal_alignment;
-  const CMPNodeStringToImageVerticalAlignment vertical_alignment;
+  const HorizontalAlignment horizontal_alignment;
+  const VerticalAlignment vertical_alignment;
   const std::optional<int> wrap_width;
 
   StringImageKey(const std::string string,
                  const VFont *font,
                  const float size,
-                 const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-                 const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                 const HorizontalAlignment horizontal_alignment,
+                 const VerticalAlignment vertical_alignment,
                  const std::optional<int> wrap_width);
 
   uint64_t hash() const;
@@ -57,8 +71,8 @@ class StringImage : public CachedResource {
               const std::string string,
               const VFont *font,
               const float size,
-              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-              const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+              const HorizontalAlignment horizontal_alignment,
+              const VerticalAlignment vertical_alignment,
               const std::optional<int> wrap_width);
 
   ~StringImage();
@@ -82,8 +96,8 @@ class StringImageContainer : CachedResourceContainer {
               const std::string string,
               const VFont *font,
               const float size,
-              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-              const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+              const HorizontalAlignment horizontal_alignment,
+              const VerticalAlignment vertical_alignment,
               const std::optional<int> wrap_width);
 };
 

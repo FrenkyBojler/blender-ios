@@ -36,8 +36,8 @@ namespace blender::compositor {
 StringImageKey::StringImageKey(const std::string string,
                                const VFont *font,
                                const float size,
-                               const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-                               const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                               const HorizontalAlignment horizontal_alignment,
+                               const VerticalAlignment vertical_alignment,
                                const std::optional<int> wrap_width)
     : string(string),
       font(font),
@@ -59,6 +59,8 @@ uint64_t StringImageKey::hash() const
  * String Image.
  */
 
+/* Loads a BLF font from the given font ID and return its identifier. Unloading the font is the
+ * responsibility of the caller. */
 static int load_font(const VFont *font)
 {
   if (!font || BKE_vfont_is_builtin(font)) {
@@ -78,18 +80,22 @@ static int load_font(const VFont *font)
   return BLF_load_unique(file_path);
 }
 
-static float compute_draw_horizontal_offset(
-    const int start_offset,
-    const int line_width,
-    const int total_width,
-    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+/* Computes the horizontal position in pixels from which the line with the given width should be
+ * drawn. The BLF module draws from the left most edge of the line. The start offset is an offset
+ * that is intrinsic to the used font and thus should be canceled here to draw right from the edge
+ * of the image. The total width is the total width of the image and is the maximum width of all
+ * lines. */
+static float compute_draw_horizontal_position(const int start_offset,
+                                              const int line_width,
+                                              const int total_width,
+                                              const HorizontalAlignment alignment)
 {
-  switch (horizontal_alignment) {
-    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT:
+  switch (alignment) {
+    case HorizontalAlignment::Left:
       return float(-start_offset);
-    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER:
+    case HorizontalAlignment::Center:
       return -start_offset + (total_width - line_width) / 2.0f;
-    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT:
+    case HorizontalAlignment::Right:
       return float(-start_offset + total_width - line_width);
   }
 
@@ -97,17 +103,31 @@ static float compute_draw_horizontal_offset(
   return float(-start_offset);
 }
 
-static float compute_horizontal_offset(
-    const int start_offset,
-    const int total_width,
-    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+/* Computes the vertical position in pixels from which the line with the given index should be
+ * drawn. Assuming there are the given number of lines with each having the given height and
+ * descender. The BLF module draws from the baseline of the line starting from the lower left
+ * origin of the image, therefore, we need to subtract the negative descender such that the line is
+ * fully drawn in the image. */
+static float compute_draw_vertical_position(const int lines_count,
+                                            const int line_index,
+                                            const int line_height,
+                                            const int descender)
 {
-  switch (horizontal_alignment) {
-    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT:
+  return (lines_count - 1 - line_index) * line_height - float(descender);
+}
+
+/* Computes the horizontal offset in pixels depending on the alignment. We also restore the start
+ * offset that was canceled during drawing, see compute_draw_horizontal_position. */
+static float compute_horizontal_offset(const int start_offset,
+                                       const int total_width,
+                                       const HorizontalAlignment alignment)
+{
+  switch (alignment) {
+    case HorizontalAlignment::Left:
       return start_offset + total_width / 2.0f;
-    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER:
+    case HorizontalAlignment::Center:
       return float(start_offset);
-    case CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT:
+    case HorizontalAlignment::Right:
       return start_offset - total_width / 2.0f;
   }
 
@@ -115,22 +135,23 @@ static float compute_horizontal_offset(
   return float(start_offset);
 }
 
-static float compute_vertical_offset(
-    const int total_height,
-    const int line_height,
-    const int descender,
-    const CMPNodeStringToImageVerticalAlignment vertical_alignment)
+/* Computes the vertical offset in pixels depending on the alignment. Assuming the image has the
+ * given total height, the lines have the given height and negative descender. */
+static float compute_vertical_offset(const int total_height,
+                                     const int line_height,
+                                     const int descender,
+                                     const VerticalAlignment alignment)
 {
-  switch (vertical_alignment) {
-    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP:
+  switch (alignment) {
+    case VerticalAlignment::Top:
       return -total_height / 2.0f;
-    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE:
+    case VerticalAlignment::TopBaseline:
       return -total_height / 2.0f + line_height + descender;
-    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE:
+    case VerticalAlignment::Middle:
       return 0.0f;
-    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE:
+    case VerticalAlignment::BottomBaseline:
       return total_height / 2.0f + descender;
-    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM:
+    case VerticalAlignment::Bottom:
       return total_height / 2.0f;
   }
 
@@ -142,19 +163,17 @@ StringImage::StringImage(Context &context,
                          const std::string string,
                          const VFont *font,
                          const float size,
-                         const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-                         const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                         const HorizontalAlignment horizontal_alignment,
+                         const VerticalAlignment vertical_alignment,
                          const std::optional<int> wrap_width)
     : result(context.create_result(ResultType::Color))
 {
   if (string.empty() || !font || size <= 0.0f) {
-    this->result.allocate_invalid();
     return;
   }
 
   const int font_identifier = load_font(font);
   if (font_identifier == -1) {
-    this->result.allocate_invalid();
     return;
   }
   BLI_SCOPED_DEFER([&]() { BLF_unload_id(font_identifier); });
@@ -164,6 +183,8 @@ StringImage::StringImage(Context &context,
   Vector<StringRef> lines = BLF_string_wrap(
       font_identifier, string, wrap_width.value_or(-1), BLFWrapMode::Typographical);
 
+  /* Compute the width of all lines as well as their starting offset. The starting offset will be
+   * zero in most fonts, but some special fonts might start before or after the zero point. */
   int total_width = 0;
   Array<int> line_widths(lines.size());
   int start_offset = std::numeric_limits<int>::max();
@@ -178,6 +199,7 @@ StringImage::StringImage(Context &context,
   const int line_height = BLF_height_max(font_identifier);
   const int total_height = line_height * lines.size();
 
+  /* Fill the background with alpha since the draws function does not initialize the background. */
   this->result.allocate_texture(int2(total_width, total_height), false, ResultStorageType::CPU);
   parallel_for(this->result.domain().data_size,
                [&](const int2 texel) { this->result.store_pixel(texel, Color(float4(0.0f))); });
@@ -190,17 +212,20 @@ StringImage::StringImage(Context &context,
              total_height,
              nullptr);
 
+  /* Draw each of lines in the appropriate position. */
   const int descender = BLF_descender(font_identifier);
   for (const int64_t i : lines.index_range()) {
-    const float vertical_offset = (lines.size() - 1 - i) * line_height - float(descender);
-    const float horizontal_offset = compute_draw_horizontal_offset(
+    const float vertical_position = compute_draw_vertical_position(
+        lines.size(), i, line_height, descender);
+    const float horizontal_position = compute_draw_horizontal_position(
         start_offset, line_widths[i], total_width, horizontal_alignment);
-    BLF_position(font_identifier, horizontal_offset, vertical_offset, 0.0f);
+    BLF_position(font_identifier, horizontal_position, vertical_position, 0.0f);
     BLF_draw_buffer(font_identifier, lines[i].data(), lines[i].size());
   }
 
   BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, nullptr);
 
+  /* Move the image to account for the requested alignment. */
   const float horizontal_offset = compute_horizontal_offset(
       start_offset, total_width, horizontal_alignment);
   const float vertical_offset = compute_vertical_offset(
@@ -235,14 +260,13 @@ void StringImageContainer::reset()
   }
 }
 
-Result &StringImageContainer::get(
-    Context &context,
-    const std::string string,
-    const VFont *font,
-    const float size,
-    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-    const CMPNodeStringToImageVerticalAlignment vertical_alignment,
-    const std::optional<int> wrap_width)
+Result &StringImageContainer::get(Context &context,
+                                  const std::string string,
+                                  const VFont *font,
+                                  const float size,
+                                  const HorizontalAlignment horizontal_alignment,
+                                  const VerticalAlignment vertical_alignment,
+                                  const std::optional<int> wrap_width)
 {
   const StringImageKey key(
       string, font, size, horizontal_alignment, vertical_alignment, wrap_width);
