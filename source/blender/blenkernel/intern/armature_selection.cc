@@ -67,7 +67,7 @@ BoneNameSet BKE_pose_channel_find_selected_names(const Object *object)
   }
 
   BoneNameSet selected_bone_names;
-  const bArmature *armature = reinterpret_cast<const bArmature *>(object->data);
+  const bArmature *armature = BKE_armature_from_object(const_cast<Object *>(object));
   /* Since there is a pose, there should be an armature. */
   BLI_assert(armature);
   for (bPoseChannel &pose_bone : object->pose->chanbase) {
