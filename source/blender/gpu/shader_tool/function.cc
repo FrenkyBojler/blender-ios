@@ -148,8 +148,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "instance_index" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(attributes[1],
-                        "[[instance_index]] is only supported in vertex functions.");
+          report_error(attributes[1], "[[instance_index]] is only supported in vertex functions.");
         }
         else if (!is_const || srt_type != "int") {
           report_error(type, "[[instance_index]] must be declared as `const int`.");
