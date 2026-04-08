@@ -4227,16 +4227,16 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
     default:
       break;
   }
-  if (STREQ(node.idname, "GeometryNodeInputFont")) {
+  if (node.is_type("GeometryNodeInputFont")) {
     return &node.id;
   }
-  if (STREQ(node.idname, "FunctionNodeInputMenu")) {
+  if (node.is_type("FunctionNodeInputMenu")) {
     return &reinterpret_cast<NodeInputMenu *>(node.storage)->value;
   }
-  if (STREQ(node.idname, "ShaderNodeRGB")) {
+  if (node.is_type("ShaderNodeRGB")) {
     return &node.output_socket(0).default_value_typed<bNodeSocketValueRGBA>()->value;
   }
-  if (STREQ(node.idname, "ShaderNodeValue")) {
+  if (node.is_type("ShaderNodeValue")) {
     return &node.output_socket(0).default_value_typed<bNodeSocketValueFloat>()->value;
   }
 
