@@ -37,18 +37,22 @@ StringImageKey::StringImageKey(const std::string string,
                                const VFont *font,
                                const float size,
                                const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-                               const CMPNodeStringToImageVerticalAlignment vertical_alignment)
+                               const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                               const std::optional<int> wrap_width)
     : string(string),
       font(font),
       size(size),
       horizontal_alignment(horizontal_alignment),
-      vertical_alignment(vertical_alignment)
+      vertical_alignment(vertical_alignment),
+      wrap_width(wrap_width)
 {
 }
 
 uint64_t StringImageKey::hash() const
 {
-  return get_default_hash(string, font, size, horizontal_alignment, vertical_alignment);
+  return get_default_hash(
+      get_default_hash(string, font, size, horizontal_alignment, vertical_alignment),
+      wrap_width.value_or(-1));
 }
 
 /* --------------------------------------------------------------------
@@ -139,7 +143,8 @@ StringImage::StringImage(Context &context,
                          const VFont *font,
                          const float size,
                          const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-                         const CMPNodeStringToImageVerticalAlignment vertical_alignment)
+                         const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                         const std::optional<int> wrap_width)
     : result(context.create_result(ResultType::Color))
 {
   if (string.empty() || !font || size <= 0.0f) {
@@ -157,7 +162,7 @@ StringImage::StringImage(Context &context,
   BLF_size(font_identifier, size);
 
   Vector<StringRef> lines = BLF_string_wrap(
-      font_identifier, string, -1, BLFWrapMode::Typographical);
+      font_identifier, string, wrap_width.value_or(-1), BLFWrapMode::Typographical);
 
   int total_width = 0;
   Array<int> line_widths(lines.size());
@@ -186,7 +191,6 @@ StringImage::StringImage(Context &context,
              nullptr);
 
   const int descender = BLF_descender(font_identifier);
-  printf("%i\n", descender);
   for (const int64_t i : lines.index_range()) {
     const float vertical_offset = (lines.size() - 1 - i) * line_height - float(descender);
     const float horizontal_offset = compute_draw_horizontal_offset(
@@ -237,13 +241,15 @@ Result &StringImageContainer::get(
     const VFont *font,
     const float size,
     const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-    const CMPNodeStringToImageVerticalAlignment vertical_alignment)
+    const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+    const std::optional<int> wrap_width)
 {
-  const StringImageKey key(string, font, size, horizontal_alignment, vertical_alignment);
+  const StringImageKey key(
+      string, font, size, horizontal_alignment, vertical_alignment, wrap_width);
 
   auto &string_image = *map_.lookup_or_add_cb(key, [&]() {
     return std::make_unique<StringImage>(
-        context, string, font, size, horizontal_alignment, vertical_alignment);
+        context, string, font, size, horizontal_alignment, vertical_alignment, wrap_width);
   });
 
   string_image.needed = true;

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "BLI_map.hh"
@@ -30,12 +31,14 @@ class StringImageKey {
   const float size;
   const CMPNodeStringToImageHorizontalAlignment horizontal_alignment;
   const CMPNodeStringToImageVerticalAlignment vertical_alignment;
+  const std::optional<int> wrap_width;
 
   StringImageKey(const std::string string,
                  const VFont *font,
                  const float size,
                  const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-                 const CMPNodeStringToImageVerticalAlignment vertical_alignment);
+                 const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                 const std::optional<int> wrap_width);
 
   uint64_t hash() const;
   friend bool operator==(const StringImageKey &a, const StringImageKey &b) = default;
@@ -55,7 +58,8 @@ class StringImage : public CachedResource {
               const VFont *font,
               const float size,
               const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-              const CMPNodeStringToImageVerticalAlignment vertical_alignment);
+              const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+              const std::optional<int> wrap_width);
 
   ~StringImage();
 };
@@ -79,7 +83,8 @@ class StringImageContainer : CachedResourceContainer {
               const VFont *font,
               const float size,
               const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
-              const CMPNodeStringToImageVerticalAlignment vertical_alignment);
+              const CMPNodeStringToImageVerticalAlignment vertical_alignment,
+              const std::optional<int> wrap_width);
 };
 
 }  // namespace blender::compositor

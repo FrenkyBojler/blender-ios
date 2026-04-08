@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <optional>
+
 #include "DNA_vfont_types.h"
 
 #include "BKE_vfont.hh"
@@ -76,16 +78,35 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value_fn(
           [](const bNode & /*node*/) { return id_cast<ID *>(BKE_vfont_builtin_ensure()); })
       .optional_label();
-  b.add_input<decl::Float>("Size"_ustr).default_value(256.0f).subtype(PROP_UNSIGNED).min(0.0f);
+  b.add_input<decl::Float>("Size"_ustr)
+      .default_value(256.0f)
+      .subtype(PROP_UNSIGNED)
+      .min(0.0f)
+      .description("The height of each line in pixels");
 
   {
-    auto &p = b.add_panel("Alignment"_ustr).default_closed(true);
-    p.add_input<decl::Menu>("Horizontal Alignment"_ustr)
+    PanelDeclarationBuilder &panel = b.add_panel("Alignment"_ustr).default_closed(true);
+    panel.add_input<decl::Menu>("Horizontal Alignment"_ustr)
         .static_items(rna_node_compositor_string_to_image_horizontal_alignment_items)
         .optional_label();
-    p.add_input<decl::Menu>("Vertical Alignment"_ustr)
+    panel.add_input<decl::Menu>("Vertical Alignment"_ustr)
         .static_items(rna_node_compositor_string_to_image_vertical_alignment_items)
         .optional_label();
+  }
+
+  {
+    PanelDeclarationBuilder &panel = b.add_panel("Wrap"_ustr).default_closed(true);
+    panel.add_input<decl::Bool>("Wrap"_ustr)
+        .default_value(false)
+        .panel_toggle()
+        .description("Wrap text into new lines if it exceeds a specific width");
+    panel.add_input<decl::Int>("Width"_ustr, "Wrap Width"_ustr)
+        .default_value(2048)
+        .min(0)
+        .subtype(PROP_UNSIGNED)
+        .description(
+            "The maximum width of each line in pixels. Lines with larger width will be wrapped "
+            "into new lines");
   }
 }
 
@@ -106,10 +127,26 @@ class StringToImageOperation : public NodeOperation {
         this->get_input("Vertical Alignment").get_single_value_default<MenuValue>().value);
 
     const Result &string_image = this->context().cache_manager().string_images.get(
-        this->context(), string, font, size, horizontal_alignment, vertical_alignment);
+        this->context(),
+        string,
+        font,
+        size,
+        horizontal_alignment,
+        vertical_alignment,
+        this->get_wrap_width());
 
     Result &output = this->get_result("Image");
     output.wrap_external(string_image);
+  }
+
+  std::optional<int> get_wrap_width()
+  {
+    const bool use_wrap = this->get_input("Wrap").get_single_value_default<bool>();
+    if (!use_wrap) {
+      return std::nullopt;
+    }
+
+    return this->get_input("Wrap Width").get_single_value_default<int>();
   }
 };
 
