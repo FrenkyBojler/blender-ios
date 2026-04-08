@@ -34,12 +34,12 @@ static const EnumPropertyItem rna_node_compositor_string_to_image_horizontal_ali
 };
 
 static const EnumPropertyItem rna_node_compositor_string_to_image_vertical_alignment_items[] = {
-    {CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE,
+    {CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP,
      "TOP",
      ICON_ALIGN_TOP,
      "Top",
      "Align text to the top"},
-    {CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP,
+    {CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE,
      "TOP_BASELINE",
      ICON_ALIGN_TOP,
      "Top Baseline",
@@ -106,7 +106,7 @@ class StringToImageOperation : public NodeOperation {
         this->get_input("Vertical Alignment").get_single_value_default<MenuValue>().value);
 
     const Result &string_image = this->context().cache_manager().string_images.get(
-        this->context(), string, font, size, horizontal_alignment);
+        this->context(), string, font, size, horizontal_alignment, vertical_alignment);
 
     Result &output = this->get_result("Image");
     output.wrap_external(string_image);

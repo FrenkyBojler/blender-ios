@@ -29,11 +29,13 @@ class StringImageKey {
   const VFont *font;
   const float size;
   const CMPNodeStringToImageHorizontalAlignment horizontal_alignment;
+  const CMPNodeStringToImageVerticalAlignment vertical_alignment;
 
   StringImageKey(const std::string string,
                  const VFont *font,
                  const float size,
-                 const CMPNodeStringToImageHorizontalAlignment horizontal_alignment);
+                 const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+                 const CMPNodeStringToImageVerticalAlignment vertical_alignment);
 
   uint64_t hash() const;
   friend bool operator==(const StringImageKey &a, const StringImageKey &b) = default;
@@ -52,7 +54,8 @@ class StringImage : public CachedResource {
               const std::string string,
               const VFont *font,
               const float size,
-              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment);
+              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+              const CMPNodeStringToImageVerticalAlignment vertical_alignment);
 
   ~StringImage();
 };
@@ -75,7 +78,8 @@ class StringImageContainer : CachedResourceContainer {
               const std::string string,
               const VFont *font,
               const float size,
-              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment);
+              const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+              const CMPNodeStringToImageVerticalAlignment vertical_alignment);
 };
 
 }  // namespace blender::compositor

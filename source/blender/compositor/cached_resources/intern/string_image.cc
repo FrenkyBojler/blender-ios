@@ -36,14 +36,19 @@ namespace blender::compositor {
 StringImageKey::StringImageKey(const std::string string,
                                const VFont *font,
                                const float size,
-                               const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
-    : string(string), font(font), size(size), horizontal_alignment(horizontal_alignment)
+                               const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+                               const CMPNodeStringToImageVerticalAlignment vertical_alignment)
+    : string(string),
+      font(font),
+      size(size),
+      horizontal_alignment(horizontal_alignment),
+      vertical_alignment(vertical_alignment)
 {
 }
 
 uint64_t StringImageKey::hash() const
 {
-  return get_default_hash(string, font, size, horizontal_alignment);
+  return get_default_hash(string, font, size, horizontal_alignment, vertical_alignment);
 }
 
 /* --------------------------------------------------------------------
@@ -106,11 +111,35 @@ static float compute_horizontal_offset(
   return float(start_offset);
 }
 
+static float compute_vertical_offset(
+    const int total_height,
+    const int line_height,
+    const int descender,
+    const CMPNodeStringToImageVerticalAlignment vertical_alignment)
+{
+  switch (vertical_alignment) {
+    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP:
+      return -total_height / 2.0f;
+    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE:
+      return -total_height / 2.0f + line_height + descender;
+    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE:
+      return 0.0f;
+    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE:
+      return total_height / 2.0f + descender;
+    case CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM:
+      return total_height / 2.0f;
+  }
+
+  BLI_assert_unreachable();
+  return float(descender);
+}
+
 StringImage::StringImage(Context &context,
                          const std::string string,
                          const VFont *font,
                          const float size,
-                         const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+                         const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+                         const CMPNodeStringToImageVerticalAlignment vertical_alignment)
     : result(context.create_result(ResultType::Color))
 {
   if (string.empty() || !font || size <= 0.0f) {
@@ -142,9 +171,9 @@ StringImage::StringImage(Context &context,
   }
 
   const int line_height = BLF_height_max(font_identifier);
-  const int lines_height = line_height * lines.size();
+  const int total_height = line_height * lines.size();
 
-  this->result.allocate_texture(int2(total_width, lines_height), false, ResultStorageType::CPU);
+  this->result.allocate_texture(int2(total_width, total_height), false, ResultStorageType::CPU);
   parallel_for(this->result.domain().data_size,
                [&](const int2 texel) { this->result.store_pixel(texel, Color(float4(0.0f))); });
 
@@ -153,10 +182,11 @@ StringImage::StringImage(Context &context,
              static_cast<float *>(this->result.cpu_data().data()),
              nullptr,
              total_width,
-             lines_height,
+             total_height,
              nullptr);
 
   const int descender = BLF_descender(font_identifier);
+  printf("%i\n", descender);
   for (const int64_t i : lines.index_range()) {
     const float vertical_offset = (lines.size() - 1 - i) * line_height - float(descender);
     const float horizontal_offset = compute_draw_horizontal_offset(
@@ -167,8 +197,11 @@ StringImage::StringImage(Context &context,
 
   BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, nullptr);
 
-  this->result.domain().transformation.location() = float2(
-      compute_horizontal_offset(start_offset, total_width, horizontal_alignment), descender);
+  const float horizontal_offset = compute_horizontal_offset(
+      start_offset, total_width, horizontal_alignment);
+  const float vertical_offset = compute_vertical_offset(
+      total_height, line_height, descender, vertical_alignment);
+  this->result.domain().transformation.location() = float2(horizontal_offset, vertical_offset);
 
   if (context.use_gpu()) {
     const Result gpu_result = this->result.upload_to_gpu(false);
@@ -203,12 +236,14 @@ Result &StringImageContainer::get(
     const std::string string,
     const VFont *font,
     const float size,
-    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+    const CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+    const CMPNodeStringToImageVerticalAlignment vertical_alignment)
 {
-  const StringImageKey key(string, font, size, horizontal_alignment);
+  const StringImageKey key(string, font, size, horizontal_alignment, vertical_alignment);
 
   auto &string_image = *map_.lookup_or_add_cb(key, [&]() {
-    return std::make_unique<StringImage>(context, string, font, size, horizontal_alignment);
+    return std::make_unique<StringImage>(
+        context, string, font, size, horizontal_alignment, vertical_alignment);
   });
 
   string_image.needed = true;
