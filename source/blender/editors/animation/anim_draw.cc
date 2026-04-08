@@ -31,6 +31,7 @@
 #include "BKE_global.hh"
 #include "BKE_mask.hh"
 #include "BKE_nla.hh"
+#include "BKE_unit.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
@@ -652,23 +653,62 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
   const PropertyUnit prop_unit = PropertyUnit(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)));
 
+  const auto user_unit_scalar_get = [&](const int unit_type, const char user_unit) {
+    const void *usys;
+    int len;
+    BKE_unit_system_get(scene->unit.system, unit_type, &usys, &len);
+    if (usys == nullptr || len == 0) {
+      return 1.0;
+    }
+
+    int i = int(user_unit);
+    if (i == USER_UNIT_ADAPTIVE) {
+      i = BKE_unit_base_get(usys);
+    }
+
+    return BKE_unit_scalar_get(usys, i);
+  };
+
+  double unit_scaler = 1.0f;
+
   switch (prop_unit) {
     case PROP_UNIT_ROTATION:
       if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) {
-        return 1.0f;
+        unit_scaler = 1.0f;
       }
+      else {
+        unit_scaler = DEG2RADF(1.0f);
+      }
+      break;
 
-      if (flag & ANIM_UNITCONV_RESTORE) {
-        return DEG2RADF(1.0f);
-      }
-      return RAD2DEGF(1.0f);
+    case PROP_UNIT_LENGTH:
+      unit_scaler = BKE_unit_value_scale(
+          scene->unit,
+          B_UNIT_LENGTH,
+          user_unit_scalar_get(B_UNIT_LENGTH, scene->unit.length_unit));
+      break;
+
+    case PROP_UNIT_MASS:
+      unit_scaler = BKE_unit_value_scale(
+          scene->unit, B_UNIT_MASS, user_unit_scalar_get(B_UNIT_MASS, scene->unit.mass_unit));
+      break;
+    case PROP_UNIT_TIME:
+      unit_scaler = user_unit_scalar_get(B_UNIT_TIME, scene->unit.time_unit);
+      break;
+
+    case PROP_UNIT_TEMPERATURE:
+      unit_scaler = user_unit_scalar_get(B_UNIT_TEMPERATURE, scene->unit.temperature_unit);
+      break;
 
     default:
       /* TODO: other rotation types here as necessary */
       break;
   }
 
-  return 1.0f;
+  if (flag & ANIM_UNITCONV_RESTORE) {
+    return float(unit_scaler);
+  }
+  return float(1.0 / unit_scaler);
 }
 
 static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra)
