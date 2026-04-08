@@ -7,3 +7,4 @@ Referenced by commit dd4df13e3847f7134e416ffd142fb623210b55e1, Fix #150081: Regr
 Referenced by pull request #150892, Fix #150131: Selection state of edit bone root/tip not preserved
 Referenced by commit 6058dbe4be514b19f24aa9206cebf6621d17cd10, Fix #150131: Selection state of edit bone root/tip not preserved
 Referenced by pull request #151128, Fix #150131: Selection state of edit bone root/tip not preserved
+Referenced by pull request #157039, Fix #156995: Pose library applies to bones hidden by collection
