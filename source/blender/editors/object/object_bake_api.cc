@@ -1931,7 +1931,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 
   bkr->result = OPERATOR_CANCELLED;
 
-  bkr->render = RE_NewSceneRender(bkr->scene);
+  bkr->render = RE_NewSceneRender(bkr->scene, false);
 
   /* XXX hack to force saving to always be internal. Whether (and how) to support
    * external saving will be addressed later */

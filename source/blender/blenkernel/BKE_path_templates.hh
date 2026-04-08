@@ -22,7 +22,7 @@
  * \code{.cc}
  * VariableMap template_variables;
  * BKE_add_template_variables_general(template_variables, owner_id);
- * BKE_add_template_variables_for_render_path(template_variables, scene);
+ * BKE_add_template_variables_for_render_path(template_variables, scene, scene.r);
  * BKE_add_template_variables_for_node(template_variables, owner_node);
  *
  * BKE_path_apply_template(filepath, FILE_MAX, template_variables);
@@ -309,7 +309,8 @@ void BKE_add_template_variables_general(bke::path_templates::VariableMap &variab
  * \see #BKE_path_apply_template()
  */
 void BKE_add_template_variables_for_render_path(bke::path_templates::VariableMap &variables,
-                                                const Scene &scene);
+                                                const Scene &scene,
+                                                const RenderData &rd);
 
 /**
  * Add the variables that should be available for paths owned by a node.

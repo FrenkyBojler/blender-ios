@@ -1477,7 +1477,7 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
     Array<ImBuf *> ibufs_arr(totviews, nullptr);
 
     if (re == nullptr) {
-      re = RE_NewSceneRender(scene);
+      re = RE_NewSceneRender(scene, true);
     }
 
     const float subframe = frame - floorf(frame);

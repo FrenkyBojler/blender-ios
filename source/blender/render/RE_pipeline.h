@@ -175,7 +175,17 @@ struct Render *RE_NewRender(const void *owner);
 struct Render *RE_GetRender(const void *owner);
 
 struct Scene;
-struct Render *RE_NewSceneRender(const struct Scene *scene);
+/**
+ * Get or create a `Render` for a scene.
+ *
+ * \param copy_render_data: When true, store a copy of #Scene::rd into `re->r`.
+ * Pass false only when the caller will initialize `re->r` itself shortly after
+ *
+ * \note For render jobs (e.g. `screen_render_invoke`) the copy must be
+ * taken at invoke time on the main thread, so a subsequent script restore of
+ * overridden output settings doesn't affect the in-flight background render.
+ */
+struct Render *RE_NewSceneRender(const struct Scene *scene, bool copy_render_data);
 struct Render *RE_GetSceneRender(const struct Scene *scene);
 
 struct RenderEngineType;
@@ -263,6 +273,7 @@ void RE_ReleaseResultImage(struct Render *re);
 void RE_SwapResult(struct Render *re, struct RenderResult **rr);
 void RE_ClearResult(struct Render *re);
 struct RenderStats *RE_GetStats(struct Render *re);
+const struct RenderData &RE_GetRenderData(const struct Render *re);
 
 /**
  * Caller is responsible for allocating `rect` in correct size!
@@ -317,7 +328,7 @@ void RE_create_render_pass(struct RenderResult *rr,
  */
 void RE_InitState(struct Render *re,
                   struct Render *source,
-                  struct RenderData *rd,
+                  const struct RenderData *rd,
                   ListBaseT<ViewLayer> *render_layers,
                   struct ViewLayer *single_layer,
                   int winx,
@@ -351,7 +362,7 @@ void RE_init_threadcount(Render *re);
 bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
                               struct Scene *scene,
-                              struct RenderData *rd,
+                              const struct RenderData *rd,
                               struct MovieWriter **movie_writers,
                               int totvideos,
                               bool preview);

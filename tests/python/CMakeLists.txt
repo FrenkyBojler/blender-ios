@@ -1656,6 +1656,10 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
+    test_render.render_override_renderdata_gpu_animation
+    test_render.render_override_renderdata_gpu_still
+    test_render.render_override_renderdata_engine_animation
+    test_render.render_override_renderdata_engine_still
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(

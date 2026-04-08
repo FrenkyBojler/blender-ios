@@ -264,6 +264,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
 static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 {
+  const RenderData &rd = RE_GetRenderData(oglrender->re);
   Scene *scene = oglrender->scene;
   Object *camera = nullptr;
   int sizex = oglrender->sizex;
@@ -392,7 +393,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
   }
 
   if (ibuf_result != nullptr) {
-    if ((scene->r.stamp & R_STAMP_ALL) && (scene->r.stamp & R_STAMP_DRAW)) {
+    if ((rd.stamp & R_STAMP_ALL) && (rd.stamp & R_STAMP_DRAW)) {
       BKE_image_stamp_buf(scene, camera, nullptr, ibuf_result);
     }
     RE_render_result_rect_from_ibuf(rr, ibuf_result, oglrender->view_id);
@@ -420,31 +421,33 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   rr = RE_AcquireResultRead(oglrender->re);
 
+  const RenderData &rd = RE_GetRenderData(oglrender->re);
+
   path_templates::VariableMap template_variables;
   BKE_add_template_variables_general(template_variables, &scene->id);
-  BKE_add_template_variables_for_render_path(template_variables, *scene);
+  BKE_add_template_variables_for_render_path(template_variables, *scene, rd);
 
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
   const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
       filepath,
-      scene->r.pic,
+      rd.pic,
       relbase,
       &template_variables,
       scene->r.cfra,
-      &scene->r.im_format,
-      (scene->r.scemode & R_EXTENSION) != 0,
+      &rd.im_format,
+      (rd.scemode & R_EXTENSION) != 0,
       false,
       nullptr);
 
   if (!errors.is_empty()) {
     std::unique_lock lock(oglrender->reports_mutex);
-    BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+    BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, rd.pic, errors);
     ok = false;
   }
   else {
     /* write images as individual images or stereo */
     BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-    ok = BKE_image_render_write(oglrender->reports, rr, scene, false, filepath);
+    ok = BKE_image_render_write(oglrender->reports, rr, scene, false, filepath, &rd.im_format);
 
     RE_ReleaseResultImage(oglrender->re);
   }
@@ -838,8 +841,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
                                 &oglrender->scene->customdata_mask_modal);
   }
 
-  /* create render */
-  oglrender->re = RE_NewSceneRender(scene);
+  /* create render (`RE_InitState` below copies `scene->r` into `re->r`). */
+  oglrender->re = RE_NewSceneRender(scene, false);
 
   /* create image and image user */
   oglrender->ima = BKE_image_ensure_viewer(oglrender->bmain, IMA_TYPE_R_RESULT, "Render Result");
@@ -864,7 +867,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
       gather_frames_to_render(C, oglrender);
     }
 
-    if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
+    const RenderData &rd = RE_GetRenderData(oglrender->re);
+    if (BKE_imtype_is_movie(rd.im_format.imtype)) {
       oglrender->task_pool = BLI_task_pool_create_background_serial(oglrender, TASK_PRIORITY_HIGH);
     }
     else {
@@ -885,6 +889,8 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     return;
   }
 
+  const RenderData &rd = RE_GetRenderData(oglrender->re);
+
   if (oglrender->task_pool) {
     /* Trickery part for movie output:
      *
@@ -895,7 +901,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
      * After this loop is done work_and_wait() will have nothing to do,
      * so we don't run into wrong order of frames written to the stream.
      */
-    if (BKE_imtype_is_movie(oglrender->scene->r.im_format.imtype)) {
+    if (BKE_imtype_is_movie(rd.im_format.imtype)) {
       std::unique_lock lock(oglrender->task_mutex);
       while (oglrender->num_scheduled_frames > 0) {
         oglrender->task_condition.wait(lock);
@@ -910,7 +916,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
   MEM_SAFE_DELETE(oglrender->render_frames);
 
   if (!oglrender->movie_writers.is_empty()) {
-    if (BKE_imtype_is_movie(oglrender->scene->r.im_format.imtype)) {
+    if (BKE_imtype_is_movie(rd.im_format.imtype)) {
       for (MovieWriter *writer : oglrender->movie_writers) {
         MOV_write_end(writer);
       }
@@ -965,8 +971,9 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
   /* initialize animation */
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
   Scene *scene = oglrender->scene;
+  const RenderData &rd = RE_GetRenderData(oglrender->re);
 
-  if (!(scene->r.mode & R_SAVE_OUTPUT)) {
+  if (!(rd.mode & R_SAVE_OUTPUT)) {
     BKE_report(op->reports, RPT_ERROR, "Render output disabled in Output properties");
     return false;
   }
@@ -974,7 +981,7 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
   ImageFormatData image_format;
   BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
 
-  oglrender->totvideos = BKE_scene_multiview_num_videos_get(&scene->r, &image_format);
+  oglrender->totvideos = BKE_scene_multiview_num_videos_get(&rd, &image_format);
   oglrender->reports = op->reports;
 
   if (BKE_imtype_is_movie(image_format.imtype)) {
@@ -982,19 +989,17 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
     int i;
 
     BKE_scene_multiview_videos_dimensions_get(
-        &scene->r, &image_format, oglrender->sizex, oglrender->sizey, &width, &height);
+        &rd, &image_format, oglrender->sizex, oglrender->sizey, &width, &height);
     oglrender->movie_writers.reserve(oglrender->totvideos);
 
-    const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
+    const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
                                     (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
     for (i = 0; i < oglrender->totvideos; i++) {
       Scene *scene_eval = DEG_get_evaluated_scene(oglrender->depsgraph);
-      const char *suffix = is_multiview_name ?
-                               BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
-                               "";
+      const char *suffix = is_multiview_name ? BKE_scene_multiview_view_id_suffix_get(&rd, i) : "";
       MovieWriter *writer = MOV_write_begin(scene_eval,
-                                            &scene->r,
+                                            &rd,
                                             &image_format,
                                             width,
                                             height,
@@ -1032,7 +1037,8 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
   OGLRender *oglrender = static_cast<OGLRender *>(BLI_task_pool_user_data(pool));
   Scene *scene = &task_data->tmp_scene;
   RenderResult *rr = task_data->rr;
-  const bool is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
+  const RenderData &rd = RE_GetRenderData(oglrender->re);
+  const bool is_movie = BKE_imtype_is_movie(rd.im_format.imtype);
   const int cfra = scene->r.cfra;
   bool ok;
   /* Don't attempt to write if we've got an error. */
@@ -1058,7 +1064,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
     ok = RE_WriteRenderViewsMovie(&reports,
                                   rr,
                                   scene,
-                                  &scene->r,
+                                  &rd,
                                   oglrender->movie_writers.data(),
                                   oglrender->totvideos,
                                   PRVRANGEON != 0);
@@ -1070,27 +1076,27 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
     char filepath[FILE_MAX];
     path_templates::VariableMap template_variables;
     BKE_add_template_variables_general(template_variables, &scene->id);
-    BKE_add_template_variables_for_render_path(template_variables, *scene);
+    BKE_add_template_variables_for_render_path(template_variables, *scene, rd);
 
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
     const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
-        scene->r.pic,
+        rd.pic,
         relbase,
         &template_variables,
         cfra,
-        &scene->r.im_format,
-        (scene->r.scemode & R_EXTENSION) != 0,
+        &rd.im_format,
+        (rd.scemode & R_EXTENSION) != 0,
         true,
         nullptr);
 
     if (!errors.is_empty()) {
-      BKE_report_path_template_errors(&reports, RPT_ERROR, scene->r.pic, errors);
+      BKE_report_path_template_errors(&reports, RPT_ERROR, rd.pic, errors);
       ok = false;
     }
     else {
       BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-      ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
+      ok = BKE_image_render_write(nullptr, rr, scene, true, filepath, &rd.im_format);
     }
 
     if (!ok) {
@@ -1168,31 +1174,33 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
     scene->r.cfra++;
   }
 
-  is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
+  const RenderData &rd = RE_GetRenderData(oglrender->re);
+
+  is_movie = BKE_imtype_is_movie(rd.im_format.imtype);
 
   if (!is_movie) {
     path_templates::VariableMap template_variables;
     BKE_add_template_variables_general(template_variables, &scene->id);
-    BKE_add_template_variables_for_render_path(template_variables, *scene);
+    BKE_add_template_variables_for_render_path(template_variables, *scene, rd);
 
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
     const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
-        scene->r.pic,
+        rd.pic,
         relbase,
         &template_variables,
         scene->r.cfra,
-        &scene->r.im_format,
-        (scene->r.scemode & R_EXTENSION) != 0,
+        &rd.im_format,
+        (rd.scemode & R_EXTENSION) != 0,
         true,
         nullptr);
 
     if (!errors.is_empty()) {
       std::unique_lock lock(oglrender->reports_mutex);
-      BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+      BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, rd.pic, errors);
       ok = false;
     }
-    else if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
+    else if ((rd.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
       {
         std::unique_lock lock(oglrender->reports_mutex);
         BKE_reportf(oglrender->reports, RPT_INFO, "Skipping existing frame \"%s\"", filepath);

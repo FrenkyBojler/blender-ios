@@ -880,7 +880,7 @@ blender::Render *BlenderStrokeRenderer::RenderScene(blender::Render * /*re*/, bo
   }
 #endif
 
-  Render *freestyle_render = RE_NewSceneRender(freestyle_scene);
+  Render *freestyle_render = RE_NewSceneRender(freestyle_scene, false);
   DEG_graph_relations_update(freestyle_depsgraph);
 
   RE_RenderFreestyleStrokes(

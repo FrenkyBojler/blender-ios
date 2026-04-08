@@ -493,6 +493,11 @@ RenderStats *RE_GetStats(Render *re)
   return &re->i;
 }
 
+const RenderData &RE_GetRenderData(const Render *re)
+{
+  return re->r;
+}
+
 Render *RE_NewRender(const void *owner)
 {
   Render *re;
@@ -524,9 +529,13 @@ Render *RE_GetSceneRender(const Scene *scene)
   return RE_GetRender(DEG_get_original_id(&scene->id));
 }
 
-Render *RE_NewSceneRender(const Scene *scene)
+Render *RE_NewSceneRender(const Scene *scene, const bool copy_render_data)
 {
-  return RE_NewRender(DEG_get_original_id(&scene->id));
+  Render *re = RE_NewRender(DEG_get_original_id(&scene->id));
+  if (copy_render_data) {
+    render_copy_renderdata(&re->r, &scene->r);
+  }
+  return re;
 }
 
 Render *RE_NewInteractiveCompositorRender(const Scene *scene)
@@ -769,8 +778,15 @@ static void re_init_resolution(
   }
 }
 
-void render_copy_renderdata(RenderData *to, RenderData *from)
+void render_copy_renderdata(RenderData *to, const RenderData *from)
 {
+  /* Self-copy is a no-op. Required because the destructive
+   * `BKE_curvemapping_free_data` below would otherwise free data still
+   * referenced via the source. */
+  if (to == from) {
+    return;
+  }
+
   /* Mostly shallow copy referencing pointers in scene renderdata. */
   BKE_curvemapping_free_data(&to->mblur_shutter_curve);
 
@@ -781,7 +797,7 @@ void render_copy_renderdata(RenderData *to, RenderData *from)
 
 void RE_InitState(Render *re,
                   Render *source,
-                  RenderData *rd,
+                  const RenderData *rd,
                   ListBaseT<ViewLayer> * /*render_layers*/,
                   ViewLayer *single_layer,
                   int winx,
@@ -794,7 +810,8 @@ void RE_InitState(Render *re,
 
   re->i.starttime = BLI_time_now_seconds();
 
-  /* copy render data and render layers for thread safety */
+  /* Copy render data and render layers for thread safety
+   * (no-op if `rd == &re->r`). */
   render_copy_renderdata(&re->r, rd);
   re->single_view_layer[0] = '\0';
 
@@ -1077,7 +1094,7 @@ static void do_render_engine(Render *re)
  * Uses the same image dimensions, does not recursively perform compositing. */
 static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
 {
-  Render *resc = RE_NewSceneRender(sce);
+  Render *resc = RE_NewSceneRender(sce, false);
   int winx = re->winx, winy = re->winy;
 
   sce->r.cfra = cfra;
@@ -1794,7 +1811,7 @@ static bool render_init_from_main(Render *re,
 
   /* We always render smaller part, inserting it in larger image is compositor business,
    * it uses 'disprect' for it. */
-  if (scene->r.mode & R_BORDER) {
+  if (rd->mode & R_BORDER) {
     disprect.xmin = rd->border.xmin * winx;
     disprect.xmax = rd->border.xmax * winx;
 
@@ -1835,7 +1852,7 @@ static bool render_init_from_main(Render *re,
     BLI_rw_mutex_unlock(&re->resultmutex);
   }
 
-  RE_InitState(re, nullptr, &scene->r, &scene->view_layers, single_layer, winx, winy, &disprect);
+  RE_InitState(re, nullptr, rd, &scene->view_layers, single_layer, winx, winy, &disprect);
   if (!re->ok) { /* if an error was printed, abort */
     return false;
   }
@@ -1911,13 +1928,18 @@ void RE_RenderFrame(Render *re,
    * is to prevent preview events and signal subdivision-surface etc to make full resolution. */
   G.is_rendering = true;
 
+  /* Keep `re->r.cfra`/`subframe` in sync with the frame being rendered.
+   * Other code may reads from `re->r.cfra`.
+   * #RE_RenderAnim does the equivalent sync per-frame inside its loop.
+   * The rest of `re->r` was stored from `scene->r` by the caller of `RE_NewSceneRender`. */
+  re->r.cfra = frame;
+  re->r.subframe = subframe;
   scene->r.cfra = frame;
   scene->r.subframe = subframe;
 
-  if (render_init_from_main(
-          re, &scene->r, bmain, scene, single_layer, camera_override, false, false))
+  if (render_init_from_main(re, &re->r, bmain, scene, single_layer, camera_override, false, false))
   {
-    RenderData rd = dna::shallow_copy(scene->r);
+    const RenderData &rd = re->r;
     MEM_reset_peak_memory();
 
     render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_PRE);
@@ -1940,7 +1962,7 @@ void RE_RenderFrame(Render *re,
         const char *relbase = BKE_main_blendfile_path(bmain);
         path_templates::VariableMap template_variables;
         BKE_add_template_variables_general(template_variables, &scene->id);
-        BKE_add_template_variables_for_render_path(template_variables, *scene);
+        BKE_add_template_variables_for_render_path(template_variables, *scene, rd);
 
         const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath_override,
@@ -2054,7 +2076,7 @@ void RE_RenderFreestyleExternal(Render *re)
 bool RE_WriteRenderViewsMovie(ReportList *reports,
                               RenderResult *rr,
                               Scene *scene,
-                              RenderData *rd,
+                              const RenderData *rd,
                               MovieWriter **movie_writers,
                               const int totvideos,
                               bool preview)
@@ -2065,11 +2087,13 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
     return false;
   }
 
+  /* Use the image format from `rd` (a copy of the scene's render data taken
+   * at invoke time) so script overrides set before invoke are honored. */
   ImageFormatData image_format;
-  BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
+  BKE_image_format_init_for_write(&image_format, scene, &rd->im_format, true);
 
   const bool is_mono = !RE_ResultIsMultiView(rr);
-  const float dither = scene->r.dither_intensity;
+  const float dither = rd->dither_intensity;
 
   if (is_mono || (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL)) {
     int view_id;
@@ -2154,11 +2178,12 @@ static bool do_write_image_or_movie(Render *re,
                                     const char *filepath_override,
                                     const bool write_anim_or_still)
 {
+  const RenderData &rd = re->r;
   char filepath[FILE_MAX];
   RenderResult rres;
   double render_time;
   bool ok = true;
-  RenderEngineType *re_type = RE_engines_find(re->r.engine);
+  RenderEngineType *re_type = RE_engines_find(rd.engine);
 
   /* Only disable file writing if postprocessing is also disabled. */
   const bool do_write_file = (!(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
@@ -2169,9 +2194,9 @@ static bool do_write_image_or_movie(Render *re,
     RE_AcquireResultImageViews(re, &rres);
 
     /* write movie or image */
-    if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
+    if (BKE_imtype_is_movie(rd.im_format.imtype)) {
       RE_WriteRenderViewsMovie(
-          re->reports, &rres, scene, &re->r, re->movie_writers.data(), totvideos, false);
+          re->reports, &rres, scene, &rd, re->movie_writers.data(), totvideos, false);
     }
     else {
       if (filepath_override) {
@@ -2181,27 +2206,29 @@ static bool do_write_image_or_movie(Render *re,
         const char *relbase = BKE_main_blendfile_path(bmain);
         path_templates::VariableMap template_variables;
         BKE_add_template_variables_general(template_variables, &scene->id);
-        BKE_add_template_variables_for_render_path(template_variables, *scene);
+        BKE_add_template_variables_for_render_path(template_variables, *scene, rd);
 
         const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath,
-            scene->r.pic,
+            rd.pic,
             relbase,
             &template_variables,
             scene->r.cfra,
-            &scene->r.im_format,
-            (scene->r.scemode & R_EXTENSION) != 0,
+            &rd.im_format,
+            (rd.scemode & R_EXTENSION) != 0,
             true,
             nullptr);
         if (!errors.is_empty()) {
-          BKE_report_path_template_errors(re->reports, RPT_ERROR, scene->r.pic, errors);
+          BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
           ok = false;
         }
       }
 
-      /* write images as individual images or stereo */
+      /* Write images as individual images or stereo. Use the image format
+       * from `rd` (a copy of the scene's render data taken at invoke time)
+       * so script overrides set before invoke are honored. */
       if (ok) {
-        ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath);
+        ok = BKE_image_render_write(re->reports, &rres, scene, true, filepath, &rd.im_format);
       }
     }
 
@@ -2303,11 +2330,11 @@ void RE_RenderAnim(Render *re,
     CLOG_INFO(&LOG, "Rendering animation (frames %d..%d)", sfra, efra);
   }
 
-  /* Call hooks before taking a copy of scene->r, so user can alter the render settings prior to
-   * copying (e.g. alter the output path). */
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
-  RenderData rd = dna::shallow_copy(scene->r);
+  /* `re->r` was stored from `scene->r` by the caller of #RE_NewSceneRender
+   * (on the main thread at invoke time, before any script restore). */
+  const RenderData &rd = re->r;
   const int cfra_old = rd.cfra;
   const float subframe_old = rd.subframe;
   int nfra, totrendered = 0, totskipped = 0;
@@ -2319,15 +2346,17 @@ void RE_RenderAnim(Render *re,
 
   RenderEngineType *re_type = RE_engines_find(re->r.engine);
 
-  /* Image format for writing. */
+  /* Image format for writing. Sourced from `re->r` (a copy of the scene's
+   * render data taken at invoke time) so script overrides set before invoke
+   * are honored. */
   ImageFormatData image_format;
-  BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
+  BKE_image_format_init_for_write(&image_format, scene, &rd.im_format, true);
 
   const int totvideos = BKE_scene_multiview_num_videos_get(&rd, &image_format);
   const bool is_movie = BKE_imtype_is_movie(image_format.imtype);
   const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
                                   (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
-  const bool write_anim = (scene->r.mode & R_SAVE_OUTPUT);
+  const bool write_anim = (rd.mode & R_SAVE_OUTPUT);
 
   /* Disable file writing if postprocessing is also disabled or if it's explicitly disabled by the
    * user. */
@@ -2420,7 +2449,7 @@ void RE_RenderAnim(Render *re,
     if (is_movie == false && do_write_file) {
       path_templates::VariableMap template_variables;
       BKE_add_template_variables_general(template_variables, &scene->id);
-      BKE_add_template_variables_for_render_path(template_variables, *scene);
+      BKE_add_template_variables_for_render_path(template_variables, *scene, rd);
 
       const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
           filepath,
@@ -2495,7 +2524,11 @@ void RE_RenderAnim(Render *re,
       }
     }
 
-    re->r.cfra = scene->r.cfra; /* weak.... */
+    /* Keep `re->r.cfra`/`subframe` in sync with the frame the loop is about
+     * to render. Downstream code (`do_render_sequencer`, render stats, etc.)
+     * reads `re->r.cfra` and expects the current frame, not the value
+     * captured at invoke. */
+    re->r.cfra = scene->r.cfra;
     re->r.subframe = scene->r.subframe;
 
     /* run callbacks before rendering, before the scene is updated */
@@ -2651,7 +2684,7 @@ bool RE_ReadRenderResult(Scene *scene, Scene *scenode)
   /* get render: it can be called from UI with draw callbacks */
   re = RE_GetSceneRender(scene);
   if (re == nullptr) {
-    re = RE_NewSceneRender(scene);
+    re = RE_NewSceneRender(scene, false);
   }
   RE_InitState(re, nullptr, &scene->r, &scene->view_layers, nullptr, winx, winy, &disprect);
   re->scene = scene;

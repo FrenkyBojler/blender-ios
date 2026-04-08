@@ -175,7 +175,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
 
   bke::path_templates::VariableMap template_variables;
   BKE_add_template_variables_general(template_variables, &node.owner_tree().id);
-  BKE_add_template_variables_for_render_path(template_variables, scene);
+  BKE_add_template_variables_for_render_path(template_variables, scene, scene.r);
   BKE_add_template_variables_for_node(template_variables, node);
 
   /* Substitute #### frame variables if not doing an animation render. For animation renders, this

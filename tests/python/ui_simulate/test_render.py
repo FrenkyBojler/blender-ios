@@ -196,3 +196,176 @@ def animation_rendering_and_player():
     import tempfile
     with tempfile.TemporaryDirectory(prefix="blender_test_render_") as temp_dir:
         yield from _animation_rendering_and_player(temp_dir)
+
+
+# -----------------------------------------------------------------------------
+# Render Data Override
+#
+# Ensure operators correctly use render settings which are set when the operator is invoked.
+
+def _render_override_renderdata(kind, write_still, temp_dir):
+    """
+    Verify that overriding render output settings, starting a render operator (non-blocking)
+    then restoring - properly overrides.
+
+    :arg kind: 'GPU' for ``bpy.ops.render.opengl``, 'ENGINE' for ``bpy.ops.render.render``.
+       Note that internally these use different code paths - why we test both.
+    :arg write_still: When True, render a single still (``write_still=True``).
+        When False, render an animation.
+    """
+    import bpy
+    import contextlib
+    import imbuf
+    import os
+
+    @contextlib.contextmanager
+    def backup_attrs_multi(*obj_attrs):
+        """
+        Save the named attributes on each object and restore them on exit.
+        Each argument is a ``(obj, (attr, ...))`` pair.
+        """
+        saved = []
+        for obj, attrs in obj_attrs:
+            saved.append((obj, {attr: getattr(obj, attr) for attr in attrs}))
+        try:
+            yield
+        finally:
+            for obj, d in saved:
+                for attr, value in d.items():
+                    setattr(obj, attr, value)
+
+    e, t, window = ui.test_window()
+
+    scene = window.scene
+    rd = scene.render
+
+    # Use a simple render engine (only image output is detected).
+    rd.engine = 'BLENDER_WORKBENCH'
+    # Restore values are deliberately distinct from the overrides below so
+    # we can differentiate between them and ensure overrides work.
+    rd.resolution_x = 32
+    rd.resolution_y = 32
+    rd.image_settings.file_format = 'BMP'
+    rd.use_border = False
+    rd.use_crop_to_border = False
+    # Frame range is set once and not overridden. Overriding
+    # `frame_start`/`frame_end`/`frame_step`/`frame_current` is intentionally
+    # not supported - it would require intrusive changes to the per-frame
+    # iteration & depsgraph advance logic.
+    scene.frame_start = 1
+    scene.frame_end = 2
+
+    output_dir_orig = os.path.join(temp_dir, "output_orig")
+    output_dir_override = os.path.join(temp_dir, "output_override")
+    os.mkdir(output_dir_orig)
+    os.mkdir(output_dir_override)
+
+    # Output path the script will "restore" to. Tests assert nothing lands here.
+    rd.filepath = os.path.join(output_dir_orig, "orig_")
+
+    # - Override values used during rendering.
+    # - On exit from the context manager they are restored.
+    # - This happens *while* the render is still in progress.
+    # - Failure to use the settings at the time the operator is invoked causes the tests to fail.
+    override_resolution = (80, 48)
+    # The engine path renders the bottom-left quarter with crop, so the output
+    # image is half the resolution on each axis. The OpenGL/`render.opengl`
+    # path doesn't support border-with-crop, so it produces the full resolution.
+    image_size_expected = (40, 24) if kind == 'ENGINE' else override_resolution
+    with backup_attrs_multi(
+            (rd, (
+                "filepath",
+                "resolution_x",
+                "resolution_y",
+                "use_border",
+                "use_crop_to_border",
+                "border_min_x",
+                "border_max_x",
+                "border_min_y",
+                "border_max_y",
+            )),
+            (rd.image_settings, (
+                "file_format",
+            )),
+    ):
+        rd.image_settings.file_format = 'PNG'
+        rd.resolution_x = override_resolution[0]
+        rd.resolution_y = override_resolution[1]
+        rd.use_border = True
+        rd.use_crop_to_border = True
+        rd.border_min_x = 0.0
+        rd.border_max_x = 0.5
+        rd.border_min_y = 0.0
+        rd.border_max_y = 0.5
+        if write_still:
+            rd.filepath = os.path.join(output_dir_override, "still")
+            filenames_expected = (
+                "still.png",
+            )
+        else:
+            rd.filepath = os.path.join(output_dir_override, "anim_")
+            filenames_expected = (
+                "anim_0001.png",
+                "anim_0002.png",
+            )
+
+        if kind == 'GPU':
+            bpy.ops.render.opengl(
+                'INVOKE_DEFAULT', animation=not write_still, write_still=write_still)
+        elif kind == 'ENGINE':
+            bpy.ops.render.render(
+                'INVOKE_DEFAULT', animation=not write_still, write_still=write_still)
+        else:
+            assert False, "Unreachable!"
+
+    # GPU still rendering happens in the modal handler which only fires on
+    # real window events. Inject a cursor motion to drive it. (Harmless for
+    # the other paths.)
+    view3d_area = ui.get_window_area_by_type(window, 'VIEW_3D')
+    e.cursor_position_set(*ui.get_area_center(view3d_area), move=True)
+    yield
+
+    yield from ui.idle_until(
+        lambda: not bpy.app.is_job_running('RENDER'),
+        timeout=30.0,
+    )
+
+    filenames_actual = tuple(sorted(os.listdir(output_dir_override)))
+    t.assertEqual(filenames_actual, filenames_expected)
+
+    for filename in filenames_expected:
+        path = os.path.join(output_dir_override, filename)
+        ibuf = imbuf.load(path)
+        try:
+            t.assertEqual(ibuf.size, image_size_expected)
+            t.assertEqual(ibuf.file_type, 'PNG')
+        finally:
+            ibuf.free()
+
+    # Hygiene: nothing should have leaked into the original output dir.
+    leaked = tuple(sorted(os.listdir(output_dir_orig)))
+    t.assertEqual(leaked, ())
+
+
+def render_override_renderdata_gpu_animation():
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="blender_test_render_override_") as temp_dir:
+        yield from _render_override_renderdata('GPU', False, temp_dir)
+
+
+def render_override_renderdata_gpu_still():
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="blender_test_render_override_") as temp_dir:
+        yield from _render_override_renderdata('GPU', True, temp_dir)
+
+
+def render_override_renderdata_engine_animation():
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="blender_test_render_override_") as temp_dir:
+        yield from _render_override_renderdata('ENGINE', False, temp_dir)
+
+
+def render_override_renderdata_engine_still():
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="blender_test_render_override_") as temp_dir:
+        yield from _render_override_renderdata('ENGINE', True, temp_dir)

@@ -2411,7 +2411,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
         return 1;
       }
 
-      re = RE_NewSceneRender(scene);
+      re = RE_NewSceneRender(scene, true);
       BKE_reports_init(&reports, RPT_STORE);
       RE_SetReports(re, &reports);
       for (int i = 0; i < frames_range_len; i++) {
@@ -2448,7 +2448,7 @@ static int arg_handle_render_animation(int /*argc*/, const char ** /*argv*/, voi
     add_log_render_filter();
 
     Main *bmain = CTX_data_main(C);
-    Render *re = RE_NewSceneRender(scene);
+    Render *re = RE_NewSceneRender(scene, true);
     ReportList reports;
     BKE_reports_init(&reports, RPT_STORE);
     RE_SetReports(re, &reports);

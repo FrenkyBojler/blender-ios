@@ -421,7 +421,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  re = RE_NewSceneRender(scene);
+  re = RE_NewSceneRender(scene, true);
 
   G.is_break = false;
 
@@ -1239,8 +1239,10 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   BKE_image_backup_render(rj->scene, ima, true);
   rj->image = ima;
 
-  /* setup new render */
-  re = RE_NewSceneRender(scene);
+  /* Setup new render. Store a copy of the scene's render data now, on the
+   * main thread at invoke time, so a subsequent script restore of overridden
+   * output settings doesn't affect the in-flight background render. */
+  re = RE_NewSceneRender(scene, true);
   RE_display_init(re);
   RE_display_ensure_gpu_context(re);
   IMB_ensure_gpu_context();

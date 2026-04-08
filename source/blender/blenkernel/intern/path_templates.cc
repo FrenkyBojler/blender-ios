@@ -254,7 +254,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = CTX_data_scene(C);
       }
 
-      BKE_add_template_variables_for_render_path(variables, *scene);
+      BKE_add_template_variables_for_render_path(variables, *scene, scene->r);
       break;
     }
   }
@@ -300,11 +300,13 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
   }
 }
 
-void BKE_add_template_variables_for_render_path(VariableMap &variables, const Scene &scene)
+void BKE_add_template_variables_for_render_path(VariableMap &variables,
+                                                const Scene &scene,
+                                                const RenderData &rd)
 {
   /* Resolution variables. */
   int res_x, res_y;
-  BKE_render_resolution(&scene.r, false, &res_x, &res_y);
+  BKE_render_resolution(&rd, false, &res_x, &res_y);
   variables.add_integer("resolution_x", res_x);
   variables.add_integer("resolution_y", res_y);
 
@@ -316,7 +318,7 @@ void BKE_add_template_variables_for_render_path(VariableMap &variables, const Sc
    * fps is computed consistently, but at the time of writing no such function
    * seems to exist. Every place in the code base just has its own bespoke
    * code, using different precision, etc. */
-  const double fps = double(scene.r.frs_sec) / double(scene.r.frs_sec_base);
+  const double fps = double(rd.frs_sec) / double(rd.frs_sec_base);
   variables.add_float("fps", fps);
 
   /* Scene name variable. */
