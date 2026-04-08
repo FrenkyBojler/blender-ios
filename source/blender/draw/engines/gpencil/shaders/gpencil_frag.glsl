@@ -113,15 +113,15 @@ float2x2 calculate_rotation_matrix(float2 x_axis)
 float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
 {
   uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
-  gpMaterial gp_mat = gp_materials[matid];
+  uint4 random_packed = gp_materials[matid].random_packed;
 
-  float random_size = gpencil_decode_random_size(gp_mat.random_packed);
-  float random_strength = gpencil_decode_random_strength(gp_mat.random_packed);
-  float random_rotation = gpencil_decode_random_rotation(gp_mat.random_packed);
+  float random_size = gpencil_decode_random_size(random_packed);
+  float random_strength = gpencil_decode_random_strength(random_packed);
+  float random_rotation = gpencil_decode_random_rotation(random_packed);
 
-  float random_hue = gpencil_decode_random_hue(gp_mat.random_packed);
-  float random_saturation = gpencil_decode_random_saturation(gp_mat.random_packed);
-  float random_value = gpencil_decode_random_value(gp_mat.random_packed);
+  float random_hue = gpencil_decode_random_hue(random_packed);
+  float random_saturation = gpencil_decode_random_saturation(random_packed);
+  float random_value = gpencil_decode_random_value(random_packed);
 
   if (random_rotation > 0.0f) {
     float rand = hash_uint_to_float(i + 6963723);
