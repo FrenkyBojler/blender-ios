@@ -407,6 +407,7 @@ void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks)
 void poseAnim_mapping_refresh(bContext *C, ID *id)
 {
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(id, ID_RECALC_TRANSFORM);
   switch (GS(id->name)) {
     case ID_OB:
       WM_event_add_notifier(C, NC_OBJECT | ND_POSE | ND_TRANSFORM, id_cast<Object *>(id));
