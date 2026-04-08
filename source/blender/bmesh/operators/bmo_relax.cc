@@ -382,7 +382,7 @@ static void execute_relax_phase(Vector<BMVert *> &verts,
     calculate_relax_splines(verts, phase.knot_indices, t_knots, interpolation, axis_coeffs);
   }
 
-  for (const int i : IndexRange(phase.point_indices.size())) {
+  for (const int i : phase.point_indices.index_range()) {
     float target_dist = t_points[i];
     int seg = find_spline_segment(t_knots, target_dist);
     float3 spline_pos;
