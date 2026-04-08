@@ -89,7 +89,7 @@ static void template_recent_files_tooltip_func(bContext & /*C*/,
     const tm now = *localtime(&ts_now);
     const char *lang = BLT_lang_get();
     std::string modified_s = BLI_date_format_datetime(
-        &mod_time, BLI_DateFormatStyle::Medium, lang, &now, TIP_("Today"), TIP_("Yesterday"));
+        &mod_time, lang, &now, TIP_("Today"), TIP_("Yesterday"));
     tooltip_text_field_add(tip,
                            fmt::format(fmt::runtime(TIP_("Modified: {}")), modified_s),
                            {},

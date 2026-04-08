@@ -995,8 +995,8 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
   if (file_attribute_column_type_enabled(params, COLUMN_DATETIME, layout)) {
     const char *lang = BLT_lang_get();
     tm test = {59, 59, 3, 30, 8, 199, 6, 365, 0}; /* September 30, 2099 03:59:59 */
-    std::string modified_s = BLI_date_format_datetime(
-        &test, compact ? BLI_DateFormatStyle::Short : BLI_DateFormatStyle::Medium, lang);
+    std::string modified_s = compact ? BLI_date_format_date(&test, lang) :
+                                       BLI_date_format_datetime(&test, lang);
     int width = file_string_width(modified_s.c_str());
     columns[COLUMN_DATETIME].width = width + pad + (0.2f * UI_UNIT_X);
   }
@@ -1435,8 +1435,7 @@ void file_params_renamefile_activate(SpaceFile *sfile, FileSelectParams *params)
       file_select_deselect_all(sfile, FILE_SEL_SELECTED);
       idx = file_params_find_renamed(params, sfile->files);
       file = filelist_file(sfile->files, idx);
-      filelist_entry_select_set(
-          sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED | FILE_SEL_HIGHLIGHTED, CHECK_ALL);
+      filelist_entry_select_set(sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
       params->active_file = idx;
       file_params_renamefile_clear(params);
       params->rename_flag = FILE_PARAMS_RENAME_POSTSCROLL_ACTIVE;

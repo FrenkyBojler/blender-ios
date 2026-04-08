@@ -191,7 +191,7 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
                               const int type)
 {
   BLI_assert_msg(bmain || type != VIEWLAYER_ADD_EMPTY,
-                 "A valid Main is required with `VIEWLAYER_ADD_EMPTY` type of prcoess");
+                 "A valid Main is required with `VIEWLAYER_ADD_EMPTY` type of process");
 
   ViewLayer *view_layer_new;
 
@@ -1010,6 +1010,18 @@ void BKE_view_layer_need_resync_tag(ViewLayer *view_layer)
 bool BKE_view_layer_is_synced(const ViewLayer &view_layer)
 {
   return (view_layer.flag & VIEW_LAYER_OUT_OF_SYNC) == 0;
+}
+
+void _BKE_view_layer_synced_ensure_or_assert(const Main *bmain,
+                                             const Scene *scene,
+                                             ViewLayer *view_layer)
+{
+  if (bmain) {
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+  }
+  else {
+    BLI_assert(BKE_view_layer_is_synced(*view_layer));
+  }
 }
 
 bool BKE_view_layer_synced_ensure(const Main &bmain, const Scene *scene, ViewLayer *view_layer)

@@ -20,104 +20,58 @@
 namespace blender {
 
 struct CLDRLocalePatterns {
-  const char date[3][17];
-  const char time[3][12];
-  const char datetime[8];
+  const char date[17];
+  const char time[9];
 };
 
 static const std::unordered_map<std::string, CLDRLocalePatterns> cldr_locale_table = {
-    {"default", {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"en_US", /* English (US).*/
-     {{"%m/%d/%y", "%b %d, %Y", "%B %d, %Y"}, {"%I:%M %p", "%I:%M %p", "%I:%M:%S %p"}, "{1} {0}"}},
-    {"en_GB", /* English (UK). */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ar_EG", /* Arabic (Egypt). */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%I:%M %p", "%I:%M %p", "%I:%M:%S %p"}, "{1} {0}"}},
-    {"eu_EU", /* Basque. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"bg_BG", /* Bulgarian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ca_AD", /* Catalan. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"zh_HANS", /* Chinese (Simplified). */
-     {{"%y/%m/%d", "%Y年%B%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"zh_HANT", /* Chinese (Traditional). */
-     {{"%y/%m/%d", "%Y年%B%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"hr", /* :Croatian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"cs_CZ", /* Czech. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"da", /* Danish. */
-     {{"%d-%m-%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"nl_NL", /* Dutch - Nederlands. */
-     {{"%d-%m-%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"fi_FI", /* Finnish. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"fr_FR", /* French. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ka", /* Georgian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"de_DE", /* German. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"el_GR", /* Greek. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"he_IL", /* Hebrew. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"hi_IN", /* Hindi. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"hu_HU", /* Hungarian. */
-     {{"%y.%m.%d", "%Y. %b %d", "%Y. %B %d"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"id_ID", /* Indonesian. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"it_IT", /* Italian. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ja_JP", /* Japanese. */
-     {{"%y/%m/%d", "%Y年%b月%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ko_KR", /* Korean. */
-     {{"%y. %m. %d.", "%Y년 %B월%d일", "%Y년 %B%d일"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"nb", /* Norwegian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"fa_IR", /* Persian. */
-     {{"%y/%m/%d", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"pl_PL", /* Polish. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"pt_BR", /* Portuguese (Brazil). */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"pt_PT", /* Portuguese (Portugal). */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ro_RO", /* Romanian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ru_RU", /* Russian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y г."}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"sr_RS", /* Serbian (Cyrillic). */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"sr_RS@latin", /* Serbian (Latin). */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"sk_SK", /* Slovak. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"sl", /* Slovenian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"es", /* Spanish. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"sv_SE", /* Swedish. */
-     {{"%y-%m-%d", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"sw", /* Swahili. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ta", /* Tamil. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"th_TH", /* Thai. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"tr_TR", /* Turkish. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"uk_UA", /* Ukrainian. */
-     {{"%d.%m.%y", "%d %b %Y", "%d %B %Y р."}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
-    {"ur", /* Urdu. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%I:%M %p", "%I:%M %p", "%I:%M:%S %p"}, "{1} {0}"}},
-    {"vi_VN", /* Vietnamese. */
-     {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
+    {"default", {"%d %b %Y", "%H:%M"}},
+    {"en_US", {"%b %d, %Y", "%I:%M %p"}},   /* English (US).*/
+    {"en_GB", {"%d %b %Y", "%H:%M"}},       /* English (UK). */
+    {"ar_EG", {"%d %b %Y", "%I:%M %p"}},    /* Arabic (Egypt). */
+    {"eu_EU", {"%d %b %Y", "%H:%M"}},       /* Basque. */
+    {"bg_BG", {"%d %b %Y", "%H:%M"}},       /* Bulgarian. */
+    {"ca_AD", {"%d %b %Y", "%H:%M"}},       /* Catalan. */
+    {"zh_HANS", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Simplified). */
+    {"zh_HANT", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Traditional). */
+    {"hr", {"%d %b %Y", "%H:%M"}},          /* Croatian. */
+    {"cs_CZ", {"%d %b %Y", "%H:%M"}},       /* Czech. */
+    {"da", {"%d %b %Y", "%H:%M"}},          /* Danish. */
+    {"nl_NL", {"%d %b %Y", "%H:%M"}},       /* Dutch - Nederlands. */
+    {"fi_FI", {"%d %b %Y", "%H:%M"}},       /* Finnish. */
+    {"fr_FR", {"%d %b %Y", "%H:%M"}},       /* French. */
+    {"ka", {"%d %b %Y", "%H:%M"}},          /* Georgian. */
+    {"de_DE", {"%d %b %Y", "%H:%M"}},       /* German. */
+    {"el_GR", {"%d %b %Y", "%H:%M"}},       /* Greek. */
+    {"he_IL", {"%d %b %Y", "%H:%M"}},       /* Hebrew. */
+    {"hi_IN", {"%d %b %Y", "%H:%M"}},       /* Hindi. */
+    {"hu_HU", {"%Y. %b %d", "%H:%M"}},      /* Hungarian. */
+    {"id_ID", {"%d %b %Y", "%H:%M"}},       /* Indonesian. */
+    {"it_IT", {"%d %b %Y", "%H:%M"}},       /* Italian. */
+    {"ja_JP", {"%Y年%b月%d日", "%H:%M"}},   /* Japanese. */
+    {"ko_KR", {"%Y년 %B월%d일", "%H:%M"}},  /* Korean. */
+    {"nb", {"%d %b %Y", "%H:%M"}},          /* Norwegian. */
+    {"fa_IR", {"%d %b %Y", "%H:%M"}},       /* Persian. */
+    {"pl_PL", {"%d %b %Y", "%H:%M"}},       /* Polish. */
+    {"pt_BR", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Brazil). */
+    {"pt_PT", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Portugal). */
+    {"ro_RO", {"%d %b %Y", "%H:%M"}},       /* Romanian. */
+    {"ru_RU", {"%d %b %Y", "%H:%M"}},       /* Russian. */
+    {"sr_RS", {"%d %b %Y", "%H:%M"}},       /* Serbian (Cyrillic). */
+    {"sr_RS@latin", {"%d %b %Y", "%H:%M"}}, /* Serbian (Latin). */
+    {"sk_SK", {"%d %b %Y", "%H:%M"}},       /* Slovak. */
+    {"sl", {"%d %b %Y", "%H:%M"}},          /* Slovenian. */
+    {"es", {"%d %b %Y", "%H:%M"}},          /* Spanish. */
+    {"sv_SE", {"%d %b %Y", "%H:%M"}},       /* Swedish. */
+    {"sw", {"%d %b %Y", "%H:%M"}},          /* Swahili. */
+    {"ta", {"%d %b %Y", "%H:%M"}},          /* Tamil. */
+    {"th_TH", {"%d %b %Y", "%H:%M"}},       /* Thai. */
+    {"tr_TR", {"%d %b %Y", "%H:%M"}},       /* Turkish. */
+    {"uk_UA", {"%d %b %Y", "%H:%M"}},       /* Ukrainian. */
+    {"ur", {"%d %b %Y", "%I:%M %p"}},       /* Urdu. */
+    {"vi_VN", {"%d %b %Y", "%H:%M"}},       /* Vietnamese. */
 };
 
-/* Helper: get patterns for a locale (exact key, then language prefix, then default). */
 static const CLDRLocalePatterns &get_locale_patterns(const char *locale_iso)
 {
   static const CLDRLocalePatterns default_patterns = cldr_locale_table.at("default");
@@ -177,33 +131,24 @@ static std::string format_with_pattern(const std::tm *tm,
   return oss.str();
 }
 
-std::string BLI_date_format_time(const std::tm *date_time,
-                                 BLI_DateFormatStyle style,
-                                 const char *locale_iso)
+std::string BLI_date_format_time(const std::tm *date_time, const char *locale_iso)
 {
-  const auto &pat = get_locale_patterns(locale_iso);
-  const std::string &pattern = pat.time[static_cast<int>(style)];
-  return format_with_pattern(date_time, pattern, locale_iso);
+  const auto &pattern = get_locale_patterns(locale_iso);
+  return format_with_pattern(date_time, pattern.time, locale_iso);
 }
 
-std::string BLI_date_format_date(const std::tm *date_time,
-                                 BLI_DateFormatStyle style,
-                                 const char *locale_iso)
+std::string BLI_date_format_date(const std::tm *date_time, const char *locale_iso)
 {
-  const auto &pat = get_locale_patterns(locale_iso);
-  const std::string &pattern = pat.date[static_cast<int>(style)];
-  std::string out = format_with_pattern(date_time, pattern, locale_iso);
+  const auto &pattern = get_locale_patterns(locale_iso);
+  std::string out = format_with_pattern(date_time, pattern.date, locale_iso);
 
   /* Remove the leading zero from the day. */
-  if (style == BLI_DateFormatStyle::Medium || style == BLI_DateFormatStyle::Long) {
-    std::regex leading_zero_re(R"((^|[\s,\.])0([1-9])(\b))");
-    out = std::regex_replace(out, leading_zero_re, "$1$2");
-  }
+  std::regex leading_zero_re(R"((^|[\s,\.])0([1-9])(\b))");
+  out = std::regex_replace(out, leading_zero_re, "$1$2");
   return out;
 }
 
 std::string BLI_date_format_datetime(const std::tm *datetime,
-                                     BLI_DateFormatStyle style,
                                      const char *locale_iso,
                                      const std::tm *now,
                                      const StringRef &today,
@@ -220,7 +165,7 @@ std::string BLI_date_format_datetime(const std::tm *datetime,
                     datetime->tm_year == yesterday.tm_year);
   }
 
-  const std::string time_s = BLI_date_format_time(datetime, style, locale_iso);
+  const std::string time_s = BLI_date_format_time(datetime, locale_iso);
 
   if (is_today) {
     return std::string(today) + " " + time_s;
@@ -229,12 +174,8 @@ std::string BLI_date_format_datetime(const std::tm *datetime,
     return std::string(yesterday) + " " + time_s;
   }
   else {
-    std::string datetime_s;
-    const std::string date_s = BLI_date_format_date(datetime, style, locale_iso);
-    const auto &pat = get_locale_patterns(locale_iso);
-    datetime_s = fmt::format(
-        fmt::runtime(pat.datetime), fmt::arg("0", time_s), fmt::arg("1", date_s));
-    return datetime_s;
+    const std::string date_s = BLI_date_format_date(datetime, locale_iso);
+    return date_s + " " + time_s;
   }
 }
 
