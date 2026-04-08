@@ -128,6 +128,7 @@ class Shader : public Node {
 
   /* requested mesh attributes */
   AttributeRequestSet attributes;
+  AttributeRequestSet global_attributes;
 
   /* determined before compiling */
   uint id;
