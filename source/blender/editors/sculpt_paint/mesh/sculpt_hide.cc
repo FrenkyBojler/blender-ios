@@ -36,6 +36,26 @@ Span<int> node_visible_verts(const bke::pbvh::MeshNode &node,
   return indices;
 }
 
+Span<int> node_visible_shared_verts(const bke::pbvh::MeshNode &node,
+                                    const Span<bool> hide_vert,
+                                    Vector<int> &indices)
+{
+  if (BKE_pbvh_node_fully_hidden_get(node)) {
+    return {};
+  }
+  const Span<int> verts = node.all_verts().slice(node.verts().size(),
+                                                 node.all_verts().size() - node.verts().size());
+  if (hide_vert.is_empty()) {
+    return verts;
+  }
+  indices.resize(verts.size());
+  const int *end = std::copy_if(verts.begin(), verts.end(), indices.begin(), [&](const int vert) {
+    return !hide_vert[vert];
+  });
+  indices.resize(end - indices.begin());
+  return indices;
+}
+
 Span<int> node_visible_all_verts(const bke::pbvh::MeshNode &node,
                                  const Span<bool> hide_vert,
                                  Vector<int> &indices,

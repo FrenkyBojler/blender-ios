@@ -223,17 +223,11 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   node_mask.foreach_index(
       [&](const int i) {
         LocalData &tls = all_tls.local();
-        int unique_visible_verts_num = 0;
-        const Span<int> all_visible_verts = hide::node_visible_all_verts(
-            nodes[i], hide_vert, tls.visible_verts, unique_visible_verts_num);
-        const int shared_visible_verts_num = all_visible_verts.size() - unique_visible_verts_num;
-        old_masks[i].resize(shared_visible_verts_num);
-        if (shared_visible_verts_num > 0) {
-          gather_data_mesh(
-              mask.span.as_span(),
-              all_visible_verts.slice(unique_visible_verts_num, shared_visible_verts_num),
-              old_masks[i].as_mutable_span());
-        }
+        const Span<int> shared_visible_verts = hide::node_visible_shared_verts(
+            nodes[i], hide_vert, tls.visible_verts);
+        old_masks[i].resize(shared_visible_verts.size());
+        gather_data_mesh(
+            mask.span.as_span(), shared_visible_verts, old_masks[i].as_mutable_span());
       },
       exec_mode::grain_size(1));
 
