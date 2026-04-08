@@ -8009,8 +8009,7 @@ void DisplacementNode::compile(SVMCompiler &compiler)
                                         .midlevel = compiler.input_float("Midlevel"),
                                         .scale = compiler.input_float("Scale"),
                                         .normal_offset = compiler.input_link("Normal"),
-                                        .out_offset = compiler.output("Displacement"),
-                                        ._pad = {}});
+                                        .out_offset = compiler.output("Displacement")});
 }
 
 void DisplacementNode::compile(OSLCompiler &compiler)
@@ -8098,8 +8097,7 @@ void VectorDisplacementNode::compile(SVMCompiler &compiler)
                                 .scale = compiler.input_float("Scale"),
                                 .attr = attr,
                                 .attr_sign = attr_sign,
-                                .displacement_offset = compiler.output("Displacement"),
-                                ._pad = {}});
+                                .displacement_offset = compiler.output("Displacement")});
 }
 
 void VectorDisplacementNode::compile(OSLCompiler &compiler)
