@@ -451,6 +451,21 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 # ------------------------------------------------------------------------------
+# GLOBAL UNDO TESTS
+# ------------------------------------------------------------------------------
+
+add_blender_test(
+  global_undo
+  --log "*undo*"
+  --log-level debug
+  --debug-memory
+  --debug
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_global_undo.py --
+  --src-test-dir ${TEST_SRC_DIR}/
+  --output-dir ${TEST_OUT_DIR}/global_undo/
+)
+
+# ------------------------------------------------------------------------------
 # MODELING TESTS
 # ------------------------------------------------------------------------------
 
@@ -1634,6 +1649,10 @@ if(WITH_UI_TESTS)
     test_fullscreen.wm_toggle_fullscreen
     test_fullscreen.wm_toggle_stacked_fullscreen_file_browser
     test_fullscreen.wm_toggle_stacked_fullscreens
+    test_quick_effects.add_quick_fur
+    test_quick_effects.add_quick_smoke
+    test_quick_effects.add_quick_liquid
+    test_quick_effects.add_quick_explode
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
