@@ -29,13 +29,6 @@ std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sens
 
 namespace blender {
 
-/**
- * Possible replacement for BLI_strcasestr (and strcasestr) that normalizes rather than
- * just lowercases. "noeud" finds "nœud", "echelle finds "Échelle",  with "echelle", "индекс"
- * finds "Индекс", etc.
- */
-bool BLI_str_utf8_contains(const char *s, const char *find, bool case_sensitive = false);
-
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
     ATTR_NONNULL(1, 2);
 size_t BLI_strncpy_utf8_rlen(char *__restrict dst,

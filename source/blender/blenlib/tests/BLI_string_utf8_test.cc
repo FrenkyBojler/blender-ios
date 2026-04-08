@@ -1471,20 +1471,6 @@ TEST(string, BLI_str_utf8_normalized)
   EXPECT_EQ(BLI_str_utf8_normalized("\xE2\x80\x8A \xEF\xBC\x99 \xEF\xBC\xBA", false), "  9 z");
 }
 
-/* -------------------------------------------------------------------- */
-/** \name Test #BLI_str_utf8_contains
- * \{ */
-
-TEST(string, BLI_str_utf8_contains)
-{
-  EXPECT_TRUE(BLI_str_utf8_contains(" aAzZ ", "aazz", false));
-  EXPECT_FALSE(BLI_str_utf8_contains(" aAzZ ", "aazz", true));
-  EXPECT_TRUE(BLI_str_utf8_contains(" \xBC \xC6 \xC5\x92 \xEF\xAC\x82 ", "1/4 ae oe fl", false));
-  EXPECT_TRUE(BLI_str_utf8_contains(" \xC0 \xDD \xC7\xBE ", "a y o", false));
-  EXPECT_TRUE(BLI_str_utf8_contains(" \xC0 \xDD \xC7\xBE ", "A Y O", true));
-  EXPECT_TRUE(BLI_str_utf8_contains(" \xEF\xBC\x99 \xEF\xBC\xBA ", "9 z", false));
-}
-
 /** \} */
 
 }  // namespace blender

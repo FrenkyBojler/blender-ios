@@ -1024,7 +1024,9 @@ static bool outliner_filter_has_name(TreeElement *te, const char *name, int flag
     return fnmatch(name, te->name, fn_flag) == 0;
   }
 
-  return BLI_str_utf8_contains(te->name, name, flags & SO_FIND_CASE_SENSITIVE);
+  const std::string full = BLI_str_utf8_normalized(te->name, flags & SO_FIND_CASE_SENSITIVE);
+  return full.find(BLI_str_utf8_normalized(name, flags & SO_FIND_CASE_SENSITIVE)) !=
+         std::string::npos;
 }
 
 static bool outliner_element_is_collection_or_object(TreeElement *te)

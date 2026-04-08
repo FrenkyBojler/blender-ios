@@ -915,12 +915,6 @@ std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sens
   return result;
 }
 
-bool BLI_str_utf8_contains(const char *s, const char *find, bool case_sensitive)
-{
-  const std::string full = BLI_str_utf8_normalized(s, case_sensitive);
-  return full.find(BLI_str_utf8_normalized(find, case_sensitive)) != std::string::npos;
-}
-
 /** \} */
 
 }  // namespace blender

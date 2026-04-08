@@ -5257,7 +5257,8 @@ void uiLayoutListItemAddPadding(Layout *layout)
 static bool block_search_panel_label_matches(const Block *block, const char *search_string)
 {
   if ((block->panel != nullptr) && (block->panel->type != nullptr)) {
-    if (BLI_str_utf8_contains(block->panel->type->label, search_string)) {
+    const std::string full = BLI_str_utf8_normalized(block->panel->type->label, false);
+    if (full.find(BLI_str_utf8_normalized(search_string, false)) != std::string::npos) {
       return true;
     }
   }
@@ -5269,23 +5270,27 @@ static bool block_search_panel_label_matches(const Block *block, const char *sea
  */
 static bool button_matches_search_filter(Button *but, const char *search_filter)
 {
+  std::string find = BLI_str_utf8_normalized(search_filter, false);
+
   /* Do the shorter checks first for better performance in case there is a match. */
-  if (BLI_str_utf8_contains(but->str.c_str(), search_filter)) {
+  if (BLI_str_utf8_normalized(but->str, false).find(find) != std::string::npos) {
     return true;
   }
 
   if (but->optype != nullptr) {
-    if (BLI_str_utf8_contains(but->optype->name, search_filter)) {
+    if (BLI_str_utf8_normalized(but->optype->name, false).find(find) != std::string::npos) {
       return true;
     }
   }
 
   if (but->rnaprop != nullptr) {
-    if (BLI_str_utf8_contains(RNA_property_ui_name(but->rnaprop), search_filter)) {
+    if (BLI_str_utf8_normalized(RNA_property_ui_name(but->rnaprop), false).find(find) !=
+        std::string::npos)
+    {
       return true;
     }
 #ifdef PROPERTY_SEARCH_USE_TOOLTIPS
-    if (BLI_strcasestr(RNA_property_description(but->rnaprop), search_filter)) {
+    if (BLI_str_utf8_normalized(RNA_property_description(but->rnaprop, false).find(find) != std::string::npos) {
       return true;
     }
 #endif
@@ -5310,7 +5315,7 @@ static bool button_matches_search_filter(Button *but, const char *search_filter)
         if (items_array[i].name == nullptr) {
           continue;
         }
-        if (BLI_str_utf8_contains(items_array[i].name, search_filter)) {
+        if (BLI_str_utf8_normalized(items_array[i].name, false).find(find) != std::string::npos) {
           found = true;
           break;
         }
