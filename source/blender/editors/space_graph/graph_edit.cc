@@ -2990,9 +2990,12 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   const RemovalMode mode = RemovalMode(RNA_enum_get(op->ptr, "mode"));
+  int fmod_count = 0;
+  int fc_count = 0;
 
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.data);
+    fc_count++;
 
     switch (mode) {
       case RemovalMode::ALL: {
@@ -3000,6 +3003,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
           FModifier *next = fcm->next;
           remove_fmodifier(&fcu->modifiers, fcm);
           fcm = next;
+          fmod_count++;
         }
         break;
       }
@@ -3009,6 +3013,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
           FModifier *next = fcm->next;
           if (fcm->type == type) {
             remove_fmodifier(&fcu->modifiers, fcm);
+            fmod_count++;
           }
           fcm = next;
         }
@@ -3018,6 +3023,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
       case RemovalMode::FIRST: {
         if (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first)) {
           remove_fmodifier(&fcu->modifiers, fcm);
+          fmod_count++;
         }
         break;
       }
@@ -3031,6 +3037,15 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
 
   /* Set notifier that things have changed. */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              "Removed %d F-Modifier%s from the %d %s F-Curve%s",
+              fmod_count,
+              fmod_count == 1 ? "" : "s",
+              fc_count,
+              fc_count == 1 ? "active" : "selected",
+              fc_count == 1 ? "" : "s");
 
   return OPERATOR_FINISHED;
 }
