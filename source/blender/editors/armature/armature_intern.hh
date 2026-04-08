@@ -133,6 +133,9 @@ void POSE_OT_quaternions_flip(wmOperatorType *ot);
 
 /* `pose_utils.cc` */
 
+/**
+ * Types of transforms to apply to a tPchanFCurveLink.
+ */
 enum eAction_TransformFlags {
   ACT_TRANS_LOC = (1 << 0),
   ACT_TRANS_ROT = (1 << 1),
