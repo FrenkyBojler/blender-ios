@@ -99,9 +99,14 @@ int active_update_and_get(bContext *C, Object &ob, const float mval_fl[2]);
  *
  * \param only_selected: Limit the fill to selected faces or vertices.
  *
+ * \param only_visible: Limit the fill skipping hidden faces.
+ *
  * \return #true if successful.
  */
-bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_selected);
+bool object_active_color_fill(Object &ob,
+                              const float fill_color[4],
+                              bool only_selected,
+                              const bool only_visible);
 
 /**
  * Fully replace the sculpt mesh with a mesh outside of #Main. This implements various checks to
