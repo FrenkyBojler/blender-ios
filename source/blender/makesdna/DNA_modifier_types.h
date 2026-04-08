@@ -201,6 +201,8 @@ struct ModifierData {
 
   char *error = nullptr;
 
+  struct IDProperty *system_properties = nullptr;
+
   /** Runtime field which contains runtime data which is specific to a modifier type. */
   void *runtime = nullptr;
 };
@@ -2567,7 +2569,7 @@ struct NodesModifierPanel {
 struct NodesModifierData {
   ModifierData modifier;
   struct bNodeTree *node_group = nullptr;
-  struct NodesModifierSettings settings;
+  struct NodesModifierSettings settings_legacy;
   /**
    * Directory where baked simulation states are stored. This may be relative to the .blend file.
    */

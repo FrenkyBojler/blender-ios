@@ -19,6 +19,7 @@
 #include "kernel/svm/node_types.h"
 
 #include "util/log.h"
+#include "util/math_float3.h"
 #include "util/progress.h"
 #include "util/queue.h"
 #include "util/task.h"
@@ -419,6 +420,7 @@ static ShaderNodeType svm_node_type_with_derivatives(ShaderNodeType type)
   case name: \
     return name##_DERIVATIVE;
 #include "kernel/svm/node_types_template.h"
+
     default:
       break;
   }
@@ -475,6 +477,37 @@ void SVMCompiler::add_value_node(const ShaderNode *shader_node,
            });
 }
 
+void SVMCompiler::stack_zero_incomplete_derivatives(const ShaderNode *node)
+{
+  /* No derivatives in volumes yet. */
+  if (current_type == SHADER_TYPE_VOLUME) {
+    return;
+  }
+  /* Does this node need derivatives but it doesn't have a derivative variation? */
+  const bool incomplete_derivatives = node->need_derivatives() &&
+                                      svm_node_type_with_derivatives(node->shader_node_type()) ==
+                                          node->shader_node_type();
+  if (!incomplete_derivatives) {
+    return;
+  }
+
+  /* Zero derivatives. */
+  for (const ShaderOutput *output : node->outputs) {
+    if (output->stack_offset == SVM_STACK_INVALID) {
+      continue;
+    }
+    const int base_size = stack_size(output->type());
+    if (base_size == 3) {
+      add_value_node(node, zero_float3(), output->stack_offset + 3);
+      add_value_node(node, zero_float3(), output->stack_offset + 6);
+    }
+    else if (base_size == 1) {
+      add_value_node(node, __float_as_int(0.0f), output->stack_offset + 1);
+      add_value_node(node, __float_as_int(0.0f), output->stack_offset + 2);
+    }
+  }
+}
+
 uint SVMCompiler::attribute(ustring name)
 {
   return scene->shader_manager->get_attribute_id(name);
@@ -511,6 +544,7 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet &done)
   current_node = node;
   node->compile(*this);
   current_node = nullptr;
+  stack_zero_incomplete_derivatives(node);
   stack_clear_users(node, done);
   stack_clear_temporary(node);
 
