@@ -439,31 +439,6 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
   FOREACH_OBJECT_IN_MODE_END;
 }
 
-/* ------------------------- */
-
-LinkData *poseAnim_mapping_getNextFCurve(ListBaseT<LinkData> *fcuLinks,
-                                         LinkData *prev,
-                                         const char *path)
-{
-  LinkData *first = static_cast<LinkData *>((prev)     ? prev->next :
-                                            (fcuLinks) ? fcuLinks->first :
-                                                         nullptr);
-  LinkData *ld;
-
-  /* check each link to see if the linked F-Curve has a matching path */
-  for (ld = first; ld; ld = ld->next) {
-    const FCurve *fcu = static_cast<const FCurve *>(ld->data);
-
-    /* check if paths match */
-    if (STREQ(path, fcu->rna_path)) {
-      return ld;
-    }
-  }
-
-  /* none found */
-  return nullptr;
-}
-
 /* *********************************************** */
 
 }  // namespace blender

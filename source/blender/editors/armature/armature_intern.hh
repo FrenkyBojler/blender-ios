@@ -194,15 +194,6 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
                                    ListBaseT<tPChanFCurveLink> *pfLinks,
                                    float cframe);
 
-/**
- * Find the next F-Curve for a PoseChannel with matching path.
- * - `path` is not just the #tPChanFCurveLink (`pfl`) rna_path,
- *   since that path doesn't have property info yet.
- */
-LinkData *poseAnim_mapping_getNextFCurve(ListBaseT<LinkData> *fcuLinks,
-                                         LinkData *prev,
-                                         const char *path);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
