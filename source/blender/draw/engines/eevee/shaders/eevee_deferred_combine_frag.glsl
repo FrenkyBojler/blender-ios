@@ -92,7 +92,7 @@ void main()
 
     /* Accumulate squared roughness like in Cycles. */
     float closure_roughness = closure_apparent_roughness_get(cl);
-    average_squared_roughness += SQUARE(closure_roughness) * closure_weight;
+    average_squared_roughness += square(closure_roughness) * closure_weight;
 
     switch (cl.type) {
       case CLOSURE_BSDF_TRANSLUCENT_ID:
@@ -178,10 +178,9 @@ void main()
   }
   if (render_pass_roughness_enabled) {
     if (sum_weight >= 1e-5f) {
-      average_squared_roughness /= sum_weight;
+      average_squared_roughness *= safe_rcp(sum_weight);
     }
-    output_renderpass_value(uniform_buf.render_pass.roughness_id,
-                            sqrtf(average_squared_roughness));
+    output_renderpass_value(uniform_buf.render_pass.roughness_id, sqrt(average_squared_roughness));
   }
 
   out_combined = float4(out_direct + out_indirect, 0.0f);
