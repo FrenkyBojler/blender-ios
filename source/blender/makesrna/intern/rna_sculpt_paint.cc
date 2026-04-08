@@ -1001,7 +1001,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
 }
 
-static void rna_def_mesh_paint_automasking_settings(BlenderRNA *brna)
+static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -1981,7 +1981,7 @@ void RNA_def_sculpt_paint(BlenderRNA *brna)
   rna_def_paint_curve(brna);
   rna_def_paint(brna);
   rna_def_unified_paint_settings(brna);
-  rna_def_mesh_paint_automasking_settings(brna);
+  rna_def_mesh_automasking_settings(brna);
   rna_def_sculpt(brna);
   rna_def_uv_sculpt(brna);
   rna_def_gp_paint(brna);
