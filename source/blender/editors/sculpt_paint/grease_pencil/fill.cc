@@ -49,6 +49,7 @@
 
 #include <list>
 #include <optional>
+#include <queue>
 
 namespace blender::ed::greasepencil {
 
@@ -1376,44 +1377,40 @@ static void add_weights_for_tri(const Span<int3> tri_adjacency,
   r_tri_hint_index[hint_tri_index] = hint_index;
   r_tri_weights[hint_tri_index] = tri_max_weight[hint_tri_index];
 
-  Vector<int> tris_to_check;
-  tris_to_check.append(hint_tri_index);
+  std::queue<int> tris_to_check;
 
-  while (!tris_to_check.is_empty()) {
-    Vector<int> new_tris_to_check;
+  tris_to_check.push(hint_tri_index);
 
-    for (const int i : tris_to_check.index_range()) {
-      const int tri_index = tris_to_check[i];
+  while (!tris_to_check.empty()) {
+    const int tri_index = tris_to_check.front();
+    tris_to_check.pop();
 
-      for (const int j : IndexRange(3)) {
-        const int next_tri = tri_adjacency[tri_index][j];
-        const int edge_index = tri_edges[tri_index][j];
+    for (const int j : IndexRange(3)) {
+      const int next_tri = tri_adjacency[tri_index][j];
+      const int edge_index = tri_edges[tri_index][j];
 
-        if (next_tri == NULL_INDEX) {
-          continue;
-        }
-        if (is_source_edge[edge_index]) {
-          continue;
-        }
+      if (next_tri == NULL_INDEX) {
+        continue;
+      }
+      if (is_source_edge[edge_index]) {
+        continue;
+      }
 
-        const float weight = std::min(edge_weights[edge_index], r_tri_weights[tri_index]);
+      const float weight = std::min(edge_weights[edge_index], r_tri_weights[tri_index]);
 
-        if (weight > r_tri_weights[next_tri]) {
-          new_tris_to_check.append(next_tri);
-          r_tri_hint_index[next_tri] = hint_index;
-          r_tri_weights[next_tri] = weight;
-          continue;
-        }
+      if (weight > r_tri_weights[next_tri]) {
+        tris_to_check.push(next_tri);
+        r_tri_hint_index[next_tri] = hint_index;
+        r_tri_weights[next_tri] = weight;
+        continue;
+      }
 
-        if (weight == r_tri_weights[next_tri] && r_tri_hint_index[next_tri] != hint_index) {
-          new_tris_to_check.append(next_tri);
-          r_tri_hint_index[next_tri] = hint_index;
-          r_tri_weights[next_tri] = weight;
-        }
+      if (weight == r_tri_weights[next_tri] && r_tri_hint_index[next_tri] != hint_index) {
+        tris_to_check.push(next_tri);
+        r_tri_hint_index[next_tri] = hint_index;
+        r_tri_weights[next_tri] = weight;
       }
     }
-
-    tris_to_check = new_tris_to_check;
   }
 }
 
