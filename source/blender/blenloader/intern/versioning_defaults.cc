@@ -733,12 +733,6 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       ToolSettings *ts = scene.toolsettings;
       ts->gpencil_selectmode_edit = GP_SELECTMODE_STROKE;
     }
-
-    /* The default Sculpting template has an incorrect, out-of-range value for this setting */
-    if (app_template && STREQ(app_template, "Sculpting")) {
-      ToolSettings *ts = scene.toolsettings;
-      ts->sculpt->automasking_view_normal_falloff = 0.25f;
-    }
   }
 
   /* Objects */
