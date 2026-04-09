@@ -1,3 +1,4 @@
 Referenced by issue #155103, Regression: name sanitization non-functional  in file-save dialog, `*` globbing also broken
 Referenced by issue #155105, Animation Regression Test: Slight issue with the keying part of the test.
 Referenced by issue #155109, Nodes: Crash when making node group
+Referenced by issue #157029, Blender (5.1.0-5.2.0) crashes on launch / freezes system when using Vulkan backend
