@@ -3,3 +3,4 @@ Referenced by commit 9afe6f3b519c6ef1edd3aa68d67222b119db2e76, Fix #155928: Undo
 Referenced by commit 177ce52e34cda53591adb4886b4dba93d8b99a76, Fix #155996: Crash calling operators with non-string keywords
 Referenced by pull request #156088, Refactor: avoid unnecessary PyObject argument passing for operator calls
 Referenced by commit a783d2754e6bfe1333750b87a13a461c26beb2e5, Refactor: avoid unnecessary PyObject argument passing for operator calls
+Referenced by pull request #157122, Fix #155996: Crash calling operators with non-string keywords
