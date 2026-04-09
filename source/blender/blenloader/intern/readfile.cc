@@ -829,13 +829,13 @@ const char *blo_bhead_library_filepath(const FileData *fd, const BHead *bhead)
       POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_filepath_offset));
 }
 
-uint16_t blo_bhead_library_flag(const FileData *fd, const BHead *bhead)
+LibraryFlag blo_bhead_library_flag(const FileData *fd, const BHead *bhead)
 {
   BLI_assert(blo_bhead_is_id(bhead) && (bhead->code & 0xFFFF) == ID_LI);
   if (fd->library_flag_offset < 0) {
-    return 0;
+    return LibraryFlag(0);
   }
-  return *reinterpret_cast<const uint16_t *>(
+  return *reinterpret_cast<const LibraryFlag *>(
       POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_flag_offset));
 }
 

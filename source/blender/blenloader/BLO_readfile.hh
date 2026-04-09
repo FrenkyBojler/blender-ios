@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include "DNA_ID_enums.h"
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
@@ -233,7 +234,7 @@ void BLO_read_do_version_after_setup(Main *new_bmain,
 struct BLODataBlockInfo {
   struct Library {
     const char *filepath = nullptr;
-    uint16_t flag = 0;
+    LibraryFlag flag = LibraryFlag(0);
   };
 
   char name[/*MAX_ID_NAME-2*/ 256] = "";

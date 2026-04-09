@@ -92,16 +92,16 @@ static bool blendhandle_load_id_data_and_validate(FileData *fd,
                                                   const char *&r_idname,
                                                   short &r_idflag,
                                                   AssetMetaData *&r_asset_meta_data,
-                                                  BLODataBlockInfo::Library *library_data)
+                                                  BLODataBlockInfo::Library *r_library_data)
 {
   r_idname = blo_bhead_id_name(fd, bhead);
   if (!r_idname || r_idname[0] == '\0') {
     return false;
   }
   r_idflag = blo_bhead_id_flag(fd, bhead);
-  if (library_data) {
-    library_data->filepath = blo_bhead_library_filepath(fd, bhead);
-    library_data->flag = blo_bhead_library_flag(fd, bhead);
+  if (r_library_data) {
+    r_library_data->filepath = blo_bhead_library_filepath(fd, bhead);
+    r_library_data->flag = blo_bhead_library_flag(fd, bhead);
   }
   /* Do not list (and therefore allow direct linking of) packed data.
    * While supporting this is conceptually possible, it would require significant changes in

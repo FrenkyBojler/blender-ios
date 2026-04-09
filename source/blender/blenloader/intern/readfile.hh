@@ -129,7 +129,7 @@ struct FileData {
   int id_flag_offset = 0;
   int id_deep_hash_offset = 0;
   /**
-   * Gives access to tlibraries' filepath and flag, useful for introspection of blendfiles
+   * Gives access to libraries' filepath and flag, useful for introspection of blendfiles'
    * dependencies _without_ having to fully read them.
    */
   int library_filepath_offset = 0;
@@ -286,7 +286,7 @@ AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *
  * Warning! Caller's responsibility to ensure given bhead **is** a Library ID one!
  */
 const char *blo_bhead_library_filepath(const FileData *fd, const BHead *bhead);
-uint16_t blo_bhead_library_flag(const FileData *fd, const BHead *bhead);
+LibraryFlag blo_bhead_library_flag(const FileData *fd, const BHead *bhead);
 
 /* do versions stuff */
 
