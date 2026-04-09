@@ -229,6 +229,7 @@ class SEQUENCER_PT_preview_overlay(Panel):
         col = split.column()
         col.prop(overlay_settings, "show_cursor")
         col.prop(overlay_settings, "show_safe_areas", text="Safe Areas")
+        col.prop(overlay_settings, "show_rule_thirds", text="Rule of Thirds")
         col.prop(overlay_settings, "show_annotation", text="Annotations")
 
 

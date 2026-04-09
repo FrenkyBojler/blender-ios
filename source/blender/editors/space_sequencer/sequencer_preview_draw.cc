@@ -227,14 +227,15 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
 
   imm_draw_box_wire_2d(shdr_pos, x1 - 0.5f, y1 - 0.5f, x2 + 0.5f, y2 + 0.5f);
 
+  rctf rect;
+  rect.xmin = x1;
+  rect.xmax = x2;
+  rect.ymin = y1;
+  rect.ymax = y2;
+
   /* Draw safety border. */
   if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_SAFE_MARGINS) {
     immUniformThemeColorBlend(TH_VIEW_OVERLAY, TH_BACK, 0.25f);
-    rctf rect;
-    rect.xmin = x1;
-    rect.xmax = x2;
-    rect.ymin = y1;
-    rect.ymax = y2;
     ui::draw_safe_areas(shdr_pos, &rect, scene->safe_areas.title, scene->safe_areas.action);
 
     if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_SAFE_CENTER) {
@@ -243,6 +244,12 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
     }
   }
 
+  /* Draw Rule of Thirds */
+  if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_RULE_THIRDS) {
+    immUniformThemeColorBlend(TH_VIEW_OVERLAY, TH_BACK, 0.25f);
+
+    ui::draw_rule_thirds(shdr_pos, &rect);
+  }
   immUnbindProgram();
 }
 

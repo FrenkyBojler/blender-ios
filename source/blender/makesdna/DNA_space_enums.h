@@ -363,6 +363,7 @@ enum eSpaceSeq_SequencerPreviewOverlay_Flag {
   SEQ_PREVIEW_SHOW_GPENCIL = (1 << 4),
   SEQ_PREVIEW_SHOW_SAFE_CENTER = (1 << 9),
   SEQ_PREVIEW_SHOW_METADATA = (1 << 10),
+  SEQ_PREVIEW_SHOW_RULE_THIRDS = (1 << 11),
 };
 
 /** #SequencerTimelineOverlay.flag */

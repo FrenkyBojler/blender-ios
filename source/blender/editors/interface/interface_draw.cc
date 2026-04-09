@@ -407,6 +407,31 @@ void draw_safe_areas(uint pos,
   }
 }
 
+void draw_rule_thirds(uint pos, const rctf *rect)
+{
+  const float width = rect->xmax - rect->xmin;
+  const float height = rect->ymax - rect->ymin;
+
+  immBegin(GPU_PRIM_LINES, 8);
+
+  /* Vertical lines at 1/3 and 2/3 */
+  for (int i = 1; i <= 2; i++) {
+    const float x = rect->xmin + (width * (float(i) / 3.0f));
+    immVertex2f(pos, x, rect->ymin);
+    immVertex2f(pos, x, rect->ymax);
+  }
+
+  /* Horizontal lines at 1/3 and 2/3 */
+  for (int i = 1; i <= 2; i++) {
+    const float y = rect->ymin + (height * (float(i) / 3.0f));
+    immVertex2f(pos, rect->xmin, y);
+    immVertex2f(pos, rect->xmax, y);
+  }
+
+  immEnd();
+}
+
+
 static void draw_scope_end(const rctf *rect)
 {
   GPU_blend(GPU_BLEND_ALPHA);
