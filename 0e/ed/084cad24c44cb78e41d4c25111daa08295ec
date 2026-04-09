@@ -5,3 +5,4 @@ Referenced by commit f88a7758d94b3cc0cb572d51b0bbcfd901848a12, Fix: Value proper
 Referenced by issue #136838, Shape Keys: multi-select & copy to selected
 Referenced by issue #151912, Regression: Can't copy paste names in shape keys panel
 Referenced by issue #154941, Tree View: Memory leak when cancelling rename
+Referenced by pull request #157109, Fix #157072: Renaming Keyframed Shapekey results in frozen Animation
