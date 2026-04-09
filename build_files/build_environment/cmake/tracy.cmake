@@ -12,6 +12,11 @@ ExternalProject_Add(external_tracy
   URL_HASH ${TRACY_HASH_TYPE}=${TRACY_HASH}
   PREFIX ${BUILD_DIR}/tracy
 
+  # Patch that adds support for Windows on Arm, only in main at the time of writing (commit feb07e4). Remove on upgrade.
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/tracy/src/external_tracy <
+    ${PATCH_DIR}/tracy_woa.diff
+
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/tracy
     ${DEFAULT_CMAKE_FLAGS}
