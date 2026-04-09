@@ -129,24 +129,26 @@ ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals kg,
 ccl_device_inline Transform object_get_transform(KernelGlobals kg,
                                                  const ccl_private ShaderData *sd)
 {
-#ifdef __OBJECT_MOTION__
+#if defined(__OBJECT_MOTION__) && !defined(__NO_OBJECT_MOTION_TRANSFORMS_CACHE__)
   return !(sd->object_flag & SD_OBJECT_MOTION) ?
              object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM) :
              sd->ob_tfm_motion;
 #else
-  return object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
+  return object_fetch_transform_motion_test(kg, sd->object, sd->object_flag, sd->time, nullptr);
 #endif
 }
 
 ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
                                                          const ccl_private ShaderData *sd)
 {
-#ifdef __OBJECT_MOTION__
+#if defined(__OBJECT_MOTION__) && !defined(__NO_OBJECT_MOTION_TRANSFORMS_CACHE__)
   return !(sd->object_flag & SD_OBJECT_MOTION) ?
              object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM) :
              sd->ob_itfm_motion;
 #else
-  return object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
+  Transform itfm;
+  object_fetch_transform_motion_test(kg, sd->object, sd->object_flag, sd->time, &itfm);
+  return itfm;
 #endif
 }
 

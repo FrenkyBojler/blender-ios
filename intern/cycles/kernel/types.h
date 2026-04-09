@@ -1066,7 +1066,7 @@ struct ccl_align(16) ShaderData {
   float3 dPdv;
 #endif
 
-#ifdef __OBJECT_MOTION__
+#if defined(__OBJECT_MOTION__) && !defined(__NO_OBJECT_MOTION_TRANSFORMS_CACHE__)
   /* Object <-> world space transformations for motion blur, cached to avoid
    * re-interpolating them constantly for shading. */
   Transform ob_tfm_motion;

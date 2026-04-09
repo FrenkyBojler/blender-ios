@@ -70,6 +70,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -O2
     -ffast-math
     -D__KERNEL_LOCAL_ATOMIC_SORT__
+    -D__NO_OBJECT_MOTION_TRANSFORMS_CACHE__
     -o"${cycles_kernel_oneapi_lib}"
     -I"${CMAKE_CURRENT_SOURCE_DIR}/../../.."
   )

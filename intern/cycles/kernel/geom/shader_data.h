@@ -26,7 +26,7 @@ ccl_device void shader_setup_object_transforms(KernelGlobals kg,
                                                ccl_private ShaderData *ccl_restrict sd,
                                                const float time)
 {
-#ifdef __OBJECT_MOTION__
+#if defined(__OBJECT_MOTION__) && !defined(__NO_OBJECT_MOTION_TRANSFORMS_CACHE__)
   if (sd->object_flag & SD_OBJECT_MOTION) {
     sd->ob_tfm_motion = object_fetch_transform_motion(kg, sd->object, time);
     sd->ob_itfm_motion = transform_inverse(sd->ob_tfm_motion);
