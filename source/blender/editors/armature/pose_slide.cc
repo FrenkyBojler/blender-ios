@@ -74,29 +74,6 @@
 
 namespace blender {
 
-static bool pose_slide_poll(bContext *C)
-{
-  Object *obact = CTX_data_active_object(C);
-  if (!obact) {
-    return false;
-  }
-  const eContextObjectMode mode = CTX_data_mode_enum(C);
-  if (mode == CTX_MODE_OBJECT) {
-    return true;
-  }
-
-  if (!(obact->mode & OB_MODE_EDIT)) {
-    Object *obpose = BKE_object_pose_armature_get(obact);
-    if (obpose != nullptr) {
-      if ((obact == obpose) || (obact->mode & OB_MODE_ALL_WEIGHT_PAINT)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 /* **************************************************** */
 /* A) Push & Relax, Breakdowner */
 
@@ -1263,7 +1240,7 @@ void POSE_OT_push(wmOperatorType *ot)
   ot->invoke = pose_slide_push_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = pose_slide_poll;
+  ot->poll = ED_operator_posemode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1322,7 +1299,7 @@ void POSE_OT_relax(wmOperatorType *ot)
   ot->invoke = pose_slide_relax_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = pose_slide_poll;
+  ot->poll = ED_operator_posemode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1384,7 +1361,7 @@ void POSE_OT_blend_with_rest(wmOperatorType *ot)
   ot->invoke = pose_slide_blend_rest_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = pose_slide_poll;
+  ot->poll = ED_operator_posemode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1443,7 +1420,7 @@ void POSE_OT_breakdown(wmOperatorType *ot)
   ot->invoke = pose_slide_breakdown_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = pose_slide_poll;
+  ot->poll = ED_operator_posemode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
@@ -1495,7 +1472,7 @@ void POSE_OT_blend_to_neighbors(wmOperatorType *ot)
   ot->invoke = pose_slide_blend_to_neighbors_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
-  ot->poll = pose_slide_poll;
+  ot->poll = ED_operator_posemode;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;

@@ -328,44 +328,6 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveL
   }
 }
 
-static void foo(ListBaseT<TransformableFCurveLink> &pfLinks, Object &ob)
-{
-  PointerRNA object_ptr = RNA_pointer_create_discrete(&ob.id, RNA_Object, &ob);
-
-  Vector<FCurve *> curves;
-  const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
-      ob.id, object_ptr, curves);
-
-  if (!transFlags) {
-    return;
-  }
-
-  TransformableFCurveLink *pfl = MEM_new<TransformableFCurveLink>("TransformableFCurveLink");
-  BLI_addtail(&pfLinks, pfl);
-  pfl->fcurves = curves;
-
-  animrig::Transformable *transformable = MEM_new<animrig::Transformable>("transformable_object",
-                                                                          ob);
-  pfl->transformable = transformable;
-
-  /* Set pchan's transform flags. */
-  pfl->transform_flag = transFlags;
-
-  pfl->old_loc = transformable->get_location();
-  pfl->old_rot = transformable->get_rotation();
-  pfl->old_scale = transformable->get_scale();
-
-  pfl->ptr = object_ptr;
-}
-
-static void get_objects_for_slide(bContext *C, ListBaseT<TransformableFCurveLink> &slider_data)
-{
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-    foo(slider_data, *ob);
-  }
-  CTX_DATA_END;
-}
-
 void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLinks)
 {
   BLI_assert(pfLinks != nullptr);
@@ -373,10 +335,6 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLin
   switch (mode) {
     case CTX_MODE_POSE:
       get_pose_bones_for_slide(C, *pfLinks);
-      break;
-
-    case CTX_MODE_OBJECT:
-      get_objects_for_slide(C, *pfLinks);
       break;
 
     default:
