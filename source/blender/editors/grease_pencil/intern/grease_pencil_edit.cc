@@ -5107,8 +5107,10 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     }
 
     if (ELEM(type, StrokeType::Fill, StrokeType::Both)) {
+      const IndexMask selected_non_fill_strokes = IndexMask::from_predicate(
+          strokes, memory, [&](const int64_t index) { return fill_ids.span[index] == 0; });
       bke::greasepencil::gather_next_available_fill_ids(
-          fill_ids.span.varray(), strokes, fill_ids.span);
+          fill_ids.span.varray(), selected_non_fill_strokes, fill_ids.span);
     }
 
     hide_stroke.finish();
