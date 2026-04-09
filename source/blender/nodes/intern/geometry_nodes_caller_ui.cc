@@ -264,7 +264,6 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                       0,
                                       StringRef(socket.description));
   button_placeholder_set(but, IFACE_("Layer"));
-  layout.label("", ICON_BLANK1);
 
   const Object *object = ed::object::context_object(&ctx.C);
   BLI_assert(object != nullptr);
@@ -356,6 +355,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                         ui::Layout &layout,
                                         PointerRNA *socket_props_ptr,
+                                        const StringRef socket_name,
                                         const bNodeTreeInterfaceSocket &socket)
 {
   if (!ctx.tree_log) {
@@ -363,7 +363,13 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  ui::Block *block = layout.block();
+  ui::Layout &split = layout.split(0.4f, false);
+  ui::Layout &name_row = split.row(false);
+  name_row.alignment_set(ui::LayoutAlign::Right);
+  name_row.label(socket_name, ICON_NONE);
+
+  ui::Layout &prop_row = split.row(true);
+  ui::Block *block = prop_row.block();
   ui::Button *but = uiDefIconTextButR(block,
                                       ui::ButtonType::SearchMenu,
                                       ICON_NONE,
@@ -404,6 +410,8 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
   if (!access_allowed) {
     button_flag_enable(but, ui::BUT_REDALERT);
   }
+
+  layout.label("", ICON_BLANK1);
 }
 
 static void add_attribute_search_or_value_buttons(
@@ -413,50 +421,19 @@ static void add_attribute_search_or_value_buttons(
     PointerRNA *socket_props_ptr,
     const std::optional<StringRefNull> use_name = std::nullopt)
 {
-  const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+  const auto input_type = GeometryNodesInputType(RNA_enum_get(socket_props_ptr, "type"));
+  const StringRef socket_name = use_name.has_value() ? (*use_name) :
+                                                       (socket.name ? IFACE_(socket.name) : "");
 
-  const bool show_attribute_input = RNA_enum_get(socket_props_ptr, "type") ==
-                                    int(nodes::GeometryNodesInputType::Attribute);
-
-  /* We're handling this manually in this case. */
-  layout.use_property_decorate_set(false);
-
-  ui::Layout &split = layout.split(0.4f, false);
-  ui::Layout &name_row = split.row(false);
-  name_row.alignment_set(ui::LayoutAlign::Right);
-
-  ui::Layout *prop_row = nullptr;
-  const StringRefNull socket_name = use_name.has_value() ?
-                                        (*use_name) :
-                                        (socket.name ? IFACE_(socket.name) : "");
-
-  if (type == SOCK_BOOLEAN && !show_attribute_input) {
-    name_row.label("", ICON_NONE);
-    prop_row = &split.row(true);
+  if (ELEM(input_type, GeometryNodesInputType::Attribute, GeometryNodesInputType::SurfaceUVMap)) {
+    if (input_type == GeometryNodesInputType::SurfaceUVMap) {
+      layout.active_set(false);
+    }
+    add_attribute_search_button(ctx, layout, socket_props_ptr, socket_name, socket);
   }
   else {
-    prop_row = &layout.row(true);
+    layout.prop(socket_props_ptr, "value", UI_ITEM_NONE, IFACE_(socket_name), ICON_NONE);
   }
-
-  if (type == SOCK_BOOLEAN) {
-    prop_row->use_property_split_set(false);
-    prop_row->alignment_set(ui::LayoutAlign::Expand);
-  }
-
-  if (show_attribute_input) {
-    name_row.label(IFACE_(socket_name), ICON_NONE);
-    prop_row = &split.row(true);
-    add_attribute_search_button(ctx, *prop_row, socket_props_ptr, socket);
-    layout.label("", ICON_BLANK1);
-  }
-  else {
-    const char *name = IFACE_(socket_name.c_str());
-    prop_row->prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
-    layout.decorator(socket_props_ptr, "value", -1);
-  }
-
-  ctx.draw_attribute_toggle_fn(*prop_row, ICON_SPREADSHEET, socket);
 }
 
 /* Drawing the properties manually with #ui::Layout::prop instead of #uiDefAutoButsRNA allows using
@@ -478,6 +455,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   ui::Layout &row = layout.row(true);
   row.use_property_decorate_set(true);
   row.active_set(ctx.input_is_active(socket));
+
+  row.context_string_set("input_identifier", socket.identifier);
 
   /* Use #ui::Layout::prop_search to draw pointer properties because #ui::Layout::prop would not
    * have enough information about what type of ID to select for editing the values. This is
@@ -504,6 +483,10 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   switch (type) {
     case SOCK_OBJECT: {
+      const auto input_type = GeometryNodesInputType(RNA_enum_get(socket_props_ptr, "type"));
+      if (input_type == GeometryNodesInputType::SurfaceObject) {
+        row.active_set(false);
+      }
       row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
       break;
     }
@@ -518,6 +501,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_TEXTURE: {
       row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
+      row.label("", ICON_BLANK1);
       break;
     }
     case SOCK_FONT: {
@@ -588,8 +572,6 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     case SOCK_BOOLEAN: {
       if (is_layer_selection_field(socket)) {
         add_layer_name_search_button(ctx, row, socket, socket_props_ptr);
-        /* Adds a spacing at the end of the row. */
-        row.label("", ICON_BLANK1);
         break;
       }
       ATTR_FALLTHROUGH;
@@ -603,9 +585,6 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       }
       break;
     }
-  }
-  if (!nodes::input_has_attribute_toggle(*ctx.tree, input_index)) {
-    row.label("", ICON_BLANK1);
   }
 }
 
@@ -853,11 +832,6 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
                                             ui::Layout &layout,
                                             const bNodeTreeInterfaceSocket &socket)
 {
-  ui::Layout &split = layout.split(0.4f, false);
-  ui::Layout &name_row = split.row(false);
-  name_row.alignment_set(ui::LayoutAlign::Right);
-  name_row.label(socket.name ? socket.name : "", ICON_NONE);
-
   PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, "outputs");
   if (!prop) {
     return;
@@ -865,8 +839,7 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
   PointerRNA outputs_ptr = RNA_property_pointer_get(ctx.properties_ptr, prop);
   PointerRNA output_socket_ptr = RNA_pointer_get(&outputs_ptr, socket.identifier);
 
-  ui::Layout &row = split.row(true);
-  add_attribute_search_button(ctx, row, &output_socket_ptr, socket);
+  add_attribute_search_button(ctx, layout, &output_socket_ptr, socket.name, socket);
 }
 
 static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, ui::Layout &layout)
@@ -1004,16 +977,6 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
   };
-  ctx.draw_attribute_toggle_fn =
-      [&](ui::Layout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
-        PointerRNA props = layout.op("object.geometry_nodes_input_attribute_toggle",
-                                     "",
-                                     icon,
-                                     wm::OpCallContext::InvokeDefault,
-                                     UI_ITEM_NONE);
-        RNA_string_set(&props, "modifier_name", nmd.modifier.name);
-        RNA_string_set(&props, "input_name", io_socket.identifier);
-      };
 
   layout.use_property_split_set(true);
   /* Decorators are added manually for supported properties because the

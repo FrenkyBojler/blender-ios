@@ -52,6 +52,8 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "ED_object.hh"
+
 namespace blender {
 
 using bke::SocketValueVariant;
@@ -1060,11 +1062,11 @@ static bke::bNodeSocketType *make_socket_type_virtual()
   return stype;
 }
 
-static void make_common_type_prop(StructRNA &srna,
-                                  const bNodeTreeInterfaceSocket &socket,
-                                  const EnumPropertyItem *items,
-                                  const nodes::GeometryNodesInputType default_type,
-                                  nodes::GeneratedTreeSrnaData &r_generated)
+static PropertyRNA *make_common_type_prop(StructRNA &srna,
+                                          const bNodeTreeInterfaceSocket &socket,
+                                          const EnumPropertyItem *items,
+                                          const nodes::GeometryNodesInputType default_type,
+                                          nodes::GeneratedTreeSrnaData &r_generated)
 {
   PropertyRNA *prop = RNA_def_enum(
       &srna,
@@ -1076,6 +1078,7 @@ static void make_common_type_prop(StructRNA &srna,
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  return prop;
 }
 
 static void make_common_attribute_name_prop(StructRNA &srna,
@@ -1353,6 +1356,66 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
   return socktype;
 }
 
+static const EnumPropertyItem *geometry_nodes_vector_enum_items_fn(bContext *C,
+                                                                   PointerRNA * /*ptr*/,
+                                                                   PropertyRNA * /*prop*/,
+                                                                   bool *r_free)
+{
+  if (!C) {
+    return nodes::geometry_nodes_input_type_items_vector;
+  }
+  const Object *object = ed::object::context_active_object(C);
+  if (!object) {
+    return nodes::geometry_nodes_input_type_items_vector;
+  }
+  int items_num = 0;
+  EnumPropertyItem *items = nullptr;
+  for (const EnumPropertyItem *item = nodes::geometry_nodes_input_type_items_vector;
+       item->identifier;
+       item++)
+  {
+    if (item->value == int(nodes::GeometryNodesInputType::SurfaceUVMap)) {
+      if (object->type != OB_CURVES) {
+        continue;
+      }
+    }
+    RNA_enum_item_add(&items, &items_num, item);
+  }
+  RNA_enum_item_end(&items, &items_num);
+  *r_free = true;
+  return items;
+}
+
+static const EnumPropertyItem *geometry_nodes_object_enum_items_fn(bContext *C,
+                                                                   PointerRNA * /*ptr*/,
+                                                                   PropertyRNA * /*prop*/,
+                                                                   bool *r_free)
+{
+  if (!C) {
+    return nodes::geometry_nodes_input_type_items_object;
+  }
+  const Object *object = ed::object::context_active_object(C);
+  if (!object) {
+    return nodes::geometry_nodes_input_type_items_object;
+  }
+  int items_num = 0;
+  EnumPropertyItem *items = nullptr;
+  for (const EnumPropertyItem *item = nodes::geometry_nodes_input_type_items_object;
+       item->identifier;
+       item++)
+  {
+    if (item->value == int(nodes::GeometryNodesInputType::SurfaceObject)) {
+      if (object->type != OB_CURVES) {
+        continue;
+      }
+    }
+    RNA_enum_item_add(&items, &items_num, item);
+  }
+  RNA_enum_item_end(&items, &items_num);
+  *r_free = true;
+  return items;
+}
+
 static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, const int dimensions)
 {
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_VECTOR, subtype, dimensions);
@@ -1387,7 +1450,16 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    make_common_value_and_attribute_props(srna, socket, r_generated);
+    prop = make_common_type_prop(srna,
+                                 socket,
+                                 nodes::geometry_nodes_input_type_items_vector,
+                                 socket.default_attribute_name &&
+                                         socket.default_attribute_name[0] != '\0' ?
+                                     nodes::GeometryNodesInputType::Attribute :
+                                     nodes::GeometryNodesInputType::Value,
+                                 r_generated);
+    RNA_def_enum_funcs(prop, geometry_nodes_vector_enum_items_fn);
+    make_common_attribute_name_prop(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1550,7 +1622,12 @@ static bke::bNodeSocketType *make_socket_type_object()
         &srna, "value", RNA_Object, socket.name, socket.description);
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-    make_common_value_props(srna, socket, r_generated);
+    prop = make_common_type_prop(srna,
+                                 socket,
+                                 nodes::geometry_nodes_input_type_items_object,
+                                 nodes::GeometryNodesInputType::Value,
+                                 r_generated);
+    RNA_def_enum_funcs(prop, geometry_nodes_object_enum_items_fn);
   };
   return socktype;
 }

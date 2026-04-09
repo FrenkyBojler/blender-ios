@@ -30,6 +30,10 @@ static constexpr EnumPropertyItem input_type_item_attribute = {
     int(GeometryNodesInputType::Attribute), "ATTRIBUTE", 0, "Attribute", "Pass an attribute"};
 static constexpr EnumPropertyItem input_type_item_layer = {
     int(GeometryNodesInputType::Layer), "LAYER", 0, "Layer", "Pass a layer selection"};
+static constexpr EnumPropertyItem input_type_item_surface_object = {
+    int(GeometryNodesInputType::SurfaceObject), "SURFACE_OBJECT", 0, "Surface Object", ""};
+static constexpr EnumPropertyItem input_type_item_surface_uv_map = {
+    int(GeometryNodesInputType::SurfaceUVMap), "SURFACE_UV_MAP", 0, "Surface UV Map", ""};
 
 const EnumPropertyItem geometry_nodes_input_type_items_fallback[] = {
     input_type_item_fallback,
@@ -51,6 +55,19 @@ const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_lay
     input_type_item_value,
     input_type_item_attribute,
     input_type_item_layer,
+    {0},
+};
+
+const EnumPropertyItem geometry_nodes_input_type_items_object[] = {
+    input_type_item_value,
+    input_type_item_surface_object,
+    {0},
+};
+
+const EnumPropertyItem geometry_nodes_input_type_items_vector[] = {
+    input_type_item_value,
+    input_type_item_attribute,
+    input_type_item_surface_uv_map,
     {0},
 };
 

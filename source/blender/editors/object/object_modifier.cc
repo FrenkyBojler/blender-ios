@@ -3470,14 +3470,11 @@ void OBJECT_OT_surfacedeform_bind(wmOperatorType *ot)
 /** \} */
 
 /* ------------------------------------------------------------------- */
-/** \name Toggle Value or Attribute Operator
+/** \name Change Geometry Nodes Input Type Operator
  *
- * \note This operator basically only exists to provide a better tooltip for the toggle button,
- * since it is stored as an IDProperty. It also stops the button from being highlighted when
- * "use_attribute" is on, which isn't expected.
  * \{ */
 
-static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_nodes_input_type_change_exec(bContext *C, wmOperator *op)
 {
   Object *ob = context_active_object(C);
 
@@ -3489,42 +3486,66 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
     return OPERATOR_CANCELLED;
   }
 
-  char input_name[MAX_NAME];
-  RNA_string_get(op->ptr, "input_name", input_name);
+  const std::string input_identifier = RNA_string_get(op->ptr, "input_identifier");
 
   PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, RNA_NodesModifier, nmd);
   PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
   PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
-  PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
+  PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_identifier.c_str());
 
-  int type = RNA_enum_get(&input_ptr, "type");
-  if (type == int(nodes::GeometryNodesInputType::Attribute)) {
-    type = int(nodes::GeometryNodesInputType::Value);
-  }
-  else {
-    type = int(nodes::GeometryNodesInputType::Attribute);
-  }
-  RNA_enum_set(&input_ptr, "type", type);
+  const auto value = nodes::GeometryNodesInputType(RNA_enum_get(op->ptr, "input_type"));
+  RNA_enum_set(&input_ptr, "type", int(value));
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_geometry_nodes_input_attribute_toggle(wmOperatorType *ot)
+static const EnumPropertyItem *geometry_nodes_input_type_items_fn(bContext *C,
+                                                                  PointerRNA * /*ptr*/,
+                                                                  PropertyRNA * /*prop*/,
+                                                                  bool *r_free)
+{
+  PointerRNA modifier_ptr = CTX_data_pointer_get_type(C, "modifier", RNA_NodesModifier);
+  if (RNA_pointer_is_null(&modifier_ptr)) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  const std::optional<StringRefNull> input_name = CTX_data_string_get(C, "input_identifier");
+  if (!input_name) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+  PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+  PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name->c_str());
+  PropertyRNA *prop = RNA_struct_find_property(&input_ptr, "type");
+  if (!prop || RNA_property_type(prop) != PROP_ENUM) {
+    BLI_assert_unreachable();
+    return rna_enum_dummy_NULL_items;
+  }
+  const EnumPropertyItem *items;
+  RNA_property_enum_items(C, &input_ptr, prop, &items, nullptr, r_free);
+  return items;
+}
+
+void OBJECT_OT_geometry_nodes_input_type_change(wmOperatorType *ot)
 {
   ot->name = "Input Attribute Toggle";
   ot->description =
       "Switch between an attribute and a single value to define the data for every element";
-  ot->idname = "OBJECT_OT_geometry_nodes_input_attribute_toggle";
+  ot->idname = "OBJECT_OT_geometry_nodes_input_type_change";
 
-  ot->exec = geometry_nodes_input_attribute_toggle_exec;
+  ot->exec = geometry_nodes_input_type_change_exec;
   ot->poll = ED_operator_object_active_editable;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  RNA_def_string(ot->srna, "input_name", nullptr, 0, "Input Name", "");
   RNA_def_string(ot->srna, "modifier_name", nullptr, MAX_NAME, "Modifier Name", "");
+  RNA_def_string(ot->srna, "input_identifier", nullptr, 0, "Input Name", "");
+  PropertyRNA *prop = RNA_def_enum(
+      ot->srna, "input_type", rna_enum_dummy_NULL_items, 0, "Input Type", "");
+  RNA_def_enum_funcs(prop, geometry_nodes_input_type_items_fn);
 }
 
 /** \} */

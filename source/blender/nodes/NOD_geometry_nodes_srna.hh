@@ -23,12 +23,16 @@ enum class GeometryNodesInputType {
   Value = 1,
   Attribute = 2,
   Layer = 3,
+  SurfaceObject = 4,
+  SurfaceUVMap = 5,
 };
 
 extern const EnumPropertyItem geometry_nodes_input_type_items_fallback[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_layer[];
+extern const EnumPropertyItem geometry_nodes_input_type_items_object[];
+extern const EnumPropertyItem geometry_nodes_input_type_items_vector[];
 
 /**
  * Contains a runtime registration of RNA types generated based on the node group's interface for

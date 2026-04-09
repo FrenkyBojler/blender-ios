@@ -12,6 +12,7 @@
 #include "BLI_math_euler.hh"
 #include "BLI_string.h"
 
+#include "DNA_curves_types.h"
 #include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_execute.hh"
@@ -91,7 +92,8 @@ static bke::SocketValueVariant load_data_block_input(PointerRNA &input_props_ptr
   return bke::SocketValueVariant::From(data_block);
 }
 
-static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr,
+static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *call_data,
+                                                     PointerRNA *input_props_ptr,
                                                      const bNodeTreeInterfaceSocket &io_socket)
 {
   const bke::bNodeSocketType *stype = io_socket.socket_typeinfo();
@@ -125,6 +127,18 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
         {
           return std::move(*value);
         }
+      }
+      if (type == GeometryNodesInputType::SurfaceUVMap) {
+        if (call_data) {
+          if (const Object *object = call_data->self_object()) {
+            if (object->type == OB_CURVES) {
+              const Curves &curves = *id_cast<const Curves *>(object->data);
+              const StringRef name = curves.surface_uv_map;
+              return bke::SocketValueVariant::From(bke::AttributeFieldInput::from<float3>(name));
+            }
+          }
+        }
+        return {};
       }
       break;
     }
@@ -216,6 +230,17 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         return load_data_block_input<Object>(*input_props_ptr);
+      }
+      if (type == GeometryNodesInputType::SurfaceObject) {
+        if (call_data) {
+          if (const Object *object = call_data->self_object()) {
+            if (object->type == OB_CURVES) {
+              const Curves &curves = *id_cast<const Curves *>(object->data);
+              return bke::SocketValueVariant::From(curves.surface);
+            }
+          }
+        }
+        return {};
       }
       break;
     }
@@ -533,7 +558,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
     }
 
     PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, interface_socket.identifier);
-    bke::SocketValueVariant value = init_socket_cpp_value(&input_props_ptr, interface_socket);
+    bke::SocketValueVariant value = init_socket_cpp_value(
+        &call_data, &input_props_ptr, interface_socket);
     param_inputs[function.inputs.main[i]] = &scope.construct<bke::SocketValueVariant>(
         std::move(value));
   }
@@ -626,7 +652,7 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
     }
 
     bke::SocketValueVariant &value = scope.add_value(
-        init_socket_cpp_value(&socket_props_ptr, io_input));
+        init_socket_cpp_value(nullptr, &socket_props_ptr, io_input));
     if (!value.is_single()) {
       continue;
     }

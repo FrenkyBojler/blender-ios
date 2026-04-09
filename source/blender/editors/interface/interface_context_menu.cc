@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_fileops.h"
@@ -535,6 +536,23 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   layout.operator_context_set(wm::OpCallContext::InvokeDefault);
 
   const bool is_disabled = but->flag & BUT_DISABLED;
+
+  if (but->rnaprop &&
+      RNA_struct_search_closest_ancestor_by_type(&but->rnapoin, RNA_NodesModifierProperties))
+  {
+    const std::optional<AncestorPointerRNA> modifier_ptr =
+        RNA_struct_search_closest_ancestor_by_type(&but->rnapoin, RNA_NodesModifier);
+    const std::optional<AncestorPointerRNA> input_ptr = RNA_struct_search_closest_ancestor_by_type(
+        &but->rnapoin, RNA_PropertyGroup);
+    if (modifier_ptr && input_ptr) {
+      const auto &nmd = *static_cast<const NodesModifierData *>(modifier_ptr->data);
+      PointerRNA ptr = layout.op_menu_enum(
+          C, "OBJECT_OT_geometry_nodes_input_type_change", "input_type", "Set Type", ICON_NONE);
+      RNA_string_set(&ptr, "modifier_name", nmd.modifier.name);
+      RNA_string_set(&ptr, "input_identifier", RNA_struct_identifier(input_ptr->type));
+      layout.separator();
+    }
+  }
 
   if (is_disabled) {
     /* Suppress editing commands. */
