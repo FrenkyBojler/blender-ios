@@ -2248,6 +2248,15 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
   }
   IDP_AddToGroup(properties.get(), panels.release());
 
+  auto outputs = idprop::create_group("outputs");
+  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
+    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
+    if (!IDP_AddToGroup(outputs.get(), prop)) {
+      IDP_FreeProperty(prop);
+    }
+  }
+  IDP_AddToGroup(properties.get(), outputs.release());
+
   return properties.release();
 }
 
@@ -2259,15 +2268,7 @@ void node_update_asset_metadata(bNodeTree &node_tree)
   }
 
   BKE_asset_metadata_idprop_ensure(asset_data, idprop::create("type", node_tree.type).release());
-  auto outputs = idprop::create_group("outputs");
-  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
-    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
-    if (!IDP_AddToGroup(outputs.get(), prop)) {
-      IDP_FreeProperty(prop);
-    }
-  }
   BKE_asset_metadata_idprop_ensure(asset_data, node_create_asset_meta_data_properties(node_tree));
-  BKE_asset_metadata_idprop_ensure(asset_data, outputs.release());
   if (node_tree.geometry_node_asset_traits) {
     auto property = idprop::create("geometry_node_asset_traits_flag",
                                    node_tree.geometry_node_asset_traits->flag);
@@ -3308,6 +3309,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
           return "NodeSocketFloatColorTemperature";
         case PROP_FREQUENCY:
           return "NodeSocketFloatFrequency";
+        case PROP_PIXEL:
+          return "NodeSocketFloatPixel";
         case PROP_NONE:
         default:
           return "NodeSocketFloat";
@@ -3320,6 +3323,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
           return "NodeSocketIntPercentage";
         case PROP_FACTOR:
           return "NodeSocketIntFactor";
+        case PROP_PIXEL:
+          return "NodeSocketIntPixel";
         case PROP_NONE:
         default:
           return "NodeSocketInt";
@@ -3349,6 +3354,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ";
+          case PROP_PIXEL:
+            return "NodeSocketVectorPixel";
           case PROP_NONE:
           default:
             return "NodeSocketVector";
@@ -3372,6 +3379,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler2D";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ2D";
+          case PROP_PIXEL:
+            return "NodeSocketVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeSocketVector2D";
@@ -3395,6 +3404,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler4D";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ4D";
+          case PROP_PIXEL:
+            return "NodeSocketVectorPixel4D";
           case PROP_NONE:
           default:
             return "NodeSocketVector4D";
@@ -3413,6 +3424,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketIntVectorFactor3D";
           case PROP_PERCENTAGE:
             return "NodeSocketIntVectorPercentage3D";
+          case PROP_PIXEL:
+            return "NodeSocketIntVectorPixel3D";
           case PROP_NONE:
           default:
             return "NodeSocketIntVector3D";
@@ -3426,6 +3439,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketIntVectorFactor2D";
           case PROP_PERCENTAGE:
             return "NodeSocketIntVectorPercentage2D";
+          case PROP_PIXEL:
+            return "NodeSocketIntVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeSocketIntVector2D";
@@ -3508,6 +3523,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketFloatColorTemperature";
         case PROP_FREQUENCY:
           return "NodeTreeInterfaceSocketFloatFrequency";
+        case PROP_PIXEL:
+          return "NodeTreeInterfaceSocketFloatPixel";
         case PROP_NONE:
         default:
           return "NodeTreeInterfaceSocketFloat";
@@ -3520,6 +3537,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketIntPercentage";
         case PROP_FACTOR:
           return "NodeTreeInterfaceSocketIntFactor";
+        case PROP_PIXEL:
+          return "NodeTreeInterfaceSocketIntPixel";
         case PROP_NONE:
         default:
           return "NodeTreeInterfaceSocketInt";
@@ -3549,6 +3568,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketVectorPixel";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector";
@@ -3572,6 +3593,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler2D";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ2D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector2D";
@@ -3595,6 +3618,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler4D";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ4D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketVectorPixel4D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector4D";
@@ -3613,6 +3638,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketIntVectorFactor3D";
           case PROP_PERCENTAGE:
             return "NodeTreeInterfaceSocketIntVectorPercentage3D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketIntVectorPixel3D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketIntVector3D";
@@ -3626,6 +3653,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketIntVectorFactor2D";
           case PROP_PERCENTAGE:
             return "NodeTreeInterfaceSocketIntVectorPercentage2D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketIntVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketIntVector2D";
@@ -4739,7 +4768,7 @@ bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
 
   const uint size[2] = {uint(xsize), uint(ysize)};
   IMB_rect_size_set(preview->ibuf, size);
-  if (preview->ibuf->byte_buffer.data == nullptr) {
+  if (!preview->ibuf->byte_data()) {
     IMB_alloc_byte_pixels(preview->ibuf);
   }
 
