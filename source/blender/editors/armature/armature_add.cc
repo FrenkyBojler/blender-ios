@@ -531,7 +531,7 @@ static void update_duplicate_action_constraint_settings(
 
   /* See if there is any channels that uses this bone */
   bAction *act = static_cast<bAction *>(act_con->act);
-  if (act && false) {
+  if (act) {
     animrig::Action &action = act->wrap();
     animrig::Channelbag *cbag = animrig::channelbag_for_action_slot(action,
                                                                     act_con->action_slot_handle);
@@ -545,44 +545,32 @@ static void update_duplicate_action_constraint_settings(
       }
       const char *old_path = old_fcurve->rna_path;
       char *new_path = BLI_string_replaceN(old_path, orig_bone->name, dup_bone->name);
-      FCurve *new_curve = cbag->fcurve_find({new_path, old_fcurve->array_index});
-      if (new_curve) {
-        MEM_delete(new_curve->bezt);
-        new_curve->bezt = MEM_dupalloc(old_fcurve->bezt);
-        MEM_delete(new_path);
-      }
-      else {
-        new_curve = BKE_fcurve_copy(old_fcurve);
-        MEM_delete(new_curve->rna_path);
-        new_curve->rna_path = new_path;
-        bActionGroup &agrp = cbag->channel_group_ensure(dup_bone->name);
-        cbag->fcurve_append(*new_curve);
-        cbag->fcurve_assign_to_channel_group(*new_curve, agrp);
-      }
+      FCurve &new_curve = cbag->fcurve_clone(
+          *old_fcurve, new_path, old_fcurve->array_index, dup_bone->name);
 
       /* Flip the animation */
       int i;
       BezTriple *bezt;
-      for (i = 0, bezt = new_curve->bezt; i < new_curve->totvert; i++, bezt++) {
-        const size_t slength = strlen(new_curve->rna_path);
+      for (i = 0, bezt = new_curve.bezt; i < new_curve.totvert; i++, bezt++) {
+        const size_t slength = strlen(new_curve.rna_path);
         bool flip = false;
-        if (BLI_strn_endswith(new_curve->rna_path, "location", slength) &&
-            new_curve->array_index == 0)
+        if (BLI_strn_endswith(new_curve.rna_path, "location", slength) &&
+            new_curve.array_index == 0)
         {
           flip = true;
         }
-        else if (BLI_strn_endswith(new_curve->rna_path, "rotation_quaternion", slength) &&
-                 ELEM(new_curve->array_index, 2, 3))
+        else if (BLI_strn_endswith(new_curve.rna_path, "rotation_quaternion", slength) &&
+                 ELEM(new_curve.array_index, 2, 3))
         {
           flip = true;
         }
-        else if (BLI_strn_endswith(new_curve->rna_path, "rotation_euler", slength) &&
-                 ELEM(new_curve->array_index, 1, 2))
+        else if (BLI_strn_endswith(new_curve.rna_path, "rotation_euler", slength) &&
+                 ELEM(new_curve.array_index, 1, 2))
         {
           flip = true;
         }
-        else if (BLI_strn_endswith(new_curve->rna_path, "rotation_axis_angle", slength) &&
-                 ELEM(new_curve->array_index, 2, 3))
+        else if (BLI_strn_endswith(new_curve.rna_path, "rotation_axis_angle", slength) &&
+                 ELEM(new_curve.array_index, 2, 3))
         {
           flip = true;
         }
