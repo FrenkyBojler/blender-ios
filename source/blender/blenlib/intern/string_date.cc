@@ -29,8 +29,8 @@ static const Map<std::string, CLDRPatterns> &locale_patterns = *([]() {
       {"eu_EU", {"%d %b %Y", "%H:%M"}},       /* Basque. */
       {"bg_BG", {"%d %b %Y", "%H:%M"}},       /* Bulgarian. */
       {"ca_AD", {"%d %b %Y", "%H:%M"}},       /* Catalan. */
-      {"zh_HANS", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Simplified). */
-      {"zh_HANT", {"%Y年%B%d日", "%H:%M"}},   /* Chinese (Traditional). */
+      {"zh_HANS", {"%Y年%b%d日", "%H:%M"}},   /* Chinese (Simplified). */
+      {"zh_HANT", {"%Y年%b%d日", "%H:%M"}},   /* Chinese (Traditional). */
       {"hr", {"%d %b %Y", "%H:%M"}},          /* Croatian. */
       {"cs_CZ", {"%d %b %Y", "%H:%M"}},       /* Czech. */
       {"da", {"%d %b %Y", "%H:%M"}},          /* Danish. */
