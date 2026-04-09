@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-04-06 09:15+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -668,22 +668,6 @@ msgstr "ด้านล่าง"
 
 msgid "Place the Mix node at the same height as the lowest node"
 msgstr "วางโหนดผสมไว้ที่ความสูงเดียวกับโหนดที่อยู่ต่ำที่สุด"
-
-
-msgid "Show Hotkey List"
-msgstr "แสดงรายการปุ่มลัด"
-
-
-msgid "Expand this box into a list of all the hotkeys for functions in this addon"
-msgstr "ขยายกล่องนี้เพื่อแสดงรายการปุ่มลัดทั้งหมดสำหรับฟังก์ชันต่างๆ ในส่วนเสริมนี้"
-
-
-msgid "Show Principled Naming Tags"
-msgstr "แสดงป้ายระบุการตั้งชื่อตามหลักการ"
-
-
-msgid "Expand this box into a list of all naming tags for Principled Texture setup"
-msgstr "ขยายกล่องนี้ให้เป็นรายการป้ายระบุชื่อทั้งหมดสำหรับการตั้งค่าพื้นผิวตามหลักการ"
 
 
 msgid "Fribidi Library"
@@ -4957,6 +4941,10 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
+msgid "Math"
+msgstr "คณิตศาสตร์"
+
+
 msgid "Mirror"
 msgstr "กระจกสะท้อน"
 
@@ -4989,28 +4977,24 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Import"
-msgstr "นำเข้า"
-
-
 msgid "Metaball"
 msgstr "เมตาบอล"
+
+
+msgid "Import"
+msgstr "นำเข้า"
 
 
 msgid "Light"
 msgstr "แสง"
 
 
-msgid "Math"
-msgstr "คณิตศาสตร์"
+msgid "Add Image"
+msgstr "เพิ่มภาพ"
 
 
 msgid "UV"
 msgstr "UV"
-
-
-msgid "Add Image"
-msgstr "เพิ่มภาพ"
 
 
 msgid "Apply"
@@ -5033,12 +5017,12 @@ msgid "Face Data"
 msgstr "ข้อมูลด้าน"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
 msgid "Merge"
 msgstr "ผสาน"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
 
 
 msgid "Keying"

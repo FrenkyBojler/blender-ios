@@ -21,9 +21,9 @@
 
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_stabilize)
 
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_depth_of_field_lib.glsl"
-#include "eevee_reverse_z_lib.glsl"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_velocity_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
 
@@ -266,7 +266,9 @@ DofSample dof_sample_history(float2 input_texel)
 }
 
 /* Modulate the history color to avoid ghosting artifact. */
-DofSample dof_amend_history(DofNeighborhoodMinMax bbox, DofSample history, DofSample src)
+DofSample dof_amend_history(DofNeighborhoodMinMax bbox,
+                            DofSample history,
+                            [[maybe_unused]] DofSample src)
 {
 #if 0
   /* Clip instead of clamping to avoid color accumulating in the AABB corners. */

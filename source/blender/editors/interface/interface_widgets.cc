@@ -18,7 +18,7 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
@@ -4100,12 +4100,7 @@ static void widget_numslider(Button *but,
 
     switch (scale_type) {
       case PROP_SCALE_LINEAR: {
-        if (but->rnaprop && (RNA_property_subtype(but->rnaprop) == PROP_PERCENTAGE)) {
-          factor = value / softmax;
-        }
-        else {
-          factor = (value - softmin) / softrange;
-        }
+        factor = (value - softmin) / softrange;
         break;
       }
       case PROP_SCALE_LOG: {

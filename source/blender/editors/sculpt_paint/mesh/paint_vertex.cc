@@ -576,10 +576,6 @@ bool vertex_paint_mode_poll(bContext *C)
     return false;
   }
 
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
-    return false;
-  }
-
   return true;
 }
 
@@ -1021,11 +1017,13 @@ bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
     return false;
   }
 
-  ED_mesh_color_ensure(mesh, nullptr);
+  if (!ED_mesh_color_ensure(mesh, nullptr)) {
+    return false;
+  }
 
   const std::optional<bke::AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       mesh->active_color_attribute);
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
+  if (!meta_data) {
     return false;
   }
 
@@ -1085,7 +1083,7 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
                             0;
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   GMutableSpan g_previous_color = vpd.prev_colors;
@@ -1246,7 +1244,7 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
                             0;
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   GMutableSpan g_previous_color = vpd.prev_colors;
@@ -1408,7 +1406,7 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
     return;
   }
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
@@ -1742,7 +1740,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
                             0;
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   GMutableSpan g_previous_color = vpd.prev_colors;
@@ -1936,7 +1934,7 @@ static void vpaint_do_paint(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
   ss.cache->radial_symmetry_pass = i;
-  SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
+  cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = vwpaint::pbvh_gather_generic(depsgraph, ob, vp, brush, memory);
@@ -1984,7 +1982,7 @@ static void vpaint_do_symmetrical_brush_actions(const Depsgraph &depsgraph,
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.runtime->sculpt_session;
   StrokeCache &cache = *ss.cache;
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const char symm = mesh_symmetry_xyz_get(ob);
   int i = 0;
 
   /* initial stroke */
@@ -2000,7 +1998,7 @@ static void vpaint_do_symmetrical_brush_actions(const Depsgraph &depsgraph,
       const ePaintSymmetryFlags symm_pass = ePaintSymmetryFlags(i);
       cache.mirror_symmetry_pass = symm_pass;
       cache.radial_symmetry_pass = 0;
-      SCULPT_cache_calc_brushdata_symm(cache, symm_pass, 0, 0);
+      cache_calc_brushdata_symm(cache, symm_pass, 0, 0);
 
       if (i & (1 << 0)) {
         vpaint_do_paint(depsgraph, vp, vpd, ob, mesh, brush, symm_pass, 'X', 0, 0);
@@ -2311,7 +2309,11 @@ static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
   using namespace blender::ed::sculpt_paint;
   Scene &scene = *CTX_data_scene(C);
   Object &obact = *CTX_data_active_object(C);
-  if (!BKE_mesh_from_object(&obact)) {
+  Mesh *mesh = BKE_mesh_from_object(&obact);
+  if (!mesh) {
+    return OPERATOR_CANCELLED;
+  }
+  if (!ED_mesh_color_ensure(mesh, nullptr)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2326,11 +2328,9 @@ static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
-  Mesh &mesh = *id_cast<Mesh *>(obact.data);
-
   fill_active_color(obact, paintcol, true, affect_alpha);
 
-  pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
+  pbvh.tag_attribute_changed(node_mask, mesh->active_color_attribute);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &obact);
   return OPERATOR_FINISHED;

@@ -41,13 +41,15 @@ ccl_device bool light_sample_shader_eval_nee_constant(KernelGlobals kg,
 
 /* Evaluate shader on light. Not supported for background and triangle lights, that happens
  * in shade_surface and shader_background. */
-ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals kg,
-                                                                  IntegratorState state,
-                                                                  const int light_id,
-                                                                  const float3 ray_P,
-                                                                  const float3 ray_D,
-                                                                  const float t,
-                                                                  const float time)
+ccl_device_noinline_cpu ShaderEvalResult
+light_sample_shader_eval_forward(KernelGlobals kg,
+                                 IntegratorState state,
+                                 const int light_id,
+                                 const float3 ray_P,
+                                 const float3 ray_D,
+                                 const float t,
+                                 const float time,
+                                 ccl_private Spectrum &r_eval)
 {
   const ccl_global KernelLight *klight = &kernel_data_fetch(lights, light_id);
 
@@ -89,6 +91,9 @@ ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals 
      * weak but we'd have to do multiple evaluations otherwise. */
     surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT>(
         kg, state, emission_sd, nullptr, PATH_RAY_EMISSION);
+    if (emission_sd->flag & SD_CACHE_MISS) {
+      return SHADER_EVAL_CACHE_MISS;
+    }
 
     /* Evaluate closures. */
     eval = surface_shader_emission(emission_sd);
@@ -100,7 +105,9 @@ ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals 
         make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
   }
 
-  return eval;
+  r_eval = eval;
+
+  return SHADER_EVAL_OK;
 }
 
 /* Early path termination of shadow rays. */
@@ -261,27 +268,25 @@ ccl_device_inline void shadow_ray_setup(const ccl_private ShaderData *ccl_restri
                                         ccl_private Ray *ray,
                                         const bool skip_self)
 {
-  if (ls->shader & SHADER_CAST_SHADOW) {
-    /* setup ray */
-    ray->P = P;
-    ray->tmin = 0.0f;
+  /* Setup ray. */
+  ray->P = P;
+  ray->tmin = 0.0f;
 
-    if (ls->t == FLT_MAX) {
-      /* distant light */
-      ray->D = ls->D;
-      ray->tmax = ls->t;
-    }
-    else {
-      /* other lights, avoid self-intersection */
-      ray->D = ls->P - P;
-      ray->D = safe_normalize_len(ray->D, &ray->tmax);
-    }
+  if (ls->t == FLT_MAX) {
+    /* Distant light. */
+    ray->D = ls->D;
+    ray->tmax = ls->t;
   }
   else {
-    /* signal to not cast shadow ray */
-    ray->P = zero_float3();
-    ray->D = zero_float3();
-    ray->tmax = 0.0f;
+    /* Other lights, avoid self-intersection. */
+    ray->D = ls->P - P;
+    ray->D = safe_normalize_len(ray->D, &ray->tmax);
+  }
+
+  if ((ls->shader & SHADER_CAST_SHADOW) == 0) {
+    /* Signal to not cast shadow ray.
+     * Relies on the intersection_ray_valid() rejecting the ray early on. */
+    ray->tmin = FLT_MAX;
   }
 
   ray->dP = differential_make_compact(sd->dP);
