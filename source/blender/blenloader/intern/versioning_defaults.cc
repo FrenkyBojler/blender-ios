@@ -70,6 +70,8 @@
 
 #include "versioning_common.hh"
 
+#include "UI_interface_c.hh"
+
 namespace blender {
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
@@ -194,6 +196,12 @@ static void blo_update_defaults_screen(bScreen *screen,
       seq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
       seq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
       seq->draw_flag |= SEQ_DRAW_TRANSFORM_PREVIEW;
+      for (ARegion &region : area.regionbase) {
+        if (region.regiontype == RGN_TYPE_UI) {
+          region.flag &= ~RGN_FLAG_HIDDEN;
+          region.sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
+        }
+      }
     }
     else if (area.spacetype == SPACE_TEXT) {
       /* Show syntax and line numbers in Script workspace text editor. */
