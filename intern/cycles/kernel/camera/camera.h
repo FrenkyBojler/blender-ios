@@ -457,7 +457,7 @@ ccl_device_inline Spectrum camera_sample(KernelGlobals kg,
   float2 raster = make_float2(x, y);
 
   /* pixel filter */
-  if (kernel_data.integrator.pixel_jitter == zero_float2()) {
+  if (kernel_data.integrator.pixel_jitter.x == FLT_MAX) {
     const int filter_table_offset = kernel_data.tables.filter_table_offset;
     raster.x += lookup_table_read(kg, filter_uv.x, filter_table_offset, FILTER_TABLE_SIZE);
     raster.y += lookup_table_read(kg, filter_uv.y, filter_table_offset, FILTER_TABLE_SIZE);

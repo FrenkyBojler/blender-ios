@@ -379,7 +379,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
                                             halton(pixel_jitter_a3, pixel_jitter_b3, 3) - 0.5f);
   }
   else {
-    kintegrator->pixel_jitter = zero_float2();
+    kintegrator->pixel_jitter = make_float2(FLT_MAX);
     pixel_jitter_a2 = 0;
     pixel_jitter_b2 = 1;
     pixel_jitter_a3 = 0;
