@@ -211,12 +211,9 @@ if(WIN32)
   )
 endif()
 
-
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.19")
-  # This changes the default value from Off to On, but will still allow people to manually change
-  # this setting through their CMakeCache.txt if they desire to do so.
-  set(CMAKE_OPTIMIZE_DEPENDENCIES ON CACHE INTERNAL "")
-endif()
+# This changes the default value from Off to On, but will still allow people to manually change
+# this setting through their CMakeCache.txt if they desire to do so.
+set(CMAKE_OPTIMIZE_DEPENDENCIES ON CACHE INTERNAL "")
 
 # -----------------------------------------------------------------------------
 # Declare Options
@@ -287,7 +284,7 @@ mark_as_advanced(BUILDINFO_OVERRIDE_TIME)
 
 # CMAKE 3.28.2 has issues with the combination of PCH and unity builds, disable for now.
 # upstream ticket https://gitlab.kitware.com/cmake/cmake/-/issues/25650
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16" AND NOT ${CMAKE_VERSION} VERSION_EQUAL "3.28.2")
+if(NOT ${CMAKE_VERSION} VERSION_EQUAL "3.28.2")
   option(WITH_UNITY_BUILD "\
 Enable unity build for modules that support it to improve compile times.\n\
 WARNING: this option allows files to be built without all necessary headers!\n
