@@ -439,7 +439,6 @@ struct LayoutPanelHeader {
   float end_y;
   PointerRNA open_owner_ptr;
   std::string open_prop_name;
-  bool is_carrousel;
 };
 
 struct LayoutPanelBody {

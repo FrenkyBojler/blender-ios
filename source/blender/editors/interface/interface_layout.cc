@@ -93,9 +93,6 @@ struct LayoutRoot {
   const uiStyle *style;
   Block *block;
   Layout *layout;
-
-  bool use_layout_panels_carroussels;
-  bool have_layout_panels_carroussels_open;
 };
 
 /* Item */
@@ -286,7 +283,6 @@ struct LayoutItemBx : public LayoutColumn {
 struct LayoutItemPanelHeader : public Layout {
   PointerRNA open_prop_owner;
   std::string open_prop_name;
-  bool is_carroussel = false;
   LayoutItemPanelHeader() : Layout(ItemType::LayoutPanelHeader, nullptr) {}
 
   void estimate_impl() override;
@@ -4156,7 +4152,7 @@ void LayoutItemPanelHeader::resolve_impl()
   y_ -= size.y;
   item_position(item, x_, y_, w_, size.y);
   panel->runtime->layout_panels.headers.append(
-      {float(y_), float(y_ + h_), open_prop_owner, open_prop_name, this->is_carroussel});
+      {float(y_), float(y_ + h_), open_prop_owner, open_prop_name});
 }
 
 /* panel body layout */
@@ -4908,12 +4904,8 @@ PanelLayout Layout::panel_prop(const bContext *C,
 
   const bool is_real_open = RNA_boolean_get(open_prop_owner, open_prop_name.c_str());
   const bool search_filter_active = region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE;
-  const bool is_open = (is_real_open && (!this->root_->use_layout_panels_carroussels ||
-                                         !this->root_->have_layout_panels_carroussels_open)) ||
-                       search_filter_active;
-  if (is_real_open && !is_open) {
-    RNA_boolean_set(open_prop_owner, open_prop_name.c_str(), false);
-  }
+  const bool is_open = is_real_open || search_filter_active;
+
   PanelLayout panel_layout{};
   {
     LayoutItemPanelHeader *header_litem = MEM_new<LayoutItemPanelHeader>(__func__);
@@ -4921,7 +4913,6 @@ PanelLayout Layout::panel_prop(const bContext *C,
 
     header_litem->open_prop_owner = *open_prop_owner;
     header_litem->open_prop_name = open_prop_name;
-    header_litem->is_carroussel = this->root_->use_layout_panels_carroussels;
 
     Layout *row = &header_litem->row(true);
 
@@ -4963,7 +4954,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
   if (!is_open) {
     return panel_layout;
   }
-  this->root_->have_layout_panels_carroussels_open = true;
+
   LayoutItemPanelBody *body_litem = MEM_new<LayoutItemPanelBody>(__func__);
   body_litem->space_ = root_->style->templatespace;
   LayoutInternal::init_from_parent(body_litem, this, false);
@@ -5597,7 +5588,6 @@ Layout &block_layout(Block *block,
   root->block = block;
   root->padding = padding;
   root->opcontext = wm::OpCallContext::InvokeRegionWin;
-  root->use_layout_panels_carroussels = false;
   const char *func = __func__;
   Layout *layout = [&]() -> Layout * {
     switch (type) {
@@ -6319,16 +6309,6 @@ bool Layout::variable_size() const
 EmbossType Layout::emboss_or_undefined() const
 {
   return emboss_;
-}
-
-bool Layout::use_layout_panels_carroussels() const
-{
-  return this->root_->use_layout_panels_carroussels;
-}
-
-void Layout::use_layout_panels_carroussels_set(bool value)
-{
-  this->root_->use_layout_panels_carroussels = value;
 }
 
 }  // namespace ui

@@ -237,13 +237,6 @@ struct Layout : public Item, NonCopyable, NonMovable {
   /** Sets a fixed height size for this layout. */
   void ui_units_y_set(float height);
 
-  [[nodiscard]] bool use_layout_panels_carroussels() const;
-  /**
-   * When set to true only one layout panel will be expanded in this layout, opening a layout panel
-   * will close others.
-   */
-  void use_layout_panels_carroussels_set(bool value);
-
   [[nodiscard]] bool use_property_split() const;
   /**
    * Sets when to split property's label into a separate button when adding new property buttons.
