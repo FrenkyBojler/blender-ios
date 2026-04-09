@@ -188,11 +188,11 @@ struct TransformableFCurveLink {
 /** Returns a valid pose armature for this object, else returns NULL. */
 Object *poseAnim_object_get(Object *ob_);
 /**
- * Build up a list of TransformableFCurveLink. First only selected, and if that yields no result,
- * all visible.
+ * Build up a list of TransformableFCurveLink. The items put into the list depend on the mode of
+ * the context.
  */
 void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLinks);
-/** Free F-Curve <-> PoseChannel links. */
+/** Free F-Curve <-> Transformable links. */
 void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks);
 
 /**
@@ -206,7 +206,7 @@ void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks);
 /** Perform auto-key-framing after changes were made + confirmed. */
 void poseAnim_mapping_autoKeyframe(bContext *C,
                                    Scene *scene,
-                                   ListBaseT<TransformableFCurveLink> *pfLinks,
+                                   const ListBaseT<TransformableFCurveLink> *pfLinks,
                                    float cframe);
 
 /** \} */

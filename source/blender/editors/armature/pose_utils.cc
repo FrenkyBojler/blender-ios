@@ -61,10 +61,9 @@ namespace blender {
 /* FCurves <-> PoseChannels Links */
 
 /**
- * Types of transforms applied to the given item:
- * - these are the return flags for get_item_transform_flags()
+ * Fills the `r_curves` vector with curves used by the given `ptr`.
+ * The returned flags indicate which properties are animated.
  */
-
 static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
                                                                    PointerRNA &ptr,
                                                                    Vector<FCurve *> &r_curves)
@@ -154,9 +153,9 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
 }
 
 /**
- * Stores a `PropertySnapshot` of the property with the given property name in the given vector. If
- * the property does not exist in the `ptr` the function doesn't do anything.
- * Also the property has to be supported by `animrig::rna_property_get_as_float`.
+ * Stores a `PropertySnapshot` of the property with the given `property_name` in the given vector.
+ * If the property does not exist in the `ptr` the function doesn't do anything. Also the property
+ * has to be supported by `animrig::rna_property_get_as_float`.
  */
 static void store_property_snapshot(PointerRNA &ptr,
                                     StringRef property_name,
@@ -221,7 +220,6 @@ static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLin
 
   /* Make copy of custom properties. */
   if (transFlags & ACT_TRANS_PROP) {
-    PropertyRNA *prop;
     if (pchan.prop) {
       for (const IDProperty &id_prop : pchan.prop->data.group) {
         if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
@@ -307,13 +305,13 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveL
   }
 }
 
-void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLinks)
+void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *r_transformable_list)
 {
-  BLI_assert(pfLinks != nullptr);
+  BLI_assert(r_transformable_list != nullptr);
   const eContextObjectMode mode = CTX_data_mode_enum(C);
   switch (mode) {
     case CTX_MODE_POSE:
-      get_pose_bones_for_slide(C, *pfLinks);
+      get_pose_bones_for_slide(C, *r_transformable_list);
       break;
 
     default:
@@ -388,72 +386,41 @@ void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks)
 
 void poseAnim_mapping_autoKeyframe(bContext *C,
                                    Scene *scene,
-                                   ListBaseT<TransformableFCurveLink> *pfLinks,
-                                   float cframe)
+                                   const ListBaseT<TransformableFCurveLink> *pfLinks,
+                                   const float cframe)
 {
-  const Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  bool skip = true;
-
-  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    ob->id.tag &= ~ID_TAG_DOIT;
-    ob = poseAnim_object_get(ob);
-
-    /* Ensure validity of the settings from the context. */
-    if (ob == nullptr) {
-      continue;
-    }
-
-    if (animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
-      ob->id.tag |= ID_TAG_DOIT;
-      skip = false;
-    }
-  }
-  FOREACH_OBJECT_IN_MODE_END;
-
-  if (skip) {
-    return;
-  }
-
-  /* Insert keyframes as necessary if auto-key-framing. */
+  /* Insert keyframes as necessary if auto-key-framing.
+   * TODO: don't use a keyingset here. Just use the keyframing code directly. */
   KeyingSet *ks = animrig::get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
   Vector<PointerRNA> sources;
 
-  /* iterate over each pose-channel affected, tagging bones to be keyed */
-  /* XXX: here we already have the information about what transforms exist, though
-   * it might be easier to just overwrite all using normal mechanisms
-   */
   for (TransformableFCurveLink &pfl : *pfLinks) {
     animrig::Transformable *transformable = pfl.transformable;
-    bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
-
-    if ((transformable->owner_id()->tag & ID_TAG_DOIT) == 0) {
+    if (!animrig::autokeyframe_cfra_can_key(scene, transformable->owner_id())) {
       continue;
     }
 
-    /* Add data-source override for the PoseChannel, to be used later. */
-    animrig::relative_keyingset_add_source(
-        sources, transformable->owner_id(), RNA_PoseBone, pchan);
+    PointerRNA &ptr = pfl.ptr;
+    animrig::relative_keyingset_add_source(sources, ptr.owner_id, ptr.type, ptr.data);
   }
 
   /* insert keyframes for all relevant bones in one go */
   animrig::apply_keyingset(C, &sources, ks, animrig::ModifyKeyMode::INSERT, cframe);
 
-  /* do the bone paths
-   * - only do this if keyframes should have been added
-   * - do not calculate unless there are paths already to update...
-   */
-  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    if (ob->id.tag & ID_TAG_DOIT) {
-      if (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
-        // ED_pose_clear_paths(C, ob); /* XXX for now, don't need to clear. */
-        /* TODO(sergey): Should ensure we can use more narrow update range here. */
-        ED_pose_recalculate_paths(C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
-      }
+  for (TransformableFCurveLink &pfl : *pfLinks) {
+    ID *owner_id = pfl.transformable->owner_id();
+    if (GS(owner_id->name) != ID_OB) {
+      continue;
+    }
+    Object *ob = id_cast<Object *>(owner_id);
+    if (!ob->pose) {
+      continue;
+    }
+    if (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
+      /* TODO(sergey): Should ensure we can use more narrow update range here. */
+      ED_pose_recalculate_paths(C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
     }
   }
-  FOREACH_OBJECT_IN_MODE_END;
 }
 
 /* *********************************************** */
