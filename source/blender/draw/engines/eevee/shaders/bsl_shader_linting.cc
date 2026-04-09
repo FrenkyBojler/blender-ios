@@ -16,7 +16,6 @@
 #include "eevee_light_shadow_setup.bsl.hh"           /* IWYU pragma: export */
 #include "eevee_ltc_lib.bsl.hh"                      /* IWYU pragma: export */
 #include "eevee_ltc_lut_lib.bsl.hh"                  /* IWYU pragma: export */
-#include "eevee_lut_comp.bsl.hh"                     /* IWYU pragma: export */
 #include "eevee_occupancy_lib.bsl.hh"                /* IWYU pragma: export */
 #include "eevee_octahedron_lib.bsl.hh"               /* IWYU pragma: export */
 #include "eevee_ray_denoise.bsl.hh"                  /* IWYU pragma: export */

@@ -398,8 +398,12 @@ template<typename T> float3 F_brdf_single_scatter(float3 f0, float3 f90, T lut)
 {
   return f0 * lut.scale + f90 * lut.bias;
 }
-template float3 F_brdf_single_scatter<eevee::lut::BrdfGGX>(float3, float3, eevee::lut::BrdfGGX);
-template float3 F_brdf_single_scatter<eevee::lut::BsdfGGX>(float3, float3, eevee::lut::BsdfGGX);
+template float3 F_brdf_single_scatter<eevee::lut::GGXBrdfData>(float3,
+                                                               float3,
+                                                               eevee::lut::GGXBrdfData);
+template float3 F_brdf_single_scatter<eevee::lut::GGXBsdfData>(float3,
+                                                               float3,
+                                                               eevee::lut::GGXBsdfData);
 
 /* Multi-scattering brdf approximation from
  * "A Multiple-Scattering Microfacet Model for Real-Time Image-based Lighting"
@@ -421,8 +425,12 @@ template<typename T> float3 F_brdf_multi_scatter(float3 f0, float3 f90, T lut)
    * "Practical multiple scattering compensation for microfacet model". */
   return FssEss / (1.0f - Ems * Favg);
 }
-template float3 F_brdf_multi_scatter<eevee::lut::BrdfGGX>(float3, float3, eevee::lut::BrdfGGX);
-template float3 F_brdf_multi_scatter<eevee::lut::BsdfGGX>(float3, float3, eevee::lut::BsdfGGX);
+template float3 F_brdf_multi_scatter<eevee::lut::GGXBrdfData>(float3,
+                                                              float3,
+                                                              eevee::lut::GGXBrdfData);
+template float3 F_brdf_multi_scatter<eevee::lut::GGXBsdfData>(float3,
+                                                              float3,
+                                                              eevee::lut::GGXBsdfData);
 
 void brdf_f82_tint_lut(float3 F0,
                        float3 F82,
@@ -432,7 +440,7 @@ void brdf_f82_tint_lut(float3 F0,
                        float3 &reflectance)
 {
   auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
-  eevee::lut::BrdfGGX lut = eevee::lut::BrdfGGX::sample_utility_tx(
+  eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
       utility_tx, cos_theta, roughness);
 
   reflectance = do_multiscatter ? F_brdf_multi_scatter(F0, float3(1.0f), lut) :
@@ -473,7 +481,7 @@ void bsdf_lut(float3 F0,
   }
 
   /* TODO(not_mark): strip namespaces on BSL port. */
-  eevee::lut::BsdfGGX bsdf;
+  eevee::lut::GGXBsdfData lut;
 
   const float f0 = f0_from_ior(ior);
 
@@ -484,26 +492,25 @@ void bsdf_lut(float3 F0,
       F90 = float3(saturate(2.33f / 0.33f * f0));
     }
 
-    eevee::lut::BrdfGGX brdf = eevee::lut::BrdfGGX::sample_utility_tx(
+    eevee::lut::GGXBrdfData brdf_lut = eevee::lut::GGXBrdfData::sample_utility_tx(
         utility_tx, cos_theta, roughness);
-    eevee::lut::BtdfGGXGt1 btdf = eevee::lut::BtdfGGXGt1::sample_utility_tx(
+    eevee::lut::GGXBtdfGt1Data btdf_lut = eevee::lut::GGXBtdfGt1Data::sample_utility_tx(
         utility_tx, cos_theta, roughness, f0);
 
-    bsdf.scale = brdf.scale;
-    bsdf.bias = brdf.bias;
-    bsdf.transmission_factor = btdf.transmission_factor;
+    lut.scale = brdf_lut.scale;
+    lut.bias = brdf_lut.bias;
+    lut.transmission_factor = btdf_lut.transmission_factor;
   }
   else {
-    bsdf = eevee::lut::BsdfGGX::sample_utility_tx(utility_tx, cos_theta, roughness, ior);
+    lut = eevee::lut::GGXBsdfData::sample_utility_tx(utility_tx, cos_theta, roughness, ior);
   }
 
-  reflectance = F_brdf_single_scatter(F0, F90, bsdf);
-  transmittance = (float3(1.0f) - F0) * bsdf.transmission_factor * transmission_tint;
+  reflectance = F_brdf_single_scatter(F0, F90, lut);
+  transmittance = (float3(1.0f) - F0) * lut.transmission_factor * transmission_tint;
 
   if (do_multiscatter) {
     const float real_F0 = F0_from_f0(f0);
-    const float Ess = real_F0 * bsdf.scale + bsdf.bias +
-                      (1.0f - real_F0) * bsdf.transmission_factor;
+    const float Ess = real_F0 * lut.scale + lut.bias + (1.0f - real_F0) * lut.transmission_factor;
     const float Ems = 1.0f - Ess;
     /* Assume that the transmissive tint makes up most of the overall color if it's not zero. */
     const float3 Favg = all(equal(transmission_tint, float3(0.0f))) ? F0 + (F90 - F0) / 21.0f :

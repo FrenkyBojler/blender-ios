@@ -52,9 +52,9 @@ void node_eevee_specular(float4 diffuse,
   reflection_data.weight = alpha;
   if (true) {
     float NV = dot(N, V);
-    eevee::lut::BrdfGGX split_sum = eevee::lut::BrdfGGX::sample_utility_tx(
+    eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
         utility_tx, NV, roughness);
-    float3 brdf = F_brdf_single_scatter(specular.rgb, float3(1.0f), split_sum);
+    float3 brdf = F_brdf_single_scatter(specular.rgb, float3(1.0f), lut);
 
     reflection_data.color = brdf;
     reflection_data.N = N;
@@ -65,9 +65,9 @@ void node_eevee_specular(float4 diffuse,
   clearcoat_data.weight = alpha * clearcoat * 0.25f;
   if (true) {
     float NV = dot(CN, V);
-    eevee::lut::BrdfGGX split_sum = eevee::lut::BrdfGGX::sample_utility_tx(
+    eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
         utility_tx, NV, clearcoat_roughness);
-    float3 brdf = F_brdf_single_scatter(float3(0.04f), float3(1.0f), split_sum);
+    float3 brdf = F_brdf_single_scatter(float3(0.04f), float3(1.0f), lut);
 
     clearcoat_data.color = brdf;
     clearcoat_data.N = CN;

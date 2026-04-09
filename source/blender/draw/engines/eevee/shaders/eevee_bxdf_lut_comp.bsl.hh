@@ -39,11 +39,11 @@ namespace eevee::lut {
  * - `integral = F0 * scale + F90 * bias - F82_tint * metal_bias`,
  *   where `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
  */
-struct BrdfGGXSplitsumClosure {
+struct GGXBrdfClosure {
   float roughness;
   float3 V;
 
-  static BrdfGGXSplitsumClosure from_params(float3 params)
+  static GGXBrdfClosure from_params(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
@@ -57,13 +57,13 @@ struct BrdfGGXSplitsumClosure {
     return {roughness, V};
   }
 
-  BrdfGGX eval(float3 Xi) const
+  GGXBrdfData eval(float3 Xi) const
   {
     /* Geometric normal. */
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
     /* Return values. */
-    BrdfGGX brdf = {};
+    GGXBrdfData brdf = {};
 
     /* Sample light vector, recover half vector as microfacet normal. */
     float3 L = bxdf_ggx_sample_reflection(Xi, V, roughness, false).direction;
@@ -105,12 +105,12 @@ struct BrdfGGXSplitsumClosure {
  * - `reflectance = F0 * scale + F90 * bias`,
  * - `transmittance = (1 - F0) * transmission_factor`.
  */
-struct BsdfGGXSplitsumClosure {
+struct GGXBsdfClosure {
   float roughness;
   float ior;
   float3 V;
 
-  static BsdfGGXSplitsumClosure from_params(float3 params)
+  static GGXBsdfClosure from_params(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
@@ -135,12 +135,12 @@ struct BsdfGGXSplitsumClosure {
     return {roughness, ior, V};
   }
 
-  BsdfGGX eval(float3 Xi) const
+  GGXBsdfData eval(float3 Xi) const
   {
     /* Geometric normal. */
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
-    BsdfGGX bsdf = {};
+    GGXBsdfData bsdf = {};
 
     /* Reflection, restricted to positive hemisphere. */
     float3 R = bxdf_ggx_sample_reflection(Xi, V, roughness, false).direction;
@@ -192,12 +192,12 @@ struct BsdfGGXSplitsumClosure {
  * and output is interpreted as:
  * : `transmittance = (1 - F0) * transmission_factor`.
  */
-struct BtdfGGXGt1Closure {
+struct GGXBtdfGt1Closure {
   float roughness;
   float ior;
   float3 V;
 
-  static BtdfGGXGt1Closure from_params(float3 params)
+  static GGXBtdfGt1Closure from_params(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
@@ -214,12 +214,12 @@ struct BtdfGGXGt1Closure {
     return {roughness, ior, V};
   }
 
-  BtdfGGXGt1 eval(float3 Xi) const
+  GGXBtdfGt1Data eval(float3 Xi) const
   {
     /* Geometric normal. */
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
-    BtdfGGXGt1 btdf = {};
+    GGXBtdfGt1Data btdf = {};
 
     /* Refraction, restricted to negative hemisphere. */
     float3 L = bxdf_ggx_sample_refraction(Xi, V, roughness, ior, Thickness{}, false).direction;
@@ -324,9 +324,9 @@ template<typename F> float4 integrate(const F &func)
   }
   return measure / float(sample_count);
 }
-template float4 integrate<BrdfGGXSplitsumClosure>(const BrdfGGXSplitsumClosure &);
-template float4 integrate<BsdfGGXSplitsumClosure>(const BsdfGGXSplitsumClosure &);
-template float4 integrate<BtdfGGXGt1Closure>(const BtdfGGXGt1Closure &);
+template float4 integrate<GGXBrdfClosure>(const GGXBrdfClosure &);
+template float4 integrate<GGXBsdfClosure>(const GGXBsdfClosure &);
+template float4 integrate<GGXBtdfGt1Closure>(const GGXBtdfGt1Closure &);
 
 struct LUT {
   [[image(0, read_write, SFLOAT_32_32_32_32)]] image3D image;
@@ -344,16 +344,16 @@ void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]
   float4 result = float4(-1);
   switch (uint(lut.type)) {
     case LUT_GGX_BRDF_SPLIT_SUM: {
-      BrdfGGXSplitsumClosure func = BrdfGGXSplitsumClosure::from_params(lut_normalized_coordinate);
-      result = integrate<BrdfGGXSplitsumClosure>(func);
+      GGXBrdfClosure func = GGXBrdfClosure::from_params(lut_normalized_coordinate);
+      result = integrate<GGXBrdfClosure>(func);
     } break;
     case LUT_GGX_BSDF_SPLIT_SUM: {
-      BsdfGGXSplitsumClosure func = BsdfGGXSplitsumClosure::from_params(lut_normalized_coordinate);
-      result = integrate<BsdfGGXSplitsumClosure>(func);
+      GGXBsdfClosure func = GGXBsdfClosure::from_params(lut_normalized_coordinate);
+      result = integrate<GGXBsdfClosure>(func);
     } break;
     case LUT_GGX_BTDF_IOR_GT_ONE: {
-      BtdfGGXGt1Closure func = BtdfGGXGt1Closure::from_params(lut_normalized_coordinate);
-      result = integrate<BtdfGGXGt1Closure>(func);
+      GGXBtdfGt1Closure func = GGXBtdfGt1Closure::from_params(lut_normalized_coordinate);
+      result = integrate<GGXBtdfGt1Closure>(func);
     } break;
     case LUT_BURLEY_SSS_PROFILE:
       result = burley_sss_translucency(lut_normalized_coordinate);

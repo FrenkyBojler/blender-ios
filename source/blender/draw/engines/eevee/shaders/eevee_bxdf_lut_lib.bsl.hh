@@ -12,7 +12,7 @@
 
 namespace eevee::lut {
 
-struct BrdfGGX {
+struct GGXBrdfData {
   float scale;
   float bias;
   float metal_bias;
@@ -22,7 +22,7 @@ struct BrdfGGX {
     return float4(scale, bias, metal_bias, 0.0f);
   }
 
-  static BrdfGGX unpack(float4 data)
+  static GGXBrdfData unpack(float4 data)
   {
     return {.scale = data.x, .bias = data.y, .metal_bias = data.z};
   }
@@ -32,7 +32,9 @@ struct BrdfGGX {
     return float2(roughness, sqrt(saturate(1.0f - cos_theta)));
   }
 
-  static BrdfGGX sample_utility_tx(const sampler2DArray &util_tx, float cos_theta, float roughness)
+  static GGXBrdfData sample_utility_tx(const sampler2DArray &util_tx,
+                                       float cos_theta,
+                                       float roughness)
   {
     const float2 coords = coords_from_params(cos_theta, roughness);
     const float4 data = utility_tx_sample_lut(util_tx, coords, UTIL_BRDF_LAYER);
@@ -40,7 +42,7 @@ struct BrdfGGX {
   }
 };
 
-struct BsdfGGX {
+struct GGXBsdfData {
   float scale;
   float bias;
   float transmission_factor;
@@ -50,7 +52,7 @@ struct BsdfGGX {
     return float4(scale, bias, transmission_factor, 0.0f);
   }
 
-  static BsdfGGX unpack(float4 data)
+  static GGXBsdfData unpack(float4 data)
   {
     return {.scale = data.x, .bias = data.y, .transmission_factor = data.z};
   }
@@ -71,10 +73,10 @@ struct BsdfGGX {
     return saturate(coords);
   }
 
-  static BsdfGGX sample_utility_tx(const sampler2DArray &util_tx,
-                                   float cos_theta,
-                                   float roughness,
-                                   float ior)
+  static GGXBsdfData sample_utility_tx(const sampler2DArray &util_tx,
+                                       float cos_theta,
+                                       float roughness,
+                                       float ior)
   {
     const float3 coords = coords_from_params(cos_theta, roughness, ior);
     const float4 data = utility_tx_sample_bsdf_lut(util_tx, coords.xy, coords.z);
@@ -82,7 +84,7 @@ struct BsdfGGX {
   }
 };
 
-struct BtdfGGXGt1 {
+struct GGXBtdfGt1Data {
   float transmission_factor;
 
   float4 pack() const
@@ -90,7 +92,7 @@ struct BtdfGGXGt1 {
     return float4(transmission_factor, 0.0f, 0.0f, 0.0f);
   }
 
-  static BtdfGGXGt1 unpack(float4 data)
+  static GGXBtdfGt1Data unpack(float4 data)
   {
     return {.transmission_factor = data.w};
   }
@@ -100,10 +102,10 @@ struct BtdfGGXGt1 {
     return float3(sqrt(f0), sqrt(1.0f - cos_theta), roughness);
   }
 
-  static BtdfGGXGt1 sample_utility_tx(const sampler2DArray &util_tx,
-                                      float cos_theta,
-                                      float roughness,
-                                      float f0)
+  static GGXBtdfGt1Data sample_utility_tx(const sampler2DArray &util_tx,
+                                          float cos_theta,
+                                          float roughness,
+                                          float f0)
   {
     const float3 coords = coords_from_params(cos_theta, roughness, f0);
     const float4 data = utility_tx_sample_bsdf_lut(util_tx, coords.xy, coords.z);
