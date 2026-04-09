@@ -79,11 +79,16 @@ class TestGraph:
         # Gather used revisions.
         revisions = {}
         revision_dates = {}
+        use_error_bars = False
         for entry in entries:
             revision = entry.revision
             if revision not in revisions.keys():
                 revisions[revision] = len(revisions)
                 revision_dates[revision] = int(entry.date)
+
+            output_values = entry.output_all_runs.get(output)
+            if len(output_values) > 1:
+                use_error_bars = True
 
         # Convert to chart.js data layout.
         if chart_type == 'comparison':
@@ -111,7 +116,7 @@ class TestGraph:
                         'y': sum(output_values) / len(output_values),
                         'yMin': min(output_values),
                         'yMax': max(output_values),
-                    }
+                    } if use_error_bars else output_values[0]
 
         else:
             # For time series, dates on the X axis and tests as datasets.
@@ -138,7 +143,7 @@ class TestGraph:
                         'y': sum(output_values) / len(output_values),
                         'yMin': min(output_values),
                         'yMax': max(output_values),
-                    }
+                    } if use_error_bars else output_values[0]
 
         data = {'labels': labels, 'datasets': datasets}
         return {
@@ -146,7 +151,8 @@ class TestGraph:
             'device_cpu': device_cpu,
             'name': chart_name,
             'data': data,
-            'chart_type': chart_type}
+            'chart_type': chart_type,
+            'use_error_bars': use_error_bars}
 
     def write(self, filepath: pathlib.Path) -> None:
         # Write HTML page with JSON graph data embedded.

@@ -50,7 +50,7 @@ class TestEntry:
         for field in self.__dataclass_fields__:
             if field in json_dict:
                 setattr(self, field, json_dict[field])
-    
+
     def migrate(self):
         missing_keys = self.output.keys() - self.output_all_runs.keys()
         for key in missing_keys:
