@@ -661,11 +661,11 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
  *
  * This uses delaunay triangulation to compute exact fill geometry.
  *
- * \param layer: The layer containing the new stroke, used for reprojecting from images.
- * \param boundary_layers: Layers that are purely for boundaries, regular strokes are not rendered.
+ * \param layer: The layer containing the new stroke, used for projecting the geometry.
+ * \param boundary_layers: Layers that are purely for boundaries, regular strokes are skipped.
  * \param src_drawings: Drawings to include as boundary strokes.
  * \param invert: Construct boundary around empty areas instead.
- * \param alpha_threshold: Render transparent stroke where opacity is below the threshold.
+ * \param alpha_threshold: Skip transparent stroke where opacity is below the threshold.
  * \param fill_point: Point from which to start the bucket fill.
  * \param stroke_material_index: Material index to use for the new strokes.
  */
