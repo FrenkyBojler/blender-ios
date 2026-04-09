@@ -93,19 +93,17 @@ Array<float> property_interpolated(const Span<float> a, const Span<float> b, flo
   return interpolated;
 }
 
-/* Using a namespace instead of enum class because these should still be used as indices into an
- * array and an enum class would require casting for that. */
-namespace RotationModeIndex {
-enum Indices : uint8_t {
-  QUATERNION,
-  AXIS_ANGLE,
-  EULER,
+/* Since there can be more than one representation of rotation data, they are stored in an array.
+ * The enum is the index into that array. */
+enum RotationModeIndices : uint8_t {
+  ROT_IDX_QUATERNION,
+  ROT_IDX_AXIS_ANGLE,
+  ROT_IDX_EULER,
   /* Not a rotation mode, always keep last. */
-  MAX_ENUM,
+  ROT_IDX_MAX_ENUM,
 };
-}
 
-Rotation Rotation::converted_to_mode(eRotationModes mode) const
+Rotation Rotation::converted_to_mode(const eRotationModes mode) const
 {
   if (mode == this->mode) {
     return *this;
@@ -147,7 +145,7 @@ Rotation Rotation::converted_to_mode(eRotationModes mode) const
   return converted;
 }
 
-Rotation Rotation::unit_rotation(const eRotationModes mode)
+Rotation unit_rotation(const eRotationModes mode)
 {
   switch (mode) {
     case ROT_MODE_QUAT:
@@ -159,11 +157,10 @@ Rotation Rotation::unit_rotation(const eRotationModes mode)
   }
 }
 
-Rotation Rotation::interpolated(const Rotation &a, const Rotation &b, const float factor)
+Rotation rotation_interpolated(const Rotation &a, const Rotation &b, const float factor)
 {
-  /* TODO: lift this limiation. */
-  BLI_assert(a.mode == b.mode);
-
+  /* Only different from `b` if the rotation mode does not match `a`. */
+  Rotation b_aligned = b.converted_to_mode(a.mode);
   Rotation interpolated;
   interpolated.mode = a.mode;
   interpolated.values.reinitialize(a.values.size());
@@ -193,22 +190,22 @@ static std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
 static void build_rotations_array(
     Array<Array<float *>> &rotations, float *euler, float *quat, float *axis, float *angle)
 {
-  rotations.reinitialize(RotationModeIndex::MAX_ENUM);
-  rotations[RotationModeIndex::EULER] = Array<float *>(3);
+  rotations.reinitialize(ROT_IDX_MAX_ENUM);
+  rotations[ROT_IDX_EULER] = Array<float *>(3);
   for (int i : IndexRange(3)) {
-    rotations[RotationModeIndex::EULER][i] = &euler[i];
+    rotations[ROT_IDX_EULER][i] = &euler[i];
   }
 
-  rotations[RotationModeIndex::QUATERNION] = Array<float *>(4);
+  rotations[ROT_IDX_QUATERNION] = Array<float *>(4);
   for (int i : IndexRange(4)) {
-    rotations[RotationModeIndex::QUATERNION][i] = &quat[i];
+    rotations[ROT_IDX_QUATERNION][i] = &quat[i];
   }
 
-  rotations[RotationModeIndex::AXIS_ANGLE] = Array<float *>(4);
+  rotations[ROT_IDX_AXIS_ANGLE] = Array<float *>(4);
   for (int i : IndexRange(3)) {
-    rotations[RotationModeIndex::AXIS_ANGLE][i] = &axis[i];
+    rotations[ROT_IDX_AXIS_ANGLE][i] = &axis[i];
   }
-  rotations[RotationModeIndex::AXIS_ANGLE][3] = angle;
+  rotations[ROT_IDX_AXIS_ANGLE][3] = angle;
 }
 
 Transformable::Transformable(Object &obj, bPoseChannel &pchan)
@@ -363,13 +360,13 @@ const Array<float *> *Transformable::get_rotation_array_from_mode(const eRotatio
   const Array<float *> *rotations_array = nullptr;
   switch (mode) {
     case ROT_MODE_QUAT:
-      rotations_array = &rotations_[RotationModeIndex::QUATERNION];
+      rotations_array = &rotations_[ROT_IDX_QUATERNION];
       break;
     case ROT_MODE_AXISANGLE:
-      rotations_array = &rotations_[RotationModeIndex::AXIS_ANGLE];
+      rotations_array = &rotations_[ROT_IDX_AXIS_ANGLE];
       break;
     default:
-      rotations_array = &rotations_[RotationModeIndex::EULER];
+      rotations_array = &rotations_[ROT_IDX_EULER];
       break;
   }
   BLI_assert(!rotations_array->is_empty());

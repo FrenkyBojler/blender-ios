@@ -514,7 +514,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, TransformableFCurveLink *pf
       const float interp_factor = (current_frame - pso->prev_frame) /
                                   float(pso->next_frame - pso->prev_frame);
       animrig::Rotation current = transformable->get_rotation();
-      animrig::Rotation breakdown = animrig::Rotation::interpolated(
+      animrig::Rotation breakdown = animrig::rotation_interpolated(
           rot_prev_frame, rot_next_frame, interp_factor);
 
       if (pso->mode == POSESLIDE_PUSH) {
@@ -579,9 +579,7 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
       transformable->blend_rotation_to(
-          animrig::Rotation::unit_rotation(transformable->get_rotation_mode()),
-          slider_factor,
-          axis_flag);
+          animrig::unit_rotation(transformable->get_rotation_mode()), slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&

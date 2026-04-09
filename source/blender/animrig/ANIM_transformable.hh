@@ -48,18 +48,29 @@ enum AxisFlag : int8_t {
  */
 Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
 
-/* Describes a rotation in a specific mode. */
+/**
+ * Describes a rotation in a specific mode and can be used to convert into other modes.
+ */
 struct Rotation {
   /* The array size differs depending on the rotation mode. */
   Array<float> values;
   eRotationModes mode;
 
-  /* Returns a copy of the rotation in the given mode. */
+  /**
+   * Returns a copy of the rotation in the given mode.
+   */
   Rotation converted_to_mode(eRotationModes mode) const;
-  /* Returns a unit rotation for the given mode. */
-  static Rotation unit_rotation(eRotationModes mode);
-  static Rotation interpolated(const Rotation &a, const Rotation &b, float factor);
 };
+
+/**
+ * Returns a unit rotation for the given mode.
+ */
+Rotation unit_rotation(eRotationModes mode);
+/**
+ * Returns a new rotation, interpolated between `a` and `b` based on `factor`. If `factor` is 0
+ * the result is `a`.
+ */
+Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float factor);
 
 /**
  * Provides a common interface to transform values for multiple structs.
