@@ -89,6 +89,22 @@ class BlendToDefaultPoseBone(AbstractPoseSlideTest):
         self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 2, 3)
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 2, 3)
 
+    def test_blend_to_default_x_axis(self):
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.location = (1, 1, 1)
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.location = (2, 2, 2)
+        self._keyframe_all()
+
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.pose.blend_with_rest(factor=1.0, channels='LOC', axis_lock='X')
+
+        self.assertAlmostEqual(self.pose_bone.location[0], 0, 3)
+        self.assertAlmostEqual(self.pose_bone.location[1], 2, 3)
+        self.assertAlmostEqual(self.pose_bone.location[2], 2, 3)
+
 
 class BlendToNeighborPoseBone(AbstractPoseSlideTest):
 
@@ -118,7 +134,6 @@ class BlendToNeighborPoseBone(AbstractPoseSlideTest):
             self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 2, 3)
             self.assertAlmostEqual(self.pose_bone.scale[i], 2, 3)
 
-        # Custom properties and bbone properties are not supported by this operator.
         self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 2, 3)
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 2, 3)
 
@@ -243,11 +258,32 @@ class BreakdownerTestPoseBone(AbstractPoseSlideTest):
         bpy.context.scene.frame_set(1)
         with bpy.context.temp_override(**_get_view3d_context()):
             # The prev and next frames have to be specified in order for this to work correctly.
-            bpy.ops.pose.breakdown(factor=0.5, prev_frame=0, next_frame=10, channels='LOC', axis_lock="X")
+            bpy.ops.pose.breakdown(factor=0.5, prev_frame=0, next_frame=10, channels='LOC', axis_lock='X')
 
         self.assertAlmostEqual(self.pose_bone.location[0], 1.5, 3)
         self.assertAlmostEqual(self.pose_bone.location[1], 1.0279, 3)
         self.assertAlmostEqual(self.pose_bone.location[2], 1.0279, 3)
+
+    def test_break_down_quaternion_axis_lock_limitation(self):
+        # Axis lock does not work with quaternions. This test just confirms that.
+        self.pose_bone.rotation_mode = 'QUATERNION'
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.rotation_quaternion = (1, 0, 0, 0)
+        self.pose_bone.keyframe_insert("rotation_quaternion")
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.rotation_quaternion = (0, 1, 0, 0)
+        self.pose_bone.keyframe_insert("rotation_quaternion")
+
+        with bpy.context.temp_override(**_get_view3d_context()):
+            # The prev and next frames have to be specified in order for this to work correctly.
+            bpy.ops.pose.breakdown(factor=0.0, prev_frame=0, next_frame=10, channels='ROT', axis_lock='X')
+
+        # Despite setting the axis lock, all channels are modified.
+        self.assertAlmostEqual(self.pose_bone.rotation_quaternion[0], 1, 3)
+        self.assertAlmostEqual(self.pose_bone.rotation_quaternion[1], 0, 3)
+        self.assertAlmostEqual(self.pose_bone.rotation_quaternion[2], 0, 3)
+        self.assertAlmostEqual(self.pose_bone.rotation_quaternion[3], 0, 3)
 
 
 def main():
