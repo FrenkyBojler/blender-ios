@@ -44,10 +44,15 @@ static Array<float> array_from_span(const Span<float *> value)
   return copy;
 }
 
-static void copy_span_into_mutable_span(const Span<float> value, MutableSpan<float> target)
+static void copy_span_into_mutable_span(const Span<float> value,
+                                        MutableSpan<float> target,
+                                        const AxisFlag axis_flag = AXIS_FLAG_NONE)
 {
   BLI_assert(target.size() == value.size());
   for (const int i : IndexRange(3)) {
+    if (!should_modify_axis(i, axis_flag)) {
+      continue;
+    }
     target[i] = value[i];
   }
 }
@@ -275,11 +280,13 @@ Array<float> Transformable::get_property(const PropertyType prop_type) const
   return {};
 }
 
-void Transformable::set_property(const PropertyType prop_type, const Span<float> values)
+void Transformable::set_property(const PropertyType prop_type,
+                                 const Span<float> values,
+                                 const AxisFlag axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
-      copy_span_into_mutable_span(values, location_);
+      copy_span_into_mutable_span(values, location_, axis_flag);
       break;
 
     case PropertyType::ROTATION: {
@@ -291,12 +298,15 @@ void Transformable::set_property(const PropertyType prop_type, const Span<float>
           BLI_assert_unreachable();
           return;
         }
+        if (!should_modify_axis(i, axis_flag)) {
+          continue;
+        }
         *(*rotation_array)[i] = values[i];
       }
       break;
     }
     case PropertyType::SCALE:
-      copy_span_into_mutable_span(values, scale_);
+      copy_span_into_mutable_span(values, scale_, axis_flag);
       break;
   }
 }

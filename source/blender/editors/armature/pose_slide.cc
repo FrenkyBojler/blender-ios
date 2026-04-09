@@ -390,25 +390,25 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
   Array<float> current_frame_breakdown = animrig::property_interpolated(
       prev_values, next_values, current_frame_factor);
 
-  const animrig::AxisFlag lock = animrig::AxisFlag(pso.axislock);
+  const animrig::AxisFlag axis_flag = animrig::AxisFlag(pso.axislock);
 
   switch (pso.mode) {
 
     case POSESLIDE_PUSH: {
       /* Slide the pose away from the breakdown pose in the timeline */
-      transformable->blend_property_to(prop_type, current_frame_breakdown, -factor, lock);
+      transformable->blend_property_to(prop_type, current_frame_breakdown, -factor, axis_flag);
       break;
     }
     case POSESLIDE_RELAX: {
       /* Slide the pose towards the breakdown pose in the timeline */
-      transformable->blend_property_to(prop_type, current_frame_breakdown, factor, lock);
+      transformable->blend_property_to(prop_type, current_frame_breakdown, factor, axis_flag);
       break;
     }
     case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
     {
       /* Perform simple linear interpolation. */
       Array<float> breakdown = animrig::property_interpolated(prev_values, next_values, factor);
-      transformable->set_property(prop_type, breakdown);
+      transformable->set_property(prop_type, breakdown, axis_flag);
       break;
     }
     case POSESLIDE_BLEND: /* Blend the current pose with the previous (<50%) or next key (>50%). */
@@ -418,11 +418,11 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
 
       if (factor < 0.5) {
         /* Blend to previous key. */
-        transformable->blend_property_to(prop_type, prev_values, blend_factor, lock);
+        transformable->blend_property_to(prop_type, prev_values, blend_factor, axis_flag);
       }
       else {
         /* Blend to next key. */
-        transformable->blend_property_to(prop_type, next_values, blend_factor, lock);
+        transformable->blend_property_to(prop_type, next_values, blend_factor, axis_flag);
       }
 
       break;

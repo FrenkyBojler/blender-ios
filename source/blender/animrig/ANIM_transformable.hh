@@ -130,7 +130,7 @@ class Transformable {
    * Generic way to set the given transform property. It is asserted that the value count matches
    * the current rotation mode. Use `set_rotation` to automatically convert to the correct mode.
    */
-  void set_property(PropertyType prop_type, Span<float> values);
+  void set_property(PropertyType prop_type, Span<float> values, AxisFlag axis_flag);
   /**
    * Do a linear blend of the property values towards the given `target`. It is asserted that the
    * given span size equals the property size.
