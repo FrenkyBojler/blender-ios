@@ -2248,6 +2248,15 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
   }
   IDP_AddToGroup(properties.get(), panels.release());
 
+  auto outputs = idprop::create_group("outputs");
+  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
+    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
+    if (!IDP_AddToGroup(outputs.get(), prop)) {
+      IDP_FreeProperty(prop);
+    }
+  }
+  IDP_AddToGroup(properties.get(), outputs.release());
+
   return properties.release();
 }
 
@@ -2259,15 +2268,7 @@ void node_update_asset_metadata(bNodeTree &node_tree)
   }
 
   BKE_asset_metadata_idprop_ensure(asset_data, idprop::create("type", node_tree.type).release());
-  auto outputs = idprop::create_group("outputs");
-  for (const bNodeTreeInterfaceSocket *socket : node_tree.interface_outputs()) {
-    auto *prop = idprop::create(socket->name ? socket->name : "", socket->socket_type).release();
-    if (!IDP_AddToGroup(outputs.get(), prop)) {
-      IDP_FreeProperty(prop);
-    }
-  }
   BKE_asset_metadata_idprop_ensure(asset_data, node_create_asset_meta_data_properties(node_tree));
-  BKE_asset_metadata_idprop_ensure(asset_data, outputs.release());
   if (node_tree.geometry_node_asset_traits) {
     auto property = idprop::create("geometry_node_asset_traits_flag",
                                    node_tree.geometry_node_asset_traits->flag);
@@ -2562,9 +2563,9 @@ void node_tree_set_type(bNodeTree &ntree)
 }
 
 template<typename T> struct NodeStructIDNameGetter {
-  StringRef operator()(const T *value) const
+  UString operator()(const T *value) const
   {
-    return StringRef(value->idname);
+    return value->idname;
   }
 };
 
@@ -2582,7 +2583,7 @@ static auto &get_node_type_map()
 
 static auto &get_node_type_alias_map()
 {
-  static Map<std::string, std::string> map;
+  static Map<UString, UString> map;
   return map;
 }
 
@@ -2594,7 +2595,7 @@ static auto &get_socket_type_map()
 
 bNodeTreeType *node_tree_type_find(const StringRef idname)
 {
-  bNodeTreeType *const *value = get_node_tree_type_map().lookup_key_ptr_as(idname);
+  bNodeTreeType *const *value = get_node_tree_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
     return nullptr;
   }
@@ -2680,16 +2681,16 @@ Span<bNodeTreeType *> node_tree_types_get()
 
 bNodeType *node_type_find(const StringRef idname)
 {
-  bNodeType *const *value = get_node_type_map().lookup_key_ptr_as(idname);
+  bNodeType *const *value = get_node_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
     return nullptr;
   }
   return *value;
 }
 
-StringRefNull node_type_find_alias(const StringRefNull alias)
+UString node_type_find_alias(const UString alias)
 {
-  const std::string *idname = get_node_type_alias_map().lookup_ptr_as(alias);
+  const UString *idname = get_node_type_alias_map().lookup_ptr_as(alias);
   if (!idname) {
     return alias;
   }
@@ -2718,7 +2719,7 @@ static void node_free_type(void *nodetype_v)
 void node_register_type(bNodeType &nt)
 {
   /* debug only: basic verification of registered types */
-  BLI_assert(!nt.idname.empty());
+  BLI_assert(!nt.idname.is_empty());
   BLI_assert(nt.poll != nullptr);
 
   RNA_def_struct_ui_text(nt.rna_ext.srna, nt.ui_name.c_str(), nt.ui_description.c_str());
@@ -2751,7 +2752,7 @@ Span<bNodeType *> node_types_get()
   return get_node_type_map().as_span();
 }
 
-void node_register_alias(bNodeType &nt, const StringRef alias)
+void node_register_alias(bNodeType &nt, const UString alias)
 {
   get_node_type_alias_map().add_new(alias, nt.idname);
 }
@@ -2763,7 +2764,7 @@ Span<bNodeSocketType *> node_socket_types_get()
 
 bNodeSocketType *node_socket_type_find(const StringRef idname)
 {
-  bNodeSocketType *const *value = get_socket_type_map().lookup_key_ptr_as(idname);
+  bNodeSocketType *const *value = get_socket_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
     return nullptr;
   }
@@ -3308,6 +3309,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
           return "NodeSocketFloatColorTemperature";
         case PROP_FREQUENCY:
           return "NodeSocketFloatFrequency";
+        case PROP_PIXEL:
+          return "NodeSocketFloatPixel";
         case PROP_NONE:
         default:
           return "NodeSocketFloat";
@@ -3320,6 +3323,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
           return "NodeSocketIntPercentage";
         case PROP_FACTOR:
           return "NodeSocketIntFactor";
+        case PROP_PIXEL:
+          return "NodeSocketIntPixel";
         case PROP_NONE:
         default:
           return "NodeSocketInt";
@@ -3349,6 +3354,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ";
+          case PROP_PIXEL:
+            return "NodeSocketVectorPixel";
           case PROP_NONE:
           default:
             return "NodeSocketVector";
@@ -3372,6 +3379,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler2D";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ2D";
+          case PROP_PIXEL:
+            return "NodeSocketVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeSocketVector2D";
@@ -3395,6 +3404,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler4D";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ4D";
+          case PROP_PIXEL:
+            return "NodeSocketVectorPixel4D";
           case PROP_NONE:
           default:
             return "NodeSocketVector4D";
@@ -3413,6 +3424,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketIntVectorFactor3D";
           case PROP_PERCENTAGE:
             return "NodeSocketIntVectorPercentage3D";
+          case PROP_PIXEL:
+            return "NodeSocketIntVectorPixel3D";
           case PROP_NONE:
           default:
             return "NodeSocketIntVector3D";
@@ -3426,6 +3439,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketIntVectorFactor2D";
           case PROP_PERCENTAGE:
             return "NodeSocketIntVectorPercentage2D";
+          case PROP_PIXEL:
+            return "NodeSocketIntVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeSocketIntVector2D";
@@ -3508,6 +3523,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketFloatColorTemperature";
         case PROP_FREQUENCY:
           return "NodeTreeInterfaceSocketFloatFrequency";
+        case PROP_PIXEL:
+          return "NodeTreeInterfaceSocketFloatPixel";
         case PROP_NONE:
         default:
           return "NodeTreeInterfaceSocketFloat";
@@ -3520,6 +3537,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketIntPercentage";
         case PROP_FACTOR:
           return "NodeTreeInterfaceSocketIntFactor";
+        case PROP_PIXEL:
+          return "NodeTreeInterfaceSocketIntPixel";
         case PROP_NONE:
         default:
           return "NodeTreeInterfaceSocketInt";
@@ -3549,6 +3568,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketVectorPixel";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector";
@@ -3572,6 +3593,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler2D";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ2D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector2D";
@@ -3595,6 +3618,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler4D";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ4D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketVectorPixel4D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector4D";
@@ -3613,6 +3638,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketIntVectorFactor3D";
           case PROP_PERCENTAGE:
             return "NodeTreeInterfaceSocketIntVectorPercentage3D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketIntVectorPixel3D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketIntVector3D";
@@ -3626,6 +3653,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketIntVectorFactor2D";
           case PROP_PERCENTAGE:
             return "NodeTreeInterfaceSocketIntVectorPercentage2D";
+          case PROP_PIXEL:
+            return "NodeTreeInterfaceSocketIntVectorPixel2D";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketIntVector2D";
@@ -4045,7 +4074,7 @@ bNode *node_add_node(const bContext *C,
 
 bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
 {
-  std::optional<StringRefNull> idname;
+  std::optional<UString> idname;
 
   for (bNodeType *ntype : node_types_get()) {
     /* Do an extra poll here, because some int types are used
@@ -4064,7 +4093,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
     CLOG_ERROR(&LOG, "static node type %d undefined", type);
     return nullptr;
   }
-  return node_add_node(C, ntree, *idname);
+  return node_add_node(C, ntree, idname->ref());
 }
 
 static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src, const int flag)
@@ -4226,11 +4255,17 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
     default:
       break;
   }
-  if (STREQ(node.idname, "GeometryNodeInputFont")) {
+  if (node.is_type("GeometryNodeInputFont")) {
     return &node.id;
   }
-  if (STREQ(node.idname, "FunctionNodeInputMenu")) {
+  if (node.is_type("FunctionNodeInputMenu")) {
     return &reinterpret_cast<NodeInputMenu *>(node.storage)->value;
+  }
+  if (node.is_type("ShaderNodeRGB")) {
+    return &node.output_socket(0).default_value_typed<bNodeSocketValueRGBA>()->value;
+  }
+  if (node.is_type("ShaderNodeValue")) {
+    return &node.output_socket(0).default_value_typed<bNodeSocketValueFloat>()->value;
   }
 
   return nullptr;
@@ -4739,7 +4774,7 @@ bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
 
   const uint size[2] = {uint(xsize), uint(ysize)};
   IMB_rect_size_set(preview->ibuf, size);
-  if (preview->ibuf->byte_buffer.data == nullptr) {
+  if (!preview->ibuf->byte_data()) {
     IMB_alloc_byte_pixels(preview->ibuf);
   }
 
@@ -5659,7 +5694,7 @@ static int16_t get_next_auto_legacy_type()
 
 void node_type_base(bNodeType &ntype, std::string idname, std::optional<int16_t> legacy_type)
 {
-  ntype.idname = std::move(idname);
+  ntype.idname = UString(idname);
 
   if (!legacy_type.has_value()) {
     /* Still auto-generate a legacy type for this node type if none was specified. This is
@@ -5693,7 +5728,7 @@ void node_type_base_custom(bNodeType &ntype,
                            const StringRefNull enum_name,
                            const short nclass)
 {
-  ntype.idname = idname;
+  ntype.idname = UString(idname);
   ntype.type_legacy = NODE_CUSTOM;
   ntype.ui_name = name;
   ntype.nclass = nclass;
