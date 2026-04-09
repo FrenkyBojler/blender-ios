@@ -543,11 +543,11 @@ static void update_duplicate_action_constraint_settings(
       if (!animrig::fcurve_matches_collection_path(*old_fcurve, "pose.bones[", orig_bone->name)) {
         continue;
       }
-      const char *old_path = old_fcurve->rna_path;
-      char *new_path = BLI_string_replaceN(old_path, orig_bone->name, dup_bone->name);
+      const char *new_path = BLI_string_replaceN(
+          old_fcurve->rna_path, orig_bone->name, dup_bone->name);
       FCurve &new_curve = cbag->fcurve_clone(
           *old_fcurve, new_path, old_fcurve->array_index, dup_bone->name);
-
+      MEM_delete(new_path);
       /* Flip the animation */
       int i;
       BezTriple *bezt;
