@@ -3742,6 +3742,7 @@ static void widget_update_menubut(uiWidgetColors *wcol,
   round_box_edges(&wtb, roundboxalign, rect, rad);
   BLI_assert(bool(state->but_flag & BUT_UPDATE_AVAILABLE));
   theme::get_color_4ubv(TH_SUCCESS, wcol->inner);
+  wcol->inner[3] *= 0.40f;
   wcol->outline[3] = 0.0f;
 
   widgetbase_draw(&wtb, wcol);
