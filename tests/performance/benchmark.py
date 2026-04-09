@@ -42,57 +42,8 @@ def use_revision_columns(config: api.TestConfig) -> bool:
     )
 
 
-class MarkdownColumn:
-    def __init__(self, name, width=10, is_visible=True, alignment='LEFT'):
-        self.name = name
-        self.width = width
-        self.is_visible = is_visible
-        self.alignment = alignment
-        if len(self.name) > self.width:
-            self.width = len(self.name)
-
-
-class MarkdownTable:
-    def __init__(self):
-        self.columns = []
-        self.show_header = True
-
-    def add_column(self, *args, **kwargs):
-        self.columns.append(MarkdownColumn(*args, **kwargs))
-
-    def print_header(self):
-        if not self.show_header:
-            return
-
-        values = []
-        lines = []
-        for column in self.columns:
-            if not column.is_visible:
-                continue
-            values.append(f"{column.name:{column.width}}")
-            lines.append('-' * column.width)
-
-        print('| ' + (' | '.join(values)) + ' |')
-        print('| ' + (' | '.join(lines)) + ' |')
-
-    def print_row(self, row_values, end='\n'):
-        values = []
-        for column, value in zip(self.columns, row_values):
-            if not column.is_visible:
-                continue
-            if len(value) > column.width:
-                column.width = len(value)
-            if column.alignment == 'LEFT':
-                values.append(f"{value:<{column.width}}")
-            else:
-                values.append(f"{value:>{column.width}}")
-
-        print("| " + (" | ".join(values)) + " |", end=end, flush=True)
-
-
-def print_header(config: api.TestConfig) -> None:
-    global table
-    table = MarkdownTable()
+def init_table(config: api.TestConfig) -> api.MarkdownTable:
+    table = api.MarkdownTable()
     table.add_column("Revision")
     table.add_column("Category", is_visible=config.queue.has_multiple_categories)
     table.add_column("Device", is_visible=config.queue.has_multiple_devices)
@@ -103,10 +54,10 @@ def print_header(config: api.TestConfig) -> None:
         table.columns[0].is_visible = False
     else:
         table.add_column("Result", width=20, alignment='RIGHT')
-    table.print_header()
+    return table
 
 
-def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
+def print_row(table: api.MarkdownTable, entries: list, end='\n') -> None:
     # Print one or more test entries on a row.
     row = []
 
@@ -135,15 +86,14 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
             result = status
         row.append(result)
 
-    global table
     table.print_row(row, end=end)
 
 
-def print_entry(config: api.TestConfig, entry: api.TestEntry) -> None:
+def print_entry(table: api.MarkdownTable, entry: api.TestEntry) -> None:
     # Print a single test entry, potentially on multiple lines, with more details than in `print_row`.
     # NOTE: Currently only used to print detailed error info.
 
-    print_row(config, [entry])
+    print_row(table, [entry])
 
     if entry.status != 'failed':
         return
@@ -164,6 +114,7 @@ def match_entry(entry: api.TestEntry, args: argparse.Namespace):
 
 def run_entry(env: api.TestEnvironment,
               config: api.TestConfig,
+              table: api.MarkdownTable,
               row: list,
               entry: api.TestEntry,
               update_only: bool,
@@ -173,7 +124,7 @@ def run_entry(env: api.TestEnvironment,
 
     # Check if entry needs to be run.
     if update_only and entry.status not in {'queued', 'outdated'}:
-        print_row(config, row, end='\r')
+        print_row(table, row, end='\r')
         return updated, failed
 
     # Run test entry.
@@ -212,7 +163,7 @@ def run_entry(env: api.TestEnvironment,
         env.set_blender_executable(pathlib.Path(entry.executable), environment)
     else:
         entry.status = 'building'
-        print_row(config, row, end='\r')
+        print_row(table, row, end='\r')
 
         if config.benchmark_type == "comparison":
             install_dir = config.builds_dir / revision
@@ -232,7 +183,7 @@ def run_entry(env: api.TestEnvironment,
         run_outputs = []
         for run in range(count):
             entry.status = 'running' if count == 1 else f'run [{run + 1}/{count}]'
-            print_row(config, row, end='\r')
+            print_row(table, row, end='\r')
 
             try:
                 output = test.run(env, device_id, gpu_backend)
@@ -269,7 +220,7 @@ def run_entry(env: api.TestEnvironment,
             entry.output = output
             entry.output_all_runs = output_all_runs
 
-    print_row(config, row, end='\r')
+    print_row(table, row, end='\r')
 
     # Update device name in case the device changed since the entry was created.
     entry.device_name = config.device_name(device_id)
@@ -329,10 +280,11 @@ def cmd_status(env: api.TestEnvironment, argv: list):
                 print("")
             print(config.name.upper())
 
-        print_header(config)
+        table = init_table(config)
+        table.print_header()
         for row in config.queue.rows(use_revision_columns(config)):
             if match_entry(row[0], args):
-                print_row(config, row)
+                print_row(table, row)
 
 
 def cmd_reset(env: api.TestEnvironment, argv: list):
@@ -344,13 +296,14 @@ def cmd_reset(env: api.TestEnvironment, argv: list):
 
     configs = env.get_configs(args.config)
     for config in configs:
-        print_header(config)
+        table = init_table(config)
+        table.print_header()
         for row in config.queue.rows(use_revision_columns(config)):
             if match_entry(row[0], args):
                 for entry in row:
                     entry.status = 'queued'
                     entry.result = {}
-                print_row(config, row)
+                print_row(table, row)
 
         config.queue.write()
 
@@ -372,12 +325,13 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     for config in configs:
         updated = False
         cancel = False
-        print_header(config)
+        table = init_table(config)
+        table.print_header()
         for row in config.queue.rows(use_revision_columns(config)):
             if match_entry(row[0], args):
                 for entry in row:
                     try:
-                        test_updated, test_failed = run_entry(env, config, row, entry, update_only, args.count)
+                        test_updated, test_failed = run_entry(env, config, table, row, entry, update_only, args.count)
                         if test_updated:
                             updated = True
                             # Write queue every time in case running gets interrupted,
@@ -385,12 +339,12 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
                             config.queue.write()
                         if test_failed:
                             exit_code = 1
-                            print_entry(config, entry)
+                            print_entry(table, entry)
                     except KeyboardInterrupt as e:
                         cancel = True
                         break
 
-                print_row(config, row)
+                print_row(table, row)
 
             if cancel:
                 break
