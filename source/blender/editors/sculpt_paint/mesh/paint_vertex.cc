@@ -2319,12 +2319,9 @@ static bool fill_active_color(Object &ob,
   return true;
 }
 
-bool object_active_color_fill(Object &ob,
-                              const float fill_color[4],
-                              bool only_selected,
-                              const bool only_visible = false)
+bool object_active_color_init(Object &ob, const float fill_color[4])
 {
-  return fill_active_color(ob, ColorPaint4f(fill_color), only_selected, only_visible);
+  return fill_active_color(ob, ColorPaint4f(fill_color), false, false);
 }
 
 }  // namespace ed::sculpt_paint

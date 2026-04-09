@@ -6749,7 +6749,7 @@ static std::optional<std::string> proj_paint_color_attribute_create(wmOperator *
     BKE_id_attributes_default_color_set(&mesh->id, unique_name);
   }
 
-  ed::sculpt_paint::object_active_color_fill(ob, color, false, false);
+  ed::sculpt_paint::object_active_color_init(ob, color);
 
   return unique_name;
 }

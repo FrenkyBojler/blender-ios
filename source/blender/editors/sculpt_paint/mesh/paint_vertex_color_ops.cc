@@ -158,18 +158,18 @@ static IndexMask get_selected_indices(const Mesh &mesh,
   const bke::AttributeAccessor attributes = mesh.attributes();
 
   /* Hidden should never count as selected. */
-  IndexMask visible = IndexMask::from_bools_inverse(*attributes.lookup<bool>(".hide_poly", domain),
-                                                    memory);
+  IndexMask visible = IndexMask::from_bools_inverse(
+      *attributes.lookup_or_default<bool>(".hide_poly", domain, false), memory);
 
   if (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) {
     const VArray<bool> selection = *attributes.lookup_or_default<bool>(
         ".select_poly", domain, false);
-    return IndexMask::from_intersection(visible, IndexMask::from_bools(selection, memory), memory);
+    return IndexMask::from_bools(visible, selection, memory);
   }
   if (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) {
     const VArray<bool> selection = *attributes.lookup_or_default<bool>(
         ".select_vert", domain, false);
-    return IndexMask::from_intersection(visible, IndexMask::from_bools(selection, memory), memory);
+    return IndexMask::from_bools(visible, selection, memory);
   }
 
   return visible;

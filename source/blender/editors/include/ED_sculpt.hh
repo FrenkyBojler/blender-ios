@@ -95,18 +95,11 @@ int active_update_and_get(bContext *C, Object &ob, const float mval_fl[2]);
 }  // namespace face_set
 
 /**
- * Fills the object's active color attribute layer with the fill color.
- *
- * \param only_selected: Limit the fill to selected faces or vertices.
- *
- * \param only_visible: Limit the fill skipping hidden faces.
+ * Fills the entire object's active color attribute layer with the fill color.
  *
  * \return #true if successful.
  */
-bool object_active_color_fill(Object &ob,
-                              const float fill_color[4],
-                              bool only_selected,
-                              const bool only_visible);
+bool object_active_color_init(Object &ob, const float fill_color[4]);
 
 /**
  * Fully replace the sculpt mesh with a mesh outside of #Main. This implements various checks to
