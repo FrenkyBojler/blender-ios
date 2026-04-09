@@ -128,37 +128,6 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
   return srna;
 }
 
-static std::optional<std::string> rna_CompositorNodesModifierPropertyOutput_path(
-    const PointerRNA *ptr)
-{
-  return rna_CompositorNodesModifierProperty_path(ptr, "outputs");
-}
-
-static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
-{
-  StructRNA *srna = RNA_def_struct_ptr(
-      r_generated.generated_rna, "CompositorNodesInterfaceOutputs", RNA_PropertyGroup);
-
-  LinearAllocator<> &allocator = r_generated.scope.allocator();
-
-  for (const bNodeTreeInterfaceSocket *output : tree.interface_outputs()) {
-    const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(output->socket_type);
-    if (!nodes::socket_type_supports_attributes(eNodeSocketDatatype(socket_type->type))) {
-      continue;
-    }
-
-    const StringRefNull identifier = allocator.copy_string(output->identifier);
-    const StringRefNull name = allocator.copy_string(output->name);
-
-    StructRNA *output_srna = RNA_def_struct_ptr(
-        r_generated.generated_rna, identifier.c_str(), RNA_PropertyGroup);
-    RNA_def_struct_path_func_runtime(output_srna, rna_CompositorNodesModifierPropertyOutput_path);
-    RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
-  }
-
-  return srna;
-}
-
 static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
@@ -196,15 +165,12 @@ std::shared_ptr<GeneratedTreeSrnaData> create_compositor_nodes_rna_for_strip_mod
   generated->properties_struct = srna;
 
   StructRNA *inputs_srna = create_inputs_srna(tree, *generated);
-  StructRNA *outputs_srna = create_outputs_srna(tree, *generated);
+  /* Note: We don't generate any srna for the outputs because they are unused by the compositor. */
   StructRNA *panels_srna = create_panels_srna(tree, *generated);
 
   PropertyRNA *prop;
   prop = RNA_def_pointer_runtime(
       srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  prop = RNA_def_pointer_runtime(
-      srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   prop = RNA_def_pointer_runtime(srna, "panels", panels_srna, "Panels", "Settings for panels");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
