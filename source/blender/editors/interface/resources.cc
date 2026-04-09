@@ -123,9 +123,6 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case TH_LINK:
           cp = btheme->tui.link;
           break;
-        case TH_UPDATE_AVAILABLE:
-          cp = btheme->tui.wcol_state.update_available;
-          break;
       }
     }
     else {

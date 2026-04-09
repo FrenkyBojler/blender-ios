@@ -211,7 +211,7 @@ typedef struct uiWidgetStateColors {
   unsigned char inner_changed[4];
   unsigned char inner_changed_sel[4];
   float blend;
-  unsigned char update_available[4];
+  char _pad0[4];
 } uiWidgetStateColors;
 
 typedef struct ThemeUI {

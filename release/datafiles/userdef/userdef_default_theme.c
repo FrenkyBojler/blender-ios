@@ -246,7 +246,6 @@ const bTheme U_theme_default = {
       .inner_changed = RGBA(0xcc7529ff),
       .inner_changed_sel = RGBA(0xd26400ff),
       .blend = 0.5f,
-      .update_available = RGBA(0x2f3e14ff),
     },
     .widget_emboss = RGBA(0x00000026),
     .menu_shadow_fac = 0.2f,

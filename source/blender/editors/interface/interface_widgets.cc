@@ -3741,7 +3741,7 @@ static void widget_update_menubut(uiWidgetColors *wcol,
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, roundboxalign, rect, rad);
   BLI_assert(bool(state->but_flag & BUT_UPDATE_AVAILABLE));
-  theme::get_color_4ubv(TH_UPDATE_AVAILABLE, wcol->inner);
+  theme::get_color_4ubv(TH_SUCCESS, wcol->inner);
   wcol->outline[3] = 0.0f;
 
   widgetbase_draw(&wtb, wcol);
