@@ -147,7 +147,7 @@ enum eAction_TransformFlags {
   ACT_TRANS_ALL = (ACT_TRANS_ONLY | ACT_TRANS_PROP),
 };
 
-/* Temporary data linking PoseChannels with the F-Curves they affect */
+/* Temporary struct wrapping data used for pose sliding. */
 struct SlideTarget {
   SlideTarget *next, *prev;
 
