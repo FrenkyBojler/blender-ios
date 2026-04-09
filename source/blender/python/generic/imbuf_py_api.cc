@@ -11,9 +11,9 @@
 #include <Python.h>
 
 #include "BLI_rect.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_space_enums.h"
 #include "py_capi_utils.hh"
 
 #include "python_compat.hh" /* IWYU pragma: keep. */
@@ -50,6 +50,8 @@ static const PyC_StringEnumItems py_imbuf_buffer_mode_items[] = {
     {0, nullptr},
 };
 
+const static char *py_imbuf_type_none = "NONE";
+
 struct Py_ImBufBuffer {
   PyObject_HEAD
   /** Reference to the #ImBuf this came from (prevents freeing while in use). */
@@ -67,7 +69,7 @@ extern PyTypeObject Py_ImBufBuffer_Type;
 
 struct Py_ImBufFileType {
   PyObject_HEAD
-  int ftype;
+  eImbFileType ftype;
 };
 extern PyTypeObject Py_ImBufFileType_Type;
 
@@ -78,42 +80,13 @@ extern PyTypeObject Py_ImBufFileType_Type;
  * this is currently private, but could be extended to provide more useful info.
  * \{ */
 
-struct ImBufFileTypeInfo {
-  const char *id;
-  const char *file_extensions;
-};
-
-static const ImBufFileTypeInfo imbuf_file_type_info[IMB_FTYPE_LAST + 1] = {
-    /* IMB_FTYPE_NONE */ {"", ""},
-    /* IMB_FTYPE_PNG */ {"PNG", ".png"},
-    /* IMB_FTYPE_TGA */ {"TGA", ".tga;.tpic"},
-    /* IMB_FTYPE_JPG */ {"JPEG", ".jpg;.jpeg"},
-    /* IMB_FTYPE_BMP */ {"BMP", ".bmp;.dib"},
-    /* IMB_FTYPE_OPENEXR */ {"OPEN_EXR", ".exr"},
-    /* IMB_FTYPE_IRIS */ {"IRIS", ".sgi;.rgb;.bw"},
-    /* IMB_FTYPE_PSD */ {"PSD", ".psd;.psb"},
-    /* IMB_FTYPE_JP2 */ {"JPEG2000", ".jp2;.j2c"},
-    /* IMB_FTYPE_RADHDR */ {"HDR", ".hdr"},
-    /* IMB_FTYPE_TIF */ {"TIFF", ".tif;.tiff"},
-    /* IMB_FTYPE_CINEON */ {"CINEON", ".cin"},
-    /* IMB_FTYPE_DPX */ {"DPX", ".dpx"},
-    /* IMB_FTYPE_DDS */ {"DDS", ".dds"},
-    /* IMB_FTYPE_WEBP */ {"WEBP", ".webp"},
-    /* IMB_FTYPE_AVIF */ {"AVIF", ".avif"},
-};
-static_assert(ARRAY_SIZE(imbuf_file_type_info) == IMB_FTYPE_LAST + 1);
-
 static std::optional<int> py_imbuf_ftype_from_string(const char *str)
 {
-  for (int ftype = IMB_FTYPE_NONE + 1; ftype <= IMB_FTYPE_LAST; ftype++) {
-    if (STREQ(imbuf_file_type_info[ftype].id, str)) {
-      if (!IMB_ftype_is_supported(ftype)) {
-        break;
-      }
-      return ftype;
-    }
+  const eImbFileType ftype = IMB_ftype_from_id(str);
+  if (ftype == IMB_FTYPE_NONE && !STREQ(str, py_imbuf_type_none)) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return ftype;
 }
 
 /** \} */
@@ -159,6 +132,31 @@ static int py_imbuf_valid_check(Py_ImBuf *self)
     return nullptr; \
   } \
   ((void)0)
+
+static void py_imbuf_warn_corrupt_ftype(const eImbFileType ftype)
+{
+  /* Should not be possible, but avoid crashing on corrupt data. */
+  BLI_assert_unreachable();
+  PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "unknown file type enum: %d", ftype);
+}
+
+/**
+ * Return the file type ID string, falling back to "NONE" so
+ * the caller doesn't have to deal with the very unlikely case
+ * of an unknown/corrupt `ftype`.
+ */
+static const char *py_imbuf_ftype_to_id_with_fallback(const eImbFileType ftype)
+{
+  if (ftype == IMB_FTYPE_NONE) {
+    return py_imbuf_type_none;
+  }
+  const char *id = IMB_ftype_to_id(ftype);
+  if (UNLIKELY(id == nullptr)) {
+    py_imbuf_warn_corrupt_ftype(ftype);
+    return py_imbuf_type_none;
+  }
+  return id;
+}
 
 /**
  * Clamp a region to image bounds.
@@ -383,13 +381,13 @@ static PyObject *py_imbuf_with_buffer(Py_ImBuf *self, PyObject *args, PyObject *
   const int mode = type.value_found;
 
   if (mode == IB_byte_data) {
-    if (ibuf->byte_buffer.data == nullptr) {
+    if (ibuf->byte_data() == nullptr) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no byte pixel data");
       return nullptr;
     }
   }
   else {
-    if (ibuf->float_buffer.data == nullptr) {
+    if (ibuf->float_data() == nullptr) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no float pixel data");
       return nullptr;
     }
@@ -442,28 +440,28 @@ static PyObject *py_imbuf_ensure_buffer(Py_ImBuf *self, PyObject *args, PyObject
   ImBuf *ibuf = self->ibuf;
 
   if (type.value_found == IB_byte_data) {
-    if (ibuf->byte_buffer.data == nullptr) {
-      if (ibuf->float_buffer.data != nullptr) {
+    if (ibuf->byte_data() == nullptr) {
+      if (ibuf->float_data() != nullptr) {
         IMB_byte_from_float(ibuf);
       }
       else {
         IMB_alloc_byte_pixels(ibuf);
       }
-      if (UNLIKELY(ibuf->byte_buffer.data == nullptr)) {
+      if (UNLIKELY(ibuf->byte_data() == nullptr)) {
         PyErr_SetString(PyExc_MemoryError, "failed to allocate byte buffer");
         return nullptr;
       }
     }
   }
   else {
-    if (ibuf->float_buffer.data == nullptr) {
-      if (ibuf->byte_buffer.data != nullptr) {
+    if (ibuf->float_data() == nullptr) {
+      if (ibuf->byte_data() != nullptr) {
         IMB_float_from_byte(ibuf);
       }
       else {
         IMB_alloc_float_pixels(ibuf, 4);
       }
-      if (UNLIKELY(ibuf->float_buffer.data == nullptr)) {
+      if (UNLIKELY(ibuf->float_data() == nullptr)) {
         PyErr_SetString(PyExc_MemoryError, "failed to allocate float buffer");
         return nullptr;
       }
@@ -500,9 +498,9 @@ static PyObject *py_imbuf_has_buffer(Py_ImBuf *self, PyObject *args, PyObject *k
 
   ImBuf *ibuf = self->ibuf;
   if (type.value_found == IB_byte_data) {
-    return PyBool_FromLong(ibuf->byte_buffer.data != nullptr);
+    return PyBool_FromLong(ibuf->byte_data() != nullptr);
   }
-  return PyBool_FromLong(ibuf->float_buffer.data != nullptr);
+  return PyBool_FromLong(ibuf->float_data() != nullptr);
 }
 
 PyDoc_STRVAR(
@@ -671,7 +669,7 @@ static PyObject *py_imbuf_filepath_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
   ImBuf *ibuf = self->ibuf;
-  return PyC_UnicodeFromBytes(ibuf->filepath);
+  return PyC_UnicodeFromBytes(ibuf->filepath.c_str());
 }
 
 static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closure*/)
@@ -679,7 +677,7 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closu
   PY_IMBUF_CHECK_INT(self);
 
   ImBuf *ibuf = self->ibuf;
-  const Py_ssize_t value_str_len_max = sizeof(ibuf->filepath);
+  const Py_ssize_t value_str_len_max = FILE_MAX;
   PyObject *value_coerce = nullptr;
   Py_ssize_t value_str_len;
   const char *value_str = PyC_UnicodeAsBytesAndSize(value, &value_str_len, &value_coerce);
@@ -691,7 +689,7 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closu
     Py_XDECREF(value_coerce);
     return -1;
   }
-  memcpy(ibuf->filepath, value_str, value_str_len + 1);
+  ibuf->filepath = value_str;
   Py_XDECREF(value_coerce);
   return 0;
 }
@@ -786,11 +784,8 @@ PyDoc_STRVAR(
 static PyObject *py_imbuf_file_type_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
-  const int ftype = self->ibuf->ftype;
-  if (ftype > IMB_FTYPE_NONE && ftype <= IMB_FTYPE_LAST) {
-    return PyUnicode_FromString(imbuf_file_type_info[ftype].id);
-  }
-  return PyUnicode_FromString(imbuf_file_type_info[IMB_FTYPE_DEFAULT].id);
+  const char *id = py_imbuf_ftype_to_id_with_fallback(self->ibuf->ftype);
+  return PyUnicode_FromString(id);
 }
 
 static int py_imbuf_file_type_set(Py_ImBuf *self, PyObject *value, void * /*closure*/)
@@ -875,7 +870,7 @@ static PyObject *py_imbuf_repr(Py_ImBuf *self)
   if (ibuf != nullptr) {
     return PyUnicode_FromFormat("<imbuf: address=%p, filepath='%s', size=(%d, %d)>",
                                 ibuf,
-                                ibuf->filepath,
+                                ibuf->filepath.c_str(),
                                 ibuf->x,
                                 ibuf->y);
   }
@@ -1002,13 +997,13 @@ static PyObject *py_imbuf_buffer_enter(Py_ImBufBuffer *self)
   const bool is_byte = (self->mode == IB_byte_data);
 
   if (is_byte) {
-    if (UNLIKELY(ibuf->byte_buffer.data == nullptr)) {
+    if (UNLIKELY(ibuf->byte_data() == nullptr)) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no byte pixel data");
       return nullptr;
     }
   }
   else {
-    if (UNLIKELY(ibuf->float_buffer.data == nullptr)) {
+    if (UNLIKELY(ibuf->float_data() == nullptr)) {
       PyErr_SetString(PyExc_RuntimeError, "ImBuf has no float pixel data");
       return nullptr;
     }
@@ -1025,8 +1020,8 @@ static PyObject *py_imbuf_buffer_enter(Py_ImBufBuffer *self)
 
     Py_buffer pybuf;
     memset(&pybuf, 0, sizeof(pybuf));
-    pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_buffer.data) :
-                          static_cast<void *>(ibuf->float_buffer.data);
+    pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_data_for_write()) :
+                          static_cast<void *>(ibuf->float_data_for_write());
     pybuf.len = num_items * itemsize;
     pybuf.itemsize = itemsize;
     pybuf.readonly = !self->writable;
@@ -1051,9 +1046,9 @@ static PyObject *py_imbuf_buffer_enter(Py_ImBufBuffer *self)
 
     Py_buffer pybuf;
     memset(&pybuf, 0, sizeof(pybuf));
-    pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_buffer.data + offset) :
-                          static_cast<void *>(reinterpret_cast<char *>(ibuf->float_buffer.data) +
-                                              offset);
+    pybuf.buf = is_byte ? static_cast<void *>(ibuf->byte_data_for_write() + offset) :
+                          static_cast<void *>(
+                              reinterpret_cast<char *>(ibuf->float_data_for_write()) + offset);
     pybuf.len = shape[0] * shape[1] * itemsize;
     pybuf.itemsize = itemsize;
     pybuf.readonly = !self->writable;
@@ -1084,12 +1079,12 @@ static PyObject *py_imbuf_buffer_exit(Py_ImBufBuffer *self, PyObject * /*args*/)
       ImBuf *ibuf = self->py_ibuf->ibuf;
       if (ibuf != nullptr) {
         if (self->mode == IB_byte_data) {
-          if (ibuf->float_buffer.data != nullptr) {
+          if (ibuf->float_data() != nullptr) {
             IMB_float_from_byte(ibuf);
           }
         }
         else {
-          if (ibuf->byte_buffer.data != nullptr) {
+          if (ibuf->byte_data() != nullptr) {
             IMB_byte_from_float(ibuf);
           }
         }
@@ -1181,29 +1176,39 @@ PyTypeObject Py_ImBufBuffer_Type = {
 
 static PyObject *py_imbuf_file_type_id_get(Py_ImBufFileType *self, void * /*closure*/)
 {
-  return PyUnicode_FromString(imbuf_file_type_info[self->ftype].id);
+  const char *id = py_imbuf_ftype_to_id_with_fallback(self->ftype);
+  return PyUnicode_FromString(id);
 }
 
 static PyObject *py_imbuf_file_type_file_extensions_get(Py_ImBufFileType *self, void * /*closure*/)
 {
-  const char *extensions = imbuf_file_type_info[self->ftype].file_extensions;
-  BLI_assert(extensions[0]);
-  /* Count extensions. */
-  int len = 1;
-  for (const char *c = extensions; *c; c++) {
-    if (*c == ';') {
-      len++;
-    }
+  const char **ext = IMB_ftype_file_extensions(self->ftype);
+  if (!ext) {
+    return PyTuple_New(0);
+  }
+  int len = 0;
+  for (const char **p = ext; *p; p++) {
+    len++;
   }
   PyObject *tuple = PyTuple_New(len);
-  int i = 0;
-  const char *p = extensions;
-  do {
-    const char *p_next = BLI_strchr_or_end(p, ';');
-    PyTuple_SET_ITEM(tuple, i++, PyUnicode_FromStringAndSize(p, p_next - p));
-    p = p_next;
-  } while (*p ? ((void)p++, true) : false);
+  for (int i = 0; i < len; i++) {
+    PyTuple_SET_ITEM(tuple, i, PyUnicode_FromString(ext[i]));
+  }
   return tuple;
+}
+
+static PyObject *py_imbuf_file_type_capability_read_get(Py_ImBufFileType *self, void *flag_p)
+{
+  const eImFileTypeCapability flag = eImFileTypeCapability(POINTER_AS_INT(flag_p));
+  return PyBool_FromLong((IMB_ftype_capability_read(self->ftype) & flag) !=
+                         eImFileTypeCapability::Zero);
+}
+
+static PyObject *py_imbuf_file_type_capability_write_get(Py_ImBufFileType *self, void *flag_p)
+{
+  const eImFileTypeCapability flag = eImFileTypeCapability(POINTER_AS_INT(flag_p));
+  return PyBool_FromLong((IMB_ftype_capability_write(self->ftype) & flag) !=
+                         eImFileTypeCapability::Zero);
 }
 
 static PyGetSetDef Py_ImBufFileType_getseters[] = {
@@ -1213,12 +1218,33 @@ static PyGetSetDef Py_ImBufFileType_getseters[] = {
      nullptr,
      nullptr,
      nullptr},
+    {"has_read_file",
+     reinterpret_cast<getter>(py_imbuf_file_type_capability_read_get),
+     nullptr,
+     nullptr,
+     POINTER_FROM_INT(eImFileTypeCapability::File)},
+    {"has_write_file",
+     reinterpret_cast<getter>(py_imbuf_file_type_capability_write_get),
+     nullptr,
+     nullptr,
+     POINTER_FROM_INT(eImFileTypeCapability::File)},
+    {"has_read_memory",
+     reinterpret_cast<getter>(py_imbuf_file_type_capability_read_get),
+     nullptr,
+     nullptr,
+     POINTER_FROM_INT(eImFileTypeCapability::Memory)},
+    {"has_write_memory",
+     reinterpret_cast<getter>(py_imbuf_file_type_capability_write_get),
+     nullptr,
+     nullptr,
+     POINTER_FROM_INT(eImFileTypeCapability::Memory)},
     {nullptr},
 };
 
 static PyObject *py_imbuf_file_type_repr(Py_ImBufFileType *self)
 {
-  return PyUnicode_FromFormat("<ImBufFileType: id='%s'>", imbuf_file_type_info[self->ftype].id);
+  const char *id = py_imbuf_ftype_to_id_with_fallback(self->ftype);
+  return PyUnicode_FromFormat("<ImBufFileType: id='%s'>", id);
 }
 
 static Py_hash_t py_imbuf_file_type_hash(Py_ImBufFileType *self)
@@ -1354,7 +1380,7 @@ static PyObject *imbuf_load_impl(const char *filepath)
     return nullptr;
   }
 
-  STRNCPY(ibuf->filepath, filepath);
+  ibuf->filepath = filepath;
 
   return Py_ImBuf_CreatePyObject(ibuf);
 }
@@ -1504,10 +1530,21 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
     return nullptr;
   }
 
+  PY_IMBUF_CHECK_OBJ(py_imb);
+
+  if ((IMB_ftype_capability_write(py_imb->ibuf->ftype) & eImFileTypeCapability::File) ==
+      eImFileTypeCapability::Zero)
+  {
+    const char *id = py_imbuf_ftype_to_id_with_fallback(py_imb->ibuf->ftype);
+    PyErr_Format(
+        PyExc_ValueError, "write: file type '%.200s' does not support writing to a file", id);
+    return nullptr;
+  }
+
   const char *filepath = filepath_data.value;
   if (filepath == nullptr) {
     /* Argument omitted, use images path. */
-    filepath = py_imb->ibuf->filepath;
+    filepath = py_imb->ibuf->filepath.c_str();
   }
   PyObject *result = imbuf_write_impl(py_imb->ibuf, filepath);
   Py_XDECREF(filepath_data.value_coerce);
@@ -1519,7 +1556,7 @@ static PyObject *M_imbuf_write(PyObject * /*self*/, PyObject *args, PyObject *kw
  */
 static PyObject *imbuf_write_to_buffer_impl(ImBuf *ibuf, PyObject *file)
 {
-  const bool is_float = ibuf->float_buffer.data != nullptr;
+  const bool is_float = ibuf->float_data() != nullptr;
   if (ibuf->ftype == IMB_FTYPE_NONE) {
     ibuf->ftype = IMB_FTYPE_DEFAULT;
   }
@@ -1571,6 +1608,16 @@ static PyObject *M_imbuf_write_to_buffer(PyObject * /*self*/, PyObject *args)
   }
   PY_IMBUF_CHECK_OBJ(py_imb);
 
+  if ((IMB_ftype_capability_write(py_imb->ibuf->ftype) & eImFileTypeCapability::Memory) ==
+      eImFileTypeCapability::Zero)
+  {
+    const char *id = py_imbuf_ftype_to_id_with_fallback(py_imb->ibuf->ftype);
+    PyErr_Format(PyExc_ValueError,
+                 "write_to_buffer: file type '%.200s' does not support writing to memory",
+                 id);
+    return nullptr;
+  }
+
   /* Work on a copy to avoid mutating the original (encoded_buffer, ftype).
    * This could be avoided by making the encoded buffer free function public. */
   ImBuf *ibuf = IMB_dupImBuf(py_imb->ibuf);
@@ -1620,7 +1667,7 @@ static PyObject *M_imbuf_file_type_from_buffer(PyObject * /*self*/, PyObject *ar
   if (PyObject_GetBuffer(buffer_py_ob, &pybuffer, PyBUF_SIMPLE) == -1) {
     return nullptr;
   }
-  const int ftype = IMB_test_image_type_from_memory(
+  const eImbFileType ftype = IMB_test_image_type_from_memory(
       reinterpret_cast<const unsigned char *>(pybuffer.buf), pybuffer.len);
   PyBuffer_Release(&pybuffer);
 
@@ -1721,17 +1768,16 @@ PyObject *BPyInit_imbuf()
     if (PyType_Ready(&Py_ImBufFileType_Type) < 0) {
       return nullptr;
     }
-    const int ftype_first = IMB_FTYPE_NONE + 1;
-    PyObject *dict = _PyDict_NewPresized((IMB_FTYPE_LAST - ftype_first) + 1);
-    for (int ftype = ftype_first; ftype <= IMB_FTYPE_LAST; ftype++) {
-      if (!IMB_ftype_is_supported(ftype)) {
-        continue;
+    PyObject *dict = _PyDict_NewPresized(IMB_FTYPE_LAST + 1);
+    for (int ftype = 0; ftype <= IMB_FTYPE_LAST; ftype++) {
+      const char *id = (ftype != IMB_FTYPE_NONE) ? IMB_ftype_to_id(eImbFileType(ftype)) :
+                                                   py_imbuf_type_none;
+      if (id) {
+        Py_ImBufFileType *val = PyObject_New(Py_ImBufFileType, &Py_ImBufFileType_Type);
+        val->ftype = eImbFileType(ftype);
+        PyDict_SetItemString(dict, id, reinterpret_cast<PyObject *>(val));
+        Py_DECREF(val);
       }
-      Py_ImBufFileType *val = PyObject_New(Py_ImBufFileType, &Py_ImBufFileType_Type);
-      val->ftype = ftype;
-      PyDict_SetItemString(
-          dict, imbuf_file_type_info[ftype].id, reinterpret_cast<PyObject *>(val));
-      Py_DECREF(val);
     }
     PyObject *proxy = PyDictProxy_New(dict);
     PyModule_AddObject(mod, "file_types", proxy);
