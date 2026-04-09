@@ -444,6 +444,8 @@ struct GlyphStepData {
   ft_pix pen_x_right = 0;
   /** Draw position of the last base character (for centering combining marks). */
   ft_pix pen_x_base = 0;
+  ft_pix offset_x = 0;
+  ft_pix offset_y = 0;
 };
 
 /**
@@ -463,6 +465,8 @@ BLI_INLINE bool blf_glyph_step(
       step.pen_x = step.pen_x_right;
       step.pen_x_right += step.g->advance_x;
       step.g_kerning = step.g;
+      step.offset_x = 0;
+      step.offset_y = 0;
     }
     else {
       /* Combining character: center the mark's bitmap over the previous base character.
@@ -474,9 +478,24 @@ BLI_INLINE bool blf_glyph_step(
        * `position_mark`, "Center align" case) and consistent with the approach
        * described in Unicode Technical Note #2. */
       step.pen_x_right = pen_x_prev;
+      step.pen_x = step.pen_x_base;
+
+      /* Horizontall center. */
       const int base_center = (ft_pix_to_int(step.pen_x_base) + ft_pix_to_int(pen_x_prev)) / 2;
       const int mark_center_offset = step.g->pos[0] + step.g->dims[0] / 2;
-      step.pen_x = ft_pix_from_int(base_center - mark_center_offset);
+      step.offset_x = ft_pix_from_int(base_center - mark_center_offset) - step.pen_x_base;
+
+      /* Raise slightly if top-aligned over an uppercase character. */
+      if (step.g_kerning && BLI_str_utf32_char_to_upper(step.g_kerning->c) == step.g_kerning->c) {
+        /* Subset of combining characters with top positioning. */
+        const std::wstring uppermarks =
+            L"\x300\x301\x302\x303\x304\x305\x306\x307\x308\x309\x30A\x30B\x30C\x30D\x30E\x30F"
+            L"\x310\x311\x312\x313\x314\x33D\x33E\x33F\x340\x341\x342\x343\x344\x346\x34A\x34B"
+            L"\x34C\x350\x351\x352\x357\x35B";
+        if (uppermarks.find(wchar_t(step.g->c)) != std::wstring::npos) {
+          step.offset_y = (step.g_kerning->box_ymax - step.g_kerning->box_ymin) / 4;
+        }
+      }
     }
     return true;
   }
@@ -494,6 +513,8 @@ BLI_INLINE void blf_glyph_step_reset_for_newline(GlyphStepData &step)
   step.pen_x = 0;
   step.pen_x_right = 0;
   step.pen_x_base = 0;
+  step.offset_x = 0;
+  step.offset_y = 0;
 }
 
 /** \} */
@@ -542,7 +563,11 @@ static void blf_font_draw_ex(FontBLF *font,
       continue;
     }
     /* Do not return this loop if clipped, we want every character tested. */
-    blf_glyph_draw(font, gc, step.g, ft_pix_to_int_floor(step.pen_x), ft_pix_to_int_floor(pen_y));
+    blf_glyph_draw(font,
+                   gc,
+                   step.g,
+                   ft_pix_to_int_floor(step.pen_x + step.offset_x),
+                   ft_pix_to_int_floor(pen_y + step.offset_y));
   }
 
   blf_batch_draw_end();
@@ -822,7 +847,8 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
     if (!blf_glyph_step(font, gc, step, str, str_len)) {
       continue;
     }
-    blf_glyph_draw_buffer(buf_info, step.g, step.pen_x + pos_x, pen_y_basis);
+    blf_glyph_draw_buffer(
+        buf_info, step.g, step.pen_x + step.offset_x + pos_x, pen_y_basis + step.offset_y);
   }
 
   if (r_info) {
@@ -990,7 +1016,8 @@ static void blf_font_boundbox_ex(FontBLF *font,
     /* Mono-spaced characters should only use advance. See #130385. */
     const ft_pix gbox_xmax = (font->flags & BLF_MONOSPACED) ?
                                  step.pen_x_right :
-                                 std::max(step.pen_x_right, step.pen_x + step.g->box_xmax);
+                                 std::max(step.pen_x_right,
+                                          step.pen_x + step.offset_x + step.g->box_xmax);
     const ft_pix gbox_ymin = step.g->box_ymin + pen_y;
     const ft_pix gbox_ymax = step.g->box_ymax + pen_y;
 
