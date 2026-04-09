@@ -35,6 +35,7 @@ namespace eevee::lut {
  * The 2D LUT is parameterized on:
  * - `x = roughness`,
  * - `y = sqrt(1 - cos(theta))`,
+ *
  * and the result is interpreted as:
  * - `integral = F0 * scale + F90 * bias - F82_tint * metal_bias`,
  *   where `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
@@ -101,6 +102,7 @@ struct GGXBrdfClosure {
  * - `x = sqrt((ior - 1) / (ior + 1))`,
  * - `y = sqrt(1 - cos(theta))`,
  * - `z = roughness`,
+ *
  * and output is interpreted as:
  * - `reflectance = F0 * scale + F90 * bias`,
  * - `transmittance = (1 - F0) * transmission_factor`.
@@ -186,11 +188,12 @@ struct GGXBsdfClosure {
  * bias do not depend on the IOR, and can be obtained independently from the BRDF LUT.
  *
  * The 3D LUT is parameterized on:
- * : `x = sqrt((ior - 1) / (ior + 1))` for higher precision in the range `1 < IOR < 2`
- * : `y = sqrt(1.0f - cos(theta))`
- * : `z = roughness`
+ * - `x = sqrt((ior - 1) / (ior + 1))` for higher precision in the range `1 < IOR < 2`
+ * - `y = sqrt(1.0f - cos(theta))`
+ * - `z = roughness`
+ *
  * and output is interpreted as:
- * : `transmittance = (1 - F0) * transmission_factor`.
+ * - `transmittance = (1 - F0) * transmission_factor`.
  */
 struct GGXBtdfGt1Closure {
   float roughness;

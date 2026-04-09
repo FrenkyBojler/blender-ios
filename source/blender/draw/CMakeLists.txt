@@ -394,7 +394,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_attributes_volume_lib.glsl
   engines/eevee/shaders/eevee_attributes_world_lib.glsl
   engines/eevee/shaders/eevee_bxdf_lib.glsl
-  engines/eevee/shaders/eevee_bxdf_lut_comp.bsl.hh
+  engines/eevee/shaders/eevee_bxdf_lut.bsl.hh
   engines/eevee/shaders/eevee_bxdf_lut_lib.bsl.hh
   engines/eevee/shaders/eevee_bxdf_microfacet_lib.glsl
   engines/eevee/shaders/eevee_bxdf_diffuse_lib.glsl

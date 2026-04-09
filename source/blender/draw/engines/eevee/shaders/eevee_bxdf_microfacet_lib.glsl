@@ -406,7 +406,7 @@ ClosureLight bxdf_ggx_light_reflection(ClosureReflection cl, float3 V)
   float cos_theta = dot(cl.N, V);
 
   ClosureLight light;
-  light.ltc_mat = eevee::lut::ltc::sample_tx(util_tx, cos_theta, cl.roughness);
+  light.ltc_mat = eevee::lut::ltc::sample_utility_tx(util_tx, cos_theta, cl.roughness);
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
   return light;
@@ -429,7 +429,7 @@ ClosureLight bxdf_ggx_light_transmission(ClosureRefraction cl, float3 V, Thickne
   float cos_theta = dot(-cl.N, R);
 
   ClosureLight light;
-  light.ltc_mat = eevee::lut::ltc::sample_tx(util_tx, cos_theta, perceptual_roughness);
+  light.ltc_mat = eevee::lut::ltc::sample_utility_tx(util_tx, cos_theta, perceptual_roughness);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;
