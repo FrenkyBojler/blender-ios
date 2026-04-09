@@ -58,6 +58,9 @@
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -3040,14 +3043,23 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports,
               RPT_INFO,
-              "Removed %d F-Modifier%s from the %d %s F-Curve%s",
+              "Removed %d F-Modifier(s) from the %d selected F-Curve(s)",
               fmod_count,
-              fmod_count == 1 ? "" : "s",
-              fc_count,
-              fc_count == 1 ? "active" : "selected",
-              fc_count == 1 ? "" : "s");
+              fc_count);
 
   return OPERATOR_FINISHED;
+}
+
+static void fmodifier_delete_ui(bContext * /*C*/, wmOperator *op)
+{
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+
+  layout.prop(op->ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (RNA_enum_get(op->ptr, "mode") == int(RemovalMode::TYPE)) {
+    layout.prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  layout.prop(op->ptr, "only_active", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
@@ -3062,6 +3074,7 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
   /* API callbacks */
   ot->invoke = WM_menu_invoke;
   ot->exec = graph_fmodifier_delete_exec;
+  ot->ui = fmodifier_delete_ui;
   ot->poll = graphop_selected_fcurve_poll;
 
   /* Flags */
