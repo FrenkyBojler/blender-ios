@@ -297,9 +297,21 @@
 
     function chart_on_click_callback(e, elements, chart) {
       console.log(elements);
-      // hide all infos 
-      // create id for the correct set.
-      // show detailed info
+      console.log(e);
+      console.log(chart);
+      const table = document.getElementById('details-' + chart.id);
+      const tbody = table.getElementsByTagName('tbody')[0];
+      for (var i = 0; i < tbody.children.length; i ++) {
+        const row = tbody.children[i];
+        console.log(row, i);
+        const is_visible = i & 2;
+        if (is_visible) {
+          row.style.display = 'block';
+        }
+        else {
+          row.style.display = 'none';
+        }
+      }
     }
 
     /* Convert byte values into human-readable strings (MB, GB, etc.). */
@@ -435,6 +447,12 @@
         canvas.id = "chart-" + i;
         chart_container.appendChild(canvas);
 
+        const details = document.createElement('table');
+        details.id = "details-" + i;
+        const details_tbody = document.createElement('tbody');
+        details.appendChild(details_tbody);
+        chart_container.appendChild(details);
+
         /* Prepare Data. */
         const chart_data = benchmark['data'];
         const is_time_series = benchmark['chart_type'] === 'line';
@@ -523,6 +541,20 @@
         } else {
           update_chart_bounds(chart);
         }
+
+        for (var dataset_index = 0; dataset_index < chart_data.datasets.length; dataset_index++) {
+          const dataset = chart_data.datasets[dataset_index];
+          for (var data_index = 0; data_index < dataset.data.length; data_index++) {
+            const data_row = document.createElement('tr');
+            data_row.setAttribute("data-dataset", dataset_index);
+            data_row.setAttribute("data-index", data_index);
+            data_row.innerHTML = "<td>Hello</td><td>world</td>";
+            details_tbody.appendChild(data_row);
+          }
+
+        }
+
+        
 
         chart_instances.push(chart);
       }
