@@ -40,6 +40,12 @@ class InfinitePlaneColliderBundle {
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
+class CollisionContactsBundle {
+ public:
+  static constexpr StringRefNull name = "Blender.CollisionContacts";
+  static const FlatBundleTypePtr &get_bundle_type();
+};
+
 class DampingBundle {
  public:
   static constexpr StringRefNull name = "Blender.Damping";

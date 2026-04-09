@@ -10,6 +10,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
 #include "BKE_mesh_sample.hh"
+#include "BKE_pointcloud.hh"
 
 #include "BLI_ordered_edge.hh"
 #include "BLI_stack.hh"
@@ -61,6 +62,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(DampingBundle::get_bundle_type());
   types.append(InfinitePlaneColliderBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
+  types.append(CollisionContactsBundle::get_bundle_type());
   types.append(RodStretchShearBundle::get_bundle_type());
   types.append(RodBendTwistBundle::get_bundle_type());
   types.append(PinPositionBundle::get_bundle_type());
@@ -282,6 +284,10 @@ struct MeshColliderUsage {
   int constraint_i;
 };
 
+struct CollisionContacts {
+  std::string path;
+};
+
 struct ConstraintWithColoring {
   xpbd::ConstraintSet *constraint;
   xpbd::ConstraintColoring coloring;
@@ -467,6 +473,7 @@ struct ChunkData {
 struct ConstraintsInfo {
   Vector<InfinitePlaneCollider> infinite_plane_colliders;
   Vector<MeshCollider> mesh_colliders;
+  Vector<CollisionContacts> collision_contacts;
   Vector<DampingConstraint> damping_constraints;
   Vector<RodStretchShearConstraint> rod_stretch_shear_constraints;
   Vector<RodBendTwistConstraint> rod_bend_twist_constraints;
@@ -553,6 +560,7 @@ class XpbdSolverStep {
     this->gather_from_world__damping();
     this->gather_from_world__pin_positions();
     this->gather_from_world__pin_rotations();
+    this->gather_from_world__collision_contacts();
 
     this->parallel_for_each_chunk(32, [&](const int chunk_i) {
       TLS &tls = tls_.local();
@@ -570,6 +578,8 @@ class XpbdSolverStep {
 
     this->finish_common_attribute_writers();
     this->write_back_geometries_to_world();
+
+    this->write_back__contacts();
   }
 
   Span<std::string> warnings() const
@@ -1055,6 +1065,19 @@ class XpbdSolverStep {
     }
   }
 
+  void gather_from_world__collision_contacts()
+  {
+    const Span<std::string> paths = nested_bundle_paths_.lookup(CollisionContactsBundle::name);
+    for (const StringRef path : paths) {
+      const BundlePtr *bundle_ptr = world_.lookup_path_ptr<BundlePtr>(path);
+      if (!bundle_ptr || !*bundle_ptr) {
+        continue;
+      }
+
+      constraints_.collision_contacts.append({path});
+    }
+  }
+
   struct ClosestMeshContact {
     /** The nearest position exactly on the mesh surface. */
     float3 nearest_pos;
@@ -1347,8 +1370,8 @@ class XpbdSolverStep {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         geo_data.point_to_chunk.as_mutable_span().slice(chunk.points_range).fill(chunk_i);
       }
-      chunks_data_.reinitialize(geometries_.chunks.size());
     }
+    chunks_data_.reinitialize(geometries_.chunks.size());
     for (const int chunk_i : geometries_.chunks.index_range()) {
       const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
       geometries_.max_chunk_size = std::max<int>(geometries_.max_chunk_size,
@@ -2628,6 +2651,150 @@ class XpbdSolverStep {
     for (const int geo_bundle_i : geometries_.geometry_sets.index_range()) {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
       world_.add_path_override(geo_set_data.path, std::move(geo_set_data.geometry));
+    }
+  }
+
+  void write_back__contacts()
+  {
+    for (CollisionContacts &contacts : this->constraints_.collision_contacts) {
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(contacts.path);
+      const std::string plane_points_path = Bundle::combine_path(
+          {contacts.path, "plane_contacts"});
+      const std::string collider_map_path = Bundle::combine_path({contacts.path, "collider_map"});
+
+      /* Collider paths are combined in a single array, these are offsets for collider indices. */
+      const IndexRange geometries_range = geometries_.geometry_sets.index_range();
+      const IndexRange mesh_colliders_range = geometries_range.after(
+          constraints_.mesh_colliders.size());
+      const IndexRange infinite_plane_colliders_range = mesh_colliders_range.after(
+          constraints_.infinite_plane_colliders.size());
+      Vector<std::string> collider_paths;
+      collider_paths.reserve(geometries_range.size() + mesh_colliders_range.size() +
+                             infinite_plane_colliders_range.size());
+      for (const GeometrySetData &geometry_set_data : geometries_.geometry_sets) {
+        collider_paths.append_unchecked(geometry_set_data.path);
+      }
+      for (const MeshCollider &collider : constraints_.mesh_colliders) {
+        collider_paths.append_unchecked(collider.path);
+      }
+      for (const InfinitePlaneCollider &collider : constraints_.infinite_plane_colliders) {
+        collider_paths.append_unchecked(collider.path);
+      }
+
+      Array<int> plane_contacts_offsets(geometries_.chunks.size() + 1);
+      this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+        const ChunkData &chunk_data = chunks_data_[chunk_i];
+
+        if (!effector_applies_to_geometry(contacts.path, bundle, chunk.data_key_i)) {
+          plane_contacts_offsets[chunk_i] = 0;
+          return;
+        }
+
+        plane_contacts_offsets[chunk_i] = chunk_data.external_plane_contacts.points.size();
+      });
+      const OffsetIndices plane_contacts_by_chunk = offset_indices::accumulate_counts_to_offsets(
+          plane_contacts_offsets);
+      if (plane_contacts_by_chunk.total_size() == 0) {
+        world_.add_path_override(plane_points_path, GeometrySet{});
+        continue;
+      }
+
+      PointCloud *plane_points = BKE_pointcloud_new_nomain(plane_contacts_by_chunk.total_size());
+      MutableAttributeAccessor attributes = plane_points->attributes_for_write();
+      bke::SpanAttributeWriter<int> geometries_writer =
+          attributes.lookup_or_add_for_write_only_span<int>("geometry", AttrDomain::Point);
+      bke::SpanAttributeWriter<int> colliders_writer =
+          attributes.lookup_or_add_for_write_only_span<int>("collider", AttrDomain::Point);
+      bke::SpanAttributeWriter<int> geometry_points_writer =
+          attributes.lookup_or_add_for_write_only_span<int>("geometry_point", AttrDomain::Point);
+      MutableSpan<float3> positions = plane_points->positions_for_write();
+      bke::SpanAttributeWriter<float3> collider_velocities_writer =
+          attributes.lookup_or_add_for_write_only_span<float3>("collider_velocity",
+                                                               AttrDomain::Point);
+      bke::SpanAttributeWriter<float3> separating_axis_writer =
+          attributes.lookup_or_add_for_write_only_span<float3>("separating_axis",
+                                                               AttrDomain::Point);
+      bke::SpanAttributeWriter<float> static_frictions_writer =
+          attributes.lookup_or_add_for_write_only_span<float>("static_friction",
+                                                              AttrDomain::Point);
+      bke::SpanAttributeWriter<float> dynamic_frictions_writer =
+          attributes.lookup_or_add_for_write_only_span<float>("dynamic_friction",
+                                                              AttrDomain::Point);
+      bke::SpanAttributeWriter<bool> active_states_writer =
+          attributes.lookup_or_add_for_write_only_span<bool>("active", AttrDomain::Point);
+      bke::SpanAttributeWriter<float> lambdas_normal_writer =
+          attributes.lookup_or_add_for_write_only_span<float>("lambda_normal", AttrDomain::Point);
+      bke::SpanAttributeWriter<float> lambdas_writer =
+          attributes.lookup_or_add_for_write_only_span<float>("lambda_friction",
+                                                              AttrDomain::Point);
+
+      this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+        const ChunkData &chunk_data = chunks_data_[chunk_i];
+
+        const IndexRange plane_contacts = plane_contacts_by_chunk[chunk_i];
+        if (plane_contacts.is_empty()) {
+          /* Avoids checking the filter a second time. */
+          return;
+        }
+
+        /* Store collider indices and affected geometry point indices that map a contact to the
+         * simulated geometry. */
+        MutableSpan<int> geometries = geometries_writer.span.slice(plane_contacts);
+        MutableSpan<int> colliders = colliders_writer.span.slice(plane_contacts);
+        MutableSpan<int> geometry_points = geometry_points_writer.span.slice(plane_contacts);
+        geometries.fill(chunk.data_key_i);
+        for (const auto &item : chunk_data.external_plane_contacts.mesh_contact_indices.items()) {
+          colliders[item.value] = mesh_colliders_range[item.key.mesh_collider_i];
+          geometry_points[item.value] = item.key.point_i;
+        }
+        for (const auto &item :
+             chunk_data.external_plane_contacts.infinite_plane_contact_indices.items())
+        {
+          colliders[item.value] =
+              infinite_plane_colliders_range[item.key.infinite_plane_collider_i];
+          geometry_points[item.value] = item.key.point_i;
+        }
+
+        array_utils::copy(chunk_data.external_plane_contacts.positions_on_plane.as_span(),
+                          positions.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.collider_velocities.as_span(),
+                          collider_velocities_writer.span.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.separating_axes.as_span(),
+                          separating_axis_writer.span.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.static_frictions.as_span(),
+                          static_frictions_writer.span.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.dynamic_frictions.as_span(),
+                          dynamic_frictions_writer.span.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.active_states.as_span(),
+                          active_states_writer.span.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.lambdas_normal.as_span(),
+                          lambdas_normal_writer.span.slice(plane_contacts));
+        array_utils::copy(chunk_data.external_plane_contacts.lambdas.as_span(),
+                          lambdas_writer.span.slice(plane_contacts));
+      });
+      plane_points->tag_positions_changed();
+      geometries_writer.finish();
+      colliders_writer.finish();
+      geometry_points_writer.finish();
+      collider_velocities_writer.finish();
+      separating_axis_writer.finish();
+      static_frictions_writer.finish();
+      dynamic_frictions_writer.finish();
+      active_states_writer.finish();
+      lambdas_normal_writer.finish();
+      lambdas_writer.finish();
+
+      world_.add_path_override(plane_points_path, GeometrySet::from_pointcloud(plane_points));
+      /* TODO Currently have to create an explicit BundleItemSocketValue to store a list with
+       * add_path_override. It relies on socket_type_info_by_static_type, which only supports
+       * fields and single values currently, but not lists. */
+      world_.add_path_override(
+          collider_map_path,
+          BundleItemSocketValue{
+              bke::node_socket_type_find_static(SOCK_STRING),
+              bke::SocketValueVariant::From(List::from_container(std::move(collider_paths)))});
     }
   }
 
