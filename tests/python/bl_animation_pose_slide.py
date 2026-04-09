@@ -200,6 +200,7 @@ class PushRelaxPoseBone(AbstractPoseSlideTest):
         self.assertAlmostEqual(self.pose_bone.bbone_curveinx, expected_value, 3)
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], expected_value, 3)
 
+
 class BreakdownerTestPoseBone(AbstractPoseSlideTest):
 
     def test_no_keys(self):
