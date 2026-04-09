@@ -1714,7 +1714,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   screen_space_positions.span.slice(points).copy_from(this->screen_space_final_coords_);
   screen_space_positions.finish();
 
-  if (use_fill && hide_fill_while_drawing) {
+  if (hide_fill_while_drawing) {
     /* The opacity was set to 10% while drawing. Reset it to the actual opacity now. */
     bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_for_write_span<float>(
         "fill_opacity");
