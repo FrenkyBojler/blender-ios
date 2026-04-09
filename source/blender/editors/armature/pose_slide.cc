@@ -357,19 +357,6 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
   return false;
 }
 
-static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcurves,
-                                                 StringRef path)
-{
-  Vector<FCurve *> fcurves;
-  for (FCurve *fcu : input_fcurves) {
-    if (StringRefNull(fcu->rna_path) != path) {
-      continue;
-    }
-    fcurves.append(fcu);
-  }
-  return fcurves;
-}
-
 /* Apply linear blending to the values of the given `prop_type`. */
 static void pose_slide_apply_linear(tPoseSlideOp &pso,
                                     TransformableFCurveLink &pfl,
