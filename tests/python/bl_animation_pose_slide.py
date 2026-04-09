@@ -60,7 +60,7 @@ class AbstractPoseSlideTest(unittest.TestCase):
 
 class BlendToDefaultPoseBone(AbstractPoseSlideTest):
 
-    def test_blend_to_default_all_properties(self):
+    def test_all_properties(self):
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
         self.pose_bone.rotation_euler = (1, 1, 1)
@@ -89,7 +89,7 @@ class BlendToDefaultPoseBone(AbstractPoseSlideTest):
         self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 2, 3)
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 2, 3)
 
-    def test_blend_to_default_x_axis(self):
+    def test_lock_x_axis(self):
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
         self._keyframe_all()
@@ -108,7 +108,7 @@ class BlendToDefaultPoseBone(AbstractPoseSlideTest):
 
 class BlendToNeighborPoseBone(AbstractPoseSlideTest):
 
-    def test_blend_to_default_all_properties(self):
+    def test_all_properties(self):
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
         self.pose_bone.rotation_euler = (1, 1, 1)
@@ -138,9 +138,71 @@ class BlendToNeighborPoseBone(AbstractPoseSlideTest):
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 2, 3)
 
 
+class PushRelaxPoseBone(AbstractPoseSlideTest):
+
+    def _set_up_keys(self):
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.location = (1, 1, 1)
+        self.pose_bone.rotation_euler = (1, 1, 1)
+        self.pose_bone.scale = (1, 1, 1)
+        self.pose_bone.bbone_curveinx = 1
+        self.pose_bone[_CUSTOM_PROP] = 1.0
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.location = (2, 2, 2)
+        self.pose_bone.rotation_euler = (2, 2, 2)
+        self.pose_bone.scale = (2, 2, 2)
+        self.pose_bone.bbone_curveinx = 2
+        self.pose_bone[_CUSTOM_PROP] = 2.0
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(5)
+        self.pose_bone.location = (5, 5, 5)
+        self.pose_bone.rotation_euler = (5, 5, 5)
+        self.pose_bone.scale = (5, 5, 5)
+        self.pose_bone.bbone_curveinx = 5
+        self.pose_bone[_CUSTOM_PROP] = 5.0
+        self._keyframe_all()
+
+    def test_relax_all_properties(self):
+        # Relax moves the pose to the linear breakdown between the given frames.
+        self._set_up_keys()
+
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.pose.relax(factor=1.0, prev_frame=0, next_frame=10)
+
+        for i in range(3):
+            self.assertAlmostEqual(self.pose_bone.location[i], 1.5, 3)
+            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 1.5, 3)
+            self.assertAlmostEqual(self.pose_bone.scale[i], 1.5, 3)
+
+        self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 1.5, 3)
+        self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 1.5, 3)
+
+    def test_push_all_properties(self):
+        # Push moves all properties away from the linear breakdown between the given frames.
+        # The distance moved at factor 1 depends on the inital distance from the breakdown pose.
+        self._set_up_keys()
+
+        with bpy.context.temp_override(**_get_view3d_context()):
+            bpy.ops.pose.push(factor=1.0, prev_frame=0, next_frame=10)
+
+        # Math to illustrate how the result is computed.
+        breakdown_value = 1 * 0.5 + 2 * 0.5
+        start_value = 5
+        expected_value = start_value + (start_value - breakdown_value)
+        for i in range(3):
+            self.assertAlmostEqual(self.pose_bone.location[i], expected_value, 3)
+            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], expected_value, 3)
+            self.assertAlmostEqual(self.pose_bone.scale[i], expected_value, 3)
+
+        self.assertAlmostEqual(self.pose_bone.bbone_curveinx, expected_value, 3)
+        self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], expected_value, 3)
+
 class BreakdownerTestPoseBone(AbstractPoseSlideTest):
 
-    def test_break_down_no_keys(self):
+    def test_no_keys(self):
         # The case of no keys will produce no interpolation.
         self.pose_bone.location = (1, 1, 1)
         with bpy.context.temp_override(**_get_view3d_context()):
@@ -149,7 +211,7 @@ class BreakdownerTestPoseBone(AbstractPoseSlideTest):
         for i in range(3):
             self.assertAlmostEqual(self.pose_bone.location[i], 1, 3)
 
-    def test_break_down_single_key(self):
+    def test_single_key(self):
         # Creating a breakdown with a single key will not change the current value
         # but adds a key if autokeying is enabled.
         bpy.context.scene.frame_set(0)
@@ -182,7 +244,7 @@ class BreakdownerTestPoseBone(AbstractPoseSlideTest):
         self.assertEqual(len(channelbag.fcurves), 10)
         self.assertEqual(len(channelbag.fcurves[0].keyframe_points), 2)
 
-    def test_break_down_all_properties(self):
+    def test_all_properties(self):
         # By default the pose slide operators act on location, rotation, scale, bbone properties and custom properties.
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
@@ -220,7 +282,7 @@ class BreakdownerTestPoseBone(AbstractPoseSlideTest):
         self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 1.5, 3)
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 1.5, 3)
 
-    def test_break_down_location(self):
+    def test_location(self):
         # The pose slide operators can constrain to a single property type.
         # All other properties should not be modified.
         bpy.context.scene.frame_set(0)
@@ -245,7 +307,7 @@ class BreakdownerTestPoseBone(AbstractPoseSlideTest):
             # Rotation should not be modified.
             self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 1.0279, 3)
 
-    def test_break_down_location_x(self):
+    def test_location_x(self):
         # The slider operators can constrain to a single axis.
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
@@ -264,7 +326,7 @@ class BreakdownerTestPoseBone(AbstractPoseSlideTest):
         self.assertAlmostEqual(self.pose_bone.location[1], 1.0279, 3)
         self.assertAlmostEqual(self.pose_bone.location[2], 1.0279, 3)
 
-    def test_break_down_quaternion_axis_lock_limitation(self):
+    def test_quaternion_axis_lock_limitation(self):
         # Axis lock does not work with quaternions. This test just confirms that.
         self.pose_bone.rotation_mode = 'QUATERNION'
         bpy.context.scene.frame_set(0)
