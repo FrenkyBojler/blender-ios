@@ -364,10 +364,10 @@ class NODE_MT_compositor_node_text_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "FunctionNodeFormatString")
-        self.node_operator(layout, "GeometryNodeStringJoin")
         self.node_operator(layout, "FunctionNodeMatchString")
         self.node_operator(layout, "FunctionNodeReplaceString")
         self.node_operator(layout, "FunctionNodeSliceString")
+        self.node_operator(layout, "FunctionNodeTrimString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeFindInString")
         self.node_operator(layout, "FunctionNodeStringLength")
