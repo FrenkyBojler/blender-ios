@@ -6,6 +6,7 @@
 
 #include "IO_subdiv_disabler.hh"
 #include "usd.hh"
+#include "usd_colorspace_utils.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_hook.hh"
 #include "usd_instancing_utils.hh"
@@ -16,6 +17,7 @@
 #include <pxr/pxr.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/sdf/path.h>
+#include <pxr/usd/usd/colorSpaceAPI.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
@@ -188,6 +190,14 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
 
     const math::EulerXYZ eul = math::to_euler(math::transpose(mrot));
     xf_api.SetRotate(pxr::GfVec3f(eul.x().degree(), eul.y().degree(), eul.z().degree()));
+  }
+
+  /* Tag with the working space interop ID. All relevant Blender colors are in
+   * this color space, so we only need this globally and not per attribute. */
+  pxr::TfToken interop_id = colorspace_scene_linear_interop_id();
+  if (!interop_id.IsEmpty()) {
+    pxr::UsdColorSpaceAPI cs_api = pxr::UsdColorSpaceAPI::Apply(root_xf.GetPrim());
+    cs_api.CreateColorSpaceNameAttr(pxr::VtValue(interop_id));
   }
 
   for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {

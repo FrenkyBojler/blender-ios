@@ -2164,6 +2164,38 @@ class USDExportTest(AbstractUSDTest):
         # Check that the accessibility information is pulled from the export args.
         verify_accessibility_api(root_prim, UsdUI.Tokens.default_, root_label, root_description)
 
+    def test_export_colorspace(self):
+        """Validate that exported USD files have ColorSpaceAPI applied to the root prim
+        with the correct scene linear interop ID."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+
+        # Add a light with a specific color.
+        bpy.ops.object.light_add(type='POINT')
+        bpy.context.active_object.data.color = (0.5, 0.3, 0.1)
+
+        export_path = self.tempdir / "colorspace_export.usda"
+        self.export_and_validate(
+            filepath=str(export_path),
+            evaluation_mode="RENDER",
+        )
+
+        stage = Usd.Stage.Open(str(export_path))
+        root_prim = stage.GetPrimAtPath("/root")
+        self.assertTrue(root_prim.IsValid(), "Root prim should exist")
+
+        # Verify the ColorSpaceAPI is applied.
+        self.assertTrue(root_prim.HasAPI(Usd.ColorSpaceAPI),
+                        "Root prim should have ColorSpaceAPI applied")
+
+        cs_api = Usd.ColorSpaceAPI(root_prim)
+        cs_name = cs_api.GetColorSpaceNameAttr().Get()
+
+        # The colorspace should match the working space interop ID.
+        expected = bpy.data.colorspace.working_space_interop_id
+        self.assertEqual(cs_name, expected,
+                         f"Colorspace '{cs_name}' should match working space interop ID '{expected}'")
+
 
 class USDHookBase:
     instructions = {}
