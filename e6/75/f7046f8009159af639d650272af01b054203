@@ -1,1 +1,2 @@
 Referenced by commit 8def4d2da319daf90b12a9c470383e7aa8238444, Fix: (unreported) Core: Invalid memory access at readfile time.
+Referenced by commit b596d466a4afb638e06665e7456c25a267bc8dd8, Revert "Fix (unreported) Core: Invalid memory access at readfile time."
