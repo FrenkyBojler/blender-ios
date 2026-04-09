@@ -1332,7 +1332,7 @@ static bke::bNodeSocketType *make_socket_type_matrix()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -1363,7 +1363,7 @@ static bke::bNodeSocketType *make_socket_type_bundle()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -1394,7 +1394,7 @@ static bke::bNodeSocketType *make_socket_type_closure()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -1887,7 +1887,7 @@ static bke::bNodeSocketType *make_socket_type_geometry()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -1925,7 +1925,7 @@ static bke::bNodeSocketType *make_socket_type_collection()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -1962,7 +1962,7 @@ static bke::bNodeSocketType *make_socket_type_texture()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -2000,7 +2000,7 @@ static bke::bNodeSocketType *make_socket_type_image()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
@@ -2038,7 +2038,7 @@ static bke::bNodeSocketType *make_socket_type_material()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_fallback,
                           nodes::CompositorNodesInputType::Fallback,
                           r_generated);
   };
