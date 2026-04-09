@@ -518,12 +518,10 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
         Collection *collection = outliner_collection_from_tree_element(&te);
         if (layer_collection && (layer_collection->collection == collection)) {
           tselem->flag |= TSE_ACTIVE | TSE_SELECTED;
-          printf("Active collection: %s\n", collection->id.name + 2);
           *r_any_new_active = true;
         }
         else {
           tselem->flag &= ~(TSE_ACTIVE | TSE_SELECTED);
-          printf("Not Active collection: %s\n", collection->id.name + 2);
         }
       }
     }

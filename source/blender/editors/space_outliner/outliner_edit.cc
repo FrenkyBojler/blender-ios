@@ -1604,8 +1604,9 @@ void outliner_scroll_to_active(const bContext *C,
                                TreeViewContext *tvc)
 {
   const View2D *v2d = &region->v2d;
-  TreeElement *active_te = outliner_show_active_get_element(
-      C, space_outliner, tvc->scene, tvc->view_layer);
+  TreeElement *active_te = outliner_find_element_with_flag(&space_outliner->tree, TSE_ACTIVE);
+
+  printf("%d -- %d -- %d\n", v2d->cur.ymin, v2d->cur.ymax, active_te->ys);
 
   if (active_te) {
     if (!BLI_rctf_isect_y(&v2d->cur, active_te->ys)) {
