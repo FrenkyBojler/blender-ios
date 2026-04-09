@@ -565,7 +565,6 @@ void draw_safe_areas(uint pos,
 
 void draw_rule_thirds(uint pos, const rctf *rect);
 
-
 /** State for scroll-drawing. */
 enum {
   SCROLL_PRESSED = 1 << 0,

@@ -431,7 +431,6 @@ void draw_rule_thirds(uint pos, const rctf *rect)
   immEnd();
 }
 
-
 static void draw_scope_end(const rctf *rect)
 {
   GPU_blend(GPU_BLEND_ALPHA);
