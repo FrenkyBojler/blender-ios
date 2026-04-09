@@ -205,7 +205,7 @@ static StructRNA *rna_NodeSocket_register(Main *bmain,
   }
 
   /* check if we have registered this socket type before */
-  st = bke::node_socket_type_find(dummy_st.idname);
+  st = bke::node_socket_type_find(dummy_st.idname.ref());
   if (!st) {
     /* create a new node socket type */
     st = MEM_new<bke::bNodeSocketType>(__func__, dummy_st);
@@ -306,7 +306,7 @@ static void rna_NodeSocket_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNodeSocket *node = static_cast<const bNodeSocket *>(ptr->data);
   const bke::bNodeSocketType *ntype = node->typeinfo;
-  StringRef(ntype->idname).copy_unsafe(value);
+  ntype->idname.ref().copy_unsafe(value);
 }
 
 static int rna_NodeSocket_bl_idname_length(PointerRNA *ptr)
@@ -327,7 +327,7 @@ static void rna_NodeSocket_bl_idname_set(PointerRNA *ptr, const char *value)
     return;
   }
 
-  ntype->idname = value;
+  ntype->idname = UString(value);
 }
 
 static void rna_NodeSocket_bl_label_get(PointerRNA *ptr, char *value)
@@ -2324,10 +2324,14 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketFloatFrequency",
      SOCK_FLOAT,
      PROP_FREQUENCY},
+    {"NodeSocketFloatPixel", "NodeTreeInterfaceSocketFloatPixel", SOCK_FLOAT, PROP_PIXEL},
+
     {"NodeSocketInt", "NodeTreeInterfaceSocketInt", SOCK_INT, PROP_NONE},
     {"NodeSocketIntUnsigned", "NodeTreeInterfaceSocketIntUnsigned", SOCK_INT, PROP_UNSIGNED},
     {"NodeSocketIntPercentage", "NodeTreeInterfaceSocketIntPercentage", SOCK_INT, PROP_PERCENTAGE},
     {"NodeSocketIntFactor", "NodeTreeInterfaceSocketIntFactor", SOCK_INT, PROP_FACTOR},
+    {"NodeSocketIntPixel", "NodeTreeInterfaceSocketIntPixel", SOCK_INT, PROP_PIXEL},
+
     {"NodeSocketBool", "NodeTreeInterfaceSocketBool", SOCK_BOOLEAN, PROP_NONE},
 
     {"NodeSocketVector", "NodeTreeInterfaceSocketVector", SOCK_VECTOR, PROP_NONE},
@@ -2354,6 +2358,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler", "NodeTreeInterfaceSocketVectorEuler", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ", "NodeTreeInterfaceSocketVectorXYZ", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel", "NodeTreeInterfaceSocketVectorPixel", SOCK_VECTOR, PROP_PIXEL},
 
     {"NodeSocketVector2D", "NodeTreeInterfaceSocketVector2D", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor2D",
@@ -2382,6 +2387,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler2D", "NodeTreeInterfaceSocketVectorEuler2D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ2D", "NodeTreeInterfaceSocketVectorXYZ2D", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel2D", "NodeTreeInterfaceSocketVectorPixel2D", SOCK_VECTOR, PROP_PIXEL},
 
     {"NodeSocketVector4D", "NodeTreeInterfaceSocketVector4D", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor4D",
@@ -2410,6 +2416,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler4D", "NodeTreeInterfaceSocketVectorEuler4D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ4D", "NodeTreeInterfaceSocketVectorXYZ4D", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel4D", "NodeTreeInterfaceSocketVectorPixel4D", SOCK_VECTOR, PROP_PIXEL},
 
     /* 2D Integer Vector types. */
     {"NodeSocketIntVector2D", "NodeTreeInterfaceSocketIntVector2D", SOCK_INT_VECTOR, PROP_NONE},
@@ -2425,6 +2432,10 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketIntVectorFactor2D",
      SOCK_INT_VECTOR,
      PROP_FACTOR},
+    {"NodeSocketIntVectorPixel2D",
+     "NodeTreeInterfaceSocketIntVectorPixel2D",
+     SOCK_INT_VECTOR,
+     PROP_PIXEL},
 
     /* 3D Integer Vector types. */
     {"NodeSocketIntVector3D", "NodeTreeInterfaceSocketIntVector3D", SOCK_INT_VECTOR, PROP_NONE},
@@ -2440,6 +2451,10 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketIntVectorFactor3D",
      SOCK_INT_VECTOR,
      PROP_FACTOR},
+    {"NodeSocketIntVectorPixel3D",
+     "NodeTreeInterfaceSocketIntVectorPixel3D",
+     SOCK_INT_VECTOR,
+     PROP_PIXEL},
 
     {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
     {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},

@@ -738,8 +738,8 @@ static void create_legacy_geometry_nodes_properties(Object &ob)
       }
     }
 
-    BLI_assert(!nmd.settings.properties);
-    nmd.settings.properties = legacy_props;
+    BLI_assert(!nmd.settings_legacy.properties);
+    nmd.settings_legacy.properties = legacy_props;
   }
 }
 
@@ -750,11 +750,11 @@ static void free_legacy_geometry_nodes_properties(Object &ob)
       continue;
     }
     NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
-    if (!nmd.settings.properties) {
+    if (!nmd.settings_legacy.properties) {
       continue;
     }
-    IDP_FreeProperty_ex(nmd.settings.properties, false);
-    nmd.settings.properties = nullptr;
+    IDP_FreeProperty_ex(nmd.settings_legacy.properties, false);
+    nmd.settings_legacy.properties = nullptr;
   }
 }
 
@@ -2444,7 +2444,6 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag)
   BKE_pose_copy_data_ex(&obn->pose, ob->pose, flag, true); /* true = copy constraints */
 
   for (bPoseChannel &chan : obn->pose->chanbase) {
-    chan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE);
 
     /* XXX Remapping object pointing onto itself should be handled by generic
      *     BKE_library_remap stuff, but...
