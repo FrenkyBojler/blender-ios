@@ -2513,73 +2513,85 @@ static void rna_def_constraint_transform(BlenderRNA *brna)
   /* Rot */
   prop = RNA_def_property(srna, "from_min_x_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "from_min_rot[0]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "From Minimum X", "Bottom range of X axis source motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "from_min_y_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "from_min_rot[1]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "From Minimum Y", "Bottom range of Y axis source motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "from_min_z_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "from_min_rot[2]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "From Minimum Z", "Bottom range of Z axis source motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "from_max_x_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "from_max_rot[0]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "From Maximum X", "Top range of X axis source motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "from_max_y_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "from_max_rot[1]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "From Maximum Y", "Top range of Y axis source motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "from_max_z_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "from_max_rot[2]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "From Maximum Z", "Top range of Z axis source motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "to_min_x_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "to_min_rot[0]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "To Minimum X", "Bottom range of X axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "to_min_y_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "to_min_rot[1]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "To Minimum Y", "Bottom range of Y axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "to_min_z_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "to_min_rot[2]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "To Minimum Z", "Bottom range of Z axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "to_max_x_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "to_max_rot[0]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "To Maximum X", "Top range of X axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "to_max_y_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "to_max_rot[1]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "To Maximum Y", "Top range of Y axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "to_max_z_rot", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, nullptr, "to_max_rot[2]");
-  RNA_def_property_ui_range(prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
+  RNA_def_property_ui_range(
+      prop, DEG2RADF(-180.0f), DEG2RADF(180.0f), 10, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop, "To Maximum Z", "Top range of Z axis destination motion");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
