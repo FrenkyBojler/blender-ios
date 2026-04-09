@@ -148,8 +148,8 @@ enum eAction_TransformFlags {
 };
 
 /* Temporary data linking PoseChannels with the F-Curves they affect */
-struct tPChanFCurveLink {
-  tPChanFCurveLink *next, *prev;
+struct SlideTarget {
+  SlideTarget *next, *prev;
 
   /** Object this Pose Channel belongs to. */
   Object *ob;
@@ -192,26 +192,26 @@ struct tPChanFCurveLink {
 /** Returns a valid pose armature for this object, else returns NULL. */
 Object *poseAnim_object_get(Object *ob_);
 /**
- * Build up a list of tPChanFCurveLink. First only selected, and if that yields no result, all
+ * Build up a list of SlideTarget. First only selected, and if that yields no result, all
  * visible.
  */
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks);
-/** Free F-Curve <-> PoseChannel links. */
-void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
+void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets);
+/** Free all slide targets. */
+void slide_targets_free(ListBaseT<SlideTarget> *slide_targets);
 
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
+void slide_targets_refresh(bContext *C, Scene *scene, Object *ob);
 /**
- * Reset changes made to current pose.
+ * Reset changes made to current slide targets back to their stored values.
  */
-void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks);
+void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets);
 /** Perform auto-key-framing after changes were made + confirmed. */
-void poseAnim_mapping_autoKeyframe(bContext *C,
-                                   Scene *scene,
-                                   ListBaseT<tPChanFCurveLink> *pfLinks,
-                                   float cframe);
+void slide_targets_autokey(bContext *C,
+                           Scene *scene,
+                           ListBaseT<SlideTarget> *slide_targets,
+                           float cframe);
 
 /** \} */
 
