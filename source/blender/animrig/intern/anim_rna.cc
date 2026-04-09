@@ -266,8 +266,6 @@ Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop)
   return values;
 }
 
-/* Abstraction around the different property types to set them all with a float value cast to the
- * correct type. */
 void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, const Span<float> values)
 {
   const bool is_array = RNA_property_array_check(&prop);
