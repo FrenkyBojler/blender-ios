@@ -1298,9 +1298,9 @@ static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
   return edge;
 }
 
-static void get_all_triangle_edges(MutableSpan<int3> tri_edges,
-                                   const Span<std::pair<int, int>> edges,
-                                   const Span<Vector<int>> tris)
+static void get_all_triangle_edges(const Span<std::pair<int, int>> edges,
+                                   const Span<Vector<int>> tris,
+                                   MutableSpan<int3> r_tri_edges)
 {
   Map<std::pair<int, int>, int> edge_to_index;
   for (const int edge_index : edges.index_range()) {
@@ -1315,15 +1315,15 @@ static void get_all_triangle_edges(MutableSpan<int3> tri_edges,
     const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
     const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
 
-    tri_edges[tri_index] = int3(
+    r_tri_edges[tri_index] = int3(
         edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
   }
 }
 
-static void get_all_triangle_adjacency(MutableSpan<int3> tri_adjacency,
-                                       const int num_edges,
+static void get_all_triangle_adjacency(const int num_edges,
                                        const Span<Vector<int>> tris,
-                                       const Span<int3> tri_edges)
+                                       const Span<int3> tri_edges,
+                                       MutableSpan<int3> r_tri_adjacency)
 {
   Array<std::pair<int, int>> edge_to_tris(num_edges, std::pair<int, int>(NULL_INDEX, NULL_INDEX));
 
@@ -1348,33 +1348,33 @@ static void get_all_triangle_adjacency(MutableSpan<int3> tri_adjacency,
 
       const int index_0 = edge_to_tris[edge].first;
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
-        tri_adjacency[tri_index][j] = index_0;
+        r_tri_adjacency[tri_index][j] = index_0;
         continue;
       }
 
       const int index_1 = edge_to_tris[edge].second;
       if (index_1 != tri_index && index_1 != NULL_INDEX) {
-        tri_adjacency[tri_index][j] = index_1;
+        r_tri_adjacency[tri_index][j] = index_1;
         continue;
       }
 
-      tri_adjacency[tri_index][j] = NULL_INDEX;
+      r_tri_adjacency[tri_index][j] = NULL_INDEX;
     }
   }
 }
 
-static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
-                                const MutableSpan<float> tri_weights,
-                                const Span<int3> tri_adjacency,
+static void add_weights_for_tri(const Span<int3> tri_adjacency,
                                 const Span<int3> tri_edges,
                                 const Span<float> edge_weights,
                                 const Span<float> tri_max_weight,
                                 const Span<bool> is_source_edge,
                                 const int hint_tri_index,
-                                const int hint_index)
+                                const int hint_index,
+                                MutableSpan<int> r_tri_hint_index,
+                                MutableSpan<float> r_tri_weights)
 {
-  tri_hint_index[hint_tri_index] = hint_index;
-  tri_weights[hint_tri_index] = tri_max_weight[hint_tri_index];
+  r_tri_hint_index[hint_tri_index] = hint_index;
+  r_tri_weights[hint_tri_index] = tri_max_weight[hint_tri_index];
 
   Vector<int> tris_to_check;
   tris_to_check.append(hint_tri_index);
@@ -1396,19 +1396,19 @@ static void add_weights_for_tri(const MutableSpan<int> tri_hint_index,
           continue;
         }
 
-        const float weight = std::min(edge_weights[edge_index], tri_weights[tri_index]);
+        const float weight = std::min(edge_weights[edge_index], r_tri_weights[tri_index]);
 
-        if (weight > tri_weights[next_tri]) {
+        if (weight > r_tri_weights[next_tri]) {
           new_tris_to_check.append(next_tri);
-          tri_hint_index[next_tri] = hint_index;
-          tri_weights[next_tri] = weight;
+          r_tri_hint_index[next_tri] = hint_index;
+          r_tri_weights[next_tri] = weight;
           continue;
         }
 
-        if (weight == tri_weights[next_tri] && tri_hint_index[next_tri] != hint_index) {
+        if (weight == r_tri_weights[next_tri] && r_tri_hint_index[next_tri] != hint_index) {
           new_tris_to_check.append(next_tri);
-          tri_hint_index[next_tri] = hint_index;
-          tri_weights[next_tri] = weight;
+          r_tri_hint_index[next_tri] = hint_index;
+          r_tri_weights[next_tri] = weight;
         }
       }
     }
@@ -1573,12 +1573,12 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   Array<int3> tri_edges(result.face.size(), int3(NULL_INDEX));
 
   get_all_triangle_edges(
-      tri_edges.as_mutable_span(), result.edge.as_span(), result.face.as_span());
+      result.edge.as_span(), result.face.as_span(), tri_edges.as_mutable_span());
 
   Array<int3> tri_adjacency(result.face.size(), int3(NULL_INDEX));
 
   get_all_triangle_adjacency(
-      tri_adjacency.as_mutable_span(), result.edge.size(), result.face.as_span(), tri_edges);
+      result.edge.size(), result.face.as_span(), tri_edges, tri_adjacency.as_mutable_span());
 
   Array<float> edge_weights(result.edge.size());
 
@@ -1658,15 +1658,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
   }
 
-  add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                      tri_weights.as_mutable_span(),
-                      tri_adjacency.as_span(),
+  add_weights_for_tri(tri_adjacency.as_span(),
                       tri_edges.as_span(),
                       edge_weights.as_span(),
                       tri_max_weight.as_span(),
                       is_source_edge.as_span(),
                       first_tri_index,
-                      hint_index);
+                      hint_index,
+                      tri_hint_index.as_mutable_span(),
+                      tri_weights.as_mutable_span());
 
   Set<int> not_full_tris;
   for (const int tri_index : result.face.index_range()) {
@@ -1707,15 +1707,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     const double2 &vert2 = result.vert[tri[2]];
     pos_hint.append(float2((vert0 + vert1 + vert2) / 3.0f));
 
-    add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                        tri_weights.as_mutable_span(),
-                        tri_adjacency.as_span(),
+    add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
                         edge_weights.as_span(),
                         tri_max_weight.as_span(),
                         is_source_edge.as_span(),
                         hint_tri_index,
-                        hint_index);
+                        hint_index,
+                        tri_hint_index.as_mutable_span(),
+                        tri_weights.as_mutable_span());
 
     hint_tri_index = get_next_max_tri_index();
     hint_index++;
@@ -1732,15 +1732,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   }
   else {
     /* Add the mouse fill again to make sure it as highest priority. */
-    add_weights_for_tri(tri_hint_index.as_mutable_span(),
-                        tri_weights.as_mutable_span(),
-                        tri_adjacency.as_span(),
+    add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
                         edge_weights.as_span(),
                         tri_max_weight.as_span(),
                         is_source_edge.as_span(),
                         first_tri_index,
-                        hint_index);
+                        hint_index,
+                        tri_hint_index.as_mutable_span(),
+                        tri_weights.as_mutable_span());
 
     for (const int tri_index : result.face.index_range()) {
       if (tri_hint_index[tri_index] == hint_index) {
