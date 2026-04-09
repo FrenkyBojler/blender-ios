@@ -77,14 +77,6 @@ namespace blender {
 /* **************************************************** */
 /* A) Push & Relax, Breakdowner */
 
-/** Axis Locks. */
-enum ePoseSlide_AxisLock {
-  /* TODO replace with animrig::AxisFlag */
-  PS_LOCK_X = (1 << 0),
-  PS_LOCK_Y = (1 << 1),
-  PS_LOCK_Z = (1 << 2),
-};
-
 /** Pose Sliding Modes. */
 enum ePoseSlide_Modes {
   /** Exaggerate the pose. */
@@ -151,8 +143,9 @@ struct tPoseSlideOp {
 
   /** Which transforms/channels are affected. */
   ePoseSlide_Channels channels;
-  /** Axis-limits for transforms. */
-  ePoseSlide_AxisLock axislock;
+  /** Axis-limits for transforms. If any flag is set, the transforms are only applied for that
+   * axis. If none are set, all axes are modified. */
+  animrig::AxisFlag axislock;
 
   tSlider *slider;
 
@@ -181,9 +174,9 @@ static const EnumPropertyItem prop_channels_types[] = {
 /* Property enum for ePoseSlide_AxisLock */
 static const EnumPropertyItem prop_axis_lock_types[] = {
     {0, "FREE", 0, "Free", "All axes are affected"},
-    {PS_LOCK_X, "X", 0, "X", "Only X-axis transforms are affected"},
-    {PS_LOCK_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
-    {PS_LOCK_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"}, /* TODO: Combinations? */
+    {animrig::AXIS_FLAG_X, "X", 0, "X", "Only X-axis transforms are affected"},
+    {animrig::AXIS_FLAG_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
+    {animrig::AXIS_FLAG_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -225,7 +218,7 @@ static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 
   /* Get the set of properties/axes that can be operated on. */
   pso->channels = ePoseSlide_Channels(RNA_enum_get(op->ptr, "channels"));
-  pso->axislock = ePoseSlide_AxisLock(RNA_enum_get(op->ptr, "axis_lock"));
+  pso->axislock = animrig::AxisFlag(RNA_enum_get(op->ptr, "axis_lock"));
 
   pso->slider = ED_slider_create(C);
   ED_slider_factor_set(pso->slider, RNA_float_get(op->ptr, "factor"));
@@ -753,9 +746,9 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   }
 
   if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SCALE)) {
-    status.item_bool("", pso->axislock & PS_LOCK_X, ICON_EVENT_X);
-    status.item_bool("", pso->axislock & PS_LOCK_Y, ICON_EVENT_Y);
-    status.item_bool("", pso->axislock & PS_LOCK_Z, ICON_EVENT_Z);
+    status.item_bool("", pso->axislock & animrig::AXIS_FLAG_X, ICON_EVENT_X);
+    status.item_bool("", pso->axislock & animrig::AXIS_FLAG_Y, ICON_EVENT_Y);
+    status.item_bool("", pso->axislock & animrig::AXIS_FLAG_Z, ICON_EVENT_Z);
     status.item(pso->axislock == 0 ? IFACE_("Axis Constraint") : IFACE_("Axis Only"), ICON_NONE);
   }
 
@@ -883,20 +876,18 @@ static void pose_slide_toggle_channels_mode(wmOperator *op,
   RNA_enum_set(op->ptr, "channels", pso->channels);
 
   /* Reset axis limits too for good measure */
-  pso->axislock = ePoseSlide_AxisLock(0);
+  pso->axislock = animrig::AxisFlag(0);
   RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
 }
 
 /**
  * Handle an event to toggle axis locks - returns whether any change in state is needed.
  */
-static bool pose_slide_toggle_axis_locks(wmOperator *op,
-                                         tPoseSlideOp *pso,
-                                         ePoseSlide_AxisLock axis)
+static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, animrig::AxisFlag axis)
 {
   /* Axis can only be set when a transform is set - it doesn't make sense otherwise */
   if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE, PS_TFM_PROPS)) {
-    pso->axislock = ePoseSlide_AxisLock(0);
+    pso->axislock = animrig::AxisFlag(0);
     RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
     return false;
   }
@@ -904,7 +895,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op,
   /* Turn on or off? */
   if (pso->axislock == axis) {
     /* Already limiting on this axis, so turn off */
-    pso->axislock = ePoseSlide_AxisLock(0);
+    pso->axislock = animrig::AxisFlag(0);
   }
   else {
     /* Only this axis */
@@ -1039,19 +1030,19 @@ static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEv
           /* Axis Locks */
           /* XXX: Hardcoded... */
           case EVT_XKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, PS_LOCK_X)) {
+            if (pose_slide_toggle_axis_locks(op, pso, animrig::AXIS_FLAG_X)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_YKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, PS_LOCK_Y)) {
+            if (pose_slide_toggle_axis_locks(op, pso, animrig::AXIS_FLAG_Y)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_ZKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, PS_LOCK_Z)) {
+            if (pose_slide_toggle_axis_locks(op, pso, animrig::AXIS_FLAG_Z)) {
               do_pose_update = true;
             }
             break;
