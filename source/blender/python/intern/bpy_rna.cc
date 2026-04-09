@@ -4438,7 +4438,7 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 
   if (srna_base == RNA_Node) {
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = bke::node_type_find_alias(id).c_str();
+    id = bke::node_type_find_alias(UString(id)).c_str();
 
     bke::bNodeType *nt = bke::node_type_find(id);
     if (nt) {
@@ -6127,7 +6127,16 @@ PyDoc_STRVAR(
     pyrna_prop_collection_foreach_get_doc,
     ".. method:: foreach_get(attr, seq)\n"
     "\n"
-    "   This is a function to give fast access to attributes within a collection.\n");
+    "   Fast access to a basic-type attribute within a collection.\n"
+    "\n"
+    "   :param attr: Name of the item attribute to read (for example ``co``, ``normal`` or\n"
+    "      ``select``). The attribute must be a basic type (bool, int or float).\n"
+    "\n"
+    "      For geometry attribute types, see :attr:`Attribute.data_type`.\n"
+    "   :type attr: str\n"
+    "   :param seq: Writable sequence or buffer receiving flattened values.\n"
+    "      For array attributes, the length must be ``len(collection) * array_length``.\n"
+    "   :type seq: MutableSequence[bool | int | float] | buffer\n");
 static PyObject *pyrna_prop_collection_foreach_get(BPy_PropertyRNA *self, PyObject *args)
 {
   PYRNA_PROP_CHECK_OBJ(self);
@@ -6140,7 +6149,16 @@ PyDoc_STRVAR(
     pyrna_prop_collection_foreach_set_doc,
     ".. method:: foreach_set(attr, seq)\n"
     "\n"
-    "   This is a function to give fast access to attributes within a collection.\n");
+    "   Fast access to a basic-type attribute within a collection.\n"
+    "\n"
+    "   :param attr: Name of the item attribute to write (for example ``co`` or\n"
+    "      ``select``). The attribute must be a basic type (bool, int or float).\n"
+    "\n"
+    "      For geometry attribute types, see :attr:`Attribute.data_type`.\n"
+    "   :type attr: str\n"
+    "   :param seq: Sequence or buffer containing flattened values.\n"
+    "      For array attributes, the length must be ``len(collection) * array_length``.\n"
+    "   :type seq: Sequence[bool | int | float] | buffer\n");
 static PyObject *pyrna_prop_collection_foreach_set(BPy_PropertyRNA *self, PyObject *args)
 {
   PYRNA_PROP_CHECK_OBJ(self);

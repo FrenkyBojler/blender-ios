@@ -275,14 +275,9 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext *C,
     const WarnFlag flag = check_attribute_warning(scene, ob);
 
     if (flag & ATTRIBUTES) {
-      return WM_operator_confirm_ex(
-          C,
-          op,
-          RPT_("Attribute Data Detected"),
-          RPT_("Dyntopo will not preserve colors, UVs, or other attributes"),
-          IFACE_("Enable"),
-          ui::AlertIcon::Warning,
-          false);
+      BKE_report(op->reports,
+                 RPT_WARNING,
+                 "Dyntopo will not preserve face sets, colors, UVs, or other attributes");
     }
 
     if (flag & MODIFIER) {
@@ -310,7 +305,7 @@ void SCULPT_OT_dynamic_topology_toggle(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = sculpt_dynamic_topology_toggle_invoke;
   ot->exec = sculpt_dynamic_topology_toggle_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER;
 }

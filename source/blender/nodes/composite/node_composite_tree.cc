@@ -113,9 +113,12 @@ static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreety
                                                                SOCK_INT,
                                                                SOCK_BOOLEAN,
                                                                SOCK_VECTOR,
+                                                               SOCK_INT_VECTOR,
                                                                SOCK_RGBA,
+                                                               SOCK_MATRIX,
                                                                SOCK_MENU,
-                                                               SOCK_STRING);
+                                                               SOCK_STRING,
+                                                               SOCK_OBJECT);
 }
 
 /**
@@ -125,8 +128,14 @@ static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreety
 static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDatatype to_type)
 {
   /* Basic math types can be implicitly converted to each other. */
-  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
-      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  if (ELEM(from_type,
+           SOCK_FLOAT,
+           SOCK_VECTOR,
+           SOCK_INT_VECTOR,
+           SOCK_RGBA,
+           SOCK_BOOLEAN,
+           SOCK_INT) &&
+      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_INT_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
   {
     return true;
   }
@@ -141,7 +150,7 @@ void register_node_tree_type_cmp()
   bke::bNodeTreeType *tt = ntreeType_Composite = MEM_new<bke::bNodeTreeType>(__func__);
 
   tt->type = NTREE_COMPOSIT;
-  tt->idname = "CompositorNodeTree";
+  tt->idname = "CompositorNodeTree"_ustr;
   tt->group_idname = "CompositorNodeGroup";
   tt->ui_name = N_("Compositor");
   tt->ui_icon = ICON_NODE_COMPOSITING;

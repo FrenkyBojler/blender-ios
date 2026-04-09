@@ -12,7 +12,7 @@
 FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_combine)
 
 #include "draw_view_lib.glsl"
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_renderpass_lib.glsl"
 #include "gpu_shader_shared_exponent_lib.glsl"
@@ -105,7 +105,7 @@ void main()
 
     if ((cl.type == CLOSURE_BSDF_TRANSLUCENT_ID ||
          cl.type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) &&
-        (gbuffer::read_thickness(gbuf.header, texel) != 0.0f))
+        (gbuffer::read_thickness(gbuf.header, texel).value() != 0.0f))
     {
       /* We model two transmission event, so the surface color need to be applied twice. */
       cl.color *= cl.color;

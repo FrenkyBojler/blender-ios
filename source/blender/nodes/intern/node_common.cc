@@ -55,6 +55,8 @@
 
 #include "ED_node.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "node_common.h"
 #include "node_util.hh"
 
@@ -91,10 +93,8 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  BLI_strncpy(label,
-              (node->id) ? node->id->name + 2 :
-                           CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Missing Data-Block"),
-              label_maxncpy);
+  BLI_strncpy(
+      label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
 }
 
 int node_group_ui_class(const bNode *node)
@@ -273,8 +273,8 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(io_socket.socket_type);
   eNodeSocketDatatype datatype = SOCK_CUSTOM;
 
-  const StringRef name = io_socket.name;
-  const StringRef identifier = io_socket.identifier;
+  const UString name(io_socket.name);
+  const UString identifier(io_socket.identifier);
 
   BaseSocketDeclarationBuilder *decl = nullptr;
   if (base_typeinfo) {
@@ -294,6 +294,17 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
         decl = &b.add_socket<decl::Vector>(name, identifier, in_out)
                     .subtype(PropertySubType(value.subtype))
                     .default_value(float4(value.value))
+                    .dimensions(value.dimensions)
+                    .min(value.min)
+                    .max(value.max);
+        break;
+      }
+      case SOCK_INT_VECTOR: {
+        const auto &value = node_interface::get_socket_data_as<bNodeSocketValueIntVector>(
+            io_socket);
+        decl = &b.add_socket<decl::IntVector>(name, identifier, in_out)
+                    .subtype(PropertySubType(value.subtype))
+                    .default_value(int3(value.value))
                     .dimensions(value.dimensions)
                     .min(value.min)
                     .max(value.max);
@@ -472,7 +483,7 @@ static void node_group_declare_panel_recursive(
       case NODE_INTERFACE_PANEL: {
         add_layout_if_needed();
         const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
-        auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+        auto &panel_b = b.add_panel(UString(io_panel.name), io_panel.identifier)
                             .description(StringRef(io_panel.description))
                             .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
         node_group_declare_panel_recursive(
@@ -496,9 +507,18 @@ void node_group_declare(NodeDeclarationBuilder &b)
   if (!group) {
     return;
   }
-  if (ID_IS_LINKED(&group->id) && (group->id.tag & ID_TAG_MISSING)) {
-    r_declaration.skip_updating_sockets = true;
-    return;
+  if (ID_IS_LINKED(&group->id)) {
+    if (ID_MISSING(&group->id)) {
+      r_declaration.skip_updating_sockets = true;
+      return;
+    }
+    /* Currently the missing flag is only set on original data. */
+    if (const ID *orig_group = DEG_get_original_id(&group->id)) {
+      if (ID_MISSING(orig_group)) {
+        r_declaration.skip_updating_sockets = true;
+        return;
+      }
+    }
   }
   r_declaration.skip_updating_sockets = false;
 
@@ -599,10 +619,10 @@ static void node_reroute_declare(nodes::NodeDeclarationBuilder &b)
   }
 
   const StringRefNull socket_idname(static_cast<const NodeReroute *>(node->storage)->type_idname);
-  b.add_input<nodes::decl::Custom>("Input")
+  b.add_input<nodes::decl::Custom>("Input"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
-  b.add_output<nodes::decl::Custom>("Output")
+  b.add_output<nodes::decl::Custom>("Output"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
 }
@@ -782,7 +802,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     bNode &reroute_node = *all_nodes[reroute_index];
     NodeReroute *storage = static_cast<NodeReroute *>(reroute_node.storage);
     if (reroute_type->idname != storage->type_idname) {
-      StringRef(reroute_type->idname).copy_utf8_truncated(storage->type_idname);
+      reroute_type->idname.ref().copy_utf8_truncated(storage->type_idname);
       nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
     }
   }
@@ -832,11 +852,11 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<nodes::decl::Custom>("Value")
+  b.add_input<nodes::decl::Custom>("Value"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .optional_label();
-  b.add_output<nodes::decl::Custom>("Value")
+  b.add_output<nodes::decl::Custom>("Value"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
@@ -852,22 +872,18 @@ static void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
   const auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
   const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
   if (!socket_type) {
-    BLI_strncpy(label,
-                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
-                label_maxncpy);
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
     return;
   }
 
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_socket_data_type_items, socket_type->type, &name);
   if (!enum_label) {
-    BLI_strncpy(label,
-                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
-                label_maxncpy);
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
     return;
   }
 
-  BLI_snprintf_utf8(label, label_maxncpy, "To %s", CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name));
+  BLI_snprintf_utf8(label, label_maxncpy, IFACE_("To %s"), IFACE_(name));
 }
 
 static void node_implicit_conversion_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -908,8 +924,8 @@ static bool node_implicit_conversion_poll_instance(const bNode *node,
 
 static void node_implicit_conversion_geo_exec(nodes::GeoNodeExecParams params)
 {
-  auto input_value = params.extract_input<bke::SocketValueVariant>("Value");
-  params.set_output("Value", std::move(input_value));
+  auto input_value = params.extract_input<bke::SocketValueVariant>("Value"_ustr);
+  params.set_output("Value"_ustr, std::move(input_value));
 }
 
 class ImplicitConversionOperation : public compositor::NodeOperation {
@@ -999,7 +1015,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
     }
     return true;
   });
-  b.add_output<decl::Extend>("", "__extend__");
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static void group_output_declare(NodeDeclarationBuilder &b)
@@ -1024,7 +1040,7 @@ static void group_output_declare(NodeDeclarationBuilder &b)
     }
     return true;
   });
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static bool group_input_insert_link(bke::NodeInsertLinkParams &params)
@@ -1038,13 +1054,20 @@ static bool group_input_insert_link(bke::NodeInsertLinkParams &params)
     /* Don't connect to other "extend" sockets. */
     return false;
   }
-  const bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
+  bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
       params.ntree, *params.link.tonode, *params.link.tosock);
   if (!io_socket) {
     return false;
   }
   update_node_declaration_and_sockets(params.ntree, params.node);
   params.link.fromsock = node_group_input_find_socket(&params.node, io_socket->identifier);
+
+  params.ntree.tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+    item.set_selected(false);
+    return true;
+  });
+  params.ntree.tree_interface.active_item_set(&io_socket->item);
+
   return true;
 }
 
@@ -1059,13 +1082,20 @@ static bool group_output_insert_link(bke::NodeInsertLinkParams &params)
     /* Don't connect to other "extend" sockets. */
     return false;
   }
-  const bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
+  bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
       params.ntree, *params.link.fromnode, *params.link.fromsock);
   if (!io_socket) {
     return false;
   }
   update_node_declaration_and_sockets(params.ntree, params.node);
   params.link.tosock = node_group_output_find_socket(&params.node, io_socket->identifier);
+
+  params.ntree.tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+    item.set_selected(false);
+    return true;
+  });
+  params.ntree.tree_interface.active_item_set(&io_socket->item);
+
   return true;
 }
 
