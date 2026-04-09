@@ -288,6 +288,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Utilities/Math")
         self.draw_menu(layout, path="Utilities/Vector")
         self.draw_menu(layout, path="Utilities/Matrix")
+        self.draw_menu(layout, path="Utilities/Text")
         layout.separator()
         self.node_operator(layout, "CompositorNodeLevels")
         self.node_operator(layout, "CompositorNodeNormalize")
