@@ -157,9 +157,9 @@ struct PropertySnapshot {
   Array<float> backup_values;
 };
 
-/* Temporary data linking a Transformable with the F-Curves it affects. */
-struct TransformableFCurveLink {
-  TransformableFCurveLink *next, *prev = nullptr;
+/* Temporary struct wrapping data used for pose sliding. */
+struct SlideTarget {
+  SlideTarget *next, *prev = nullptr;
 
   /** The Transformable which the data is attached to */
   animrig::Transformable *transformable = nullptr;
@@ -185,29 +185,27 @@ struct TransformableFCurveLink {
 
 /* ----------- */
 
-/** Returns a valid pose armature for this object, else returns NULL. */
-Object *poseAnim_object_get(Object *ob_);
 /**
- * Build up a list of TransformableFCurveLink. The items put into the list depend on the mode of
+ * Build up a list of SlideTarget. The items put into the list depend on the mode of
  * the context.
  */
-void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *pfLinks);
+void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets);
 /** Free F-Curve <-> Transformable links. */
-void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks);
+void slide_targets_free(ListBaseT<SlideTarget> *slide_targets);
 
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void poseAnim_mapping_refresh(bContext *C, ID *id);
+void slide_targets_refresh(bContext *C, ID *id);
 /**
  * Reset changes made to current pose.
  */
-void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks);
+void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets);
 /** Perform auto-key-framing after changes were made + confirmed. */
-void poseAnim_mapping_autoKeyframe(bContext *C,
-                                   Scene *scene,
-                                   const ListBaseT<TransformableFCurveLink> *pfLinks,
-                                   float cframe);
+void slide_targets_autokey(bContext *C,
+                           Scene *scene,
+                           const ListBaseT<SlideTarget> *slide_targets,
+                           float cframe);
 
 /** \} */
 

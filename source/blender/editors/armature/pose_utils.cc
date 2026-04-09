@@ -173,10 +173,10 @@ static void store_property_snapshot(PointerRNA &ptr,
   snapshots.append({prop, std::move(property_values)});
 }
 
-/* helper for poseAnim_mapping_get() -> get the relevant F-Curves per PoseChannel */
-static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLinks,
-                                       Object &ob,
-                                       bPoseChannel &pchan)
+/* helper for slide_targets_get() -> get the relevant F-Curves per PoseChannel */
+static void pchan_to_animated_transformable(ListBaseT<SlideTarget> &slide_targets,
+                                            Object &ob,
+                                            bPoseChannel &pchan)
 {
   PointerRNA bone_ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
   Vector<FCurve *> curves;
@@ -187,8 +187,8 @@ static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLin
     return;
   }
 
-  TransformableFCurveLink *pfl = MEM_new<TransformableFCurveLink>("tPChanFCurveLink");
-  BLI_addtail(&pfLinks, pfl);
+  SlideTarget *pfl = MEM_new<SlideTarget>("tPChanFCurveLink");
+  BLI_addtail(&slide_targets, pfl);
   pfl->fcurves = curves;
 
   animrig::Transformable *transformable = MEM_new<animrig::Transformable>(
@@ -242,7 +242,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLin
   }
 }
 
-Object *poseAnim_object_get(Object *ob_)
+static Object *animated_armature_ob_get(Object *ob_)
 {
   Object *ob = BKE_object_pose_armature_get(ob_);
   if (!ELEM(nullptr, ob, ob->data, ob->adt, ob->adt->action)) {
@@ -251,7 +251,7 @@ Object *poseAnim_object_get(Object *ob_)
   return nullptr;
 }
 
-static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveLink> &pfLinks)
+static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideTarget> &slide_targets)
 {
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags... */
@@ -263,7 +263,7 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveL
     BLI_assert(pchan != nullptr);
     if (ob != prev_ob) {
       prev_ob = ob;
-      ob_pose_armature = poseAnim_object_get(ob);
+      ob_pose_armature = animated_armature_ob_get(ob);
     }
 
     if (ob_pose_armature == nullptr) {
@@ -274,21 +274,21 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveL
       continue;
     }
 
-    fcurves_to_pchan_links_get(pfLinks, *ob_pose_armature, *pchan);
+    pchan_to_animated_transformable(slide_targets, *ob_pose_armature, *pchan);
   }
   CTX_DATA_END;
 
   /* If no PoseChannels were found, try a second pass, doing visible ones instead.
    * i.e. if nothing selected, do whole pose.
    */
-  if (BLI_listbase_is_empty(&pfLinks)) {
+  if (BLI_listbase_is_empty(&slide_targets)) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
     CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
       BLI_assert(pchan != nullptr);
       if (ob != prev_ob) {
         prev_ob = ob;
-        ob_pose_armature = poseAnim_object_get(ob);
+        ob_pose_armature = animated_armature_ob_get(ob);
       }
 
       if (ob_pose_armature == nullptr) {
@@ -299,13 +299,13 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<TransformableFCurveL
         continue;
       }
 
-      fcurves_to_pchan_links_get(pfLinks, *ob_pose_armature, *pchan);
+      pchan_to_animated_transformable(slide_targets, *ob_pose_armature, *pchan);
     }
     CTX_DATA_END;
   }
 }
 
-void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *r_transformable_list)
+void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *r_transformable_list)
 {
   BLI_assert(r_transformable_list != nullptr);
   const eContextObjectMode mode = CTX_data_mode_enum(C);
@@ -321,26 +321,26 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<TransformableFCurveLink> *r_tra
   }
 }
 
-void poseAnim_mapping_free(ListBaseT<TransformableFCurveLink> *pfLinks)
+void slide_targets_free(ListBaseT<SlideTarget> *slide_targets)
 {
-  TransformableFCurveLink *pfl, *pfln = nullptr;
+  SlideTarget *pfl, *pfln = nullptr;
 
   /* free the temp pchan links and their data */
-  for (pfl = static_cast<TransformableFCurveLink *>(pfLinks->first); pfl; pfl = pfln) {
+  for (pfl = static_cast<SlideTarget *>(slide_targets->first); pfl; pfl = pfln) {
     pfln = pfl->next;
 
     MEM_delete(pfl->transformable);
 
-    /* We cannot use BLI_freelinkN because that casts the TransformableFCurveLink to a C-style
+    /* We cannot use BLI_freelinkN because that casts the SlideTarget to a C-style
      * struct causing MEM_delete to do a C-style delete and not deallocating the Vector. */
-    BLI_remlink(pfLinks, pfl);
+    BLI_remlink(slide_targets, pfl);
     MEM_delete(pfl);
   }
 }
 
 /* ------------------------- */
 
-void poseAnim_mapping_refresh(bContext *C, ID *id)
+void slide_targets_refresh(bContext *C, ID *id)
 {
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   switch (GS(id->name)) {
@@ -359,10 +359,10 @@ void poseAnim_mapping_refresh(bContext *C, ID *id)
   }
 }
 
-void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks)
+void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets)
 {
   /* Iterate over each transformable affected, restoring all channels to their original values. */
-  for (TransformableFCurveLink &pfl : *pfLinks) {
+  for (SlideTarget &pfl : *slide_targets) {
     animrig::Transformable *transformable = pfl.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
@@ -383,30 +383,28 @@ void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks)
   }
 }
 
-void poseAnim_mapping_autoKeyframe(bContext *C,
-                                   Scene *scene,
-                                   const ListBaseT<TransformableFCurveLink> *pfLinks,
-                                   const float cframe)
+void slide_targets_autokey(bContext *C,
+                           Scene *scene,
+                           const ListBaseT<SlideTarget> *slide_targets,
+                           const float cframe)
 {
   /* Insert keyframes as necessary if auto-key-framing.
    * TODO: don't use a keyingset here. Just use the keyframing code directly. */
   KeyingSet *ks = animrig::get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
   Vector<PointerRNA> sources;
 
-  for (TransformableFCurveLink &pfl : *pfLinks) {
-    animrig::Transformable *transformable = pfl.transformable;
-    if (!animrig::autokeyframe_cfra_can_key(scene, transformable->owner_id())) {
+  for (SlideTarget &pfl : *slide_targets) {
+    PointerRNA &ptr = pfl.ptr;
+    if (!animrig::autokeyframe_cfra_can_key(scene, pfl.ptr.owner_id)) {
       continue;
     }
-
-    PointerRNA &ptr = pfl.ptr;
     animrig::relative_keyingset_add_source(sources, ptr.owner_id, ptr.type, ptr.data);
   }
 
   /* insert keyframes for all relevant bones in one go */
   animrig::apply_keyingset(C, &sources, ks, animrig::ModifyKeyMode::INSERT, cframe);
 
-  for (TransformableFCurveLink &pfl : *pfLinks) {
+  for (SlideTarget &pfl : *slide_targets) {
     ID *owner_id = pfl.transformable->owner_id();
     if (GS(owner_id->name) != ID_OB) {
       continue;

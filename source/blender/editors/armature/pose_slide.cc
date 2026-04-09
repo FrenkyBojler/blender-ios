@@ -106,7 +106,7 @@ enum ePoseSlide_Channels {
  * Stores the frame range per ID. Since objects can have an NLA, the frame for looking up keys
  * needs to be adjusted per ID.
  */
-struct tIDFrameRange {
+struct IDFrameRange {
   /** The ID for which these frame values are valid. */
   ID *id;
   /** `prev_frame`, but in local action time (for F-Curve look-ups to work). */
@@ -125,8 +125,8 @@ struct tPoseSlideOp {
   ARegion *region;
   /** len of the PoseSlideObject array. */
 
-  /** Links between pose-channels and f-curves for all the pose objects. */
-  ListBaseT<TransformableFCurveLink> pfLinks;
+  /** The data to be modified by the slider operator. */
+  ListBaseT<SlideTarget> slide_targets;
   /** binary tree for quicker searching for keyframes (when applicable) */
   AnimKeylist *keylist;
 
@@ -155,7 +155,7 @@ struct tPoseSlideOp {
   /** Numeric input. */
   NumInput num;
 
-  Array<tIDFrameRange> id_frame_ranges;
+  Array<IDFrameRange> id_frame_ranges;
 };
 
 /** Property enum for #ePoseSlide_Channels. */
@@ -228,15 +228,15 @@ static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags. */
-  poseAnim_mapping_get(C, &pso->pfLinks);
+  slide_targets_get(C, &pso->slide_targets);
   Set<ID *> unique_ids;
-  for (const TransformableFCurveLink &tflink : pso->pfLinks) {
+  for (const SlideTarget &tflink : pso->slide_targets) {
     unique_ids.add(tflink.ptr.owner_id);
   }
   pso->id_frame_ranges.reinitialize(unique_ids.size());
   int i = 0;
   for (ID *id : unique_ids) {
-    tIDFrameRange *range_data = &pso->id_frame_ranges[i];
+    IDFrameRange *range_data = &pso->id_frame_ranges[i];
     i++;
 
     range_data->id = id;
@@ -281,7 +281,7 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
   }
 
   /* Free the temp pchan links and their data. */
-  poseAnim_mapping_free(&pso->pfLinks);
+  slide_targets_free(&pso->slide_targets);
 
   /* Free RB-BST for keyframes (if it contained data). */
   ED_keylist_free(pso->keylist);
@@ -301,8 +301,8 @@ static void pose_slide_exit(bContext *C, wmOperator *op)
 static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
-  for (tIDFrameRange &id_range : pso->id_frame_ranges) {
-    poseAnim_mapping_refresh(C, id_range.id);
+  for (IDFrameRange &id_range : pso->id_frame_ranges) {
+    slide_targets_refresh(C, id_range.id);
   }
 }
 
@@ -315,7 +315,7 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
                                          float *prev_frame,
                                          float *next_frame)
 {
-  for (const tIDFrameRange &id_range : pso->id_frame_ranges) {
+  for (const IDFrameRange &id_range : pso->id_frame_ranges) {
 
     if (id_range.id == id) {
       *prev_frame = id_range.prev_frame;
@@ -329,18 +329,18 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
 
 /* Apply linear blending to the values of the given `prop_type`. */
 static void pose_slide_apply_linear(tPoseSlideOp &pso,
-                                    TransformableFCurveLink &pfl,
+                                    SlideTarget &slide_target,
                                     const animrig::Transformable::PropertyType prop_type)
 {
 
   const float factor = ED_slider_factor_get(pso.slider);
-  animrig::Transformable *transformable = pfl.transformable;
+  animrig::Transformable *transformable = slide_target.transformable;
   Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
   {
     const std::string path = transformable->rna_path_to_property(prop_type);
-    const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
+    const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_target.fcurves, path);
     float prev_frame, next_frame;
     pose_frame_range_from_id_get(&pso, transformable->owner_id(), &prev_frame, &next_frame);
     for (const FCurve *fcurve : fcurves) {
@@ -405,11 +405,12 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
 }
 
 static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
-                                                TransformableFCurveLink &pfl,
+                                                SlideTarget &slide_target,
                                                 const Span<PropertySnapshot> snapshots)
 {
   for (const PropertySnapshot &snapshot : snapshots) {
-    std::optional<std::string> path = RNA_path_from_ID_to_property(&pfl.ptr, snapshot.property);
+    std::optional<std::string> path = RNA_path_from_ID_to_property(&slide_target.ptr,
+                                                                   snapshot.property);
     if (!path) {
       BLI_assert_unreachable();
       continue;
@@ -420,8 +421,9 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
     Array<float> prev_frame_values = base_values;
     {
       float prev_frame, next_frame;
-      pose_frame_range_from_id_get(&pso, pfl.ptr.owner_id, &prev_frame, &next_frame);
-      const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path.value());
+      pose_frame_range_from_id_get(&pso, slide_target.ptr.owner_id, &prev_frame, &next_frame);
+      const Vector<FCurve *> fcurves = fcurves_filtered_by_path(slide_target.fcurves,
+                                                                path.value());
       if (fcurves.size() == 0) {
         /* Property is not animated. */
         continue;
@@ -471,20 +473,20 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
         values = base_values;
         break;
     }
-    animrig::rna_property_set_as_float(pfl.ptr, *snapshot.property, values);
+    animrig::rna_property_set_as_float(slide_target.ptr, *snapshot.property, values);
   }
 }
 
 /**
  * Helper for apply() - perform sliding for quaternion rotations (using quat blending).
  */
-static void pose_slide_apply_quat(tPoseSlideOp *pso, TransformableFCurveLink *pfl)
+static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideTarget *slide_target)
 {
-  animrig::Transformable *transformable = pfl->transformable;
+  animrig::Transformable *transformable = slide_target->transformable;
   float prev_frame, next_frame;
 
   if (!pose_frame_range_from_id_get(pso, transformable->owner_id(), &prev_frame, &next_frame)) {
-    BLI_assert_msg(0, "Invalid pfl data");
+    BLI_assert_msg(0, "Invalid slide_target data");
     return;
   }
 
@@ -499,7 +501,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, TransformableFCurveLink *pf
    * expected by the user. Ideally this throws a warning.  */
   animrig::Rotation rot_prev_frame = transformable->get_rotation();
   animrig::Rotation rot_next_frame = rot_prev_frame;
-  Vector<FCurve *> quaternion_fcurves = fcurves_filtered_by_path(pfl->fcurves, path);
+  Vector<FCurve *> quaternion_fcurves = fcurves_filtered_by_path(slide_target->fcurves, path);
   for (const FCurve *fcurve : quaternion_fcurves) {
     rot_prev_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
     rot_next_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
@@ -559,31 +561,37 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
   const animrig::AxisFlag axis_flag = animrig::AxisFlag(pso->axislock);
   const float slider_factor = ED_slider_factor_get(pso->slider);
   /* For each link, handle each set of transforms. */
-  for (TransformableFCurveLink &pfl : pso->pfLinks) {
+  for (SlideTarget &slide_target : pso->slide_targets) {
     /* Valid transforms for each #bPoseChannel should have been noted already.
      * - Sliding the pose should be a straightforward exercise for location+rotation,
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead.
      */
-    animrig::Transformable *transformable = pfl.transformable;
+    animrig::Transformable *transformable = slide_target.transformable;
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
+        (slide_target.transform_flag & ACT_TRANS_LOC))
+    {
       transformable->blend_property_to(
           animrig::Transformable::PropertyType::LOCATION, 0.0f, slider_factor, axis_flag);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
+        (slide_target.transform_flag & ACT_TRANS_SCALE))
+    {
       transformable->blend_property_to(
           animrig::Transformable::PropertyType::SCALE, 1.0f, slider_factor, axis_flag);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
+        (slide_target.transform_flag & ACT_TRANS_ROT))
+    {
       transformable->blend_rotation_to(
           animrig::unit_rotation(transformable->get_rotation_mode()), slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
-        (pfl.transform_flag & ACT_TRANS_BBONE))
+        (slide_target.transform_flag & ACT_TRANS_BBONE))
     {
       /* TODO: Not implemented. */
     }
@@ -608,7 +616,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     pso->prev_frame--;
     pso->next_frame++;
 
-    for (tIDFrameRange &id_range : pso->id_frame_ranges) {
+    for (IDFrameRange &id_range : pso->id_frame_ranges) {
       AnimData *adt = BKE_animdata_from_id(id_range.id);
       /* Apply NLA mapping corrections so the frame look-ups work. */
       id_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
@@ -617,42 +625,49 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
   }
 
   /* For each link, handle each set of transforms. */
-  for (TransformableFCurveLink &pfl : pso->pfLinks) {
-    animrig::Transformable *transformable = pfl.transformable;
+  for (SlideTarget &slide_target : pso->slide_targets) {
+    animrig::Transformable *transformable = slide_target.transformable;
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
+        (slide_target.transform_flag & ACT_TRANS_LOC))
+    {
       /* Calculate these for the 'location' vector, and use location curves. */
-      pose_slide_apply_linear(*pso, pfl, animrig::Transformable::PropertyType::LOCATION);
+      pose_slide_apply_linear(*pso, slide_target, animrig::Transformable::PropertyType::LOCATION);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
+        (slide_target.transform_flag & ACT_TRANS_SCALE))
+    {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_apply_linear(*pso, pfl, animrig::Transformable::PropertyType::SCALE);
+      pose_slide_apply_linear(*pso, slide_target, animrig::Transformable::PropertyType::SCALE);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
+        (slide_target.transform_flag & ACT_TRANS_ROT))
+    {
       /* Everything depends on the rotation mode. */
       const eRotationModes rot_mode = transformable->get_rotation_mode();
       if (rot_mode > 0) {
-        pose_slide_apply_linear(*pso, pfl, animrig::Transformable::PropertyType::ROTATION);
+        pose_slide_apply_linear(
+            *pso, slide_target, animrig::Transformable::PropertyType::ROTATION);
       }
       else if (rot_mode == ROT_MODE_AXISANGLE) {
         /* TODO: need to figure out how to do this! */
       }
       else {
         /* Quaternions - use quaternion blending. */
-        pose_slide_apply_quat(pso, &pfl);
+        pose_slide_apply_quat(pso, &slide_target);
       }
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
-        (pfl.transform_flag & ACT_TRANS_BBONE))
+        (slide_target.transform_flag & ACT_TRANS_BBONE))
     {
-      pose_slide_apply_property_snapshots(*pso, pfl, pfl.additional_properties);
+      pose_slide_apply_property_snapshots(*pso, slide_target, slide_target.additional_properties);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_PROPS)) {
-      pose_slide_apply_property_snapshots(*pso, pfl, pfl.custom_properties);
+      pose_slide_apply_property_snapshots(*pso, slide_target, slide_target.custom_properties);
     }
   }
 
@@ -666,7 +681,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call. */
-  poseAnim_mapping_autoKeyframe(C, pso->scene, &pso->pfLinks, float(pso->current_frame));
+  slide_targets_autokey(C, pso->scene, &pso->slide_targets, float(pso->current_frame));
 }
 
 /**
@@ -675,7 +690,7 @@ static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_reset(tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call, so that custom stuff can be added later. */
-  poseAnim_mapping_reset(&pso->pfLinks);
+  slide_targets_reset(&pso->slide_targets);
 }
 
 /* ------------------------------------ */
@@ -777,10 +792,10 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   ED_slider_init(pso->slider, event);
 
   /* For each link, add all its keyframes to the search tree. */
-  for (TransformableFCurveLink &pfl : pso->pfLinks) {
+  for (SlideTarget &slide_target : pso->slide_targets) {
     /* Do this for each F-Curve. */
-    for (FCurve *fcu : pfl.fcurves) {
-      AnimData *adt = BKE_animdata_from_id(pfl.transformable->owner_id());
+    for (FCurve *fcu : slide_target.fcurves) {
+      AnimData *adt = BKE_animdata_from_id(slide_target.transformable->owner_id());
       fcurve_to_keylist(adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX}, adt != nullptr);
     }
   }
@@ -822,7 +837,7 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   }
 
   /* Apply NLA mapping corrections so the frame look-ups work. */
-  for (tIDFrameRange &id_range : pso->id_frame_ranges) {
+  for (IDFrameRange &id_range : pso->id_frame_ranges) {
     AnimData *adt = BKE_animdata_from_id(id_range.id);
     id_range.prev_frame = BKE_nla_tweakedit_remap(adt, pso->prev_frame, NLATIME_CONVERT_UNMAP);
     id_range.next_frame = BKE_nla_tweakedit_remap(adt, pso->next_frame, NLATIME_CONVERT_UNMAP);
@@ -1494,14 +1509,14 @@ struct FrameLink {
   float frame;
 };
 
-static void propagate_curve_values(ListBaseT<TransformableFCurveLink> *pflinks,
+static void propagate_curve_values(ListBaseT<SlideTarget> *slide_targets,
                                    const float source_frame,
                                    ListBaseT<FrameLink> *target_frames)
 {
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
-  for (const TransformableFCurveLink &pfl : *pflinks) {
-    for (FCurve *fcu : pfl.fcurves) {
+  for (const SlideTarget &slide_target : *slide_targets) {
+    for (FCurve *fcu : slide_target.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1514,12 +1529,11 @@ static void propagate_curve_values(ListBaseT<TransformableFCurveLink> *pflinks,
   }
 }
 
-static float find_next_key(const ListBaseT<TransformableFCurveLink> *pflinks,
-                           const float start_frame)
+static float find_next_key(const ListBaseT<SlideTarget> *slide_targets, const float start_frame)
 {
   float target_frame = FLT_MAX;
-  for (const TransformableFCurveLink &pfl : *pflinks) {
-    for (const FCurve *fcu : pfl.fcurves) {
+  for (const SlideTarget &slide_target : *slide_targets) {
+    for (const FCurve *fcu : slide_target.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1537,11 +1551,11 @@ static float find_next_key(const ListBaseT<TransformableFCurveLink> *pflinks,
   return target_frame;
 }
 
-static float find_last_key(const ListBaseT<TransformableFCurveLink> *pflinks)
+static float find_last_key(const ListBaseT<SlideTarget> *slide_targets)
 {
   float target_frame = FLT_MIN;
-  for (const TransformableFCurveLink &pfl : *pflinks) {
-    for (const FCurve *fcu : pfl.fcurves) {
+  for (const SlideTarget &slide_target : *slide_targets) {
+    for (const FCurve *fcu : slide_target.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1564,14 +1578,14 @@ static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *ta
   BLI_freelistN(&selected_markers);
 }
 
-static void get_keyed_frames_in_range(ListBaseT<TransformableFCurveLink> *pflinks,
+static void get_keyed_frames_in_range(ListBaseT<SlideTarget> *slide_targets,
                                       const float start_frame,
                                       const float end_frame,
                                       ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  for (const TransformableFCurveLink &pfl : *pflinks) {
-    for (FCurve *fcu : pfl.fcurves) {
+  for (const SlideTarget &slide_target : *slide_targets) {
+    for (FCurve *fcu : slide_target.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
   }
@@ -1589,12 +1603,12 @@ static void get_keyed_frames_in_range(ListBaseT<TransformableFCurveLink> *pflink
   ED_keylist_free(keylist);
 }
 
-static void get_selected_frames(const ListBaseT<TransformableFCurveLink> *pflinks,
+static void get_selected_frames(const ListBaseT<SlideTarget> *slide_targets,
                                 ListBaseT<FrameLink> *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
-  for (const TransformableFCurveLink &pfl : *pflinks) {
-    for (FCurve *fcu : pfl.fcurves) {
+  for (const SlideTarget &slide_target : *slide_targets) {
+    for (FCurve *fcu : slide_target.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
     }
   }
@@ -1613,19 +1627,15 @@ static void get_selected_frames(const ListBaseT<TransformableFCurveLink> *pflink
 
 static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 {
-  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-
-  ListBaseT<TransformableFCurveLink> pflinks = {nullptr, nullptr};
+  ListBaseT<SlideTarget> slide_targets = {nullptr, nullptr};
 
   const int mode = RNA_enum_get(op->ptr, "mode");
 
   /* Isolate F-Curves related to the selected bones. */
-  poseAnim_mapping_get(C, &pflinks);
+  slide_targets_get(C, &slide_targets);
 
-  if (BLI_listbase_is_empty(&pflinks)) {
+  if (BLI_listbase_is_empty(&slide_targets)) {
     /* There is a change the reason the list is empty is
      * that there is no valid object to propagate poses for.
      * This is very unlikely though, so we focus on the most likely issue. */
@@ -1640,54 +1650,54 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 
   switch (mode) {
     case POSE_PROPAGATE_NEXT_KEY: {
-      float target_frame = find_next_key(&pflinks, current_frame);
+      float target_frame = find_next_key(&slide_targets, current_frame);
       FrameLink *link = MEM_new_zeroed<FrameLink>("Next Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      propagate_curve_values(&slide_targets, current_frame, &target_frames);
       break;
     }
 
     case POSE_PROPAGATE_LAST_KEY: {
-      float target_frame = find_last_key(&pflinks);
+      float target_frame = find_last_key(&slide_targets);
       FrameLink *link = MEM_new_zeroed<FrameLink>("Last Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      propagate_curve_values(&slide_targets, current_frame, &target_frames);
       break;
     }
 
     case POSE_PROPAGATE_SELECTED_MARKERS: {
       get_selected_marker_positions(scene, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      propagate_curve_values(&slide_targets, current_frame, &target_frames);
       break;
     }
 
     case POSE_PROPAGATE_BEFORE_END: {
-      get_keyed_frames_in_range(&pflinks, current_frame, FLT_MAX, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      get_keyed_frames_in_range(&slide_targets, current_frame, FLT_MAX, &target_frames);
+      propagate_curve_values(&slide_targets, current_frame, &target_frames);
       break;
     }
     case POSE_PROPAGATE_BEFORE_FRAME: {
-      get_keyed_frames_in_range(&pflinks, current_frame, end_frame, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      get_keyed_frames_in_range(&slide_targets, current_frame, end_frame, &target_frames);
+      propagate_curve_values(&slide_targets, current_frame, &target_frames);
       break;
     }
     case POSE_PROPAGATE_SELECTED_KEYS: {
-      get_selected_frames(&pflinks, &target_frames);
-      propagate_curve_values(&pflinks, current_frame, &target_frames);
+      get_selected_frames(&slide_targets, &target_frames);
+      propagate_curve_values(&slide_targets, current_frame, &target_frames);
       break;
     }
   }
 
   BLI_freelistN(&target_frames);
 
-  for (TransformableFCurveLink &t_link : pflinks) {
-    poseAnim_mapping_refresh(C, t_link.ptr.owner_id);
+  for (SlideTarget &t_link : slide_targets) {
+    slide_targets_refresh(C, t_link.ptr.owner_id);
   }
 
   /* Free temp data. */
-  poseAnim_mapping_free(&pflinks);
+  slide_targets_free(&slide_targets);
 
   return OPERATOR_FINISHED;
 }
