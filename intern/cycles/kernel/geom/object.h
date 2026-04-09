@@ -102,9 +102,8 @@ ccl_device_inline Transform object_get_transform(KernelGlobals kg,
                                                  const ccl_private ShaderData *sd)
 {
 #ifdef __OBJECT_MOTION__
-  return (sd->object_flag & SD_OBJECT_MOTION) ?
-             sd->ob_tfm_motion :
-             object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
+  return !(sd->object_flag & SD_OBJECT_MOTION) ?
+             object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM) : sd->ob_tfm_motion;
 #else
   return object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
 #endif
@@ -114,9 +113,9 @@ ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
                                                          const ccl_private ShaderData *sd)
 {
 #ifdef __OBJECT_MOTION__
-  return (sd->object_flag & SD_OBJECT_MOTION) ?
-             sd->ob_itfm_motion :
-             object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
+  return !(sd->object_flag & SD_OBJECT_MOTION) ?
+            object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM):
+             sd->ob_itfm_motion;
 #else
   return object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
 #endif
@@ -135,14 +134,7 @@ ccl_device_inline void object_position_transform(KernelGlobals kg,
                                                  const ccl_private ShaderData *sd,
                                                  ccl_private T *P)
 {
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    *P = transform_point_auto(&sd->ob_tfm_motion, *P);
-    return;
-  }
-#endif
-
-  const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
+  const Transform tfm = object_get_transform(kg, sd);
   *P = transform_point(&tfm, *P);
 }
 
@@ -153,15 +145,8 @@ ccl_device_inline void object_inverse_position_transform(KernelGlobals kg,
                                                          const ccl_private ShaderData *sd,
                                                          ccl_private T *P)
 {
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    *P = transform_point_auto(&sd->ob_itfm_motion, *P);
-    return;
-  }
-#endif
-
-  const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
-  *P = transform_point(&tfm, *P);
+  const Transform itfm = object_get_inverse_transform(kg, sd);
+  *P = transform_point(&itfm, *P);
 }
 
 /* Convenience wrapper that checks for OBJECT_NONE before transforming.
@@ -181,17 +166,8 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals kg,
                                                        const ccl_private ShaderData *sd,
                                                        ccl_private float3 *N)
 {
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    if (sd->object != OBJECT_NONE) {
-      *N = safe_normalize(transform_direction_transposed_auto(&sd->ob_tfm_motion, *N));
-    }
-    return;
-  }
-#endif
-
   if (sd->object != OBJECT_NONE) {
-    const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
+    const Transform tfm = object_get_transform(kg, sd);
     *N = safe_normalize(transform_direction_transposed(&tfm, *N));
   }
 }
@@ -202,16 +178,9 @@ ccl_device_inline void object_normal_transform(KernelGlobals kg,
                                                const ccl_private ShaderData *sd,
                                                ccl_private T *N)
 {
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    *N = normalize(transform_direction_transposed_auto(&sd->ob_itfm_motion, *N));
-    return;
-  }
-#endif
-
   if (sd->object != OBJECT_NONE) {
-    const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
-    *N = normalize(transform_direction_transposed(&tfm, *N));
+    const Transform itfm = object_get_inverse_transform(kg, sd);
+    *N = normalize(transform_direction_transposed(&itfm, *N));
   }
 }
 
@@ -226,14 +195,7 @@ ccl_device_inline void object_dir_transform(KernelGlobals kg,
                                             const ccl_private ShaderData *sd,
                                             ccl_private float3 *D)
 {
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    *D = transform_direction_auto(&sd->ob_tfm_motion, *D);
-    return;
-  }
-#endif
-
-  const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
+  const Transform tfm = object_get_transform(kg, sd);
   *D = transform_direction(&tfm, *D);
 }
 
@@ -243,33 +205,20 @@ ccl_device_inline void object_inverse_dir_transform(KernelGlobals kg,
                                                     const ccl_private ShaderData *sd,
                                                     ccl_private float3 *D)
 {
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    *D = transform_direction_auto(&sd->ob_itfm_motion, *D);
-    return;
-  }
-#endif
-
-  const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
-  *D = transform_direction(&tfm, *D);
+  const Transform itfm = object_get_inverse_transform(kg, sd);
+  *D = transform_direction(&itfm, *D);
 }
 
 /* Object center position */
 
 ccl_device_inline float3 object_location(KernelGlobals kg, const ccl_private ShaderData *sd)
 {
-  if (sd->object == OBJECT_NONE) {
-    return make_float3(0.0f, 0.0f, 0.0f);
+  if (sd->object != OBJECT_NONE) {
+    const Transform tfm = object_get_transform(kg, sd);
+    return make_float3(tfm.x.w, tfm.y.w, tfm.z.w);
   }
 
-#ifdef __OBJECT_MOTION__
-  if (sd->object_flag & SD_OBJECT_MOTION) {
-    return make_float3(sd->ob_tfm_motion.x.w, sd->ob_tfm_motion.y.w, sd->ob_tfm_motion.z.w);
-  }
-#endif
-
-  const Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
-  return make_float3(tfm.x.w, tfm.y.w, tfm.z.w);
+  return make_float3(0.0f, 0.0f, 0.0f);
 }
 
 /* Color of the object */
@@ -468,11 +417,11 @@ ccl_device_inline void bvh_instance_push(KernelGlobals kg,
                                          ccl_private float3 *dir,
                                          ccl_private float3 *idir)
 {
-  const Transform tfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
+  const Transform itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
 
-  *P = transform_point(&tfm, ray->P);
+  *P = transform_point(&itfm, ray->P);
 
-  *dir = bvh_clamp_direction(transform_direction(&tfm, ray->D));
+  *dir = bvh_clamp_direction(transform_direction(&itfm, ray->D));
   *idir = bvh_inverse_direction(*dir);
 }
 
