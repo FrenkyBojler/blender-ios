@@ -312,19 +312,19 @@ void Transformable::set_property(const PropertyType prop_type,
 }
 
 void Transformable::blend_property_to(const PropertyType prop_type,
-                                      const Span<float> values,
+                                      const Span<float> target,
                                       const float factor,
                                       const AxisFlag axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
-      blend_linear(location_, values, factor, axis_flag);
+      blend_linear(location_, target, factor, axis_flag);
       break;
 
     case PropertyType::ROTATION: {
       const Array<float *> *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
-      if (rotation_array->size() != values.size()) {
+      if (rotation_array->size() != target.size()) {
         /* This doesn't catch all invalid cases. Differing euler rotation order or quaternion/axis
          * angle will still have the same array size but blending will create bogus data. */
         BLI_assert_msg(false, "Cannot do blending with differing rotation modes");
@@ -334,46 +334,42 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       /* Note: We assume the rotation mode here which may not be correct. It is the responsibility
        * of the caller to ensure this is right or use `blend_rotation_to`. */
       rotation.mode = eRotationModes(*rotation_mode_);
-      rotation.values = array_from_span(values);
+      rotation.values = array_from_span(target);
       blend_rotation_to(rotation, factor, axis_flag);
       break;
     }
     case PropertyType::SCALE:
-      blend_linear(scale_, values, factor, axis_flag);
+      blend_linear(scale_, target, factor, axis_flag);
       break;
   }
 }
 
-Array<float> Transformable::get_location() const
+void Transformable::blend_property_to(const PropertyType prop_type,
+                                      const float target,
+                                      const float factor,
+                                      const AxisFlag axis_flag)
 {
-  return array_from_span(location_);
-}
+  switch (prop_type) {
+    case PropertyType::LOCATION:
+      blend_linear(location_, target, factor, axis_flag);
+      break;
 
-void Transformable::set_location(const Span<float> value)
-{
-  copy_span_into_mutable_span(value, location_);
-}
-
-void Transformable::set_location(const float3 value)
-{
-  BLI_assert(location_.size() == 3);
-  copy_span_into_mutable_span(Span<float>(value, 3), location_);
-}
-
-Array<float> Transformable::get_scale() const
-{
-  return array_from_span(scale_);
-}
-
-void Transformable::set_scale(const Span<float> value)
-{
-  copy_span_into_mutable_span(value, scale_);
-}
-
-void Transformable::set_scale(const float3 value)
-{
-  BLI_assert(scale_.size() == 3);
-  copy_span_into_mutable_span(Span<float>(value, 3), scale_);
+    case PropertyType::ROTATION: {
+      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+          eRotationModes(*rotation_mode_));
+      Rotation rotation;
+      /* Note: We assume the rotation mode here which may not be correct. It is the responsibility
+       * of the caller to ensure this is right or use `blend_rotation_to`. */
+      rotation.mode = eRotationModes(*rotation_mode_);
+      rotation.values.reinitialize(rotation_array->size());
+      rotation.values.fill(target);
+      blend_rotation_to(rotation, factor, axis_flag);
+      break;
+    }
+    case PropertyType::SCALE:
+      blend_linear(scale_, target, factor, axis_flag);
+      break;
+  }
 }
 
 const Array<float *> *Transformable::get_rotation_array_from_mode(const eRotationModes mode) const
@@ -426,27 +422,6 @@ void Transformable::set_rotation(const Rotation &rotation)
 eRotationModes Transformable::get_rotation_mode() const
 {
   return eRotationModes(*rotation_mode_);
-}
-
-void Transformable::blend_location_to(const float target,
-                                      const float factor,
-                                      const AxisFlag axis_flag)
-{
-  blend_linear(location_, target, factor, axis_flag);
-}
-
-void Transformable::blend_location_to(const Span<float> target,
-                                      const float factor,
-                                      const AxisFlag axis_flag)
-{
-  blend_linear(location_, target, factor, axis_flag);
-}
-
-void Transformable::blend_scale_to(const float target,
-                                   const float factor,
-                                   const AxisFlag axis_flag)
-{
-  blend_linear(scale_, target, factor, axis_flag);
 }
 
 void Transformable::blend_rotation_to(const Rotation &target,

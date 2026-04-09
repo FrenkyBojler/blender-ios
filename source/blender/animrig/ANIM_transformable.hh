@@ -5,8 +5,8 @@
 /** \file
  * \ingroup animrig
  *
- * \brief Defines an abstraction around various structs to modify their animation via a unified
- * API.
+ * \brief Defines an abstraction around various structs to modify their transform properties via a
+ * unified API.
  */
 
 #pragma once
@@ -140,14 +140,7 @@ class Transformable {
                          float factor,
                          AxisFlag axis_flag);
 
-  /* Returns a copy of the current location. */
-  Array<float> get_location() const;
-  void set_location(Span<float> value);
-  void set_location(float3 value);
-
-  Array<float> get_scale() const;
-  void set_scale(Span<float> value);
-  void set_scale(float3 value);
+  void blend_property_to(PropertyType prop_type, float target, float factor, AxisFlag axis_flag);
 
   /**
    * Returns a copy of the rotation in the mode the transformable is currently in.
@@ -159,16 +152,6 @@ class Transformable {
    */
   void set_rotation(const Rotation &value);
   eRotationModes get_rotation_mode() const;
-
-  /**
-   * Blend all location values to a single value.
-   */
-  void blend_location_to(float value, float factor, AxisFlag lock_flag);
-  /* Blend the location to the values given in the span. The span size has to match the location
-   * value count. */
-  void blend_location_to(Span<float> values, float factor, AxisFlag lock_flag);
-
-  void blend_scale_to(float target, float factor, AxisFlag axis_flag);
 
   void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
 };

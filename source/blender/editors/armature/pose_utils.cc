@@ -154,15 +154,19 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
 }
 
 static void store_property_snapshot(PointerRNA &ptr,
-                                    PropertyRNA &prop,
+                                    StringRef property_name,
                                     Vector<PropertySnapshot> &snapshots)
 {
-  Array<float> property_values = animrig::rna_property_get_as_float(ptr, prop);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, property_name.data());
+  if (!prop) {
+    return;
+  }
+  Array<float> property_values = animrig::rna_property_get_as_float(ptr, *prop);
   if (property_values.size() == 0) {
     /* Unsupported property type. */
     return;
   }
-  snapshots.append({&prop, std::move(property_values)});
+  snapshots.append({prop, std::move(property_values)});
 }
 
 /* helper for poseAnim_mapping_get() -> get the relevant F-Curves per PoseChannel */
@@ -190,46 +194,24 @@ static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLin
   /* Set pchan's transform flags. */
   pfl->transform_flag = transFlags;
 
-  pfl->old_loc = transformable->get_location();
+  pfl->old_loc = transformable->get_property(animrig::Transformable::PropertyType::LOCATION);
   pfl->old_rot = transformable->get_rotation();
-  pfl->old_scale = transformable->get_scale();
+  pfl->old_scale = transformable->get_property(animrig::Transformable::PropertyType::SCALE);
 
   pfl->ptr = bone_ptr;
 
   /* Store current bbone values. */
   if (transFlags & ACT_TRANS_BBONE) {
-    PropertyRNA *prop = RNA_struct_find_property(&bone_ptr, "bbone_rollin");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_rollout");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveinx");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutx");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveinz");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutz");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_curveoutz");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_easein");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_easeout");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_scalein");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
-
-    prop = RNA_struct_find_property(&bone_ptr, "bbone_scaleout");
-    store_property_snapshot(bone_ptr, *prop, pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_rollin", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_rollout", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveinx", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveoutx", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveinz", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveoutz", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_easein", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_easeout", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_scalein", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_scaleout", pfl->additional_properties);
   }
 
   /* Make copy of custom properties. */
@@ -243,11 +225,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLin
         char name_escaped[MAX_IDPROP_NAME * 2];
         BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
         std::string path = fmt::format("[\"{}\"]", name_escaped);
-        prop = RNA_struct_find_property(&bone_ptr, path.c_str());
-        if (!prop) {
-          continue;
-        }
-        store_property_snapshot(bone_ptr, *prop, pfl->custom_properties);
+        store_property_snapshot(bone_ptr, path, pfl->custom_properties);
       }
     }
     if (pchan.system_properties) {
@@ -255,11 +233,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<TransformableFCurveLink> &pfLin
         if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
           continue;
         }
-        prop = RNA_struct_find_property(&bone_ptr, id_prop.name);
-        if (!prop) {
-          continue;
-        }
-        store_property_snapshot(bone_ptr, *prop, pfl->custom_properties);
+        store_property_snapshot(bone_ptr, id_prop.name, pfl->custom_properties);
       }
     }
   }
@@ -390,9 +364,11 @@ void poseAnim_mapping_reset(ListBaseT<TransformableFCurveLink> *pfLinks)
     animrig::Transformable *transformable = pfl.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
-    transformable->set_location(pfl.old_loc);
+    transformable->set_property(
+        animrig::Transformable::PropertyType::LOCATION, pfl.old_loc, animrig::AXIS_FLAG_NONE);
     transformable->set_rotation(pfl.old_rot);
-    transformable->set_scale(pfl.old_scale);
+    transformable->set_property(
+        animrig::Transformable::PropertyType::SCALE, pfl.old_scale, animrig::AXIS_FLAG_NONE);
 
     for (PropertySnapshot &extra_prop : pfl.additional_properties) {
       animrig::rna_property_set_as_float(pfl.ptr, *extra_prop.property, extra_prop.backup_values);

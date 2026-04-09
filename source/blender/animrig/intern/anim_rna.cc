@@ -271,7 +271,11 @@ Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop)
 void rna_property_set_as_float(PointerRNA &ptr, PropertyRNA &prop, const Span<float> values)
 {
   const bool is_array = RNA_property_array_check(&prop);
-  BLI_assert(!is_array || RNA_property_array_length(&ptr, &prop) == values.size());
+  if (is_array && RNA_property_array_length(&ptr, &prop) != values.size()) {
+    /* Array length has to match. */
+    BLI_assert_unreachable();
+    return;
+  }
 
   switch (RNA_property_type(&prop)) {
     case PROP_BOOLEAN:

@@ -383,7 +383,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
     }
     case POSESLIDE_BLEND: /* Blend the current pose with the previous (<50%) or next key (>50%). */
     {
-      /* Convert factor to absolute 0-1 range which is needed for `blend_location_to`. */
+      /* Convert factor to absolute 0-1 range which is needed for `blend_property_to`. */
       const float blend_factor = fabs((factor - 0.5f) * 2);
 
       if (factor < 0.5) {
@@ -568,11 +568,13 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
     animrig::Transformable *transformable = pfl.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
-      transformable->blend_location_to(0.0f, slider_factor, axis_flag);
+      transformable->blend_property_to(
+          animrig::Transformable::PropertyType::LOCATION, 0.0f, slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
-      transformable->blend_scale_to(1.0f, slider_factor, axis_flag);
+      transformable->blend_property_to(
+          animrig::Transformable::PropertyType::SCALE, 1.0f, slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
