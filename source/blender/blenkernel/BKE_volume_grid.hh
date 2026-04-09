@@ -19,6 +19,7 @@
 #  include "BKE_volume_grid_type_traits.hh"
 
 #  include "BLI_cache_mutex.hh"
+#  include "BLI_cpp_type.hh"
 #  include "BLI_implicit_sharing_ptr.hh"
 #  include "BLI_mutex.hh"
 #  include "BLI_string_ref.hh"
@@ -362,6 +363,8 @@ class GVolumeGrid {
 
   /** True if this contains a grid. */
   operator bool() const;
+
+  const CPPType &cpp_type() const;
 
   /** Converts to a typed VolumeGrid. This asserts if the type is wrong. */
   template<typename T> const VolumeGrid<T> &typed() const;
