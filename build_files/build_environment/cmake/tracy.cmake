@@ -20,8 +20,8 @@ ExternalProject_Add(external_tracy
   INSTALL_DIR ${LIBDIR}/tracy
 )
 
-if (WIN32)
-  if (BUILD_MODE STREQUAL Release)
+if(WIN32)
+  if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_tracy after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/tracy
@@ -29,8 +29,8 @@ if (WIN32)
 
       DEPENDEES install
     )
-  endif ()
-  if (BUILD_MODE STREQUAL Debug)
+  endif()
+  if(BUILD_MODE STREQUAL Debug)
     ExternalProject_Add_Step(external_tracy after_install
       COMMAND ${CMAKE_COMMAND} -E copy
         ${LIBDIR}/tracy/lib/Debug/TracyClient_d.lib
@@ -41,9 +41,9 @@ if (WIN32)
 
       DEPENDEES install
     )
-  endif ()
-else ()
+  endif()
+else()
   harvest(external_tracy tracy/include tracy/include "*")
   harvest(external_tracy tracy/lib tracy/lib "*.a")
   harvest(external_tracy tracy/lib/cmake/Tracy tracy/lib/cmake/Tracy "*.cmake")
-endif ()
+endif()
