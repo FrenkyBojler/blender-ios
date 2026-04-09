@@ -1973,6 +1973,17 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
   if (paint->unified_paint_settings.curve_rand_value) {
     BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_value);
   }
+
+  if (paint->mesh_automasking_settings) {
+    MeshAutomaskingSettings &automasking_settings = *paint->mesh_automasking_settings;
+    if (automasking_settings.cavity_curve) {
+      BKE_curvemapping_blend_write(writer, automasking_settings.cavity_curve);
+    }
+
+    if (automasking_settings.cavity_curve_op) {
+      BKE_curvemapping_blend_write(writer, automasking_settings.cavity_curve_op);
+    }
+  }
 }
 
 void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Paint *paint)
@@ -2032,13 +2043,14 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
   BLO_read_struct(reader, MeshAutomaskingSettings, &paint->mesh_automasking_settings);
   if (paint->mesh_automasking_settings) {
     MeshAutomaskingSettings &automasking_settings = *paint->mesh_automasking_settings;
-    BLO_read_struct(reader, CurveMapping, &automasking_settings.cavity_curve);
 
+    BLO_read_struct(reader, CurveMapping, &automasking_settings.cavity_curve);
     if (automasking_settings.cavity_curve) {
       BKE_curvemapping_blend_read(reader, automasking_settings.cavity_curve);
       BKE_curvemapping_init(automasking_settings.cavity_curve);
     }
 
+    BLO_read_struct(reader, CurveMapping, &automasking_settings.cavity_curve_op);
     if (automasking_settings.cavity_curve_op) {
       BKE_curvemapping_blend_read(reader, automasking_settings.cavity_curve_op);
       BKE_curvemapping_init(automasking_settings.cavity_curve_op);
