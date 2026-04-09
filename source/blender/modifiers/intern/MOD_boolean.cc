@@ -71,8 +71,11 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
     return !bmd->object || bmd->object->type != OB_MESH;
   }
   if (bmd->flag & eBooleanModifierFlag_Collection) {
-    /* The Exact solver tolerates an empty collection. */
-    return !col && bmd->solver != eBooleanModifierSolver_Mesh_Arr;
+    if (!col) {
+      return true;
+    }
+    /* The Exact solver tolerates an empty collection (removes self-intersections). */
+    return bmd->solver != eBooleanModifierSolver_Mesh_Arr && BKE_collection_is_empty(col);
   }
   return false;
 }
@@ -184,7 +187,7 @@ static bool BMD_error_messages(const Object *ob, ModifierData *md)
 
   /* If the selected collection is empty and using "float" solver, return a error. */
   if (operand_collection) {
-    if (!use_exact && BKE_collection_is_empty(col)) {
+    if (!use_exact && col != nullptr && BKE_collection_is_empty(col)) {
       BKE_modifier_set_error(ob, md, "Cannot execute, non-exact solver and empty collection");
       error_returns_result = true;
     }
