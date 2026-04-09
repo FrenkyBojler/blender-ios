@@ -1676,28 +1676,22 @@ static bool brush_gen_texture(const Brush *br,
 
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
-  ImBuf *im = MEM_new<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 
   BKE_curvemapping_init(br->curve_distance_falloff);
 
-  float *rect_float = MEM_new_array_zeroed<float>(size_t(side) * size_t(side),
-                                                  "radial control rect");
-  IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
+  ImBuf *im = IMB_allocImBuf(side, side, 32, IB_float_data);
 
-  im->x = im->y = side;
-
-  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_buffer.data);
+  const bool have_texture = brush_gen_texture(br, side, secondary, im->float_data_for_write());
 
   if (display_gradient || have_texture) {
+    float *float_data = im->float_data_for_write();
     for (int i = 0; i < side; i++) {
       for (int j = 0; j < side; j++) {
         const float magn = sqrtf(pow2f(i - half) + pow2f(j - half));
         const float strength = BKE_brush_curve_strength_clamped(br, magn, half);
-        im->float_buffer.data[i * side + j] = (have_texture) ?
-                                                  im->float_buffer.data[i * side + j] * strength :
-                                                  strength;
+        float_data[i * side + j] = (have_texture) ? float_data[i * side + j] * strength : strength;
       }
     }
   }
