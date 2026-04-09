@@ -1456,15 +1456,65 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     }
     else {
       fill_curves = delaunay_fill_strokes(view_context,
-                                          brush,
                                           scene,
                                           layer,
                                           boundary_layers,
                                           info.sources,
                                           op_data.invert,
                                           alpha_threshold,
-                                          mouse_position,
-                                          op_data.material_index);
+                                          mouse_position);
+
+      bke::MutableAttributeAccessor attributes = fill_curves.attributes_for_write();
+      const Span<float3> positions = fill_curves.positions();
+      bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
+          "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+      bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
+          "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
+
+      for (const int point_i : fill_curves.points_range()) {
+        /* Calculate radius and opacity for the outline as if it was a user stroke with full
+         * pressure. */
+        constexpr const float pressure = 1.0f;
+        radii.span[point_i] = ed::greasepencil::radius_from_input_sample(
+            view_context.rv3d,
+            view_context.region,
+            &brush,
+            pressure,
+            positions[point_i],
+            layer.to_world_space(object),
+            brush.gpencil_settings);
+        opacities.span[point_i] = ed::greasepencil::opacity_from_input_sample(
+            pressure, &brush, brush.gpencil_settings);
+      }
+
+      attributes.add<int>("material_index",
+                          bke::AttrDomain::Curve,
+                          bke::AttributeInitValue(op_data.material_index));
+
+      radii.finish();
+      opacities.finish();
+
+      const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
+          scene.toolsettings->gp_paint, &brush);
+      if (use_vertex_color) {
+        ColorGeometry4f vertex_color;
+        copy_v3_v3(vertex_color, brush.color);
+        vertex_color.a = brush.gpencil_settings->vertex_factor;
+
+        bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
+            attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
+                                                                     bke::AttrDomain::Curve);
+        fill_colors.span.fill(vertex_color);
+        fill_colors.finish();
+
+        if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
+          bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
+              attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
+                                                                       bke::AttrDomain::Point);
+          vertex_colors.span.fill(vertex_color);
+          vertex_colors.finish();
+        }
+      }
     }
 
     if (fill_curves.is_empty()) {

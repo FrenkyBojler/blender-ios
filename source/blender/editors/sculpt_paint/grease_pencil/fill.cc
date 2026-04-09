@@ -1418,15 +1418,13 @@ static void add_weights_for_tri(const Span<int3> tri_adjacency,
 }
 
 bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
-                                          const Brush &brush,
                                           const Scene &scene,
                                           const bke::greasepencil::Layer &layer,
                                           const VArray<bool> &boundary_layers,
                                           const Span<DrawingInfo> src_drawings,
                                           const bool invert,
                                           const std::optional<float> alpha_threshold,
-                                          const float2 &fill_point,
-                                          const int stroke_material_index)
+                                          const float2 &fill_point)
 {
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
@@ -1836,12 +1834,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   bke::CurvesGeometry curves(output_verts_offset.total_size(), output_verts_offset.size());
   curves.offsets_for_write().copy_from(output_verts_offset.data());
 
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   MutableSpan<float3> positions = curves.positions_for_write();
-  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
-  bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
 
   for (const int curve_i : output_verts_offset.index_range()) {
     const IndexRange edges_range = output_verts_offset[curve_i];
@@ -1855,53 +1848,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       const float2 pos_2d = float2(result.vert[vert_id]);
       const float3 position = placement.project(pos_2d);
       positions[point_i] = position;
-
-      /* Calculate radius and opacity for the outline as if it was a user stroke with full
-       * pressure. */
-      constexpr const float pressure = 1.0f;
-      radii.span[point_i] = ed::greasepencil::radius_from_input_sample(view_context.rv3d,
-                                                                       view_context.region,
-                                                                       &brush,
-                                                                       pressure,
-                                                                       position,
-                                                                       placement.to_world_space(),
-                                                                       brush.gpencil_settings);
-      opacities.span[point_i] = ed::greasepencil::opacity_from_input_sample(
-          pressure, &brush, brush.gpencil_settings);
     }
   }
-
-  radii.finish();
-  opacities.finish();
-
-  attributes.add<int>(
-      "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(stroke_material_index));
-
-  const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
-      scene.toolsettings->gp_paint, &brush);
-  if (use_vertex_color) {
-    ColorGeometry4f vertex_color;
-    copy_v3_v3(vertex_color, brush.color);
-    vertex_color.a = brush.gpencil_settings->vertex_factor;
-
-    bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
-        attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
-                                                                 bke::AttrDomain::Curve);
-    fill_colors.span.fill(vertex_color);
-    fill_colors.finish();
-
-    if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
-      bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
-          attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
-                                                                   bke::AttrDomain::Point);
-      vertex_colors.span.fill(vertex_color);
-      vertex_colors.finish();
-    }
-  }
-
-  /* TODO: `fill_opacities` are currently always 1.0f for the new strokes. Maybe this should be a
-   * parameter. */
-  attributes.add<float>("fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
 
   curves.cyclic_for_write().fill(true);
   curves.fill_curve_types(CURVE_TYPE_POLY);

@@ -667,18 +667,15 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
  * \param invert: Construct boundary around empty areas instead.
  * \param alpha_threshold: Skip transparent stroke where opacity is below the threshold.
  * \param fill_point: Point from which to start the bucket fill.
- * \param stroke_material_index: Material index to use for the new strokes.
  */
 bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
-                                          const Brush &brush,
                                           const Scene &scene,
                                           const bke::greasepencil::Layer &layer,
                                           const VArray<bool> &boundary_layers,
                                           Span<DrawingInfo> src_drawings,
                                           bool invert,
                                           const std::optional<float> alpha_threshold,
-                                          const float2 &fill_point,
-                                          int stroke_material_index);
+                                          const float2 &fill_point);
 
 namespace image_render {
 
