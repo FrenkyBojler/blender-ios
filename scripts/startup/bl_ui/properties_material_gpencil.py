@@ -211,8 +211,6 @@ class MATERIAL_PT_gpencil_random(GPMaterialButtonsPanel, Panel):
             col.prop(gpcolor, "random_saturation_factor", slider=True)
             col.prop(gpcolor, "random_value_factor", slider=True)
 
-            col.separator()
-
 
 class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
     bl_label = "Fill"
