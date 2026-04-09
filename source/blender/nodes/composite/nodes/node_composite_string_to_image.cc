@@ -79,8 +79,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           [](const bNode & /*node*/) { return id_cast<ID *>(BKE_vfont_builtin_ensure()); })
       .optional_label();
   b.add_input<decl::Float>("Size"_ustr)
-      .default_value(256.0f)
-      .subtype(PROP_UNSIGNED)
+      .default_value(128.0f)
+      .subtype(PROP_PIXEL)
       .min(0.0f)
       .description("The height of each line in pixels");
 
@@ -99,13 +99,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   {
     PanelDeclarationBuilder &panel = b.add_panel("Wrap"_ustr).default_closed(true);
     panel.add_input<decl::Bool>("Wrap"_ustr)
-        .default_value(false)
+        .default_value(true)
         .panel_toggle()
         .description("Wrap text into new lines if it exceeds the specified width");
     panel.add_input<decl::Int>("Width"_ustr, "Wrap Width"_ustr)
-        .default_value(2048)
+        .default_value(4096)
         .min(0)
-        .subtype(PROP_UNSIGNED)
+        .subtype(PROP_PIXEL)
         .description(
             "The maximum width of each line in pixels. Lines with larger widths will be wrapped "
             "into new lines");
