@@ -1975,6 +1975,7 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
   }
 
   if (paint->mesh_automasking_settings) {
+    writer->write_struct(paint->mesh_automasking_settings);
     MeshAutomaskingSettings &automasking_settings = *paint->mesh_automasking_settings;
     if (automasking_settings.cavity_curve) {
       BKE_curvemapping_blend_write(writer, automasking_settings.cavity_curve);
