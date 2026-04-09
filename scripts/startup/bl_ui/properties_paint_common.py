@@ -1820,7 +1820,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
 
         row = layout.row(align=True)
         row.prop(gp_settings, "fill_method", text="")
-        if gp_settings.fill_method == "FLOOD":
+        if gp_settings.fill_method == 'FLOOD':
             row = layout.row(align=True)
             row.prop(gp_settings, "fill_factor")
             row = layout.row(align=True)
