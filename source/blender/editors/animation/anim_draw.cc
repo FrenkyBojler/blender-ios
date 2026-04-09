@@ -653,7 +653,9 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
   const PropertyUnit prop_unit = PropertyUnit(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)));
 
-  const auto user_unit_scalar_get = [&](const int unit_type, const char user_unit) {
+  /* Return the scalar of the user-selected unit for the given unit type.
+   * Fallbacks to the system base unit scalar if the selected unit is adaptive. */
+  const auto user_unit_scalar_get = [&](const int unit_type, const int user_unit) -> double {
     const void *usys;
     int len;
     BKE_unit_system_get(scene->unit.system, unit_type, &usys, &len);
@@ -661,45 +663,46 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
       return 1.0;
     }
 
-    int i = int(user_unit);
-    if (i == USER_UNIT_ADAPTIVE) {
-      i = BKE_unit_base_get(usys);
+    int preferred_unit = user_unit;
+    if (user_unit == USER_UNIT_ADAPTIVE) {
+      preferred_unit = BKE_unit_base_get(usys);
     }
 
-    return BKE_unit_scalar_get(usys, i);
+    return BKE_unit_scalar_get(usys, preferred_unit);
   };
 
-  double unit_scaler = 1.0f;
+  double unit_scaler = 1.0;
+  const int b_unit = RNA_SUBTYPE_UNIT_VALUE(prop_unit);
 
   switch (prop_unit) {
-    case PROP_UNIT_ROTATION:
+    case PROP_UNIT_ROTATION: {
       if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) {
-        unit_scaler = 1.0f;
+        unit_scaler = 1.0;
       }
       else {
         unit_scaler = DEG2RADF(1.0f);
       }
       break;
-
+    }
+    /* Units supported by BKE_unit_value_scale(). */
     case PROP_UNIT_LENGTH:
-      unit_scaler = BKE_unit_value_scale(
-          scene->unit,
-          B_UNIT_LENGTH,
-          user_unit_scalar_get(B_UNIT_LENGTH, scene->unit.length_unit));
+    case PROP_UNIT_MASS: {
+      const int selected_user_unit = (prop_unit == PROP_UNIT_LENGTH) ? scene->unit.length_unit :
+                                                                       scene->unit.mass_unit;
+      const double linear_scale = user_unit_scalar_get(b_unit, selected_user_unit);
+      /* Assumption: BKE_unit_value_scale() is linear and zero maps to zero for these
+       * unit types, so the scaled value can be used as a scalar factor. */
+      unit_scaler = BKE_unit_value_scale(scene->unit, b_unit, linear_scale);
       break;
-
-    case PROP_UNIT_MASS:
-      unit_scaler = BKE_unit_value_scale(
-          scene->unit, B_UNIT_MASS, user_unit_scalar_get(B_UNIT_MASS, scene->unit.mass_unit));
-      break;
+    }
+    /* Units not supported by BKE_unit_value_scale(). */
     case PROP_UNIT_TIME:
-      unit_scaler = user_unit_scalar_get(B_UNIT_TIME, scene->unit.time_unit);
+    case PROP_UNIT_TEMPERATURE: {
+      const int selected_user_unit = (prop_unit == PROP_UNIT_TIME) ? scene->unit.time_unit :
+                                                                     scene->unit.temperature_unit;
+      unit_scaler = user_unit_scalar_get(b_unit, selected_user_unit);
       break;
-
-    case PROP_UNIT_TEMPERATURE:
-      unit_scaler = user_unit_scalar_get(B_UNIT_TEMPERATURE, scene->unit.temperature_unit);
-      break;
-
+    }
     default:
       /* TODO: other rotation types here as necessary */
       break;
