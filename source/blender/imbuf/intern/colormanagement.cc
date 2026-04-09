@@ -1335,6 +1335,10 @@ const ColorSpace *IMB_colormanagement_space_get_named(const char *name)
 {
   return g_config()->get_color_space(name);
 }
+const ColorSpace *IMB_colormanagement_space_get_named(StringRefNull name)
+{
+  return g_config()->get_color_space(name);
+}
 
 bool IMB_colormanagement_space_is_data(const ColorSpace *colorspace)
 {

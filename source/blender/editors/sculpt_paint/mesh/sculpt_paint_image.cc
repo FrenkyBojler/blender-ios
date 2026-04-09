@@ -82,15 +82,17 @@ static void fetch_image_buffers(ImageData &image_data,
 
     if (buffer) {
       image_data.processors.lookup_or_add_cb(tile.tile_number, [&]() {
-        const ColorSpace *buffer_colorspace = buffer->float_data() ?
-                                                  buffer->float_buffer.colorspace :
-                                                  buffer->byte_buffer.colorspace;
+        const StringRefNull buffer_colorspace_name =
+            buffer->float_data() ? IMB_colormanagement_get_float_colorspace(buffer) :
+                                   IMB_colormanagement_get_byte_colorspace(buffer);
+
+        const ColorSpace *buffer_colorspace = IMB_colormanagement_space_get_named(
+            buffer_colorspace_name);
 
         TileColorspaceProcessor processor;
         if (!buffer_colorspace) {
           return processor;
         }
-
         ColormanageProcessor buffer_to_linear =
             ColormanageProcessor::colorspace_processor_to_scene_linear_new(*buffer_colorspace);
         if (buffer_to_linear.is_noop()) {
