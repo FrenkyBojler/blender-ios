@@ -505,5 +505,5 @@ add_library(bf::dependencies::optional::tracy_client ALIAS bf_deps_optional_trac
 
 if(WITH_TRACY)
   target_compile_definitions(bf_deps_optional_tracy_client INTERFACE WITH_TRACY_CLIENT)
-  target_link_libraries(bf_deps_optional_tracy_client INTERFACE Tracy::tracy_client)
+  target_link_libraries(bf_deps_optional_tracy_client INTERFACE Tracy::TracyClient)
 endif()
