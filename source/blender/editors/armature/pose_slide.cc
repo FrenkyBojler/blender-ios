@@ -1682,14 +1682,12 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 
   BLI_freelistN(&target_frames);
 
+  for (TransformableFCurveLink &t_link : pflinks) {
+    poseAnim_mapping_refresh(C, t_link.ptr.owner_id);
+  }
+
   /* Free temp data. */
   poseAnim_mapping_free(&pflinks);
-
-  /* Updates + notifiers. */
-  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    poseAnim_mapping_refresh(C, &ob->id);
-  }
-  FOREACH_OBJECT_IN_MODE_END;
 
   return OPERATOR_FINISHED;
 }
