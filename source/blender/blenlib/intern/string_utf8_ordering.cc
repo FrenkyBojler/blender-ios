@@ -856,7 +856,7 @@ static const Map<uint32_t, Ligature> &ligatures()
   return ligatures;
 }
 
-std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sensitive)
+std::string BLI_str_utf8_normalized(const StringRef str, bool case_sensitive)
 {
   std::string result;
   const size_t len = str.size();

@@ -9,25 +9,19 @@
  */
 
 #include <stdarg.h>
+#include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-#  include "BLI_string_ref.hh"
-#  include <string>
 namespace blender {
 
 /**
  * International language normalization. Not only lowercases regular Latin, but also
  * Greek and Cyrillic alphabets. Accents are removed, ligatures are expanded, etc.
  */
-std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sensitive = false);
-
-}  // namespace blender
-#endif
-
-namespace blender {
+std::string BLI_str_utf8_normalized(const StringRef str, bool case_sensitive = false);
 
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
     ATTR_NONNULL(1, 2);
