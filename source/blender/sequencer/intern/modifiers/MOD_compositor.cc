@@ -64,9 +64,26 @@ void compositor_nodes_update_interface(Scene &sequencer_scene,
   DEG_id_tag_update(&sequencer_scene.id, ID_RECALC_SEQUENCER_STRIPS);
 }
 
+template<typename T>
+static void set_float_array(PointerRNA *input_props_ptr, compositor::Result &result)
+{
+  T value;
+  RNA_float_get_array(input_props_ptr, "value", value);
+  result.set_single_value(value);
+}
+
+template<typename T>
+static void set_int_array(PointerRNA *input_props_ptr, compositor::Result &result)
+{
+  T value;
+  RNA_int_get_array(input_props_ptr, "value", value);
+  result.set_single_value(value);
+}
+
 static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
                                             const eNodeSocketDatatype socket_type,
-                                            compositor::Result &result)
+                                            compositor::Result &result,
+                                            const std::optional<int> dimensions = {})
 {
   using namespace nodes;
   switch (socket_type) {
@@ -81,9 +98,18 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
     case SOCK_VECTOR: {
       const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == CompositorNodesInputType::Value) {
-        float3 value;
-        RNA_float_get_array(input_props_ptr, "value", value);
-        result.set_single_value(value);
+        switch (dimensions.value_or(3)) {
+          case 2: {
+            set_int_array<int2>(input_props_ptr, result);
+            break;
+          }
+          case 3: {
+            set_int_array<int3>(input_props_ptr, result);
+            break;
+          }
+          default:
+            BLI_assert_unreachable();
+        }
       }
       break;
     }
@@ -142,9 +168,22 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
     case SOCK_INT_VECTOR: {
       const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == CompositorNodesInputType::Value) {
-        int3 value;
-        RNA_int_get_array(input_props_ptr, "value", value);
-        result.set_single_value(value);
+        switch (dimensions.value_or(2)) {
+          case 2: {
+            set_float_array<float2>(input_props_ptr, result);
+            break;
+          }
+          case 3: {
+            set_float_array<float3>(input_props_ptr, result);
+            break;
+          }
+          case 4: {
+            set_float_array<float4>(input_props_ptr, result);
+            break;
+          }
+          default:
+            BLI_assert_unreachable();
+        }
       }
       break;
     }
@@ -173,6 +212,18 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
     case SOCK_CUSTOM:
       break;
   }
+}
+
+static std::optional<int> get_socket_dimension(const bNodeTreeInterfaceSocket *socket,
+                                               const eNodeSocketDatatype socket_type)
+{
+  if (socket_type == SOCK_VECTOR) {
+    return static_cast<bNodeSocketValueVector *>(socket->socket_data)->dimensions;
+  }
+  else if (socket_type == SOCK_INT_VECTOR) {
+    return static_cast<bNodeSocketValueIntVector *>(socket->socket_data)->dimensions;
+  }
+  return {};
 }
 
 class CompositorModifierContext : public CompositorContext {
@@ -313,7 +364,10 @@ class CompositorModifierContext : public CompositorContext {
       else if (valid_socket_type) {
         PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
         input_result->allocate_single_value();
-        set_single_input_from_rna_value(&input_props_ptr, socket_type, *input_result);
+        set_single_input_from_rna_value(&input_props_ptr,
+                                        socket_type,
+                                        *input_result,
+                                        get_socket_dimension(input_socket, socket_type));
       }
       else {
         input_result->allocate_invalid();
