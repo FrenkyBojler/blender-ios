@@ -26,7 +26,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   endif()
 endif()
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 
 if(NOT EXECUTABLE_OUTPUT_PATH)
   set(FIRST_RUN TRUE)
@@ -1893,7 +1893,7 @@ Keep at '0' to automatically compute optimal values for each build."
     #       allows for a more optimal usage of available RAM & CPU resources.
     set(_compile_mem 500)
     if(WITH_COMPILER_ASAN)
-     if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
         set(_compile_mem 1000)
       else()
         set(_compile_mem 4000)
