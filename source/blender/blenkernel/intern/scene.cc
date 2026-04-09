@@ -1407,8 +1407,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
                                     sce->toolsettings->sculpt->automasking_cavity_curve_op);
         BKE_curvemapping_init(sce->toolsettings->sculpt->automasking_cavity_curve_op);
       }
-
-      BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
     }
 
     /* Relink grease pencil interpolation curves. */
@@ -2729,6 +2727,8 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
   if (run_callbacks) {
     BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_DEPSGRAPH_UPDATE_PRE);
   }
+
+  BKE_scene_view_layers_synced_ensure(*bmain, scene);
 
   for (int pass = 0; pass < 2; pass++) {
     /* (Re-)build dependency graph if needed. */
