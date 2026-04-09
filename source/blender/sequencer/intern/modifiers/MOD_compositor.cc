@@ -273,10 +273,15 @@ class CompositorModifierContext : public CompositorContext {
     Vector<std::unique_ptr<Result>> inputs;
     const Span<const bNodeTreeInterfaceSocket *> interface_inputs = node_group.interface_inputs();
     for (const bNodeTreeInterfaceSocket *input_socket : interface_inputs) {
-      const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
+      bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
       const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-      const ResultType result_type = compositor::get_node_interface_socket_result_type(
-          *input_socket);
+      const bool valid_socket_type = typeinfo && node_group.typeinfo->valid_socket_type(
+                                                     node_group.typeinfo, typeinfo);
+      /* Fallback to ResultType::Float for invalid inputs. */
+      const ResultType result_type = valid_socket_type ?
+                                         compositor::get_node_interface_socket_result_type(
+                                             *input_socket) :
+                                         ResultType::Float;
       Result *input_result = new Result(this->create_result(result_type, ResultPrecision::Full));
       if (input_socket == interface_inputs[0]) {
         if (socket_type == SOCK_RGBA) {
@@ -305,10 +310,13 @@ class CompositorModifierContext : public CompositorContext {
           input_result->allocate_invalid();
         }
       }
-      else {
+      else if (valid_socket_type) {
         PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
         input_result->allocate_single_value();
         set_single_input_from_rna_value(&input_props_ptr, socket_type, *input_result);
+      }
+      else {
+        input_result->allocate_invalid();
       }
 
       node_group_operation.map_input_to_result(input_socket->identifier, input_result);
