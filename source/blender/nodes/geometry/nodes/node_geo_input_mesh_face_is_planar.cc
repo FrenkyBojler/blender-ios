@@ -75,9 +75,9 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
         VArray<bool>::from_func(faces.size(), planar_fn), AttrDomain::Face, domain);
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    threshold_.node().for_each_field_input_recursive(fn);
+    fn(threshold_);
   }
 
   uint64_t hash() const override
@@ -86,7 +86,7 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
     return 2356235652;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const PlanarFieldInput *>(&other) != nullptr;
   }
@@ -100,8 +100,7 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
 static void geo_node_exec(GeoNodeExecParams params)
 {
   Field<float> threshold = params.extract_input<Field<float>>("Threshold"_ustr);
-  Field<bool> planar_field{std::make_shared<PlanarFieldInput>(threshold)};
-  params.set_output("Planar"_ustr, std::move(planar_field));
+  params.set_output("Planar"_ustr, Field<bool>::from_input<PlanarFieldInput>(threshold));
 }
 
 static void node_register()
@@ -109,7 +108,7 @@ static void node_register()
   static bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, "GeometryNodeInputMeshFaceIsPlanar", GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
+      &ntype, "GeometryNodeInputMeshFaceIsPlanar"_ustr, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
   ntype.ui_name = "Is Face Planar";
   ntype.ui_description =
       "Retrieve whether all triangles in a face are on the same plane, i.e. whether they have the "

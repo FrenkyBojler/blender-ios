@@ -48,13 +48,13 @@ static void set_curve_normal(bke::CurvesGeometry &curves,
   const IndexMask curve_mask = evaluator.get_evaluated_selection_as_mask();
 
   if (mode == NORMAL_MODE_FREE) {
-    bke::try_capture_field_on_geometry(curves.attributes_for_write(),
-                                       point_context,
-                                       "custom_normal",
-                                       AttrDomain::Point,
-                                       Field<bool>(std::make_shared<bke::EvaluateOnDomainInput>(
-                                           selection_field, AttrDomain::Curve)),
-                                       custom_normal);
+    bke::try_capture_field_on_geometry(
+        curves.attributes_for_write(),
+        point_context,
+        "custom_normal",
+        AttrDomain::Point,
+        Field<bool>::from_input<bke::EvaluateOnDomainInput>(selection_field, AttrDomain::Curve),
+        custom_normal);
   }
 
   index_mask::masked_fill(curves.normal_mode_for_write(), int8_t(mode), curve_mask);
@@ -114,7 +114,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSetCurveNormal", GEO_NODE_SET_CURVE_NORMAL);
+  geo_node_type_base(&ntype, "GeometryNodeSetCurveNormal"_ustr, GEO_NODE_SET_CURVE_NORMAL);
   ntype.ui_name = "Set Curve Normal";
   ntype.ui_description = "Set the evaluation mode for curve normals";
   ntype.enum_name_legacy = "SET_CURVE_NORMAL";

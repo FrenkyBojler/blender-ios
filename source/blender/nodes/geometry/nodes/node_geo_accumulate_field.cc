@@ -118,7 +118,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Leading"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeAccumulateField");
+          bNode &node = params.add_node("GeometryNodeAccumulateField"_ustr);
           node_storage(node).data_type = *type;
           params.update_and_connect_available_socket(node, "Leading"_ustr);
         },
@@ -126,7 +126,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Trailing"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeAccumulateField");
+          bNode &node = params.add_node("GeometryNodeAccumulateField"_ustr);
           node_storage(node).data_type = *type;
           params.update_and_connect_available_socket(node, "Trailing"_ustr);
         },
@@ -134,7 +134,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Total"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeAccumulateField");
+          bNode &node = params.add_node("GeometryNodeAccumulateField"_ustr);
           node_storage(node).data_type = *type;
           params.update_and_connect_available_socket(node, "Total"_ustr);
         },
@@ -144,7 +144,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Value"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeAccumulateField");
+          bNode &node = params.add_node("GeometryNodeAccumulateField"_ustr);
           node_storage(node).data_type = *type;
           params.update_and_connect_available_socket(node, "Value"_ustr);
         },
@@ -257,10 +257,10 @@ class AccumulateFieldInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_output), source_domain_, context.domain());
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    input_.node().for_each_field_input_recursive(fn);
-    group_index_.node().for_each_field_input_recursive(fn);
+    fn(input_);
+    fn(group_index_);
   }
 
   uint64_t hash() const override
@@ -268,7 +268,7 @@ class AccumulateFieldInput final : public bke::GeometryFieldInput {
     return get_default_hash(input_, group_index_, source_domain_, accumulation_mode_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const AccumulateFieldInput *other_accumulate = dynamic_cast<const AccumulateFieldInput *>(
             &other))
@@ -349,10 +349,10 @@ class TotalFieldInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    input_.node().for_each_field_input_recursive(fn);
-    group_index_.node().for_each_field_input_recursive(fn);
+    fn(input_);
+    fn(group_index_);
   }
 
   uint64_t hash() const override
@@ -360,7 +360,7 @@ class TotalFieldInput final : public bke::GeometryFieldInput {
     return get_default_hash(input_, group_index_, source_domain_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const TotalFieldInput *other_field = dynamic_cast<const TotalFieldInput *>(&other)) {
       return input_ == other_field->input_ && group_index_ == other_field->group_index_ &&
@@ -386,19 +386,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (params.output_is_required("Leading"_ustr)) {
     params.set_output<GField>(
         "Leading"_ustr,
-        GField{std::make_shared<AccumulateFieldInput>(
-            source_domain, input_field, group_index_field, AccumulationMode::Leading)});
+        GField::from_input<AccumulateFieldInput>(
+            source_domain, input_field, group_index_field, AccumulationMode::Leading));
   }
   if (params.output_is_required("Trailing"_ustr)) {
     params.set_output<GField>(
         "Trailing"_ustr,
-        GField{std::make_shared<AccumulateFieldInput>(
-            source_domain, input_field, group_index_field, AccumulationMode::Trailing)});
+        GField::from_input<AccumulateFieldInput>(
+            source_domain, input_field, group_index_field, AccumulationMode::Trailing));
   }
   if (params.output_is_required("Total"_ustr)) {
     params.set_output<GField>(
         "Total"_ustr,
-        GField{std::make_shared<TotalFieldInput>(source_domain, input_field, group_index_field)});
+        GField::from_input<TotalFieldInput>(source_domain, input_field, group_index_field));
   }
 }
 
@@ -438,7 +438,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeAccumulateField", GEO_NODE_ACCUMULATE_FIELD);
+  geo_node_type_base(&ntype, "GeometryNodeAccumulateField"_ustr, GEO_NODE_ACCUMULATE_FIELD);
   ntype.ui_name = "Accumulate Field";
   ntype.ui_description =
       "Add the values of an evaluated field together and output the running total for each "

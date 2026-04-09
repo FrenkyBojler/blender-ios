@@ -116,12 +116,12 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
   if (params.in_out() == SOCK_IN) {
     params.add_item(IFACE_("Topology"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       node_storage(node).data_type = *data_type;
       params.update_and_connect_available_socket(node, "Topology"_ustr);
     });
     params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, params.socket.name);
       params.update_and_connect_available_socket(node, UString(params.socket.name));
@@ -129,7 +129,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
   else {
     params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, params.socket.name);
       params.update_and_connect_available_socket(node, UString(params.socket.name));
@@ -300,11 +300,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<fn::GField> fields(required_items.size());
+  Vector<fn::GField> fields;
+  fields.reserve(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const std::string identifier = ItemsAccessor::input_socket_identifier_for_item(items[item_i]);
-    fields[i] = params.extract_input<fn::GField>(UString(identifier));
+    fields.append(params.extract_input<fn::GField>(UString(identifier)));
   }
 
   openvdb::MaskTree mask_tree;
@@ -401,7 +402,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldToGrid");
+  geo_node_type_base(&ntype, "GeometryNodeFieldToGrid"_ustr);
   ntype.ui_name = "Field to Grid";
   ntype.ui_description =
       "Create new grids by evaluating new values on an existing volume grid topology";

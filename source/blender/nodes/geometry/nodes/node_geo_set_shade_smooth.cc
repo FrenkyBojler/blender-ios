@@ -50,7 +50,7 @@ static bool try_removing_sharp_attribute(Mesh &mesh,
                                          const Field<bool> &selection,
                                          const Field<bool> &sharpness)
 {
-  if (selection.node().depends_on_input() || sharpness.node().depends_on_input()) {
+  if (selection.depends_on_input() || sharpness.depends_on_input()) {
     return false;
   }
   if (!fn::evaluate_constant_field(selection)) {
@@ -117,7 +117,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetShadeSmooth", GEO_NODE_SET_SHADE_SMOOTH);
+  geo_node_type_base(&ntype, "GeometryNodeSetShadeSmooth"_ustr, GEO_NODE_SET_SHADE_SMOOTH);
   ntype.ui_name = "Set Shade Smooth";
   ntype.ui_description =
       "Control the smoothness of mesh normals around each face by changing the \"shade smooth\" "

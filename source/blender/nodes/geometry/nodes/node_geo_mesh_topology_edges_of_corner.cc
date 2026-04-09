@@ -43,7 +43,7 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
     return 1892753404495;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     return dynamic_cast<const CornerNextEdgeFieldInput *>(&other) != nullptr;
   }
@@ -81,7 +81,7 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
     return 987298345762465;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     return dynamic_cast<const CornerPreviousEdgeFieldInput *>(&other) != nullptr;
   }
@@ -96,25 +96,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> corner_index = params.extract_input<Field<int>>("Corner Index"_ustr);
   if (params.output_is_required("Next Edge Index"_ustr)) {
-    params.set_output("Next Edge Index"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          corner_index,
-                          Field<int>(std::make_shared<CornerNextEdgeFieldInput>()),
-                          AttrDomain::Corner)));
+    params.set_output(
+        "Next Edge Index"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            corner_index, Field<int>::from_input<CornerNextEdgeFieldInput>(), AttrDomain::Corner));
   }
   if (params.output_is_required("Previous Edge Index"_ustr)) {
     params.set_output("Previous Edge Index"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
+                      Field<int>::from_input<bke::EvaluateAtIndexInput>(
                           corner_index,
-                          Field<int>(std::make_shared<CornerPreviousEdgeFieldInput>()),
-                          AttrDomain::Corner)));
+                          Field<int>::from_input<CornerPreviousEdgeFieldInput>(),
+                          AttrDomain::Corner));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeEdgesOfCorner", GEO_NODE_MESH_TOPOLOGY_EDGES_OF_CORNER);
+  geo_node_type_base(
+      &ntype, "GeometryNodeEdgesOfCorner"_ustr, GEO_NODE_MESH_TOPOLOGY_EDGES_OF_CORNER);
   ntype.ui_name = "Edges of Corner";
   ntype.ui_description = "Retrieve the edges on both sides of a face corner";
   ntype.enum_name_legacy = "EDGES_OF_CORNER";
