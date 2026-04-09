@@ -183,7 +183,7 @@ static bool paint_row_float(const Brush &brush,
   int offset = int(pixel_row.start_image_coordinate.y) * image_buffer->x +
                int(pixel_row.start_image_coordinate.x);
   bool pixels_painted = false;
-  float* buffer_data = image_buffer->float_data_for_write();
+  float *buffer_data = image_buffer->float_data_for_write();
   for (int x = 0; x < pixel_row.num_pixels; x++) {
     float4 color(&buffer_data[offset * 4]);
     if (!processors.is_noop) {
@@ -227,7 +227,7 @@ static bool paint_row_byte(const Brush &brush,
   int offset = int(pixel_row.start_image_coordinate.y) * image_buffer->x +
                int(pixel_row.start_image_coordinate.x);
   bool pixels_painted = false;
-  uint8_t* buffer_data = image_buffer->byte_data_for_write();
+  uint8_t *buffer_data = image_buffer->byte_data_for_write();
   for (int x = 0; x < pixel_row.num_pixels; x++) {
     float4 color;
     rgba_uchar_to_float(color, &buffer_data[4 * offset]);
