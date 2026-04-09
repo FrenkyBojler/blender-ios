@@ -646,7 +646,6 @@ function(get_compiler_simd_flags
     endif()
   elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64" OR CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
     if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-      # Target ARMv8.2-A with dot product and half float.
       if(UNIX AND NOT APPLE)
         # Target ARMv8.2-A with dot product and half float.
         set(${_simd_flags} "-march=armv8.2-a+dotprod+fp16+lse" PARENT_SCOPE)
