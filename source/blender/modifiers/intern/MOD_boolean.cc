@@ -74,7 +74,6 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
     if (!col) {
       return true;
     }
-    /* The Exact solver tolerates an empty collection (removes self-intersections). */
     return bmd->solver != eBooleanModifierSolver_Mesh_Arr && BKE_collection_is_empty(col);
   }
   return false;
