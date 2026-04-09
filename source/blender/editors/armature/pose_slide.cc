@@ -379,11 +379,10 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
     }
   }
 
-  const float current_frame = float(pso.current_frame);
   /* Encodes a percentage value of where the current frame is between prev_- and next_frame. At 0
    * it is at prev_frame. */
-  const float current_frame_factor = (current_frame - pso.prev_frame) /
-                                     (pso.next_frame - pso.prev_frame);
+  const float current_frame_factor = (pso.current_frame - pso.prev_frame) /
+                                     float(pso.next_frame - pso.prev_frame);
   /* Note christoph: After looking at POSESLIDE_PUSH and _RELAX for a long time I finally realized
    * what they do. They take the linear interpolation of the values based on the current frame and
    * blend the current pose towards or away from it. The usefulness of this is likely limited and
@@ -463,21 +462,24 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
       }
     }
 
-    /* See comment in `pose_slide_apply_linear` for the meaning of those values and push/relax. */
-    const float current_frame = float(pso.current_frame);
-    const float current_frame_factor = (current_frame - pso.prev_frame) /
-                                       (pso.next_frame - pso.prev_frame);
-    Array<float> current_frame_breakdown = animrig::property_interpolated(
-        next_frame_values, next_frame_values, current_frame_factor);
-
     Array<float> values;
     switch (pso.mode) {
       case POSESLIDE_PUSH:
-        values = animrig::property_interpolated(base_values, current_frame_breakdown, -factor);
+      case POSESLIDE_RELAX: {
+        /* See comment in `pose_slide_apply_linear` for the meaning of those values
+         * and push/relax. */
+        const float current_frame_factor = (pso.current_frame - pso.prev_frame) /
+                                           float(pso.next_frame - pso.prev_frame);
+        const Array<float> current_frame_breakdown = animrig::property_interpolated(
+            prev_frame_values, next_frame_values, current_frame_factor);
+        if (pso.mode == POSESLIDE_PUSH) {
+          values = animrig::property_interpolated(base_values, current_frame_breakdown, -factor);
+        }
+        else {
+          values = animrig::property_interpolated(base_values, current_frame_breakdown, factor);
+        }
         break;
-      case POSESLIDE_RELAX:
-        values = animrig::property_interpolated(base_values, current_frame_breakdown, factor);
-        break;
+      }
 
       case POSESLIDE_BREAKDOWN:
         values = animrig::property_interpolated(prev_frame_values, next_frame_values, factor);
