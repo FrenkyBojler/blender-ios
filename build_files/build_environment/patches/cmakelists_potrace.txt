@@ -51,3 +51,4 @@ install(TARGETS 		${PROJECT_NAME}
         ARCHIVE         DESTINATION     lib
         PUBLIC_HEADER	DESTINATION     include
 )
+
