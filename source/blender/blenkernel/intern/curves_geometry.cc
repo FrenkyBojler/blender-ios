@@ -1955,11 +1955,11 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->update_curve_types();
 }
 
-CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
+CurvesGeometry::BlendWriteData::BlendWriteData(BlendWriter *writer, ResourceScope &scope)
     : scope(scope),
       point_layers(scope.construct<Vector<CustomDataLayer, 16>>()),
       curve_layers(scope.construct<Vector<CustomDataLayer, 16>>()),
-      attribute_data(scope)
+      attribute_data(writer, scope)
 {
 }
 
@@ -1972,11 +1972,7 @@ void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_d
       use_5_0_compatibility,
       [&](const AttrDomain domain) { return this->attributes().domain_size(domain); },
       write_data.attribute_data);
-  CustomData_blend_write_prepare(this->point_data,
-                                 AttrDomain::Point,
-                                 this->points_num(),
-                                 write_data.point_layers,
-                                 write_data.attribute_data);
+  CustomData_blend_write_prepare(this->point_data, write_data.point_layers);
   if (write_data.attribute_data.attributes.is_empty()) {
     this->attribute_storage.dna_attributes = nullptr;
     this->attribute_storage.dna_attributes_num = 0;
@@ -1985,6 +1981,9 @@ void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_d
     this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
     this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
   }
+
+  BLO_write_generated_pointer_tag(write_data.attribute_data.writer,
+                                  this->attribute_storage.dna_attributes);
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,

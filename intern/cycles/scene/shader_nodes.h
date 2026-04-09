@@ -5,6 +5,7 @@
 #pragma once
 
 #include "graph/node.h"
+#include "kernel/svm/node_types.h"
 #include "kernel/svm/types.h"
 #include "scene/image.h"
 #include "scene/shader_graph.h"
@@ -27,12 +28,16 @@ class TextureMapping {
   TextureMapping();
   Transform compute_transform();
   bool skip();
-  void compile(SVMCompiler &compiler, const int offset_in, const int offset_out);
+  void compile(SVMCompiler &compiler,
+               const SVMStackOffset offset_in,
+               const SVMStackOffset offset_out);
   int compile(SVMCompiler &compiler, ShaderInput *vector_in);
   void compile(OSLCompiler &compiler);
 
-  int compile_begin(SVMCompiler &compiler, ShaderInput *vector_in);
-  void compile_end(SVMCompiler &compiler, ShaderInput *vector_in, const int vector_offset);
+  SVMStackOffset compile_begin(SVMCompiler &compiler, ShaderInput *vector_in);
+  void compile_end(SVMCompiler &compiler,
+                   ShaderInput *vector_in,
+                   const SVMStackOffset vector_offset);
 
   float3 translation;
   float3 rotation;
@@ -468,6 +473,7 @@ class ConvertNode : public ShaderNode {
   static const int MAX_TYPE = 13;
   static unique_ptr<Node> create(const NodeType *type);
   static const NodeType *(&get_node_types())[MAX_TYPE][MAX_TYPE];
+  static bool register_on_init;
 };
 
 class BsdfBaseNode : public ShaderNode {
@@ -512,13 +518,6 @@ class BsdfNode : public BsdfBaseNode {
  public:
   explicit BsdfNode(const NodeType *node_type);
   SHADER_NODE_BASE_CLASS(BsdfNode)
-
-  void compile(SVMCompiler &compiler,
-               ShaderInput *bsdf_y,
-               ShaderInput *bsdf_z,
-               ShaderInput *data_y = nullptr,
-               ShaderInput *data_z = nullptr,
-               ShaderInput *data_w = nullptr);
 
   NODE_SOCKET_API(float3, color)
   NODE_SOCKET_API(float3, normal)
