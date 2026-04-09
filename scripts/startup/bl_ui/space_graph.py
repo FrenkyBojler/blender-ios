@@ -358,7 +358,6 @@ class GRAPH_MT_channel(Menu):
         op = layout.operator("graph.fmodifier_delete", text="Delete F-Curve Modifier(s)")
         op.only_active = False
         op.mode = 'ALL'
-        op.type = "GENERATOR"
         
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
         

@@ -3089,7 +3089,8 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
                "Mode",
                "Decide what the operator will remove");
 
-  prop = RNA_def_enum(ot->srna, "type", rna_enum_fmodifier_type_items, 0, "Type", "");
+  prop = RNA_def_enum(
+      ot->srna, "type", rna_enum_fmodifier_type_items, FMODIFIER_TYPE_GENERATOR, "Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
   RNA_def_enum_funcs(prop, graph_fmodifier_itemf);
   ot->prop = prop;
