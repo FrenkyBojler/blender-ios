@@ -178,19 +178,20 @@ static bool paint_row_float(const Brush &brush,
                             const float4 &brush_color,
                             const PackedPixelRow &pixel_row,
                             const Span<float> factors,
-                            ImBuf *image_buffer)
+                            const int width,
+                            MutableSpan<float4> float_buffer)
 {
-  int offset = int(pixel_row.start_image_coordinate.y) * image_buffer->x +
-               int(pixel_row.start_image_coordinate.x);
+  const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
+                           int(pixel_row.start_image_coordinate.x);
   bool pixels_painted = false;
-  float *buffer_data = image_buffer->float_data_for_write();
-  for (int x = 0; x < pixel_row.num_pixels; x++) {
-    float4 color(&buffer_data[offset * 4]);
+  for (int i = 0; i < pixel_row.num_pixels; i++) {
+    const int offset = start_offset + i;
+    float4 color = float_buffer[offset];
     if (!processors.is_noop) {
       processors.buffer_to_linear_processor.apply_v4(color);
     }
 
-    float4 paint_color = brush_color * factors[x];
+    float4 paint_color = brush_color * factors[i];
     float4 buffer_color;
 
 #ifdef DEBUG_PIXEL_NODES
@@ -209,10 +210,8 @@ static bool paint_row_float(const Brush &brush,
       processors.linear_to_buffer_processor.apply_v4(color);
     }
 
-    copy_v4_v4(&buffer_data[offset * 4], color);
+    float_buffer[offset] = color;
     pixels_painted = true;
-
-    offset++;
   }
   return pixels_painted;
 }
@@ -222,20 +221,21 @@ static bool paint_row_byte(const Brush &brush,
                            const float4 &brush_color,
                            const PackedPixelRow &pixel_row,
                            const Span<float> factors,
-                           ImBuf *image_buffer)
+                           const int width,
+                           MutableSpan<uchar4> byte_buffer)
 {
-  int offset = int(pixel_row.start_image_coordinate.y) * image_buffer->x +
-               int(pixel_row.start_image_coordinate.x);
+  const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
+                           int(pixel_row.start_image_coordinate.x);
   bool pixels_painted = false;
-  uint8_t *buffer_data = image_buffer->byte_data_for_write();
-  for (int x = 0; x < pixel_row.num_pixels; x++) {
+  for (int i = 0; i < pixel_row.num_pixels; i++) {
+    const int offset = start_offset + i;
     float4 color;
-    rgba_uchar_to_float(color, &buffer_data[4 * offset]);
+    rgba_uchar_to_float(color, byte_buffer[offset]);
     if (!processors.is_noop) {
       processors.buffer_to_linear_processor.apply_v4(color);
     }
 
-    float4 paint_color = brush_color * factors[x];
+    float4 paint_color = brush_color * factors[i];
     float4 buffer_color;
 
 #ifdef DEBUG_PIXEL_NODES
@@ -252,10 +252,8 @@ static bool paint_row_byte(const Brush &brush,
     if (!processors.is_noop) {
       processors.linear_to_buffer_processor.apply_v4(color);
     }
-    rgba_float_to_uchar(&buffer_data[4 * offset], color);
+    rgba_float_to_uchar(byte_buffer[offset], color);
     pixels_painted = true;
-
-    offset++;
   }
   return pixels_painted;
 }
@@ -303,6 +301,18 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       continue;
     }
 
+    MutableSpan<float4> float_buffer;
+    MutableSpan<uchar4> byte_buffer;
+
+    if (image_buffer->float_data()) {
+      float_buffer = MutableSpan(reinterpret_cast<float4 *>(image_buffer->float_data_for_write()),
+                                 image_buffer->x * image_buffer->y);
+    }
+    else {
+      byte_buffer = MutableSpan(reinterpret_cast<uchar4 *>(image_buffer->byte_data_for_write()),
+                                image_buffer->x * image_buffer->y);
+    }
+
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
@@ -334,11 +344,11 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       bool pixels_painted = false;
       if (image_buffer->float_data() != nullptr) {
         pixels_painted = paint_row_float(
-            brush, *processors, brush_color, pixel_row, factors, image_buffer);
+            brush, *processors, brush_color, pixel_row, factors, image_buffer->x, float_buffer);
       }
       else {
         pixels_painted = paint_row_byte(
-            brush, *processors, brush_color, pixel_row, factors, image_buffer);
+            brush, *processors, brush_color, pixel_row, factors, image_buffer->x, byte_buffer);
       }
 
       if (pixels_painted) {
