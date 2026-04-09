@@ -112,15 +112,6 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
   blender::Object *b_dicing_camera_object = get_dicing_camera_object(b_v3d, b_rv3d);
   bool dicing_camera_updated = false;
 
-  const int frame = b_scene->r.cfra;
-  if (scene->frame != frame) {
-    scene->frame = frame;
-    scene->time = (float)frame / b_scene->r.frs_sec;
-
-    has_updates_ = true;
-    scene->integrator->tag_modified(); //test, should be around scene.cpp 203
-  }
-
   /* Iterate over all blender::IDs in this depsgraph. */
   blender::DEGIDIterData deg_iter_data{};
   deg_iter_data.graph = &b_depsgraph;
@@ -318,6 +309,8 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
   if (!has_updates_ && !auto_refresh_update) {
     return;
   }
+
+  sync_scene_attributes();
 
   const scoped_timer timer;
 
@@ -574,6 +567,24 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
    * set calls above), but we need to make sure that the dependent things are tagged. */
   integrator->tag_update(scene, Integrator::UPDATE_NONE);
+}
+
+/* Scene Attributes */
+
+void BlenderSync::sync_scene_attributes()
+{
+
+  float frame = b_scene->r.cfra + b_scene->r.subframe;
+  float time = frame / b_scene->r.frs_sec;
+
+  SceneAttributes *scene_attribute = scene->scene_attribute;
+
+  scene_attribute->set_time(time);
+  scene_attribute->set_frame(frame);
+
+  /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
+   * set calls above), but we need to make sure that the dependent things are tagged. */
+  scene_attribute->tag_update(scene, SceneAttributes::UPDATE_ALL);
 }
 
 /* Film */

@@ -75,6 +75,7 @@ class BlenderSync {
   void sync_integrator(blender::ViewLayer &b_view_layer,
                        bool background,
                        const DeviceInfo &denoise_device_info);
+  void sync_scene_attributes();
   void sync_camera(const blender::RenderData &b_render,
                    const int width,
                    const int height,

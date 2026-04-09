@@ -16,6 +16,7 @@
 #include "scene/film.h"
 #include "scene/hair.h"
 #include "scene/integrator.h"
+#include "scene/scene_attributes.h"
 #include "scene/light.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
@@ -75,6 +76,7 @@ Scene ::Scene(const SceneParams &params_, Device *device)
   film = create_node<Film>();
   background = create_node<Background>();
   integrator = create_node<Integrator>();
+  scene_attribute = create_node<SceneAttributes>();
 
   ccl::Film::add_default(this);
   ccl::ShaderManager::add_default(this);
@@ -111,17 +113,20 @@ void Scene::free_memory(bool final)
     film->device_free(device, &dscene, this);
     background->device_free(device, &dscene);
     integrator->device_free(device, &dscene, true);
+    scene_attribute->device_free(device, &dscene, true);
   }
 
   if (final) {
     cameras.clear();
     integrators.clear();
+    scene_attributes.clear();
     films.clear();
     backgrounds.clear();
 
     camera = nullptr;
     dicing_camera = nullptr;
     integrator = nullptr;
+    scene_attribute = nullptr;
     film = nullptr;
     background = nullptr;
   }
@@ -177,8 +182,6 @@ void Scene::device_update(Device *device_, Progress &progress)
   const bool print_stats = need_data_update();
   bool kernels_reloaded = false;
 
-  dscene.data.scene_time.time = this->time;
-  dscene.data.scene_time.frame = this->frame;
 
   while (true) {
     if (update_stats) {
@@ -367,6 +370,13 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  progress.set_status("Updating Scene Attribute");
+  scene_attribute->device_update(device, &dscene, this);
+
+  if (progress.get_cancel() || device->have_error()) {
+    return;
+  }
+
   progress.set_status("Updating Film");
   film->device_update(device, &dscene, this);
 
@@ -488,6 +498,7 @@ void Scene::reset()
 
   background->tag_update(this);
   integrator->tag_update(this, Integrator::UPDATE_ALL);
+  scene_attribute->tag_update(this, SceneAttributes::UPDATE_ALL);
   object_manager->tag_update(this, ObjectManager::UPDATE_ALL);
   geometry_manager->tag_update(this, GeometryManager::UPDATE_ALL);
   light_manager->tag_update(this, LightManager::UPDATE_ALL);
@@ -960,6 +971,15 @@ template<> Integrator *Scene::create_node<Integrator>()
   Integrator *node_ptr = node.get();
   node->set_owner(this);
   integrators.push_back(std::move(node));
+  return node_ptr;
+}
+
+template<> SceneAttributes *Scene::create_node<SceneAttributes>()
+{
+  unique_ptr<SceneAttributes> node = make_unique<SceneAttributes>();
+  SceneAttributes *node_ptr = node.get();
+  node->set_owner(this);
+  scene_attributes.push_back(std::move(node));
   return node_ptr;
 }
 
