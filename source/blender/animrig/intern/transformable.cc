@@ -223,18 +223,6 @@ Transformable::Transformable(Object &obj, bPoseChannel &pchan)
   rna_path_from_id_ = get_pose_bone_rna_path(pchan);
 }
 
-Transformable::Transformable(Object &obj)
-    : type_(Transformable::Type::OBJECT),
-      owner_id_(&obj.id),
-      data_(&obj),
-      location_({obj.loc, 3}),
-      rotation_mode_(&obj.rotmode),
-      scale_({obj.scale, 3})
-{
-  build_rotations_array(rotations_, obj.rot, obj.quat, obj.rotAxis, &obj.rotAngle);
-  rna_path_from_id_ = "";
-}
-
 StringRefNull Transformable::rna_path() const
 {
   return rna_path_from_id_;
@@ -331,8 +319,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
         return;
       }
       Rotation rotation;
-      /* Note: We assume the rotation mode here which may not be correct. It is the responsibility
-       * of the caller to ensure this is right or use `blend_rotation_to`. */
+      /* Assuming the rotation mode. See docstring of function. */
       rotation.mode = eRotationModes(*rotation_mode_);
       rotation.values = array_from_span(target);
       blend_rotation_to(rotation, factor, axis_flag);
@@ -358,8 +345,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       const Array<float *> *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
       Rotation rotation;
-      /* Note: We assume the rotation mode here which may not be correct. It is the responsibility
-       * of the caller to ensure this is right or use `blend_rotation_to`. */
+      /* Assuming the rotation mode. See docstring of function. */
       rotation.mode = eRotationModes(*rotation_mode_);
       rotation.values.reinitialize(rotation_array->size());
       rotation.values.fill(target);

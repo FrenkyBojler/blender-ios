@@ -31,6 +31,9 @@ class StringRefNull;
 
 namespace animrig {
 
+/**
+ * Used to limit the modification of properties to certain axes.
+ */
 enum AxisFlag : int8_t {
   AXIS_FLAG_NONE = 0,
   AXIS_FLAG_X = 1 << 0,
@@ -70,7 +73,6 @@ class Transformable {
     OBJECT,
   };
 
-  /* For generic access to property values. */
   enum class PropertyType : int8_t { LOCATION, ROTATION, SCALE };
 
  private:
@@ -96,8 +98,9 @@ class Transformable {
   const Array<float *> *get_rotation_array_from_mode(eRotationModes mode) const;
 
  public:
+  /* There has to be a constructor for every struct supported. */
+  /* Constructor for pose bones. */
   Transformable(Object &obj, bPoseChannel &pchan);
-  Transformable(Object &object);
 
   Type type() const
   {
@@ -117,6 +120,9 @@ class Transformable {
   /* Returns the rna path from the ID to the struct represented by this transformable. If the
    * struct is an ID this is an empty string. */
   StringRefNull rna_path() const;
+  /**
+   * Returns a string to the given property type.
+   */
   std::string rna_path_to_property(PropertyType prop_type) const;
 
   /**
@@ -133,13 +139,19 @@ class Transformable {
   void set_property(PropertyType prop_type, Span<float> values, AxisFlag axis_flag);
   /**
    * Do a linear blend of the property values towards the given `target`. It is asserted that the
-   * given span size equals the property size.
+   * given span size equals the property size. When setting the rotation property, it is the
+   * responsibility of the caller to ensure that the values are in the correct mode. It is assumed
+   * the `target` is in the same rotation mode as the transformable.
+   *
+   * \note This will not work correctly for quaternion rotations. Use `blend_rotation_to` instead.
    */
   void blend_property_to(PropertyType prop_type,
                          Span<float> target,
                          float factor,
                          AxisFlag axis_flag);
-
+  /**
+   * Overloaded function that blends all values of the given property type to the same float.
+   */
   void blend_property_to(PropertyType prop_type, float target, float factor, AxisFlag axis_flag);
 
   /**
@@ -148,11 +160,19 @@ class Transformable {
   Rotation get_rotation() const;
   /**
    * Sets the rotation for the mode the transformable is currently in. If that doesn't match with
-   * the given rotation, a conversion is performed.
+   * the given rotation, the `value` is converted.
    */
   void set_rotation(const Rotation &value);
+  /**
+   * Returns the current rotation mode of the transformable.
+   */
   eRotationModes get_rotation_mode() const;
 
+  /**
+   * Blends the rotation to the given `target`. If the rotation mode of the transformable and that
+   * of the `target` does not match, the `target` is converted. This uses the correct interpolation
+   * math depending on the rotation mode.
+   */
   void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
 };
 

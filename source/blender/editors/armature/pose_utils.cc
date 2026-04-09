@@ -153,6 +153,11 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
   return eAction_TransformFlags(flags);
 }
 
+/**
+ * Stores a `PropertySnapshot` of the property with the given property name in the given vector. If
+ * the property does not exist in the `ptr` the function doesn't do anything.
+ * Also the property has to be supported by `animrig::rna_property_get_as_float`.
+ */
 static void store_property_snapshot(PointerRNA &ptr,
                                     StringRef property_name,
                                     Vector<PropertySnapshot> &snapshots)
