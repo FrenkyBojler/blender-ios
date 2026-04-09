@@ -285,11 +285,11 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
                                 smd.mask_strip != nullptr :
                                 smd.mask_id != nullptr;
 
-  draw_error_message(*cmd.node_group, layout, is_mask_used);
-
   if (cmd.node_group != nullptr && !(ID_MISSING(cmd.node_group))) {
     bNodeTree &tree = *cmd.node_group;
     tree.ensure_interface_cache();
+    draw_error_message(tree, layout, is_mask_used);
+
     ctx.input_usages.reinitialize(tree.interface_inputs().size());
     ctx.output_usages.reinitialize(tree.interface_outputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
