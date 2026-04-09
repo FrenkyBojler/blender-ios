@@ -1676,7 +1676,6 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                           nodes::compositor_nodes_input_type_items_value,
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
-    set_common_sequencer_update_function(prop);
   };
   return socktype;
 }
