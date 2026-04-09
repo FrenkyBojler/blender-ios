@@ -11,12 +11,9 @@
 
 #pragma once
 
-#include "eevee_ltc_lut_lib.bsl.hh"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
-#include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
-#include "infos/eevee_common_infos.hh"
 
 namespace eevee::ltc {
 
@@ -144,9 +141,6 @@ float3 edge_integral_vec(float3 v1, float3 v2)
   return cross(v1, v2) * theta_sintheta;
 }
 
-/**
- * Given normal and view vectors, computes a tangent basis around the normal.
- */
 float3x3 tangent_basis(float3 N, float3 V)
 {
   float NV = dot(N, V);

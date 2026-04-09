@@ -6,6 +6,7 @@
 
 #include "draw_math_geom_lib.glsl"
 #include "eevee_ltc_lib.bsl.hh"
+#include "eevee_ltc_lut_lib.bsl.hh"
 
 /* Attenuation cutoff needs to be the same in the shadow loop and the light eval loop. */
 #define LIGHT_ATTENUATION_THRESHOLD 1e-6f

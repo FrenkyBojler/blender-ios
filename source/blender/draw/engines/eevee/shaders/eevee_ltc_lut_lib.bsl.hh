@@ -16,12 +16,20 @@ float2 coords_from_params(float cos_theta, float roughness)
 }
 
 /**
- * Sample a packed ltc value from the LUT
+ * Sample a packed ltc matrix from the LUT
  */
 packed_float4 sample_tx(sampler2DArray util_tx, float cos_theta, float roughness)
 {
   const float2 coords = coords_from_params(cos_theta, roughness);
   return utility_tx_sample_lut(util_tx, coords, UTIL_LTC_MAT_LAYER);
+}
+
+/**
+ * Return a packed identity matrix, resulting in a plain cosine distribution.
+ */
+packed_float4 identity()
+{
+  return float4(1.0f, 0.0f, 0.0f, 1.0f);
 }
 
 /**
