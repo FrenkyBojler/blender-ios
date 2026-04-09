@@ -100,11 +100,15 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
       if (type == CompositorNodesInputType::Value) {
         switch (dimensions.value_or(3)) {
           case 2: {
-            set_int_array<int2>(input_props_ptr, result);
+            set_float_array<float2>(input_props_ptr, result);
             break;
           }
           case 3: {
-            set_int_array<int3>(input_props_ptr, result);
+            set_float_array<float3>(input_props_ptr, result);
+            break;
+          }
+          case 4: {
+            set_float_array<float4>(input_props_ptr, result);
             break;
           }
           default:
@@ -170,15 +174,11 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
       if (type == CompositorNodesInputType::Value) {
         switch (dimensions.value_or(2)) {
           case 2: {
-            set_float_array<float2>(input_props_ptr, result);
+            set_int_array<int2>(input_props_ptr, result);
             break;
           }
           case 3: {
-            set_float_array<float3>(input_props_ptr, result);
-            break;
-          }
-          case 4: {
-            set_float_array<float4>(input_props_ptr, result);
+            set_int_array<int3>(input_props_ptr, result);
             break;
           }
           default:
