@@ -98,7 +98,7 @@ ccl_device void light_tree_to_local_space(KernelGlobals kg,
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
 #ifdef __OBJECT_MOTION__
     Transform itfm;
-    object_fetch_transform_motion_test(kg, object_id, 0.5f, &itfm);
+    object_fetch_transform_motion_test(kg, object_id, object_flag, 0.5f, &itfm);
 #else
     const Transform itfm = object_fetch_transform(kg, object_id, OBJECT_INVERSE_TRANSFORM);
 #endif

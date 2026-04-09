@@ -96,6 +96,34 @@ ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals kg,
   return tfm;
 }
 
+ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals kg,
+                                                               const int object,
+                                                               const int object_flag,
+                                                               const float time,
+                                                               ccl_private Transform *itfm)
+{
+#ifdef __OBJECT_MOTION__
+  if (object_flag & SD_OBJECT_MOTION) {
+    /* if we do motion blur */
+    Transform tfm = object_fetch_transform_motion(kg, object, time);
+
+    if (itfm) {
+      *itfm = transform_inverse(tfm);
+    }
+
+    return tfm;
+  }
+
+#endif /* __OBJECT_MOTION__ */
+
+  Transform tfm = object_fetch_transform(kg, object, OBJECT_TRANSFORM);
+  if (itfm) {
+    *itfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
+  }
+
+  return tfm;
+}
+
 /* Get transform matrix for shading point. */
 
 ccl_device_inline Transform object_get_transform(KernelGlobals kg,
@@ -103,7 +131,8 @@ ccl_device_inline Transform object_get_transform(KernelGlobals kg,
 {
 #ifdef __OBJECT_MOTION__
   return !(sd->object_flag & SD_OBJECT_MOTION) ?
-             object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM) : sd->ob_tfm_motion;
+             object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM) :
+             sd->ob_tfm_motion;
 #else
   return object_fetch_transform(kg, sd->object, OBJECT_TRANSFORM);
 #endif
@@ -114,7 +143,7 @@ ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
 {
 #ifdef __OBJECT_MOTION__
   return !(sd->object_flag & SD_OBJECT_MOTION) ?
-            object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM):
+             object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM) :
              sd->ob_itfm_motion;
 #else
   return object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);

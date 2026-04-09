@@ -35,9 +35,10 @@ ccl_device_inline bool triangle_world_space_vertices(
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
 #ifdef __OBJECT_MOTION__
     const float object_time = (time >= 0.0f) ? time : 0.5f;
-    const Transform tfm = object_fetch_transform_motion_test(kg, object, object_time, nullptr);
+    const Transform tfm = object_fetch_transform_motion_test(
+        kg, object, object_flag, object_time, nullptr);
 #else
-    Transform tfm = object_fetch_transform(kg, object, OBJECT_TRANSFORM);
+    const Transform tfm = object_fetch_transform(kg, object, OBJECT_TRANSFORM);
 #endif
     V[0] = transform_point(&tfm, V[0]);
     V[1] = transform_point(&tfm, V[1]);

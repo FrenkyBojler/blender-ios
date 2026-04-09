@@ -146,7 +146,7 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
     if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
       /* Transform normal to world space. */
       Transform itfm;
-      object_fetch_transform_motion_test(kg, object, time, &itfm);
+      object_fetch_transform_motion_test(kg, object, object_flag, time, &itfm);
       hit_Ng = normalize(transform_direction_transposed(&itfm, hit_Ng));
     }
 
