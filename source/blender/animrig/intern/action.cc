@@ -1941,7 +1941,7 @@ FCurve &Channelbag::fcurve_clone(const FCurve &old_fcurve,
   else {
     new_fcurve = BKE_fcurve_copy(&old_fcurve);
     MEM_delete(new_fcurve->rna_path);
-    new_fcurve->rna_path = MEM_dupalloc(new_path.data());
+    new_fcurve->rna_path = BLI_strdup(new_path.data());
     new_fcurve->array_index = new_array_index;
     this->fcurve_append(*new_fcurve);
   }
