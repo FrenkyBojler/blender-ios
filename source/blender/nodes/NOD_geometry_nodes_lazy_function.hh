@@ -196,7 +196,7 @@ struct GeoNodesOperatorData {
   const Object *self_object_orig = nullptr;
   const GeoNodesOperatorDepsgraphs *depsgraphs = nullptr;
   /**
-   * Map from the strings from data-block node group input RNA properties to original data-blocks.
+   * Map from names of data-block node group input RNA properties to original data-blocks.
    */
   const Map<std::string, ID *> *input_ids = {};
   Scene *scene_orig = nullptr;
