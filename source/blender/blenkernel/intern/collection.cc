@@ -156,7 +156,7 @@ static void collection_copy_data(Main *bmain,
              ((collection_src->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
 
   /* Do not copy collection's preview (same behavior as for objects). */
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) { /* XXX TODO: temp hack. */
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
     BKE_previewimg_id_copy(&collection_dst->id, &collection_src->id);
   }
   else {
