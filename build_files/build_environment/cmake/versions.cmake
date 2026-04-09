@@ -1506,8 +1506,7 @@ set(CERES_HOMEPAGE http://ceres-solver.org/)
 set(CERES_LICENSE SPDX:BSD-3-Clause)
 set(CERES_COPYRIGHT "Copyright 2023 Google Inc. All rights reserved.")
 
-# Using a latest main hash as Tracy WoA support (commit feb07e4) hasn't made it to a stable release yet. Switch to stable on next upgrade.
-set(TRACY_VERSION 00a069d6088ff8d93304eaac4d925cece0e9081c) # Latest main on 2026-04-09
+include(${CMAKE_SOURCE_DIR}/../../extern/tracy_profiler/tracy_version.cmake)
 set(TRACY_URI https://github.com/wolfpld/tracy/archive/${TRACY_VERSION}.tar.gz)
 set(TRACY_HASH cb84ba76ffd611e6c162040d0828f249)
 set(TRACY_HASH_TYPE MD5)
