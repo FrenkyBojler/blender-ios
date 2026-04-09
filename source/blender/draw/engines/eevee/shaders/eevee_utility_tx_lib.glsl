@@ -44,12 +44,3 @@ float4 utility_tx_sample_bsdf_lut(sampler2DArray util_tx, float2 uv, float layer
   /* Manual trilinear interpolation. */
   return mix(tex_low, tex_high, interp);
 }
-
-/* Sample LTC or BSDF LUTs with `cos_theta` and `roughness` as inputs. */
-float4 utility_tx_sample_lut(sampler2DArray util_tx, float cos_theta, float roughness, float layer)
-{
-  /* LUTs are parameterized by `sqrt(1.0 - cos_theta)` for more precision near grazing incidence.
-   */
-  float2 coords = float2(roughness, sqrt(clamp(1.0f - cos_theta, 0.0f, 1.0f)));
-  return utility_tx_sample_lut(util_tx, coords, layer);
-}
