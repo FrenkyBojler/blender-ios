@@ -17,9 +17,9 @@
 #include "draw_view_lib.glsl"
 #include "eevee_bxdf_diffuse_lib.glsl"
 #include "eevee_bxdf_microfacet_lib.glsl"
-#include "eevee_ray_types_lib.glsl"
-#include "eevee_reverse_z_lib.glsl"
-#include "eevee_thickness_lib.glsl"
+#include "eevee_ray_types_lib.bsl.hh"
+#include "eevee_reverse_z_lib.bsl.hh"
+#include "eevee_thickness_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
 
@@ -72,7 +72,7 @@ ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
   }
 
   /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
-  ScreenSpaceRay ssray = raytrace_screenspace_ray_create(
+  ScreenSpaceRay ssray = ScreenSpaceRay::create(
       ray, 2.0f * rt_data.full_resolution_inv, rt_data.thickness);
 
   /* Avoid no iteration. */
@@ -154,8 +154,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
   float2 inv_texture_size = 1.0f / float2(textureSize(planar_depth_tx, 0).xy);
   /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
-  ScreenSpaceRay ssray = raytrace_screenspace_ray_create(
-      ray, planar.winmat, 2.0f * inv_texture_size);
+  ScreenSpaceRay ssray = ScreenSpaceRay::create(ray, planar.winmat, 2.0f * inv_texture_size);
 
   float prev_delta = 0.0f, prev_time = 0.0f;
   float depth_sample = reverse_z::read(
