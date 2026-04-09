@@ -39,7 +39,7 @@ static void version_update_draw_body(const bke::VersionUpdate &update,
   row.emboss_set(ui::EmbossType::None);
   row.alignment_set(ui::LayoutAlign::Expand);
   if (update.version.version == BLENDER_VERSION) {
-    row.label(IFACE_("Bugfixes releases are highly recommended to update."), ICON_NONE);
+    row.label(IFACE_("Updating to bugfix releases is highly recommended."), ICON_NONE);
   }
   else {
     row.label(update.description, ICON_NONE);
@@ -64,7 +64,7 @@ static void version_update_draw_body(const bke::VersionUpdate &update,
       0,
       0,
       "");
-  ui::button_func_set(button, [update_info = &update](blender::bContext &C) {
+  ui::button_func_set(button, [update_info = &update](bContext &C) {
     bke::ignore_update(update_info);
     WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   });
@@ -78,7 +78,6 @@ static void version_update_draw_body(const bke::VersionUpdate &update,
 static void panel_blender_updates_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  layout.use_layout_panels_carroussels_set(true);
   Vector<const bke::VersionUpdate *> available_updates = bke::available_updates();
   if (available_updates.is_empty()) {
     ui::Layout &header = layout.row(true);
@@ -97,7 +96,7 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
                  ICON_NONE);
     ui::Layout &sub = header.row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
-    sub.link(update.release_notes_url, IFACE_("What's new"), ICON_NONE);
+    sub.link(update.release_notes_url, IFACE_("What's New"), ICON_NONE);
     version_update_draw_body(update, layout.column(false), true);
     return;
   }
@@ -118,7 +117,7 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
                                 0,
                                 0,
                                 "");
-  ui::button_func_set(button, [](blender::bContext &C) {
+  ui::button_func_set(button, [](bContext &C) {
     bke::ignore_all_updates();
     WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   });
@@ -144,13 +143,12 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
     }
     ui::Layout &sub = panel_layout.header->row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
-    sub.link(update->release_notes_url, IFACE_("What's new"), ICON_NONE);
+    sub.link(update->release_notes_url, IFACE_("What's New"), ICON_NONE);
     version_update_draw_body(*update, body->column(false));
   }
 }
 
-static bool panel_blender_updates_poll(const blender::bContext * /*C*/,
-                                       blender::PanelType * /*pt*/)
+static bool panel_blender_updates_poll(const bContext * /*C*/, PanelType * /*pt*/)
 {
   return !bke::available_updates().is_empty();
 }
@@ -162,7 +160,7 @@ void panel_blender_updates_register(ARegionType *region_type)
   STRNCPY_UTF8(pt->idname, "STATUS_PT_blender_updates");
   STRNCPY_UTF8(pt->label, N_("Updates Available"));
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  pt->description = N_("Display availble Blender updates in a popover panel");
+  pt->description = N_("Display available Blender release updates in a popover panel");
   pt->draw = panel_blender_updates_draw;
   pt->poll = panel_blender_updates_poll;
   pt->region_type = RGN_TYPE_HEADER;
