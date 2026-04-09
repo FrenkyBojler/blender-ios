@@ -126,7 +126,7 @@ struct MeshRenderData {
 
 inline const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh)
 {
-  if (mesh.runtime->edit_mesh != nullptr) {
+  if (object.type == OB_MESH && mesh.runtime->edit_mesh != nullptr) {
     if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object)) {
       return *editmesh_eval_final;
     }

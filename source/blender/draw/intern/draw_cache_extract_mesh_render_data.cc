@@ -408,7 +408,8 @@ MeshRenderData mesh_render_data_create(Object &object,
 
   mr.use_hide = use_hide;
 
-  const Mesh *editmesh_orig = BKE_object_get_pre_modified_mesh(&object);
+  const Mesh *editmesh_orig = object.type == OB_MESH ? BKE_object_get_pre_modified_mesh(&object) :
+                                                       nullptr;
   if (editmesh_orig && editmesh_orig->runtime->edit_mesh) {
     const Mesh *eval_cage = DRW_object_get_editmesh_cage_for_drawing(object);
 
