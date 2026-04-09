@@ -29,6 +29,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -55,6 +56,9 @@ struct Scene;
 struct ThreadSlot;
 
 namespace seq {
+
+/* Prefetch several frames before the playhead, so that it is fast to move it a bit backwards. */
+static constexpr int before_playhead_frames = 5;
 
 struct PrefetchJob {
   PrefetchJob *next = nullptr;
@@ -203,12 +207,10 @@ static bool seq_prefetch_is_cache_full(Scene *scene)
 static int seq_prefetch_cfra(PrefetchJob *pfjob)
 {
   int new_frame = pfjob->cfra + pfjob->num_frames_prefetched;
-  Scene *scene = pfjob->scene; /* For the start/end frame macros. */
-  int timeline_start = PSFRA;
-  int timeline_end = PEFRA;
-  if (new_frame >= timeline_end) {
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(pfjob->scene);
+  if (new_frame >= playback_range.end_frame) {
     /* Wrap around to where we will jump when we reach the end frame. */
-    new_frame = timeline_start + new_frame - timeline_end;
+    new_frame = playback_range.start_frame + new_frame - playback_range.end_frame;
   }
   return new_frame;
 }
@@ -284,7 +286,7 @@ void PrefetchJob::free_gpu()
 
 static void seq_prefetch_update_area(PrefetchJob *pfjob)
 {
-  int cfra = pfjob->scene->r.cfra;
+  int cfra = pfjob->scene->r.cfra - before_playhead_frames;
 
   /* rebase */
   if (cfra > pfjob->cfra) {
@@ -302,11 +304,13 @@ static void seq_prefetch_update_area(PrefetchJob *pfjob)
   }
 
   /* timeline span changes */
-  Scene *scene = pfjob->scene; /* For the start/end frame macros. */
-  if (pfjob->timeline_start != PSFRA || pfjob->timeline_end != PEFRA) {
-    pfjob->timeline_start = PSFRA;
-    pfjob->timeline_end = PEFRA;
-    pfjob->timeline_length = PEFRA - PSFRA;
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(pfjob->scene);
+  if (pfjob->timeline_start != playback_range.start_frame ||
+      pfjob->timeline_end != playback_range.end_frame)
+  {
+    pfjob->timeline_start = playback_range.start_frame;
+    pfjob->timeline_end = playback_range.end_frame;
+    pfjob->timeline_length = playback_range.end_frame - playback_range.start_frame;
     /* Reset the number of prefetched frames as we need to re-evaluate which
      * frames to keep in the cache.
      */
@@ -314,6 +318,7 @@ static void seq_prefetch_update_area(PrefetchJob *pfjob)
   }
 
   /* cache flag changes */
+  Scene *scene = pfjob->scene;
   if (pfjob->cache_flags != scene->ed->cache_flag) {
     pfjob->cache_flags = scene->ed->cache_flag;
     pfjob->num_frames_prefetched = 1;
@@ -621,11 +626,14 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
   }
   pfjob->bmain = context->bmain;
 
-  Scene *scene = pfjob->scene; /* For the start/end frame macros. */
-  pfjob->cfra = cfra;
-  pfjob->timeline_start = PSFRA;
-  pfjob->timeline_end = PEFRA;
-  pfjob->timeline_length = PEFRA - PSFRA;
+  Scene *scene = pfjob->scene;
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(pfjob->scene);
+  pfjob->timeline_start = playback_range.start_frame;
+  pfjob->timeline_end = playback_range.end_frame;
+  pfjob->timeline_length = playback_range.end_frame - playback_range.start_frame;
+
+  pfjob->cfra = math::max(int(cfra - before_playhead_frames), pfjob->timeline_start);
+
   pfjob->num_frames_prefetched = 1;
   pfjob->cache_flags = scene->ed->cache_flag;
 

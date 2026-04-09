@@ -168,7 +168,7 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
   }
 
   tex->nodetree = bke::node_tree_add_tree_embedded(
-      nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname);
+      nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname.ref());
 
   bNode *out = bke::node_add_static_node(C, *tex->nodetree, TEX_NODE_OUTPUT);
   out->location[0] = 300.0f;
@@ -1269,6 +1269,7 @@ void NODE_OT_collapse_toggle(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Collapse";
+  ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
   ot->description = "Toggle collapsing of selected nodes";
   ot->idname = "NODE_OT_hide_toggle";
 
