@@ -43,6 +43,10 @@ static float halton(int &a, int &b, int base)
   }
   return static_cast<float>(a) / static_cast<float>(b);
 }
+float2 HaltonSequence::next()
+{
+  return make_float2(halton(a2, b2, 2) - 0.5f, halton(a3, b3, 3) - 0.5f);
+}
 
 NODE_DEFINE(Integrator)
 {
@@ -324,7 +328,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
   /* Randomize the seed every frame when applying pixel jitter. */
   if (use_pixel_jitter) {
-    kintegrator->seed = hash_uint3(seed, pixel_jitter_a2, pixel_jitter_a3);
+    kintegrator->seed = hash_uint3(seed, pixel_jitter_state.a2, pixel_jitter_state.a3);
   }
   /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
    * work properly. Therefore, hash the seed in those cases. */
@@ -375,15 +379,11 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
   if (use_pixel_jitter) {
-    kintegrator->pixel_jitter = make_float2(halton(pixel_jitter_a2, pixel_jitter_b2, 2) - 0.5f,
-                                            halton(pixel_jitter_a3, pixel_jitter_b3, 3) - 0.5f);
+    kintegrator->pixel_jitter = pixel_jitter_state.next();
   }
   else {
     kintegrator->pixel_jitter = make_float2(FLT_MAX);
-    pixel_jitter_a2 = 0;
-    pixel_jitter_b2 = 1;
-    pixel_jitter_a3 = 0;
-    pixel_jitter_b3 = 1;
+    pixel_jitter_state.reset();
   }
 
   dscene->sample_pattern_lut.clear_modified();
