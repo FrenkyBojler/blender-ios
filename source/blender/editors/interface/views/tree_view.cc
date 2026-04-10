@@ -981,7 +981,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                              tree_view.invert_search_filter_.get(),
                              0,
                              0,
-                             TIP_(""));
+                             TIP_("Invert search results (Show items that don't match the search string)"));
 
       but = uiDefIconButBitC(block,
                              ButtonType::Toggle,

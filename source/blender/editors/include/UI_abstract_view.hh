@@ -408,7 +408,7 @@ class AbstractViewItem {
    * \note Do not call this directly to avoid constantly rechecking the filter state. Instead use
    *       #is_filtered_visible() for querying.
    */
-  virtual bool should_be_filtered_visible(StringRefNull filter_string) const;
+  virtual bool should_be_filtered_visible(StringRefNull filter_string) const = 0;
 
   /**
    * Add a text button for renaming the item to \a block. This must be used for the built-in
