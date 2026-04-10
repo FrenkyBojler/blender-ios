@@ -266,31 +266,31 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
   }
 }
 
-static void blend_colors(MutableSpan<float4> paint_buffer_colors,
-                         Span<float4> scene_linear_colors,
+static void blend_colors(MutableSpan<float4> paint_pixels,
+                         Span<float4> scene_linear_pixels,
                          const Brush &brush)
 {
-  BLI_assert(paint_buffer_colors.size() == scene_linear_colors.size());
+  BLI_assert(paint_pixels.size() == scene_linear_pixels.size());
 
   /* Mix the initial image color with the paint color. */
-  for (const int i : paint_buffer_colors.index_range()) {
-    blend_color_mix_float(paint_buffer_colors[i], scene_linear_colors[i], paint_buffer_colors[i]);
-    paint_buffer_colors[i] *= brush.alpha;
+  for (const int i : paint_pixels.index_range()) {
+    blend_color_mix_float(paint_pixels[i], scene_linear_pixels[i], paint_pixels[i]);
+    paint_pixels[i] *= brush.alpha;
   }
 
   /* Apply the blended color to the original image with the brush alpha. */
   IMB_blend_color_float(
-      paint_buffer_colors, scene_linear_colors, paint_buffer_colors, (IMB_BlendMode)brush.blend);
+      paint_pixels, scene_linear_pixels, paint_pixels, (IMB_BlendMode)brush.blend);
 }
 
 #ifdef DEBUG_PIXEL_NODES
-static void apply_debug_color(MutableSpan<float4> buffer_colors, const PackedPixelRow &pixel_row)
+static void apply_debug_color(MutableSpan<float4> paint_pixels, const PackedPixelRow &pixel_row)
 {
   if ((pixel_row.start_image_coordinate.y >> 3) & 1) {
-    for (const int i : buffer_colors.index_range()) {
-      buffer_colors[i][0] *= 0.5f;
-      buffer_colors[i][1] *= 0.5f;
-      buffer_colors[i][2] *= 0.5f;
+    for (const int i : paint_pixels.index_range()) {
+      paint_pixels[i][0] *= 0.5f;
+      paint_pixels[i][1] *= 0.5f;
+      paint_pixels[i][2] *= 0.5f;
     }
   }
 }
