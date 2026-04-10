@@ -278,6 +278,10 @@ void AbstractTreeView::sort_inverted()
   this->foreach_sort_invert(*invert_sort_type_);
 }
 
+SortOrder AbstractTreeView::invert_sort_type_get() const
+{
+  return *invert_sort_type_;
+}
 static ButtonViewItem *find_first_view_item_but(const Block &block, const AbstractTreeView &view)
 {
   for (Button &but : block.buttons()) {

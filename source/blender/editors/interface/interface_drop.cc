@@ -9,6 +9,7 @@
 #include "BLI_listbase.h"
 
 #include "UI_interface.hh"
+#include "UI_tree_view.hh"
 
 namespace blender::ui {
 
@@ -35,10 +36,21 @@ bool drop_target_apply_drop(bContext &C,
       return false;
     }
 
-    const std::optional<DropLocation> drop_location = drop_target.choose_drop_location(region,
-                                                                                       event);
+    std::optional<DropLocation> drop_location = drop_target.choose_drop_location(region, event);
     if (!drop_location) {
       return false;
+    }
+
+    AbstractView *view = region_view_find_at(&region, event.xy, 0);
+    if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
+      if (tree_view->invert_sort_type_get() != SortOrder::None) {
+        /* Switch drop location when invert sorting is enabled. */
+        if (*drop_location == DropLocation::After) {
+          *drop_location = DropLocation::Before;
+        } else if (*drop_location == DropLocation::Before) {
+          *drop_location = DropLocation::After;
+        }
+      }
     }
 
     const DragInfo drag_info{drag, event, *drop_location};
