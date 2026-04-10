@@ -2701,8 +2701,15 @@ int handler_panel_region(bContext *C,
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
         region->runtime->category_tip_name = pc_dyn->idname;
-        WM_tooltip_timer_init(
-            C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init);
+        WM_tooltip_timer_init_ex(C,
+                                 CTX_wm_window(C),
+                                 CTX_wm_area(C),
+                                 region,
+                                 WM_panel_category_tooltip_init,
+                                 UI_TOOLTIP_DELAY_QUICK);
+      }
+      else {
+        WM_tooltip_clear(C, CTX_wm_window(C));
       }
     }
   }
