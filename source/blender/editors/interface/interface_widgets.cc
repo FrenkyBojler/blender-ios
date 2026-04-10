@@ -38,7 +38,7 @@
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
-#include "./buttons/interface_textbox.hh"
+#include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
 #include "GPU_batch.hh"

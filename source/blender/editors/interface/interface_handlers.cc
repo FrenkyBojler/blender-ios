@@ -66,7 +66,7 @@
 
 #include "BLF_api.hh"
 
-#include "./buttons/interface_textbox.hh"
+#include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
 #include "RNA_access.hh"
