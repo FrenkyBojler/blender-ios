@@ -209,6 +209,8 @@ static int handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, A
 /** Tolerance for closing menus (in pixels). */
 #define MENU_TOWARDS_WIGGLE_ROOM 64
 
+static constexpr double menu_keep_open_duration = 0.4f;
+
 enum ButtonActivateType {
   BUTTON_ACTIVATE_OVER,
   BUTTON_ACTIVATE,
@@ -358,6 +360,9 @@ struct HandleButtonMulti {
    * here so we can tell if this is a vertical motion or not. */
   float drag_dir[2] = {0.0f, 0.0f};
 
+  /* Previous mouse position for accumulating drag_dir. */
+  int drag_dir_prev[2] = {0, 0};
+
   /* values copied direct from event->xy
    * used to detect buttons between the current and initial mouse position */
   int drag_start[2] = {0, 0};
@@ -409,6 +414,7 @@ struct HandleButtonData {
   /* Button is being applied through an extra icon. */
   bool apply_through_extra_icon = false;
   bool changed_cursor = false;
+  bool changed_wokspace_status = false;
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
@@ -2681,8 +2687,18 @@ static void but_copy_color(Button *but, char *output, int output_maxncpy)
 
 static void but_paste_color(bContext *C, Button *but, char *buf_paste)
 {
-  float rgba[4];
+  float rgba[4] = {0.0, 0.0, 0.0, 1.0};
+  bool is_parsed = false;
+
   if (parse_float_array(buf_paste, rgba, 4)) {
+    is_parsed = true;
+  }
+  else if (hex_to_rgba(buf_paste, &rgba[0], &rgba[1], &rgba[2], &rgba[3])) {
+    IMB_colormanagement_srgb_to_scene_linear_v3(rgba, rgba);
+    is_parsed = true;
+  }
+
+  if (is_parsed) {
     if (but->rnaprop) {
       /* Assume linear colors in buffer. */
       if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
@@ -2695,7 +2711,7 @@ static void but_paste_color(bContext *C, Button *but, char *buf_paste)
     }
   }
   else {
-    WM_global_report(RPT_ERROR, "Paste expected 4 numbers, formatted: '[n, n, n, n]'");
+    WM_global_report(RPT_ERROR, "Paste expected hex code or 4 numbers, formatted: '[n, n, n, n]'");
   }
 }
 
@@ -4817,7 +4833,15 @@ static int do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const wm
     }
   }
 #endif
-
+  if (button_draw_as_link(but) && !data->changed_cursor) {
+    WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
+    data->changed_cursor = true;
+  }
+  if (button_opens_link(but) && !data->changed_wokspace_status) {
+    WorkspaceStatus status(C);
+    status.item(button_get_link(but, C), ICON_NONE);
+    data->changed_wokspace_status = true;
+  }
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
       button_activate_state(C, but, BUTTON_STATE_WAIT_RELEASE);
@@ -5836,6 +5860,8 @@ static int do_but_NUM(
 
 #ifdef USE_DRAG_MULTINUM
       copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
     }
   }
@@ -5870,8 +5896,10 @@ static int do_but_NUM(
       float fac;
 
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
 
       fac = 1.0f;
@@ -6202,6 +6230,8 @@ static int do_but_SLI(
     }
 #ifdef USE_DRAG_MULTINUM
     copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+    data->multi_data.drag_dir_prev[0] = mx;
+    data->multi_data.drag_dir_prev[1] = my;
 #endif
   }
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
@@ -6236,8 +6266,10 @@ static int do_but_SLI(
     else if ((event->type == MOUSEMOVE) || event_is_snap(event)) {
       const bool is_motion = (event->type == MOUSEMOVE);
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
       if (numedit_but_SLI(but,
                           data,
@@ -7756,6 +7788,7 @@ static int do_but_CURVE(
     bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
   bool changed = false;
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -7812,7 +7845,8 @@ static int do_but_CURVE(
           if (dist_squared_to_line_segment_v2(m_xy, f_xy_prev, f_xy) < dist_min_sq) {
             BLI_rctf_transform_pt_v(&cumap->curr, &but->rect, f_xy, m_xy);
 
-            BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            CurveMapPoint *new_pt = BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            new_pt->flag &= ~CUMA_SELECT; /* deselect new point for now */
             BKE_curvemapping_changed(cumap, false);
 
             changed = true;
@@ -7832,17 +7866,29 @@ static int do_but_CURVE(
         }
       }
 
+      cmp = cuma->curve;
       if (sel != -1) {
         /* ok, we move a point */
         /* deselect all if this one is deselect. except if we hold shift */
-        if ((event->modifier & KM_SHIFT) == 0) {
-          for (int a = 0; a < cuma->totpoint; a++) {
-            cmp[a].flag &= ~CUMA_SELECT;
+        if (event->modifier & KM_SHIFT) {    /* If holding shift. */
+          if (cmp[sel].flag & CUMA_SELECT) { /* if the current point is selected. */
+            if (cmp[sel].flag & CUMA_ACTIVE) {
+              BKE_curvemap_activate_nearest_point(cuma, sel);
+            }
+            cmp[sel].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
           }
-          cmp[sel].flag |= CUMA_SELECT;
+          else {
+            for (int a = 0; a < cuma->totpoint; a++) {
+              cmp[a].flag &= ~CUMA_ACTIVE;
+            }
+            cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
+          }
         }
-        else {
-          cmp[sel].flag ^= CUMA_SELECT;
+        else { /* If not holding shift. */
+          for (int a = 0; a < cuma->totpoint; a++) {
+            cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
+          }
+          cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
         }
       }
       else {
@@ -7887,14 +7933,14 @@ static int do_but_CURVE(
           /* deselect all, select one */
           if ((event->modifier & KM_SHIFT) == 0) {
             for (int a = 0; a < cuma->totpoint; a++) {
-              cmp[a].flag &= ~CUMA_SELECT;
+              cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
             }
-            cmp[data->dragsel].flag |= CUMA_SELECT;
+            cmp[data->dragsel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
           }
         }
         else {
           BKE_curvemapping_changed(cumap, true); /* remove doubles */
-          BKE_paint_invalidate_cursor_overlay(scene, view_layer, cumap);
+          BKE_paint_invalidate_cursor_overlay(*bmain, scene, view_layer, cumap);
         }
       }
 
@@ -7964,12 +8010,12 @@ static bool numedit_but_CURVEPROFILE(Block *block,
       }
       else {
         /* Move handles when they're selected but the control point isn't. */
-        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && pts[a].flag == PROF_H1_SELECT) {
+        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && (pts[a].flag & PROF_H1_SELECT)) {
           moved_point |= BKE_curveprofile_move_handle(&pts[a], true, snap, delta);
           last_x = pts[a].h1_loc[0];
           last_y = pts[a].h1_loc[1];
         }
-        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && pts[a].flag == PROF_H2_SELECT) {
+        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && (pts[a].flag & PROF_H2_SELECT)) {
           moved_point |= BKE_curveprofile_move_handle(&pts[a], false, snap, delta);
           last_x = pts[a].h2_loc[0];
           last_y = pts[a].h2_loc[1];
@@ -8034,7 +8080,17 @@ static bool point_draw_handles(CurveProfilePoint *point)
 {
   return (point->flag & PROF_SELECT &&
           (ELEM(point->h1, HD_FREE, HD_ALIGN) || ELEM(point->h2, HD_FREE, HD_ALIGN))) ||
-         ELEM(point->flag, PROF_H1_SELECT, PROF_H2_SELECT);
+         point->flag & PROF_H1_SELECT || point->flag & PROF_H2_SELECT;
+}
+
+static short profile_select_to_active(short selection_type)
+{
+  /* Active flags are the select flags multiplied by #PROF_ACTIVE.
+   * Static asserts ensure this relationship holds if flag values change. */
+  static_assert(PROF_ACTIVE == PROF_SELECT * 8);
+  static_assert(PROF_H1_ACTIVE == PROF_H1_SELECT * 8);
+  static_assert(PROF_H2_ACTIVE == PROF_H2_SELECT * 8);
+  return selection_type * PROF_ACTIVE;
 }
 
 /**
@@ -8137,6 +8193,7 @@ static int do_but_CURVEPROFILE(
             BLI_rctf_transform_pt_v(&profile->view_rect, &but->rect, f_xy, m_xy);
 
             CurveProfilePoint *new_pt = BKE_curveprofile_insert(profile, f_xy[0], f_xy[1]);
+            new_pt->flag &= ~PROF_SELECT; /* Deselect new point for now. */
             BKE_curveprofile_update(profile, PROF_UPDATE_CLIP);
 
             /* Get the index of the newly added point. */
@@ -8149,17 +8206,49 @@ static int do_but_CURVEPROFILE(
       }
 
       /* Change the flag for the point(s) if one was selected or added. */
+      /* Offset the selection type to get the active type. */
+      const short active_type = profile_select_to_active(selection_type);
+      pts = profile->path;
       if (i_selected != -1) {
         /* Deselect all if this one is deselected, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
-          pts[i_selected].flag ^= selection_type;
+          if (pts[i_selected].flag & selection_type) {
+            /* If the current point or handle is selected. */
+            pts[i_selected].flag ^= selection_type;
+
+            if (pts[i_selected].flag & active_type) {
+              /* If the current point or handle is active. */
+              pts[i_selected].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
+              if (pts[i_selected].flag & PROF_SELECT) {
+                pts[i_selected].flag |= PROF_ACTIVE;
+              }
+              else if (pts[i_selected].flag & PROF_H1_SELECT) {
+                pts[i_selected].flag |= PROF_H1_ACTIVE;
+              }
+              else if (pts[i_selected].flag & PROF_H2_SELECT) {
+                pts[i_selected].flag |= PROF_H2_ACTIVE;
+              }
+              else {
+                /* If the current point including its handles are d, activate the nearest
+                 * point. */
+                BKE_curveprofile_activate_nearest_point(profile, i_selected);
+              }
+            }
+          }
+          else {
+            for (int a = 0; a < profile->path_len; a++) {
+              pts[a].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
+            }
+            pts[i_selected].flag |= (selection_type | active_type);
+          }
         }
         else {
           for (int i = 0; i < profile->path_len; i++) {
             // pts[i].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT);
-            profile->path[i].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT);
+            profile->path[i].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT |
+                                       PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
           }
-          profile->path[i_selected].flag |= selection_type;
+          profile->path[i_selected].flag |= (selection_type | active_type);
         }
       }
       else {
@@ -8863,7 +8952,9 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
           time = 1;
         }
         else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
-          time = 5 * U.menuthreshold2;
+          /* When auto open is disabled, open subpanel on hover but don't rely on sub level
+           * threshold value, see: #153110 */
+          time = (U.uiflag & USER_MENUOPENAUTO) ? 5 * U.menuthreshold2 : 10;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
           time = 5 * U.menuthreshold1;
@@ -9239,6 +9330,9 @@ static void button_activate_exit(
 
   if (data->changed_cursor) {
     WM_cursor_set(win, WM_CURSOR_DEFAULT);
+  }
+  if (data->changed_wokspace_status) {
+    ED_workspace_status_text(C, nullptr);
   }
 
   /* redraw and refresh (for popups) */
@@ -9906,8 +10000,10 @@ static int handle_button_event(bContext *C, const wmEvent *event, Button *but)
         if (event->customdata == data->autoopentimer) {
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
-
-          if (button_contains_point_px(but, region, event->xy) || but->active) {
+          /* Do not open sub-menus while using an auto-scroll handler. */
+          if ((block_is_pie_menu(block) || !block->handle || !block->handle->scrolltimer) &&
+              (button_contains_point_px(but, region, event->xy) || but->active))
+          {
             button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
           }
         }
@@ -10593,32 +10689,11 @@ static void menu_scroll_apply_offset_y(ARegion *region, Block *block, float dy)
 {
   BLI_assert(dy != 0.0f);
 
-  const float scroll_pad = (block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f) /
-                           block->aspect;
-
-  if (dy < 0.0f) {
-    /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
-    float ymax = -FLT_MAX;
-    for (Button &bt : block->buttons()) {
-      ymax = max_ff(ymax, bt.rect.ymax);
-    }
-    if (ymax + dy - (UI_UNIT_Y * 0.5f) / block->aspect < block->rect.ymax - scroll_pad) {
-      dy = block->rect.ymax - ymax - scroll_pad;
-    }
-  }
-  else {
-    /* Stop at bottom item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
-    float ymin = FLT_MAX;
-    for (Button &bt : block->buttons()) {
-      ymin = min_ff(ymin, bt.rect.ymin);
-    }
-    if (ymin + dy + (UI_UNIT_Y * 0.5f) / block->aspect > block->rect.ymin + scroll_pad) {
-      dy = block->rect.ymin - ymin + scroll_pad;
-    }
-  }
-
   /* remember scroll offset for refreshes */
-  block->handle->scrolloffset += dy;
+  const float prev_scroll = block->handle->scrolloffset;
+  block->handle->scrolloffset = std::clamp(
+      block->handle->scrolloffset + dy, block->handle->scrollmin, block->handle->scrollmax);
+  dy = block->handle->scrolloffset - prev_scroll;
   /* Apply popup scroll delta to layout panels too. */
   layout_panel_popup_scroll_apply(block->panel, dy);
 
@@ -10846,6 +10921,101 @@ static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent
   return WM_UI_HANDLER_CONTINUE;
 }
 
+static int handle_menu_mmb_event(bContext *C,
+                                 const wmEvent *event,
+                                 PopupBlockHandle *menu,
+                                 int level,
+                                 const bool is_parent_menu)
+{
+  ARegion *region = menu->region;
+  Block *block = static_cast<Block *>(region->runtime->uiblocks.first);
+  wmWindow *win = CTX_wm_window(C);
+  Button *but = region_find_active_but(region);
+  int mx = event->xy[0];
+  int my = event->xy[1];
+  window_to_block(region, block, &mx, &my);
+
+  /* Check if mouse is inside the menu. */
+  const bool inside = BLI_rctf_isect_pt(&block->rect, mx, my);
+
+  int retval = WM_UI_HANDLER_CONTINUE;
+  /* Remove the #menu::keep_open_timer once the mouse is within the popup. */
+  if (!menu->mmb_panning && inside) {
+    if (menu->keep_open_timer) {
+      WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_open_timer);
+      menu->keep_open_timer = nullptr;
+    }
+  }
+  /* Once #menu::keep_open_timer ticks the menu can be closed automatically. */
+  if (event->type == TIMER && event->customdata == menu->keep_open_timer) {
+    WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_open_timer);
+    menu->keep_open_timer = nullptr;
+    retval = WM_UI_HANDLER_BREAK;
+  }
+
+  if (menu->mmb_panning && event->type == MIDDLEMOUSE && event->val == KM_RELEASE) {
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    WM_cursor_grab_disable(win, nullptr);
+    menu->mmb_panning = false;
+    if (!inside) {
+      /* Set the threshold to prevent from closing the menu when middle mouse button panning ends
+       * outside the menu bounds. */
+      menu->keep_open_timer = WM_event_timer_add(
+          CTX_wm_manager(C), CTX_wm_window(C), TIMER, menu_keep_open_duration);
+    }
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  /* Handle middle mouse panning. */
+  else if (menu->mmb_panning && event->type == MOUSEMOVE) {
+    const int delta = (menu->mmb_panning_last_y - event->xy[1]) *
+                      (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
+    if (delta) {
+      menu_scroll_apply_offset_y(region, block, delta);
+      menu->mmb_panning_last_y = event->xy[1];
+    }
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  else if (event->type == MOUSEMOVE && !inside && menu->keep_open_timer) {
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  else if (event->type == MIDDLEMOUSE && !inside) {
+    /* Let parent menus handle middle mouse panning if the mouse is not within the current menu. */
+    if (menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0)) {
+      return WM_UI_HANDLER_CONTINUE;
+    }
+  }
+  else if (event->type == MIDDLEMOUSE) {
+    if (!(block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM))) {
+      return WM_UI_HANDLER_BREAK;
+    }
+    menu->mmb_panning = event->val == KM_PRESS;
+    if (menu->mmb_panning) {
+      but = region_find_active_but(region);
+      if (but) {
+        but->active->cancel = true;
+        button_activate_exit(C, but, but->active, false, false);
+      }
+    }
+    menu->mmb_panning_last_y = event->xy[1];
+    menu->retvalue = 0;
+    if (menu->mmb_panning) {
+      rctf rectf;
+      block_to_window_rctf(menu->region, block, &rectf, &block->rect);
+      rcti bounds;
+      BLI_rcti_rctf_copy(&bounds, &rectf);
+      WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+      if (U.uiflag & USER_CONTINUOUS_MOUSE && !WM_event_is_tablet(event)) {
+        WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
+      }
+    }
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  if (menu->mmb_panning && !ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE, TIMER)) {
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  return retval;
+}
+
 static int handle_menu_event(bContext *C,
                              const wmEvent *event,
                              PopupBlockHandle *menu,
@@ -10884,7 +11054,7 @@ static int handle_menu_event(bContext *C,
 
   wmWindow *win = CTX_wm_window(C);
 
-  if (!menu->is_grab && is_floating) {
+  if (!menu->mmb_panning && !menu->is_grab && is_floating) {
     if (inside_title && (!but || but->type == ButtonType::Image)) {
       if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
         /* Initial press before starting to drag. */
@@ -10922,8 +11092,12 @@ static int handle_menu_event(bContext *C,
     }
   }
 #endif
-
-  if (but && button_modal_state(but->active->state)) {
+  if (retval == WM_UI_HANDLER_CONTINUE) {
+    retval = handle_menu_mmb_event(C, event, menu, level, is_parent_menu);
+  }
+  if (retval != WM_UI_HANDLER_CONTINUE) {
+  }
+  else if (but && button_modal_state(but->active->state)) {
     if (block->flag & (BLOCK_MOVEMOUSE_QUIT | BLOCK_POPOVER)) {
       /* if a button is activated modal, always reset the start mouse
        * position of the towards mechanism to avoid losing focus,
@@ -10931,8 +11105,13 @@ static int handle_menu_event(bContext *C,
       mouse_motion_towards_reinit(menu, event->xy);
     }
   }
-  else if (event->type == TIMER) {
-    if (event->customdata == menu->scrolltimer) {
+  else if (event->type == TIMER && event->customdata == menu->scrolltimer) {
+    if (!menu_scroll_test(block, my)) {
+      WM_event_timer_remove(CTX_wm_manager(C), win, menu->scrolltimer);
+      menu->scrolltimer = nullptr;
+    }
+    /* Don't auto-scroll while panning. */
+    else if (!menu->mmb_panning && !menu->keep_open_timer) {
       menu_scroll_to_y(region, block, my);
     }
   }
@@ -11491,7 +11670,9 @@ static int handle_menu_event(bContext *C,
           }
 
           /* strict check, and include the parent rect */
-          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0)) {
+          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0) &&
+              !(menu->mmb_panning || menu->keep_open_timer))
+          {
             if (block->flag & BLOCK_OUT_1) {
               menu->menuretval = RETURN_OK;
             }
@@ -12206,6 +12387,19 @@ static bool can_activate_other_menu(Button *but, Button *but_other, const wmEven
   {
     /* If the open menu is super wide then don't switch to any neighbors. */
     return false;
+  }
+
+  /* Prevent menus from being closed while using middle mouse button panning. */
+  if (data->menu && data->menu->region) {
+    PopupBlockHandle *submenu = data->menu;
+    while (submenu) {
+      if (submenu->mmb_panning || submenu->keep_open_timer) {
+        return false;
+      }
+      Button *but = region_find_active_but(submenu->region);
+      HandleButtonData *data = (but) ? but->active : nullptr;
+      submenu = (data) ? data->menu : nullptr;
+    }
   }
 
   float safety = 4.0f * UI_SCALE_FAC;

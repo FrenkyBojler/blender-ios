@@ -12,6 +12,7 @@
 
 #include "kernel/sample/mapping.h"
 
+#include "kernel/svm/node_types.h"
 #include "kernel/svm/util.h"
 
 #include "kernel/geom/shader_data.h"
@@ -32,7 +33,8 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
                                      float3 position,
                                      float3 direction,
                                      float distance,
-                                     bool only_local)
+                                     bool only_local,
+                                     float bump_filter_width)
 {
   RaycastResult result;
   result.distance = -1.0f;
@@ -49,13 +51,23 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
     return result;
   }
 
-  const bool avoid_self_intersection = isequal(position, sd->P);
+  float tmin = 0.0f;
+  bool avoid_self_intersection = false;
+  if (bump_filter_width > 0.0f) {
+    /* If evaluating for bump mapping at a shifted position, increase min
+     * distance by slightly more than the shift distance to avoid self
+     * intersections. */
+    tmin = bump_filter_width * sd->dP * 1.1f;
+  }
+  else {
+    avoid_self_intersection = isequal(position, sd->P);
+  }
 
   /* Create ray. */
   Ray ray;
   ray.P = position;
   ray.D = direction;
-  ray.tmin = 0.0f;
+  ray.tmin = tmin;
   ray.tmax = distance;
   ray.time = sd->time;
   ray.self.object = avoid_self_intersection ? sd->object : OBJECT_NONE;
@@ -103,24 +115,10 @@ ccl_device_noinline
     svm_node_raycast(KernelGlobals kg,
                      ConstIntegratorGenericState state,
                      ccl_private ShaderData *sd,
-                     ccl_private float *stack,
-                     const uint4 node)
+                     ccl_private float *ccl_restrict stack,
+                     const ccl_global SVMNodeRaycast &ccl_restrict node)
 {
-  uint position_offset;
-  uint direction_offset;
-  uint distance_offset;
-  uint is_hit_offset;
-  svm_unpack_node_uchar4(
-      node.y, &position_offset, &direction_offset, &distance_offset, &is_hit_offset);
-
-  uint is_self_hit_offset;
-  uint hit_distance_offset;
-  uint hit_position_offset;
-  uint hit_normal_offset;
-  svm_unpack_node_uchar4(
-      node.z, &is_self_hit_offset, &hit_distance_offset, &hit_position_offset, &hit_normal_offset);
-
-  float distance = stack_load_float_default(stack, distance_offset, 0.0f);
+  float distance = stack_load(stack, node.distance);
 
   float is_hit = 0.0f;
   float is_self_hit = 0.0f;
@@ -130,11 +128,10 @@ ccl_device_noinline
 
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
-    uint only_local = node.w;
-
-    float3 position = stack_load_float3(stack, position_offset);
-    float3 direction = stack_load_float3(stack, direction_offset);
-    RaycastResult result = svm_raycast(kg, state, sd, position, direction, distance, only_local);
+    float3 position = stack_load(stack, node.position);
+    float3 direction = stack_load(stack, node.direction);
+    RaycastResult result = svm_raycast(
+        kg, state, sd, position, direction, distance, node.only_local, node.bump_filter_width);
 
     if (result.distance >= 0.0f) {
       is_hit = 1.0f;
@@ -145,20 +142,20 @@ ccl_device_noinline
     }
   }
 
-  if (stack_valid(is_hit_offset)) {
-    stack_store_float(stack, is_hit_offset, is_hit);
+  if (stack_valid(node.is_hit_offset)) {
+    stack_store_float(stack, node.is_hit_offset, is_hit);
   }
-  if (stack_valid(is_self_hit_offset)) {
-    stack_store_float(stack, is_self_hit_offset, is_self_hit);
+  if (stack_valid(node.is_self_hit_offset)) {
+    stack_store_float(stack, node.is_self_hit_offset, is_self_hit);
   }
-  if (stack_valid(hit_distance_offset)) {
-    stack_store_float(stack, hit_distance_offset, hit_distance);
+  if (stack_valid(node.hit_distance_offset)) {
+    stack_store_float(stack, node.hit_distance_offset, hit_distance);
   }
-  if (stack_valid(hit_position_offset)) {
-    stack_store_float3(stack, hit_position_offset, hit_position);
+  if (stack_valid(node.hit_position_offset)) {
+    stack_store_float3(stack, node.hit_position_offset, hit_position);
   }
-  if (stack_valid(hit_normal_offset)) {
-    stack_store_float3(stack, hit_normal_offset, hit_normal);
+  if (stack_valid(node.hit_normal_offset)) {
+    stack_store_float3(stack, node.hit_normal_offset, hit_normal);
   }
 }
 

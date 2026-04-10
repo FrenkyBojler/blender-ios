@@ -145,10 +145,14 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketFloatFrequency",
      SOCK_FLOAT,
      PROP_FREQUENCY},
+    {"NodeSocketFloatPixel", "NodeTreeInterfaceSocketFloatPixel", SOCK_FLOAT, PROP_PIXEL},
+
     {"NodeSocketInt", "NodeTreeInterfaceSocketInt", SOCK_INT, PROP_NONE},
     {"NodeSocketIntUnsigned", "NodeTreeInterfaceSocketIntUnsigned", SOCK_INT, PROP_UNSIGNED},
     {"NodeSocketIntPercentage", "NodeTreeInterfaceSocketIntPercentage", SOCK_INT, PROP_PERCENTAGE},
     {"NodeSocketIntFactor", "NodeTreeInterfaceSocketIntFactor", SOCK_INT, PROP_FACTOR},
+    {"NodeSocketIntPixel", "NodeTreeInterfaceSocketIntPixel", SOCK_INT, PROP_PIXEL},
+
     {"NodeSocketBool", "NodeTreeInterfaceSocketBool", SOCK_BOOLEAN, PROP_NONE},
 
     {"NodeSocketVector", "NodeTreeInterfaceSocketVector", SOCK_VECTOR, PROP_NONE},
@@ -175,6 +179,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler", "NodeTreeInterfaceSocketVectorEuler", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ", "NodeTreeInterfaceSocketVectorXYZ", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel", "NodeTreeInterfaceSocketVectorPixel", SOCK_VECTOR, PROP_PIXEL},
 
     {"NodeSocketVector2D", "NodeTreeInterfaceSocketVector2D", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor2D",
@@ -203,6 +208,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler2D", "NodeTreeInterfaceSocketVectorEuler2D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ2D", "NodeTreeInterfaceSocketVectorXYZ2D", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel2D", "NodeTreeInterfaceSocketVectorPixel2D", SOCK_VECTOR, PROP_PIXEL},
 
     {"NodeSocketVector4D", "NodeTreeInterfaceSocketVector4D", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor4D",
@@ -231,6 +237,45 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler4D", "NodeTreeInterfaceSocketVectorEuler4D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ4D", "NodeTreeInterfaceSocketVectorXYZ4D", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel4D", "NodeTreeInterfaceSocketVectorPixel4D", SOCK_VECTOR, PROP_PIXEL},
+
+    /* 2D Integer Vector types. */
+    {"NodeSocketIntVector2D", "NodeTreeInterfaceSocketIntVector2D", SOCK_INT_VECTOR, PROP_NONE},
+    {"NodeSocketIntVectorUnsigned2D",
+     "NodeTreeInterfaceSocketIntVectorUnsigned2D",
+     SOCK_INT_VECTOR,
+     PROP_UNSIGNED},
+    {"NodeSocketIntVectorPercentage2D",
+     "NodeTreeInterfaceSocketIntVectorPercentage2D",
+     SOCK_INT_VECTOR,
+     PROP_PERCENTAGE},
+    {"NodeSocketIntVectorFactor2D",
+     "NodeTreeInterfaceSocketIntVectorFactor2D",
+     SOCK_INT_VECTOR,
+     PROP_FACTOR},
+    {"NodeSocketIntVectorPixel2D",
+     "NodeTreeInterfaceSocketIntVectorPixel2D",
+     SOCK_INT_VECTOR,
+     PROP_PIXEL},
+
+    /* 3D Integer Vector types. */
+    {"NodeSocketIntVector3D", "NodeTreeInterfaceSocketIntVector3D", SOCK_INT_VECTOR, PROP_NONE},
+    {"NodeSocketIntVectorUnsigned3D",
+     "NodeTreeInterfaceSocketIntVectorUnsigned3D",
+     SOCK_INT_VECTOR,
+     PROP_UNSIGNED},
+    {"NodeSocketIntVectorPercentage3D",
+     "NodeTreeInterfaceSocketIntVectorPercentage3D",
+     SOCK_INT_VECTOR,
+     PROP_PERCENTAGE},
+    {"NodeSocketIntVectorFactor3D",
+     "NodeTreeInterfaceSocketIntVectorFactor3D",
+     SOCK_INT_VECTOR,
+     PROP_FACTOR},
+    {"NodeSocketIntVectorPixel3D",
+     "NodeTreeInterfaceSocketIntVectorPixel3D",
+     SOCK_INT_VECTOR,
+     PROP_PIXEL},
 
     {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
     {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
@@ -314,6 +359,9 @@ template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype 
       return true;
     case SOCK_MENU:
       fn.template operator()<bNodeSocketValueMenu>();
+      return true;
+    case SOCK_INT_VECTOR:
+      fn.template operator()<bNodeSocketValueIntVector>();
       return true;
 
     case SOCK_CUSTOM:

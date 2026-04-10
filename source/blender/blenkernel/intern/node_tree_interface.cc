@@ -193,6 +193,14 @@ template<> void socket_data_init_impl(bNodeSocketValueVector &data)
   data.min = -FLT_MAX;
   data.max = FLT_MAX;
 }
+template<> void socket_data_init_impl(bNodeSocketValueIntVector &data)
+{
+  data.subtype = PROP_NONE;
+  data.dimensions = 3;
+  zero_v3_int(data.value);
+  data.min = INT_MIN;
+  data.max = INT_MAX;
+}
 template<> void socket_data_init_impl(bNodeSocketValueRGBA &data)
 {
   static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -425,6 +433,10 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &da
 {
   writer->write_struct(&data);
 }
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueIntVector &data)
+{
+  writer->write_struct(&data);
+}
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
 {
@@ -546,6 +558,10 @@ template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueSound 
 template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMenu & /*data*/)
 {
   return *bke::node_static_socket_type(SOCK_MENU, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueIntVector &data)
+{
+  return *bke::node_static_socket_type(SOCK_INT_VECTOR, data.subtype, data.dimensions);
 }
 
 static StringRefNull socket_type_from_data(const bNodeTreeInterfaceSocket &socket)
@@ -739,11 +755,11 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
   switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-      BLO_write_string(writer, socket.name);
-      BLO_write_string(writer, socket.identifier);
-      BLO_write_string(writer, socket.description);
-      BLO_write_string(writer, socket.socket_type);
-      BLO_write_string(writer, socket.default_attribute_name);
+      writer->write_string(socket.name);
+      writer->write_string(socket.identifier);
+      writer->write_string(socket.description);
+      writer->write_string(socket.socket_type);
+      writer->write_string(socket.default_attribute_name);
       if (socket.properties) {
         IDP_BlendWrite(writer, socket.properties);
       }
@@ -753,9 +769,9 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
     }
     case NODE_INTERFACE_PANEL: {
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-      BLO_write_string(writer, panel.name);
-      BLO_write_string(writer, panel.description);
-      BLO_write_pointer_array(writer, panel.items_num, panel.items_array);
+      writer->write_string(panel.name);
+      writer->write_string(panel.description);
+      writer->write_pointer_array(panel.items_num, panel.items_array);
       for (bNodeTreeInterfaceItem *child_item : panel.items()) {
         item_write_struct(writer, *child_item);
       }
@@ -1363,7 +1379,7 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
   ntree.ensure_topology_cache();
 
   BLI_assert(from_sock.typeinfo);
-  const StringRef socket_type = from_sock.typeinfo->idname;
+  const StringRef socket_type = from_sock.typeinfo->idname.ref();
   const bool is_input = in_out ? bool(*in_out & SOCK_IN) : from_sock.is_input();
 
   bNodeTreeInterfaceSocket *iosock = nullptr;
@@ -1468,7 +1484,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return nullptr;
 
     case SOCK_FLOAT: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "ShaderNodeValue");
+      bNode *node = bke::node_add_node(&C, dst_tree, "ShaderNodeValue"_ustr);
       bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
       *socket->default_value_typed<bNodeSocketValueFloat>() =
           *static_cast<const bNodeSocketValueFloat *>(value);
@@ -1477,7 +1493,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_VECTOR: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputVector");
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputVector"_ustr);
       auto &node_storage = *static_cast<NodeInputVector *>(node->storage);
       const auto &socket_value = *static_cast<const bNodeSocketValueVector *>(value);
       node_storage.dimensions = socket_value.dimensions;
@@ -1486,10 +1502,20 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
           {src_property_path, get_node_property_path(dst_tree, *node, "vector")});
       return node;
     }
+    case SOCK_INT_VECTOR: {
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputIntVector"_ustr);
+      auto &node_storage = *static_cast<NodeInputIntVector *>(node->storage);
+      const auto &socket_value = *static_cast<const bNodeSocketValueIntVector *>(value);
+      node_storage.dimensions = socket_value.dimensions;
+      copy_v3_v3_int(node_storage.vector, socket_value.value);
+      anim_basepaths.append(
+          {src_property_path, get_node_property_path(dst_tree, *node, "vector")});
+      return node;
+    }
     case SOCK_RGBA: {
       switch (dst_tree.type) {
         case NTREE_COMPOSIT: {
-          bNode *node = bke::node_add_node(&C, dst_tree, "CompositorNodeRGB");
+          bNode *node = bke::node_add_node(&C, dst_tree, "CompositorNodeRGB"_ustr);
           bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
           *socket->default_value_typed<bNodeSocketValueFloat>() =
               *static_cast<const bNodeSocketValueFloat *>(value);
@@ -1498,7 +1524,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
           return node;
         }
         case NTREE_SHADER: {
-          bNode *node = bke::node_add_node(&C, dst_tree, "ShaderNodeRGB");
+          bNode *node = bke::node_add_node(&C, dst_tree, "ShaderNodeRGB"_ustr);
           bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
           *socket->default_value_typed<bNodeSocketValueFloat>() =
               *static_cast<const bNodeSocketValueFloat *>(value);
@@ -1507,7 +1533,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
           return node;
         }
         case NTREE_GEOMETRY: {
-          bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputColor");
+          bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputColor"_ustr);
           auto &node_storage = *static_cast<NodeInputColor *>(node->storage);
           copy_v4_v4(node_storage.color, static_cast<const bNodeSocketValueRGBA *>(value)->value);
           anim_basepaths.append(
@@ -1518,7 +1544,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return nullptr;
     }
     case SOCK_BOOLEAN: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputBool");
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputBool"_ustr);
       auto &node_storage = *static_cast<NodeInputBool *>(node->storage);
       node_storage.boolean = static_cast<const bNodeSocketValueBoolean *>(value)->value;
       anim_basepaths.append(
@@ -1526,7 +1552,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_INT: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputInt");
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputInt"_ustr);
       auto &node_storage = *static_cast<NodeInputInt *>(node->storage);
       node_storage.integer = static_cast<const bNodeSocketValueInt *>(value)->value;
       anim_basepaths.append(
@@ -1534,7 +1560,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_STRING: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputString");
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputString"_ustr);
       auto &node_storage = *static_cast<NodeInputString *>(node->storage);
       node_storage.string = BLI_strdup(static_cast<const bNodeSocketValueString *>(value)->value);
       anim_basepaths.append(
@@ -1542,7 +1568,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_OBJECT: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputObject");
+      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputObject"_ustr);
       Object *ptr = static_cast<const bNodeSocketValueObject *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
       id_us_plus(node->id);
@@ -1551,7 +1577,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_IMAGE: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputImage");
+      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputImage"_ustr);
       Image *ptr = static_cast<const bNodeSocketValueImage *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
       id_us_plus(node->id);
@@ -1559,7 +1585,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_COLLECTION: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputCollection");
+      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputCollection"_ustr);
       Collection *ptr = static_cast<const bNodeSocketValueCollection *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
       id_us_plus(node->id);
@@ -1568,7 +1594,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_MATERIAL: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputMaterial");
+      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputMaterial"_ustr);
       Material *ptr = static_cast<const bNodeSocketValueMaterial *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
       id_us_plus(node->id);
@@ -1577,7 +1603,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_ROTATION: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputRotation");
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputRotation"_ustr);
       auto &node_storage = *static_cast<NodeInputRotation *>(node->storage);
       copy_v3_v3(node_storage.rotation_euler,
                  static_cast<const bNodeSocketValueRotation *>(value)->value_euler);
@@ -1586,7 +1612,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_MENU: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputMenu");
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputMenu"_ustr);
       auto &node_storage = *static_cast<NodeInputMenu *>(node->storage);
       const auto &socket_value = *static_cast<const bNodeSocketValueMenu *>(value);
       node_storage.value = socket_value.value;
@@ -1594,7 +1620,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       return node;
     }
     case SOCK_FONT: {
-      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputFont");
+      bNode *node = bke::node_add_node(&C, dst_tree, "GeometryNodeInputFont"_ustr);
       VFont *ptr = static_cast<const bNodeSocketValueFont *>(value)->value;
       node->id = ptr ? &ptr->id : nullptr;
       id_us_plus(node->id);
@@ -1615,6 +1641,7 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_RGBA:
+    case SOCK_INT_VECTOR:
     case SOCK_BOOLEAN:
     case SOCK_STRING:
     case SOCK_SHADER:
@@ -1637,21 +1664,21 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
 
     case SOCK_VECTOR:
       if (default_input == NODE_DEFAULT_INPUT_NORMAL_FIELD) {
-        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputNormal");
+        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputNormal"_ustr);
         bke::node_find_socket(*node, SOCK_OUT, "True Normal")->flag |= SOCK_HIDDEN;
         return node;
       }
       if (default_input == NODE_DEFAULT_INPUT_POSITION_FIELD) {
-        return bke::node_add_node(&C, tree, "GeometryNodeInputPosition");
+        return bke::node_add_node(&C, tree, "GeometryNodeInputPosition"_ustr);
       }
       if (default_input == NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD) {
-        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions");
+        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions"_ustr);
         bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
         bke::node_find_socket(*node, SOCK_OUT, "Right")->flag |= SOCK_HIDDEN;
         return node;
       }
       if (default_input == NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD) {
-        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions");
+        bNode *node = bke::node_add_node(&C, tree, "GeometryNodeInputCurveHandlePositions"_ustr);
         bke::node_find_socket(*node, SOCK_IN, "Relative")->flag |= SOCK_HIDDEN;
         bke::node_find_socket(*node, SOCK_OUT, "Left")->flag |= SOCK_HIDDEN;
         return node;
@@ -1660,16 +1687,16 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
 
     case SOCK_INT:
       if (default_input == NODE_DEFAULT_INPUT_INDEX_FIELD) {
-        return bke::node_add_node(&C, tree, "GeometryNodeInputIndex");
+        return bke::node_add_node(&C, tree, "GeometryNodeInputIndex"_ustr);
       }
       if (default_input == NODE_DEFAULT_INPUT_ID_INDEX_FIELD) {
-        return bke::node_add_node(&C, tree, "GeometryNodeInputID");
+        return bke::node_add_node(&C, tree, "GeometryNodeInputID"_ustr);
       }
       return nullptr;
 
     case SOCK_MATRIX:
       if (default_input == NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD) {
-        return bke::node_add_node(&C, tree, "GeometryNodeInstanceTransform");
+        return bke::node_add_node(&C, tree, "GeometryNodeInstanceTransform"_ustr);
       }
       return nullptr;
   }
@@ -1696,10 +1723,10 @@ bNode *create_proxy_converter_node(const eNodeSocketDatatype socket_type,
     return nullptr;
   }
 
-  const std::string socket_idname = socket_typeinfo->idname;
+  const std::string socket_idname = socket_typeinfo->idname.string();
   const void *src_value = src_socket ? src_socket->default_value : nullptr;
 
-  bNode *proxy_node = bke::node_add_node(&C, dst_tree, "NodeImplicitConversion");
+  bNode *proxy_node = bke::node_add_node(&C, dst_tree, "NodeImplicitConversion"_ustr);
   auto &data = *static_cast<NodeImplicitConversion *>(proxy_node->storage);
   BLI_strncpy(data.type_idname, socket_idname.c_str(), sizeof(data.type_idname));
   BKE_ntree_update_tag_node_property(&dst_tree, proxy_node);

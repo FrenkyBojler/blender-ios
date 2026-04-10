@@ -550,7 +550,7 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
      * duplicated scenes.
      *
      * So instead, prevent any resync until all new IDs have been remapped. */
-    BKE_layer_collection_resync_forbid();
+    BKE_layer_collection_resync_forbid(*ctx.bmain);
 
     /* Newly created data-blocks may reference IDs that themselves have also been duplicated in the
      * "current duplication". E.g. a scene may have a custom property that refers to itself; when
@@ -583,7 +583,7 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
       }
     }
 
-    BKE_layer_collection_resync_allow();
+    BKE_layer_collection_resync_allow(*ctx.bmain);
 
     if (ctx.bmain != nullptr) {
 #ifndef NDEBUG
@@ -897,7 +897,7 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
             STRNCPY_UTF8(text->text_legacy, text->text_ptr);
           }
           writer->write_struct(text);
-          BLO_write_string(writer, text->text_ptr);
+          writer->write_string(text->text_ptr);
         } break;
         case STRIP_TYPE_COLORMIX:
           writer->write_struct_cast<ColorMixVars>(strip->effectdata);
