@@ -343,6 +343,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     MutableSpan<uchar4> byte_buffer;
 
     if (image_buffer->float_data()) {
+      BLI_assert(ELEM(image_buffer->channels, 0, 4));
       float_buffer = MutableSpan(reinterpret_cast<float4 *>(image_buffer->float_data_for_write()),
                                  image_buffer->x * image_buffer->y);
     }
