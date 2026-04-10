@@ -210,8 +210,16 @@ class UpdatesDownloader:
         # If the downloader was shut down, start it up again.
         if not self._bg_downloader:
             self.start()
-
-        url: str = "http://localhost:8000/updates.json"
+        import struct
+        import platform
+        query_params = {}
+        query_params["os"] = "{:s} {:d} Bits".format(
+            platform.platform(),
+            struct.calcsize("P") * 8,
+        )
+        query_params["blender_version"] = bpy.app.version_string
+        import urllib.parse
+        url: str = "http://download.blender.org/api/releases/?" + urllib.parse.urlencode(query_params)
         save_to: Path = Path(self._temp_dir.name) / "updates.json"
         self._status = DownloadStatus.DOWNLOADING
         self._queue_download(url, save_to)
