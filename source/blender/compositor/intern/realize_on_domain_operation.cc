@@ -114,10 +114,13 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &transformat
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
      * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
      * interpolation. */
-    const bool use_bilinear = ELEM(
-        realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
-    GPU_texture_filter_mode(input, use_bilinear);
-    GPU_texture_anisotropic_filter(input, false);
+    if (realization_options.interpolation == Interpolation::Anisotropic) {
+      GPU_texture_anisotropic_filter(input, true);
+      GPU_texture_mipmap_mode(input, true, true);
+    }
+    else {
+      GPU_texture_filter_mode(input, realization_options.interpolation != Interpolation::Nearest);
+    }
   }
 
   GPU_texture_extend_mode_x(input,
