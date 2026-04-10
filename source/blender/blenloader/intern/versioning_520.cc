@@ -437,14 +437,17 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
       brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
       brush.mesh_automasking_settings->flags = brush.automasking_flags;
-      brush.mesh_automasking_settings->boundary_edges_propagation_steps = brush.automasking_boundary_edges_propagation_steps;
+      brush.mesh_automasking_settings->boundary_edges_propagation_steps =
+          brush.automasking_boundary_edges_propagation_steps;
       brush.mesh_automasking_settings->cavity_blur_steps = brush.automasking_cavity_blur_steps;
       brush.mesh_automasking_settings->cavity_factor = brush.automasking_cavity_factor;
-      brush.mesh_automasking_settings->start_normal_falloff = brush.automasking_start_normal_falloff;
+      brush.mesh_automasking_settings->start_normal_falloff =
+          brush.automasking_start_normal_falloff;
       brush.mesh_automasking_settings->start_normal_limit = brush.automasking_start_normal_limit;
       brush.mesh_automasking_settings->view_normal_falloff = brush.automasking_view_normal_falloff;
       brush.mesh_automasking_settings->view_normal_limit = brush.automasking_view_normal_limit;
-      brush.mesh_automasking_settings->cavity_curve = BKE_curvemapping_copy(brush.automasking_cavity_curve);
+      brush.mesh_automasking_settings->cavity_curve = BKE_curvemapping_copy(
+          brush.automasking_cavity_curve);
       brush.mesh_automasking_settings->cavity_curve_op = nullptr;
     }
   }
