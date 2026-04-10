@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Menu, Panel
+from bpy.types import (
+    Menu,
+)
 from bpy.app.translations import (
     contexts as i18n_contexts,
     pgettext_iface as iface_,
@@ -161,23 +163,14 @@ class BrushAssetShelf:
         )
 
 
-class VIEW3D_PT_brush_asset_shelf_filter(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'HEADER'
-    bl_label = "Filter"
-    bl_parent_id = "ASSETSHELF_PT_display"
+def brush_asset_shelf_filter_draw(panel, context):
+    if context.asset_shelf.bl_idname != BrushAssetShelf.get_shelf_name_from_context(context):
+        return
 
-    @classmethod
-    def poll(cls, context):
-        if context.asset_shelf is None:
-            return False
-        return context.asset_shelf.bl_idname == BrushAssetShelf.get_shelf_name_from_context(context)
+    layout = panel.layout
+    prefs = context.preferences
 
-    def draw(self, context):
-        layout = self.layout
-        prefs = context.preferences
-
-        layout.prop(prefs.view, "use_filter_brushes_by_tool", text="By Active Tool")
+    layout.prop(prefs.view, "use_filter_brushes_by_tool", text="By Active Tool")
 
 
 class UnifiedPaintPanel:
@@ -792,16 +785,18 @@ def brush_settings(layout, context, brush, popover=False):
         sculpt_brush_type = brush.sculpt_brush_type
 
         # normal_radius_factor
-        layout.prop(brush, "normal_radius_factor", slider=True)
+        if capabilities.has_normal_radius:
+            layout.prop(brush, "normal_radius_factor", slider=True)
 
         if capabilities.has_tilt:
             layout.prop(brush, "tilt_strength_factor", slider=True)
 
         row = layout.row(align=True)
-        row.prop(brush, "hardness", slider=True)
-        if capabilities.has_hardness_pressure:
-            row.prop(brush, "invert_hardness_pressure", text="")
-            row.prop(brush, "use_hardness_pressure", text="")
+        if capabilities.has_hardness:
+            row.prop(brush, "hardness", slider=True)
+            if capabilities.has_hardness_pressure:
+                row.prop(brush, "invert_hardness_pressure", text="")
+                row.prop(brush, "use_hardness_pressure", text="")
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
@@ -961,6 +956,12 @@ def brush_settings(layout, context, brush, popover=False):
         elif sculpt_brush_type == 'GRAB':
             layout.prop(brush, "use_grab_active_vertex")
             layout.prop(brush, "use_grab_silhouette")
+
+        elif sculpt_brush_type == 'SCENE_PROJECT':
+            layout.separator()
+            layout.prop(brush, "project_ray_direction_type")
+            layout.prop(brush, "minimum_distance")
+            layout.prop(brush, "use_bidirectional")
 
         elif sculpt_brush_type == 'PAINT':
             row = layout.row(align=True)
@@ -1765,7 +1766,9 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     if is_primitive_tool:
         row = layout.row(align=True)
         if context.region.type == 'TOOL_HEADER':
-            row.prop(brush.gpencil_settings, "stroke_type", expand=True)
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'BOTH', text="", icon='GP_DRAW_BOTH')
         else:
             row.prop(brush.gpencil_settings, "stroke_type")
 
@@ -1794,7 +1797,9 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     elif grease_pencil_brush_type == 'DRAW':
         row = layout.row(align=True)
         if compact:
-            row.prop(brush.gpencil_settings, "stroke_type", expand=True)
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'BOTH', text="", icon='GP_DRAW_BOTH')
         else:
             row.prop(brush.gpencil_settings, "stroke_type")
 
@@ -1826,7 +1831,14 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         if gp_settings.eraser_mode in {'HARD', 'SOFT'}:
             layout.prop(gp_settings, "use_keep_caps_eraser")
     elif grease_pencil_brush_type == 'TINT':
-        layout.prop(gp_settings, "vertex_mode", text="Mode")
+        if context.region.type == 'TOOL_HEADER':
+            row = layout.row(align=True)
+            row.prop_enum(gp_settings, "vertex_mode", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(gp_settings, "vertex_mode", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(gp_settings, "vertex_mode", 'BOTH', text="", icon='GP_DRAW_BOTH')
+        else:
+            layout.prop(gp_settings, "vertex_mode", text="Stroke Mode")
+
         layout.popover("VIEW3D_PT_tools_brush_falloff")
         layout.prop(gp_settings, "use_active_layer_only")
 
@@ -1872,6 +1884,10 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
 
 
 def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact=False):
+    if brush.gpencil_vertex_brush_type == 'DRAW':
+        layout.prop(brush, "blend", text="Blend")
+        layout.separator()
+
     UnifiedPaintPanel.prop_unified(
         layout,
         context,
@@ -1898,14 +1914,27 @@ def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact
 
     gp_settings = brush.gpencil_settings
     if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
-        row = layout.row(align=True)
-        row.prop(gp_settings, "vertex_mode", text="Mode")
+        if context.region.type == 'TOOL_HEADER':
+            row = layout.row(align=True)
+            row.prop_enum(gp_settings, "vertex_mode", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(gp_settings, "vertex_mode", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(gp_settings, "vertex_mode", 'BOTH', text="", icon='GP_DRAW_BOTH')
+        else:
+            layout.prop(gp_settings, "vertex_mode", text="Stroke Mode")
 
 
 classes = (
-    VIEW3D_PT_brush_asset_shelf_filter,
     VIEW3D_MT_tools_projectpaint_clone,
 )
+
+
+def register():
+    bpy.types.ASSETSHELF_PT_filter.append(brush_asset_shelf_filter_draw)
+
+
+def unregister():
+    bpy.types.ASSETSHELF_PT_filter.remove(brush_asset_shelf_filter_draw)
+
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class

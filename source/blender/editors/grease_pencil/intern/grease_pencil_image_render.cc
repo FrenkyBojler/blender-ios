@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
@@ -113,13 +113,13 @@ Image *image_render_end(Main &bmain, GPUOffScreen *buffer)
   const int2 win_size = {GPU_offscreen_width(buffer), GPU_offscreen_height(buffer)};
   const uint imb_flag = IB_byte_data;
   ImBuf *ibuf = IMB_allocImBuf(win_size.x, win_size.y, 32, imb_flag);
-  if (ibuf->float_buffer.data) {
-    GPU_offscreen_read_color(buffer, GPU_DATA_FLOAT, ibuf->float_buffer.data);
+  if (ibuf->float_data()) {
+    GPU_offscreen_read_color(buffer, GPU_DATA_FLOAT, ibuf->float_data_for_write());
   }
-  else if (ibuf->byte_buffer.data) {
-    GPU_offscreen_read_color(buffer, GPU_DATA_UBYTE, ibuf->byte_buffer.data);
+  else if (ibuf->byte_data()) {
+    GPU_offscreen_read_color(buffer, GPU_DATA_UBYTE, ibuf->byte_data_for_write());
   }
-  if (ibuf->float_buffer.data && ibuf->byte_buffer.data) {
+  if (ibuf->float_data() && ibuf->byte_data()) {
     IMB_byte_from_float(ibuf);
   }
 
@@ -293,8 +293,6 @@ static gpu::UniformBuf *create_shader_ubo(const RegionView3D &rv3d,
   return GPU_uniformbuf_create_ex(sizeof(GPencilStrokeData), &data, __func__);
 }
 
-constexpr const float min_stroke_thickness = 0.05f;
-
 static void draw_grease_pencil_stroke(const float4x4 &transform,
                                       const RegionView3D &rv3d,
                                       const int2 &win_size,
@@ -335,10 +333,10 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
                                           indices.size() + cyclic_add + 2);
 
   auto draw_point = [&](const int point_i) {
-    const float thickness = 4.0f * radii[point_i] * radius_scale;
+    const float thickness = 2.0f * radii[point_i] * radius_scale;
 
     immAttr4fv(attr_color, colors[point_i]);
-    immAttr1f(attr_thickness, std::max(thickness, min_stroke_thickness));
+    immAttr1f(attr_thickness, std::max(thickness, 0.0f));
     immVertex3fv(attr_pos, math::transform_point(transform, positions[point_i]));
   };
 
@@ -610,7 +608,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
 
-  /* Note: Serial loop without GrainSize, since immediate mode drawing can't happen in worker
+  /* Note: Serial loop since immediate mode drawing can't happen in worker
    * threads, has to be from the main thread. */
   strokes_mask.foreach_index([&](const int stroke_i) {
     /* Check if the color is visible. */

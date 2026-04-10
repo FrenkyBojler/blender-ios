@@ -31,6 +31,9 @@ void AbstractViewItem::update_from_old(const AbstractViewItem &old)
   is_renaming_ = old.is_renaming_;
   is_highlighted_search_ = old.is_highlighted_search_;
   is_selected_ = old.is_selected_;
+  if (old.view_item_but_ && old.view_item_but_->flag & UI_HOVER) {
+    is_hovered_ = true;
+  }
 }
 
 /** \} */
@@ -201,12 +204,12 @@ static AbstractViewItem *find_item_from_rename_button(const Button &rename_but)
   /* A minimal sanity check, can't do much more here. */
   BLI_assert(rename_but.type == ButtonType::Text && rename_but.poin);
 
-  for (const std::unique_ptr<Button> &but : rename_but.block->buttons) {
-    if (but->type != ButtonType::ViewItem) {
+  for (Button &but : rename_but.block->buttons()) {
+    if (but.type != ButtonType::ViewItem) {
       continue;
     }
 
-    ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(but.get());
+    ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(&but);
     AbstractViewItem *item = view_item_but->view_item;
     const AbstractView &view = item->get_view();
 
@@ -376,6 +379,13 @@ void AbstractViewItem::disable_interaction()
 bool AbstractViewItem::is_interactive() const
 {
   return is_interactive_;
+}
+
+bool AbstractViewItem::is_hovered() const
+{
+  BLI_assert_msg(this->get_view().is_reconstructed(),
+                 "State cannot be queried until reconstruction is completed");
+  return is_hovered_;
 }
 
 bool AbstractViewItem::is_active() const

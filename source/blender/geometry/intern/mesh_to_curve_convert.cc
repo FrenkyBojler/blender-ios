@@ -115,8 +115,8 @@ BLI_NOINLINE static CurveFromEdgesOutput edges_to_curve_point_indices(const int 
 {
   /* Compute the number of edges connecting to each vertex. */
   Array<int> neighbor_offsets_data(verts_num + 1, 0);
-  offset_indices::build_reverse_offsets(edges.cast<int>(), neighbor_offsets_data);
-  const OffsetIndices<int> neighbor_offsets(neighbor_offsets_data);
+  const OffsetIndices<int> neighbor_offsets = offset_indices::build_reverse_offsets(
+      edges.cast<int>(), neighbor_offsets_data);
 
   /* Use as an index into the "neighbor group" for each vertex. */
   Array<int> used_slots(verts_num, 0);
@@ -263,7 +263,8 @@ static bke::CurvesGeometry create_curves_for_faces(const Mesh &mesh,
   }
 
   BKE_defgroup_copy_list(&curves.vertex_group_names, &mesh.vertex_group_names);
-  curves.cyclic_for_write().fill(true);
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
   curves.fill_curve_types(CURVE_TYPE_POLY);
   return curves;
 }
