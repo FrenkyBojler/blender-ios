@@ -168,6 +168,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
+      .short_label("Anisotropy")
       .description(
           "Amount of anisotropy for specular reflection. "
           "Higher values give elongated highlights along the tangent direction");
@@ -743,7 +744,7 @@ void register_node_type_sh_bsdf_principled()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeBsdfPrincipled", SH_NODE_BSDF_PRINCIPLED);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfPrincipled"_ustr, SH_NODE_BSDF_PRINCIPLED);
   ntype.ui_name = "Principled BSDF";
   ntype.ui_description =
       "Physically-based, easy-to-use shader for rendering surface materials, based on the OpenPBR "

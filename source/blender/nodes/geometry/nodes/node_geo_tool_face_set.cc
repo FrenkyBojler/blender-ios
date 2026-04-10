@@ -19,14 +19,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!check_tool_context_and_error(params)) {
     return;
   }
-  params.set_output("Face Set"_ustr, bke::AttributeFieldInput::from<int>(".sculpt_face_set"));
+  params.set_output("Face Set"_ustr,
+                    bke::AttributeFieldInput::get_field<int, ".sculpt_face_set">());
   params.set_output("Exists"_ustr, bke::AttributeExistsFieldInput::from(".sculpt_face_set"));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeToolFaceSet", GEO_NODE_TOOL_FACE_SET);
+  geo_node_type_base(&ntype, "GeometryNodeToolFaceSet"_ustr, GEO_NODE_TOOL_FACE_SET);
   ntype.ui_name = "Face Set";
   ntype.ui_description = "Each face's sculpt face set value";
   ntype.enum_name_legacy = "TOOL_FACE_SET";
