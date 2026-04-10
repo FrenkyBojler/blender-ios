@@ -491,7 +491,9 @@ struct PaintOperationExecutor {
       }
     }
 
-    if (attributes.contains("fill_opacity") || hide_fill_while_drawing) {
+    if (use_fill &&
+        (start_opacity < 1.0f || attributes.contains("fill_opacity") || hide_fill_while_drawing))
+    {
       if (bke::SpanAttributeWriter<float> fill_opacities =
               attributes.lookup_or_add_for_write_span<float>(
                   "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))

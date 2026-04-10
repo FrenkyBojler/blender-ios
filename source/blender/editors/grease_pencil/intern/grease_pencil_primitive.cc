@@ -642,7 +642,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
     }
   }
 
-  if (attributes.contains("fill_opacity")) {
+  if (ptd.use_fill && (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity"))) {
     if (bke::SpanAttributeWriter fill_opacities = attributes.lookup_or_add_for_write_span<float>(
             "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
     {
