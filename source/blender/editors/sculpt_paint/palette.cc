@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
-*
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
@@ -42,7 +42,6 @@ struct PaletteColorHSV {
   float v = 0;
 };
 
-
 static int palettecolor_compare_hsv(const void *a1, const void *a2)
 {
   const PaletteColorHSV *ps1 = static_cast<const PaletteColorHSV *>(a1);
@@ -75,7 +74,7 @@ static int palettecolor_compare_hsv(const void *a1, const void *a2)
   return 0;
 }
 
-void BKE_palette_sort_hsv(PaletteColorHSV *color_array, const int totcol)
+static void palette_sort_hsv(PaletteColorHSV *color_array, const int totcol)
 {
   qsort(color_array, totcol, sizeof(PaletteColorHSV), palettecolor_compare_hsv);
 }
@@ -112,7 +111,7 @@ static int palettecolor_compare_svh(const void *a1, const void *a2)
   return 0;
 }
 
-void BKE_palette_sort_svh(PaletteColorHSV *color_array, const int totcol)
+static void palette_sort_svh(PaletteColorHSV *color_array, const int totcol)
 {
   qsort(color_array, totcol, sizeof(PaletteColorHSV), palettecolor_compare_svh);
 }
@@ -149,7 +148,7 @@ static int palettecolor_compare_vhs(const void *a1, const void *a2)
   return 0;
 }
 
-void BKE_palette_sort_vhs(PaletteColorHSV *color_array, const int totcol)
+static void palette_sort_vhs(PaletteColorHSV *color_array, const int totcol)
 {
   qsort(color_array, totcol, sizeof(PaletteColorHSV), palettecolor_compare_vhs);
 }
@@ -172,7 +171,7 @@ static int palettecolor_compare_luminance(const void *a1, const void *a2)
   return 0;
 }
 
-void BKE_palette_sort_luminance(PaletteColorHSV *color_array, const int totcol)
+static void palette_sort_luminance(PaletteColorHSV *color_array, const int totcol)
 {
   /* Sort by Luminance (calculated with the average, enough for sorting). */
   qsort(color_array, totcol, sizeof(PaletteColorHSV), palettecolor_compare_luminance);
@@ -212,7 +211,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
   /* Create the Palette. */
   if (totpal > 0) {
     /* Sort by Hue and saturation. */
-    BKE_palette_sort_hsv(color_array, totpal);
+    palette_sort_hsv(color_array, totpal);
 
     Palette *palette = BKE_palette_add(bmain, name);
     if (palette) {
@@ -470,16 +469,16 @@ static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
     }
     /* Sort */
     if (type == 1) {
-      BKE_palette_sort_hsv(color_array, totcol);
+      palette_sort_hsv(color_array, totcol);
     }
     else if (type == 2) {
-      BKE_palette_sort_svh(color_array, totcol);
+      palette_sort_svh(color_array, totcol);
     }
     else if (type == 3) {
-      BKE_palette_sort_vhs(color_array, totcol);
+      palette_sort_vhs(color_array, totcol);
     }
     else {
-      BKE_palette_sort_luminance(color_array, totcol);
+      palette_sort_luminance(color_array, totcol);
     }
 
     /* Clear old color swatches. */
@@ -510,12 +509,12 @@ static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
 void PALETTE_OT_sort(wmOperatorType *ot)
 {
   static const EnumPropertyItem sort_type[] = {
-    {1, "HSV", 0, "Hue, Saturation, Value", ""},
-    {2, "SVH", 0, "Saturation, Value, Hue", ""},
-    {3, "VHS", 0, "Value, Hue, Saturation", ""},
-    {4, "LUMINANCE", 0, "Luminance", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
+      {1, "HSV", 0, "Hue, Saturation, Value", ""},
+      {2, "SVH", 0, "Saturation, Value, Hue", ""},
+      {3, "VHS", 0, "Value, Hue, Saturation", ""},
+      {4, "LUMINANCE", 0, "Luminance", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   /* identifiers */
   ot->name = "Sort Palette";
@@ -558,10 +557,10 @@ static wmOperatorStatus palette_color_move_exec(bContext *C, wmOperator *op)
 void PALETTE_OT_color_move(wmOperatorType *ot)
 {
   static const EnumPropertyItem slot_move[] = {
-    {-1, "UP", 0, "Up", ""},
-    {1, "DOWN", 0, "Down", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
+      {-1, "UP", 0, "Up", ""},
+      {1, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   /* identifiers */
   ot->name = "Move Palette Color";
@@ -642,4 +641,4 @@ void PALETTE_OT_join(wmOperatorType *ot)
   /* properties */
   RNA_def_string(ot->srna, "palette", nullptr, MAX_ID_NAME - 2, "Palette", "Name of the Palette");
 }
-}
+}  // namespace blender
