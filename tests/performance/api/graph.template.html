@@ -301,12 +301,20 @@
       console.log(chart);
       const table = document.getElementById('details-' + chart.id);
       const tbody = table.getElementsByTagName('tbody')[0];
-      for (var i = 0; i < tbody.children.length; i ++) {
-        const row = tbody.children[i];
-        console.log(row, i);
-        const is_visible = i & 2;
+      for (var row_index = 0; row_index < tbody.children.length; row_index++) {
+        const row = tbody.children[row_index];
+        console.log(row, row_index);
+        var is_visible = false;
+        for (var element_index = 0; element_index < elements.length; element_index++) {
+          var element = elements[element_index];
+          if (row.getAttribute("data-dataset") == element.datasetIndex &&
+          row.getAttribute("data-index") == element.index) {
+            is_visible = true;
+            break;
+          }
+        }
         if (is_visible) {
-          row.style.display = 'block';
+          row.style.display = '';
         }
         else {
           row.style.display = 'none';
@@ -449,6 +457,8 @@
 
         const details = document.createElement('table');
         details.id = "details-" + i;
+        const details_thead = document.createElement('thead');
+        details.appendChild(details_thead);
         const details_tbody = document.createElement('tbody');
         details.appendChild(details_tbody);
         chart_container.appendChild(details);
@@ -542,13 +552,57 @@
           update_chart_bounds(chart);
         }
 
+        const head_row = document.createElement('tr');
+        const head_test = document.createElement("th");
+        head_test.innerText = "Test";
+        head_row.appendChild(head_test)
+        const head_revision = document.createElement("th");
+        head_revision.innerText = "Revision";
+        head_row.appendChild(head_revision)
+        const head_data = document.createElement("th");
+        head_data.innerText = "Dataset";
+        head_row.appendChild(head_data)
+        const head_avg = document.createElement("th");
+        head_avg.innerText = "Average";
+        head_row.appendChild(head_avg)
+        const head_min = document.createElement("th");
+        head_min.innerText = "Min";
+        head_row.appendChild(head_min)
+        const head_max = document.createElement("th");
+        head_max.innerText = "Max";
+        head_row.appendChild(head_max);
+        details_thead.appendChild(head_row);
+
         for (var dataset_index = 0; dataset_index < chart_data.datasets.length; dataset_index++) {
           const dataset = chart_data.datasets[dataset_index];
           for (var data_index = 0; data_index < dataset.data.length; data_index++) {
+            const entry = dataset.data[data_index];
+            console.log(entry);
             const data_row = document.createElement('tr');
+            data_row.style.display = 'none';
             data_row.setAttribute("data-dataset", dataset_index);
             data_row.setAttribute("data-index", data_index);
-            data_row.innerHTML = "<td>Hello</td><td>world</td>";
+            
+            const cell_test = document.createElement('td');
+            cell_test.innerText = "Test";
+            data_row.appendChild(cell_test);
+            const cell_revision = document.createElement('td');
+            cell_revision.innerText = "Revision";
+            // TODO: revision name with link of git hash or link with git-hashes
+            data_row.appendChild(cell_revision);
+            const cell_data = document.createElement('td');
+            cell_data.innerText = "" + dataset_index + ":" + data_index;
+            data_row.appendChild(cell_data);
+            const cell_avg = document.createElement('td');
+            cell_avg.innerText = entry.y.toLocaleString();
+            data_row.appendChild(cell_avg);
+            const cell_min = document.createElement('td');
+            cell_min.innerText = entry.yMin.toLocaleString();
+            data_row.appendChild(cell_min);
+            const cell_max = document.createElement('td');
+            cell_max.innerText = entry.yMax.toLocaleString();
+            data_row.appendChild(cell_max);
+
             details_tbody.appendChild(data_row);
           }
 
