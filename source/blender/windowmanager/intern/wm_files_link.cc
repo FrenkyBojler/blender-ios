@@ -130,6 +130,9 @@ static int wm_link_append_flag(wmOperator *op)
   }
   if (RNA_boolean_get(op->ptr, "link")) {
     flag |= FILE_LINK;
+    if (RNA_boolean_get(op->ptr, "pack")) {
+      flag |= BLO_LIBLINK_PACK;
+    }
   }
   else {
     if (RNA_boolean_get(op->ptr, "use_recursive")) {
@@ -264,6 +267,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
   }
 
   int flag = wm_link_append_flag(op);
+  const bool do_pack = (flag & BLO_LIBLINK_PACK) != 0;
   const bool do_append = (flag & FILE_LINK) == 0;
 
   /* From here down, no error returns. */
@@ -372,7 +376,10 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
   IMB_colormanagement_check_file_config(bmain);
 
   /* Append, rather than linking. */
-  if (do_append) {
+  if (do_pack) {
+    BKE_blendfile_link_pack(lapp_context, op->reports);
+  }
+  else if (do_append) {
     BKE_blendfile_append(lapp_context, op->reports);
   }
 
@@ -425,6 +432,14 @@ static void wm_link_append_properties_common(wmOperatorType *ot,
                          is_link || is_relocate,
                          "Link",
                          "Link the objects or data-blocks rather than appending");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+
+  prop = RNA_def_boolean(
+      ot->srna,
+      "pack",
+      false,
+      "Pack",
+      "If True, and ``link`` is also True, pack linked data-blocks into the current blend-file.");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
   prop = RNA_def_boolean(
