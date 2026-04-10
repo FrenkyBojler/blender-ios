@@ -458,22 +458,15 @@ class Result {
   /* Samples the result at the given normalized coordinates with the given interpolation and
    * boundary extension. Nearest interpolation is used for non float types that do not support
    * interpolation. The jacobian represents the derivative of coordinates per output pixel, first
-   * column is dPdx and second is dPdy. */
+   * column is dPdx and second is dPdy.
+   * If jacobian is not provided it is set to one input texel. This will be removed in the
+   * future, callers should always provide the jacobian. */
   template<typename T>
   T sample(const float2 &coordinates,
            const Interpolation &interpolation,
            const Extension &extension_mode_x,
            const Extension &extension_mode_y,
-           const float2x2 &jacobian) const;
-
-  /* Provided for back-compatibility, the jacobian is set to one input texel, and Anisotropic
-   * does bilinear sampling. This method should not be used and will be removed in the future.
-   */
-  template<typename T>
-  T sample(const float2 &coordinates,
-           const Interpolation &interpolation,
-           const Extension &extension_mode_x,
-           const Extension &extension_mode_y) const;
+           std::optional<float2x2> jacobian = std::nullopt) const;
 
   /* Shorthand for sample() with nearest interpolation, no jacobian needed. */
   template<typename T>
@@ -702,56 +695,50 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                    const Interpolation &interpolation,
                                    const Extension &extension_mode_x,
                                    const Extension &extension_mode_y,
-                                   const float2x2 &jacobian) const
-{
-  if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
-    if (interpolation == Interpolation::Anisotropic) {
-      EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
-      float4 output;
-      BLI_ewa_filter(domain_.data_size.x,
-                     domain_.data_size.y,
-                     false,
-                     true,
-                     coordinates,
-                     jacobian[0],
-                     jacobian[1],
-                     sample_ewa_read_callback,
-                     &sampling_data,
-                     output);
-      return cast<T>(output);
-    }
-  }
-  return sample<T>(coordinates, interpolation, extension_mode_x, extension_mode_y);
-}
-
-template<typename T>
-BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
-                                   const Interpolation &interpolation,
-                                   const Extension &extension_mode_x,
-                                   const Extension &extension_mode_y) const
+                                   std::optional<float2x2> jacobian) const
 {
   if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
     switch (interpolation) {
       case Interpolation::Nearest:
         break;
       case Interpolation::Bilinear:
-      case Interpolation::Anisotropic:
         return sample_bilinear<T>(coordinates, extension_mode_x, extension_mode_y);
       case Interpolation::Bicubic: {
         float4 output;
+        const int2 &size = domain_.data_size;
         const float *buffer = static_cast<const float *>(this->cpu_data().data());
         math::interpolate_cubic_bspline_wrapmode_fl(
             buffer,
             &output[0],
-            domain_.data_size.x,
-            domain_.data_size.y,
+            size.x,
+            size.y,
             sizeof(T) / sizeof(float),
-            coordinates.x * domain_.data_size.x - 0.5f,
-            coordinates.y * domain_.data_size.y - 0.5f,
+            coordinates.x * size.x - 0.5f,
+            coordinates.y * size.y - 0.5f,
             map_extension_mode_to_wrap_mode(extension_mode_x),
             map_extension_mode_to_wrap_mode(extension_mode_y));
         return cast<T>(output);
       }
+      case Interpolation::Anisotropic:
+        BLI_assert(type_ == ResultType::Color);
+        float4 output;
+        const int2 &size = domain_.data_size;
+        const float2 x_gradient = jacobian.has_value() ? jacobian.value()[0] :
+                                                         float2(1.0f / size.x, 0.0f);
+        const float2 y_gradient = jacobian.has_value() ? jacobian.value()[1] :
+                                                         float2(0.0f, 1.0f / size.y);
+        EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
+        BLI_ewa_filter(size.x,
+                       size.y,
+                       false,
+                       true,
+                       coordinates,
+                       x_gradient,
+                       y_gradient,
+                       sample_ewa_read_callback,
+                       &sampling_data,
+                       output);
+        return cast<T>(output);
     }
   }
   return sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
@@ -762,10 +749,11 @@ BLI_INLINE_METHOD T Result::sample_nearest(const float2 &coordinates,
                                            const Extension &extension_mode_x,
                                            const Extension &extension_mode_y) const
 {
+  const int2 &size = domain_.data_size;
   const math::InterpWrapMode wrap_mode_x = map_extension_mode_to_wrap_mode(extension_mode_x);
-  const int x = wrap_coord(coordinates.x * domain_.data_size.x, domain_.data_size.x, wrap_mode_x);
+  const int x = wrap_coord(coordinates.x * size.x, size.x, wrap_mode_x);
   const math::InterpWrapMode wrap_mode_y = map_extension_mode_to_wrap_mode(extension_mode_y);
-  const int y = wrap_coord(coordinates.y * domain_.data_size.y, domain_.data_size.y, wrap_mode_y);
+  const int y = wrap_coord(coordinates.y * size.y, size.y, wrap_mode_y);
   if (x < 0 || y < 0) {
     return T{};
   }
@@ -778,18 +766,19 @@ BLI_INLINE_METHOD T Result::sample_bilinear(const float2 &coordinates,
                                             const Extension &extension_mode_y) const
 {
   if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
-    float4 pixel_value;
+    float4 output;
+    const int2 &size = domain_.data_size;
     const float *buffer = static_cast<const float *>(this->cpu_data().data());
     math::interpolate_bilinear_wrapmode_fl(buffer,
-                                           &pixel_value[0],
-                                           domain_.data_size.x,
-                                           domain_.data_size.y,
+                                           &output[0],
+                                           size.x,
+                                           size.y,
                                            sizeof(T) / sizeof(float),
-                                           coordinates.x * domain_.data_size.x - 0.5f,
-                                           coordinates.y * domain_.data_size.y - 0.5f,
+                                           coordinates.x * size.x - 0.5f,
+                                           coordinates.y * size.y - 0.5f,
                                            map_extension_mode_to_wrap_mode(extension_mode_x),
                                            map_extension_mode_to_wrap_mode(extension_mode_y));
-    return cast<T>(pixel_value);
+    return cast<T>(output);
   }
   return this->sample_nearest<T>(coordinates, extension_mode_x, extension_mode_y);
 }
