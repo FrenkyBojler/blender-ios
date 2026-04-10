@@ -27,6 +27,7 @@ static int node_shader_gpu(GPUMaterial *mat,
                            GPUNodeStack *in,
                            GPUNodeStack *out)
 {
+  GPU_material_flag_set(mat, GPU_MATFLAG_SCENE_TIME);
   GPU_stack_link(mat, node, "node_scene_time", in, out);
   return 1;
 }
