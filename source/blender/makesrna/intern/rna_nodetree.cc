@@ -9040,7 +9040,8 @@ static void rna_def_node_panel_state(BlenderRNA *brna)
   prop = RNA_def_property(srna, "identifier", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "identifier");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Identifier", "Unique identifier matching the node's panel declaration");
+  RNA_def_property_ui_text(
+      prop, "Identifier", "Unique identifier matching the panel's persistent_uid");
 
   prop = RNA_def_property(srna, "is_collapsed", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_PANEL_COLLAPSED);

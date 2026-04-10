@@ -1995,11 +1995,6 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", PNL_POPOVER);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Popover", "");
-
-  prop = RNA_def_property(srna, "is_open", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", PNL_CLOSED);
-  RNA_def_property_ui_text(prop, "Is Open", "Whether the panel is expanded or collapsed");
-  RNA_def_property_update(prop, NC_WINDOW, nullptr);
 }
 
 static void rna_def_uilist(BlenderRNA *brna)
