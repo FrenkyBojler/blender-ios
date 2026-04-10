@@ -2082,6 +2082,8 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
               },
               exec_mode::grain_size(1));
 
+          BKE_subdiv_ccg_average_grids(*ss.subdiv_ccg);
+
           IndexMaskMemory memory;
           pbvh.tag_masks_changed(IndexMask::from_bools(node_changed, memory));
           break;
