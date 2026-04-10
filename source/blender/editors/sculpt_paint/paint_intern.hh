@@ -197,8 +197,18 @@ struct PaintStroke : NonCopyable, NonMovable {
    */
   wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus exec(bContext *C, wmOperator *op);
-  /** Cancel a stroke and return to the initial state. */
+
+  /** Cancel a stroke and return to the initial state.
+   *
+   * \note Typically handled as part of modal operator actions. Consumers of this API may need
+   * to call this if returning OPERATOR_CANCELLED during the `invoke` operator callback.
+   */
   void cancel(bContext *C);
+  /** Finish a stroke, performing any necessary cleanup actions.
+   *
+   * \note Typically handled as part of modal operator actions. Consumers of this API may need
+   * to call this if returning OPERATOR_FINISHED during the `invoke` operator callback.
+   */
   void finish(bContext *C);
 
   /* TODO: The following accessors should all be parameters passed into various callbacks */
