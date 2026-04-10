@@ -294,7 +294,8 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Collection *collection = BKE_collection_add(bmain, data.collection, nullptr);
+  Collection *new_collection = BKE_collection_add(bmain, data.collection, nullptr);
+  new_collection->color_tag = data.collection->color_tag;
 
   if (RNA_boolean_get(op->ptr, "group_selected_objects")) {
     IDsSelectedData selected{};
