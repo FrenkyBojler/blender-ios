@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_common_color_utils.glsl"
+#include "gpu_shader_math_rotation_lib.glsl"
 
 [[node]]
 void node_mix_blend(float fac,
@@ -674,6 +675,5 @@ void node_mix_rotation(float fac,
                        float4 &outcol,
                        float4 &outrot)
 {
-  const float4 rot2_nearest = (dot(rot1, rot2) >= 0.0f) ? rot2 : -rot2;
-  outrot = normalize(mix(rot1, rot2_nearest, fac));
+  outrot = interpolate(Quaternion{UNPACK4(rot1)}, Quaternion{UNPACK4(rot2)}, fac).as_float4();
 }
