@@ -2753,20 +2753,22 @@ void button_configure_search(Button *but,
   }
 }
 
-void Layout::prop_textbox(const bContext *C,
-                          PointerRNA *ptr,
-                          StringRefNull propname,
-                          PointerRNA *visible_lines_ptr,
-                          std::optional<StringRefNull> visible_lines_propname)
+void Layout::textbox(const bContext *C, PointerRNA *ptr, StringRefNull propname)
 {
+  TextboxState *textbox_state = textbox_ensure_state(
+      CTX_wm_region(C), fmt::format("{}.{}", RNA_struct_identifier(ptr->type), propname));
+  this->textbox_with_state(ptr, propname, textbox_state);
+}
+
+void Layout::textbox_with_state(PointerRNA *ptr,
+                                StringRefNull propname,
+                                TextboxState *textbox_state)
+{
+
   Block *block = this->block();
   PropertyRNA *prop = RNA_struct_find_property_check(*ptr, propname.c_str(), PROP_STRING);
 
-  PropertyRNA *visible_lines_prop = nullptr;
-  if (visible_lines_ptr && !RNA_pointer_is_null(visible_lines_ptr) && visible_lines_propname) {
-    visible_lines_prop = RNA_struct_find_property(visible_lines_ptr,
-                                                  visible_lines_propname->c_str());
-  }
+  BLI_assert(textbox_state);
 
   if (!prop) {
     item_disabled(this, propname.c_str());
@@ -2774,28 +2776,6 @@ void Layout::prop_textbox(const bContext *C,
         "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
-  if (visible_lines_ptr && !RNA_pointer_is_null(visible_lines_ptr) && !visible_lines_propname) {
-    RNA_warning("visible_lines_propname required");
-    return;
-  }
-  if (visible_lines_ptr && !RNA_pointer_is_null(visible_lines_ptr) && !visible_lines_prop) {
-    item_disabled(this, visible_lines_propname->c_str());
-    RNA_warning("int property not found: %s.%s",
-                RNA_struct_identifier(visible_lines_ptr->type),
-                visible_lines_propname->c_str());
-    return;
-  }
-  if (visible_lines_prop && RNA_property_type(visible_lines_prop) != PROP_INT) {
-    item_disabled(this, visible_lines_propname->c_str());
-    RNA_warning("visible lines property is not an int property: %s.%s",
-                RNA_struct_identifier(visible_lines_ptr->type),
-                visible_lines_propname->c_str());
-    return;
-  }
-
-  ARegion *region = CTX_wm_region(C);
-  uiTextboxState *textbox_state = textbox_ensure_state(
-      region, fmt::format("{}.{}", RNA_struct_identifier(ptr->type), propname));
 
   Layout &overlap = this->overlap();
   Layout &row = overlap.row(true);
@@ -2803,15 +2783,10 @@ void Layout::prop_textbox(const bContext *C,
 
   const float line_heigth = fontstyle_height_max(UI_FSTYLE_WIDGET);
   row.row(true);
-  if (visible_lines_prop) {
-    textbox_state->visible_lines = RNA_property_int_get(visible_lines_ptr, visible_lines_prop);
-  }
+
   /** Ensure minumun value is set. */
   textbox_state->visible_lines = std::max(textbox_state->visible_lines,
                                           textbox_minimum_visible_lines);
-  if (visible_lines_prop) {
-    RNA_property_int_set(visible_lines_ptr, visible_lines_prop, textbox_state->visible_lines);
-  }
 
   int w, h;
   item_rna_size(block->curlayout, "", ICON_NONE, ptr, prop, -1, false, false, &w, &h);
@@ -2863,16 +2838,10 @@ void Layout::prop_textbox(const bContext *C,
                      3.0f,
                      100.0f,
                      "");
-  auto grip_func = [visible_lines_ptr = visible_lines_prop ? *visible_lines_ptr : PointerRNA{},
-                    visible_lines_prop,
-                    textbox_state](bContext & /*C*/) mutable -> void {
+  auto grip_func = [textbox_state](bContext & /*C*/) mutable -> void {
     /* Ensure minimun size while resizing. */
     textbox_state->visible_lines = std::max(textbox_state->visible_lines,
                                             textbox_minimum_visible_lines);
-    /* Copy value to property. */
-    if (visible_lines_prop) {
-      RNA_property_int_set(&visible_lines_ptr, visible_lines_prop, textbox_state->visible_lines);
-    }
   };
   button_func_set(but, std::move(grip_func));
   static_cast<ButtonGrip *>(but)->step_distance = line_heigth;

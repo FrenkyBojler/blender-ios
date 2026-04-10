@@ -23,8 +23,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
   b.add_output<decl::String>("String"_ustr).custom_draw([](CustomSocketDrawParams &params) {
     params.layout.alignment_set(ui::LayoutAlign::Expand);
-    params.layout.prop_textbox(
-        &params.C, &params.node_ptr, "string", &params.node_ptr, "textbox_lines");
+    params.layout.textbox_with_state(
+        &params.node_ptr,
+        "string",
+        RNA_pointer_get(&params.node_ptr, "textbox_state").data_as<TextboxState>());
   });
 }
 
@@ -62,7 +64,6 @@ static void node_storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const
   if (source_storage->string) {
     destination_storage->string = MEM_dupalloc(source_storage->string);
   }
-  destination_storage->textbox_lines = source_storage->textbox_lines;
   dest_node->storage = destination_storage;
 }
 

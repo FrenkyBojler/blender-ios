@@ -30,6 +30,7 @@ struct PointerRNA;
 struct PropertyRNA;
 struct StructRNA;
 struct wmOperatorType;
+struct TextboxState;
 
 /* Layout
  *
@@ -658,15 +659,17 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    StringRefNull searchpropname,
                    std::optional<StringRefNull> name,
                    int icon);
-  /* Adds a string property item as textbox, this will let multiline text editing.
-   * \param visible_lines_ptr: Optional RNA pointer to store textbox visible lines, which can be
-   * shared between multiple regions.
-   * \param visible_lines_propname: Property in \a visible_lines_ptr. */
-  void prop_textbox(const bContext *C,
-                    PointerRNA *ptr,
-                    StringRefNull propname,
-                    PointerRNA *visible_lines_ptr,
-                    std::optional<StringRefNull> visible_lines_propname);
+
+  /**
+   * Adds a string property item as textbox, this will let multiline text editing, textbox state
+   * will be persistent at runtime.
+   */
+  void textbox(const bContext *C, PointerRNA *ptr, StringRefNull propname);
+  /**
+   * Adds a string property item as textbox, this will let multiline text editing.
+   * \param textbox_state: custom allocation for persistent textbox state.
+   */
+  void textbox_with_state(PointerRNA *ptr, StringRefNull propname, TextboxState *textbox_state);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.

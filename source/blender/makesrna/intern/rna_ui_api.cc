@@ -105,20 +105,15 @@ std::optional<StringRefNull> rna_translate_ui_text(
   return BLT_pgettext(BLT_I18NCONTEXT_DEFAULT, text);
 }
 
-static void rna_uiItemTextBox(Layout *layout,
-                              bContext *C,
-                              PointerRNA *ptr,
-                              const char *propname,
-                              PointerRNA *visible_lines_ptr,
-                              const char *visible_lines_propname)
+static void rna_uiItemTextBox(
+    Layout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *state_ptr)
 {
-  layout->prop_textbox(C,
-                       ptr,
-                       propname,
-                       visible_lines_ptr,
-                       visible_lines_propname ?
-                           std::make_optional<StringRefNull>(visible_lines_propname) :
-                           std::nullopt);
+  if (state_ptr && !RNA_pointer_is_null(state_ptr)) {
+    layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>());
+  }
+  else {
+    layout->textbox(C, ptr, propname);
+  }
 }
 
 static void rna_uiItemR(Layout *layout,
@@ -1515,23 +1510,11 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "Return the icon for this enum item");
 
   /* items */
-  func = RNA_def_function(srna, "prop_textbox", "rna_uiItemTextBox");
+  func = RNA_def_function(srna, "textbox", "rna_uiItemTextBox");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
-  parm = RNA_def_pointer(func,
-                         "visible_lines_dataptr",
-                         "AnyType",
-                         "",
-                         "Optional data storage for storing textbox visible lines, so it can be "
-                         "shared between multiple regions");
+  parm = RNA_def_pointer(func, "textbox_state", "TextboxState", 0, "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
-  parm = RNA_def_string(func,
-                        "visible_lines_propname",
-                        nullptr,
-                        0,
-                        "",
-                        "Identifier of property in visible_lines_dataptr");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), ParameterFlag(0));
 
   func = RNA_def_function(srna, "prop", "rna_uiItemR");
   RNA_def_function_ui_description(func,

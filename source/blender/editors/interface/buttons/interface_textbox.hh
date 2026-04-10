@@ -16,7 +16,7 @@
 
 namespace blender {
 struct ARegion;
-struct uiTextboxState;
+struct TextboxState;
 
 namespace ui {
 
@@ -58,7 +58,7 @@ float textbox_padding_top();
 /* Bottom padding for text in a textbox, this includes grip height. */
 float textbox_padding_bottom();
 
-uiTextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname);
+TextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname);
 
 }  // namespace ui
 }  // namespace blender
