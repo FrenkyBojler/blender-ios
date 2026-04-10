@@ -1043,6 +1043,7 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   const EnumPropertyItem *entry = rna_enum_shared_automasking_flag_items;
   do {
     prop = RNA_def_property(srna, entry->identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
     RNA_def_property_boolean_sdna(prop, nullptr, "flags", entry->value);
     RNA_def_property_ui_text(prop, entry->name, entry->description);
 
@@ -1058,6 +1059,7 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   } while ((++entry)->identifier);
 
   prop = RNA_def_property(srna, "boundary_edges_propagation_steps", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_int_sdna(prop, nullptr, "boundary_edges_propagation_steps");
   RNA_def_property_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS);
   RNA_def_property_ui_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS, 1, -1);
@@ -1068,6 +1070,7 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "cavity_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_float_sdna(prop, nullptr, "cavity_factor");
   RNA_def_property_ui_text(prop, "Cavity Factor", "The contrast of the cavity mask");
   RNA_def_property_float_default(prop, 1.0f);
@@ -1076,6 +1079,7 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "cavity_blur_steps", PROP_INT, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_int_sdna(prop, nullptr, "cavity_blur_steps");
   RNA_def_property_ui_text(prop, "Blur Steps", "The number of times the cavity mask is blurred");
   RNA_def_property_int_default(prop, 0);
@@ -1084,6 +1088,7 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "cavity_curve", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_pointer_sdna(prop, nullptr, "cavity_curve");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
@@ -1091,6 +1096,7 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "cavity_curve_op", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_pointer_sdna(prop, nullptr, "cavity_curve_op");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
@@ -1098,12 +1104,14 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "start_normal_limit", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_float_sdna(prop, nullptr, "start_normal_limit");
   RNA_def_property_range(prop, 0.0001f, M_PI);
   RNA_def_property_ui_text(prop, "Area Normal Limit", "The range of angles that will be affected");
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "start_normal_falloff", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_float_sdna(prop, nullptr, "start_normal_falloff");
   RNA_def_property_range(prop, 0.0001f, 1.0f);
   RNA_def_property_ui_text(
@@ -1111,12 +1119,14 @@ static void rna_def_mesh_automasking_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "view_normal_limit", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_float_sdna(prop, nullptr, "view_normal_limit");
   RNA_def_property_range(prop, 0.0001f, M_PI);
   RNA_def_property_ui_text(prop, "View Normal Limit", "The range of angles that will be affected");
   RNA_def_property_update(prop, 0, "rna_MeshAutomaskingSettings_update");
 
   prop = RNA_def_property(srna, "view_normal_falloff", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_float_sdna(prop, nullptr, "view_normal_falloff");
   RNA_def_property_range(prop, 0.0001f, 1.0f);
   RNA_def_property_ui_text(
