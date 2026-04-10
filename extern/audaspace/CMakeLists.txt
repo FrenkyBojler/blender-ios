@@ -17,10 +17,6 @@
 cmake_minimum_required(VERSION 3.21)
 include(CMakeDependentOption)
 
-if(POLICY CMP0054)
-	cmake_policy(SET CMP0054 NEW)
-endif()
-
 project(audaspace)
 
 set(AUDASPACE_VERSION 1.9)

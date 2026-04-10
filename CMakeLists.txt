@@ -57,51 +57,16 @@ endif()
 # -----------------------------------------------------------------------------
 # Set policy
 
-# see "cmake --help-policy CMP0003"
-# So library linking is more sane
-cmake_policy(SET CMP0003 NEW)
-
-# So BUILDINFO and BLENDERPATH strings are automatically quoted
-cmake_policy(SET CMP0005 NEW)
-
-# So syntax problems are errors
-cmake_policy(SET CMP0010 NEW)
-
-# Input directories must have CMakeLists.txt
-cmake_policy(SET CMP0014 NEW)
-
-# Silence draco warning on macOS, new policy works fine.
-if(POLICY CMP0068)
-  cmake_policy(SET CMP0068 NEW)
-endif()
-
-# find_package() uses <PackageName>_ROOT variables.
-if(POLICY CMP0074)
-  cmake_policy(SET CMP0074 NEW)
-endif()
 
 # find_package() uses uppercase <PackageName>_ROOT variables.
 if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-# Install CODE|SCRIPT allow the use of generator expressions.
-if(POLICY CMP0087)
-  cmake_policy(SET CMP0087 NEW)
-endif()
-
-# Allow to specify language per file.
-if(POLICY CMP0119)
-  cmake_policy(SET CMP0119 NEW)
-endif()
-
 # Install DESTINATION paths are normalized.
 if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW)
 endif()
-
-# The target_sources() command converts relative paths to absolute.
-cmake_policy(SET CMP0076 NEW)
 
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
