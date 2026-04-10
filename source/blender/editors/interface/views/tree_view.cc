@@ -270,7 +270,7 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
   }
 }
 
-void AbstractTreeView::sort()
+void AbstractTreeView::sort_inverted()
 {
   if (*invert_sort_type_ == SortOrder::None) {
     return;
@@ -1129,7 +1129,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   if (*tree_view.sort_alpha_) {
     tree_view.sort_alpha();
   }
-  tree_view.sort();
+  tree_view.sort_inverted();
 
   {
     /* Setup search string to filter out elements with matching characters. */

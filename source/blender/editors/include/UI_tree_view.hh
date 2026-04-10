@@ -210,7 +210,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * Scroll the view so the active item is visible.
    */
   void scroll_active_into_view();
-  void sort();
+  void sort_inverted();
 };
 
 /** \} */
