@@ -1136,26 +1136,32 @@ static const EnumPropertyItem *rna_BrushTextureSlot_map_mode_itemf(bContext *C,
 static void rna_Brush_automasking_invert_cavity_set(PointerRNA *ptr, bool val)
 {
   Brush *brush = static_cast<Brush *>(ptr->data);
+  if (!brush->mesh_automasking_settings) {
+    return;
+  }
 
   if (val) {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
-    brush->automasking_flags |= BRUSH_AUTOMASKING_CAVITY_INVERTED;
+    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
+    brush->mesh_automasking_settings->flags |= BRUSH_AUTOMASKING_CAVITY_INVERTED;
   }
   else {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
+    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
   }
 }
 
 static void rna_Brush_automasking_cavity_set(PointerRNA *ptr, bool val)
 {
   Brush *brush = static_cast<Brush *>(ptr->data);
+  if (!brush->mesh_automasking_settings) {
+    return;
+  }
 
   if (val) {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
-    brush->automasking_flags |= BRUSH_AUTOMASKING_CAVITY_NORMAL;
+    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
+    brush->mesh_automasking_settings->flags |= BRUSH_AUTOMASKING_CAVITY_NORMAL;
   }
   else {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
+    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
   }
 }
 
