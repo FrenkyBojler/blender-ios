@@ -168,7 +168,7 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
   }
 
   tex->nodetree = bke::node_tree_add_tree_embedded(
-      nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname);
+      nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname.ref());
 
   bNode *out = bke::node_add_static_node(C, *tex->nodetree, TEX_NODE_OUTPUT);
   out->location[0] = 300.0f;
@@ -1347,7 +1347,7 @@ static wmOperatorStatus node_activate_viewer_exec(bContext *C, wmOperator * /*op
     return OPERATOR_CANCELLED;
   }
 
-  if (node->is_type("CompositorNodeViewer")) {
+  if (node->is_type("CompositorNodeViewer"_ustr)) {
     for (bNode *other_node : ntree->all_nodes()) {
       if (other_node->type_legacy == node->type_legacy) {
         other_node->flag &= ~NODE_DO_OUTPUT;
@@ -1358,7 +1358,7 @@ static wmOperatorStatus node_activate_viewer_exec(bContext *C, wmOperator * /*op
       WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
     }
   }
-  else if (node->is_type("GeometryNodeViewer")) {
+  else if (node->is_type("GeometryNodeViewer"_ustr)) {
     /* Geometry nodes viewers don't rely on NODE_DO_OUTPUT flag alone. */
     viewer_path::activate_geometry_node(*bmain, *snode, *node);
   }

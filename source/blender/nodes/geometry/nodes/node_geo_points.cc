@@ -77,7 +77,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   PointsFieldContext context{count};
   fn::FieldEvaluator evaluator{context, count};
   evaluator.add_with_destination(position_field, points->positions_for_write());
-  if (radius_field.node().depends_on_input()) {
+  if (radius_field.depends_on_input()) {
     AttributeWriter<float> output_radii = attributes.lookup_or_add_for_write<float>(
         "radius", AttrDomain::Point);
     evaluator.add_with_destination(radius_field, output_radii.varray);
@@ -96,7 +96,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodePoints", GEO_NODE_POINTS);
+  geo_node_type_base(&ntype, "GeometryNodePoints"_ustr, GEO_NODE_POINTS);
   ntype.ui_name = "Points";
   ntype.ui_description = "Generate a point cloud with positions and radii defined by fields";
   ntype.enum_name_legacy = "POINTS";

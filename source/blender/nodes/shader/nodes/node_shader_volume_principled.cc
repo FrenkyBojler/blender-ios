@@ -69,16 +69,14 @@ static int node_shader_gpu_volume_principled(GPUMaterial *mat,
                                              GPUNodeStack *out)
 {
   /* Test if blackbody intensity is enabled. */
-  bool use_blackbody = node_socket_not_zero(in[SOCK_BLACKBODY_INTENSITY_ID]);
+  bool use_blackbody = in[SOCK_BLACKBODY_INTENSITY_ID].socket_not_zero();
 
-  if (node_socket_not_zero(in[SOCK_DENSITY_ID]) && node_socket_not_black(in[SOCK_COLOR_ID])) {
+  if (in[SOCK_DENSITY_ID].socket_not_zero() && in[SOCK_COLOR_ID].socket_not_black()) {
     /* Consider there is absorption phenomenon when there is scattering since
      * `extinction = scattering + absorption`. */
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_SCATTER | GPU_MATFLAG_VOLUME_ABSORPTION);
   }
-  if (node_socket_not_zero(in[SOCK_DENSITY_ID]) &&
-      node_socket_not_white(in[SOCK_ABSORPTION_COLOR_ID]))
-  {
+  if (in[SOCK_DENSITY_ID].socket_not_zero() && in[SOCK_ABSORPTION_COLOR_ID].socket_not_white()) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_ABSORPTION);
   }
 
@@ -166,7 +164,7 @@ void register_node_type_sh_volume_principled()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeVolumePrincipled", SH_NODE_VOLUME_PRINCIPLED);
+  sh_node_type_base(&ntype, "ShaderNodeVolumePrincipled"_ustr, SH_NODE_VOLUME_PRINCIPLED);
   ntype.ui_name = "Principled Volume";
   ntype.ui_description = "Combine all volume shading components into a single easy to use node";
   ntype.enum_name_legacy = "PRINCIPLED_VOLUME";

@@ -40,7 +40,6 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
         index_(std::move(index)),
         offset_(std::move(offset))
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -85,10 +84,10 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
     return VArray<int>::from_container(std::move(output));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    index_.node().for_each_field_input_recursive(fn);
-    offset_.node().for_each_field_input_recursive(fn);
+    fn(index_);
+    fn(offset_);
   }
 };
 
@@ -103,7 +102,6 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
         index_(std::move(index)),
         offset_(std::move(offset))
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -147,10 +145,10 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
     return VArray<bool>::from_container(std::move(output));
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
   {
-    index_.node().for_each_field_input_recursive(fn);
-    offset_.node().for_each_field_input_recursive(fn);
+    fn(index_);
+    fn(offset_);
   }
 };
 
@@ -160,19 +158,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<int> offset = params.extract_input<Field<int>>("Offset"_ustr);
 
   if (params.output_is_required("Point Index"_ustr)) {
-    Field<int> curve_point_field{std::make_shared<ControlPointNeighborFieldInput>(index, offset)};
-    params.set_output("Point Index"_ustr, std::move(curve_point_field));
+    params.set_output("Point Index"_ustr,
+                      Field<int>::from_input<ControlPointNeighborFieldInput>(index, offset));
   }
   if (params.output_is_required("Is Valid Offset"_ustr)) {
-    Field<bool> valid_field{std::make_shared<OffsetValidFieldInput>(index, offset)};
-    params.set_output("Is Valid Offset"_ustr, std::move(valid_field));
+    params.set_output("Is Valid Offset"_ustr,
+                      Field<bool>::from_input<OffsetValidFieldInput>(index, offset));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeOffsetPointInCurve", GEO_NODE_OFFSET_POINT_IN_CURVE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeOffsetPointInCurve"_ustr, GEO_NODE_OFFSET_POINT_IN_CURVE);
   ntype.ui_name = "Offset Point in Curve";
   ntype.ui_description = "Offset a control point index within its curve";
   ntype.enum_name_legacy = "OFFSET_POINT_IN_CURVE";
