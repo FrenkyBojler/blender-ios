@@ -152,8 +152,8 @@ int main(int argc, char **argv)
 
   /* Open the output file for writing */
   std::ofstream dep_file(dep_file_name, std::ofstream::out | std::ofstream::binary);
-  if (!infos_file) {
-    std::cerr << "Error: Could not open output file " << infos_file_name << std::endl;
+  if (!dep_file) {
+    std::cerr << "Error: Could not open output file " << dep_file_name << std::endl;
     input_file.close();
     exit(1);
   }
