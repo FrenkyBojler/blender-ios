@@ -99,6 +99,7 @@ enum eIDPropertyFlag {
 enum LibraryFlag {
   /** The library is an 'archive' that only contains embedded linked data. */
   LIBRARY_FLAG_IS_ARCHIVE = 1 << 0,
+  LIBRARY_FLAG_IS_EXTERNAL = 1 << 1,
 };
 
 /**

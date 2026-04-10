@@ -1366,6 +1366,11 @@ static void write_libraries(WriteData *wd, Main *bmain)
       continue;
     }
 
+    if (library.flag & LIBRARY_FLAG_IS_EXTERNAL) {
+      /* Nothing should be written for external libraries. */
+      continue;
+    }
+
     if (library.flag & LIBRARY_FLAG_IS_ARCHIVE) {
       if (!library.archive_parent_library) {
         CLOG_ERROR(&LOG, "Written archive library '%s' has no parent library", library.id.name);

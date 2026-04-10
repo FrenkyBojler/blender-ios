@@ -786,6 +786,64 @@ void bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
   pack_linked_ids(bmain, ids_to_pack);
 }
 
+static Library *add_external_library(Main &bmain, Library &reference_library)
+{
+  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) == 0);
+  /* Cannot copy libraries using generic ID copying functions, so create the copy manually. */
+  Library *external_library = BKE_id_new<Library>(&bmain, BKE_id_name(reference_library.id));
+
+  /* Like in #direct_link_library. */
+  id_us_ensure_real(&external_library->id);
+
+  external_library->archive_parent_library = &reference_library;
+  constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_EXTERNAL;
+  /* TODO: Check if both archive and external flags need to be set? */
+  external_library->flag = (reference_library.flag & copy_flag) | (LIBRARY_FLAG_IS_EXTERNAL);
+  BKE_library_filepath_set(&bmain, external_library, reference_library.filepath);
+
+  external_library->runtime->parent = reference_library.runtime->parent;
+  /* Only copy a subset of the reference library tags. E.g. an archive library should never be
+   * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
+   * tweaking still. */
+  constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+                                 LIBRARY_IS_ASSET_EDIT_FILE);
+  external_library->runtime->tag = reference_library.runtime->tag & copy_tag;
+
+  reference_library.runtime->archived_libraries.append(external_library);
+
+  return external_library;
+}
+
+Library *bke::library::ensure_external_library(
+    Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new)
+{
+  BLI_assert(ID_IS_LINKED(&id));
+  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) == 0);
+
+  Library *archive_library = nullptr;
+  for (Library *lib_iter : reference_library.runtime->archived_libraries) {
+    BLI_assert((lib_iter->flag & LIBRARY_FLAG_IS_EXTERNAL) != 0);
+    BLI_assert(lib_iter->archive_parent_library != nullptr);
+    BLI_assert(lib_iter->archive_parent_library == &reference_library);
+    /* Check if current archive library already contains an ID of same type and name. */
+    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id.name), BKE_id_name(id))) {
+      UNUSED_VARS_NDEBUG(id_deep_hash);
+      continue;
+    }
+    archive_library = lib_iter;
+    break;
+  }
+  if (!archive_library) {
+    archive_library = add_external_library(bmain, reference_library);
+    is_new = true;
+  }
+  else {
+    is_new = false;
+  }
+  BLI_assert(reference_library.runtime->archived_libraries.contains(archive_library));
+  return archive_library;
+}
+
 void bke::library::main_cleanup_parent_archives(Main &bmain)
 {
   for (Library &lib : bmain.libraries) {
