@@ -36,7 +36,7 @@ struct Layout;
 
 enum class SortOrder : uint8_t {
   None = 0,
-  Invert = 1,
+  InvertRoot = 1,
   InvertNested = 2,
 };
 
@@ -146,6 +146,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
+
   /**
    * When true, sort elements alphabetically.
    */
@@ -153,7 +154,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /**
    * Invert sort order.
    */
-  std::shared_ptr<SortOrder> sort_order_ = std::make_shared<SortOrder>(SortOrder::None);
+  std::shared_ptr<SortOrder> invert_sort_type_ = std::make_shared<SortOrder>(SortOrder::None);
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;

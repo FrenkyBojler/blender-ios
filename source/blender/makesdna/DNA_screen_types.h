@@ -459,11 +459,9 @@ struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset = 0;
-  uint8_t sort_order = 0;
-  char _pad1[7] = {};
   uint16_t flag = 0; /* #uiViewStateFlag */
-  char _pad[6] = {};
-
+  char _pad[5] = {};
+  uint8_t invert_sort_type = 0;
   char search_string[/*UI_MAX_NAME_STR*/ 256] = "";
 };
 
