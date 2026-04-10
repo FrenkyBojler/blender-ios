@@ -17,6 +17,8 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_asset_types.h"
 #include "DNA_screen_types.h"
 
@@ -217,7 +219,7 @@ static std::optional<wmOperatorCallParams> create_asset_operator_params(
   return wmOperatorCallParams{ot, op_props, wm::OpCallContext::InvokeRegionWin};
 }
 
-void AssetViewItem::build_grid_tile(const bContext & /*C*/, ui::Layout &layout) const
+void AssetViewItem::build_grid_tile(const bContext &C, ui::Layout &layout) const
 {
   const AssetView &asset_view = reinterpret_cast<const AssetView &>(this->get_view());
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
@@ -256,7 +258,7 @@ void AssetViewItem::build_grid_tile(const bContext & /*C*/, ui::Layout &layout) 
   /* Request preview when drawing. Grid views have an optimization to only draw items that are
    * actually visible, so only previews scrolled into view will be loaded this way. This reduces
    * total loading time and memory footprint. */
-  asset_.ensure_previewable();
+  asset_.ensure_previewable(C);
 
   const int preview_id = [&]() -> int {
     /* Show loading icon while list is loading still. Previews might get pushed out of view again
@@ -269,15 +271,42 @@ void AssetViewItem::build_grid_tile(const bContext & /*C*/, ui::Layout &layout) 
     return asset_preview_or_icon(asset_);
   }();
 
-  ui::PreviewGridItem::build_grid_tile_button(layout, preview_id);
+  ui::GridViewStyle grid_style = asset_view.get_style();
+  /* Add overlap layout so indicator icons can be displayed on top of the preview. */
+  ui::Layout &overlap = layout.overlap();
+  overlap.ui_units_x_set(grid_style.tile_width / UI_UNIT_X);
+  overlap.ui_units_y_set(grid_style.tile_height / UI_UNIT_Y);
+
+  ui::PreviewGridItem::build_grid_tile_button(overlap.column(true), preview_id);
+
+  ui::Layout &overlay_row = overlap.row(true);
+  overlay_row.alignment_set(ui::LayoutAlign::Right);
+
+  const bool is_highlighted = this->is_selected() || this->is_active() || this->is_hovered();
+  if (asset_.is_online() && is_highlighted) {
+    ui::Button *online_icon = uiItemL_ex(&overlay_row, "", ICON_INTERNET, false, false);
+    button_label_alpha_factor_set(online_icon, 0.6f);
+  }
 }
 
 void AssetViewItem::build_context_menu(bContext &C, ui::Layout &column) const
 {
   const AssetView &asset_view = dynamic_cast<const AssetView &>(this->get_view());
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
+
+  bool has_items = false;
+
+  if (asset_.is_online()) {
+    column.op("asset.assets_download", IFACE_("Download Asset"), ICON_NONE);
+    has_items = true;
+  }
+
   if (shelf_type.draw_context_menu) {
+    if (has_items) {
+      column.separator();
+    }
     shelf_type.draw_context_menu(&C, &shelf_type, &asset_, column);
+    has_items = true;
   }
 }
 

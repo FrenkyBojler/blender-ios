@@ -35,10 +35,7 @@ def dopesheet_filter(layout, context):
     row = layout.row(align=True)
     if is_action_editor:
         row.prop(dopesheet, "show_only_slot_of_active_object", text="")
-    else:
-        # Only Show Selected has no effect in the action editor.
-        row.prop(dopesheet, "show_only_selected", text="")
-
+    row.prop(dopesheet, "show_only_selected", text="")
     row.prop(dopesheet, "show_hidden", text="")
 
     if is_nla:
@@ -1063,7 +1060,7 @@ class DOPESHEET_PT_overlay(Panel):
     bl_space_type = 'DOPESHEET_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 13
+    bl_ui_units_x = 10
 
     def draw(self, _context):
         pass
@@ -1074,6 +1071,7 @@ class DOPESHEET_PT_dopesheet_overlay(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "DOPESHEET_PT_overlay"
     bl_label = "Dope Sheet Overlays"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         st = context.space_data

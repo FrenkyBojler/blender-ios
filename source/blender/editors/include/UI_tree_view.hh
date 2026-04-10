@@ -147,7 +147,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
   /**
-   * When true, sort elements alphabatically.
+   * When true, sort elements alphabetically.
    */
   std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
   /**
@@ -170,11 +170,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
-
-  /**
-   * \param xy: The mouse coordinates in window space.
-   */
-  AbstractTreeViewItem *find_hovered(const ARegion &region, const int2 &xy);
 
   /** Visual feature: Define a number of item rows the view will show by default. If there
    * are fewer items, empty dummy items will be added. These contribute to the view bounds, so the
@@ -308,6 +303,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   int count_parents() const;
 
   void on_filter() override;
+  StringRefNull label() const;
 
  protected:
   /** See AbstractViewItem::get_rename_string(). */
@@ -345,13 +341,6 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
    * the item itself, not the parents. Item matching is expected to change quite a bit anyway.
    */
   virtual bool matches_single(const AbstractTreeViewItem &other) const;
-
-  /**
-   * Can be called from the #AbstractTreeViewItem::build_row() implementation, but not earlier. The
-   * hovered state can't be queried reliably otherwise.
-   * Note that this does a linear lookup in the old block, so isn't too great performance-wise.
-   */
-  bool is_hovered() const;
 
   void ensure_parents_uncollapsed();
 

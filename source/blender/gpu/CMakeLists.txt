@@ -99,6 +99,7 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_mipmap.cc
   intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
@@ -111,12 +112,12 @@ set(SRC
   shader_tool/enum.cc
   shader_tool/flow_control.cc
   shader_tool/function.cc
+  shader_tool/grammar.cc
   shader_tool/intermediate.cc
   shader_tool/metadata.cc
   shader_tool/namespace.cc
   shader_tool/processor.cc
   shader_tool/resource_table.cc
-  shader_tool/shader_tool.cc
   shader_tool/string.cc
   shader_tool/struct.cc
   shader_tool/template.cc
@@ -185,8 +186,8 @@ set(SRC
   intern/gpu_shader_private.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
-  intern/gpu_texture_private.hh
   intern/gpu_texture_pool_private.hh
+  intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
 
@@ -391,6 +392,7 @@ set(METAL_SRC
   metal/mtl_state.mm
   metal/mtl_storage_buffer.mm
   metal/mtl_texture.mm
+  metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
@@ -544,6 +546,7 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
+  shaders/gpu_shader_2D_update_mipmaps.bsl.hh
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl
@@ -620,6 +623,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
@@ -817,8 +821,8 @@ set(GLSL_INC
   intern
   shaders
   shaders/common
-  shaders/material
   shaders/infos
+  shaders/material
 
   vulkan/shaders
 )
@@ -888,10 +892,6 @@ target_link_libraries(bf_gpu PUBLIC
   bf_imbuf_opencolorio_shaders
 )
 
-if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(bf_gpu PUBLIC rt)
-endif()
-
 # If `execinfo.h` exists on a *BSD system then also link in `libexecinfo`.
 # Needed for `backtrace` / `backtrace_symbols` (GNU extensions)
 # brought in by `blenlib/intern/system.cc`.
@@ -937,6 +937,7 @@ if(WITH_GTESTS)
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
       tests/texture_test.cc
+      tests/texture_view_test.cc
       tests/vertex_buffer_test.cc
     )
   endif()

@@ -86,7 +86,7 @@ static PyObject *pygpu_max_textures_vert_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  return PyLong_FromLong(GPU_max_textures_vert());
+  return PyLong_FromLong(GPU_max_textures());
 }
 
 PyDoc_STRVAR(
@@ -103,7 +103,7 @@ static PyObject *pygpu_max_textures_geom_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  return PyLong_FromLong(GPU_max_textures_geom());
+  return PyLong_FromLong(GPU_max_textures());
 }
 
 PyDoc_STRVAR(
@@ -120,7 +120,7 @@ static PyObject *pygpu_max_textures_frag_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  return PyLong_FromLong(GPU_max_textures_frag());
+  return PyLong_FromLong(GPU_max_textures());
 }
 
 PyDoc_STRVAR(
@@ -247,7 +247,7 @@ PyDoc_STRVAR(
     "   Get supported extensions in the current context.\n"
     "\n"
     "   :return: Extensions.\n"
-    "   :rtype: tuple[str]\n");
+    "   :rtype: tuple[str, ...]\n");
 static PyObject *pygpu_extensions_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -318,7 +318,7 @@ PyDoc_STRVAR(
     pygpu_hdr_support_get_doc,
     ".. function:: hdr_support_get()\n"
     "\n"
-    "  Return whether GPU backend supports High Dynamic range for viewport.\n"
+    "   Return whether GPU backend supports High Dynamic range for viewport.\n"
     "\n"
     "   :return: HDR support available.\n"
     "   :rtype: bool\n");
@@ -336,7 +336,7 @@ PyDoc_STRVAR(
     "\n"
     "   Get maximum number of work groups that may be dispatched to a compute shader.\n"
     "\n"
-    "   :arg index: Index of the dimension.\n"
+    "   :param index: Index of the dimension.\n"
     "   :type index: int\n"
     "   :return: Maximum number of work groups for the queried dimension.\n"
     "   :rtype: int\n");
@@ -361,7 +361,7 @@ PyDoc_STRVAR(
     "\n"
     "   Get maximum size of a work group that may be dispatched to a compute shader.\n"
     "\n"
-    "   :arg index: Index of the dimension.\n"
+    "   :param index: Index of the dimension.\n"
     "   :type index: int\n"
     "   :return: Maximum size of a work group for the queried dimension.\n"
     "   :rtype: int\n");
