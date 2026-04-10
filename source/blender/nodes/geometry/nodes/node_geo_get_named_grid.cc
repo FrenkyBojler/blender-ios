@@ -20,12 +20,13 @@ namespace blender::nodes::node_geo_get_named_grid_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Volume").description("Volume to take a named grid out of");
-  b.add_input<decl::String>("Name").optional_label().is_volume_grid_name();
-  b.add_input<decl::Bool>("Remove").default_value(true).translation_context(
-      BLT_I18NCONTEXT_OPERATOR_DEFAULT);
+  b.add_input<decl::Geometry>("Volume"_ustr).description("Volume to take a named grid out of");
+  b.add_input<decl::String>("Name"_ustr).optional_label().is_volume_grid_name();
+  b.add_input<decl::Bool>("Remove"_ustr)
+      .default_value(true)
+      .translation_context(BLT_I18NCONTEXT_OPERATOR_DEFAULT);
 
-  b.add_output<decl::Geometry>("Volume");
+  b.add_output<decl::Geometry>("Volume"_ustr);
 
   const bNode *node = b.node_or_null();
   if (!node) {
@@ -33,7 +34,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  b.add_output(eNodeSocketDatatype(node->custom1), "Grid").structure_type(StructureType::Grid);
+  b.add_output(eNodeSocketDatatype(node->custom1), "Grid"_ustr)
+      .structure_type(StructureType::Grid);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -138,7 +140,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGetNamedGrid", GEO_NODE_GET_NAMED_GRID);
+  geo_node_type_base(&ntype, "GeometryNodeGetNamedGrid"_ustr, GEO_NODE_GET_NAMED_GRID);
   ntype.ui_name = "Get Named Grid";
   ntype.ui_description = "Get volume grid from a volume geometry with the specified name";
   ntype.enum_name_legacy = "GET_NAMED_GRID";

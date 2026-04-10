@@ -23,19 +23,21 @@ namespace blender::nodes::node_geo_points_to_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Points")
+  b.add_input<decl::Geometry>("Points"_ustr)
       .supported_type(GeometryComponent::Type::PointCloud)
       .description("Points to generate curves from");
-  b.add_input<decl::Int>("Curve Group ID")
+  b.add_input<decl::Int>("Curve Group ID"_ustr)
       .field_on_all()
       .hide_value()
       .description(
           "A curve is created for every distinct group ID. All points with the same ID are put "
           "into the same curve");
-  b.add_input<decl::Float>("Weight").field_on_all().hide_value().description(
-      "Determines the order of points in each curve");
+  b.add_input<decl::Float>("Weight"_ustr)
+      .field_on_all()
+      .hide_value()
+      .description("Determines the order of points in each curve");
 
-  b.add_output<decl::Geometry>("Curves").propagate_all();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all();
 }
 
 static void grouped_sort(const OffsetIndices<int> offsets,
@@ -188,7 +190,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodePointsToCurves", GEO_NODE_POINTS_TO_CURVES);
+  geo_node_type_base(&ntype, "GeometryNodePointsToCurves"_ustr, GEO_NODE_POINTS_TO_CURVES);
   ntype.ui_name = "Points to Curves";
   ntype.ui_description = "Split all points to curve by its group ID and reorder by weight";
   ntype.enum_name_legacy = "POINTS_TO_CURVES";

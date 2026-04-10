@@ -15,7 +15,7 @@ namespace blender::nodes::node_geo_input_font_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Font>("Font").custom_draw([](CustomSocketDrawParams &params) {
+  b.add_output<decl::Font>("Font"_ustr).custom_draw([](CustomSocketDrawParams &params) {
     params.layout.alignment_set(ui::LayoutAlign::Expand);
     ui::template_id(&params.layout,
                     &params.C,
@@ -42,7 +42,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputFont");
+  geo_node_type_base(&ntype, "GeometryNodeInputFont"_ustr);
   ntype.ui_name = "Font";
   ntype.ui_description = "Output a font";
   ntype.nclass = NODE_CLASS_INPUT;

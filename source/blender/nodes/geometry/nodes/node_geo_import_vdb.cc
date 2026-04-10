@@ -15,13 +15,13 @@ namespace blender::nodes::node_geo_import_vdb {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Path")
+  b.add_input<decl::String>("Path"_ustr)
       .subtype(PROP_FILEPATH)
       .path_filter("*.vdb")
       .optional_label()
       .description("Path to a OpenVDB file");
 
-  b.add_output<decl::Geometry>("Volume");
+  b.add_output<decl::Geometry>("Volume"_ustr);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -59,7 +59,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImportVDB");
+  geo_node_type_base(&ntype, "GeometryNodeImportVDB"_ustr);
   ntype.ui_name = "Import VDB";
   ntype.ui_description = "Import volume data from a .vdb file";
   ntype.nclass = NODE_CLASS_INPUT;

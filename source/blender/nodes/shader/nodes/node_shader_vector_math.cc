@@ -31,7 +31,7 @@ namespace nodes::node_shader_vector_math_cc {
 static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f).label_fn([](bNode node) {
+  b.add_input<decl::Vector>("Vector"_ustr).min(-10000.0f).max(10000.0f).label_fn([](bNode node) {
     switch (node.custom1) {
       case NODE_VECTOR_MATH_POWER:
         return IFACE_("Base");
@@ -39,7 +39,7 @@ static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
         return IFACE_("Vector");
     }
   });
-  b.add_input<decl::Vector>("Vector", "Vector_001")
+  b.add_input<decl::Vector>("Vector"_ustr, "Vector_001"_ustr)
       .min(-10000.0f)
       .max(10000.0f)
       .label_fn([](bNode node) {
@@ -58,7 +58,7 @@ static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
             return IFACE_("Vector");
         }
       });
-  b.add_input<decl::Vector>("Vector", "Vector_002")
+  b.add_input<decl::Vector>("Vector"_ustr, "Vector_002"_ustr)
       .min(-10000.0f)
       .max(10000.0f)
       .label_fn([](bNode node) {
@@ -73,8 +73,11 @@ static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
             return IFACE_("Vector");
         }
       });
-  b.add_input<decl::Float>("Scale").default_value(1.0f).min(-10000.0f).max(10000.0f).label_fn(
-      [](bNode node) {
+  b.add_input<decl::Float>("Scale"_ustr)
+      .default_value(1.0f)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](bNode node) {
         switch (node.custom1) {
           case NODE_VECTOR_MATH_SCALE:
           default:
@@ -83,8 +86,8 @@ static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
             return IFACE_("IOR");
         }
       });
-  b.add_output<decl::Vector>("Vector");
-  b.add_output<decl::Float>("Value");
+  b.add_output<decl::Vector>("Vector"_ustr);
+  b.add_output<decl::Float>("Value"_ustr);
 }
 
 static void node_shader_buts_vect_math(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -92,14 +95,50 @@ static void node_shader_buts_vect_math(ui::Layout &layout, bContext * /*C*/, Poi
   layout.prop(ptr, "operation", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
+static void vector_math_input_defaults(bNode &node, const NodeVectorMathOperation mode)
+{
+  bNodeSocket *socket_2 = bke::node_find_socket(node, SOCK_IN, "Vector_001");
+  BLI_assert(socket_2 != nullptr);
+  bNodeSocketValueVector *in_vector_2 = socket_2->default_value_typed<bNodeSocketValueVector>();
+
+  bNodeSocket *socket_3 = bke::node_find_socket(node, SOCK_IN, "Vector_002");
+  BLI_assert(socket_3 != nullptr);
+  bNodeSocketValueVector *in_vector_3 = socket_3->default_value_typed<bNodeSocketValueVector>();
+
+  switch (mode) {
+    case NODE_VECTOR_MATH_MULTIPLY:
+    case NODE_VECTOR_MATH_DIVIDE:
+    case NODE_VECTOR_MATH_POWER:
+    case NODE_VECTOR_MATH_MODULO: {
+      for (int i = 0; i < in_vector_2->dimensions; i++) {
+        in_vector_2->value[i] = 1.0f;
+      }
+      break;
+    }
+    case NODE_VECTOR_MATH_MULTIPLY_ADD: {
+      BLI_assert(in_vector_2->dimensions == in_vector_3->dimensions);
+      for (int i = 0; i < in_vector_3->dimensions; i++) {
+        in_vector_2->value[i] = 1.0f;
+        in_vector_3->value[i] = 0.0f;
+      }
+      break;
+    }
+
+    default:
+      /* Use the default defined in the node declaration otherwise. */
+      break;
+  }
+}
+
 class SocketSearchOp {
  public:
-  std::string socket_name;
+  UString socket_name;
   NodeVectorMathOperation mode = NODE_VECTOR_MATH_ADD;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("ShaderNodeVectorMath");
+    bNode &node = params.add_node("ShaderNodeVectorMath"_ustr);
     node.custom1 = mode;
+    vector_math_input_defaults(node, mode);
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -124,12 +163,12 @@ static void sh_node_vector_math_gather_link_searches(GatherLinkSearchOpParams &p
                                                 NODE_VECTOR_MATH_DOT_PRODUCT))
       {
         params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                        SocketSearchOp{"Value", NodeVectorMathOperation(item->value)},
+                        SocketSearchOp{"Value"_ustr, NodeVectorMathOperation(item->value)},
                         weight);
       }
       else {
         params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                        SocketSearchOp{"Vector", NodeVectorMathOperation(item->value)},
+                        SocketSearchOp{"Vector"_ustr, NodeVectorMathOperation(item->value)},
                         weight);
       }
     }
@@ -525,7 +564,7 @@ void register_node_type_sh_vect_math()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeVectorMath", SH_NODE_VECTOR_MATH);
+  common_node_type_base(&ntype, "ShaderNodeVectorMath"_ustr, SH_NODE_VECTOR_MATH);
   ntype.ui_name = "Vector Math";
   ntype.ui_description = "Perform vector math operation";
   ntype.enum_name_legacy = "VECT_MATH";

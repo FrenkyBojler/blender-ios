@@ -10,10 +10,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry").description("Geometry to update the ID attribute on");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("ID").implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD);
+  b.add_input<decl::Geometry>("Geometry"_ustr)
+      .description("Geometry to update the ID attribute on");
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("ID"_ustr).implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD);
 }
 
 static void set_id_in_component(GeometryComponent &component,
@@ -57,7 +58,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetID", GEO_NODE_SET_ID);
+  geo_node_type_base(&ntype, "GeometryNodeSetID"_ustr, GEO_NODE_SET_ID);
   ntype.ui_name = "Set ID";
   ntype.ui_description =
       "Set the id attribute on the input geometry, mainly used internally for randomizing";

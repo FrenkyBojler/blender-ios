@@ -29,12 +29,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Int>("X").supports_field().structure_type(StructureType::Dynamic);
-  b.add_input<decl::Int>("Y").supports_field().structure_type(StructureType::Dynamic);
-  b.add_input<decl::Int>("Z").supports_field().structure_type(StructureType::Dynamic);
+  b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_input<decl::Int>("X"_ustr).supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Y"_ustr).supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Z"_ustr).supports_field().structure_type(StructureType::Dynamic);
 
-  b.add_output(data_type, "Value").dependent_field({1, 2, 3});
+  b.add_output(data_type, "Value"_ustr).dependent_field({1, 2, 3});
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
@@ -63,31 +63,31 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
   if (params.in_out() == SOCK_IN) {
     params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSampleGridIndex");
+      bNode &node = params.add_node("GeometryNodeSampleGridIndex"_ustr);
       node.custom1 = *node_type;
-      params.update_and_connect_available_socket(node, "Grid");
+      params.update_and_connect_available_socket(node, "Grid"_ustr);
     });
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
       params.add_item(IFACE_("X"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridIndex");
-        params.update_and_connect_available_socket(node, "X");
+        bNode &node = params.add_node("GeometryNodeSampleGridIndex"_ustr);
+        params.update_and_connect_available_socket(node, "X"_ustr);
       });
       params.add_item(IFACE_("Y"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridIndex");
-        params.update_and_connect_available_socket(node, "Y");
+        bNode &node = params.add_node("GeometryNodeSampleGridIndex"_ustr);
+        params.update_and_connect_available_socket(node, "Y"_ustr);
       });
       params.add_item(IFACE_("Z"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridIndex");
-        params.update_and_connect_available_socket(node, "Z");
+        bNode &node = params.add_node("GeometryNodeSampleGridIndex"_ustr);
+        params.update_and_connect_available_socket(node, "Z"_ustr);
       });
     }
   }
   else {
     params.add_item(IFACE_("Value"), [node_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSampleGridIndex");
+      bNode &node = params.add_node("GeometryNodeSampleGridIndex"_ustr);
       node.custom1 = *node_type;
-      params.update_and_connect_available_socket(node, "Value");
+      params.update_and_connect_available_socket(node, "Value"_ustr);
     });
   }
 }
@@ -193,7 +193,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleGridIndex", GEO_NODE_SAMPLE_GRID_INDEX);
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridIndex"_ustr, GEO_NODE_SAMPLE_GRID_INDEX);
   ntype.ui_name = "Sample Grid Index";
   ntype.ui_description = "Retrieve volume grid values at specific voxels";
   ntype.enum_name_legacy = "SAMPLE_GRID_INDEX";

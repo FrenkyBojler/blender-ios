@@ -37,33 +37,33 @@ static EnumPropertyItem resolution_mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh")
+  b.add_input<decl::Geometry>("Mesh"_ustr)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh to convert the inner volume to a fog volume geometry");
-  b.add_input<decl::Float>("Density").default_value(1.0f).min(0.01f).max(FLT_MAX);
-  b.add_input<decl::Menu>("Resolution Mode")
+  b.add_input<decl::Float>("Density"_ustr).default_value(1.0f).min(0.01f).max(FLT_MAX);
+  b.add_input<decl::Menu>("Resolution Mode"_ustr)
       .static_items(resolution_mode_items)
       .optional_label()
       .description("How the voxel size is specified")
       .translation_context(BLT_I18NCONTEXT_COUNTABLE);
-  b.add_input<decl::Float>("Voxel Size")
+  b.add_input<decl::Float>("Voxel Size"_ustr)
       .default_value(0.3f)
       .min(0.01f)
       .max(FLT_MAX)
       .subtype(PROP_DISTANCE)
       .usage_by_single_menu(MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_SIZE);
-  b.add_input<decl::Float>("Voxel Amount")
+  b.add_input<decl::Float>("Voxel Amount"_ustr)
       .default_value(64.0f)
       .min(0.0f)
       .max(FLT_MAX)
       .usage_by_single_menu(MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT);
-  b.add_input<decl::Float>("Interior Band Width")
+  b.add_input<decl::Float>("Interior Band Width"_ustr)
       .default_value(0.2f)
       .min(0.0001f)
       .max(FLT_MAX)
       .subtype(PROP_DISTANCE)
       .description("Width of the gradient inside of the mesh");
-  b.add_output<decl::Geometry>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
+  b.add_output<decl::Geometry>("Volume"_ustr).translation_context(BLT_I18NCONTEXT_ID_ID);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -148,7 +148,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMeshToVolume", GEO_NODE_MESH_TO_VOLUME);
+  geo_node_type_base(&ntype, "GeometryNodeMeshToVolume"_ustr, GEO_NODE_MESH_TO_VOLUME);
   ntype.ui_name = "Mesh to Volume";
   ntype.ui_description = "Create a fog volume with the shape of the input mesh's surface";
   ntype.enum_name_legacy = "MESH_TO_VOLUME";

@@ -16,9 +16,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid).align_with_previous();
-  b.add_input<decl::Int>("Iterations")
+  b.add_input<decl::Float>("Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output<decl::Float>("Grid"_ustr).structure_type(StructureType::Grid).align_with_previous();
+  b.add_input<decl::Int>("Iterations"_ustr)
       .default_value(1)
       .min(0)
       .description("Number of iterations to apply the filter");
@@ -62,7 +62,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSDFGridMeanCurvature");
+  geo_node_type_base(&ntype, "GeometryNodeSDFGridMeanCurvature"_ustr);
   ntype.ui_name = "SDF Grid Mean Curvature";
   ntype.ui_description =
       "Apply mean curvature flow smoothing to a signed distance field. Evolves the surface based "

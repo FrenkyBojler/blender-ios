@@ -16,9 +16,9 @@ namespace blender::nodes::node_fn_matrix_multiply_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Matrix>("Matrix");
-  b.add_input<decl::Matrix>("Matrix", "Matrix_001");
-  b.add_output<decl::Matrix>("Matrix");
+  b.add_input<decl::Matrix>("Matrix"_ustr);
+  b.add_input<decl::Matrix>("Matrix"_ustr, "Matrix_001"_ustr);
+  b.add_output<decl::Matrix>("Matrix"_ustr);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -61,7 +61,7 @@ static int node_gpu_material(GPUMaterial *material,
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_cmp_node_type_base(&ntype, "FunctionNodeMatrixMultiply", FN_NODE_MATRIX_MULTIPLY);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeMatrixMultiply"_ustr, FN_NODE_MATRIX_MULTIPLY);
   ntype.ui_name = "Multiply Matrices";
   ntype.ui_description = "Perform a matrix multiplication on two input matrices";
   ntype.enum_name_legacy = "MATRIX_MULTIPLY";

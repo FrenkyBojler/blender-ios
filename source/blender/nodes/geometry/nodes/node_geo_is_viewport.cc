@@ -10,7 +10,7 @@ namespace blender::nodes::node_geo_is_viewport_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Bool>("Is Viewport");
+  b.add_output<decl::Bool>("Is Viewport"_ustr);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -26,7 +26,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeIsViewport", GEO_NODE_IS_VIEWPORT);
+  geo_node_type_base(&ntype, "GeometryNodeIsViewport"_ustr, GEO_NODE_IS_VIEWPORT);
   ntype.ui_name = "Is Viewport";
   ntype.ui_description =
       "Retrieve whether the nodes are being evaluated for the viewport rather than the final "

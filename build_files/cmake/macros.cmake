@@ -624,7 +624,7 @@ endfunction()
 function(get_sse_flags
   _sse42_flags)
 
-  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
     # message(STATUS "Detecting SSE support")
     if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set(${_sse42_flags} "-march=x86-64-v2" PARENT_SCOPE)
@@ -904,7 +904,7 @@ function(add_check_c_compiler_flag_impl
   include(CheckCCompilerFlag)
 
   set(_is_new TRUE)
-  if (DEFINED CACHE{${_CACHE_VAR}})
+  if(DEFINED CACHE{${_CACHE_VAR}})
     set(_is_new FALSE)
   endif()
 
@@ -928,7 +928,7 @@ function(add_check_cxx_compiler_flag_impl
   include(CheckCXXCompilerFlag)
 
   set(_is_new TRUE)
-  if (DEFINED CACHE{${_CACHE_VAR}})
+  if(DEFINED CACHE{${_CACHE_VAR}})
     set(_is_new FALSE)
   endif()
 
@@ -1659,16 +1659,12 @@ function(compile_sources_as_cpp
     target_compile_options(${library} PRIVATE "-Wno-missing-declarations")
     # Would be nice to enable the warning once we support references.
     target_compile_options(${library} PRIVATE "-Wno-uninitialized")
-    # Would be nice to enable the warning once we support nameless parameters.
-    target_compile_options(${library} PRIVATE "-Wno-unused-parameter")
     # To compile libraries.
     target_compile_options(${library} PRIVATE "-Wno-pragma-once-outside-header")
     target_compile_options(${library} PRIVATE "-Wno-unknown-pragmas")
   elseif(MSVC)
     # Equivalent to "-Wno-uninitialized"
     target_compile_options(${library} PRIVATE "/wd4700")
-    # Equivalent to "-Wno-unused-parameter"
-    target_compile_options(${library} PRIVATE "/wd4100")
     # Disable "potential divide by 0" warning
     target_compile_options(${library} PRIVATE "/wd4723")
     # Disable unkown pragma warning

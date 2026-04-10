@@ -15,11 +15,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curve")
+  b.add_input<decl::Geometry>("Curve"_ustr)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to switch the start and end of");
-  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
 }
 
 static void reverse_curve(bke::CurvesGeometry &curves,
@@ -76,7 +76,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeReverseCurve", GEO_NODE_REVERSE_CURVE);
+  geo_node_type_base(&ntype, "GeometryNodeReverseCurve"_ustr, GEO_NODE_REVERSE_CURVE);
   ntype.ui_name = "Reverse Curve";
   ntype.ui_description = "Change the direction of curves by swapping their start and end data";
   ntype.enum_name_legacy = "REVERSE_CURVE";

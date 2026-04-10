@@ -31,11 +31,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry").description("Geometry to sort the elements of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
-  b.add_input<decl::Int>("Group ID").field_on_all().hide_value();
-  b.add_input<decl::Float>("Sort Weight").field_on_all().hide_value();
+  b.add_input<decl::Geometry>("Geometry"_ustr).description("Geometry to sort the elements of");
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Int>("Group ID"_ustr).field_on_all().hide_value();
+  b.add_input<decl::Float>("Sort Weight"_ustr).field_on_all().hide_value();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -293,7 +293,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSortElements", GEO_NODE_SORT_ELEMENTS);
+  geo_node_type_base(&ntype, "GeometryNodeSortElements"_ustr, GEO_NODE_SORT_ELEMENTS);
   ntype.ui_name = "Sort Elements";
   ntype.ui_description = "Rearrange geometry elements, changing their indices";
   ntype.enum_name_legacy = "SORT_ELEMENTS";

@@ -46,26 +46,27 @@ static void node_declare(NodeDeclarationBuilder &b)
   const GeometryNodeFieldToGrid &storage = node_storage(*node);
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
 
-  b.add_input(data_type, "Topology").structure_type(StructureType::Grid);
+  b.add_input(data_type, "Topology"_ustr).structure_type(StructureType::Grid);
 
   const Span<GeometryNodeFieldToGridItem> items(storage.items, storage.items_num);
   for (const int i : items.index_range()) {
     const GeometryNodeFieldToGridItem &item = items[i];
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(item.data_type);
-    const std::string input_identifier = ItemsAccessor::input_socket_identifier_for_item(item);
-    const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
+    const UString name(item.name);
+    const UString input_identifier(ItemsAccessor::input_socket_identifier_for_item(item));
+    const UString output_identifier(ItemsAccessor::output_socket_identifier_for_item(item));
 
-    b.add_input(data_type, item.name, input_identifier)
+    b.add_input(data_type, name, input_identifier)
         .supports_field()
         .socket_name_ptr(&tree->id, *FieldToGridItemsAccessor::item_srna, &item, "name");
-    b.add_output(data_type, item.name, output_identifier)
+    b.add_output(data_type, name, output_identifier)
         .structure_type(StructureType::Grid)
         .align_with_previous()
         .description("Output grid with evaluated field values");
   }
 
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Field);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Field);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Grid)
       .align_with_previous();
 }
@@ -115,23 +116,23 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
   if (params.in_out() == SOCK_IN) {
     params.add_item(IFACE_("Topology"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       node_storage(node).data_type = *data_type;
-      params.update_and_connect_available_socket(node, "Topology");
+      params.update_and_connect_available_socket(node, "Topology"_ustr);
     });
     params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, params.socket.name);
+      params.update_and_connect_available_socket(node, UString(params.socket.name));
     });
   }
   else {
     params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, params.socket.name);
+      params.update_and_connect_available_socket(node, UString(params.socket.name));
     });
   }
 }
@@ -299,11 +300,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<fn::GField> fields(required_items.size());
+  Vector<fn::GField> fields;
+  fields.reserve(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const std::string identifier = ItemsAccessor::input_socket_identifier_for_item(items[item_i]);
-    fields[i] = params.extract_input<fn::GField>(UString(identifier));
+    fields.append(params.extract_input<fn::GField>(UString(identifier)));
   }
 
   openvdb::MaskTree mask_tree;
@@ -400,7 +402,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldToGrid");
+  geo_node_type_base(&ntype, "GeometryNodeFieldToGrid"_ustr);
   ntype.ui_name = "Field to Grid";
   ntype.ui_description =
       "Create new grids by evaluating new values on an existing volume grid topology";

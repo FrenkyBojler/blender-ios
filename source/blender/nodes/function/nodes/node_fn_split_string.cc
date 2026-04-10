@@ -11,9 +11,9 @@ namespace blender::nodes::node_fn_split_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("String").optional_label();
-  b.add_input<decl::String>("Separator").optional_label();
-  b.add_output<decl::String>("List")
+  b.add_input<decl::String>("String"_ustr).optional_label();
+  b.add_input<decl::String>("Separator"_ustr).optional_label();
+  b.add_output<decl::String>("List"_ustr)
       .structure_type(StructureType::List)
       .description(
           "The parts of the input string. This contains at least one element which may be empty");
@@ -50,7 +50,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeSplitString");
+  fn_node_type_base(&ntype, "FunctionNodeSplitString"_ustr);
   ntype.ui_name = "Split String";
   ntype.ui_description = "Split a string into a list using a separator";
   ntype.nclass = NODE_CLASS_CONVERTER;

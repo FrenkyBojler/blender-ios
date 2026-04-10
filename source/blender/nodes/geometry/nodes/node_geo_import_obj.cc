@@ -18,13 +18,13 @@ namespace blender::nodes::node_geo_import_obj {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Path")
+  b.add_input<decl::String>("Path"_ustr)
       .subtype(PROP_FILEPATH)
       .path_filter("*.obj")
       .optional_label()
       .description("Path to a OBJ file");
 
-  b.add_output<decl::Geometry>("Instances");
+  b.add_output<decl::Geometry>("Instances"_ustr);
 }
 
 class LoadObjCache : public memory_cache::CachedValue {
@@ -94,7 +94,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImportOBJ", GEO_NODE_IMPORT_OBJ);
+  geo_node_type_base(&ntype, "GeometryNodeImportOBJ"_ustr, GEO_NODE_IMPORT_OBJ);
   ntype.ui_name = "Import OBJ";
   ntype.ui_description = "Import geometry from an OBJ file";
   ntype.enum_name_legacy = "IMPORT_OBJ";

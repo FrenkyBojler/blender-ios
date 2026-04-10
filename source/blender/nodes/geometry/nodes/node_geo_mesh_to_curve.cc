@@ -23,11 +23,11 @@ enum class Mode : int8_t {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh")
+  b.add_input<decl::Geometry>("Mesh"_ustr)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh to convert to curves");
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_output<decl::Geometry>("Curve").propagate_all();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Curve"_ustr).propagate_all();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -111,7 +111,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMeshToCurve", GEO_NODE_MESH_TO_CURVE);
+  geo_node_type_base(&ntype, "GeometryNodeMeshToCurve"_ustr, GEO_NODE_MESH_TO_CURVE);
   ntype.ui_name = "Mesh to Curve";
   ntype.ui_description = "Generate a curve from a mesh";
   ntype.enum_name_legacy = "MESH_TO_CURVE";
