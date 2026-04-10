@@ -478,7 +478,9 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
-    draw_render_border(region, sima->iuser.scene);
+    if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS) {
+      draw_render_border(region, sima->iuser.scene);
+    }
   }
 
   if (sima->mode == SI_MODE_UV) {
