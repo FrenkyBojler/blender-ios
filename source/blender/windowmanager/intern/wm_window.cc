@@ -3574,7 +3574,7 @@ static wmOperatorStatus check_for_updates_modal(bContext *C, wmOperator *op, con
   if (bke::is_looking_for_updates_failed()) {
     BKE_reportf(op->reports,
                 RPT_ERROR,
-                "Someting went wrong when looking for new updates, please try again later.");
+                "Something went wrong when looking for new updates, please try again later.");
   }
   else if (bke::have_available_updates(*C)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_call_panel", false);
