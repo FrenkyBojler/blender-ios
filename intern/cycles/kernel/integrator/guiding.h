@@ -98,6 +98,7 @@ ccl_device_forceinline void guiding_record_surface_segment(
   const pgl_vec3f one = guiding_vec3f(one_float3());
 
   state->guiding.path_segment = kg->opgl_path_segment_storage->NextSegment();
+  /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(sd->P));
@@ -196,6 +197,7 @@ ccl_device_forceinline void guiding_record_bssrdf_segment(ccl_attr_maybe_unused 
   const pgl_vec3f one = guiding_vec3f(one_float3());
 
   state->guiding.path_segment = kg->opgl_path_segment_storage->NextSegment();
+  /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(P));
@@ -295,7 +297,7 @@ ccl_device_forceinline void guiding_record_volume_segment(ccl_attr_maybe_unused 
   const pgl_vec3f one = guiding_vec3f(one_float3());
 
   state->guiding.path_segment = kg->opgl_path_segment_storage->NextSegment();
-
+  /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(P));
@@ -422,6 +424,7 @@ ccl_device_forceinline void guiding_record_light_surface_segment(
   const float3 P = ray_P + isect->t * ray_D;
 
   state->guiding.path_segment = kg->opgl_path_segment_storage->NextSegment();
+  /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(P));
