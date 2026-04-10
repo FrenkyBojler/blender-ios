@@ -38,32 +38,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR);
-
-  const bNode *node = b.node_or_null();
-  if (!node) {
-    return;
-  }
-  auto sss_method_input = b.add_input<decl::Float>("Anisotropy"_ustr)
-                              .default_value(0.0f)
-                              .max(1.0f)
-                              .subtype(PROP_FACTOR);
-  const int sss_method = node->custom1;
-  if (sss_method == SHD_SUBSURFACE_RANDOM_WALK) {
-    /* Only random walk supports negative anisotropy for now. */
-    sss_method_input.min(-1.0f).description(
-        "Directionality of volume scattering within the subsurface medium. "
-        "Zero scatters uniformly in all directions, positive values scatter more in the forward "
-        "direction, and negative values scatter more backwards. "
-        "For example, skin has been measured to have an anisotropy of 0.8");
-  }
-  else {
-    sss_method_input.min(0.0f).description(
-        "Directionality of volume scattering within the subsurface medium. "
-        "Zero scatters uniformly in all directions, with higher values scattering more strongly "
-        "forward. "
-        "For example, skin has been measured to have an anisotropy of 0.8");
-  }
-
+  b.add_input<decl::Float>("Anisotropy"_ustr)
+      .default_value(0.0f)
+      .min(-1.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Directionality of volume scattering within the subsurface medium. "
+          "Zero scatters uniformly in all directions, positive values scatter more in the forward "
+          "direction, and negative values scatter more backwards. "
+          "For example, skin has been measured to have an anisotropy of 0.8");
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
   b.add_input<decl::Float>("Weight"_ustr).available(false);
   b.add_output<decl::Shader>("BSSRDF"_ustr);

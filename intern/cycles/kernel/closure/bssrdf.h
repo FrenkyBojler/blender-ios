@@ -295,7 +295,7 @@ ccl_device int bssrdf_setup(ccl_private ShaderData *sd,
     bssrdf->anisotropy = clamp(bssrdf->anisotropy, -0.99f, 0.99f);
   }
   else {
-    bssrdf->anisotropy = clamp(bssrdf->anisotropy, 0.0f, 0.9f);
+    bssrdf->anisotropy = clamp(bssrdf->anisotropy, -0.99f, 0.9f);
   }
 
   bssrdf->ior = clamp(bssrdf->ior, 1.01f, 3.8f);

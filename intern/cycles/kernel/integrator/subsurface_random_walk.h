@@ -231,10 +231,9 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   const Spectrum albedo = INTEGRATOR_STATE(state, subsurface, albedo);
   const Spectrum radius = INTEGRATOR_STATE(state, subsurface, radius);
   float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
-  bool van_de_hulst = true;
+  const bool van_de_hulst = (anisotropy < 2.0f);
   if (anisotropy >= 1.0f) {
-    van_de_hulst = false;
-    anisotropy -= 1.0f;
+    anisotropy -= 2.0f;
   }
 
   Spectrum sigma_t;

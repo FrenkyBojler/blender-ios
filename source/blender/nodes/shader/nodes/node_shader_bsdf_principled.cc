@@ -125,34 +125,18 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Index of Refraction (IOR) used for rays that enter the subsurface component")
       .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK_SKIN; });
 #define SOCK_SUBSURFACE_IOR_ID 11
-
-  const bNode *node = b.node_or_null();
-  if (!node) {
-    return;
-  }
-  auto sss_method_input = sss.add_input<decl::Float>("Subsurface Anisotropy"_ustr)
-                              .default_value(0.0f)
-                              .max(1.0f)
-                              .subtype(PROP_FACTOR);
-  const int sss_method = node->custom2;
-  if (sss_method == SHD_SUBSURFACE_RANDOM_WALK) {
-    /* Only random walk supports negative anisotropy for now. */
-    sss_method_input.min(-1.0f).description(
-        "Directionality of volume scattering within the subsurface medium. "
-        "Zero scatters uniformly in all directions, positive values scatter more in the forward "
-        "direction, and negative values scatter more backwards. "
-        "For example, skin has been measured to have an anisotropy of 0.8");
-  }
-  else {
-    sss_method_input.min(0.0f).description(
-        "Directionality of volume scattering within the subsurface medium. "
-        "Zero scatters uniformly in all directions, with higher values scattering more strongly "
-        "forward. "
-        "For example, skin has been measured to have an anisotropy of 0.8");
-  }
-  sss_method_input.short_label("Anisotropy").make_available([](bNode &node) {
-    node.custom2 = SHD_SUBSURFACE_RANDOM_WALK;
-  });
+  sss.add_input<decl::Float>("Subsurface Anisotropy"_ustr)
+      .default_value(0.0f)
+      .min(-1.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .short_label("Anisotropy")
+      .description(
+          "Directionality of volume scattering within the subsurface medium. "
+          "Zero scatters uniformly in all directions, positive values scatter more in the forward "
+          "direction, and negative values scatter more backwards. "
+          "For example, skin has been measured to have an anisotropy of 0.8")
+      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK; });
 #define SOCK_SUBSURFACE_ANISOTROPY_ID 12
 
   /* Panel for Specular settings. */
