@@ -1302,16 +1302,22 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 {
   bScreen *screen = CTX_wm_screen(C);
   const bool has_panel_category = panel_category_tabs_is_visible(region);
+  const bool any_item_visible = has_panel_category;
+
+  if (!any_item_visible) {
+      return;
+  }
 
   if (panel && panel->type->parent != nullptr) {
     return;
   }
 
-  PopupMenu *pup = popup_menu_begin(C, IFACE_("Panel"), ICON_NONE);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Panel, panel);
+
+  PopupMenu *pup = popup_menu_begin(C, IFACE_("Sidebar"), ICON_NONE);
   Layout &layout = *popup_menu_layout(pup);
 
-  if (panel && has_panel_category && panel_can_be_pinned(panel)) {
-    PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Panel, panel);
+  if (has_panel_category && panel && panel_can_be_pinned(panel)) {
     char tmpstr[80];
     SNPRINTF_UTF8(tmpstr, "%s" UI_SEP_CHAR_S "%s", IFACE_("Pin"), IFACE_("Shift Left Mouse"));
     layout.prop(&ptr, "use_pin", UI_ITEM_NONE, tmpstr, ICON_NONE);
