@@ -169,7 +169,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-  state.invert_sort_type = (uint8_t)*invert_sort_type_;
+  state.invert_sort_type = uint8_t(*invert_sort_type_);
   return state;
 }
 
@@ -952,7 +952,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                                    tree_view.show_display_options_.get(),
                                    0,
                                    0,
-                                   TIP_("Reverse the order of items"));
+                                   TIP_(""));
     button_flag_disable(but, BUT_UNDO);
     block_emboss_set(block, EmbossType::Emboss);
     bottom.column(false);
@@ -1015,9 +1015,19 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       }
 
       filter_layout.separator();
-      but = uiDefIconBut(
-          block, ButtonType::IconToggle, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
+      but = uiDefIconBut(block,
+                         ButtonType::IconToggle,
+                         icon,
+                         0,
+                         0,
+                         UI_UNIT_X,
+                         UI_UNIT_Y,
+                         nullptr,
+                         0,
+                         0,
+                         TIP_("Reverse the order of items"));
       button_func_set(but, set_sort_order_fn, nullptr, tree_view.invert_sort_type_.get());
+      button_flag_disable(but, BUT_UNDO);
     }
   }
 
