@@ -1064,32 +1064,40 @@ static bool vfont_to_curve(Object *ob,
         ct->offset.x = base_center - BLI_rctf_cent_x(&che->bounds);
         ct->offset.y = offset.y;
 
-        /* Vertical: reposition above/below marks that overlap the base glyph. */
+        /* Vertical: reposition above/below marks (follows HarfBuzz `position_mark`). */
         if (che_base) {
           const float mark_ymin = che->bounds.ymin;
           const float mark_ymax = che->bounds.ymax;
+          const float mark_height = mark_ymax - mark_ymin;
           const float base_mid = BLI_rctf_cent_y(&che_base->bounds);
           const float mark_mid = (mark_ymin + mark_ymax) * 0.5f;
-          const float mark_height = mark_ymax - mark_ymin;
+          /* Gap matches HarfBuzz `y_gap = font->y_scale / 16`. */
           const float y_gap = metrics->em_ratio / 16.0f;
 
           if (mark_mid > base_mid) {
             /* Above mark. */
-            const float overlap = std::min(mark_ymax, base_ymax_accum) -
-                                  std::max(mark_ymin, che_base->bounds.ymin);
-            if (mark_height > 0.0f && overlap > mark_height * 0.5f) {
-              ct->offset.y += (base_ymax_accum + y_gap) - mark_ymin;
-              base_ymax_accum += mark_height + y_gap;
+            base_ymax_accum += y_gap;
+            float offset_y = base_ymax_accum - mark_ymin;
+            /* Don't shift down "above" marks too much (HarfBuzz dampening). */
+            if ((y_gap > 0.0f) != (offset_y > 0.0f)) {
+              const float correction = -offset_y * 0.5f;
+              base_ymax_accum += correction;
+              offset_y += correction;
             }
+            base_ymax_accum += mark_height;
+            ct->offset.y += offset_y;
           }
           else {
             /* Below mark. */
-            const float overlap = std::min(mark_ymax, che_base->bounds.ymax) -
-                                  std::max(mark_ymin, base_ymin_accum);
-            if (mark_height > 0.0f && overlap > mark_height * 0.5f) {
-              ct->offset.y += (base_ymin_accum - y_gap) - mark_ymax;
-              base_ymin_accum -= mark_height + y_gap;
+            base_ymin_accum -= y_gap;
+            float offset_y = base_ymin_accum - mark_ymax;
+            /* Never shift up "below" marks (HarfBuzz dampening). */
+            if ((y_gap > 0.0f) == (offset_y > 0.0f)) {
+              base_ymin_accum -= offset_y;
+              offset_y = 0.0f;
             }
+            base_ymin_accum -= mark_height;
+            ct->offset.y += offset_y;
           }
         }
 

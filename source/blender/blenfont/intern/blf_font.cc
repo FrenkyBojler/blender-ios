@@ -477,19 +477,17 @@ BLI_INLINE bool blf_glyph_step(
       /* Combining character: center the mark over the previous base character.
        *
        * Without GPOS data (which requires a shaping engine such as HarfBuzz),
-       * combining glyphs have no base-relative positioning. We approximate the
+       * combining glyphs have no base-relative positioning. We follow the
        * fallback algorithm used by HarfBuzz when GPOS tables are absent
        * (see `hb-ot-shape-fallback.cc`, `position_mark`):
        *
        * - X: center the mark bitmap over the base character's advance width.
-       * - Y: when the mark is an "above" mark that overlaps the base glyph,
-       *   raise it so its bottom sits at the base glyph's top (plus a small gap).
-       *   Successive above-marks stack, each above the previous.
+       * - Y: place the mark at the accumulated top (above) or bottom (below)
+       *   of the base, with a small gap. Successive marks stack.
+       *   If the offset would push the mark the wrong direction, dampen it.
        *
-       * "Above" marks are detected from glyph bounding boxes rather than a
-       * hardcoded character table: the mark's vertical center must be above the
-       * base glyph's vertical midpoint, and they must overlap by more than half
-       * the mark's height on the Y axis. */
+       * Above/below is determined from glyph bounding boxes: the mark's
+       * vertical center vs the base glyph's vertical midpoint. */
       step.pen_x_right = pen_x_prev;
 
       /* Horizontal: center align (matches HarfBuzz ABOVE / BELOW default). */
@@ -497,37 +495,39 @@ BLI_INLINE bool blf_glyph_step(
       const int mark_center_offset = step.g->pos[0] + step.g->dims[0] / 2;
       step.pen_x = ft_pix_from_int(base_center - mark_center_offset);
 
-      /* Vertical: reposition above/below marks that overlap the base glyph. */
+      /* Vertical: reposition above/below marks (follows HarfBuzz `position_mark`). */
       step.offset_y = 0;
       if (step.g_kerning) {
-        const ft_pix base_ymin = step.g_kerning->box_ymin;
         const ft_pix mark_ymin = step.g->box_ymin;
         const ft_pix mark_ymax = step.g->box_ymax;
-        const ft_pix base_mid = (base_ymin + step.g_kerning->box_ymax) / 2;
-        const ft_pix mark_mid = (mark_ymin + mark_ymax) / 2;
-
         const ft_pix mark_height = mark_ymax - mark_ymin;
-        const ft_pix base_height = step.g_kerning->box_ymax - base_ymin;
-        const ft_pix y_gap = base_height / 16;
+        const ft_pix base_mid = (step.g_kerning->box_ymin + step.g_kerning->box_ymax) / 2;
+        const ft_pix mark_mid = (mark_ymin + mark_ymax) / 2;
+        /* Gap matches HarfBuzz `y_gap = font->y_scale / 16`. */
+        const ft_pix y_gap = ft_pix_from_float(gc->size) / 16;
 
         if (mark_mid > base_mid) {
-          /* Above mark: overlap with the accumulated top region. */
-          const ft_pix overlap = std::min(mark_ymax, step.base_ymax_accum) -
-                                 std::max(mark_ymin, base_ymin);
-          if (mark_height > 0 && overlap > mark_height / 2) {
-            step.offset_y = (step.base_ymax_accum + y_gap) - mark_ymin;
-            step.base_ymax_accum += mark_height + y_gap;
+          /* Above mark. */
+          step.base_ymax_accum += y_gap;
+          step.offset_y = step.base_ymax_accum - mark_ymin;
+          /* Don't shift down "above" marks too much (HarfBuzz dampening). */
+          if ((y_gap > 0) != (step.offset_y > 0)) {
+            const ft_pix correction = -step.offset_y / 2;
+            step.base_ymax_accum += correction;
+            step.offset_y += correction;
           }
+          step.base_ymax_accum += mark_height;
         }
         else {
-          /* Below mark: overlap with the accumulated bottom region. */
-          const ft_pix base_ymax = step.g_kerning->box_ymax;
-          const ft_pix overlap = std::min(mark_ymax, base_ymax) -
-                                 std::max(mark_ymin, step.base_ymin_accum);
-          if (mark_height > 0 && overlap > mark_height / 2) {
-            step.offset_y = (step.base_ymin_accum - y_gap) - mark_ymax;
-            step.base_ymin_accum -= mark_height + y_gap;
+          /* Below mark. */
+          step.base_ymin_accum -= y_gap;
+          step.offset_y = step.base_ymin_accum - mark_ymax;
+          /* Never shift up "below" marks (HarfBuzz dampening). */
+          if ((y_gap > 0) == (step.offset_y > 0)) {
+            step.base_ymin_accum -= step.offset_y;
+            step.offset_y = 0;
           }
+          step.base_ymin_accum -= mark_height;
         }
       }
     }
