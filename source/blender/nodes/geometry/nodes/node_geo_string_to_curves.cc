@@ -175,7 +175,9 @@ static void node_declare(NodeDeclarationBuilder &b)
         .default_value(0.0f)
         .min(0.0f)
         .subtype(PROP_DISTANCE)
-        .usage_by_menu("Overflow"_ustr, GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT);
+        .usage_by_menu("Overflow"_ustr,
+                       {GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT,
+                        GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE});
   }
 }
 
@@ -513,7 +515,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeStringToCurves", GEO_NODE_STRING_TO_CURVES);
+  geo_node_type_base(&ntype, "GeometryNodeStringToCurves"_ustr, GEO_NODE_STRING_TO_CURVES);
   ntype.ui_name = "String to Curves";
   ntype.ui_description =
       "Generate a paragraph of text with a specific font, using a curve instance to store each "

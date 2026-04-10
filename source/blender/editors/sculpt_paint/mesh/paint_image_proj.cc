@@ -330,6 +330,7 @@ struct ProjPaintState {
   /** size of projectImages array. */
   int image_tot;
 
+  /* The following are all updated for symmetry passes. */
   /** verts projected into floating point screen space. */
   float (*screenCoords)[4];
   /** 2D bounds for mesh verts on the screen's plane (screen-space). */
@@ -4382,8 +4383,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
                                             MemArena *arena,
                                             const ProjPaintFaceLookup *face_lookup,
                                             ProjPaintLayerClone *layer_clone,
-                                            const float2 *uv_map_base,
-                                            const bool is_multi_view)
+                                            const float2 *uv_map_base)
 {
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
   const StringRef active_uv_name = ps->mesh_eval->active_uv_map_name();
@@ -4488,45 +4488,43 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
       ProjPaintFaceCoSS coSS;
       proj_paint_face_coSS_init(ps, corner_tris[tri_index], &coSS);
 
-      if (is_multi_view == false) {
-        if (project_paint_flt_max_cull(ps, &coSS)) {
-          continue;
-        }
+      if (project_paint_flt_max_cull(ps, &coSS)) {
+        continue;
+      }
 
 #ifdef PROJ_DEBUG_WINCLIP
-        if (project_paint_winclip(ps, &coSS)) {
-          continue;
-        }
+      if (project_paint_winclip(ps, &coSS)) {
+        continue;
+      }
 
 #endif  // PROJ_DEBUG_WINCLIP
 
-        /* Back-face culls individual triangles but mask normal will use face. */
-        if (ps->do_backfacecull) {
-          if (ps->do_mask_normal) {
-            if (prev_poly != tri_faces[tri_index]) {
-              bool culled = true;
-              const IndexRange poly = ps->faces_eval[tri_faces[tri_index]];
-              prev_poly = tri_faces[tri_index];
-              for (const int corner : poly) {
-                if (!(ps->vertFlags[ps->corner_verts_eval[corner]] & PROJ_VERT_CULL)) {
-                  culled = false;
-                  break;
-                }
-              }
-
-              if (culled) {
-                /* poly loops - 2 is number of triangles for poly,
-                 * but counter gets incremented when continuing, so decrease by 3 */
-                int poly_tri = poly.size() - 3;
-                tri_index += poly_tri;
-                continue;
+      /* Back-face culls individual triangles but mask normal will use face. */
+      if (ps->do_backfacecull) {
+        if (ps->do_mask_normal) {
+          if (prev_poly != tri_faces[tri_index]) {
+            bool culled = true;
+            const IndexRange poly = ps->faces_eval[tri_faces[tri_index]];
+            prev_poly = tri_faces[tri_index];
+            for (const int corner : poly) {
+              if (!(ps->vertFlags[ps->corner_verts_eval[corner]] & PROJ_VERT_CULL)) {
+                culled = false;
+                break;
               }
             }
-          }
-          else {
-            if ((line_point_side_v2(coSS.v1, coSS.v2, coSS.v3) < 0.0f) != ps->is_flip_object) {
+
+            if (culled) {
+              /* poly loops - 2 is number of triangles for poly,
+               * but counter gets incremented when continuing, so decrease by 3 */
+              int poly_tri = poly.size() - 3;
+              tri_index += poly_tri;
               continue;
             }
+          }
+        }
+        else {
+          if ((line_point_side_v2(coSS.v1, coSS.v2, coSS.v3) < 0.0f) != ps->is_flip_object) {
+            continue;
           }
         }
       }
@@ -4581,10 +4579,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
 }
 
 /* run once per stroke before projection painting */
-static void project_paint_begin(const bContext *C,
-                                ProjPaintState *ps,
-                                const bool is_multi_view,
-                                const char symmetry_flag)
+static void project_paint_begin(const bContext *C, ProjPaintState *ps, const char symmetry_flag)
 {
   ProjPaintLayerClone layer_clone;
   ProjPaintFaceLookup face_lookup;
@@ -4694,8 +4689,7 @@ static void project_paint_begin(const bContext *C,
 
   proj_paint_state_vert_flags_init(ps);
 
-  project_paint_prepare_all_faces(
-      ps, arena, &face_lookup, &layer_clone, uv_map_base, is_multi_view);
+  project_paint_prepare_all_faces(ps, arena, &face_lookup, &layer_clone, uv_map_base);
 }
 
 static void paint_proj_begin_clone(ProjPaintState *ps, const float mouse[2])
@@ -6135,7 +6129,6 @@ void *paint_proj_new_stroke(bContext *C,
   Mesh *mesh = BKE_mesh_from_object(ob);
   ps_handle->symmetry_flags = mesh->symmetry;
   ps_handle->ps_views_tot = 1 + (pow_i(2, count_bits_i(ps_handle->symmetry_flags)) - 1);
-  bool is_multi_view = (ps_handle->ps_views_tot != 1);
 
   for (int i = 0; i < ps_handle->ps_views_tot; i++) {
     ProjPaintState *ps = MEM_new<ProjPaintState>("ProjectionPaintState");
@@ -6192,7 +6185,7 @@ void *paint_proj_new_stroke(bContext *C,
       PROJ_PAINT_STATE_SHARED_MEMCPY(ps, ps_handle->ps_views[0]);
     }
 
-    project_paint_begin(C, ps, is_multi_view, symmetry_flag_views[i]);
+    project_paint_begin(C, ps, symmetry_flag_views[i]);
     if (ps->mesh_eval == nullptr) {
       goto fail;
     }
@@ -6343,7 +6336,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   scene.toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
   /* allocate and initialize spatial data structures */
-  project_paint_begin(C, &ps, false, 0);
+  project_paint_begin(C, &ps, 0);
 
   if (ps.mesh_eval == nullptr) {
     BKE_brush_size_set(ps.paint, ps.brush, orig_brush_size);
@@ -6779,7 +6772,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
       bNode *in_node = nullptr;
       if (ma && ma->nodetree) {
         ma->nodetree->ensure_topology_cache();
-        const Span<bNode *> nodes = ma->nodetree->nodes_by_type("ShaderNodeBsdfPrincipled");
+        const Span<bNode *> nodes = ma->nodetree->nodes_by_type("ShaderNodeBsdfPrincipled"_ustr);
         in_node = nodes.is_empty() ? nullptr : nodes.first();
       }
       if (!in_node) {
@@ -6886,7 +6879,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 
     /* Connect to first available principled BSDF node. */
     ntree->ensure_topology_cache();
-    const Span<bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeBsdfPrincipled");
+    const Span<bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeBsdfPrincipled"_ustr);
     bNode *in_node = bsdf_nodes.is_empty() ? nullptr : bsdf_nodes.first();
     bNode *out_node = new_node;
 
@@ -6923,7 +6916,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       }
       else if (type == LAYER_DISPLACEMENT) {
         /* Connect to the displacement output socket */
-        const Span<bNode *> output_nodes = ntree->nodes_by_type("ShaderNodeOutputMaterial");
+        const Span<bNode *> output_nodes = ntree->nodes_by_type("ShaderNodeOutputMaterial"_ustr);
         in_node = output_nodes.is_empty() ? nullptr : output_nodes.first();
 
         if (in_node != nullptr) {

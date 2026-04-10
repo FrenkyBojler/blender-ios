@@ -3251,8 +3251,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
     return;
   }
 
-  if (auto_mask::is_enabled(sd, ob, &brush)) {
-    auto_mask::Cache &cache = auto_mask::stroke_cache_ensure(depsgraph, sd, &brush, ob);
+  if (auto_mask::is_enabled(sd.paint, ob, &brush)) {
+    auto_mask::Cache &cache = auto_mask::stroke_cache_ensure(depsgraph, sd.paint, &brush, ob);
     if (cache.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
       cache.calc_cavity_factor(depsgraph, ob, node_mask);
     }
@@ -4305,7 +4305,7 @@ static bool sculpt_needs_connectivity_info(const Sculpt &sd,
 {
   SculptSession &ss = *object.runtime->sculpt_session;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(object);
-  if (pbvh && auto_mask::is_enabled(sd, object, &brush)) {
+  if (pbvh && auto_mask::is_enabled(sd.paint, object, &brush)) {
     return true;
   }
   return ((ss.cache && ss.cache->toggle_settings.alt_smooth) ||
@@ -5888,7 +5888,6 @@ void SculptPaintStroke::done(bool is_cancel)
   }
   bke::PaintRuntime *paint_runtime = sd.paint.runtime;
   Brush *brush = BKE_paint_brush(&sd.paint);
-  BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
   paint_runtime->draw_inverted = false;
 
   stroke_modifiers_check(*this->depsgraph, this->vc.rv3d, sd, ob, brush);
@@ -5971,12 +5970,14 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush_type_is_paint(brush.sculpt_brush_type) &&
       !color_supported_check(scene, ob, op->reports))
   {
+    stroke->done(true);
     stroke->free(C, op);
     MEM_delete(stroke);
     return OPERATOR_CANCELLED;
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) && !shape_key_check(ob, op->reports))
   {
+    stroke->done(true);
     stroke->free(C, op);
     MEM_delete(stroke);
     return OPERATOR_CANCELLED;
@@ -5988,6 +5989,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
     if (!pbvh || pbvh->type() != bke::pbvh::Type::Grids) {
       BKE_report(op->reports, RPT_ERROR, "Only supported in multiresolution mode");
+      stroke->done(true);
       stroke->free(C, op);
       MEM_delete(stroke);
       return OPERATOR_CANCELLED;
@@ -6010,6 +6012,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
+    stroke->done(true);
     stroke->free(C, op);
     MEM_delete(stroke);
     return OPERATOR_PASS_THROUGH;
@@ -6021,6 +6024,9 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
     if (stroke) {
+      /* We don't need to call `stroke->done` in this case, as it should have happened inside
+       * the modal call */
+      BLI_assert(ob.runtime->sculpt_session->cache == nullptr);
       stroke->free(C, op);
       MEM_delete(stroke);
     }
@@ -6110,11 +6116,12 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "provided \"mouse_event\" positions");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-  RNA_def_boolean(ot->srna,
-                  "ignore_background_click",
-                  false,
-                  "Ignore Background Click",
-                  "Clicks on the background do not start the stroke");
+  prop = RNA_def_boolean(ot->srna,
+                         "ignore_background_click",
+                         false,
+                         "Ignore Background Click",
+                         "Clicks on the background do not start the stroke");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* Fake Neighbors. */
