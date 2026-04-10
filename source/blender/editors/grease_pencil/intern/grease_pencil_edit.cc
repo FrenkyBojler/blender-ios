@@ -5107,9 +5107,12 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     }
 
     if (ELEM(type, StrokeType::Fill, StrokeType::Both)) {
+      bke::SpanAttributeWriter<float> fill_opacities =
+          attributes.lookup_or_add_for_write_span<float>("fill_opacity", bke::AttrDomain::Curve);
       /* Get the first id that does not already exist. */
       int new_fill_id = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
 
+      float use_fill_opacity = 0.0f;
       if (new_fill_id == 0) {
         new_fill_id++;
       }
@@ -5119,6 +5122,11 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
         if (fill_ids.span[i] == 0) {
           fill_ids.span[i] = new_fill_id;
           new_fill_id++;
+          /* For strokes that previously doesn't have any visible fills, we fill it to a default
+           * opacity of 1.0f. */
+          if (fill_opacities.span[i] < FLT_EPSILON) {
+            use_fill_opacity = 1.0f;
+          }
         }
       });
     }
