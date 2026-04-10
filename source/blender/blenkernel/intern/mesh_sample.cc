@@ -10,7 +10,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
-#include <iostream>
 
 namespace blender::bke::mesh_surface_sample {
 
@@ -527,7 +526,6 @@ void BaryWeightSampleFn::evaluate_source(fn::GField src_field)
   const auto &component = *source_.get_component<bke::MeshComponent>();
   const Mesh &mesh = *component.get();
   src_domain_ = bke::try_detect_field_domain(component, src_field).value_or(AttrDomain::Corner);
-  std::cout << "BaryWeightSampleFn sampling domain " << int(src_domain_) << std::endl;
   if (src_domain_ == AttrDomain::Edge) {
     /* To maintain legacy behavior and avoid making decisions here about barycentric mixing of edge
      * attributes, just use the domain interpolation to read the attribute on the face corner
