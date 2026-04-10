@@ -409,12 +409,10 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       blend_colors(paint_pixels, scene_linear_pixels, brush);
 
       if (!float_buffer.is_empty()) {
-        write_image_pixels(
-            paint_pixels, float_buffer, *processors, pixel_row, image_buffer->x);
+        write_image_pixels(paint_pixels, float_buffer, *processors, pixel_row, image_buffer->x);
       }
       else {
-        write_image_pixels(
-            paint_pixels, byte_buffer, *processors, pixel_row, image_buffer->x);
+        write_image_pixels(paint_pixels, byte_buffer, *processors, pixel_row, image_buffer->x);
       }
 
       tile_data.mark_dirty(pixel_row);
