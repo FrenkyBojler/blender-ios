@@ -843,8 +843,7 @@ struct GHOST_ContextParams {
   { \
       /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
       /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
-      /*force_sdr*/ (((gpu_settings).flags & GHOST_gpuForceSDR) != 0), \
-      /*vsync*/ \
+      /*force_sdr*/ (((gpu_settings).flags & GHOST_gpuForceSDR) != 0), /*vsync*/ \
       (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
                                                              GHOST_kVSyncModeUnset), \
   }

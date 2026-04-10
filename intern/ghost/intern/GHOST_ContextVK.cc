@@ -1571,7 +1571,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
         instance_vk.extensions.enable(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
         optional_device_extensions.append(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
       }
-      if (!(context_params_.force_sdr)) {
+      if (!context_params_.force_sdr) {
         use_vk_ext_swapchain_colorspace = instance_vk.extensions.enable(
             VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, true);
       }
