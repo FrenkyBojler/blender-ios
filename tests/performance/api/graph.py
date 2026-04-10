@@ -71,20 +71,29 @@ class TestGraph:
     def chart(self, device_name: str, device_cpu, chart_name: str, entries: list, chart_type: str, output: str) -> dict:
         # Gather used tests.
         tests = {}
+        test_data = []
         for entry in entries:
             test = entry.test
             if test not in tests.keys():
                 tests[test] = len(tests)
+                test_data.append({
+                    "label": test,
+                })
 
         # Gather used revisions.
         revisions = {}
         revision_dates = {}
+        revision_data = []
         use_error_bars = False
         for entry in entries:
             revision = entry.revision
             if revision not in revisions.keys():
                 revisions[revision] = len(revisions)
                 revision_dates[revision] = int(entry.date)
+                revision_data.append({
+                    "label": revision,
+                    "git_hash": entry.git_hash
+                })
 
             output_values = entry.output_all_runs.get(output)
             if output_values and len(output_values) > 1:
@@ -124,6 +133,8 @@ class TestGraph:
                         'y': sum(output_values) / len(output_values),
                         'yMin': min(output_values),
                         'yMax': max(output_values),
+                        'revision_index': revision_index,
+                        'test_index': test_index
                     }
 
         else:
@@ -152,6 +163,8 @@ class TestGraph:
                         'y': sum(output_values) / len(output_values),
                         'yMin': min(output_values),
                         'yMax': max(output_values),
+                        'revision_index': revision_index,
+                        'test_index': test_index,
                     }
 
         data = {'labels': labels, 'datasets': datasets}
@@ -161,7 +174,10 @@ class TestGraph:
             'name': chart_name,
             'data': data,
             'chart_type': chart_type,
-            'use_error_bars': use_error_bars}
+            'use_error_bars': use_error_bars,
+            'revisions': revision_data,
+            'tests': test_data,
+        }
 
     def write(self, filepath: pathlib.Path) -> None:
         # Write HTML page with JSON graph data embedded.

@@ -463,7 +463,7 @@
         details.appendChild(details_thead);
         const details_tbody = document.createElement('tbody');
         details.appendChild(details_tbody);
-        chart_container.appendChild(details);
+        section.appendChild(details);
 
         /* Prepare Data. */
         const chart_data = benchmark['data'];
@@ -574,12 +574,15 @@
         head_max.innerText = "Max";
         head_row.appendChild(head_max);
         details_thead.appendChild(head_row);
+        console.log(benchmark)
         console.log(chart_data);
 
         for (var dataset_index = 0; dataset_index < chart_data.datasets.length; dataset_index++) {
           const dataset = chart_data.datasets[dataset_index];
           for (var data_index = 0; data_index < dataset.data.length; data_index++) {
             const entry = dataset.data[data_index];
+            const revision = benchmark.revisions[entry.revision_index];
+            const test = benchmark.tests[entry.test_index];
             console.log(entry);
             const data_row = document.createElement('tr');
             data_row.style.display = 'none';
@@ -587,14 +590,19 @@
             data_row.setAttribute("data-index", data_index);
             
             const cell_test = document.createElement('td');
-            cell_test.innerText = chart_data.labels[data_index];
+            cell_test.innerText = test.label;
             data_row.appendChild(cell_test);
             const cell_revision = document.createElement('td');
-            cell_revision.innerText = dataset.label;
-            // TODO: revision name with link of git hash or link with git-hashes
+            cell_revision.innerText = revision.label;
             data_row.appendChild(cell_revision);
             const cell_git = document.createElement('td');
-            cell_git.innerText = "" + dataset_index + ":" + data_index;
+            if (revision.git_hash) {
+              const git_link = document.createElement('a');
+              git_link.setAttribute("href", "https://projects.blender.org/blender/blender/commits/commit/" + revision.git_hash);
+              git_link.setAttribute("target", "_blank");
+              git_link.innerText = "blender/blender@" + revision.git_hash.substring(0, 12);
+              cell_git.appendChild(git_link);
+            }
             data_row.appendChild(cell_git);
             const cell_avg = document.createElement('td');
             cell_avg.innerText = entry.y.toLocaleString();
