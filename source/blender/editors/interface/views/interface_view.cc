@@ -279,9 +279,6 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
     /* If we are above a tree, but not hovering any specific element, dropping something should
      * insert it after the last item. */
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
-      if (!tree_view->is_fully_visible()) {
-        return nullptr;
-      }
       /* Find the last item which we want to drop below. */
       AbstractTreeViewItem *last_item = nullptr;
       tree_view->foreach_root_item([&](AbstractTreeViewItem &item) {
