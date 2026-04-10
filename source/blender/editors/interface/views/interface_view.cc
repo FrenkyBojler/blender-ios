@@ -239,7 +239,7 @@ void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEven
   ARegion *region = CTX_wm_region(C);
   wmWindow *window = CTX_wm_window(C);
   wmWindowManager *wm = CTX_wm_manager(C);
-  if (!ELEM(event->type, MOUSEMOVE, TIMER, EVT_DROP)) {
+  if (!ELEM(event->type, MOUSEMOVE, TIMER)) {
     return;
   }
   AbstractView *view = region_view_find_at(region, event->xy, UI_UNIT_Y, &block);
@@ -273,16 +273,14 @@ void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEven
   }
 
   if (dropbox.timer) {
-    if ((event->type == TIMER) && (event->customdata == dropbox.timer)) {
+    if (event->type == TIMER) {
       view->scroll(scroll_dir.value());
       ED_region_tag_redraw(region);
-      return;
     }
   }
   else {
     dropbox.timer = WM_event_timer_add(wm, window, TIMER, TREE_VIEW_DRAG_SCROLL_SPEED);
   }
-  return;
 }
 
 AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[2])
