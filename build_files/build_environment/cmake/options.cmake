@@ -251,7 +251,7 @@ else()
     if(BLENDER_PLATFORM_ARM)
       set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -march=armv8.2-a+dotprod+fp16+lse")
       set(PLATFORM_CXXFLAGS "${PLATFORM_CXXFLAGS} -fPIC -march=armv8.2-a+dotprod+fp16+lse")
-    else()
+    endif()
   endif()
 
   if(WITH_OPTIMIZED_DEBUG)

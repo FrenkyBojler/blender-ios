@@ -44,7 +44,7 @@ else()
     # -march=native and results depend on the current processor.
     set(OIDN_EXTRA_ARGS
       ${OIDN_EXTRA_ARGS}
-      -DISPC_FLAGS_RELEASE="-O3 --cpu=cortex-a78"
+      "-DISPC_FLAGS_RELEASE:STRING=-O3 --cpu=cortex-a78"
     )
   endif()
 endif()
