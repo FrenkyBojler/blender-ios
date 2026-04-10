@@ -57,6 +57,9 @@ void main()
     return;
   }
 
+  ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
+  float roughness = closure_apparent_roughness_get(cl);
+
   float depth = reverse_z::read(texelFetch(depth_tx, texel_fullres, 0).r);
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
 
@@ -106,7 +109,7 @@ void main()
     float3 Ng = ray.direction;
     /* Fall back to nearest light-probe. */
     LightProbeSample samp = lightprobe_load(float2(texel), P, Ng, V);
-    radiance = lightprobe_eval_direction(samp, P, ray.direction, ray_pdf_inv);
+    radiance = lightprobe_eval_direction(samp, P, ray.direction, roughness);
     /* Set point really far for correct reprojection of background. */
     hit.time = 10000.0f;
   }
