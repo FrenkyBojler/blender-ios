@@ -5274,6 +5274,10 @@ static int do_but_TEX(
           HandleButtonData *data = but->active;
           button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
           if (event->type == LEFTMOUSE && but->type == ButtonType::TextBox) {
+            /* Texbox buttons allows to scroll its content even when they are not in text-edit
+             * state, let the user to place the text cursor under the mouse and to immediately
+             * start selecting text without requiring to activate the textbox with an extra click.
+             */
             textedit_set_cursor_pos(but, data->region, float2(event->xy));
             but->selsta = but->selend = data->text_edit.sel_pos_init = but->pos;
             button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
