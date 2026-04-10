@@ -545,10 +545,10 @@ add_blender_test(
 )
 
 add_blender_test(
-  geonode_file_reporting
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geonode_file_reporting.py
+  geo_node_file_reporting
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geo_node_file_reporting.py
   --
-  --testdir "${TEST_SRC_DIR}/io_tests"
+  --testdir "${TEST_SRC_DIR}"
 )
 
 # ------------------------------------------------------------------------------
@@ -1649,6 +1649,10 @@ if(WITH_UI_TESTS)
     test_fullscreen.wm_toggle_fullscreen
     test_fullscreen.wm_toggle_stacked_fullscreen_file_browser
     test_fullscreen.wm_toggle_stacked_fullscreens
+    test_quick_effects.add_quick_fur
+    test_quick_effects.add_quick_smoke
+    test_quick_effects.add_quick_liquid
+    test_quick_effects.add_quick_explode
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
