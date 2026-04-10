@@ -357,12 +357,24 @@ void WM_event_start_drag(bContext *C, int icon, eWM_DragDataType type, void *poi
   WM_event_start_prepared_drag(C, drag);
 }
 
+static void wm_dragdrop_free_timer(wmWindowManager *wm, wmWindow *win)
+{
+  for (wmDrag &drag : wm->runtime->drags) {
+    if (wmDropBox *dropbox = drag.drop_state.active_dropbox) {
+      WM_event_timer_remove(wm, win, dropbox->timer);
+      dropbox->timer = nullptr;
+    }
+  }
+}
+
 void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
 {
   /* Turn off modal cursor for all windows. */
   for (wmWindow &win : wm->windows) {
     WM_cursor_modal_restore(&win);
   }
+
+  wm_dragdrop_free_timer(wm, win);
 
   /* Active area should always redraw, even if canceled. */
   int event_xy_target[2];
