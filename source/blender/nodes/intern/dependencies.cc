@@ -154,7 +154,7 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree, EvalDepe
     }
     deps.add_generic_id(node->id);
   }
-  for (const bNode *node : tree.nodes_by_type("CompositorNodeCryptomatteV2"_usr)) {
+  for (const bNode *node : tree.nodes_by_type("CompositorNodeCryptomatteV2"_ustr)) {
     if (node->is_muted()) {
       continue;
     }
