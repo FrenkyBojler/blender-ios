@@ -1305,9 +1305,8 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
   const bool any_item_visible = has_panel_category;
 
   if (!any_item_visible) {
-      return;
+    return;
   }
-
   if (panel && panel->type->parent != nullptr) {
     return;
   }
