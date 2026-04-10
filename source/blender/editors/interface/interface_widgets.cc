@@ -2041,12 +2041,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   const int visible_lines = textbox->visible_lines();
   fontstyle_set(fstyle);
-
-  if (textbox->editstr) {
-    Button &grip = textbox->block->buttons()[textbox->block->but_index(textbox) + 2];
-    BLI_assert(grip.type == ButtonType::Grip);
-    grip.flag |= UI_HIDDEN;
-  }
+  
   const float line_height = BLI_rcti_size_y(&rect) / float(visible_lines);
 
   const int scroll = textbox->line_scroll();
