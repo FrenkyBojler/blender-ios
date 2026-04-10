@@ -13,7 +13,8 @@
     .nav-tabs .nav-link        { color: #999; }
     .nav-tabs .nav-link.active { color: #555; font-weight: 500; }
     .tab-content               { margin: 20px 20px; }
-
+    table.details              { width: 50em; }
+ 
     /* Fixed width for header buttons to ensure groups match in size. */
     .btn-time-range            { width: 100px; }
     .btn-scale-mode            { width: 133.33px; /* (100 * 4) / 3 */ }
@@ -457,6 +458,7 @@
 
         const details = document.createElement('table');
         details.id = "details-" + i;
+        details.className = "details";
         const details_thead = document.createElement('thead');
         details.appendChild(details_thead);
         const details_tbody = document.createElement('tbody');
@@ -555,13 +557,13 @@
         const head_row = document.createElement('tr');
         const head_test = document.createElement("th");
         head_test.innerText = "Test";
-        head_row.appendChild(head_test)
+        head_row.appendChild(head_test);
         const head_revision = document.createElement("th");
         head_revision.innerText = "Revision";
         head_row.appendChild(head_revision)
-        const head_data = document.createElement("th");
-        head_data.innerText = "Dataset";
-        head_row.appendChild(head_data)
+        const head_git = document.createElement("th");
+        head_git.innerText = "Git";
+        head_row.appendChild(head_git)
         const head_avg = document.createElement("th");
         head_avg.innerText = "Average";
         head_row.appendChild(head_avg)
@@ -572,6 +574,7 @@
         head_max.innerText = "Max";
         head_row.appendChild(head_max);
         details_thead.appendChild(head_row);
+        console.log(chart_data);
 
         for (var dataset_index = 0; dataset_index < chart_data.datasets.length; dataset_index++) {
           const dataset = chart_data.datasets[dataset_index];
@@ -584,15 +587,15 @@
             data_row.setAttribute("data-index", data_index);
             
             const cell_test = document.createElement('td');
-            cell_test.innerText = "Test";
+            cell_test.innerText = chart_data.labels[data_index];
             data_row.appendChild(cell_test);
             const cell_revision = document.createElement('td');
-            cell_revision.innerText = "Revision";
+            cell_revision.innerText = dataset.label;
             // TODO: revision name with link of git hash or link with git-hashes
             data_row.appendChild(cell_revision);
-            const cell_data = document.createElement('td');
-            cell_data.innerText = "" + dataset_index + ":" + data_index;
-            data_row.appendChild(cell_data);
+            const cell_git = document.createElement('td');
+            cell_git.innerText = "" + dataset_index + ":" + data_index;
+            data_row.appendChild(cell_git);
             const cell_avg = document.createElement('td');
             cell_avg.innerText = entry.y.toLocaleString();
             data_row.appendChild(cell_avg);
