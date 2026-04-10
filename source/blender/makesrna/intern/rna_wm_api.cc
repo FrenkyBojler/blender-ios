@@ -72,6 +72,7 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "DNA_userdef_types.h"
 
+#  include "ED_geometry.hh"
 #  include "ED_screen.hh"
 
 #  include "BLI_listbase.h"
@@ -83,8 +84,6 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_undo_system.hh"
-
-#  include "ED_geometry.hh"
 
 #  include "UI_interface_c.hh"
 
