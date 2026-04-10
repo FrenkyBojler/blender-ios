@@ -2133,9 +2133,11 @@ static void readfile_id_runtime_data_ensure(ID &id)
   id.runtime->readfile_data = MEM_new_zeroed<ID_Readfile_Data>(__func__);
 }
 
-ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
+ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(const ID &id)
 {
-  if (!id.runtime->readfile_data) {
+  /* NOTE: While usually not expected, there are some valid cases where ID::runtime will be nullptr
+   * (e.g. for temporary buffers used as 'proxies' of actual IDs in writefile process). */
+  if (!id.runtime || !id.runtime->readfile_data) {
     return ID_Readfile_Data::Tags{};
   }
   return id.runtime->readfile_data->tags;
@@ -4133,18 +4135,18 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     read_undo_tag_all_noundo_ids(fd);
   }
 
-  /* Prevent any run of layer collections rebuild during readfile process, and the do_versions
-   * calls.
-   *
-   * NOTE: Typically readfile code should not trigger such updates anyway. But some calls to
-   * non-BLO functions (e.g. ID deletion) can indirectly trigger it. */
-  BKE_layer_collection_resync_forbid();
-
   bfd = MEM_new<BlendFileData>(__func__);
 
   bfd->main = BKE_main_new();
   bfd->main->versionfile = fd->fileversion;
   STRNCPY(bfd->filepath, filepath);
+
+  /* Prevent any run of layer collections rebuild during readfile process, and the do_versions
+   * calls.
+   *
+   * NOTE: Typically readfile code should not trigger such updates anyway. But some calls to
+   * non-BLO functions (e.g. ID deletion) can indirectly trigger it. */
+  BKE_layer_collection_resync_forbid(*bfd->main);
 
   fd->bmain = bfd->main;
   fd->fd_bmain = bfd->main;
@@ -4393,7 +4395,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       BKE_main_id_refcount_recompute(bfd->main, false);
 
       /* Necessary to allow 2.80 layer collections conversion code to work. */
-      BKE_layer_collection_resync_allow();
+      BKE_layer_collection_resync_allow(*bfd->main);
 
       /* Yep, second splitting... but this is a very cheap operation, so no big deal. */
       blo_split_main(bfd->main);
@@ -4411,7 +4413,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       }
       blo_join_main(bfd->main);
 
-      BKE_layer_collection_resync_forbid();
+      BKE_layer_collection_resync_forbid(*bfd->main);
 
       /* And we have to compute those user-reference-counts again, as `do_versions_after_linking()`
        * does not always properly handle user counts, and/or that function does not take into
@@ -4446,7 +4448,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         }
         FOREACH_MAIN_ID_END;
 #endif
-        BKE_id_delete(bfd->main, &lib);
+        BKE_id_delete(
+            bfd->main,
+            &lib,
+            {.extra_remapping_flags = (ID_REMAP_FORCE_UI_POINTERS | ID_REMAP_SKIP_USER_REFCOUNT |
+                                       ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_CLEAR)});
       }
     }
 
@@ -4499,7 +4505,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
                                             fd->reports->duration.lib_overrides;
     }
 
-    BKE_layer_collection_resync_allow();
+    BKE_layer_collection_resync_allow(*bfd->main);
 
     BKE_collections_after_lib_link(bfd->main);
 
@@ -4509,7 +4515,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     bfd->main->need_preview_render_restart = fd->need_preview_render_restart;
   }
   else {
-    BKE_layer_collection_resync_allow();
+    BKE_layer_collection_resync_allow(*bfd->main);
   }
 
   BLI_assert(!bfd->main->split_mains);
@@ -5622,6 +5628,9 @@ static void read_library_clear_weak_links(FileData *basefd, Main *mainvar)
       {
         CLOG_DEBUG(&LOG, "Dropping weak link to '%s'", id->name);
         change_link_placeholder_to_real_ID_pointer(basefd, id, nullptr);
+        /* Some ID-specific data may already have been allocated (e.g. the ID::runtime), so some
+         * low-level proper ID 'deletion' is needed here. */
+        BKE_libblock_free_data(id, false);
         BLI_freelinkN(lbarray[a], id);
       }
       id = id_next;

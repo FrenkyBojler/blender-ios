@@ -25,7 +25,7 @@ NODE_STORAGE_FUNCS(NodeSwitch)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  auto &switch_decl = b.add_input<decl::Bool>("Switch");
+  auto &switch_decl = b.add_input<decl::Bool>("Switch"_ustr);
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
@@ -33,9 +33,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const NodeSwitch &storage = node_storage(*node);
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.input_type);
 
-  auto &false_decl = b.add_input(socket_type, "False");
-  auto &true_decl = b.add_input(socket_type, "True");
-  auto &output_decl = b.add_output(socket_type, "Output");
+  auto &false_decl = b.add_input(socket_type, "False"_ustr);
+  auto &true_decl = b.add_input(socket_type, "True"_ustr);
+  auto &output_decl = b.add_output(socket_type, "Output"_ustr);
 
   if (socket_type_supports_attributes(socket_type)) {
     switch_decl.supports_field();
@@ -72,9 +72,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   if (params.in_out() == SOCK_OUT) {
     params.add_item(IFACE_("Output"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSwitch");
+      bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
       node_storage(node).input_type = params.socket.type;
-      params.update_and_connect_available_socket(node, "Output");
+      params.update_and_connect_available_socket(node, "Output"_ustr);
     });
   }
   else {
@@ -82,8 +82,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     int true_false_weights = 0;
     if (params.other_socket().type == SOCK_BOOLEAN) {
       params.add_item(IFACE_("Switch"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSwitch");
-        params.update_and_connect_available_socket(node, "Switch");
+        bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
+        params.update_and_connect_available_socket(node, "Switch"_ustr);
       });
       true_false_weights--;
     }
@@ -91,17 +91,17 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("False"),
         [](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeSwitch");
+          bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
           node_storage(node).input_type = params.socket.type;
-          params.update_and_connect_available_socket(node, "False");
+          params.update_and_connect_available_socket(node, "False"_ustr);
         },
         true_false_weights);
     params.add_item(
         IFACE_("True"),
         [](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeSwitch");
+          bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
           node_storage(node).input_type = params.socket.type;
-          params.update_and_connect_available_socket(node, "True");
+          params.update_and_connect_available_socket(node, "True"_ustr);
         },
         true_false_weights);
   }
@@ -266,7 +266,7 @@ static void register_node()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSwitch", GEO_NODE_SWITCH);
+  geo_node_type_base(&ntype, "GeometryNodeSwitch"_ustr, GEO_NODE_SWITCH);
   ntype.ui_name = "Switch";
   ntype.ui_description = "Switch between two inputs";
   ntype.enum_name_legacy = "SWITCH";
