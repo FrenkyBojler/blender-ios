@@ -77,20 +77,22 @@ static uint32_t bool_flag_pair_as_flag(const BoolFlagPair *bool_flags, int bool_
 /* Named tuple to store BLODataBlockInfo::Library data. */
 static PyTypeObject bpy_lib_LibraryType;
 
-static PyStructSequence_Field bpy_lib_library_fields[] = {
+static PyStructSequence_Field bpy_lib_LibraryType_fields[] = {
     {"filepath",
-     "String, filepath to the library file, may be relative to the blendfile being loaded"},
+     "Filepath to the library file, may be relative to the blendfile being loaded"
+     "\n\n:type: str"},
     {"is_archive",
      "Whether the Library data-block is an archive one (used as namespace for packed linked "
-     "data-blocks)"},
+     "data-blocks)"
+     "\n\n:type: bool"},
     {nullptr},
 };
 
-static PyStructSequence_Desc bpy_lib_library_desc = {
+static PyStructSequence_Desc bpy_lib_LibraryType_desc = {
     /*name*/ "bpy_lib_library",
     /*doc*/ "Contains information about libraries present in the loaded blendfile",
-    /*fields*/ bpy_lib_library_fields,
-    /*n_in_sequence*/ ARRAY_SIZE(bpy_lib_library_fields) - 1,
+    /*fields*/ bpy_lib_LibraryType_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(bpy_lib_LibraryType_fields) - 1,
 };
 
 static PyObject *make_library_info(BLODataBlockInfo &id_info)
@@ -104,13 +106,13 @@ static PyObject *make_library_info(BLODataBlockInfo &id_info)
   }
 
   PyStructSequence_SET_ITEM(
-      library_info, pos++, PyUnicode_FromString(id_info.library_data.filepath));
+      library_info, pos++, PyC_UnicodeFromBytes(id_info.library_data.filepath));
   PyStructSequence_SET_ITEM(
       library_info,
       pos++,
       PyBool_FromLong((id_info.library_data.flag & LIBRARY_FLAG_IS_ARCHIVE) != 0));
 
-  BLI_assert(pos == bpy_lib_library_desc.n_in_sequence);
+  BLI_assert(pos == bpy_lib_LibraryType_desc.n_in_sequence);
 
   if (UNLIKELY(PyErr_Occurred())) {
     Py_DECREF(library_info);
@@ -265,27 +267,27 @@ PyDoc_STRVAR(
     "reuse_liboverrides=False, "
     "create_liboverrides_runtime=False)\n"
     "\n"
-    "   Returns a context manager which exposes 2 library objects (an input and an output one)\n"
+    "   Returns a context manager which exposes a pair of library objects (input and output)\n"
     "   on entering.\n"
     "\n"
-    "   The input one represents the content of the loaded blend-file library, available for\n"
-    "   linking, and should be assumed read-only.\n"
-    "   The output one is initially empty, putting data-block names found in the first library\n"
-    "   object into that second one will link/append them when the context is exited.\n"
+    "   The input contains the data-blocks available in the loaded blend-file library and should\n"
+    "   be treated as read-only.\n"
+    "   Data-block names added to the output are linked/appended when the context exits.\n"
     "\n"
     "   Each library object contains:\n"
-    "     - Attributes matching bpy.data, which are lists of strings representing linkable\n"
-    "       data-blocks.\n"
-    "     - A `libraries` attribute, which for the input is a list of all other libraries used\n"
-    "       by the loaded one, as named tuples (`filepath`, `is_archive`). The filepath may be\n"
-    "       absolute, or relative to the loaded blend-file. The output libraries is always\n"
-    "       `None`.\n"
-    "     - A `version` attribute, representing the version of the loaded library blend-file\n"
-    "      (for the input) or the version of the current Blender (for the output).\n"
+    "      - Attributes matching ``bpy.data``, which are lists of strings representing linkable\n"
+    "        data-blocks.\n"
+    "      - A ``libraries`` attribute, which for the input is a list of all other libraries\n"
+    "        used by the loaded one, as named tuples (``filepath``, ``is_archive``). The\n"
+    "        filepath may be absolute, or relative to the loaded blend-file. The output\n"
+    "        ``libraries`` attribute is always ``None``.\n"
+    "      - A ``version`` attribute, representing the version of the loaded library blend-file\n"
+    "        (for the input) or the version of the current Blender (for the output).\n"
     "\n"
     "   Notes:\n"
-    "     - Not all data-blocks types are linkable (e.g. WindowManager, Library, ...).\n"
-    "     - Packed linked data-blocks are not linkable.\n"
+    "      - Not all data-block types are linkable (e.g. WindowManager, Library, ...).\n"
+    "      - Packed linked data-blocks are not linkable and are not listed in the input\n"
+    "        ``libraries`` attribute.\n"
     "\n"
     "   :param filepath: The path to a blend file.\n"
     "   :type filepath: str | bytes\n"
@@ -904,7 +906,7 @@ int BPY_library_load_type_ready()
     return -1;
   }
 
-  PyStructSequence_InitType(&bpy_lib_LibraryType, &bpy_lib_library_desc);
+  PyStructSequence_InitType(&bpy_lib_LibraryType, &bpy_lib_LibraryType_desc);
 
   return 0;
 }

@@ -281,11 +281,16 @@ short blo_bhead_id_flag(const FileData *fd, const BHead *bhead);
 AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *bhead);
 
 /**
- * Return the stored filepath (may be relative) and flags of a library ID.
+ * Return the stored filepath (may be relative) of a library ID.
  *
- * Warning! Caller's responsibility to ensure given bhead **is** a Library ID one!
+ * Warning! Caller's responsibility to ensure that the given bhead **is** a Library ID one!
  */
 const char *blo_bhead_library_filepath(const FileData *fd, const BHead *bhead);
+/**
+ * Return the stored flags of a library ID.
+ *
+ * Warning! Caller's responsibility to ensure that the given bhead **is** a Library ID one!
+ */
 LibraryFlag blo_bhead_library_flag(const FileData *fd, const BHead *bhead);
 
 /* do versions stuff */
