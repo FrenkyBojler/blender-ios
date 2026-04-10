@@ -4,3 +4,4 @@ Referenced by issue #100169, Collections without user not purged properly
 Referenced by issue #93799, Outliner: Remap Users crash (for `ID Type` `Object`)
 Referenced by issue #55171, Crash on Spring production files selecting a bone in Autumn rig and undoing
 Referenced by pull request #157134, Fix: collection preview lost when writing via bpy.data.libraries.write()
+Referenced by commit d5f7b6ae53d2a6c9ea25f34e018166a35865f83e, Fix: collection preview lost when writing via bpy.data.libraries.write()
