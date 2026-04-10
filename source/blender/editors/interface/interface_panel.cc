@@ -1427,7 +1427,6 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   const float zoom = 1.0f / aspect;
   const int px = U.pixelsize;
-  const bool show_icons = U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS;
   const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
   const float dpi_fac = UI_SCALE_FAC;
   /* Padding of tabs around text. */
@@ -1473,6 +1472,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
+  const bool show_icons = U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS;
   if (!show_icons) {
     BLF_enable(fontid, BLF_ROTATION);
     BLF_rotation(fontid, is_left ? M_PI_2 : -M_PI_2);
@@ -1642,13 +1642,27 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
         BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
       }
       else {
-        int len = BLI_str_utf8_offset_from_index(category_id_draw, category_draw_len, 1);
-        std::string title(category_id_draw, len);
-        if (len < 3) {
+        std::string title;
+        int char_offset1 = BLI_str_utf8_offset_from_index(category_id_draw, category_draw_len, 1);
+        if (char_offset1 > 2) {
+          /* A single complex character, symbol, or emoji.*/
+          title = std::string(category_id_draw, char_offset1);
+        }
+        else {
+          int char_offset2 = BLI_str_utf8_offset_from_index(
+              category_id_draw, category_draw_len, 2);
           char *space = BLI_strcasestr(category_id_draw, " ");
-          if (space) {
-            int len2 = BLI_str_utf8_offset_from_index(space + 1, category_draw_len - len, 1);
-            title += std::string(space + 1, len2);
+          if (char_offset2 == 2 && isupper(category_id_draw[1])) {
+            /* First two characters are latin, second is uppercase. */
+            title = std::string(category_id_draw, char_offset2);
+          }
+          else if (space && category_draw_len > (space - category_id_draw)) {
+            /* First characters from the first two words. */
+            title = std::string(category_id_draw, char_offset1) + std::string(space + 1, 1);
+          }
+          else {
+            /* First two characters. */
+            title = std::string(category_id_draw, char_offset2);
           }
         }
 
@@ -1657,7 +1671,6 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
         BLF_width_and_height(fontid, title.c_str(), title.size(), &width, &height);
         const float ofs_x = float(rct_xmax - rct_xmin - width) / 2.0f;
         const float ofs_y = float(rct->ymax - rct->ymin - height) / 2.0f;
-
         BLF_position(fontid, rct->xmin + ofs_x, rct->ymin + ofs_y, 0.0f);
         BLF_draw(fontid, title.c_str(), title.size());
       }
