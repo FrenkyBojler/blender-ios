@@ -172,6 +172,7 @@ static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
   return brush_test;
 }
 
+/** Apply the per-pixel factor to the initial brush color. */
 static void calc_brush_colors(MutableSpan<float4> buffer_colors,
                               Span<float> factors,
                               const float4 &brush_color)
@@ -269,11 +270,13 @@ static void blend_colors(MutableSpan<float4> paint_buffer_colors,
 {
   BLI_assert(paint_buffer_colors.size() == scene_linear_colors.size());
 
+  /* Mix the initial image color with the paint color. */
   for (const int i : paint_buffer_colors.index_range()) {
     blend_color_mix_float(paint_buffer_colors[i], scene_linear_colors[i], paint_buffer_colors[i]);
     paint_buffer_colors[i] *= brush.alpha;
   }
 
+  /* Apply the blended color to the original image with the brush alpha. */
   IMB_blend_color_float(
       paint_buffer_colors, scene_linear_colors, paint_buffer_colors, (IMB_BlendMode)brush.blend);
 }
@@ -376,6 +379,13 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       calc_brush_texture_factors(ss, brush, pixel_positions, factors);
       scale_factors(factors, cache.bstrength);
 
+      const bool pixels_painted = std::ranges::any_of(
+          factors, [](const float factor) { return factor != 0.0f; });
+
+      if (!pixels_painted) {
+        continue;
+      }
+
       scene_linear_image_pixels.resize(pixel_positions.size());
       paint_buffer_pixels.resize(pixel_positions.size());
       calc_brush_colors(paint_buffer_pixels, factors, brush_color);
@@ -403,11 +413,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
             paint_buffer_pixels, byte_buffer, *processors, pixel_row, image_buffer->x);
       }
 
-      const bool pixels_painted = std::any_of(
-          factors.begin(), factors.end(), [](const float factor) { return factor != 0.0f; });
-      if (pixels_painted) {
-        tile_data.mark_dirty(pixel_row);
-      }
+      tile_data.mark_dirty(pixel_row);
     }
 
     if (tile_data.flags.dirty) {
