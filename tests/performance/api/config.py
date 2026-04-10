@@ -37,6 +37,7 @@ class TestEntry:
     # More detailed error info, potentially multi-lines.
     exception_msg: str = ''
     output: dict = field(default_factory=dict)
+    output_all_runs: dict = field(default_factory=dict)
     benchmark_type: str = 'comparison'
 
     def to_json(self) -> dict:
@@ -50,6 +51,12 @@ class TestEntry:
             if field in json_dict:
                 setattr(self, field, json_dict[field])
 
+    def migrate(self):
+        if self.output:
+            missing_keys = self.output.keys() - self.output_all_runs.keys()
+            for key in missing_keys:
+                self.output_all_runs[key] = [self.output[key]]
+
 
 class TestQueue:
     """Queue of tests to be run or inspected. Matches JSON file on disk."""
@@ -57,6 +64,7 @@ class TestQueue:
     def __init__(self, filepath: pathlib.Path):
         self.filepath = filepath
         self.has_multiple_categories = False
+        self.has_multiple_devices = False
         self.entries = []
 
         if self.filepath.is_file():
@@ -66,6 +74,7 @@ class TestQueue:
             for json_entry in json_entries:
                 entry = TestEntry()
                 entry.from_json(json_entry)
+                entry.migrate()
                 self.entries.append(entry)
 
     def rows(self, use_revision_columns: bool) -> list:
@@ -230,9 +239,12 @@ class TestConfig:
 
         # Detect number of categories for more compact printing.
         categories = set()
+        devices = set()
         for entry in entries:
             categories.add(entry.category)
+            devices.add(entry.device_type)
         self.queue.has_multiple_categories = len(categories) > 1
+        self.queue.has_multiple_devices = len(devices) > 1
 
         # Replace actual entries.
         self.queue.entries = entries

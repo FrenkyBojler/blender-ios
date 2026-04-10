@@ -199,7 +199,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeStringToImage");
+  cmp_node_type_base(&ntype, "CompositorNodeStringToImage"_ustr);
   ntype.ui_name = "String To Image";
   ntype.ui_description = "Generates an image containing the given paragraph of text";
   ntype.nclass = NODE_CLASS_INPUT;

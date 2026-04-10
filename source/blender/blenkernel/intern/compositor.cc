@@ -226,7 +226,7 @@ bool node_tree_has_linked_file_output(const bNodeTree *node_tree)
   }
 
   node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile")) {
+  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile"_ustr)) {
     if (!node->is_muted()) {
       for (const bNodeSocket &input : node->inputs) {
         if (input.is_directly_linked()) {
@@ -304,6 +304,10 @@ void add_depsgraph_relations(Scene &scene, DepsNodeHandle *compositor_output_dep
                            &scene,
                            DEG_SCENE_COMP_PARAMETERS,
                            "Active Camera Parameters -> Compositor");
+  }
+
+  if (evaluation_dependencies.time_dependent) {
+    DEG_add_time_source_relation(compositor_output_depsgraph_node, "Time Source -> Compositor");
   }
 }
 

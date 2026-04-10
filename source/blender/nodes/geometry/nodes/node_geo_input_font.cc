@@ -64,7 +64,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "GeometryNodeInputFont");
+  geo_cmp_node_type_base(&ntype, "GeometryNodeInputFont"_ustr);
   ntype.ui_name = "Font";
   ntype.ui_description = "Output a font";
   ntype.nclass = NODE_CLASS_INPUT;
