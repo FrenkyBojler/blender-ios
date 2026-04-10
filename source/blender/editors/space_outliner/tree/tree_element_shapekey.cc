@@ -23,7 +23,7 @@ TreeElementShapeKeyBase::TreeElementShapeKeyBase(TreeElement &legacy_te, Key &ke
     : TreeElementID(legacy_te, key.id), key_(key)
 {
   BLI_assert(legacy_te.store_elem->type == TSE_SOME_ID);
-  legacy_te.name = IFACE_("Shape Key");
+  legacy_te.name = key_.id.name + 2;
 }
 
 void TreeElementShapeKeyBase::expand(SpaceOutliner & /*space_outliner*/) const
