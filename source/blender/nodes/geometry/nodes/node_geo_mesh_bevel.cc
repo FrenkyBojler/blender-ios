@@ -24,49 +24,69 @@ static const EnumPropertyItem affect_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
-  b.add_input<decl::Menu>("Affect Kind")
+  b.add_input<decl::Geometry>("Mesh"_ustr).supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Menu>("Affect Kind"_ustr)
       .default_value(geometry::BevelAffect::Edges)
       .static_items(affect_items);
-  b.add_input<decl::Bool>("Selection")
+  b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .field_on_all()
       .description("Selects elements of 'Affect Kind' for beveling");
   /* TODO: when there is good support for 4d vectors, use those here. */
-  b.add_input<decl::Float>("Offset0").default_value(0.0f).min(0.0f).field_on_all().description(
-      "Offset for left side of source end of edge");
-  b.add_input<decl::Float>("Offset1").default_value(0.0f).min(0.0f).field_on_all().description(
-      "Offset for right side of source end of edge");
-  b.add_input<decl::Float>("Offset2").default_value(0.0f).min(0.0f).field_on_all().description(
-      "Offset for left side of dest end of edge");
-  b.add_input<decl::Float>("Offset3").default_value(0.0f).min(0.0f).field_on_all().description(
-      "Offset for right side of dest end of edge");
-  b.add_input<decl::Bool>("Miter").default_value(false).field_on_all().description(
-      "Use a miter for corner");
-  b.add_input<decl::Float>("Spread").default_value(0.0f).field_on_all().description(
-      "Per corner specification of 'spread' for arc miters");
-  b.add_input<decl::Int>("Segments")
+  b.add_input<decl::Float>("Offset0"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .field_on_all()
+      .description("Offset for left side of source end of edge");
+  b.add_input<decl::Float>("Offset1"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .field_on_all()
+      .description("Offset for right side of source end of edge");
+  b.add_input<decl::Float>("Offset2"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .field_on_all()
+      .description("Offset for left side of dest end of edge");
+  b.add_input<decl::Float>("Offset3"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .field_on_all()
+      .description("Offset for right side of dest end of edge");
+  b.add_input<decl::Bool>("Miter"_ustr)
+      .default_value(false)
+      .field_on_all()
+      .description("Use a miter for corner");
+  b.add_input<decl::Float>("Spread"_ustr)
+      .default_value(0.0f)
+      .field_on_all()
+      .description("Per corner specification of 'spread' for arc miters");
+  b.add_input<decl::Int>("Segments"_ustr)
       .default_value(1)
       .description(
           "How many pieces is an edge beveled into, "
           "or, for vertex bevels, the how many segments on the arcs between the edges.");
-  b.add_input<decl::Float>("Shape").default_value(0.5f).min(0.0f).max(1.0f).description(
-      "Superellipse shape parameter, used when there is no Profile, "
-      " and also used for Arc and Patch miters");
-  b.add_input<decl::Geometry>("Profile")
+  b.add_input<decl::Float>("Shape"_ustr)
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .description(
+          "Superellipse shape parameter, used when there is no Profile, "
+          " and also used for Arc and Patch miters");
+  b.add_input<decl::Geometry>("Profile"_ustr)
       .supported_type(GeometryComponent::Type::Curve)
       .description("If present, will be sampled to give custom profile on edges");
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
-  b.add_output<decl::Bool>("Vertex Face")
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
+  b.add_output<decl::Bool>("Vertex Face"_ustr)
       .field_on_all()
       .description("Identifies output faces that are in the new mesh parts for vertices");
-  b.add_output<decl::Bool>("Edge Face")
+  b.add_output<decl::Bool>("Edge Face"_ustr)
       .field_on_all()
       .description("Identifies output faces that are in the new mesh parts for edges");
-  b.add_output<decl::Bool>("Outer Edge")
+  b.add_output<decl::Bool>("Outer Edge"_ustr)
       .field_on_all()
       .description("Identifies output edges that are on the outsides of new mesh parts for edges");
-  b.add_output<decl::Bool>("Mid Edge")
+  b.add_output<decl::Bool>("Mid Edge"_ustr)
       .field_on_all()
       .description(
           "Identifies output edges that are in the middle of new mesh parts of edges "
@@ -149,7 +169,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMeshBevel", std::nullopt);
+  geo_node_type_base(&ntype, "GeometryNodeMeshBevel"_ustr, std::nullopt);
   ntype.ui_name = "Mesh Bevel";
   ntype.ui_description = "Bevel selected edges or vertices";
   ntype.nclass = NODE_CLASS_GEOMETRY;
