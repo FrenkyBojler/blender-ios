@@ -5210,53 +5210,6 @@ static int do_but_text_value_cycle(bContext *C,
 static int do_but_TEX(
     bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
-  ButtonTextBox *textbox = but->type == ButtonType::TextBox ? static_cast<ButtonTextBox *>(but) :
-                                                              nullptr;
-  if (textbox && ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
-      event->val == KM_PRESS && event->type == LEFTMOUSE &&
-      textbox->last_total_lines > textbox->state->visible_lines)
-  {
-    float xmax = but->rect.xmax;
-    float ymax = but->rect.ymax;
-    block_to_window_fl(data->region, but->block, &xmax, &ymax);
-    /* Activate textbox scrollbar. */
-    if (xmax - button_text_padding(but) <= event->xy[0] && event->xy[0] <= xmax) {
-      if (data->state == BUTTON_STATE_HIGHLIGHT) {
-        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      }
-      else {
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      }
-      button_activate_state(C, but, BUTTON_STATE_TEXT_SCROLLING);
-      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      return WM_UI_HANDLER_BREAK;
-    }
-  }
-  if (textbox && data->state == BUTTON_STATE_TEXT_SCROLLING) {
-    if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
-      if (textbox->editstr) {
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
-      }
-      else {
-        WM_cursor_modal_restore(CTX_wm_window(C));
-      }
-      button_activate_state(
-          C, but, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
-      return WM_UI_HANDLER_BREAK;
-    }
-    int mx = event->xy[0];
-    int my = event->xy[1];
-    window_to_block(data->region, but->block, &mx, &my);
-    const float ymin = but->rect.ymin + UI_UNIT_Y * (0.75f);
-    const float range = but->rect.ymax - ymin;
-
-    textbox->line_scroll_set(
-        round_fl_to_int((range - (my - ymin)) / range *
-                        (textbox->last_total_lines - textbox->state->visible_lines)));
-    ED_region_tag_redraw(data->region);
-    return WM_UI_HANDLER_BREAK;
-  }
-
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (ELEM(event->type, LEFTMOUSE, EVT_BUT_OPEN, EVT_PADENTER, EVT_RETKEY) &&
         event->val == KM_PRESS)
@@ -5307,6 +5260,61 @@ static int do_but_TEX(
   }
 
   return WM_UI_HANDLER_CONTINUE;
+}
+
+static int do_but_TEXTBOX(bContext *C,
+                          Block *block,
+                          ButtonTextBox *textbox,
+                          HandleButtonData *data,
+                          const wmEvent *event)
+{
+  if (ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
+      event->val == KM_PRESS && event->type == LEFTMOUSE &&
+      textbox->last_total_lines > textbox->state->visible_lines)
+  {
+    float xmax = textbox->rect.xmax;
+    float ymax = textbox->rect.ymax;
+    block_to_window_fl(data->region, block, &xmax, &ymax);
+    /* Activate textbox scrollbar. */
+    if (xmax - button_text_padding(textbox) <= event->xy[0] && event->xy[0] <= xmax) {
+      if (data->state == BUTTON_STATE_HIGHLIGHT) {
+        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      }
+      else {
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      }
+      button_activate_state(C, textbox, BUTTON_STATE_TEXT_SCROLLING);
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
+  /* Handle textbox scrollbar events. */
+  if (data->state == BUTTON_STATE_TEXT_SCROLLING) {
+    if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
+      if (textbox->editstr) {
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
+      }
+      else {
+        WM_cursor_modal_restore(CTX_wm_window(C));
+      }
+      button_activate_state(
+          C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
+      return WM_UI_HANDLER_BREAK;
+    }
+    int mx = event->xy[0];
+    int my = event->xy[1];
+    window_to_block(data->region, block, &mx, &my);
+    const float ymin = textbox->rect.ymin + UI_UNIT_Y * (0.75f);
+    const float range = textbox->rect.ymax - ymin;
+
+    textbox->line_scroll_set(
+        round_fl_to_int((range - (my - ymin)) / range *
+                        (textbox->last_total_lines - textbox->state->visible_lines)));
+    ED_region_tag_redraw(data->region);
+    return WM_UI_HANDLER_BREAK;
+  }
+  /* Handle regular text buttons events. */
+  return do_but_TEX(C, block, textbox, data, event);
 }
 
 static int do_but_SEARCH_UNLINK(
@@ -8885,7 +8893,6 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
       /* Nothing to do! */
       break;
     case ButtonType::Text:
-    case ButtonType::TextBox:
     case ButtonType::SearchMenu:
       if ((but->type == ButtonType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR)) {
         retval = do_but_SEARCH_UNLINK(C, block, but, data, event);
@@ -8895,6 +8902,10 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
       }
       retval = do_but_TEX(C, block, but, data, event);
       break;
+    case ButtonType::TextBox:
+      retval = do_but_TEXTBOX(C, block, static_cast<ButtonTextBox *>(but), data, event);
+      break;
+
     case ButtonType::Menu:
     case ButtonType::Popover:
     case ButtonType::Block:
