@@ -624,7 +624,7 @@ endfunction()
 function(get_compiler_simd_flags
   _simd_flags)
 
-  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
     # message(STATUS "Detecting SIMD support")
     if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set(${_simd_flags} "-march=x86-64-v2" PARENT_SCOPE)
@@ -915,7 +915,7 @@ function(add_check_c_compiler_flag_impl
   include(CheckCCompilerFlag)
 
   set(_is_new TRUE)
-  if (DEFINED CACHE{${_CACHE_VAR}})
+  if(DEFINED CACHE{${_CACHE_VAR}})
     set(_is_new FALSE)
   endif()
 
@@ -939,7 +939,7 @@ function(add_check_cxx_compiler_flag_impl
   include(CheckCXXCompilerFlag)
 
   set(_is_new TRUE)
-  if (DEFINED CACHE{${_CACHE_VAR}})
+  if(DEFINED CACHE{${_CACHE_VAR}})
     set(_is_new FALSE)
   endif()
 
