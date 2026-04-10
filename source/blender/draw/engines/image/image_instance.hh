@@ -84,7 +84,7 @@ class Instance : public DrawEngine {
       }
 
       /* Buffer does not exist or image will not fit in a GPU texture, use screen space drawing. */
-      if (!buffer || (!buffer->float_buffer.data && !buffer->byte_buffer.data) ||
+      if (!buffer || (!buffer->float_data() && !buffer->byte_data()) ||
           !GPU_is_safe_texture_size(buffer->x, buffer->y))
       {
         return std::make_unique<ScreenSpaceDrawingMode>(*this);
@@ -189,7 +189,7 @@ class Instance : public DrawEngine {
     }
     else {
       GPU_framebuffer_clear_color_depth(
-          DRW_context_get()->viewport_framebuffer_list_get()->default_fb, float4(0.0), 1.0f);
+          DRW_context_get()->viewport_framebuffer_list_get()->default_fb, double4(0.0), 1.0f);
     }
     this->state.float_buffers.remove_unused_buffers();
     state.image = nullptr;

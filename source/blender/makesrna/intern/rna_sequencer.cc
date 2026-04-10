@@ -908,8 +908,16 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
 #  endif
   adt = BKE_animdata_from_id(&scene->id);
   if (adt) {
-    BKE_animdata_fix_paths_rename(
-        &scene->id, adt, nullptr, "sequence_editor.strips_all", oldname, strip->name + 2, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&scene->id,
+                                  adt,
+                                  nullptr,
+                                  "sequence_editor.strips_all",
+                                  oldname,
+                                  strip->name + 2,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -937,6 +945,12 @@ static void rna_Strip_text_set(PointerRNA *ptr, const char *value)
   }
   text->text_ptr = BLI_strdup(value);
   text->text_len_bytes = strlen(text->text_ptr);
+  /* We cannot know where the user's cursor is if they edit text from the properties panel,
+   * so just reset it to the end to avoid the cursor getting out of sync with text length. */
+  text->cursor_offset = BLI_strlen_utf8(text->text_ptr);
+  /* Also clear any selection to avoid weird behavior. */
+  text->selection_start_offset = 0;
+  text->selection_end_offset = 0;
 }
 
 static StructRNA *rna_Strip_refine(PointerRNA *ptr)
@@ -1184,6 +1198,15 @@ static void rna_Strip_input_2_set(PointerRNA *ptr, PointerRNA ptr_value, ReportL
 {
   rna_Strip_input_set(ptr, ptr_value, reports, 2);
 }
+
+static PointerRNA rna_Strip_connections_get(CollectionPropertyIterator *iter)
+{
+  ListBaseIterator *internal = &iter->internal.listbase;
+
+  StripConnection *connection = reinterpret_cast<StripConnection *>(internal->link);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_Strip, connection->strip_ref);
+}
+
 #  if 0
 static void rna_SoundStrip_filename_set(PointerRNA *ptr, const char *value)
 {
@@ -1568,8 +1591,16 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
     BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
 
     SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
-    BKE_animdata_fix_paths_rename(
-        &scene->id, adt, nullptr, rna_path_prefix, oldname, smd->name, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&scene->id,
+                                  adt,
+                                  nullptr,
+                                  rna_path_prefix,
+                                  oldname,
+                                  smd->name,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -2440,7 +2471,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
-  /* flags */
+  /* Flags. */
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SELECT);
   RNA_def_property_ui_text(prop, "Select", "Whether the strip is selected");
@@ -2472,10 +2503,9 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Lock", "Lock strip so that it cannot be transformed");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
-  /* strip positioning */
+  /* Strip positioning. */
   /* Cache has to be invalidated before and after transformation. */
   prop = RNA_def_property(srna, "frame_final_duration", PROP_INT, PROP_TIME);
-  RNA_def_property_range(prop, 1, MAXFRAME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Length", "The length of the contents of this strip after the handles are applied");
@@ -2487,10 +2517,12 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_deprecated(prop, "Replaced by '.duration'.", 510, 600);
 
   prop = RNA_def_property(srna, "duration", PROP_INT, PROP_TIME);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Strip Duration", "Length of the strip in frames from left handle to right handle");
-  RNA_def_property_int_funcs(prop, "rna_Strip_duration_get", nullptr, nullptr);
+  RNA_def_property_int_funcs(
+      prop, "rna_Strip_duration_get", "rna_Strip_duration_set", "rna_Strip_duration_range");
+  RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
@@ -2649,16 +2681,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
-  prop = RNA_def_property(srna, "use_linear_modifiers", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_USE_LINEAR_MODIFIERS);
-  RNA_def_property_ui_text(prop,
-                           "Use Linear Modifiers",
-                           "Calculate modifiers in linear space instead of sequencer's space");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
-
-  /* blending */
-
+  /* Blending. */
   prop = RNA_def_property(srna, "blend_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "blend_mode");
   RNA_def_property_enum_items(prop, blend_mode_items);
@@ -2703,7 +2726,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Strip Color", "Color tag for a strip");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
-  /* modifiers */
+  /* Modifiers. */
   prop = RNA_def_property(srna, "modifiers", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "StripModifier");
   RNA_def_property_ui_text(prop, "Modifiers", "Modifiers affecting this strip");
@@ -2713,6 +2736,23 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_RETIMING);
   RNA_def_property_ui_text(prop, "Show Retiming Keys", "Show retiming keys, so they can be moved");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
+
+  /* Other. */
+  prop = RNA_def_property(srna, "connections", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "connections", nullptr);
+  RNA_def_property_struct_type(prop, "Strip");
+  RNA_def_property_collection_funcs(prop,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    "rna_Strip_connections_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+
+  RNA_def_property_ui_text(
+      prop, "Connected Strips", "Other strips currently connected to this strip");
 
   RNA_api_strip(srna);
 }
