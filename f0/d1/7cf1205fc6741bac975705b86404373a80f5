@@ -1,1 +1,2 @@
 Referenced by issue #157176, Regression: Eevee: Camera Shift Y breaks alignment in viewport
+Referenced by commit 571e107c23d1499e34689e59d8c14dbf4782e409, Fix #157176: EEVEE: Wrong Camera Shift Y in viewport
