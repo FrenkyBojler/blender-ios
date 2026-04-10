@@ -141,7 +141,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &transformat
 
 const char *RealizeOnDomainOperation::get_realization_shader_name()
 {
-  if (this->get_input().get_realization_options().interpolation == Interpolation::Bicubic) {
+  Interpolation interpolation = get_input().get_realization_options().interpolation;
+  if (interpolation == Interpolation::Bicubic) {
     switch (this->get_input().type()) {
       case ResultType::Float:
         return "compositor_realize_on_domain_bicubic_float";
@@ -190,8 +191,9 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
         /* Float3 is internally stored in a float4 texture due to GPU module limitations. */
         return "compositor_realize_on_domain_float4";
       case ResultType::Float4:
-        return "compositor_realize_on_domain_float4";
       case ResultType::Color:
+        if (interpolation == Interpolation::Anisotropic)
+          return "compositor_realize_on_domain_anisotropic_float4";
         return "compositor_realize_on_domain_float4";
       case ResultType::Int:
         return "compositor_realize_on_domain_int";
@@ -228,12 +230,14 @@ template<typename T>
 static void realize_on_domain(const Result &input, Result &output, const float3x3 &transformation)
 {
   const RealizationOptions realization_options = input.get_realization_options();
+  const float2x2 jacobian(transformation);
   parallel_for(output.domain().data_size, [&](const int2 texel) {
     const float2 coordinates = math::transform_point(transformation, float2(texel));
     T sample = input.sample<T>(coordinates,
                                realization_options.interpolation,
                                realization_options.extension_x,
-                               realization_options.extension_y);
+                               realization_options.extension_y,
+                               jacobian);
     output.store_pixel(texel, sample);
   });
 }
