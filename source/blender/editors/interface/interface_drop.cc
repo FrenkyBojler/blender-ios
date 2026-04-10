@@ -47,7 +47,8 @@ bool drop_target_apply_drop(bContext &C,
         /* Switch drop location when invert sorting is enabled. */
         if (*drop_location == DropLocation::After) {
           *drop_location = DropLocation::Before;
-        } else if (*drop_location == DropLocation::Before) {
+        }
+        else if (*drop_location == DropLocation::Before) {
           *drop_location = DropLocation::After;
         }
       }
