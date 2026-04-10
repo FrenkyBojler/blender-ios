@@ -191,6 +191,7 @@ int main(int argc, char **argv)
   for (const auto &file : visited_files) {
     dep_file << file << " ";
   }
+  dep_file << "\n";
 
   SourceProcessor processor(buffer.str(), input_file_name, language);
 
