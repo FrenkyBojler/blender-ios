@@ -36,7 +36,6 @@
 namespace blender {
 
 namespace ed::sculpt_paint::paint::image {
-
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
 
@@ -175,9 +174,8 @@ static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
 
 static bool paint_row_float(const Brush &brush,
                             const TileColorspaceProcessor &processors,
-                            const float4 &brush_color,
                             const PackedPixelRow &pixel_row,
-                            const Span<float> factors,
+                            const MutableSpan<float4> buffer_colors,
                             const int width,
                             MutableSpan<float4> float_buffer)
 {
@@ -191,20 +189,17 @@ static bool paint_row_float(const Brush &brush,
       processors.buffer_to_linear_processor.apply_v4(color);
     }
 
-    float4 paint_color = brush_color * factors[i];
-    float4 buffer_color;
-
 #ifdef DEBUG_PIXEL_NODES
     if ((pixel_row.start_image_coordinate.y >> 3) & 1) {
-      paint_color[0] *= 0.5f;
-      paint_color[1] *= 0.5f;
-      paint_color[2] *= 0.5f;
+      buffer_colors[i][0] *= 0.5f;
+      buffer_colors[i][1] *= 0.5f;
+      buffer_colors[i][2] *= 0.5f;
     }
 #endif
 
-    blend_color_mix_float(buffer_color, color, paint_color);
-    buffer_color *= brush.alpha;
-    IMB_blend_color_float(color, color, buffer_color, static_cast<IMB_BlendMode>(brush.blend));
+    blend_color_mix_float(buffer_colors[i], color, buffer_colors[i]);
+    buffer_colors[i] *= brush.alpha;
+    IMB_blend_color_float(color, color, buffer_colors[i], static_cast<IMB_BlendMode>(brush.blend));
 
     if (!processors.is_noop) {
       processors.linear_to_buffer_processor.apply_v4(color);
@@ -218,9 +213,8 @@ static bool paint_row_float(const Brush &brush,
 
 static bool paint_row_byte(const Brush &brush,
                            const TileColorspaceProcessor &processors,
-                           const float4 &brush_color,
                            const PackedPixelRow &pixel_row,
-                           const Span<float> factors,
+                           const MutableSpan<float4> buffer_colors,
                            const int width,
                            MutableSpan<uchar4> byte_buffer)
 {
@@ -235,20 +229,17 @@ static bool paint_row_byte(const Brush &brush,
       processors.buffer_to_linear_processor.apply_v4(color);
     }
 
-    float4 paint_color = brush_color * factors[i];
-    float4 buffer_color;
-
 #ifdef DEBUG_PIXEL_NODES
     if ((pixel_row.start_image_coordinate.y >> 3) & 1) {
-      paint_color[0] *= 0.5f;
-      paint_color[1] *= 0.5f;
-      paint_color[2] *= 0.5f;
+      buffer_colors[i][0] *= 0.5f;
+      buffer_colors[i][1] *= 0.5f;
+      buffer_colors[i][2] *= 0.5f;
     }
 #endif
 
-    blend_color_mix_float(buffer_color, color, paint_color);
-    buffer_color *= brush.alpha;
-    IMB_blend_color_float(color, color, buffer_color, static_cast<IMB_BlendMode>(brush.blend));
+    blend_color_mix_float(buffer_colors[i], color, buffer_colors[i]);
+    buffer_colors[i] *= brush.alpha;
+    IMB_blend_color_float(color, color, buffer_colors[i], static_cast<IMB_BlendMode>(brush.blend));
     if (!processors.is_noop) {
       processors.linear_to_buffer_processor.apply_v4(color);
     }
@@ -256,6 +247,58 @@ static bool paint_row_byte(const Brush &brush,
     pixels_painted = true;
   }
   return pixels_painted;
+}
+
+static void calc_brush_colors(MutableSpan<float4> buffer_colors,
+                              Span<float> factors,
+                              const float4 &brush_color)
+{
+  BLI_assert(buffer_colors.size() == factors.size());
+
+  for (const int i : buffer_colors.index_range()) {
+    buffer_colors[i] = brush_color * factors[i];
+  }
+}
+
+static void convert_image_pixels(MutableSpan<float4> scene_linear_pixels,
+                                 Span<float4> image_pixels,
+                                 const TileColorspaceProcessor &processors,
+                                 const PackedPixelRow &pixel_row,
+                                 const int width)
+{
+  const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
+                           int(pixel_row.start_image_coordinate.x);
+
+  for (int i = 0; i < pixel_row.num_pixels; i++) {
+    scene_linear_pixels[i] = image_pixels[start_offset + i];
+  }
+
+  if (processors.is_noop) {
+    return;
+  }
+
+  processors.buffer_to_linear_processor.apply(
+      reinterpret_cast<float *>(scene_linear_pixels.data()), pixel_row.num_pixels, 1, 4, false);
+}
+
+static void convert_image_pixels(MutableSpan<float4> scene_linear_pixels,
+                                 Span<uchar4> image_pixels,
+                                 const TileColorspaceProcessor &processors,
+                                 const PackedPixelRow &pixel_row,
+                                 const int width) {
+  const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
+                           int(pixel_row.start_image_coordinate.x);
+
+  for (int i = 0; i < pixel_row.num_pixels; i++) {
+    rgba_uchar_to_float(scene_linear_pixels[i], image_pixels[start_offset + i]);
+  }
+
+  if (processors.is_noop) {
+    return;
+  }
+
+  processors.buffer_to_linear_processor.apply(
+      reinterpret_cast<float *>(scene_linear_pixels.data()), pixel_row.num_pixels, 1, 4, false);
 }
 
 static void do_paint_pixels(const Depsgraph &depsgraph,
@@ -290,6 +333,8 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   debug_color[3] = 1.0f;
 #endif
 
+  Vector<float4> scene_linear_image_pixels;
+  Vector<float4> buffer_pixels;
   Vector<float3> pixel_positions;
   Vector<float> factors;
   Vector<float> distances;
@@ -341,14 +386,24 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       calc_brush_texture_factors(ss, brush, pixel_positions, factors);
       scale_factors(factors, cache.bstrength);
 
+      scene_linear_image_pixels.resize(pixel_positions.size());
+      buffer_pixels.resize(pixel_positions.size());
+      calc_brush_colors(buffer_pixels, factors, brush_color);
+      if (image_buffer->float_data()) {
+        convert_image_pixels(scene_linear_image_pixels, float_buffer, *processors, pixel_row, image_buffer->x);
+      }
+      else {
+        convert_image_pixels(scene_linear_image_pixels, byte_buffer, *processors, pixel_row, image_buffer->x);
+      }
+
       bool pixels_painted = false;
       if (image_buffer->float_data() != nullptr) {
         pixels_painted = paint_row_float(
-            brush, *processors, brush_color, pixel_row, factors, image_buffer->x, float_buffer);
+            brush, *processors, pixel_row, buffer_pixels, image_buffer->x, float_buffer);
       }
       else {
         pixels_painted = paint_row_byte(
-            brush, *processors, brush_color, pixel_row, factors, image_buffer->x, byte_buffer);
+            brush, *processors, pixel_row, buffer_pixels, image_buffer->x, byte_buffer);
       }
 
       if (pixels_painted) {
