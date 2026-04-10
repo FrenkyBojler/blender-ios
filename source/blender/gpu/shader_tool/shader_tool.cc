@@ -187,9 +187,19 @@ int main(int argc, char **argv)
     external_symbols = scan_external_symbols(file_list, visited_files, buffer.str(), filename);
   }
 
+  /* Escape path according to the depfile syntax. */
+  auto escape_path = [](std::string filepath) {
+    size_t pos = 0;
+    while ((pos = filepath.find(' ', pos)) != std::string::npos) {
+      filepath.replace(pos, 1, "\\ ");
+      pos += 2;
+    }
+    return filepath;
+  };
+
   dep_file << output_file_name << " : ";
   for (const auto &file : visited_files) {
-    dep_file << file << " ";
+    dep_file << escape_path(file) << " ";
   }
   dep_file << "\n";
 
