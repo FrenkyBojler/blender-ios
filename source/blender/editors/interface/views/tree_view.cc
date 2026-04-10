@@ -630,7 +630,7 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 
 bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
-  StringRef name = this->get_rename_string();
+  const StringRef name = this->get_rename_string();
   return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) ==
          *this->get_tree_view().invert_search_filter_;
 }
