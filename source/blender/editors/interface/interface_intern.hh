@@ -368,6 +368,7 @@ struct Button : NonMovable {
 
 struct TextWrapCache {
   int wrap_width = 0;
+  float aspect = 0;
   std::string text;
   Vector<StringRef> wrapped_lines;
 };

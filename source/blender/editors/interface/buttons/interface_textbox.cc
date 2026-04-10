@@ -198,10 +198,12 @@ void textbox_jump_line(ButtonTextBox *textbox,
 
 Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
 {
-  const uiFontStyle &fstyle = style_get()->widget;
+  uiFontStyle fstyle = style_get()->widget;
+  const float aspect = textbox->block->aspect;
   const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&textbox->rect) -
                                             2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f),
-                                  0);
+                                  0) /
+                    aspect;
   StringRef text = textbox->drawstr;
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = button_ime_data_get(textbox);
@@ -225,16 +227,18 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
       textbox->wrap_cache = std::make_unique<TextWrapCache>();
     }
     TextWrapCache &cache = *textbox->wrap_cache;
-    if (cache.wrap_width == width && text == cache.text) {
+    if (cache.aspect == aspect && cache.wrap_width == width && text == cache.text) {
       return cache.wrapped_lines;
     }
     cache.text = text;
     text = cache.text;
     cache.wrap_width = width;
+    cache.aspect = aspect;
   }
   else {
     textbox->wrap_cache.reset();
   }
+  fontscale(&fstyle.points, aspect);
   fontstyle_set(&fstyle);
   Vector<StringRef> lines = BLF_string_wrap(
       fstyle.uifont_id, text, width, BLFWrapMode::HardLimit | BLFWrapMode::Typographical);
