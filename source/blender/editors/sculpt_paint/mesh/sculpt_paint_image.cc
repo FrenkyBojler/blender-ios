@@ -36,6 +36,7 @@
 namespace blender {
 
 namespace ed::sculpt_paint::paint::image {
+
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
 
@@ -282,7 +283,7 @@ static void blend_colors(MutableSpan<float4> paint_buffer_colors,
 }
 
 #ifdef DEBUG_PIXEL_NODES
-static void do_debug_color(MutableSpan<float4> buffer_colors, const PackedPixelRow &pixel_row)
+static void apply_debug_color(MutableSpan<float4> buffer_colors, const PackedPixelRow &pixel_row)
 {
   if ((pixel_row.start_image_coordinate.y >> 3) & 1) {
     for (const int i : buffer_colors.index_range()) {
@@ -400,7 +401,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       }
 
 #ifdef DEBUG_PIXEL_NODES
-      do_debug_color(scene_linear_image_pixels, pixel_row);
+      apply_debug_color(scene_linear_image_pixels, pixel_row);
 #endif
 
       blend_colors(paint_buffer_pixels, scene_linear_image_pixels, brush);
