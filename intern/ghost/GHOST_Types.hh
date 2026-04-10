@@ -103,6 +103,7 @@ enum GHOST_GPUFlags {
   GHOST_gpuStereoVisual = (1 << 0),
   GHOST_gpuDebugContext = (1 << 1),
   GHOST_gpuVSyncIsOverridden = (1 << 2),
+  GHOST_gpuForceSDR = (1 << 3),
 };
 
 enum GHOST_DialogOptions {
@@ -818,6 +819,7 @@ enum GHOST_TVSyncModes {
 struct GHOST_ContextParams {
   bool is_stereo_visual;
   bool is_debug;
+  bool force_sdr;
   GHOST_TVSyncModes vsync;
 };
 
@@ -825,6 +827,7 @@ struct GHOST_ContextParams {
   { \
       /*is_stereo_visual*/ false, \
       /*is_debug*/ false, \
+      /*force_sdr*/ false, \
       /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
@@ -832,13 +835,16 @@ struct GHOST_ContextParams {
   { \
       /*is_stereo_visual*/ false, \
       /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
+      /*force_sdr*/ (((gpu_settings).flags & GHOST_gpuForceSDR) != 0), \
       /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
 #define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpu_settings) \
   { \
       /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
-      /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
+      /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
+      /*force_sdr*/ (((gpu_settings).flags & GHOST_gpuForceSDR) != 0), \
+      /*vsync*/ \
       (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
                                                              GHOST_kVSyncModeUnset), \
   }

@@ -612,6 +612,9 @@ GPUSecondaryContextData GPU_create_secondary_context()
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
+  if (G.debug & G_DEBUG_GPU_FORCE_SDR) {
+    gpu_settings.flags |= GHOST_gpuForceSDR;
+  }
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
   gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;

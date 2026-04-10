@@ -276,6 +276,7 @@ enum {
 
   G_DEBUG_GPU_SHADER_NO_PREPROCESSOR = (1 << 28), /* Disable the preprocessor (implies NO_DCE). */
   G_DEBUG_GPU_SHADER_NO_DCE = (1 << 29),          /* Disable Dead Code Elimination. */
+  G_DEBUG_GPU_FORCE_SDR = (1 << 30),              /* Force selectin SDR swapchain .*/
 };
 
 #define G_DEBUG_ALL \

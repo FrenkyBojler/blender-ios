@@ -772,6 +772,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-wintab");
   BLI_args_print_arg_doc(ba, "--debug-gpu");
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-force-sdr");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
   BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
@@ -1435,6 +1436,9 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uid[] =
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
+static const char arg_handle_debug_mode_generic_set_doc_gpu_force_sdr[] =
+    "\n\t"
+    "Force selecting a SDR capable display mode.";
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_vulkan_local_read[] =
     "\n\t"
     "Force Vulkan dynamic rendering local read when supported by device.";
@@ -3200,6 +3204,11 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                  "--debug-gpu-vulkan-local-read",
                  CB_EX(arg_handle_debug_mode_generic_set, gpu_force_vulkan_local_read),
                  reinterpret_cast<void *>(G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ));
+    BLI_args_add(ba,
+                 nullptr,
+                 "--debug-gpu-force-sdr",
+                 CB_EX(arg_handle_debug_mode_generic_set, gpu_force_sdr),
+                 reinterpret_cast<void *>(G_DEBUG_GPU_FORCE_SDR));
   }
   BLI_args_add(ba, nullptr, "--debug-exit-on-error", CB(arg_handle_debug_exit_on_error), nullptr);
 
