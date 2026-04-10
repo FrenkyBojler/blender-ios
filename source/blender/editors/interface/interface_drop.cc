@@ -43,7 +43,7 @@ bool drop_target_apply_drop(bContext &C,
 
     AbstractView *view = region_view_find_at(&region, event.xy, 0);
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
-      if (tree_view->invert_sort_type_get() != SortOrder::None) {
+      if (tree_view->invert_sort_type_get() != TreeViewSortOrder::None) {
         /* Switch drop location when invert sorting is enabled. */
         if (*drop_location == DropLocation::After) {
           *drop_location = DropLocation::Before;

@@ -34,7 +34,7 @@ class AbstractTreeViewItem;
 class TreeViewItemDropTarget;
 struct Layout;
 
-enum class SortOrder : uint8_t {
+enum class TreeViewSortOrder : uint8_t {
   None = 0,
   InvertRoot = 1,
   InvertNested = 2,
@@ -107,7 +107,7 @@ class TreeViewItemContainer {
   void foreach_parent(ItemIterFn iter_fn) const;
   void sort_alpha();
   /* Sort tree item list in reverse order. */
-  void foreach_sort_invert(SortOrder order);
+  void foreach_sort_invert(TreeViewSortOrder order);
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
@@ -154,7 +154,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /**
    * Invert sort order.
    */
-  std::shared_ptr<SortOrder> invert_sort_type_ = std::make_shared<SortOrder>(SortOrder::None);
+  std::shared_ptr<TreeViewSortOrder> invert_sort_type_ = std::make_shared<TreeViewSortOrder>(
+      TreeViewSortOrder::None);
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -180,7 +181,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
-  SortOrder invert_sort_type_get() const;
+  TreeViewSortOrder invert_sort_type_get() const;
 
  protected:
   virtual void build_tree() = 0;

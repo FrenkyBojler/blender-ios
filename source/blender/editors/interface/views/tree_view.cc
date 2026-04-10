@@ -1007,7 +1007,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
         case TreeViewSortOrder::InvertRoot:
           icon = ICON_DOWNARROW_HLT;
           break;
-        case SortOrder::InvertNested:
+        case TreeViewSortOrder::InvertNested:
           icon = ICON_SORT_ASC;
           break;
         default:
