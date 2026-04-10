@@ -1446,6 +1446,10 @@ struct wmDropBox {
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 
   /* Callback to scroll the view when mouse is near edge (currently used for tree view). */
+  /**
+   * Called for every event while the dropbox is active (hovered and poll succeeds). Only
+   * #wmEventType::TIMER events created from this #wmDropBox.timer are passed to it.
+   */
   void (*on_hover_event)(bContext *C, wmDropBox &dropbox, const wmEvent *event);
   /** Custom data for drawing. */
   void *draw_data;
