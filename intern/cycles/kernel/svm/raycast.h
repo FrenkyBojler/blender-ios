@@ -12,6 +12,7 @@
 
 #include "kernel/sample/mapping.h"
 
+#include "kernel/svm/node_types.h"
 #include "kernel/svm/util.h"
 
 #include "kernel/geom/shader_data.h"
@@ -146,34 +147,14 @@ ccl_device_inline
 #  else
 ccl_device_noinline
 #  endif
-    int svm_node_raycast(KernelGlobals kg,
-                         ConstIntegratorGenericState state,
-                         ccl_private ShaderData *sd,
-                         ccl_private float *stack,
-                         const uint4 node,
-                         int offset,
-                         uint32_t path_flag)
+    void svm_node_raycast(KernelGlobals kg,
+                          ConstIntegratorGenericState state,
+                          ccl_private ShaderData *sd,
+                          ccl_private float *ccl_restrict stack,
+                          const ccl_global SVMNodeRaycast &ccl_restrict node,
+                          uint32_t path_flag)
 {
-  uint position_offset;
-  uint direction_offset;
-  uint offset_offset;
-  uint distance_offset;
-  svm_unpack_node_uchar4(
-      node.y, &position_offset, &direction_offset, &offset_offset, &distance_offset);
-
-  uint is_hit_offset;
-  uint is_self_hit_offset;
-  uint hit_distance_offset;
-  uint hit_position_offset;
-  svm_unpack_node_uchar4(
-      node.z, &is_hit_offset, &is_self_hit_offset, &hit_distance_offset, &hit_position_offset);
-
-  uint hit_normal_offset;
-  uint only_local;
-  uint mode;
-  svm_unpack_node_uchar3(node.w, &hit_normal_offset, &only_local, &mode);
-
-  float distance = stack_load_float_default(stack, distance_offset, 0.0f);
+  float distance = stack_load(stack, node.distance);
 
   float is_hit = 0.0f;
   float is_self_hit = 0.0f;
@@ -181,15 +162,11 @@ ccl_device_noinline
   float3 hit_position = make_float3(0.0f);
   float3 hit_normal = make_float3(0.0f);
 
-  uint4 data_node = read_node(kg, &offset);
-
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
-    const float bump_filter_width = __uint_as_float(data_node.x);
-
-    float3 position = stack_load_float3(stack, position_offset);
-    float3 direction = stack_load_float3(stack, direction_offset);
-    float3 offset = stack_load_float3(stack, offset_offset);
+    float3 position = stack_load(stack, node.position);
+    float3 direction = stack_load(stack, node.direction);
+    float3 offset = stack_load(stack, node.offset);
     RaycastResult result = svm_raycast(kg,
                                        state,
                                        sd,
@@ -197,37 +174,36 @@ ccl_device_noinline
                                        direction,
                                        offset,
                                        distance,
-                                       only_local,
-                                       NodeRaycastMode(mode),
-                                       bump_filter_width,
+                                       node.only_local,
+                                       node.mode,
+                                       node.bump_filter_width,
                                        path_flag);
 
     if (result.distance >= 0.0f) {
       is_hit = 1.0f;
       is_self_hit = result.self_hit ? 1.0f : 0.0f;
       hit_distance = result.distance;
+      /* TODO: Broken for offset mode. */
       hit_position = position + direction * hit_distance;
       hit_normal = result.normal;
     }
   }
 
-  if (stack_valid(is_hit_offset)) {
-    stack_store_float(stack, is_hit_offset, is_hit);
+  if (stack_valid(node.is_hit_offset)) {
+    stack_store_float(stack, node.is_hit_offset, is_hit);
   }
-  if (stack_valid(is_self_hit_offset)) {
-    stack_store_float(stack, is_self_hit_offset, is_self_hit);
+  if (stack_valid(node.is_self_hit_offset)) {
+    stack_store_float(stack, node.is_self_hit_offset, is_self_hit);
   }
-  if (stack_valid(hit_distance_offset)) {
-    stack_store_float(stack, hit_distance_offset, hit_distance);
+  if (stack_valid(node.hit_distance_offset)) {
+    stack_store_float(stack, node.hit_distance_offset, hit_distance);
   }
-  if (stack_valid(hit_position_offset)) {
-    stack_store_float3(stack, hit_position_offset, hit_position);
+  if (stack_valid(node.hit_position_offset)) {
+    stack_store_float3(stack, node.hit_position_offset, hit_position);
   }
-  if (stack_valid(hit_normal_offset)) {
-    stack_store_float3(stack, hit_normal_offset, hit_normal);
+  if (stack_valid(node.hit_normal_offset)) {
+    stack_store_float3(stack, node.hit_normal_offset, hit_normal);
   }
-
-  return offset;
 }
 
 #endif /* __SHADER_RAYTRACE__ */
