@@ -2302,6 +2302,12 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   GPU_blend(GPU_BLEND_NONE);
 
   GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+  rcti grip_rect = {.xmin = rect.xmin,
+                    .xmax = rect.xmax,
+                    .ymin = button_rect->ymin,
+                    .ymax = button_rect->ymin +
+                            int(std::round(textbox_grip_height() / textbox->block->aspect))};
+  widget_draw_icon_centered(ICON_GRIP, textbox->block->aspect, 1.0f, &grip_rect, wcol->text);
   if (lines.size() <= visible_lines) {
     return;
   }

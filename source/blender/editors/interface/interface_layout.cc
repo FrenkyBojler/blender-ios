@@ -2777,12 +2777,9 @@ void Layout::textbox_with_state(PointerRNA *ptr,
     return;
   }
 
-  Layout &overlap = this->overlap();
-  Layout &row = overlap.row(true);
-  row.row(true).alignment_set(LayoutAlign::Expand);
+  this->row(true).alignment_set(LayoutAlign::Expand);
 
   const float line_heigth = fontstyle_height_max(UI_FSTYLE_WIDGET);
-  row.row(true);
 
   /** Ensure minumun value is set. */
   textbox_state->visible_lines = std::max(textbox_state->visible_lines,
@@ -2810,41 +2807,6 @@ void Layout::textbox_with_state(PointerRNA *ptr,
   if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
     button_flag_enable(but, BUT_TEXTEDIT_UPDATE);
   }
-
-  Layout &grip_row = overlap.row(true);
-  grip_row.alignment_set(LayoutAlign::Expand);
-
-  grip_row.column(true).alignment_set(LayoutAlign::Center);
-  uiDefBut(block,
-           ButtonType::Sepr,
-           "",
-           0,
-           0,
-           0,
-           line_heigth * float(textbox->state->visible_lines) + textbox_padding_top() +
-               textbox_padding_bottom() - textbox_grip_height(),
-           nullptr,
-           0.0,
-           0.0,
-           "");
-  but = uiDefIconBut(block,
-                     {ButtonType::Grip, ButPointerType::Int},
-                     ICON_GRIP,
-                     0,
-                     0,
-                     UI_UNIT_X,
-                     textbox_grip_height(),
-                     &textbox_state->visible_lines,
-                     3.0f,
-                     100.0f,
-                     "");
-  auto grip_func = [textbox_state](bContext & /*C*/) mutable -> void {
-    /* Ensure minimun size while resizing. */
-    textbox_state->visible_lines = std::max(textbox_state->visible_lines,
-                                            textbox_minimum_visible_lines);
-  };
-  button_func_set(but, std::move(grip_func));
-  static_cast<ButtonGrip *>(but)->step_distance = line_heigth;
   block_layout_set_current(block, this);
 }
 

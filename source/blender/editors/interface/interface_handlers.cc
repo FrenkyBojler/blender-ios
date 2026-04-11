@@ -234,7 +234,13 @@ enum HandleButtonState {
    * #BUTTON_STATE_TEXT_EDITING or #BUTTON_STATE_HIGHLIGHT, this state reverts back previous state
    * when finished.
    */
-  BUTTON_STATE_TEXT_SCROLLING,
+  BUTTON_STATE_TEXTBOX_SCROLLING,
+  /**
+   * State for resizing textbox with a custom grip, can be activated when textbox is
+   * #BUTTON_STATE_TEXT_EDITING or #BUTTON_STATE_HIGHLIGHT, this state reverts back previous state
+   * when finished.
+   */
+  BUTTON_STATE_TEXTBOX_RESIZING,
   BUTTON_STATE_MENU_OPEN,
   BUTTON_STATE_WAIT_DRAG,
   BUTTON_STATE_EXIT,
@@ -5272,24 +5278,25 @@ static int do_but_TEXTBOX(bContext *C,
       event->val == KM_PRESS && event->type == LEFTMOUSE &&
       textbox->last_total_lines > textbox->state->visible_lines)
   {
-    float xmax = textbox->rect.xmax;
-    float ymax = textbox->rect.ymax;
-    block_to_window_fl(data->region, block, &xmax, &ymax);
+    rctf rect;
+    block_to_window_rctf(data->region, block, &rect, &textbox->rect);
+    rect.xmin = rect.xmax - button_text_padding(textbox);
+    rect.ymin += fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect;
     /* Activate textbox scrollbar. */
-    if (xmax - button_text_padding(textbox) <= event->xy[0] && event->xy[0] <= xmax) {
+    if (BLI_rctf_isect_pt(&rect, event->xy[0], event->xy[1])) {
       if (data->state == BUTTON_STATE_HIGHLIGHT) {
         WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
       }
       else {
         WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
       }
-      button_activate_state(C, textbox, BUTTON_STATE_TEXT_SCROLLING);
+      button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_SCROLLING);
       WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
       return WM_UI_HANDLER_BREAK;
     }
   }
   /* Handle textbox scrollbar events. */
-  if (data->state == BUTTON_STATE_TEXT_SCROLLING) {
+  if (data->state == BUTTON_STATE_TEXTBOX_SCROLLING) {
     if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
       if (textbox->editstr) {
         WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
@@ -5310,6 +5317,49 @@ static int do_but_TEXTBOX(bContext *C,
     textbox->line_scroll_set(
         round_fl_to_int((range - (my - ymin)) / range *
                         (textbox->last_total_lines - textbox->state->visible_lines)));
+    ED_region_tag_redraw(data->region);
+    return WM_UI_HANDLER_BREAK;
+  }
+  if (ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
+      event->val == KM_PRESS && event->type == LEFTMOUSE)
+  {
+    rctf rect;
+    block_to_window_rctf(data->region, block, &rect, &textbox->rect);
+    rect.ymax = rect.ymin + fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect;
+    /* Activate textbox grip button. */
+    if (BLI_rctf_isect_pt(&rect, event->xy[0], event->xy[1])) {
+      if (data->state == BUTTON_STATE_HIGHLIGHT) {
+        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      }
+      else {
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      }
+      button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_RESIZING);
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      data->dragstarty = event->xy[1];
+      data->origvalue = textbox->visible_lines();
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
+  /* Handle textbox grip events. */
+  if (data->state == BUTTON_STATE_TEXTBOX_RESIZING) {
+    if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
+      if (textbox->editstr) {
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
+      }
+      else {
+        WM_cursor_modal_restore(CTX_wm_window(C));
+      }
+      button_activate_state(
+          C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
+      return WM_UI_HANDLER_BREAK;
+    }
+
+    const int visible_lines = data->origvalue +
+                              ((data->dragstarty - event->xy[1]) /
+                               (fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect));
+
+    textbox->state->visible_lines = std::max(textbox_minimum_visible_lines, visible_lines);
     ED_region_tag_redraw(data->region);
     return WM_UI_HANDLER_BREAK;
   }
@@ -6689,10 +6739,7 @@ static int do_but_GRIP(
       int dragstartx = data->dragstartx;
       int dragstarty = data->dragstarty;
       window_to_block(data->region, block, &dragstartx, &dragstarty);
-      const int step_distance = static_cast<const ButtonGrip *>(but)->step_distance;
-      BLI_assert(step_distance > 0);
-      data->value = data->origvalue +
-                    (horizontal ? mx - dragstartx : dragstarty - my) / step_distance;
+      data->value = data->origvalue + (horizontal ? mx - dragstartx : dragstarty - my);
       numedit_apply(C, block, but, data);
     }
 
@@ -9118,7 +9165,8 @@ static bool button_modal_state(HandleButtonState state)
               BUTTON_STATE_NUM_EDITING,
               BUTTON_STATE_TEXT_EDITING,
               BUTTON_STATE_TEXT_SELECTING,
-              BUTTON_STATE_TEXT_SCROLLING,
+              BUTTON_STATE_TEXTBOX_SCROLLING,
+              BUTTON_STATE_TEXTBOX_RESIZING,
               BUTTON_STATE_MENU_OPEN);
 }
 
@@ -9180,11 +9228,18 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
     data->text_select_auto_scroll = nullptr;
   }
 
+  /* Only Textbox buttons can set #BUTTON_STATE_TEXTBOX_SCROLLING or #BUTTON_STATE_TEXTBOX_RESIZING
+   * as state. */
+  BLI_assert(!ELEM(state, BUTTON_STATE_TEXTBOX_SCROLLING, BUTTON_STATE_TEXTBOX_RESIZING) ||
+             but->type == ButtonType::TextBox);
+
   /* text editing */
-  if (state == BUTTON_STATE_TEXT_SCROLLING) {
+  if (ELEM(state, BUTTON_STATE_TEXTBOX_SCROLLING, BUTTON_STATE_TEXTBOX_RESIZING)) {
   }
-  else if (state == BUTTON_STATE_TEXT_EDITING &&
-           !ELEM(data->state, BUTTON_STATE_TEXT_SELECTING, BUTTON_STATE_TEXT_SCROLLING))
+  else if (state == BUTTON_STATE_TEXT_EDITING && !ELEM(data->state,
+                                                       BUTTON_STATE_TEXT_SELECTING,
+                                                       BUTTON_STATE_TEXTBOX_SCROLLING,
+                                                       BUTTON_STATE_TEXTBOX_RESIZING))
   {
     textedit_begin(C, but, data);
   }
@@ -9192,7 +9247,8 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
     textedit_end(C, but, data);
   }
   else if ((data->state == BUTTON_STATE_TEXT_SELECTING ||
-            (data->state == BUTTON_STATE_TEXT_SCROLLING && but->editstr)) &&
+            (ELEM(data->state, BUTTON_STATE_TEXTBOX_SCROLLING, BUTTON_STATE_TEXTBOX_RESIZING) &&
+             but->editstr)) &&
            state != BUTTON_STATE_TEXT_EDITING)
   {
     textedit_end(C, but, data);

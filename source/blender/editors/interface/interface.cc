@@ -2071,23 +2071,6 @@ bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button 
   return button_context_poll_operator_ex(C, but, &params);
 }
 
-/**
- * Texbox button are resized by grip buttons, hide them since they can't get activated while
- * editing text.
- */
-static void block_hide_textbox_grip_buttons_when_editing_text(const Block *block)
-{
-  int n = 0;
-  for (Button &button : block->buttons()) {
-    if (button.editstr && button.type == ButtonType::TextBox) {
-      Button &grip = *block->buttons_ptrs[n + 2];
-      BLI_assert(grip.type == ButtonType::Grip);
-      grip.flag |= UI_HIDDEN;
-    }
-    n++;
-  }
-}
-
 void block_end_ex(const bContext *C,
                   Main *bmain,
                   wmWindow *window,
@@ -2199,8 +2182,6 @@ void block_end_ex(const bContext *C,
   }
 
   update_flexible_spacing(region, block);
-
-  block_hide_textbox_grip_buttons_when_editing_text(block);
 
   block->endblock = true;
 }
@@ -4341,9 +4322,6 @@ static std::unique_ptr<Button> but_new(const ButtonType type)
       break;
     case ButtonType::Scroll:
       but = std::make_unique<ButtonScrollBar>();
-      break;
-    case ButtonType::Grip:
-      but = std::make_unique<ButtonGrip>();
       break;
     case ButtonType::Menu:
       ATTR_FALLTHROUGH;

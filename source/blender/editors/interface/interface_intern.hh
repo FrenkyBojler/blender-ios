@@ -388,15 +388,6 @@ struct ButtonTextBox : public Button {
   int visible_lines() const;
 };
 
-/** Derived struct for #ButType::Grip */
-struct ButtonGrip : public Button {
-  /**
-   * Mouse movement (in block space) required to increase/decrease in one unit (rows or columns)
-   * Grip value.
-   */
-  int step_distance = 1;
-};
-
 /** Derived struct for #ButtonType::But */
 struct ButtonPush : public Button {
   bool draw_as_link = false;
