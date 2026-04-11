@@ -2578,6 +2578,13 @@ double BKE_unit_scalar_get(const void *usys_pt, int index)
   return usys->units[index].scalar;
 }
 
+double BKE_unit_bias_get(const void *usys_pt, int index)
+{
+  const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
+  BLI_assert(uint(index) < uint(usys->length));
+  return usys->units[index].bias;
+}
+
 bool BKE_unit_is_suppressed(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);

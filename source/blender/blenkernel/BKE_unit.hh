@@ -132,6 +132,7 @@ const char *BKE_unit_name_get(const void *usys_pt, int index);
 const char *BKE_unit_display_name_get(const void *usys_pt, int index);
 const char *BKE_unit_identifier_get(const void *usys_pt, int index);
 double BKE_unit_scalar_get(const void *usys_pt, int index);
+double BKE_unit_bias_get(const void *usys_pt, int index);
 bool BKE_unit_is_suppressed(const void *usys_pt, int index);
 
 /** Aligned with #PropertyUnit and `bpyunits_ucategories_items` in `bpy_utils_units.cc`. */
