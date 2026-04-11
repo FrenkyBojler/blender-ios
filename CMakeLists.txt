@@ -2612,6 +2612,9 @@ if(FIRST_RUN)
     endif()
   endif()
 
+  info_cfg_text("Profiling Options:")
+  info_cfg_option(WITH_TRACY)
+
   info_cfg_text("Image Formats:")
   info_cfg_option(WITH_IMAGE_CINEON)
   info_cfg_option(WITH_IMAGE_OPENEXR)
