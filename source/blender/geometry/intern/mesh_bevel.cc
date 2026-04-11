@@ -681,6 +681,11 @@ class BevelState {
     return uv_attributes_;
   }
 
+  Vector<Array<float2>> &uv_attributes_mutable()
+  {
+    return uv_attributes_;
+  }
+
   /** Return the index of the UV map with the given attribute name, or -1 if not found. */
   int find_uv_map_index(const std::string &attr_name) const
   {
@@ -3711,69 +3716,6 @@ static bool any_gaps_between_anchors(const int anchor1,
   return false;
 }
 
-static float2 average_uvs_for_corners(const SmallIntArray &corners,
-                                      const int uv_map_index,
-                                      const Vector<Array<float2>> &uv_attributes)
-{
-  float2 ans(0.0f, 0.0f);
-  for (const int c : corners) {
-    ans = ans + uv_attributes[uv_map_index][c];
-  }
-  if (corners.size() > 0) {
-    ans = ans / float(corners.size());
-  }
-  return ans;
-}
-
-/** Merge the UVs for the adj pattern when there are an even number of segments. */
-static void merge_even_adj_face_uvs(const int bv,
-                                    const int uv_map_index,
-                                    const Array<UVGapKind, 20> &gaps,
-                                    Vector<Array<float2>> &uv_attributes,
-                                    const BevelState &bs)
-{
-  fmt::println("merge_even_adj_face_uvs for bv ={}", bv);
-  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
-  BLI_assert(pat.kind == MeshKind::Adj && (pat.num_segs % 2) == 0);
-  const int bv_first_newface = bs.bevvert_newfaces()[bv][0];
-  const int bv_first_corner = bs.newface_faces_face()[bv_first_newface][0];
-  for (const int a : IndexRange(pat.num_anchors)) {
-    const int anext = pat.next_anchor(a);
-    if (any_gaps_between_anchors(a, anext, bv, true, gaps, bs)) {
-      continue;
-    }
-    SmallIntArray cline = pat.verts_for_centerline(a);
-    print_span(cline.as_span(), "cline");
-    for (const int v : cline) {
-      SmallIntArray corners = pat.corners_for_vert(v);
-      fmt::println("vert {} has corners:", v);
-      print_span(corners.as_span(), "corners");
-      if (corners.size() > 1) {
-        /* Offset the pattern space corners to get real newcorner indices. */
-        for (const int i : corners.index_range()) {
-          corners[i] += bv_first_corner;
-        }
-        float2 avg_uv = average_uvs_for_corners(corners, uv_map_index, uv_attributes);
-        fmt::println("average uv value = {},{}", avg_uv[0], avg_uv[1]);
-        for (const int c : corners) {
-          // assign avg_uv to uv value of corner c of bv in map uv_map_index
-          uv_attributes[uv_map_index][c] = avg_uv;
-        }
-      }
-    }
-  }
-  /* Now do the center. */
-  SmallIntArray corners = pat.corners_for_vert(0);
-  for (const int i : corners.index_range()) {
-    corners[i] += bv_first_corner;
-  }
-  float2 avg_uv = average_uvs_for_corners(corners, uv_map_index, uv_attributes);
-  fmt::println("average center uv_value = {}, {} ", avg_uv[0], avg_uv[1]);
-  for (const int c : corners) {
-    uv_attributes[uv_map_index][c] = avg_uv;
-  }
-}
-
 /** For the face with index \a f in the adj pattern for bevvert \a bv, calculate the UV position
  * for each of its corners in the UV map with the given \a uv_map_index, and store them in
  * uv_attributes[uv_map_index] at the corresponding newcorner indices.
@@ -3856,9 +3798,6 @@ static void calculate_vertex_mesh_face_uvs(const int bevvert,
         fmt::println("corners for v={}", v);
         SmallIntArray cs = pat.corners_for_vert(v);
         print_span(cs.as_span(), "corners");
-      }
-      if ((pat.num_segs % 2) == 0) {
-        merge_even_adj_face_uvs(bevvert, uv_map_index, gaps, uv_attributes, bs);
       }
       break;
     }
@@ -3949,6 +3888,113 @@ static void calculate_face_mesh_uvs(const int bevface,
   const int mesh_face = bs.bevface_mesh_faces()[bevface];
   SmallIntArray freps(newface_size, mesh_face);
   create_ngon_uvs(newface, freps.as_span(), true, uv_map_index, uv_attributes, bs);
+}
+
+void merge_uvs(BevelState &bs, Vector<Array<float2>> &uv_attributes)
+{
+  if (bs.uvmaps_num == 0) {
+    return;
+  }
+  threading::parallel_for(IndexRange(bs.bevverts_num), 10'000, [&](IndexRange range) {
+    for (const int bv : range) {
+      if (bs.bevvert_meshpatterns()[bv].kind == MeshKind::None) {
+        continue;
+      }
+      const int mesh_v = bs.bevvert_mesh_verts()[bv];
+
+      Vector<int> nf_list;
+      for (const int nf : bs.bevvert_newfaces()[bv]) {
+        nf_list.append(nf);
+      }
+      for (const int be : bs.bevvert_bevedges()[bv]) {
+        if (be != -1) {
+          for (const int nf : bs.bevedge_newfaces()[be]) {
+            nf_list.append(nf);
+          }
+        }
+      }
+      for (const int bf : bs.bevvert_faces()[bv]) {
+        if (bf != -1) {
+          for (const int nf : bs.bevface_newfaces()[bf]) {
+            nf_list.append(nf);
+          }
+        }
+      }
+
+      for (const int uv_map_index : IndexRange(bs.uvmaps_num)) {
+        for (const int nv : bs.bevvert_newverts()[bv]) {
+          struct CornerInfo {
+            int nf;
+            int nc;
+          };
+          Vector<CornerInfo> corners;
+          for (const int nf : nf_list) {
+            for (const int nc : bs.newface_faces_face()[nf]) {
+              if (bs.newcorner_verts()[nc] == nv) {
+                corners.append({nf, nc});
+              }
+            }
+          }
+
+          if (corners.size() <= 1) {
+            continue;
+          }
+
+          Vector<Vector<CornerInfo>> buckets;
+          for (const CornerInfo &inf : corners) {
+            bool found_bucket = false;
+            for (Vector<CornerInfo> &bucket : buckets) {
+              const CornerInfo &binf = bucket[0];
+              float2 uv1 = uv_attributes[uv_map_index][inf.nc];
+              float2 uv2 = uv_attributes[uv_map_index][binf.nc];
+
+              if (math::distance_squared(uv1, uv2) < 1e-8f) {
+                found_bucket = true;
+              }
+              else {
+                int rf1 = bs.newface_repfaces()[inf.nf];
+                int rf2 = bs.newface_repfaces()[binf.nf];
+                if (rf1 != -1 && rf2 != -1) {
+                  const int c1 = bke::mesh::face_find_corner_from_vert(
+                      bs.mesh_info.mesh.faces()[rf1], bs.mesh_info.mesh.corner_verts(), mesh_v);
+                  const int c2 = bke::mesh::face_find_corner_from_vert(
+                      bs.mesh_info.mesh.faces()[rf2], bs.mesh_info.mesh.corner_verts(), mesh_v);
+                  if (c1 != -1 && c2 != -1) {
+                    float2 orig_uv1 = bs.uv_map_info(uv_map_index).value(c1);
+                    float2 orig_uv2 = bs.uv_map_info(uv_map_index).value(c2);
+                    if (math::distance_squared(orig_uv1, orig_uv2) < 1e-8f) {
+                      found_bucket = true;
+                    }
+                  }
+                }
+              }
+
+              if (found_bucket) {
+                bucket.append(inf);
+                break;
+              }
+            }
+            if (!found_bucket) {
+              buckets.append(Vector<CornerInfo>{inf});
+            }
+          }
+
+          for (const Vector<CornerInfo> &bucket : buckets) {
+            if (bucket.size() > 1) {
+              float2 avg(0.0f, 0.0f);
+              for (const CornerInfo &inf : bucket) {
+                avg += uv_attributes[uv_map_index][inf.nc];
+              }
+              avg /= float(bucket.size());
+              for (const CornerInfo &inf : bucket) {
+                uv_attributes[uv_map_index][inf.nc] = avg;
+              }
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 }  // end namespace uv
@@ -6532,6 +6578,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   // dump_bevel_state(state, "before build_edge_meshes");
   state.build_face_meshes();
   state.build_edge_meshes();
+  uv::merge_uvs(state, state.uv_attributes_mutable());
   // dump_bevel_state(state, "before build_mesh");
   /* TODO: calculate output attributes, e.g. like create_cylinder_or_cone_mesh. */
   return build_mesh(state, attribute_filter);
