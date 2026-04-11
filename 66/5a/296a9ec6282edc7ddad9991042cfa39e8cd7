@@ -1,2 +1,3 @@
 Referenced by issue #157220, Blender crashes when trying to paint on an empty image
 Referenced by pull request #157240, Fix #157213: Sculpt: Crash when stroke starts and ends in empty area
+Referenced by pull request #157241, Fix #157220: Crash when painting in image editor without image
