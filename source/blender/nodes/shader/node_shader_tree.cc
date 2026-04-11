@@ -189,8 +189,8 @@ void register_node_tree_type_sh()
   bke::bNodeTreeType *tt = ntreeType_Shader = MEM_new<bke::bNodeTreeType>(__func__);
 
   tt->type = NTREE_SHADER;
-  tt->idname = "ShaderNodeTree";
-  tt->group_idname = "ShaderNodeGroup";
+  tt->idname = "ShaderNodeTree"_ustr;
+  tt->group_idname = "ShaderNodeGroup"_ustr;
   tt->ui_name = N_("Shader Editor");
   tt->ui_icon = ICON_NODE_MATERIAL;
   tt->ui_description = N_("Edit materials, lights, and world shading using nodes");

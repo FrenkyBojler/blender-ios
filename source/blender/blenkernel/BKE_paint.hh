@@ -85,7 +85,6 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct bToolRef;
-struct tPaletteColorHSV;
 
 /* overlay invalidation */
 enum ePaintOverlayControlFlags {
@@ -145,12 +144,6 @@ void BKE_palette_clear(Palette *palette);
 void BKE_palette_color_set(PaletteColor *color, const float rgb[3]);
 void BKE_palette_color_sync_legacy(PaletteColor *color);
 
-void BKE_palette_sort_hsv(tPaletteColorHSV *color_array, int totcol);
-void BKE_palette_sort_svh(tPaletteColorHSV *color_array, int totcol);
-void BKE_palette_sort_vhs(tPaletteColorHSV *color_array, int totcol);
-void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, int totcol);
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name);
-
 /* Paint curves. */
 
 PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name);
@@ -177,6 +170,8 @@ void BKE_paint_copy(const Paint *src, Paint *dst, int flag);
 void BKE_paint_settings_foreach_mode(ToolSettings *ts, FunctionRef<void(Paint *paint)> fn);
 
 void BKE_paint_cavity_curve_preset(Paint *paint, int preset);
+
+void BKE_paint_mesh_automasking_settings_ensure(Paint &paint);
 
 eObjectMode BKE_paint_object_mode_from_paintmode(PaintMode mode);
 bool BKE_paint_ensure_from_paintmode(Scene *sce, PaintMode mode);
@@ -651,7 +646,6 @@ bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
                                 ImageUser **r_image_user);
 std::optional<StringRef> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings *settings,
                                                          Object *ob);
-void BKE_sculpt_cavity_curves_ensure(Sculpt *sd);
 CurveMapping *BKE_sculpt_default_cavity_curve();
 CurveMapping *BKE_paint_default_curve();
 
