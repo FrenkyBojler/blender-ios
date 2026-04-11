@@ -92,6 +92,7 @@ set(SRC
   nodes/node_geo_field_to_grid.cc
   nodes/node_geo_field_to_list.cc
   nodes/node_geo_field_variance.cc
+  nodes/node_geo_grease_pencil_fill_info.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
@@ -102,6 +103,7 @@ set(SRC
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grease_pencil_time.cc
   nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_clip.cc
   nodes/node_geo_grid_curl.cc
@@ -264,6 +266,7 @@ set(SRC
   nodes/node_geo_store_named_grid.cc
   nodes/node_geo_string_join.cc
   nodes/node_geo_string_to_curves.cc
+  nodes/node_geo_grease_pencil_stroke_info.cc
   nodes/node_geo_subdivision_surface.cc
   nodes/node_geo_switch.cc
   nodes/node_geo_tool_3d_cursor.cc

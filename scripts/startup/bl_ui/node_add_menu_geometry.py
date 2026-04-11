@@ -169,7 +169,10 @@ class NODE_MT_gn_grease_pencil_read_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeGreasePencilFillInfo")
         self.node_operator(layout, "GeometryNodeInputNamedLayerSelection")
+        self.node_operator(layout, "GeometryNodeGreasePencilStrokeInfo")
+        self.node_operator(layout, "GeometryNodeGreasePencilTime")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
