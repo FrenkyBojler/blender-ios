@@ -4538,10 +4538,10 @@ void ED_region_panels_draw_offscreen(const bContext *C,
   GPU_texture_mipmap_mode(color_texture, false, false);
 }
 
-static void ED_region_panels_draw_to_world_quad(const RegionView3D *rv3d,
-                                            const float obmat[4][4],
-                                            const rcti *panel_rect,
-                                            GPUOffScreen *offscreen)
+void ED_region_panels_draw_to_world_quad(const RegionView3D *rv3d,
+                                         const float obmat[4][4],
+                                         const rcti *panel_rect,
+                                         GPUOffScreen *offscreen)
 { 
   GPU_color_mask(true, true, true, true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -4592,6 +4592,39 @@ static void ED_region_panels_draw_to_world_quad(const RegionView3D *rv3d,
   GPU_matrix_pop_projection();
 }
 
+void ED_region_panels_world_layout_begin(bContext *C,
+                                         ARegion *region,
+                                         rcti *r_panel_rect,
+                                         short *r_prev_alignment,
+                                         ARegion **r_prev_region)
+{
+  ARegion *prev_region = CTX_wm_region(C);
+  if (r_prev_region) {
+    *r_prev_region = prev_region;
+  }
+  CTX_wm_region_set(C, region);
+
+  short prev_alignment = region->alignment;
+  if (r_prev_alignment) {
+    *r_prev_alignment = prev_alignment;
+  }
+  region->alignment = RGN_ALIGN_FLOAT;
+  ED_region_panels_layout(C, region);
+
+  rcti panel_rect = region->winrct;
+  ui::view2d_mask_from_win(&region->v2d, &panel_rect);
+  *r_panel_rect = panel_rect;
+}
+
+void ED_region_panels_world_layout_end(bContext *C,
+                                       ARegion *region,
+                                       short prev_alignment,
+                                       ARegion *prev_region)
+{
+  region->alignment = prev_alignment;
+  CTX_wm_region_set(C, prev_region);
+}
+
 void ED_region_panels_draw_world_space(bContext *C,
                                        ARegion *region,
                                        RegionView3D *rv3d,
@@ -4602,17 +4635,10 @@ void ED_region_panels_draw_world_space(bContext *C,
     return;
   }
 
-  /* Temporarily switch the context to the UI region. */
-  ARegion *prev_region = CTX_wm_region(C);
-  CTX_wm_region_set(C, region);
-
-  /* Force alignment to float */
-  short prev_alignment = region->alignment;
-  region->alignment = RGN_ALIGN_FLOAT;
-  ED_region_panels_layout(C, region);
-
-  rcti panel_rect = region->winrct;
-  ui::view2d_mask_from_win(&region->v2d, &panel_rect);
+  short prev_alignment;
+  ARegion *prev_region = nullptr;
+  rcti panel_rect;
+  ED_region_panels_world_layout_begin(C, region, &panel_rect, &prev_alignment, &prev_region);
 
   /* Stash current GPU state in case they are changed. */
   GPUBlend prev_blend = GPU_blend_get();
@@ -4643,8 +4669,7 @@ void ED_region_panels_draw_world_space(bContext *C,
   GPU_write_mask(prev_write);
 
   /* Restore original alignment and context. */
-  region->alignment = prev_alignment;
-  CTX_wm_region_set(C, prev_region);
+  ED_region_panels_world_layout_end(C, region, prev_alignment, prev_region);
 }
 
 }  // namespace blender

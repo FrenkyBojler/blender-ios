@@ -1667,6 +1667,14 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
       if (surface_data->controller_art) {
         surface_data->controller_draw_handle = ED_region_draw_cb_activate(
             surface_data->controller_art, wm_xr_draw_controllers, xr, REGION_DRAW_POST_VIEW);
+
+        SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
+        ARegionType *panel_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_WINDOW) : nullptr;
+        if (panel_art) {
+          surface_data->panel_art = panel_art;
+          surface_data->panel_draw_handle = ED_region_draw_cb_activate(
+              panel_art, wm_xr_draw_panels_world_space, xr, REGION_DRAW_POST_VIEW);
+        }
       }
     }
   }
@@ -1684,6 +1692,13 @@ void wm_xr_session_controller_data_clear(wmXrSessionState *state)
         ED_region_draw_cb_exit(surface_data->controller_art, surface_data->controller_draw_handle);
       }
       surface_data->controller_draw_handle = nullptr;
+    }
+
+    if (surface_data && surface_data->panel_draw_handle) {
+      if (surface_data->panel_art) {
+        ED_region_draw_cb_exit(surface_data->panel_art, surface_data->panel_draw_handle);
+      }
+      surface_data->panel_draw_handle = nullptr;
     }
   }
 }
@@ -1830,6 +1845,11 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
     BLI_freelinkN(lb, vp);
   }
 
+  if (data->panel_offscreen) {
+    GPU_offscreen_free(data->panel_offscreen);
+    data->panel_offscreen = nullptr;
+  }
+
   if (data->controller_art) {
     data->controller_art->drawcalls.free_no_destruct();
     MEM_delete(data->controller_art);
@@ -1902,6 +1922,14 @@ ARegionType *WM_xr_surface_controller_region_type_get()
     return data->controller_art;
   }
 
+  return nullptr;
+}
+
+wmXrSurfaceData *WM_xr_surface_data_get()
+{
+  if (g_xr_surface) {
+    return static_cast<wmXrSurfaceData *>(g_xr_surface->customdata);
+  }
   return nullptr;
 }
 

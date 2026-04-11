@@ -170,8 +170,17 @@ struct wmXrSurfaceData {
 
   /** Dummy region type for controller draw callback. */
   struct ARegionType *controller_art;
+  struct ARegionType *panel_art;
   /** Controller draw callback handle. */
   void *controller_draw_handle;
+  /** Panel draw callback handle. */
+  void *panel_draw_handle;
+
+  /** Cached world-space UI panel offscreen and placement for XR composition. */
+  struct GPUOffScreen *panel_offscreen;
+  rcti panel_rect;
+  float panel_obmat[4][4];
+  bool panel_valid;
 };
 
 struct wmXrDrawData {
@@ -311,6 +320,7 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
  */
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const bContext *C, ARegion *region, void *customdata);
+void wm_xr_draw_panels_world_space(const bContext *C, ARegion *region, void *customdata);
 
 /**
  * \brief Check if XR passthrough is enabled.
@@ -334,5 +344,8 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data);
 void wm_xr_viewfinder_draw(const bContext *C,
                            const XrSessionSettings *settings,
                            wmXrSessionState *state);
+
+/* `wm_xr_session.cc` */
+wmXrSurfaceData *WM_xr_surface_data_get();
 
 }  // namespace blender

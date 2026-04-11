@@ -13,17 +13,22 @@
 #include <cstring>
 
 #include "DNA_userdef_types.h"
+#include "DNA_screen_types.h"
 
-#include "BLI_listbase.hh"
-#include "BLI_math_geom_c.hh"
-#include "BLI_math_matrix_c.hh"
-#include "BLI_math_rotation_c.hh"
-#include "BLI_math_vector_c.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
+#include "BLI_rect.h"
+#include "BLI_time.h"
 
-#include "BKE_context.hh"
-#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "ED_view3d_offscreen.hh"
+#include "ED_screen.hh"
+#include "UI_view2d.hh"
+#include "DNA_view3d_types.h"
 
 #include "GHOST_Xr-api.hh"
 
@@ -32,6 +37,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
+#include "GPU_framebuffer.hh"
 
 #include "UI_resources.hh"
 
@@ -40,6 +46,28 @@
 #include "wm_xr_intern.hh"
 
 namespace blender {
+  
+extern CLG_LogRef LOG;
+
+static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
+                                            const float winmat[4][4],
+                                            const wmXrSurfaceData *surface_data)
+{
+  if (!surface_data || !surface_data->panel_valid || !surface_data->panel_offscreen) {
+    CLOG_ERROR(&LOG, "panel_overlay: skipped (valid=%d, offscreen=%p)",
+              surface_data ? int(surface_data->panel_valid) : 0,
+              surface_data ? surface_data->panel_offscreen : nullptr);
+    return;
+  }
+
+  RegionView3D rv_tmp = {};
+  copy_m4_m4(rv_tmp.winmat, winmat);
+  copy_m4_m4(rv_tmp.viewmat, viewmat);
+  ED_region_panels_draw_to_world_quad(&rv_tmp,
+                                      surface_data->panel_obmat,
+                                      &surface_data->panel_rect,
+                                      surface_data->panel_offscreen);
+}
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -224,6 +252,15 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_offscreen_bind(vp->offscreen, false);
 
   wm_xr_draw_viewport_buffers_to_active_framebuffer(xr_data->runtime, surface_data, draw_view);
+
+  if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
+    /* wm_xr_draw_cached_panel_overlay requires an inverted y-axis to function properly. */
+    for (uint i = 0; i < 4; ++i) {
+      viewmat[i][1] *= -1.0f;
+    }
+
+    wm_xr_draw_cached_panel_overlay(viewmat, winmat, surface_data);
+  }
 }
 
 bool wm_xr_passthrough_enabled(void *customdata)
@@ -448,6 +485,94 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   wm_xr_controller_model_draw(settings, xr_context, state);
   wm_xr_controller_aim_draw(settings, state);
   wm_xr_viewfinder_draw(C, settings, state);
+}
+
+static CLG_LogRef LOG = {"xr"};
+
+void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *customdata)
+{
+  if (region == nullptr) {
+    CLOG_ERROR(&LOG, "panels_ws: skipped, null region");
+    return;
+  }
+  if (C == nullptr) {
+    CLOG_ERROR(&LOG, "panels_ws: skipped, null context");
+    return;
+  }
+  BLI_assert(region != nullptr);
+  BLI_assert(customdata != nullptr);
+  BLI_assert(CTX_wm_manager(C) != nullptr);
+  BLI_assert(CTX_wm_window(C) != nullptr);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  BLI_assert(workspace != nullptr);
+
+  wmXrData *xr = static_cast<wmXrData *>(customdata);
+  const XrSessionSettings *settings = &xr->session_settings;
+  if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) == 0) {
+    CLOG_ERROR(&LOG, "panels_ws: custom overlays disabled");
+    return;
+  }
+  if (region->regiontype != RGN_TYPE_WINDOW) {
+    CLOG_ERROR(&LOG, "panels_ws: wrong region type (%d)", region->regiontype);
+    return;
+  }
+
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *ui_region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+  BLI_assert(area != nullptr);
+  BLI_assert(ui_region != nullptr);
+  BLI_assert(ui_region->runtime != nullptr);
+  BLI_assert(ui_region->runtime->type != nullptr);
+
+  const float HALF_PI = 3.1415f * 0.5f;
+  const float SCREEN_TO_WORLD_SCALE = 1.0f / 256.0f;
+  float obmat[4][4];
+  float pos[3] = {0.0f, 0.0f, 2.0f};
+  float rot[3] = {HALF_PI, 0.0f, 0.0f};
+  float size[3] = {SCREEN_TO_WORLD_SCALE, SCREEN_TO_WORLD_SCALE, SCREEN_TO_WORLD_SCALE};
+  loc_eul_size_to_mat4(obmat, pos, rot, size);
+
+  short prev_alignment;
+  ARegion *prev_region = nullptr;
+  rcti panel_rect;
+  bContext *mutable_C = const_cast<bContext *>(C);
+  ED_region_panels_world_layout_begin(mutable_C, ui_region, &panel_rect, &prev_alignment, &prev_region);
+
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  if (!surface_data) {
+    CLOG_ERROR(&LOG, "panels_ws: no surface_data");
+    ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+    return;
+  }
+  const int w = BLI_rcti_size_x(&panel_rect) + 1;
+  const int h = BLI_rcti_size_y(&panel_rect) + 1;
+  bool create_new = true;
+  if (surface_data->panel_offscreen) {
+    if (GPU_offscreen_width(surface_data->panel_offscreen) == w &&
+        GPU_offscreen_height(surface_data->panel_offscreen) == h)
+    {
+      create_new = false;
+    }
+    else {
+      GPU_offscreen_free(surface_data->panel_offscreen);
+      surface_data->panel_offscreen = nullptr;
+    }
+  }
+  if (create_new) {
+    surface_data->panel_offscreen = GPU_offscreen_create(
+        w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
+  }
+  if (!surface_data->panel_offscreen) {
+    CLOG_ERROR(&LOG, "panels_ws: offscreen create failed");
+    ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
+    return;
+  }
+  ED_region_panels_draw_offscreen(C, ui_region, &panel_rect, surface_data->panel_offscreen);
+  surface_data->panel_rect = panel_rect;
+  copy_m4_m4(surface_data->panel_obmat, obmat);
+  surface_data->panel_valid = true;
+
+  ED_region_panels_world_layout_end(mutable_C, ui_region, prev_alignment, prev_region);
 }
 
 }  // namespace blender
