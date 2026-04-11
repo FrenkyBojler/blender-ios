@@ -33,3 +33,4 @@ Referenced by issue #155830, Freestyle Edge Types Not Working Correctly
 Referenced by issue #155846, regression: mesh attributes are not initialized to zeros
 Referenced by issue #157219, The Bevel Modifier cannot find attributes while in object mode
 Referenced by pull request #157226, Fix #157219: Bevel modifier weight attribute search broken
+Referenced by commit 9826d87955cae44d91bbd1eed575a0c883bc8693, Fix #157219: Bevel modifier weight attribute search broken
