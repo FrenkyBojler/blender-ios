@@ -141,7 +141,6 @@ static void node_register()
   ntype.ui_name = "Merge by Distance";
   ntype.ui_description = "Merge vertices or points within a given distance";
   ntype.enum_name_legacy = "MERGE_BY_DISTANCE";
-  ntype.deprecation_notice = N_("Use the \"Merge Geometry\" node instead");
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   bke::node_type_storage(ntype,
