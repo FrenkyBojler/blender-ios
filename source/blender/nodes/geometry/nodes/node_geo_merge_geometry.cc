@@ -133,7 +133,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMergeGeometry");
+  geo_node_type_base(&ntype, "GeometryNodeMergeGeometry"_ustr);
   ntype.ui_name = "Merge Geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;

@@ -232,7 +232,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeClusterField");
+  geo_node_type_base(&ntype, "GeometryNodeClusterField"_ustr);
   ntype.ui_name = "Cluster Field";
   ntype.ui_description = "Group elements into integer IDs based on proximity of vector values";
   ntype.nclass = NODE_CLASS_CONVERTER;

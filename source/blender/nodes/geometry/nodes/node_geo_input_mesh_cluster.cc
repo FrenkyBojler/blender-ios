@@ -200,7 +200,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputMeshCluster");
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshCluster"_ustr);
   ntype.ui_name = "Mesh Cluster";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
