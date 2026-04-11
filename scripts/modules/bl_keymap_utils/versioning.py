@@ -333,4 +333,24 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
     if keyconfig_version < (5, 1, 11):
         rename_keymap({"Grease Pencil Paint Mode": "Grease Pencil Draw Mode"})
 
+    if keyconfig_version < (5, 2, 19):
+        for _km_name, _km_parms, km_items_data in keyconfig_data:
+            for (item_op, _item_event, item_prop) in km_items_data["items"]:
+                if item_op in (
+                    "grease_pencil.brush_stroke",
+                    "grease_pencil.sculpt_paint",
+                    "paint.image_paint",
+                    "paint.vertex_paint",
+                    "paint.weight_paint",
+                    "sculpt.brush_stroke",
+                        "sculpt_curves.brush_stroke"):
+                    idx_to_fix = -1
+                    value_to_copy = None
+                    for prop_idx, (prop_id, prop_value) in enumerate(item_prop["properties"]):
+                        if prop_id == "mode" and prop_value != "INVERT":
+                            idx_to_fix = prop_idx
+                            value_to_copy = prop_value
+                    if idx_to_fix != -1:
+                        item_prop["properties"][idx_to_fix] = ("brush_toggle", value_to_copy)
+
     return keyconfig_data
