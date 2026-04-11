@@ -1475,14 +1475,15 @@ class SEQUENCER_MT_view_pie(Menu):
 class SEQUENCER_MT_preview_view_pie(Menu):
     bl_label = "View"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         pie = layout.menu_pie()
         pie.operator_context = 'INVOKE_REGION_PREVIEW'
         pie.operator("sequencer.view_all_preview")
-        pie.operator("sequencer.view_selected", text="Frame Selected", icon='ZOOM_SELECTED')
-        pie.separator()
+        if context.space_data.view_type != "SCOPES":
+            pie.operator("sequencer.view_selected", text="Frame Selected", icon='ZOOM_SELECTED')
+            pie.separator()
         pie.operator("sequencer.view_zoom_ratio", text="Zoom 1:1").ratio = 1
 
 
