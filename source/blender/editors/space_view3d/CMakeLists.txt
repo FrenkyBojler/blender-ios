@@ -55,6 +55,7 @@ set(SRC
   view3d_navigate_view_pan.cc
   view3d_navigate_view_roll.cc
   view3d_navigate_view_rotate.cc
+  view3d_navigate_view_scale.cc
   view3d_navigate_view_zoom.cc
   view3d_navigate_walk.cc
   view3d_navigate_zoom_border.cc

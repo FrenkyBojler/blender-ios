@@ -206,6 +206,7 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_view_roll);
   WM_operatortype_append(VIEW3D_OT_view_pan);
   WM_operatortype_append(VIEW3D_OT_view_persportho);
+  WM_operatortype_append(VIEW3D_OT_view_scale);
   WM_operatortype_append(VIEW3D_OT_camera_background_image_add);
   WM_operatortype_append(VIEW3D_OT_camera_background_image_remove);
   WM_operatortype_append(VIEW3D_OT_drop_world);
@@ -272,6 +273,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
   walk_modal_keymap(keyconf);
   viewrotate_modal_keymap(keyconf);
   viewmove_modal_keymap(keyconf);
+  viewscale_modal_keymap(keyconf);
   viewzoom_modal_keymap(keyconf);
   viewdolly_modal_keymap(keyconf);
   viewplace_modal_keymap(keyconf);

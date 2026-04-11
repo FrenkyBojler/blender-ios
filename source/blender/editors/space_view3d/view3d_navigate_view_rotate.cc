@@ -25,6 +25,26 @@ namespace blender {
 /** \name View Rotate Operator
  * \{ */
 
+namespace {
+
+static void viewrotate_disable_viewscale(ViewOpsData *vod)
+{
+  RegionView3D *rv3d = vod->rv3d;
+
+  if ((rv3d->viewscale_x == 0.0f) && (rv3d->viewscale_y == 0.0f)) {
+    return;
+  }
+
+  rv3d->viewscale_x = 0.0f;
+  rv3d->viewscale_y = 0.0f;
+
+  ED_view3d_update_viewmat(
+      vod->depsgraph, vod->scene, vod->v3d, vod->region, nullptr, nullptr, nullptr, false);
+  ED_region_tag_redraw(vod->region);
+}
+
+}  // namespace
+
 void viewrotate_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
@@ -167,6 +187,7 @@ static void viewrotate_apply(ViewOpsData *vod, const int event_xy[2])
 {
   RegionView3D *rv3d = vod->rv3d;
 
+  viewrotate_disable_viewscale(vod);
   rv3d->view = RV3D_VIEW_USER; /* need to reset every time because of view snapping */
 
   if (U.flag & USER_TRACKBALL) {

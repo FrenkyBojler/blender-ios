@@ -607,8 +607,27 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
 
   BLI_rcti_init_pt_radius(&rect, co, hotspot);
 
+  /* Neutralise ortho-stretch so gizmo selection uses the same unscaled projection as the visual
+   * draw in DRW_draw_gizmo_3d. We zero viewscale before the setup call so view3d_winmatrix_set
+   * computes the correct sub-rect projection without stretch baked in. The viewscale is restored
+   * before the second setup call so that the full-viewport matrices are left in their normal
+   * (stretched) state after this function returns. */
+  RegionView3D *rv3d_sel = static_cast<RegionView3D *>(region->regiondata);
+  const float saved_viewscale_x = rv3d_sel->viewscale_x;
+  const float saved_viewscale_y = rv3d_sel->viewscale_y;
+  const bool has_stretch = (saved_viewscale_x != 0.0f) || (saved_viewscale_y != 0.0f);
+  if (has_stretch) {
+    rv3d_sel->viewscale_x = 0.0f;
+    rv3d_sel->viewscale_y = 0.0f;
+  }
+
   ED_view3d_draw_setup_view(
       wm, CTX_wm_window(C), depsgraph, CTX_data_scene(C), region, v3d, nullptr, nullptr, &rect);
+
+  if (has_stretch) {
+    rv3d_sel->viewscale_x = saved_viewscale_x;
+    rv3d_sel->viewscale_y = saved_viewscale_y;
+  }
 
   bool use_select_bias = false;
 

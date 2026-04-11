@@ -208,6 +208,22 @@ bool ED_view3d_viewplane_get(const Depsgraph *depsgraph,
   BKE_camera_params_from_view3d(&params, depsgraph, v3d, rv3d);
   BKE_camera_params_compute_viewplane(&params, winx, winy, 1.0f, 1.0f);
 
+  if (params.is_ortho && rv3d->persp == RV3D_ORTHO &&
+      (rv3d->viewscale_x != 0.0f || rv3d->viewscale_y != 0.0f))
+  {
+    const float center_x = BLI_rctf_cent_x(&params.viewplane);
+    const float center_y = BLI_rctf_cent_y(&params.viewplane);
+    const float scale_x = max_ff(1.0f + rv3d->viewscale_x, 0.01f);
+    const float scale_y = max_ff(1.0f + rv3d->viewscale_y, 0.01f);
+    const float half_width = (BLI_rctf_size_x(&params.viewplane) * scale_x) * 0.5f;
+    const float half_height = (BLI_rctf_size_y(&params.viewplane) * scale_y) * 0.5f;
+
+    params.viewplane.xmin = center_x - half_width;
+    params.viewplane.xmax = center_x + half_width;
+    params.viewplane.ymin = center_y - half_height;
+    params.viewplane.ymax = center_y + half_height;
+  }
+
   if (r_viewplane) {
     *r_viewplane = params.viewplane;
   }

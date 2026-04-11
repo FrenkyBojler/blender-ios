@@ -179,19 +179,9 @@ static void button2d_draw_intern(const bContext *C,
     button->is_init = true;
     button->icon = -1;
 
-    PropertyRNA *icon_prop = RNA_struct_find_property(gz->ptr, "icon");
-    PropertyRNA *icon_value_prop = RNA_struct_find_property(gz->ptr, "icon_value");
     PropertyRNA *shape_prop = RNA_struct_find_property(gz->ptr, "shape");
 
-    /* Same logic as in the RNA UI API, use icon_value only if icon is not defined. */
-    if (RNA_property_is_set(gz->ptr, icon_prop)) {
-      button->icon = RNA_property_enum_get(gz->ptr, icon_prop);
-    }
-    else if (RNA_property_is_set(gz->ptr, icon_value_prop)) {
-      button->icon = RNA_property_int_get(gz->ptr, icon_value_prop);
-      ui::icon_ensure_deferred(C, button->icon, false);
-    }
-    else if (RNA_property_is_set(gz->ptr, shape_prop)) {
+    if (RNA_property_is_set(gz->ptr, shape_prop)) {
       const uint polys_len = RNA_property_string_length(gz->ptr, shape_prop);
       if (LIKELY(polys_len > 0)) {
         char *polys = MEM_new_array_uninitialized<char>(polys_len, __func__);
@@ -203,6 +193,21 @@ static void button2d_draw_intern(const bContext *C,
         MEM_delete(polys);
       }
     }
+  }
+
+  PropertyRNA *icon_prop = RNA_struct_find_property(gz->ptr, "icon");
+  PropertyRNA *icon_value_prop = RNA_struct_find_property(gz->ptr, "icon_value");
+
+  /* Same logic as in the RNA UI API, use icon_value only if icon is not defined. */
+  if (RNA_property_is_set(gz->ptr, icon_prop)) {
+    button->icon = RNA_property_enum_get(gz->ptr, icon_prop);
+  }
+  else if (RNA_property_is_set(gz->ptr, icon_value_prop)) {
+    button->icon = RNA_property_int_get(gz->ptr, icon_value_prop);
+    ui::icon_ensure_deferred(C, button->icon, false);
+  }
+  else {
+    button->icon = -1;
   }
 
   float color[4];
@@ -319,7 +324,7 @@ static void button2d_draw_intern(const bContext *C,
         need_to_pop = false;
       }
 
-      float alpha = (highlight) ? 1.0f : 0.6f;
+      float alpha = ((highlight) ? 1.0f : 0.6f) * RNA_float_get(gz->ptr, "icon_alpha");
       GPU_polygon_smooth(false);
 
       uchar icon_color[4];
@@ -504,6 +509,8 @@ static void GIZMO_GT_button_2d(wmGizmoType *gzt)
                 "",
                 0.0f,
                 1.0f);
+  RNA_def_float(
+      gzt->srna, "icon_alpha", 1.0f, 0.0f, 1.0f, "Icon Alpha", "Alpha multiplier for the icon", 0.0f, 1.0f);
 }
 
 void ED_gizmotypes_button_2d()

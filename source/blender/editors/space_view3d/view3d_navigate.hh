@@ -93,6 +93,12 @@ enum eViewOpsFlag {
 };
 ENUM_OPERATORS(eViewOpsFlag);
 
+enum eViewScaleAxis {
+  VIEW_SCALE_AXIS_BOTH = 0,
+  VIEW_SCALE_AXIS_HORIZONTAL = 1,
+  VIEW_SCALE_AXIS_VERTICAL = 2,
+};
+
 struct ViewOpsType {
   eViewOpsFlag flag;
   const char *idname;
@@ -130,6 +136,7 @@ struct ViewOpsData {
     float camdx, camdy;  /* MOVE and ZOOM. */
     float camzoom;       /* ZOOM. */
     float dist;          /* ROTATE and ZOOM. */
+    float viewscale_x, viewscale_y; /* SCALE VIEW. */
     float quat[4];       /* ROLL and ROTATE. */
     char persp;          /* ROTATE. */
     char view;           /* ROTATE. */
@@ -183,6 +190,7 @@ struct ViewOpsData {
 
   float reverse;
   bool axis_snap; /* view rotate only */
+  eViewScaleAxis viewscale_axis = VIEW_SCALE_AXIS_BOTH;
 
   /** Use for orbit selection and auto-dist. */
   float dyn_ofs[3];
@@ -280,6 +288,13 @@ void viewmove_modal_keymap(wmKeyConfig *keyconf);
 void VIEW3D_OT_move(wmOperatorType *ot);
 
 extern const ViewOpsType ViewOpsType_move;
+
+/* view3d_navigate_scale.cc */
+
+void viewscale_modal_keymap(wmKeyConfig *keyconf);
+void VIEW3D_OT_view_scale(wmOperatorType *ot);
+
+extern const ViewOpsType ViewOpsType_scale;
 
 /* view3d_navigate_ndof.cc */
 

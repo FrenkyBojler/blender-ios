@@ -379,12 +379,24 @@ class Grid : Overlay {
                           ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0);
       float clip_dist = use_clip_end ? v3d->clip_end :
                                        (4.0f / max(rv3d->winmat[0][0], rv3d->winmat[1][1]));
+      /* When ortho-stretch (viewscale) is active the viewport shows more world-space in the
+       * stretched direction. Scale clip_dist so the grid always reaches the viewport edges. */
+      if (!use_clip_end && rv3d->persp == RV3D_ORTHO) {
+        const float stretch_x = std::max(1.0f + rv3d->viewscale_x, 1.0f);
+        const float stretch_y = std::max(1.0f + rv3d->viewscale_y, 1.0f);
+        clip_dist *= std::max(stretch_x, stretch_y);
+      }
       grid_ubo_.clip_rect = float2(clip_dist);
     }
 
+    /* Scale num_lines by the viewport stretch so there are enough lines to cover the full
+     * stretched area without premature fading at the edges. */
+    const float stretch_x = std::max(1.0f + rv3d->viewscale_x, 1.0f);
+    const float stretch_y = std::max(1.0f + rv3d->viewscale_y, 1.0f);
+    const float max_stretch = std::max(stretch_x, stretch_y);
     /* This suffices for most cases, and in others we fade to hide it. */
     /* TODO (not_mark): make this view-dependent in orthographic to have full coverage */
-    grid_ubo_.num_lines = rv3d->is_persp ? 151u : 301u;
+    grid_ubo_.num_lines = rv3d->is_persp ? 151u : uint(301.0f * max_stretch + 0.5f);
     num_iters_ = rv3d->is_persp ? OVERLAY_GRID_ITER_LEN : 1u;
 
     return true;

@@ -56,14 +56,15 @@ enum {
   /* overlaps GZ_INDEX_ORTHO (switch between) */
   GZ_INDEX_PERSP = 3,
   GZ_INDEX_ORTHO = 4,
+  GZ_INDEX_SCALE = 5,
 
-  GZ_INDEX_CAMERA_OFF = 5,
-  GZ_INDEX_CAMERA_ON = 6,
+  GZ_INDEX_CAMERA_OFF = 6,
+  GZ_INDEX_CAMERA_ON = 7,
 
-  GZ_INDEX_CAMERA_LOCK = 7,
-  GZ_INDEX_CAMERA_UNLOCK = 8,
+  GZ_INDEX_CAMERA_LOCK = 8,
+  GZ_INDEX_CAMERA_UNLOCK = 9,
 
-  GZ_INDEX_TOTAL = 9,
+  GZ_INDEX_TOTAL = 10,
 };
 
 struct NavigateGizmoInfo {
@@ -80,7 +81,9 @@ struct NavigateWidgetGroup {
     rcti rect_visible;
     struct {
       char is_persp;
+      char persp;
       bool is_camera;
+      bool is_scale_stretched;
       char viewlock;
       char cameralock;
     } rv3d;
@@ -123,6 +126,12 @@ static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
         "VIEW3D_OT_view_persportho",
         "GIZMO_GT_button_2d",
         ICON_VIEW_ORTHO,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_view_scale",
+        "GIZMO_GT_button_2d",
+        ICON_RESTRICT_VIEW_OFF,
         nullptr,
     },
     {
@@ -232,7 +241,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
 
   /* Modal operators, don't use initial mouse location since we're clicking on a button. */
   {
-    int gz_ids[] = {GZ_INDEX_MOVE, GZ_INDEX_ROTATE, GZ_INDEX_ZOOM};
+    int gz_ids[] = {GZ_INDEX_MOVE, GZ_INDEX_ROTATE, GZ_INDEX_ZOOM, GZ_INDEX_SCALE};
     for (int i = 0; i < ARRAY_SIZE(gz_ids); i++) {
       wmGizmo *gz = navgroup->gz_array[gz_ids[i]];
       wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
@@ -272,6 +281,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   ARegion *region = CTX_wm_region(C);
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
   const View3D *v3d = CTX_wm_view3d(C);
+  const bool is_scale_stretched = (rv3d->viewscale_x != 0.0f) || (rv3d->viewscale_y != 0.0f);
 
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);
@@ -285,7 +295,9 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   if ((navgroup->state.rect_visible.xmax == rect_visible->xmax) &&
       (navgroup->state.rect_visible.ymax == rect_visible->ymax) &&
       (navgroup->state.rv3d.is_persp == rv3d->is_persp) &&
+      (navgroup->state.rv3d.persp == rv3d->persp) &&
       (navgroup->state.rv3d.is_camera == (rv3d->persp == RV3D_CAMOB)) &&
+      (navgroup->state.rv3d.is_scale_stretched == is_scale_stretched) &&
       (navgroup->state.rv3d.cameralock == (v3d->flag2 & V3D_LOCK_CAMERA)) &&
       (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)))
   {
@@ -294,7 +306,9 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
 
   navgroup->state.rect_visible = *rect_visible;
   navgroup->state.rv3d.is_persp = rv3d->is_persp;
+  navgroup->state.rv3d.persp = rv3d->persp;
   navgroup->state.rv3d.is_camera = (rv3d->persp == RV3D_CAMOB);
+  navgroup->state.rv3d.is_scale_stretched = is_scale_stretched;
   navgroup->state.rv3d.viewlock = RV3D_LOCK_FLAGS(rv3d);
   navgroup->state.rv3d.cameralock = v3d->flag2 & V3D_LOCK_CAMERA;
 
@@ -334,11 +348,21 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   };
 
   wmGizmo *gz;
+  const bool is_scale_available = (rv3d->persp == RV3D_ORTHO);
 
   for (uint i = 0; i < ARRAY_SIZE(navgroup->gz_array); i++) {
     gz = navgroup->gz_array[i];
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
   }
+
+  gz = navgroup->gz_array[GZ_INDEX_SCALE];
+  RNA_enum_set(
+      gz->ptr, "icon", is_scale_stretched ? ICON_SCREEN_BACK : ICON_FULLSCREEN_ENTER);
+  RNA_float_set(gz->ptr, "icon_alpha", is_scale_available ? 1.0f : 0.35f);
+  WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN_SELECT, !is_scale_available);
+  WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN_KEYMAP, !is_scale_available);
+  gz->color[3] = 0.0f;
+  gz->color_hi[3] = 0.0f;
 
   if (show_rotate_gizmo) {
     gz = navgroup->gz_array[GZ_INDEX_ROTATE];
@@ -376,6 +400,11 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
         gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
         WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
       }
+
+      gz = navgroup->gz_array[GZ_INDEX_SCALE];
+      gz->matrix_basis[3][0] = roundf(co[0]);
+      gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
     }
 
     if (navgroup->state.rv3d.is_camera == true) {

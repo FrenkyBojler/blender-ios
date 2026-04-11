@@ -483,6 +483,8 @@ struct RegionView3D {
    * viewport "zoom" functions to use.
    */
   float dist = 0;
+  /** Additional orthographic projection stretch, where 0.0f is neutral. */
+  float viewscale_x = 0, viewscale_y = 0;
   /** Camera view offsets, 1.0 = viewplane moves entire width/height. */
   float camdx = 0, camdy = 0;
   /** Runtime only. */

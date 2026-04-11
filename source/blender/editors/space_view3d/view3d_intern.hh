@@ -48,6 +48,7 @@ void VIEW3D_OT_view_lock_to_active(wmOperatorType *ot);
 void VIEW3D_OT_view_center_camera(wmOperatorType *ot);
 void VIEW3D_OT_view_center_lock(wmOperatorType *ot);
 void VIEW3D_OT_view_persportho(wmOperatorType *ot);
+void VIEW3D_OT_view_scale(wmOperatorType *ot);
 void VIEW3D_OT_navigate(wmOperatorType *ot);
 void VIEW3D_OT_camera_background_image_add(wmOperatorType *ot);
 void VIEW3D_OT_camera_background_image_remove(wmOperatorType *ot);

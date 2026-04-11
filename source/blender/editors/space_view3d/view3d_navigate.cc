@@ -98,6 +98,8 @@ void ViewOpsData::state_backup()
   this->init.camdy = rv3d->camdy;
   this->init.camzoom = rv3d->camzoom;
   this->init.dist = rv3d->dist;
+  this->init.viewscale_x = rv3d->viewscale_x;
+  this->init.viewscale_y = rv3d->viewscale_y;
   copy_qt_qt(this->init.quat, rv3d->viewquat);
 
   this->init.persp = rv3d->persp;
@@ -144,6 +146,12 @@ void ViewOpsData::state_restore()
   /* ZOOM. */
   {
     this->rv3d->camzoom = this->init.camzoom;
+  }
+
+  /* SCALE VIEW. */
+  {
+    this->rv3d->viewscale_x = this->init.viewscale_x;
+    this->rv3d->viewscale_y = this->init.viewscale_y;
   }
 
   /* ROTATE and ZOOM. */
