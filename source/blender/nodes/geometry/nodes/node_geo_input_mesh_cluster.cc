@@ -4,6 +4,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_disjoint_set.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sort.hh"
 #include "BLI_task.hh"

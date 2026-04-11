@@ -112,7 +112,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
     if (distance_ == 0.0f) {
-      /* Using a map provides better time complexity compare to kdtree, while yet both are not
+      /* Using a map provides better time complexity compared to kdtree, while yet both are not
        * parallel at the moment, so map is better choose. */
       Map<std::pair<float3, int>, int> clusters;
       mask_to_cluster.foreach_index([&](const int index) {
