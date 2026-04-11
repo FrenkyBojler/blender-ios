@@ -757,24 +757,12 @@ void ShadowModule::sync_object(const Object *ob,
                                const ObjectHandle &handle,
                                const ResourceHandleRange &resource_handle,
                                bool is_alpha_blend,
-                               bool has_transparent_shadows)
+                               bool has_transparent_shadows,
+                               bool use_scene_time)
 {
   bool is_shadow_caster = !(ob->visibility_flag & OB_HIDE_SHADOW);
   if (!is_shadow_caster && !is_alpha_blend) {
     return;
-  }
-
-  bool uses_scene_time = false;
-  MaterialArray &material_array = inst_.materials.material_array_get(const_cast<Object *>(ob),
-                                                                     false);
-
-  for (auto i : material_array.gpu_materials.index_range()) {
-    Material &material = material_array.materials[i];
-    GPUMaterial *gpu_material = material_array.gpu_materials[i];
-    if (GPU_material_flag_get(gpu_material, GPU_MATFLAG_SCENE_TIME)) {
-      uses_scene_time = true;
-      break;
-    }
   }
 
   ShadowObject &shadow_ob = objects_.lookup_or_add_default(handle.object_key);
@@ -782,7 +770,7 @@ void ShadowModule::sync_object(const Object *ob,
   const bool is_initialized = shadow_ob.resource_handle.is_valid();
   const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
   if (is_shadow_caster &&
-      (handle.recalc || !is_initialized || has_jittered_transparency || uses_scene_time))
+      (handle.recalc || !is_initialized || has_jittered_transparency || use_scene_time))
   {
     if (handle.recalc && is_initialized) {
       past_casters_updated_.append(shadow_ob.resource_handle.raw());

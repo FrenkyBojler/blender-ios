@@ -368,7 +368,8 @@ class ShadowModule {
                    const ObjectHandle &handle,
                    const ResourceHandleRange &resource_handle,
                    bool is_alpha_blend,
-                   bool has_transparent_shadows);
+                   bool has_transparent_shadows,
+                   bool use_scene_time);
   void end_sync();
 
   void set_lights_data();

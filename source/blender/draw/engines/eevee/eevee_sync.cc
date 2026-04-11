@@ -110,6 +110,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     return;
   }
 
+  bool use_scene_time = false;
   bool is_alpha_blend = false;
   bool has_transparent_shadows = false;
   bool has_volume = false;
@@ -154,6 +155,10 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     if (GPU_material_has_displacement_output(gpu_material)) {
       inflate_bounds = math::max(inflate_bounds, mat->inflate_bounds);
     }
+
+    if (GPU_material_flag_get(gpu_material, GPU_MATFLAG_SCENE_TIME)) {
+      use_scene_time = true;
+    }
   }
 
   if (has_volume) {
@@ -166,7 +171,8 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
 
   inst_.manager->extract_object_attributes(res_handle, ob_ref, material_array.gpu_materials);
 
-  inst_.shadows.sync_object(ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows);
+  inst_.shadows.sync_object(
+      ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows, use_scene_time);
   inst_.cryptomatte.sync_object(ob, res_handle);
 }
 
@@ -186,6 +192,7 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
   bool has_motion = false;
   MaterialArray &material_array = inst_.materials.material_array_get(ob, has_motion);
 
+  bool use_scene_time = false;
   bool is_alpha_blend = false;
   bool has_transparent_shadows = false;
   bool has_volume = false;
@@ -232,6 +239,10 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
     if (GPU_material_has_displacement_output(gpu_material)) {
       inflate_bounds = math::max(inflate_bounds, mat->inflate_bounds);
     }
+
+    if (GPU_material_flag_get(gpu_material, GPU_MATFLAG_SCENE_TIME)) {
+      use_scene_time = true;
+    }
   }
 
   if (has_volume) {
@@ -240,7 +251,8 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
 
   inst_.manager->extract_object_attributes(res_handle, ob_ref, material_array.gpu_materials);
 
-  inst_.shadows.sync_object(ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows);
+  inst_.shadows.sync_object(
+      ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows, use_scene_time);
   inst_.cryptomatte.sync_object(ob, res_handle);
 
   return true;
@@ -313,6 +325,8 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
   blender::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
+  bool use_scene_time = GPU_material_flag_get(gpu_material, GPU_MATFLAG_SCENE_TIME);
+
   if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
     inst_.manager->update_handle_bounds(res_handle, ob_ref, mat->inflate_bounds);
   }
@@ -323,7 +337,8 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
                             ob_handle,
                             res_handle,
                             material.is_alpha_blend_transparent,
-                            material.has_transparent_shadows);
+                            material.has_transparent_shadows,
+                            use_scene_time);
 }
 
 /** \} */
@@ -471,6 +486,8 @@ void SyncModule::sync_curves(Object *ob,
   blender::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
+  bool use_scene_time = GPU_material_flag_get(gpu_material, GPU_MATFLAG_SCENE_TIME);
+
   if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
     inst_.manager->update_handle_bounds(res_handle, ob_ref, mat->inflate_bounds);
   }
@@ -481,7 +498,8 @@ void SyncModule::sync_curves(Object *ob,
                             ob_handle,
                             res_handle,
                             material.is_alpha_blend_transparent,
-                            material.has_transparent_shadows);
+                            material.has_transparent_shadows,
+                            use_scene_time);
 }
 
 /** \} */
