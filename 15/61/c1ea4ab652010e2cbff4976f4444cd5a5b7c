@@ -10,3 +10,4 @@ Referenced by issue #156955, Node tools menu cannot find tools marked as assets 
 Referenced by pull request #157016, Fix: Geometry Nodes: Color input soft limits are broken
 Referenced by commit be63ad7b6b30cacf6908df82d2ed7661f699597b, Fix: Geometry Nodes: Color input soft limits are broken
 Referenced by issue #157065, Saving a file containing node tools does not resolve node tool registration errors.
+Referenced by issue #157233, Geometry Nodes: Crash when enabling "Input Attribute Toggle" on string socket
