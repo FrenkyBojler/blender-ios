@@ -70,7 +70,7 @@ enum class AreaDockTarget {
 #define AREAJOINTOLERANCEY (HEADERY * UI_SCALE_FAC)
 
 /* Edges must be within these to allow aligned edge merging. */
-#define EDGE_ALIGN_TOLERANCE (5 * UI_SCALE_FAC)
+#define EDGE_ALIGN_TOLERANCE (7 * UI_SCALE_FAC)
 
 /**
  * Expanded interaction influence of area borders.

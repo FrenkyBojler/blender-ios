@@ -68,8 +68,10 @@
 
 /* Vertex shader input vertex index, which includes the base vertex if one is specified. */
 #  define vertex_id maybe_unused
-/* Vertex shader input instance index, which includes the base instance if one is specified. */
+/* Vertex shader input instance index, which doesn't include the base instance. */
 #  define instance_id maybe_unused
+/* Vertex shader input instance index, which includes the base instance if one is specified. */
+#  define instance_index maybe_unused
 /* Vertex shader input base instance value added to each instance identifier before reading
  * per-instance data. */
 #  define base_instance maybe_unused
@@ -109,6 +111,8 @@
 #  define resource_table maybe_unused
 /* Only declare the member if cond evaluates to true. */
 #  define condition(cond) maybe_unused
+/* Set binding frequency of a resource (storage, uniform, image, sampler). */
+#  define frequency(freq) maybe_unused
 
 /* Make a structure layout or enum shared between CPU and GPU code.
  * Required for structs defining storage and uniform buffer layout. */

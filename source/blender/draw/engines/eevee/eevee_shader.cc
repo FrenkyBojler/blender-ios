@@ -453,11 +453,11 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case LIGHT_SHADOW_SETUP:
       return "eevee_light_shadow_setup";
     case RAY_DENOISE_SPATIAL:
-      return "eevee_ray_denoise_spatial";
+      return "eevee_raytracing_denoise_spatial";
     case RAY_DENOISE_TEMPORAL:
-      return "eevee_ray_denoise_temporal";
+      return "eevee_raytracing_denoise_temporal";
     case RAY_DENOISE_BILATERAL:
-      return "eevee_ray_denoise_bilateral";
+      return "eevee_raytracing_denoise_bilateral";
     case RAY_GENERATE:
       return "eevee_ray_generate";
     case RAY_TRACE_FALLBACK:
@@ -518,6 +518,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_shadow_tilemap_init";
     case SHADOW_TILEMAP_TAG_UPDATE:
       return "eevee_shadow_tag_update";
+    case SHADOW_TILEMAP_TAG_UPDATE_PROPAGATE:
+      return "eevee_shadow_tag_update_propagate";
     case SHADOW_TILEMAP_TAG_USAGE_OPAQUE:
       return "eevee_shadow_tag_usage_opaque";
     case SHADOW_TILEMAP_TAG_USAGE_SURFELS:

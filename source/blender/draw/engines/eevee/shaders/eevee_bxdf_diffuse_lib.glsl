@@ -5,7 +5,8 @@
 #pragma once
 
 #include "eevee_bxdf_lib.glsl"
-#include "eevee_thickness_lib.glsl"
+#include "eevee_ltc_lut_lib.bsl.hh"
+#include "eevee_thickness_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -55,8 +56,7 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
 {
   ClosureLight light;
-  light.ltc_mat = float4(
-      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = eevee::lut::ltc::identity(); /* No transform, just plain cosine distribution. */
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -121,7 +121,7 @@ LightProbeRay bxdf_translucent_lightprobe(float3 N, Thickness thickness)
   return probe;
 }
 
-Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 V, Ray ray, Thickness thickness)
+Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 /*V*/, Ray ray, Thickness thickness)
 {
   if (thickness.mode() == ThicknessMode::Sphere) {
     /* Ray direction is distributed on the whole sphere.
@@ -131,7 +131,7 @@ Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 V, Ray ray, Thickn
   return ray;
 }
 
-ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness thickness)
+ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 /*V*/, Thickness thickness)
 {
   /* A translucent sphere lit by a light outside the sphere transmits the
    * light uniformly over the sphere. To mimic this phenomenon, we use the light vector
@@ -141,8 +141,7 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
    */
   ClosureLight light;
-  light.ltc_mat = float4(
-      1.0f, 0.0f, 0.0f, 1.0f); /* No transform, just plain cosine distribution. */
+  light.ltc_mat = eevee::lut::ltc::identity(); /* No transform, just plain cosine distribution. */
   light.N = -cl.N;
   light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;
