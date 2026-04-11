@@ -136,6 +136,16 @@ void CPUDevice::mem_copy_from(
   /* no-op */
 }
 
+void CPUDevice::mem_or_from_device(device_memory &mem, vector<uint8_t> &combined)
+{
+  /* CPU device memory is host memory, no copy needed. */
+  assert(mem.memory_size() >= combined.size());
+  const uint8_t *src = (const uint8_t *)mem.host_pointer;
+  for (size_t i = 0; i < combined.size(); i++) {
+    combined[i] |= src[i];
+  }
+}
+
 void CPUDevice::mem_zero(device_memory &mem)
 {
   if (!mem.device_pointer) {
