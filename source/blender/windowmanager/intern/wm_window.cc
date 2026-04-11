@@ -3451,11 +3451,11 @@ void WM_window_IME_end(wmWindow *win)
 
 void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region)
 {
+  WM_window_IME_end(win);
+
   if (!region || !region->runtime->type->cursor_ime) {
     return;
   }
-
-  WM_window_IME_end(win);
 
   const std::optional<blender::int2> pos = region->runtime->type->cursor_ime(win, area, region);
   if (pos) {
