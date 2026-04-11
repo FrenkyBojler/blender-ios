@@ -1,2 +1,3 @@
 Referenced by issue #153671, Vulkan: Crash on startup on older NVIDIA GPUs
 Referenced by issue #154367, Intel Arc Vulkan Linux fails EEVEE camera bokeh test
+Referenced by issue #157210, Blender 5.1.0 Hangs or crashes while rendering (stuck on "compositing" or "finishing") using denoise nodes on some render passes in the compositor.
