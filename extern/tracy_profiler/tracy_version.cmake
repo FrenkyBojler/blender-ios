@@ -2,5 +2,6 @@
 #   - The Tracy Client library, built as a pre-compiled library in build_files/build_environment/cmake/tracy.cmake
 #   - The Tracy Profiler GUI, built as an standalone target in extern/tracy_profiler
 
-# Using a latest main hash as Tracy WoA support (commit feb07e4) hasn't made it to a stable release yet. Switch to stable on next upgrade.
-set(TRACY_VERSION 00a069d6088ff8d93304eaac4d925cece0e9081c) # Latest main on 2026-04-09
+# Using a latest main hash as Tracy WoA support (commit feb07e4) hasn't made it to a stable release yet.
+# Switch to stable on next upgrade.
+set(TRACY_VERSION a64b9a20294d59421a2f57aeca3c6383d8c48169) # Latest main on 2026-04-11
