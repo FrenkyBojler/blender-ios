@@ -32,3 +32,4 @@ Referenced by commit 9d45274305d7808937599ac92514cf5ea9816326, Fix #155611: Cras
 Referenced by issue #155830, Freestyle Edge Types Not Working Correctly
 Referenced by issue #155846, regression: mesh attributes are not initialized to zeros
 Referenced by issue #157219, The Bevel Modifier cannot find attributes while in object mode
+Referenced by pull request #157226, Fix #157219: Bevel modifier weight attribute search broken
