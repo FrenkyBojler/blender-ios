@@ -2339,6 +2339,56 @@ void U_fn();
 }
 GPU_TEST(preprocess_empty_struct);
 
+static void test_preprocess_structured_bindings()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+struct S {
+  int i;
+  float b;
+};
+
+S test()
+{
+  return S{};
+}
+
+void fn()
+{
+  auto [a, b] = S{};
+  auto [c, d] = test();
+}
+)";
+    string expect = R"(
+struct S {
+  int i;
+  float b;
+};
+#line 2
+                 S S_ctor_() {S r;r.i=0;r.b=0.0f;return r;}
+#line 7
+S test()
+{
+  return S_ctor_();
+}
+
+void fn()
+{
+  S _u0= S_ctor_();int a=_u0.i;float b=_u0.b;
+  S _u1= test();int c=_u1.i;float d=_u1.b;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_structured_bindings);
+
 static void test_preprocess_struct_methods()
 {
   using namespace shader;

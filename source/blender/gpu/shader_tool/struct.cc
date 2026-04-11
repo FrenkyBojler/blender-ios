@@ -378,4 +378,88 @@ void SourceProcessor::lower_method_calls(Parser &parser)
   } while (parser.apply_mutations());
 }
 
+void SourceProcessor::lower_structured_bindings(Parser &parser)
+{
+  auto get_function_return_type = [&](string_view fn_name) {
+    string return_type;
+    parser().foreach_function([&](bool, Token type, Token name, Scope, bool, Scope) {
+      if (name.str() != fn_name) {
+        return;
+      }
+      return_type = type.str();
+    });
+    return return_type;
+  };
+
+  auto get_struct_members = [&](string_view struct_name) {
+    vector<pair<Token, Token>> members;
+    parser().foreach_match("sA{", [&](const Tokens &t) {
+      if (t[1].str() != struct_name) {
+        return;
+      }
+      Scope body = t.back().scope();
+      body.foreach_declaration([&](Scope, Token, Token type, Scope, Token name, Scope, Token) {
+        members.emplace_back(type, name);
+      });
+    });
+    return members;
+  };
+
+  parser().foreach_scope(ScopeType::Function, [&](Scope body) {
+    /* Unique index per binding to avoid to mess with scopes. */
+    int index = 0;
+    body.foreach_match("A[..]=", [&](const Tokens &t) {
+      if (t[0].str() != "auto") {
+        return;
+      }
+      Token fn_name = t.back().next(1);
+      /* For now only support expanding form a single function call. */
+      if (fn_name != Word || t.back().next(2) != '(') {
+        report_error(fn_name, "Expected function call");
+      }
+      Token after_fn = t.back().next(2).scope().back().next();
+      if (after_fn != ';') {
+        report_error(after_fn, "Expected single function call");
+      }
+
+      string struct_type = get_function_return_type(fn_name.str());
+      if (struct_type.empty()) {
+        report_error(fn_name, "Couldn't infer function return type. Can be caused by overload.");
+        return;
+      }
+
+      string struct_var = "_u" + to_string(index);
+
+      parser.replace(t[0], t[4], struct_type + " " + struct_var);
+
+      vector<pair<Token, Token>> struct_members = get_struct_members(struct_type);
+
+      Scope var_list = t[1].scope();
+      string assignments = ";";
+      int member_index = 0;
+      var_list.foreach_token(Word, [&](Token tok) {
+        if (struct_members.size() > member_index) {
+          auto [member_type, member_name] = struct_members[member_index];
+          assignments += string(member_type.str()) + " " + string(tok.str()) + "=" + struct_var +
+                         "." + string(member_name.str()) + ";";
+          member_index++;
+        }
+        else {
+          report_error(tok, "Too many parameters in structured binding");
+        }
+      });
+      if (struct_members.size() != member_index) {
+        report_error(t[4], "Missing parameters in structured binding");
+      }
+      /* Drop trailing semicolon.  */
+      assignments = assignments.substr(0, assignments.size() - 1);
+
+      parser.insert_after(after_fn.prev(), assignments);
+      index++;
+    });
+  });
+
+  parser.apply_mutations();
+}
+
 }  // namespace blender::gpu::shader
