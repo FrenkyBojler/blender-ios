@@ -37,7 +37,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGreasePencilStrokeInfo");
   ntype.ui_name = "Stroke Info";
-  ntype.ui_description = "Output various Grease Pencil stroke attributes";
+  ntype.ui_description = "Retrieve information about Grease Pencil strokes";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

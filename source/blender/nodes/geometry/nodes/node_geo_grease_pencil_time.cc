@@ -29,7 +29,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGreasePencilTime");
   ntype.ui_name = "Grease Pencil Time";
-  ntype.ui_description = "Output attributes to when a grease pencil stroke is drawn";
+  ntype.ui_description = "Retrieve when and how quickly a Grease Pencil stroke is drawn";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
