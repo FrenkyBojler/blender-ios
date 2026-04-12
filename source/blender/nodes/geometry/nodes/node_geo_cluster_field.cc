@@ -111,7 +111,6 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     mask_to_fallback.foreach_index_optimized<int>(
         [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
-    /* TODO: We must be able to check group_ids.is_single() and skip this at all. */
     std::optional<VArraySpan<int>> group_id_span;
     const auto group_indices = [&]() -> VectorSet<int> {
       if (group_ids.is_single()) {
@@ -141,7 +140,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     const int avg_group_size = domain_size / group_indices.size();
     const int grain_size = std::max(8192 / avg_group_size, 1);
 
-    if (distance_ == 0.0f) {
+    if (distance_ <= 0.0f) {
       threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
         for (const int group_i : range) {
           const IndexMask &group_mask = all_indices_by_group_id[group_i];

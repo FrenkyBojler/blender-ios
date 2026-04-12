@@ -23,7 +23,7 @@ namespace geometry {
  * indices favor speed over accuracy, since the results will depend on the order of the points.
  */
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
-                                    float merge_distance,
+                                    const float merge_distance,
                                     const IndexMask &selection,
                                     const bke::AttributeFilter &attribute_filter);
 
