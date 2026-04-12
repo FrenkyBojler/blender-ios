@@ -1902,6 +1902,7 @@ class USERPREF_PT_input_mouse(InputPanel, CenterAlignMixIn, Panel):
         flow.prop(inputs, "use_mouse_continuous")
         flow.prop(inputs, "use_drag_immediately")
         flow.prop(inputs, "mouse_double_click_time", text="Double Click Speed")
+        flow.prop(inputs, "long_press_time")
         flow.prop(inputs, "drag_threshold_mouse")
         flow.prop(inputs, "drag_threshold_tablet")
         flow.prop(inputs, "drag_threshold")

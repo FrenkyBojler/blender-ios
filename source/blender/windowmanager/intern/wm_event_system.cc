@@ -4239,6 +4239,24 @@ void wm_event_do_handlers(bContext *C)
       wm_event_free_all(&win);
     }
 
+    if (win.runtime->eventstate->val == KM_PRESS &&
+        !(win.runtime->eventstate->flag & WM_EVENT_IS_REPEAT))
+    {
+      GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
+      const uint64_t now_ms = ghost_system->getMilliSeconds();
+      int64_t elapsed = (now_ms - win.runtime->eventstate_prev_press_time_ms);
+      if (elapsed > U.long_press_time) {
+        win.runtime->eventstate->val = KM_LONG_PRESS;
+        wmEvent tevent = *(win.runtime->eventstate);
+        tevent.type = win.runtime->eventstate->type;
+        tevent.val = KM_LONG_PRESS;
+        tevent.prev_xy[0] = tevent.xy[0];
+        tevent.prev_xy[1] = tevent.xy[1];
+        tevent.flag = eWM_EventFlag(0);
+        wm_event_add_intern(&win, &tevent);
+      }
+    }
+
     wmEvent *event;
     while ((event = static_cast<wmEvent *>(win.runtime->event_queue.first))) {
       /* Do the check at the start of the next iteration, to avoid by-passing it in case the
@@ -5946,6 +5964,11 @@ static void wm_event_state_update_and_click_set_ex(wmEvent *event,
   event_state->flag = (event->flag & event_state_flag_mask);
   /* NOTE: It's important that `keymodifier` is handled in the keyboard event handling logic
    * since the `event_state` and the `event` are not kept in sync. */
+
+  if (event->val == KM_RELEASE && event->prev_val == KM_LONG_PRESS) {
+    /* this is a release after a long press so we need to swallow this. */
+    event->type = EVENT_NONE;
+  }
 
   /* Double click test. */
   if (check_double_click &&

@@ -6800,6 +6800,12 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Double Click Timeout", "Time/delay (in ms) for a double click");
   RNA_def_property_update(prop, 0, "rna_userdef_window_csd_params_update");
 
+  prop = RNA_def_property(srna, "long_press_time", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "long_press_time");
+  RNA_def_property_range(prop, 200, 3000);
+  RNA_def_property_ui_text(prop, "Long Press Timeout", "Time/delay (in ms) for a long press");
+  RNA_def_property_update(prop, 0, "rna_userdef_window_csd_params_update");
+
   prop = RNA_def_property(srna, "use_mouse_emulate_3_button", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_TWOBUTTONMOUSE);
   RNA_def_property_ui_text(

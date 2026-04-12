@@ -916,7 +916,7 @@ struct UserDef {
   short versions = 1;
   short dbl_click_time = 350;
 
-  char _pad0[2] = {};
+  short long_press_time = 500;
 
   /** Space around each area. Inter-editor gap width. */
   char border_width = 2;

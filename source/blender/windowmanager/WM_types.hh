@@ -319,11 +319,12 @@ enum {
   KM_RELEASE = 2,
   KM_CLICK = 3,
   KM_DBL_CLICK = 4,
+  KM_LONG_PRESS = 5,
   /**
    * \note The cursor location at the point dragging starts is set to #wmEvent.prev_press_xy
    * some operators such as box selection should use this location instead of #wmEvent.xy.
    */
-  KM_PRESS_DRAG = 5,
+  KM_PRESS_DRAG = 6,
 };
 /**
  * Alternate define for #wmKeyMapItem::shift and other modifiers.
