@@ -3792,13 +3792,6 @@ static void calculate_vertex_mesh_face_uvs(const int bevvert,
       for (const int f : IndexRange(nums[2])) {
         calculate_adj_face_uvs(f, bevvert, gaps, uv_map_index, uv_attributes, bs);
       }
-      fmt::println("pattern for bevvert {}", bevvert);
-      adj::print_adj_pattern(pat.num_anchors, pat.num_segs);
-      for (const int v : IndexRange(adj::v_total_verts(pat.num_anchors, pat.num_segs))) {
-        fmt::println("corners for v={}", v);
-        SmallIntArray cs = pat.corners_for_vert(v);
-        print_span(cs.as_span(), "corners");
-      }
       break;
     }
     case MeshKind::Line: {
@@ -5080,9 +5073,7 @@ static float3 adj_edge_anchor_co(int bv,
                                  int cur_anchor_pos,
                                  int next_anchor_pos,
                                  int num_in_plane,
-                                 int be_in_plane_pos,
                                  int num_not_in_plane,
-                                 int be_not_in_plane_pos,
                                  const BevelState &bs)
 {
   const int be_cur = bs.bevvert_bevedges()[bv][cur_anchor_pos];
@@ -5100,41 +5091,11 @@ static float3 adj_edge_anchor_co(int bv,
   int offset_bepos_in_plane = -1;
   int offset_meet_face = bs.face_next(bv, cur_anchor_pos);
   if (num_not_in_plane > 0) {
-#if 0
-    TODO: either delete this or revive it if we need loop_slide
-    if (bs.params.loop_slide && num_not_in_plane == 1 &&
-        geom::good_slide(
-            bv, cur_anchor_pos, next_anchor_pos, be_not_in_plane_pos, spec_r, spec_next_l, bs))
-    {
-      offset_edge_between = true;
-      offset_bepos_in_plane = be_not_in_plane_pos;
-      eon_pos = be_not_in_plane_pos;
-    }
-    else {
-      offset_meet_face = -1;
-      offset_meet_edges_between = true;
-    }
-#else
     offset_meet_face = -1;
     offset_meet_edges_between = true;
-#endif
   }
   else if (num_in_plane > 0) {
-#if 0
-    TODO: either delete this or revive it if we need loop_slide
-    if (bs.params.loop_slide && num_in_plane == 1 &&
-        geom::good_slide(
-            bv, cur_anchor_pos, next_anchor_pos, be_in_plane_pos, spec_r, spec_next_l, bs))
-    {
-      offset_edge_between = true;
-      eon_pos = be_in_plane_pos;
-    }
-    else {
-      offset_meet_edges_between = false;
-    }
-#else
     offset_meet_edges_between = false;
-#endif
   }
   if (offset_edge_between) {
     if (!geom::try_offset_on_edge_between(bv,
@@ -5310,8 +5271,6 @@ static void build_vmesh_skeleton(int bv,
        * "not in plane". */
       int num_in_plane = 0;
       int num_not_in_plane = 0;
-      int be_in_plane_pos = -1;
-      int be_not_in_plane_pos = -1;
       for (int i = 1; i < num_edges; i++) {
         const int be = bevedges[i];
         const int be_end = bs.bevedge_vert_end(bv, be);
@@ -5323,37 +5282,25 @@ static void build_vmesh_skeleton(int bv,
                                                                 bevel_pos[cur_anchor],
                                                                 bevel_pos[next_anchor],
                                                                 num_in_plane,
-                                                                be_in_plane_pos,
                                                                 num_not_in_plane,
-                                                                be_not_in_plane_pos,
                                                                 bs);
           cur_anchor = next_anchor;
           next_anchor = (cur_anchor + 1) % num_beveled;
           num_in_plane = 0;
           num_not_in_plane = 0;
-          be_in_plane_pos = -1;
-          be_not_in_plane_pos = -1;
         }
         else {
           if (geom::bevedge_on_plane(bv, i, bs)) {
             num_in_plane++;
-            be_in_plane_pos = i;
           }
           else {
             num_not_in_plane++;
-            be_not_in_plane_pos = i;
           }
         }
       }
       const int anchor_pos = pat.anchor_vert(next_anchor);
-      bv_newvert_positions[anchor_pos] = adj_edge_anchor_co(bv,
-                                                            bevel_pos[cur_anchor],
-                                                            bevel_pos[next_anchor],
-                                                            num_in_plane,
-                                                            be_in_plane_pos,
-                                                            num_not_in_plane,
-                                                            be_not_in_plane_pos,
-                                                            bs);
+      bv_newvert_positions[anchor_pos] = adj_edge_anchor_co(
+          bv, bevel_pos[cur_anchor], bevel_pos[next_anchor], num_in_plane, num_not_in_plane, bs);
     }
   }
 }
@@ -6536,16 +6483,6 @@ static std::optional<Mesh *> build_mesh(const BevelState &bs,
     }
     dst.finish();
   });
-  if (false) {
-    fmt::println("dst mesh");
-    print_float3_span(dst_mesh->vert_positions(), "vert_positions");
-    print_int2_span(dst_mesh->edges(), "edges");
-    print_offsetindices(dst_mesh->faces(), "faces");
-    print_span(dst_mesh->corner_verts(), "corner_verts");
-    print_span(dst_mesh->corner_edges(), "corner_edges");
-  }
-  /* TEMP: while developing, before we have attributes done properly. */
-  bke::mesh_smooth_set(*dst_mesh, false, true);
   BLI_assert(bke::mesh_is_valid(*dst_mesh));
 
   return dst_mesh;
@@ -6564,7 +6501,6 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   {
     return std::nullopt;
   }
-  fmt::println("\n\nBEVEL, segments={}\n", params.segments);
 
   BevelState state(src_mesh, selection, params);
   if (state.bevverts_num == 0 && state.bevedges_num == 0 && state.bevfaces_num == 0) {
@@ -6575,12 +6511,9 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   state.determine_needed_new_elements();
   state.determine_needed_attribute_data();
   state.build_vertex_meshes();
-  // dump_bevel_state(state, "before build_edge_meshes");
   state.build_face_meshes();
   state.build_edge_meshes();
   uv::merge_uvs(state, state.uv_attributes_mutable());
-  // dump_bevel_state(state, "before build_mesh");
-  /* TODO: calculate output attributes, e.g. like create_cylinder_or_cone_mesh. */
   return build_mesh(state, attribute_filter);
 }
 
