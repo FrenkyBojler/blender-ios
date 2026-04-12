@@ -68,7 +68,11 @@ class NODE_OT_reset_selected(Operator):
 
         props_to_copy = ("location", "height", "width", "select", "location_absolute", "parent")
         success_names = []
-        active_node_name = node_active.name if node_active.select else None
+
+        if node_active and node_active.select:
+            active_node_name = node_active.name
+        else:
+            active_node_name = None
 
         # Run through all valid nodes
         for node in valid_nodes:
