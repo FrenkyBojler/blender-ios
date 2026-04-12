@@ -244,12 +244,9 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
     }
   }
 
-  /* Draw Rule of Thirds */
-  if (sseq.preview_overlay.flag & SEQ_PREVIEW_SHOW_RULE_THIRDS) {
-    immUniformThemeColorBlend(TH_VIEW_OVERLAY, TH_BACK, 0.25f);
+  /* Draw Composition Guides */
+  ui::draw_composition_guides(shdr_pos, static_cast<eCompositionGuideFlags>(sseq.preview_overlay.composition_guide_flags), &rect, sseq.preview_overlay.composition_guide_color);
 
-    ui::draw_rule_thirds(shdr_pos, &rect);
-  }
   immUnbindProgram();
 }
 

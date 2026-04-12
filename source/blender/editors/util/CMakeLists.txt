@@ -24,6 +24,7 @@ set(SRC
   gizmo_utils.cc
   numinput.cc
   select_utils.cc
+  composition_guides_draw.cc
 
   # general includes
   ../include/BIF_glutil.hh

@@ -304,7 +304,11 @@ struct SpaceNla {
 
 struct SequencerPreviewOverlay {
   int flag = 0;
-  char _pad0[4] = {};
+  char composition_guide_flags = 0; /* eCompositionGuideFlags */
+  char _pad0[3] = {};
+
+  /* Compositional guide overlay color */
+  float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 };
 
 struct SequencerTimelineOverlay {

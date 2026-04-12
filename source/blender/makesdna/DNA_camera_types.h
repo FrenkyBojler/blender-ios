@@ -46,16 +46,16 @@ enum {
   CAM_CUSTOM_SHADER_EXTERNAL = 1,
 };
 
-/* dtx */
-enum {
-  CAM_DTX_CENTER = (1 << 0),
-  CAM_DTX_CENTER_DIAG = (1 << 1),
-  CAM_DTX_THIRDS = (1 << 2),
-  CAM_DTX_GOLDEN = (1 << 3),
-  CAM_DTX_GOLDEN_TRI_A = (1 << 4),
-  CAM_DTX_GOLDEN_TRI_B = (1 << 5),
-  CAM_DTX_HARMONY_TRI_A = (1 << 6),
-  CAM_DTX_HARMONY_TRI_B = (1 << 7),
+/* Composition Guides */
+enum eCompositionGuideFlags{
+  COMPOSITION_GUIDES_CENTER = (1 << 0),
+  COMPOSITION_GUIDES_CENTER_DIAG = (1 << 1),
+  COMPOSITION_GUIDES_THIRDS = (1 << 2),
+  COMPOSITION_GUIDES_GOLDEN = (1 << 3),
+  COMPOSITION_GUIDES_GOLDEN_TRI_A = (1 << 4),
+  COMPOSITION_GUIDES_GOLDEN_TRI_B = (1 << 5),
+  COMPOSITION_GUIDES_HARMONY_TRI_A = (1 << 6),
+  COMPOSITION_GUIDES_HARMONY_TRI_B = (1 << 7),
 };
 
 /* flag */
@@ -203,8 +203,7 @@ struct Camera {
 
   /** CAM_PERSP, CAM_ORTHO, CAM_PANO or CAM_CUSTOM. */
   char type = 0;
-  /** Draw type extra. */
-  char dtx = 0;
+  char composition_guide_flags = 0; /* eCompositionGuideFlags */
   short flag = CAM_SHOWPASSEPARTOUT;
   float passepartalpha = 0.5f;
   float clip_start = 0.1f, clip_end = 1000.0f;
@@ -256,7 +255,7 @@ struct Camera {
   /* Stereo settings */
   struct CameraStereoSettings stereo;
 
-  /* Compositional guide overlay color */
+  /* Compositional guide overlay color */ 
   float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 
   /** Runtime data (keep last). */

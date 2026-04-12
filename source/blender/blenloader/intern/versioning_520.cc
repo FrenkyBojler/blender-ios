@@ -435,7 +435,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_SEQ) {
             SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
-            sseq->preview_overlay.flag &= SEQ_PREVIEW_SHOW_RULE_THIRDS;
+           // sseq->preview_overlay.flag &= SEQ_PREVIEW_SHOW_RULE_THIRDS;
           }
         }
       }

@@ -19,6 +19,7 @@
 #include "BLI_sys_types.h" /* size_t */
 
 #include "DNA_listBase.h"
+#include "DNA_camera_types.h"
 #include "DNA_userdef_types.h"
 
 #include "UI_interface_icons.hh"
@@ -697,7 +698,7 @@ void draw_safe_areas(uint pos,
                      const float title_aspect[2],
                      const float action_aspect[2]);
 
-void draw_rule_thirds(uint pos, const rctf *rect);
+void draw_composition_guides(uint shdr_pos, eCompositionGuideFlags flag, rctf *rect, const float color[4]);
 
 /** State for scroll-drawing. */
 enum {
