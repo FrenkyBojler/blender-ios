@@ -63,7 +63,12 @@ enum {
   GZ_INDEX_CAMERA_LOCK = 7,
   GZ_INDEX_CAMERA_UNLOCK = 8,
 
-  GZ_INDEX_TOTAL = 9,
+  /* Shown when NOT in local view — click to enter. */
+  GZ_INDEX_LOCAL_VIEW_OFF = 9,
+  /* Shown when IN local view — click to exit. */
+  GZ_INDEX_LOCAL_VIEW_ON = 10,
+
+  GZ_INDEX_TOTAL = 11,
 };
 
 struct NavigateGizmoInfo {
@@ -83,6 +88,7 @@ struct NavigateWidgetGroup {
       bool is_camera;
       char viewlock;
       char cameralock;
+      bool is_local_view;
     } rv3d;
   } state;
 };
@@ -148,6 +154,18 @@ static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
         "GIZMO_GT_button_2d",
         ICON_VIEW_UNLOCKED,
         navigate_context_toggle_camera_lock_init,
+    },
+    {
+        "VIEW3D_OT_localview",
+        "GIZMO_GT_button_2d",
+        ICON_ZOOM_SELECTED,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_localview",
+        "GIZMO_GT_button_2d",
+        ICON_ZOOM_PREVIOUS,
+        nullptr,
     },
 };
 
@@ -223,7 +241,9 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
                     GZ_INDEX_CAMERA_OFF,
                     GZ_INDEX_CAMERA_ON,
                     GZ_INDEX_CAMERA_LOCK,
-                    GZ_INDEX_CAMERA_UNLOCK};
+                    GZ_INDEX_CAMERA_UNLOCK,
+                    GZ_INDEX_LOCAL_VIEW_OFF,
+                    GZ_INDEX_LOCAL_VIEW_ON};
     for (int i = 0; i < ARRAY_SIZE(gz_ids); i++) {
       wmGizmo *gz = navgroup->gz_array[gz_ids[i]];
       RNA_boolean_set(gz->ptr, "show_drag", false);
@@ -287,7 +307,8 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       (navgroup->state.rv3d.is_persp == rv3d->is_persp) &&
       (navgroup->state.rv3d.is_camera == (rv3d->persp == RV3D_CAMOB)) &&
       (navgroup->state.rv3d.cameralock == (v3d->flag2 & V3D_LOCK_CAMERA)) &&
-      (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)))
+      (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)) &&
+      (navgroup->state.rv3d.is_local_view == (v3d->localvd != nullptr)))
   {
     return;
   }
@@ -297,6 +318,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   navgroup->state.rv3d.is_camera = (rv3d->persp == RV3D_CAMOB);
   navgroup->state.rv3d.viewlock = RV3D_LOCK_FLAGS(rv3d);
   navgroup->state.rv3d.cameralock = v3d->flag2 & V3D_LOCK_CAMERA;
+  navgroup->state.rv3d.is_local_view = (v3d->localvd != nullptr);
 
   const bool show_navigate = (U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0;
   const bool show_rotate_gizmo = (U.mini_axis_type == USER_MINI_AXIS_TYPE_GIZMO &&
@@ -385,6 +407,11 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
     }
+
+    gz = navgroup->gz_array[v3d->localvd ? GZ_INDEX_LOCAL_VIEW_ON : GZ_INDEX_LOCAL_VIEW_OFF];
+    gz->matrix_basis[3][0] = roundf(co[0]);
+    gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
+    WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
   }
 }
 

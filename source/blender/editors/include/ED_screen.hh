@@ -19,6 +19,13 @@
 
 #include "BLI_compiler_attrs.h"
 
+/**
+ * Corner radius (UI-scaled pixels) used when drawing editor area backgrounds (3D View, Outliner,
+ * Properties, etc.). Not exposed in theme preferences; must stay in sync with #EDITORRADIUS in
+ * `editors/screen/screen_intern.hh` (defined there as an alias of this macro).
+ */
+#define ED_EDITOR_AREA_CORNER_RADIUS (6.0f * UI_SCALE_FAC)
+
 namespace blender {
 
 struct ARegion;

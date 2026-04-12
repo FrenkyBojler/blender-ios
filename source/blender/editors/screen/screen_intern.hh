@@ -10,6 +10,8 @@
 
 #include "DNA_space_types.h"
 
+#include "ED_screen.hh"
+
 namespace blender {
 
 struct ARegion;
@@ -76,8 +78,9 @@ enum class AreaDockTarget {
 
 /**
  * Number of pixels of the area border corner radius.
+ * Same value as #ED_EDITOR_AREA_CORNER_RADIUS (see `ED_screen.hh`).
  */
-#define EDITORRADIUS (6.0f * UI_SCALE_FAC)
+#define EDITORRADIUS ED_EDITOR_AREA_CORNER_RADIUS
 
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)

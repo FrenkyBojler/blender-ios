@@ -833,6 +833,26 @@ static void drawrenderborder(ARegion *region, View3D *v3d)
   immUnbindProgram();
 }
 
+static void drawlocalviewborder(ARegion *region)
+{
+  /* Hardcoded prominent orange — deliberately not theme-controlled so it is
+   * always visible regardless of the active theme. */
+  const float color[4] = {1.0f, 0.55f, 0.0f, 0.85f};
+
+  const float line_width = 2.0f * U.pixelsize;
+  /* Inset by half the line width so all four edges are fully inside the scissor rect. */
+  const float h = line_width * 0.5f;
+  /* Match editor area chrome (`screen_draw.cc` / #ED_EDITOR_AREA_CORNER_RADIUS), not theme panels. */
+  const float rad = ED_EDITOR_AREA_CORNER_RADIUS;
+
+  const rctf rect = {h, float(region->winx) - h, h, float(region->winy) - h};
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  ui::draw_roundbox_corner_set(ui::CNR_ALL);
+  ui::draw_roundbox_4fv_ex(&rect, nullptr, nullptr, 0.0f, color, line_width, rad);
+  GPU_blend(GPU_BLEND_NONE);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1183,6 +1203,10 @@ static void view3d_draw_border(const bContext *C, ARegion *region)
   }
   else if (v3d->flag2 & V3D_RENDER_BORDER) {
     drawrenderborder(region, v3d);
+  }
+
+  if (v3d->localvd) {
+    drawlocalviewborder(region);
   }
 }
 
