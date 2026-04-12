@@ -5274,94 +5274,112 @@ static int do_but_TEXTBOX(bContext *C,
                           HandleButtonData *data,
                           const wmEvent *event)
 {
-  if (ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
-      event->val == KM_PRESS && event->type == LEFTMOUSE &&
-      textbox->last_total_lines > textbox->state->visible_lines)
-  {
-    rctf rect;
-    block_to_window_rctf(data->region, block, &rect, &textbox->rect);
-    rect.xmin = rect.xmax - button_text_padding(textbox);
-    rect.ymin += fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect;
-    /* Activate textbox scrollbar. */
-    if (BLI_rctf_isect_pt(&rect, event->xy[0], event->xy[1])) {
-      if (data->state == BUTTON_STATE_HIGHLIGHT) {
-        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      }
-      else {
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      }
-      button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_SCROLLING);
-      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      return WM_UI_HANDLER_BREAK;
-    }
-  }
-  /* Handle textbox scrollbar events. */
-  if (data->state == BUTTON_STATE_TEXTBOX_SCROLLING) {
-    if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
-      if (textbox->editstr) {
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
-      }
-      else {
-        WM_cursor_modal_restore(CTX_wm_window(C));
-      }
-      button_activate_state(
-          C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
-      return WM_UI_HANDLER_BREAK;
-    }
-    int mx = event->xy[0];
-    int my = event->xy[1];
-    window_to_block(data->region, block, &mx, &my);
-    const float ymin = textbox->rect.ymin + UI_UNIT_Y * (0.75f);
-    const float range = textbox->rect.ymax - ymin;
+  wmWindow *win = CTX_wm_window(C);
 
-    textbox->line_scroll_set(
-        round_fl_to_int((range - (my - ymin)) / range *
-                        (textbox->last_total_lines - textbox->state->visible_lines)));
-    ED_region_tag_redraw(data->region);
-    return WM_UI_HANDLER_BREAK;
-  }
-  if (ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
-      event->val == KM_PRESS && event->type == LEFTMOUSE)
-  {
-    rctf rect;
-    block_to_window_rctf(data->region, block, &rect, &textbox->rect);
-    rect.ymax = rect.ymin + fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect;
-    /* Activate textbox grip button. */
-    if (BLI_rctf_isect_pt(&rect, event->xy[0], event->xy[1])) {
-      if (data->state == BUTTON_STATE_HIGHLIGHT) {
-        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+  switch (data->state) {
+    case BUTTON_STATE_TEXT_EDITING:
+    case BUTTON_STATE_HIGHLIGHT: {
+      if (!(event->val == KM_PRESS && event->type == LEFTMOUSE)) {
+        break;
       }
-      else {
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      }
-      button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_RESIZING);
-      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      data->dragstarty = event->xy[1];
-      data->origvalue = textbox->visible_lines();
-      return WM_UI_HANDLER_BREAK;
-    }
-  }
-  /* Handle textbox grip events. */
-  if (data->state == BUTTON_STATE_TEXTBOX_RESIZING) {
-    if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
-      if (textbox->editstr) {
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
-      }
-      else {
-        WM_cursor_modal_restore(CTX_wm_window(C));
-      }
-      button_activate_state(
-          C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
-      return WM_UI_HANDLER_BREAK;
-    }
+      rctf rect;
+      block_to_window_rctf(data->region, block, &rect, &textbox->rect);
 
-    const int visible_lines = data->origvalue +
-                              ((data->dragstarty - event->xy[1]) /
-                               (fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect));
+      /* Try activate textbox scrollbar. */
+      rctf scroll_rect = rect;
+      scroll_rect.xmin = rect.xmax - button_text_padding(textbox);
+      scroll_rect.ymin += textbox_padding_bottom() / block->aspect;
 
-    textbox->state->visible_lines = std::max(textbox_minimum_visible_lines, visible_lines);
-    ED_region_tag_redraw(data->region);
-    return WM_UI_HANDLER_BREAK;
+      if (BLI_rctf_isect_pt(&scroll_rect, UNPACK2(event->xy))) {
+        if (data->state == BUTTON_STATE_HIGHLIGHT) {
+          WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
+        }
+        else {
+          WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+        }
+        button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_SCROLLING);
+        WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+        WM_event_add_mousemove(win);
+        return WM_UI_HANDLER_BREAK;
+      }
+
+      /* Try activate textbox grip button. */
+      rctf grip_rect = rect;
+      grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
+
+      if (BLI_rctf_isect_pt(&grip_rect, UNPACK2(event->xy))) {
+        if (data->state == BUTTON_STATE_HIGHLIGHT) {
+          WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
+        }
+        else {
+          WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+        }
+        button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_RESIZING);
+        WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+        data->dragstarty = event->xy[1];
+        data->origvalue = textbox->visible_lines();
+        return WM_UI_HANDLER_BREAK;
+      }
+      break;
+    }
+    case BUTTON_STATE_TEXTBOX_SCROLLING: {
+      if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+        if (textbox->editstr) {
+          WM_cursor_set(win, WM_CURSOR_TEXT_EDIT);
+        }
+        else {
+          WM_cursor_modal_restore(win);
+        }
+        button_activate_state(
+            C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
+        return WM_UI_HANDLER_BREAK;
+      }
+      else if (event->type == MOUSEMOVE) {
+        int mx = event->xy[0];
+        int my = event->xy[1];
+        window_to_block(data->region, block, &mx, &my);
+        const float ymin = textbox->rect.ymin + textbox_padding_bottom() / block->aspect;
+        const float range = textbox->rect.ymax - ymin;
+        const int scroll = round_fl_to_int(
+            (range - (my - ymin)) / range *
+            (textbox->last_total_lines - textbox->state->visible_lines));
+
+        if (textbox->line_scroll() != scroll) {
+          ED_region_tag_redraw(data->region);
+        }
+        textbox->line_scroll_set(scroll);
+        return WM_UI_HANDLER_BREAK;
+      }
+      break;
+    }
+    case BUTTON_STATE_TEXTBOX_RESIZING: {
+      if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+        if (textbox->editstr) {
+          WM_cursor_set(win, WM_CURSOR_TEXT_EDIT);
+        }
+        else {
+          WM_cursor_modal_restore(win);
+        }
+        button_activate_state(
+            C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
+        return WM_UI_HANDLER_BREAK;
+      }
+      else if (event->type == MOUSEMOVE) {
+        int visible_lines = data->origvalue +
+                            ((data->dragstarty - event->xy[1]) /
+                             (fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect));
+        visible_lines = std::max(textbox_minimum_visible_lines, visible_lines);
+
+        if (textbox->state->visible_lines != visible_lines) {
+          ED_region_tag_redraw(data->region);
+        }
+        textbox->state->visible_lines = visible_lines;
+        return WM_UI_HANDLER_BREAK;
+      }
+      break;
+    }
+    default:
+      break;
   }
   /* Handle regular text buttons events. */
   return do_but_TEX(C, block, textbox, data, event);
