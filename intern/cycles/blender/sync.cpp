@@ -306,11 +306,14 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
   const int frame = b_scene->r.cfra;
   const bool auto_refresh_update = image_manager->set_animation_frame_update(frame);
 
+  if (scene->frame_last_synced != frame) {
+    sync_scene_attributes();
+    scene->frame_last_synced = frame;
+  }
+
   if (!has_updates_ && !auto_refresh_update) {
     return;
   }
-
-  sync_scene_attributes();
 
   const scoped_timer timer;
 
