@@ -53,10 +53,11 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   Map<int, int> group_id_to_root;
   if (group_id.is_single()) {
     group_id_to_root.add(group_id.get_internal_single(), selection.first());
-  } else {
+  }
+  else {
     group_id_span.emplace(group_id);
     selection.foreach_index_optimized<int>(
-        [&](const int index) { group_id_to_root.add(group_id_span->operator [](index), index); });
+        [&](const int index) { group_id_to_root.add(group_id_span->operator[](index), index); });
   }
 
   if ((selection.size() == domain_size) && (group_id_to_root.size() == 1)) {
@@ -88,7 +89,9 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   }
   else {
     selection.foreach_index_optimized<int>(
-        [&](const int index) { r_roots[index] = group_id_to_root.lookup(group_id_span->operator [](index)); },
+        [&](const int index) {
+          r_roots[index] = group_id_to_root.lookup(group_id_span->operator[](index));
+        },
         exec_mode::parallel);
   }
 

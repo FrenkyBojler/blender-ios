@@ -119,16 +119,21 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       }
       VectorSet<int> group_indices;
       group_id_span.emplace(group_ids);
-      mask_to_cluster.foreach_index([&](const int index) { group_indices.add(group_id_span->operator [](index)); });
+      mask_to_cluster.foreach_index(
+          [&](const int index) { group_indices.add(group_id_span->operator[](index)); });
       return group_indices;
     }();
     const int groups_num = group_indices.size();
 
     Array<IndexMask> all_indices_by_group_id(groups_num);
     if (group_id_span.has_value()) {
-      const auto get_group_index = [&](const int i) { return group_indices.index_of(group_id_span->operator [](i)); };
-      IndexMask::from_groups<int>(mask_to_cluster, memory, get_group_index, all_indices_by_group_id);
-    } else {
+      const auto get_group_index = [&](const int i) {
+        return group_indices.index_of(group_id_span->operator[](i));
+      };
+      IndexMask::from_groups<int>(
+          mask_to_cluster, memory, get_group_index, all_indices_by_group_id);
+    }
+    else {
       all_indices_by_group_id.first() = mask_to_cluster;
     }
 
@@ -144,32 +149,31 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
           /* Using a map provides better time complexity compared to kdtree, while yet both are not
            * parallel at the moment, so map is better choose. */
           Map<float3, int> clusters;
-          group_mask.foreach_index([&](const int index) {
-            clusters.add(positions[index], index);
-          });
+          group_mask.foreach_index(
+              [&](const int index) { clusters.add(positions[index], index); });
 
           if (clusters.size() == group_mask.size()) {
-            group_mask.foreach_index_optimized<int>([&](const int index) {
-              cluster_ids[index] = index;
-            }, exec_mode::parallel);
+            group_mask.foreach_index_optimized<int>(
+                [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
             continue;
           }
 
           if (clusters.size() == 1) {
             const int first_selected = group_mask.first();
             BLI_assert(clusters.lookup(positions[first_selected]) == first_selected);
-            index_mask::masked_fill<int>(cluster_ids.as_mutable_span(), first_selected, group_mask);
+            index_mask::masked_fill<int>(
+                cluster_ids.as_mutable_span(), first_selected, group_mask);
             continue;
           }
 
-          group_mask.foreach_index([&](const int index) {
-            cluster_ids[index] = clusters.lookup(positions[index]);
-          }, exec_mode::parallel);
+          group_mask.foreach_index(
+              [&](const int index) { cluster_ids[index] = clusters.lookup(positions[index]); },
+              exec_mode::parallel);
         }
       });
 
 #ifndef NDEBUG
-    mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != no_cluster_value); });
+      mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != no_cluster_value); });
 #endif
 
       return VArray<int>::from_container(std::move(cluster_ids));
