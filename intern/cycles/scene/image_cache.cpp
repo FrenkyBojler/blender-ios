@@ -398,6 +398,8 @@ device_image &ImageCache::alloc_tile(Device &device,
     tile_offset = 0;
 
     stats.add_tiled_bytes(img->memory_size());
+
+    images_first_free[key] = std::min(size_t(image_info_id), images_first_free[key]);
   }
 
   if (alloc_image && device.has_unified_memory()) {
