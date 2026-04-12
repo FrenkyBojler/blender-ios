@@ -10670,22 +10670,20 @@ static bool mouse_motion_keynav_test(KeyNavLock *keynav, const wmEvent *event)
 
 static char menu_scroll_test(Block *block, int2 xy)
 {
+  rctf auto_scroll_bounds = block->rect;
   const float shadow_width = theme::get_menu_shadow_width() / block->aspect;
-  if (xy[0] < block->rect.xmin - shadow_width || xy[0] > block->rect.xmax + shadow_width) {
+  BLI_rctf_pad(&auto_scroll_bounds, shadow_width, shadow_width);
+  if (!BLI_rctf_isect_pt(&auto_scroll_bounds, UNPACK2(xy))) {
     return 0;
   }
   if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
     if (block->flag & BLOCK_CLIPTOP) {
-      if ((xy[1] > (block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect)) &&
-          (xy[1] < (block->rect.ymax + shadow_width)))
-      {
+      if (xy[1] > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
         return 't';
       }
     }
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if ((xy[1] < (block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect)) &&
-          (xy[1] > (block->rect.ymin - shadow_width)))
-      {
+      if (xy[1] < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
         return 'b';
       }
     }
