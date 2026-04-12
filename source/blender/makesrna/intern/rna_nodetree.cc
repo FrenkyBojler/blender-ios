@@ -5180,6 +5180,27 @@ static void def_sh_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 }
 
+static void def_sh_geometry_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, rna_enum_attribute_type_items);
+  // RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeAttributeType_for_shader_itemf");
+  RNA_def_property_enum_default(prop, CD_PROP_FLOAT);
+  RNA_def_property_ui_text(prop, "Data Type", "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
+
+  prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "id");
+  RNA_def_property_struct_type(prop, "NodeTree");
+  // RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_NodeGroup_node_tree_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Node Tree", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
+}
+
 static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10102,6 +10123,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeFloatCurve", def_float_curve);
   define("ShaderNode", "ShaderNodeFresnel");
   define("ShaderNode", "ShaderNodeGamma");
+  define("ShaderNode", "ShaderNodeGeometryAttribute", def_sh_geometry_attribute);
   define("ShaderNode", "ShaderNodeHairInfo");
   define("ShaderNode", "ShaderNodeHoldout");
   define("ShaderNode", "ShaderNodeHueSaturation");

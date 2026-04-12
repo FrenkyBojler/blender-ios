@@ -71,6 +71,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "ShaderNodeAmbientOcclusion", poll=object_material_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeAttribute")
+        self.node_operator(layout, "ShaderNodeGeometryAttribute")
         self.node_operator(layout, "ShaderNodeBevel", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeCameraData",

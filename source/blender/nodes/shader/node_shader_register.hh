@@ -45,6 +45,7 @@ void register_node_type_sh_eevee_specular();
 void register_node_type_sh_emission();
 void register_node_type_sh_fresnel();
 void register_node_type_sh_gamma();
+void register_node_type_sh_geometry_attribute();
 void register_node_type_sh_geometry();
 void register_node_type_sh_hair_info();
 void register_node_type_sh_holdout();

@@ -49,6 +49,7 @@ set(SRC
   nodes/node_shader_fresnel.cc
   nodes/node_shader_gamma.cc
   nodes/node_shader_geometry.cc
+  nodes/node_shader_geometry_attribute.cc
   nodes/node_shader_hair_info.cc
   nodes/node_shader_holdout.cc
   nodes/node_shader_hueSatVal.cc
