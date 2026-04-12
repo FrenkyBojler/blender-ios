@@ -1072,7 +1072,6 @@ float get_char_style_offset(const TextVars *data,
   float total_line_expansion = 0.0f;
   float accumulation_shift = 0.0f;
 
-  /* First Pass: Calculate total expansion for this specific line (for centering). */
   for (const seq::CharInfo &character : line.characters) {
     float char_size = data->text_size;
     for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r;
@@ -1088,7 +1087,6 @@ float get_char_style_offset(const TextVars *data,
                             static_cast<float>(character.advance_x);
   }
 
-  /* Second Pass: Calculate accumulation up to our specific character. */
   for (int i = 0; i < char_in_line_idx; i++) {
     const seq::CharInfo &character = line.characters[i];
     float char_size = data->text_size;
@@ -1144,11 +1142,9 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
     const seq::CharInfo &character_start = line.characters[char_idx_start];
     const seq::CharInfo &character_end = line.characters[char_idx_end];
 
-    /* Calculate visual offsets using our centering-aware helper. */
     float start_shift = get_char_style_offset(data, runtime, line_index, char_idx_start);
     float end_shift = get_char_style_offset(data, runtime, line_index, char_idx_end);
 
-    /* We need the scaled width of the LAST character to close the selection box correctly. */
     float end_char_size = data->text_size;
     for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r;
          r = r->next)
@@ -1161,7 +1157,6 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 
     float end_scale = (data->text_size > 0.0f) ? (end_char_size / data->text_size) : 1.0f;
     float start_x = character_start.position.x + start_shift;
-    /* Selection ends at: (Pos + Shift) + (Scaled Advance). */
     float end_x = character_end.position.x + end_shift +
                   (static_cast<float>(character_end.advance_x) * end_scale);
 
@@ -1214,7 +1209,7 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
 
   const int2 cursor_position = strip_text_cursor_offset_to_position(runtime, data->cursor_offset);
-  const float cursor_width = 2.0f * U.pixelsize;  // Slimmer, standard cursor width
+  const float cursor_width = 2.0f * U.pixelsize;
 
   const seq::LineInfo &line = runtime->lines[cursor_position.y];
   const seq::CharInfo &cursor_char = line.characters[cursor_position.x];
@@ -1223,14 +1218,12 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
 
   cursor_coords.x += get_char_style_offset(data, runtime, cursor_position.y, cursor_position.x);
 
-  /* Adjust boundaries based on UI pixel size. */
   const float bound_left = float(runtime->text_boundbox.xmin);
   const float bound_right = float(runtime->text_boundbox.xmax);
   cursor_coords.x = std::clamp(cursor_coords.x, bound_left, bound_right);
 
   cursor_coords = coords_region_view_align(ui::view2d_fromcontext(C), cursor_coords);
 
-  /* Build the cursor geometry. */
   float2 cursor_quad[4];
   cursor_quad[0] = float2(cursor_coords.x, cursor_coords.y);
   cursor_quad[1] = float2(cursor_coords.x, cursor_coords.y + runtime->line_height);

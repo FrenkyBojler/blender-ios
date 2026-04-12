@@ -4104,7 +4104,7 @@ static void rna_def_text(StructRNA *srna)
   prop = RNA_def_property(srna, "font_size", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_funcs(
       prop, "rna_Strip_text_size_get", "rna_Strip_text_size_set", nullptr);
-  RNA_def_property_ui_text(prop, "Size", "Font size of the text (supports rich text selection)");
+  RNA_def_property_ui_text(prop, "Size", "Font size of the text");
   RNA_def_property_range(prop, 0.0, 2000);
   RNA_def_property_ui_range(prop, 0.0f, 2000, 10.0f, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");

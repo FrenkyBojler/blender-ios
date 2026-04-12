@@ -566,7 +566,6 @@ static float compute_line_expansion(const LineInfo &line, const TextVars *text)
   TextStyleRange *current_range = static_cast<TextStyleRange *>(text->style_ranges.first);
 
   for (const CharInfo &character : line.characters) {
-    /* Walk ranges alongside characters to avoid O(n*m) scan. */
     while (current_range && character.offset >= current_range->end) {
       current_range = current_range->next;
     }
@@ -581,7 +580,6 @@ static float compute_line_expansion(const LineInfo &line, const TextVars *text)
   return expansion;
 }
 
-/** Update font state only when style attributes actually change. */
 static void update_font_state(int font_id, const StyleAttributes &attr, StyleAttributes &current)
 {
   if (attr.bold != current.bold) {
@@ -604,7 +602,6 @@ static void text_draw(const char *text_ptr,
     BLF_enable(runtime->font, BLF_NO_FALLBACK);
   }
 
-  /* Track state to avoid redundant BLF calls. */
   StyleAttributes current_state = {{0}, -1.0f, false, false};
   TextStyleRange *range_it = static_cast<TextStyleRange *>(text_vars->style_ranges.first);
 
@@ -1018,10 +1015,8 @@ static int text_box_width_get(const TextVars *text_vars, const Vector<LineInfo> 
     float current_line_width = 0.0f;
 
     for (const CharInfo &character : line.characters) {
-      /* Start with the global strip font size. */
       float char_size = text_vars->text_size;
 
-      /* Check if this character is inside a custom style range. */
       for (TextStyleRange *r = static_cast<TextStyleRange *>(text_vars->style_ranges.first); r;
            r = r->next)
       {
@@ -1031,18 +1026,15 @@ static int text_box_width_get(const TextVars *text_vars, const Vector<LineInfo> 
         }
       }
 
-      /* Calculate the expansion ratio (e.g., 2.0 if the word is double size). */
       float scale_ratio = (text_vars->text_size > 0.0f) ? (char_size / text_vars->text_size) :
                                                           1.0f;
 
-      /* Add the scaled advance of this character to the line total. */
       current_line_width += static_cast<float>(character.advance_x) * scale_ratio;
     }
 
     width_max = std::max(width_max, current_line_width);
   }
 
-  /* Return the ceiled integer so we don't clip sub-pixels at the edge. */
   return static_cast<int>(std::ceil(width_max));
 }
 
@@ -1100,7 +1092,6 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   const int text_height = (runtime->lines.size() - 1) * runtime->line_height +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
-  /* FIX: Pass 'data' to the width getter to account for per-character scaling. */
   int width_max = text_box_width_get(data, runtime->lines);
 
   if (width_max == 0) {
