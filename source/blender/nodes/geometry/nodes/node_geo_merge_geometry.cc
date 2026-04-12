@@ -48,12 +48,19 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
     return std::nullopt;
   }
 
-  const VArraySpan<int> group_id = evaluator.get_evaluated<int>(0);
+  const VArray<int> group_id = evaluator.get_evaluated<int>(0);
+  std::optional<VArraySpan<int>> group_id_span;
   Map<int, int> group_id_to_root;
-  selection.foreach_index_optimized<int>(
-      [&](const int index) { group_id_to_root.add(group_id[index], index); });
+  if (group_id.is_single()) {
+    group_id_to_root.add(group_id.get_internal_single(), selection.first());
+  } else {
+    group_id_span.emplace(group_id);
+    selection.foreach_index_optimized<int>(
+        [&](const int index) { group_id_to_root.add(group_id_span->operator [](index), index); });
+  }
 
   if ((selection.size() == domain_size) && (group_id_to_root.size() == 1)) {
+    BLI_assert(selection.bounds() == IndexRange(domain_size));
     /* TODO: Separate implementation of geometry::collaps_selected_to_point?.. */
     r_roots.reinitialize(domain_size);
     r_roots.fill(0);
@@ -81,7 +88,7 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   }
   else {
     selection.foreach_index_optimized<int>(
-        [&](const int index) { r_roots[index] = group_id_to_root.lookup(group_id[index]); },
+        [&](const int index) { r_roots[index] = group_id_to_root.lookup(group_id_span->operator [](index)); },
         exec_mode::parallel);
   }
 
