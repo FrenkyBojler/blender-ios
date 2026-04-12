@@ -509,6 +509,6 @@ void BLI_ewa_filter(int width,
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
                     float result[4],
-                    bool clip = false);
+                    bool clip = true);
 
 }  // namespace blender
