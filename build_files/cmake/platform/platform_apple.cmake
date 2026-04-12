@@ -4,9 +4,9 @@
 
 # Libraries configuration for Apple.
 
-macro(find_package_wrapper)
-  # do nothing, just satisfy the macro
-endmacro()
+function(find_package_wrapper)
+  # do nothing, just satisfy the function
+endfunction()
 
 function(print_found_status
   lib_name
@@ -249,41 +249,6 @@ if(WITH_IMAGE_WEBP)
   find_package(WebP REQUIRED)
 endif()
 
-# With Blender 4.4 libraries there is no more Boost. This code is only
-# here until we can reasonably assume everyone has upgraded to them.
-if(WITH_BOOST)
-  if(DEFINED LIBDIR AND NOT EXISTS "${LIBDIR}/boost")
-    set(WITH_BOOST OFF)
-    set(BOOST_LIBRARIES)
-    set(BOOST_PYTHON_LIBRARIES)
-    set(BOOST_INCLUDE_DIR)
-  endif()
-endif()
-
-if(WITH_BOOST)
-  set(Boost_NO_BOOST_CMAKE ON)
-  set(Boost_ROOT ${LIBDIR}/boost)
-  set(Boost_NO_SYSTEM_PATHS ON)
-  set(_boost_FIND_COMPONENTS)
-  if(WITH_USD AND USD_PYTHON_SUPPORT)
-    list(APPEND _boost_FIND_COMPONENTS python${PYTHON_VERSION_NO_DOTS})
-  endif()
-  set(Boost_NO_WARN_NEW_VERSIONS ON)
-  find_package(Boost COMPONENTS ${_boost_FIND_COMPONENTS})
-
-  # Boost Python is the only library Blender directly depends on, though USD headers.
-  if(WITH_USD AND USD_PYTHON_SUPPORT)
-    set(BOOST_PYTHON_LIBRARIES ${Boost_PYTHON${PYTHON_VERSION_NO_DOTS}_LIBRARY})
-  endif()
-  set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
-  set(BOOST_DEFINITIONS)
-
-  mark_as_advanced(Boost_LIBRARIES)
-  mark_as_advanced(Boost_INCLUDE_DIRS)
-  unset(_boost_FIND_COMPONENTS)
-endif()
-add_bundled_libraries(boost/lib)
-
 if(WITH_CODEC_FFMPEG)
   string(APPEND PLATFORM_LINKFLAGS " -liconv") # ffmpeg needs it !
 endif()
@@ -308,7 +273,9 @@ if(WITH_OPENVDB)
   else()
     unset(BLOSC_LIBRARIES CACHE)
   endif()
-  set(OPENVDB_DEFINITIONS)
+  if(OPENVDB_FOUND)
+    set(OPENVDB_DEFINITIONS "")
+  endif()
 endif()
 add_bundled_libraries(openvdb/lib)
 
@@ -398,6 +365,13 @@ if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   endif()
 endif()
 
+find_package(Eigen3 REQUIRED CONFIG)
+
+if(WITH_LIBMV)
+  find_package(Ceres REQUIRED CONFIG)
+endif()
+add_bundled_libraries(ceres/lib)
+
 set(ZSTD_ROOT_DIR ${LIBDIR}/zstd)
 find_package(Zstd REQUIRED)
 
@@ -433,9 +407,7 @@ string(APPEND CMAKE_CXX_FLAGS " -ftemplate-depth=1024")
 # Avoid conflicts with Luxrender, and other plug-ins that may use the same
 # libraries as Blender with a different version or build options.
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_apple.map)
-string(APPEND PLATFORM_LINKFLAGS
-  " -Wl,-unexported_symbols_list,'${PLATFORM_SYMBOLS_MAP}'"
-)
+set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,-unexported_symbols_list,'${PLATFORM_SYMBOLS_MAP}'")
 
 if(${XCODE_VERSION} VERSION_EQUAL 15.0)
   # V4.5 specific workaround: Enforce the legacy Xcode linker to avoid incorrect
@@ -459,6 +431,13 @@ elseif(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
     # it is corrected in CMake 3.29:
     #    https://gitlab.kitware.com/cmake/cmake/-/issues/25297
     string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_duplicate_libraries")
+
+    # Silence: ld: warning: reducing alignment of section __DATA,__common from 0x8000
+    #          to 0x4000 because it exceeds segment maximum alignment
+    # The flag to silence this warning is only available on Xcode 26.4 and above.
+    if(${XCODE_VERSION} VERSION_GREATER_EQUAL 26.4)
+      string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_reduced_section_align")
+    endif()
   endif()
 endif()
 

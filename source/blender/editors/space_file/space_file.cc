@@ -8,6 +8,8 @@
 
 #include <cstring>
 
+#include "AS_asset_library.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -22,6 +24,8 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -245,9 +249,12 @@ static void file_refresh(const bContext *C, ScrArea *area)
       params->filter,
       params->filter_id,
       (params->flag & FILE_ASSETS_ONLY) != 0,
+      asset_params && (asset_params->asset_flags & FILE_ASSETS_HIDE_ONLINE) != 0,
       params->filter_glob,
       params->filter_search);
   if (asset_params) {
+    filelist_set_asset_include_online(sfile->files,
+                                      !(asset_params->asset_flags & FILE_ASSETS_HIDE_ONLINE));
     filelist_set_asset_catalog_filter_options(
         sfile->files,
         eFileSel_Params_AssetCatalogVisibility(asset_params->asset_catalog_visibility),
@@ -425,6 +432,9 @@ static void file_listener(const wmSpaceTypeListenerParams *listener_params)
         case NA_EDITED:
           file_reset_filelist_showing_main_data(area, sfile);
           break;
+        case NA_DOWNLOAD_FINISHED:
+          ED_area_tag_redraw(area);
+          break;
       }
       break;
     }
@@ -525,6 +535,32 @@ static void file_main_region_message_subscribe(const wmRegionMessageSubscribePar
     /* All properties for this space type. */
     WM_msg_subscribe_rna(mbus, &ptr, prop, &msg_sub_value_area_tag_refresh, __func__);
   }
+
+  /* Use online access option (for remote asset libraries). */
+  {
+    wmMsgSubscribeValue msg_sub_value_region_clear_remote_libraries{};
+    msg_sub_value_region_clear_remote_libraries.owner = region;
+    msg_sub_value_region_clear_remote_libraries.user_data = sfile;
+    msg_sub_value_region_clear_remote_libraries.notify = [](/* Follow wmMsgNotifyFn spec */
+                                                            bContext *C,
+                                                            wmMsgSubscribeKey * /*msg_key*/,
+                                                            wmMsgSubscribeValue *msg_val) {
+      SpaceFile *sfile = static_cast<SpaceFile *>(msg_val->user_data);
+      if (const FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile)) {
+        if (blender::asset_system::is_or_contains_remote_libraries(
+                asset_params->asset_library_ref))
+        {
+          ED_fileselect_clear(CTX_wm_manager(C), sfile);
+        }
+      }
+    };
+    WM_msg_subscribe_rna_prop(mbus,
+                              nullptr,
+                              &U,
+                              PreferencesSystem,
+                              use_online_access,
+                              &msg_sub_value_region_clear_remote_libraries);
+  }
 }
 
 bool file_main_region_needs_refresh_before_draw(SpaceFile *sfile)
@@ -586,19 +622,20 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   /* v2d has initialized flag, so this call will only set the mask correct */
   view2d_region_reinit(v2d, ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
-  /* sets tile/border settings in sfile */
-  file_calc_previews(C, region);
-
-  /* set view */
-  ui::view2d_view_ortho(v2d);
-
   /* on first read, find active file */
   if (params->highlight_file == -1) {
     const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
+  ED_fileselect_init_layout(sfile, region);
+
   if (!file_draw_hint_if_invalid(C, sfile, region)) {
+    ui::view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
+
+    /* set view */
+    ui::view2d_view_ortho(v2d);
+
     file_draw_list(C, region);
   }
 
@@ -919,6 +956,7 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
       case FILE_ASSET_IMPORT_APPEND:
       case FILE_ASSET_IMPORT_APPEND_REUSE:
       case FILE_ASSET_IMPORT_FOLLOW_PREFS:
+      case FILE_ASSET_IMPORT_PACK:
         break;
       default:
         sfile->asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
@@ -1001,6 +1039,7 @@ void ED_spacetype_file()
   /* regions: ui */
   art = MEM_new_zeroed<ARegionType>("spacetype file region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::HideSinglePanelCategories;
   art->keymapflag = ED_KEYMAP_UI;
   art->poll = file_region_poll;
   art->listener = file_region_listener;
@@ -1069,13 +1108,28 @@ void ED_file_read_bookmarks()
 
   fsmenu_free();
 
-  fsmenu_read_system(ED_fsmenu_get(), true);
-  fsmenu_add_common_platform_directories(ED_fsmenu_get());
+  FSMenu *fsmenu = ED_fsmenu_get();
+
+  const char *blendfile_path = BKE_main_blendfile_path_from_global();
+  if (blendfile_path && blendfile_path[0]) {
+    /* Folder containing the currently-loaded Blend file. */
+    char dir[FILE_MAX];
+    BLI_path_split_dir_part(blendfile_path, dir, sizeof(dir));
+    fsmenu_insert_entry(fsmenu,
+                        FS_CATEGORY_SYSTEM_BOOKMARKS,
+                        dir,
+                        IFACE_("Current File"),
+                        FSMENU_CURRENT_FILE_ICON,
+                        FS_INSERT_FIRST);
+  }
+
+  fsmenu_read_system(fsmenu, true);
+  fsmenu_add_common_platform_directories(fsmenu);
 
   if (cfgdir.has_value()) {
     char filepath[FILE_MAX];
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_BOOKMARK_FILE);
-    fsmenu_read_bookmarks(ED_fsmenu_get(), filepath);
+    fsmenu_read_bookmarks(fsmenu, filepath);
   }
 }
 

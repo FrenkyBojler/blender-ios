@@ -292,7 +292,7 @@ class UniformArrayBuffer : public detail::UniformCommon<T, len, false> {
   }
   ~UniformArrayBuffer()
   {
-    MEM_delete_void(static_cast<void *>(this->data_));
+    MEM_delete(this->data_);
   }
 };
 
@@ -340,9 +340,7 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   }
   ~StorageArrayBuffer()
   {
-    /* NOTE: T is not always trivial (e.g. can be #eevee::VelocityIndex), so cannot use
-     * `MEM_delete` directly on it, without casting it to `void *`. */
-    MEM_delete_void(static_cast<void *>(this->data_));
+    MEM_delete(this->data_);
   }
 
   /* Resize to \a new_size elements. */
@@ -356,7 +354,7 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
       memcpy(reinterpret_cast<void *>(new_data_),
              this->data_,
              min_uu(this->len_, new_size) * sizeof(T));
-      MEM_delete_void(static_cast<void *>(this->data_));
+      MEM_delete(this->data_);
       this->data_ = new_data_;
       GPU_storagebuf_free(this->ssbo_);
 
@@ -1263,7 +1261,7 @@ class Framebuffer : NonCopyable {
 
   void clear_color(float4 color)
   {
-    GPU_framebuffer_clear_color(fb_, color);
+    GPU_framebuffer_clear_color(fb_, double4(color));
   }
 
   Framebuffer &operator=(Framebuffer &&a)

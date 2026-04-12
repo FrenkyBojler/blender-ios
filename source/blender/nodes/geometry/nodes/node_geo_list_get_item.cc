@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
@@ -33,11 +35,11 @@ static void node_declare(NodeDeclarationBuilder &b)
                                   StructureType::Dynamic :
                                   StructureType(storage.structure_type);
 
-  b.add_input(type, "List").structure_type(StructureType::List).hide_value();
+  b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
 
-  b.add_input<decl::Int>("Index").min(0).structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Index"_ustr).min(0).structure_type(StructureType::Dynamic);
 
-  b.add_output(type, "Value").dependent_field({1}).structure_type(structure_type);
+  b.add_output(type, "Value"_ustr).dependent_field({1}).structure_type(structure_type);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -60,11 +62,11 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeListGetItem");
+    bNode &node = params.add_node("GeometryNodeListGetItem"_ustr);
     node_storage(node).socket_type = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -78,12 +80,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
-      params.add_item(IFACE_("Index"), SocketSearchOp{"Index", SOCK_INT});
+      params.add_item(IFACE_("Index"), SocketSearchOp{"Index"_ustr, SOCK_INT});
     }
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
   else {
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", socket_type});
+    params.add_item(IFACE_("Value"), SocketSearchOp{"Value"_ustr, socket_type});
   }
 }
 
@@ -102,26 +104,12 @@ class SampleIndexFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
+    const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
-    const IndexRange list_range(list_->size());
-
     IndexMaskMemory memory;
-    const IndexMask valid_indices = [&]() {
-      if (const std::optional<int> index = indices.get_if_single()) {
-        return list_range.contains(*index) ? mask : IndexMask{};
-      }
-      if (indices.is_span()) {
-        const Span<int> indices_span = indices.get_internal_span();
-        return IndexMask::from_predicate(mask, GrainSize(4096), memory, [&](const int i) {
-          return list_range.contains(indices_span[i]);
-        });
-      }
-      return IndexMask::from_predicate(mask, GrainSize(4096), memory, [&](const int i) {
-        return list_range.contains(indices[i]);
-      });
-    }();
+    const IndexMask valid_indices = array_utils::indices_in_range(
+        mask, indices, IndexRange(list_->size()), memory);
 
     if (valid_indices.size() != mask.size()) {
       const IndexMask invalid_indices = valid_indices.complement(mask, memory);
@@ -174,28 +162,51 @@ static void node_rna(StructRNA *srna)
  * Needed because #execute_multi_function_on_value_variant does not support types that can't be
  * processed as fields.
  */
-static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list,
-                                                       const eNodeSocketDatatype socket_type,
-                                                       const int64_t index)
+static bke::SocketValueVariant get_single_item(ListPtr &list,
+                                               const eNodeSocketDatatype socket_type,
+                                               const int64_t index)
 {
-  const CPPType &list_type = list->cpp_type();
   bke::SocketValueVariant value;
-  void *dst = value.allocate_single(socket_type);
+  void *value_ptr = value.allocate_single(socket_type);
   if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
-      list_type.move_construct(POINTER_OFFSET(data->data, list_type.size * index), dst);
+      GMutableSpan data_span(list->cpp_type(), const_cast<void *>(data->data), list->size());
+      list->cpp_type().move_construct(data_span[index], value_ptr);
+      return value;
     }
-    else {
-      list_type.copy_construct(POINTER_OFFSET(data->data, list_type.size * index), dst);
-    }
+    const GSpan data_span(list->cpp_type(), data->data, list->size());
+    list->cpp_type().copy_construct(data_span[index], value_ptr);
+    return value;
   }
   if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
     if (list->is_mutable() && data->sharing_info->is_mutable()) {
-      list_type.move_construct(data->value, dst);
+      list->cpp_type().move_construct(const_cast<void *>(data->value), value_ptr);
+      return value;
     }
-    else {
-      list_type.copy_construct(data->value, dst);
+    list->cpp_type().copy_construct(data->value, value_ptr);
+    return value;
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+static bke::SocketValueVariant get_socket_value_item(ListPtr &list, const int64_t index)
+{
+  if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      MutableSpan data_span(static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->data)),
+                            list->size());
+      return std::move(data_span[index]);
     }
+    const Span data_span(static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->data)),
+                         list->size());
+    return data_span[index];
+  }
+  if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      return std::move(*static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->value)));
+    }
+    return *static_cast<const bke::SocketValueVariant *>(data->value);
   }
   BLI_assert_unreachable();
   return {};
@@ -203,8 +214,8 @@ static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  bke::SocketValueVariant index = params.extract_input<bke::SocketValueVariant>("Index");
-  ListPtr list = params.extract_input<ListPtr>("List");
+  bke::SocketValueVariant index = params.extract_input<bke::SocketValueVariant>("Index"_ustr);
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
   if (!list) {
     params.set_default_remaining_outputs();
     return;
@@ -212,22 +223,26 @@ static void node_geo_exec(GeoNodeExecParams params)
   const CPPType &list_type = list->cpp_type();
   const std::optional<eNodeSocketDatatype> socket_type =
       bke::geo_nodes_base_cpp_type_to_socket_type(list_type);
-  if (!socket_type) {
-    BLI_assert_unreachable();
-    params.set_default_remaining_outputs();
-    return;
-  }
 
-  if (!socket_type_supports_fields(*socket_type)) {
+  if (list_type.is<bke::SocketValueVariant>() || !socket_type_supports_fields(*socket_type)) {
     if (!index.is_single()) {
-      params.error_message_add(NodeWarningType::Error,
-                               "Index must be a single value for socket type");
+      params.error_message_add(NodeWarningType::Error, "Index must be a single value");
       params.set_default_remaining_outputs();
       return;
     }
     index.convert_to_single();
     const int index_int = index.get<int>();
-    params.set_output("Value", get_list_value_at_index(list, *socket_type, index_int));
+    if (!IndexRange(list->size()).contains(index_int)) {
+      params.error_message_add(NodeWarningType::Error, "Index out of range");
+      params.set_default_remaining_outputs();
+      return;
+    }
+    if (list->cpp_type().is<bke::SocketValueVariant>()) {
+      params.set_output("Value"_ustr, get_socket_value_item(list, index_int));
+    }
+    else {
+      params.set_output("Value"_ustr, get_single_item(list, *socket_type, index_int));
+    }
     return;
   }
 
@@ -245,13 +260,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Value", std::move(output_value));
+  params.set_output("Value"_ustr, std::move(output_value));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListGetItem");
+  geo_node_type_base(&ntype, "GeometryNodeListGetItem"_ustr);
   ntype.ui_name = "Get List Item";
   ntype.ui_description = "Retrieve a value from a list";
   ntype.nclass = NODE_CLASS_CONVERTER;

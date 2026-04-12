@@ -142,7 +142,7 @@ static void mesh_cd_calc_active_uv_layer(const Object &object,
                                          DRW_MeshCDMask &cd_used)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
-  const StringRef active_uv_map = me_final.active_uv_map_name();
+  const StringRef active_uv_map = me_final.active_or_default_uv_map_name();
   if (!active_uv_map.is_empty()) {
     cd_used.uv.add_as(active_uv_map);
   }
@@ -173,11 +173,13 @@ static bool attribute_exists(const Mesh &mesh, const StringRef name)
 static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh,
                                                               const StringRef name)
 {
-  if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
-    if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, name)) {
-      return bke::AttributeMetaData{attr.domain, attr.type};
+  if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+    if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
+      if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, name)) {
+        return bke::AttributeMetaData{attr.domain, attr.type};
+      }
+      return std::nullopt;
     }
-    return std::nullopt;
   }
   return mesh.attributes().lookup_meta_data(name);
 }
@@ -387,7 +389,7 @@ static void drw_mesh_weight_state_extract(
 
 static bool mesh_batch_cache_valid(Mesh &mesh)
 {
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
+  MeshBatchCache *cache = mesh.runtime->batch_cache;
 
   if (cache == nullptr) {
     return false;
@@ -416,9 +418,9 @@ static void mesh_batch_cache_init(Mesh &mesh)
     mesh.runtime->batch_cache = MEM_new<MeshBatchCache>(__func__);
   }
   else {
-    *static_cast<MeshBatchCache *>(mesh.runtime->batch_cache) = {};
+    *mesh.runtime->batch_cache = {};
   }
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
+  MeshBatchCache *cache = mesh.runtime->batch_cache;
 
   cache->is_editmode = mesh.runtime->edit_mesh != nullptr;
 
@@ -444,7 +446,7 @@ void DRW_mesh_batch_cache_validate(Mesh &mesh)
 {
   if (!mesh_batch_cache_valid(mesh)) {
     if (mesh.runtime->batch_cache) {
-      mesh_batch_cache_clear(*static_cast<MeshBatchCache *>(mesh.runtime->batch_cache));
+      mesh_batch_cache_clear(*mesh.runtime->batch_cache);
     }
     mesh_batch_cache_init(mesh);
   }
@@ -452,7 +454,7 @@ void DRW_mesh_batch_cache_validate(Mesh &mesh)
 
 static MeshBatchCache *mesh_batch_cache_get(Mesh &mesh)
 {
-  return static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
+  return mesh.runtime->batch_cache;
 }
 
 static void mesh_batch_cache_check_vertex_group(MeshBatchCache &cache,
@@ -537,7 +539,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
   if (!mesh->runtime->batch_cache) {
     return;
   }
-  MeshBatchCache &cache = *static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  MeshBatchCache &cache = *mesh->runtime->batch_cache;
   switch (mode) {
     case BKE_MESH_BATCH_DIRTY_SELECT:
       discard_buffers(cache, {VBOType::EditData, VBOType::FaceDotNormal}, {});
@@ -611,11 +613,10 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   mesh_batch_cache_free_subdiv_cache(cache);
 }
 
-void DRW_mesh_batch_cache_free(void *batch_cache)
+void DRW_mesh_batch_cache_free(draw::MeshBatchCache *batch_cache)
 {
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
-  mesh_batch_cache_clear(*cache);
-  MEM_delete(cache);
+  mesh_batch_cache_clear(*batch_cache);
+  MEM_delete(batch_cache);
 }
 
 /** \} */
@@ -1023,7 +1024,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_edges(Mesh &mesh)
 
 void DRW_mesh_batch_cache_free_old(Mesh *mesh, int ctime)
 {
-  MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh->runtime->batch_cache);
+  MeshBatchCache *cache = mesh->runtime->batch_cache;
 
   if (cache == nullptr) {
     return;

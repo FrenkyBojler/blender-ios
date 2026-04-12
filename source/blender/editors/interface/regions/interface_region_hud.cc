@@ -178,7 +178,7 @@ static void hud_panel_operator_redo_draw(const bContext *C, Panel *panel)
   }
   Layout &col = panel->layout->column(false);
   /* Redo HUD is a kind of popup, use persistent layout panel states for the redo operator. */
-  panel->runtime->popup_layout_panel_states = &popup_persistent_layout_panel_states(
+  panel->runtime->layout_panel_states_storage = &popup_persistent_layout_panel_states(
       op->type->idname);
   template_operator_redo_properties(&col, C);
 }
@@ -218,7 +218,10 @@ static void hud_region_init(wmWindowManager *wm, ARegion *region)
 
 static void hud_region_free(ARegion *region)
 {
-  MEM_SAFE_DELETE_VOID(region->regiondata);
+  if (region->regiondata) {
+    MEM_delete(static_cast<HudRegionData *>(region->regiondata));
+    region->regiondata = nullptr;
+  }
 }
 
 static void hud_region_layout(const bContext *C, ARegion *region)

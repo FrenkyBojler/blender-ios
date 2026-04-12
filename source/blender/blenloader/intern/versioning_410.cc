@@ -125,6 +125,9 @@ static void versioning_update_noise_texture_node(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_TEX_NOISE) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     (static_cast<NodeTexNoise *>(node.storage))->type = SHD_NOISE_FBM;
 
@@ -186,15 +189,19 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_TEX_MUSGRAVE_DEPRECATED) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     STRNCPY_UTF8(node.idname, "ShaderNodeTexNoise");
     node.type_legacy = SH_NODE_TEX_NOISE;
     NodeTexNoise *data = MEM_new<NodeTexNoise>(__func__);
-    data->base = (static_cast<NodeTexMusgrave *>(node.storage))->base;
-    data->dimensions = (static_cast<NodeTexMusgrave *>(node.storage))->dimensions;
+    NodeTexMusgrave *musgrave_data = static_cast<NodeTexMusgrave *>(node.storage);
+    data->base = musgrave_data->base;
+    data->dimensions = musgrave_data->dimensions;
     data->normalize = false;
-    data->type = (static_cast<NodeTexMusgrave *>(node.storage))->musgrave_type;
-    MEM_delete_void(node.storage);
+    data->type = musgrave_data->musgrave_type;
+    MEM_delete(musgrave_data);
     node.storage = data;
 
     bNodeLink *detail_link = nullptr;
@@ -605,6 +612,7 @@ static void version_socket_identifier_suffixes_for_dynamic_types(
       if (char *pos = strstr(socket.identifier, separator)) {
         /* End the identifier at the separator so that the old suffix is ignored. */
         *pos = '\0';
+        socket.runtime->identifier_ustr = UString(socket.identifier);
 
         if (total.has_value()) {
           index++;
@@ -618,6 +626,7 @@ static void version_socket_identifier_suffixes_for_dynamic_types(
       /* Rename existing identifiers so that they don't conflict with the renamed one. Those will
        * be removed after versioning code. */
       BLI_strncat(socket.identifier, "_deprecated", sizeof(socket.identifier));
+      socket.runtime->identifier_ustr = UString(socket.identifier);
     }
   }
 }
@@ -690,7 +699,7 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
       /* Make versioning idempotent. */
       continue;
     }
-    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeEulerToRotation");
+    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeEulerToRotation"_ustr);
     convert->parent = node.parent;
     convert->locx_legacy = node.locx_legacy - 40;
     convert->locy_legacy = node.locy_legacy;
@@ -719,7 +728,7 @@ static void change_output_socket_to_rotation_type(bNodeTree &ntree,
     { /* Make versioning idempotent. */
       continue;
     }
-    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeRotationToEuler");
+    bNode *convert = bke::node_add_node(nullptr, ntree, "FunctionNodeRotationToEuler"_ustr);
     convert->parent = node.parent;
     convert->locx_legacy = node.locx_legacy + 40;
     convert->locy_legacy = node.locy_legacy;
@@ -771,7 +780,7 @@ static void fix_geometry_nodes_object_info_scale(bNodeTree &ntree)
     if (links.is_empty()) {
       continue;
     }
-    bNode *absolute_value = bke::node_add_node(nullptr, ntree, "ShaderNodeVectorMath");
+    bNode *absolute_value = bke::node_add_node(nullptr, ntree, "ShaderNodeVectorMath"_ustr);
     absolute_value->custom1 = NODE_VECTOR_MATH_ABSOLUTE;
     absolute_value->parent = node.parent;
     absolute_value->locx_legacy = node.locx_legacy + 100;
@@ -1046,8 +1055,10 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_KEYING) {
-            NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node.storage);
-            keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node.storage);
+              keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+            }
           }
         }
       }

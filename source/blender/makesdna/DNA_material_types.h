@@ -40,10 +40,8 @@ enum eMaterialGPencilStyle_Flag {
   GP_MATERIAL_FLIP_FILL = (1 << 6),
   /* Stroke Texture is a pattern */
   GP_MATERIAL_STROKE_PATTERN = (1 << 7),
-  /* Stroke show main switch */
-  GP_MATERIAL_STROKE_SHOW = (1 << 8),
-  /* Fill show main switch */
-  GP_MATERIAL_FILL_SHOW = (1 << 9),
+  GP_MATERIAL_STROKE_SHOW = (1 << 8), /* Deprecated. Only used for compatibility. */
+  GP_MATERIAL_FILL_SHOW = (1 << 9),   /* Deprecated. Only used for compatibility. */
   /* mix stroke texture */
   GP_MATERIAL_STROKE_TEX_MIX = (1 << 11),
   /* disable stencil clipping (overlap) */
@@ -241,6 +239,13 @@ enum {
   GP_MATERIAL_FOLLOW_FIXED = 2,
 };
 
+/* Grease Pencil Placement Drawing Modes */
+enum eMaterialGPencilPlacementMode {
+  GP_MATERIAL_PLACEMENT_COUNT = 0,
+  GP_MATERIAL_PLACEMENT_RADIUS = 1,
+  GP_MATERIAL_PLACEMENT_DENSITY = 2,
+};
+
 struct TexPaintSlot {
   DNA_DEFINE_CXX_METHODS(TexPaintSlot)
 
@@ -318,6 +323,14 @@ struct MaterialGPencilStyle {
   int alignment_mode = 0;
   /** Rotation for texture for Dots and Squares. */
   float alignment_rotation = 0;
+  /** #eMaterialGPencilPlacementMode Placement mode for Dots and Squares. */
+  int placement_mode = 0;
+  /* Number of points per segment when placement mode is `GP_MATERIAL_PLACEMENT_COUNT` */
+  int placement_count = 0;
+  /* Radius factor for points when placement mode is `GP_MATERIAL_PLACEMENT_RADIUS` */
+  float placement_radius_spacing = 0;
+  /* Point density per unit when placement mode is `GP_MATERIAL_PLACEMENT_DENSITY` */
+  float placement_density = 0;
 };
 
 struct MaterialLineArt {

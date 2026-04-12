@@ -14,6 +14,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
@@ -84,22 +85,26 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
       outputNumInput(&opdata->num_input, flts_str, sce->unit);
     }
     else {
+      const int precision = opdata->shift ? 6 : 4;
       BKE_unit_value_as_string(flts_str,
                                NUM_STR_REP_LEN,
                                RNA_float_get(op->ptr, "thickness"),
-                               -4,
+                               precision * -1,
                                B_UNIT_LENGTH,
                                sce->unit,
                                true);
       BKE_unit_value_as_string(flts_str + NUM_STR_REP_LEN,
                                NUM_STR_REP_LEN,
                                RNA_float_get(op->ptr, "depth"),
-                               -4,
+                               precision * -1,
                                B_UNIT_LENGTH,
                                sce->unit,
                                true);
     }
-    SNPRINTF_UTF8(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(msg,
+                  IFACE_("Thickness: %s, Depth: %s"),
+                  flts_str,
+                  BLI_string_pad_number_sign(flts_str + NUM_STR_REP_LEN).c_str());
     ED_area_status_text(area, msg);
   }
 
@@ -115,6 +120,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
 static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 {
   InsetData *opdata;
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -131,7 +137,7 @@ static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 
   {
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(C));
+        *bmain, scene, view_layer, CTX_wm_view3d(C));
     opdata->ob_store = MEM_new_array_uninitialized<InsetObjectStore>(objects.size(), __func__);
     for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
       Object *obedit = objects[ob_index];

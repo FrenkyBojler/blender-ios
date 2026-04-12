@@ -589,7 +589,7 @@ static wmOperatorStatus paste_from_file(bContext *C, ReportList *reports, const 
   size_t filelen;
   wmOperatorStatus retval;
 
-  strp = static_cast<char *>(BLI_file_read_text_as_mem(filepath, 1, &filelen));
+  strp = BLI_file_read_text_as_mem(filepath, 1, &filelen);
   if (strp == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Failed to open file '%s'", filepath);
     return OPERATOR_CANCELLED;
@@ -847,7 +847,7 @@ static void txt_add_object(bContext *C,
   const float rot[3] = {0.0f, 0.0f, 0.0f};
 
   obedit = BKE_object_add(bmain, scene, view_layer, OB_FONT, nullptr);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   object = BKE_view_layer_active_object_get(view_layer);
 
   /* seems to assume view align ? TODO: look into this, could be an operator option. */

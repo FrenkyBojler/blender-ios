@@ -904,6 +904,19 @@ static wmOperatorStatus graphkeys_clean_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static std::string graphkeys_clean_get_description(bContext * /*C*/,
+                                                   wmOperatorType * /*ot*/,
+                                                   PointerRNA *ptr)
+{
+  /* Custom description based on the 'channels' property */
+  if (RNA_boolean_get(ptr, "channels")) {
+    return TIP_("Simplify F-Curves and remove empty or redundant channels.");
+  }
+
+  /* Use the default description in the other case. */
+  return "";
+}
+
 void GRAPH_OT_clean(wmOperatorType *ot)
 {
   /* Identifiers */
@@ -913,6 +926,7 @@ void GRAPH_OT_clean(wmOperatorType *ot)
 
   /* API callbacks */
   // ot->invoke = ???; /* XXX we need that number popup for this! */
+  ot->get_description = graphkeys_clean_get_description;
   ot->exec = graphkeys_clean_exec;
   ot->poll = graphop_editable_keyframes_poll;
 
@@ -971,8 +985,6 @@ static void convert_keys_to_samples(bAnimContext *ac, int start, int end)
 static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
-  Scene *scene = nullptr;
-  int start, end;
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -981,12 +993,10 @@ static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext *C, wmOperator *
 
   /* For now, init start/end from preview-range extents. */
   /* TODO: add properties for this. (Joshua Leung 2009) */
-  scene = ac.scene;
-  start = PSFRA;
-  end = PEFRA;
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(ac.scene);
 
   /* Sample keyframes. */
-  convert_keys_to_samples(&ac, start, end);
+  convert_keys_to_samples(&ac, playback_range.start_frame, playback_range.end_frame);
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */
@@ -1050,19 +1060,14 @@ static void convert_samples_to_keys(bAnimContext *ac, int start, int end)
 static wmOperatorStatus graphkeys_samples_to_keys_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
-  Scene *scene = nullptr;
-  int start, end;
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  scene = ac.scene;
-  start = PSFRA;
-  end = PEFRA;
-
-  convert_samples_to_keys(&ac, start, end);
+  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(ac.scene);
+  convert_samples_to_keys(&ac, playback_range.start_frame, playback_range.end_frame);
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */

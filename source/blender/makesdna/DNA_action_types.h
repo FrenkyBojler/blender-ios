@@ -27,6 +27,7 @@
 
 namespace blender {
 
+struct bItasc;
 struct AnimData;
 struct Collection;
 struct FCurve;
@@ -154,10 +155,8 @@ enum bPoseChannelRuntimeFlag {
 
 /* PoseChannel (transform) flags */
 enum ePchan_Flag {
-  /* has transforms */
-  POSE_LOC = (1 << 0),
-  POSE_ROT = (1 << 1),
-  POSE_SCALE = (1 << 2),
+  /* (1 << 0) to (1 << 3) used to be flags to determine if a type of channel should be modified by
+     pose sliding. This has been moved to the `tPChanFCurveLink` struct in Blender 5.2.  */
 
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
@@ -165,8 +164,6 @@ enum ePchan_Flag {
    *   as they haven't been used in over 10 years
    */
 
-  /* has BBone deforms */
-  POSE_BBONE_SHAPE = (1 << 3),
   /**
    * When set and bPoseChan.custom_tx is not a nullptr,
    * the gizmo will be drawn at the location and
@@ -291,10 +288,6 @@ enum eRotationModes {
 enum ePose_Flags {
   /* results in BKE_pose_rebuild being called */
   POSE_RECALC = (1 << 0),
-  /* prevents any channel from getting overridden by anim from IPO */
-  POSE_LOCKED = (1 << 1),
-  /* clears the POSE_LOCKED flag for the next time the pose is evaluated */
-  POSE_DO_UNLOCK = (1 << 2),
   /* pose has constraints which depend on time (used when depsgraph updates for a new frame) */
   POSE_CONSTRAINTS_TIMEDEPEND = (1 << 3),
   /* recalculate bone paths */
@@ -631,7 +624,7 @@ struct bAnimVizSettings {
 
   /** Start and end frames of path-calculation range. Both are inclusive. */
   int path_sf = 0, path_ef = 0;
-  /** Number of frames before/after current frame to show. */
+  /** Number of frames before/after current frame to show. Both are inclusive. */
   int path_bc = 0, path_ac = 0;
 };
 
@@ -908,8 +901,8 @@ struct bPose {
   int iksolver = 0;
   /** Temporary IK data, depends on the IK solver. Not saved in file. */
   void *ikdata = nullptr;
-  /** IK solver parameters, structure depends on iksolver. */
-  void *ikparam = nullptr;
+  /** IK solver parameter for ItaSC .*/
+  bItasc *ikparam = nullptr;
 
   /** Settings for visualization of bone animation. */
   bAnimVizSettings avs;
