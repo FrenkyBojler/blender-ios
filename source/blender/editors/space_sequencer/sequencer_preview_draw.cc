@@ -1063,7 +1063,41 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 }
+float get_char_style_offset(const TextVars *data, const seq::TextVarsRuntime *runtime, int line_idx, int char_in_line_idx)
+{
+  const seq::LineInfo &line = runtime->lines[line_idx];
+  float total_line_expansion = 0.0f;
+  float accumulation_shift = 0.0f;
 
+  /* First Pass: Calculate total expansion for this specific line (for centering). */
+  for (const seq::CharInfo &character : line.characters) {
+    float char_size = data->text_size;
+    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r; r = r->next) {
+      if (character.offset >= r->start && character.offset < r->end) {
+        char_size = r->size;
+        break;
+      }
+    }
+    float scale_ratio = (data->text_size > 0.0f) ? (char_size / data->text_size) : 1.0f;
+    total_line_expansion += (static_cast<float>(character.advance_x) * scale_ratio) - static_cast<float>(character.advance_x);
+  }
+
+  /* Second Pass: Calculate accumulation up to our specific character. */
+  for (int i = 0; i < char_in_line_idx; i++) {
+    const seq::CharInfo &character = line.characters[i];
+    float char_size = data->text_size;
+    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r; r = r->next) {
+      if (character.offset >= r->start && character.offset < r->end) {
+        char_size = r->size;
+        break;
+      }
+    }
+    float scale_ratio = (data->text_size > 0.0f) ? (char_size / data->text_size) : 1.0f;
+    accumulation_shift += (static_cast<float>(character.advance_x) * scale_ratio) - static_cast<float>(character.advance_x);
+  }
+
+  return accumulation_shift - (total_line_expansion / 2.0f);
+}
 static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
@@ -1075,45 +1109,70 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
   }
 
   const IndexRange sel_range = strip_text_selection_range_get(data);
-  const int2 selection_start = strip_text_cursor_offset_to_position(runtime, sel_range.first());
+  const int2 selection_start = strip_text_cursor_offset_to_position(runtime, sel_range.start());
   const int2 selection_end = strip_text_cursor_offset_to_position(runtime, sel_range.last());
   const int line_start = selection_start.y;
   const int line_end = selection_end.y;
 
+  const float2 view_offs = float2(-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f);
+  const float view_aspect = scene->r.xasp / scene->r.yasp;
+  float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
+
   for (int line_index = line_start; line_index <= line_end; line_index++) {
-    const seq::LineInfo line = runtime->lines[line_index];
-    seq::CharInfo character_start = line.characters.first();
-    seq::CharInfo character_end = line.characters.last();
+    const seq::LineInfo &line = runtime->lines[line_index];
+    
+    /* Indices within the line's character array. */
+    int char_idx_start = 0;
+    int char_idx_end = line.characters.size() - 1;
 
     if (line_index == selection_start.y) {
-      character_start = line.characters[selection_start.x];
+      char_idx_start = selection_start.x;
     }
     if (line_index == selection_end.y) {
-      character_end = line.characters[selection_end.x];
+      char_idx_end = selection_end.x;
     }
+
+    const seq::CharInfo &character_start = line.characters[char_idx_start];
+    const seq::CharInfo &character_end = line.characters[char_idx_end];
+
+    /* Calculate visual offsets using our centering-aware helper. */
+    float start_shift = get_char_style_offset(data, runtime, line_index, char_idx_start);
+    float end_shift = get_char_style_offset(data, runtime, line_index, char_idx_end);
+
+    /* We need the scaled width of the LAST character to close the selection box correctly. */
+    float end_char_size = data->text_size;
+    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r; r = r->next) {
+      if (character_end.offset >= r->start && character_end.offset < r->end) {
+        end_char_size = r->size;
+        break;
+      }
+    }
+
+    float end_scale = (data->text_size > 0.0f) ? (end_char_size / data->text_size) : 1.0f;
+    float start_x = character_start.position.x + start_shift;
+    /* Selection ends at: (Pos + Shift) + (Scaled Advance). */
+    float end_x = character_end.position.x + end_shift + (static_cast<float>(character_end.advance_x) * end_scale);
 
     const float line_y = character_start.position.y + runtime->font_descender;
 
-    const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
-    const float view_aspect = scene->r.xasp / scene->r.yasp;
-    float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
-    float2 selection_quad[4] = {
-        {character_start.position.x, line_y},
-        {character_start.position.x, line_y + runtime->line_height},
-        {character_end.position.x + character_end.advance_x, line_y + runtime->line_height},
-        {character_end.position.x + character_end.advance_x, line_y},
-    };
+    float2 selection_quad[4];
+    selection_quad[0] = float2(start_x, line_y);
+    selection_quad[1] = float2(start_x, line_y + runtime->line_height);
+    selection_quad[2] = float2(end_x, line_y + runtime->line_height);
+    selection_quad[3] = float2(end_x, line_y);
 
     immBegin(GPU_PRIM_TRIS, 6);
     immUniformThemeColor(TH_SEQ_SELECTED_TEXT);
 
-    for (int i : IndexRange(0, 4)) {
+    for (int i = 0; i < 4; i++) {
       selection_quad[i] += view_offs;
       selection_quad[i] = math::transform_point(transform_mat, selection_quad[i]);
       selection_quad[i].x *= view_aspect;
     }
-    for (int i : {0, 1, 2, 2, 3, 0}) {
-      immVertex2f(pos, selection_quad[i][0], selection_quad[i][1]);
+
+    int indices[6] = {0, 1, 2, 2, 3, 0};
+    for (int i = 0; i < 6; i++) {
+      immVertex2f(pos, selection_quad[indices[i]].x, selection_quad[indices[i]].y);
     }
 
     immEnd();
@@ -1138,40 +1197,48 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   const seq::TextVarsRuntime *runtime = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
 
-  const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
+  const float2 view_offs = float2(-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f);
   const float view_aspect = scene->r.xasp / scene->r.yasp;
   float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
+  
   const int2 cursor_position = strip_text_cursor_offset_to_position(runtime, data->cursor_offset);
-  const float cursor_width = 10;
-  float2 cursor_coords = runtime->lines[cursor_position.y].characters[cursor_position.x].position;
-  /* Clamp cursor coords to be inside of text boundbox. Compensate for cursor width, but also line
-   * width hardcoded in shader. */
-  const float bound_left = float(runtime->text_boundbox.xmin) + U.pixelsize;
-  const float bound_right = float(runtime->text_boundbox.xmax) - (cursor_width + U.pixelsize);
-  /* Note: do not use std::clamp since due to math above left can become larger than right. */
-  cursor_coords.x = std::max(cursor_coords.x, bound_left);
-  cursor_coords.x = std::min(cursor_coords.x, bound_right);
+  const float cursor_width = 2.0f * U.pixelsize; // Slimmer, standard cursor width
+  
+  const seq::LineInfo &line = runtime->lines[cursor_position.y];
+  const seq::CharInfo &cursor_char = line.characters[cursor_position.x];
+  
+  float2 cursor_coords = cursor_char.position;
+
+  cursor_coords.x += get_char_style_offset(data, runtime, cursor_position.y, cursor_position.x);
+
+  /* Adjust boundaries based on UI pixel size. */
+  const float bound_left = float(runtime->text_boundbox.xmin);
+  const float bound_right = float(runtime->text_boundbox.xmax);
+  cursor_coords.x = std::clamp(cursor_coords.x, bound_left, bound_right);
 
   cursor_coords = coords_region_view_align(ui::view2d_fromcontext(C), cursor_coords);
 
-  float2 cursor_quad[4] = {
-      {cursor_coords.x, cursor_coords.y},
-      {cursor_coords.x, cursor_coords.y + runtime->line_height},
-      {cursor_coords.x + cursor_width, cursor_coords.y + runtime->line_height},
-      {cursor_coords.x + cursor_width, cursor_coords.y},
-  };
-  const float2 descender_offs{0.0f, float(runtime->font_descender)};
+  /* Build the cursor geometry. */
+  float2 cursor_quad[4];
+  cursor_quad[0] = float2(cursor_coords.x, cursor_coords.y);
+  cursor_quad[1] = float2(cursor_coords.x, cursor_coords.y + runtime->line_height);
+  cursor_quad[2] = float2(cursor_coords.x + cursor_width, cursor_coords.y + runtime->line_height);
+  cursor_quad[3] = float2(cursor_coords.x + cursor_width, cursor_coords.y);
+
+  const float2 descender_offs = float2(0.0f, float(runtime->font_descender));
 
   immBegin(GPU_PRIM_TRIS, 6);
   immUniformThemeColor(TH_SEQ_TEXT_CURSOR);
 
-  for (int i : IndexRange(0, 4)) {
+  for (int i = 0; i < 4; i++) {
     cursor_quad[i] += descender_offs + view_offs;
     cursor_quad[i] = math::transform_point(transform_mat, cursor_quad[i]);
     cursor_quad[i].x *= view_aspect;
   }
-  for (int i : {0, 1, 2, 2, 3, 0}) {
-    immVertex2f(pos, cursor_quad[i][0], cursor_quad[i][1]);
+  
+  int indices[6] = {0, 1, 2, 2, 3, 0};
+  for (int i = 0; i < 6; i++) {
+    immVertex2f(pos, cursor_quad[indices[i]].x, cursor_quad[indices[i]].y);
   }
 
   immEnd();

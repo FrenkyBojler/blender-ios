@@ -9,11 +9,13 @@
 #include <cstddef>
 
 #include "DNA_sequence_types.h"
+#include "DEG_depsgraph.hh"
 
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
@@ -645,6 +647,53 @@ static void delete_character(const seq::CharInfo character, TextVars *data)
   BLI_assert(data->text_len_bytes >= 0);
 }
 
+
+static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
+{
+  if (delta == 0 || style_ranges == nullptr) {
+    return;
+  }
+
+  TextStyleRange *range = static_cast<TextStyleRange *>(style_ranges->first);
+  while (range) {
+    TextStyleRange *next_range = range->next;
+
+    if (delta > 0) { /* Inserting characters */
+      if (pos <= range->start) {
+        range->start += delta;
+        range->end += delta;
+      }
+      else if (pos > range->start && pos < range->end) {
+        range->end += delta;
+      }
+    }
+    else { /* Deleting characters */
+      int delete_end = pos + std::abs(delta);
+      if (range->start >= delete_end) {
+        range->start += delta;
+        range->end += delta;
+      }
+      else if (pos <= range->start && delete_end >= range->end) {
+        range->start = 0; range->end = 0;
+      }
+      else if (pos >= range->start && delete_end <= range->end) {
+        range->end += delta;
+      }
+      else if (pos < range->start && delete_end > range->start) {
+        range->start = pos;
+        range->end = std::max(pos, range->end + delta);
+      }
+    }
+
+    if (range->start >= range->end) {
+      BLI_remlink(style_ranges, range);
+      MEM_delete(range);
+    }
+    range = next_range;
+  }
+}
+
+
 static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
 {
   const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
@@ -652,26 +701,40 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
   const seq::TextVarsRuntime *runtime = data->runtime;
   const int type = RNA_enum_get(op->ptr, "type");
 
+  int delete_pos = data->cursor_offset;
+  int char_delta = 0;
+
+  /* CASE 1: Deleting a Highlighted Selection */
   if (text_has_selection(data)) {
+    delete_pos = std::min(data->selection_start_offset, data->selection_end_offset);
+    char_delta = -std::abs(data->selection_start_offset - data->selection_end_offset);
+    
     delete_selected_text(data);
-    text_editing_update(C);
-    return OPERATOR_FINISHED;
+  }
+  /* CASE 2: Backspace or Delete Key */
+  else {
+    if (type == DEL_NEXT_SEL) { /* Delete key */
+      if (data->cursor_offset >= runtime->character_count) {
+        return OPERATOR_CANCELLED;
+      }
+      delete_pos = data->cursor_offset;
+      char_delta = -1;
+      delete_character(character_at_cursor_offset_get(runtime, data->cursor_offset), data);
+    }
+    else if (type == DEL_PREV_SEL) { /* Backspace key */
+      if (data->cursor_offset == 0) {
+        return OPERATOR_CANCELLED;
+      }
+      delete_pos = data->cursor_offset - 1;
+      char_delta = -1;
+      delete_character(character_at_cursor_offset_get(runtime, data->cursor_offset - 1), data);
+      data->cursor_offset -= 1;
+    }
   }
 
-  if (type == DEL_NEXT_SEL) {
-    if (data->cursor_offset >= runtime->character_count) {
-      return OPERATOR_CANCELLED;
-    }
-
-    delete_character(character_at_cursor_offset_get(runtime, data->cursor_offset), data);
-  }
-  if (type == DEL_PREV_SEL) {
-    if (data->cursor_offset == 0) {
-      return OPERATOR_CANCELLED;
-    }
-
-    delete_character(character_at_cursor_offset_get(runtime, data->cursor_offset - 1), data);
-    data->cursor_offset -= 1;
+  /* Apply the shift to the ranges */
+  if (char_delta != 0) {
+    text_style_ranges_shift(&data->style_ranges, delete_pos, char_delta);
   }
 
   text_editing_update(C);
@@ -739,15 +802,27 @@ static wmOperatorStatus sequencer_text_insert_exec(bContext *C, wmOperator *op)
 
   char str[512];
   RNA_string_get(op->ptr, "string", str);
-
   const size_t in_buf_len = STRNLEN(str);
-  if (in_buf_len == 0) {
-    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  
+  /* Calculate the true character delta (New chars - Deleted selection) */
+  int insert_pos = data->cursor_offset;
+  if (text_has_selection(data)) {
+    insert_pos = std::min(data->selection_start_offset, data->selection_end_offset);
   }
 
+  int char_delta = BLI_strnlen_utf8(str, in_buf_len);
+  if (text_has_selection(data)) {
+    int sel_len = std::abs(data->selection_start_offset - data->selection_end_offset);
+    char_delta -= sel_len;
+  }
+
+  /* 1. Insert the text into the buffer */
   if (!text_insert(data, str, in_buf_len)) {
     return OPERATOR_CANCELLED;
   }
+
+  /* 2. Shift the ranges immediately */
+  text_style_ranges_shift(&data->style_ranges, insert_pos, char_delta);
 
   text_editing_update(C);
   return OPERATOR_FINISHED;
@@ -826,45 +901,73 @@ void SEQUENCER_OT_text_line_break(wmOperatorType *ot)
 static int find_closest_cursor_offset(const TextVars *data, float2 mouse_loc)
 {
   const seq::TextVarsRuntime *runtime = data->runtime;
-  int best_cursor_offset = 0;
-  float best_distance = std::numeric_limits<float>::max();
+  int closest_offset = 0;
+  float min_dist_sq = FLT_MAX;
 
-  for (const seq::LineInfo &line : runtime->lines) {
-    for (const seq::CharInfo &character : line.characters) {
-      const float distance = math::distance(mouse_loc, character.position);
-      if (distance < best_distance) {
-        best_distance = distance;
-        best_cursor_offset = character.index;
+  /* Track the line index for the 4-argument offset call. */
+  for (int line_idx = 0; line_idx < runtime->lines.size(); line_idx++) {
+    const seq::LineInfo &line = runtime->lines[line_idx];
+    
+    for (int char_idx = 0; char_idx < line.characters.size(); char_idx++) {
+      const seq::CharInfo &character = line.characters[char_idx];
+
+      /* 1. Calculate the 'Visual X' using the new centering-aware signature. */
+      float visual_x = character.position.x + 
+                       get_char_style_offset(data, runtime, line_idx, char_idx);
+      
+      /* 2. Check distance against the shifted/centered position. */
+      float2 visual_pos = float2(visual_x, character.position.y);
+      float dist_sq = math::distance_squared(mouse_loc, visual_pos);
+
+      if (dist_sq < min_dist_sq) {
+        min_dist_sq = dist_sq;
+        closest_offset = character.offset;
       }
     }
   }
-
-  return best_cursor_offset;
+  return closest_offset;
 }
 
 static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_sequencer_scene(C);
-  const Strip *strip = seq::select_active_get(scene);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  const Strip *strip = blender::seq::select_active_get(scene);
+
+  if (!strip) {
+    return;
+  }
+
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const View2D *v2d = ui::view2d_fromcontext(C);
+  ARegion *region = CTX_wm_region(C);
 
+  /* 1. Get mouse position in region space. */
   int2 mval_region;
-  WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
+  WM_event_drag_start_mval(event, region, mval_region);
+
+  /* 2. Convert region pixels to View2D (Preview) coordinates. */
   float2 mouse_loc;
   ui::view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
 
-  /* Convert cursor coordinates to domain of CharInfo::position. */
-  const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
-  const float view_aspect = scene->r.xasp / scene->r.yasp;
-  float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C), strip);
-  // MSVC 2019 can't decide here for some reason, pick the template for it.
+  /* 3. Setup transformation math. */
+  const float2 view_offs = float2(-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f);
+  const float view_aspect = (scene->r.yasp != 0.0f) ? (scene->r.xasp / scene->r.yasp) : 1.0f;
+  
+  float3x3 transform_mat = blender::seq::image_transform_matrix_get(scene, strip);
+  
+  /* Use explicit template for MSVC 2019. */
   transform_mat = math::invert<float, 3>(transform_mat);
 
+  /* 4. Map mouse to local text space. */
   mouse_loc.x /= view_aspect;
   mouse_loc = math::transform_point(transform_mat, mouse_loc);
   mouse_loc -= view_offs;
-  data->cursor_offset = find_closest_cursor_offset(data, float2(mouse_loc));
+
+  /* 5. Update cursor using styled logic. */
+  data->cursor_offset = find_closest_cursor_offset(data, mouse_loc);
+  
+  /* 6. FIX: Tag the scene ID, as the Strip/Sequence itself has no ID member. */
+  DEG_id_tag_update(&scene->id, ID_RECALC_SOURCE);
 }
 
 static wmOperatorStatus sequencer_text_cursor_set_modal(bContext *C,

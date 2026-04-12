@@ -775,6 +775,17 @@ struct GaussianBlurVars {
   float size_y = 0;
 };
 
+typedef struct TextStyleRange {
+  struct TextStyleRange *next, *prev;
+  int start, end;
+  uint64_t mask;
+  float color[4];
+  float size;
+  int is_bold;
+  int is_italic;
+  char _pad[4];
+} TextStyleRange;
+
 struct TextVars {
   DNA_DEFINE_CXX_METHODS(TextVars)
 
@@ -814,6 +825,8 @@ struct TextVars {
   char anchor_y = 0; /* eEffectTextAlignY */
   char _pad1 = {};
   seq::TextVarsRuntime *runtime = nullptr;
+
+  ListBase style_ranges;
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
    * #TextVars::text_ptr and #TextVars::text_len_bytes are used for full text. */

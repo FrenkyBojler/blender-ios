@@ -19,6 +19,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -558,21 +559,92 @@ static void jump_flooding_pass(Span<JFACoord> input,
   });
 }
 
-static void text_draw(const char *text_ptr, const TextVarsRuntime *runtime, float color[4])
+/** Compute horizontal expansion for a line to handle centering correction. */
+static float compute_line_expansion(const LineInfo &line, const TextVars *text)
+{
+  float expansion = 0.0f;
+  TextStyleRange *current_range = static_cast<TextStyleRange *>(text->style_ranges.first);
+
+  for (const CharInfo &character : line.characters) {
+    /* Walk ranges alongside characters to avoid O(n*m) scan. */
+    while (current_range && character.offset >= current_range->end) {
+      current_range = current_range->next;
+    }
+
+    float char_size = (current_range && character.offset >= current_range->start) ? 
+                       current_range->size : text->text_size;
+
+    float scale_ratio = (text->text_size > 0.0f) ? (char_size / text->text_size) : 1.0f;
+    expansion += (static_cast<float>(character.advance_x) * (scale_ratio - 1.0f));
+  }
+  return expansion;
+}
+
+/** Update font state only when style attributes actually change. */
+static void update_font_state(int font_id, const StyleAttributes &attr, StyleAttributes &current)
+{
+  if (attr.bold != current.bold) {
+    (attr.bold) ? BLF_enable(font_id, BLF_BOLD) : BLF_disable(font_id, BLF_BOLD);
+    current.bold = attr.bold;
+  }
+  if (attr.italic != current.italic) {
+    (attr.italic) ? BLF_enable(font_id, BLF_ITALIC) : BLF_disable(font_id, BLF_ITALIC);
+    current.italic = attr.italic;
+  }
+  BLF_size(font_id, attr.size);
+}
+
+
+static void text_draw(const char *text_ptr, 
+                      const TextVars *text_vars, 
+                      const TextVarsRuntime *runtime)
 {
   const bool use_fallback = BLF_is_builtin(runtime->font);
   if (!use_fallback) {
     BLF_enable(runtime->font, BLF_NO_FALLBACK);
   }
 
+  /* Track state to avoid redundant BLF calls. */
+  StyleAttributes current_state = { {0}, -1.0f, false, false };
+  TextStyleRange *range_it = static_cast<TextStyleRange *>(text_vars->style_ranges.first);
+
   for (const LineInfo &line : runtime->lines) {
+    float centering_offset = compute_line_expansion(line, text_vars) / 2.0f;
+    float accumulation_shift = 0.0f;
+
     for (const CharInfo &character : line.characters) {
-      BLF_position(runtime->font, character.position.x, character.position.y, 0.0f);
-      BLF_buffer_col(runtime->font, color);
+      while (range_it && character.offset >= range_it->end) {
+        range_it = range_it->next;
+      }
+
+      StyleAttributes attr;
+      if (range_it && character.offset >= range_it->start) {
+        copy_v4_v4(attr.color, range_it->color);
+        attr.size = range_it->size;
+        attr.bold = range_it->is_bold;
+        attr.italic = range_it->is_italic;
+      } else {
+        copy_v4_v4(attr.color, text_vars->color);
+        attr.size = text_vars->text_size;
+        attr.bold = (text_vars->flag & SEQ_TEXT_BOLD);
+        attr.italic = (text_vars->flag & SEQ_TEXT_ITALIC);
+      }
+
+      update_font_state(runtime->font, attr, current_state);
+
+      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) : 1.0f;
+      float final_x = character.position.x + accumulation_shift - centering_offset;
+
+      BLF_position(runtime->font, final_x, character.position.y, 0.0f);
+      BLF_buffer_col(runtime->font, attr.color);
       BLF_draw_buffer(runtime->font, text_ptr + character.offset, character.byte_length);
+
+      accumulation_shift += (static_cast<float>(character.advance_x) * (scale_ratio - 1.0f));
     }
   }
 
+  /* Restore default state. */
+  BLF_disable(runtime->font, BLF_BOLD | BLF_ITALIC);
   if (!use_fallback) {
     BLF_disable(runtime->font, BLF_NO_FALLBACK);
   }
@@ -603,7 +675,7 @@ static rcti draw_text_outline(const RenderData *context,
              size.y,
              out->byte_buffer.colorspace);
 
-  text_draw(data->text_ptr, runtime, float4(1.0f));
+  text_draw(data->text_ptr, data, runtime);
 
   rcti outline_rect = runtime->text_boundbox;
   BLI_rcti_pad(&outline_rect, outline_width + 1, outline_width + 1);
@@ -936,14 +1008,39 @@ static void apply_word_wrapping(const TextVars *data,
   }
 }
 
-static int text_box_width_get(const Vector<LineInfo> &lines)
+static int text_box_width_get(const TextVars *text_vars, const Vector<LineInfo> &lines)
 {
-  int width_max = 0;
+  float width_max = 0.0f;
 
   for (const LineInfo &line : lines) {
-    width_max = std::max(width_max, line.width);
+    float current_line_width = 0.0f;
+
+    for (const CharInfo &character : line.characters) {
+      /* Start with the global strip font size. */
+      float char_size = text_vars->text_size;
+
+      /* Check if this character is inside a custom style range. */
+      for (TextStyleRange *r = static_cast<TextStyleRange *>(text_vars->style_ranges.first); 
+           r; r = r->next) 
+      {
+        if (character.offset >= r->start && character.offset < r->end) {
+          char_size = r->size;
+          break;
+        }
+      }
+
+      /* Calculate the expansion ratio (e.g., 2.0 if the word is double size). */
+      float scale_ratio = (text_vars->text_size > 0.0f) ? (char_size / text_vars->text_size) : 1.0f;
+      
+      /* Add the scaled advance of this character to the line total. */
+      current_line_width += static_cast<float>(character.advance_x) * scale_ratio;
+    }
+
+    width_max = std::max(width_max, current_line_width);
   }
-  return width_max;
+
+  /* Return the ceiled integer so we don't clip sub-pixels at the edge. */
+  return static_cast<int>(std::ceil(width_max));
 }
 
 static float2 horizontal_alignment_offset_get(const TextVars *data,
@@ -1000,14 +1097,16 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   const int text_height = (runtime->lines.size() - 1) * runtime->line_height +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
-  int width_max = text_box_width_get(runtime->lines);
+  /* FIX: Pass 'data' to the width getter to account for per-character scaling. */
+  int width_max = text_box_width_get(data, runtime->lines);
 
-  /* Add width to empty text, so there is something to draw or select. */
   if (width_max == 0) {
     width_max = text_height * 2;
   }
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
+  
+
   const float2 anchor = anchor_offset_get(data, width_max, text_height);
 
   runtime->text_boundbox.xmin = anchor.x + image_center.x;
@@ -1020,7 +1119,7 @@ static void apply_text_alignment(const TextVars *data,
                                  TextVarsRuntime *runtime,
                                  const int2 image_size)
 {
-  const int box_width = text_box_width_get(runtime->lines);
+  const int box_width = text_box_width_get(data, runtime->lines);
   const int box_height = runtime->lines.size() * runtime->line_height;
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
@@ -1088,7 +1187,7 @@ static ImBuf *do_text_effect(const RenderData *context,
   rcti outline_rect = draw_text_outline(context, data, runtime, out);
   BLF_buffer(
       font, nullptr, out->byte_data_for_write(), out->x, out->y, out->byte_buffer.colorspace);
-  text_draw(data->text_ptr, runtime, data->color);
+  text_draw(data->text_ptr, data, runtime);
   BLF_buffer(font, nullptr, nullptr, 0, 0, nullptr);
   BLF_disable(font, font_flags);
 

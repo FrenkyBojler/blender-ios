@@ -188,6 +188,12 @@ const char *effect_inputs_validate(int have_inputs, int num_inputs);
 bool sequencer_edit_poll(bContext *C);
 bool sequencer_edit_with_channel_region_poll(bContext *C);
 bool sequencer_editing_initialized_and_active(bContext *C);
+
+float get_char_style_offset(const TextVars *data, 
+                            const blender::seq::TextVarsRuntime *runtime, 
+                            int line_idx, 
+                            int char_in_line_idx);
+                            
 /* UNUSED */
 // bool sequencer_strip_poll( bContext *C);
 bool sequencer_strip_editable_poll(bContext *C);
