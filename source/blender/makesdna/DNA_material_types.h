@@ -51,7 +51,7 @@ enum eMaterialGPencilStyle_Flag {
   /* Material used as fill masking. */
   GP_MATERIAL_IS_FILL_HOLDOUT = (1 << 14),
   /* Material use randomization. */
-  GP_MATERIAL_RANDOM = (1 << 15),
+  GP_MATERIAL_USE_DOTS_RANDOMIZATION = (1 << 15),
 };
 
 enum eMaterialGPencilStyle_Mode {

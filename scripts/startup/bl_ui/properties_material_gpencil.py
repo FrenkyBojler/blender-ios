@@ -189,7 +189,7 @@ class MATERIAL_PT_gpencil_random(GPMaterialButtonsPanel, Panel):
         gpcolor = ma.grease_pencil
         if ma is not None and gpcolor is not None:
             layout.use_property_split = False
-            layout.prop(gpcolor, "use_random", text=self.bl_label if self.is_popover else "")
+            layout.prop(gpcolor, "use_randomization", text=self.bl_label if self.is_popover else "")
 
     def draw(self, context):
         layout = self.layout
@@ -199,7 +199,7 @@ class MATERIAL_PT_gpencil_random(GPMaterialButtonsPanel, Panel):
         gpcolor = ma.grease_pencil
         if ma is not None and gpcolor is not None:
             col = layout.column()
-            col.enabled = gpcolor.use_random
+            col.enabled = gpcolor.use_randomization
 
             col.prop(gpcolor, "random_size_factor", slider=True)
             col.prop(gpcolor, "random_strength_factor", slider=True)

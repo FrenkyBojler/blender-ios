@@ -272,8 +272,8 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       }
     }
 
-    if (gp_style->flag & GP_MATERIAL_RANDOM) {
-      mat_data->flag |= GP_USE_RANDOM;
+    if (gp_style->flag & GP_MATERIAL_USE_DOTS_RANDOMIZATION) {
+      mat_data->flag |= GP_DOTS_USE_RANDOMIZATION;
 
       mat_data->random_packed.x = (unit_float_to_ushort_clamp(gp_style->random_size_factor));
       mat_data->random_packed.x |= (unit_float_to_ushort_clamp(gp_style->random_strength_factor))
