@@ -863,8 +863,12 @@ static void rna_StripCrop_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA
   seq::relations_invalidate_cache(scene, strip);
 }
 
-/** \name Text Style Range Helpers
- * \{ */
+enum TextStyleProperty {
+  ATTR_COLOR,
+  ATTR_SIZE,
+  ATTR_BOLD,
+  ATTR_ITALIC,
+};
 
 static void text_style_inherit_at_pos(const TextVars *data, int pos, StyleAttributes *r_style)
 {
@@ -898,52 +902,111 @@ static void text_style_range_insert_ordered(ListBase *style_ranges, TextStyleRan
   }
 }
 
-static void text_style_range_prepare_space(ListBase *style_ranges, int sel_start, int sel_end)
+static void text_style_range_split_at(ListBase *style_ranges, int pos)
 {
-  TextStyleRange *range = static_cast<TextStyleRange *>(style_ranges->first);
-  while (range) {
-    TextStyleRange *next_range = range->next;
-
-    if (range->start >= sel_start && range->end <= sel_end) {
-      BLI_remlink(style_ranges, range);
-      MEM_delete(range);
-    }
-    else if (range->start < sel_start && range->end > sel_end) {
+  if (pos <= 0) {
+    return;
+  }
+  for (TextStyleRange *r = (TextStyleRange *)style_ranges->first; r; r = r->next) {
+    if (pos > r->start && pos < r->end) {
       TextStyleRange *tail = MEM_new<TextStyleRange>("text style range tail");
-      *tail = *range;
-      tail->start = sel_end;
-      BLI_insertlinkafter(style_ranges, range, tail);
-      range->end = sel_start;
+      *tail = *r;
+      tail->start = pos;
+      r->end = pos;
+      BLI_insertlinkafter(style_ranges, r, tail);
+      break;
     }
-    else if (range->start < sel_start && range->end > sel_start) {
-      range->end = sel_start;
-    }
-    else if (range->start < sel_end && range->end > sel_end) {
-      range->start = sel_end;
-    }
-    range = next_range;
   }
 }
 
-static void text_style_range_apply_to_selection(TextVars *data,
-                                                int start,
-                                                int end,
-                                                const StyleAttributes *style)
+static void text_style_range_update_attribute(
+    TextVars *data, int start, int end, TextStyleProperty prop, const void *value)
 {
-  text_style_range_prepare_space(&data->style_ranges, start, end);
+  text_style_range_split_at(&data->style_ranges, start);
+  text_style_range_split_at(&data->style_ranges, end);
 
-  TextStyleRange *new_range = MEM_new<TextStyleRange>("text style range");
-  new_range->start = start;
-  new_range->end = end;
-  copy_v4_v4(new_range->color, style->color);
-  new_range->size = style->size;
-  new_range->is_bold = style->bold;
-  new_range->is_italic = style->italic;
+  int last_pos = start;
+  TextStyleRange *r = (TextStyleRange *)data->style_ranges.first;
 
-  text_style_range_insert_ordered(&data->style_ranges, new_range);
+  while (r) {
+    TextStyleRange *next = r->next;
+
+    if (r->start > last_pos && r->start < end) {
+      StyleAttributes base;
+      text_style_inherit_at_pos(data, last_pos, &base);
+      TextStyleRange *new_r = MEM_new<TextStyleRange>("text style range gap");
+      new_r->start = last_pos;
+      new_r->end = r->start;
+      copy_v4_v4(new_r->color, base.color);
+      new_r->size = base.size;
+      new_r->is_bold = base.bold;
+      new_r->is_italic = base.italic;
+
+      switch (prop) {
+        case ATTR_COLOR:
+          copy_v4_v4(new_r->color, (const float *)value);
+          break;
+        case ATTR_SIZE:
+          new_r->size = *(const float *)value;
+          break;
+        case ATTR_BOLD:
+          new_r->is_bold = *(const bool *)value;
+          break;
+        case ATTR_ITALIC:
+          new_r->is_italic = *(const bool *)value;
+          break;
+      }
+      text_style_range_insert_ordered(&data->style_ranges, new_r);
+    }
+
+    if (r->start >= start && r->end <= end) {
+      switch (prop) {
+        case ATTR_COLOR:
+          copy_v4_v4(r->color, (const float *)value);
+          break;
+        case ATTR_SIZE:
+          r->size = *(const float *)value;
+          break;
+        case ATTR_BOLD:
+          r->is_bold = *(const bool *)value;
+          break;
+        case ATTR_ITALIC:
+          r->is_italic = *(const bool *)value;
+          break;
+      }
+      last_pos = r->end;
+    }
+    r = next;
+  }
+
+  if (last_pos < end) {
+    StyleAttributes base;
+    text_style_inherit_at_pos(data, last_pos, &base);
+    TextStyleRange *new_r = MEM_new<TextStyleRange>("text style range end");
+    new_r->start = last_pos;
+    new_r->end = end;
+    copy_v4_v4(new_r->color, base.color);
+    new_r->size = base.size;
+    new_r->is_bold = base.bold;
+    new_r->is_italic = base.italic;
+
+    switch (prop) {
+      case ATTR_COLOR:
+        copy_v4_v4(new_r->color, (const float *)value);
+        break;
+      case ATTR_SIZE:
+        new_r->size = *(const float *)value;
+        break;
+      case ATTR_BOLD:
+        new_r->is_bold = *(const bool *)value;
+        break;
+      case ATTR_ITALIC:
+        new_r->is_italic = *(const bool *)value;
+        break;
+    }
+    text_style_range_insert_ordered(&data->style_ranges, new_r);
+  }
 }
-
-/** \} */
 
 static void text_style_ranges_update(ListBase *style_ranges,
                                      int change_pos,
@@ -953,11 +1016,9 @@ static void text_style_ranges_update(ListBase *style_ranges,
   if (style_ranges == nullptr || BLI_listbase_is_empty(style_ranges)) {
     return;
   }
-
   TextStyleRange *range = static_cast<TextStyleRange *>(style_ranges->first);
   while (range) {
     TextStyleRange *next_range = static_cast<TextStyleRange *>(range->next);
-
     if (delta > 0) {
       if (change_pos < range->start) {
         range->start += delta;
@@ -977,7 +1038,6 @@ static void text_style_ranges_update(ListBase *style_ranges,
         range->end += delta;
       }
     }
-
     if (range->start >= range->end || range->start < 0 || range->start >= new_len) {
       BLI_remlink(style_ranges, range);
       MEM_delete(range);
@@ -991,17 +1051,24 @@ static void text_style_ranges_update(ListBase *style_ranges,
 
 static void rna_Strip_text_color_get(PointerRNA *ptr, float *value)
 {
-  Strip *strip = static_cast<Strip *>(ptr->data);
-  TextVars *text = static_cast<TextVars *>(strip->effectdata);
+  Strip *strip = (Strip *)ptr->data;
+  TextVars *text = (TextVars *)strip->effectdata;
   int start = std::min(text->selection_start_offset, text->selection_end_offset);
   int end = std::max(text->selection_start_offset, text->selection_end_offset);
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)text->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end) {
+      if (start >= r->start && end <= r->end) {
         copy_v4_v4(value, r->color);
         return;
       }
+    }
+  }
+
+  for (TextStyleRange *r = (TextStyleRange *)text->style_ranges.first; r; r = r->next) {
+    if (text->cursor_offset >= r->start && text->cursor_offset < r->end) {
+      copy_v4_v4(value, r->color);
+      return;
     }
   }
   copy_v4_v4(value, text->color);
@@ -1021,25 +1088,29 @@ static void rna_Strip_text_color_set(PointerRNA *ptr, const float *value)
     }
   }
   else {
-    StyleAttributes style;
-    text_style_inherit_at_pos(data, start, &style);
-    copy_v4_v4(style.color, value);
-    text_style_range_apply_to_selection(data, start, end, &style);
+    text_style_range_update_attribute(data, start, end, ATTR_COLOR, value);
   }
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_SOURCE);
 }
 
 static float rna_Strip_text_size_get(PointerRNA *ptr)
 {
-  Strip *strip = static_cast<Strip *>(ptr->data);
-  TextVars *text = static_cast<TextVars *>(strip->effectdata);
+  Strip *strip = (Strip *)ptr->data;
+  TextVars *text = (TextVars *)strip->effectdata;
   int start = std::min(text->selection_start_offset, text->selection_end_offset);
   int end = std::max(text->selection_start_offset, text->selection_end_offset);
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)text->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end)
+      if (start >= r->start && end <= r->end) {
         return r->size;
+      }
+    }
+  }
+
+  for (TextStyleRange *r = (TextStyleRange *)text->style_ranges.first; r; r = r->next) {
+    if (text->cursor_offset >= r->start && text->cursor_offset < r->end) {
+      return r->size;
     }
   }
   return text->text_size;
@@ -1060,10 +1131,7 @@ static void rna_Strip_text_size_set(PointerRNA *ptr, float value)
     }
   }
   else {
-    StyleAttributes style;
-    text_style_inherit_at_pos(data, start, &style);
-    style.size = value;
-    text_style_range_apply_to_selection(data, start, end, &style);
+    text_style_range_update_attribute(data, start, end, ATTR_SIZE, &value);
   }
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_SOURCE);
 }
@@ -1077,8 +1145,9 @@ static bool rna_Strip_text_bold_get(PointerRNA *ptr)
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end)
-        return (bool)r->is_bold;
+      if (r->end > start && r->start < end && r->is_bold) {
+        return true;
+      }
     }
   }
   StyleAttributes style;
@@ -1094,19 +1163,13 @@ static void rna_Strip_text_bold_set(PointerRNA *ptr, bool value)
   int end = std::max(data->selection_start_offset, data->selection_end_offset);
 
   if (start == end) {
-    if (value)
-      data->flag |= SEQ_TEXT_BOLD;
-    else
-      data->flag &= ~SEQ_TEXT_BOLD;
+    (value) ? data->flag |= SEQ_TEXT_BOLD : data->flag &= ~SEQ_TEXT_BOLD;
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
       r->is_bold = value;
     }
   }
   else {
-    StyleAttributes style;
-    text_style_inherit_at_pos(data, start, &style);
-    style.bold = value;
-    text_style_range_apply_to_selection(data, start, end, &style);
+    text_style_range_update_attribute(data, start, end, ATTR_BOLD, &value);
   }
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_SOURCE);
 }
@@ -1120,8 +1183,9 @@ static bool rna_Strip_text_italic_get(PointerRNA *ptr)
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end)
-        return (bool)r->is_italic;
+      if (r->end > start && r->start < end && r->is_italic) {
+        return true;
+      }
     }
   }
   StyleAttributes style;
@@ -1137,19 +1201,13 @@ static void rna_Strip_text_italic_set(PointerRNA *ptr, bool value)
   int end = std::max(data->selection_start_offset, data->selection_end_offset);
 
   if (start == end) {
-    if (value)
-      data->flag |= SEQ_TEXT_ITALIC;
-    else
-      data->flag &= ~SEQ_TEXT_ITALIC;
+    (value) ? data->flag |= SEQ_TEXT_ITALIC : data->flag &= ~SEQ_TEXT_ITALIC;
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
       r->is_italic = value;
     }
   }
   else {
-    StyleAttributes style;
-    text_style_inherit_at_pos(data, start, &style);
-    style.italic = value;
-    text_style_range_apply_to_selection(data, start, end, &style);
+    text_style_range_update_attribute(data, start, end, ATTR_ITALIC, &value);
   }
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_SOURCE);
 }
@@ -1161,8 +1219,6 @@ static void rna_Strip_text_style_update(Main *bmain, Scene *scene, PointerRNA *p
     DEG_id_tag_update(&scene->id, ID_RECALC_SOURCE);
   }
 }
-
-/** \} */
 
 static void rna_Strip_text_font_set(PointerRNA *ptr,
                                     PointerRNA ptr_value,

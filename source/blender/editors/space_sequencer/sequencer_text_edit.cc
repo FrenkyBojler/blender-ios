@@ -657,7 +657,7 @@ static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
   while (range) {
     TextStyleRange *next_range = range->next;
 
-    if (delta > 0) { 
+    if (delta > 0) {
       if (pos <= range->start) {
         range->start += delta;
         range->end += delta;
@@ -666,7 +666,7 @@ static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
         range->end += delta;
       }
     }
-    else { 
+    else {
       int delete_end = pos + std::abs(delta);
       if (range->start >= delete_end) {
         range->start += delta;
@@ -710,7 +710,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
     delete_selected_text(data);
   }
   else {
-    if (type == DEL_NEXT_SEL) { 
+    if (type == DEL_NEXT_SEL) {
       if (data->cursor_offset >= runtime->character_count) {
         return OPERATOR_CANCELLED;
       }
@@ -718,7 +718,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
       char_delta = -1;
       delete_character(character_at_cursor_offset_get(runtime, data->cursor_offset), data);
     }
-    else if (type == DEL_PREV_SEL) { 
+    else if (type == DEL_PREV_SEL) {
       if (data->cursor_offset == 0) {
         return OPERATOR_CANCELLED;
       }
