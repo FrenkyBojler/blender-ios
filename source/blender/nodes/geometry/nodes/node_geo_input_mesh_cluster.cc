@@ -21,7 +21,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Position"_ustr)
       .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .supports_field();
-  b.add_input<decl::Float>("Weight"_ustr).default_value(1.0f).hide_value().supports_field();
   b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
   b.add_input<decl::Bool>("Selection"_ustr).default_value(false).hide_value().supports_field();
 
@@ -32,18 +31,15 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
  private:
   Field<bool> selection_field_;
   Field<float3> position_field_;
-  Field<float> weight_field_;
   float min_distance_;
 
  public:
   MeshClusterFieldInput(Field<bool> selection_field,
                         Field<float3> position_field,
-                        Field<float> weight_field,
                         float min_distance)
       : bke::MeshFieldInput(CPPType::get<int>(), "Mesh Cluster Field"),
         selection_field_(std::move(selection_field)),
         position_field_(std::move(position_field)),
-        weight_field_(std::move(weight_field)),
         min_distance_(min_distance)
   {
   }
@@ -56,10 +52,8 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 
     const bke::MeshFieldContext edge_context(mesh, AttrDomain::Edge);
     fn::FieldEvaluator edge_evaluator(edge_context, mesh.edges_num);
-    edge_evaluator.add(weight_field_);
     edge_evaluator.set_selection(selection_field_);
     edge_evaluator.evaluate();
-    const VArray<float> edge_weight = edge_evaluator.get_evaluated<float>(0);
     const IndexMask selection = edge_evaluator.get_evaluated_selection_as_mask();
 
     if (selection.is_empty()) {
@@ -78,21 +72,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
     array_utils::copy(position, vert_cluster_centre.as_mutable_span());
     Array<int> vert_cluster_size(mesh.verts_num, 1);
 
-    Array<int> edge_indices;
-    if (!edge_weight.is_single()) {
-      edge_indices.reinitialize(selection.size());
-      selection.to_indices(edge_indices.as_mutable_span());
-      const VArraySpan<float> edge_weight_span = edge_weight;
-      parallel_sort(
-          edge_indices.begin(), edge_indices.end(), [&](const int edge_a, const int edge_b) {
-            if (edge_weight_span[edge_a] == edge_weight_span[edge_b]) {
-              return edge_a < edge_b;
-            }
-            return edge_weight_span[edge_a] < edge_weight_span[edge_b];
-          });
-    }
-
-    const auto try_join_edge = [&](const int edge_i) {
+    selection.foreach_index([&](const int edge_i) {
       const int2 edge = edges[edge_i];
 
       const int2 edge_clusters(vertex_cluster.find_root(edge[0]),
@@ -122,16 +102,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 
       vert_cluster_centre[new_cluster_root] = new_cluster_center;
       vert_cluster_size[new_cluster_root] = new_cluster_size;
-    };
-
-    if (edge_indices.is_empty()) {
-      selection.foreach_index(try_join_edge);
-    }
-    else {
-      for (const int edge_i : edge_indices) {
-        try_join_edge(edge_i);
-      }
-    }
+    });
 
     Array<int> cluster_indices(mesh.verts_num);
     threading::parallel_for(
@@ -151,12 +122,11 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
   {
     fn(selection_field_);
     fn(position_field_);
-    fn(weight_field_);
   }
 
   uint64_t hash() const override
   {
-    return get_default_hash(selection_field_, position_field_, weight_field_, min_distance_);
+    return get_default_hash(selection_field_, position_field_, min_distance_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -171,9 +141,6 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
         return false;
       }
       if (this->position_field_ != other_field->position_field_) {
-        return false;
-      }
-      if (this->weight_field_ != other_field->weight_field_) {
         return false;
       }
       return true;
@@ -193,7 +160,6 @@ static void node_geo_exec(GeoNodeExecParams params)
                     Field<int>::from_input<MeshClusterFieldInput>(
                         params.extract_input<Field<bool>>("Selection"_ustr),
                         params.extract_input<Field<float3>>("Position"_ustr),
-                        params.extract_input<Field<float>>("Weight"_ustr),
                         params.extract_input<float>("Distance"_ustr)));
 }
 
