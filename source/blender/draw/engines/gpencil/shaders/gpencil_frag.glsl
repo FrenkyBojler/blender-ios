@@ -110,26 +110,36 @@ float2x2 calculate_rotation_matrix(float2 x_axis)
   return transpose(float2x2(x_axis, y_axis));
 }
 
+struct RandomParameters {
+  float random_size;
+  float random_strength;
+  float random_rotation;
+
+  float random_hue;
+  float random_saturation;
+  float random_value;
+};
+
+RandomParameters unpack_random(uint4 random_packed)
+{
+  float2 unpacked_x = unpackUnorm2x16(random_packed.x);
+  float2 unpacked_y = unpackUnorm2x16(random_packed.y);
+  float2 unpacked_z = unpackUnorm2x16(random_packed.z);
+  return {unpacked_x.x, unpacked_x.y, unpacked_y.x, unpacked_y.y, unpacked_z.x, unpacked_z.y};
+}
+
 float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
 {
   uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
-  uint4 random_packed = gp_materials[matid].random_packed;
+  RandomParameters Parameters = unpack_random(gp_materials[matid].random_packed);
 
-  float random_size = gpencil_decode_random_size(random_packed);
-  float random_strength = gpencil_decode_random_strength(random_packed);
-  float random_rotation = gpencil_decode_random_rotation(random_packed);
-
-  float random_hue = gpencil_decode_random_hue(random_packed);
-  float random_saturation = gpencil_decode_random_saturation(random_packed);
-  float random_value = gpencil_decode_random_value(random_packed);
-
-  if (random_rotation > 0.0f) {
+  if (Parameters.random_rotation > 0.0f) {
     float rand = hash_uint_to_float(i + 6963723);
     rand -= 0.5f;
     rand *= 2.0f;
     rand *= M_PI;
 
-    rand *= random_rotation;
+    rand *= Parameters.random_rotation;
 
     uv -= 0.5f;
     float2x2 mat = calculate_rotation_matrix(float2(cos(rand), sin(rand)));
@@ -139,10 +149,10 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
     uv += 0.5f;
   }
 
-  if (random_size > 0.0f) {
+  if (Parameters.random_size > 0.0f) {
     float rand = hash_uint_to_float(i + 1855321);
 
-    rand *= random_size;
+    rand *= Parameters.random_size;
     rand = 1.0f - rand;
 
     uv -= 0.5f;
@@ -153,7 +163,9 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   }
 
   float4 col = get_color(uv, dx, dy);
-  if (random_hue > 0.0f || random_saturation > 0.0f || random_value > 0.0f) {
+  if (Parameters.random_hue > 0.0f || Parameters.random_saturation > 0.0f ||
+      Parameters.random_value > 0.0f)
+  {
     float4 col_hsva;
     rgb_to_hsv(col, col_hsva);
 
@@ -161,9 +173,9 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
     float rand_sat = hash_uint_to_float(i + 16430206);
     float rand_val = hash_uint_to_float(i + 86191990);
 
-    col_hsva.x += (rand_hue - 0.5f) * random_hue;
-    col_hsva.y *= 1.0f - random_saturation + rand_sat * 2.0f * random_saturation;
-    col_hsva.z *= 1.0f - random_value + rand_val * 2.0f * random_value;
+    col_hsva.x += (rand_hue - 0.5f) * Parameters.random_hue;
+    col_hsva.y *= 1.0f + (rand_sat * 2.0f - 1.0f) * Parameters.random_saturation;
+    col_hsva.z *= 1.0f - Parameters.random_value + rand_val * 2.0f * Parameters.random_value;
 
     col_hsva.x = fract(col_hsva.x);
     col_hsva.y = clamp(col_hsva.y, 0.0f, 1.0f);
@@ -172,11 +184,11 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
     hsv_to_rgb(col_hsva, col);
   }
 
-  if (random_strength > 0.0f) {
+  if (Parameters.random_strength > 0.0f) {
     float rand = hash_uint_to_float(i + 689163);
 
     rand -= 1.0f;
-    rand *= random_strength;
+    rand *= Parameters.random_strength;
     rand += 1.0f;
 
     col *= rand;

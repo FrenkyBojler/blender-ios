@@ -241,36 +241,6 @@ float gpencil_decode_miter_limit(int packed_data)
   return cos(miter_angle);
 }
 
-float gpencil_decode_random_size(uint4 random_packed)
-{
-  return float(random_packed.x & 0x0000FFFFu) / 65535.0f;
-}
-
-float gpencil_decode_random_strength(uint4 random_packed)
-{
-  return float((random_packed.x & 0xFFFF0000u) >> 16u) / 65535.0f;
-}
-
-float gpencil_decode_random_rotation(uint4 random_packed)
-{
-  return float(random_packed.y & 0x0000FFFFu) / 65535.0f;
-}
-
-float gpencil_decode_random_hue(uint4 random_packed)
-{
-  return float((random_packed.y & 0xFFFF0000u) >> 16u) / 65535.0f;
-}
-
-float gpencil_decode_random_saturation(uint4 random_packed)
-{
-  return float(random_packed.z & 0x0000FFFFu) / 65535.0f;
-}
-
-float gpencil_decode_random_value(uint4 random_packed)
-{
-  return float((random_packed.z & 0xFFFF0000u) >> 16u) / 65535.0f;
-}
-
 float2 gpencil_project_to_screenspace(float4 v, float4 viewport_res)
 {
   return ((v.xy / v.w) * 0.5f + 0.5f) * viewport_res.xy;
