@@ -154,7 +154,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 {
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
-  Map<GFieldRef, mf::Variable *> variable_by_field;
+  Map<GFieldRef, mf::Variable *, 4, DefaultProbingStrategy, GFieldDeepHasher, GFieldEqualityDeep>
+      variable_by_field;
   Map<std::reference_wrapper<const FieldInput>, mf::Variable *> variable_by_field_input;
 
   /* Start by adding the field inputs as parameters to the procedure. */
@@ -172,7 +173,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 
   for (GFieldRef field : output_fields) {
     /* We start a new stack for each output field to make sure that a field pushed later to the
-     * stack does never depend on a field that was pushed before. */
+     * stack never depends on a field that was pushed before. */
     Stack<FieldWithIndex> fields_to_check;
     fields_to_check.push({field, 0});
     while (!fields_to_check.is_empty()) {
@@ -205,7 +206,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                 /* All inputs variables are ready, now gather all variables that are used by the
                  * function and call it. */
                 const mf::MultiFunction &multi_function = field_multi_fn.multi_function();
-                Vector<mf::Variable *> variables(multi_function.param_amount());
+                Array<mf::Variable *, 8> variables(multi_function.param_amount());
 
                 int param_input_index = 0;
                 int param_output_index = 0;

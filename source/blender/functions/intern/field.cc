@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <ranges>
+
+#include "BLI_stack.hh"
+
 #include "FN_field.hh"
 #include "FN_multi_function_registry.hh"
 
@@ -96,10 +100,66 @@ uint64_t GField::hash() const
       ref.variant_);
 }
 
+bool field_equal_deep(const GFieldRef &a, const GFieldRef &b)
+{
+  if (a != b) {
+    return false;
+  }
+  const auto *a_op = std::get_if<GFieldRef::MultiFn>(&a.variant());
+  if (!a_op) {
+    return true;
+  }
+  const auto *b_op = std::get_if<GFieldRef::MultiFn>(&b.variant());
+  const Span<GField> a_inputs = a_op->node->inputs();
+  const Span<GField> b_inputs = b_op->node->inputs();
+  for (const int i : a_inputs.index_range()) {
+    if (!field_equal_deep(a_inputs[i], b_inputs[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
+{
+  if (const uint64_t *cached = cache.lookup_ptr(field)) {
+    return *cached;
+  }
+
+  Stack<GFieldRef, 16> stack;
+  Vector<GFieldRef, 8> ordered;
+  stack.push(field);
+  while (!stack.is_empty()) {
+    GFieldRef current = stack.pop();
+    ordered.append(current);
+    if (const auto *multi_fn = std::get_if<GFieldRef::MultiFn>(&current.variant())) {
+      for (const GField &input : multi_fn->node->inputs()) {
+        stack.push(input);
+      }
+    }
+  }
+
+  for (const GFieldRef &current : ordered | std::views::reverse) {
+    if (cache.contains(current)) {
+      continue;
+    }
+    uint64_t hash = current.hash();
+    if (const auto *multi_fn = std::get_if<GFieldRef::MultiFn>(&current.variant())) {
+      for (const GField &input : multi_fn->node->inputs()) {
+        hash = get_default_hash(hash, cache.lookup(input));
+      }
+    }
+    cache.add(current, hash);
+  }
+
+  return cache.lookup(field);
+}
+
 const FieldInputsPtr &FieldInput::field_inputs() const
 {
+  const char *func = __func__;
   field_inputs_mutex_.ensure([&]() {
-    FieldInputs *inputs = MEM_new<FieldInputs>(__func__);
+    FieldInputs *inputs = MEM_new<FieldInputs>(func);
     inputs->inputs.add(*this);
     field_inputs_ = FieldInputsPtr(inputs);
   });

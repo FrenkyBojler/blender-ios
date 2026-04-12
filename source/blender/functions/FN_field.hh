@@ -392,6 +392,25 @@ template<typename T> constexpr bool is_field_v<Field<T>> = true;
 
 Field<bool> invert_boolean_field(const Field<bool> &field);
 
+struct GFieldDeepHasher {
+  mutable Mutex mutex;
+  Map<GFieldRef, uint64_t> cache;
+  uint64_t ensure(const GFieldRef &field);
+  uint64_t operator()(const GFieldRef &field) const
+  {
+    std::lock_guard lock(this->mutex);
+    return const_cast<GFieldDeepHasher *>(this)->ensure(field);
+  }
+};
+bool field_equal_deep(const GFieldRef &a, const GFieldRef &b);
+
+struct GFieldEqualityDeep {
+  bool operator()(const GFieldRef &a, const GFieldRef &b) const
+  {
+    return field_equal_deep(a, b);
+  }
+};
+
 class IndexFieldInput final : public FieldInput {
  public:
   IndexFieldInput();
