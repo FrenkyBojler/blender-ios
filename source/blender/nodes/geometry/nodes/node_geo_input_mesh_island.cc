@@ -53,7 +53,7 @@ class IslandFieldInput final : public bke::MeshFieldInput {
     return 635467354;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const IslandFieldInput *>(&other) != nullptr;
   }
@@ -91,7 +91,7 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
     return 45634572457;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const IslandCountFieldInput *>(&other) != nullptr;
   }
@@ -105,19 +105,17 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   if (params.output_is_required("Island Index"_ustr)) {
-    Field<int> field{std::make_shared<IslandFieldInput>()};
-    params.set_output("Island Index"_ustr, std::move(field));
+    params.set_output("Island Index"_ustr, Field<int>::from_input<IslandFieldInput>());
   }
   if (params.output_is_required("Island Count"_ustr)) {
-    Field<int> field{std::make_shared<IslandCountFieldInput>()};
-    params.set_output("Island Count"_ustr, std::move(field));
+    params.set_output("Island Count"_ustr, Field<int>::from_input<IslandCountFieldInput>());
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeInputMeshIsland", GEO_NODE_INPUT_MESH_ISLAND);
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshIsland"_ustr, GEO_NODE_INPUT_MESH_ISLAND);
   ntype.ui_name = "Mesh Island";
   ntype.ui_description = "Retrieve information about separate connected regions in a mesh";
   ntype.enum_name_legacy = "MESH_ISLAND";

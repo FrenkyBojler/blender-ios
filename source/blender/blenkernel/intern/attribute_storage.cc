@@ -333,7 +333,7 @@ void AttributeStorage::rename(Attribute &attr, std::string new_name)
   attr.name_ = std::move(new_name);
   this->runtime->attributes.reserve(old_vector.size());
   for (std::unique_ptr<Attribute> &attribute : old_vector) {
-    if (attribute->name() == attr.name_) {
+    if (attribute->name() == attr.name_ && attribute.get() != &attr) {
       continue;
     }
     this->runtime->attributes.add_new(std::move(attribute));
@@ -485,7 +485,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       }
       Attribute::ArrayData array_data{
           data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};
-      if (data.is_single) {
+      if (data.is_single && data.size) {
         const CPPType &cpp_type = attribute_type_to_cpp_type(AttrType(dna_attr_type));
         return Attribute::SingleData::from_value(GPointer(cpp_type, data.data));
       }
@@ -683,6 +683,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     }
 
     write_data.attributes.append(attribute_dna);
+    BLO_write_generated_pointer_tag(write_data.writer, attribute_dna.data);
   }
   data.runtime = nullptr;
 }
@@ -699,8 +700,8 @@ static void write_shared_array(BlendWriter &writer,
   });
 }
 
-AttributeStorage::BlendWriteData::BlendWriteData(ResourceScope &scope)
-    : scope(scope), attributes(scope.construct<Vector<blender::Attribute, 16>>())
+AttributeStorage::BlendWriteData::BlendWriteData(BlendWriter *writer, ResourceScope &scope)
+    : writer(writer), scope(scope), attributes(scope.construct<Vector<blender::Attribute, 16>>())
 {
 }
 

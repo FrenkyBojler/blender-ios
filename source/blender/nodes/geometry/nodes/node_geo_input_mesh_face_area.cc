@@ -47,7 +47,7 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
     return 1346334523;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const FaceAreaFieldInput *>(&other) != nullptr;
   }
@@ -60,13 +60,13 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Area"_ustr, Field<float>(std::make_shared<FaceAreaFieldInput>()));
+  params.set_output("Area"_ustr, Field<float>::from_input<FaceAreaFieldInput>());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeInputMeshFaceArea", GEO_NODE_INPUT_MESH_FACE_AREA);
+  geo_node_type_base(&ntype, "GeometryNodeInputMeshFaceArea"_ustr, GEO_NODE_INPUT_MESH_FACE_AREA);
   ntype.ui_name = "Face Area";
   ntype.ui_description = "Calculate the surface area of a mesh's faces";
   ntype.enum_name_legacy = "MESH_FACE_AREA";

@@ -107,7 +107,7 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
     return 91827364589;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const TangentFieldInput *>(&other) != nullptr;
   }
@@ -120,15 +120,14 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float3> tangent_field{std::make_shared<TangentFieldInput>()};
-  params.set_output("Tangent"_ustr, std::move(tangent_field));
+  params.set_output("Tangent"_ustr, Field<float3>::from_input<TangentFieldInput>());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputTangent", GEO_NODE_INPUT_TANGENT);
+  geo_node_type_base(&ntype, "GeometryNodeInputTangent"_ustr, GEO_NODE_INPUT_TANGENT);
   ntype.ui_name = "Curve Tangent";
   ntype.ui_description = "Retrieve the direction of curves at each control point";
   ntype.enum_name_legacy = "INPUT_TANGENT";

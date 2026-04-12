@@ -91,7 +91,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Standard Deviation"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldVariance");
+          bNode &node = params.add_node("GeometryNodeFieldVariance"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Standard Deviation"_ustr);
         },
@@ -99,7 +99,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Variance"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldVariance");
+          bNode &node = params.add_node("GeometryNodeFieldVariance"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Variance"_ustr);
         },
@@ -109,7 +109,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Value"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldVariance");
+          bNode &node = params.add_node("GeometryNodeFieldVariance"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Value"_ustr);
         },
@@ -241,10 +241,10 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const final
   {
-    input_.node().for_each_field_input_recursive(fn);
-    group_index_.node().for_each_field_input_recursive(fn);
+    fn(input_);
+    fn(group_index_);
   }
 
   uint64_t hash() const override
@@ -252,7 +252,7 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
     return get_default_hash(input_, group_index_, source_domain_, operation_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const FieldVarianceInput *other_field = dynamic_cast<const FieldVarianceInput *>(&other)) {
       return input_ == other_field->input_ && group_index_ == other_field->group_index_ &&
@@ -278,14 +278,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (params.output_is_required("Standard Deviation"_ustr)) {
     params.set_output<GField>(
         "Standard Deviation"_ustr,
-        GField{std::make_shared<FieldVarianceInput>(
-            source_domain, input_field, group_index_field, Operation::StdDev)});
+        GField::from_input<FieldVarianceInput>(
+            source_domain, input_field, group_index_field, Operation::StdDev));
   }
   if (params.output_is_required("Variance"_ustr)) {
     params.set_output<GField>(
         "Variance"_ustr,
-        GField{std::make_shared<FieldVarianceInput>(
-            source_domain, input_field, group_index_field, Operation::Variance)});
+        GField::from_input<FieldVarianceInput>(
+            source_domain, input_field, group_index_field, Operation::Variance));
   }
 }
 
@@ -324,7 +324,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldVariance");
+  geo_node_type_base(&ntype, "GeometryNodeFieldVariance"_ustr);
   ntype.ui_name = "Field Variance";
   ntype.ui_description = "Calculate the standard deviation and variance of a given field";
   ntype.nclass = NODE_CLASS_CONVERTER;
