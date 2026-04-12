@@ -30,15 +30,28 @@ class NODE_OT_reset_selected(Operator):
     def is_frame_node(node):
         return node.bl_idname == "NodeFrame"
 
-    # TODO All zone nodes are ignored here for now, because replacing one of the input/output pair breaks the zone.
-    # It's possible to handle zones by using the `paired_output` function of an input node
-    # and reconstruct the zone using the `pair_with_output` function.
-    zone_node_types = {
-        "GeometryNodeRepeatInput", "GeometryNodeRepeatOutput", "NodeClosureInput",
-        "NodeClosureOutput", "GeometryNodeSimulationInput", "GeometryNodeSimulationOutput",
-        "GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput",
-    }
-    node_ignore = zone_node_types | {"NodeFrame", "NodeReroute"}
+    node_ignore = {"NodeFrame", "NodeReroute"}
+
+    @staticmethod
+    def get_zone_pair(tree, node):
+        # Get paired output node.
+        if hasattr(node, "paired_output"):
+            return node, node.paired_output
+
+        # Get paired input node.
+        for input_node in tree.nodes:
+            if hasattr(input_node, "paired_output"):
+                if input_node.paired_output == node:
+                    return input_node, node
+
+        return None
+
+    @staticmethod
+    def swap_names(old_node, new_node):
+        temp = old_node.name
+
+        old_node.name = new_node.name
+        new_node.name = temp
 
     @classmethod
     def ignore_node(cls, node):
@@ -67,6 +80,7 @@ class NODE_OT_reset_selected(Operator):
 
         props_to_copy = ("location", "height", "width", "select", "location_absolute", "parent")
         success_names = []
+        nodes_to_delete = set()
 
         if node_active and node_active.select:
             active_node_name = node_active.name
@@ -74,23 +88,54 @@ class NODE_OT_reset_selected(Operator):
             active_node_name = None
 
         # Run through all valid nodes
-        for node in valid_nodes:
-            new_node = node_tree.nodes.new(node.bl_idname)
+        for old_node in valid_nodes:
+            if old_node in nodes_to_delete:
+                continue
 
-            if hasattr(node, "node_tree"):
-                new_node.node_tree = node.node_tree
-                # Need to copy since it is usually False for assets, but usually True for regular groups
-                new_node.show_options = node.show_options
+            zone_pair = self.get_zone_pair(node_tree, old_node)
 
-            transfer_links(node_tree, node, new_node)
-            for prop in props_to_copy:
-                setattr(new_node, prop, getattr(node, prop))
+            if zone_pair:
+                # Zone nodes are always treated as a pair, even if only one is selected, reset both.
+                old_input_node, old_output_node = zone_pair
 
-            node_name = node.name
+                new_input_node = node_tree.nodes.new(old_input_node.bl_idname)
+                new_output_node = node_tree.nodes.new(old_output_node.bl_idname)
+
+                # Simulation input must be paired with the output.
+                new_input_node.pair_with_output(new_output_node)
+
+                for prop in props_to_copy:
+                    setattr(new_input_node, prop, getattr(old_input_node, prop))
+                    setattr(new_output_node, prop, getattr(old_output_node, prop))
+
+                transfer_links(node_tree, old_input_node, new_input_node)
+                transfer_links(node_tree, old_output_node, new_output_node)
+
+                self.swap_names(old_input_node, new_input_node)
+                self.swap_names(old_output_node, new_output_node)
+                nodes_to_delete.add(old_input_node)
+                nodes_to_delete.add(old_output_node)
+
+                for node in zone_pair:
+                    nodes_to_delete.add(node)
+            else:
+                new_node = node_tree.nodes.new(old_node.bl_idname)
+
+                if hasattr(old_node, "node_tree"):
+                    new_node.node_tree = old_node.node_tree
+                    # Need to copy since it is usually False for assets, but usually True for regular groups
+                    new_node.show_options = old_node.show_options
+
+                transfer_links(node_tree, old_node, new_node)
+                for prop in props_to_copy:
+                    setattr(new_node, prop, getattr(old_node, prop))
+
+                self.swap_names(old_node, new_node)
+                nodes_to_delete.add(old_node)
+
+        for node in nodes_to_delete:
+            success_names.append(node.name)
             node_tree.nodes.remove(node)
-            new_node.name = node_name
-
-            success_names.append(new_node.name)
 
         # Reselect all nodes
         if selected_node_names:
