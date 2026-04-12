@@ -13,13 +13,13 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_listbase_wrapper.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -571,8 +571,9 @@ static float compute_line_expansion(const LineInfo &line, const TextVars *text)
       current_range = current_range->next;
     }
 
-    float char_size = (current_range && character.offset >= current_range->start) ? 
-                       current_range->size : text->text_size;
+    float char_size = (current_range && character.offset >= current_range->start) ?
+                          current_range->size :
+                          text->text_size;
 
     float scale_ratio = (text->text_size > 0.0f) ? (char_size / text->text_size) : 1.0f;
     expansion += (static_cast<float>(character.advance_x) * (scale_ratio - 1.0f));
@@ -594,9 +595,8 @@ static void update_font_state(int font_id, const StyleAttributes &attr, StyleAtt
   BLF_size(font_id, attr.size);
 }
 
-
-static void text_draw(const char *text_ptr, 
-                      const TextVars *text_vars, 
+static void text_draw(const char *text_ptr,
+                      const TextVars *text_vars,
                       const TextVarsRuntime *runtime)
 {
   const bool use_fallback = BLF_is_builtin(runtime->font);
@@ -605,7 +605,7 @@ static void text_draw(const char *text_ptr,
   }
 
   /* Track state to avoid redundant BLF calls. */
-  StyleAttributes current_state = { {0}, -1.0f, false, false };
+  StyleAttributes current_state = {{0}, -1.0f, false, false};
   TextStyleRange *range_it = static_cast<TextStyleRange *>(text_vars->style_ranges.first);
 
   for (const LineInfo &line : runtime->lines) {
@@ -623,7 +623,8 @@ static void text_draw(const char *text_ptr,
         attr.size = range_it->size;
         attr.bold = range_it->is_bold;
         attr.italic = range_it->is_italic;
-      } else {
+      }
+      else {
         copy_v4_v4(attr.color, text_vars->color);
         attr.size = text_vars->text_size;
         attr.bold = (text_vars->flag & SEQ_TEXT_BOLD);
@@ -632,7 +633,8 @@ static void text_draw(const char *text_ptr,
 
       update_font_state(runtime->font, attr, current_state);
 
-      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) : 1.0f;
+      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) :
+                                                          1.0f;
       float final_x = character.position.x + accumulation_shift - centering_offset;
 
       BLF_position(runtime->font, final_x, character.position.y, 0.0f);
@@ -1020,8 +1022,8 @@ static int text_box_width_get(const TextVars *text_vars, const Vector<LineInfo> 
       float char_size = text_vars->text_size;
 
       /* Check if this character is inside a custom style range. */
-      for (TextStyleRange *r = static_cast<TextStyleRange *>(text_vars->style_ranges.first); 
-           r; r = r->next) 
+      for (TextStyleRange *r = static_cast<TextStyleRange *>(text_vars->style_ranges.first); r;
+           r = r->next)
       {
         if (character.offset >= r->start && character.offset < r->end) {
           char_size = r->size;
@@ -1030,8 +1032,9 @@ static int text_box_width_get(const TextVars *text_vars, const Vector<LineInfo> 
       }
 
       /* Calculate the expansion ratio (e.g., 2.0 if the word is double size). */
-      float scale_ratio = (text_vars->text_size > 0.0f) ? (char_size / text_vars->text_size) : 1.0f;
-      
+      float scale_ratio = (text_vars->text_size > 0.0f) ? (char_size / text_vars->text_size) :
+                                                          1.0f;
+
       /* Add the scaled advance of this character to the line total. */
       current_line_width += static_cast<float>(character.advance_x) * scale_ratio;
     }
@@ -1105,7 +1108,6 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   }
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
-  
 
   const float2 anchor = anchor_offset_get(data, width_max, text_height);
 

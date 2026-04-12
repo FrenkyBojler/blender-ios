@@ -1063,7 +1063,10 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
 }
-float get_char_style_offset(const TextVars *data, const seq::TextVarsRuntime *runtime, int line_idx, int char_in_line_idx)
+float get_char_style_offset(const TextVars *data,
+                            const seq::TextVarsRuntime *runtime,
+                            int line_idx,
+                            int char_in_line_idx)
 {
   const seq::LineInfo &line = runtime->lines[line_idx];
   float total_line_expansion = 0.0f;
@@ -1072,28 +1075,34 @@ float get_char_style_offset(const TextVars *data, const seq::TextVarsRuntime *ru
   /* First Pass: Calculate total expansion for this specific line (for centering). */
   for (const seq::CharInfo &character : line.characters) {
     float char_size = data->text_size;
-    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r; r = r->next) {
+    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r;
+         r = r->next)
+    {
       if (character.offset >= r->start && character.offset < r->end) {
         char_size = r->size;
         break;
       }
     }
     float scale_ratio = (data->text_size > 0.0f) ? (char_size / data->text_size) : 1.0f;
-    total_line_expansion += (static_cast<float>(character.advance_x) * scale_ratio) - static_cast<float>(character.advance_x);
+    total_line_expansion += (static_cast<float>(character.advance_x) * scale_ratio) -
+                            static_cast<float>(character.advance_x);
   }
 
   /* Second Pass: Calculate accumulation up to our specific character. */
   for (int i = 0; i < char_in_line_idx; i++) {
     const seq::CharInfo &character = line.characters[i];
     float char_size = data->text_size;
-    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r; r = r->next) {
+    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r;
+         r = r->next)
+    {
       if (character.offset >= r->start && character.offset < r->end) {
         char_size = r->size;
         break;
       }
     }
     float scale_ratio = (data->text_size > 0.0f) ? (char_size / data->text_size) : 1.0f;
-    accumulation_shift += (static_cast<float>(character.advance_x) * scale_ratio) - static_cast<float>(character.advance_x);
+    accumulation_shift += (static_cast<float>(character.advance_x) * scale_ratio) -
+                          static_cast<float>(character.advance_x);
   }
 
   return accumulation_shift - (total_line_expansion / 2.0f);
@@ -1120,7 +1129,7 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 
   for (int line_index = line_start; line_index <= line_end; line_index++) {
     const seq::LineInfo &line = runtime->lines[line_index];
-    
+
     /* Indices within the line's character array. */
     int char_idx_start = 0;
     int char_idx_end = line.characters.size() - 1;
@@ -1141,7 +1150,9 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 
     /* We need the scaled width of the LAST character to close the selection box correctly. */
     float end_char_size = data->text_size;
-    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r; r = r->next) {
+    for (TextStyleRange *r = static_cast<TextStyleRange *>(data->style_ranges.first); r;
+         r = r->next)
+    {
       if (character_end.offset >= r->start && character_end.offset < r->end) {
         end_char_size = r->size;
         break;
@@ -1151,7 +1162,8 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
     float end_scale = (data->text_size > 0.0f) ? (end_char_size / data->text_size) : 1.0f;
     float start_x = character_start.position.x + start_shift;
     /* Selection ends at: (Pos + Shift) + (Scaled Advance). */
-    float end_x = character_end.position.x + end_shift + (static_cast<float>(character_end.advance_x) * end_scale);
+    float end_x = character_end.position.x + end_shift +
+                  (static_cast<float>(character_end.advance_x) * end_scale);
 
     const float line_y = character_start.position.y + runtime->font_descender;
 
@@ -1200,13 +1212,13 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   const float2 view_offs = float2(-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f);
   const float view_aspect = scene->r.xasp / scene->r.yasp;
   float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
-  
+
   const int2 cursor_position = strip_text_cursor_offset_to_position(runtime, data->cursor_offset);
-  const float cursor_width = 2.0f * U.pixelsize; // Slimmer, standard cursor width
-  
+  const float cursor_width = 2.0f * U.pixelsize;  // Slimmer, standard cursor width
+
   const seq::LineInfo &line = runtime->lines[cursor_position.y];
   const seq::CharInfo &cursor_char = line.characters[cursor_position.x];
-  
+
   float2 cursor_coords = cursor_char.position;
 
   cursor_coords.x += get_char_style_offset(data, runtime, cursor_position.y, cursor_position.x);
@@ -1235,7 +1247,7 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
     cursor_quad[i] = math::transform_point(transform_mat, cursor_quad[i]);
     cursor_quad[i].x *= view_aspect;
   }
-  
+
   int indices[6] = {0, 1, 2, 2, 3, 0};
   for (int i = 0; i < 6; i++) {
     immVertex2f(pos, cursor_quad[indices[i]].x, cursor_quad[indices[i]].y);

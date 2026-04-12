@@ -516,6 +516,4 @@ void ensure_unique_name(Strip *strip, Scene *scene)
   }
 }
 
-
-
 }  // namespace blender::seq

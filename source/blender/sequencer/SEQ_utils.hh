@@ -20,7 +20,6 @@ struct SeqTimelineChannel;
 struct Strip;
 struct StripElem;
 
-
 struct StyleAttributes {
   float color[4];
   float size;
@@ -29,7 +28,6 @@ struct StyleAttributes {
 };
 
 namespace seq {
-
 
 void strip_unique_name_set(Scene *scene, ListBaseT<Strip> *seqbasep, Strip *strip);
 const char *get_default_stripname_by_type(int type);

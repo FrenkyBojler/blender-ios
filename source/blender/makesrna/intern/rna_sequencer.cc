@@ -13,8 +13,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_rotation.h"
-#include "BLI_string_utf8_symbols.h"
 #include "BLI_math_vector.h"
+#include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
 
@@ -945,9 +945,10 @@ static void text_style_range_apply_to_selection(TextVars *data,
 
 /** \} */
 
-
-
-static void text_style_ranges_update(ListBase *style_ranges, int change_pos, int delta, int new_len)
+static void text_style_ranges_update(ListBase *style_ranges,
+                                     int change_pos,
+                                     int delta,
+                                     int new_len)
 {
   if (style_ranges == nullptr || BLI_listbase_is_empty(style_ranges)) {
     return;
@@ -987,9 +988,6 @@ static void text_style_ranges_update(ListBase *style_ranges, int change_pos, int
     range = next_range;
   }
 }
-
-
-
 
 static void rna_Strip_text_color_get(PointerRNA *ptr, float *value)
 {
@@ -1040,7 +1038,8 @@ static float rna_Strip_text_size_get(PointerRNA *ptr)
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)text->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end) return r->size;
+      if (start == r->start && end == r->end)
+        return r->size;
     }
   }
   return text->text_size;
@@ -1078,7 +1077,8 @@ static bool rna_Strip_text_bold_get(PointerRNA *ptr)
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end) return (bool)r->is_bold;
+      if (start == r->start && end == r->end)
+        return (bool)r->is_bold;
     }
   }
   StyleAttributes style;
@@ -1094,7 +1094,10 @@ static void rna_Strip_text_bold_set(PointerRNA *ptr, bool value)
   int end = std::max(data->selection_start_offset, data->selection_end_offset);
 
   if (start == end) {
-    if (value) data->flag |= SEQ_TEXT_BOLD; else data->flag &= ~SEQ_TEXT_BOLD;
+    if (value)
+      data->flag |= SEQ_TEXT_BOLD;
+    else
+      data->flag &= ~SEQ_TEXT_BOLD;
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
       r->is_bold = value;
     }
@@ -1117,7 +1120,8 @@ static bool rna_Strip_text_italic_get(PointerRNA *ptr)
 
   if (start != end) {
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
-      if (start == r->start && end == r->end) return (bool)r->is_italic;
+      if (start == r->start && end == r->end)
+        return (bool)r->is_italic;
     }
   }
   StyleAttributes style;
@@ -1133,7 +1137,10 @@ static void rna_Strip_text_italic_set(PointerRNA *ptr, bool value)
   int end = std::max(data->selection_start_offset, data->selection_end_offset);
 
   if (start == end) {
-    if (value) data->flag |= SEQ_TEXT_ITALIC; else data->flag &= ~SEQ_TEXT_ITALIC;
+    if (value)
+      data->flag |= SEQ_TEXT_ITALIC;
+    else
+      data->flag &= ~SEQ_TEXT_ITALIC;
     for (TextStyleRange *r = (TextStyleRange *)data->style_ranges.first; r; r = r->next) {
       r->is_italic = value;
     }
@@ -4095,7 +4102,8 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "font_size", PROP_FLOAT, PROP_UNSIGNED);
-  RNA_def_property_float_funcs(prop, "rna_Strip_text_size_get", "rna_Strip_text_size_set", nullptr);
+  RNA_def_property_float_funcs(
+      prop, "rna_Strip_text_size_get", "rna_Strip_text_size_set", nullptr);
   RNA_def_property_ui_text(prop, "Size", "Font size of the text (supports rich text selection)");
   RNA_def_property_range(prop, 0.0, 2000);
   RNA_def_property_ui_range(prop, 0.0f, 2000, 10.0f, 1);
@@ -4103,7 +4111,8 @@ static void rna_def_text(StructRNA *srna)
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
-  RNA_def_property_float_funcs(prop, "rna_Strip_text_color_get", "rna_Strip_text_color_set", nullptr);
+  RNA_def_property_float_funcs(
+      prop, "rna_Strip_text_color_get", "rna_Strip_text_color_set", nullptr);
   RNA_def_property_ui_text(prop, "Color", "Text color of the selected range");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 

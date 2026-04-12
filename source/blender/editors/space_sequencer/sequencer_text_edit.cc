@@ -8,14 +8,14 @@
 
 #include <cstddef>
 
-#include "DNA_sequence_types.h"
 #include "DEG_depsgraph.hh"
+#include "DNA_sequence_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
@@ -647,7 +647,6 @@ static void delete_character(const seq::CharInfo character, TextVars *data)
   BLI_assert(data->text_len_bytes >= 0);
 }
 
-
 static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
 {
   if (delta == 0 || style_ranges == nullptr) {
@@ -674,7 +673,8 @@ static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
         range->end += delta;
       }
       else if (pos <= range->start && delete_end >= range->end) {
-        range->start = 0; range->end = 0;
+        range->start = 0;
+        range->end = 0;
       }
       else if (pos >= range->start && delete_end <= range->end) {
         range->end += delta;
@@ -693,7 +693,6 @@ static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
   }
 }
 
-
 static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
 {
   const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
@@ -708,7 +707,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
   if (text_has_selection(data)) {
     delete_pos = std::min(data->selection_start_offset, data->selection_end_offset);
     char_delta = -std::abs(data->selection_start_offset - data->selection_end_offset);
-    
+
     delete_selected_text(data);
   }
   /* CASE 2: Backspace or Delete Key */
@@ -803,7 +802,7 @@ static wmOperatorStatus sequencer_text_insert_exec(bContext *C, wmOperator *op)
   char str[512];
   RNA_string_get(op->ptr, "string", str);
   const size_t in_buf_len = STRNLEN(str);
-  
+
   /* Calculate the true character delta (New chars - Deleted selection) */
   int insert_pos = data->cursor_offset;
   if (text_has_selection(data)) {
@@ -907,14 +906,14 @@ static int find_closest_cursor_offset(const TextVars *data, float2 mouse_loc)
   /* Track the line index for the 4-argument offset call. */
   for (int line_idx = 0; line_idx < runtime->lines.size(); line_idx++) {
     const seq::LineInfo &line = runtime->lines[line_idx];
-    
+
     for (int char_idx = 0; char_idx < line.characters.size(); char_idx++) {
       const seq::CharInfo &character = line.characters[char_idx];
 
       /* 1. Calculate the 'Visual X' using the new centering-aware signature. */
-      float visual_x = character.position.x + 
+      float visual_x = character.position.x +
                        get_char_style_offset(data, runtime, line_idx, char_idx);
-      
+
       /* 2. Check distance against the shifted/centered position. */
       float2 visual_pos = float2(visual_x, character.position.y);
       float dist_sq = math::distance_squared(mouse_loc, visual_pos);
@@ -952,9 +951,9 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   /* 3. Setup transformation math. */
   const float2 view_offs = float2(-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f);
   const float view_aspect = (scene->r.yasp != 0.0f) ? (scene->r.xasp / scene->r.yasp) : 1.0f;
-  
+
   float3x3 transform_mat = blender::seq::image_transform_matrix_get(scene, strip);
-  
+
   /* Use explicit template for MSVC 2019. */
   transform_mat = math::invert<float, 3>(transform_mat);
 
@@ -965,7 +964,7 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
 
   /* 5. Update cursor using styled logic. */
   data->cursor_offset = find_closest_cursor_offset(data, mouse_loc);
-  
+
   /* 6. FIX: Tag the scene ID, as the Strip/Sequence itself has no ID member. */
   DEG_id_tag_update(&scene->id, ID_RECALC_SOURCE);
 }
