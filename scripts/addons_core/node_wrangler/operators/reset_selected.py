@@ -30,7 +30,6 @@ class NODE_OT_reset_selected(Operator):
     def is_frame_node(node):
         return node.bl_idname == "NodeFrame"
 
-    group_node_types = {"CompositorNodeGroup", "GeometryNodeGroup", "ShaderNodeGroup"}
     # TODO All zone nodes are ignored here for now, because replacing one of the input/output pair breaks the zone.
     # It's possible to handle zones by using the `paired_output` function of an input node
     # and reconstruct the zone using the `pair_with_output` function.
@@ -39,7 +38,7 @@ class NODE_OT_reset_selected(Operator):
         "NodeClosureOutput", "GeometryNodeSimulationInput", "GeometryNodeSimulationOutput",
         "GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput",
     }
-    node_ignore = group_node_types | zone_node_types | {"NodeFrame", "NodeReroute"}
+    node_ignore = zone_node_types | {"NodeFrame", "NodeReroute"}
 
     @classmethod
     def ignore_node(cls, node):
@@ -77,6 +76,11 @@ class NODE_OT_reset_selected(Operator):
         # Run through all valid nodes
         for node in valid_nodes:
             new_node = node_tree.nodes.new(node.bl_idname)
+
+            if hasattr(node, "node_tree"):
+                new_node.node_tree = node.node_tree
+                # Need to copy since it is usually False for assets, but usually True for regular groups
+                new_node.show_options = node.show_options
 
             transfer_links(node_tree, node, new_node)
             for prop in props_to_copy:
