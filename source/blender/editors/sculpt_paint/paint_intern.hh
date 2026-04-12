@@ -265,8 +265,10 @@ struct PaintStroke : NonCopyable, NonMovable {
    *
    * \param is_cancel: Some paint modes support cancelling a stroke and returning to the initial
    * state. This parameter indicates this case so that appropriate cleanup actions can be taken.
+   * \param stroke_started: Whether the stroke started. Subclasses can use this to determine if
+   * undo steps should be created. See \test_start.
    */
-  virtual void done(bool is_cancel) = 0;
+  virtual void done(bool is_cancel, bool stroke_started) = 0;
 
   /* TODO: This can probably be private, but `paint_image_ops_paint` depends on this */
   bool update(bContext *C,
@@ -690,5 +692,16 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
+
+/* palette.cc */
+
+void PALETTE_OT_new(wmOperatorType *ot);
+void PALETTE_OT_color_add(wmOperatorType *ot);
+void PALETTE_OT_color_delete(wmOperatorType *ot);
+
+void PALETTE_OT_extract_from_image(wmOperatorType *ot);
+void PALETTE_OT_sort(wmOperatorType *ot);
+void PALETTE_OT_color_move(wmOperatorType *ot);
+void PALETTE_OT_join(wmOperatorType *ot);
 
 }  // namespace blender
