@@ -7,6 +7,6 @@
 shader node_scene_time(output float Seconds = 0.0, 
                         output float Frame = 0.0)
 {
-  Seconds = 0.0;
-  Frame = 0.0;
+  getattribute("time", Seconds);
+  getattribute("frame", Frame);
 }

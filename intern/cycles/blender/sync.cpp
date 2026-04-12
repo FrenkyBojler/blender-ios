@@ -573,7 +573,6 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
 
 void BlenderSync::sync_scene_attributes()
 {
-
   float frame = b_scene->r.cfra + b_scene->r.subframe;
   float time = frame / b_scene->r.frs_sec;
 
@@ -582,8 +581,6 @@ void BlenderSync::sync_scene_attributes()
   scene_attribute->set_time(time);
   scene_attribute->set_frame(frame);
 
-  /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
-   * set calls above), but we need to make sure that the dependent things are tagged. */
   scene_attribute->tag_update(scene, SceneAttributes::UPDATE_ALL);
 }
 
