@@ -2,12 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy
 from bpy.types import Operator
-from bpy_extras.node_utils import connect_sockets
 from bpy.app.translations import pgettext_rpt as rpt_
 
-from itertools import chain
 
 from ..utils.nodes import (
     nw_check,
