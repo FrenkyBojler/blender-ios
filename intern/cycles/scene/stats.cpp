@@ -305,9 +305,12 @@ string ImageStats::full_report(const int indent_level)
   if (eviction.tiles_loaded > 0) {
     result += string_printf(
         "%sTiles:\n"
-        "%sLoaded: %" PRId64 "\n"
-        "%sPeak: %" PRId64 " (%.1f%%)\n"
-        "%sEvicted: %" PRId64 " (%.1f%%)\n"
+        "%sLoaded: %" PRId64
+        "\n"
+        "%sPeak: %" PRId64
+        " (%.1f%%)\n"
+        "%sEvicted: %" PRId64
+        " (%.1f%%)\n"
         "%sReloaded: %" PRId64 " (%.1f%%)\n",
         indent.c_str(),
         double_indent.c_str(),
