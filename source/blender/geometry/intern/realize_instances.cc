@@ -1649,11 +1649,11 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
 
   info.no_loose_edges_hint = std::all_of(
       info.order.begin(), info.order.end(), [](const Mesh *mesh) {
-        return mesh->runtime->loose_edges_cache.is_cached() && mesh->loose_edges().count == 0;
+        return mesh->runtime->loose_edges_cache.is_cached() && mesh->loose_edges().is_empty();
       });
   info.no_loose_verts_hint = std::all_of(
       info.order.begin(), info.order.end(), [](const Mesh *mesh) {
-        return mesh->runtime->loose_verts_cache.is_cached() && mesh->loose_verts().count == 0;
+        return mesh->runtime->loose_verts_cache.is_cached() && mesh->loose_verts().is_empty();
       });
   info.no_overlapping_hint = std::all_of(
       info.order.begin(), info.order.end(), [](const Mesh *mesh) {
@@ -1840,7 +1840,7 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
   }
   for (const Mesh *mesh : src_meshes) {
     for (const bDeformGroup &src : mesh->vertex_group_names) {
-      if (existing_names.contains(src.name)) {
+      if (!existing_names.add(src.name)) {
         continue;
       }
       copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, src);
@@ -1850,8 +1850,11 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
 
 static int get_mapped_material_index(const MeshRealizeInfo &info, const int index)
 {
+  if (info.mesh->totcol == 0) {
+    return info.material_index_map.first();
+  }
   const bool valid = IndexRange(info.mesh->totcol).contains(index);
-  return valid ? info.material_index_map[index] : 0;
+  return valid ? info.material_index_map[index] : info.material_index_map.first();
 }
 
 /**
@@ -2418,7 +2421,7 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
   }
   for (const Curves *src_curve : src_curves) {
     for (const bDeformGroup &src : src_curve->geometry.vertex_group_names) {
-      if (existing_names.contains(src.name)) {
+      if (!existing_names.add(src.name)) {
         continue;
       }
       copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, src);

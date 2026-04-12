@@ -155,8 +155,7 @@ static void collection_copy_data(Main *bmain,
   BLI_assert(((collection_src->flag & COLLECTION_IS_MASTER) != 0) ==
              ((collection_src->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
 
-  /* Do not copy collection's preview (same behavior as for objects). */
-  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0 && false) { /* XXX TODO: temp hack. */
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
     BKE_previewimg_id_copy(&collection_dst->id, &collection_src->id);
   }
   else {
@@ -1021,14 +1020,15 @@ void BKE_main_collections_object_cache_free(const Main *bmain)
   }
 }
 
-Base *BKE_collection_or_layer_objects(const Scene *scene,
+Base *BKE_collection_or_layer_objects(const Main &bmain,
+                                      const Scene *scene,
                                       ViewLayer *view_layer,
                                       Collection *collection)
 {
   if (collection) {
     return static_cast<Base *>(BKE_collection_object_cache_get(collection).first);
   }
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   return static_cast<Base *>(BKE_view_layer_object_bases_get(view_layer)->first);
 }
 
@@ -1525,7 +1525,7 @@ bool BKE_collection_is_content_editable(const Collection *collection, std::strin
 {
   if (ID_IS_OVERRIDE_LIBRARY(collection)) {
     if (r_reason) {
-      *r_reason = fmt::format(fmt::runtime(RPT_("Collection '{}' is overriden.")),
+      *r_reason = fmt::format(fmt::runtime(RPT_("Collection '{}' is overridden.")),
                               collection->id.name + 2);
     }
     return false;

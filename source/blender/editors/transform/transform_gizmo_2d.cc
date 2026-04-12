@@ -95,7 +95,7 @@ static bool gizmo2d_generic_poll(const bContext *C, wmGizmoGroupType *gzgt)
       if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
         return false;
       }
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_sequencer_scene(C);
       Editing *ed = seq::editing_get(scene);
       if (ed == nullptr) {
         return false;
@@ -244,11 +244,12 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
     switch (sima->mode) {
       case SI_MODE_UV: {
+        const Main *bmain = CTX_data_main(C);
         Scene *scene = CTX_data_scene(C);
         ViewLayer *view_layer = CTX_data_view_layer(C);
         Vector<Object *> objects =
             BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-                scene, view_layer, nullptr);
+                *bmain, scene, view_layer, nullptr);
         if (ED_uvedit_minmax_multi(scene, objects, r_min, r_max)) {
           has_select = true;
         }
@@ -265,7 +266,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
     Editing *ed = seq::editing_get(scene);
     ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
     ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -319,7 +320,7 @@ static int gizmo2d_calc_transform_orientation(const bContext *C)
     return V3D_ORIENT_GLOBAL;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -341,7 +342,7 @@ static float gizmo2d_calc_rotation(const bContext *C)
     return 0.0f;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -387,16 +388,17 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
                                          float r_pivot[2])
 {
   ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
   bool has_select = false;
 
   if (area->spacetype == SPACE_IMAGE) {
+    const Main *bmain = CTX_data_main(C);
+    Scene *scene = CTX_data_scene(C);
     const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     switch (sima->mode) {
       case SI_MODE_UV:
         ED_uvedit_center_from_pivot_ex(
-            sima, scene, view_layer, r_pivot, sima->around, &has_select);
+            *bmain, sima, scene, view_layer, r_pivot, sima->around, &has_select);
         break;
       case SI_MODE_MASK:
         ED_mask_center_from_pivot_ex(
@@ -407,6 +409,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
+    Scene *scene = CTX_data_sequencer_scene(C);
     SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
     const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
 
@@ -644,7 +647,7 @@ static void gizmo2d_xform_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
   ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_SEQ) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
     seq_get_strip_pivot_median(scene, origin);
 
     float matrix_rotate[4][4];
@@ -709,7 +712,7 @@ static void gizmo2d_xform_invoke_prepare(const bContext *C,
 
   if (ggd->rotation != 0.0f && area->spacetype == SPACE_SEQ) {
     float origin[3];
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
     seq_get_strip_pivot_median(scene, origin);
     /* We need to rotate the cardinal points so they align with the rotated bounding box. */
 

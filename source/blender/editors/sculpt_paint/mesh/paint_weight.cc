@@ -892,7 +892,7 @@ struct WeightPaintStroke final : public PaintStroke {
   void redraw(bool final) override;
   bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
-  void done(bool is_cancel) override;
+  void done(bool is_cancel, bool stroke_started) override;
 };
 
 bool WeightPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
@@ -1167,7 +1167,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
@@ -1295,7 +1295,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
     select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
   }
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   struct LocalData {
@@ -1402,7 +1402,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
@@ -1485,7 +1485,7 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
+  const float *sculpt_normal_frontface = brush_frontface_normal_from_falloff_shape(
       ss, brush.falloff_shape);
 
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
@@ -1753,7 +1753,7 @@ static void wpaint_do_paint(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
   ss.cache->radial_symmetry_pass = i;
-  SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
+  cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = vwpaint::pbvh_gather_generic(depsgraph, ob, wp, brush, memory);
@@ -1786,7 +1786,7 @@ static void wpaint_do_symmetrical_brush_actions(
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.runtime->sculpt_session;
   StrokeCache &cache = *ss.cache;
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const char symm = mesh_symmetry_xyz_get(ob);
   int i = 0;
 
   /* initial stroke */
@@ -1808,7 +1808,7 @@ static void wpaint_do_symmetrical_brush_actions(
       const ePaintSymmetryFlags symm = ePaintSymmetryFlags(i);
       cache.mirror_symmetry_pass = symm;
       cache.radial_symmetry_pass = 0;
-      SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);
+      cache_calc_brushdata_symm(cache, symm, 0, 0);
 
       if (i & (1 << 0)) {
         wpaint_do_paint(depsgraph, ob, wp, wpd, wpi, mesh, brush, symm, 'X', 0, 0);
@@ -1909,7 +1909,7 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   ED_region_tag_redraw(vc->region);
 }
 
-void WeightPaintStroke::done(bool /*is_cancel*/)
+void WeightPaintStroke::done(bool /*is_cancel*/, bool /*stroke_started*/)
 {
   Object &ob = *this->object;
 
@@ -1954,7 +1954,7 @@ static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   if (retval == OPERATOR_FINISHED) {
     WeightPaintStroke *stroke = static_cast<WeightPaintStroke *>(op->customdata);
     if (stroke) {
-      stroke->free(C, op);
+      stroke->finish(C);
       MEM_delete(stroke);
     }
     return OPERATOR_FINISHED;

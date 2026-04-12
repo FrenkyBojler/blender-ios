@@ -21,6 +21,7 @@ set(INC_SYS
 
 set(SRC
   brush_asset_ops.cc
+  palette.cc
   paint_cursor.cc
   paint_curve.cc
   paint_curve_undo.cc
@@ -115,8 +116,8 @@ set(SRC
   mesh/sculpt_trim.cc
   mesh/sculpt_undo.cc
 
-  paint_intern.hh
   paint_cursor.hh
+  paint_intern.hh
 
   curves/sculpt_intern.hh
 

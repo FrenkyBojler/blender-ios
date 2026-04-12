@@ -575,7 +575,7 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
   }
 
   /* Take the dot product with negative the node normal. */
-  bNode *dot_product_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
+  bNode *dot_product_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath"_ustr);
   dot_product_node->custom1 = NODE_VECTOR_MATH_DOT_PRODUCT;
   dot_product_node->flag |= NODE_COLLAPSED;
   dot_product_node->parent = node->parent;
@@ -1240,7 +1240,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         /* Compositor node uses "Image" as the output name while the shader node uses "Color" as
          * the output name. */
         bNodeSocket *image_output = bke::node_find_socket(node, SOCK_OUT, "Image");
-        STRNCPY_UTF8(image_output->identifier, "Color");
+        version_node_socket_identifier_set(*image_output, "Color");
         STRNCPY_UTF8(image_output->name, "Color");
 
         break;
@@ -1259,7 +1259,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         /* Compositor node uses "Value" as the output name while the shader node uses "Result" as
          * the output name. */
         bNodeSocket *value_output = bke::node_find_socket(node, SOCK_OUT, "Value");
-        STRNCPY_UTF8(value_output->identifier, "Result");
+        version_node_socket_identifier_set(*value_output, "Result");
         STRNCPY_UTF8(value_output->name, "Result");
 
         break;
@@ -1281,16 +1281,16 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
          * identifiers while the shader node uses ("Factor", "Factor_Float"), ("A", "A_Color"),
          * ("B", "B_Color"), and ("Result", "Result_Color") as socket names and identifiers. */
         bNodeSocket *factor_input = bke::node_find_socket(node, SOCK_IN, "Fac");
-        STRNCPY_UTF8(factor_input->identifier, "Factor_Float");
+        version_node_socket_identifier_set(*factor_input, "Factor_Float");
         STRNCPY_UTF8(factor_input->name, "Factor");
         bNodeSocket *first_input = bke::node_find_socket(node, SOCK_IN, "Image");
-        STRNCPY_UTF8(first_input->identifier, "A_Color");
+        version_node_socket_identifier_set(*first_input, "A_Color");
         STRNCPY_UTF8(first_input->name, "A");
         bNodeSocket *second_input = bke::node_find_socket(node, SOCK_IN, "Image_001");
-        STRNCPY_UTF8(second_input->identifier, "B_Color");
+        version_node_socket_identifier_set(*second_input, "B_Color");
         STRNCPY_UTF8(second_input->name, "B");
         bNodeSocket *image_output = bke::node_find_socket(node, SOCK_OUT, "Image");
-        STRNCPY_UTF8(image_output->identifier, "Result_Color");
+        version_node_socket_identifier_set(*image_output, "Result_Color");
         STRNCPY_UTF8(image_output->name, "Result");
 
         do_version_mix_color_use_alpha(node_tree, &node);
@@ -1324,8 +1324,15 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
       case SH_NODE_CURVE_VEC: {
         /* The node gained a new Factor input as a first socket, so the vector socket moved to be
          * the second socket and we need to transfer its animation as well. */
-        BKE_animdata_fix_paths_rename_all_ex(
-            bmain, id, rna_path_prefix.c_str(), nullptr, nullptr, 0, 1, false);
+        BKE_animdata_fix_paths_rename_all_ex(bmain,
+                                             id,
+                                             rna_path_prefix.c_str(),
+                                             nullptr,
+                                             nullptr,
+                                             0,
+                                             1,
+                                             /*verify_paths=*/false,
+                                             /*infix_is_name=*/true);
         break;
       }
       /* Notice that we use the shader type because the node is already converted in versioning
@@ -1333,10 +1340,24 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
       case SH_NODE_MIX: {
         /* The node gained multiple new sockets after the factor socket, so the second and third
          * sockets moved to be the 7th and 8th sockets. */
-        BKE_animdata_fix_paths_rename_all_ex(
-            bmain, id, rna_path_prefix.c_str(), nullptr, nullptr, 1, 6, false);
-        BKE_animdata_fix_paths_rename_all_ex(
-            bmain, id, rna_path_prefix.c_str(), nullptr, nullptr, 2, 7, false);
+        BKE_animdata_fix_paths_rename_all_ex(bmain,
+                                             id,
+                                             rna_path_prefix.c_str(),
+                                             nullptr,
+                                             nullptr,
+                                             1,
+                                             6,
+                                             /*verify_paths=*/false,
+                                             /*infix_is_name=*/true);
+        BKE_animdata_fix_paths_rename_all_ex(bmain,
+                                             id,
+                                             rna_path_prefix.c_str(),
+                                             nullptr,
+                                             nullptr,
+                                             2,
+                                             7,
+                                             /*verify_paths=*/false,
+                                             /*infix_is_name=*/true);
         break;
       }
       default:
@@ -1498,7 +1519,7 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
   bNodeSocket *old_length_input = bke::node_find_socket(node, SOCK_IN, "Length");
   bNodeSocket *old_image_output = bke::node_find_socket(node, SOCK_OUT, "Image");
 
-  bNode *glare_node = bke::node_add_node(nullptr, node_tree, "CompositorNodeGlare");
+  bNode *glare_node = bke::node_add_node(nullptr, node_tree, "CompositorNodeGlare"_ustr);
   glare_node->parent = node.parent;
   glare_node->location[0] = node.location[0];
   glare_node->location[1] = node.location[1];
@@ -1575,7 +1596,7 @@ static bNode *do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNod
     }
   }
 
-  bNode *group_output_node = bke::node_add_node(nullptr, node_tree, "NodeGroupOutput");
+  bNode *group_output_node = bke::node_add_node(nullptr, node_tree, "NodeGroupOutput"_ustr);
   group_output_node->parent = node.parent;
   group_output_node->location[0] = node.location[0];
   group_output_node->location[1] = node.location[1];
@@ -1641,7 +1662,7 @@ static void do_version_file_output_node(bNode &node)
     }
 
     const std::string identifier = "Item_" + std::to_string(item_data->identifier);
-    STRNCPY(input.identifier, identifier.c_str());
+    version_node_socket_identifier_set(input, identifier);
 
     BKE_image_format_free(&old_item_data->format);
     MEM_delete(old_item_data);
@@ -2434,7 +2455,7 @@ static void do_version_displace_node_remove_xy_scale(bNodeTree &node_tree, bNode
     }
   }
 
-  bNode *multiply_node = bke::node_add_node(nullptr, node_tree, "ShaderNodeVectorMath");
+  bNode *multiply_node = bke::node_add_node(nullptr, node_tree, "ShaderNodeVectorMath"_ustr);
   multiply_node->parent = node.parent;
   multiply_node->location[0] = node.location[0] - node.width - 20.0f;
   multiply_node->location[1] = node.location[1];
@@ -2457,7 +2478,7 @@ static void do_version_displace_node_remove_xy_scale(bNodeTree &node_tree, bNode
 
   version_node_add_link(node_tree, *multiply_node, *multiply_output, node, *displacement_input);
 
-  bNode *combine_node = bke::node_add_node(nullptr, node_tree, "ShaderNodeCombineXYZ");
+  bNode *combine_node = bke::node_add_node(nullptr, node_tree, "ShaderNodeCombineXYZ"_ustr);
   combine_node->parent = node.parent;
   combine_node->location[0] = multiply_node->location[0] - multiply_node->width - 20.0f;
   combine_node->location[1] = multiply_node->location[1];
@@ -2537,7 +2558,7 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
   version_node_add_link(node_tree, multiply_node, multiply_output, node, *size_input);
 
   bNode *relative_to_pixel_node = bke::node_add_node(
-      nullptr, node_tree, "CompositorNodeRelativeToPixel");
+      nullptr, node_tree, "CompositorNodeRelativeToPixel"_ustr);
   relative_to_pixel_node->parent = node.parent;
   relative_to_pixel_node->location[0] = multiply_node.location[0] - multiply_node.width - 20.0f;
   relative_to_pixel_node->location[1] = multiply_node.location[1];
