@@ -737,13 +737,12 @@ void ImageManager::evict_unused(Device *device, Scene *scene)
   }
 
   /* Read back tile access state from all devices and OR together. */
-  vector<uint8_t> combined(tile_access.size(), 0);
-  device->mem_or_from_device(tile_access, combined);
+  device->mem_or_from_device(tile_access);
 
   image_cache.evict_unused(*device,
                            dscene,
                            {dscene.image_textures.data(), dscene.image_textures.size()},
-                           combined.data());
+                           tile_access.data());
 
   /* Zero access state on both host and device again. */
   memset(tile_access.data(), KERNEL_TILE_ACCESS_NONE, tile_access.size() * sizeof(uint8_t));

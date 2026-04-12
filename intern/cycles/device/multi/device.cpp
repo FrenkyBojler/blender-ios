@@ -494,7 +494,7 @@ class MultiDevice : public Device {
     return false;
   }
 
-  void mem_or_from_device(device_memory &mem, vector<uint8_t> &combined) override
+  void mem_or_from_device(device_memory &mem) override
   {
     device_ptr key = mem.device_pointer;
 
@@ -502,7 +502,7 @@ class MultiDevice : public Device {
       SubDevice *owner_sub = find_matching_mem_device(key, *island.front());
       mem.device = owner_sub->device.get();
       mem.device_pointer = owner_sub->ptr_map[key];
-      owner_sub->device->mem_or_from_device(mem, combined);
+      owner_sub->device->mem_or_from_device(mem);
     }
 
     mem.device = this;
