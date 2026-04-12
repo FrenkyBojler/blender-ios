@@ -4,3 +4,4 @@ Referenced by pull request #157241, Fix #157220: Crash when painting in image ed
 Referenced by commit e3773e069084a024103109a387d29ba7a756ce4e, Fix #157220: Crash when painting in image editor without image
 Referenced by commit 84791220d554680b0100f0c93986802ce22c038c, Fix #157213: Sculpt: Crash when stroke starts and ends in empty area
 Referenced by pull request #157248, Fix: Texture & Image paint doesn't work
+Referenced by commit d72cd84a9c4b243dea27096523c3cf9a92ae8aba, Fix: Texture & Image paint doesn't work
