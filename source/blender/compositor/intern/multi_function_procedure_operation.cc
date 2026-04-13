@@ -167,8 +167,11 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
     }
 
     const mf::ParamType parameter_type = multi_function.param_type(available_inputs_index);
+    available_inputs_index++;
+
     if (schedule_.unneeded_inputs.contains(input)) {
       input_variables.append(this->get_default_value_variable(parameter_type.data_type()));
+      continue;
     }
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
@@ -198,8 +201,6 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
     /* Implicitly convert the variable type to the expected parameter type if needed. */
     input_variables.last() = this->convert_variable(input_variables.last(),
                                                     parameter_type.data_type());
-
-    available_inputs_index++;
   }
 
   return input_variables;
