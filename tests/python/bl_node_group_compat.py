@@ -371,17 +371,18 @@ class NodeGroupVersioningSocketInterfaceIdentifiersTest(AbstractNodeGroupInterfa
     def test_load_compositor_nodes(self):
         self.open_file()
 
-        tree = bpy.data.scenes['Scene'].compositing_node_group
-        group = bpy.data.node_groups.get('NodeGroup.002')
-        self.assertIsNotNone(group, "Compositor node group not found")
-        node = tree.nodes['NodeGroup.002']
-        self.assertEqual(node.node_tree, group, "Node group must use compositor node tree")
+        comp_group = bpy.data.node_groups.get('Compositing Nodetree')
+        self.assertIsNotNone(comp_group, "Compositor node group not found")
+
+        group = bpy.data.node_groups['NodeGroup']
+        node = comp_group.nodes['NodeGroup']
 
         # autopep8: off
         self.compare_group_to_specs(group, node, [
-            SocketSpec("Image", "Image", "RGBA"),
-            SocketSpec("Test Test!@#", "Test_Test___", "VALUE"),
-            SocketSpec("Test Test!@#", "Test_Test____001", "RGBA"),
+            SocketSpec("Image", "Image", "RGBA", default_value=(0, 0, 0, 1)),
+            SocketSpec("Image", "Image", "RGBA", default_value=(0.8, 0.8, 0.8, 1)),
+            SocketSpec("Test Test!@#", "Test_Test___", "VALUE", default_value=0.5, min_value=-2147483648.0, max_value=2147483648.0),
+            SocketSpec("Test Test!@#", "Test_Test____001", "RGBA", default_value=(0.8, 0.8, 0.8, 1)),
         ], test_links=False)
         # autopep8: on
 
