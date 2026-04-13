@@ -276,7 +276,7 @@ class PROJECT_PT_variables(Panel):
             active_dataptr=project,
             active_propname="active_variable_index",
         )
-        col = row.column()
+        col = row.column(align=True)
         col.operator("project.add_variable", text="", icon='ADD')
         col.operator("project.remove_variable", text="", icon='REMOVE')
         # col.operator("project.move_variable", text="", icon='TRIA_UP').type = 'UP'
