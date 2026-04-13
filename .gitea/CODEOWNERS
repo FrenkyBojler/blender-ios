@@ -221,7 +221,14 @@ source/blender/editors/space_sequencer/.*    @eliphaz
 
 # --------------------------------------------------
 # Compositor.
-scripts/startup/bl_ui/node_add_menu_compositor.py 	@zazizizou
+scripts/startup/bl_ui/node_add_menu_compositor.py                @zazizizou @OmarEmaraDev
+source/blender/compositor/.*                                     @OmarEmaraDev
+source/blender/nodes/composite/.*                                @OmarEmaraDev
+source/blender/draw/engines/compositor/.*                        @OmarEmaraDev
+source/blender/render/RE_compositor.hh                           @OmarEmaraDev
+source/blender/render/intern/compositor.cc                       @OmarEmaraDev
+source/blender/sequencer/intern/modifiers/MOD_compositor.cc      @OmarEmaraDev
+source/blender/sequencer/intern/effects/vse_effect_compositor.cc @OmarEmaraDev
 
 # --------------------------------------------------
 # Animation Player.
@@ -284,15 +291,25 @@ source/blender/asset_system/.* @JulianEisel
 
 # --------------------------------------------------
 # Sculpt, Paint, Texture
-source/blender/blenkernel/BKE_paint.*           @Sean-Kim
-source/blender/blenkernel/intern/brush.*        @Sean-Kim
-source/blender/blenkernel/paint.*               @Sean-Kim
-source/blender/blenkernel/pbvh.*                @Sean-Kim
-source/blender/editors/sculpt_paint/paint_.*    @Sean-Kim
-source/blender/editors/sculpt_paint/mesh/.*     @Sean-Kim
+source/blender/makesdna/DNA_brush_types.h           @Sean-Kim
+source/blender/makesdna/DNA_brush_enums.h           @Sean-Kim
+source/blender/makesrna/intern/rna_brush.cc         @Sean-Kim
+source/blender/makesrna/intern/rna_sculpt_paint.cc  @Sean-Kim
+source/blender/blenkernel/BKE_paint.*               @Sean-Kim
+source/blender/blenkernel/intern/brush.*            @Sean-Kim
+source/blender/blenkernel/paint.*                   @Sean-Kim
+source/blender/blenkernel/pbvh.*                    @Sean-Kim
+source/blender/editors/sculpt_paint/paint_.*        @Sean-Kim
+source/blender/editors/sculpt_paint/mesh/.*         @Sean-Kim
 
 # --------------------------------------------------
 # Modeling.
 source/blender/bmesh/.*            @ideasman42
 source/blender/editors/curve/.*    @ideasman42
 source/blender/editors/mesh/.*     @ideasman42
+
+# --------------------------------------------------
+# Documentation.
+doc/.*                                          @ideasman42 @Blendify
+scripts/modules/_rna_manual_reference.py        @Blendify
+tools/utils_doc/.*                              @ideasman42 @Blendify

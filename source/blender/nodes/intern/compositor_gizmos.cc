@@ -166,7 +166,7 @@ static bool show_box_mask_gizmo(const SpaceNode &snode)
     return false;
   }
 
-  if (node && node->is_type("CompositorNodeBoxMask")) {
+  if (node && node->is_type("CompositorNodeBoxMask"_ustr)) {
     node_tree->ensure_topology_cache();
     for (bNodeSocket &input : node->inputs) {
       if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
@@ -366,7 +366,7 @@ static void gizmo_node_box_mask_foreach_rna_prop(
   bNodeSocket *rotation_socket = bke::node_find_socket(*node, SOCK_IN, "Rotation");
   PointerRNA rotation_ptr = RNA_pointer_create_discrete(
       &node_tree.id, RNA_NodeSocket, rotation_socket);
-  PropertyRNA *rotation_prop = RNA_struct_find_property(&position_ptr, "default_value");
+  PropertyRNA *rotation_prop = RNA_struct_find_property(&rotation_ptr, "default_value");
 
   callback(position_ptr, position_prop, -1);
   callback(size_ptr, size_prop, -1);
@@ -537,7 +537,7 @@ static bool show_crop_gizmo(const SpaceNode &snode)
 
   bNode *node = bke::node_get_active(*node_tree);
 
-  if (!node || !node->is_type("CompositorNodeCrop")) {
+  if (!node || !node->is_type("CompositorNodeCrop"_ustr)) {
     return false;
   }
 
@@ -714,7 +714,7 @@ static bool show_glare_gizmo(const SpaceNode &snode)
 
   bNode *node = bke::node_get_active(*node_tree);
 
-  if (!node || !node->is_type("CompositorNodeGlare")) {
+  if (!node || !node->is_type("CompositorNodeGlare"_ustr)) {
     return false;
   }
 
@@ -866,7 +866,7 @@ static bool show_corner_pin(const SpaceNode &snode)
 {
   bNode *node = bke::node_get_active(*snode.edittree);
 
-  if (node && node->is_type("CompositorNodeCornerPin")) {
+  if (node && node->is_type("CompositorNodeCornerPin"_ustr)) {
     return true;
   }
 
@@ -1016,7 +1016,7 @@ static bool show_ellipse_mask_gizmo(const SpaceNode &snode)
 {
   bNode *node = bke::node_get_active(*snode.edittree);
 
-  if (node && node->is_type("CompositorNodeEllipseMask")) {
+  if (node && node->is_type("CompositorNodeEllipseMask"_ustr)) {
     snode.edittree->ensure_topology_cache();
     for (bNodeSocket &input : node->inputs) {
       if (STR_ELEM(input.name, "Position", "Size", "Rotation") && input.is_directly_linked()) {
@@ -1097,7 +1097,7 @@ static void gizmo_node_split_foreach_rna_prop(
   bNodeSocket *rotation_socket = bke::node_find_socket(*node, SOCK_IN, "Rotation");
   PointerRNA rotation_ptr = RNA_pointer_create_discrete(
       &node_tree.id, RNA_NodeSocket, rotation_socket);
-  PropertyRNA *rotation_prop = RNA_struct_find_property(&position_ptr, "default_value");
+  PropertyRNA *rotation_prop = RNA_struct_find_property(&rotation_ptr, "default_value");
 
   callback(position_ptr, position_prop, -1);
   callback(rotation_ptr, rotation_prop, 0);
@@ -1170,7 +1170,7 @@ static bool show_split(const SpaceNode &snode)
 {
   bNode *node = bke::node_get_active(*snode.edittree);
 
-  if (node && node->is_type("CompositorNodeSplit")) {
+  if (node && node->is_type("CompositorNodeSplit"_ustr)) {
     snode.edittree->ensure_topology_cache();
     for (bNodeSocket &input : node->inputs) {
       if (STR_ELEM(input.name, "Position", "Rotation") && input.is_directly_linked()) {
@@ -1315,7 +1315,7 @@ bool transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 
   bNode *node = bke::node_get_active(*snode->edittree);
 
-  if (node && node->is_type("CompositorNodeViewer")) {
+  if (node && node->is_type("CompositorNodeViewer"_ustr)) {
     return true;
   }
 

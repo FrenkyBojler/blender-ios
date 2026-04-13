@@ -66,15 +66,15 @@ void NodeGroupOperation::execute()
     }
   }
 
-  const VectorSet<const bNode *> schedule = compute_schedule(this->context(),
-                                                             node_group_,
-                                                             needed_output_types_,
-                                                             needed_outputs,
-                                                             instance_key_,
-                                                             active_node_group_instance_key_);
+  const Schedule schedule = compute_schedule(this->context(),
+                                             node_group_,
+                                             needed_output_types_,
+                                             needed_outputs,
+                                             instance_key_,
+                                             active_node_group_instance_key_);
   CompileState compile_state(this->context(), schedule);
 
-  for (const bNode *node : schedule) {
+  for (const bNode *node : schedule.nodes) {
     if (this->context().is_canceled()) {
       this->cancel_evaluation();
       break;
@@ -92,15 +92,10 @@ void NodeGroupOperation::execute()
     }
   }
 
-  /* Allocate outputs as invalid if they are not allocated already and are needed. This could
-   * happen for instance when no Group Output node exist or when the evaluation gets canceled
-   * before the output is written. */
-  for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
-    Result &result = this->get_result(output->identifier);
-    if (!result.is_allocated() && result.should_compute()) {
-      result.allocate_invalid();
-    }
-  }
+  /* Some of the needed outputs might not be allocated even after execution. This could happen for
+   * instance when no Group Output node exist or when the evaluation gets canceled before the
+   * output is written. */
+  this->allocate_default_remaining_outputs();
 }
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
@@ -161,7 +156,7 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
     }
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
-    if (output && compile_state.get_schedule().contains(&output->owner_node())) {
+    if (output && compile_state.get_schedule().nodes.contains(&output->owner_node())) {
       /* The input is linked to a node that is part of the schedule. So map the input to the result
        * we get from the output. */
       Result &result = compile_state.get_result_from_output_socket(*output);
@@ -183,7 +178,7 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
  * state. Deleting the operation is the caller's responsibility. */
 static PixelOperation *create_pixel_operation(Context &context, CompileState &compile_state)
 {
-  const VectorSet<const bNode *> &schedule = compile_state.get_schedule();
+  const Schedule &schedule = compile_state.get_schedule();
   PixelCompileUnit &compile_unit = compile_state.get_pixel_compile_unit();
 
   /* Use multi-function procedure to execute the pixel compile unit for CPU contexts or if the
