@@ -209,7 +209,7 @@ static void version_geometry_nodes_properties(FileData &fd,
   nmd.settings_legacy.properties = nullptr;
 }
 
-static void version_sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
+static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
 {
   node_tree.ensure_interface_cache();
   VectorSet<StringRef> all_identifiers;
@@ -458,7 +458,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
     for (bNodeTree &tree : bmain->nodetrees) {
-      version_sanitize_node_tree_interface_socket_identifiers(tree);
+      sanitize_node_tree_interface_socket_identifiers(tree);
     }
   }
   /**
