@@ -1414,11 +1414,15 @@ static void node_link_cancel(bContext *C, wmOperator *op)
     bke::node_link_set_mute(ntree, link_restored, (link.flag & NODE_LINK_MUTED));
 
     if ((tosock->flag & SOCK_MULTI_INPUT)) {
+      ntree.ensure_topology_cache();
       link_restored.multi_input_sort_id = link.multi_input_sort_id;
       /* When drag-disconnected from input socket, order from other links will
        * have changed, so update sort IDs to prevent invalid cases later on. */
       if (nldrag->start_socket->is_input()) {
         for (bNodeLink *other_link : tosock->directly_linked_links()) {
+          if (other_link == &link_restored) {
+            continue;
+          }
           if (other_link->multi_input_sort_id >= link_restored.multi_input_sort_id) {
             other_link->multi_input_sort_id += 1;
           }
