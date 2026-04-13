@@ -1,3 +1,4 @@
 Referenced by issue #156285, Unused node will cause menu switch don't hide parameters
 Referenced by issue #157229, Viewer nodes affecting exposed parameters in a menu/index switch system.
 Referenced by issue #157253, Menu / Index Switching changing exposed node parameter behavior in 5.1.0
+Referenced by pull request #157296, Fix #157253: Incorrect Menu/Index Switch node parameter behavior
