@@ -473,7 +473,6 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
 
         cam = context.camera
         self.draw_flags(cam, layout)
@@ -483,6 +482,8 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
 
     @classmethod
     def draw_flags(cls, item, layout):
+        layout.use_property_split = True
+        
         layout.prop(item, "show_composition_thirds")
         col = layout.column(heading="Center", align=True)
         col.prop(item, "show_composition_center")
