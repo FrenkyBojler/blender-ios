@@ -74,6 +74,7 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "DNA_userdef_types.h"
 
+#  include "ED_geometry.hh"
 #  include "ED_screen.hh"
 
 #  include "BLI_listbase.h"
@@ -877,6 +878,11 @@ static void rna_check_for_available_updates_status_failed_loading()
   bke::check_for_updates_set_failed();
 }
 #  endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
+
+static void rna_register_node_group_operators(bContext *C)
+{
+  ed::geometry::register_node_group_operators(*C);
+}
 
 }  // namespace blender
 
@@ -1765,6 +1771,13 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
       func, "Inform that the download of the available updates has encountered some errors.");
   RNA_def_function_flag(func, FUNC_NO_SELF);
 #  endif /* WITH_BLENDER_UPDATES_NOTIFICATIONS */
+
+  func = RNA_def_function(
+      srna, "register_node_group_operators", "rna_register_node_group_operators");
+  RNA_def_function_ui_description(func,
+                                  "Trigger manual re-registration of node group operators. Useful "
+                                  "in background mode where this doesn't happen automatically.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
 }
 
 }  // namespace blender
