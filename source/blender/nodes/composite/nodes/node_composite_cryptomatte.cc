@@ -1038,6 +1038,7 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(ntype, "NodeCryptomatte", node_free_cryptomatte, node_copy_cryptomatte);
   ntype.gather_link_search_ops = nullptr;
+  ntype.deprecation_notice = N_("Use \"Cryptomatte\" node instead");
   ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);
