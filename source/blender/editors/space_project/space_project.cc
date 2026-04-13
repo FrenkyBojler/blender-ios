@@ -2,9 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <cstring>
-#include <fmt/format.h>
-
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
@@ -217,6 +214,7 @@ void ED_spacetype_project()
   /* regions: navigation window */
   art = MEM_new_zeroed<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::HideSinglePanelCategories;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = project_navigation_region_init;
   art->draw = project_navigation_region_draw;

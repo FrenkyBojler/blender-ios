@@ -62,7 +62,6 @@ namespace ui {
 
 /* ****************** general defines ************** */
 
-#define RNA_NO_INDEX -1
 #define RNA_ENUM_VALUE -2
 
 #define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
@@ -498,6 +497,14 @@ struct ButtonCurveMapping : public Button {
 /** Derived struct for #ButtonType::HotkeyEvent. */
 struct ButtonHotkeyEvent : public Button {
   wmEventModifierFlag modifier_key = wmEventModifierFlag(0);
+};
+
+/**
+ * Derived struct for #ButtonType::Menu, #ButtonType::Block, #ButtonType::Popover or
+ * ButtonType::Pulldown.
+ */
+struct ButtonMenu : public Button {
+  PopupAttachDirection popup_attach_direction = PopupAttachDirection::Vertical;
 };
 
 /**
@@ -1440,7 +1447,6 @@ void style_init();
 
 /* `interface_icons.cc` */
 
-void icon_ensure_deferred(const bContext *C, int icon_id, bool big);
 /** Is \a icon_id a preview icon that is being loaded/rendered? */
 bool icon_is_preview_deferred_loading(int icon_id, bool big);
 int id_icon_get(const bContext *C, ID *id, bool big);

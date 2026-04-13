@@ -20,7 +20,7 @@ class PROJECT_HT_header(Header):
     bl_space_type = 'PROJECT'
 
     def draw(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         layout = self.layout
@@ -35,7 +35,7 @@ class PROJECT_MT_editor_menus(Menu):
     bl_label = ""
 
     def draw(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         layout = self.layout
@@ -47,7 +47,7 @@ class PROJECT_MT_view(Menu):
     bl_label = "View"
 
     def draw(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         layout = self.layout
@@ -64,11 +64,10 @@ class PROJECT_MT_save_load(Menu):
     bl_label = "Save & Load"
 
     def draw(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         layout = self.layout
-        project_space = context.space_data
 
         prefs = context.preferences
 
@@ -85,12 +84,8 @@ class PROJECT_PT_save_project(Panel):
     bl_region_type = 'EXECUTE'
     bl_options = {'HIDE_HEADER'}
 
-    @classmethod
-    def poll(cls, context):
-        return True
-
     def draw(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         layout = self.layout.row()
@@ -127,7 +122,7 @@ class PROJECT_PT_navigation_bar(Panel):
         return True
 
     def draw(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         layout = self.layout
@@ -161,14 +156,8 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
     def poll(cls, context):
         return bpy.data.project is not None
 
-    def centered_operator(self, layout, op_name, text=None, icon=None):
-        col_flow = layout.column_flow(columns=3)
-        col_flow.separator_spacer()
-        col_flow.operator(op_name, text=text, icon=icon)
-        col_flow.separator_spacer()
-
     def draw_centered(self, context, layout):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         project = bpy.data.project
@@ -190,7 +179,7 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
         return not PROJECT_PT_main.poll(context)
 
     def draw_centered(self, context, layout):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         col = layout.column()

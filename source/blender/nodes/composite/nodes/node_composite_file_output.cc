@@ -23,6 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_main.hh"
@@ -85,18 +86,18 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(item);
     BaseSocketDeclarationBuilder *declaration = nullptr;
     if (socket_type == SOCK_VECTOR) {
-      declaration = &b.add_input<decl::Vector>(item.name, identifier)
+      declaration = &b.add_input<decl::Vector>(UString(item.name), UString(identifier))
                          .dimensions(item.vector_socket_dimensions);
     }
     else {
-      declaration = &b.add_input(socket_type, item.name, identifier);
+      declaration = &b.add_input(socket_type, UString(item.name), UString(identifier));
     }
     declaration->structure_type(StructureType::Dynamic)
         .compositor_realization_mode(realization_mode)
         .socket_name_ptr(&node_tree->id, *FileOutputItemsAccessor::item_srna, &item, "name");
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static void node_init(const bContext *C, PointerRNA *node_pointer)
@@ -174,7 +175,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
 
   bke::path_templates::VariableMap template_variables;
-  BKE_add_template_variables_general(template_variables, &node.owner_tree().id);
+  BKE_add_template_variables_general(template_variables, &node.owner_tree().id, G_MAIN->project);
   BKE_add_template_variables_for_render_path(template_variables, scene);
   BKE_add_template_variables_for_node(template_variables, node);
 
@@ -409,7 +410,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item("File Output", [](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("CompositorNodeOutputFile");
+    bNode &node = params.add_node("CompositorNodeOutputFile"_ustr);
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.socket.type);
     if (socket_type == SOCK_VECTOR) {
       socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
@@ -423,7 +424,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       socket_items::add_item_with_socket_type_and_name<FileOutputItemsAccessor>(
           params.node_tree, node, socket_type, params.socket.name);
     }
-    params.update_and_connect_available_socket(node, params.socket.name);
+    params.update_and_connect_available_socket(node, UString(params.socket.name));
   });
 }
 
@@ -895,7 +896,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeOutputFile", CMP_NODE_OUTPUT_FILE);
+  cmp_node_type_base(&ntype, "CompositorNodeOutputFile"_ustr, CMP_NODE_OUTPUT_FILE);
   ntype.ui_name = "File Output";
   ntype.ui_description = "Write image file to disk";
   ntype.enum_name_legacy = "OUTPUT_FILE";

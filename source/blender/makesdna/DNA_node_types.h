@@ -17,6 +17,7 @@
 #include "DNA_vec_types.h" /* for #rctf */
 
 #include "BLI_enum_flags.hh"
+#include "BLI_ustring.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
 #include "BLI_vector.hh"
@@ -1462,6 +1463,9 @@ struct bNodeSocket {
   bke::bNodeSocketRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
+  /** The cached #UString that matches the socket identifier. */
+  UString identifier_ustr() const;
+
   /**
    * Whether the socket is hidden in a way that the user can control.
    *
@@ -1709,7 +1713,7 @@ struct bNode {
    * to catch typos earlier. One can compare with `bNodeType::idname` directly if the idname might
    * not be registered.
    */
-  bool is_type(StringRef query_idname) const;
+  bool is_type(UString query_idname) const;
 
   const nodes::NodeDeclaration *declaration() const;
   /** A span containing all internal links when the node is muted. */
@@ -1738,10 +1742,10 @@ struct bNode {
   bNodeSocket &output_socket(int index);
   const bNodeSocket &output_socket(int index) const;
   /** Lookup socket of this node by its identifier. */
-  const bNodeSocket *input_by_identifier(StringRef identifier) const;
-  const bNodeSocket *output_by_identifier(StringRef identifier) const;
-  bNodeSocket *input_by_identifier(StringRef identifier);
-  bNodeSocket *output_by_identifier(StringRef identifier);
+  const bNodeSocket *input_by_identifier(UString identifier) const;
+  const bNodeSocket *output_by_identifier(UString identifier) const;
+  bNodeSocket *input_by_identifier(UString identifier);
+  bNodeSocket *output_by_identifier(UString identifier);
   /** Lookup socket by its declaration. */
   const bNodeSocket &socket_by_decl(const nodes::SocketDeclaration &decl) const;
   bNodeSocket &socket_by_decl(const nodes::SocketDeclaration &decl);
@@ -1868,6 +1872,10 @@ struct bNodeTree {
   struct bGPdata *gpd = nullptr;
   /** Node tree stores its own offset for consistent editor view. */
   float view_center[2] = {};
+  /** Width of the current view. Used to store and set zoom level. */
+  float view_width = 0.0f;
+
+  char _pad[4];
 
   ListBaseT<bNode> nodes;
   ListBaseT<bNodeLink> links;
@@ -1971,8 +1979,8 @@ struct bNodeTree {
   Span<bNodeSocket *> all_sockets();
   Span<const bNodeSocket *> all_sockets() const;
   /** Efficient lookup of all nodes with a specific type. */
-  Span<bNode *> nodes_by_type(StringRefNull type_idname);
-  Span<const bNode *> nodes_by_type(StringRefNull type_idname) const;
+  Span<bNode *> nodes_by_type(UString type_idname);
+  Span<const bNode *> nodes_by_type(UString type_idname) const;
   /** Frame nodes without any parents. */
   Span<bNode *> root_frames() const;
   /** A span containing all links in the node tree. */

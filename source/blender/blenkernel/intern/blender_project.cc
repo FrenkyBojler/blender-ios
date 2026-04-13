@@ -18,30 +18,22 @@ namespace blender {
 
 namespace bke {
 
-bool BlenderProject::set_name(StringRef name)
+void BlenderProject::set_name(StringRef name)
 {
-  if (name.is_empty()) {
-    return false;
-  }
+  BLI_assert(!name.is_empty());
 
   this->name_ = name;
 
   this->is_dirty = true;
-
-  return true;
 }
 
-bool BlenderProject::set_root_path(StringRef root_path)
+void BlenderProject::set_root_path(StringRef root_path)
 {
-  if (root_path.is_empty()) {
-    return false;
-  }
+  BLI_assert(!root_path.is_empty());
 
   this->root_path_ = root_path;
 
   this->is_dirty = true;
-
-  return true;
 }
 
 StringRefNull BlenderProject::get_name() const
@@ -81,38 +73,45 @@ bool BlenderProject::remove_variable(ProjectVariable *var)
 
 }  // namespace bke
 
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain)
 {
+  BLI_assert(bmain->is_global_main);
+  if (!bmain->is_global_main) {
+    return false;
+  }
+
   if (name.is_empty() || root_path.is_empty()) {
     return false;
   }
 
-  BKE_blender_project_clear();
+  BKE_blender_project_clear(bmain);
 
-  G_MAIN->project = blender::bke::BlenderProject();
+  bmain->project = blender::bke::BlenderProject();
 
-  G_MAIN->project->set_name(name);
-  G_MAIN->project->set_root_path(root_path);
-
-  /* Initializing the in-memory project does not save to disk, so it's dirty by
-   * default. */
-  G_MAIN->project->is_dirty = true;
+  bmain->project->set_name(name);
+  bmain->project->set_root_path(root_path);
 
   return true;
 }
 
-/* At the moment this is quite anemic, and doesn't really justify being a
- * separate function. However, as future milestones like project-specific addons
- * and asset libraries are added, this will collect in one place the code for
- * ensuring those things are properly unloaded when the active project is
- * cleared. */
-void BKE_blender_project_clear()
+void BKE_blender_project_clear(Main *bmain)
 {
-  if (!G_MAIN->project.has_value()) {
+  /* At the moment this function is quite anemic, and doesn't really justify
+   * being a separate function. However, as future milestones like
+   * project-specific addons and asset libraries are added, this will collect in
+   * one place the code for ensuring those things are properly unloaded when the
+   * active project is cleared. */
+
+  BLI_assert(bmain->is_global_main);
+  if (!bmain->is_global_main) {
     return;
   }
 
-  G_MAIN->project = std::nullopt;
+  if (!bmain->project.has_value()) {
+    return;
+  }
+
+  bmain->project = std::nullopt;
 }
 
 }  // namespace blender

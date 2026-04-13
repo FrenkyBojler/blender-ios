@@ -17,6 +17,8 @@
 
 namespace blender {
 
+struct Main;
+
 namespace bke {
 
 enum class ProjectVarType {
@@ -47,35 +49,48 @@ struct ProjectVariable {
  * There is at most one active project at a time in Blender.
  */
 class BlenderProject {
-  /* Whether the project has been modified since the last time it was saved. */
-
-  /* The name and root path should never be empty. */
+  /** The project name. Should never be empty. */
   std::string name_;
+
+  /**
+   * The project root path. Should never be empty.
+   *
+   * This should generally be a directory that exists, is accessible, and
+   * contains a ".blender_project" directory with the project's config in it.
+   * This is not, however, guaranteed because via Python a project can be
+   * initialized with an arbitrary path.
+   */
   std::string root_path_;
 
  public:
   Vector<std::unique_ptr<ProjectVariable>> variables;
   int active_variable = 0;
 
-  /* Whether the project has unsaved changes. */
-  bool is_dirty = false;
+  /**
+   * Whether the project has unsaved changes.
+   *
+   * Default initializes to `true` because a freshly constructed
+   * `BlenderProject` is unsaved by definition.
+   */
+  bool is_dirty = true;
 
   /**
    * Set the project's name.
    *
-   * If `name` is empty (which is invalid), the project's name remains as-is and
-   * false is returned.  Otherwise the name is set and true is returned.
+   * Also marks the project as dirty.
+   *
+   * The passed `name` should never be empty (which is invalid).
    */
-  bool set_name(StringRef name);
+  void set_name(StringRef name);
 
   /**
    * Set the project's root path.
    *
-   * If `root_path` is empty (which is invalid), the project's root path remains
-   * as-is and false is returned.  Otherwise the name is set and true is
-   * returned.
+   * Also marks the project as dirty.
+   *
+   * The passed `root_path` should never be empty (which is invalid).
    */
-  bool set_root_path(StringRef root_path);
+  void set_root_path(StringRef root_path);
 
   StringRefNull get_name() const;
   StringRefNull get_root_path() const;
@@ -94,17 +109,21 @@ class BlenderProject {
  * existing project (if any) is cleared, the project is initialized with the
  * given values, and true is returned.
  *
- * NOTE: the active Blender Project (which this operates on) lives in the global
- * Main (a.k.a. `G_MAIN`).
+ * WARNING: this should only ever be called with the global Main (a.k.a.
+ * `G_MAIN`) passed as `bmain`.  Projects on Mains other than the global one,
+ * and more generally more than one simultaneously active project, ARE NOT
+ * CURRENTLY SUPPORTED and you are likely to break things if you naively try.
  */
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain);
 
 /**
  * Clears and unloads the current active project, if any.
  *
- * NOTE: the active Blender Project (which this operates on) lives in the global
- * Main (a.k.a. `G_MAIN`).
+ * WARNING: this should only ever be called with the global Main (a.k.a.
+ * `G_MAIN`) passed as `bmain`.  Projects on Mains other than the global one,
+ * and more generally more than one simultaneously active project, ARE NOT
+ * CURRENTLY SUPPORTED and you are likely to break things if you naively try.
  */
-void BKE_blender_project_clear();
+void BKE_blender_project_clear(Main *bmain);
 
 }  // namespace blender

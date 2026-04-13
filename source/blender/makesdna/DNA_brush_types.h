@@ -130,6 +130,11 @@ struct BrushGpencilSettings {
   float outline_fac = 0;
   /** Screen space simplify threshold. Points within this margin are treated as a straight line. */
   float simplify_px = 0;
+  /** Threshold distance for converting curve types. */
+  float conversion_threshold = 0;
+  /* #CurveType Used for converting. */
+  int8_t curve_type = 0;
+  char _pad4[3] = {};
 
   /* optional link of material to replace default in context */
   /** Material. */
@@ -444,17 +449,6 @@ struct Brush {
   float automasking_cavity_factor = 1.0f;
 
   struct CurveMapping *automasking_cavity_curve = nullptr;
-};
-
-/* Struct to hold palette colors for sorting. */
-#
-#
-struct tPaletteColorHSV {
-  float rgb[3] = {};
-  float value = 0;
-  float h = 0;
-  float s = 0;
-  float v = 0;
 };
 
 struct PaletteColor {

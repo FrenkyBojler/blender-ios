@@ -20,10 +20,6 @@ set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE Release RelWithDebInfo MinSizeRel Debug)
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(MSVC_CLANG ON)
-  if(NOT WITH_WINDOWS_EXTERNAL_MANIFEST)
-    message(WARNING "WITH_WINDOWS_EXTERNAL_MANIFEST is required for clang, turning ON")
-    set(WITH_WINDOWS_EXTERNAL_MANIFEST ON)
-  endif()
   set(VC_TOOLS_DIR $ENV{VCToolsRedistDir} CACHE STRING "Location of the msvc redistributables")
   set(MSVC_REDIST_DIR ${VC_TOOLS_DIR})
   if(DEFINED MSVC_REDIST_DIR)
@@ -112,6 +108,16 @@ string(APPEND CMAKE_MODULE_LINKER_FLAGS " /SAFESEH:NO /ignore:4099")
 
 if(WITH_WINDOWS_EXTERNAL_MANIFEST)
   string(APPEND CMAKE_EXE_LINKER_FLAGS " /manifest:no")
+else()
+  if(MSVC_CLANG)
+    # lld-link.exe corrupts the manifest by supplying UAC information in the
+    # wrong namespace. Since we supply this our selves in our manifests already
+    # we can just disable this. See https://github.com/llvm/llvm-project/issues/120394
+    # for details.
+    string(APPEND CMAKE_EXE_LINKER_FLAGS " /manifestuac:no")
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS " /manifestuac:no")
+    string(APPEND CMAKE_MODULE_LINKER_FLAGS " /manifestuac:no")
+  endif()
 endif()
 
 list(APPEND PLATFORM_LINKLIBS
@@ -1185,18 +1191,18 @@ if(WITH_CYCLES AND (WITH_CYCLES_DEVICE_ONEAPI OR (WITH_CYCLES_EMBREE AND EMBREE_
     list(FIND _sycl_unified_runtime_libraries_glob ${sycl_unified_runtime_library_debug} debug_index)
     list(FIND _sycl_unified_runtime_libraries_glob ${sycl_unified_runtime_library_release} release_index)
     if(NOT debug_index EQUAL -1)
-      set (sycl_unified_runtime_library_release ${sycl_unified_runtime_library})
+      set(sycl_unified_runtime_library_release ${sycl_unified_runtime_library})
     elseif(NOT release_index EQUAL -1 AND NOT sycl_unified_runtime_library_release STREQUAL sycl_unified_runtime_library)
-      set (sycl_unified_runtime_library_debug ${sycl_unified_runtime_library})
+      set(sycl_unified_runtime_library_debug ${sycl_unified_runtime_library})
     else()
       # If there is no debug pair version of the library, then we are assuming
       # that this dll dependency is unique, and should be just added as both
       # release and debug dependency.
-      set (sycl_unified_runtime_library_release ${sycl_unified_runtime_library})
-      set (sycl_unified_runtime_library_debug ${sycl_unified_runtime_library})
+      set(sycl_unified_runtime_library_release ${sycl_unified_runtime_library})
+      set(sycl_unified_runtime_library_debug ${sycl_unified_runtime_library})
     endif()
     list(FIND _sycl_runtime_libraries ${sycl_unified_runtime_library_release} found_index)
-    if (found_index EQUAL -1)
+    if(found_index EQUAL -1)
       list(APPEND _sycl_runtime_libraries RELEASE ${sycl_unified_runtime_library_release})
       list(APPEND _sycl_runtime_libraries DEBUG ${sycl_unified_runtime_library_debug})
       # NOTE(Sirgienko) Due to a bug in DPC++ runtime, in versions 6.2 and 6.3

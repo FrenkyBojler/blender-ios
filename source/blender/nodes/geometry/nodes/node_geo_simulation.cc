@@ -77,7 +77,7 @@ static bke::bake::BakeSocketConfig make_bake_socket_config(
   return config;
 }
 
-static std::shared_ptr<AttributeFieldInput> make_attribute_field(
+static ImplicitSharingPtr<AttributeFieldInput> make_attribute_field(
     const Object &self_object,
     const ComputeContext &compute_context,
     const bNode &node,
@@ -88,8 +88,8 @@ static std::shared_ptr<AttributeFieldInput> make_attribute_field(
       self_object.id.name, compute_context.hash(), node.identifier, item.identifier);
   std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
       node.label_or_name(), item.name);
-  return std::make_shared<AttributeFieldInput>(
-      std::move(attribute_name), type, std::move(socket_inspection_name));
+  return ImplicitSharingPtr<AttributeFieldInput>(MEM_new<AttributeFieldInput>(
+      __func__, std::move(attribute_name), type, std::move(socket_inspection_name)));
 }
 
 static Vector<SocketValueVariant> move_simulation_state_to_values(
@@ -386,7 +386,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_output<decl::Float>("Delta Time");
+  b.add_output<decl::Float>("Delta Time"_ustr);
 
   const bNode *node = b.node_or_null();
   const bNodeTree *node_tree = b.tree_or_null();
@@ -407,8 +407,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     if (socket_type == SOCK_GEOMETRY && i > 0) {
       b.add_separator();
     }
-    const StringRef name = item.name;
-    const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
+    const UString name(item.name);
+    const UString identifier(SimulationItemsAccessor::socket_identifier_for_item(item));
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
                                &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
@@ -419,8 +419,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
 }
@@ -454,7 +454,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationInput"_ustr, GEO_NODE_SIMULATION_INPUT);
   ntype.ui_name = "Simulation Input";
   ntype.ui_description = "Input data for the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_INPUT";
@@ -722,9 +722,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Bool>("Skip").hide_value().description(
-      "Forward the output of the simulation input node directly to the output node and ignore "
-      "the nodes in the simulation zone");
+  b.add_input<decl::Bool>("Skip"_ustr)
+      .hide_value()
+      .description(
+          "Forward the output of the simulation input node directly to the output node and ignore "
+          "the nodes in the simulation zone");
 
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
@@ -740,8 +742,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     if (socket_type == SOCK_GEOMETRY && i > 0) {
       b.add_separator();
     }
-    const StringRef name = item.name;
-    const std::string identifier = SimulationItemsAccessor::socket_identifier_for_item(item);
+    const UString name(item.name);
+    const UString identifier(SimulationItemsAccessor::socket_identifier_for_item(item));
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
                                &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
@@ -752,8 +754,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
 }
@@ -828,26 +830,24 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item_full_name(IFACE_("Simulation"), [](LinkSearchOpParams &params) {
-    bNode &input_node = params.add_node("GeometryNodeSimulationInput");
-    bNode &output_node = params.add_node("GeometryNodeSimulationOutput");
+    bNode &input_node = params.add_node("GeometryNodeSimulationInput"_ustr);
+    bNode &output_node = params.add_node("GeometryNodeSimulationOutput"_ustr);
     output_node.location[0] = 300;
 
     auto &input_storage = *static_cast<NodeGeometrySimulationInput *>(input_node.storage);
     input_storage.output_node_id = output_node.identifier;
 
     socket_items::clear<SimulationItemsAccessor>(output_node);
+    const UString name(params.socket.name);
     socket_items::add_item_with_socket_type_and_name<SimulationItemsAccessor>(
-        params.node_tree,
-        output_node,
-        eNodeSocketDatatype(params.socket.type),
-        params.socket.name);
+        params.node_tree, output_node, eNodeSocketDatatype(params.socket.type), name.c_str());
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
     if (params.socket.in_out == SOCK_IN) {
-      params.connect_available_socket(output_node, params.socket.name);
+      params.connect_available_socket(output_node, name);
     }
     else {
-      params.connect_available_socket(input_node, params.socket.name);
+      params.connect_available_socket(input_node, name);
     }
     params.node_tree.ensure_topology_cache();
     bke::node_add_link(params.node_tree,
@@ -872,7 +872,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput"_ustr, GEO_NODE_SIMULATION_OUTPUT);
   ntype.ui_name = "Simulation Output";
   ntype.ui_description = "Output data from the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_OUTPUT";

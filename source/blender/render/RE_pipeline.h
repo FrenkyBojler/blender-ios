@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
@@ -18,6 +20,10 @@ namespace blender {
 
 namespace gpu {
 class Texture;
+}
+
+namespace bke {
+class BlenderProject;
 }
 
 struct ExrHandle;
@@ -350,6 +356,7 @@ void RE_init_threadcount(Render *re);
 
 bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
+                              const std::optional<bke::BlenderProject> &project,
                               struct Scene *scene,
                               struct RenderData *rd,
                               struct MovieWriter **movie_writers,
@@ -482,7 +489,8 @@ void RE_GetWindowMatrixWithOverscan(bool is_ortho,
 struct Scene *RE_GetScene(struct Render *re);
 void RE_SetScene(struct Render *re, struct Scene *sce);
 
-bool RE_is_rendering_allowed(struct Scene *scene,
+bool RE_is_rendering_allowed(const Main &bmain,
+                             struct Scene *scene,
                              struct ViewLayer *single_layer,
                              struct Object *camera_override,
                              struct ReportList *reports);

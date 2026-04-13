@@ -4,11 +4,9 @@
 
 import os
 from pathlib import Path
-import tomllib
 import logging
 from enum import Enum
 
-import cattrs
 from attrs import define
 
 import bpy
@@ -71,9 +69,10 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
-def escape_string(text):
-    """ Escape a string according the required escapes in
-        https://toml.io/en/v1.1.0#string
+def escape_string_toml(text):
+    """Escape a string according TOML 1.1 spec.
+
+    See https://toml.io/en/v1.1.0#string
     """
 
     # First replace literal backslashes.
@@ -99,16 +98,16 @@ def escape_string(text):
 
 
 def save_project(project, report=None):
-    """ Saves the passed project to disk.
+    """Save the passed project to disk.
 
-        Throws a ProjectSaveException in any of the following cases:
+    Throws a ProjectSaveException in any of the following cases:
 
-        - There is no project to save.
-        - The project's root path is relative or doesn't exist.
-        - The project can't be written due to any of a number of filesystem
-          issues (directory isn't writable, etc.).
+    - There is no project to save.
+    - The project's root path is relative or doesn't exist.
+    - The project can't be written due to any of a number of filesystem
+      issues (directory isn't writable, etc.).
 
-        Optionally takes an `Operator.report` for reporting errors to the user.
+    Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
     if project is None:
@@ -116,7 +115,7 @@ def save_project(project, report=None):
             report({'ERROR'}, "Cannot save project because there is no project to save.")
         raise ProjectSaveException
 
-    logger.info("Saving project '{}' at '{}'...".format(project.name, project.root_path))
+    logger.info("Saving project '{:s}' at '{:s}'...".format(project.name, project.root_path))
 
     root_path = Path(project.root_path)
 
@@ -132,7 +131,11 @@ def save_project(project, report=None):
             raise ProjectSaveException
     except PermissionError:
         if report:
-            report({'ERROR'}, rpt_("Cannot access '{}' due to filesystem permissions.").format(PROJECT_DIR))
+            report({'ERROR'}, rpt_("Cannot access '{:s}' due to filesystem permissions.").format(PROJECT_DIR))
+        raise ProjectSaveException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectSaveException
 
     config_dir_path = root_path.joinpath(PROJECT_DIR)
@@ -141,39 +144,46 @@ def save_project(project, report=None):
         config_dir_path.mkdir(parents=True, exist_ok=True)
     except FileExistsError:
         if report:
-            report({'ERROR'}, rpt_("A file named '{}' already exists, but it needs to be a directory.").format(PROJECT_DIR))
+            report({'ERROR'}, rpt_("A file named '{:s}' already exists, but it needs to be a directory.").format(PROJECT_DIR))
         raise ProjectSaveException
     except PermissionError:
         if report:
-            report({'ERROR'}, "Cannot create '{}' directory due to filesystem permissions.".format(PROJECT_DIR))
+            report({'ERROR'}, rpt_("Cannot create '{:s}' directory due to filesystem permissions.").format(PROJECT_DIR))
+        raise ProjectSaveException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectSaveException
 
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with config_path.open(mode='w', encoding='utf-8') as f:
             # The actual project file writing.
-            f.write("name = \"{}\"\n\n".format(escape_string(project.name)))
+            f.write("name = \"{:s}\"\n\n".format(escape_string_toml(project.name)))
 
             for var in project.variables:
                 f.write("[[variables]]\n")
-                f.write(f"name = \"{escape_string(var.name)}\"\n")
+                f.write("name = \"{:s}\"\n".format(escape_string_toml(var.name)))
                 if var.description != "":
-                    f.write("description = \"{}\"\n".format(escape_string(var.description)))
-                f.write(f"type = \"{var.type}\"\n")
+                    f.write("description = \"{:s}\"\n".format(escape_string_toml(var.description)))
+                f.write("type = \"{:s}\"\n".format(var.type))
                 match var.type:
                     case 'INTEGER':
-                        f.write(f"value = {var.value_int}\n")
+                        f.write("value = {:d}\n".format(var.value_int))
                     case 'FLOAT':
-                        f.write(f"value = {var.value_float}\n")
+                        f.write("value = {:f}\n".format(var.value_float))
                     case 'STRING':
-                        f.write(f"value = \"{escape_string(var.value_string)}\"\n")
+                        f.write("value = \"{:s}\"\n".format(escape_string_toml(var.value_string)))
                     case 'FILEPATH':
-                        f.write(f"value = \"{escape_string(var.value_string)}\"\n")
+                        f.write("value = \"{:s}\"\n".format(escape_string_toml(var.value_string)))
                 f.write("\n")
-
     except PermissionError:
         if report:
-            report({'ERROR'}, rpt_("Cannot write to '{}' due to filesystem permissions.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Cannot write to '{:s}' due to filesystem permissions.").format(PROJECT_CONFIG))
+        raise ProjectSaveException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectSaveException
 
     project.is_dirty = False
@@ -182,13 +192,12 @@ def save_project(project, report=None):
 
 
 def find_and_load_project_for_blend_path(context, blend_path, report=None):
-    """ Finds and loads the project that the specified blend file belongs to, or
-        clears the project if no project is found.
+    """Load the project the blend file is in, or clears the project if none is found.
 
-        Throws a ProjectLoadException if a project is found but is invalid
-        (missing config file, config validation error, etc.).
+    Throws a ProjectLoadException if a project is found but is invalid
+    (missing config file, config validation error, etc.).
 
-        Optionally takes an `Operator.report` for reporting errors to the user.
+    Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
     if blend_path == "":
@@ -202,7 +211,7 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
         bpy.data.project_clear()
         return
 
-    if bpy.data.project is not None and root_path == bpy.data.project.root_path:
+    if bpy.data.project is not None and os.path.normpath(root_path) == os.path.normpath(bpy.data.project.root_path):
         # We already have this project loaded, and we don't want to obliterate
         # local unsaved changes if auto-save isn't turned on.
         return
@@ -233,10 +242,9 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
 
 def find_project_root_from_blend_file_path(blend_path):
-    """ Searches for a Blender project root in the parent directories of the
-        given path.
+    """Search for a project root in the parent directories of the given path.
 
-        Returns the project root if found, or None otherwise.
+    Returns the project root if found, or None otherwise.
     """
 
     for parent in blend_path.parents:
@@ -246,35 +254,48 @@ def find_project_root_from_blend_file_path(blend_path):
 
 
 def read_project_toml_config(root_path, report=None) -> ProjectConfig:
-    """ Reads the project config for the given project root path.
+    """Read the project config for the given project root path.
 
-        Throws a ProjectLoadException if no config is found, if the config is
-        not readable due to filesystem permissions, or if it's not a valid
-        project config (e.g. contains invalid TOML or doesn't match the schema).
+    Throws a ProjectLoadException if no config is found, if the config is
+    not readable due to filesystem permissions, or if it's not a valid
+    project config (e.g. contains invalid TOML or doesn't match the schema).
 
-        Optionally takes an `Operator.report` for reporting errors to the user.
+    Optionally takes an `Operator.report` for reporting errors to the user.
 
-        Returns the configuration (`ProjectConfig`).
+    Returns the configuration (`ProjectConfig`).
     """
+    import tomllib
+    import cattrs
+
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with open(config_path, "rb") as f:
             config_dict = tomllib.load(f)
     except FileNotFoundError:
         if report:
-            report({'ERROR'}, rpt_("Project has no {} file.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Project has no {:s} file.").format(PROJECT_CONFIG))
         raise ProjectLoadException
     except PermissionError:
         if report:
-            report({'ERROR'}, rpt_("Cannot access {} file due to filesystem permissions.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Cannot access {:s} file due to filesystem permissions.").format(PROJECT_CONFIG))
         raise ProjectLoadException
     except tomllib.TOMLDecodeError as e:
         if report:
-            report({'ERROR'}, rpt_("Project's {} file contains invalid TOML.").format(PROJECT_CONFIG))
+            report({'ERROR'}, rpt_("Project's {:s} file contains invalid TOML: {:s}").format(PROJECT_CONFIG, str(e)))
+        raise ProjectLoadException
+    except Exception as e:
+        if report:
+            report({'ERROR'}, str(e))
         raise ProjectLoadException
 
-    # Validate schema and covert to ProjectConfig class.
-    project_config = converter.structure(config_dict, ProjectConfig)
+    # Validate schema and convert to ProjectConfig class.
+    converter = cattrs.Converter()
+    try:
+        project_config = converter.structure(config_dict, ProjectConfig)
+    except cattrs.BaseValidationError as e:
+        if report:
+            report({'ERROR'}, rpt_("Invalid project configuration file: {:s}").format(str(e)))
+        raise ProjectLoadException
 
     # Other validation not handled by the schema.
     if project_config.name == "":
@@ -288,11 +309,13 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
 
 
 def blend_file_is_in_valid_project(blend_file_path):
-    """ Returns true if the specified blend file is inside a valid project,
-        false if there is no project or it's invalid.
+    """Return whether the blend file is inside a valid project or not.
 
-        An "invalid project" is one whose TOML config is non-existent or doesn't
-        validate. See `read_project_toml_config()`.
+    True if the blend file is inside a valid project, false if no project is
+    found or if the project is invalid.
+
+    An "invalid project" is one whose TOML config is non-existent or doesn't
+    validate. See `read_project_toml_config()`.
     """
     project_root = find_project_root_from_blend_file_path(blend_file_path)
     if project_root is None:
@@ -364,8 +387,8 @@ class PROJECT_OP_NewProject(Operator):
         # Immediately save the project.
         try:
             save_project(bpy.data.project, self.report)
-        except ProjectSaveException as e:
-
+        except ProjectSaveException:
+            # Reporting is handled by `save_project()` call in the `try` block.
             return {'CANCELLED'}
 
         return {'FINISHED'}
@@ -396,9 +419,9 @@ class PROJECT_OP_SaveProject(Operator):
             return {'CANCELLED'}
 
         try:
-            save_project(bpy.data.project)
-        except ProjectSaveException as e:
-            self.report({'ERROR'}, "Failed to save project: {}".format(e))
+            save_project(bpy.data.project, self.report)
+        except ProjectSaveException:
+            # Reporting is handled by `save_project()` call in the `try` block.
             return {'CANCELLED'}
 
         return {'FINISHED'}

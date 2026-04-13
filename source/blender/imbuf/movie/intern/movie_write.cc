@@ -32,6 +32,7 @@
 #  include "BLI_string_utf8.h"
 #  include "BLI_utildefines.h"
 
+#  include "BKE_blender_project.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
 #  include "BKE_path_templates.hh"
@@ -64,6 +65,7 @@ static void ffmpeg_movie_close(MovieWriter *context);
 static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const Scene *scene,
+                                const std::optional<bke::BlenderProject> &project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
@@ -300,7 +302,7 @@ static ImBuf *alloc_imbuf_for_colorspace_transform(const ImBuf *input_ibuf)
    * This is a common pattern used in few areas with the goal to bypass the hardcoded number of
    * channels used by IMB_allocImBuf(). */
   ImBuf *result_ibuf = IMB_allocImBuf(input_ibuf->x, input_ibuf->y, input_ibuf->planes, 0);
-  result_ibuf->channels = input_ibuf->float_buffer.data ? input_ibuf->channels : 4;
+  result_ibuf->channels = input_ibuf->float_data() ? input_ibuf->channels : 4;
 
   /* Allocate float buffer with the proper number of channels. */
   const size_t num_pixels = IMB_get_pixel_count(input_ibuf);
@@ -311,11 +313,11 @@ static ImBuf *alloc_imbuf_for_colorspace_transform(const ImBuf *input_ibuf)
   /* Transfer flags related to color space conversion from the original image buffer. */
   result_ibuf->flags |= (input_ibuf->flags & IB_alphamode_channel_packed);
 
-  if (input_ibuf->float_buffer.data) {
+  if (input_ibuf->float_data()) {
     /* Simple case: copy pixels from the source image as-is, without any conversion.
      * The result has the same colorspace as the input. */
-    memcpy(result_ibuf->float_buffer.data,
-           input_ibuf->float_buffer.data,
+    memcpy(result_ibuf->float_data_for_write(),
+           input_ibuf->float_data(),
            num_pixels * input_ibuf->channels * sizeof(float));
     result_ibuf->float_buffer.colorspace = input_ibuf->float_buffer.colorspace;
   }
@@ -325,7 +327,7 @@ static ImBuf *alloc_imbuf_for_colorspace_transform(const ImBuf *input_ibuf)
      * that the function only does alpha and byte->float conversions. */
     const bool predivide = IMB_alpha_affects_rgb(input_ibuf);
     IMB_buffer_float_from_byte(buffer,
-                               input_ibuf->byte_buffer.data,
+                               input_ibuf->byte_data(),
                                IB_PROFILE_SRGB,
                                IB_PROFILE_SRGB,
                                predivide,
@@ -347,12 +349,12 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *input_ib
       !(context->img_convert_frame->format == AV_PIX_FMT_RGBA &&
         ELEM(context->img_convert_frame->colorspace, AVCOL_SPC_RGB, AVCOL_SPC_UNSPECIFIED));
 
-  const ImBuf *image = (use_float && input_ibuf->float_buffer.data == nullptr) ?
+  const ImBuf *image = (use_float && input_ibuf->float_data() == nullptr) ?
                            alloc_imbuf_for_colorspace_transform(input_ibuf) :
                            input_ibuf;
 
-  const uint8_t *pixels = image->byte_buffer.data;
-  const float *pixels_fl = image->float_buffer.data;
+  const uint8_t *pixels = image->byte_data();
+  const float *pixels_fl = image->float_data();
 
   if ((!use_float && (pixels == nullptr)) || (use_float && (pixels_fl == nullptr))) {
     if (image != input_ibuf) {
@@ -1191,6 +1193,7 @@ static void ffmpeg_add_metadata_callback(void *data,
 
 static bool start_ffmpeg_impl(MovieWriter *context,
                               const Scene *scene,
+                              const std::optional<bke::BlenderProject> &project,
                               const RenderData *rd,
                               const ImageFormatData *imf,
                               int rectx,
@@ -1225,7 +1228,8 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   }
 
   /* Determine the correct filename */
-  if (!ffmpeg_filepath_get(context, filepath, scene, rd, context->ffmpeg_preview, suffix, reports))
+  if (!ffmpeg_filepath_get(
+          context, filepath, scene, project, rd, context->ffmpeg_preview, suffix, reports))
   {
     return false;
   }
@@ -1486,6 +1490,7 @@ static void flush_delayed_frames(AVCodecContext *c, AVStream *stream, AVFormatCo
 static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const Scene *scene,
+                                const std::optional<bke::BlenderProject> &project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
@@ -1513,7 +1518,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
   bke::path_templates::VariableMap template_variables;
-  BKE_add_template_variables_general(template_variables, &scene->id);
+  BKE_add_template_variables_general(template_variables, &scene->id, project);
   BKE_add_template_variables_for_render_path(template_variables, *scene);
 
   const Vector<bke::path_templates::Error> errors = BKE_path_apply_template(
@@ -1573,15 +1578,17 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
 
 static void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
                                 const Scene *scene,
+                                const std::optional<bke::BlenderProject> &project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
                                 ReportList *reports)
 {
-  ffmpeg_filepath_get(nullptr, filepath, scene, rd, preview, suffix, reports);
+  ffmpeg_filepath_get(nullptr, filepath, scene, project, rd, preview, suffix, reports);
 }
 
 static MovieWriter *ffmpeg_movie_open(const Scene *scene,
+                                      const std::optional<bke::BlenderProject> &project,
                                       const RenderData *rd,
                                       const ImageFormatData *imf,
                                       int rectx,
@@ -1605,7 +1612,8 @@ static MovieWriter *ffmpeg_movie_open(const Scene *scene,
   context->ffmpeg_preview = preview;
   context->stamp_data = BKE_stamp_info_from_scene_static(scene);
 
-  bool success = start_ffmpeg_impl(context, scene, rd, imf, rectx, recty, suffix, reports);
+  bool success = start_ffmpeg_impl(
+      context, scene, project, rd, imf, rectx, recty, suffix, reports);
 
   if (success) {
     success = movie_audio_open(context,
@@ -1627,6 +1635,7 @@ static void end_ffmpeg_impl(MovieWriter *context, bool is_autosplit);
 
 static bool ffmpeg_movie_append(MovieWriter *context,
                                 const Scene *scene,
+                                const std::optional<bke::BlenderProject> &project,
                                 const RenderData *rd,
                                 const ImageFormatData *imf,
                                 int start_frame,
@@ -1656,7 +1665,8 @@ static bool ffmpeg_movie_append(MovieWriter *context,
       end_ffmpeg_impl(context, true);
       context->ffmpeg_autosplit_count++;
 
-      success &= start_ffmpeg_impl(context, scene, rd, imf, image->x, image->y, suffix, reports);
+      success &= start_ffmpeg_impl(
+          context, scene, project, rd, imf, image->x, image->y, suffix, reports);
     }
   }
 
@@ -1741,6 +1751,7 @@ static void ffmpeg_movie_close(MovieWriter *context)
 #endif /* WITH_FFMPEG */
 
 MovieWriter *MOV_write_begin(const Scene *scene,
+                             const std::optional<bke::BlenderProject> &project,
                              const RenderData *rd,
                              const ImageFormatData *imf,
                              int rectx,
@@ -1756,7 +1767,7 @@ MovieWriter *MOV_write_begin(const Scene *scene,
 
   MovieWriter *writer = nullptr;
 #ifdef WITH_FFMPEG
-  writer = ffmpeg_movie_open(scene, rd, imf, rectx, recty, reports, preview, suffix);
+  writer = ffmpeg_movie_open(scene, project, rd, imf, rectx, recty, reports, preview, suffix);
 #else
   UNUSED_VARS(scene, rd, imf, rectx, recty, reports, preview, suffix);
 #endif
@@ -1765,6 +1776,7 @@ MovieWriter *MOV_write_begin(const Scene *scene,
 
 bool MOV_write_append(MovieWriter *writer,
                       const Scene *scene,
+                      const std::optional<bke::BlenderProject> &project,
                       const RenderData *rd,
                       const ImageFormatData *imf,
                       int start_frame,
@@ -1779,7 +1791,7 @@ bool MOV_write_append(MovieWriter *writer,
 
 #ifdef WITH_FFMPEG
   bool ok = ffmpeg_movie_append(
-      writer, scene, rd, imf, start_frame, frame, image, suffix, reports);
+      writer, scene, project, rd, imf, start_frame, frame, image, suffix, reports);
   return ok;
 #else
   UNUSED_VARS(scene, rd, imf, start_frame, frame, image, suffix, reports);
@@ -1800,6 +1812,7 @@ void MOV_write_end(MovieWriter *writer)
 
 void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
                                 const Scene *scene,
+                                const std::optional<bke::BlenderProject> &project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
@@ -1807,7 +1820,7 @@ void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
 {
 #ifdef WITH_FFMPEG
   if (rd->im_format.imtype == R_IMF_IMTYPE_FFMPEG) {
-    ffmpeg_get_filepath(filepath, scene, rd, preview, suffix, reports);
+    ffmpeg_get_filepath(filepath, scene, project, rd, preview, suffix, reports);
     return;
   }
 #else

@@ -164,6 +164,11 @@ enum {
    *   arrow-key sub-menu traversal, and shortcut display.
    * - When disabled: non-modal. Some popups (e.g. redo panels, alert dialogs)
    *   explicitly clear this flag.
+   *
+   * \note For popups this is always enabled after initialization (set by #popup_block_open_ex).
+   * Clearing this flag during block construction is used to suppress menu-specific
+   * behavior in #block_end (e.g. left-aligned text, accelerator keys, shortcut labels),
+   * although we may choose to leave this disabled in the future.
    */
   BLOCK_LOOP = 1 << 0,
   /**
@@ -1239,6 +1244,13 @@ std::optional<std::string> button_online_manual_id(const Button *but) ATTR_WARN_
 std::optional<std::string> button_online_manual_id_from_active(const bContext *C)
     ATTR_WARN_UNUSED_RESULT;
 bool button_is_userdef(const Button *but);
+
+void *button_func_argN_get(const Button *but);
+void button_poin_menu_argN_set(Button *but,
+                               void *poin,
+                               void *argN,
+                               ButtonArgNFree func_argN_free_fn,
+                               ButtonArgNCopy func_argN_copy_fn);
 
 /* Buttons
  *
@@ -3038,7 +3050,7 @@ void butstore_register(ButStore *bs_handle, Button **but_p);
 bool butstore_register_update(Block *block, Button *but_dst, const Button *but_src);
 void butstore_unregister(ButStore *bs_handle, Button **but_p);
 
-/* ui_interface_region_tooltip.c */
+/* interface_region_tooltip.cc */
 
 /**
  * \param is_quick_tip: See #button_func_quick_tooltip_set for what a quick tooltip is.
