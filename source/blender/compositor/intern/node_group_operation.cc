@@ -66,15 +66,15 @@ void NodeGroupOperation::execute()
     }
   }
 
-  const VectorSet<const bNode *> schedule = compute_schedule(this->context(),
-                                                             node_group_,
-                                                             needed_output_types_,
-                                                             needed_outputs,
-                                                             instance_key_,
-                                                             active_node_group_instance_key_);
+  const Schedule schedule = compute_schedule(this->context(),
+                                             node_group_,
+                                             needed_output_types_,
+                                             needed_outputs,
+                                             instance_key_,
+                                             active_node_group_instance_key_);
   CompileState compile_state(this->context(), schedule);
 
-  for (const bNode *node : schedule) {
+  for (const bNode *node : schedule.nodes) {
     if (this->context().is_canceled()) {
       this->cancel_evaluation();
       break;
@@ -92,15 +92,10 @@ void NodeGroupOperation::execute()
     }
   }
 
-  /* Allocate outputs as invalid if they are not allocated already and are needed. This could
-   * happen for instance when no Group Output node exist or when the evaluation gets canceled
-   * before the output is written. */
-  for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
-    Result &result = this->get_result(output->identifier);
-    if (!result.is_allocated() && result.should_compute()) {
-      result.allocate_invalid();
-    }
-  }
+  /* Some of the needed outputs might not be allocated even after execution. This could happen for
+   * instance when no Group Output node exist or when the evaluation gets canceled before the
+   * output is written. */
+  this->allocate_default_remaining_outputs();
 }
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
@@ -161,7 +156,7 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
     }
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
-    if (output && compile_state.get_schedule().contains(&output->owner_node())) {
+    if (output && compile_state.get_schedule().nodes.contains(&output->owner_node())) {
       /* The input is linked to a node that is part of the schedule. So map the input to the result
        * we get from the output. */
       Result &result = compile_state.get_result_from_output_socket(*output);
@@ -183,7 +178,7 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
  * state. Deleting the operation is the caller's responsibility. */
 static PixelOperation *create_pixel_operation(Context &context, CompileState &compile_state)
 {
-  const VectorSet<const bNode *> &schedule = compile_state.get_schedule();
+  const Schedule &schedule = compile_state.get_schedule();
   PixelCompileUnit &compile_unit = compile_state.get_pixel_compile_unit();
 
   /* Use multi-function procedure to execute the pixel compile unit for CPU contexts or if the
@@ -200,27 +195,14 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
 {
   PixelCompileUnit &compile_unit = compile_state.get_pixel_compile_unit();
 
-  /* Pixel operations might have limitations on the number of outputs they can have, so we might
-   * have to split the compile unit into smaller units to workaround this limitation. In practice,
-   * splitting will almost always never happen due to the scheduling strategy we use, so the base
-   * case remains fast. */
-  int number_of_outputs = 0;
-  for (int i : compile_unit.index_range()) {
-    number_of_outputs += compile_state.compute_pixel_node_operation_outputs_count(
-        *compile_unit[i], instance_key_ == active_node_group_instance_key_);
-
-    if (number_of_outputs <= PixelOperation::maximum_number_of_outputs(this->context())) {
-      continue;
-    }
-
-    /* The number of outputs surpassed the limit, so we split the compile unit into two equal parts
-     * and recursively call this method on each of them. It might seem unexpected that we split in
-     * half as opposed to split at the node that surpassed the limit, but that is because the act
-     * of splitting might actually introduce new outputs, since links that were previously internal
-     * to the compile unit might now be external. So we can't precisely split and guarantee correct
-     * units, and we just rely or recursive splitting until units are small enough. Further, half
-     * splitting helps balancing the shaders, where we don't want to have one gigantic shader and
-     * a tiny one. */
+  /* Pixel operations might have limitations on the number of outputs or inputs they can have, so
+   * we might have to split the compile unit into smaller units to workaround this limitation. In
+   * practice, splitting will almost always never happen due to the scheduling strategy we use, so
+   * the base case remains fast. */
+  const bool are_node_previews_needed = instance_key_ == active_node_group_instance_key_;
+  if (compile_state.pixel_compile_unit_has_too_many_outputs(are_node_previews_needed) ||
+      compile_state.pixel_compile_unit_has_too_many_inputs())
+  {
     const int split_index = compile_unit.size() / 2;
     const PixelCompileUnit start_compile_unit(compile_unit.as_span().take_front(split_index));
     const PixelCompileUnit end_compile_unit(compile_unit.as_span().drop_front(split_index));

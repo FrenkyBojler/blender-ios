@@ -38,7 +38,6 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
-#include "../interface/interface_intern.hh" /* XXX bad level */
 #include "UI_interface_layout.hh"
 
 #include "ED_node.hh" /* own include */
@@ -471,7 +470,7 @@ static int ui_node_item_name_compare(const void *a, const void *b)
 
 static bool ui_node_item_special_poll(const bNodeTree * /*ntree*/, const bke::bNodeType *ntype)
 {
-  if (ntype->idname == "ShaderNodeUVAlongStroke") {
+  if (ntype->is_type("ShaderNodeUVAlongStroke"_ustr)) {
     /* TODO(sergey): Currently we don't have Freestyle nodes edited from
      * the buttons context, so can ignore its nodes completely.
      *
@@ -489,7 +488,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   ui::Layout *layout = arg->layout;
   ui::Layout *column = nullptr;
   ui::Block *block = layout->block();
-  ui::Button *but;
   NodeLinkArg *argN;
   int first = 1;
 
@@ -547,8 +545,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
         ui::block_layout_set_current(block, column);
 
         column->label(IFACE_(cname), ICON_NODE);
-        but = block->buttons.last().get();
-
         first = 0;
       }
 
@@ -578,18 +574,18 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
         icon = ICON_NONE;
       }
 
-      but = uiDefIconTextBut(block,
-                             ui::ButtonType::But,
-                             icon,
-                             name,
-                             0,
-                             0,
-                             UI_UNIT_X * 4,
-                             UI_UNIT_Y,
-                             nullptr,
-                             TIP_("Add node to input"));
+      ui::Button *but = uiDefIconTextBut(block,
+                                         ui::ButtonType::But,
+                                         icon,
+                                         name,
+                                         0,
+                                         0,
+                                         UI_UNIT_X * 4,
+                                         UI_UNIT_Y,
+                                         nullptr,
+                                         TIP_("Add node to input"));
 
-      argN = static_cast<NodeLinkArg *>(MEM_dupallocN(arg));
+      argN = MEM_dupalloc(arg);
       argN->item = item;
       button_funcN_set(but, ui_node_link, argN, nullptr);
     }
@@ -612,7 +608,7 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
   ui::Block *block = layout->block();
   ui::Button *but = static_cast<ui::Button *>(but_p);
   ui::Layout *split, *column;
-  NodeLinkArg *arg = static_cast<NodeLinkArg *>(but->func_argN);
+  NodeLinkArg *arg = static_cast<NodeLinkArg *>(ui::button_func_argN_get(but));
   bNodeSocket *sock = arg->sock;
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
@@ -632,21 +628,19 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
 
   if (sock->link) {
     column->label(IFACE_("Link"), ICON_NONE);
-    but = block->buttons.last().get();
-    but->drawflag = ui::BUT_TEXT_LEFT;
 
-    but = uiDefBut(block,
-                   ui::ButtonType::But,
-                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
-                   0,
-                   0,
-                   UI_UNIT_X * 4,
-                   UI_UNIT_Y,
-                   nullptr,
-                   0.0,
-                   0.0,
-                   TIP_("Remove nodes connected to the input"));
-    button_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
+    ui::Button *but = uiDefBut(block,
+                               ui::ButtonType::But,
+                               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
+                               0,
+                               0,
+                               UI_UNIT_X * 4,
+                               UI_UNIT_Y,
+                               nullptr,
+                               0.0,
+                               0.0,
+                               TIP_("Remove nodes connected to the input"));
+    button_funcN_set(but, ui_node_link, MEM_dupalloc(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
 
     but = uiDefBut(block,
                    ui::ButtonType::But,
@@ -660,7 +654,7 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
                    0.0,
                    TIP_("Disconnect nodes connected to the input"));
     button_funcN_set(
-        but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
+        but, ui_node_link, MEM_dupalloc(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
   }
 
   ui_node_menu_column(arg, NODE_CLASS_GROUP, N_("Group"));
@@ -678,7 +672,7 @@ void uiTemplateNodeLink(
   ui::Button *but;
   float socket_col[4];
 
-  arg = MEM_callocN<NodeLinkArg>("NodeLinkArg");
+  arg = MEM_new_zeroed<NodeLinkArg>("NodeLinkArg");
   arg->ntree = ntree;
   arg->node = node;
   arg->sock = input;
@@ -704,14 +698,11 @@ void uiTemplateNodeLink(
   button_node_link_set(but, input, socket_col);
   button_drawflag_enable(but, ui::BUT_ICON_LEFT);
 
-  but->poin = reinterpret_cast<char *>(but);
-  but->func_argN = arg;
-  but->func_argN_free_fn = MEM_freeN;
-  but->func_argN_copy_fn = MEM_dupallocN;
+  ui::button_poin_menu_argN_set(but, but, arg, MEM_delete_void, MEM_dupalloc_void);
 
   if (input->link && input->link->fromnode) {
     if (input->link->fromnode->flag & NODE_ACTIVE_TEXTURE) {
-      but->flag |= ui::BUT_NODE_ACTIVE;
+      ui::button_flag_enable(but, ui::BUT_NODE_ACTIVE);
     }
   }
 
@@ -754,11 +745,12 @@ static void ui_node_draw_recursive(ui::Layout &layout,
     panel_layout.header->prop(&toggle_ptr,
                               "default_value",
                               UI_ITEM_NONE,
-                              CTX_IFACE_(panel_translation_context, panel_decl.name),
+                              CTX_IFACE_(panel_translation_context, panel_decl.name.ref()),
                               ICON_NONE);
   }
   else {
-    panel_layout.header->label(CTX_IFACE_(panel_translation_context, panel_decl.name), ICON_NONE);
+    panel_layout.header->label(CTX_IFACE_(panel_translation_context, panel_decl.name.ref()),
+                               ICON_NONE);
   }
 
   if (!panel_layout.body) {

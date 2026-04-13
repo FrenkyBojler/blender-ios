@@ -31,7 +31,8 @@ namespace blender {
  *
  * The output is a list of frame ranges, each containing a list of frames with matching names.
  */
-static void image_sequence_get_frame_ranges(wmOperator *op,
+static void image_sequence_get_frame_ranges(StringRefNull root_path,
+                                            wmOperator *op,
                                             ListBaseT<ImageFrameRange> *ranges,
                                             bool *r_was_relative)
 {
@@ -43,11 +44,17 @@ static void image_sequence_get_frame_ranges(wmOperator *op,
   char base_head[FILE_MAX], base_tail[FILE_MAX];
 
   RNA_string_get(op->ptr, "directory", dir);
+  /* Operators using `ED_image_filesel_detect_sequences` should have a `relative_path` option. */
+  BLI_assert(RNA_struct_find_property(op->ptr, "relative_path"));
+  if (RNA_boolean_get(op->ptr, "relative_path")) {
+    BLI_path_rel(dir, root_path.c_str());
+  }
+
   RNA_BEGIN (op->ptr, itemptr, "files") {
     char head[FILE_MAX], tail[FILE_MAX];
     ushort digits;
     char *filename = RNA_string_get_alloc(&itemptr, "name", nullptr, 0, nullptr);
-    ImageFrame *frame = MEM_callocN<ImageFrame>("image_frame");
+    ImageFrame *frame = MEM_new_zeroed<ImageFrame>("image_frame");
 
     /* use the first file in the list as base filename */
     frame->framenr = BLI_path_sequence_decode(
@@ -65,7 +72,7 @@ static void image_sequence_get_frame_ranges(wmOperator *op,
     }
     else {
       /* start a new frame range */
-      range = MEM_callocN<ImageFrameRange>(__func__);
+      range = MEM_new_zeroed<ImageFrameRange>(__func__);
       BLI_path_join(range->filepath, sizeof(range->filepath), dir, filename);
       BLI_addtail(ranges, range);
 
@@ -76,7 +83,7 @@ static void image_sequence_get_frame_ranges(wmOperator *op,
     }
 
     BLI_addtail(&range->frames, frame);
-    MEM_freeN(filename);
+    MEM_delete(filename);
   }
   RNA_END;
 
@@ -159,14 +166,14 @@ ListBaseT<ImageFrameRange> ED_image_filesel_detect_sequences(StringRefNull blend
   if (RNA_struct_property_is_set(op->ptr, "directory") &&
       RNA_struct_property_is_set(op->ptr, "files"))
   {
-    image_sequence_get_frame_ranges(op, &ranges, &was_relative);
+    image_sequence_get_frame_ranges(root_path, op, &ranges, &was_relative);
   }
   /* Filepath property for drag & drop etc. */
   else {
     char filepath[FILE_MAX];
     RNA_string_get(op->ptr, "filepath", filepath);
 
-    ImageFrameRange *range = MEM_callocN<ImageFrameRange>(__func__);
+    ImageFrameRange *range = MEM_new_zeroed<ImageFrameRange>(__func__);
     BLI_addtail(&ranges, range);
 
     STRNCPY(range->filepath, filepath);

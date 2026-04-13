@@ -34,10 +34,11 @@
 #include "ED_particle.hh"
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
-#include "ED_sequencer.hh"
 
 #include "ANIM_keyframing.hh"
 #include "ANIM_nla.hh"
+
+#include "SEQ_retiming.hh"
 
 #include "UI_view2d.hh"
 
@@ -91,11 +92,11 @@ void transform_around_single_fallback(TransInfo *t)
 static void make_sorted_index_map(TransDataContainer *tc, FunctionRef<bool(int, int)> compare)
 {
   BLI_assert(tc->sorted_index_map == nullptr);
-  tc->sorted_index_map = MEM_malloc_arrayN<int>(tc->data_len, __func__);
+  tc->sorted_index_map = MEM_new_array_uninitialized<int>(tc->data_len, __func__);
 
   const MutableSpan sorted_index_span(tc->sorted_index_map, tc->data_len);
   array_utils::fill_index_range(sorted_index_span);
-  std::sort(sorted_index_span.begin(), sorted_index_span.end(), compare);
+  std::ranges::sort(sorted_index_span, compare);
 }
 
 /**
@@ -132,7 +133,7 @@ static void sort_trans_data_dist_container(const TransInfo *t, TransDataContaine
 
   /* The "sort by distance" is often preceded by "calculate distance", which is
    * often preceded by "sort selected first". */
-  MEM_SAFE_FREE(tc->sorted_index_map);
+  MEM_SAFE_DELETE(tc->sorted_index_map);
 
   make_sorted_index_map(tc, compare);
 }
@@ -238,7 +239,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
   /* Pointers to selected's #TransData.
    * Used to find #TransData from the index returned by #blender::kdtree_find_nearest. */
-  TransData **td_table = MEM_malloc_arrayN<TransData *>(td_table_len, __func__);
+  TransData **td_table = MEM_new_array_uninitialized<TransData *>(td_table_len, __func__);
 
   /* Create and fill KD-tree of selected's positions - in global or proj_vec space. */
   KDTree_3d *td_tree = kdtree_3d_new(td_table_len);
@@ -291,7 +292,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   }
 
   kdtree_3d_free(td_tree);
-  MEM_freeN(td_table);
+  MEM_delete(td_table);
 }
 
 /** \} */
@@ -451,7 +452,7 @@ TransDataCurveHandleFlags *initTransDataCurveHandles(TransData *td, BezTriple *b
 {
   TransDataCurveHandleFlags *hdata;
   td->flag |= TD_BEZTRIPLE;
-  hdata = td->hdata = MEM_mallocN<TransDataCurveHandleFlags>("CuHandle Data");
+  hdata = td->hdata = MEM_new_uninitialized<TransDataCurveHandleFlags>("CuHandle Data");
   hdata->ih1 = bezt->h1;
   hdata->h1 = &bezt->h1;
   hdata->ih2 = bezt->h2; /* In case the second is not selected. */
@@ -698,8 +699,8 @@ static int countAndCleanTransDataContainer(TransInfo *t)
     }
   }
   if (data_container_len_orig != t->data_container_len) {
-    t->data_container = static_cast<TransDataContainer *>(
-        MEM_reallocN(t->data_container, sizeof(*t->data_container) * t->data_container_len));
+    t->data_container = static_cast<TransDataContainer *>(MEM_realloc_uninitialized(
+        t->data_container, sizeof(*t->data_container) * t->data_container_len));
   }
   return t->data_len_all;
 }
@@ -823,7 +824,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
       ((object_mode & OB_MODE_POSE) && (object_type == OB_ARMATURE)))
   {
     if (t->data_container) {
-      MEM_freeN(t->data_container);
+      MEM_delete(t->data_container);
     }
 
     Vector<Object *> local_objects;
@@ -833,6 +834,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
       /* Pose transform operates on `ob->pose` so don't skip duplicate object-data. */
       params.no_dup_data = (object_mode & OB_MODE_POSE) == 0;
       local_objects = BKE_view_layer_array_from_objects_in_mode_params(
+          *t->bmain,
           t->scene,
           t->view_layer,
           static_cast<const View3D *>((t->spacetype == SPACE_VIEW3D) ? t->view : nullptr),
@@ -840,7 +842,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
       objects = local_objects;
     }
 
-    t->data_container = MEM_calloc_arrayN<TransDataContainer>(objects.size(), __func__);
+    t->data_container = MEM_new_array_zeroed<TransDataContainer>(objects.size(), __func__);
     t->data_container_len = objects.size();
 
     for (int i = 0; i < objects.size(); i++) {
@@ -887,7 +889,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
 static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj_armature)
 {
   ViewLayer *view_layer = t->view_layer;
-  BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+  BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* If tests must match recalc_data for correct updates. */
@@ -943,7 +945,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     if (t->options & CTX_SEQUENCER_IMAGE) {
       return &TransConvertType_SequencerImage;
     }
-    if (vse::sequencer_retiming_mode_is_active(t->scene)) {
+    if (seq::retiming_keys_are_selected(t->scene)) {
       return &TransConvertType_SequencerRetiming;
     }
     return &TransConvertType_Sequencer;
@@ -1044,7 +1046,7 @@ void create_trans_data(bContext *C, TransInfo *t)
     init_TransDataContainers(t, ob_armature, {ob_armature});
   }
   else {
-    BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+    BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
     init_TransDataContainers(t, ob, {});
   }

@@ -15,6 +15,8 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
+#include "DNA_asset_types.h"
+
 #include "WM_api.hh"
 
 #include "RNA_access.hh"
@@ -57,7 +59,10 @@ static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*
                                                                  PropertyRNA * /*prop*/,
                                                                  bool *r_free)
 {
-  const EnumPropertyItem *items = ed::asset::library_reference_to_rna_enum_itemf(false, true);
+  const EnumPropertyItem *items = ed::asset::library_reference_to_rna_enum_itemf(
+      /*include_readonly=*/false,
+      /*include_current_file=*/true,
+      /*include_remote_libraries=*/false);
   *r_free = true;
   BLI_assert(items != nullptr);
   return items;
@@ -128,10 +133,11 @@ static blender::animrig::Action &extract_pose(Main &bmain, const Span<Object *> 
     {
       Action &pose_object_action = pose_object->adt->action->wrap();
       const slot_handle_t pose_object_slot = pose_object->adt->slot_handle;
-      foreach_fcurve_in_action_slot(pose_object_action, pose_object_slot, [&](FCurve &fcurve) {
-        RNAPath existing_path = {fcurve.rna_path, std::nullopt, fcurve.array_index};
-        existing_paths.add(existing_path);
-      });
+      foreach_fcurve_in_action_slot(
+          pose_object_action, pose_object_slot, [&](const FCurve &fcurve) {
+            RNAPath existing_path = {fcurve.rna_path, std::nullopt, fcurve.array_index};
+            existing_paths.add(existing_path);
+          });
     }
 
     for (bPoseChannel &pose_bone : pose_object->pose->chanbase) {
@@ -301,6 +307,11 @@ static wmOperatorStatus create_pose_asset_user_library(bContext *C,
   if (!user_library) {
     return OPERATOR_CANCELLED;
   }
+  BLI_assert_msg(!(user_library->flag & ASSET_LIBRARY_USE_REMOTE_URL),
+                 "The passed lib_ref is expected to be an on disk library");
+  if (user_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+    return OPERATOR_CANCELLED;
+  }
 
   asset_system::AssetLibrary *library = AS_asset_library_load(bmain, lib_ref);
   if (!library) {
@@ -389,11 +400,16 @@ static wmOperatorStatus pose_asset_create_invoke(bContext *C,
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
   if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
-    const AssetLibraryReference first_library = asset::user_library_to_library_ref(
-        *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
+    std::optional<AssetLibraryReference> dest_library_ref =
+        ed::asset::get_user_library_ref_for_save();
+
+    if (!dest_library_ref) {
+      BKE_report(op->reports, RPT_WARNING, "No editable asset library to save into");
+      return OPERATOR_CANCELLED;
+    }
     RNA_enum_set(op->ptr,
                  "asset_library_reference",
-                 asset::library_reference_to_enum_value(&first_library));
+                 asset::library_reference_to_enum_value(&*dest_library_ref));
   }
 
   return WM_operator_props_dialog_popup(C, op, 400, std::nullopt, IFACE_("Create"));
@@ -625,7 +641,7 @@ static void update_pose_action_from_scene(Main *bmain,
   Vector<PathValue> path_values = generate_path_values(pose_object);
 
   Set<RNAPath> existing_paths;
-  foreach_fcurve_in_action_slot(pose_action, slot.handle, [&](FCurve &fcurve) {
+  foreach_fcurve_in_action_slot(pose_action, slot.handle, [&](const FCurve &fcurve) {
     existing_paths.add({fcurve.rna_path, std::nullopt, fcurve.array_index});
   });
 

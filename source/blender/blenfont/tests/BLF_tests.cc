@@ -57,7 +57,7 @@ TEST(blf_load, display_name_from_file)
   const char *name = BLF_display_name_from_file(path.c_str());
   EXPECT_TRUE(STREQ(name, "Ahem Regular"));
   /* BLF_display_name result must be freed. */
-  MEM_freeN(name);
+  MEM_delete(name);
 }
 
 TEST(blf_load, display_name_from_id)
@@ -66,7 +66,7 @@ TEST(blf_load, display_name_from_id)
   const char *name = BLF_display_name_from_id(id);
   EXPECT_TRUE(STREQ(name, "Ahem Regular"));
   /* BLF_display_name result must be freed. */
-  MEM_freeN(name);
+  MEM_delete(name);
   close_font(id);
 }
 
@@ -445,7 +445,7 @@ TEST(blf_wrapping_minimal, wrap_hardlimit_too_narrow_width)
   int id = open_font("Ahem.ttf");
   const Vector<StringRef> expected_wrap = {
       "a", "e", "i", "o", "u", "á", "é", "í", "ó", "ú", " ", ";", "\'", "/", ".",
-      "/", "",  "",  "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",  "-", "=",
+      "/", "",  "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-",  "=",
   };
   for (float size : {0.1f, 1.0f, 5.0f, 10.0f}) {
     BLF_size(id, size);

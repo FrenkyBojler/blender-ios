@@ -121,7 +121,7 @@ check_index:
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  TexNodeOutput *tno = MEM_new_for_free<TexNodeOutput>("TEX_output");
+  TexNodeOutput *tno = MEM_new<TexNodeOutput>("TEX_output");
   node->storage = tno;
 
   STRNCPY(tno->name, "Default");
@@ -140,7 +140,7 @@ void register_node_type_tex_output()
 {
   static bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, "TextureNodeOutput", TEX_NODE_OUTPUT);
+  tex_node_type_base(&ntype, "TextureNodeOutput"_ustr, TEX_NODE_OUTPUT);
   ntype.ui_name = "Output";
   ntype.enum_name_legacy = "OUTPUT";
   ntype.nclass = NODE_CLASS_OUTPUT;

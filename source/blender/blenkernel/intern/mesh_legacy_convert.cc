@@ -50,6 +50,8 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
+#include "NOD_geometry_nodes_srna.hh"
+
 #include "BLT_translation.hh"
 
 namespace blender {
@@ -140,7 +142,7 @@ static void mesh_calc_edges_mdata(const MVert * /*allvert*/,
     return;
   }
 
-  ed = edsort = MEM_malloc_arrayN<EdgeSort>(totedge, "EdgeSort");
+  ed = edsort = MEM_new_array_uninitialized<EdgeSort>(totedge, "EdgeSort");
 
   for (a = totface, mface = allface; a > 0; a--, mface++) {
     to_edgesort(ed++, mface->v1, mface->v2, !mface->v3, mface->edcode & ME_V1V2);
@@ -166,7 +168,7 @@ static void mesh_calc_edges_mdata(const MVert * /*allvert*/,
   }
   totedge_final++;
 
-  edges = MEM_calloc_arrayN<MEdge>(totedge_final, __func__);
+  edges = MEM_new_array_zeroed<MEdge>(totedge_final, __func__);
 
   for (a = totedge, edge = edges, ed = edsort; a > 1; a--, ed++) {
     /* edge is unique when it differs from next edge, or is last */
@@ -190,7 +192,7 @@ static void mesh_calc_edges_mdata(const MVert * /*allvert*/,
   edge->v1 = ed->v1;
   edge->v2 = ed->v2;
 
-  MEM_freeN(edsort);
+  MEM_delete(edsort);
 
   /* set edge members of mloops */
   Map<OrderedEdge, int> hash;
@@ -429,10 +431,11 @@ static void bm_corners_to_loops_ex(ID *id,
         ld->level = int(logf(float(side) - 1.0f) / float(M_LN2)) + 1;
 
         if (ld->disps) {
-          MEM_freeN(ld->disps);
+          MEM_delete(ld->disps);
         }
 
-        ld->disps = MEM_malloc_arrayN<float[3]>(size_t(side_sq), "converted loop mdisps");
+        ld->disps = MEM_new_array_uninitialized<float[3]>(size_t(side_sq),
+                                                          "converted loop mdisps");
         if (fd->disps) {
           memcpy(ld->disps, disps, size_t(side_sq) * sizeof(float[3]));
         }
@@ -1013,12 +1016,12 @@ static void mesh_tessface_calc(Mesh &mesh)
   const VArray sharp_faces = *attributes.lookup_or_default<bool>(
       "sharp_face", bke::AttrDomain::Face, false);
 
-  /* Allocate the length of `totfaces`, avoid many small reallocation's,
+  /* Allocate the length of `totfaces`, avoid many small reallocations,
    * if all faces are triangles it will be correct, `quads == 2x` allocations. */
   /* Take care since memory is _not_ zeroed so be sure to initialize each field. */
-  mface_to_poly_map = MEM_malloc_arrayN<int>(size_t(corner_tris_num), __func__);
-  mface = MEM_malloc_arrayN<MFace>(size_t(corner_tris_num), __func__);
-  lindices = MEM_malloc_arrayN<uint[4]>(size_t(corner_tris_num), __func__);
+  mface_to_poly_map = MEM_new_array_uninitialized<int>(size_t(corner_tris_num), __func__);
+  mface = MEM_new_array_uninitialized<MFace>(size_t(corner_tris_num), __func__);
+  lindices = MEM_new_array_uninitialized<uint[4]>(size_t(corner_tris_num), __func__);
 
   mface_index = 0;
   for (poly_index = 0; poly_index < faces_num; poly_index++) {
@@ -1181,9 +1184,10 @@ static void mesh_tessface_calc(Mesh &mesh)
 
   /* Not essential but without this we store over-allocated memory in the #CustomData layers. */
   if (LIKELY(corner_tris_num != totface)) {
-    mface = static_cast<MFace *>(MEM_reallocN(mface, sizeof(*mface) * size_t(totface)));
-    mface_to_poly_map = static_cast<int *>(
-        MEM_reallocN(mface_to_poly_map, sizeof(*mface_to_poly_map) * size_t(totface)));
+    mface = static_cast<MFace *>(
+        MEM_realloc_uninitialized(mface, sizeof(*mface) * size_t(totface)));
+    mface_to_poly_map = static_cast<int *>(MEM_realloc_uninitialized(
+        mface_to_poly_map, sizeof(*mface_to_poly_map) * size_t(totface)));
   }
 
   CustomData_add_layer_with_data(fdata_legacy, CD_MFACE, mface, totface, nullptr);
@@ -1217,7 +1221,7 @@ static void mesh_tessface_calc(Mesh &mesh)
   }
 #endif
 
-  MEM_freeN(lindices);
+  MEM_delete(lindices);
 
   mesh.totface_legacy = totface;
 
@@ -1692,10 +1696,10 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
         },
         [](const uint32_t a, const uint32_t b) { return a | b; });
 
-    float2 *coords = MEM_malloc_arrayN<float2>(size_t(mesh->corners_num), __func__);
+    float2 *coords = MEM_new_array_uninitialized<float2>(size_t(mesh->corners_num), __func__);
     bool *pin = nullptr;
     if (needed_boolean_attributes & MLOOPUV_PINNED) {
-      pin = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
+      pin = MEM_new_array_uninitialized<bool>(size_t(mesh->corners_num), __func__);
     }
 
     threading::parallel_for(IndexRange(mesh->corners_num), 4096, [&](IndexRange range) {
@@ -1711,19 +1715,24 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
 
     CustomData_free_layer_named(&mesh->corner_data, uv_names[i]);
 
-    AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const std::string new_name = BKE_attribute_calc_unique_name(owner, uv_names[i].c_str());
-    uv_names[i] = new_name;
-
+    /* #CustomData_add_layer_named_with_data will make the name unique, and then we
+     * find the last added UV layer to get that name. Can't use the newer API like
+     * #BKE_attribute_calc_unique_name because it uses new attribute storage. */
     CustomData_add_layer_named_with_data(
-        &mesh->corner_data, CD_PROP_FLOAT2, coords, mesh->corners_num, new_name, nullptr);
+        &mesh->corner_data, CD_PROP_FLOAT2, coords, mesh->corners_num, uv_names[i], nullptr);
+    const int new_layer_i = CustomData_get_layer_index_n(
+        &mesh->corner_data,
+        CD_PROP_FLOAT2,
+        CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2) - 1);
+    uv_names[i] = mesh->corner_data.layers[new_layer_i].name;
+
     char buffer[MAX_CUSTOMDATA_LAYER_NAME];
     if (pin) {
       CustomData_add_layer_named_with_data(&mesh->corner_data,
                                            CD_PROP_BOOL,
                                            pin,
                                            mesh->corners_num,
-                                           BKE_uv_map_pin_name_get(new_name, buffer),
+                                           BKE_uv_map_pin_name_get(uv_names[i], buffer),
                                            nullptr);
     }
   }
@@ -2047,7 +2056,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNodeTree *group = node_tree_add_in_lib(
       &bmain, owner_library, DATA_("Auto Smooth"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -2062,10 +2071,10 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   angle_data.max = DEG2RADF(180.0f);
   angle_data.subtype = PROP_ANGLE;
 
-  bNode *group_output = node_add_node(nullptr, *group, "NodeGroupOutput");
+  bNode *group_output = node_add_node(nullptr, *group, "NodeGroupOutput"_ustr);
   group_output->location[0] = 480.0f;
   group_output->location[1] = -100.0f;
-  bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput");
+  bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput"_ustr);
   group_input_angle->location[0] = -420.0f;
   group_input_angle->location[1] = -300.0f;
   for (bNodeSocket &socket : group_input_angle->outputs) {
@@ -2073,7 +2082,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
       socket.flag |= SOCK_HIDDEN;
     }
   }
-  bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput");
+  bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput"_ustr);
   group_input_mesh->location[0] = -60.0f;
   group_input_mesh->location[1] = -100.0f;
   for (bNodeSocket &socket : group_input_mesh->outputs) {
@@ -2081,28 +2090,28 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
       socket.flag |= SOCK_HIDDEN;
     }
   }
-  bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
+  bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth"_ustr);
   shade_smooth_edge->custom1 = int16_t(bke::AttrDomain::Edge);
   shade_smooth_edge->location[0] = 120.0f;
   shade_smooth_edge->location[1] = -100.0f;
-  bNode *shade_smooth_face = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
+  bNode *shade_smooth_face = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth"_ustr);
   shade_smooth_face->custom1 = int16_t(bke::AttrDomain::Face);
   shade_smooth_face->location[0] = 300.0f;
   shade_smooth_face->location[1] = -100.0f;
-  bNode *edge_angle = node_add_node(nullptr, *group, "GeometryNodeInputMeshEdgeAngle");
+  bNode *edge_angle = node_add_node(nullptr, *group, "GeometryNodeInputMeshEdgeAngle"_ustr);
   edge_angle->location[0] = -420.0f;
   edge_angle->location[1] = -220.0f;
-  bNode *edge_smooth = node_add_node(nullptr, *group, "GeometryNodeInputEdgeSmooth");
+  bNode *edge_smooth = node_add_node(nullptr, *group, "GeometryNodeInputEdgeSmooth"_ustr);
   edge_smooth->location[0] = -60.0f;
   edge_smooth->location[1] = -160.0f;
-  bNode *face_smooth = node_add_node(nullptr, *group, "GeometryNodeInputShadeSmooth");
+  bNode *face_smooth = node_add_node(nullptr, *group, "GeometryNodeInputShadeSmooth"_ustr);
   face_smooth->location[0] = -240.0f;
   face_smooth->location[1] = -340.0f;
-  bNode *boolean_and = node_add_node(nullptr, *group, "FunctionNodeBooleanMath");
+  bNode *boolean_and = node_add_node(nullptr, *group, "FunctionNodeBooleanMath"_ustr);
   boolean_and->custom1 = NODE_BOOLEAN_MATH_AND;
   boolean_and->location[0] = -60.0f;
   boolean_and->location[1] = -220.0f;
-  bNode *less_than_or_equal = node_add_node(nullptr, *group, "FunctionNodeCompare");
+  bNode *less_than_or_equal = node_add_node(nullptr, *group, "FunctionNodeCompare"_ustr);
   static_cast<NodeFunctionCompare *>(less_than_or_equal->storage)->operation =
       NODE_COMPARE_LESS_EQUAL;
   less_than_or_equal->location[0] = -240.0f;
@@ -2258,15 +2267,22 @@ static ModifierData *create_auto_smooth_modifier(
   md->node_group = get_node_group(object.id.lib);
   id_us_plus(&md->node_group->id);
 
-  md->settings.properties = idprop::create_group("Nodes Modifier Settings").release();
-  IDProperty *angle_prop = idprop::create("Socket_2", angle).release();
-  auto *ui_data = reinterpret_cast<IDPropertyUIDataFloat *>(IDP_ui_data_ensure(angle_prop));
-  ui_data->base.rna_subtype = PROP_ANGLE;
-  ui_data->soft_min = 0.0f;
-  ui_data->soft_max = DEG2RADF(180.0f);
-  IDP_AddToGroup(md->settings.properties, angle_prop);
-  IDP_AddToGroup(md->settings.properties, idprop::create("Socket_2_use_attribute", 0).release());
-  IDP_AddToGroup(md->settings.properties, idprop::create("Socket_2_attribute_name", "").release());
+  IDProperty *system_props = bke::idprop::create_group("NodesModifierProperties").release();
+
+  IDProperty *inputs = bke::idprop::create_group("inputs").release();
+  IDP_AddToGroup(system_props, inputs);
+
+  IDProperty *angle_prop_group = bke::idprop::create_group("Socket_2").release();
+  IDP_AddToGroup(inputs, angle_prop_group);
+
+  IDProperty *type_prop =
+      idprop::create("type", int(nodes::GeometryNodesInputType::Value)).release();
+  IDP_AddToGroup(angle_prop_group, type_prop);
+
+  IDProperty *angle_prop = idprop::create("value", angle).release();
+  IDP_AddToGroup(angle_prop_group, angle_prop);
+
+  md->modifier.system_properties = system_props;
 
   BKE_modifiers_persistent_uid_init(object, md->modifier);
   return &md->modifier;
@@ -2315,9 +2331,7 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
     /* Auto-smooth disabled sharp edge tagging when the evaluated mesh had custom normals.
      * When the original mesh has custom normals, that's a good sign the evaluated mesh will
      * have custom normals as well. */
-    bool has_custom_normals = CustomData_has_layer(&mesh->corner_data, CD_CUSTOMLOOPNORMAL) ||
-                              CustomData_has_layer_named(
-                                  &mesh->corner_data, CD_PROP_INT16_2D, "custom_normal");
+    bool has_custom_normals = mesh->attribute_storage.wrap().lookup("custom_normal");
     if (has_custom_normals) {
       continue;
     }
@@ -2344,7 +2358,9 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       }
       if (md.type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-        if (nmd->node_group && is_auto_smooth_node_tree(*nmd->node_group)) {
+        if (nmd->node_group && !ID_MISSING(nmd->node_group) &&
+            is_auto_smooth_node_tree(*nmd->node_group))
+        {
           /* This object has already been processed by versioning. If the mesh is linked from
            * another file its auto-smooth flag may not be cleared, so this check is necessary to
            * avoid adding a duplicate modifier. */
@@ -2429,8 +2445,13 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
     if (data != nullptr) {
       static_assert(sizeof(FreestyleEdge) == sizeof(bool));
       static_assert(char(FREESTYLE_EDGE_MARK) == char(true));
-      CustomData_add_layer_named_with_data(
-          &mesh.edge_data, CD_PROP_BOOL, data, mesh.edges_num, "freestyle_edge", sharing_info);
+      Attribute::ArrayData array_data{};
+      array_data.data = data;
+      array_data.size = mesh.edges_num;
+      sharing_info->add_user();
+      array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      mesh.attribute_storage.wrap().add(
+          "freestyle_edge", bke::AttrDomain::Edge, bke::AttrType::Bool, std::move(array_data));
     }
     if (sharing_info != nullptr) {
       sharing_info->remove_user_and_delete_if_last();
@@ -2453,8 +2474,13 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
     if (data != nullptr) {
       static_assert(sizeof(FreestyleFace) == sizeof(bool));
       static_assert(char(FREESTYLE_FACE_MARK) == char(true));
-      CustomData_add_layer_named_with_data(
-          &mesh.face_data, CD_PROP_BOOL, data, mesh.faces_num, "freestyle_face", sharing_info);
+      Attribute::ArrayData array_data{};
+      array_data.data = data;
+      array_data.size = mesh.edges_num;
+      sharing_info->add_user();
+      array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      mesh.attribute_storage.wrap().add(
+          "freestyle_face", bke::AttrDomain::Face, bke::AttrType::Bool, std::move(array_data));
     }
     if (sharing_info != nullptr) {
       sharing_info->remove_user_and_delete_if_last();
@@ -2593,7 +2619,7 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
     STRNCPY_UTF8(mesh.corner_data.layers[uv_select_vert].name, uv_select_vert_name_shared.c_str());
     STRNCPY_UTF8(mesh.corner_data.layers[uv_select_edge].name, uv_select_edge_name_shared.c_str());
 
-    bool *uv_select_face = MEM_malloc_arrayN<bool>(mesh.faces_num, __func__);
+    bool *uv_select_face = MEM_new_array_uninitialized<bool>(mesh.faces_num, __func__);
     CustomData_add_layer_named_with_data(&mesh.face_data,
                                          CD_PROP_BOOL,
                                          uv_select_face,

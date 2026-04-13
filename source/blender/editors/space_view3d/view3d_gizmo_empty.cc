@@ -106,9 +106,10 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
     return false;
   }
 
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
     const Object *ob = base->object;
@@ -127,7 +128,7 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
 
 static void WIDGETGROUP_empty_image_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  EmptyImageWidgetGroup *igzgroup = MEM_mallocN<EmptyImageWidgetGroup>(__func__);
+  EmptyImageWidgetGroup *igzgroup = MEM_new_uninitialized<EmptyImageWidgetGroup>(__func__);
   igzgroup->gizmo = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
   wmGizmo *gz = igzgroup->gizmo;
   RNA_enum_set(gz->ptr, "transform", ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
@@ -149,9 +150,10 @@ static void WIDGETGROUP_empty_image_refresh(const bContext *C, wmGizmoGroup *gzg
 {
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(gzgroup->customdata);
   wmGizmo *gz = igzgroup->gizmo;
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   copy_m4_m4(gz->matrix_basis, ob->object_to_world().ptr());

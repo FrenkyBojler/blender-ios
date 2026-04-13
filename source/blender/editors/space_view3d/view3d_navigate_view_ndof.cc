@@ -613,7 +613,7 @@ static float ndof_read_zbuf_rect(ARegion *region, const rcti &rect, int r_xy[2])
     depth_near = view3d_depth_near(&depth_temp);
   }
 
-  MEM_SAFE_FREE(depth_temp.depths);
+  MEM_SAFE_DELETE(depth_temp.depths);
 
   return depth_near;
 }
@@ -681,7 +681,8 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
-  if (!BKE_layer_collection_has_selected_objects(scene, view_layer, view_layer->active_collection))
+  if (!BKE_layer_collection_has_selected_objects(
+          *DEG_get_bmain(depsgraph), scene, view_layer, view_layer->active_collection))
   {
     return zbuf_center;
   }

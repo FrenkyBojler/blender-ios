@@ -214,7 +214,7 @@ static bool copy_dupli_context(DupliContext *r_ctx,
 
   if (r_ctx->level == MAX_DUPLI_RECUR - 1) {
     const StringRef object_name = ob ? ob->id.name + 2 : "";
-    const StringRef geometry_name = geometry ? geometry->name : "";
+    const StringRef geometry_name = geometry ? geometry->name() : "";
 
     if (geometry_name.is_empty() && !object_name.is_empty()) {
       std::cerr << fmt::format(
@@ -896,12 +896,12 @@ static void make_duplis_font(const DupliContext *ctx)
   }
 
   if (text_free) {
-    MEM_freeN(text);
+    MEM_delete(text);
   }
 
   BLI_ghash_free(family_gh, nullptr, nullptr);
 
-  MEM_freeN(chartransdata);
+  MEM_delete(chartransdata);
 }
 
 static const DupliGenerator gen_dupli_verts_font = {
@@ -1341,7 +1341,10 @@ static void make_duplis_faces(const DupliContext *ctx)
 
   if (em != nullptr) {
     const int cd_loop_uv_offset = CustomData_get_offset_named(
-        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name());
+        &em->bm->ldata,
+        CD_PROP_FLOAT2,
+        mesh_eval ? mesh_eval->active_uv_map_name().c_str() :
+                    CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2));
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
@@ -1507,7 +1510,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
       }
 
-      oblist = MEM_calloc_arrayN<Object *>(totcollection, "dupcollection object list");
+      oblist = MEM_new_array_zeroed<Object *>(totcollection, "dupcollection object list");
 
       if (use_collection_count) {
         a = 0;
@@ -1705,7 +1708,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
   /* Clean up. */
   if (oblist) {
-    MEM_freeN(oblist);
+    MEM_delete(oblist);
   }
 }
 

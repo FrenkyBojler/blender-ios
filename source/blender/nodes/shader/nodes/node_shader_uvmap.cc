@@ -22,7 +22,7 @@ namespace nodes::node_shader_uvmap_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Vector>("UV");
+  b.add_output<decl::Vector>("UV"_ustr);
 }
 
 static void node_shader_buts_uvmap(ui::Layout &layout, bContext *C, PointerRNA *ptr)
@@ -44,13 +44,13 @@ static void node_shader_buts_uvmap(ui::Layout &layout, bContext *C, PointerRNA *
       }
     }
 
-    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_UVS);
+    layout.prop(ptr, "uv_map", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_GROUP_UVS);
   }
 }
 
 static void node_shader_init_uvmap(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderUVMap *attr = MEM_new_for_free<NodeShaderUVMap>("NodeShaderUVMap");
+  NodeShaderUVMap *attr = MEM_new<NodeShaderUVMap>("NodeShaderUVMap");
   node->storage = attr;
 }
 
@@ -94,7 +94,7 @@ void register_node_type_sh_uvmap()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeUVMap", SH_NODE_UVMAP);
+  sh_node_type_base(&ntype, "ShaderNodeUVMap"_ustr, SH_NODE_UVMAP);
   ntype.ui_name = "UV Map";
   ntype.ui_description =
       "Retrieve a UV map from the geometry, or the default fallback if none is specified";

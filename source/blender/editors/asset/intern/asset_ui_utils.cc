@@ -14,6 +14,8 @@
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 
+#include "BLI_assert.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 
 #include "BLT_translation.hh"
@@ -80,7 +82,7 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 {
   if (const PreviewImage *preview = asset.get_preview()) {
-    if (!BKE_previewimg_is_invalid(preview)) {
+    if (!BKE_previewimg_is_invalid(preview, ICON_SIZE_ICON)) {
       return preview->runtime->icon_id;
     }
   }
@@ -112,6 +114,30 @@ AssetLibraryReference get_asset_library_ref_from_opptr(PointerRNA &ptr)
   return asset::library_reference_from_enum_value(enum_value);
 }
 
+std::optional<AssetLibraryReference> get_user_library_ref_for_save(
+    const asset_system::AssetLibrary *preferred_library)
+{
+  if (preferred_library && !preferred_library->is_read_only()) {
+    if (std::optional<AssetLibraryReference> preferred_library_ref =
+            preferred_library->library_reference())
+    {
+      return preferred_library_ref;
+    }
+    BLI_assert_unreachable();
+  }
+
+  /* Fallback to the first enabled on-disk user library. */
+  for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
+    if (asset_library.flag & (ASSET_LIBRARY_DISABLED | ASSET_LIBRARY_USE_REMOTE_URL)) {
+      continue;
+    }
+    return asset::user_library_to_library_ref(asset_library);
+  }
+
+  /* No enabled user asset library found. */
+  return {};
+}
+
 void visit_library_catalogs_catalog_for_search(
     const Main &bmain,
     const AssetLibraryReference lib,
@@ -130,8 +156,9 @@ void visit_library_catalogs_catalog_for_search(
     }
   }
 
-  const asset_system::AssetCatalogTree &full_tree = library->catalog_service().catalog_tree();
-  full_tree.foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
+  const std::shared_ptr<const asset_system::AssetCatalogTree> full_tree =
+      library->catalog_service().catalog_tree();
+  full_tree->foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
     visit_fn(StringPropertySearchVisitParams{item.catalog_path().str(), std::nullopt});
   });
 }

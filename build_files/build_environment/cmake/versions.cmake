@@ -117,7 +117,7 @@ set(PTHREADS_COPYRIGHT [=[
 Copyright 1998 John E. Bossom
 Copyright 1999-2018, Pthreads4w contributors
 
-This product includes software developed through the colaborative
+This product includes software developed through the collaborative
 effort of several individuals, each of whom is listed in the file
 CONTRIBUTORS included with this software.
 
@@ -178,15 +178,15 @@ if(WIN32)
   # we need to tell the build the postfix is _s while
   # telling all other deps the postfix is _s_d
   if(BUILD_MODE STREQUAL Release)
-    set(OPENEXR_VERSION_POSTFIX )
-    set(OPENEXR_VERSION_BUILD_POSTFIX )
+    set(OPENEXR_VERSION_POSTFIX "")
+    set(OPENEXR_VERSION_BUILD_POSTFIX "")
   else()
     set(OPENEXR_VERSION_POSTFIX _d)
-    set(OPENEXR_VERSION_BUILD_POSTFIX )
+    set(OPENEXR_VERSION_BUILD_POSTFIX "")
   endif()
 else()
-  set(OPENEXR_VERSION_BUILD_POSTFIX)
-  set(OPENEXR_VERSION_POSTFIX)
+  set(OPENEXR_VERSION_BUILD_POSTFIX "")
+  set(OPENEXR_VERSION_POSTFIX "")
 endif()
 
 set(FREETYPE_VERSION 2.13.3)
@@ -474,6 +474,7 @@ set(PYCODESTYLE_VERSION 2.13)
 set(MESON_VERSION 1.9.0)
 # Build time requirements for numpy and cython
 set(SETUPTOOLS_VERSION 80.9.0)
+set(SETUPTOOLS_SCM_VERSION 9.2.2)
 set(MESON_PYTHON_VERSION 0.18.0)
 set(PACKAGING_VERSION 25.0) # meson-python dep
 set(PYPROJECT_METADATA_VERSION  0.9.1) # meson-python dep

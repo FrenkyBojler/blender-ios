@@ -70,9 +70,10 @@ static void shader_get_from_context(const bContext *C,
                                     ID **r_from)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   if (snode->shaderfrom == SNODE_SHADER_OBJECT) {
@@ -134,7 +135,7 @@ static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)
         /* Free the group like in #ntree_shader_groups_flatten. */
         bNodeTree *group = reinterpret_cast<bNodeTree *>(node.id);
         bke::node_tree_free_tree(*group);
-        MEM_freeN(group);
+        MEM_delete(group);
         node.id = nullptr;
       }
 
@@ -188,8 +189,8 @@ void register_node_tree_type_sh()
   bke::bNodeTreeType *tt = ntreeType_Shader = MEM_new<bke::bNodeTreeType>(__func__);
 
   tt->type = NTREE_SHADER;
-  tt->idname = "ShaderNodeTree";
-  tt->group_idname = "ShaderNodeGroup";
+  tt->idname = "ShaderNodeTree"_ustr;
+  tt->group_idname = "ShaderNodeGroup"_ustr;
   tt->ui_name = N_("Shader Editor");
   tt->ui_icon = ICON_NODE_MATERIAL;
   tt->ui_description = N_("Edit materials, lights, and world shading using nodes");
@@ -287,6 +288,7 @@ static bNodeSocket *ntree_shader_node_output_get(bNode *node, int n)
   return reinterpret_cast<bNodeSocket *>(BLI_findlink(&node->outputs, n));
 }
 
+/* TODO: should be migrated to shader_nodes_inline.c See !153704. */
 static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
 {
   /* To avoid more trouble in the node tree processing (especially inside
@@ -706,7 +708,6 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
           /* Manually add the link to the socket to avoid calling:
            * `BKE_ntree_update(G.main, oop)`. */
           fromsock->link = &bke::node_add_link(*ntree, *fromnode, *fromsock, *tonode, *tosock);
-          BLI_assert(fromsock->link);
         }
       }
     }
@@ -1027,8 +1028,8 @@ bNodeTreeExec *ntreeShaderBeginExecTree_internal(bNodeExecContext *context,
   bNodeTreeExec *exec = ntree_exec_begin(context, ntree, parent_key);
 
   /* allocate the thread stack listbase array */
-  exec->threadstack = MEM_calloc_arrayN<ListBaseT<bNodeThreadStack>>(BLENDER_MAX_THREADS,
-                                                                     "thread stack array");
+  exec->threadstack = MEM_new_array_zeroed<ListBaseT<bNodeThreadStack>>(BLENDER_MAX_THREADS,
+                                                                        "thread stack array");
 
   for (bNode &node : exec->nodetree->nodes) {
     node.runtime->need_exec = 1;
@@ -1065,13 +1066,13 @@ void ntreeShaderEndExecTree_internal(bNodeTreeExec *exec)
     for (int a = 0; a < BLENDER_MAX_THREADS; a++) {
       for (bNodeThreadStack &nts : exec->threadstack[a]) {
         if (nts.stack) {
-          MEM_freeN(nts.stack);
+          MEM_delete(nts.stack);
         }
       }
       BLI_freelistN(&exec->threadstack[a]);
     }
 
-    MEM_freeN(exec->threadstack);
+    MEM_delete(exec->threadstack);
     exec->threadstack = nullptr;
   }
 

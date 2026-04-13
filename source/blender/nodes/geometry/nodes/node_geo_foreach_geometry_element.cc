@@ -125,20 +125,23 @@ static void node_declare(NodeDeclarationBuilder &b)
                                        output_node->storage) :
                                    nullptr;
 
-  b.add_output<decl::Int>("Index").description(
-      "Index of the element in the source geometry. Note that the same index can occur more than "
-      "once when iterating over multiple components at once");
+  b.add_output<decl::Int>("Index"_ustr)
+      .description(
+          "Index of the element in the source geometry. Note that the same index can occur more "
+          "than "
+          "once when iterating over multiple components at once");
 
-  b.add_output<decl::Geometry>("Element")
+  b.add_output<decl::Geometry>("Element"_ustr)
       .description(
           "Single-element geometry for the current iteration. Note that it can be quite "
           "inefficient to split up large geometries into many small geometries")
       .propagate_all()
       .available(output_storage && AttrDomain(output_storage->domain) != AttrDomain::Corner);
 
-  b.add_input<decl::Geometry>("Geometry").description("Geometry whose elements are iterated over");
+  b.add_input<decl::Geometry>("Geometry"_ustr)
+      .description("Geometry whose elements are iterated over");
 
-  b.add_input<decl::Bool>("Selection")
+  b.add_input<decl::Bool>("Selection"_ustr)
       .default_value(true)
       .hide_value()
       .field_on_all()
@@ -148,9 +151,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     for (const int i : IndexRange(output_storage->input_items.items_num)) {
       const NodeForeachGeometryElementInputItem &item = output_storage->input_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const StringRef name = item.name ? item.name : "";
-      const std::string identifier =
-          ForeachGeometryElementInputItemsAccessor::socket_identifier_for_item(item);
+      const UString name = item.name ? UString(item.name) : ""_ustr;
+      const UString identifier(
+          ForeachGeometryElementInputItemsAccessor::socket_identifier_for_item(item));
       b.add_input(socket_type, name, identifier)
           .socket_name_ptr(
               &tree->id, *ForeachGeometryElementInputItemsAccessor::item_srna, &item, "name")
@@ -162,8 +165,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
 }
@@ -181,8 +184,8 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryForeachGeometryElementInput *data =
-      MEM_new_for_free<NodeGeometryForeachGeometryElementInput>(__func__);
+  NodeGeometryForeachGeometryElementInput *data = MEM_new<NodeGeometryForeachGeometryElementInput>(
+      __func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -211,8 +214,9 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, "GeometryNodeForeachGeometryElementInput", GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT);
+  geo_node_type_base(&ntype,
+                     "GeometryNodeForeachGeometryElementInput"_ustr,
+                     GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT);
   ntype.ui_name = "For Each Geometry Element Input";
   ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_INPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
@@ -243,7 +247,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_output<decl::Geometry>("Geometry")
+  b.add_output<decl::Geometry>("Geometry"_ustr)
       .description(
           "The original input geometry with potentially new attributes that are output by the "
           "zone");
@@ -255,9 +259,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     for (const int i : IndexRange(storage.main_items.items_num)) {
       const NodeForeachGeometryElementMainItem &item = storage.main_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const StringRef name = item.name ? item.name : "";
-      std::string identifier = ForeachGeometryElementMainItemsAccessor::socket_identifier_for_item(
-          item);
+      const UString name = item.name ? UString(item.name) : ""_ustr;
+      const UString identifier(
+          ForeachGeometryElementMainItemsAccessor::socket_identifier_for_item(item));
       b.add_input(socket_type, name, identifier)
           .socket_name_ptr(
               &tree->id, *ForeachGeometryElementMainItemsAccessor::item_srna, &item, "name")
@@ -268,10 +272,10 @@ static void node_declare(NodeDeclarationBuilder &b)
           .field_on({0})
           .description("Attribute on the geometry above");
     }
-    b.add_input<decl::Extend>("", "__extend__main");
-    b.add_output<decl::Extend>("", "__extend__main").align_with_previous();
+    b.add_input<decl::Extend>(""_ustr, "__extend__main"_ustr);
+    b.add_output<decl::Extend>(""_ustr, "__extend__main"_ustr).align_with_previous();
 
-    auto &panel = b.add_panel("Generated");
+    auto &panel = b.add_panel("Generated"_ustr);
 
     int previous_output_geometry_index = -1;
     int previous_input_geometry_index = -1;
@@ -281,9 +285,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       if (socket_type == SOCK_GEOMETRY && i > 0) {
         panel.add_separator();
       }
-      const StringRef name = item.name ? item.name : "";
-      std::string identifier =
-          ForeachGeometryElementGenerationItemsAccessor::socket_identifier_for_item(item);
+      const UString name = item.name ? UString(item.name) : ""_ustr;
+      const UString identifier(
+          ForeachGeometryElementGenerationItemsAccessor::socket_identifier_for_item(item));
       auto &input_decl = panel.add_input(socket_type, name, identifier)
                              .socket_name_ptr(
                                  &tree->id,
@@ -309,18 +313,18 @@ static void node_declare(NodeDeclarationBuilder &b)
         output_decl.description("Attribute on the geometry above");
       }
     }
-    panel.add_input<decl::Extend>("", "__extend__generation");
-    panel.add_output<decl::Extend>("", "__extend__generation").align_with_previous();
+    panel.add_input<decl::Extend>(""_ustr, "__extend__generation"_ustr);
+    panel.add_output<decl::Extend>(""_ustr, "__extend__generation"_ustr).align_with_previous();
   }
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryForeachGeometryElementOutput *data =
-      MEM_new_for_free<NodeGeometryForeachGeometryElementOutput>(__func__);
+      MEM_new<NodeGeometryForeachGeometryElementOutput>(__func__);
 
-  data->generation_items.items = MEM_new_array_for_free<NodeForeachGeometryElementGenerationItem>(
-      1, __func__);
+  data->generation_items.items = MEM_new_array<NodeForeachGeometryElementGenerationItem>(1,
+                                                                                         __func__);
   NodeForeachGeometryElementGenerationItem &item = data->generation_items.items[0];
   item.name = BLI_strdup(DATA_("Geometry"));
   item.socket_type = SOCK_GEOMETRY;
@@ -335,13 +339,13 @@ static void node_free_storage(bNode *node)
   socket_items::destruct_array<ForeachGeometryElementInputItemsAccessor>(*node);
   socket_items::destruct_array<ForeachGeometryElementGenerationItemsAccessor>(*node);
   socket_items::destruct_array<ForeachGeometryElementMainItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeGeometryForeachGeometryElementOutput *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeGeometryForeachGeometryElementOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryForeachGeometryElementOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeGeometryForeachGeometryElementOutput>(
+  auto *dst_storage = MEM_new<NodeGeometryForeachGeometryElementOutput>(
       __func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
@@ -385,8 +389,8 @@ static void node_extra_info(NodeExtraInfoParams &params)
 
 static std::pair<bNode *, bNode *> add_foreach_zone(LinkSearchOpParams &params)
 {
-  bNode &input_node = params.add_node("GeometryNodeForeachGeometryElementInput");
-  bNode &output_node = params.add_node("GeometryNodeForeachGeometryElementOutput");
+  bNode &input_node = params.add_node("GeometryNodeForeachGeometryElementInput"_ustr);
+  bNode &output_node = params.add_node("GeometryNodeForeachGeometryElementOutput"_ustr);
   output_node.location[0] = 300;
 
   auto &input_storage = *static_cast<NodeGeometryForeachGeometryElementInput *>(
@@ -406,7 +410,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (other_socket.in_out == SOCK_OUT) {
     params.add_item_full_name(IFACE_("For Each Element"), [](LinkSearchOpParams &params) {
       const auto [input_node, output_node] = add_foreach_zone(params);
-      params.update_and_connect_available_socket(*input_node, "Geometry");
+      params.update_and_connect_available_socket(*input_node, "Geometry"_ustr);
     });
   }
   else {
@@ -415,7 +419,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         [](LinkSearchOpParams &params) {
           const auto [input_node, output_node] = add_foreach_zone(params);
           socket_items::clear<ForeachGeometryElementGenerationItemsAccessor>(*output_node);
-          params.update_and_connect_available_socket(*output_node, "Geometry");
+          params.update_and_connect_available_socket(*output_node, "Geometry"_ustr);
         });
 
     params.add_item_full_name(
@@ -450,7 +454,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(&ntype,
-                     "GeometryNodeForeachGeometryElementOutput",
+                     "GeometryNodeForeachGeometryElementOutput"_ustr,
                      GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT);
   ntype.ui_name = "For Each Geometry Element Output";
   ntype.enum_name_legacy = "FOREACH_GEOMETRY_ELEMENT_OUTPUT";
@@ -484,7 +488,7 @@ StructRNA **ForeachGeometryElementInputItemsAccessor::item_srna =
 void ForeachGeometryElementInputItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                 const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void ForeachGeometryElementInputItemsAccessor::blend_read_data_item(BlendDataReader *reader,
@@ -499,7 +503,7 @@ StructRNA **ForeachGeometryElementMainItemsAccessor::item_srna =
 void ForeachGeometryElementMainItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void ForeachGeometryElementMainItemsAccessor::blend_read_data_item(BlendDataReader *reader,
@@ -514,7 +518,7 @@ StructRNA **ForeachGeometryElementGenerationItemsAccessor::item_srna =
 void ForeachGeometryElementGenerationItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                      const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void ForeachGeometryElementGenerationItemsAccessor::blend_read_data_item(BlendDataReader *reader,

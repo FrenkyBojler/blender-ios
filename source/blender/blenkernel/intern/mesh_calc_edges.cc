@@ -201,13 +201,12 @@ static IndexMask mask_first_distinct_edges(const Span<int2> edges,
   /* Note: #map_edge_to_first_original might still contains #no_original_edge if edges was both non
    * distinct and not full set. */
 
-  return IndexMask::from_predicate(
-      edges_to_check, GrainSize(2048), memory, [&](const int srd_edge_i) {
-        const OrderedEdge edge = edges[srd_edge_i];
-        const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
-        const int edge_index = edge_maps[map_i].index_of(edge);
-        return map_edge_to_first_original[edge_offsets[map_i][edge_index]] == srd_edge_i;
-      });
+  return IndexMask::from_predicate(edges_to_check, memory, [&](const int srd_edge_i) {
+    const OrderedEdge edge = edges[srd_edge_i];
+    const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
+    const int edge_index = edge_maps[map_i].index_of(edge);
+    return map_edge_to_first_original[edge_offsets[map_i][edge_index]] == srd_edge_i;
+  });
 }
 
 static void map_edge_to_span_index(const Span<int2> edges,
@@ -316,7 +315,8 @@ void mesh_calc_edges(Mesh &mesh,
   IndexRange back_range_of_new_edges;
   IndexMask src_to_dst_mask;
 
-  MutableSpan<int2> edge_verts(MEM_malloc_arrayN<int2>(result_edges_num, AT), result_edges_num);
+  MutableSpan<int2> edge_verts(MEM_new_array_uninitialized<int2>(result_edges_num, AT),
+                               result_edges_num);
 #ifndef NDEBUG
   edge_verts.fill(int2(-1));
 #endif
@@ -358,12 +358,13 @@ void mesh_calc_edges(Mesh &mesh,
     }
     else {
       src_to_dst_mask.foreach_index(
-          GrainSize(1024), [&](const int src_index, const int dst_index) {
+          [&](const int src_index, const int dst_index) {
             const OrderedEdge edge = original_edges[src_index];
             const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
             const int edge_index = edge_maps[map_i].index_of(edge);
             edge_map_to_result_index[edge_offsets[map_i][edge_index]] = dst_index;
-          });
+          },
+          exec_mode::grain_size(1024));
     }
 
     if (!no_new_edges) {
@@ -398,7 +399,7 @@ void mesh_calc_edges(Mesh &mesh,
   else {
     if (mesh.edges_num != 0) {
       const IndexMask original_corner_edges = IndexMask::from_predicate(
-          IndexRange(mesh.edges_num), GrainSize(2048), memory, [&](const int edge_i) {
+          IndexRange(mesh.edges_num), memory, [&](const int edge_i) {
             const OrderedEdge edge = original_edges[edge_i];
             const int map_i = calc_edges::edge_to_hash_map_i(edge, parallel_mask);
             return edge_maps[map_i].contains(edge);
@@ -528,7 +529,7 @@ void mesh_calc_edges(Mesh &mesh,
       CustomDataLayer &layer = mesh.edge_data.layers[orig_index_layer];
       const int *src_data = static_cast<const int *>(layer.data);
 
-      int *dst_data = MEM_malloc_arrayN<int>(result_edges_num, __func__);
+      int *dst_data = MEM_new_array_uninitialized<int>(result_edges_num, __func__);
       MutableSpan dst(dst_data, result_edges_num);
       if (src_data != nullptr) {
         const Span src(src_data, mesh.edges_num);
@@ -550,10 +551,7 @@ void mesh_calc_edges(Mesh &mesh,
     dst_attributes.remove(".select_edge");
     if (ELEM(back_range_of_new_edges.size(), 0, mesh.edges_num)) {
       const bool fill_value = back_range_of_new_edges.size() == mesh.edges_num;
-      dst_attributes.add<int2>(
-          ".select_edge",
-          AttrDomain::Edge,
-          AttributeInitVArray(VArray<bool>::from_single(fill_value, mesh.edges_num)));
+      dst_attributes.add<bool>(".select_edge", AttrDomain::Edge, AttributeInitValue(fill_value));
     }
     else {
       SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(

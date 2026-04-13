@@ -462,13 +462,14 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 }
 
 /* Statistics displayed in info header. Called regularly on scene changes. */
-static void stats_update(Depsgraph *depsgraph,
+static void stats_update(const Main *bmain,
+                         Depsgraph *depsgraph,
                          const Scene *scene,
                          ViewLayer *view_layer,
                          View3D *v3d_local,
                          SceneStats *stats)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   const Object *ob = BKE_view_layer_active_object_get(view_layer);
   const Object *obedit = BKE_view_layer_edit_object_get(view_layer);
 
@@ -476,7 +477,7 @@ static void stats_update(Depsgraph *depsgraph,
 
   if (obedit && (ob->type != OB_GREASE_PENCIL)) {
     /* Edit Mode. */
-    FOREACH_OBJECT_BEGIN (scene, view_layer, ob_iter) {
+    FOREACH_OBJECT_BEGIN (bmain, scene, view_layer, ob_iter) {
       if (ob_iter->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) {
         if (ob_iter->mode & OB_MODE_EDIT) {
           stats_object_edit(ob_iter, stats);
@@ -496,7 +497,7 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else if (ob && (ob->mode & OB_MODE_POSE)) {
     /* Pose Mode. */
-    FOREACH_OBJECT_BEGIN (scene, view_layer, ob_iter) {
+    FOREACH_OBJECT_BEGIN (bmain, scene, view_layer, ob_iter) {
       if (ob_iter->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) {
         if (ob_iter->mode & OB_MODE_POSE) {
           stats_object_pose(ob_iter, stats);
@@ -532,7 +533,7 @@ static void stats_update(Depsgraph *depsgraph,
 
 void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
 {
-  MEM_SAFE_FREE(view_layer->stats);
+  MEM_SAFE_DELETE(view_layer->stats);
 
   for (wmWindow &win : wm->windows) {
     ViewLayer *view_layer_test = WM_window_get_active_view_layer(&win);
@@ -553,7 +554,7 @@ void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
 
 void ED_view3d_local_stats_free(View3D *v3d)
 {
-  MEM_SAFE_FREE(v3d->runtime.local_stats);
+  MEM_SAFE_DELETE(v3d->runtime.local_stats);
 }
 
 static bool format_stats(
@@ -568,8 +569,8 @@ static bool format_stats(
       return false;
     }
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-    *stats_p = MEM_mallocN<SceneStats>(__func__);
-    stats_update(depsgraph, scene, view_layer, v3d_local, *stats_p);
+    *stats_p = MEM_new_uninitialized<SceneStats>(__func__);
+    stats_update(bmain, depsgraph, scene, view_layer, v3d_local, *stats_p);
   }
 
   SceneStats *stats = *stats_p;
@@ -616,11 +617,12 @@ static bool format_stats(
 static void get_stats_string(char *info,
                              int len,
                              size_t *ofs,
+                             const Main &bmain,
                              const Scene *scene,
                              ViewLayer *view_layer,
                              SceneStatsFmt *stats_fmt)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   eObjectMode object_mode = ob ? eObjectMode(ob->mode) : OB_MODE_OBJECT;
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
@@ -761,7 +763,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
   if (statusbar_flag & STATUSBAR_SHOW_STATS) {
     SceneStatsFmt stats_fmt;
     if (format_stats(bmain, scene, view_layer, nullptr, &stats_fmt)) {
-      get_stats_string(info + ofs, len, &ofs, scene, view_layer, &stats_fmt);
+      get_stats_string(info + ofs, len, &ofs, *bmain, scene, view_layer, &stats_fmt);
     }
   }
 
@@ -873,7 +875,7 @@ void ED_info_draw_stats(
     return;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   eObjectMode object_mode = ob ? eObjectMode(ob->mode) : OB_MODE_OBJECT;
   const int font_id = BLF_default();

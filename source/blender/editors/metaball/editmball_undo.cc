@@ -59,7 +59,7 @@ static void freeMetaElemlist(ListBaseT<MetaElem> *lb)
   }
 
   while (MetaElem *ml = static_cast<MetaElem *>(BLI_pophead(lb))) {
-    MEM_freeN(ml);
+    MEM_delete(ml);
   }
 }
 
@@ -73,7 +73,7 @@ static void undomball_to_editmball(UndoMBall *umb, MetaBall *mb)
   for (MetaElem *ml_undo = static_cast<MetaElem *>(umb->editelems.first); ml_undo;
        ml_undo = ml_undo->next, index += 1)
   {
-    MetaElem *ml_edit = static_cast<MetaElem *>(MEM_dupallocN(ml_undo));
+    MetaElem *ml_edit = MEM_dupalloc(ml_undo);
     BLI_addtail(mb->editelems, ml_edit);
     if (index == umb->lastelem_index) {
       mb->lastelem = ml_edit;
@@ -93,7 +93,7 @@ static void *editmball_from_undomball(UndoMBall *umb, MetaBall *mb)
   for (MetaElem *ml_edit = static_cast<MetaElem *>(mb->editelems->first); ml_edit;
        ml_edit = ml_edit->next, index += 1)
   {
-    MetaElem *ml_undo = static_cast<MetaElem *>(MEM_dupallocN(ml_edit));
+    MetaElem *ml_undo = MEM_dupalloc(ml_edit);
     BLI_addtail(&umb->editelems, ml_undo);
     if (ml_edit == mb->lastelem) {
       umb->lastelem_index = index;
@@ -112,9 +112,10 @@ static void undomball_free_data(UndoMBall *umb)
 
 static Object *editmball_object_from_context(bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_MBALL) {
     MetaBall *mb = id_cast<MetaBall *>(obedit->data);
@@ -159,10 +160,10 @@ static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
    * outside of this list will be moved out of edit-mode when reading back undo steps. */
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
+  Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(*bmain, scene, view_layer);
 
   us->scene_ref.ptr = scene;
-  us->elems = MEM_calloc_arrayN<MBallUndoStep_Elem>(objects.size(), __func__);
+  us->elems = MEM_new_array_zeroed<MBallUndoStep_Elem>(objects.size(), __func__);
   us->elems_len = objects.size();
 
   for (uint i = 0; i < objects.size(); i++) {
@@ -213,7 +214,7 @@ static void mball_undosys_step_decode(
 
   /* The first element is always active */
   ED_undo_object_set_active_or_warn(
-      scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
+      *bmain, scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
 
   /* Check after setting active (unless undoing into another scene). */
   BLI_assert(mball_undosys_poll(C) || (scene != CTX_data_scene(C)));
@@ -231,7 +232,7 @@ static void mball_undosys_step_free(UndoStep *us_p)
     MBallUndoStep_Elem *elem = &us->elems[i];
     undomball_free_data(&elem->data);
   }
-  MEM_freeN(us->elems);
+  MEM_delete(us->elems);
 }
 
 static void mball_undosys_foreach_ID_ref(UndoStep *us_p,

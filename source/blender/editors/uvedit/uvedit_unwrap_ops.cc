@@ -909,7 +909,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   const int *origPolyIndices = static_cast<const int *>(
       CustomData_get_layer(&subdiv_mesh->face_data, CD_ORIGINDEX));
 
-  faceMap = MEM_malloc_arrayN<BMFace *>(subdiv_mesh->faces_num, "unwrap_edit_face_map");
+  faceMap = MEM_new_array_uninitialized<BMFace *>(subdiv_mesh->faces_num, "unwrap_edit_face_map");
 
   BM_mesh_elem_index_ensure(em->bm, BM_VERT);
   BM_mesh_elem_table_ensure(em->bm, BM_EDGE | BM_FACE);
@@ -919,7 +919,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     faceMap[i] = BM_face_at_index(em->bm, origPolyIndices[i]);
   }
 
-  edgeMap = MEM_malloc_arrayN<BMEdge *>(subdiv_mesh->edges_num, "unwrap_edit_edge_map");
+  edgeMap = MEM_new_array_uninitialized<BMEdge *>(subdiv_mesh->edges_num, "unwrap_edit_edge_map");
 
   /* map subsurfed edges to original editEdges */
   for (int i = 0; i < subdiv_mesh->edges_num; i++) {
@@ -1038,8 +1038,8 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
       handle, options->fill_holes, options->topology_from_uvs, r_count_failed);
 
   /* cleanup */
-  MEM_freeN(faceMap);
-  MEM_freeN(edgeMap);
+  MEM_delete(faceMap);
+  MEM_delete(edgeMap);
   BKE_id_free(nullptr, subdiv_mesh);
 
   return handle;
@@ -1063,6 +1063,7 @@ struct MinStretch {
 
 static bool minimize_stretch_init(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1074,7 +1075,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
     return false;
@@ -1496,8 +1497,8 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       BLI_remlink(&island_list, &island);
       const bool pinned = island_has_pins(scene, bm, &island, params);
       if (ignore_pinned && pinned) {
-        MEM_freeN(island.faces);
-        MEM_freeN(&island);
+        MEM_delete(island.faces);
+        MEM_delete(&island);
         continue;
       }
       island_vector.append(&island);
@@ -1661,8 +1662,8 @@ static void uvedit_pack_islands_multi(const Scene *scene,
   }
 
   for (FaceIsland *island : island_vector) {
-    MEM_freeN(island->faces);
-    MEM_freeN(island);
+    MEM_delete(island->faces);
+    MEM_delete(island);
   }
 }
 
@@ -1747,6 +1748,7 @@ static void pack_islands_freejob(void *pidv)
 static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   const SpaceImage *sima = CTX_wm_space_image(C);
   const ToolSettings *ts = scene->toolsettings;
@@ -1759,7 +1761,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   /* Early exit in case no UVs are selected. */
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
@@ -2053,6 +2055,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 
 static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   ToolSettings *ts = scene->toolsettings;
@@ -2066,7 +2069,7 @@ static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
     return OPERATOR_CANCELLED;
@@ -2189,14 +2192,14 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
   /* Create or increase size of g_live_unwrap.handles array */
   if (g_live_unwrap.handles == nullptr) {
     g_live_unwrap.len_alloc = 32;
-    g_live_unwrap.handles = MEM_malloc_arrayN<ParamHandle *>(g_live_unwrap.len_alloc,
-                                                             "uvedit_live_unwrap_liveHandles");
+    g_live_unwrap.handles = MEM_new_array_uninitialized<ParamHandle *>(
+        g_live_unwrap.len_alloc, "uvedit_live_unwrap_liveHandles");
     g_live_unwrap.len = 0;
   }
   if (g_live_unwrap.len >= g_live_unwrap.len_alloc) {
     g_live_unwrap.len_alloc *= 2;
-    g_live_unwrap.handles = static_cast<ParamHandle **>(
-        MEM_reallocN(g_live_unwrap.handles, sizeof(ParamHandle *) * g_live_unwrap.len_alloc));
+    g_live_unwrap.handles = static_cast<ParamHandle **>(MEM_realloc_uninitialized(
+        g_live_unwrap.handles, sizeof(ParamHandle *) * g_live_unwrap.len_alloc));
   }
   g_live_unwrap.handles[g_live_unwrap.len] = handle;
   g_live_unwrap.len++;
@@ -2244,7 +2247,7 @@ void ED_uvedit_live_unwrap_end(const bool cancel)
       }
       delete (g_live_unwrap.handles[i]);
     }
-    MEM_freeN(g_live_unwrap.handles);
+    MEM_delete(g_live_unwrap.handles);
     g_live_unwrap.handles = nullptr;
     g_live_unwrap.len = 0;
     g_live_unwrap.len_alloc = 0;
@@ -2818,6 +2821,7 @@ enum {
 
 static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
   const bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
@@ -2825,7 +2829,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int reported_errors = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   unwrap_options_sync_toolsettings(op, scene->toolsettings);
 
@@ -3212,6 +3216,7 @@ static Vector<float3> smart_uv_project_calculate_project_normals(
 
 static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -3235,7 +3240,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
   MemArena *arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
 
   Vector<Object *> objects_changed;
 
@@ -3253,7 +3258,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
 
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
     BLI_assert(offsets.uv >= 0);
-    ThickFace *thick_faces = MEM_malloc_arrayN<ThickFace>(em->bm->totface, __func__);
+    ThickFace *thick_faces = MEM_new_array_uninitialized<ThickFace>(em->bm->totface, __func__);
 
     uint thick_faces_len = 0;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -3301,12 +3306,12 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
         area_weight);
 
     if (project_normal_array.is_empty()) {
-      MEM_freeN(thick_faces);
+      MEM_delete(thick_faces);
       continue;
     }
 
     /* After finding projection vectors, we find the uv positions. */
-    LinkNode **thickface_project_groups = MEM_calloc_arrayN<LinkNode *>(
+    LinkNode **thickface_project_groups = MEM_new_array_zeroed<LinkNode *>(
         project_normal_array.size(), __func__);
 
     BLI_memarena_clear(arena);
@@ -3349,10 +3354,10 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
       }
     }
 
-    MEM_freeN(thick_faces);
+    MEM_delete(thick_faces);
 
     /* No need to free the lists in 'thickface_project_groups' values as the 'arena' is used. */
-    MEM_freeN(thickface_project_groups);
+    MEM_delete(thickface_project_groups);
 
     if (changed) {
       objects_changed.append(obedit);
@@ -3489,6 +3494,7 @@ static wmOperatorStatus uv_from_view_invoke(bContext *C, wmOperator *op, const w
 
 static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -3505,7 +3511,7 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
   /* NOTE: objects that aren't touched are set to nullptr (to skip clipping). */
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
 
   if (use_orthographic) {
     /* Calculate average object position. */
@@ -3648,12 +3654,13 @@ void UV_OT_project_from_view(wmOperatorType *ot)
 
 static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
   for (Object *obedit : objects) {
     Mesh *mesh = id_cast<Mesh *>(obedit->data);
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -3903,6 +3910,7 @@ static float uv_sphere_project(const Scene *scene,
 
 static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -3914,7 +3922,7 @@ static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMFace *efa;
@@ -4081,6 +4089,7 @@ static float uv_cylinder_project(const Scene *scene,
 
 static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -4092,7 +4101,7 @@ static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMFace *efa;
@@ -4229,6 +4238,7 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
 
 static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
 
@@ -4243,7 +4253,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, v3d);
+      *bmain, scene, view_layer, v3d);
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);

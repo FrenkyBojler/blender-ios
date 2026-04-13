@@ -48,7 +48,7 @@ static FSMenu *g_fsmenu = nullptr;
 FSMenu *ED_fsmenu_get()
 {
   if (!g_fsmenu) {
-    g_fsmenu = MEM_callocN<FSMenu>(__func__);
+    g_fsmenu = MEM_new_zeroed<FSMenu>(__func__);
   }
   return g_fsmenu;
 }
@@ -133,7 +133,7 @@ void ED_fsmenu_entry_set_path(FSMenuEntry *fsentry, const char *path)
   if ((!fsentry->path || !path || !STREQ(path, fsentry->path)) && (fsentry->path != path)) {
     char tmp_name[FILE_MAXFILE];
 
-    MEM_SAFE_FREE(fsentry->path);
+    MEM_SAFE_DELETE(fsentry->path);
 
     fsentry->path = (path && path[0]) ? BLI_strdup(path) : nullptr;
 
@@ -258,6 +258,9 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
 
   for (fsm_iter = fsm_head; fsm_iter; fsm_prev = fsm_iter, fsm_iter = fsm_iter->next) {
     if (fsm_iter->path) {
+      if (fsm_iter->icon == FSMENU_CURRENT_FILE_ICON) {
+        continue;
+      }
       /* Compare, with/without the trailing slash in 'path'. */
       const int cmp_ret = BLI_path_ncmp(path, fsm_iter->path, path_len);
       if (cmp_ret == 0 && STREQ(fsm_iter->path + path_len, has_trailing_slash ? "" : SEP_STR)) {
@@ -284,7 +287,7 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
     }
   }
 
-  fsm_iter = MEM_mallocN<FSMenuEntry>("fsme");
+  fsm_iter = MEM_new_uninitialized<FSMenuEntry>("fsme");
   fsm_iter->path = has_trailing_slash ? BLI_strdup(path) : BLI_string_joinN(path, SEP_STR);
   fsm_iter->save = (flag & FS_INSERT_SAVE) != 0;
 
@@ -306,6 +309,9 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
     while (i--) {
       FSMenuEntry *tfsm = ED_fsmenu_get_category(fsmenu, cats[i]);
       for (; tfsm; tfsm = tfsm->next) {
+        if (tfsm->icon == FSMENU_CURRENT_FILE_ICON) {
+          continue;
+        }
         if (STREQ(tfsm->path, fsm_iter->path)) {
           icon = tfsm->icon;
           if (tfsm->name[0] && (!name || !name[0])) {
@@ -372,8 +378,8 @@ void fsmenu_remove_entry(FSMenu *fsmenu, FSMenuCategory category, int idx)
         ED_fsmenu_set_category(fsmenu, category, fsm_head);
       }
       /* free entry */
-      MEM_freeN(fsm_iter->path);
-      MEM_freeN(fsm_iter);
+      MEM_delete(fsm_iter->path);
+      MEM_delete(fsm_iter);
     }
   }
 }
@@ -476,9 +482,9 @@ static void fsmenu_free_category(FSMenu *fsmenu, FSMenuCategory category)
     FSMenuEntry *fsm_next = fsm_iter->next;
 
     if (fsm_iter->path) {
-      MEM_freeN(fsm_iter->path);
+      MEM_delete(fsm_iter->path);
     }
-    MEM_freeN(fsm_iter);
+    MEM_delete(fsm_iter);
 
     fsm_iter = fsm_next;
   }
@@ -504,7 +510,7 @@ static void fsmenu_free_ex(FSMenu **fsmenu)
     fsmenu_free_category(*fsmenu, FS_CATEGORY_BOOKMARKS);
     fsmenu_free_category(*fsmenu, FS_CATEGORY_RECENT);
     fsmenu_free_category(*fsmenu, FS_CATEGORY_OTHER);
-    MEM_freeN(*fsmenu);
+    MEM_delete(*fsmenu);
   }
 
   *fsmenu = nullptr;

@@ -35,6 +35,13 @@ const EnumPropertyItem rna_enum_mesh_delimit_mode_items[] = {
 };
 
 const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_loop_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit edge loop selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit edge loop selection at sharp edges"},
+    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
     {BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS,
      "INNER_CORNERS",
      0,
@@ -46,7 +53,6 @@ const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_loop_items[] = {
      "Outer Corners",
      "Stop boundary selection at vertices with two edges when they share a face that is not an "
      "n-gon"},
-    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -838,6 +844,45 @@ static void rna_Mesh_uv_layer_active_index_set(PointerRNA *ptr, int value)
   BKE_mesh_tessface_clear(mesh);
 }
 
+static PointerRNA rna_Mesh_uv_layer_default_get(PointerRNA *ptr)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
+      *ptr, mesh->default_uv_map_name(), ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+  attr_ptr.type = RNA_MeshUVLoopLayer;
+  return attr_ptr;
+}
+
+static void rna_Mesh_uv_layer_default_set(PointerRNA *ptr, PointerRNA value, ReportList *)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  mesh->uv_maps_default_set(rna_Attribute_name_get(value));
+  BKE_mesh_tessface_clear(mesh);
+}
+
+static int rna_Mesh_uv_layer_default_index_get(PointerRNA *ptr)
+{
+  AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
+  return BKE_attribute_to_index(owner,
+                                rna_mesh(ptr)->default_uv_map_name(),
+                                ATTR_DOMAIN_MASK_CORNER,
+                                CD_MASK_PROP_FLOAT2,
+                                false);
+}
+
+static void rna_Mesh_uv_layer_default_index_set(PointerRNA *ptr, int value)
+{
+  AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
+  const std::optional<StringRef> name = BKE_attribute_from_index(
+      owner, value, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2, false);
+  if (!name) {
+    return;
+  }
+  Mesh *mesh = rna_mesh(ptr);
+  mesh->uv_maps_default_set(*name);
+  BKE_mesh_tessface_clear(mesh);
+}
+
 static PointerRNA rna_Mesh_uv_layer_clone_get(PointerRNA *ptr)
 {
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
@@ -850,7 +895,7 @@ static void rna_Mesh_uv_layer_clone_set(PointerRNA *ptr, PointerRNA value, Repor
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -871,7 +916,7 @@ static int rna_Mesh_uv_layer_clone_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_clone_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -892,7 +937,7 @@ static void rna_Mesh_uv_layer_stencil_set(PointerRNA *ptr, PointerRNA value, Rep
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -913,7 +958,7 @@ static int rna_Mesh_uv_layer_stencil_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_stencil_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -1002,11 +1047,6 @@ static PointerRNA rna_MeshUVLoopLayer_pin_ensure(PointerRNA ptr)
   return bool_layer_ensure(&ptr, BKE_uv_map_pin_name_get);
 }
 
-static void rna_MeshUVLoopLayer_uv_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  rna_Attribute_data_begin(iter, ptr);
-}
-
 static bool rna_MeshUVLoopLayer_active_render_get(PointerRNA *ptr)
 {
   return rna_Attribute_name_get(*ptr) == rna_mesh(ptr)->default_uv_map_name();
@@ -1047,12 +1087,35 @@ static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
   }
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(*ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
   mesh->clone_uv_map_attribute = BLI_strdupn(name.c_str(), name.size());
   BKE_mesh_tessface_clear(mesh);
+}
+
+bool rna_MeshUVLoopLayer_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
+{
+  CollectionPropertyIterator iter;
+  rna_Attribute_data_begin(&iter, ptr);
+  if (!iter.valid) {
+    *r_ptr = PointerRNA_NULL;
+    return false;
+  }
+
+  ArrayIterator *internal = &iter.internal.array;
+  if (index < 0 || index >= internal->length) {
+    *r_ptr = PointerRNA_NULL;
+    return false;
+  }
+
+  internal->ptr += internal->itemsize * index;
+
+  *r_ptr = RNA_pointer_create_with_parent(
+      iter.parent, RNA_MeshUVLoop, rna_iterator_array_get(&iter));
+  rna_iterator_array_end(&iter);
+  return true;
 }
 
 static void rna_Mesh_vertex_colors_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1366,8 +1429,7 @@ static bool rna_MeshEdge_is_loose_get(PointerRNA *ptr)
 {
   const Mesh *mesh = rna_mesh(ptr);
   const int index = rna_MeshEdge_index_get(ptr);
-  const bke::LooseEdgeCache &loose_edges = mesh->loose_edges();
-  return loose_edges.count > 0 && loose_edges.is_loose_bits[index];
+  return mesh->loose_edges().contains(index);
 }
 
 static int rna_MeshLoopTriangle_material_index_get(PointerRNA *ptr)
@@ -2330,7 +2392,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_MeshUVLoopLayer_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2368,12 +2430,12 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV", "UV coordinates on face corners");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_collection_funcs(prop,
-                                    "rna_MeshUVLoopLayer_uv_begin",
+                                    "rna_Attribute_data_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2388,7 +2450,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_MeshUVLoopLayer_pin_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2749,6 +2811,24 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
                              "rna_Mesh_uv_layer_index_range");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active UV Map Index", "Active UV map index");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
+  prop = RNA_def_property(srna, "active_render", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "MeshUVLoopLayer");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_Mesh_uv_layer_default_get", "rna_Mesh_uv_layer_default_set", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
+  RNA_def_property_ui_text(prop, "Active Render UV Map Layer", "Active Render UV Map layer");
+  RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+
+  prop = RNA_def_property(srna, "active_render_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_funcs(prop,
+                             "rna_Mesh_uv_layer_default_index_get",
+                             "rna_Mesh_uv_layer_default_index_set",
+                             "rna_Mesh_uv_layer_index_range");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Active Render UV Map Index", "Active Render UV map index");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 }
 

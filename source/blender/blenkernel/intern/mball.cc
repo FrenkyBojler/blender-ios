@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <numbers>
 #include <optional>
 
 #include "DNA_ID.h"
@@ -52,6 +53,7 @@
 #include "BKE_object_types.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
 
@@ -74,7 +76,7 @@ static void metaball_copy_data(Main * /*bmain*/,
 
   BLI_duplicatelist(&metaball_dst->elems, &metaball_src->elems);
 
-  metaball_dst->mat = static_cast<Material **>(MEM_dupallocN(metaball_src->mat));
+  metaball_dst->mat = MEM_dupalloc(metaball_src->mat);
 
   metaball_dst->editelems = nullptr;
   metaball_dst->lastelem = nullptr;
@@ -84,7 +86,7 @@ static void metaball_free_data(ID *id)
 {
   MetaBall *metaball = id_cast<MetaBall *>(id);
 
-  MEM_SAFE_FREE(metaball->mat);
+  MEM_SAFE_DELETE(metaball->mat);
 
   BLI_freelistN(&metaball->elems);
 }
@@ -112,7 +114,7 @@ static void metaball_blend_write(BlendWriter *writer, ID *id, const void *id_add
   BKE_id_blend_write(writer, &mb->id);
 
   /* direct data */
-  BLO_write_pointer_array(writer, mb->totcol, mb->mat);
+  writer->write_pointer_array(mb->totcol, mb->mat);
 
   for (MetaElem &ml : mb->elems) {
     writer->write_struct(&ml);
@@ -135,34 +137,34 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MB = {
-    /*id_code*/ MetaBall::id_type,
-    /*id_filter*/ FILTER_ID_MB,
-    /*dependencies_id_types*/ FILTER_ID_MA,
-    /*main_listbase_index*/ INDEX_ID_MB,
-    /*struct_size*/ sizeof(MetaBall),
-    /*name*/ "Metaball",
-    /*name_plural*/ N_("metaballs"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_METABALL,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = MetaBall::id_type,
+    .id_filter = FILTER_ID_MB,
+    .dependencies_id_types = FILTER_ID_MA,
+    .main_listbase_index = INDEX_ID_MB,
+    .struct_size = sizeof(MetaBall),
+    .name = "Metaball",
+    .name_plural = N_("metaballs"),
+    .translation_context = BLT_I18NCONTEXT_ID_METABALL,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ metaball_init_data,
-    /*copy_data*/ metaball_copy_data,
-    /*free_data*/ metaball_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ metaball_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = metaball_init_data,
+    .copy_data = metaball_copy_data,
+    .free_data = metaball_free_data,
+    .make_local = nullptr,
+    .foreach_id = metaball_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ metaball_blend_write,
-    /*blend_read_data*/ metaball_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = metaball_blend_write,
+    .blend_read_data = metaball_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* Functions */
@@ -175,7 +177,7 @@ MetaBall *BKE_mball_add(Main *bmain, const char *name)
 
 MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
 {
-  MetaElem *ml = MEM_new_for_free<MetaElem>(__func__);
+  MetaElem *ml = MEM_new<MetaElem>(__func__);
 
   unit_qt(ml->quat);
 
@@ -226,7 +228,7 @@ float2 BKE_mball_element_display_radius_calc_with_stiffness(const MetaElem *ml)
       /* Display radius. */
       ml->rad,
       /* Display stiffness. */
-      ml->rad * atanf(ml->s) * float(2.0 / math::numbers::pi),
+      ml->rad * atanf(ml->s) * float(2.0 / std::numbers::pi),
   };
 
   if (ml->type == MB_CUBE) {
@@ -413,7 +415,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
   }
 }
 
-Object *BKE_mball_basis_find(Scene *scene, Object *object)
+Object *BKE_mball_basis_find(const Main &bmain, Scene *scene, Object *object)
 {
   Object *bob = object;
   int basisnr, obnr;
@@ -422,7 +424,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *object)
   BLI_string_split_name_number(object->id.name + 2, '.', basisname, &basisnr);
 
   for (ViewLayer &view_layer : scene->view_layers) {
-    BKE_view_layer_synced_ensure(scene, &view_layer);
+    BKE_view_layer_synced_ensure(bmain, scene, &view_layer);
     for (Base &base : *BKE_view_layer_object_bases_get(&view_layer)) {
       Object *ob = base.object;
       if ((ob->type == OB_MBALL) && !(base.flag & BASE_FROM_DUPLI)) {
@@ -651,7 +653,7 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
   BKE_object_free_derived_caches(ob);
 
-  const Object *basis_object = BKE_mball_basis_find(scene, ob);
+  const Object *basis_object = BKE_mball_basis_find(*DEG_get_bmain(depsgraph), scene, ob);
   if (ob != basis_object) {
     return;
   }
@@ -662,7 +664,7 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
   }
 
   const MetaBall *mball = id_cast<MetaBall *>(ob->data);
-  mesh->mat = static_cast<Material **>(MEM_dupallocN(mball->mat));
+  mesh->mat = MEM_dupalloc(mball->mat);
   mesh->totcol = mball->totcol;
 
   if (ob->parent && ob->parent->type == OB_LATTICE && ob->partype == PARSKEL) {

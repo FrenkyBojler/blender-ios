@@ -53,6 +53,7 @@
 #include "BKE_fluid.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
@@ -91,7 +92,7 @@ void BKE_modifier_init()
   ModifierData *md;
 
   /* Initialize modifier types */
-  modifier_type_init(modifier_types); /* MOD_utils.c */
+  modifier_type_init(modifier_types); /* MOD_util.cc */
 
   /* Initialize global common storage used for virtual modifier list. */
   md = BKE_modifier_new(eModifierType_Armature);
@@ -142,7 +143,8 @@ void BKE_modifier_panel_expand(ModifierData *md)
 static ModifierData *modifier_allocate_and_init(ModifierType type)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(type);
-  ModifierData *md = static_cast<ModifierData *>(MEM_callocN(mti->struct_size, mti->struct_name));
+  ModifierData *md = static_cast<ModifierData *>(
+      MEM_new_zeroed(mti->struct_size, mti->struct_name));
 
   /* NOTE: this name must be made unique later. */
   STRNCPY_UTF8(md->name, DATA_(mti->name));
@@ -195,10 +197,13 @@ void BKE_modifier_free_ex(ModifierData *md, const int flag)
     mti->free_data(md);
   }
   if (md->error) {
-    MEM_freeN(md->error);
+    MEM_delete(md->error);
+  }
+  if (md->system_properties != nullptr) {
+    IDP_FreeProperty_ex(md->system_properties, false);
   }
 
-  MEM_freeN(md);
+  MEM_delete(md);
 }
 
 void BKE_modifier_free(ModifierData *md)
@@ -278,7 +283,7 @@ void BKE_modifiers_clear_errors(Object *ob)
 {
   for (ModifierData &md : ob->modifiers) {
     if (md.error) {
-      MEM_freeN(md.error);
+      MEM_delete(md.error);
       md.error = nullptr;
     }
   }
@@ -288,7 +293,9 @@ void BKE_modifiers_foreach_ID_link(Object *ob, IDWalkFunc walk, void *user_data)
 {
   for (ModifierData &md : ob->modifiers) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
-
+    IDP_foreach_property(md.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+      walk(user_data, ob, (ID **)&id_prop->data.pointer, IDWALK_CB_USER);
+    });
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(&md, ob, walk, user_data);
     }
@@ -367,6 +374,10 @@ void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, cons
       mti->foreach_ID_link(target, nullptr, modifier_copy_data_id_us_cb, nullptr);
     }
   }
+
+  if (md->system_properties) {
+    target->system_properties = IDP_CopyProperty_ex(md->system_properties, flag);
+  }
 }
 
 void BKE_modifier_copydata(const ModifierData *md, ModifierData *target)
@@ -415,7 +426,7 @@ void BKE_modifier_set_error(const Object *ob, ModifierData *md, const char *_for
   buffer[sizeof(buffer) - 1] = '\0';
 
   if (md->error) {
-    MEM_freeN(md->error);
+    MEM_delete(md->error);
   }
 
   md->error = BLI_strdup(buffer);
@@ -446,7 +457,7 @@ void BKE_modifier_set_warning(const Object *ob, ModifierData *md, const char *_f
    * message simplifies interface code. */
 
   if (md->error) {
-    MEM_freeN(md->error);
+    MEM_delete(md->error);
   }
 
   md->error = BLI_strdup(buffer);
@@ -559,7 +570,7 @@ CDMaskLink *BKE_modifier_calc_data_masks(const Scene *scene,
   for (; md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-    curr = MEM_new_for_free<CDMaskLink>(__func__);
+    curr = MEM_new<CDMaskLink>(__func__);
 
     if (BKE_modifier_is_enabled(scene, md, required_mode)) {
       if (mti->type == ModifierTypeType::OnlyDeform) {
@@ -842,7 +853,7 @@ void BKE_modifier_free_temporary_data(ModifierData *md)
   if (md->type == eModifierType_Armature) {
     ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
 
-    MEM_SAFE_FREE(amd->vert_coords_prev);
+    MEM_SAFE_DELETE(amd->vert_coords_prev);
   }
 }
 
@@ -1039,7 +1050,7 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
 
   if ((ob_eval->type == OB_MESH) && (ob_eval->mode & OB_MODE_EDIT)) {
     /* In EditMode, evaluated mesh is stored in BMEditMesh, not the object... */
-    const BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
+    const BMEditMesh *em = BKE_editmesh_from_object(DEG_get_original(ob_eval));
     /* 'em' might not exist yet in some cases, just after loading a .blend file, see #57878. */
     if (em != nullptr) {
       mesh = const_cast<Mesh *>(BKE_object_get_editmesh_eval_final(ob_eval));
@@ -1124,6 +1135,10 @@ void BKE_modifier_blend_write(BlendWriter *writer,
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
     if (mti == nullptr) {
       continue;
+    }
+
+    if (md.system_properties) {
+      IDP_BlendWrite(writer, md.system_properties);
     }
 
     /* If the blend_write callback is defined, it should handle the whole writing process. */
@@ -1333,7 +1348,7 @@ static ModifierData *modifier_replace_with_fluid(BlendDataReader *reader,
   }
 
   /* Free old modifier data. */
-  MEM_freeN(old_modifier_data);
+  MEM_delete(old_modifier_data);
 
   return new_modifier_data;
 }
@@ -1346,6 +1361,9 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBaseT<ModifierDat
     ModifierData *md = &md_iter;
     md->error = nullptr;
     md->runtime = nullptr;
+
+    BLO_read_struct(reader, IDProperty, &md->system_properties);
+    IDP_BlendDataRead(reader, &md->system_properties);
 
     /* If linking from a library, clear 'local' library override flag. */
     if (ID_IS_LINKED(ob)) {
