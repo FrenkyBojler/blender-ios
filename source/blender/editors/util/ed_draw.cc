@@ -1032,6 +1032,7 @@ void ED_region_render_region_draw(int x,
       viewer_top = viewer_frame->ymax - viewer_height / 2;
     }
     immUniformColor4f(0.0f, 0.0f, 0.0f, passepartout_alpha);
+    /* Each part is drawn if there is space between render frame and viewer frame bounds. */
     if (render_top < viewer_top) {
       immRectf(pos, viewer_left, render_top, viewer_right, viewer_top);
     }

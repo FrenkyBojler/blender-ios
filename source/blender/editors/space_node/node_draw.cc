@@ -4865,7 +4865,7 @@ void node_draw_space(const bContext &C, ARegion &region)
           rcti render_region;
           BLI_rcti_init(&render_region, 0, render_size_x, 0, render_size_y);
 
-          /* Get backdrop image size to calculate render region position. */
+          /* Get backdrop image size to calculate viewer region. */
           Main *bmain = CTX_data_main(&C);
           void *lock;
           Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
