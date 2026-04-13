@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #157294, Fix: ED_view3d_draw_offscreen null dereference
+Referenced by commit 0380e5c0b0b81f08ff7d8e92d80fe8c5d2850def, Fix: ED_view3d_draw_offscreen null dereference
