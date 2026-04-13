@@ -1778,6 +1778,11 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
           else if (area && BLI_rcti_isect_pt_v(&area->totrct, event->xy)) {
             wrap_region = &area->totrct;
           }
+
+          if (region->regiontype == RGN_TYPE_PREVIEW_SCRUBBING) {
+            /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region. */
+            wrap = WM_CURSOR_WRAP_NONE;
+          }
         }
 
         WM_cursor_grab_enable(CTX_wm_window(C), wrap, wrap_region, false);
