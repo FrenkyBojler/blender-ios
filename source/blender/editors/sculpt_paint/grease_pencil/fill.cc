@@ -1197,17 +1197,21 @@ using EdgeConnections = VecBase<EncodedConnection, 2>;
 
 constexpr int NULL_INDEX = -1;
 
-static void follow_edge_connections(const Span<int> all_edges,
-                                    const Span<bool> edges_to_keep,
-                                    const Span<EdgeConnections> edge_connections,
-                                    Vector<int> &edges,
-                                    Vector<int> &edge_offset_data,
-                                    Vector<bool> &edge_reversed)
+struct EdgeCurves {
+  Vector<int> edges;
+  Vector<int> offset_data;
+  Vector<bool> reversed;
+};
+
+static EdgeCurves follow_edge_connections(const Span<int> all_edges,
+                                          const Span<bool> edges_to_keep,
+                                          const Span<EdgeConnections> edge_connections)
 {
   BLI_assert(all_edges.size() == edges_to_keep.size());
   BLI_assert(all_edges.size() == edge_connections.size());
 
-  edge_offset_data.append(0);
+  EdgeCurves edge_curves;
+  edge_curves.offset_data.append(0);
 
   Array<bool> processed_edges(all_edges.size(), false);
   int start_edge = 0;
@@ -1236,9 +1240,6 @@ static void follow_edge_connections(const Span<int> all_edges,
 
   /* Follow each segment until it loops or ends. */
   while (start_edge != NULL_INDEX) {
-    Vector<int> curve_edges;
-    Vector<bool> curve_edge_reversed;
-
     bool current_backwards = false;
     int current_i = start_edge;
     const int first_segment = current_i;
@@ -1253,8 +1254,8 @@ static void follow_edge_connections(const Span<int> all_edges,
 
       const int current_edge = all_edges[current_i];
       processed_edges[current_i] = true;
-      curve_edges.append(current_edge);
-      curve_edge_reversed.append(current_backwards);
+      edge_curves.edges.append(current_edge);
+      edge_curves.reversed.append(current_backwards);
 
       const EncodedConnection next_encoded =
           edge_connections[current_i][current_backwards ? Side::Start : Side::End];
@@ -1282,13 +1283,12 @@ static void follow_edge_connections(const Span<int> all_edges,
       current_backwards = next_side == Side::End;
     }
 
-    edges.extend(curve_edges);
-    edge_reversed.extend(curve_edge_reversed);
-
-    edge_offset_data.append(edges.size());
+    edge_curves.offset_data.append(edge_curves.edges.size());
 
     start_edge = get_next_unprocessed_edge();
   }
+
+  return edge_curves;
 }
 
 static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
@@ -1777,10 +1777,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Array<int> all_edges(result.edge.size());
   Array<bool> edges_to_keep(result.edge.size(), false);
-  Vector<int> edges;
-  Vector<int> edge_offset_data;
-  Vector<bool> edge_reversed;
-
   array_utils::fill_index_range<int>(all_edges);
 
   for (const int edge_index : boundary_edges) {
@@ -1817,12 +1813,12 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     }
   }
 
-  follow_edge_connections(
-      all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
+  const EdgeCurves edge_curves = follow_edge_connections(
+      all_edges, edges_to_keep, edge_connections);
 
   /* Because all of the curves are cyclical and have more than 2 points:
    * There are the same number of edges as vertices. */
-  const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_offset_data);
+  const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_curves.offset_data);
 
   if (output_verts_offset.total_size() == 0) {
     return bke::CurvesGeometry();
@@ -1837,8 +1833,8 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     const IndexRange edges_range = output_verts_offset[curve_i];
 
     for (const int point_i : edges_range) {
-      const int edge_index = edges[point_i];
-      const bool reversed = edge_reversed[point_i];
+      const int edge_index = edge_curves.edges[point_i];
+      const bool reversed = edge_curves.reversed[point_i];
       const std::pair<int, int> edge = result.edge[edge_index];
       const int vert_id = reversed ? edge.second : edge.first;
 
