@@ -1598,10 +1598,10 @@ static void outliner_show_active(SpaceOutliner *space_outliner,
   }
 }
 
-void outliner_scroll_to_active(const bContext */*C*/,
+void outliner_scroll_to_active(const bContext * /*C*/,
                                SpaceOutliner *space_outliner,
                                ARegion *region,
-                               TreeViewContext */*tvc*/)
+                               TreeViewContext * /*tvc*/)
 {
   outliner_set_coordinates(region, space_outliner);
   const View2D *v2d = &region->v2d;
