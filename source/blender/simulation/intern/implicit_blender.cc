@@ -11,6 +11,7 @@
 #ifdef IMPLICIT_SOLVER_BLENDER
 
 #  include <algorithm>
+#  include <functional>
 #  include <memory>
 #  include <vector>
 
@@ -19,6 +20,8 @@
 #  include "BLI_math_geom.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
+#  include "BLI_task.hh"
+
 #  include "BKE_cloth.hh"
 
 #  include "SIM_mass_spring.h"
@@ -209,29 +212,39 @@ DO_INLINE void zero_lfvector(float (*to)[3], uint verts)
 /* Multiply long vector with scalar. */
 DO_INLINE void mul_lfvectorS(float (*to)[3], float (*fLongVector)[3], float scalar, uint verts)
 {
-  uint i = 0;
-
-  for (i = 0; i < verts; i++) {
-    mul_fvector_S(to[i], fLongVector[i], scalar);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          mul_fvector_S(to[i], fLongVector[i], scalar);
+        }
+      });
 }
 /* Multiply long vector with scalar.
  * `A -= B * float` */
 DO_INLINE void submul_lfvectorS(float (*to)[3], float (*fLongVector)[3], float scalar, uint verts)
 {
-  uint i = 0;
-  for (i = 0; i < verts; i++) {
-    VECSUBMUL(to[i], fLongVector[i], scalar);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          VECSUBMUL(to[i], fLongVector[i], scalar);
+        }
+      });
 }
 /* dot product for big vector */
 DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3], uint verts)
 {
-  float temp = 0.0f;
-  for (uint i = 0; i < verts; i++) {
-    temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
-  }
-  return temp;
+  return threading::parallel_deterministic_reduce(
+      IndexRange(0, verts),
+      CLOTH_PARALLEL_LIMIT,
+      0.0f,
+      [=](const IndexRange &range, float value) {
+        float temp = value;
+        for (const int64_t i : range) {
+          temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
+        }
+        return temp;
+      },
+      std::plus<>());
 }
 /* `A = B + C` -> for big vector. */
 DO_INLINE void add_lfvector_lfvector(float (*to)[3],
@@ -239,21 +252,23 @@ DO_INLINE void add_lfvector_lfvector(float (*to)[3],
                                      float (*fLongVectorB)[3],
                                      uint verts)
 {
-  uint i = 0;
-
-  for (i = 0; i < verts; i++) {
-    add_v3_v3v3(to[i], fLongVectorA[i], fLongVectorB[i]);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          add_v3_v3v3(to[i], fLongVectorA[i], fLongVectorB[i]);
+        }
+      });
 }
 /* `A = B + C * float` -> for big vector. */
 DO_INLINE void add_lfvector_lfvectorS(
     float (*to)[3], float (*fLongVectorA)[3], float (*fLongVectorB)[3], float bS, uint verts)
 {
-  uint i = 0;
-
-  for (i = 0; i < verts; i++) {
-    VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          VECADDS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
+        }
+      });
 }
 /* `A = B * float + C * float` -> for big vector */
 DO_INLINE void add_lfvectorS_lfvectorS(float (*to)[3],
@@ -263,20 +278,23 @@ DO_INLINE void add_lfvectorS_lfvectorS(float (*to)[3],
                                        float bS,
                                        uint verts)
 {
-  uint i = 0;
-
-  for (i = 0; i < verts; i++) {
-    VECADDSS(to[i], fLongVectorA[i], aS, fLongVectorB[i], bS);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          VECADDSS(to[i], fLongVectorA[i], aS, fLongVectorB[i], bS);
+        }
+      });
 }
 /* `A = B - C * float` -> for big vector. */
 DO_INLINE void sub_lfvector_lfvectorS(
     float (*to)[3], float (*fLongVectorA)[3], float (*fLongVectorB)[3], float bS, uint verts)
 {
-  uint i = 0;
-  for (i = 0; i < verts; i++) {
-    VECSUBS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          VECSUBS(to[i], fLongVectorA[i], fLongVectorB[i], bS);
+        }
+      });
 }
 /* `A = B - C` -> for big vector. */
 DO_INLINE void sub_lfvector_lfvector(float (*to)[3],
@@ -284,11 +302,12 @@ DO_INLINE void sub_lfvector_lfvector(float (*to)[3],
                                      float (*fLongVectorB)[3],
                                      uint verts)
 {
-  uint i = 0;
-
-  for (i = 0; i < verts; i++) {
-    sub_v3_v3v3(to[i], fLongVectorA[i], fLongVectorB[i]);
-  }
+  threading::parallel_for(
+      IndexRange(0, verts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          sub_v3_v3v3(to[i], fLongVectorA[i], fLongVectorB[i]);
+        }
+      });
 }
 ///////////////////////////
 // 3x3 matrix
@@ -636,12 +655,14 @@ DO_INLINE void initdiag_bfmatrix(fmatrix3x3 *matrix, float m3[3][3])
 DO_INLINE void subadd_bfmatrixS_bfmatrixS(
     fmatrix3x3 *to, fmatrix3x3 *from, float aS, fmatrix3x3 *matrix, float bS)
 {
-  uint i = 0;
-
   /* process diagonal elements */
-  for (i = 0; i < matrix[0].vcount + matrix[0].scount; i++) {
-    subadd_fmatrixS_fmatrixS(to[i].m, from[i].m, aS, matrix[i].m, bS);
-  }
+  threading::parallel_for(IndexRange(0, matrix[0].vcount + matrix[0].scount),
+                          CLOTH_PARALLEL_LIMIT,
+                          [&](const IndexRange &range) {
+                            for (const int64_t i : range) {
+                              subadd_fmatrixS_fmatrixS(to[i].m, from[i].m, aS, matrix[i].m, bS);
+                            }
+                          });
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -858,11 +879,12 @@ BLI_INLINE void root_to_world_m3(Implicit_Data *data,
 
 DO_INLINE void filter(lfVector *V, fmatrix3x3 *S)
 {
-  uint i = 0;
-
-  for (i = 0; i < S[0].vcount; i++) {
-    mul_m3_v3(S[i].m, V[S[i].r]);
-  }
+  threading::parallel_for(
+      IndexRange(0, S[0].vcount), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          mul_m3_v3(S[i].m, V[S[i].r]);
+        }
+      });
 }
 
 static int cg_filtered(Implicit_Data *data,
@@ -1319,11 +1341,14 @@ static int SIM_mass_spring_add_block(Implicit_Data *data, int v1, int v2)
 
 void SIM_mass_spring_clear_constraints(Implicit_Data *data)
 {
-  int i, numverts = data->S[0].vcount;
-  for (i = 0; i < numverts; i++) {
-    unit_m3(data->S[i].m);
-    zero_v3(data->z[i]);
-  }
+  const int numverts = data->S[0].vcount;
+  threading::parallel_for(
+      IndexRange(0, numverts), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          unit_m3(data->S[i].m);
+          zero_v3(data->z[i]);
+        }
+      });
 }
 
 void SIM_mass_spring_add_constraint_ndof0(Implicit_Data *data, int index, const float dV[3])
