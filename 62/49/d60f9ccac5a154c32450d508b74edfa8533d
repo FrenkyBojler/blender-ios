@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #157283, Fix: EEVEE: Remove previous layer bindings for opaque
+Referenced by commit 580035d77082d511208a21594ecd54fe1b82e9d9, Fix: EEVEE: Remove previous layer bindings for opaque
