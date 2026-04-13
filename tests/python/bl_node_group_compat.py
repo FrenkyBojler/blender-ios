@@ -326,12 +326,12 @@ class NodeGroupVersioning25Test(AbstractNodeGroupInterfaceTest):
         self.compare_group_to_specs(group, node, [
             SocketSpec("Image", "Image", "RGBA", default_value=(0, 0, 0, 1)),
             SocketSpec("Alpha", "Alpha", "VALUE", default_value=1.0, min_value=0.0, max_value=0.0),
-            SocketSpec("Alpha", "Alpha.001", "VALUE", default_value=0.0, min_value=0.0, max_value=0.0),
-            SocketSpec("Alpha", "Alpha.002", "VALUE", default_value=0.0, min_value=0.0, max_value=0.0),
+            SocketSpec("Alpha", "Alpha_001", "VALUE", default_value=0.0, min_value=0.0, max_value=0.0),
+            SocketSpec("Alpha", "Alpha_002", "VALUE", default_value=0.0, min_value=0.0, max_value=0.0),
 
             SocketSpec("Fac", "Fac", "VALUE", default_value=0.5, min_value=0.0, max_value=0.0),
-            SocketSpec("ID value", "ID value", "VALUE", default_value=0.8, min_value=0.0, max_value=0.0),
-            SocketSpec("ID value", "ID value.001", "VALUE", default_value=0.8, min_value=0.0, max_value=0.0),
+            SocketSpec("ID value", "ID_value", "VALUE", default_value=0.8, min_value=0.0, max_value=0.0),
+            SocketSpec("ID value", "ID_value_001", "VALUE", default_value=0.8, min_value=0.0, max_value=0.0),
         ], test_links=False)
         # autopep8: on
 
@@ -347,18 +347,18 @@ class NodeGroupVersioning25Test(AbstractNodeGroupInterfaceTest):
         # autopep8: off
         self.compare_group_to_specs(group, node, [
             SocketSpec("Color", "Color", "RGBA", default_value=(0, 0, 0, 1)),
-            SocketSpec("Color", "Color.001", "RGBA", default_value=(0, 0, 0, 1)),
+            SocketSpec("Color", "Color_001", "RGBA", default_value=(0, 0, 0, 1)),
             SocketSpec("Vector", "Vector", "VECTOR", default_value=(0, 0, 0), min_value=0.0, max_value=0.0),
             SocketSpec("Value", "Value", "VALUE", default_value=0.0, min_value=0.0, max_value=0.0),
 
             SocketSpec("Fac", "Fac", "VALUE", default_value=0.5, min_value=0.0, max_value=0.0),
             SocketSpec("Color1", "Color1", "RGBA", default_value=(0.5, 0.5, 0.5, 1)),
             SocketSpec("Color2", "Color2", "RGBA", default_value=(0.5, 0.5, 0.5, 1)),
-            SocketSpec("Fac", "Fac.001", "VALUE", default_value=0.5, min_value=0.0, max_value=0.0),
-            SocketSpec("Color1", "Color1.001", "RGBA", default_value=(0.5, 0.5, 0.5, 1)),
-            SocketSpec("Color2", "Color2.001", "RGBA", default_value=(0.5, 0.5, 0.5, 1)),
+            SocketSpec("Fac", "Fac_001", "VALUE", default_value=0.5, min_value=0.0, max_value=0.0),
+            SocketSpec("Color1", "Color1_001", "RGBA", default_value=(0.5, 0.5, 0.5, 1)),
+            SocketSpec("Color2", "Color2_001", "RGBA", default_value=(0.5, 0.5, 0.5, 1)),
             SocketSpec("Vector", "Vector", "VECTOR", default_value=(0.5, 0.5, 0.5), min_value=0.0, max_value=0.0),
-            SocketSpec("Vector", "Vector.001", "VECTOR", default_value=(0.5, 0.5, 0.5), min_value=0.0, max_value=0.0),
+            SocketSpec("Vector", "Vector_001", "VECTOR", default_value=(0.5, 0.5, 0.5), min_value=0.0, max_value=0.0),
         ], test_links=False)
         # autopep8: on
 
