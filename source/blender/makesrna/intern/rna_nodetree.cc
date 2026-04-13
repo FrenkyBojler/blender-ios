@@ -4483,7 +4483,7 @@ static const EnumPropertyItem node_subsurface_method_items[] = {
      0,
      "Random Walk (Legacy)",
      "Volumetric approximation to physically based volume scattering, using the scattering radius "
-     "as specified. The legacy option only supports positive anisotropy."},
+     "as specified"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem prop_image_extension[] = {
