@@ -1750,10 +1750,6 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       return NULL_INDEX;
     }
 
-    not_full_tris.remove_if([&](const int tri_index) {
-      return tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor;
-    });
-
     int max_not_weight_tri_index = NULL_INDEX;
     float max_not_weight_tri_weight = 0.0f;
 
@@ -1789,6 +1785,10 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
     hint_tri_index = get_next_max_tri_index();
     hint_index++;
+
+    not_full_tris.remove_if([&](const int tri_index) {
+      return tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor;
+    });
   }
 
   Array<bool> tri_to_fill(result.face.size(), false);
