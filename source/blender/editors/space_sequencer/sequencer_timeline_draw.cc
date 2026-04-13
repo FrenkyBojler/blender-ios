@@ -1863,11 +1863,11 @@ void seq_scrubbing_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_sequencer_scene(C);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
 
-  region->v2d.tot.xmin = scene->r.sfra;
-  region->v2d.tot.xmax = scene->r.efra;
+  const int start_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.psfra : scene->r.sfra;
+  const int end_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.pefra : scene->r.efra;
 
-  region->v2d.cur.xmin = scene->r.sfra;
-  region->v2d.cur.xmax = scene->r.efra;
+  region->v2d.cur.xmin = start_frame;
+  region->v2d.cur.xmax = end_frame;
 
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
