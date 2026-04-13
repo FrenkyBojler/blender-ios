@@ -829,18 +829,21 @@ DO_INLINE void mul_bfmatrix_lfvector(Implicit_Data *data,
   const BfmatrixIndex *index = bfmatrix_index_ensure(data, from, local_index);
   BLI_assert(index != nullptr);
 
-  for (uint i = 0; i < index->vcount; i++) {
-    zero_v3(to[i]);
+  threading::parallel_for(
+      IndexRange(0, index->vcount), CLOTH_PARALLEL_LIMIT, [&](const IndexRange &range) {
+        for (const int64_t i : range) {
+          zero_v3(to[i]);
 
-    for (uint j = index->row_offsets[i]; j < index->row_offsets[i + 1]; j++) {
-      const fmatrix3x3 &block = from[index->row_indices[j]];
-      muladd_fmatrix_fvector(to[i], block.m, fLongVector[block.c]);
-    }
-    for (uint j = index->col_offsets[i]; j < index->col_offsets[i + 1]; j++) {
-      const fmatrix3x3 &block = from[index->col_indices[j]];
-      muladd_fmatrixT_fvector(to[i], block.m, fLongVector[block.r]);
-    }
-  }
+          for (uint j = index->row_offsets[i]; j < index->row_offsets[i + 1]; j++) {
+            const fmatrix3x3 &block = from[index->row_indices[j]];
+            muladd_fmatrix_fvector(to[i], block.m, fLongVector[block.c]);
+          }
+          for (uint j = index->col_offsets[i]; j < index->col_offsets[i + 1]; j++) {
+            const fmatrix3x3 &block = from[index->col_indices[j]];
+            muladd_fmatrixT_fvector(to[i], block.m, fLongVector[block.r]);
+          }
+        }
+      });
 }
 
 /* ==== Transformation from/to root reference frames ==== */
