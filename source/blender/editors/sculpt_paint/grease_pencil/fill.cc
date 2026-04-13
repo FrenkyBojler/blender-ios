@@ -1592,14 +1592,15 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
   return input;
 }
 
-bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
-                                          const Scene &scene,
-                                          const bke::greasepencil::Layer &layer,
-                                          const VArray<bool> &boundary_layers,
-                                          const Span<DrawingInfo> src_drawings,
-                                          const bool invert,
-                                          const std::optional<float> alpha_threshold,
-                                          const float2 &fill_point)
+std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
+    const ViewContext &view_context,
+    const Scene &scene,
+    const bke::greasepencil::Layer &layer,
+    const VArray<bool> &boundary_layers,
+    const Span<DrawingInfo> src_drawings,
+    const bool invert,
+    const std::optional<float> alpha_threshold,
+    const GroupedSpan<float2> &fill_points)
 {
   ARegion &region = *view_context.region;
   View3D &view3d = *view_context.v3d;
@@ -1689,7 +1690,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
   Array<float> tri_weights(result.face.size(), 0.0f);
 
-  Vector<float2> pos_hint = {fill_point};
+  Vector<float2> pos_hint = {fill_points[0].first()};
 
   /* TODO. Expose to the user. */
   const float joinning_factor = 0.4f;
@@ -1717,7 +1718,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       first_tri_index = get_first_boundery_tri();
     }
     else {
-      return bke::CurvesGeometry();
+      return std::nullopt;
     }
   }
 
@@ -1891,7 +1892,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   const OffsetIndices<int> output_verts_offset = OffsetIndices<int>(edge_curves.offset_data);
 
   if (output_verts_offset.total_size() == 0) {
-    return bke::CurvesGeometry();
+    return std::nullopt;
   }
 
   bke::CurvesGeometry curves(output_verts_offset.total_size(), output_verts_offset.size());

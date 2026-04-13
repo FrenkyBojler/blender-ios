@@ -660,22 +660,24 @@ bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
  * Fill tool for generating strokes in empty areas.
  *
  * This uses delaunay triangulation to compute exact fill geometry.
+ * Will return `nullopt` when unable to fill.
  *
  * \param layer: The layer containing the new stroke, used for projecting the geometry.
  * \param boundary_layers: Layers that are purely for boundaries, regular strokes are skipped.
  * \param src_drawings: Drawings to include as boundary strokes.
  * \param invert: Construct boundary around empty areas instead.
  * \param alpha_threshold: Skip transparent stroke where opacity is below the threshold.
- * \param fill_point: Point from which to start the bucket fill.
+ * \param fill_points: Points from which to start each bucket fill.
  */
-bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
-                                          const Scene &scene,
-                                          const bke::greasepencil::Layer &layer,
-                                          const VArray<bool> &boundary_layers,
-                                          Span<DrawingInfo> src_drawings,
-                                          bool invert,
-                                          const std::optional<float> alpha_threshold,
-                                          const float2 &fill_point);
+std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
+    const ViewContext &view_context,
+    const Scene &scene,
+    const bke::greasepencil::Layer &layer,
+    const VArray<bool> &boundary_layers,
+    Span<DrawingInfo> src_drawings,
+    bool invert,
+    const std::optional<float> alpha_threshold,
+    const GroupedSpan<float2> &fill_points);
 
 namespace image_render {
 

@@ -1434,44 +1434,53 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   for (const FillToolTargetInfo &info : target_drawings) {
     const Layer &layer = *grease_pencil.layers()[info.target.layer_index];
 
-    bke::CurvesGeometry fill_curves;
+    std::optional<bke::CurvesGeometry> op_fill_curves;
 
     if (!is_exact) {
       const ed::greasepencil::ExtensionData extensions = grease_pencil_fill_get_extension_data(
           C, op_data);
 
-      fill_curves = flood_fill_strokes(view_context,
-                                       brush,
-                                       scene,
-                                       layer,
-                                       boundary_layers,
-                                       info.sources,
-                                       op_data.invert,
-                                       alpha_threshold,
-                                       mouse_position,
-                                       extensions,
-                                       fit_method,
-                                       op_data.material_index,
-                                       keep_images);
+      op_fill_curves = std::make_optional(flood_fill_strokes(view_context,
+                                                             brush,
+                                                             scene,
+                                                             layer,
+                                                             boundary_layers,
+                                                             info.sources,
+                                                             op_data.invert,
+                                                             alpha_threshold,
+                                                             mouse_position,
+                                                             extensions,
+                                                             fit_method,
+                                                             op_data.material_index,
+                                                             keep_images));
     }
     else {
-      fill_curves = delaunay_fill_strokes(view_context,
-                                          scene,
-                                          layer,
-                                          boundary_layers,
-                                          info.sources,
-                                          op_data.invert,
-                                          alpha_threshold,
-                                          mouse_position);
+      const Array<int> fill_point_offset = {0, 1};
+      const Array<float2> fill_point_data = {mouse_position};
+      const GroupedSpan<float2> fill_points = GroupedSpan<float2>(
+          OffsetIndices<int>(fill_point_offset), fill_point_data);
 
-      bke::MutableAttributeAccessor attributes = fill_curves.attributes_for_write();
-      const Span<float3> positions = fill_curves.positions();
+      op_fill_curves = delaunay_fill_strokes(view_context,
+                                             scene,
+                                             layer,
+                                             boundary_layers,
+                                             info.sources,
+                                             op_data.invert,
+                                             alpha_threshold,
+                                             fill_points);
+
+      if (!op_fill_curves) {
+        continue;
+      }
+
+      bke::MutableAttributeAccessor attributes = op_fill_curves->attributes_for_write();
+      const Span<float3> positions = op_fill_curves->positions();
       bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
           "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
       bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
           "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
 
-      for (const int point_i : fill_curves.points_range()) {
+      for (const int point_i : op_fill_curves->points_range()) {
         /* Calculate radius and opacity for the outline as if it was a user stroke with full
          * pressure. */
         constexpr const float pressure = 1.0f;
@@ -1516,6 +1525,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
         }
       }
     }
+
+    bke::CurvesGeometry &fill_curves = *op_fill_curves;
 
     if (fill_curves.is_empty()) {
       continue;
