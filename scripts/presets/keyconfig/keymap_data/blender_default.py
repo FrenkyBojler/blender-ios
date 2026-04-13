@@ -3963,7 +3963,7 @@ def km_grease_pencil_selection(params):
         # Select linked
         ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS'}, None),
         ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS', "shift": True},
-        {"properties": [("deselect", True)]}),
+         {"properties": [("deselect", True)]}),
         # Select more/less
         ("grease_pencil.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("grease_pencil.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),

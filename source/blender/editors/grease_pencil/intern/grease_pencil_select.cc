@@ -467,11 +467,8 @@ static void GREASE_PENCIL_OT_select_linked(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  PropertyRNA *prop =  RNA_def_boolean(ot->srna,
-                  "deselect",
-                  false,
-                  "Deselect linked",
-                  "Deselect linked strokes");
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "deselect", false, "Deselect linked", "Deselect linked strokes");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
