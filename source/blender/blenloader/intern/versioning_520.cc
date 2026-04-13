@@ -435,7 +435,6 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
     }
   }
 
-
   /* Restore old "UV Map" behavior of geometry nodes Cylinder and UV Sphere primitives. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
