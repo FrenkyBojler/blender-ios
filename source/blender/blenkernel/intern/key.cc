@@ -59,12 +59,14 @@
 
 namespace blender {
 
-static void shapekey_copy_data(Main * /*bmain*/,
-                               std::optional<Library *> /*owner_library*/,
+static void shapekey_copy_data(Main *bmain,
+                               std::optional<Library *> owner_library,
                                ID *id_dst,
                                const ID *id_src,
-                               const int /*flag*/)
+                               const int flag)
 {
+  bke::id::copy_data<Key>(bmain, owner_library, id_dst, id_src, flag);
+
   Key *key_dst = id_cast<Key *>(id_dst);
   const Key *key_src = id_cast<const Key *>(id_src);
   BLI_duplicatelist(&key_dst->block, &key_src->block);
@@ -93,6 +95,8 @@ static void shapekey_free_data(ID *id)
     }
     MEM_delete(kb);
   }
+
+  bke::id::free_data<Key>(id);
 }
 
 static void shapekey_foreach_id(ID *id, LibraryForeachIDData *data)

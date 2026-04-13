@@ -62,18 +62,13 @@ static PackedFile *packedfile_new_from_builtin();
 const void *builtin_font_data = nullptr;
 int builtin_font_size = 0;
 
-static ID *vfont_new_data()
-{
-  VFont *vfont = MEM_new<VFont>("VFont");
-  return &vfont->id;
-}
-
-static void vfont_copy_data(Main * /*bmain*/,
-                            std::optional<Library *> /*owner_library*/,
+static void vfont_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
                             ID *id_dst,
-                            const ID * /*id_src*/,
+                            const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<VFont>(bmain, owner_library, id_dst, id_src, flag);
   VFont *vfont_dst = id_cast<VFont *>(id_dst);
 
   /* We never handle user-count here for own data. */
@@ -101,6 +96,7 @@ static void vfont_free_data(ID *id)
     BKE_packedfile_free(vfont->packedfile);
     vfont->packedfile = nullptr;
   }
+  bke::id::free_data<VFont>(id);
 }
 
 static void vfont_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -162,7 +158,7 @@ IDTypeInfo IDType_ID_VF = {
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = vfont_new_data,
+    .new_data = bke::id::new_data<VFont>,
     .copy_data = vfont_copy_data,
     .free_data = vfont_free_data,
     .make_local = nullptr,

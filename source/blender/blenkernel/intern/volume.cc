@@ -139,12 +139,13 @@ static ID *volume_new_data()
   return &volume->id;
 }
 
-static void volume_copy_data(Main * /*bmain*/,
-                             std::optional<Library *> /*owner_library*/,
+static void volume_copy_data(Main *bmain,
+                             std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
-                             const int /*flag*/)
+                             const int flag)
 {
+  bke::id::copy_data<Volume>(bmain, owner_library, id_dst, id_src, flag);
   Volume *volume_dst = id_cast<Volume *>(id_dst);
   const Volume *volume_src = id_cast<const Volume *>(id_src);
   volume_dst->runtime = MEM_new<bke::VolumeRuntime>(__func__);
@@ -191,6 +192,7 @@ static void volume_free_data(ID *id)
   bke::volume_grid::file_cache::unload_unused();
 #endif
   MEM_delete(volume->runtime);
+  bke::id::free_data<Volume>(id);
 }
 
 static void volume_foreach_id(ID *id, LibraryForeachIDData *data)

@@ -94,12 +94,13 @@ static ID *palette_new_data()
   return &palette->id;
 }
 
-static void palette_copy_data(Main * /*bmain*/,
-                              std::optional<Library *> /*owner_library*/,
+static void palette_copy_data(Main *bmain,
+                              std::optional<Library *> owner_library,
                               ID *id_dst,
                               const ID *id_src,
-                              const int /*flag*/)
+                              const int flag)
 {
+  bke::id::copy_data<Palette>(bmain, owner_library, id_dst, id_src, flag);
   Palette *palette_dst = id_cast<Palette *>(id_dst);
   const Palette *palette_src = id_cast<const Palette *>(id_src);
 
@@ -111,6 +112,7 @@ static void palette_free_data(ID *id)
   Palette *palette = id_cast<Palette *>(id);
 
   BLI_freelistN(&palette->colors);
+  bke::id::free_data<Palette>(id);
 }
 
 static void palette_foreach_working_space_color(ID *id,
@@ -181,12 +183,13 @@ IDTypeInfo IDType_ID_PAL = {
     .lib_override_apply_post = nullptr,
 };
 
-static void paint_curve_copy_data(Main * /*bmain*/,
-                                  std::optional<Library *> /*owner_library*/,
+static void paint_curve_copy_data(Main *bmain,
+                                  std::optional<Library *> owner_library,
                                   ID *id_dst,
                                   const ID *id_src,
-                                  const int /*flag*/)
+                                  const int flag)
 {
+  bke::id::copy_data<PaintCurve>(bmain, owner_library, id_dst, id_src, flag);
   PaintCurve *paint_curve_dst = id_cast<PaintCurve *>(id_dst);
   const PaintCurve *paint_curve_src = id_cast<const PaintCurve *>(id_src);
 
@@ -202,6 +205,7 @@ static void paint_curve_free_data(ID *id)
 
   MEM_SAFE_DELETE(paint_curve->points);
   paint_curve->tot_points = 0;
+  bke::id::free_data<PaintCurve>(id);
 }
 
 static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_address)

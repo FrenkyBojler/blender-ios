@@ -61,6 +61,8 @@ static void lattice_copy_data(Main *bmain,
                               const ID *id_src,
                               const int flag)
 {
+  bke::id::copy_data<Lattice>(bmain, owner_library, id_dst, id_src, flag);
+
   Lattice *lattice_dst = id_cast<Lattice *>(id_dst);
   const Lattice *lattice_src = id_cast<const Lattice *>(id_src);
 
@@ -115,6 +117,8 @@ static void lattice_free_data(ID *id)
     MEM_delete(lattice->editlatt);
     lattice->editlatt = nullptr;
   }
+
+  bke::id::free_data<Lattice>(id);
 }
 
 static void lattice_foreach_id(ID *id, LibraryForeachIDData *data)

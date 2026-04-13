@@ -59,12 +59,13 @@ static ID *pointcloud_new_data()
   return &pointcloud->id;
 }
 
-static void pointcloud_copy_data(Main * /*bmain*/,
-                                 std::optional<Library *> /*owner_library*/,
+static void pointcloud_copy_data(Main *bmain,
+                                 std::optional<Library *> owner_library,
                                  ID *id_dst,
                                  const ID *id_src,
-                                 const int /*flag*/)
+                                 const int flag)
 {
+  bke::id::copy_data<PointCloud>(bmain, owner_library, id_dst, id_src, flag);
   PointCloud *pointcloud_dst = id_cast<PointCloud *>(id_dst);
   const PointCloud *pointcloud_src = id_cast<const PointCloud *>(id_src);
   pointcloud_dst->mat = MEM_dupalloc(pointcloud_src->mat);
@@ -93,6 +94,7 @@ static void pointcloud_free_data(ID *id)
   pointcloud->attribute_storage.wrap().~AttributeStorage();
   MEM_SAFE_DELETE(pointcloud->mat);
   delete pointcloud->runtime;
+  bke::id::free_data<PointCloud>(id);
 }
 
 static void pointcloud_foreach_id(ID *id, LibraryForeachIDData *data)

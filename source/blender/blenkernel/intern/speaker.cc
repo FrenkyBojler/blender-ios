@@ -24,12 +24,6 @@
 
 namespace blender {
 
-static ID *speaker_new_data()
-{
-  Speaker *speaker = MEM_new<Speaker>("Speaker");
-  return &speaker->id;
-}
-
 static void speaker_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Speaker *speaker = id_cast<Speaker *>(id);
@@ -58,9 +52,9 @@ IDTypeInfo IDType_ID_SPK = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = speaker_new_data,
-    .copy_data = nullptr,
-    .free_data = nullptr,
+    .new_data = bke::id::new_data<Speaker>,
+    .copy_data = bke::id::copy_data<Speaker>,
+    .free_data = bke::id::free_data<Speaker>,
     .make_local = nullptr,
     .foreach_id = speaker_foreach_id,
     .foreach_cache = nullptr,

@@ -112,12 +112,14 @@ static ID *action_new_data()
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void action_copy_data(Main * /*bmain*/,
-                             std::optional<Library *> /*owner_library*/,
+static void action_copy_data(Main *bmain,
+                             std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
                              const int flag)
 {
+  bke::id::copy_data<bAction>(bmain, owner_library, id_dst, id_src, flag);
+
   bAction *dna_action_dst = reinterpret_cast<bAction *>(id_dst);
   animrig::Action &action_dst = dna_action_dst->wrap();
 
@@ -235,6 +237,8 @@ static void action_free_data(ID *id)
   BKE_previewimg_id_free(&action.id);
 
   BLI_assert(action.is_empty());
+
+  bke::id::free_data<bAction>(id);
 }
 
 static void action_foreach_id(ID *id, LibraryForeachIDData *data)

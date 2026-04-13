@@ -56,12 +56,13 @@ static void mask_runtime_reset(Mask *mask)
   mask->runtime.last_update = 0;
 }
 
-static void mask_copy_data(Main * /*bmain*/,
-                           std::optional<Library *> /*owner_library*/,
+static void mask_copy_data(Main *bmain,
+                           std::optional<Library *> owner_library,
                            ID *id_dst,
                            const ID *id_src,
-                           const int /*flag*/)
+                           const int flag)
 {
+  bke::id::copy_data<Mask>(bmain, owner_library, id_dst, id_src, flag);
   Mask *mask_dst = id_cast<Mask *>(id_dst);
   const Mask *mask_src = id_cast<const Mask *>(id_src);
 
@@ -80,6 +81,7 @@ static void mask_free_data(ID *id)
 
   /* free mask data */
   BKE_mask_layer_free_list(&mask->masklayers);
+  bke::id::free_data<Mask>(id);
 }
 
 static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -184,12 +186,6 @@ static void mask_blend_read_data(BlendDataReader *reader, ID *id)
   mask_runtime_reset(mask);
 }
 
-static ID *mask_new_data()
-{
-  Mask *mask = MEM_new<Mask>("Mask");
-  return &mask->id;
-}
-
 IDTypeInfo IDType_ID_MSK = {
     .id_code = Mask::id_type,
     .id_filter = FILTER_ID_MSK,
@@ -202,7 +198,7 @@ IDTypeInfo IDType_ID_MSK = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = mask_new_data,
+    .new_data = bke::id::new_data<Mask>,
     .copy_data = mask_copy_data,
     .free_data = mask_free_data,
     .make_local = nullptr,

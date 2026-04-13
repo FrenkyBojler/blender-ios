@@ -191,11 +191,13 @@ static ID *object_new_data()
 }
 
 static void object_copy_data(Main *bmain,
-                             std::optional<Library *> /*owner_library*/,
+                             std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
                              const int flag)
 {
+  bke::id::copy_data<Object>(bmain, owner_library, id_dst, id_src, flag);
+
   Object *ob_dst = id_cast<Object *>(id_dst);
   const Object *ob_src = id_cast<const Object *>(id_src);
 
@@ -340,6 +342,7 @@ static void object_free_data(ID *id)
   BKE_lightprobe_cache_free(ob);
 
   MEM_delete(ob->runtime);
+  bke::id::free_data<Object>(id);
 }
 
 static void library_foreach_modifiersForeachIDLink(void *user_data,

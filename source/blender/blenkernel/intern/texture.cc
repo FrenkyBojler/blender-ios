@@ -72,6 +72,7 @@ static void texture_copy_data(Main *bmain,
                               const ID *id_src,
                               const int flag)
 {
+  bke::id::copy_data<Tex>(bmain, owner_library, id_dst, id_src, flag);
   Tex *texture_dst = id_cast<Tex *>(id_dst);
   const Tex *texture_src = id_cast<const Tex *>(id_src);
 
@@ -129,6 +130,7 @@ static void texture_free_data(ID *id)
 
   BKE_icon_id_delete(id_cast<ID *>(texture));
   BKE_previewimg_id_free(&texture->id);
+  bke::id::free_data<Tex>(id);
 }
 
 static void texture_foreach_id(ID *id, LibraryForeachIDData *data)

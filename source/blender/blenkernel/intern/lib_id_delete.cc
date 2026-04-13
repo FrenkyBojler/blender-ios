@@ -190,6 +190,11 @@ static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_id
   }
 
   if ((flag & LIB_ID_FREE_NOT_ALLOCATED) == 0) {
+    /* The concrete subtype's destructor was already run by the #IDTypeInfo::free_data
+     * callback (via #bke::id::free_data<T>). #MEM_delete on the ID base pointer is
+     * still safe: since #ID itself has a trivial destructor, the `if constexpr` in
+     * #MEM_delete skips calling `~ID()` and only releases the allocation. It works for
+     * both CPP-style (#MEM_new) and C-style (#MEM_new_zeroed) allocations. */
     MEM_delete(id);
   }
 

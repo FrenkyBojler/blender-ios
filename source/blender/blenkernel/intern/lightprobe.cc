@@ -26,12 +26,6 @@
 
 namespace blender {
 
-static ID *lightprobe_new_data()
-{
-  LightProbe *probe = MEM_new<LightProbe>("LightProbe");
-  return &probe->id;
-}
-
 static void lightprobe_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   LightProbe *probe = id_cast<LightProbe *>(id);
@@ -60,9 +54,9 @@ IDTypeInfo IDType_ID_LP = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = lightprobe_new_data,
-    .copy_data = nullptr,
-    .free_data = nullptr,
+    .new_data = bke::id::new_data<LightProbe>,
+    .copy_data = bke::id::copy_data<LightProbe>,
+    .free_data = bke::id::free_data<LightProbe>,
     .make_local = nullptr,
     .foreach_id = lightprobe_foreach_id,
     .foreach_cache = nullptr,

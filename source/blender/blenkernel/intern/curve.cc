@@ -82,6 +82,8 @@ static void curve_copy_data(Main *bmain,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<Curve>(bmain, owner_library, id_dst, id_src, flag);
+
   Curve *curve_dst = id_cast<Curve *>(id_dst);
   const Curve *curve_src = id_cast<const Curve *>(id_src);
 
@@ -130,6 +132,8 @@ static void curve_free_data(ID *id)
   MEM_SAFE_DELETE(curve->str);
   MEM_SAFE_DELETE(curve->strinfo);
   MEM_SAFE_DELETE(curve->tb);
+
+  bke::id::free_data<Curve>(id);
 }
 
 static void curve_foreach_id(ID *id, LibraryForeachIDData *data)

@@ -71,11 +71,14 @@ static void workspace_free_data(ID *id)
   MEM_delete(workspace->runtime);
 
   BKE_viewer_path_clear(&workspace->viewer_path);
+  bke::id::free_data<WorkSpace>(id);
 }
 
 static void workspace_copy_data(
     Main *bmain, std::optional<Library *> owner_library, ID *id_dst, const ID *id_src, int flag)
 {
+  bke::id::copy_data<WorkSpace>(bmain, owner_library, id_dst, id_src, flag);
+
   /* Workspaces should always be local data currently. */
   BLI_assert(!owner_library || owner_library == nullptr);
   UNUSED_VARS_NDEBUG(owner_library);

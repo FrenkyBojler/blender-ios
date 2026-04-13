@@ -62,6 +62,7 @@ static void world_free_data(ID *id)
   BKE_previewimg_id_free(&wrld->id);
 
   MEM_SAFE_DELETE(wrld->lightgroup);
+  bke::id::free_data<World>(id);
 }
 
 static ID *world_new_data()
@@ -90,6 +91,7 @@ static void world_copy_data(Main *bmain,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<World>(bmain, owner_library, id_dst, id_src, flag);
   World *wrld_dst = id_cast<World *>(id_dst);
   const World *wrld_src = id_cast<const World *>(id_src);
 

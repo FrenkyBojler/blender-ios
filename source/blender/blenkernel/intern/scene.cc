@@ -267,6 +267,7 @@ static void scene_copy_data(Main *bmain,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<Scene>(bmain, owner_library, id_dst, id_src, flag);
   Scene *scene_dst = id_cast<Scene *>(id_dst);
   const Scene *scene_src = id_cast<const Scene *>(id_src);
   /* Never handle user-count here for own sub-data. */
@@ -442,6 +443,7 @@ static void scene_free_data(ID *id)
   BLI_assert(scene->layer_properties == nullptr);
 
   MEM_delete(scene->runtime);
+  bke::id::free_data<Scene>(id);
 }
 
 static void scene_foreach_rigidbodyworldSceneLooper(RigidBodyWorld * /*rbw*/,

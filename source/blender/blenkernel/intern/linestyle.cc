@@ -64,6 +64,7 @@ static void linestyle_copy_data(Main *bmain,
                                 const ID *id_src,
                                 const int flag)
 {
+  bke::id::copy_data<FreestyleLineStyle>(bmain, owner_library, id_dst, id_src, flag);
   FreestyleLineStyle *linestyle_dst = id_cast<FreestyleLineStyle *>(id_dst);
   const FreestyleLineStyle *linestyle_src = id_cast<const FreestyleLineStyle *>(id_src);
 
@@ -143,6 +144,7 @@ static void linestyle_free_data(ID *id)
   {
     BKE_linestyle_geometry_modifier_remove(linestyle, linestyle_modifier);
   }
+  bke::id::free_data<FreestyleLineStyle>(id);
 }
 
 static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)

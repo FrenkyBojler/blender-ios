@@ -105,12 +105,14 @@ static ID *greasepencil_new_data()
   return &gpd->id;
 }
 
-static void greasepencil_copy_data(Main * /*bmain*/,
-                                   std::optional<Library *> /*owner_library*/,
+static void greasepencil_copy_data(Main *bmain,
+                                   std::optional<Library *> owner_library,
                                    ID *id_dst,
                                    const ID *id_src,
-                                   const int /*flag*/)
+                                   const int flag)
 {
+  bke::id::copy_data<bGPdata>(bmain, owner_library, id_dst, id_src, flag);
+
   bGPdata *gpd_dst = id_cast<bGPdata *>(id_dst);
   const bGPdata *gpd_src = id_cast<const bGPdata *>(id_src);
 
@@ -165,6 +167,8 @@ static void greasepencil_free_data(ID *id)
   /* Really not ideal, but for now will do... In theory custom behaviors like not freeing cache
    * should be handled through specific API, and not be part of the generic one. */
   BKE_gpencil_free_data(id_cast<bGPdata *>(id), true);
+
+  bke::id::free_data<bGPdata>(id);
 }
 
 static void greasepencil_foreach_id(ID *id, LibraryForeachIDData *data)

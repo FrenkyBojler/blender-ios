@@ -31,6 +31,9 @@
  */
 
 #include <optional>
+#include <type_traits>
+
+#include "MEM_guardedalloc.h"
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_enum_flags.hh"
@@ -39,6 +42,7 @@
 #include "BLI_vector.hh"
 
 #include "DNA_ID.h"
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_userdef_enums.h"
 
@@ -315,34 +319,6 @@ enum {
   LIB_ID_COPY_LOCALIZE = LIB_ID_CREATE_LOCALIZE | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_CACHES |
                          LIB_ID_COPY_NO_LIB_OVERRIDE,
 };
-
-void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **new_id_p, int orig_flag);
-/**
- * Same as #BKE_libblock_copy_ex, but allows copying data into a library, and not as local data
- * only.
- *
- * \param owner_library: the Library to 'assign' the newly created ID to. Use `nullptr` to make ID
- * not use any library (i.e. become a local ID). Use #std::nullopt for default behavior (i.e.
- * behavior of the #BKE_libblock_copy_ex function).
- * \param new_owner_id: When copying an embedded ID, the owner ID of the new copy. Should be
- * `nullopt` for regular ID copying, or in case the owner ID is not (yet) known.
- */
-void BKE_libblock_copy_in_lib(Main *bmain,
-                              std::optional<Library *> owner_library,
-                              const ID *id,
-                              std::optional<const ID *> new_owner_id,
-                              ID **new_id_p,
-                              int orig_flag);
-
-/**
- * Used everywhere in blenkernel.
- *
- * \note Typically, the newly copied ID will be a local data (its `lib` pointer will be `nullptr`).
- * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_new
- * documentation), with one special case: when the special flag #LIB_ID_COPY_NO_ALLOCATE is
- * specified, the copied ID will have the same library as the source ID.
- */
-void *BKE_libblock_copy(Main *bmain, const ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 /**
  * For newly created IDs, move it into same library as owner ID.
@@ -1060,5 +1036,48 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id);
  * \note Keep in sync with #ID_TYPE_SUPPORTS_PARAMS_WITHOUT_COW.
  */
 void BKE_id_eval_properties_copy(ID *id_cow, ID *id);
+
+/****************** Templates for IDTTypeInfo methods. ************************/
+
+namespace bke::id {
+
+/** Internal implementation of #IDTypeInfo.copy_data, use copy_data instead.
+ * Assumes a placement copy constructor has already been called. */
+void copy_data_internal(
+    Main *bmain, std::optional<Library *> owner_library, ID *new_id, const ID *id, int orig_flag);
+
+/** Base implementation of #IDTypeInfo.new_data. */
+template<typename T> ID *new_data()
+{
+  return &MEM_new<T>(typeid(T).name())->id;
+}
+
+/** Base implementation of #IDTypeInfo.copy_data. */
+template<typename T>
+void copy_data(
+    Main *bmain, std::optional<Library *> owner_library, ID *id_dst, const ID *id_src, int flag)
+{
+  const T &src_t = *reinterpret_cast<const T *>(id_src);
+  T &dst_t = *reinterpret_cast<T *>(id_dst);
+
+  if constexpr (std::is_constructible_v<T, dna::internal::ShallowDataConstRef<T>>) {
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "ID must be trivially copyable when using shallow copy");
+    new (&dst_t) T(dna::shallow_copy(src_t));
+  }
+  else {
+    new (&dst_t) T(src_t);
+  }
+
+  copy_data_internal(bmain, owner_library, id_dst, id_src, flag);
+}
+
+/** Base implementation of #IDTypeInfo.free_data. */
+template<typename T> void free_data(ID *id)
+{
+  reinterpret_cast<T *>(id)->~T();
+}
+
+}  // namespace bke::id
 
 }  // namespace blender

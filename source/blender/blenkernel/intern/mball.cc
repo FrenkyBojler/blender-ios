@@ -59,18 +59,13 @@
 
 namespace blender {
 
-static ID *metaball_new_data()
-{
-  MetaBall *metaball = MEM_new<MetaBall>("Metaball");
-  return &metaball->id;
-}
-
-static void metaball_copy_data(Main * /*bmain*/,
-                               std::optional<Library *> /*owner_library*/,
+static void metaball_copy_data(Main *bmain,
+                               std::optional<Library *> owner_library,
                                ID *id_dst,
                                const ID *id_src,
-                               const int /*flag*/)
+                               const int flag)
 {
+  bke::id::copy_data<MetaBall>(bmain, owner_library, id_dst, id_src, flag);
   MetaBall *metaball_dst = id_cast<MetaBall *>(id_dst);
   const MetaBall *metaball_src = id_cast<const MetaBall *>(id_src);
 
@@ -89,6 +84,7 @@ static void metaball_free_data(ID *id)
   MEM_SAFE_DELETE(metaball->mat);
 
   BLI_freelistN(&metaball->elems);
+  bke::id::free_data<MetaBall>(id);
 }
 
 static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -148,7 +144,7 @@ IDTypeInfo IDType_ID_MB = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = metaball_new_data,
+    .new_data = bke::id::new_data<MetaBall>,
     .copy_data = metaball_copy_data,
     .free_data = metaball_free_data,
     .make_local = nullptr,

@@ -56,12 +56,14 @@ static ID *curves_new_data()
   return &curves->id;
 }
 
-static void curves_copy_data(Main * /*bmain*/,
-                             std::optional<Library *> /*owner_library*/,
+static void curves_copy_data(Main *bmain,
+                             std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
-                             const int /*flag*/)
+                             const int flag)
 {
+  bke::id::copy_data<Curves>(bmain, owner_library, id_dst, id_src, flag);
+
   Curves *curves_dst = id_cast<Curves *>(id_dst);
   const Curves *curves_src = id_cast<const Curves *>(id_src);
   curves_dst->mat = MEM_dupalloc(curves_src->mat);
@@ -86,6 +88,8 @@ static void curves_free_data(ID *id)
 
   MEM_SAFE_DELETE(curves->mat);
   MEM_SAFE_DELETE(curves->surface_uv_map);
+
+  bke::id::free_data<Curves>(id);
 }
 
 static void curves_foreach_id(ID *id, LibraryForeachIDData *data)

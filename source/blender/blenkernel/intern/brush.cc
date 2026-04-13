@@ -74,12 +74,14 @@ static ID *brush_new_data()
   return &brush->id;
 }
 
-static void brush_copy_data(Main * /*bmain*/,
-                            std::optional<Library *> /*owner_library*/,
+static void brush_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
                             ID *id_dst,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<Brush>(bmain, owner_library, id_dst, id_src, flag);
+
   Brush *brush_dst = reinterpret_cast<Brush *>(id_dst);
   const Brush *brush_src = reinterpret_cast<const Brush *>(id_src);
 
@@ -184,6 +186,8 @@ static void brush_free_data(ID *id)
   MEM_SAFE_DELETE(brush->gradient);
 
   BKE_previewimg_id_free(&brush->id);
+
+  bke::id::free_data<Brush>(id);
 }
 
 static void brush_make_local(Main *bmain, ID *id, const int flags)

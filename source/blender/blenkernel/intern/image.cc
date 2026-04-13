@@ -155,12 +155,14 @@ static ID *image_new_data()
   return &image->id;
 }
 
-static void image_copy_data(Main * /*bmain*/,
-                            std::optional<Library *> /*owner_library*/,
+static void image_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
                             ID *id_dst,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<Image>(bmain, owner_library, id_dst, id_src, flag);
+
   const Image *image_src = id_cast<const Image *>(id_src);
   Image *image_dst = id_cast<Image *>(id_dst);
   image_dst->runtime = MEM_new<bke::ImageRuntime>(__func__);
@@ -221,6 +223,8 @@ static void image_free_data(ID *id)
 
   image_runtime_free_data(image);
   MEM_delete(image->runtime);
+
+  bke::id::free_data<Image>(id);
 }
 
 static void image_foreach_cache(ID *id,

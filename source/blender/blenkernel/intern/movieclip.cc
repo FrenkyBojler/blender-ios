@@ -95,12 +95,13 @@ static ID *movie_clip_new_data()
   return &movie_clip->id;
 }
 
-static void movie_clip_copy_data(Main * /*bmain*/,
-                                 std::optional<Library *> /*owner_library*/,
+static void movie_clip_copy_data(Main *bmain,
+                                 std::optional<Library *> owner_library,
                                  ID *id_dst,
                                  const ID *id_src,
                                  const int flag)
 {
+  bke::id::copy_data<MovieClip>(bmain, owner_library, id_dst, id_src, flag);
   MovieClip *movie_clip_dst = id_cast<MovieClip *>(id_dst);
   const MovieClip *movie_clip_src = id_cast<const MovieClip *>(id_src);
 
@@ -125,6 +126,7 @@ static void movie_clip_free_data(ID *id)
   free_buffers(movie_clip);
 
   BKE_tracking_free(&movie_clip->tracking);
+  bke::id::free_data<MovieClip>(id);
 }
 
 static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)

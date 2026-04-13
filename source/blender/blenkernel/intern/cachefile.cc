@@ -62,12 +62,14 @@ static ID *cache_file_new_data()
   return &cache_file->id;
 }
 
-static void cache_file_copy_data(Main * /*bmain*/,
-                                 std::optional<Library *> /*owner_library*/,
+static void cache_file_copy_data(Main *bmain,
+                                 std::optional<Library *> owner_library,
                                  ID *id_dst,
                                  const ID *id_src,
-                                 const int /*flag*/)
+                                 const int flag)
 {
+  bke::id::copy_data<CacheFile>(bmain, owner_library, id_dst, id_src, flag);
+
   CacheFile *cache_file_dst = id_cast<CacheFile *>(id_dst);
   const CacheFile *cache_file_src = id_cast<const CacheFile *>(id_src);
 
@@ -83,6 +85,8 @@ static void cache_file_free_data(ID *id)
   cachefile_handle_free(cache_file);
   BLI_freelistN(&cache_file->object_paths);
   BLI_freelistN(&cache_file->layers);
+
+  bke::id::free_data<CacheFile>(id);
 }
 
 static void cache_file_foreach_path(ID *id, BPathForeachPathData *bpath_data)

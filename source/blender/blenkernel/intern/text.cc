@@ -104,12 +104,13 @@ static ID *text_new_data()
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void text_copy_data(Main * /*bmain*/,
-                           std::optional<Library *> /*owner_library*/,
+static void text_copy_data(Main *bmain,
+                           std::optional<Library *> owner_library,
                            ID *id_dst,
                            const ID *id_src,
-                           const int /*flag*/)
+                           const int flag)
 {
+  bke::id::copy_data<Text>(bmain, owner_library, id_dst, id_src, flag);
   Text *text_dst = id_cast<Text *>(id_dst);
   const Text *text_src = id_cast<Text *>(const_cast<ID *>(id_src));
 
@@ -151,6 +152,7 @@ static void text_free_data(ID *id)
 #ifdef WITH_PYTHON
   BPY_text_free_code(text);
 #endif
+  bke::id::free_data<Text>(id);
 }
 
 static void text_foreach_path(ID *id, BPathForeachPathData *bpath_data)

@@ -131,12 +131,14 @@ static void copy_bone_collection(bArmature *armature_dst,
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void armature_copy_data(Main * /*bmain*/,
-                               std::optional<Library *> /*owner_library*/,
+static void armature_copy_data(Main *bmain,
+                               std::optional<Library *> owner_library,
                                ID *id_dst,
                                const ID *id_src,
                                const int flag)
 {
+  bke::id::copy_data<bArmature>(bmain, owner_library, id_dst, id_src, flag);
+
   bArmature *armature_dst = id_cast<bArmature *>(id_dst);
   const bArmature *armature_src = id_cast<const bArmature *>(id_src);
   armature_dst->runtime = MEM_new<bke::bArmature_Runtime>(__func__);
@@ -224,6 +226,8 @@ static void armature_free_data(ID *id)
     MEM_delete(armature->edbo);
     armature->edbo = nullptr;
   }
+
+  bke::id::free_data<bArmature>(id);
 }
 
 static void armature_foreach_id_bone(Bone *bone, LibraryForeachIDData *data)

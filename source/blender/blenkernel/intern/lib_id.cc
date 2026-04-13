@@ -105,14 +105,15 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     .asset_type_info = nullptr,
 
     .new_data = link_placeholder_new_data,
-    .copy_data = nullptr,
-    .free_data = nullptr,
+    .copy_data = bke::id::copy_data<ID>,
+    .free_data = bke::id::free_data<ID>,
     .make_local = nullptr,
     .foreach_id = nullptr,
     .foreach_cache = nullptr,
     .foreach_path = nullptr,
     .foreach_working_space_color = nullptr,
     .owner_pointer_get = nullptr,
+
     .blend_write = nullptr,
     .blend_read_data = nullptr,
     .blend_read_after_liblink = nullptr,
@@ -706,19 +707,43 @@ ID *BKE_id_copy_in_lib(Main *bmain,
 
   const IDTypeInfo *idtype_info = BKE_idtype_get_info_from_id(id);
 
-  if (idtype_info != nullptr) {
-    if ((idtype_info->flags & IDTYPE_FLAGS_NO_COPY) != 0) {
-      return nullptr;
-    }
-
-    BKE_libblock_copy_in_lib(bmain, owner_library, id, new_owner_id, &newid, flag);
-
-    if (idtype_info->copy_data != nullptr) {
-      idtype_info->copy_data(bmain, owner_library, newid, id, flag);
-    }
-  }
-  else {
+  if (idtype_info == nullptr) {
     BLI_assert_msg(0, "IDType Missing IDTypeInfo");
+    return nullptr;
+  }
+
+  if ((idtype_info->flags & IDTYPE_FLAGS_NO_COPY) != 0) {
+    return nullptr;
+  }
+
+  /* Allocate memory. */
+  if ((flag & LIB_ID_COPY_NO_ALLOCATE) == 0) {
+    const char *alloc_name;
+    const size_t alloc_size = BKE_libblock_get_alloc_info(GS(id->name), &alloc_name);
+    newid = static_cast<ID *>(MEM_new_uninitialized(alloc_size, alloc_name));
+  }
+  BLI_assert(newid != nullptr);
+
+  /* Copy data. */
+  BLI_assert(idtype_info->copy_data != nullptr);
+  idtype_info->copy_data(bmain, owner_library, newid, id, flag);
+
+  /* Update embedded data owner pointer.
+   * NOTE: This also needs to run for ShapeKeys, which are not (yet) actual embedded IDs.
+   * NOTE: for now, keep existing owner ID (i.e. owner of the source embedded ID) if no new one
+   * is given. In some cases (e.g. depsgraph), this is important for later remapping to work
+   * properly.
+   */
+  if (new_owner_id.has_value()) {
+    BLI_assert(idtype_info->owner_pointer_get != nullptr);
+    ID **owner_id_pointer = idtype_info->owner_pointer_get(newid, false);
+    if (owner_id_pointer) {
+      *owner_id_pointer = const_cast<ID *>(*new_owner_id);
+      if (*new_owner_id == nullptr) {
+        /* If the new id does not have an owner, it's also not embedded. */
+        newid->flag &= ~ID_FLAG_EMBEDDED_DATA;
+      }
+    }
   }
 
   BLI_assert_msg(newid, "Could not get an allocated new ID to copy into");
@@ -1562,14 +1587,12 @@ void *BKE_id_new_nomain(const short type, const char *name)
   return id;
 }
 
-void BKE_libblock_copy_in_lib(Main *bmain,
-                              std::optional<Library *> owner_library,
-                              const ID *id,
-                              std::optional<const ID *> new_owner_id,
-                              ID **new_id_p,
-                              const int orig_flag)
+void bke::id::copy_data_internal(Main *bmain,
+                                 std::optional<Library *> owner_library,
+                                 ID *new_id,
+                                 const ID *id,
+                                 const int orig_flag)
 {
-  ID *new_id = *new_id_p;
   int flag = orig_flag;
 
   const bool is_embedded_id = (id->flag & ID_FLAG_EMBEDDED_DATA) != 0;
@@ -1597,13 +1620,15 @@ void BKE_libblock_copy_in_lib(Main *bmain,
        */
       ((owner_library && *owner_library) ? (ID_TAG_EXTERN | ID_TAG_INDIRECT) : 0);
 
-  const char *alloc_name;
-  const size_t alloc_size = BKE_libblock_get_alloc_info(GS(id->name), &alloc_name);
+  /* The placement-new in #bke::id::copy_data<T> shallow-copied the full struct from src, aliasing
+   * every ID header field (runtime, py_instance, asset_data, override_library, orig_id, newid,
+   * library_weak_reference, us, tag, ...). Reset to a zero-initialized state so
+   * #libblock_init_id and the Main-aware fixups below operate against the precondition they
+   * were written for. */
+  memset(static_cast<void *>(new_id), 0, sizeof(ID));
 
   if ((flag & LIB_ID_COPY_NO_ALLOCATE) != 0) {
-    /* `new_id_p` already contains pointer to allocated memory.
-     * Clear and initialize it similar to BKE_libblock_new_in_lib. */
-    memset(static_cast<void *>(new_id), 0, alloc_size);
+    /* Lightweight init for caller-provided buffer (e.g. embedded copy-on-eval IDs). */
     BKE_libblock_runtime_ensure(*new_id);
     STRNCPY(new_id->name, id->name);
     new_id->us = 0;
@@ -1613,11 +1638,9 @@ void BKE_libblock_copy_in_lib(Main *bmain,
      * deduplicate the initialization code? */
   }
   else {
-    new_id = static_cast<ID *>(MEM_new_zeroed(alloc_size, alloc_name));
     BKE_libblock_runtime_ensure(*new_id);
     libblock_init_id(bmain, owner_library, GS(id->name), BKE_id_name(*id), flag, new_id);
   }
-  BLI_assert(new_id != nullptr);
 
   if ((flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) != 0) {
     new_id->tag |= ID_TAG_COPIED_ON_EVAL;
@@ -1626,37 +1649,12 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     new_id->tag &= ~ID_TAG_COPIED_ON_EVAL;
   }
 
-  const size_t id_offset = sizeof(ID);
-  if (int(alloc_size) - int(id_offset) > 0) { /* signed to allow neg result */ /* XXX ????? */
-    const char *cp = reinterpret_cast<const char *>(id);
-    char *cpn = reinterpret_cast<char *>(new_id);
-
-    memcpy(cpn + id_offset, cp + id_offset, alloc_size - id_offset);
-  }
-
   new_id->flag = (new_id->flag & ~copy_idflag_mask) | (id->flag & copy_idflag_mask);
   new_id->tag = (new_id->tag & ~copy_idtag_mask) | (id->tag & copy_idtag_mask);
 
   /* Embedded ID data handling. */
   if (is_embedded_id && (orig_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     new_id->tag &= ~ID_TAG_NO_MAIN;
-  }
-  /* NOTE: This also needs to run for ShapeKeys, which are not (yet) actual embedded IDs.
-   * NOTE: for now, keep existing owner ID (i.e. owner of the source embedded ID) if no new one
-   * is given. In some cases (e.g. depsgraph), this is important for later remapping to work
-   * properly.
-   */
-  if (new_owner_id.has_value()) {
-    const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(new_id);
-    BLI_assert(idtype->owner_pointer_get != nullptr);
-    ID **owner_id_pointer = idtype->owner_pointer_get(new_id, false);
-    if (owner_id_pointer) {
-      *owner_id_pointer = const_cast<ID *>(*new_owner_id);
-      if (*new_owner_id == nullptr) {
-        /* If the new id does not have an owner, it's also not embedded. */
-        new_id->flag &= ~ID_FLAG_EMBEDDED_DATA;
-      }
-    }
   }
 
   /* We do not want any handling of user-count in code duplicating the data here, we do that all
@@ -1719,22 +1717,6 @@ void BKE_libblock_copy_in_lib(Main *bmain,
   if (flag & LIB_ID_COPY_ID_NEW_SET) {
     ID_NEW_SET(const_cast<ID *>(id), new_id);
   }
-
-  *new_id_p = new_id;
-}
-
-void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **new_id_p, const int orig_flag)
-{
-  BKE_libblock_copy_in_lib(bmain, std::nullopt, id, std::nullopt, new_id_p, orig_flag);
-}
-
-void *BKE_libblock_copy(Main *bmain, const ID *id)
-{
-  ID *idn = nullptr;
-
-  BKE_libblock_copy_in_lib(bmain, std::nullopt, id, std::nullopt, &idn, 0);
-
-  return idn;
 }
 
 /* ***************** ID ************************ */

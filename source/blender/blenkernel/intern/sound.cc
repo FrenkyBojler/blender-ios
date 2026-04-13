@@ -157,12 +157,13 @@ static void sound_free_waveform(bSound *sound)
   runtime->tags &= ~bke::SoundTags::WaveformNoReload;
 }
 
-static void sound_copy_data(Main * /*bmain*/,
-                            std::optional<Library *> /*owner_library*/,
+static void sound_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
                             ID *id_dst,
                             const ID *id_src,
-                            const int /*flag*/)
+                            const int flag)
 {
+  bke::id::copy_data<bSound>(bmain, owner_library, id_dst, id_src, flag);
   bSound *sound_dst = id_cast<bSound *>(id_dst);
   const bSound *sound_src = id_cast<const bSound *>(id_src);
 
@@ -189,6 +190,7 @@ static void sound_free_data(ID *id)
   sound_free_waveform(sound);
   BLI_spin_end(&sound->runtime->spinlock);
   MEM_delete(sound->runtime);
+  bke::id::free_data<bSound>(id);
 }
 
 static void sound_foreach_cache(ID *id,
@@ -244,12 +246,6 @@ static void sound_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_packedfile_blend_read(reader, &sound->newpackedfile, sound->filepath);
 }
 
-static ID *sound_new_data()
-{
-  bSound *sound = MEM_new<bSound>(__func__);
-  return &sound->id;
-}
-
 IDTypeInfo IDType_ID_SO = {
     .id_code = bSound::id_type,
     .id_filter = FILTER_ID_SO,
@@ -263,7 +259,7 @@ IDTypeInfo IDType_ID_SO = {
     .asset_type_info = nullptr,
 
     /* A fuzzy case, think NULLified content is OK here... */
-    .new_data = sound_new_data,
+    .new_data = bke::id::new_data<bSound>,
     .copy_data = sound_copy_data,
     .free_data = sound_free_data,
     .make_local = nullptr,

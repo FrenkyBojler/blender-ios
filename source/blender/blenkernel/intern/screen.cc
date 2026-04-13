@@ -100,14 +100,16 @@ static void screen_free_data(ID *id)
     MEM_delete_void(static_cast<void *>(screen->tool_tip));
     screen->tool_tip = nullptr;
   }
+  bke::id::free_data<bScreen>(id);
 }
 
-static void screen_copy_data(Main * /*bmain*/,
+static void screen_copy_data(Main *bmain,
                              std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
-                             int /*flag*/)
+                             int flag)
 {
+  bke::id::copy_data<bScreen>(bmain, owner_library, id_dst, id_src, flag);
   /* Workspaces should always be local data currently. */
   BLI_assert(!owner_library || owner_library == nullptr);
   UNUSED_VARS_NDEBUG(owner_library);

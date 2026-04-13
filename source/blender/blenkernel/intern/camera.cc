@@ -53,12 +53,6 @@ namespace blender {
 /** \name Camera Data-Block
  * \{ */
 
-static ID *camera_new_data()
-{
-  Camera *cam = MEM_new<Camera>("Camera");
-  return &cam->id;
-}
-
 /**
  * Only copy internal data of Camera ID from source
  * to already allocated/initialized destination.
@@ -69,12 +63,14 @@ static ID *camera_new_data()
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void camera_copy_data(Main * /*bmain*/,
-                             std::optional<Library *> /*owner_library*/,
+static void camera_copy_data(Main *bmain,
+                             std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
                              const int flag)
 {
+  bke::id::copy_data<Camera>(bmain, owner_library, id_dst, id_src, flag);
+
   Camera *cam_dst = id_cast<Camera *>(id_dst);
   const Camera *cam_src = id_cast<const Camera *>(id_src);
 
@@ -100,6 +96,8 @@ static void camera_free_data(ID *id)
   if (cam->custom_bytecode) {
     MEM_delete(cam->custom_bytecode);
   }
+
+  bke::id::free_data<Camera>(id);
 }
 
 static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -261,7 +259,7 @@ IDTypeInfo IDType_ID_CA = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = camera_new_data,
+    .new_data = bke::id::new_data<Camera>,
     .copy_data = camera_copy_data,
     .free_data = camera_free_data,
     .make_local = nullptr,

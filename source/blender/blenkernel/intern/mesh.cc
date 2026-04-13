@@ -111,6 +111,7 @@ static void mesh_copy_data(Main *bmain,
                            const ID *id_src,
                            const int flag)
 {
+  bke::id::copy_data<Mesh>(bmain, owner_library, id_dst, id_src, flag);
   Mesh *mesh_dst = reinterpret_cast<Mesh *>(id_dst);
   const Mesh *mesh_src = reinterpret_cast<const Mesh *>(id_src);
 
@@ -270,6 +271,7 @@ static void mesh_free_data(ID *id)
   MEM_SAFE_DELETE(mesh->mselect);
   MEM_SAFE_DELETE(mesh->mat);
   delete mesh->runtime;
+  bke::id::free_data<Mesh>(id);
 }
 
 static void mesh_foreach_id(ID *id, LibraryForeachIDData *data)

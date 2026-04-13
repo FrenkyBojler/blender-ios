@@ -43,12 +43,6 @@
 
 namespace blender {
 
-static ID *light_new_data()
-{
-  Light *la = MEM_new<Light>("Light");
-  return &la->id;
-}
-
 /**
  * Only copy internal data of Light ID from source
  * to already allocated/initialized destination.
@@ -65,6 +59,7 @@ static void light_copy_data(Main *bmain,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<Light>(bmain, owner_library, id_dst, id_src, flag);
   Light *la_dst = id_cast<Light *>(id_dst);
   const Light *la_src = id_cast<const Light *>(id_src);
 
@@ -111,6 +106,7 @@ static void light_free_data(ID *id)
   BKE_previewimg_id_free(&la->id);
   BKE_icon_id_delete(&la->id);
   la->id.icon_id = 0;
+  bke::id::free_data<Light>(id);
 }
 
 static void light_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -179,7 +175,7 @@ IDTypeInfo IDType_ID_LA = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .new_data = light_new_data,
+    .new_data = bke::id::new_data<Light>,
     .copy_data = light_copy_data,
     .free_data = light_free_data,
     .make_local = nullptr,

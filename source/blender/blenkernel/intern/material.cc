@@ -98,6 +98,7 @@ static void material_copy_data(Main *bmain,
                                const ID *id_src,
                                const int flag)
 {
+  bke::id::copy_data<Material>(bmain, owner_library, id_dst, id_src, flag);
   Material *material_dst = id_cast<Material *>(id_dst);
   const Material *material_src = id_cast<const Material *>(id_src);
 
@@ -166,6 +167,7 @@ static void material_free_data(ID *id)
   BKE_previewimg_id_free(&material->id);
 
   BKE_icon_id_delete(id_cast<ID *>(material));
+  bke::id::free_data<Material>(id);
 }
 
 static void material_foreach_id(ID *id, LibraryForeachIDData *data)

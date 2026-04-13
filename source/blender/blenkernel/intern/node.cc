@@ -152,12 +152,13 @@ static ID *ntree_new_data()
   return &ntree->id;
 }
 
-static void ntree_copy_data(Main * /*bmain*/,
-                            std::optional<Library *> /*owner_library*/,
+static void ntree_copy_data(Main *bmain,
+                            std::optional<Library *> owner_library,
                             ID *id_dst,
                             const ID *id_src,
                             const int flag)
 {
+  bke::id::copy_data<bNodeTree>(bmain, owner_library, id_dst, id_src, flag);
   bNodeTree *ntree_dst = reinterpret_cast<bNodeTree *>(id_dst);
   const bNodeTree *ntree_src = reinterpret_cast<const bNodeTree *>(id_src);
 
@@ -317,6 +318,7 @@ static void ntree_free_data(ID *id)
   MEM_SAFE_DELETE(ntree->description);
   BKE_previewimg_id_free(&ntree->id);
   MEM_delete(ntree->runtime);
+  bke::id::free_data<bNodeTree>(id);
 }
 
 static void library_foreach_node_socket(bNodeSocket *sock, LibraryForeachIDData *data)

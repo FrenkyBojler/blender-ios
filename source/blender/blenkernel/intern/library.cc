@@ -74,14 +74,18 @@ static void library_free_data(ID *id)
   if (library->packedfile) {
     BKE_packedfile_free(library->packedfile);
   }
+
+  bke::id::free_data<Library>(id);
 }
 
 static void library_copy_data(Main *bmain,
                               std::optional<Library *> owner_library,
                               ID *id_dst,
                               const ID *id_src,
-                              int /*flag*/)
+                              int flag)
 {
+  bke::id::copy_data<Library>(bmain, owner_library, id_dst, id_src, flag);
+
   /* Libraries are always local IDs. */
   BLI_assert(!owner_library || *owner_library == nullptr);
   UNUSED_VARS_NDEBUG(bmain, owner_library);

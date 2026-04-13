@@ -99,12 +99,13 @@ static ID *particle_settings_new()
   return &particle_settings->id;
 }
 
-static void particle_settings_copy_data(Main * /*bmain*/,
-                                        std::optional<Library *> /*owner_library*/,
+static void particle_settings_copy_data(Main *bmain,
+                                        std::optional<Library *> owner_library,
                                         ID *id_dst,
                                         const ID *id_src,
-                                        const int /*flag*/)
+                                        const int flag)
 {
+  bke::id::copy_data<ParticleSettings>(bmain, owner_library, id_dst, id_src, flag);
   ParticleSettings *particle_settings_dst = id_cast<ParticleSettings *>(id_dst);
   const ParticleSettings *partticle_settings_src = id_cast<const ParticleSettings *>(id_src);
 
@@ -165,6 +166,7 @@ static void particle_settings_free_data(ID *id)
 
   boid_free_settings(particle_settings->boids);
   fluid_free_settings(particle_settings->fluid);
+  bke::id::free_data<ParticleSettings>(id);
 }
 
 static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)

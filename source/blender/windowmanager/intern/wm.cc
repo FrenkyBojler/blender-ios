@@ -68,6 +68,7 @@ namespace blender {
 static void window_manager_free_data(ID *id)
 {
   wm_close_and_free(nullptr, id_cast<wmWindowManager *>(id));
+  bke::id::free_data<wmWindowManager>(id);
 }
 
 static void window_manager_foreach_id(ID *id, LibraryForeachIDData *data)

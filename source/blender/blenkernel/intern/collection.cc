@@ -142,11 +142,13 @@ static ID *collection_new_data()
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
 static void collection_copy_data(Main *bmain,
-                                 std::optional<Library *> /*owner_library*/,
+                                 std::optional<Library *> owner_library,
                                  ID *id_dst,
                                  const ID *id_src,
                                  const int flag)
 {
+  bke::id::copy_data<Collection>(bmain, owner_library, id_dst, id_src, flag);
+
   Collection *collection_dst = id_cast<Collection *>(id_dst);
   const Collection *collection_src = id_cast<const Collection *>(id_src);
 
@@ -215,6 +217,8 @@ static void collection_free_data(ID *id)
   collection_object_cache_free(nullptr, collection, LIB_ID_CREATE_NO_DEG_TAG, 0);
 
   MEM_delete(collection->runtime);
+
+  bke::id::free_data<Collection>(id);
 }
 
 static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
