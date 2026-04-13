@@ -208,6 +208,22 @@ static void version_geometry_nodes_properties(FileData &fd,
   nmd.settings_legacy.properties = nullptr;
 }
 
+static void version_sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
+{
+  node_tree.ensure_interface_cache();
+  for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
+    if (item->item_type == NODE_INTERFACE_PANEL) {
+      continue;
+    }
+    bNodeTreeInterfaceSocket *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(
+        item);
+    /* Socket identifiers are required to be valid RNA identifiers. */
+    if (!RNA_validate_identifier(socket->identifier, true)) {
+      RNA_identifier_sanitize(socket->identifier, true);
+    }
+  }
+}
+
 /* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
@@ -426,6 +442,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
         scene.toolsettings->sculpt->paint.mesh_automasking_settings = settings;
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
+    for (bNodeTree &tree : bmain->nodetrees) {
+      version_sanitize_node_tree_interface_socket_identifiers(tree);
     }
   }
   /**
