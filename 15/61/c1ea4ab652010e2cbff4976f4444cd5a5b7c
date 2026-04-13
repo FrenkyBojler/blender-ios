@@ -13,3 +13,4 @@ Referenced by issue #157065, Saving a file containing node tools does not resolv
 Referenced by issue #157233, Geometry Nodes: Crash when enabling "Input Attribute Toggle" on string socket
 Referenced by pull request #156706, VSE: Expose compositor node group inputs to strip modifier UI
 Referenced by pull request #157286, Nodes: Add versioning for interface socket indentifier sanitization
+Referenced by commit 0d8debaa747dbfb7652f63beb90a7c3281d08d4b, Nodes: Add versioning for interface socket indentifier sanitization
