@@ -232,28 +232,24 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
 
 class PROJECT_UL_variables(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            col = layout.column()
-            col.prop(item, "name", text="", expand=False, emboss=False)
+        col = layout.column()
+        col.prop(item, "name", text="", expand=False, emboss=False)
 
-            col = layout.column()
-            col.alignment = 'RIGHT'
-            match item.type:
-                case 'INTEGER':
-                    col.prop(item, "value_int", text="", expand=False)
-                case 'FLOAT':
-                    col.prop(item, "value_float", text="", expand=False)
-                case 'STRING':
-                    col.prop(item, "value_string", text="", expand=False)
-                case 'FILEPATH':
-                    col.prop(item, "value_string", text="", expand=False)
-        # 'GRID' layout type should be as compact as possible (typically a single icon!).
-        elif self.layout_type in {'GRID'}:
-            # TODO
-            pass
+        col = layout.column()
+        col.alignment = 'RIGHT'
+        col.active = False
+        match item.type:
+            case 'INTEGER':
+                col.label(text=str(item.value_int))
+            case 'FLOAT':
+                col.label(text="{:.3f}".format(item.value_float))
+            case 'STRING':
+                col.label(text=str(item.value_string))
+            case 'FILEPATH':
+                col.label(text=str(item.value_string))
 
 
-class PROJECT_PT_variables(Panel, CenterAlignMixIn):
+class PROJECT_PT_variables(Panel):
     bl_label = "Variables"
     bl_space_type = 'PROJECT'
     bl_region_type = 'WINDOW'
@@ -263,12 +259,14 @@ class PROJECT_PT_variables(Panel, CenterAlignMixIn):
     def poll(cls, context):
         return bpy.data.project is not None
 
-    def draw_centered(self, context, layout):
-        if not bpy.context.preferences.experimental.use_blender_projects:
+    def draw(self, context):
+        if not context.preferences.experimental.use_blender_projects:
             return
 
         project = bpy.data.project
 
+        layout = self.layout
+        layout.use_property_split = True
         row = layout.row()
         row.template_list(
             listtype_name="PROJECT_UL_variables",
