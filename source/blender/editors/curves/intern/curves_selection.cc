@@ -502,7 +502,7 @@ void select_all(bke::CurvesGeometry &curves, const bke::AttrDomain selection_dom
   select_all(curves, selection, selection_domain, action);
 }
 
-void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask)
+void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask, bool select)
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
@@ -526,12 +526,21 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask)
           bke::GSpanAttributeWriter &selection = selection_writers[i];
           GMutableSpan selection_curve = selection.span.slice(points);
           if (has_anything_selected(selection_curve)) {
-            fill_selection_true(selection_curve);
+            if (select) {
+              fill_selection_true(selection_curve);
+            } else {
+              fill_selection_false(selection_curve);
+            }
+
             for (const int j : curve_writers) {
               if (j == i) {
                 continue;
               }
-              fill_selection_true(selection_writers[j].span.slice(points));
+              if (select) {
+                fill_selection_true(selection_curve);
+              } else {
+                fill_selection_false(selection_curve);
+              }
             }
             return;
           }
@@ -541,9 +550,9 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask)
   finish_attribute_writers(selection_writers);
 }
 
-void select_linked(bke::CurvesGeometry &curves)
+void select_linked(bke::CurvesGeometry &curves, bool select)
 {
-  select_linked(curves, curves.curves_range());
+  select_linked(curves, curves.curves_range(), select);
 }
 
 void select_alternate(bke::CurvesGeometry &curves,
