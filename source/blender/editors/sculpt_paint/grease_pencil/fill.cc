@@ -1533,21 +1533,26 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
   });
 
   Array<int> drawing_vert_offset_data(src_drawings.size() + 1);
+  Array<int> drawing_edge_offset_data(src_drawings.size() + 1);
 
-  threading::parallel_for(drawing_input_verts.index_range(), 512, [&](const IndexRange range) {
+  threading::parallel_for(src_drawings.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
       drawing_vert_offset_data[i] = drawing_input_verts[i].size();
+      drawing_edge_offset_data[i] = drawing_input_edges[i].size();
     }
   });
+
+  const OffsetIndices<int> drawing_vert_offsets = offset_indices::accumulate_counts_to_offsets(
+      drawing_vert_offset_data);
+  const OffsetIndices<int> drawing_edge_offsets = offset_indices::accumulate_counts_to_offsets(
+      drawing_edge_offset_data);
 
   meshintersect::CDT_input<double> input;
   input.need_ids = true;
 
-  const OffsetIndices<int> drawing_vert_offsets = offset_indices::accumulate_counts_to_offsets(
-      drawing_vert_offset_data);
-
   /* Four points are added for the bounding box. */
   input.vert.reinitialize(drawing_vert_offsets.total_size() + 4);
+  input.edge.reinitialize(drawing_edge_offsets.total_size());
 
   MutableSpan<double2> verts_span = input.vert.as_mutable_span();
   threading::parallel_for(drawing_input_verts.index_range(), 512, [&](const IndexRange range) {
@@ -1556,19 +1561,6 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
       array_utils::copy(drawing_input_verts[drawing_i].as_span(), verts_span.slice(drawing_range));
     }
   });
-
-  Array<int> drawing_edge_offset_data(src_drawings.size() + 1);
-
-  threading::parallel_for(drawing_input_edges.index_range(), 512, [&](const IndexRange range) {
-    for (const int i : range) {
-      drawing_edge_offset_data[i] = drawing_input_edges[i].size();
-    }
-  });
-
-  const OffsetIndices<int> drawing_edge_offsets = offset_indices::accumulate_counts_to_offsets(
-      drawing_edge_offset_data);
-
-  input.edge.reinitialize(drawing_edge_offsets.total_size());
 
   MutableSpan<std::pair<int, int>> edges_span = input.edge.as_mutable_span();
   threading::parallel_for(drawing_input_edges.index_range(), 512, [&](const IndexRange range) {
