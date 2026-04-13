@@ -214,6 +214,7 @@ void ED_spacetype_project()
   /* regions: navigation window */
   art = MEM_new_zeroed<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::HideSinglePanelCategories;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = project_navigation_region_init;
   art->draw = project_navigation_region_draw;
