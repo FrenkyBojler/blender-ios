@@ -1375,25 +1375,49 @@ static void node_link_cancel(bContext *C, wmOperator *op)
   bNodeTree &ntree = *snode->edittree;
   bNodeLinkDrag *nldrag = static_cast<bNodeLinkDrag *>(op->customdata);
 
-  if (nldrag->in_out == SOCK_OUT) {
-    /* Restore links. */
-    for (bNodeLink &link : nldrag->links) {
-      bNodeLink &link_restored = bke::node_add_link(
-          ntree, *link.fromnode, *link.fromsock, *nldrag->start_node, *nldrag->start_socket);
+  /* Restore pre-existing links. */
+  for (bNodeLink &link : nldrag->links) {
+    if (nldrag->start_socket->is_output() && nldrag->in_out == SOCK_OUT) {
+      /* Dragged from output socket (to create a new link), nothing to restore. */
+      continue;
+    }
 
-      if (link_restored.fromnode->typeinfo->insert_link) {
-        bke::NodeInsertLinkParams params{ntree, *link_restored.fromnode, link_restored, C};
-        if (!link_restored.fromnode->typeinfo->insert_link(params)) {
-          bke::node_remove_link(&ntree, link_restored);
-          continue;
-        }
+    bNode *fromnode = nullptr, *tonode = nullptr;
+    bNodeSocket *fromsock = nullptr, *tosock = nullptr;
+
+    if (nldrag->start_socket->is_output() && nldrag->in_out == SOCK_IN) {
+      /* CTRL-dragged (disconnected) from output socket, fixed on an input socket. */
+      fromnode = nldrag->start_node;
+      fromsock = nldrag->start_socket;
+      tonode = link.tonode;
+      tosock = link.tosock;
+    }
+    else if (nldrag->start_socket->is_input() && nldrag->in_out == SOCK_OUT) {
+      /* Dragged (disconnected) from input socket, fixed on an output socket. */
+      fromnode = link.fromnode;
+      fromsock = link.fromsock;
+      tonode = nldrag->start_node;
+      tosock = nldrag->start_socket;
+    }
+
+    if (ELEM(nullptr, fromnode, fromsock, tonode, tosock)) {
+      continue;
+    }
+
+    bNodeLink &link_restored = bke::node_add_link(ntree, *fromnode, *fromsock, *tonode, *tosock);
+
+    if (link_restored.fromnode->typeinfo->insert_link) {
+      bke::NodeInsertLinkParams params{ntree, *link_restored.fromnode, link_restored, C};
+      if (!link_restored.fromnode->typeinfo->insert_link(params)) {
+        bke::node_remove_link(&ntree, link_restored);
+        continue;
       }
-      if (link_restored.tonode->typeinfo->insert_link) {
-        bke::NodeInsertLinkParams params{ntree, *link_restored.tonode, link_restored, C};
-        if (!link_restored.tonode->typeinfo->insert_link(params)) {
-          bke::node_remove_link(&ntree, link_restored);
-          continue;
-        }
+    }
+    if (link_restored.tonode->typeinfo->insert_link) {
+      bke::NodeInsertLinkParams params{ntree, *link_restored.tonode, link_restored, C};
+      if (!link_restored.tonode->typeinfo->insert_link(params)) {
+        bke::node_remove_link(&ntree, link_restored);
+        continue;
       }
     }
   }
