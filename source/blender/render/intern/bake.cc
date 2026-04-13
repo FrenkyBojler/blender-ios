@@ -1053,10 +1053,14 @@ int RE_pass_depth(const eScenePassType pass_type)
   return 4;
 
   switch (pass_type) {
+    case SCE_PASS_DENOISING: {
+      /* The denoising data consists of multiple passes. */
+      assert(false && "RE_pass_depth not supported for SCE_PASS_DENOISING.");
+      return 1;
+    }
     case SCE_PASS_DEPTH:
     case SCE_PASS_AO:
-    case SCE_PASS_MIST:
-    case SCE_PASS_ROUGHNESS: {
+    case SCE_PASS_MIST: {
       return 1;
     }
     case SCE_PASS_UV: {

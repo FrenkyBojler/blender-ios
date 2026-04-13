@@ -176,11 +176,28 @@ void main()
     float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
     output_renderpass_color(uniform_buf.render_pass.position_id, float4(P, 1.0f));
   }
-  if (render_pass_roughness_enabled) {
+  if (render_passes_denoising_enabled) {
+    float depth = texelFetch(hiz_tx, texel, 0).r;
+    depth = -drw_depth_screen_to_view(depth);
+    output_renderpass_value(uniform_buf.render_pass.denoising_depth_id, depth);
+
+    float normal_len = length(average_normal);
+    /* Normalize or fallback to default normal. */
+    average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
+    average_normal = drw_normal_world_to_view(average_normal);
+    output_renderpass_color(uniform_buf.render_pass.denoising_normal_id,
+                            float4(average_normal, 1.0f));
+
+    output_renderpass_color(uniform_buf.render_pass.denoising_diffuse_albedo_id,
+                            float4(diffuse_color, 1.0f));
+    output_renderpass_color(uniform_buf.render_pass.denoising_specular_albedo_id,
+                            float4(specular_color, 1.0f));
+
     if (sum_weight >= 1e-5f) {
       average_squared_roughness *= safe_rcp(sum_weight);
     }
-    output_renderpass_value(uniform_buf.render_pass.roughness_id, sqrt(average_squared_roughness));
+    output_renderpass_value(uniform_buf.render_pass.denoising_roughness_id,
+                            sqrt(average_squared_roughness));
   }
 
   out_combined = float4(out_direct + out_indirect, 0.0f);

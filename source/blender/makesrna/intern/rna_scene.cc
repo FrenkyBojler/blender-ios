@@ -5259,16 +5259,6 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
     RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   }
 
-  prop = RNA_def_property(srna, "use_pass_roughness", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_ROUGHNESS);
-  RNA_def_property_ui_text(prop, "Roughness", "Deliver roughness pass");
-  if (scene) {
-    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
-  }
-  else {
-    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  }
-
   prop = RNA_def_property(srna, "use_pass_object_index", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_INDEXOB);
   RNA_def_property_ui_text(prop, "Object Index", "Deliver object index pass");
@@ -5443,6 +5433,16 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
   prop = RNA_def_property(srna, "use_pass_subsurface_color", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_SUBSURFACE_COLOR);
   RNA_def_property_ui_text(prop, "Subsurface Color", "Deliver subsurface color pass");
+  if (scene) {
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+  }
+  else {
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  }
+
+  prop = RNA_def_property(srna, "denoising_store_passes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_DENOISING);
+  RNA_def_property_ui_text(prop, "Denoising Data", "Deliver denoising passes");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
   }

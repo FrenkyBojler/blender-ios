@@ -34,6 +34,7 @@ enum [[host_shared]] PassCategory : uint32_t {
   PASS_CATEGORY_COLOR_3 = 1u << 3,
   PASS_CATEGORY_AOV = 1u << 4,
   PASS_CATEGORY_CRYPTOMATTE = 1u << 5,
+  PASS_CATEGORY_DENOISE = 1u << 6,
 };
 ENUM_OPERATORS(PassCategory)
 
@@ -88,7 +89,11 @@ struct [[host_shared]] FilmData {
   int shadow_id;
   int ambient_occlusion_id;
   int transparent_id;
-  int roughness_id;
+  int denoising_depth_id;
+  int denoising_normal_id;
+  int denoising_roughness_id;
+  int denoising_diffuse_albedo_id;
+  int denoising_specular_albedo_id;
   /** Not indexed but still not -1 if enabled. */
   int depth_id;
   int combined_id;

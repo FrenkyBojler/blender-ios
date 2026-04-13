@@ -27,8 +27,12 @@ void main()
   output_renderpass_color(uniform_buf.render_pass.diffuse_color_id, clear_color);
   output_renderpass_color(uniform_buf.render_pass.specular_color_id, clear_color);
   output_renderpass_color(uniform_buf.render_pass.emission_id, clear_color);
+  output_renderpass_color(uniform_buf.render_pass.denoising_normal_id, clear_color);
+  output_renderpass_color(uniform_buf.render_pass.denoising_diffuse_albedo_id, clear_color);
+  output_renderpass_color(uniform_buf.render_pass.denoising_specular_albedo_id, clear_color);
   output_renderpass_value(uniform_buf.render_pass.shadow_id, 1.0f);
-  output_renderpass_value(uniform_buf.render_pass.roughness_id, 0.0f);
+  output_renderpass_value(uniform_buf.render_pass.denoising_depth_id, 0.0f);
+  output_renderpass_value(uniform_buf.render_pass.denoising_roughness_id, 0.0f);
   /** NOTE: AO is done on its own pass. */
 
   int2 texel = int2(gl_FragCoord.xy);

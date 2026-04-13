@@ -778,7 +778,6 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     float mist_accum = 0.0f;
     float shadow_accum = 0.0f;
     float ao_accum = 0.0f;
-    float roughness_accum = 0.0f;
 
     for (int i = 0; i < samples_len; i++) {
       FilmSample src = film_sample_get(i, texel_film);
@@ -807,11 +806,6 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
                         uniform_buf.render_pass.ambient_occlusion_id,
                         rp_value_tx,
                         ao_accum);
-      film_sample_accum(src,
-                        uniform_buf.film.roughness_id,
-                        uniform_buf.render_pass.roughness_id,
-                        rp_value_tx,
-                        roughness_accum);
       film_sample_accum_mist(src, mist_accum);
     }
     /* Monochrome render passes that have colored outputs. Set alpha to 1. */
@@ -823,7 +817,6 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     film_store_color(dst, uniform_buf.film.environment_id, environment_accum, out_color);
     film_store_color(dst, uniform_buf.film.shadow_id, shadow_accum_color, out_color);
     film_store_color(dst, uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color);
-    film_store_value(dst, uniform_buf.film.roughness_id, roughness_accum, out_color);
     film_store_value(dst, uniform_buf.film.mist_id, mist_accum, out_color);
   }
 
@@ -842,6 +835,56 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     transparent_accum.a = weight_accum - transparent_accum.a;
 
     film_store_color(dst, uniform_buf.film.transparent_id, transparent_accum, out_color);
+  }
+
+  if (flag_test(enabled_categories, PASS_CATEGORY_DENOISE)) {
+    float denoising_depth_accum = 0.0f;
+    float4 denoising_normal_accum = float4(0.0f);
+    float denoising_roughness_accum = 0.0f;
+    float4 denoising_diffuse_albedo_accum = float4(0.0f);
+    float4 denoising_specular_albedo_accum = float4(0.0f);
+
+    for (int i = 0; i < samples_len; i++) {
+      FilmSample src = film_sample_get(i, texel_film);
+      film_sample_accum(src,
+                        uniform_buf.film.denoising_depth_id,
+                        uniform_buf.render_pass.denoising_depth_id,
+                        rp_value_tx,
+                        denoising_depth_accum);
+      film_sample_accum(src,
+                        uniform_buf.film.denoising_normal_id,
+                        uniform_buf.render_pass.denoising_normal_id,
+                        rp_color_tx,
+                        denoising_normal_accum);
+      film_sample_accum(src,
+                        uniform_buf.film.denoising_roughness_id,
+                        uniform_buf.render_pass.denoising_roughness_id,
+                        rp_value_tx,
+                        denoising_roughness_accum);
+      film_sample_accum(src,
+                        uniform_buf.film.denoising_diffuse_albedo_id,
+                        uniform_buf.render_pass.denoising_diffuse_albedo_id,
+                        rp_color_tx,
+                        denoising_diffuse_albedo_accum);
+      film_sample_accum(src,
+                        uniform_buf.film.denoising_specular_albedo_id,
+                        uniform_buf.render_pass.denoising_specular_albedo_id,
+                        rp_color_tx,
+                        denoising_specular_albedo_accum);
+    }
+
+    film_store_value(dst, uniform_buf.film.denoising_depth_id, denoising_depth_accum, out_color);
+    film_store_color(dst, uniform_buf.film.denoising_normal_id, denoising_normal_accum, out_color);
+    film_store_value(
+        dst, uniform_buf.film.denoising_roughness_id, denoising_roughness_accum, out_color);
+    film_store_color(dst,
+                     uniform_buf.film.denoising_diffuse_albedo_id,
+                     denoising_diffuse_albedo_accum,
+                     out_color);
+    film_store_color(dst,
+                     uniform_buf.film.denoising_specular_albedo_id,
+                     denoising_specular_albedo_accum,
+                     out_color);
   }
 
   if (flag_test(enabled_categories, PASS_CATEGORY_AOV)) {

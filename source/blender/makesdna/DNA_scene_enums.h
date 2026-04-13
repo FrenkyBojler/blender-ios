@@ -111,7 +111,7 @@ enum eScenePassType {
   SCE_PASS_SUBSURFACE_DIRECT = (1 << 28),
   SCE_PASS_SUBSURFACE_INDIRECT = (1 << 29),
   SCE_PASS_SUBSURFACE_COLOR = (1 << 30),
-  SCE_PASS_ROUGHNESS = (1u << 31u),
+  SCE_PASS_DENOISING = (1u << 31u),
 };
 
 #define RE_PASSNAME_DEPRECATED "Deprecated"
@@ -130,7 +130,6 @@ enum eScenePassType {
 #define RE_PASSNAME_INDEXOB "Object Index"
 #define RE_PASSNAME_INDEXMA "Material Index"
 #define RE_PASSNAME_MIST "Mist"
-#define RE_PASSNAME_ROUGHNESS "Roughness"
 
 #define RE_PASSNAME_DIFFUSE_DIRECT "Diffuse Direct"
 #define RE_PASSNAME_DIFFUSE_INDIRECT "Diffuse Indirect"
@@ -155,6 +154,13 @@ enum eScenePassType {
 #define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
 
 #define RE_PASSNAME_GREASE_PENCIL "Grease Pencil"
+
+#define RE_PASSNAME_DENOISING_DEPTH "Denoising Depth"
+#define RE_PASSNAME_DENOISING_NORMAL "Denoising Normal"
+#define RE_PASSNAME_DENOISING_ROUGHNESS "Denoising Roughness"
+#define RE_PASSNAME_DENOISING_ALBEDO "Denoising Albedo"
+#define RE_PASSNAME_DENOISING_DIFFUSE_ALBEDO "Denoising Diffuse Albedo"
+#define RE_PASSNAME_DENOISING_SPECULAR_ALBEDO "Denoising Specular Albedo"
 
 /** #SceneRenderLayer::layflag */
 enum {

@@ -225,7 +225,11 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
   ENABLE_FROM_LEGACY(GLOSSY_DIRECT, SPECULAR_LIGHT)
   ENABLE_FROM_LEGACY(ENVIRONMENT, ENVIRONMENT)
   ENABLE_FROM_LEGACY(VECTOR, VECTOR)
-  ENABLE_FROM_LEGACY(ROUGHNESS, ROUGHNESS)
+  ENABLE_FROM_LEGACY(DENOISING, DENOISING_DEPTH)
+  ENABLE_FROM_LEGACY(DENOISING, DENOISING_NORMAL)
+  ENABLE_FROM_LEGACY(DENOISING, DENOISING_ROUGHNESS)
+  ENABLE_FROM_LEGACY(DENOISING, DENOISING_DIFFUSE_ALBEDO)
+  ENABLE_FROM_LEGACY(DENOISING, DENOISING_SPECULAR_ALBEDO)
 
 #undef ENABLE_FROM_LEGACY
 
@@ -401,10 +405,13 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                                                    EEVEE_RENDER_PASS_SPECULAR_COLOR |
                                                    EEVEE_RENDER_PASS_ENVIRONMENT |
                                                    EEVEE_RENDER_PASS_MIST |
-                                                   EEVEE_RENDER_PASS_SHADOW |
-                                                   EEVEE_RENDER_PASS_AO |
-                                                   EEVEE_RENDER_PASS_ROUGHNESS;
+                                                   EEVEE_RENDER_PASS_SHADOW | EEVEE_RENDER_PASS_AO;
     const eViewLayerEEVEEPassType color_passes_3 = EEVEE_RENDER_PASS_TRANSPARENT;
+    const eViewLayerEEVEEPassType passes_denoise = EEVEE_RENDER_PASS_DENOISING_DEPTH |
+                                                   EEVEE_RENDER_PASS_DENOISING_NORMAL |
+                                                   EEVEE_RENDER_PASS_DENOISING_ROUGHNESS |
+                                                   EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO |
+                                                   EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO;
 
     data_.exposure_scale = pow2f(scene.view_settings.exposure);
     if (enabled_passes_ & data_passes) {
@@ -418,6 +425,9 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     }
     if (enabled_passes_ & color_passes_3) {
       enabled_categories_ |= PASS_CATEGORY_COLOR_3;
+    }
+    if (enabled_passes_ & passes_denoise) {
+      enabled_categories_ |= PASS_CATEGORY_DENOISE;
     }
   }
   {
@@ -461,7 +471,12 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
     data_.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
     data_.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
-    data_.roughness_id = pass_index_get(EEVEE_RENDER_PASS_ROUGHNESS);
+    data_.denoising_depth_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_DEPTH);
+    data_.denoising_normal_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_NORMAL);
+    data_.denoising_roughness_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_ROUGHNESS);
+    data_.denoising_diffuse_albedo_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO);
+    data_.denoising_specular_albedo_id = pass_index_get(
+        EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO);
 
     data_.aov_color_id = data_.color_len;
     data_.aov_value_id = data_.value_len;

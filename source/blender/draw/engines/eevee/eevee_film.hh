@@ -201,7 +201,8 @@ class Film {
     switch (pass_type) {
       case EEVEE_RENDER_PASS_DEPTH:
       case EEVEE_RENDER_PASS_MIST:
-      case EEVEE_RENDER_PASS_ROUGHNESS:
+      case EEVEE_RENDER_PASS_DENOISING_DEPTH:
+      case EEVEE_RENDER_PASS_DENOISING_ROUGHNESS:
         return PASS_STORAGE_VALUE;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
       case EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET:
@@ -255,8 +256,6 @@ class Film {
         return data_.shadow_id;
       case EEVEE_RENDER_PASS_AO:
         return data_.ambient_occlusion_id;
-      case EEVEE_RENDER_PASS_ROUGHNESS:
-        return data_.roughness_id;
       case EEVEE_RENDER_PASS_TRANSPARENT:
         return data_.transparent_id;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
@@ -265,6 +264,16 @@ class Film {
         return data_.cryptomatte_asset_id;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
         return data_.cryptomatte_material_id;
+      case EEVEE_RENDER_PASS_DENOISING_DEPTH:
+        return data_.denoising_depth_id;
+      case EEVEE_RENDER_PASS_DENOISING_NORMAL:
+        return data_.denoising_normal_id;
+      case EEVEE_RENDER_PASS_DENOISING_ROUGHNESS:
+        return data_.denoising_roughness_id;
+      case EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO:
+        return data_.denoising_diffuse_albedo_id;
+      case EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO:
+        return data_.denoising_specular_albedo_id;
       default:
         return -1;
     }
@@ -333,9 +342,6 @@ class Film {
       case EEVEE_RENDER_PASS_AO:
         result.append(RE_PASSNAME_AO);
         break;
-      case EEVEE_RENDER_PASS_ROUGHNESS:
-        result.append(RE_PASSNAME_ROUGHNESS);
-        break;
       case EEVEE_RENDER_PASS_TRANSPARENT:
         result.append(RE_PASSNAME_TRANSPARENT);
         break;
@@ -347,6 +353,21 @@ class Film {
         break;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL:
         build_cryptomatte_passes(RE_PASSNAME_CRYPTOMATTE_MATERIAL);
+        break;
+      case EEVEE_RENDER_PASS_DENOISING_DEPTH:
+        result.append(RE_PASSNAME_DENOISING_DEPTH);
+        break;
+      case EEVEE_RENDER_PASS_DENOISING_NORMAL:
+        result.append(RE_PASSNAME_DENOISING_NORMAL);
+        break;
+      case EEVEE_RENDER_PASS_DENOISING_ROUGHNESS:
+        result.append(RE_PASSNAME_DENOISING_ROUGHNESS);
+        break;
+      case EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO:
+        result.append(RE_PASSNAME_DENOISING_DIFFUSE_ALBEDO);
+        break;
+      case EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO:
+        result.append(RE_PASSNAME_DENOISING_SPECULAR_ALBEDO);
         break;
       default:
         BLI_assert(0);

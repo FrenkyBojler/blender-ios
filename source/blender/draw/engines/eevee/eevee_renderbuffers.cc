@@ -47,8 +47,8 @@ void RenderBuffers::init()
   data.environment_id = pass_index_get(EEVEE_RENDER_PASS_ENVIRONMENT);
   data.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
   data.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
-  data.roughness_id = pass_index_get(EEVEE_RENDER_PASS_ROUGHNESS);
   data.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
+  data.denoising_roughness_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_ROUGHNESS);
 
   data.aovs = inst_.film.aovs_info;
 }
