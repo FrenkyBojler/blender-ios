@@ -1651,6 +1651,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     }
   });
 
+  /* TODO: Use a BVH. */
   auto get_tri_for_point = [&](const float2 &v) {
     for (const int tri_index : result.face.index_range()) {
       const Vector<int> &tri = result.face[tri_index];
