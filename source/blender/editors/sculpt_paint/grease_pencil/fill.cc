@@ -1546,6 +1546,7 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
   const OffsetIndices<int> drawing_vert_offsets = offset_indices::accumulate_counts_to_offsets(
       drawing_vert_offset_data);
 
+  /* Four points are added for the bounding box. */
   input.vert.reinitialize(drawing_vert_offsets.total_size() + 4);
 
   MutableSpan<double2> verts_span = input.vert.as_mutable_span();
