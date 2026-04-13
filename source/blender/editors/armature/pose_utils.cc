@@ -144,8 +144,8 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
   return eAction_TransformFlags(flags);
 }
 
-/* helper for slide_targets_get() -> get the relevant F-Curves per PoseChannel */
-static void fcurves_to_pchan_links_get(ListBaseT<SlideTarget> &slide_targets,
+/* helper for slide_subjects_get() -> get the relevant F-Curves per PoseChannel */
+static void fcurves_to_pchan_links_get(ListBaseT<SlideSubject> &slide_subjects,
                                        Object &ob,
                                        bPoseChannel &pchan)
 {
@@ -157,48 +157,48 @@ static void fcurves_to_pchan_links_get(ListBaseT<SlideTarget> &slide_targets,
     return;
   }
 
-  SlideTarget *slide_target = MEM_new<SlideTarget>("SlideTarget");
+  SlideSubject *slide_subject = MEM_new<SlideSubject>("SlideSubject");
 
-  slide_target->ob = &ob;
-  slide_target->fcurves = curves;
-  slide_target->pchan = &pchan;
+  slide_subject->ob = &ob;
+  slide_subject->fcurves = curves;
+  slide_subject->pchan = &pchan;
 
   /* Get the RNA path to this pchan - this needs to be freed! */
   PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(&ob), RNA_PoseBone, &pchan);
-  slide_target->pchan_path = BLI_strdup(RNA_path_from_ID_to_struct(&ptr).value_or("").c_str());
+  slide_subject->pchan_path = BLI_strdup(RNA_path_from_ID_to_struct(&ptr).value_or("").c_str());
 
-  BLI_addtail(&slide_targets, slide_target);
+  BLI_addtail(&slide_subjects, slide_subject);
 
   /* Set pchan's transform flags. */
-  slide_target->transform_flag = transFlags;
+  slide_subject->transform_flag = transFlags;
 
-  copy_v3_v3(slide_target->oldloc, pchan.loc);
-  copy_v3_v3(slide_target->oldrot, pchan.eul);
-  copy_v3_v3(slide_target->oldscale, pchan.scale);
-  copy_qt_qt(slide_target->oldquat, pchan.quat);
-  copy_v3_v3(slide_target->oldaxis, pchan.rotAxis);
-  slide_target->oldangle = pchan.rotAngle;
+  copy_v3_v3(slide_subject->oldloc, pchan.loc);
+  copy_v3_v3(slide_subject->oldrot, pchan.eul);
+  copy_v3_v3(slide_subject->oldscale, pchan.scale);
+  copy_qt_qt(slide_subject->oldquat, pchan.quat);
+  copy_v3_v3(slide_subject->oldaxis, pchan.rotAxis);
+  slide_subject->oldangle = pchan.rotAngle;
 
   /* Store current bbone values. */
-  slide_target->roll1 = pchan.roll1;
-  slide_target->roll2 = pchan.roll2;
-  slide_target->curve_in_x = pchan.curve_in_x;
-  slide_target->curve_in_z = pchan.curve_in_z;
-  slide_target->curve_out_x = pchan.curve_out_x;
-  slide_target->curve_out_z = pchan.curve_out_z;
-  slide_target->ease1 = pchan.ease1;
-  slide_target->ease2 = pchan.ease2;
+  slide_subject->roll1 = pchan.roll1;
+  slide_subject->roll2 = pchan.roll2;
+  slide_subject->curve_in_x = pchan.curve_in_x;
+  slide_subject->curve_in_z = pchan.curve_in_z;
+  slide_subject->curve_out_x = pchan.curve_out_x;
+  slide_subject->curve_out_z = pchan.curve_out_z;
+  slide_subject->ease1 = pchan.ease1;
+  slide_subject->ease2 = pchan.ease2;
 
-  copy_v3_v3(slide_target->scale_in, pchan.scale_in);
-  copy_v3_v3(slide_target->scale_out, pchan.scale_out);
+  copy_v3_v3(slide_subject->scale_in, pchan.scale_in);
+  copy_v3_v3(slide_subject->scale_out, pchan.scale_out);
 
   /* Make copy of custom properties. */
   if (transFlags & ACT_TRANS_PROP) {
     if (pchan.prop) {
-      slide_target->oldprops = IDP_CopyProperty(pchan.prop);
+      slide_subject->oldprops = IDP_CopyProperty(pchan.prop);
     }
     if (pchan.system_properties) {
-      slide_target->old_system_properties = IDP_CopyProperty(pchan.system_properties);
+      slide_subject->old_system_properties = IDP_CopyProperty(pchan.system_properties);
     }
   }
 }
@@ -212,9 +212,9 @@ Object *poseAnim_object_get(Object *ob_)
   return nullptr;
 }
 
-void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets)
+void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects)
 {
-  BLI_assert(slide_targets != nullptr);
+  BLI_assert(slide_subjects != nullptr);
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags...
    */
@@ -237,14 +237,14 @@ void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets)
       continue;
     }
 
-    fcurves_to_pchan_links_get(*slide_targets, *ob_pose_armature, *pchan);
+    fcurves_to_pchan_links_get(*slide_subjects, *ob_pose_armature, *pchan);
   }
   CTX_DATA_END;
 
   /* If no PoseChannels were found, try a second pass, doing visible ones instead.
    * i.e. if nothing selected, do whole pose.
    */
-  if (BLI_listbase_is_empty(slide_targets)) {
+  if (BLI_listbase_is_empty(slide_subjects)) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
     CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
@@ -262,40 +262,40 @@ void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets)
         continue;
       }
 
-      fcurves_to_pchan_links_get(*slide_targets, *ob_pose_armature, *pchan);
+      fcurves_to_pchan_links_get(*slide_subjects, *ob_pose_armature, *pchan);
     }
     CTX_DATA_END;
   }
 }
 
-void slide_targets_free(ListBaseT<SlideTarget> *slide_targets)
+void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects)
 {
-  SlideTarget *slide_target, *pfln = nullptr;
+  SlideSubject *slide_subject, *pfln = nullptr;
 
   /* free the temp pchan links and their data */
-  for (slide_target = static_cast<SlideTarget *>(slide_targets->first); slide_target;
-       slide_target = pfln)
+  for (slide_subject = static_cast<SlideSubject *>(slide_subjects->first); slide_subject;
+       slide_subject = pfln)
   {
-    pfln = slide_target->next;
+    pfln = slide_subject->next;
 
     /* free custom properties */
-    if (slide_target->oldprops) {
-      IDP_FreeProperty(slide_target->oldprops);
+    if (slide_subject->oldprops) {
+      IDP_FreeProperty(slide_subject->oldprops);
     }
 
     /* free pchan RNA Path */
-    MEM_delete(slide_target->pchan_path);
+    MEM_delete(slide_subject->pchan_path);
 
     /* We cannot use BLI_freelinkN because that casts the TransformableFCurveLink to a C-style
      * struct causing MEM_delete to do a C-style delete and not deallocate the Vector. */
-    BLI_remlink(slide_targets, slide_target);
-    MEM_delete(slide_target);
+    BLI_remlink(slide_subjects, slide_subject);
+    MEM_delete(slide_subject);
   }
 }
 
 /* ------------------------- */
 
-void slide_targets_refresh(bContext *C, Scene * /*scene*/, Object *ob)
+void slide_subjects_refresh(bContext *C, Scene * /*scene*/, Object *ob)
 {
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
@@ -306,47 +306,47 @@ void slide_targets_refresh(bContext *C, Scene * /*scene*/, Object *ob)
   }
 }
 
-void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets)
+void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 {
   /* iterate over each pose-channel affected, restoring all channels to their original values */
-  for (SlideTarget &slide_target : *slide_targets) {
-    bPoseChannel *pchan = slide_target.pchan;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    bPoseChannel *pchan = slide_subject.pchan;
 
     /* just copy all the values over regardless of whether they changed or not */
-    copy_v3_v3(pchan->loc, slide_target.oldloc);
-    copy_v3_v3(pchan->eul, slide_target.oldrot);
-    copy_v3_v3(pchan->scale, slide_target.oldscale);
-    copy_qt_qt(pchan->quat, slide_target.oldquat);
-    copy_v3_v3(pchan->rotAxis, slide_target.oldaxis);
-    pchan->rotAngle = slide_target.oldangle;
+    copy_v3_v3(pchan->loc, slide_subject.oldloc);
+    copy_v3_v3(pchan->eul, slide_subject.oldrot);
+    copy_v3_v3(pchan->scale, slide_subject.oldscale);
+    copy_qt_qt(pchan->quat, slide_subject.oldquat);
+    copy_v3_v3(pchan->rotAxis, slide_subject.oldaxis);
+    pchan->rotAngle = slide_subject.oldangle;
 
     /* store current bbone values */
-    pchan->roll1 = slide_target.roll1;
-    pchan->roll2 = slide_target.roll2;
-    pchan->curve_in_x = slide_target.curve_in_x;
-    pchan->curve_in_z = slide_target.curve_in_z;
-    pchan->curve_out_x = slide_target.curve_out_x;
-    pchan->curve_out_z = slide_target.curve_out_z;
-    pchan->ease1 = slide_target.ease1;
-    pchan->ease2 = slide_target.ease2;
+    pchan->roll1 = slide_subject.roll1;
+    pchan->roll2 = slide_subject.roll2;
+    pchan->curve_in_x = slide_subject.curve_in_x;
+    pchan->curve_in_z = slide_subject.curve_in_z;
+    pchan->curve_out_x = slide_subject.curve_out_x;
+    pchan->curve_out_z = slide_subject.curve_out_z;
+    pchan->ease1 = slide_subject.ease1;
+    pchan->ease2 = slide_subject.ease2;
 
-    copy_v3_v3(pchan->scale_in, slide_target.scale_in);
-    copy_v3_v3(pchan->scale_out, slide_target.scale_out);
+    copy_v3_v3(pchan->scale_in, slide_subject.scale_in);
+    copy_v3_v3(pchan->scale_out, slide_subject.scale_out);
 
     /* just overwrite values of properties from the stored copies (there should be some) */
-    if (slide_target.oldprops) {
-      IDP_SyncGroupValues(slide_target.pchan->prop, slide_target.oldprops);
+    if (slide_subject.oldprops) {
+      IDP_SyncGroupValues(slide_subject.pchan->prop, slide_subject.oldprops);
     }
-    if (slide_target.old_system_properties) {
-      IDP_SyncGroupValues(slide_target.pchan->system_properties,
-                          slide_target.old_system_properties);
+    if (slide_subject.old_system_properties) {
+      IDP_SyncGroupValues(slide_subject.pchan->system_properties,
+                          slide_subject.old_system_properties);
     }
   }
 }
 
-void slide_targets_autokey(bContext *C,
+void slide_subjects_autokey(bContext *C,
                            Scene *scene,
-                           ListBaseT<SlideTarget> *slide_targets,
+                           ListBaseT<SlideSubject> *slide_subjects,
                            float cframe)
 {
   const Main *bmain = CTX_data_main(C);
@@ -382,15 +382,15 @@ void slide_targets_autokey(bContext *C,
   /* XXX: here we already have the information about what transforms exist, though
    * it might be easier to just overwrite all using normal mechanisms
    */
-  for (SlideTarget &slide_target : *slide_targets) {
-    bPoseChannel *pchan = slide_target.pchan;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    bPoseChannel *pchan = slide_subject.pchan;
 
-    if ((slide_target.ob->id.tag & ID_TAG_DOIT) == 0) {
+    if ((slide_subject.ob->id.tag & ID_TAG_DOIT) == 0) {
       continue;
     }
 
     /* Add data-source override for the PoseChannel, to be used later. */
-    animrig::relative_keyingset_add_source(sources, &slide_target.ob->id, RNA_PoseBone, pchan);
+    animrig::relative_keyingset_add_source(sources, &slide_subject.ob->id, RNA_PoseBone, pchan);
   }
 
   /* insert keyframes for all relevant bones in one go */

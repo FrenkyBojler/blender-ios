@@ -148,8 +148,8 @@ enum eAction_TransformFlags {
 };
 
 /* Temporary struct wrapping data used for pose sliding. */
-struct SlideTarget {
-  SlideTarget *next, *prev;
+struct SlideSubject {
+  SlideSubject *next, *prev;
 
   /** Object this Pose Channel belongs to. */
   Object *ob;
@@ -192,26 +192,26 @@ struct SlideTarget {
 /** Returns a valid pose armature for this object, else returns NULL. */
 Object *poseAnim_object_get(Object *ob_);
 /**
- * Build up a list of SlideTarget. First only selected, and if that yields no result, all
+ * Build up a list of SlideSubject. First only selected, and if that yields no result, all
  * visible.
  */
-void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets);
+void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects);
 /** Free all slide targets. */
-void slide_targets_free(ListBaseT<SlideTarget> *slide_targets);
+void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects);
 
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void slide_targets_refresh(bContext *C, Scene *scene, Object *ob);
+void slide_subjects_refresh(bContext *C, Scene *scene, Object *ob);
 /**
  * Reset changes made to current slide targets back to their stored values.
  */
-void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets);
+void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects);
 /** Perform auto-key-framing after changes were made + confirmed. */
-void slide_targets_autokey(bContext *C,
-                           Scene *scene,
-                           ListBaseT<SlideTarget> *slide_targets,
-                           float cframe);
+void slide_subjects_autokey(bContext *C,
+                            Scene *scene,
+                            ListBaseT<SlideSubject> *slide_subjects,
+                            float cframe);
 
 /** \} */
 
