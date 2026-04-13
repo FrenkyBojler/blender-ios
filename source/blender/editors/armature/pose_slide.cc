@@ -1696,6 +1696,10 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
     slide_targets_refresh(C, t_link.ptr.owner_id);
   }
 
+  for (SlideTarget &t_link : slide_targets) {
+    slide_targets_refresh(C, t_link.ptr.owner_id);
+  }
+
   /* Free temp data. */
   slide_targets_free(&slide_targets);
 

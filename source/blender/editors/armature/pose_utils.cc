@@ -196,7 +196,7 @@ static void pchan_to_animated_transformable(ListBaseT<SlideTarget> &slide_target
   pfl->transformable = transformable;
 
   /* Set pchan's transform flags. */
-  pfl->transform_flag = transFlags;
+  slide_subject->transform_flag = transFlags;
 
   pfl->old_loc = transformable->get_property(animrig::Transformable::PropertyType::LOCATION);
   pfl->old_rot = transformable->get_rotation();

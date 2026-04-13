@@ -198,7 +198,7 @@ void slide_targets_free(ListBaseT<SlideTarget> *slide_targets);
  */
 void slide_targets_refresh(bContext *C, ID *id);
 /**
- * Reset changes made to current pose.
+ * Reset changes made to current slide targets back to their stored values.
  */
 void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets);
 /** Perform auto-key-framing after changes were made + confirmed. */

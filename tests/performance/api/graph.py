@@ -87,7 +87,7 @@ class TestGraph:
                 revision_dates[revision] = int(entry.date)
 
             output_values = entry.output_all_runs.get(output)
-            if len(output_values) > 1:
+            if output_values and len(output_values) > 1:
                 use_error_bars = True
 
         # Convert to chart.js data layout.
@@ -113,10 +113,11 @@ class TestGraph:
                 output_values = entry.output_all_runs.get(output)
                 if output_values:
                     datasets[revision_index]['data'][test_index] = {
+                        'x': test_index,
                         'y': sum(output_values) / len(output_values),
                         'yMin': min(output_values),
                         'yMax': max(output_values),
-                    } if use_error_bars else output_values[0]
+                    }
 
         else:
             # For time series, dates on the X axis and tests as datasets.
@@ -140,10 +141,11 @@ class TestGraph:
                 output_values = entry.output_all_runs.get(output)
                 if output_values:
                     datasets[test_index]['data'][revision_index] = {
+                        'x': revision_index,
                         'y': sum(output_values) / len(output_values),
                         'yMin': min(output_values),
                         'yMax': max(output_values),
-                    } if use_error_bars else output_values[0]
+                    }
 
         data = {'labels': labels, 'datasets': datasets}
         return {
