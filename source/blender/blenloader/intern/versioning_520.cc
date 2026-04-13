@@ -264,7 +264,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
 
     if (link.fromnode->type_legacy == GEO_NODE_MESH_PRIMITIVE_UV_SPHERE) {
       /* Multiply Add node. */
-      bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
+      bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath"_ustr);
       multiply_node->parent = link.fromnode->parent;
       multiply_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 20.0f;
       multiply_node->location[1] = link.fromnode->location[1];
@@ -297,7 +297,8 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
       bNodeSocket *cylinder_uv = bke::node_find_socket(*link.fromnode, SOCK_OUT, "UV Map");
 
       /* Field Average node. */
-      bNode *average_node = bke::node_add_node(nullptr, *node_tree, "GeometryNodeFieldAverage");
+      bNode *average_node = bke::node_add_node(
+          nullptr, *node_tree, "GeometryNodeFieldAverage"_ustr);
       average_node->parent = link.fromnode->parent;
       average_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 20.0f;
       average_node->location[1] = link.fromnode->location[1];
@@ -312,7 +313,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
           *node_tree, *link.fromnode, *cylinder_uv, *average_node, *average_value);
 
       /* Subtract node. */
-      bNode *subtract_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
+      bNode *subtract_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath"_ustr);
       subtract_node->parent = link.fromnode->parent;
       subtract_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 40.0f;
       subtract_node->location[1] = link.fromnode->location[1];
@@ -326,7 +327,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
           *node_tree, *average_node, *average_mean, *subtract_node, *subtract_b_input);
 
       /* Multiply node. */
-      bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
+      bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath"_ustr);
       multiply_node->parent = link.fromnode->parent;
       multiply_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 60.0f;
       multiply_node->location[1] = link.fromnode->location[1];
@@ -340,7 +341,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
           *node_tree, *subtract_node, *subtract_output, *multiply_node, *multiply_a_input);
 
       /* Add node. */
-      bNode *add_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
+      bNode *add_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath"_ustr);
       add_node->parent = link.fromnode->parent;
       add_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 80.0f;
       add_node->location[1] = link.fromnode->location[1];
@@ -352,7 +353,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
       version_node_add_link(*node_tree, *multiply_node, *multiply_output, *add_node, *add_b_input);
 
       /* Switch node. */
-      bNode *switch_node = bke::node_add_node(nullptr, *node_tree, "GeometryNodeSwitch");
+      bNode *switch_node = bke::node_add_node(nullptr, *node_tree, "GeometryNodeSwitch"_ustr);
       switch_node->parent = link.fromnode->parent;
       switch_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 100.0f;
       switch_node->location[1] = link.fromnode->location[1];
