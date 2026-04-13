@@ -24,7 +24,6 @@
 
 #include "BLI_assert.h"
 #include "BLI_math_bits.h"
-#include <bit>
 #include <fmt/format.h>
 
 namespace blender::eevee {
@@ -638,7 +637,7 @@ class SlotAllocator {
       reserve_slots(*info);
     }
 
-    total_requested_samplers_ = std::popcount(~available_samplers_);
+    total_requested_samplers_ = count_bits_uint64(uint64_t(~available_samplers_));
   }
 
   bool sampler_overflow() const
