@@ -218,10 +218,6 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
 SourceProcessor::Result SourceProcessor::convert(metadata::Source external_sources_symbols)
 {
   switch (language_) {
-    case Language::UNKNOWN:
-      metadata_ = {};
-      report_error(0, 0, "", "Unknown file type");
-      return {"", metadata_, error_handler.err};
     case Language::CPP:
     case Language::BSL:
     case Language::BLENDER_GLSL:
@@ -230,7 +226,14 @@ SourceProcessor::Result SourceProcessor::convert(metadata::Source external_sourc
       return convert_msl();
     case Language::GLSL:
       return convert_glsl();
+    case Language::UNKNOWN:
+    default:
+      break;
   }
+
+  metadata_ = {};
+  report_error(0, 0, "", "Unknown file type");
+  return {"", metadata_, error_handler.err};
 }
 
 metadata::Source SourceProcessor::parse_include_and_symbols()
