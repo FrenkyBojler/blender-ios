@@ -4,6 +4,7 @@
 
 set(TRACY_EXTRA_ARGS
   -DCMAKE_DEBUG_POSTFIX=_d
+  -DTRACY_ENABLE=ON  # Needed because of an oversight in the latest Tracy master. (reported as issue #1334 on the Tracy tracker, remove once fixed)
 )
 
 ExternalProject_Add(external_tracy
