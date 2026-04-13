@@ -1742,13 +1742,13 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     window_->backend.vulkan_window_info = new GHOST_ContextVK_WindowInfo;
     window_->backend.vulkan_window_info->size[0] = window_->frame.size[0];
     window_->backend.vulkan_window_info->size[1] = window_->frame.size[1];
-    window_->backend.vulkan_window_info->is_color_managed = color_manager != nullptr;
 
-    /* There is no HDR on/off settings as on Windows, so from the Window side
-     * consider it always enabled. But may still get disabled if Vulkan has no
+    /* There is no HDR on/off settings as on Windows, so from the Window side consider it to be
+     * enabled when color manager protocol is supported. It may still get disabled if Vulkan has no
      * appropriate surface format. */
-    hdr_info_.hdr_enabled = true;
+    hdr_info_.hdr_enabled = color_manager != nullptr;
     hdr_info_.wide_gamut_enabled = true;
+    hdr_info_.use_pass_through = color_manager != nullptr;
     hdr_info_.sdr_white_level = 1.0f;
   }
 #endif

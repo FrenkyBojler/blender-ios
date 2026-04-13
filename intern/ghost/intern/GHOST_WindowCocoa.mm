@@ -407,6 +407,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
         /* For Blender to know if this window supports HDR. */
         hdr_info_.hdr_enabled = true;
         hdr_info_.wide_gamut_enabled = true;
+        hdr_info_.use_pass_through = false;
         hdr_info_.sdr_white_level = 1.0f;
       }
 
