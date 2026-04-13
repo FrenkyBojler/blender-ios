@@ -212,7 +212,7 @@ static void version_geometry_nodes_properties(FileData &fd,
 static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
 {
   node_tree.ensure_interface_cache();
-  VectorSet<StringRef> all_identifiers;
+  Set<StringRef> all_identifiers;
   for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
     if (item->item_type == NODE_INTERFACE_PANEL) {
       continue;
