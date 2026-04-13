@@ -305,7 +305,8 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       free_imbuf = true;
     }
 
-    const std::tm mod_time = *std::localtime(&file->time);
+    time_t file_time = (time_t)file->time;
+    const std::tm mod_time = *std::localtime(&file_time);
     const time_t ts_now = time(nullptr);
     const std::tm now = *std::localtime(&ts_now);
     const char *lang = BLT_lang_get();
@@ -1226,7 +1227,8 @@ static const char *filelist_get_details_column_string(
     case COLUMN_DATETIME:
       if (!(file->typeflag & FILE_TYPE_BLENDERLIB) && !FILENAME_IS_CURRPAR(file->relpath)) {
         if (file->draw_data.datetime_str[0] == '\0' || update_stat_strings) {
-          const std::tm mod_time = *std::localtime(&file->time);
+          time_t file_time = (time_t)file->time;
+          const std::tm mod_time = *std::localtime(&file_time);
           const time_t ts_now = time(nullptr);
           const std::tm now = *std::localtime(&ts_now);
           const char *lang = BLT_lang_get();
