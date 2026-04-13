@@ -521,25 +521,21 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask, bo
                                              all_writers :
                                              selection_writer;
         const IndexRange points = points_by_curve[curve];
-
         for (const int i : curve_writers) {
           bke::GSpanAttributeWriter &selection = selection_writers[i];
           GMutableSpan selection_curve = selection.span.slice(points);
+          const bool is_curve_selected = !selection_curve.typed<bool>().contains(false);
           if (has_anything_selected(selection_curve)) {
-            if (select) {
-              fill_selection_true(selection_curve);
-            } else {
-              fill_selection_false(selection_curve);
+            if (select || is_curve_selected) {
+              fill_selection(selection_curve, select);
             }
 
             for (const int j : curve_writers) {
               if (j == i) {
                 continue;
               }
-              if (select) {
-                fill_selection_true(selection_curve);
-              } else {
-                fill_selection_false(selection_curve);
+              if (select || is_curve_selected) {
+                fill_selection(selection_curve, select);
               }
             }
             return;
