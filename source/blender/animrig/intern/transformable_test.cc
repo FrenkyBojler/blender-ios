@@ -33,6 +33,7 @@ class TransformableTest : public testing::Test {
   {
     /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
     CLG_init();
+    BKE_idtype_init();
     RNA_init();
   }
 
@@ -144,7 +145,7 @@ TEST_F(TransformableTest, transformable_blend_to)
 
 TEST_F(TransformableTest, transformable_axis_constraints)
 {
-  /* It is possible to only set and blend certain axis. This is a feature of the pose slide code
+  /* It is possible to only set and blend certain axes. This is a feature of the pose slide code
    * and had to be added to transformables. */
   Transformable transformable(*armature_object, *pose_bone);
 
@@ -157,6 +158,13 @@ TEST_F(TransformableTest, transformable_axis_constraints)
   transformable.set_property(
       Transformable::PropertyType::LOCATION, {2, 2, 2}, AxisFlag(AXIS_FLAG_X | AXIS_FLAG_Y));
   expected = {2, 2, 0};
+  EXPECT_NEAR_SPAN(expected.as_span(),
+                   transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
+                   0.001);
+
+  transformable.blend_property_to(
+      Transformable::PropertyType::LOCATION, {3, 3, 3}, 1.0f, AxisFlag(AXIS_FLAG_Y | AXIS_FLAG_Z));
+  expected = {2, 3, 3};
   EXPECT_NEAR_SPAN(expected.as_span(),
                    transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
                    0.001);

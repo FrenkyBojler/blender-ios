@@ -39,7 +39,8 @@ enum AxisFlag : int8_t {
   AXIS_FLAG_X = 1 << 0,
   AXIS_FLAG_Y = 1 << 1,
   AXIS_FLAG_Z = 1 << 2,
-  AXIS_FLAG_W = 1 << 3,
+  /* There is currently no support for a W axis. This was already the case when porting this enum
+     from the pose slide code. */
 };
 
 /**

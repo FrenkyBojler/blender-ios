@@ -18,6 +18,10 @@
 
 namespace blender::animrig {
 
+/**
+ * Returns true if the given property index matches the axis flag.
+ * Always returns true if no flag is set.
+ */
 static bool should_modify_axis(const int index, const AxisFlag axis_flag)
 {
   if (axis_flag == AXIS_FLAG_NONE) {
