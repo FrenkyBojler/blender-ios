@@ -487,6 +487,26 @@ class PROJECT_OP_AddVariable(Operator):
         return {'FINISHED'}
 
 
+class PROJECT_OP_RemoveVariable(Operator):
+    """Removes the active variable from the current project"""
+    bl_idname = "project.remove_variable"
+    bl_label = "Remove Variable"
+
+    @classmethod
+    def poll(cls, context):
+        project = bpy.data.project
+        if project is None:
+            return False
+        return project.active_variable_index < len(project.variables)
+
+    def execute(self, context):
+        project = bpy.data.project
+        var = project.variables[project.active_variable_index]
+        project.variables.remove(var)
+
+        return {'FINISHED'}
+
+
 # -------------------------------------------------------------
 # Auto-loading / clearing of projects when loading/saving blend files or
 # exiting.
@@ -562,6 +582,7 @@ classes = (
     PROJECT_OP_SaveProject,
     PROJECT_OP_OpenBlendInProject,
     PROJECT_OP_AddVariable,
+    PROJECT_OP_RemoveVariable,
 )
 
 

@@ -52,7 +52,7 @@ ProjectVariable *BlenderProject::new_variable()
   return this->variables.last().get();
 }
 
-bool BlenderProject::remove_variable(ProjectVariable *var)
+int BlenderProject::remove_variable(ProjectVariable *var)
 {
   int index = -1;
   for (int i = 0; i < this->variables.size(); i++) {
@@ -62,13 +62,11 @@ bool BlenderProject::remove_variable(ProjectVariable *var)
     }
   }
 
-  if (index == -1) {
-    return false;
+  if (index != -1) {
+    this->variables.remove(index);
   }
 
-  this->variables.remove(index);
-
-  return true;
+  return index;
 }
 
 }  // namespace bke

@@ -64,7 +64,7 @@ class BlenderProject {
 
  public:
   Vector<std::unique_ptr<ProjectVariable>> variables;
-  int active_variable = 0;
+  int active_variable_index = 0;
 
   /**
    * Whether the project has unsaved changes.
@@ -96,7 +96,14 @@ class BlenderProject {
   StringRefNull get_root_path() const;
 
   ProjectVariable *new_variable();
-  bool remove_variable(ProjectVariable *var);
+
+  /**
+   * Remove the given variable.
+   *
+   * Returns the index that the removed variable had, or -1 if the variable
+   * wasn't found.
+   */
+  int remove_variable(ProjectVariable *var);
 };
 
 }  // namespace bke

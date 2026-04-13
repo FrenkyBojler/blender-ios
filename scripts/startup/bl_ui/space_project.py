@@ -276,23 +276,23 @@ class PROJECT_PT_variables(Panel, CenterAlignMixIn):
         project = bpy.data.project
 
         row = layout.row()
-
         row.template_list(
             listtype_name="PROJECT_UL_variables",
             list_id="Variables",
             dataptr=project,
             propname="variables",
             active_dataptr=project,
-            active_propname="active_variable",
+            active_propname="active_variable_index",
         )
-
         col = row.column()
         col.operator("project.add_variable", text="", icon='ADD')
+        col.operator("project.remove_variable", text="", icon='REMOVE')
+        # col.operator("project.move_variable", text="", icon='TRIA_UP').type = 'UP'
+        # col.operator("project.move_variable", text="", icon='TRIA_DOWN').type = 'DOWN'
 
 
 # -------------------------------------------------------------
 # Register
-
 # This conditional is awkward: it means the user has to restart Blender after
 # enabling the experimental feature to actually get access to the UI.
 #

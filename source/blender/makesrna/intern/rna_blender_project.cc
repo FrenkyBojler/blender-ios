@@ -215,21 +215,21 @@ static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
   return project_data->get_root_path().size();
 }
 
-static int rna_BlenderProject_active_variable_get(PointerRNA *ptr)
+static int rna_BlenderProject_active_variable_index_get(PointerRNA *ptr)
 {
   const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
 
-  return project_data->active_variable;
+  return project_data->active_variable_index;
 }
 
-static void rna_BlenderProject_active_variable_set(PointerRNA *ptr, int value)
+static void rna_BlenderProject_active_variable_index_set(PointerRNA *ptr, int value)
 {
   bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
 
-  project_data->active_variable = value;
+  project_data->active_variable_index = value;
 }
 
-static void rna_BlenderProject_active_variable_range(
+static void rna_BlenderProject_active_variable_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
   const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
@@ -290,6 +290,8 @@ static ProjectVariable *rna_ProjectVariables_new(bke::BlenderProject *project_da
   new_var->value_float = 0.0;
   new_var->value_string = std::string();
 
+  project_data->active_variable_index = project_data->variables.size() - 1;
+
   project_mark_dirty();
 
   return new_var;
@@ -302,10 +304,19 @@ void rna_ProjectVariables_remove(bke::BlenderProject *project_data,
   BLI_assert(variable_ptr->type == RNA_ProjectVariable);
   ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
 
-  if (!project_data->remove_variable(var)) {
+  const int removed_index = project_data->remove_variable(var);
+
+  if (removed_index == -1) {
     BKE_reportf(reports, RPT_ERROR, "Variable not found in project variables.");
     return;
   }
+
+  if (project_data->active_variable_index > removed_index) {
+    project_data->active_variable_index -= 1;
+  }
+
+  project_data->active_variable_index = std::min(project_data->active_variable_index,
+                                                 int(project_data->variables.size() - 1));
 
   project_mark_dirty();
 }
@@ -447,11 +458,11 @@ static void rna_def_blender_project(BlenderRNA *brna)
       prop, "rna_BlenderProject_root_path_get", "rna_BlenderProject_root_path_length", nullptr);
   RNA_def_property_ui_text(prop, "Root Folder", "The path to the root folder of the project");
 
-  prop = RNA_def_property(srna, "active_variable", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "active_variable_index", PROP_INT, PROP_NONE);
   RNA_def_property_int_funcs(prop,
-                             "rna_BlenderProject_active_variable_get",
-                             "rna_BlenderProject_active_variable_set",
-                             "rna_BlenderProject_active_variable_range");
+                             "rna_BlenderProject_active_variable_index_get",
+                             "rna_BlenderProject_active_variable_index_set",
+                             "rna_BlenderProject_active_variable_index_range");
   RNA_def_property_ui_text(
       prop, "Active Project Variable", "Index of the currently active variable in the UI");
 
