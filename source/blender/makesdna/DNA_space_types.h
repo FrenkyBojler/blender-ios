@@ -12,6 +12,7 @@
 #include "DNA_asset_types.h"
 #include "DNA_color_types.h" /* for Histogram */
 #include "DNA_defs.h"
+#include "DNA_camera_types.h" /* for COMPOSITION_GUIDES_ENABLED*/
 #include "DNA_image_types.h" /* ImageUser */
 #include "DNA_listBase.h"
 #include "DNA_mask_types.h"
@@ -304,8 +305,8 @@ struct SpaceNla {
 
 struct SequencerPreviewOverlay {
   int flag = 0;
-  char composition_guide_flags = 0; /* eCompositionGuideFlags */
-  char _pad0[3] = {};
+  short composition_guide_flags = COMPOSITION_GUIDES_ENABLED; /* eCompositionGuideFlags */
+  char _pad0[2] = {};
 
   /* Compositional guide overlay color */
   float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};

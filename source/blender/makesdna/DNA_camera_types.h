@@ -48,14 +48,15 @@ enum {
 
 /* Composition Guides */
 enum eCompositionGuideFlags {
-  COMPOSITION_GUIDES_CENTER = (1 << 0),
-  COMPOSITION_GUIDES_CENTER_DIAG = (1 << 1),
-  COMPOSITION_GUIDES_THIRDS = (1 << 2),
-  COMPOSITION_GUIDES_GOLDEN = (1 << 3),
-  COMPOSITION_GUIDES_GOLDEN_TRI_A = (1 << 4),
-  COMPOSITION_GUIDES_GOLDEN_TRI_B = (1 << 5),
-  COMPOSITION_GUIDES_HARMONY_TRI_A = (1 << 6),
-  COMPOSITION_GUIDES_HARMONY_TRI_B = (1 << 7),
+  COMPOSITION_GUIDES_ENABLED = (1 << 0),
+  COMPOSITION_GUIDES_CENTER = (1 << 1),
+  COMPOSITION_GUIDES_CENTER_DIAG = (1 << 2),
+  COMPOSITION_GUIDES_THIRDS = (1 << 3),
+  COMPOSITION_GUIDES_GOLDEN = (1 << 4),
+  COMPOSITION_GUIDES_GOLDEN_TRI_A = (1 << 5),
+  COMPOSITION_GUIDES_GOLDEN_TRI_B = (1 << 6),
+  COMPOSITION_GUIDES_HARMONY_TRI_A = (1 << 7),
+  COMPOSITION_GUIDES_HARMONY_TRI_B = (1 << 8),
 };
 
 /* flag */
@@ -203,8 +204,10 @@ struct Camera {
 
   /** CAM_PERSP, CAM_ORTHO, CAM_PANO or CAM_CUSTOM. */
   char type = 0;
-  char composition_guide_flags = 0; /* eCompositionGuideFlags */
+  char _pad0[1] = {};
+  short composition_guide_flags = COMPOSITION_GUIDES_ENABLED; /* eCompositionGuideFlags */
   short flag = CAM_SHOWPASSEPARTOUT;
+  char _pad1[2] = {};
   float passepartalpha = 0.5f;
   float clip_start = 0.1f, clip_end = 1000.0f;
   float lens = 50.0f, ortho_scale = 6.0, drawsize = 1.0f;
@@ -214,7 +217,7 @@ struct Camera {
 
   char sensor_fit = 0;
   char panorama_type = CAM_PANORAMA_FISHEYE_EQUISOLID;
-  char _pad[2] = {};
+  char _pad2[6] = {};
 
   /* Fish-eye properties. */
   float fisheye_fov = M_PI;
@@ -233,7 +236,7 @@ struct Camera {
   float central_cylindrical_range_v_min = -1.0f;
   float central_cylindrical_range_v_max = 1.0f;
   float central_cylindrical_radius = 1.0f;
-  float _pad2 = {};
+  float _pad3 = {};
 
   /* Custom Camera properties. */
   struct Text *custom_shader = nullptr;
@@ -243,7 +246,7 @@ struct Camera {
   char custom_bytecode_hash[64] = "";
   char *custom_bytecode = nullptr;
   int custom_mode = 0;
-  int _pad3 = {};
+  int _pad4 = {};
 
   DNA_DEPRECATED struct Object *dof_ob = nullptr;
   DNA_DEPRECATED struct GPUDOFSettings gpu_dof;

@@ -18,6 +18,7 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_camera_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
@@ -435,11 +436,15 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           if (sl.spacetype == SPACE_SEQ) {
             SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
-            // sseq->preview_overlay.flag &= SEQ_PREVIEW_SHOW_RULE_THIRDS;
+            sseq->preview_overlay.composition_guide_flags &= COMPOSITION_GUIDES_ENABLED;
           }
         }
       }
     }
+
+    for (Camera &cam : bmain->cameras) {
+      cam.composition_guide_flags &= COMPOSITION_GUIDES_ENABLED;
+    } 
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

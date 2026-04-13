@@ -462,9 +462,10 @@ class DATA_PT_camera_display(CameraButtonsPanel, Panel):
 
 
 class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
-    bl_label = "Composition Guides"
+    bl_label = ""
     bl_parent_id = "DATA_PT_camera_display"
     bl_options = {'DEFAULT_CLOSED'}
+
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
@@ -479,7 +480,16 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(cam, "composition_guide_color", text="Color")
-
+        
+    
+    def draw_header(self, context):
+        cam = context.camera
+        self._draw_header(cam, self.layout)
+        
+    @classmethod
+    def _draw_header(cls, item, layout):
+        layout.prop(item, "show_composition_guides", text="Composition Guides")
+            
     @classmethod
     def draw_flags(cls, item, layout):
         layout.use_property_split = True
