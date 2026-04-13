@@ -4102,7 +4102,7 @@ void BKE_lib_override_library_make_local(Main *bmain, ID *id)
 }
 
 /* We only build override Map on request. */
-Map<StringRefNull, IDOverrideLibraryProperty *> &override_library_rna_path_mapping_ensure(
+static Map<StringRefNull, IDOverrideLibraryProperty *> &override_library_rna_path_mapping_ensure(
     IDOverrideLibrary *liboverride)
 {
   IDOverrideLibraryRuntime *liboverride_runtime = override_library_runtime_ensure(liboverride);
