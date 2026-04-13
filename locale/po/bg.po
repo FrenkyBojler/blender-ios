@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 11:01+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -592,6 +592,10 @@ msgid "Fill"
 msgstr "Запълни"
 
 
+msgid "Both"
+msgstr "Двете"
+
+
 msgid "Crop"
 msgstr "Отрязване"
 
@@ -1144,24 +1148,12 @@ msgid "ID Type"
 msgstr "ID тип"
 
 
-msgid "Make Single User"
-msgstr "Направи с Единствен Потребител"
-
-
-msgid "Hooks"
-msgstr "Куки"
-
-
-msgid "In-Betweens"
-msgstr "Междинни Кадри"
-
-
-msgid "Apply"
-msgstr "Прилагане"
-
-
 msgid "Merge"
 msgstr "Слей"
+
+
+msgid "Import"
+msgstr "Внеси"
 
 
 msgid "UV Mapping"
@@ -1172,12 +1164,24 @@ msgid "Light"
 msgstr "Светлина"
 
 
-msgid "Import"
-msgstr "Внеси"
-
-
 msgid "Rigid Body"
 msgstr "Твърдо тяло"
+
+
+msgid "Apply"
+msgstr "Прилагане"
+
+
+msgid "Make Single User"
+msgstr "Направи с Единствен Потребител"
+
+
+msgid "Hooks"
+msgstr "Куки"
+
+
+msgid "In-Betweens"
+msgstr "Междинни Кадри"
 
 
 msgid "Cache"
@@ -1537,10 +1541,6 @@ msgstr "Вмъкване на текст"
 msgctxt "Operator"
 msgid "Unlink"
 msgstr "Развържи"
-
-
-msgid "Both"
-msgstr "Двете"
 
 
 msgid "Next Keyframe"

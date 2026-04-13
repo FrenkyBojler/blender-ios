@@ -158,7 +158,7 @@ DRWContext::DRWContext(Mode mode_,
   }
 
   /* View layer can be lazily synced. */
-  BKE_view_layer_synced_ensure(this->scene, this->view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(depsgraph), this->scene, this->view_layer);
 
   /* fclem: Is this still needed ? */
   if (this->object_edit && rv3d) {
