@@ -683,6 +683,11 @@ bool block_is_popup_any(const Block *block)
           (block->flag & BLOCK_POPUP));
 }
 
+bool block_is_popup(const Block *block)
+{
+  return (block->flag & BLOCK_POPUP);
+}
+
 static const Button *but_next_non_separator(const Button *but)
 {
   if (!but) {

@@ -852,6 +852,11 @@ bool but_is_utf8(const Button *but);
 
 bool block_is_empty_ex(const Block *block, bool skip_title);
 bool block_is_empty(const Block *block);
+/**
+ * Checks if the block if from a generic popup, see #BLOCK_POPUP, don't confuse with
+ * #block_is_popup_any which can be true for menus/popovers/pie menus.
+ */
+bool block_is_popup(const Block *block) ATTR_WARN_UNUSED_RESULT;
 bool block_can_add_separator(const Block *block);
 /**
  * Return true when the block has a default button.
