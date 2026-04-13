@@ -1661,7 +1661,7 @@ static PyObject *pyc_run_string_as_py_object(const char *imports[],
 
   if (imports_star) {
     for (int i = 0; imports_star[i]; i++) {
-      PyObject *mod = PyImport_ImportModule("math");
+      PyObject *mod = PyImport_ImportModule(imports_star[i]);
       if (mod) {
         /* Don't overwrite existing values (override=0). */
         PyDict_Merge(py_dict, PyModule_GetDict(mod), 0);
@@ -2108,6 +2108,24 @@ bool PyC_StructFmt_type_is_bool(char format)
     default:
       return false;
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Dict Utilities
+ * \{ */
+
+bool PyC_Dict_CheckKeysAreStrings(PyObject *dict)
+{
+  PyObject *key;
+  Py_ssize_t pos = 0;
+  while (PyDict_Next(dict, &pos, &key, nullptr)) {
+    if (!PyUnicode_Check(key)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** \} */

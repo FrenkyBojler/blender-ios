@@ -315,6 +315,19 @@ bool DepsgraphRelationBuilder::has_node(const ComponentKey &key) const
   return find_node(key) != nullptr;
 }
 
+Relation *DepsgraphRelationBuilder::add_node_handle_relation(const TimeSourceKey &key_from,
+                                                             const DepsNodeHandle *handle,
+                                                             const char *description,
+                                                             int flags)
+{
+  TimeSourceNode *time_from = get_node(key_from);
+  OperationNode *op_to = handle->node->get_entry_operation();
+  if (time_from != nullptr && op_to != nullptr) {
+    return add_time_relation(time_from, op_to, description, flags);
+  }
+  return nullptr;
+}
+
 void DepsgraphRelationBuilder::add_depends_on_transform_relation(const DepsNodeHandle *handle,
                                                                  const char *description)
 {
@@ -2636,7 +2649,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
     add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
   }
   if (object->type == OB_MBALL) {
-    Object *mom = BKE_mball_basis_find(scene_, object);
+    Object *mom = BKE_mball_basis_find(*bmain_, scene_, object);
     ComponentKey mom_geom_key(&mom->id, NodeType::GEOMETRY);
     /* motherball - mom depends on children! */
     if (mom == object) {
@@ -3054,7 +3067,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       build_nodetree_socket(&socket);
     }
 
-    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute")) {
+    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute"_ustr)) {
       NodeShaderAttribute *attr = static_cast<NodeShaderAttribute *>(bnode->storage);
       if (attr->type == SHD_ATTRIBUTE_VIEW_LAYER && STREQ(attr->name, "frame_current")) {
         TimeSourceKey time_src_key;
@@ -3535,7 +3548,7 @@ void DepsgraphRelationBuilder::build_scene_audio(Scene *scene)
 
 void DepsgraphRelationBuilder::build_scene_speakers(Scene *scene, ViewLayer *view_layer)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain_, scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     Object *object = base.object;
     if (object->type != OB_SPEAKER || !need_pull_base_into_graph(&base)) {

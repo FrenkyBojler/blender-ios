@@ -35,6 +35,7 @@ from bl_ui.properties_data_light import (
     DATA_PT_light,
     DATA_PT_EEVEE_light,
 )
+from bl_operators.geometry_nodes import geometry_modifier_poll
 
 
 class NODE_HT_header(Header):
@@ -193,6 +194,8 @@ class NODE_HT_header(Header):
                     row.enabled = False
                     row.template_ID(snode, "node_tree", new="node.new_geometry_node_group_assign")
                 elif ob:
+                    row.enabled = geometry_modifier_poll(context)
+
                     active_modifier = ob.modifiers.active
                     if active_modifier and active_modifier.type == 'NODES':
                         if active_modifier.node_group:
@@ -543,8 +546,9 @@ class NODE_PT_material_slots(Panel):
         if ob.mode == 'EDIT':
             row = layout.row(align=True)
             row.operator("object.material_slot_assign", text="Assign")
-            row.operator("object.material_slot_select", text="Select")
-            row.operator("object.material_slot_deselect", text="Deselect")
+            if ob.type != 'FONT':
+                row.operator("object.material_slot_select", text="Select")
+                row.operator("object.material_slot_deselect", text="Deselect")
 
 
 class NODE_PT_geometry_node_tool_object_types(Panel):
@@ -964,7 +968,7 @@ class NODE_PT_overlay(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 7
+    bl_ui_units_x = 14
 
     def draw(self, context):
         layout = self.layout
@@ -999,6 +1003,13 @@ class NODE_PT_overlay(Panel):
 
         if snode.tree_type == 'CompositorNodeTree':
             col.prop(overlay, "show_timing", text="Timings")
+
+            subcol = col.column(align=True)
+            subcol.active = overlay.show_render_size and snode.show_backdrop
+
+            row = subcol.row(align=True)
+            row.prop(overlay, "show_render_size", text="Render Region")
+            row.prop(overlay, "passepartout_alpha", text="Passepartout")
 
 
 class NODE_MT_node_tree_interface_context_menu(Menu):
