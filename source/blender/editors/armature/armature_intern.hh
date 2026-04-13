@@ -154,7 +154,7 @@ struct PropertySnapshot {
   PropertyRNA *property;
   /* Non-float properties are also stored as float. The length of the array matches the length of
    * the property. */
-  Array<float> backup_values;
+  Array<float> values;
 };
 
 /* Temporary struct wrapping data used for pose sliding. */

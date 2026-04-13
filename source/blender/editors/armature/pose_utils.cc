@@ -380,12 +380,12 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 
     for (PropertySnapshot &extra_prop : slide_subject.additional_properties) {
       animrig::rna_property_set_as_float(
-          slide_subject.ptr, *extra_prop.property, extra_prop.backup_values);
+          slide_subject.ptr, *extra_prop.property, extra_prop.values);
     }
 
     for (PropertySnapshot &custom_prop : slide_subject.custom_properties) {
       animrig::rna_property_set_as_float(
-          slide_subject.ptr, *custom_prop.property, custom_prop.backup_values);
+          slide_subject.ptr, *custom_prop.property, custom_prop.values);
     }
   }
 }

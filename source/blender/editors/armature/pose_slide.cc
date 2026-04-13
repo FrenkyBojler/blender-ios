@@ -416,7 +416,7 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
       continue;
     }
     const float factor = ED_slider_factor_get(pso.slider);
-    Array<float> base_values = snapshot.backup_values;
+    Array<float> base_values = snapshot.values;
     Array<float> next_frame_values = base_values;
     Array<float> prev_frame_values = base_values;
     {
