@@ -1,1 +1,2 @@
 Referenced by pull request #157272, Build: Fix shader_tool continually rebuilding with Ninja
+Referenced by commit a2c483505cd2d57e9e65887f0c7abafc8fef5fb0, Build: Fix shader_tool continually rebuilding with Ninja
