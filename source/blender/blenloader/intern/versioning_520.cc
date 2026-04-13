@@ -261,20 +261,6 @@ static void fix_single_point_curves_custom_knots(Main *bmain)
   }
 }
 
-static void do_version_subsurface_methods(bNode *node)
-{
-  if (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING) {
-    if (node->custom1 == SHD_SUBSURFACE_RANDOM_WALK) {
-      node->custom1 = SHD_SUBSURFACE_RANDOM_WALK_LEGACY;
-    }
-  }
-  else if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
-    if (node->custom2 == SHD_SUBSURFACE_RANDOM_WALK) {
-      node->custom2 = SHD_SUBSURFACE_RANDOM_WALK_LEGACY;
-    }
-  }
-}
-
 void do_versions_after_linking_520(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -441,17 +427,6 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         scene.toolsettings->sculpt->paint.mesh_automasking_settings = settings;
       }
     }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_SHADER) {
-        for (bNode &node : ntree->nodes) {
-          do_version_subsurface_methods(&node);
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
   }
 
   /**
