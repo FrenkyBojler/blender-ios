@@ -485,11 +485,11 @@ class SocketUsageInferencerImpl {
     const bool is_top_level = context == nullptr;
     if (is_top_level) {
       if (socket == show_input_socket) {
-        this->usage_task__with_dependent_sockets(show_input_socket, {}, {}, context);
+        this->usage_task__with_dependent_sockets(show_input_socket, {}, {}, context, true);
       }
       if (socket == message_input_socket) {
         this->usage_task__with_dependent_sockets(
-            message_input_socket, {}, {&*show_input_socket}, context);
+            message_input_socket, {}, {&*show_input_socket}, context, true);
       }
       return;
     }
@@ -597,7 +597,8 @@ class SocketUsageInferencerImpl {
   void usage_task__with_dependent_sockets(const SocketInContext &socket,
                                           const Span<const bNodeSocket *> dependent_outputs,
                                           const Span<const bNodeSocket *> condition_inputs,
-                                          const ComputeContext *dependent_socket_context)
+                                          const ComputeContext *dependent_socket_context,
+                                          const bool allow_no_dependent_outputs = false)
   {
     /* Check if any of the dependent outputs are used. */
     SocketInContext next_unknown_socket;
@@ -626,9 +627,11 @@ class SocketUsageInferencerImpl {
       this->push_usage_task(next_unknown_socket);
       return;
     }
-    if (!any_output_used && !dependent_outputs.is_empty()) {
-      all_socket_usages_.add_new(socket, false);
-      return;
+    if (!any_output_used) {
+      if (!dependent_outputs.is_empty() || !allow_no_dependent_outputs) {
+        all_socket_usages_.add_new(socket, false);
+        return;
+      }
     }
     bool all_condition_inputs_true = true;
     for (const bNodeSocket *condition_input_ptr : condition_inputs) {
