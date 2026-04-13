@@ -1309,16 +1309,18 @@ static void get_all_triangle_edges(const Span<std::pair<int, int>> edges,
     edge_to_index.add_new(order_edge(edge), edge_index);
   }
 
-  for (const int tri_index : tris.index_range()) {
-    const Vector<int> &face = tris[tri_index];
+  threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t tri_index : range) {
+      const Vector<int> &face = tris[tri_index];
 
-    const std::pair<int, int> edge0 = order_edge(std::pair<int, int>(face[0], face[1]));
-    const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
-    const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
+      const std::pair<int, int> edge0 = order_edge(std::pair<int, int>(face[0], face[1]));
+      const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[1], face[2]));
+      const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[2], face[0]));
 
-    r_tri_edges[tri_index] = int3(
-        edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
-  }
+      r_tri_edges[tri_index] = int3(
+          edge_to_index.lookup(edge0), edge_to_index.lookup(edge1), edge_to_index.lookup(edge2));
+    }
+  });
 }
 
 static void get_all_triangle_adjacency(const int num_edges,
@@ -1343,25 +1345,27 @@ static void get_all_triangle_adjacency(const int num_edges,
     }
   }
 
-  for (const int tri_index : tris.index_range()) {
-    for (const int j : IndexRange(3)) {
-      const int edge = tri_edges[tri_index][j];
+  threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t tri_index : range) {
+      for (const int j : IndexRange(3)) {
+        const int edge = tri_edges[tri_index][j];
 
-      const int index_0 = edge_to_tris[edge].first;
-      if (index_0 != tri_index && index_0 != NULL_INDEX) {
-        r_tri_adjacency[tri_index][j] = index_0;
-        continue;
+        const int index_0 = edge_to_tris[edge].first;
+        if (index_0 != tri_index && index_0 != NULL_INDEX) {
+          r_tri_adjacency[tri_index][j] = index_0;
+          continue;
+        }
+
+        const int index_1 = edge_to_tris[edge].second;
+        if (index_1 != tri_index && index_1 != NULL_INDEX) {
+          r_tri_adjacency[tri_index][j] = index_1;
+          continue;
+        }
+
+        r_tri_adjacency[tri_index][j] = NULL_INDEX;
       }
-
-      const int index_1 = edge_to_tris[edge].second;
-      if (index_1 != tri_index && index_1 != NULL_INDEX) {
-        r_tri_adjacency[tri_index][j] = index_1;
-        continue;
-      }
-
-      r_tri_adjacency[tri_index][j] = NULL_INDEX;
     }
-  }
+  });
 }
 
 static void add_weights_for_tri(const Span<int3> tri_adjacency,
@@ -1622,13 +1626,15 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Array<bool> is_source_edge(result.edge.size(), false);
 
-  for (const int edge_i : is_source_edge.index_range()) {
-    for (const uint32_t orig_id : result.edge_orig[edge_i]) {
-      if (orig_id < result.face_edge_offset) {
-        is_source_edge[edge_i] = true;
+  threading::parallel_for(is_source_edge.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t edge_index : range) {
+      for (const uint32_t orig_id : result.edge_orig[edge_index]) {
+        if (orig_id < result.face_edge_offset) {
+          is_source_edge[edge_index] = true;
+        }
       }
     }
-  }
+  });
 
   Array<int3> tri_edges(result.face.size(), int3(NULL_INDEX));
 
@@ -1642,12 +1648,14 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Array<float> edge_weights(result.edge.size());
 
-  for (const int edge_i : result.edge.index_range()) {
-    const std::pair<int, int> &edge = result.edge[edge_i];
-    const double2 &v1 = result.vert[edge.first];
-    const double2 &v2 = result.vert[edge.second];
-    edge_weights[edge_i] = math::distance(v1, v2);
-  }
+  threading::parallel_for(result.edge.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t edge_index : range) {
+      const std::pair<int, int> &edge = result.edge[edge_index];
+      const double2 &v1 = result.vert[edge.first];
+      const double2 &v2 = result.vert[edge.second];
+      edge_weights[edge_index] = math::distance(v1, v2);
+    }
+  });
 
   auto get_tri_for_point = [&](const float2 &v) {
     for (const int tri_index : result.face.index_range()) {
@@ -1666,22 +1674,24 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Array<float> tri_max_weight(result.face.size(), 0.0f);
 
-  for (const int tri_index : result.face.index_range()) {
-    for (const int j : IndexRange(3)) {
-      const int next_tri = tri_adjacency[tri_index][j];
-      const int edge_index = tri_edges[tri_index][j];
+  threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t tri_index : range) {
+      for (const int j : IndexRange(3)) {
+        const int next_tri = tri_adjacency[tri_index][j];
+        const int edge_index = tri_edges[tri_index][j];
 
-      if (next_tri == NULL_INDEX) {
-        continue;
+        if (next_tri == NULL_INDEX) {
+          continue;
+        }
+
+        if (is_source_edge[edge_index]) {
+          continue;
+        }
+
+        tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index], edge_weights[edge_index]);
       }
-
-      if (is_source_edge[edge_index]) {
-        continue;
-      }
-
-      tri_max_weight[tri_index] = math::max(tri_max_weight[tri_index], edge_weights[edge_index]);
     }
-  }
+  });
 
   Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
   Array<float> tri_weights(result.face.size(), 0.0f);
@@ -1802,11 +1812,13 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                         tri_hint_index.as_mutable_span(),
                         tri_weights.as_mutable_span());
 
-    for (const int tri_index : result.face.index_range()) {
-      if (tri_hint_index[tri_index] == hint_index) {
-        tri_to_fill[tri_index] = true;
+    threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
+      for (const int64_t tri_index : range) {
+        if (tri_hint_index[tri_index] == hint_index) {
+          tri_to_fill[tri_index] = true;
+        }
       }
-    }
+    });
   }
 
   Set<int> boundary_edges;
@@ -1894,20 +1906,22 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   MutableSpan<float3> positions = curves.positions_for_write();
 
-  for (const int curve_i : output_verts_offset.index_range()) {
-    const IndexRange edges_range = output_verts_offset[curve_i];
+  threading::parallel_for(output_verts_offset.index_range(), 512, [&](const IndexRange range) {
+    for (const int64_t curve_i : range) {
+      const IndexRange edges_range = output_verts_offset[curve_i];
 
-    for (const int point_i : edges_range) {
-      const int edge_index = edge_curves.edges[point_i];
-      const bool reversed = edge_curves.reversed[point_i];
-      const std::pair<int, int> edge = result.edge[edge_index];
-      const int vert_id = reversed ? edge.second : edge.first;
+      for (const int point_i : edges_range) {
+        const int edge_index = edge_curves.edges[point_i];
+        const bool reversed = edge_curves.reversed[point_i];
+        const std::pair<int, int> edge = result.edge[edge_index];
+        const int vert_id = reversed ? edge.second : edge.first;
 
-      const float2 pos_2d = float2(result.vert[vert_id]);
-      const float3 position = placement.project(pos_2d);
-      positions[point_i] = position;
+        const float2 pos_2d = float2(result.vert[vert_id]);
+        const float3 position = placement.project(pos_2d);
+        positions[point_i] = position;
+      }
     }
-  }
+  });
 
   curves.cyclic_for_write().fill(true);
   curves.fill_curve_types(CURVE_TYPE_POLY);
