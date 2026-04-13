@@ -10,13 +10,15 @@
 
 #ifdef IMPLICIT_SOLVER_BLENDER
 
+#  include <algorithm>
+#  include <memory>
+#  include <vector>
+
 #  include "MEM_guardedalloc.h"
 
 #  include "BLI_math_geom.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
-#  include "BLI_task.hh"
-
 #  include "BKE_cloth.hh"
 
 #  include "SIM_mass_spring.h"
@@ -61,6 +63,65 @@ struct fmatrix3x3 {
   uint vcount;      /* vertex count */
   uint scount;      /* spring count */
 };
+
+struct BfmatrixIndex {
+  uint vcount = 0;
+  uint scount = 0;
+  /* Adjacency used by the per-output-vertex traversal.
+   * Diagonal blocks are addressed through row_indices, while off-diagonal blocks are also indexed
+   * by column so each output vertex can accumulate its own result independently. */
+  std::vector<uint> row_offsets;
+  std::vector<uint> row_indices;
+  std::vector<uint> col_offsets;
+  std::vector<uint> col_indices;
+};
+
+struct BfmatrixIndexCache {
+  std::unique_ptr<BfmatrixIndex> A;
+  std::unique_ptr<BfmatrixIndex> dFdV;
+  std::unique_ptr<BfmatrixIndex> dFdX;
+  std::unique_ptr<BfmatrixIndex> P;
+  std::unique_ptr<BfmatrixIndex> Pinv;
+  std::unique_ptr<BfmatrixIndex> bigI;
+  std::unique_ptr<BfmatrixIndex> M;
+};
+
+static std::unique_ptr<BfmatrixIndex> build_bfmatrix_index(const fmatrix3x3 *matrix)
+{
+  auto index = std::make_unique<BfmatrixIndex>();
+  index->vcount = matrix[0].vcount;
+  index->scount = matrix[0].scount;
+  const uint total = index->vcount + index->scount;
+
+  index->row_offsets.assign(index->vcount + 1, 0);
+  index->col_offsets.assign(index->vcount + 1, 0);
+
+  for (uint i = 0; i < total; i++) {
+    index->row_offsets[matrix[i].r + 1]++;
+  }
+  for (uint i = index->vcount; i < total; i++) {
+    index->col_offsets[matrix[i].c + 1]++;
+  }
+
+  for (uint i = 1; i <= index->vcount; i++) {
+    index->row_offsets[i] += index->row_offsets[i - 1];
+    index->col_offsets[i] += index->col_offsets[i - 1];
+  }
+
+  index->row_indices.resize(index->row_offsets[index->vcount]);
+  index->col_indices.resize(index->col_offsets[index->vcount]);
+  std::vector<uint> row_write_offsets = index->row_offsets;
+  std::vector<uint> col_write_offsets = index->col_offsets;
+
+  for (uint i = 0; i < total; i++) {
+    index->row_indices[row_write_offsets[matrix[i].r]++] = i;
+  }
+  for (uint i = index->vcount; i < total; i++) {
+    index->col_indices[col_write_offsets[matrix[i].c]++] = i;
+  }
+
+  return index;
+}
 
 ///////////////////////////
 /* float[3] vector */
@@ -166,29 +227,11 @@ DO_INLINE void submul_lfvectorS(float (*to)[3], float (*fLongVector)[3], float s
 /* dot product for big vector */
 DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3], uint verts)
 {
-#  if 0
-  /* TODO: try enabling this and measuring performance. It was previously disabled
-   * due to non-deterministic behavior, but parallel_deterministic_reduce should
-   * give consistent results. */
-  return threading::parallel_deterministic_reduce(
-      IndexRange(0, verts),
-      CLOTH_PARALLEL_LIMIT,
-      0.0,
-      [=](const IndexRange &range, float value) {
-        float temp = value;
-        for (const int i : range) {
-          temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
-        }
-        return temp;
-      },
-      std::plus<>());
-#  else
-  float temp = 0.0;
+  float temp = 0.0f;
   for (uint i = 0; i < verts; i++) {
     temp += dot_v3v3(fLongVectorA[i], fLongVectorB[i]);
   }
   return temp;
-#  endif
 }
 /* `A = B + C` -> for big vector. */
 DO_INLINE void add_lfvector_lfvector(float (*to)[3],
@@ -587,35 +630,6 @@ DO_INLINE void initdiag_bfmatrix(fmatrix3x3 *matrix, float m3[3][3])
   }
 }
 
-/* SPARSE SYMMETRIC multiply big matrix with long vector. */
-/* STATUS: verified */
-DO_INLINE void mul_bfmatrix_lfvector(float (*to)[3], fmatrix3x3 *from, lfVector *fLongVector)
-{
-  uint vcount = from[0].vcount;
-  lfVector *temp = create_lfvector(vcount);
-
-  zero_lfvector(to, vcount);
-
-  threading::parallel_invoke(
-      vcount > CLOTH_PARALLEL_LIMIT,
-      [&]() {
-        for (uint i = from[0].vcount; i < from[0].vcount + from[0].scount; i++) {
-          /* This is the lower triangle of the sparse matrix,
-           * therefore multiplication occurs with transposed sub-matrices. */
-          muladd_fmatrixT_fvector(to[from[i].c], from[i].m, fLongVector[from[i].r]);
-        }
-      },
-      [&]() {
-        for (uint i = 0; i < from[0].vcount + from[0].scount; i++) {
-          muladd_fmatrix_fvector(temp[from[i].r], from[i].m, fLongVector[from[i].c]);
-        }
-      });
-
-  add_lfvector_lfvector(to, to, temp, from[0].vcount);
-
-  del_lfvector(temp);
-}
-
 /* SPARSE SYMMETRIC sub big matrix with big matrix. */
 /* A -= B * float + C * float --> for big matrix */
 /* VERIFIED */
@@ -655,11 +669,15 @@ struct Implicit_Data {
   lfVector *z;          /* target velocity in constrained directions */
   fmatrix3x3 *S;        /* filtering matrix for constraints */
   fmatrix3x3 *P, *Pinv; /* pre-conditioning matrix */
+
+  BfmatrixIndexCache *matrix_index_cache;
 };
 
 Implicit_Data *SIM_mass_spring_solver_create(int numverts, int numsprings)
 {
   Implicit_Data *id = MEM_new_zeroed<Implicit_Data>("implicit vecmat");
+
+  id->matrix_index_cache = MEM_new<BfmatrixIndexCache>("cloth implicit matrix index cache");
 
   /* process diagonal elements */
   id->tfm = create_bfmatrix(numverts, 0);
@@ -687,6 +705,8 @@ Implicit_Data *SIM_mass_spring_solver_create(int numverts, int numsprings)
 
 void SIM_mass_spring_solver_free(Implicit_Data *id)
 {
+  MEM_delete(id->matrix_index_cache);
+
   del_bfmatrix(id->tfm);
   del_bfmatrix(id->A);
   del_bfmatrix(id->dFdV);
@@ -707,6 +727,99 @@ void SIM_mass_spring_solver_free(Implicit_Data *id)
   del_lfvector(id->z);
 
   MEM_delete(id);
+}
+
+static std::unique_ptr<BfmatrixIndex> *bfmatrix_index_cache_slot(Implicit_Data *data,
+                                                                 const fmatrix3x3 *matrix)
+{
+  BLI_assert(data != nullptr);
+  BLI_assert(data->matrix_index_cache != nullptr);
+
+  if (matrix == data->A) {
+    return &data->matrix_index_cache->A;
+  }
+  if (matrix == data->dFdV) {
+    return &data->matrix_index_cache->dFdV;
+  }
+  if (matrix == data->dFdX) {
+    return &data->matrix_index_cache->dFdX;
+  }
+  if (matrix == data->P) {
+    return &data->matrix_index_cache->P;
+  }
+  if (matrix == data->Pinv) {
+    return &data->matrix_index_cache->Pinv;
+  }
+  if (matrix == data->bigI) {
+    return &data->matrix_index_cache->bigI;
+  }
+  if (matrix == data->M) {
+    return &data->matrix_index_cache->M;
+  }
+  return nullptr;
+}
+
+static void bfmatrix_index_clear(Implicit_Data *data, const fmatrix3x3 *matrix)
+{
+  std::unique_ptr<BfmatrixIndex> *index = bfmatrix_index_cache_slot(data, matrix);
+  if (index != nullptr) {
+    index->reset();
+  }
+}
+
+static void bfmatrix_indices_clear_solver_matrices(Implicit_Data *data)
+{
+  bfmatrix_index_clear(data, data->A);
+  bfmatrix_index_clear(data, data->dFdV);
+  bfmatrix_index_clear(data, data->dFdX);
+  bfmatrix_index_clear(data, data->P);
+  bfmatrix_index_clear(data, data->Pinv);
+  bfmatrix_index_clear(data, data->bigI);
+  bfmatrix_index_clear(data, data->M);
+}
+
+static const BfmatrixIndex *bfmatrix_index_ensure(Implicit_Data *data,
+                                                  fmatrix3x3 *matrix,
+                                                  std::unique_ptr<BfmatrixIndex> &local_index)
+{
+  std::unique_ptr<BfmatrixIndex> *cached_index = bfmatrix_index_cache_slot(data, matrix);
+  if (cached_index != nullptr) {
+    if (!*cached_index) {
+      *cached_index = build_bfmatrix_index(matrix);
+    }
+    return cached_index->get();
+  }
+
+  /* Known solver matrices use the dedicated cache slots above.
+   * Keep a local uncached fallback for other matrices rather than relying on shared hidden cache
+   * state. */
+  local_index = build_bfmatrix_index(matrix);
+  return local_index.get();
+}
+
+/* SPARSE SYMMETRIC multiply big matrix with long vector. */
+/* STATUS: verified */
+DO_INLINE void mul_bfmatrix_lfvector(Implicit_Data *data,
+                                     float (*to)[3],
+                                     fmatrix3x3 *from,
+                                     lfVector *fLongVector)
+{
+  std::unique_ptr<BfmatrixIndex> local_index;
+  const BfmatrixIndex *index = bfmatrix_index_ensure(data, from, local_index);
+  BLI_assert(index != nullptr);
+
+  for (uint i = 0; i < index->vcount; i++) {
+    zero_v3(to[i]);
+
+    for (uint j = index->row_offsets[i]; j < index->row_offsets[i + 1]; j++) {
+      const fmatrix3x3 &block = from[index->row_indices[j]];
+      muladd_fmatrix_fvector(to[i], block.m, fLongVector[block.c]);
+    }
+    for (uint j = index->col_offsets[i]; j < index->col_offsets[i + 1]; j++) {
+      const fmatrix3x3 &block = from[index->col_indices[j]];
+      muladd_fmatrixT_fvector(to[i], block.m, fLongVector[block.r]);
+    }
+  }
 }
 
 /* ==== Transformation from/to root reference frames ==== */
@@ -752,77 +865,8 @@ DO_INLINE void filter(lfVector *V, fmatrix3x3 *S)
   }
 }
 
-/* this version of the CG algorithm does not work very well with partial constraints
- * (where S has non-zero elements). */
-#  if 0
-static int cg_filtered(lfVector *ldV, fmatrix3x3 *lA, lfVector *lB, lfVector *z, fmatrix3x3 *S)
-{
-  /* Solves for unknown X in equation AX=B */
-  uint conjgrad_loopcount = 0, conjgrad_looplimit = 100;
-  float conjgrad_epsilon = 0.0001f /* , conjgrad_lasterror=0 */ /* UNUSED */;
-  lfVector *q, *d, *tmp, *r;
-  float s, starget, a, s_prev;
-  uint numverts = lA[0].vcount;
-  q = create_lfvector(numverts);
-  d = create_lfvector(numverts);
-  tmp = create_lfvector(numverts);
-  r = create_lfvector(numverts);
-
-  // zero_lfvector(ldV, CLOTHPARTICLES);
-  filter(ldV, S);
-
-  add_lfvector_lfvector(ldV, ldV, z, numverts);
-
-  // r = B - Mul(tmp, A, X);    /* just use B if X known to be zero. */
-  cp_lfvector(r, lB, numverts);
-  mul_bfmatrix_lfvector(tmp, lA, ldV);
-  sub_lfvector_lfvector(r, r, tmp, numverts);
-
-  filter(r, S);
-
-  cp_lfvector(d, r, numverts);
-
-  s = dot_lfvector(r, r, numverts);
-  starget = s * sqrtf(conjgrad_epsilon);
-
-  while (s > starget && conjgrad_loopcount < conjgrad_looplimit) {
-    // Mul(q, A, d); /* q = A*d; */
-    mul_bfmatrix_lfvector(q, lA, d);
-
-    filter(q, S);
-
-    a = s / dot_lfvector(d, q, numverts);
-
-    /* `X = X + d*a;` */
-    add_lfvector_lfvectorS(ldV, ldV, d, a, numverts);
-
-    /* `r = r - q*a;` */
-    sub_lfvector_lfvectorS(r, r, q, a, numverts);
-
-    s_prev = s;
-    s = dot_lfvector(r, r, numverts);
-
-    /* `d = r+d*(s/s_prev);` */
-    add_lfvector_lfvectorS(d, r, d, (s / s_prev), numverts);
-
-    filter(d, S);
-
-    conjgrad_loopcount++;
-  }
-  // conjgrad_lasterror = s; /* UNUSED */
-
-  del_lfvector(q);
-  del_lfvector(d);
-  del_lfvector(tmp);
-  del_lfvector(r);
-  // printf("W/O conjgrad_loopcount: %d\n", conjgrad_loopcount);
-
-  /* True means we reached desired accuracy in given time - ie stable. */
-  return conjgrad_loopcount < conjgrad_looplimit;
-}
-#  endif
-
-static int cg_filtered(lfVector *ldV,
+static int cg_filtered(Implicit_Data *data,
+                       lfVector *ldV,
                        fmatrix3x3 *lA,
                        lfVector *lB,
                        lfVector *z,
@@ -851,7 +895,7 @@ static int cg_filtered(lfVector *ldV,
   delta_target = conjgrad_epsilon * conjgrad_epsilon * bnorm2;
 
   /* r = filter(B - A * dV) */
-  mul_bfmatrix_lfvector(AdV, lA, ldV);
+  mul_bfmatrix_lfvector(data, AdV, lA, ldV);
   sub_lfvector_lfvector(r, lB, AdV, numverts);
   filter(r, S);
 
@@ -874,7 +918,7 @@ static int cg_filtered(lfVector *ldV,
 #  endif
 
   while (delta_new > delta_target && conjgrad_loopcount < conjgrad_looplimit) {
-    mul_bfmatrix_lfvector(q, lA, c);
+    mul_bfmatrix_lfvector(data, q, lA, c);
     filter(q, S);
 
     alpha = delta_new / dot_lfvector(c, q, numverts);
@@ -1135,7 +1179,7 @@ bool SIM_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSol
 
   subadd_bfmatrixS_bfmatrixS(data->A, data->dFdV, dt, data->dFdX, (dt * dt));
 
-  mul_bfmatrix_lfvector(dFdXmV, data->dFdX, data->V);
+  mul_bfmatrix_lfvector(data, dFdXmV, data->dFdX, data->V);
 
   add_lfvectorS_lfvectorS(data->B, data->F, dt, dFdXmV, (dt * dt), numverts);
 
@@ -1144,7 +1188,7 @@ bool SIM_mass_spring_solve_velocities(Implicit_Data *data, float dt, ImplicitSol
 #  endif
 
   /* Conjugate gradient algorithm to solve Ax=b. */
-  cg_filtered(data->dV, data->A, data->B, data->z, data->S, result);
+  cg_filtered(data, data->dV, data->A, data->B, data->z, data->S, result);
 
   // cg_filtered_pre(id->dV, id->A, id->B, id->z, id->S, id->P, id->Pinv, id->bigI);
 
@@ -1331,6 +1375,8 @@ void SIM_mass_spring_add_constraint_ndof2(Implicit_Data *data,
 void SIM_mass_spring_clear_forces(Implicit_Data *data)
 {
   int numverts = data->M[0].vcount;
+  bfmatrix_indices_clear_solver_matrices(data);
+
   zero_lfvector(data->F, numverts);
   init_bfmatrix(data->dFdX, ZERO);
   init_bfmatrix(data->dFdV, ZERO);
