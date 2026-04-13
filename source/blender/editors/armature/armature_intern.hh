@@ -159,22 +159,22 @@ struct PropertySnapshot {
 
 /* Temporary struct wrapping data used for pose sliding. */
 struct SlideSubject {
-  SlideSubject *next, *prev = nullptr;
+  SlideSubject *next, *prev;
 
   /** The Transformable which the data is attached to */
-  animrig::Transformable *transformable = nullptr;
+  animrig::Transformable *transformable;
   /* A pointer to the data represented by this link. */
   PointerRNA ptr;
   /** F-Curves for this Transformable. */
-  Vector<FCurve *> fcurves = {};
+  Vector<FCurve *> fcurves;
   /* This is used as an optimization to only do blending on transform types that actually have
    * animation. */
-  eAction_TransformFlags transform_flag = eAction_TransformFlags(0);
+  eAction_TransformFlags transform_flag;
 
   /** Transform values at start of operator (to be restored before each modal step). */
-  Array<float> old_loc = {};
-  animrig::Rotation old_rot = {};
-  Array<float> old_scale = {};
+  Array<float> old_loc;
+  animrig::Rotation old_rot;
+  Array<float> old_scale;
 
   /* Additional properties of the transformable to affect which are not custom properties. */
   Vector<PropertySnapshot> additional_properties;
