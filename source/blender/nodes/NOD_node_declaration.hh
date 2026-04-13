@@ -697,7 +697,6 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
 
   const bNode *node_or_null() const
   {
-    /* FIXME: calling this function makes EEVEE render wrong. */
     declaration_.is_context_dependent = true;
     return node_;
   }

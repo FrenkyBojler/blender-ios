@@ -231,9 +231,18 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   const Spectrum albedo = INTEGRATOR_STATE(state, subsurface, albedo);
   const Spectrum radius = INTEGRATOR_STATE(state, subsurface, radius);
   float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
-  const bool van_de_hulst = (anisotropy < 2.0f);
+
+  bool van_de_hulst;
   if (anisotropy >= 1.0f) {
+    /* Legacy random walk was mapped from (-1, 1) to (1, 3) when stored in integrator state.
+     * Remapp to the original value. */
     anisotropy -= 2.0f;
+    /* Legacy mapping doesn't support negative range, use Van de Hulst instead. */
+    van_de_hulst = anisotropy < 0.0f;
+  }
+  else {
+    /* Use Van de Hulst mapping for the new random walk model. */
+    van_de_hulst = true;
   }
 
   Spectrum sigma_t;
