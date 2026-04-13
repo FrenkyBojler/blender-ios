@@ -73,3 +73,13 @@ void node_attribute(float4 attr, float4 &outcol, float3 &outvec, float &outf, fl
   outf = math_average(attr.xyz);
   outalpha = attr.w;
 }
+
+
+
+
+[[node]]
+void node_attribute_as_int(float4 src, float &dst) { dst = floor(math_average(src.xyz)); }
+[[node]]
+void node_attribute_as_bool(float4 src, float &dst) { dst = clamp(0.0f, 1.0f, math_average(src.xyz)); }
+[[node]]
+void node_attribute_as_float(float4 src, float &dst) { dst = math_average(src.xyz); }

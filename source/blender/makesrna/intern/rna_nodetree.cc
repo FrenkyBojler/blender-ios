@@ -3206,6 +3206,47 @@ static bool rna_NodeGroup_node_tree_poll(PointerRNA *ptr, const PointerRNA value
   return bke::node_group_poll(ntree, ngroup, &disabled_hint);
 }
 
+static void rna_shader_geometry_attribute_node_tree_set(PointerRNA *ptr,
+                                                        const PointerRNA value,
+                                                        ReportList * /*reports*/)
+{
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bNode *node = ptr->data_as<bNode>();
+  bNodeTree *ngroup = static_cast<bNodeTree *>(value.data);
+
+  const char *disabled_hint = nullptr;
+  if (ngroup != nullptr && ngroup->type != NTREE_GEOMETRY) {
+    return;
+  }
+  if (node->id) {
+    id_us_min(node->id);
+  }
+  if (ngroup) {
+    id_us_plus(&ngroup->id);
+  }
+
+  node->id = &ngroup->id;
+}
+
+static bool rna_shader_geometry_attribute_node_tree_poll(PointerRNA *ptr, const PointerRNA value)
+{
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bNodeTree *ngroup = static_cast<bNodeTree *>(value.data);
+
+  /* only allow node trees of the same type as the group node's tree */
+  return ngroup->type == NTREE_GEOMETRY;
+}
+
+static void rna_shader_geometry_attribute_node_tree_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bNode *node = ptr->data_as<bNode>();
+
+  BKE_ntree_update_tag_node_property(ntree, node);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+  DEG_relations_tag_update(bmain);
+}
+
 static void rna_Node_scene_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
 {
   bNode *node = ptr->data_as<bNode>();
@@ -5182,23 +5223,14 @@ static void def_sh_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_sh_geometry_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  PropertyRNA *prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, rna_enum_attribute_type_items);
-  // RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeAttributeType_for_shader_itemf");
-  RNA_def_property_enum_default(prop, CD_PROP_FLOAT);
-  RNA_def_property_ui_text(prop, "Data Type", "");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
-
-  prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
+  PropertyRNA *prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "id");
   RNA_def_property_struct_type(prop, "NodeTree");
-  // RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_NodeGroup_node_tree_poll");
+  RNA_def_property_pointer_funcs(prop, nullptr, "rna_shader_geometry_attribute_node_tree_set", nullptr, "rna_shader_geometry_attribute_node_tree_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_shader_geometry_attribute_node_tree_update");
 }
 
 static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)
