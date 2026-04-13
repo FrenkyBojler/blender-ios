@@ -12,13 +12,13 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_camera_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
@@ -444,7 +444,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
     for (Camera &cam : bmain->cameras) {
       cam.composition_guide_flags &= COMPOSITION_GUIDES_ENABLED;
-    } 
+    }
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

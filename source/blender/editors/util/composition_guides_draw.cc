@@ -103,7 +103,7 @@ void draw_composition_guides(uint shdr_pos,
   if (!(flag & COMPOSITION_GUIDES_ENABLED)) {
     return;
   }
-  
+
   immUniformColor4fv(color);
 
   if (flag & COMPOSITION_GUIDES_CENTER) {

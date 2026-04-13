@@ -10,9 +10,9 @@
 #pragma once
 
 #include "DNA_asset_types.h"
-#include "DNA_color_types.h" /* for Histogram */
-#include "DNA_defs.h"
 #include "DNA_camera_types.h" /* for COMPOSITION_GUIDES_ENABLED*/
+#include "DNA_color_types.h"  /* for Histogram */
+#include "DNA_defs.h"
 #include "DNA_image_types.h" /* ImageUser */
 #include "DNA_listBase.h"
 #include "DNA_mask_types.h"
