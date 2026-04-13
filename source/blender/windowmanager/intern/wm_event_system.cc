@@ -1780,7 +1780,8 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
           }
 
           if (region->regiontype == RGN_TYPE_PREVIEW_SCRUBBING) {
-            /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region. */
+            /* Disable cursor wrapping/continuous grab when scrubbing playhead in scrubbing region.
+             */
             wrap = WM_CURSOR_WRAP_NONE;
           }
         }
