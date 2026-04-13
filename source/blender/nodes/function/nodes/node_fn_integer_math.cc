@@ -73,14 +73,39 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bke::node_set_socket_availability(*ntree, *sockC, three_input_ops);
 }
 
+static void int_math_input_defaults(bNode &node, const NodeIntegerMathOperation operation)
+{
+  bNodeSocket *socket_2 = bke::node_find_socket(node, SOCK_IN, "Value_001");
+  BLI_assert(socket_2 != nullptr);
+  int &value_2 = socket_2->default_value_typed<bNodeSocketValueInt>()->value;
+
+  switch (operation) {
+    case NODE_INTEGER_MATH_MULTIPLY:
+    case NODE_INTEGER_MATH_DIVIDE:
+    case NODE_INTEGER_MATH_MULTIPLY_ADD:
+    case NODE_INTEGER_MATH_DIVIDE_CEIL:
+    case NODE_INTEGER_MATH_DIVIDE_FLOOR:
+    case NODE_INTEGER_MATH_DIVIDE_ROUND:
+    case NODE_INTEGER_MATH_FLOORED_MODULO:
+    case NODE_INTEGER_MATH_MODULO: {
+      value_2 = 1;
+      break;
+    }
+
+    default:
+      /* Use the default defined in the node declaration otherwise. */
+      break;
+  }
+}
 class SocketSearchOp {
  public:
   UString socket_name;
   NodeIntegerMathOperation operation;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("FunctionNodeIntegerMath");
+    bNode &node = params.add_node("FunctionNodeIntegerMath"_ustr);
     node.custom1 = NodeIntegerMathOperation(operation);
+    int_math_input_defaults(node, operation);
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -261,7 +286,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeIntegerMath", FN_NODE_INTEGER_MATH);
+  fn_node_type_base(&ntype, "FunctionNodeIntegerMath"_ustr, FN_NODE_INTEGER_MATH);
   ntype.ui_name = "Integer Math";
   ntype.ui_description = "Perform various math operations on the given integer inputs";
   ntype.enum_name_legacy = "INTEGER_MATH";
