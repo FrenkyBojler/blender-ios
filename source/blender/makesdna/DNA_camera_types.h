@@ -47,7 +47,7 @@ enum {
 };
 
 /* Composition Guides */
-enum eCompositionGuideFlags{
+enum eCompositionGuideFlags {
   COMPOSITION_GUIDES_CENTER = (1 << 0),
   COMPOSITION_GUIDES_CENTER_DIAG = (1 << 1),
   COMPOSITION_GUIDES_THIRDS = (1 << 2),
@@ -255,7 +255,7 @@ struct Camera {
   /* Stereo settings */
   struct CameraStereoSettings stereo;
 
-  /* Compositional guide overlay color */ 
+  /* Compositional guide overlay color */
   float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 
   /** Runtime data (keep last). */

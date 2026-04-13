@@ -658,9 +658,9 @@ static void rna_def_camera_dof_settings_data(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-
 /* This method is abit hacky but works... */
-void rna_def_composition_guides(StructRNA *srna, const char *dna_flag_prop_name, int noteflag) {
+void rna_def_composition_guides(StructRNA *srna, const char *dna_flag_prop_name, int noteflag)
+{
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "show_composition_center", PROP_BOOLEAN, PROP_NONE);
@@ -688,27 +688,31 @@ void rna_def_composition_guides(StructRNA *srna, const char *dna_flag_prop_name,
   RNA_def_property_update(prop, noteflag, nullptr);
 
   prop = RNA_def_property(srna, "show_composition_golden_tria_a", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_GOLDEN_TRI_A);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_GOLDEN_TRI_A);
   RNA_def_property_ui_text(prop,
                            "Golden Triangle A",
                            "Display golden triangle A composition guide inside the camera view");
   RNA_def_property_update(prop, noteflag, nullptr);
 
   prop = RNA_def_property(srna, "show_composition_golden_tria_b", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_GOLDEN_TRI_B);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_GOLDEN_TRI_B);
   RNA_def_property_ui_text(prop,
                            "Golden Triangle B",
                            "Display golden triangle B composition guide inside the camera view");
   RNA_def_property_update(prop, noteflag, nullptr);
 
   prop = RNA_def_property(srna, "show_composition_harmony_tri_a", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_HARMONY_TRI_A);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_HARMONY_TRI_A);
   RNA_def_property_ui_text(
       prop, "Harmonious Triangle A", "Display harmony A composition guide inside the camera view");
   RNA_def_property_update(prop, noteflag, nullptr);
 
   prop = RNA_def_property(srna, "show_composition_harmony_tri_b", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_HARMONY_TRI_B);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_HARMONY_TRI_B);
   RNA_def_property_ui_text(
       prop, "Harmonious Triangle B", "Display harmony B composition guide inside the camera view");
   RNA_def_property_update(prop, noteflag, nullptr);

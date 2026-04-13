@@ -6427,14 +6427,15 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
       prop, "Center-Cut Safe Areas", "Show safe areas to fit content in a different aspect ratio");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
-  rna_def_composition_guides(srna, "preview_overlay.composition_guide_flags", NC_SPACE | ND_SPACE_SEQUENCER);
-  
+  rna_def_composition_guides(
+      srna, "preview_overlay.composition_guide_flags", NC_SPACE | ND_SPACE_SEQUENCER);
+
   prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "preview_overlay.composition_guide_color");
   RNA_def_property_ui_text(
-    prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
+      prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-  
+
   prop = RNA_def_property(srna, "show_metadata", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_METADATA);
   RNA_def_property_ui_text(prop, "Show Metadata", "Show metadata of first visible strip");

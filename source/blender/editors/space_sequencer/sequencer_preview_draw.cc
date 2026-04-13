@@ -245,7 +245,11 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
   }
 
   /* Draw Composition Guides */
-  ui::draw_composition_guides(shdr_pos, static_cast<eCompositionGuideFlags>(sseq.preview_overlay.composition_guide_flags), &rect, sseq.preview_overlay.composition_guide_color);
+  ui::draw_composition_guides(
+      shdr_pos,
+      static_cast<eCompositionGuideFlags>(sseq.preview_overlay.composition_guide_flags),
+      &rect,
+      sseq.preview_overlay.composition_guide_color);
 
   immUnbindProgram();
 }

@@ -37,8 +37,7 @@ static void drawviewborder_grid3(uint shdr_pos, rctf *rect, float fac)
 }
 
 /* harmonious triangle */
-static void drawviewborder_triangle(
-    uint shdr_pos, rctf *rect, const char golden, const char dir)
+static void drawviewborder_triangle(uint shdr_pos, rctf *rect, const char golden, const char dir)
 {
   /* Has to create local copies in order to use std::swap*/
   float xmin = rect->xmin;
@@ -96,60 +95,64 @@ static void drawviewborder_triangle(
   immEnd();
 }
 
-void draw_composition_guides(uint shdr_pos, eCompositionGuideFlags flag, rctf *rect, const float color[4]) {
-    immUniformColor4fv(color);
+void draw_composition_guides(uint shdr_pos,
+                             eCompositionGuideFlags flag,
+                             rctf *rect,
+                             const float color[4])
+{
+  immUniformColor4fv(color);
 
-    if (flag & COMPOSITION_GUIDES_CENTER) {
-      float xmid, ymid;
+  if (flag & COMPOSITION_GUIDES_CENTER) {
+    float xmid, ymid;
 
-      xmid = rect->xmin + 0.5f * (rect->xmax - rect->xmin);
-      ymid = rect->ymin + 0.5f * (rect->ymax - rect->ymin);
+    xmid = rect->xmin + 0.5f * (rect->xmax - rect->xmin);
+    ymid = rect->ymin + 0.5f * (rect->ymax - rect->ymin);
 
-      immBegin(GPU_PRIM_LINES, 4);
+    immBegin(GPU_PRIM_LINES, 4);
 
-      immVertex2f(shdr_pos, rect->xmin, ymid);
-      immVertex2f(shdr_pos, rect->xmax, ymid);
+    immVertex2f(shdr_pos, rect->xmin, ymid);
+    immVertex2f(shdr_pos, rect->xmax, ymid);
 
-      immVertex2f(shdr_pos, xmid, rect->ymin);
-      immVertex2f(shdr_pos, xmid, rect->ymax);
+    immVertex2f(shdr_pos, xmid, rect->ymin);
+    immVertex2f(shdr_pos, xmid, rect->ymax);
 
-      immEnd();
-    }
+    immEnd();
+  }
 
-    if (flag & COMPOSITION_GUIDES_CENTER_DIAG) {
-      immBegin(GPU_PRIM_LINES, 4);
+  if (flag & COMPOSITION_GUIDES_CENTER_DIAG) {
+    immBegin(GPU_PRIM_LINES, 4);
 
-      immVertex2f(shdr_pos, rect->xmin, rect->ymin);
-      immVertex2f(shdr_pos, rect->xmax, rect->ymax);
+    immVertex2f(shdr_pos, rect->xmin, rect->ymin);
+    immVertex2f(shdr_pos, rect->xmax, rect->ymax);
 
-      immVertex2f(shdr_pos, rect->xmin, rect->ymax);
-      immVertex2f(shdr_pos, rect->xmax, rect->ymin);
+    immVertex2f(shdr_pos, rect->xmin, rect->ymax);
+    immVertex2f(shdr_pos, rect->xmax, rect->ymin);
 
-      immEnd();
-    }
+    immEnd();
+  }
 
-    if (flag & COMPOSITION_GUIDES_THIRDS) {
-      drawviewborder_grid3(shdr_pos, rect, 1.0f / 3.0f);
-    }
+  if (flag & COMPOSITION_GUIDES_THIRDS) {
+    drawviewborder_grid3(shdr_pos, rect, 1.0f / 3.0f);
+  }
 
-    if (flag & COMPOSITION_GUIDES_GOLDEN) {
-      drawviewborder_grid3(shdr_pos,rect, 1.0f - M_GOLDEN_RATIO_CONJUGATE);
-    }
+  if (flag & COMPOSITION_GUIDES_GOLDEN) {
+    drawviewborder_grid3(shdr_pos, rect, 1.0f - M_GOLDEN_RATIO_CONJUGATE);
+  }
 
-    if (flag & COMPOSITION_GUIDES_GOLDEN_TRI_A) {
-      drawviewborder_triangle(shdr_pos, rect, 0, 'A');
-    }
+  if (flag & COMPOSITION_GUIDES_GOLDEN_TRI_A) {
+    drawviewborder_triangle(shdr_pos, rect, 0, 'A');
+  }
 
-    if (flag & COMPOSITION_GUIDES_GOLDEN_TRI_B) {
-      drawviewborder_triangle(shdr_pos, rect, 0, 'B');
-    }
+  if (flag & COMPOSITION_GUIDES_GOLDEN_TRI_B) {
+    drawviewborder_triangle(shdr_pos, rect, 0, 'B');
+  }
 
-    if (flag & COMPOSITION_GUIDES_HARMONY_TRI_A) {
-      drawviewborder_triangle(shdr_pos, rect, 1, 'A');
-    }
+  if (flag & COMPOSITION_GUIDES_HARMONY_TRI_A) {
+    drawviewborder_triangle(shdr_pos, rect, 1, 'A');
+  }
 
-    if (flag & COMPOSITION_GUIDES_HARMONY_TRI_B) {
-      drawviewborder_triangle(shdr_pos, rect, 1, 'B');
-    }
+  if (flag & COMPOSITION_GUIDES_HARMONY_TRI_B) {
+    drawviewborder_triangle(shdr_pos, rect, 1, 'B');
+  }
 }
 }  // namespace blender::ui

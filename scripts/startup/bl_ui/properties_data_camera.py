@@ -477,26 +477,25 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
 
         cam = context.camera
         self.draw_flags(cam, layout)
-                
+
         col = layout.column()
         col.prop(cam, "composition_guide_color", text="Color")
-    
+
     @classmethod
     def draw_flags(cls, item, layout):
         layout.prop(item, "show_composition_thirds")
         col = layout.column(heading="Center", align=True)
         col.prop(item, "show_composition_center")
         col.prop(item, "show_composition_center_diagonal", text="Diagonal")
-            
+
         col = layout.column(heading="Golden", align=True)
         col.prop(item, "show_composition_golden", text="Ratio")
         col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
         col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
-        
+
         col = layout.column(heading="Harmony", align=True)
         col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
         col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
-
 
 
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):

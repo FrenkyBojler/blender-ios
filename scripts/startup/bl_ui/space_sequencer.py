@@ -230,12 +230,12 @@ class SEQUENCER_PT_preview_overlay(Panel):
         col.prop(overlay_settings, "show_cursor")
         col.prop(overlay_settings, "show_safe_areas", text="Safe Areas")
         col.prop(overlay_settings, "show_annotation", text="Annotations")
-        
+
         header, body = layout.panel("comp_guides", default_closed=True)
         header.label(text="Composition Guides")
         from bpy.types import DATA_PT_camera_display_composition_guides
-        DATA_PT_camera_display_composition_guides.draw_flags(overlay_settings, body)  
-        if(body):
+        DATA_PT_camera_display_composition_guides.draw_flags(overlay_settings, body)
+        if (body):
             body.prop(overlay_settings, "composition_guide_color", text="Color")
 
 

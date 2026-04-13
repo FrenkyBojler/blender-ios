@@ -586,7 +586,10 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   if (ca && (v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
     GPU_blend(GPU_BLEND_ALPHA);
 
-    ui::draw_composition_guides(shdr_pos, static_cast<eCompositionGuideFlags>(ca->composition_guide_flags), &viewborder, ca->composition_guide_color);
+    ui::draw_composition_guides(shdr_pos,
+                                static_cast<eCompositionGuideFlags>(ca->composition_guide_flags),
+                                &viewborder,
+                                ca->composition_guide_color);
 
     if (ca->flag & CAM_SHOW_SAFE_MARGINS) {
       rctf margins_rect{};
