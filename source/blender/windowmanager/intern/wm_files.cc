@@ -3293,10 +3293,10 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   /* Date. */
   const tm mod_time = *localtime(&stats.st_mtime);
   const time_t ts_now = time(nullptr);
-  const tm now = *localtime(&ts_now);
+  const tm now_tm = *localtime(&ts_now);
   const char *lang = BLT_lang_get();
-  std::string modified_s = date_format::datetime(
-      &mod_time, lang, &now, TIP_("Today"), TIP_("Yesterday"));
+  std::string modified_s = blender::date_format::datetime(
+      &mod_time, lang, &now_tm, TIP_("Today"), TIP_("Yesterday"));
 
   /* Size. */
   char size_str[FILELIST_DIRENTRY_SIZE_LEN];

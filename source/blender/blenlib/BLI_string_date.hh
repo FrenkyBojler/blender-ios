@@ -11,8 +11,7 @@
  * time strings. The localization is based on the CLDR from the current locale.
  */
 
-// #include <chrono>
-// #include <iomanip>
+#include <ctime>
 #include <string>
 
 #include "BLI_string_ref.hh"
