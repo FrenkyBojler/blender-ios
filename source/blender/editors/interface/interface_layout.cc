@@ -5644,20 +5644,21 @@ void Layout::resolve()
 
 static void label_multiline_wrap_lines(ButtonLabel *button)
 {
-  const uiFontStyle &fstyle = style_get()->widget;
+  const float aspect = button->block->aspect;
   int icon_width_pad = 0;
   if (button->flag & UI_HAS_ICON) {
     icon_width_pad = UI_UNIT_X * (text_pad_none.icon + text_pad_none.text);
   }
-  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)) - icon_width_pad, 0);
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&button->rect)) - icon_width_pad, 0) /
+                    aspect;
   StringRef text = button->str;
   text = text.trim();
   /* Sometimes blocks are updated from old blocks before resolving the layout, so the button could
    * have adquire old button wrap cache. */
   if (button->wrap_cache) {
     TextWrapCache &cache = *button->wrap_cache;
-    if (!(cache.wrap_width == width && cache.text == text)) {
-      button->wrap_cache = {};
+    if (!(cache.aspect == aspect && cache.wrap_width == width && cache.text == text)) {
+      button->wrap_cache.reset();
     }
   }
   else if (button->block->oldblock) {
@@ -5684,9 +5685,11 @@ static void label_multiline_wrap_lines(ButtonLabel *button)
   TextWrapCache &cache = *button->wrap_cache;
   cache.text = text;
   cache.wrap_width = width;
+  cache.aspect = aspect;
 
   button->block->text_wrap_cache.append(button->wrap_cache);
-
+  uiFontStyle fstyle = style_get()->widget;
+  fontscale(&fstyle.points,aspect);
   fontstyle_set(&fstyle);
   cache.wrapped_lines = BLF_string_wrap(
       fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit);

@@ -373,6 +373,7 @@ struct ButtonPush : public Button {
 
 struct TextWrapCache {
   int wrap_width = 0;
+  float aspect = 0.0f;
   std::string text;
   Vector<StringRef> wrapped_lines;
 };

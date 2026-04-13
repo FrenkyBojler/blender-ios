@@ -785,11 +785,6 @@ void wm_event_do_notifiers(bContext *C)
           region_params.region = &region;
           region_params.scene = scene;
           region_params.notifier = note;
-
-          ED_region_do_listen(&region_params);
-          if (note->category == NC_FONT_UI) {
-            ui::invalidate_text_wrap_cache(region);
-          }
         }
 
         ED_screen_areas_iter (&win, screen, area) {
@@ -814,10 +809,6 @@ void wm_event_do_notifiers(bContext *C)
             region_params.region = &region;
             region_params.scene = scene;
             region_params.notifier = note;
-            ED_region_do_listen(&region_params);
-            if (note->category == NC_FONT_UI) {
-              ui::invalidate_text_wrap_cache(region);
-            }
           }
         }
       }

@@ -7071,6 +7071,11 @@ void invalidate_text_wrap_cache(const ARegion &region)
 {
   for (Block &block : region.runtime->uiblocks) {
     block.text_wrap_cache.clear();
+    for (Button &button : block.buttons()) {
+      if (button.type == ButtonType::Label) {
+        static_cast<ButtonLabel &>(button).wrap_cache.reset();
+      }
+    }
   }
 }
 
