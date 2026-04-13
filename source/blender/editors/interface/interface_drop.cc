@@ -43,16 +43,24 @@ bool drop_target_apply_drop(bContext &C,
 
     AbstractView *view = region_view_find_at(&region, event.xy, 0);
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
-      if (ELEM(tree_view->invert_sort_type_get(),
-               TreeViewSortOrder::InvertRoot,
-               TreeViewSortOrder::InvertNested))
-      {
-        /* Switch drop location when invert sorting is enabled. */
-        if (*drop_location == DropLocation::After) {
-          *drop_location = DropLocation::Before;
+      TreeViewSortOrder sortorder = tree_view->invert_sort_type_get();
+      if (sortorder != TreeViewSortOrder::None) {
+        AbstractTreeViewItem *dropitem = dynamic_cast<AbstractTreeViewItem *>(
+            region_views_find_item_at(region, event.xy));
+
+        bool change_drop_order = (sortorder == TreeViewSortOrder::InvertNested);
+        if (sortorder == TreeViewSortOrder::InvertRoot) {
+          tree_view->foreach_root_item(
+              [&](AbstractTreeViewItem &item) { change_drop_order |= (dropitem == &item); });
         }
-        else if (*drop_location == DropLocation::Before) {
-          *drop_location = DropLocation::After;
+        if (change_drop_order) {
+          /* Switch drop location when invert sorting is enabled. */
+          if (*drop_location == DropLocation::After) {
+            *drop_location = DropLocation::Before;
+          }
+          else if (*drop_location == DropLocation::Before) {
+            *drop_location = DropLocation::After;
+          }
         }
       }
     }
