@@ -2351,13 +2351,14 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
 {
   /* Draw text. */
   ButtonLabel *multiline_button = static_cast<ButtonLabel *>(but);
-  const float line_height = BLI_rcti_size_y(rect) /
-                            float(multiline_button->wrap_cache->wrapped_lines.size());
+
+  const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET) / but->block->aspect;
+  const float padding = (std::max(UI_UNIT_Y - line_height, 0.0f) / 2.0f) / but->block->aspect;
 
   FontStyleDrawParams params{};
   params.align = multiline_button->text_align;
 
-  float ymax = rect->ymax;
+  float ymax = rect->ymax - padding;
   rcti line_rect = *rect;
   int sccissors[4];
   GPU_scissor_get(sccissors);

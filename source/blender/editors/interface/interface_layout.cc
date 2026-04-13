@@ -5694,13 +5694,13 @@ static void label_multiline_wrap_lines(ButtonLabel *button)
 
 static void resolve_label_multiline(ButtonLabel *button)
 {
-  static constexpr float label_multiline_line_height_factor = 0.75f;
-
   label_multiline_wrap_lines(button);
-  button->rect.ymin = button->rect.ymax -
-                      UI_UNIT_Y * std::max<float>(1.0f,
-                                                  button->wrap_cache->wrapped_lines.size() *
-                                                      label_multiline_line_height_factor);
+  const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET);
+  /* Top and bottom Text text padding. */
+  const float padding = std::max(UI_UNIT_Y - line_height, 0.0f);
+  const float height = padding + line_height * button->wrap_cache->wrapped_lines.size();
+
+  button->rect.ymin = button->rect.ymax - std::max<float>(UI_UNIT_Y, height);
 }
 
 int Layout::resolve_dynamic_height()
