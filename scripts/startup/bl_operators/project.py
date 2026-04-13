@@ -51,10 +51,6 @@ def structure_int_float_str(obj: int | float | str, cl: type) -> int | float | s
         raise ValueError(f"Cannot structure {obj!r} as int | float | str")
 
 
-converter = cattrs.Converter()
-converter.register_structure_hook(int | float | str, structure_int_float_str)
-
-
 # -------------------------------------------------------------
 # Custom exception types, for anticipated errors that should be reported to the
 # user.
@@ -290,6 +286,7 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
 
     # Validate schema and convert to ProjectConfig class.
     converter = cattrs.Converter()
+    converter.register_structure_hook(int | float | str, structure_int_float_str)
     try:
         project_config = converter.structure(config_dict, ProjectConfig)
     except cattrs.BaseValidationError as e:
