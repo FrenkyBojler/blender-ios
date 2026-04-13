@@ -60,7 +60,7 @@ enum eUserPref_Flag {
   USER_HIDE_DOT_DATABLOCK = (1 << 28),
   USER_BLENDER_UPDATE_LATEST_RELEASE = (1 << 29),
   USER_BLENDER_UPDATE_LATEST_LTS_RELEASE = (1 << 30),
-  USER_BLENDER_UPDATE_CURRENT_RELEASE = (1 << 31),
+  USER_BLENDER_UPDATE_CURRENT_RELEASE = (1u << 31u),
 };
 
 /** #UserDef.extension_flag */
@@ -878,7 +878,7 @@ struct UserDef {
   /** #eUserPref_Flag. */
   int flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM |
               USER_SCRIPT_AUTOEXEC_DISABLE | USER_NONEGFRAMES | USER_FILECOMPRESS |
-              USER_HIDE_DOT_DATABLOCK);
+              USER_HIDE_DOT_DATABLOCK | USER_BLENDER_UPDATE_LATEST_RELEASE);
   /** #eDupli_ID_Flags. */
   unsigned int dupflag = USER_DUP_MESH | USER_DUP_CURVE | USER_DUP_SURF | USER_DUP_LATTICE |
                          USER_DUP_FONT | USER_DUP_MBALL | USER_DUP_LAMP | USER_DUP_ARM |
@@ -1226,8 +1226,8 @@ struct UserDef {
   char save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK; /* eUserpref_Save_Modified_Images */
 
   char file_preview_type = USER_FILE_PREVIEW_AUTO; /* eUserpref_File_Preview_Type */
-  char statusbar_flag = STATUSBAR_SHOW_VERSION |
-                        STATUSBAR_SHOW_EXTENSIONS_UPDATES; /* eUserpref_StatusBar_Flag */
+  char statusbar_flag = STATUSBAR_SHOW_VERSION | STATUSBAR_SHOW_EXTENSIONS_UPDATES |
+                        STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG; /* eUserpref_StatusBar_Flag */
 
   struct WalkNavigation walk_navigation;
   struct XrNavigation xr_navigation;
