@@ -1,6 +1,7 @@
 #include "ANIM_transformable.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "BKE_action.hh"
@@ -141,6 +142,32 @@ TEST_F(TransformableTest, transformable_blend_to)
   EXPECT_NEAR_SPAN(expected.as_span(),
                    transformable.get_property(Transformable::PropertyType::LOCATION).as_span(),
                    0.001);
+}
+
+TEST_F(TransformableTest, transformable_blend_rotation_to)
+{
+  Transformable transformable(*armature_object, *pose_bone);
+  /* There is a special function for rotations that does spherical interpolation for
+   * quaternions. */
+  EXPECT_EQ(pose_bone->rotmode, ROT_MODE_QUAT);
+  /* A 90 degree rotation on X. */
+  Rotation rot_90_x = {{0.707107f, 0.707107f, 0, 0}, ROT_MODE_QUAT};
+  transformable.blend_rotation_to(rot_90_x, 0.5f, AXIS_FLAG_NONE);
+  Rotation current_rotation = transformable.get_rotation();
+  EXPECT_NEAR(current_rotation.values[0], 0.92387f, 0.001);
+  EXPECT_NEAR(current_rotation.values[1], 0.38268f, 0.001);
+
+  /* Checking that the result is different from linear interpolation. */
+  EXPECT_NE(current_rotation.values[0], interpf(0.707107f, 1.0f, 0.5f));
+  EXPECT_NE(current_rotation.values[1], interpf(0.707107f, 0.0f, 0.5f));
+
+  transformable.set_rotation(unit_rotation(ROT_MODE_QUAT));
+  /* Using the generic blend function assumes that the given values are in the rotation mode that
+   * the object is currently in. As long as that is the case it will work as expected. */
+  transformable.blend_property_to(
+      Transformable::PropertyType::ROTATION, rot_90_x.values, 0.5f, AXIS_FLAG_NONE);
+  EXPECT_NEAR(current_rotation.values[0], 0.92387f, 0.001);
+  EXPECT_NEAR(current_rotation.values[1], 0.38268f, 0.001);
 }
 
 TEST_F(TransformableTest, transformable_axis_constraints)
