@@ -173,8 +173,8 @@ static void store_property_snapshot(PointerRNA &ptr,
   snapshots.append({prop, std::move(property_values)});
 }
 
-/* helper for slide_targets_get() -> get the relevant F-Curves per PoseChannel */
-static void pchan_to_animated_transformable(ListBaseT<SlideTarget> &slide_targets,
+/* helper for slide_subjects_get() -> get the relevant F-Curves per PoseChannel */
+static void pchan_to_animated_transformable(ListBaseT<SlideSubject> &slide_subjects,
                                             Object &ob,
                                             bPoseChannel &pchan)
 {
@@ -187,35 +187,37 @@ static void pchan_to_animated_transformable(ListBaseT<SlideTarget> &slide_target
     return;
   }
 
-  SlideTarget *pfl = MEM_new<SlideTarget>("tPChanFCurveLink");
-  BLI_addtail(&slide_targets, pfl);
-  pfl->fcurves = curves;
+  SlideSubject *slide_subject = MEM_new<SlideSubject>("tPChanFCurveLink");
+  BLI_addtail(&slide_subjects, slide_subject);
+  slide_subject->fcurves = curves;
 
   animrig::Transformable *transformable = MEM_new<animrig::Transformable>(
       "transformable_pose_bone", ob, pchan);
-  pfl->transformable = transformable;
+  slide_subject->transformable = transformable;
 
   /* Set pchan's transform flags. */
   slide_subject->transform_flag = transFlags;
 
-  pfl->old_loc = transformable->get_property(animrig::Transformable::PropertyType::LOCATION);
-  pfl->old_rot = transformable->get_rotation();
-  pfl->old_scale = transformable->get_property(animrig::Transformable::PropertyType::SCALE);
+  slide_subject->old_loc = transformable->get_property(
+      animrig::Transformable::PropertyType::LOCATION);
+  slide_subject->old_rot = transformable->get_rotation();
+  slide_subject->old_scale = transformable->get_property(
+      animrig::Transformable::PropertyType::SCALE);
 
-  pfl->ptr = bone_ptr;
+  slide_subject->ptr = bone_ptr;
 
   /* Store current bbone values. */
   if (transFlags & ACT_TRANS_BBONE) {
-    store_property_snapshot(bone_ptr, "bbone_rollin", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_rollout", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_curveinx", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_curveoutx", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_curveinz", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_curveoutz", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_easein", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_easeout", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_scalein", pfl->additional_properties);
-    store_property_snapshot(bone_ptr, "bbone_scaleout", pfl->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_rollin", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_rollout", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveinx", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveoutx", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveinz", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_curveoutz", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_easein", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_easeout", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_scalein", slide_subject->additional_properties);
+    store_property_snapshot(bone_ptr, "bbone_scaleout", slide_subject->additional_properties);
   }
 
   /* Make copy of custom properties. */
@@ -228,7 +230,7 @@ static void pchan_to_animated_transformable(ListBaseT<SlideTarget> &slide_target
         char name_escaped[MAX_IDPROP_NAME * 2];
         BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
         std::string path = fmt::format("[\"{}\"]", name_escaped);
-        store_property_snapshot(bone_ptr, path, pfl->custom_properties);
+        store_property_snapshot(bone_ptr, path, slide_subject->custom_properties);
       }
     }
     if (pchan.system_properties) {
@@ -236,7 +238,7 @@ static void pchan_to_animated_transformable(ListBaseT<SlideTarget> &slide_target
         if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
           continue;
         }
-        store_property_snapshot(bone_ptr, id_prop.name, pfl->custom_properties);
+        store_property_snapshot(bone_ptr, id_prop.name, slide_subject->custom_properties);
       }
     }
   }
@@ -251,7 +253,7 @@ static Object *animated_armature_ob_get(Object *ob_)
   return nullptr;
 }
 
-static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideTarget> &slide_targets)
+static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideSubject> &slide_subjects)
 {
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
    * and set the relevant transform flags... */
@@ -274,14 +276,14 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideTarget> &slide_
       continue;
     }
 
-    pchan_to_animated_transformable(slide_targets, *ob_pose_armature, *pchan);
+    pchan_to_animated_transformable(slide_subjects, *ob_pose_armature, *pchan);
   }
   CTX_DATA_END;
 
   /* If no PoseChannels were found, try a second pass, doing visible ones instead.
    * i.e. if nothing selected, do whole pose.
    */
-  if (BLI_listbase_is_empty(&slide_targets)) {
+  if (BLI_listbase_is_empty(&slide_subjects)) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
     CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
@@ -299,13 +301,13 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideTarget> &slide_
         continue;
       }
 
-      pchan_to_animated_transformable(slide_targets, *ob_pose_armature, *pchan);
+      pchan_to_animated_transformable(slide_subjects, *ob_pose_armature, *pchan);
     }
     CTX_DATA_END;
   }
 }
 
-void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *r_transformable_list)
+void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *r_transformable_list)
 {
   BLI_assert(r_transformable_list != nullptr);
   const eContextObjectMode mode = CTX_data_mode_enum(C);
@@ -321,26 +323,28 @@ void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *r_transformable_list
   }
 }
 
-void slide_targets_free(ListBaseT<SlideTarget> *slide_targets)
+void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects)
 {
-  SlideTarget *pfl, *pfln = nullptr;
+  SlideSubject *slide_subject, *pfln = nullptr;
 
   /* free the temp pchan links and their data */
-  for (pfl = static_cast<SlideTarget *>(slide_targets->first); pfl; pfl = pfln) {
-    pfln = pfl->next;
+  for (slide_subject = static_cast<SlideSubject *>(slide_subjects->first); slide_subject;
+       slide_subject = pfln)
+  {
+    pfln = slide_subject->next;
 
-    MEM_delete(pfl->transformable);
+    MEM_delete(slide_subject->transformable);
 
-    /* We cannot use BLI_freelinkN because that casts the SlideTarget to a C-style
+    /* We cannot use BLI_freelinkN because that casts the SlideSubject to a C-style
      * struct causing MEM_delete to do a C-style delete and not deallocating the Vector. */
-    BLI_remlink(slide_targets, pfl);
-    MEM_delete(pfl);
+    BLI_remlink(slide_subjects, slide_subject);
+    MEM_delete(slide_subject);
   }
 }
 
 /* ------------------------- */
 
-void slide_targets_refresh(bContext *C, ID *id)
+void slide_subjects_refresh(bContext *C, ID *id)
 {
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   switch (GS(id->name)) {
@@ -359,43 +363,46 @@ void slide_targets_refresh(bContext *C, ID *id)
   }
 }
 
-void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets)
+void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 {
   /* Iterate over each transformable affected, restoring all channels to their original values. */
-  for (SlideTarget &pfl : *slide_targets) {
-    animrig::Transformable *transformable = pfl.transformable;
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    animrig::Transformable *transformable = slide_subject.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
-    transformable->set_property(
-        animrig::Transformable::PropertyType::LOCATION, pfl.old_loc, animrig::AXIS_FLAG_NONE);
-    transformable->set_rotation(pfl.old_rot);
-    transformable->set_property(
-        animrig::Transformable::PropertyType::SCALE, pfl.old_scale, animrig::AXIS_FLAG_NONE);
+    transformable->set_property(animrig::Transformable::PropertyType::LOCATION,
+                                slide_subject.old_loc,
+                                animrig::AXIS_FLAG_NONE);
+    transformable->set_rotation(slide_subject.old_rot);
+    transformable->set_property(animrig::Transformable::PropertyType::SCALE,
+                                slide_subject.old_scale,
+                                animrig::AXIS_FLAG_NONE);
 
-    for (PropertySnapshot &extra_prop : pfl.additional_properties) {
-      animrig::rna_property_set_as_float(pfl.ptr, *extra_prop.property, extra_prop.backup_values);
+    for (PropertySnapshot &extra_prop : slide_subject.additional_properties) {
+      animrig::rna_property_set_as_float(
+          slide_subject.ptr, *extra_prop.property, extra_prop.backup_values);
     }
 
-    for (PropertySnapshot &custom_prop : pfl.custom_properties) {
+    for (PropertySnapshot &custom_prop : slide_subject.custom_properties) {
       animrig::rna_property_set_as_float(
-          pfl.ptr, *custom_prop.property, custom_prop.backup_values);
+          slide_subject.ptr, *custom_prop.property, custom_prop.backup_values);
     }
   }
 }
 
-void slide_targets_autokey(bContext *C,
-                           Scene *scene,
-                           const ListBaseT<SlideTarget> *slide_targets,
-                           const float cframe)
+void slide_subjects_autokey(bContext *C,
+                            Scene *scene,
+                            const ListBaseT<SlideSubject> *slide_subjects,
+                            const float cframe)
 {
   /* Insert keyframes as necessary if auto-key-framing.
    * TODO: don't use a keyingset here. Just use the keyframing code directly. */
   KeyingSet *ks = animrig::get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
   Vector<PointerRNA> sources;
 
-  for (SlideTarget &pfl : *slide_targets) {
-    PointerRNA &ptr = pfl.ptr;
-    if (!animrig::autokeyframe_cfra_can_key(scene, pfl.ptr.owner_id)) {
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    PointerRNA &ptr = slide_subject.ptr;
+    if (!animrig::autokeyframe_cfra_can_key(scene, slide_subject.ptr.owner_id)) {
       continue;
     }
     animrig::relative_keyingset_add_source(sources, ptr.owner_id, ptr.type, ptr.data);
@@ -404,8 +411,8 @@ void slide_targets_autokey(bContext *C,
   /* insert keyframes for all relevant bones in one go */
   animrig::apply_keyingset(C, &sources, ks, animrig::ModifyKeyMode::INSERT, cframe);
 
-  for (SlideTarget &pfl : *slide_targets) {
-    ID *owner_id = pfl.transformable->owner_id();
+  for (SlideSubject &slide_subject : *slide_subjects) {
+    ID *owner_id = slide_subject.transformable->owner_id();
     if (GS(owner_id->name) != ID_OB) {
       continue;
     }

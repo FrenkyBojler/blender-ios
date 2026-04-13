@@ -158,8 +158,8 @@ struct PropertySnapshot {
 };
 
 /* Temporary struct wrapping data used for pose sliding. */
-struct SlideTarget {
-  SlideTarget *next, *prev = nullptr;
+struct SlideSubject {
+  SlideSubject *next, *prev = nullptr;
 
   /** The Transformable which the data is attached to */
   animrig::Transformable *transformable = nullptr;
@@ -186,26 +186,26 @@ struct SlideTarget {
 /* ----------- */
 
 /**
- * Build up a list of SlideTarget. The items put into the list depend on the mode of
+ * Build up a list of SlideSubject. The items put into the list depend on the mode of
  * the context.
  */
-void slide_targets_get(bContext *C, ListBaseT<SlideTarget> *slide_targets);
+void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects);
 /** Free F-Curve <-> Transformable links. */
-void slide_targets_free(ListBaseT<SlideTarget> *slide_targets);
+void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects);
 
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void slide_targets_refresh(bContext *C, ID *id);
+void slide_subjects_refresh(bContext *C, ID *id);
 /**
- * Reset changes made to current slide targets back to their stored values.
+ * Reset changes made to current slide subjects back to their stored values.
  */
-void slide_targets_reset(ListBaseT<SlideTarget> *slide_targets);
+void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects);
 /** Perform auto-key-framing after changes were made + confirmed. */
-void slide_targets_autokey(bContext *C,
-                           Scene *scene,
-                           const ListBaseT<SlideTarget> *slide_targets,
-                           float cframe);
+void slide_subjects_autokey(bContext *C,
+                            Scene *scene,
+                            const ListBaseT<SlideSubject> *slide_subjects,
+                            float cframe);
 
 /** \} */
 
