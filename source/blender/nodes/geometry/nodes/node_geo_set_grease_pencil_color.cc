@@ -43,7 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
@@ -103,12 +103,12 @@ static void node_rna(StructRNA *srna)
   static const EnumPropertyItem mode_items[] = {
       {int(Mode::Stroke),
        "STROKE",
-       ICON_NONE,
+       ICON_GP_DRAW_STROKE,
        "Stroke",
        "Set the color and opacity for the points of the stroke"},
       {int(Mode::Fill),
        "FILL",
-       ICON_NONE,
+       ICON_GP_DRAW_FILL,
        "Fill",
        "Set the color and opacity for the stroke fills"},
       {0, nullptr, 0, nullptr, nullptr},
