@@ -322,12 +322,12 @@ static CLG_LogRef LOG_COMPARE_OVERRIDE = {"rna.rna_compare_override"};
 
 static void rna_Struct_identifier_get(PointerRNA *ptr, char *value)
 {
-  strcpy(value, (static_cast<StructRNA *>(ptr->data))->identifier);
+  strcpy(value, (static_cast<StructRNA *>(ptr->data))->identifier.c_str());
 }
 
 static int rna_Struct_identifier_length(PointerRNA *ptr)
 {
-  return strlen((static_cast<StructRNA *>(ptr->data))->identifier);
+  return static_cast<StructRNA *>(ptr->data)->identifier.size();
 }
 
 static void rna_Struct_description_get(PointerRNA *ptr, char *value)
@@ -398,7 +398,7 @@ static bool rna_idproperty_known(CollectionPropertyIterator *iter, void *data)
     for (prop = static_cast<PropertyRNA *>(ptype->cont.properties.first); prop; prop = prop->next)
     {
       if ((prop->flag_internal & PROP_INTERN_BUILTIN) == 0 &&
-          (prop->flag & PROP_IDPROPERTY) != 0 && STREQ(prop->identifier, idprop->name))
+          (prop->flag & PROP_IDPROPERTY) != 0 && STREQ(prop->identifier.c_str(), idprop->name))
       {
         return true;
       }
@@ -601,7 +601,8 @@ bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Poin
 
   do {
     if (srna->cont.prop_lookup_set) {
-      PropertyRNA *const *lookup_prop = srna->cont.prop_lookup_set->lookup_key_ptr_as(key);
+      PropertyRNA *const *lookup_prop = srna->cont.prop_lookup_set->lookup_key_ptr_as(
+          UString(key));
       prop = lookup_prop ? *lookup_prop : nullptr;
       if (prop) {
         *r_ptr = {nullptr, RNA_Property, prop};
@@ -611,7 +612,7 @@ bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Poin
     else {
       for (prop = static_cast<PropertyRNA *>(srna->cont.properties.first); prop; prop = prop->next)
       {
-        if (!(prop->flag_internal & PROP_INTERN_BUILTIN) && STREQ(prop->identifier, key)) {
+        if (!(prop->flag_internal & PROP_INTERN_BUILTIN) && STREQ(prop->identifier.c_str(), key)) {
           *r_ptr = {nullptr, RNA_Property, prop};
           return true;
         }
@@ -1176,7 +1177,7 @@ static void rna_EnumProperty_items_begin_impl(CollectionPropertyIterator *iter,
   RNA_property_enum_items_ex(nullptr,
                              ptr,
                              prop,
-                             STREQ(iter->prop->identifier, "enum_items_static"),
+                             iter->prop->identifier == "enum_items_static"_ustr,
                              &item,
                              &totitem,
                              &free);
@@ -1279,12 +1280,12 @@ static PointerRNA rna_CollectionProperty_fixed_type_get(PointerRNA *ptr)
 
 static void rna_Function_identifier_get(PointerRNA *ptr, char *value)
 {
-  strcpy(value, (static_cast<FunctionRNA *>(ptr->data))->identifier);
+  strcpy(value, (static_cast<FunctionRNA *>(ptr->data))->identifier.c_str());
 }
 
 static int rna_Function_identifier_length(PointerRNA *ptr)
 {
-  return strlen((static_cast<FunctionRNA *>(ptr->data))->identifier);
+  return static_cast<FunctionRNA *>(ptr->data)->identifier.size();
 }
 
 static void rna_Function_description_get(PointerRNA *ptr, char *value)
@@ -1373,7 +1374,7 @@ static bool rna_BlenderRNA_structs_lookup_string(PointerRNA *ptr,
                                                  PointerRNA *r_ptr)
 {
   BlenderRNA *brna = static_cast<BlenderRNA *>(ptr->data);
-  StructRNA *srna = brna->structs_map.lookup_default(key, nullptr);
+  StructRNA *srna = brna->structs_map.lookup_default(UString(key), nullptr);
   if (srna != nullptr) {
     *r_ptr = RNA_pointer_create_discrete(nullptr, RNA_Struct, srna);
     return true;
@@ -2195,7 +2196,7 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
        * pointer.
        * Doing this here avoids having to manually specify `PROPOVERRIDE_NO_PROP_NAME` to things
        * like ShapeKey pointers. */
-      if (STREQ(prop_a->identifier, "rna_type")) {
+      if (prop_a->identifier == "rna_type"_ustr) {
         /* Dummy 'pass' answer, this is a meta-data and must be ignored... */
         return;
       }
