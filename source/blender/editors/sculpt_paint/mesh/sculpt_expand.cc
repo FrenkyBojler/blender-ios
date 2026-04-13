@@ -405,13 +405,25 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
       for (const int grid : IndexRange(subdiv_ccg.grids_num)) {
         const int start = grid * key.grid_area;
         const int face_set = face_sets[grid_to_face_map[grid]];
+
         BKE_subdiv_ccg_foreach_visible_grid_vert(key, grid_hidden, grid, [&](const int offset) {
           const int vert = start + offset;
           if (!is_vert_in_active_component(ss, expand_cache, vert)) {
             return;
           }
           if (expand_cache.snap) {
-            enabled_verts[vert].set(expand_cache.snap_enabled_face_sets->contains(face_set));
+            if (expand_cache.snap_enabled_face_sets->contains(face_set)) {
+              enabled_verts[vert].set(true);
+
+              SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
+              SubdivCCGNeighbors neighbors;
+              BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, true, neighbors);
+              for (const SubdivCCGCoord neighbor : neighbors.duplicates()) {
+                const int neighbor_vert = neighbor.to_index(key);
+                enabled_verts[neighbor_vert].set(enabled_verts[neighbor_vert] ||
+                                                 enabled_verts[vert]);
+              }
+            }
             return;
           }
           enabled_verts[vert].set(
