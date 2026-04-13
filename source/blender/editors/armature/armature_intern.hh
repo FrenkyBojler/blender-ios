@@ -190,7 +190,7 @@ struct SlideSubject {
  * the context.
  */
 void slide_subjects_get(bContext *C, ListBaseT<SlideSubject> *slide_subjects);
-/** Free F-Curve <-> Transformable links. */
+/** Free all slide subjects. */
 void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects);
 
 /**

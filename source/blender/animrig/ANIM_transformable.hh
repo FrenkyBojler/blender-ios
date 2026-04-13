@@ -64,9 +64,9 @@ struct Rotation {
 };
 
 /**
- * Returns a unit rotation for the given mode.
+ * Returns a rotation representing "no rotation" for the given mode.
  */
-Rotation unit_rotation(eRotationModes mode);
+Rotation identity_rotation(eRotationModes mode);
 /**
  * Returns a new rotation, interpolated between `a` and `b` based on `factor`. If `factor` is 0
  * the result is `a`.
@@ -98,7 +98,7 @@ class Transformable {
    * and not in a matrix, thus skew is not supported. */
   MutableSpan<float> location_;
   /* Rotation can be expressed different modes, which are stored in separate arrays. We have to use
-   * float* because the angle of axisangle is a separate float property. */
+   * an Array of float* because the angle of axisangle is a separate float property. */
   Array<Array<float *>> rotations_;
   short *rotation_mode_;
   MutableSpan<float> scale_;

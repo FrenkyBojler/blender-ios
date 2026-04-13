@@ -161,7 +161,7 @@ TEST_F(TransformableTest, transformable_blend_rotation_to)
   EXPECT_NE(current_rotation.values[0], interpf(0.707107f, 1.0f, 0.5f));
   EXPECT_NE(current_rotation.values[1], interpf(0.707107f, 0.0f, 0.5f));
 
-  transformable.set_rotation(unit_rotation(ROT_MODE_QUAT));
+  transformable.set_rotation(identity_rotation(ROT_MODE_QUAT));
   /* Using the generic blend function assumes that the given values are in the rotation mode that
    * the object is currently in. As long as that is the case it will work as expected. */
   transformable.blend_property_to(

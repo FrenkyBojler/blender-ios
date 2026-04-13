@@ -202,7 +202,7 @@ static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcur
 }
 
 /** Operator custom-data initialization. */
-static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
+static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 {
   tPoseSlideOp *pso = MEM_new<tPoseSlideOp>(__func__);
   op->customdata = pso;
@@ -262,7 +262,7 @@ static bool pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   }
 
   /* Return status is whether we've got all the data we were requested to get. */
-  return true;
+  return 1;
 }
 
 /**
@@ -307,8 +307,7 @@ static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 }
 
 /**
- * I (christoph) don't know why the frame range is stored per object. There doesn't seem to be a
- * good reason for it. Ideally this is just one value.
+ * Get the frame range for the given ID, which is NLA mapped.
  */
 static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
                                          const ID *id,
@@ -587,7 +586,9 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
         (slide_subject.transform_flag & ACT_TRANS_ROT))
     {
       transformable->blend_rotation_to(
-          animrig::unit_rotation(transformable->get_rotation_mode()), slider_factor, axis_flag);
+          animrig::identity_rotation(transformable->get_rotation_mode()),
+          slider_factor,
+          axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
@@ -887,7 +888,7 @@ static void pose_slide_toggle_channels_mode(wmOperator *op,
   RNA_enum_set(op->ptr, "channels", pso->channels);
 
   /* Reset axis limits too for good measure */
-  pso->axislock = animrig::AxisFlag(0);
+  pso->axislock = animrig::AXIS_FLAG_NONE;
   RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
 }
 
@@ -898,7 +899,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, anim
 {
   /* Axis can only be set when a transform is set - it doesn't make sense otherwise */
   if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE, PS_TFM_PROPS)) {
-    pso->axislock = animrig::AxisFlag(0);
+    pso->axislock = animrig::AXIS_FLAG_NONE;
     RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
     return false;
   }
@@ -906,7 +907,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, anim
   /* Turn on or off? */
   if (pso->axislock == axis) {
     /* Already limiting on this axis, so turn off */
-    pso->axislock = animrig::AxisFlag(0);
+    pso->axislock = animrig::AXIS_FLAG_NONE;
   }
   else {
     /* Only this axis */
@@ -1693,12 +1694,8 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 
   BLI_freelistN(&target_frames);
 
-  for (SlideSubject &t_link : slide_subjects) {
-    slide_subjects_refresh(C, t_link.ptr.owner_id);
-  }
-
-  for (SlideSubject &t_link : slide_subjects) {
-    slide_subjects_refresh(C, t_link.ptr.owner_id);
+  for (SlideSubject &slide_subject : slide_subjects) {
+    slide_subjects_refresh(C, slide_subject.ptr.owner_id);
   }
 
   /* Free temp data. */

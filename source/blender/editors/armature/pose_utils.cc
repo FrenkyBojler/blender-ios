@@ -174,9 +174,9 @@ static void store_property_snapshot(PointerRNA &ptr,
 }
 
 /* helper for slide_subjects_get() -> get the relevant F-Curves per PoseChannel */
-static void pchan_to_animated_transformable(ListBaseT<SlideSubject> &slide_subjects,
-                                            Object &ob,
-                                            bPoseChannel &pchan)
+static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
+                                   Object &ob,
+                                   bPoseChannel &pchan)
 {
   PointerRNA bone_ptr = RNA_pointer_create_discrete(&ob.id, RNA_PoseBone, &pchan);
   Vector<FCurve *> curves;
@@ -229,8 +229,9 @@ static void pchan_to_animated_transformable(ListBaseT<SlideSubject> &slide_subje
         }
         char name_escaped[MAX_IDPROP_NAME * 2];
         BLI_str_escape(name_escaped, id_prop.name, sizeof(name_escaped));
-        std::string path = fmt::format("[\"{}\"]", name_escaped);
-        store_property_snapshot(bone_ptr, path, slide_subject->custom_properties);
+        std::string property_name_with_brackets = fmt::format("[\"{}\"]", name_escaped);
+        store_property_snapshot(
+            bone_ptr, property_name_with_brackets, slide_subject->custom_properties);
       }
     }
     if (pchan.system_properties) {
@@ -276,7 +277,7 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideSubject> &slide
       continue;
     }
 
-    pchan_to_animated_transformable(slide_subjects, *ob_pose_armature, *pchan);
+    pchan_to_slide_subject(slide_subjects, *ob_pose_armature, *pchan);
   }
   CTX_DATA_END;
 
@@ -301,7 +302,7 @@ static void get_pose_bones_for_slide(bContext *C, ListBaseT<SlideSubject> &slide
         continue;
       }
 
-      pchan_to_animated_transformable(slide_subjects, *ob_pose_armature, *pchan);
+      pchan_to_slide_subject(slide_subjects, *ob_pose_armature, *pchan);
     }
     CTX_DATA_END;
   }

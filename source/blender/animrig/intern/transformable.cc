@@ -61,6 +61,9 @@ static void copy_span_into_mutable_span(const Span<float> value,
   }
 }
 
+/**
+ * Blend all values to a single target value. At factor 0, the given `values` are not modified.
+ */
 static void blend_linear(MutableSpan<float> values,
                          const float target,
                          const float factor,
@@ -74,11 +77,16 @@ static void blend_linear(MutableSpan<float> values,
   }
 }
 
+/**
+ * Blend the given `values` towards `target`. The indices are matched up and the Span lengths are
+ * expected to match.
+ */
 static void blend_linear(MutableSpan<float> values,
                          const Span<float> target,
                          const float factor,
                          const AxisFlag axis_flag)
 {
+  BLI_assert(values.size() == target.size());
   for (int i : values.index_range()) {
     if (!should_modify_axis(i, axis_flag)) {
       continue;
@@ -87,6 +95,10 @@ static void blend_linear(MutableSpan<float> values,
   }
 }
 
+/**
+ * Returns a new array which is the linear interpolation between boths spans. The given spans are
+ * expected to have the same size.
+ */
 Array<float> property_interpolated(const Span<float> a, const Span<float> b, float factor)
 {
   BLI_assert(a.size() == b.size());
@@ -149,7 +161,7 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
   return converted;
 }
 
-Rotation unit_rotation(const eRotationModes mode)
+Rotation identity_rotation(const eRotationModes mode)
 {
   switch (mode) {
     case ROT_MODE_QUAT:
@@ -231,6 +243,8 @@ StringRefNull Transformable::rna_path() const
 
 std::string Transformable::rna_path_to_property(const PropertyType prop_type) const
 {
+  /* Note that this assumes the property name for the underlying struct. If we add support for a
+   * struct where this doesn't match, the property names have to be moved to the constructor. */
   StringRefNull property_name;
   switch (prop_type) {
     case PropertyType::LOCATION:
