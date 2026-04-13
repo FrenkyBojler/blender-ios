@@ -345,9 +345,9 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 }
 
 void slide_subjects_autokey(bContext *C,
-                           Scene *scene,
-                           ListBaseT<SlideSubject> *slide_subjects,
-                           float cframe)
+                            Scene *scene,
+                            ListBaseT<SlideSubject> *slide_subjects,
+                            float cframe)
 {
   const Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
