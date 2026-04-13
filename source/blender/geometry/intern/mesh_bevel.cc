@@ -2161,6 +2161,41 @@ static void set_profile_spacing(BevelState *bs, ProfileSpacing *pro_spacing, boo
   }
 }
 
+/**
+ * Maybe move the profile plane so that it lies in the plane containing profile.start,
+ * profile.end, and the original beveled vertex bv_co.
+ * This makes multi-segment bevels curve naturally in the plane of the adjacent non-beveled edges.
+ * Used for terminal edge bevels (num_beveled == 1) with >= 3 total edges at the vertex.
+ * Mirrors move_profile_plane() in bmesh_bevel.cc.
+ */
+static void move_profile_plane(Profile &profile, const float3 bv_co)
+{
+  /* Only do this if projecting. */
+  if (math::is_zero(profile.proj_dir)) {
+    return;
+  }
+  const float3 d1 = math::normalize(bv_co - profile.start);
+  const float3 d2 = math::normalize(bv_co - profile.end);
+  float3 no = math::cross(d1, d2);
+  float3 no2 = math::cross(d1, profile.proj_dir);
+  float3 no3 = math::cross(d2, profile.proj_dir);
+  float len_no, len_no2, len_no3;
+  no = math::normalize_and_get_length(no, len_no);
+  no2 = math::normalize_and_get_length(no2, len_no2);
+  no3 = math::normalize_and_get_length(no3, len_no3);
+  if (len_no > geom::bevel_epsilon_big && len_no2 > geom::bevel_epsilon_big &&
+      len_no3 > geom::bevel_epsilon_big)
+  {
+    const float dot2 = math::dot(no, no2);
+    const float dot3 = math::dot(no, no3);
+    if (math::abs(dot2) < (1.0f - geom::bevel_epsilon_big) &&
+        math::abs(dot3) < (1.0f - geom::bevel_epsilon_big))
+    {
+      profile.plane_no = no;
+    }
+  }
+}
+
 static void calculate_profiles(const int bv, AnchorProfiles &profiles, const BevelState &bs)
 {
   if (bs.params.segments == 1) {
@@ -2171,6 +2206,12 @@ static void calculate_profiles(const int bv, AnchorProfiles &profiles, const Bev
   Span<int> edges = bs.bevvert_bevedges()[bv];
   IndexRange newverts = bs.bevvert_newverts()[bv];
   const float3 bv_v_pos = bs.mesh_info.mesh.vert_positions()[bs.bevvert_mesh_verts()[bv]];
+  const int num_edges = int(edges.size());
+  /* For terminal edge bevel (num_beveled == 1) with >= 3 total edges, we need to snap the
+   * profile plane for the single beveled edge's profile to the plane containing start, end,
+   * and the original vertex.
+   */
+  const bool terminal_multi_edge = (bs.bevvert_beveled_edges_num(bv) == 1 && num_edges >= 3);
   for (const int a : IndexRange(pat.num_anchors)) {
     Profile &profile = profiles[a];
     /* First fill in the profile parameters. */
@@ -2246,6 +2287,14 @@ static void calculate_profiles(const int bv, AnchorProfiles &profiles, const Bev
       }
     }
     /* TODO: miters */
+
+    /* For terminal edge bevel with >= 3 edges, snap profile plane to the plane containing
+     * start, end, and the original beveled vertex. Only anchor 0 is attached to the beveled
+     * edge (bevel_pos[0] == 0 is asserted in build_vmesh_skeleton), so only a == 0 applies.
+     * Must be done before calculate_profile_segments so segment positions use the new plane. */
+    if (terminal_multi_edge && a == 0) {
+      move_profile_plane(profile, bv_v_pos);
+    }
 
     /* Now that the profile parameters are set, we can calculate the positions
      */
