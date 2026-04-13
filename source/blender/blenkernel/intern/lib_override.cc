@@ -87,8 +87,8 @@ static CLG_LogRef LOG = {"lib.override"};
 static CLG_LogRef LOG_RESYNC = {"lib.override.resync"};
 
 struct IDOverrideLibraryRuntime {
-  std::unique_ptr<Map<StringRefNull, IDOverrideLibraryProperty *>>
-      rna_path_to_override_properties = {};
+  std::optional<Map<StringRefNull, IDOverrideLibraryProperty *>> rna_path_to_override_properties =
+      std::nullopt;
   IDOverrideLibraryTag tag = IDOverrideLibraryTag(0);
 };
 
@@ -4102,13 +4102,13 @@ void BKE_lib_override_library_make_local(Main *bmain, ID *id)
 }
 
 /* We only build override Map on request. */
-BLI_INLINE Map<StringRefNull, IDOverrideLibraryProperty *> &
-override_library_rna_path_mapping_ensure(IDOverrideLibrary *liboverride)
+Map<StringRefNull, IDOverrideLibraryProperty *> &override_library_rna_path_mapping_ensure(
+    IDOverrideLibrary *liboverride)
 {
   IDOverrideLibraryRuntime *liboverride_runtime = override_library_runtime_ensure(liboverride);
-  if (!liboverride_runtime->rna_path_to_override_properties) {
+  if (UNLIKELY(!liboverride_runtime->rna_path_to_override_properties)) {
     liboverride_runtime->rna_path_to_override_properties =
-        std::make_unique<Map<StringRefNull, IDOverrideLibraryProperty *>>();
+        std::make_optional<Map<StringRefNull, IDOverrideLibraryProperty *>>();
     for (IDOverrideLibraryProperty *op =
              static_cast<IDOverrideLibraryProperty *>(liboverride->properties.first);
          op != nullptr;
