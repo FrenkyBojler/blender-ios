@@ -417,66 +417,32 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
   screen_geom_select_connected_edge(win, edge);
 
   for (ScrEdge &se : screen->edgebase) {
-    if (se.v1->flag + se.v2->flag == 0) {
-      if (dir_axis == SCREEN_AXIS_H) {
-        for (ScrVert &v : screen->vertbase) {
-          if (v.flag && v.vec.x == se.v1->vec.x &&
-              (abs(v.vec.y - se.v1->vec.y) < EDGE_ALIGN_TOLERANCE ||
-               abs(v.vec.y - se.v2->vec.y) < EDGE_ALIGN_TOLERANCE))
-          {
-            se.v1->flag = se.v2->flag = 1;
-            can_extend = true;
-            break;
-          }
-        }
-      }
-      else if (dir_axis == SCREEN_AXIS_V) {
-        for (ScrVert &v : screen->vertbase) {
-          if (v.flag && v.vec.y == se.v1->vec.y &&
-              (abs(v.vec.x - se.v1->vec.x) < EDGE_ALIGN_TOLERANCE ||
-               abs(v.vec.x - se.v2->vec.x) < EDGE_ALIGN_TOLERANCE))
-          {
-            se.v1->flag = se.v2->flag = 1;
-            can_extend = true;
-            break;
-          }
+    if (se.v1->flag + se.v2->flag != 0) {
+      continue;
+    }
+    if (dir_axis == SCREEN_AXIS_H) {
+      for (ScrVert &v : screen->vertbase) {
+        if (v.flag && v.vec.x == se.v1->vec.x &&
+            (abs(v.vec.y - se.v1->vec.y) < EDGE_ALIGN_TOLERANCE ||
+             abs(v.vec.y - se.v2->vec.y) < EDGE_ALIGN_TOLERANCE))
+        {
+          se.v1->flag = se.v2->flag = 1;
+          can_extend = true;
+          break;
         }
       }
     }
-    if (can_extend) {
-      break;
-    }
-  }
-
-  for (ScrEdge &se : screen->edgebase) {
-    if (se.v1->flag + se.v2->flag == 0) {
-      if (dir_axis == SCREEN_AXIS_H) {
-        for (ScrVert &v : screen->vertbase) {
-          if (v.flag && v.vec.x == se.v1->vec.x &&
-              (abs(v.vec.y - se.v1->vec.y) < EDGE_ALIGN_TOLERANCE ||
-               abs(v.vec.y - se.v2->vec.y) < EDGE_ALIGN_TOLERANCE))
-          {
-            se.v1->flag = se.v2->flag = 1;
-            can_extend = true;
-            break;
-          }
+    else if (dir_axis == SCREEN_AXIS_V) {
+      for (ScrVert &v : screen->vertbase) {
+        if (v.flag && v.vec.y == se.v1->vec.y &&
+            (abs(v.vec.x - se.v1->vec.x) < EDGE_ALIGN_TOLERANCE ||
+             abs(v.vec.x - se.v2->vec.x) < EDGE_ALIGN_TOLERANCE))
+        {
+          se.v1->flag = se.v2->flag = 1;
+          can_extend = true;
+          break;
         }
       }
-      else if (dir_axis == SCREEN_AXIS_V) {
-        for (ScrVert &v : screen->vertbase) {
-          if (v.flag && v.vec.y == se.v1->vec.y &&
-              (abs(v.vec.x - se.v1->vec.x) < EDGE_ALIGN_TOLERANCE ||
-               abs(v.vec.x - se.v2->vec.x) < EDGE_ALIGN_TOLERANCE))
-          {
-            se.v1->flag = se.v2->flag = 1;
-            can_extend = true;
-            break;
-          }
-        }
-      }
-    }
-    if (can_extend) {
-      break;
     }
   }
 
@@ -519,24 +485,24 @@ void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge)
   const eScreenAxis dir_axis = (edge->v1->vec.x == edge->v2->vec.x) ? SCREEN_AXIS_V :
                                                                       SCREEN_AXIS_H;
   /* Align the vertices if close. */
-  for (ScrVert &verg : screen->vertbase) {
-    if (dir_axis == SCREEN_AXIS_V && abs(verg.vec.x - edge->v2->vec.x) < EDGE_ALIGN_TOLERANCE) {
-      verg.vec.x = edge->v2->vec.x;
+  for (ScrVert &v : screen->vertbase) {
+    if (dir_axis == SCREEN_AXIS_V && abs(v.vec.x - edge->v2->vec.x) < EDGE_ALIGN_TOLERANCE) {
+      v.vec.x = edge->v2->vec.x;
     }
-    else if (abs(verg.vec.y - edge->v2->vec.y) < EDGE_ALIGN_TOLERANCE) {
-      verg.vec.y = edge->v2->vec.y;
+    else if (abs(v.vec.y - edge->v2->vec.y) < EDGE_ALIGN_TOLERANCE) {
+      v.vec.y = edge->v2->vec.y;
     }
   }
 
-  for (ScrVert &verg : screen->vertbase) {
-    if (verg.flag == 1 && verg.newv == nullptr) { /* !!! */
-      ScrVert *v1 = verg.next;
+  for (ScrVert &v : screen->vertbase) {
+    if (v.flag == 1 && v.newv == nullptr) { /* !!! */
+      ScrVert *v1 = v.next;
       while (v1) {
         if (v1->newv == nullptr) { /* !?! */
-          if (abs(v1->vec.x - verg.vec.x) < EDGE_ALIGN_TOLERANCE &&
-              abs(v1->vec.y - verg.vec.y) < EDGE_ALIGN_TOLERANCE)
+          if (abs(v1->vec.x - v.vec.x) < EDGE_ALIGN_TOLERANCE &&
+              abs(v1->vec.y - v.vec.y) < EDGE_ALIGN_TOLERANCE)
           {
-            v1->newv = &verg;
+            v1->newv = &v;
           }
         }
         v1 = v1->next;
@@ -544,7 +510,7 @@ void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge)
     }
   }
 
-  /* replace pointers in edges and faces */
+  /* Replace pointers in edges and faces. */
   for (ScrEdge &se : screen->edgebase) {
     if (se.v1->newv) {
       se.v1 = se.v1->newv;
@@ -552,7 +518,6 @@ void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge)
     if (se.v2->newv) {
       se.v2 = se.v2->newv;
     }
-    /* edges changed: so.... */
     BKE_screen_sort_scrvert(&(se.v1), &(se.v2));
   }
   for (ScrArea &area : screen->areabase) {
@@ -570,11 +535,11 @@ void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge)
     }
   }
 
-  /* remove */
-  for (ScrVert &verg : screen->vertbase.items_mutable()) {
-    if (verg.newv) {
-      BLI_remlink(&screen->vertbase, &verg);
-      MEM_delete(&verg);
+  /* Remove. */
+  for (ScrVert &v : screen->vertbase.items_mutable()) {
+    if (v.newv) {
+      BLI_remlink(&screen->vertbase, &v);
+      MEM_delete(&v);
     }
   }
 

@@ -1787,8 +1787,8 @@ struct sAreaMoveData {
   int bigger, smaller, origval, step;
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
-  bool can_extend;
-  bool extending;
+  bool can_extend; /* There are other aligned edges. */
+  bool extending;  /* Currently moving multiple edges. */
   bScreen *screen;
   ScrArea *area1, *area2;
   double start_time;
@@ -1907,6 +1907,8 @@ static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
   screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
+/* When changing to/from edge extension we need to reinitialize
+ * everything, including movement limits, starting positions, etc. */
 static bool area_move_reinit(bContext *C, wmOperator *op, bool extend, const int xy[2])
 {
   sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
@@ -1918,9 +1920,7 @@ static bool area_move_reinit(bContext *C, wmOperator *op, bool extend, const int
     v1->editflag = 0;
   }
 
-  /* setup */
   ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, xy[0], xy[1]);
-
   if (actedge == nullptr) {
     md->can_extend = false;
     md->extending = false;
@@ -1946,7 +1946,7 @@ static bool area_move_reinit(bContext *C, wmOperator *op, bool extend, const int
     md->extending = false;
   }
 
-  /* now all vertices with 'flag == 1' are the ones that can be moved. Move this to editflag */
+  /* Vertices with 'flag == 1' can be moved. Move this to editflag. */
   ED_screen_verts_iter(win, screen, v1)
   {
     v1->editflag = v1->flag;
@@ -2403,10 +2403,7 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
   switch (event->type) {
     case EVT_RIGHTSHIFTKEY:
     case EVT_LEFTSHIFTKEY: {
-      if (md->can_extend) {
-        area_move_reinit(C, op, event->val == KM_PRESS, event->xy);
-      }
-      else {
+      if (!md->can_extend || !area_move_reinit(C, op, event->val == KM_PRESS, event->xy)) {
         md->extending = false;
       }
       WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
