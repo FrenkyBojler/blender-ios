@@ -7,7 +7,9 @@
  */
 
 #include <fmt/format.h>
+#include <iomanip>
 #include <regex>
+#include <sstream>
 #include <string>
 
 #include "BLI_map.hh"
@@ -120,7 +122,7 @@ static std::string format_with_pattern(const std::tm *tm,
                                        const std::string &pattern,
                                        const char *locale_iso)
 {
-  std::ostringstream oss;
+  std::ostringstream oss{};
   oss.imbue(make_locale_fallbacks(locale_iso));
   oss << std::put_time(tm, pattern.c_str());
   return oss.str();
