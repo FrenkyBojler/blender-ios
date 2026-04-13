@@ -91,6 +91,7 @@ if(WITH_GTESTS)
     intern/keyframing_test.cc
     intern/nla_test.cc
     intern/pose_test.cc
+    intern/transformable_test.cc
     intern/versioning_test.cc
   )
   set(TEST_LIB
