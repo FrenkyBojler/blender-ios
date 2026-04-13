@@ -624,7 +624,7 @@ endfunction()
 function(get_sse_flags
   _sse42_flags)
 
-  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
     # message(STATUS "Detecting SSE support")
     if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set(${_sse42_flags} "-march=x86-64-v2" PARENT_SCOPE)
@@ -904,7 +904,7 @@ function(add_check_c_compiler_flag_impl
   include(CheckCCompilerFlag)
 
   set(_is_new TRUE)
-  if (DEFINED CACHE{${_CACHE_VAR}})
+  if(DEFINED CACHE{${_CACHE_VAR}})
     set(_is_new FALSE)
   endif()
 
@@ -928,7 +928,7 @@ function(add_check_cxx_compiler_flag_impl
   include(CheckCXXCompilerFlag)
 
   set(_is_new TRUE)
-  if (DEFINED CACHE{${_CACHE_VAR}})
+  if(DEFINED CACHE{${_CACHE_VAR}})
     set(_is_new FALSE)
   endif()
 
@@ -1174,6 +1174,7 @@ function(glsl_to_c
   get_filename_component(_file_meta ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.hh REALPATH)
   get_filename_component(_file_info ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.info  REALPATH)
   get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
+  get_filename_component(_file_dep  ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.d  REALPATH)
 
   # Turn include directories into absolute paths
   set(_inc_list "")
@@ -1188,8 +1189,9 @@ function(glsl_to_c
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
 
   add_custom_command(
-    OUTPUT  ${_file_to} ${_file_meta} ${_file_info}
-    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info} ${_inc_list}
+    OUTPUT  ${_file_to} ${_file_meta} ${_file_info} ${_file_dep}
+    DEPFILE ${_file_dep}
+    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info} ${_file_dep} ${_inc_list}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
     DEPENDS ${_file_from} datatoc shader_tool)
 

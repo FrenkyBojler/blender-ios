@@ -986,7 +986,7 @@ struct VertexPaintStroke final : public PaintStroke {
   void redraw(bool final) override;
   bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
-  void done(bool is_cancel) override;
+  void done(bool is_cancel, bool stroke_started) override;
 };
 
 bool VertexPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
@@ -2060,7 +2060,7 @@ void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   DEG_id_tag_update(ob.data, ID_RECALC_GEOMETRY);
 }
 
-void VertexPaintStroke::done(bool /*is_cancel*/)
+void VertexPaintStroke::done(bool /*is_cancel*/, bool /*stroke_started*/)
 {
   VPaintData *vpd = static_cast<VPaintData *>(mode_data_.get());
   Object &ob = *vpd->vc.obact;
@@ -2090,7 +2090,7 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   if (retval == OPERATOR_FINISHED) {
     VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op->customdata);
     if (stroke) {
-      stroke->free(C, op);
+      stroke->finish(C);
       MEM_delete(stroke);
     }
     return OPERATOR_FINISHED;
