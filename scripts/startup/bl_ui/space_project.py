@@ -234,25 +234,19 @@ class PROJECT_UL_variables(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             col = layout.column()
-            col.prop(item, "name")
-
-            col = layout.column()
-            col.prop(item, "type")
+            col.prop(item, "name", text="", expand=False, emboss=False)
 
             col = layout.column()
             col.alignment = 'RIGHT'
             match item.type:
                 case 'INTEGER':
-                    col.prop(item, "value_int")
+                    col.prop(item, "value_int", text="", expand=False)
                 case 'FLOAT':
-                    col.prop(item, "value_float")
+                    col.prop(item, "value_float", text="", expand=False)
                 case 'STRING':
-                    col.prop(item, "value_string")
+                    col.prop(item, "value_string", text="", expand=False)
                 case 'FILEPATH':
-                    col.prop(item, "value_string")
-
-            col = layout.column()
-            col.prop(item, "description")
+                    col.prop(item, "value_string", text="", expand=False)
         # 'GRID' layout type should be as compact as possible (typically a single icon!).
         elif self.layout_type in {'GRID'}:
             # TODO
@@ -289,6 +283,25 @@ class PROJECT_PT_variables(Panel, CenterAlignMixIn):
         col.operator("project.remove_variable", text="", icon='REMOVE')
         # col.operator("project.move_variable", text="", icon='TRIA_UP').type = 'UP'
         # col.operator("project.move_variable", text="", icon='TRIA_DOWN').type = 'DOWN'
+
+        col = layout.column()
+        col.alignment = 'LEFT'
+        col.separator(factor=1)
+
+        if project.active_variable_index >= 0 and project.active_variable_index < len(project.variables):
+            var = project.variables[project.active_variable_index]
+            col.prop(var, "name")
+            col.prop(var, "type")
+            match var.type:
+                case 'INTEGER':
+                    col.prop(var, "value_int")
+                case 'FLOAT':
+                    col.prop(var, "value_float")
+                case 'STRING':
+                    col.prop(var, "value_string")
+                case 'FILEPATH':
+                    col.prop(var, "value_string")
+            col.prop(var, "description")
 
 
 # -------------------------------------------------------------
