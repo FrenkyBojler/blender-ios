@@ -394,10 +394,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   /* If no compatible region was found, allocate new memory. */
   if (image_info.allocation == VK_NULL_HANDLE) {
-    requirements.size = std::max(allocation_size, requirements.size);
+    VkMemoryRequirements allocation_requirements = requirements;
+    allocation_requirements.size = std::max(allocation_size, requirements.size);
 
     AllocationHandle handle;
-    handle.alloc(requirements);
+    handle.alloc(allocation_requirements);
 
     std::optional<VKMemorySegment> segment_opt = handle.acquire(requirements);
     if (segment_opt) {
