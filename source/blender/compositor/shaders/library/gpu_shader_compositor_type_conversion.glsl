@@ -427,8 +427,8 @@ int3 bool_to_int3(bool value)
 
 float4 float4x4_to_quaternion(float4x4 mat)
 {
-  float3x3 mat_3x3 = to_float3x3(mat);
-  return to_quaternion(mat_3x3).as_float4();
+  float3x3 mat_3x3 = normalize(to_float3x3(mat));
+  return to_quaternion(to_euler(mat_3x3)).as_float4();
 }
 
 /* --------------------------------------------------------------------
