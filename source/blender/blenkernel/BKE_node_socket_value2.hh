@@ -178,7 +178,7 @@ inline const void *SocketValueVariant2::get_if(const CPPType &type) const
   if (info.type == type) {
     return value_.get();
   }
-  if (info.is_type(type, *this)) {
+  if (info.is_type(type, value_)) {
     return value_.get();
   }
   return nullptr;
