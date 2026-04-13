@@ -84,6 +84,110 @@ static void get_current_time_str(
   }
 }
 
+struct PlayheadDimensions {
+  float text_width;
+  float text_padding;
+
+  float box_width;
+  float box_margin;
+  float shadow_width;
+
+  float tri_top;
+  float tri_half_width;
+  float tri_height;
+};
+
+static void get_playhead_dimensions(const Scene *scene,
+                                    const rcti *scrub_region_rect,
+                                    const float current_frame,
+                                    const bool display_seconds,
+                                    PlayheadDimensions &r_dimensions)
+{
+  constexpr int max_frame_string_len = 64;
+  char frame_str[max_frame_string_len];
+  get_current_time_str(scene, display_seconds, current_frame, frame_str, max_frame_string_len);
+
+  r_dimensions.text_width = ui::fontstyle_string_width(UI_FSTYLE_WIDGET, frame_str);
+  r_dimensions.text_padding = 4.0f * UI_SCALE_FAC;
+  const float box_min_width = 24.0f * UI_SCALE_FAC;
+  r_dimensions.box_width = std::max(r_dimensions.text_width + (2.0f * r_dimensions.text_padding),
+                                    box_min_width);
+  r_dimensions.box_margin = 2.0f * UI_SCALE_FAC;
+  r_dimensions.shadow_width = UI_SCALE_FAC;
+  r_dimensions.tri_top = ceil(scrub_region_rect->ymin + r_dimensions.box_margin);
+  r_dimensions.tri_half_width = 6.0f * UI_SCALE_FAC;
+  r_dimensions.tri_height = 6.0f * UI_SCALE_FAC;
+}
+
+static void draw_playhead_stalk(const float region_x,
+                                const rcti *scrub_region_rect,
+                                const PlayheadDimensions &dimensions,
+                                float fg_color[4],
+                                float bg_color[4])
+{
+  const float box_margin = dimensions.box_margin;
+  float shadow_width = dimensions.shadow_width;
+  const float tri_top = dimensions.tri_top;
+  const float tri_half_width = dimensions.tri_half_width;
+  const float tri_height = dimensions.tri_height;
+
+  /* Shadow for triangle below frame box. */
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  GPU_blend(GPU_BLEND_ALPHA);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  GPU_polygon_smooth(true);
+  immUniformColor4fv(bg_color);
+  immBegin(GPU_PRIM_TRIS, 3);
+  const float diag_offset = 0.4f * UI_SCALE_FAC;
+  immVertex2f(pos, floor(region_x - tri_half_width - shadow_width - diag_offset), tri_top);
+  immVertex2f(pos, floor(region_x + tri_half_width + shadow_width + 1.0f + diag_offset), tri_top);
+  immVertex2f(pos, region_x + 0.5f, tri_top - tri_height - diag_offset - shadow_width);
+  GPU_polygon_smooth(false);
+  immEnd();
+  immUnbindProgram();
+
+  rctf rect{};
+  /* Vertical line. */
+  if (UI_SCALE_FAC < 0.91f) {
+    shadow_width = 1.0f;
+    rect.xmin = floor(region_x) - shadow_width;
+    rect.xmax = rect.xmin + U.pixelsize + shadow_width + shadow_width;
+  }
+  else {
+    rect.xmin = floor(region_x - U.pixelsize) - shadow_width;
+    rect.xmax = floor(region_x + U.pixelsize + 1.0f) + shadow_width;
+  }
+  rect.ymin = 0.0f;
+  rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
+  ui::draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
+}
+
+/**
+ * Draw a playhead with reduced opacity at the given frame.
+ */
+static void draw_playhead_ghost(const float frame,
+                                const Scene *scene,
+                                const View2D *v2d,
+                                const rcti *scrub_region_rect,
+                                const bool display_seconds,
+                                const bool display_stalk)
+{
+  const float subframe_x = ui::view2d_view_to_region_x(v2d, frame);
+
+  PlayheadDimensions dimensions;
+  get_playhead_dimensions(scene, scrub_region_rect, frame, display_seconds, dimensions);
+  float fg_color[4];
+  ui::theme::get_color_4fv(TH_CFRAME, fg_color);
+  float bg_color[4];
+  ui::theme::get_color_shade_4fv(TH_BACK, -20, bg_color);
+  fg_color[3] /= 2;
+  bg_color[3] /= 2;
+  if (display_stalk) {
+    draw_playhead_stalk(subframe_x, scrub_region_rect, dimensions, fg_color, bg_color);
+  }
+}
+
 static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
@@ -91,22 +195,17 @@ static void draw_current_frame(const Scene *scene,
                                bool display_stalk = true)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-  const float current_frame = BKE_scene_ctime_get(scene);
+
+  const float current_frame = BKE_scene_frame_get(scene);
   const float subframe_x = ui::view2d_view_to_region_x(v2d, current_frame);
 
   constexpr int max_frame_string_len = 64;
   char frame_str[max_frame_string_len];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, max_frame_string_len);
 
-  const float text_width = ui::fontstyle_string_width(fstyle, frame_str);
-  const float text_padding = 4.0f * UI_SCALE_FAC;
-  const float box_min_width = 24.0f * UI_SCALE_FAC;
-  const float box_width = std::max(text_width + (2.0f * text_padding), box_min_width);
-  const float box_margin = 2.0f * UI_SCALE_FAC;
-  float shadow_width = UI_SCALE_FAC;
-  const float tri_top = ceil(scrub_region_rect->ymin + box_margin);
-  const float tri_half_width = 6.0f * UI_SCALE_FAC;
-  const float tri_height = 6.0f * UI_SCALE_FAC;
+  PlayheadDimensions dimensions;
+  get_playhead_dimensions(scene, scrub_region_rect, current_frame, display_seconds, dimensions);
+
   rctf rect{};
   uint pos;
 
@@ -116,53 +215,25 @@ static void draw_current_frame(const Scene *scene,
   ui::theme::get_color_shade_4fv(TH_BACK, -20, bg_color);
 
   if (display_stalk) {
-    /* Shadow for triangle below frame box. */
-    GPUVertFormat *format = immVertexFormat();
-    pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
-    GPU_blend(GPU_BLEND_ALPHA);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    GPU_polygon_smooth(true);
-    immUniformColor4fv(bg_color);
-    immBegin(GPU_PRIM_TRIS, 3);
-    const float diag_offset = 0.4f * UI_SCALE_FAC;
-    immVertex2f(pos, floor(subframe_x - tri_half_width - shadow_width - diag_offset), tri_top);
-    immVertex2f(
-        pos, floor(subframe_x + tri_half_width + shadow_width + 1.0f + diag_offset), tri_top);
-    immVertex2f(pos, subframe_x + 0.5f, tri_top - tri_height - diag_offset - shadow_width);
-    GPU_polygon_smooth(false);
-    immEnd();
-    immUnbindProgram();
-
-    /* Vertical line. */
-    if (UI_SCALE_FAC < 0.91f) {
-      shadow_width = 1.0f;
-      rect.xmin = floor(subframe_x) - shadow_width;
-      rect.xmax = rect.xmin + U.pixelsize + shadow_width + shadow_width;
-    }
-    else {
-      rect.xmin = floor(subframe_x - U.pixelsize) - shadow_width;
-      rect.xmax = floor(subframe_x + U.pixelsize + 1.0f) + shadow_width;
-    }
-    rect.ymin = 0.0f;
-    rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
-    ui::draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
+    draw_playhead_stalk(subframe_x, scrub_region_rect, dimensions, fg_color, bg_color);
   }
 
   /* Box. */
   draw_roundbox_corner_set(ui::CNR_ALL);
   const float box_corner_radius = 4.0f * UI_SCALE_FAC;
-  rect.xmin = subframe_x - (box_width / 2.0f);
-  rect.xmax = subframe_x + (box_width / 2.0f) + 1.0f;
-  rect.ymin = floor(scrub_region_rect->ymin + (box_margin - shadow_width));
-  rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
+  rect.xmin = subframe_x - (dimensions.box_width / 2.0f);
+  rect.xmax = subframe_x + (dimensions.box_width / 2.0f) + 1.0f;
+  rect.ymin = floor(scrub_region_rect->ymin + (dimensions.box_margin - dimensions.shadow_width));
+  rect.ymax = ceil(scrub_region_rect->ymax - dimensions.box_margin + dimensions.shadow_width);
   ui::draw_roundbox_4fv_ex(
-      &rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, box_corner_radius);
+      &rect, fg_color, nullptr, 1.0f, bg_color, dimensions.shadow_width, box_corner_radius);
 
   /* Frame number text. */
   uchar text_color[4];
   ui::theme::get_color_4ubv(TH_HEADER_TEXT_HI, text_color);
   const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.38f);
-  ui::fontstyle_draw_simple(fstyle, subframe_x - (text_width / 2.0f), y, frame_str, text_color);
+  ui::fontstyle_draw_simple(
+      fstyle, subframe_x - (dimensions.text_width / 2.0f), y, frame_str, text_color);
 
   if (display_stalk) {
     /* Triangular base under frame number. */
@@ -170,9 +241,9 @@ static void draw_current_frame(const Scene *scene,
     GPU_polygon_smooth(true);
     immBegin(GPU_PRIM_TRIS, 3);
     immUniformColor4fv(fg_color);
-    immVertex2f(pos, subframe_x - tri_half_width, tri_top);
-    immVertex2f(pos, subframe_x + tri_half_width + 1, tri_top);
-    immVertex2f(pos, subframe_x + 0.5f, tri_top - tri_height);
+    immVertex2f(pos, subframe_x - dimensions.tri_half_width, dimensions.tri_top);
+    immVertex2f(pos, subframe_x + dimensions.tri_half_width + 1, dimensions.tri_top);
+    immVertex2f(pos, subframe_x + 0.5f, dimensions.tri_top - dimensions.tri_height);
     immEnd();
     immUnbindProgram();
     GPU_polygon_smooth(false);
@@ -191,6 +262,13 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
 
   rcti scrub_region_rect;
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
+
+  if (scene->r.framelen != 1.0) {
+    /* In case the time scale feature is active, we draw a second playhead with less opacity to
+     * indicate the remapped time. */
+    const float ctime = BKE_scene_ctime_get(scene);
+    draw_playhead_ghost(ctime, scene, v2d, &scrub_region_rect, display_seconds, display_stalk);
+  }
 
   draw_current_frame(scene, display_seconds, v2d, &scrub_region_rect, display_stalk);
   GPU_matrix_pop_projection();
