@@ -519,24 +519,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
     }
 #ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
     if (U.statusbar_flag & STATUSBAR_SHOW_BLENDER_UPDATES_DIALOG) {
-      if (bool(G.f & G_FLAG_INTERNET_ALLOW) && !bke::updates_notifications_flags()) {
-        if (has_status_info) {
-          row.separator(-0.5f);
-          row.label("|", ICON_NONE);
-          row.separator(-0.5f);
-        }
-        row.emboss_set(EmbossType::Emboss);
-        row.op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
-        Button *but = layout->block()->buttons_ptrs.last().get();
-        uchar color[4];
-        but->tip =
-            "Show system preferences \"Network\" panel to allow Blender updates notifications.";
-        theme::get_color_4ubv(TH_TEXT, color);
-        copy_v4_v4_uchar(but->col, color);
-        row.separator(1.0f);
-        has_status_info = true;
-      }
-      else if (bke::have_available_updates(*C)) {
+      if (bke::have_available_updates(*C)) {
         if (has_status_info) {
           row.separator(-0.5f);
           row.label("|", ICON_NONE);

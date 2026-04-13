@@ -35,6 +35,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BKE_blender_updates.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
@@ -5849,9 +5850,7 @@ static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
 
 #ifdef WITH_BLENDER_UPDATES_NOTIFICATIONS
   ui::Layout &sub = layout.row(false);
-  sub.active_set(U.flag &
-                 (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                  USER_BLENDER_UPDATE_CURRENT_RELEASE));
+  sub.active_set(bke::updates_notifications_flags());
   sub.prop(&ptr,
            "show_statusbar_blender_updates_dialog",
            UI_ITEM_NONE,
