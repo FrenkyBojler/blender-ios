@@ -76,6 +76,17 @@ static std::optional<std::string> rna_AssetMetaData_path(const PointerRNA * /*pt
   return "asset_data";
 }
 
+static StructRNA *rna_AssetMetaData_refine(PointerRNA *ptr)
+{
+  AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
+
+  if (StructRNA *properties_struct = BKE_asset_metadata_properties_struct(asset_data)) {
+    return properties_struct;
+  }
+
+  return RNA_AssetMetaData;
+}
+
 static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
                                                      const AssetMetaData *asset_data,
                                                      const char **r_info)
@@ -177,6 +188,10 @@ static void rna_AssetMetaData_tag_remove(ID *id,
 static IDProperty **rna_AssetMetaData_idprops(PointerRNA *ptr)
 {
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
+  if (!asset_data->runtime->properties_synced) {
+    RNA_sync_system_properties(*ptr, *asset_data->properties);
+    asset_data->runtime->properties_synced = true;
+  }
   return &asset_data->properties;
 }
 
@@ -539,16 +554,12 @@ static void rna_def_asset_data(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "AssetMetaData", nullptr);
   RNA_def_struct_path_func(srna, "rna_AssetMetaData_path");
   RNA_def_struct_ui_text(srna, "Asset Data", "Additional data stored for an asset data-block");
+  RNA_def_struct_refine_func(srna, "rna_AssetMetaData_refine");
   //  RNA_def_struct_ui_icon(srna, ICON_ASSET); /* TODO: Icon doesn't exist! */
   /* The struct has custom properties, but no pointer properties to other IDs! */
-  /* FIXME: These need to remain 'user-defined' properties for now, as they are _not_ accessible
-   * through RNA system.
-   * Current situation is not great, as these idprops are technically system-defined (users have no
-   * access/control over them), yet they behave as user-defined ones.
-   * Ultimately it's a similar issue as with the 'Node Modifier' - though not sure the same
-   * solution (actually using RNA access to them) would be desired here?. */
-  RNA_def_struct_idprops_func(srna, "rna_AssetMetaData_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_AssetMetaData_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
+  RNA_def_struct_flag(srna, STRUCT_PUBLIC_NAMESPACE_INHERIT);
 
   prop = RNA_def_property(srna, "author", PROP_STRING, PROP_NONE);
   RNA_def_property_editable_func(prop, "rna_AssetMetaData_editable");

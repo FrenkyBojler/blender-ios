@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "DNA_ID_enums.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
@@ -65,6 +66,27 @@ struct AssetTag {
   char name[/*MAX_NAME*/ 64] = "";
 };
 
+#
+#
+struct AssetMetaData_Runtime {
+  ID_Type id_type = ID_Type(0);
+
+  /** Runtime type, to reference event callbacks. Only valid for local assets. */
+  struct AssetTypeInfo *local_type_info = nullptr;
+
+  struct StructRNA *properties_struct = nullptr;
+  /**
+   * #properties_struct above may be null because it was either not initialized yet, or we tried to
+   * initialize it but there is no properties RNA struct for this asset type defined, so none was
+   * found. In the latter case, this boolean will be set to true, to avoid continuously looking up
+   * the non-existing properties struct.
+   */
+  bool has_no_properties_struct = false;
+  bool properties_synced = false;
+
+  AssetMetaData_Runtime(ID_Type idtype);
+};
+
 /**
  * \brief The meta-data of an asset.
  * By creating and giving this for a data-block (#ID.asset_data), the data-block becomes an asset.
@@ -74,8 +96,7 @@ struct AssetTag {
  *       more than that from the file. So pointers to other IDs or ID data are strictly forbidden.
  */
 struct AssetMetaData {
-  /** Runtime type, to reference event callbacks. Only valid for local assets. */
-  struct AssetTypeInfo *local_type_info = nullptr;
+  AssetMetaData_Runtime *runtime = nullptr;
 
   /** Custom asset meta-data. Cannot store pointers to IDs (#STRUCT_NO_DATABLOCK_IDPROPERTIES)! */
   struct IDProperty *properties = nullptr;
@@ -117,7 +138,7 @@ struct AssetMetaData {
   char _pad[4] = {};
 
 #if defined(__cplusplus) && !defined(DNA_NO_EXTERNAL_CONSTRUCTORS)
-  AssetMetaData() = default;
+  AssetMetaData(ID_Type idtype);
   AssetMetaData(const AssetMetaData &other);
   AssetMetaData(AssetMetaData &&other);
   /** Enables use with `std::unique_ptr<AssetMetaData>`. */

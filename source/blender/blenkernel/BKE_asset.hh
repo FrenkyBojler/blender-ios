@@ -22,10 +22,12 @@ struct BlendWriter;
 struct ID;
 struct IDProperty;
 struct PreviewImage;
+struct StructRNA;
 
 using PreSaveFn = void (*)(void *asset_ptr, AssetMetaData *asset_data);
 using OnMarkAssetFn = void (*)(void *asset_ptr, AssetMetaData *asset_data);
 using OnClearAssetDataFn = void (*)(void *asset_ptr, AssetMetaData *asset_data);
+using DefinePropertiesFn = void (*)(StructRNA &srna);
 
 struct AssetTypeInfo {
   /**
@@ -39,9 +41,12 @@ struct AssetTypeInfo {
    * otherwise, i.e. when an asset data-block is turned back into a normal data-block.
    */
   OnClearAssetDataFn on_clear_asset_fn;
+
+  const char *properties_struct_idname = nullptr;
+  DefinePropertiesFn define_properties_fn;
 };
 
-AssetMetaData *BKE_asset_metadata_create();
+AssetMetaData *BKE_asset_metadata_create(ID_Type idtype);
 void BKE_asset_metadata_free(AssetMetaData **asset_data);
 
 /**
@@ -50,6 +55,8 @@ void BKE_asset_metadata_free(AssetMetaData **asset_data);
  * The caller becomes the owner of the returned pointer.
  */
 AssetMetaData *BKE_asset_metadata_copy(const AssetMetaData *source);
+
+StructRNA *BKE_asset_metadata_properties_struct(const AssetMetaData *asset_data);
 
 struct AssetTagEnsureResult {
   AssetTag *tag;
@@ -81,7 +88,9 @@ PreviewImage *BKE_asset_metadata_preview_get_from_id(const AssetMetaData *asset_
                                                      const ID *owner_id);
 
 void BKE_asset_metadata_write(BlendWriter *writer, AssetMetaData *asset_data);
-void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data);
+void BKE_asset_metadata_read(BlendDataReader *reader,
+                             AssetMetaData *asset_data,
+                             const ID_Type idtype);
 
 void BKE_asset_weak_reference_write(BlendWriter *writer, const AssetWeakReference *weak_ref);
 void BKE_asset_weak_reference_read(BlendDataReader *reader, AssetWeakReference *weak_ref);

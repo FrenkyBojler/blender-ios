@@ -195,7 +195,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
 
       /* Lastly, read asset data from the following blocks. */
       if (asset_meta_data) {
-        bhead = blo_read_asset_data_block(fd, bhead, &asset_meta_data);
+        bhead = blo_read_asset_data_block(fd, bhead, &asset_meta_data, GS(idname));
         /* blo_read_asset_data_block() reads all DATA heads and already advances bhead to the
          * next non-DATA one. Go back, so the loop doesn't skip the non-DATA head. */
         bhead = blo_bhead_prev(fd, bhead);

@@ -40,7 +40,7 @@ class AssetRepresentationTest : public AssetLibraryTestBase {
 
   AssetRepresentation &add_dummy_asset(AssetLibrary &library, StringRef relative_path)
   {
-    std::unique_ptr<AssetMetaData> dummy_metadata = std::make_unique<AssetMetaData>();
+    std::unique_ptr<AssetMetaData> dummy_metadata = std::make_unique<AssetMetaData>(ID_GR);
     return *library
                 .add_external_on_disk_asset(
                     relative_path, "Some asset name", 0, std::move(dummy_metadata))

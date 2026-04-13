@@ -2282,10 +2282,10 @@ static void direct_link_id_common(BlendDataReader *reader,
 
   if (id->asset_data) {
     BLO_read_struct(reader, AssetMetaData, &id->asset_data);
-    BKE_asset_metadata_read(reader, id->asset_data);
+    BKE_asset_metadata_read(reader, id->asset_data, GS(id->name));
     /* Restore runtime asset type info. */
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
-    id->asset_data->local_type_info = id_type->asset_type_info;
+    id->asset_data->runtime->local_type_info = id_type->asset_type_info;
   }
 
   /* Link direct data of ID properties. */
@@ -3556,7 +3556,10 @@ static BHead *read_libblock(FileData *fd,
 /** \name Read Asset Data
  * \{ */
 
-BHead *blo_read_asset_data_block(FileData *fd, BHead *bhead, AssetMetaData **r_asset_data)
+BHead *blo_read_asset_data_block(FileData *fd,
+                                 BHead *bhead,
+                                 AssetMetaData **r_asset_data,
+                                 const ID_Type idtype)
 {
   BLI_assert(blo_bhead_is_id_valid_type(bhead));
 
@@ -3564,7 +3567,7 @@ BHead *blo_read_asset_data_block(FileData *fd, BHead *bhead, AssetMetaData **r_a
 
   BlendDataReader reader = {fd};
   BLO_read_struct(&reader, AssetMetaData, r_asset_data);
-  BKE_asset_metadata_read(&reader, *r_asset_data);
+  BKE_asset_metadata_read(&reader, *r_asset_data, idtype);
 
   oldnewmap_clear(fd->datamap);
 

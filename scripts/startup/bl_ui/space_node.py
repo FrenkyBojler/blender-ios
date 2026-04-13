@@ -1179,7 +1179,7 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
         from pathlib import Path
 
         compositing_type = bpy.types.NodeTree.bl_rna.properties["type"].enum_items["COMPOSITING"]
-        if asset.id_type != 'NODETREE' or asset.metadata.get("type") != compositing_type.value:
+        if asset.id_type != 'NODETREE' or getattr(asset.metadata, "type") != compositing_type.value:
             return False
 
         # Don't display these node groups from the essentials. They will be displayed in the "Add" menu, but are a bit

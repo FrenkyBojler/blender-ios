@@ -71,6 +71,8 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
         fmt::format(N_("could not read type of asset '{:s}', 'type' field not set"), asset_name));
   }
 
+  const ID_Type idtype = ID_Type(listing_entry.idcode);
+
   /* 'files': required list of strings. */
   if (const ArrayValue *file_paths = dictionary.lookup_array("files")) {
     if (file_paths->elements().is_empty()) {
@@ -117,9 +119,9 @@ static ReadingResult<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   /* 'metadata': optional dictionary. If all the metadata fields are empty, this can be left out of
    * the listing. Default metadata will then be allocated, with all fields empty/0. */
   const DictionaryValue *metadata_dict = dictionary.lookup_dict("meta");
-  listing_entry.datablock_info.asset_data = metadata_dict ?
-                                                asset_metadata_from_dictionary(*metadata_dict) :
-                                                BKE_asset_metadata_create();
+  listing_entry.datablock_info.asset_data = metadata_dict ? asset_metadata_from_dictionary(
+                                                                *metadata_dict, idtype) :
+                                                            BKE_asset_metadata_create(idtype);
   listing_entry.datablock_info.free_asset_data = true;
 
   return ReadingResult<RemoteListingAssetEntry>::Success(std::move(listing_entry));

@@ -71,7 +71,7 @@ class BrushAssetShelf:
         if not cls.brush_type_prop:
             return True
 
-        asset_brush_type = asset.metadata.get(cls.brush_type_prop)
+        asset_brush_type = getattr(asset.metadata, cls.brush_type_prop)
         # Asset metadata doesn't store a brush type. Only show it when the tool doesn't require a
         # certain brush type.
         if asset_brush_type is None:
@@ -89,7 +89,7 @@ class BrushAssetShelf:
     def asset_poll(cls, asset):
         if asset.id_type != 'BRUSH':
             return False
-        if cls.mode_prop and not asset.metadata.get(cls.mode_prop, False):
+        if cls.mode_prop and not getattr(asset.metadata, cls.mode_prop, False):
             return False
 
         context = bpy.context

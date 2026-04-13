@@ -49,6 +49,10 @@
 
 #include "RE_texture.h" /* RE_texture_evaluate */
 
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
+
 #include "BLO_read_write.hh"
 
 namespace blender {
@@ -469,6 +473,24 @@ static void brush_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
   }
 }
 
+/* Most names copied from brush RNA (not all are available there though). */
+static constexpr std::array brush_mode_and_type_map{
+    std::tuple{"use_paint_sculpt", OB_MODE_SCULPT, "sculpt_brush_type"},
+    std::tuple{"use_paint_vertex", OB_MODE_VERTEX_PAINT, "vertex_brush_type"},
+    std::tuple{"use_paint_weight", OB_MODE_WEIGHT_PAINT, "weight_brush_type"},
+    std::tuple{"use_paint_image", OB_MODE_TEXTURE_PAINT, "image_brush_type"},
+    /* Sculpt UVs in the image editor while in edit mode. */
+    std::tuple{"use_paint_uv_sculpt", OB_MODE_EDIT, "image_brush_type"},
+    std::tuple{"use_paint_grease_pencil", OB_MODE_PAINT_GREASE_PENCIL, "gpencil_brush_type"},
+    /* Note: Not defined in brush RNA, own name. */
+    std::tuple{
+        "use_sculpt_grease_pencil", OB_MODE_SCULPT_GREASE_PENCIL, "gpencil_sculpt_brush_type"},
+    std::tuple{
+        "use_vertex_grease_pencil", OB_MODE_VERTEX_GREASE_PENCIL, "gpencil_vertex_brush_type"},
+    std::tuple{"use_weight_gpencil", OB_MODE_WEIGHT_GREASE_PENCIL, "gpencil_weight_brush_type"},
+    std::tuple{"use_paint_sculpt_curves", OB_MODE_SCULPT_CURVES, "curves_sculpt_brush_type"},
+};
+
 static void brush_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
 {
   using namespace blender::bke;
@@ -476,25 +498,7 @@ static void brush_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_da
   Brush *brush = reinterpret_cast<Brush *>(asset_ptr);
   BLI_assert(GS(brush->id.name) == ID_BR);
 
-  /* Most names copied from brush RNA (not all are available there though). */
-  constexpr std::array mode_map{
-      std::tuple{"use_paint_sculpt", OB_MODE_SCULPT, "sculpt_brush_type"},
-      std::tuple{"use_paint_vertex", OB_MODE_VERTEX_PAINT, "vertex_brush_type"},
-      std::tuple{"use_paint_weight", OB_MODE_WEIGHT_PAINT, "weight_brush_type"},
-      std::tuple{"use_paint_image", OB_MODE_TEXTURE_PAINT, "image_brush_type"},
-      /* Sculpt UVs in the image editor while in edit mode. */
-      std::tuple{"use_paint_uv_sculpt", OB_MODE_EDIT, "image_brush_type"},
-      std::tuple{"use_paint_grease_pencil", OB_MODE_PAINT_GREASE_PENCIL, "gpencil_brush_type"},
-      /* Note: Not defined in brush RNA, own name. */
-      std::tuple{
-          "use_sculpt_grease_pencil", OB_MODE_SCULPT_GREASE_PENCIL, "gpencil_sculpt_brush_type"},
-      std::tuple{
-          "use_vertex_grease_pencil", OB_MODE_VERTEX_GREASE_PENCIL, "gpencil_vertex_brush_type"},
-      std::tuple{"use_weight_gpencil", OB_MODE_WEIGHT_GREASE_PENCIL, "gpencil_weight_brush_type"},
-      std::tuple{"use_paint_sculpt_curves", OB_MODE_SCULPT_CURVES, "curves_sculpt_brush_type"},
-  };
-
-  for (const auto &[prop_name, mode, tool_prop_name] : mode_map) {
+  for (const auto &[prop_name, mode, tool_prop_name] : brush_mode_and_type_map) {
     /* Only add booleans for supported modes. */
     if (!(brush->ob_mode & mode)) {
       continue;
@@ -512,9 +516,45 @@ static void brush_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_da
   }
 }
 
+static void brush_asset_metadata_define_properties(StructRNA &srna)
+{
+  /* Special case "image_brush_type" is in the map twice, only add it once. */
+  bool has_image_brush_type = false;
+
+  for (const auto &[prop_name, mode, tool_prop_name] : brush_mode_and_type_map) {
+    PropertyRNA *brush_mode_prop = RNA_struct_type_find_property(RNA_Brush, prop_name);
+    RNA_def_boolean(&srna,
+                    prop_name,
+                    false,
+                    brush_mode_prop ? RNA_property_ui_name(brush_mode_prop) : "",
+                    brush_mode_prop ? RNA_property_description(brush_mode_prop) : "");
+
+    if (STREQ(tool_prop_name, "image_brush_type")) {
+      if (has_image_brush_type) {
+        continue;
+      }
+      has_image_brush_type = true;
+    }
+
+    PropertyRNA *brush_type_prop = RNA_struct_type_find_property(RNA_Brush, tool_prop_name);
+    RNA_def_int(&srna,
+                tool_prop_name,
+                0,
+                -INT_MAX,
+                INT_MAX,
+                brush_type_prop ? RNA_property_ui_name(brush_type_prop) : "",
+                brush_type_prop ? RNA_property_description(brush_type_prop) : "",
+                -INT_MAX,
+                INT_MAX);
+  }
+}
+
 static AssetTypeInfo AssetType_BR = {
-    /*pre_save_fn*/ brush_asset_metadata_ensure,
-    /*on_mark_asset_fn*/ brush_asset_metadata_ensure,
+    .pre_save_fn = brush_asset_metadata_ensure,
+    .on_mark_asset_fn = brush_asset_metadata_ensure,
+
+    .properties_struct_idname = "BrushAssetMetaData",
+    .define_properties_fn = brush_asset_metadata_define_properties,
 };
 
 IDTypeInfo IDType_ID_BR = {

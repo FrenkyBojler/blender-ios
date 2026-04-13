@@ -20,17 +20,22 @@
 
 #include "BKE_asset.hh"
 #include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
 #include "BKE_preview_image.hh"
 
 #include "BLO_read_write.hh"
+
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
 namespace blender {
 
-AssetMetaData *BKE_asset_metadata_create()
+AssetMetaData *BKE_asset_metadata_create(const ID_Type idtype)
 {
-  return MEM_new<AssetMetaData>(__func__);
+  return MEM_new<AssetMetaData>(__func__, idtype);
 }
 
 void BKE_asset_metadata_free(AssetMetaData **asset_data)
@@ -41,12 +46,55 @@ void BKE_asset_metadata_free(AssetMetaData **asset_data)
 
 AssetMetaData *BKE_asset_metadata_copy(const AssetMetaData *source)
 {
+  /* Uses copy constructor defined below. */
   return MEM_new<AssetMetaData>(__func__, *source);
 }
 
+StructRNA *BKE_asset_metadata_properties_struct(const AssetMetaData *asset_data)
+{
+  AssetMetaData_Runtime *runtime = asset_data->runtime;
+  if (runtime->properties_struct) {
+    /* Already initialized. */
+    return runtime->properties_struct;
+  }
+
+  if (runtime->has_no_properties_struct) {
+    return nullptr;
+  }
+
+  const IDTypeInfo *idtype = BKE_idtype_get_info_from_idcode(runtime->id_type);
+  if (!idtype || !idtype->asset_type_info || !idtype->asset_type_info->define_properties_fn ||
+      !idtype->asset_type_info->properties_struct_idname ||
+      !idtype->asset_type_info->properties_struct_idname[0])
+  {
+    runtime->has_no_properties_struct = true;
+    return nullptr;
+  }
+
+  if (StructRNA *existing_struct = RNA_struct_find(
+          idtype->asset_type_info->properties_struct_idname))
+  {
+    return existing_struct;
+  }
+
+  StructRNA *new_struct = RNA_def_struct_ptr(&RNA_blender_rna_get(),
+                                             idtype->asset_type_info->properties_struct_idname,
+                                             RNA_AssetMetaData);
+  idtype->asset_type_info->define_properties_fn(*new_struct);
+  runtime->properties_struct = new_struct;
+
+  return runtime->properties_struct;
+}
+
+AssetMetaData_Runtime::AssetMetaData_Runtime(const ID_Type idtype) : id_type(idtype) {}
+
+AssetMetaData::AssetMetaData(const ID_Type idtype)
+    : runtime(MEM_new<AssetMetaData_Runtime>(__func__, idtype))
+{
+}
+
 AssetMetaData::AssetMetaData(const AssetMetaData &other)
-    : local_type_info(other.local_type_info),
-      properties(nullptr),
+    : runtime(MEM_new<AssetMetaData_Runtime>(__func__, *other.runtime)),
       catalog_id(other.catalog_id),
       active_tag(other.active_tag),
       tot_tags(other.tot_tags)
@@ -66,7 +114,7 @@ AssetMetaData::AssetMetaData(const AssetMetaData &other)
 }
 
 AssetMetaData::AssetMetaData(AssetMetaData &&other)
-    : local_type_info(other.local_type_info),
+    : runtime(std::exchange(other.runtime, nullptr)),
       properties(std::exchange(other.properties, nullptr)),
       catalog_id(other.catalog_id),
       author(std::exchange(other.author, nullptr)),
@@ -83,6 +131,7 @@ AssetMetaData::AssetMetaData(AssetMetaData &&other)
 
 AssetMetaData::~AssetMetaData()
 {
+  MEM_delete(runtime);
   if (properties) {
     IDP_FreeProperty(properties);
   }
@@ -211,10 +260,13 @@ void BKE_asset_metadata_write(BlendWriter *writer, AssetMetaData *asset_data)
   }
 }
 
-void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data)
+void BKE_asset_metadata_read(BlendDataReader *reader,
+                             AssetMetaData *asset_data,
+                             const ID_Type idtype)
 {
   /* asset_data itself has been read already. */
-  asset_data->local_type_info = nullptr;
+
+  asset_data->runtime = MEM_new<AssetMetaData_Runtime>(__func__, idtype);
 
   if (asset_data->properties) {
     BLO_read_struct(reader, IDProperty, &asset_data->properties);

@@ -216,9 +216,9 @@ static void init_value_from_file_indexer_entries(DictionaryValue &result,
   result.append(ATTRIBUTE_ENTRIES, entries);
 }
 
-AssetMetaData *asset_metadata_from_dictionary(const DictionaryValue &entry)
+AssetMetaData *asset_metadata_from_dictionary(const DictionaryValue &entry, const ID_Type idtype)
 {
-  AssetMetaData *asset_data = BKE_asset_metadata_create();
+  AssetMetaData *asset_data = BKE_asset_metadata_create(idtype);
 
   if (const std::optional<StringRef> value = entry.lookup_str(ATTRIBUTE_ENTRIES_DESCRIPTION)) {
     asset_data->description = BLI_strdupn(value->data(), value->size());
@@ -279,7 +279,8 @@ static void init_indexer_entry_from_value(FileIndexerEntry &indexer_entry,
 
   idcode_name.substr(2).copy_utf8_truncated(indexer_entry.datablock_info.name);
 
-  indexer_entry.datablock_info.asset_data = asset_metadata_from_dictionary(entry);
+  indexer_entry.datablock_info.asset_data = asset_metadata_from_dictionary(
+      entry, ID_Type(indexer_entry.idcode));
   indexer_entry.datablock_info.free_asset_data = true;
 }
 

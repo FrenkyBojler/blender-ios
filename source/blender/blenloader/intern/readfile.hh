@@ -248,8 +248,10 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
  */
 void blo_make_old_idmap_from_main(FileData *fd, Main *bmain) ATTR_NONNULL(1, 2);
 
-BHead *blo_read_asset_data_block(FileData *fd, BHead *bhead, AssetMetaData **r_asset_data)
-    ATTR_NONNULL(1, 2);
+BHead *blo_read_asset_data_block(FileData *fd,
+                                 BHead *bhead,
+                                 AssetMetaData **r_asset_data,
+                                 ID_Type idtype) ATTR_NONNULL(1, 2);
 
 void blo_cache_storage_init(FileData *fd, Main *bmain) ATTR_NONNULL(1, 2);
 void blo_cache_storage_old_bmain_clear(FileData *fd, Main *bmain_old) ATTR_NONNULL(1, 2);

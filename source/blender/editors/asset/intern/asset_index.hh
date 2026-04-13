@@ -28,7 +28,8 @@ struct RemoteListingAssetEntry;
 
 std::unique_ptr<io::serialize::Value> read_contents(StringRefNull filepath);
 
-AssetMetaData *asset_metadata_from_dictionary(const io::serialize::DictionaryValue &entry);
+AssetMetaData *asset_metadata_from_dictionary(const io::serialize::DictionaryValue &entry,
+                                              ID_Type idtype);
 
 /**
  * Result of reading a remote listing.
