@@ -12,6 +12,14 @@
 
 namespace blender::nodes::node_fn_separate_transform_cc {
 
+static void decompose_transform_safe(const float4x4 &transform,
+                                     math::Quaternion &r_rotation,
+                                     float3 &r_scale)
+{
+  float3 translation;
+  math::to_loc_rot_scale_safe<true>(transform, translation, r_rotation, r_scale);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
@@ -52,19 +60,17 @@ class SeparateTransformFunction : public mf::MultiFunction {
     }
 
     if (rotation.is_empty() && !scale.is_empty()) {
-      mask.foreach_index([&](const int64_t i) { scale[i] = math::to_scale(transforms[i]); });
+      mask.foreach_index([&](const int64_t i) { scale[i] = math::to_scale<true>(transforms[i]); });
     }
     else if (!rotation.is_empty() && scale.is_empty()) {
       mask.foreach_index([&](const int64_t i) {
-        rotation[i] = math::normalized_to_quaternion_safe(
-            math::normalize(float3x3(transforms[i])));
+        float3 scale_dummy;
+        decompose_transform_safe(transforms[i], rotation[i], scale_dummy);
       });
     }
     else if (!rotation.is_empty() && !scale.is_empty()) {
       mask.foreach_index([&](const int64_t i) {
-        const float3x3 normalized_mat = math::normalize_and_get_size(float3x3(transforms[i]),
-                                                                     scale[i]);
-        rotation[i] = math::normalized_to_quaternion_safe(normalized_mat);
+        decompose_transform_safe(transforms[i], rotation[i], scale[i]);
       });
     }
   }
