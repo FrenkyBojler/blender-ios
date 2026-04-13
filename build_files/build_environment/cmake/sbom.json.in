@@ -1,0 +1,24 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:18742400-8434-4b86-a53c-504df8cb7e85",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-04-13T18:44:04Z",
+    "tools": [
+      {
+        "vendor": "cve-bin-tool",
+        "name": "cve-bin-tool",
+        "version": "unknown"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "name": "blender",
+      "version": "unknown"
+    }
+  },
+  "components": [
+@SBOMCONTENTS@
+  ]
+}
