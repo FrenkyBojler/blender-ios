@@ -297,10 +297,8 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements requirements)
 
 void VKTexturePool::AllocationHandle::free()
 {
-  VKDevice &device = VKBackend::get().device;
-  /* TODO(not_mark): allocation needs to go to discard pool, but for that it needs to be tracked.
-   * This is only OK right now because `max_unused_cycles_` is sufficiently large. */
-  vmaFreeMemory(device.mem_allocator_get(), allocation);
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  discard_pool.discard_allocation(allocation);
   segments = {};
 }
 
