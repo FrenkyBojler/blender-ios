@@ -482,7 +482,7 @@ class PROJECT_OP_AddVariable(Operator):
 
     def execute(self, context):
         var = bpy.data.project.variables.new()
-        var.name = "My Variable"
+        var.name = "Variable"
 
         return {'FINISHED'}
 
