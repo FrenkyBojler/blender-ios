@@ -227,6 +227,23 @@ class RaycastFunction : public mf::MultiFunction {
                     params.uninitialized_single_output_if_required<float3>(5, "Hit Normal"),
                     params.uninitialized_single_output_if_required<float>(6, "Distance"));
   }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const RaycastFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (target_ != other_op->target_) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(765978398566, target_);
+  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
