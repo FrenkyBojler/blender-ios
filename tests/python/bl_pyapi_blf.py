@@ -156,7 +156,17 @@ USE_PREPARE_FORCE: bool = False
 SHOW_HTML: str = ""
 COMPARE_IMAGES: list["ComparedImage"] = []
 OUTPUT_DIR: str = ""
-FONTS_VFONT: "tuple[bpy.types.VectorFont, bpy.types.VectorFont, bpy.types.VectorFont, bpy.types.VectorFont] | None" = None
+
+
+class VFontSet(NamedTuple):
+    """The font variants used by VFont text objects."""
+    regular: bpy.types.VectorFont
+    bold: bpy.types.VectorFont
+    italic: bpy.types.VectorFont
+    bold_italic: bpy.types.VectorFont
+
+
+FONTS_VFONT: VFontSet | None = None
 
 
 # Test classes are registered here by TestImageComparison_MixIn.__init_subclass__
@@ -371,7 +381,7 @@ class CaseVFont(NamedTuple):
     # Optional context-manager factory invoked after the text Object has been created
     # and before the depsgraph evaluates it. Receives the Object as its only argument
     # and must return a context manager: setup runs in __enter__, teardown in __exit__.
-    with_context_fn: Callable[["bpy.types.Object"], ContextManager[None]] | None = None
+    with_context_fn: Callable[[bpy.types.Object], ContextManager[None]] | None = None
     # curve.resolution_u -- subdivision resolution of each glyph outline.
     resolution: int = 4
     # When True, skip validation and print proposed values for size,
@@ -416,7 +426,7 @@ def case_generic_to_buffer(cases: list[CaseGeneric]) -> list[CaseBuffer]:
     return [CaseBuffer(name=c.name, text=c.text, **c.buffer._asdict()) for c in cases]
 
 
-def case_generic_to_vfont(cases: list[CaseGeneric]) -> list["CaseVFont"]:
+def case_generic_to_vfont(cases: list[CaseGeneric]) -> list[CaseVFont]:
     """Convert a list of CaseGeneric to CaseVFont."""
     return [CaseVFont(name=c.name, text=c.text, **c.vfont._asdict()) for c in cases]
 
@@ -519,7 +529,7 @@ def load_font_blf() -> int:
     return font_id
 
 
-def imbuf_rgb_new(size: tuple[int, int]) -> "imbuf.types.ImBuf":
+def imbuf_rgb_new(size: tuple[int, int]) -> imbuf.types.ImBuf:
     """
     Allocate a fresh RGB-only PNG imbuf with a BYTE pixel buffer.
 
@@ -552,7 +562,7 @@ def _blf_wrap_width(font_id: int, wrap_width: int) -> Iterator[None]:
         blf.disable(font_id, blf.WORD_WRAP)
 
 
-def render_text_buffer(font_id: int, case: "CaseBuffer") -> "imbuf.types.ImBuf":
+def render_text_buffer(font_id: int, case: CaseBuffer) -> imbuf.types.ImBuf:
     """Render text into an imbuf via BLF buffer drawing."""
     blf.size(font_id, case.font_size)
     ibuf = imbuf_rgb_new(case.size)
@@ -573,7 +583,7 @@ def render_text_buffer(font_id: int, case: "CaseBuffer") -> "imbuf.types.ImBuf":
     return ibuf
 
 
-def render_text_gpu(font_id: int, case: "CaseBuffer") -> object:
+def render_text_gpu(font_id: int, case: CaseBuffer) -> object:
     """Render text via the GPU draw path into an imbuf."""
     blf.size(font_id, case.font_size)
     blf.color(font_id, 1.0, 1.0, 1.0, 1.0)
@@ -664,12 +674,14 @@ def generate_random_words(word_count: int, seed: int, *, titlecase: bool = True)
 
 def vfont_to_triangles(
         case: CaseVFont,
-        fonts: "tuple[bpy.types.VectorFont, bpy.types.VectorFont, bpy.types.VectorFont, bpy.types.VectorFont]",
-) -> tuple[list[tuple[float, float]], list[tuple[int, int, int]], list[int]]:
+        fonts: VFontSet,
+) -> tuple[
+    list[tuple[float, float]],
+    list[tuple[int, int, int]],
+    list[int],
+]:
     """
     Build a VFont text object from the given case, convert to mesh, and extract 2D triangles.
-
-    ``fonts`` is a 4-tuple of (regular, bold, italic, bold_italic) VectorFonts.
 
     Returns ``(vertices, indices, material_indices)`` where vertices are ``(x, y)`` pairs,
     indices are triangle index triples, and material_indices is a per-triangle material slot.
@@ -679,10 +691,10 @@ def vfont_to_triangles(
     curve = bpy.data.curves.new(name="_test_text", type='FONT')
     curve.body = body
     curve.size = case.font_size
-    curve.font = fonts[0]
-    curve.font_bold = fonts[1]
-    curve.font_italic = fonts[2]
-    curve.font_bold_italic = fonts[3]
+    curve.font = fonts.regular
+    curve.font_bold = fonts.bold
+    curve.font_italic = fonts.italic
+    curve.font_bold_italic = fonts.bold_italic
     curve.fill_mode = 'BOTH'
     curve.resolution_u = case.resolution
     curve.overflow = case.overflow
@@ -704,7 +716,7 @@ def vfont_to_triangles(
             ci.material_index = span.material
             ci.kerning = span.kerning
 
-    created_materials: list["bpy.types.Material"] = []
+    created_materials: list[bpy.types.Material] = []
     if case.materials is not None:
         for i, (r, g, b) in enumerate(case.materials):
             mat = bpy.data.materials.new(name="_test_mat_{:d}".format(i))
@@ -761,7 +773,7 @@ def vfont_dimensions_from_verts(
     return (max(xs) - min(xs), max(ys) - min(ys))
 
 
-def check_image_bounds(ibuf: "imbuf.types.ImBuf", name: str) -> str | None:
+def check_image_bounds(ibuf: imbuf.types.ImBuf, name: str) -> str | None:
     """
     Check that the image is correctly framed.
 
@@ -840,7 +852,7 @@ def render_text_vfont(
         image_size: tuple[int, int],
         position_offset: tuple[float, float],
         materials: list[tuple[float, float, float]] | None = None,
-) -> "imbuf.types.ImBuf":
+) -> imbuf.types.ImBuf:
     """
     Render pre-computed VFont triangles into an imbuf via GPU.
 
@@ -1060,7 +1072,7 @@ class TestImageComparison_MixIn:
     # To be overridden.
     name_prefix: str = ""
     cases_buffer: list[CaseBuffer] = []
-    cases_vfont: list["CaseVFont"] = []
+    cases_vfont: list[CaseVFont] = []
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
@@ -1189,7 +1201,7 @@ class TestImageComparison_MixIn:
             clipped_top = best_first_row == 0
             clipped_bottom = best_last_row == search_h - 1
             if clipped_top and not clipped_bottom:
-                search_range: "range | itertools.chain[int]" = range(
+                search_range: range | itertools.chain[int] = range(
                     search_step, search_reach + 1, search_step,
                 )
             elif clipped_bottom and not clipped_top:
@@ -2575,7 +2587,7 @@ class TestTextOnCurve(TestImageComparison_MixIn, unittest.TestCase):
 
     @staticmethod
     @contextlib.contextmanager
-    def _circle(obj: "bpy.types.Object") -> Iterator[None]:
+    def _circle(obj: bpy.types.Object) -> Iterator[None]:
         """
         Create a Bezier circle and assign it as the text object's ``follow_curve``.
 
@@ -3493,11 +3505,11 @@ def main() -> None:
 
     # Load the bpy VectorFont once if any vfont tests are active.
     if "vfont" in active_kinds:
-        FONTS_VFONT = (
-            bpy.data.fonts.load(FONT_PATH_REGULAR),
-            bpy.data.fonts.load(FONT_PATH_BOLD),
-            bpy.data.fonts.load(FONT_PATH_ITALIC),
-            bpy.data.fonts.load(FONT_PATH_BOLD_ITALIC),
+        FONTS_VFONT = VFontSet(
+            regular=bpy.data.fonts.load(FONT_PATH_REGULAR),
+            bold=bpy.data.fonts.load(FONT_PATH_BOLD),
+            italic=bpy.data.fonts.load(FONT_PATH_ITALIC),
+            bold_italic=bpy.data.fonts.load(FONT_PATH_BOLD_ITALIC),
         )
 
     # By default non-reference outputs go to a TemporaryDirectory that's cleaned
