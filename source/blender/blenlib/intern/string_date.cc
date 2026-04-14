@@ -63,7 +63,7 @@ static const Map<std::string, CLDRPatterns> &locale_patterns = *([]() {
       {"id_ID", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Indonesian. */
       {"it_IT", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Italian. */
       {"ja_JP", {"{Y}年{m}月{d}日", "{H:02}:{M:02}"}},      /* Japanese. */
-      {"ko_KR", {"{Y}년 {m}월{d}일", "{H:02}:{M:02}"}},     /* Korean. */
+      {"ko_KR", {"{Y}년 {m}월 {d}일", "{H:02}:{M:02}"}},    /* Korean. */
       {"nb", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Norwegian. */
       {"fa_IR", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Persian. */
       {"pl_PL", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Polish. */
@@ -110,9 +110,7 @@ static const CLDRPatterns *get_locale_patterns(const char *locale_iso)
   return locale_patterns.lookup_ptr("default");
 }
 
-static std::string format_with_pattern(const std::tm *tm,
-                                       const std::string &pattern,
-                                       const char *locale_iso)
+static std::string format_with_pattern(const std::tm *tm, const std::string &pattern)
 {
   BLI_assert(tm->tm_mon >= 0 && tm->tm_mon < 12);
   const int month_index = std::clamp(tm->tm_mon, 0, 11);
@@ -135,13 +133,13 @@ static std::string format_with_pattern(const std::tm *tm,
 std::string time(const std::tm *date_time, const char *locale_iso)
 {
   const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
-  return format_with_pattern(date_time, pattern->time, locale_iso);
+  return format_with_pattern(date_time, pattern->time);
 }
 
 std::string date(const std::tm *date_time, const char *locale_iso)
 {
   const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
-  return format_with_pattern(date_time, pattern->date, locale_iso);
+  return format_with_pattern(date_time, pattern->date);
 }
 
 std::string datetime(const std::tm *datetime,
