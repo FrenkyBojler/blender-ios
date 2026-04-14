@@ -843,6 +843,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeListReverse")
         self.node_operator(layout, "GeometryNodeListSetItem")
         self.node_operator(layout, "GeometryNodeListSlice")
+        self.node_operator(layout, "GeometryNodeListSubset")
         self.node_operator(layout, "GeometryNodeListSort")
         self.node_operator(layout, "GeometryNodeListUnique")
         self.draw_assets_for_catalog(layout, self.menu_path)
