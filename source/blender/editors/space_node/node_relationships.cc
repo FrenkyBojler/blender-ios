@@ -100,6 +100,8 @@ static void pick_link(bNodeLinkDrag &nldrag,
 
   bNodeLink link = create_drag_link(*link_to_pick.fromnode, *link_to_pick.fromsock);
 
+  bke::node_link_set_mute(*snode.edittree, link, (link_to_pick.flag & NODE_LINK_MUTED));
+
   /* So we can restore order on cancel. */
   if (link_to_pick.tosock->is_multi_input()) {
     link.multi_input_sort_id = link_to_pick.multi_input_sort_id;
