@@ -44,6 +44,7 @@ GLTexture::~GLTexture()
 {
   if (framebuffer_) {
     GPU_framebuffer_free(framebuffer_);
+    framebuffer_context_ = nullptr;
   }
   GLContext *ctx = GLContext::get();
   if (ctx != nullptr && is_bound_) {
@@ -563,12 +564,20 @@ void GLTexture::mip_range_set(int min, int max)
 
 FrameBuffer *GLTexture::framebuffer_get()
 {
+  GLContext *ctx = GLContext::get();
   if (framebuffer_) {
-    return framebuffer_;
+    if (framebuffer_context_ == ctx) {
+      return framebuffer_;
+    }
+
+    GPU_framebuffer_free(framebuffer_);
+    framebuffer_ = nullptr;
+    framebuffer_context_ = nullptr;
   }
   BLI_assert(!(type_ & GPU_TEXTURE_1D));
   framebuffer_ = GPU_framebuffer_create(name_.c_str());
   framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(this));
+  framebuffer_context_ = ctx;
   has_pixels_ = true;
   return framebuffer_;
 }
