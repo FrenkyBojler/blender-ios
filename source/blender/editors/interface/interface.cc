@@ -76,11 +76,8 @@
 
 #include "interface_intern.hh"
 
-namespace blender {
-
+namespace blender::ui {
 static CLG_LogRef LOG = {"ui"};
-
-namespace ui {
 
 /* prototypes. */
 static void def_but_rna__menu(bContext *C, Layout *layout, void *but_p);
@@ -6799,6 +6796,13 @@ void button_label_alpha_factor_set(Button *but, const float alpha_factor)
   but_label->alpha_factor = alpha_factor;
 }
 
+void button_label_draw_icon_border_set(Button *but, const bool use_icon_border)
+{
+  ButtonLabel *but_label = reinterpret_cast<ButtonLabel *>(but);
+  BLI_assert(but->type == ButtonType::Label);
+  but_label->draw_icon_border = use_icon_border;
+}
+
 void button_search_preview_grid_size_set(Button *but, int rows, int cols)
 {
   BLI_assert(but->type == ButtonType::SearchMenu);
@@ -7142,5 +7146,4 @@ std::string button_get_link(const Button *button, bContext *C)
 #endif
 }
 
-}  // namespace ui
-}  // namespace blender
+}  // namespace blender::ui
