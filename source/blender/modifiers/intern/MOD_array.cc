@@ -65,10 +65,10 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   ArrayModifierData *amd = reinterpret_cast<ArrayModifierData *>(md);
 
-  walk(user_data, ob, reinterpret_cast<ID **>(&amd->start_cap), IDWALK_CB_NOP);
-  walk(user_data, ob, reinterpret_cast<ID **>(&amd->end_cap), IDWALK_CB_NOP);
-  walk(user_data, ob, reinterpret_cast<ID **>(&amd->curve_ob), IDWALK_CB_NOP);
-  walk(user_data, ob, reinterpret_cast<ID **>(&amd->offset_ob), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&amd->start_cap), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&amd->end_cap), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&amd->curve_ob), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&amd->offset_ob), IDWALK_CB_USER);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)

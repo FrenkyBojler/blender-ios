@@ -225,8 +225,8 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
 
-  walk(user_data, ob, reinterpret_cast<ID **>(&umd->object_dst), IDWALK_CB_NOP);
-  walk(user_data, ob, reinterpret_cast<ID **>(&umd->object_src), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&umd->object_dst), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&umd->object_src), IDWALK_CB_USER);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)

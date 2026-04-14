@@ -85,7 +85,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   DisplaceModifierData *dmd = reinterpret_cast<DisplaceModifierData *>(md);
 
   walk(user_data, ob, reinterpret_cast<ID **>(&dmd->texture), IDWALK_CB_USER);
-  walk(user_data, ob, reinterpret_cast<ID **>(&dmd->map_object), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&dmd->map_object), IDWALK_CB_USER);
 }
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)

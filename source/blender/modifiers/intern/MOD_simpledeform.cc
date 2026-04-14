@@ -407,7 +407,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   SimpleDeformModifierData *smd = reinterpret_cast<SimpleDeformModifierData *>(md);
-  walk(user_data, ob, reinterpret_cast<ID **>(&smd->origin), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&smd->origin), IDWALK_CB_USER);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)

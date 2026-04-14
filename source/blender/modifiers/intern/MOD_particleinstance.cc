@@ -120,7 +120,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   ParticleInstanceModifierData *pimd = reinterpret_cast<ParticleInstanceModifierData *>(md);
 
-  walk(user_data, ob, reinterpret_cast<ID **>(&pimd->ob), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&pimd->ob), IDWALK_CB_USER);
 }
 
 static bool particle_skip(ParticleInstanceModifierData *pimd, ParticleSystem *psys, int p)

@@ -574,7 +574,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   NormalEditModifierData *enmd = reinterpret_cast<NormalEditModifierData *>(md);
 
-  walk(user_data, ob, reinterpret_cast<ID **>(&enmd->target), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&enmd->target), IDWALK_CB_USER);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)

@@ -84,7 +84,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   DataTransferModifierData *dtmd = reinterpret_cast<DataTransferModifierData *>(md);
-  walk(user_data, ob, reinterpret_cast<ID **>(&dtmd->ob_source), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&dtmd->ob_source), IDWALK_CB_USER);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)

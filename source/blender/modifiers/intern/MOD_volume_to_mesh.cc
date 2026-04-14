@@ -68,7 +68,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   VolumeToMeshModifierData *vmmd = reinterpret_cast<VolumeToMeshModifierData *>(md);
-  walk(user_data, ob, reinterpret_cast<ID **>(&vmmd->object), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&vmmd->object), IDWALK_CB_USER);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)

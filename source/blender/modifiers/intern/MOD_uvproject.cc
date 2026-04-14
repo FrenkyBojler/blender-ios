@@ -60,7 +60,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   UVProjectModifierData *umd = reinterpret_cast<UVProjectModifierData *>(md);
   for (int i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; i++) {
-    walk(user_data, ob, reinterpret_cast<ID **>(&umd->projectors[i]), IDWALK_CB_NOP);
+    walk(user_data, ob, reinterpret_cast<ID **>(&umd->projectors[i]), IDWALK_CB_USER);
   }
 }
 

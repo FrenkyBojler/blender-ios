@@ -549,7 +549,9 @@ static void rna_Fluid_guide_parent_set(PointerRNA *ptr, PointerRNA value, Report
     fmd_par = reinterpret_cast<FluidModifierData *>(
         BKE_modifiers_findby_type(par, eModifierType_Fluid));
     if (fmd_par && fmd_par->domain) {
-      fds->guide_parent = static_cast<Object *>(value.data);
+      id_us_min(id_cast<ID *>(fds->guide_parent));
+      id_us_plus_no_lib(id_cast<ID *>(par));
+      fds->guide_parent = par;
       copy_v3_v3_int(fds->guide_res, fmd_par->domain->res);
     }
   }
@@ -2274,7 +2276,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, nullptr, "guide_parent");
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_pointer_funcs(prop, nullptr, "rna_Fluid_guide_parent_set", nullptr, nullptr);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_ui_text(prop,
                            "",
                            "Use velocities from this object for the guiding effect (object needs "

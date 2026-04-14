@@ -101,7 +101,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
-  walk(user_data, ob, reinterpret_cast<ID **>(&hmd->object), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&hmd->object), IDWALK_CB_USER);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)

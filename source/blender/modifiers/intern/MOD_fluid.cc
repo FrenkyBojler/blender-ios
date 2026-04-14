@@ -195,7 +195,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
     walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->force_group), IDWALK_CB_NOP);
 
     if (fmd->domain->guide_parent) {
-      walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->guide_parent), IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->guide_parent), IDWALK_CB_USER);
     }
 
     if (fmd->domain->effector_weights) {

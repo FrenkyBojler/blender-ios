@@ -122,9 +122,9 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   WarpModifierData *wmd = reinterpret_cast<WarpModifierData *>(md);
 
   walk(user_data, ob, reinterpret_cast<ID **>(&wmd->texture), IDWALK_CB_USER);
-  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->object_from), IDWALK_CB_NOP);
-  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->object_to), IDWALK_CB_NOP);
-  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->map_object), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->object_from), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->object_to), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->map_object), IDWALK_CB_USER);
 }
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
