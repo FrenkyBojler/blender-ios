@@ -1384,13 +1384,16 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                                   -1,
                                   0,
                                   0,
-                                  std::nullopt);
+                                  TIP_("Render object as holdout\n"
+                                       " \u2022 Shift to set children"));
+          button_func_set(
+              bt, outliner__object_set_flag_recursive_fn, ob, const_cast<char *>("is_holdout"));
+          button_flag_enable(bt, ui::BUT_DRAG_LOCK);
         }
         if (space_outliner->show_restrict_flags & SO_RESTRICT_INDIRECT_ONLY) {
-          const Object *ob = id_cast<Object *>(te.store_elem->id);
           if (OB_TYPE_IS_GEOMETRY(ob->type) && ob->type != OB_GREASE_PENCIL) {
             bt = uiDefIconButR_prop(block,
-                                    ui::ButtonType::IconToggle,
+                                    ui::ButtonType::IconToggleN,
                                     ICON_NONE,
                                     int(region->v2d.cur.xmax - restrict_offsets.indirect_only),
                                     te.ys,
@@ -1401,7 +1404,13 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                                     -1,
                                     0,
                                     0,
-                                    std::nullopt);
+                                    TIP_("Object will contribute indirectly as shadows\n"
+                                         " \u2022 Shift to set children"));
+            button_func_set(bt,
+                            outliner__object_set_flag_recursive_fn,
+                            ob,
+                            const_cast<char *>("visible_camera"));
+            button_flag_enable(bt, ui::BUT_DRAG_LOCK);
           }
         }
       }
