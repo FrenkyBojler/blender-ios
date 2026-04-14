@@ -222,9 +222,10 @@ class SampleCurveFunction : public mf::MultiFunction {
 
   mf::Signature signature_;
 
-  std::optional<bke::CurvesFieldContext> source_context_;
-  std::unique_ptr<FieldEvaluator> source_evaluator_;
-  const GVArray *source_data_;
+  mutable CacheMutex mutex_;
+  mutable std::optional<bke::CurvesFieldContext> source_context_;
+  mutable std::unique_ptr<FieldEvaluator> source_evaluator_;
+  mutable const GVArray *source_data_;
 
  public:
   SampleCurveFunction(GeometrySet geometry_set,
@@ -240,8 +241,6 @@ class SampleCurveFunction : public mf::MultiFunction {
     builder.single_output<float3>("Normal", mf::ParamFlag::SupportsUnusedOutput);
     builder.single_output("Value", src_field_.cpp_type(), mf::ParamFlag::SupportsUnusedOutput);
     this->set_signature(&signature_);
-
-    this->evaluate_source();
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
@@ -434,16 +433,41 @@ class SampleCurveFunction : public mf::MultiFunction {
     }
   }
 
- private:
-  void evaluate_source()
+  void prepare_for_execution() const override
   {
-    const Curves &curves_id = *geometry_set_.get_curves();
-    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    source_context_.emplace(bke::CurvesFieldContext{curves_id, AttrDomain::Point});
-    source_evaluator_ = std::make_unique<FieldEvaluator>(*source_context_, curves.points_num());
-    source_evaluator_->add(src_field_);
-    source_evaluator_->evaluate();
-    source_data_ = &source_evaluator_->get_evaluated(0);
+    mutex_.ensure([&]() {
+      const Curves &curves_id = *geometry_set_.get_curves();
+      const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      source_context_.emplace(bke::CurvesFieldContext{curves_id, AttrDomain::Point});
+      source_evaluator_ = std::make_unique<FieldEvaluator>(*source_context_, curves.points_num());
+      source_evaluator_->add(std::move(src_field_));
+      source_evaluator_->evaluate();
+      source_data_ = &source_evaluator_->get_evaluated(0);
+    });
+  }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const SampleCurveFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (length_mode_ != other_op->length_mode_) {
+      return false;
+    }
+    if (geometry_set_.get_curves() != other_op->geometry_set_.get_curves()) {
+      return false;
+    }
+    if (!fn::field_equal_deep(src_field_, other_op->src_field_)) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    fn::GFieldDeepHasher hasher;
+    return get_default_hash(length_mode_, geometry_set_.get_curves(), hasher.ensure(src_field_));
   }
 };
 

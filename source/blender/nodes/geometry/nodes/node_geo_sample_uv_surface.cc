@@ -84,12 +84,11 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
   GeometrySet source_;
   Field<float2> src_uv_map_field_;
 
-  Mutex mutex_;
-  std::optional<bke::MeshFieldContext> source_context_;
-  std::unique_ptr<FieldEvaluator> source_evaluator_;
-  VArraySpan<float2> source_uv_map_;
-
-  std::optional<ReverseUVSampler> reverse_uv_sampler_;
+  mutable CacheMutex mutex_;
+  mutable std::optional<bke::MeshFieldContext> source_context_;
+  mutable std::unique_ptr<FieldEvaluator> source_evaluator_;
+  mutable VArraySpan<float2> source_uv_map_;
+  mutable std::optional<ReverseUVSampler> reverse_uv_sampler_;
 
  public:
   ReverseUVSampleFunction(GeometrySet geometry, Field<float2> src_uv_map_field)
@@ -154,13 +153,9 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
     return get_default_hash(9863459873456, source_, hasher.ensure(src_uv_map_field_));
   }
 
-  void prepare_for_execution() override
+  void prepare_for_execution() const override
   {
-    std::lock_guard lock(mutex_);
-    if (source_context_) {
-      return;
-    }
-    threading::isolate_task([&]() {
+    mutex_.ensure([&]() {
       const Mesh &mesh = *source_.get_mesh();
       source_context_.emplace(bke::MeshFieldContext{mesh, AttrDomain::Corner});
       source_evaluator_ = std::make_unique<FieldEvaluator>(*source_context_, mesh.corners_num);

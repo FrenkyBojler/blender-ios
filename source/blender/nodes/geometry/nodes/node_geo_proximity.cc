@@ -67,15 +67,18 @@ class ProximityFunction : public mf::MultiFunction {
   };
 
   GeometrySet target_;
+  Field<int> group_id_field_;
   GeometryNodeProximityTargetType type_;
-  Vector<BVHTrees> bvh_trees_;
-  VectorSet<int> group_indices_;
+
+  mutable CacheMutex mutex_;
+  mutable Vector<BVHTrees> bvh_trees_;
+  mutable VectorSet<int> group_indices_;
 
  public:
   ProximityFunction(GeometrySet target,
                     GeometryNodeProximityTargetType type,
                     const Field<int> &group_id_field)
-      : target_(std::move(target)), type_(type)
+      : target_(std::move(target)), group_id_field_(std::move(group_id_field)), type_(type)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -88,20 +91,11 @@ class ProximityFunction : public mf::MultiFunction {
       return signature;
     }();
     this->set_signature(&signature);
-
-    if (target_.has_pointcloud() && type_ == GEO_NODE_PROX_TARGET_POINTS) {
-      const PointCloud &pointcloud = *target_.get_pointcloud();
-      this->init_for_pointcloud(pointcloud, group_id_field);
-    }
-    if (target_.has_mesh()) {
-      const Mesh &mesh = *target_.get_mesh();
-      this->init_for_mesh(mesh, group_id_field);
-    }
   }
 
   ~ProximityFunction() override = default;
 
-  void init_for_pointcloud(const PointCloud &pointcloud, const Field<int> &group_id_field)
+  void init_for_pointcloud(const PointCloud &pointcloud, const Field<int> &group_id_field) const
   {
     /* Compute group ids. */
     bke::PointCloudFieldContext field_context{pointcloud};
@@ -133,7 +127,7 @@ class ProximityFunction : public mf::MultiFunction {
             [&](const int group_i) { return group_masks[group_i].size(); }, pointcloud.totpoint));
   }
 
-  void init_for_mesh(const Mesh &mesh, const Field<int> &group_id_field)
+  void init_for_mesh(const Mesh &mesh, const Field<int> &group_id_field) const
   {
     /* Compute group ids. */
     const bke::AttrDomain domain = this->get_domain_on_mesh();
@@ -256,6 +250,40 @@ class ProximityFunction : public mf::MultiFunction {
     ExecutionHints hints;
     hints.min_grain_size = 512;
     return hints;
+  }
+
+  void prepare_for_execution() const override
+  {
+    mutex_.ensure([&]() {
+      if (target_.has_pointcloud() && type_ == GEO_NODE_PROX_TARGET_POINTS) {
+        const PointCloud &pointcloud = *target_.get_pointcloud();
+        this->init_for_pointcloud(pointcloud, group_id_field_);
+      }
+      if (target_.has_mesh()) {
+        const Mesh &mesh = *target_.get_mesh();
+        this->init_for_mesh(mesh, group_id_field_);
+      }
+    });
+  }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const ProximityFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (target_ != other_op->target_) {
+      return false;
+    }
+    if (group_id_field_ != other_op->group_id_field_) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(58237454573, target_, group_id_field_);
   }
 };
 

@@ -125,6 +125,29 @@ class AxesToRotationFunction : public mf::MultiFunction {
       r_rotations[i] = math::to_quaternion(mat);
     });
   };
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const AxesToRotationFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (primary_axis_ != other_op->primary_axis_) {
+      return false;
+    }
+    if (secondary_axis_ != other_op->secondary_axis_) {
+      return false;
+    }
+    if (tertiary_axis_ != other_op->tertiary_axis_) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(9875347984, primary_axis_.as_int(), secondary_axis_.as_int());
+  }
 };
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)

@@ -290,7 +290,7 @@ bool Procedure::validate() const
 void Procedure::prepare_for_execution()
 {
   for (const CallInstruction *instruction : call_instructions_) {
-    const_cast<MultiFunction &>(instruction->fn()).prepare_for_execution();
+    instruction->fn().prepare_for_execution();
   }
 }
 

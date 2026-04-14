@@ -86,12 +86,15 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 class SampleNearestSurfaceFunction : public mf::MultiFunction {
  private:
   GeometrySet source_;
-  Array<bke::BVHTreeFromMesh> bvh_trees_;
-  VectorSet<int> group_indices_;
+  Field<int> group_id_field_;
+
+  mutable CacheMutex mutex_;
+  mutable Array<bke::BVHTreeFromMesh> bvh_trees_;
+  mutable VectorSet<int> group_indices_;
 
  public:
-  SampleNearestSurfaceFunction(GeometrySet geometry, const Field<int> &group_id_field)
-      : source_(std::move(geometry))
+  SampleNearestSurfaceFunction(GeometrySet geometry, Field<int> group_id_field)
+      : source_(std::move(geometry)), group_id_field_(std::move(group_id_field))
   {
     source_.ensure_owns_direct_data();
     static const mf::Signature signature = []() {
@@ -105,35 +108,6 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
       return signature;
     }();
     this->set_signature(&signature);
-
-    const Mesh &mesh = *source_.get_mesh();
-
-    /* Compute group ids on mesh. */
-    bke::MeshFieldContext field_context{mesh, bke::AttrDomain::Face};
-    FieldEvaluator field_evaluator{field_context, mesh.faces_num};
-    field_evaluator.add(group_id_field);
-    field_evaluator.evaluate();
-    const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
-
-    /* Compute index masks for groups. */
-    IndexMaskMemory memory;
-    const Vector<IndexMask> group_masks = IndexMask::from_group_ids(
-        group_ids, memory, group_indices_);
-    const int groups_num = group_masks.size();
-
-    /* Construct BVH tree for each group. */
-    bvh_trees_.reinitialize(groups_num);
-    threading::parallel_for(
-        IndexRange(groups_num),
-        512,
-        [&](const IndexRange range) {
-          for (const int group_i : range) {
-            const IndexMask &group_mask = group_masks[group_i];
-            bvh_trees_[group_i] = bke::bvhtree_from_mesh_tris_init(mesh, group_mask);
-          }
-        },
-        threading::individual_task_sizes(
-            [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
   }
 
   ~SampleNearestSurfaceFunction() override = default;
@@ -182,6 +156,55 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     ExecutionHints hints;
     hints.min_grain_size = 512;
     return hints;
+  }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const SampleNearestSurfaceFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (source_.get_mesh() != other_op->source_.get_mesh()) {
+      return false;
+    }
+    if (!fn::field_equal_deep(group_id_field_, other_op->group_id_field_)) {
+      return false;
+    }
+    return true;
+  }
+
+  void prepare_for_execution() const override
+  {
+    mutex_.ensure([&]() {
+      const Mesh &mesh = *source_.get_mesh();
+
+      /* Compute group ids on mesh. */
+      bke::MeshFieldContext field_context{mesh, bke::AttrDomain::Face};
+      FieldEvaluator field_evaluator{field_context, mesh.faces_num};
+      field_evaluator.add(std::move(group_id_field_));
+      field_evaluator.evaluate();
+      const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
+
+      /* Compute index masks for groups. */
+      IndexMaskMemory memory;
+      const Vector<IndexMask> group_masks = IndexMask::from_group_ids(
+          group_ids, memory, group_indices_);
+      const int groups_num = group_masks.size();
+
+      /* Construct BVH tree for each group. */
+      bvh_trees_.reinitialize(groups_num);
+      threading::parallel_for(
+          IndexRange(groups_num),
+          512,
+          [&](const IndexRange range) {
+            for (const int group_i : range) {
+              const IndexMask &group_mask = group_masks[group_i];
+              bvh_trees_[group_i] = bke::bvhtree_from_mesh_tris_init(mesh, group_mask);
+            }
+          },
+          threading::individual_task_sizes(
+              [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
+    });
   }
 };
 

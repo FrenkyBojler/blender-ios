@@ -447,6 +447,29 @@ class NoiseFunction : public mf::MultiFunction {
     hints.min_grain_size = 100;
     return hints;
   }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const NoiseFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (dimensions_ != other_op->dimensions_) {
+      return false;
+    }
+    if (type_ != other_op->type_) {
+      return false;
+    }
+    if (normalize_ != other_op->normalize_) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(186759059237, dimensions_, type_, normalize_);
+  }
 };
 
 static void sh_node_noise_build_multi_function(NodeMultiFunctionBuilder &builder)

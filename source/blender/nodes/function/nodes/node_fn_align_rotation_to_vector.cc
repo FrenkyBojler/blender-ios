@@ -174,6 +174,26 @@ class AlignRotationToVectorFunction : public mf::MultiFunction {
     hints.min_grain_size = 512;
     return hints;
   }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const AlignRotationToVectorFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (main_axis_mode_ != other_op->main_axis_mode_) {
+      return false;
+    }
+    if (pivot_axis_mode_ != other_op->pivot_axis_mode_) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(923784566987, main_axis_mode_.as_int(), pivot_axis_mode_);
+  }
 };
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)

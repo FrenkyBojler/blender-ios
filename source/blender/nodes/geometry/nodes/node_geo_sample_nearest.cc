@@ -295,6 +295,26 @@ class SampleNearestFunction : public mf::MultiFunction {
         break;
     }
   }
+
+  bool equals(const MultiFunction &other) const override
+  {
+    const auto *other_op = dynamic_cast<const SampleNearestFunction *>(&other);
+    if (!other_op) {
+      return false;
+    }
+    if (domain_ != other_op->domain_) {
+      return false;
+    }
+    if (src_component_ != other_op->src_component_) {
+      return false;
+    }
+    return true;
+  }
+
+  uint64_t hash() const override
+  {
+    return get_default_hash(872347547444, domain_, src_component_);
+  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
