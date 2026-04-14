@@ -4,13 +4,12 @@
 
 if(WIN32)
   set(SDL_EXTRA_ARGS
-    -DSDL_STATIC=Off
+    -DSDL_STATIC=OFF
   )
 else()
   set(SDL_EXTRA_ARGS
     -DSDL_STATIC=ON
     -DSDL_SHARED=OFF
-    -DSDL_VIDEO=OFF
     -DSDL_SNDIO=OFF
   )
 endif()
