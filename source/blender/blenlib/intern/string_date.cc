@@ -19,18 +19,18 @@
 
 namespace blender::date_format {
 
-static const char *months[12] = {CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Jan"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Feb"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Mar"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Apr"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "May"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Jun"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Jul"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Aug"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Sep"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Oct"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Nov"),
-                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Dec")};
+static const char *months[12] = {CTX_N_(BLT_I18NCONTEXT_TIME, "Jan"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Feb"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Mar"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Apr"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "May"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Jun"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Jul"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Aug"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Sep"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Oct"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Nov"),
+                                 CTX_N_(BLT_I18NCONTEXT_TIME, "Dec")};
 
 struct CLDRPatterns {
   const char date[25];
@@ -120,7 +120,7 @@ static std::string format_with_pattern(const std::tm *tm,
   return fmt::format(fmt::runtime(pattern),
                      fmt::arg("Y", tm->tm_year + 1900),
                      fmt::arg("m", tm->tm_mon + 1),
-                     fmt::arg("b", CTX_IFACE_(BLT_I18NCONTEXT_SHORTMONTH, months[month_index])),
+                     fmt::arg("b", CTX_IFACE_(BLT_I18NCONTEXT_TIME, months[month_index])),
                      fmt::arg("d", tm->tm_mday),
                      fmt::arg("H", tm->tm_hour),
                      fmt::arg("M", tm->tm_min),
