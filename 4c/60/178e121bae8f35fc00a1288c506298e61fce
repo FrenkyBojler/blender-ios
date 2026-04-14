@@ -1,2 +1,3 @@
 Referenced by issue #149567, LineArt modifier: Simplify > Sample mode crashes blender (segmentation fault)
 Referenced by issue #149938, The difference between the display of CPU and GPU in VSE
+Referenced by issue #157315, Regression: Gradient Texture Control Works Differently on Positive and Negative Mesh Positions
