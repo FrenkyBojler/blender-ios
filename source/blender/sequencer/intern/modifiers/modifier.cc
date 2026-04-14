@@ -335,15 +335,14 @@ void store_pixel_raw(float4 pix, float *ptr)
 }
 
 ImBuf *modifier_render_mask_input(const ModifierApplyContext &context,
-                                  const StripModifierData &smd,
-                                  int timeline_frame)
+                                  const StripModifierData &smd)
 {
   ImBuf *mask = nullptr;
 
   if (smd.mask_input_type == STRIP_MASK_INPUT_STRIP) {
     if (smd.mask_strip) {
       mask = seq_render_strip(
-          &context.render_data, &context.render_state, smd.mask_strip, timeline_frame);
+          &context.render_data, &context.render_state, smd.mask_strip, context.timeline_frame);
     }
   }
   else if (smd.mask_input_type == STRIP_MASK_INPUT_ID) {
@@ -363,7 +362,7 @@ ImBuf *modifier_render_mask_input(const ModifierApplyContext &context,
                            context.render_data.rectx,
                            context.render_data.recty,
                            smd.mask_id,
-                           timeline_frame - frame_offset,
+                           context.timeline_frame - frame_offset,
                            false);
   }
 
@@ -519,7 +518,7 @@ static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeli
   return strip_has_ended_skip || missing_data_skip;
 }
 
-void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
+void modifier_apply_stack(ModifierApplyContext &context)
 {
   if (context.strip.modifiers.first == nullptr) {
     return;
@@ -538,8 +537,8 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
       continue;
     }
 
-    if (smti->apply && !skip_modifier(context.render_data.scene, &smd, timeline_frame)) {
-      smti->apply(context, &smd, timeline_frame);
+    if (smti->apply && !skip_modifier(context.render_data.scene, &smd, context.timeline_frame)) {
+      smti->apply(context, &smd);
     }
   }
 }

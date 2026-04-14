@@ -56,7 +56,7 @@ struct StripModifierTypeInfo {
   void (*copy_data)(StripModifierData *smd, StripModifierData *target);
 
   /* Apply modifier on an image buffer. */
-  void (*apply)(ModifierApplyContext &context, StripModifierData *smd, int timeline_frame);
+  void (*apply)(ModifierApplyContext &context, StripModifierData *smd);
 
   /** Register the panel types for the modifier's UI. */
   void (*panel_register)(ARegionType *region_type);

@@ -241,7 +241,6 @@ class CompositorModifierContext : public CompositorContext {
 
  public:
   CompositorModifierContext(const ModifierApplyContext &mod_context,
-                            int timeline_frame,
                             compositor::StaticCacheManager &cache_manager,
                             SequencerCompositorModifierData *modifier_data)
       : CompositorContext(cache_manager, mod_context.render_data, mod_context.strip),
@@ -249,7 +248,7 @@ class CompositorModifierContext : public CompositorContext {
         modifier_data_(modifier_data),
         image_buffer_(mod_context.image),
         mask_(*this, compositor::ResultType::Color, compositor::ResultPrecision::Full),
-        timeline_frame_(timeline_frame)
+        timeline_frame_(mod_context.timeline_frame)
   {
     /* Masks are in screen space, whereas modifier executes in strip space. */
     mask_transform_ = math::invert(
@@ -436,8 +435,7 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
 }
 
 static void compositor_modifier_apply(ModifierApplyContext &context,
-                                      StripModifierData *strip_modifier_data,
-                                      int timeline_frame)
+                                      StripModifierData *strip_modifier_data)
 {
   SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
@@ -448,8 +446,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   /* Note: compositor always operates in linear space, float pixels. */
   ensure_ibuf_is_linear_space(context.image, true);
   CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
-  CompositorModifierContext com_mod_context(
-      context, timeline_frame, com_cache.get_cache_manager(), modifier_data);
+  CompositorModifierContext com_mod_context(context, com_cache.get_cache_manager(), modifier_data);
 
   const bool use_gpu = com_mod_context.use_gpu();
   if (use_gpu) {
