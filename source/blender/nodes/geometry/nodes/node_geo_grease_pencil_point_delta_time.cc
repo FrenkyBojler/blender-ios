@@ -6,7 +6,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_grease_pencil_time__cc {
+namespace blender::nodes::node_geo_grease_pencil_point_delta_time__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -34,4 +34,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_grease_pencil_time__cc
+}  // namespace blender::nodes::node_geo_grease_pencil_point_delta_time__cc
