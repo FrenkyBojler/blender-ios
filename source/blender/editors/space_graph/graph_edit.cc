@@ -3072,7 +3072,6 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
   ot->description = "Remove Modifier(s) from the active/selected F-Curves";
 
   /* API callbacks */
-  ot->invoke = WM_menu_invoke;
   ot->exec = graph_fmodifier_delete_exec;
   ot->ui = fmodifier_delete_ui;
   ot->poll = graphop_selected_fcurve_poll;
