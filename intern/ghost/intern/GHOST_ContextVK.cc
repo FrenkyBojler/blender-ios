@@ -846,10 +846,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   const bool use_hdr_swapchain = hdr_info_ &&
                                  (hdr_info_->wide_gamut_enabled || hdr_info_->hdr_enabled) &&
                                  device_vk.use_vk_ext_swapchain_colorspace;
-  const bool use_pass_through = hdr_info_ && hdr_info_->use_pass_through;
   if (use_hdr_swapchain != use_hdr_swapchain_) {
     /* Re-create swapchain if HDR mode was toggled in the system settings. */
-    recreateSwapchain(use_hdr_swapchain, use_pass_through);
+    recreateSwapchain(use_hdr_swapchain);
   }
   else {
 #ifdef WITH_GHOST_WAYLAND
@@ -865,7 +864,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
 
       if (recreate_swapchain) {
         /* Swap-chain is out of date. Recreate swap-chain. */
-        recreateSwapchain(use_hdr_swapchain, use_pass_through);
+        recreateSwapchain(use_hdr_swapchain);
       }
     }
 #endif
@@ -873,7 +872,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   /* there is no valid swapchain when the previous window was minimized. User can have maximized
    * the window so we need to check if the swapchain has to be created. */
   if (swapchain_ == VK_NULL_HANDLE) {
-    recreateSwapchain(use_hdr_swapchain, use_pass_through);
+    recreateSwapchain(use_hdr_swapchain);
   }
 
   /* Acquiree next image, swapchain can be (or become) invalid when minimizing window.*/
@@ -892,7 +891,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
                                              VK_NULL_HANDLE,
                                              &image_index);
       if (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
-        recreateSwapchain(use_hdr_swapchain, use_pass_through);
+        recreateSwapchain(use_hdr_swapchain);
       }
     }
   }
@@ -986,7 +985,6 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   const bool use_hdr_swapchain = hdr_info_ &&
                                  (hdr_info_->wide_gamut_enabled || hdr_info_->hdr_enabled) &&
                                  device_vk.use_vk_ext_swapchain_colorspace;
-  const bool use_pass_through = hdr_info_ && hdr_info_->use_pass_through;
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = swapchain_image.vk_image;
@@ -1030,7 +1028,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   acquired_swapchain_image_index_.reset();
 
   if (ELEM(present_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
-    recreateSwapchain(use_hdr_swapchain, use_pass_through);
+    recreateSwapchain(use_hdr_swapchain);
     return GHOST_kSuccess;
   }
   if (present_result != VK_SUCCESS) {
@@ -1160,7 +1158,6 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
 static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
                                 const VkSurfaceKHR surface,
                                 bool use_hdr_swapchain,
-                                bool use_pass_through,
                                 VkSurfaceFormatKHR &r_surfaceFormat)
 {
   uint32_t format_count;
@@ -1168,39 +1165,22 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  /* Pass-though is selected for wayland color management will be done via color management
-   * protocol inside GHOST_WindowWayland. */
-  enum class SurfaceUsage { SDR, HDR, PASS_THROUGH };
-  struct SurfaceConfiguration {
-    VkSurfaceFormatKHR vk_surface_format;
-    SurfaceUsage usage;
-  };
-  array<SurfaceConfiguration, 4> selection_order = {
-      {{{VK_FORMAT_R16G16B16A16_SFLOAT, VK_COLOR_SPACE_PASS_THROUGH_EXT},
-        SurfaceUsage::PASS_THROUGH},
-       {{VK_FORMAT_R16G16B16A16_SFLOAT, VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT},
-        SurfaceUsage::HDR},
-       {{VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, SurfaceUsage::SDR},
-       {{VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, SurfaceUsage::SDR}}};
+  array<VkSurfaceFormatKHR, 3> selection_order = {{
+#if defined(_WIN32) || defined(__APPLE__)
+      {VK_FORMAT_R16G16B16A16_SFLOAT, VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT},
+#else
+      {VK_FORMAT_R16G16B16A16_SFLOAT, VK_COLOR_SPACE_PASS_THROUGH_EXT},
+#endif
+      {VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
+      {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}}};
 
-  for (const SurfaceConfiguration &config : selection_order) {
-    // TODO: remove the double negation in this part of code. Using a mask would be better. */
-    if (use_hdr_swapchain) {
-      if (use_pass_through && config.usage == SurfaceUsage::HDR) {
-        continue;
-      }
-      if (!use_pass_through && config.usage == SurfaceUsage::PASS_THROUGH) {
-        continue;
-      }
-    }
-    else if (config.usage != SurfaceUsage::SDR) {
+  for (const VkSurfaceFormatKHR &config : selection_order) {
+    if (!use_hdr_swapchain && config.format == VK_FORMAT_R16G16B16A16_SFLOAT) {
       continue;
     }
 
     for (const VkSurfaceFormatKHR &format : formats) {
-      if (format.format == config.vk_surface_format.format &&
-          format.colorSpace == config.vk_surface_format.colorSpace)
-      {
+      if (format.format == config.format && format.colorSpace == config.colorSpace) {
         r_surfaceFormat = format;
         return true;
       }
@@ -1244,17 +1224,14 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain, bool use_pass_through)
+GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
 {
   GHOST_InstanceVK &instance_vk = vulkan_instance.value();
   GHOST_DeviceVK &device_vk = instance_vk.device.value();
 
   surface_format_ = {};
-  if (!selectSurfaceFormat(device_vk.vk_physical_device,
-                           surface_,
-                           use_hdr_swapchain,
-                           use_pass_through,
-                           surface_format_))
+  if (!selectSurfaceFormat(
+          device_vk.vk_physical_device, surface_, use_hdr_swapchain, surface_format_))
   {
     return GHOST_kFailure;
   }

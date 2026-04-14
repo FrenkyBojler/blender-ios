@@ -7120,17 +7120,21 @@ static void color_manager_v1_done(void *data, struct wp_color_manager_v1 * /*wp_
 {
   ColorManagerV1Data *cm_data = static_cast<ColorManagerV1Data *>(data);
 
-  if (cm_data->supported_features.contains(WP_COLOR_MANAGER_V1_FEATURE_WINDOWS_SCRGB)) {
-    cm_data->display->supports_color_manager_feature_windows_scrgb = true;
-  }
-  if (cm_data->supported_features.contains(WP_COLOR_MANAGER_V1_FEATURE_SET_PRIMARIES) &&
+  if (cm_data->supported_intents.contains(WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL) &&
+      cm_data->supported_features.contains(WP_COLOR_MANAGER_V1_FEATURE_SET_PRIMARIES) &&
       cm_data->supported_primaries.contains(WP_COLOR_MANAGER_V1_PRIMARIES_SRGB) &&
       cm_data->supported_transfers.contains(WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR))
   {
     cm_data->display->supports_color_manager_extended_srgb_linear = true;
   }
 
-  delete (cm_data);
+  if (cm_data->supported_intents.contains(WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL) &&
+      cm_data->supported_features.contains(WP_COLOR_MANAGER_V1_FEATURE_WINDOWS_SCRGB))
+  {
+    cm_data->display->supports_color_manager_feature_windows_scrgb = true;
+  }
+
+  delete cm_data;
 }
 
 static const wp_color_manager_v1_listener color_manager_v1_listener = {

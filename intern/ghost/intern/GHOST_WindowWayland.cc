@@ -1531,7 +1531,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
           image_creator_params, WP_COLOR_MANAGER_V1_PRIMARIES_SRGB);
 
       image_description = wp_image_description_creator_params_v1_create(image_creator_params);
-      hdr_info_.use_pass_through = true;
       hdr_info_.hdr_enabled = true;
       hdr_info_.wide_gamut_enabled = true;
       hdr_info_.sdr_white_level = 1.0f;
@@ -1556,7 +1555,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
        * https://wayland.app/protocols/color-management-v1#wp_color_manager_v1:request:create_windows_scrgb
        */
       image_description = wp_color_manager_v1_create_windows_scrgb(color_manager);
-      hdr_info_.use_pass_through = true;
       hdr_info_.hdr_enabled = true;
       hdr_info_.wide_gamut_enabled = true;
       hdr_info_.sdr_white_level = 2.5375f;

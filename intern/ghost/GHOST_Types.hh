@@ -863,8 +863,6 @@ struct GHOST_WindowHDRInfo {
   bool hdr_enabled;
   /* Is wide gamut enabled for this Window? */
   bool wide_gamut_enabled;
-  /* Should a pass-through swap chain be used>*/
-  bool use_pass_through;
   /* Scale factor to display SDR content in HDR. */
   float sdr_white_level;
 };
@@ -873,7 +871,6 @@ struct GHOST_WindowHDRInfo {
   { \
       /*hdr_enabled*/ false, \
       /*wide_gamut_enabled*/ false, \
-      /*use_pass_through*/ false, \
       /*sdr_white_level*/ 1.0f, \
   }
 
