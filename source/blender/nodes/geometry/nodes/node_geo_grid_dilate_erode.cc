@@ -43,8 +43,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output(data_type, "Grid"_ustr).structure_type(StructureType::Grid).align_with_previous();
 
   static EnumPropertyItem connectivity_items[] = {
       {int(Connectivity::Face),
@@ -84,19 +84,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  b.add_input<decl::Menu>("Connectivity")
+  b.add_input<decl::Menu>("Connectivity"_ustr)
       .static_items(connectivity_items)
       .default_value(MenuValue(Connectivity::Face))
       .structure_type(StructureType::Single)
       .optional_label();
 
-  b.add_input<decl::Menu>("Tiles")
+  b.add_input<decl::Menu>("Tiles"_ustr)
       .static_items(tile_policy_items)
       .default_value(MenuValue(TilePolicy::Preserve))
       .structure_type(StructureType::Single)
       .optional_label();
 
-  b.add_input<decl::Int>("Steps")
+  b.add_input<decl::Int>("Steps"_ustr)
       .default_value(1)
       .min(-100)
       .max(100)
@@ -143,8 +143,8 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
                                                  SOCK_INT))
   {
     params.add_item(IFACE_("Steps"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeGridDilateAndErode");
-      params.update_and_connect_available_socket(node, "Steps");
+      bNode &node = params.add_node("GeometryNodeGridDilateAndErode"_ustr);
+      params.update_and_connect_available_socket(node, "Steps"_ustr);
     });
   }
   if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
@@ -152,16 +152,16 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   {
     if (params.in_out() == SOCK_IN && supports_grid) {
       params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeGridDilateAndErode");
+        bNode &node = params.add_node("GeometryNodeGridDilateAndErode"_ustr);
         node.custom1 = *data_type;
-        params.update_and_connect_available_socket(node, "Grid");
+        params.update_and_connect_available_socket(node, "Grid"_ustr);
       });
     }
     else if (params.in_out() == SOCK_OUT) {
       params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeGridDilateAndErode");
+        bNode &node = params.add_node("GeometryNodeGridDilateAndErode"_ustr);
         node.custom1 = *data_type;
-        params.update_and_connect_available_socket(node, "Grid");
+        params.update_and_connect_available_socket(node, "Grid"_ustr);
       });
     }
   }
@@ -255,7 +255,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGridDilateAndErode");
+  geo_node_type_base(&ntype, "GeometryNodeGridDilateAndErode"_ustr);
   ntype.ui_name = "Grid Dilate & Erode";
   ntype.ui_description =
       "Dilate or erode the active regions of a grid. This changes which voxels are "

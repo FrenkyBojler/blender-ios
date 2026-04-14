@@ -12,7 +12,7 @@ namespace blender::nodes::node_geo_input_active_camera_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Object>("Active Camera")
+  b.add_output<decl::Object>("Active Camera"_ustr)
       .description("The camera used for rendering the scene");
 }
 
@@ -45,7 +45,8 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_cmp_node_type_base(&ntype, "GeometryNodeInputActiveCamera", GEO_NODE_INPUT_ACTIVE_CAMERA);
+  geo_cmp_node_type_base(
+      &ntype, "GeometryNodeInputActiveCamera"_ustr, GEO_NODE_INPUT_ACTIVE_CAMERA);
   ntype.ui_name = "Active Camera";
   ntype.ui_description = "Retrieve the scene's active camera";
   ntype.enum_name_legacy = "INPUT_ACTIVE_CAMERA";

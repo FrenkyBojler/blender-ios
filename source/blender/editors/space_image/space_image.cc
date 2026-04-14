@@ -296,7 +296,8 @@ static void image_refresh(const bContext *C, ScrArea *area)
     if (scene->compositing_node_group) {
       Mask *mask = ED_space_image_get_mask(sima);
       if (mask) {
-        ED_node_compositor_job(C);
+        ED_node_compositor_job(
+            CTX_data_main(C), CTX_wm_window(C), CTX_data_scene(C), CTX_data_view_layer(C));
       }
     }
   }
@@ -367,7 +368,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
     case NC_MASK: {
       Scene *scene = WM_window_get_active_scene(win);
       ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-      BKE_view_layer_synced_ensure(scene, view_layer);
+      BKE_view_layer_synced_ensure(*params->bmain, scene, view_layer);
       Object *obedit = BKE_view_layer_edit_object_get(view_layer);
       if (ED_space_image_check_show_maskedit(sima, obedit)) {
         switch (wmn->data) {
@@ -411,7 +412,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
         case ND_MODIFIER: {
           const Scene *scene = WM_window_get_active_scene(win);
           ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-          BKE_view_layer_synced_ensure(scene, view_layer);
+          BKE_view_layer_synced_ensure(*params->bmain, scene, view_layer);
           Object *ob = BKE_view_layer_active_object_get(view_layer);
           /* \note With a geometry nodes modifier, the UVs on `ob` can change in response to
            * any change on `wmn->reference`. If we could track the upstream dependencies,

@@ -13,9 +13,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry").description("Geometry to override the bundle of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bundle>("Bundle");
+  b.add_input<decl::Geometry>("Geometry"_ustr).description("Geometry to override the bundle of");
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bundle>("Bundle"_ustr);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -44,7 +44,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetGeometryBundle");
+  geo_node_type_base(&ntype, "GeometryNodeSetGeometryBundle"_ustr);
   ntype.ui_name = "Set Geometry Bundle";
   ntype.ui_description = "Set the bundle of a geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;

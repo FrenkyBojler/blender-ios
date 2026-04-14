@@ -20,10 +20,11 @@ namespace blender::nodes::node_geo_collection_children_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Collection>("Collection").optional_label();
-  b.add_input<decl::Bool>("Recursive").description("Recursively retrieve collections and objects");
-  b.add_output<decl::Collection>("Collections").structure_type(StructureType::List);
-  b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
+  b.add_input<decl::Collection>("Collection"_ustr).optional_label();
+  b.add_input<decl::Bool>("Recursive"_ustr)
+      .description("Recursively retrieve collections and objects");
+  b.add_output<decl::Collection>("Collections"_ustr).structure_type(StructureType::List);
+  b.add_output<decl::Object>("Objects"_ustr).structure_type(StructureType::List);
 }
 
 static void collection_children_recursive(Collection *collection,
@@ -98,7 +99,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeCollectionChildren");
+  geo_node_type_base(&ntype, "GeometryNodeCollectionChildren"_ustr);
   ntype.ui_name = "Collection Children";
   ntype.ui_description =
       "Retrieve a collection's object and collection children, in a name-based order";

@@ -10,32 +10,32 @@ namespace blender::nodes::node_geo_curve_primitive_spiral_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Resolution")
+  b.add_input<decl::Int>("Resolution"_ustr)
       .default_value(32)
       .min(1)
       .max(1024)
       .subtype(PROP_UNSIGNED)
       .description("Number of points in one rotation of the spiral");
-  b.add_input<decl::Float>("Rotations")
+  b.add_input<decl::Float>("Rotations"_ustr)
       .default_value(2.0f)
       .min(0.0f)
       .description("Number of times the spiral makes a full rotation")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_input<decl::Float>("Start Radius")
+  b.add_input<decl::Float>("Start Radius"_ustr)
       .default_value(1.0f)
       .subtype(PROP_DISTANCE)
       .description("Horizontal Distance from the Z axis at the start of the spiral");
-  b.add_input<decl::Float>("End Radius")
+  b.add_input<decl::Float>("End Radius"_ustr)
       .default_value(2.0f)
       .subtype(PROP_DISTANCE)
       .description("Horizontal Distance from the Z axis at the end of the spiral");
-  b.add_input<decl::Float>("Height")
+  b.add_input<decl::Float>("Height"_ustr)
       .default_value(2.0f)
       .subtype(PROP_DISTANCE)
       .description("The height perpendicular to the base of the spiral");
-  b.add_input<decl::Bool>("Reverse").description(
-      "Switch the direction from clockwise to counterclockwise");
-  b.add_output<decl::Geometry>("Curve");
+  b.add_input<decl::Bool>("Reverse"_ustr)
+      .description("Switch the direction from clockwise to counterclockwise");
+  b.add_output<decl::Geometry>("Curve"_ustr);
 }
 
 static Curves *create_spiral_curve(const float rotations,
@@ -89,7 +89,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeCurveSpiral", GEO_NODE_CURVE_PRIMITIVE_SPIRAL);
+  geo_node_type_base(&ntype, "GeometryNodeCurveSpiral"_ustr, GEO_NODE_CURVE_PRIMITIVE_SPIRAL);
   ntype.ui_name = "Spiral";
   ntype.ui_description = "Generate a poly spline in a spiral shape";
   ntype.enum_name_legacy = "CURVE_PRIMITIVE_SPIRAL";

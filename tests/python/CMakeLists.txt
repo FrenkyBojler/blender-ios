@@ -267,7 +267,7 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
-if (WITH_GPU_BACKEND_TESTS)
+if(WITH_GPU_BACKEND_TESTS)
   if(WITH_OPENGL_BACKEND)
     add_blender_test(
       script_pyapi_gpu_opengl
@@ -451,6 +451,21 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 # ------------------------------------------------------------------------------
+# GLOBAL UNDO TESTS
+# ------------------------------------------------------------------------------
+
+add_blender_test(
+  global_undo
+  --log "*undo*"
+  --log-level debug
+  --debug-memory
+  --debug
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_global_undo.py --
+  --src-test-dir ${TEST_SRC_DIR}/
+  --output-dir ${TEST_OUT_DIR}/global_undo/
+)
+
+# ------------------------------------------------------------------------------
 # MODELING TESTS
 # ------------------------------------------------------------------------------
 
@@ -522,6 +537,11 @@ if(TEST_SRC_DIR_EXISTS)
     object_api
     --python ${TEST_PYTHON_DIR}/bl_object.py
   )
+
+  add_blender_test(
+    node_tools
+    --python ${TEST_PYTHON_DIR}/bl_node_tool.py
+  )
 endif()
 
 add_blender_test(
@@ -530,10 +550,10 @@ add_blender_test(
 )
 
 add_blender_test(
-  geonode_file_reporting
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geonode_file_reporting.py
+  geo_node_file_reporting
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geo_node_file_reporting.py
   --
-  --testdir "${TEST_SRC_DIR}/io_tests"
+  --testdir "${TEST_SRC_DIR}"
 )
 
 # ------------------------------------------------------------------------------
@@ -667,6 +687,11 @@ add_blender_test(
 add_blender_test(
   bl_animation_nla_strip
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_nla_strip.py
+)
+
+add_blender_test(
+  bl_animation_pose_slide
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_pose_slide.py
 )
 
 if(TEST_SRC_DIR_EXISTS)
@@ -1423,19 +1448,19 @@ if(TEST_SRC_DIR_EXISTS)
 
   foreach(render_test ${render_tests})
     add_render_test(
-      sequencer_render_${render_test}
+      sequencer_cpu_${render_test}
       ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
       --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
-      --outdir "${TEST_OUT_DIR}/sequence_editing"
+      --outdir "${TEST_OUT_DIR}/sequencer_cpu"
     )
   endforeach()
 
   foreach(video_output_test ${video_output_tests})
     add_render_test(
-      sequencer_render_${video_output_test}
+      sequencer_cpu_${video_output_test}
       ${CMAKE_CURRENT_LIST_DIR}/sequencer_video_output_tests.py
       --testdir "${TEST_SRC_DIR}/sequence_editing/${video_output_test}"
-      --outdir "${TEST_OUT_DIR}/sequence_editing"
+      --outdir "${TEST_OUT_DIR}/sequencer_cpu"
     )
   endforeach()
 
@@ -1451,6 +1476,42 @@ if(TEST_SRC_DIR_EXISTS)
     ${TEST_SRC_DIR}/sequence_editing/vse_load_meta_stack.blend
     --python ${TEST_PYTHON_DIR}/sequencer_load_meta_stack.py
   )
+
+  if(WITH_GPU_COMPOSITOR_TESTS)
+    if(WITH_OPENGL_BACKEND)
+      foreach(render_test ${render_tests})
+        add_render_test(
+                sequencer_opengl_${render_test}
+                ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+                --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+                --outdir "${TEST_OUT_DIR}/sequencer_opengl"
+                --gpu-backend opengl
+        )
+      endforeach()
+    endif()
+    if(WITH_METAL_BACKEND)
+      foreach(render_test ${render_tests})
+        add_render_test(
+                sequencer_metal_${render_test}
+                ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+                --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+                --outdir "${TEST_OUT_DIR}/sequencer_metal"
+                --gpu-backend metal
+        )
+      endforeach()
+    endif()
+    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+      foreach(render_test ${render_tests})
+        add_render_test(
+                sequencer_vulkan_${render_test}
+                ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+                --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+                --outdir "${TEST_OUT_DIR}/sequencer_vulkan"
+                --gpu-backend vulkan
+        )
+      endforeach()
+    endif()
+  endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1593,6 +1654,10 @@ if(WITH_UI_TESTS)
     test_fullscreen.wm_toggle_fullscreen
     test_fullscreen.wm_toggle_stacked_fullscreen_file_browser
     test_fullscreen.wm_toggle_stacked_fullscreens
+    test_quick_effects.add_quick_fur
+    test_quick_effects.add_quick_smoke
+    test_quick_effects.add_quick_liquid
+    test_quick_effects.add_quick_explode
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player

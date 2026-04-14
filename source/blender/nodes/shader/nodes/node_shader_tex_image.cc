@@ -20,9 +20,9 @@ namespace nodes::node_shader_tex_image_cc {
 static void sh_node_tex_image_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_output<decl::Color>("Color").no_muted_links();
-  b.add_output<decl::Float>("Alpha").no_muted_links();
+  b.add_input<decl::Vector>("Vector"_ustr).implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_output<decl::Color>("Color"_ustr).no_muted_links();
+  b.add_output<decl::Float>("Alpha"_ustr).no_muted_links();
 }
 
 static void node_shader_init_tex_image(bNodeTree * /*ntree*/, bNode *node)
@@ -286,7 +286,7 @@ void register_node_type_sh_tex_image()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeTexImage", SH_NODE_TEX_IMAGE);
+  sh_node_type_base(&ntype, "ShaderNodeTexImage"_ustr, SH_NODE_TEX_IMAGE);
   ntype.ui_name = "Image Texture";
   ntype.ui_description = "Sample an image file as a texture";
   ntype.enum_name_legacy = "TEX_IMAGE";

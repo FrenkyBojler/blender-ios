@@ -14,8 +14,8 @@ namespace blender::nodes::node_geo_grid_gradient_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output<decl::Vector>("Gradient").structure_type(StructureType::Grid);
+  b.add_input<decl::Float>("Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output<decl::Vector>("Gradient"_ustr).structure_type(StructureType::Grid);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -38,7 +38,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeGridGradient");
+  geo_node_type_base(&ntype, "GeometryNodeGridGradient"_ustr);
   ntype.ui_name = "Grid Gradient";
   ntype.ui_description =
       "Calculate the direction and magnitude of the change in values of a scalar grid";

@@ -33,13 +33,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh})
       .description("Point cloud or mesh to merge points of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Menu>("Mode").static_items(mode_items).optional_label();
-  b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Menu>("Mode"_ustr).static_items(mode_items).optional_label();
+  b.add_input<decl::Float>("Distance"_ustr).default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -137,7 +137,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMergeByDistance", GEO_NODE_MERGE_BY_DISTANCE);
+  geo_node_type_base(&ntype, "GeometryNodeMergeByDistance"_ustr, GEO_NODE_MERGE_BY_DISTANCE);
   ntype.ui_name = "Merge by Distance";
   ntype.ui_description = "Merge vertices or points within a given distance";
   ntype.enum_name_legacy = "MERGE_BY_DISTANCE";

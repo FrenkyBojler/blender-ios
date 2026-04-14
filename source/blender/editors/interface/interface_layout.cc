@@ -48,9 +48,7 @@
 
 #include "interface_intern.hh"
 
-namespace blender {
-
-namespace ui {
+namespace blender::ui {
 
 struct ButtonItem;
 
@@ -3124,8 +3122,9 @@ void Layout::popover(const bContext *C,
                      std::string(panel_type).c_str());
     return;
   }
-  pt->popup_draw_direction = direction;
   this->popover(C, pt, name_opt, icon);
+  ButtonMenu *popover_button = static_cast<ButtonMenu *>(this->block()->buttons_ptrs.last().get());
+  popover_button->popup_attach_direction = direction;
 }
 
 void Layout::popover_group(
@@ -6310,5 +6309,4 @@ EmbossType Layout::emboss_or_undefined() const
   return emboss_;
 }
 
-}  // namespace ui
-}  // namespace blender
+}  // namespace blender::ui

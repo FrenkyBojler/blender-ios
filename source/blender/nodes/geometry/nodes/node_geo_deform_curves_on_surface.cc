@@ -33,10 +33,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curves")
+  b.add_input<decl::Geometry>("Curves"_ustr)
       .supported_type(GeometryComponent::Type::Curve)
       .description("Curves to deform");
-  b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Curves"_ustr).propagate_all().align_with_previous();
 }
 
 static void deform_curves(const CurvesGeometry &curves,
@@ -401,7 +401,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, "GeometryNodeDeformCurvesOnSurface", GEO_NODE_DEFORM_CURVES_ON_SURFACE);
+      &ntype, "GeometryNodeDeformCurvesOnSurface"_ustr, GEO_NODE_DEFORM_CURVES_ON_SURFACE);
   ntype.ui_name = "Deform Curves on Surface";
   ntype.ui_description =
       "Translate and rotate curves based on changes between the object's original and evaluated "

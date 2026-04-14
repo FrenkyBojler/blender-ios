@@ -27,8 +27,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Int>("Count").default_value(1).min(1).description(
-      "The number of elements in the list");
+  b.add_input<decl::Int>("Count"_ustr)
+      .default_value(1)
+      .min(1)
+      .description("The number of elements in the list");
 
   const bNode *node = b.node_or_null();
   if (!node) {
@@ -42,16 +44,17 @@ static void node_declare(NodeDeclarationBuilder &b)
     const auto type = eNodeSocketDatatype(item.socket_type);
     const std::string input_identifier = ItemsAccessor::input_socket_identifier_for_item(item);
     const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
+    const UString name(item.name);
 
-    b.add_input(type, item.name, input_identifier).supports_field();
-    b.add_output(type, item.name, output_identifier)
+    b.add_input(type, name, UString(input_identifier)).supports_field();
+    b.add_output(type, name, UString(output_identifier))
         .structure_type(StructureType::List)
         .align_with_previous()
         .description("Output list with evaluated field values");
   }
 
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Field);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Field);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::List)
       .align_with_previous();
 }
@@ -79,23 +82,23 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(data_type, SOCK_INT)) {
       params.add_item(IFACE_("Count"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeFieldToList");
-        params.update_and_connect_available_socket(node, "Count");
+        bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
+        params.update_and_connect_available_socket(node, "Count"_ustr);
       });
     }
     params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToList");
+      bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, params.socket.name);
+      params.update_and_connect_available_socket(node, UString(params.socket.name));
     });
   }
   else {
     params.add_item(IFACE_("List"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToList");
+      bNode &node = params.add_node("GeometryNodeFieldToList"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, data_type, params.socket.name);
-      params.update_and_connect_available_socket(node, params.socket.name);
+      params.update_and_connect_available_socket(node, UString(params.socket.name));
     });
   }
 }
@@ -120,11 +123,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<fn::GField> fields(required_items.size());
+  Vector<fn::GField> fields;
+  fields.reserve(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const std::string identifier = ItemsAccessor::input_socket_identifier_for_item(items[item_i]);
-    fields[i] = params.extract_input<fn::GField>(UString(identifier));
+    fields.append(params.extract_input<fn::GField>(UString(identifier)));
   }
 
   Vector<ListPtr> lists(required_items.size());
@@ -211,7 +215,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeFieldToList");
+  geo_node_type_base(&ntype, "GeometryNodeFieldToList"_ustr);
   ntype.ui_name = "Field to List";
   ntype.ui_description = "Create a list of values";
   ntype.nclass = NODE_CLASS_CONVERTER;

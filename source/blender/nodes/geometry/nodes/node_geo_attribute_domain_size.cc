@@ -15,41 +15,41 @@ namespace blender::nodes::node_geo_attribute_domain_size_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .description(
           "Geometry to get the domain sizes of. Only the root geometry is considered, not nested "
           "instances");
-  auto &total_points = b.add_output<decl::Int>("Point Count")
+  auto &total_points = b.add_output<decl::Int>("Point Count"_ustr)
                            .make_available([](bNode &node) {
                              node.custom1 = int16_t(GeometryComponent::Type::Mesh);
                            })
                            .available(false);
-  auto &total_edges = b.add_output<decl::Int>("Edge Count")
+  auto &total_edges = b.add_output<decl::Int>("Edge Count"_ustr)
                           .make_available([](bNode &node) {
                             node.custom1 = int16_t(GeometryComponent::Type::Mesh);
                           })
                           .available(false);
-  auto &total_faces = b.add_output<decl::Int>("Face Count")
+  auto &total_faces = b.add_output<decl::Int>("Face Count"_ustr)
                           .make_available([](bNode &node) {
                             node.custom1 = int16_t(GeometryComponent::Type::Mesh);
                           })
                           .available(false);
-  auto &total_corners = b.add_output<decl::Int>("Face Corner Count")
+  auto &total_corners = b.add_output<decl::Int>("Face Corner Count"_ustr)
                             .make_available([](bNode &node) {
                               node.custom1 = int16_t(GeometryComponent::Type::Mesh);
                             })
                             .available(false);
-  auto &total_curves = b.add_output<decl::Int>("Spline Count")
+  auto &total_curves = b.add_output<decl::Int>("Spline Count"_ustr)
                            .make_available([](bNode &node) {
                              node.custom1 = int16_t(GeometryComponent::Type::Curve);
                            })
                            .available(false);
-  auto &total_instances = b.add_output<decl::Int>("Instance Count")
+  auto &total_instances = b.add_output<decl::Int>("Instance Count"_ustr)
                               .make_available([](bNode &node) {
                                 node.custom1 = int16_t(GeometryComponent::Type::Instance);
                               })
                               .available(false);
-  auto &total_layers = b.add_output<decl::Int>("Layer Count")
+  auto &total_layers = b.add_output<decl::Int>("Layer Count"_ustr)
                            .make_available([](bNode &node) {
                              node.custom1 = int16_t(GeometryComponent::Type::GreasePencil);
                            })
@@ -175,7 +175,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeAttributeDomainSize", GEO_NODE_ATTRIBUTE_DOMAIN_SIZE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeAttributeDomainSize"_ustr, GEO_NODE_ATTRIBUTE_DOMAIN_SIZE);
   ntype.ui_name = "Domain Size";
   ntype.ui_description = "Retrieve the number of elements in a geometry for each attribute domain";
   ntype.enum_name_legacy = "ATTRIBUTE_DOMAIN_SIZE";

@@ -37,8 +37,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output(data_type, "Grid"_ustr).structure_type(StructureType::Grid).align_with_previous();
   static EnumPropertyItem mode_items[] = {
       {int(Mode::Inactive),
        "INACTIVE",
@@ -60,13 +60,13 @@ static void node_declare(NodeDeclarationBuilder &b)
           "values.")},
       {0, nullptr, 0, nullptr, nullptr},
   };
-  b.add_input<decl::Menu>("Mode")
+  b.add_input<decl::Menu>("Mode"_ustr)
       .static_items(mode_items)
       .default_value(MenuValue(Mode::Threshold))
       .structure_type(StructureType::Single)
       .optional_label();
   if (data_type != SOCK_BOOLEAN) {
-    auto &threshold = b.add_input(data_type, "Threshold")
+    auto &threshold = b.add_input(data_type, "Threshold"_ustr)
                           .structure_type(StructureType::Single)
                           .usage_by_single_menu(int(Mode::Threshold));
     switch (data_type) {
@@ -121,9 +121,9 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeGridPrune");
+    bNode &node = params.add_node("GeometryNodeGridPrune"_ustr);
     node.custom1 = *data_type;
-    params.update_and_connect_available_socket(node, "Grid");
+    params.update_and_connect_available_socket(node, "Grid"_ustr);
   });
 }
 
@@ -229,7 +229,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeGridPrune");
+  geo_node_type_base(&ntype, "GeometryNodeGridPrune"_ustr);
   ntype.ui_name = "Prune Grid";
   ntype.ui_description =
       "Make the storage of a volume grid more efficient by collapsing data into tiles or inner "

@@ -10,21 +10,21 @@ namespace blender::nodes::node_composite_image_coordinates_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .hide_value()
       .compositor_realization_mode(CompositorInputRealizationMode::None)
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Vector>("Uniform")
+  b.add_output<decl::Vector>("Uniform"_ustr)
       .dimensions(2)
       .structure_type(StructureType::Dynamic)
       .description(
           "Zero centered coordinates normalizes along the larger dimension for uniform scaling");
-  b.add_output<decl::Vector>("Normalized")
+  b.add_output<decl::Vector>("Normalized"_ustr)
       .dimensions(2)
       .structure_type(StructureType::Dynamic)
       .description("Normalized coordinates with half pixel offsets");
-  b.add_output<decl::IntVector>("Pixel")
+  b.add_output<decl::IntVector>("Pixel"_ustr)
       .dimensions(2)
       .structure_type(StructureType::Dynamic)
       .description("Integer pixel coordinates");
@@ -85,7 +85,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeImageCoordinates");
+  cmp_node_type_base(&ntype, "CompositorNodeImageCoordinates"_ustr);
   ntype.ui_name = "Image Coordinates";
   ntype.ui_description = "Returns the coordinates of the pixels of an image";
   ntype.nclass = NODE_CLASS_INPUT;

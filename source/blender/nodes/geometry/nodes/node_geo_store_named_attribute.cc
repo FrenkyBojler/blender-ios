@@ -35,16 +35,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .description("Geometry to store a new attribute with the given name on");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::String>("Name").is_attribute_name().optional_label();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::String>("Name"_ustr).is_attribute_name().optional_label();
 
   if (node != nullptr) {
     const NodeGeometryStoreNamedAttribute &storage = node_storage(*node);
     const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    b.add_input(data_type, "Value").field_on_all();
+    b.add_input(data_type, "Value"_ustr).field_on_all();
   }
 }
 
@@ -76,9 +76,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     if (type && *type != CD_PROP_STRING) {
       /* The input and output sockets have the same name. */
       params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeStoreNamedAttribute");
+        bNode &node = params.add_node("GeometryNodeStoreNamedAttribute"_ustr);
         node_storage(node).data_type = *type;
-        params.update_and_connect_available_socket(node, "Value");
+        params.update_and_connect_available_socket(node, "Value"_ustr);
       });
     }
   }
@@ -121,7 +121,7 @@ static void node_geo_exec(GeoNodeExecParams params)
            bke::AttrType::ColorByte,
            bke::AttrType::Int8))
   {
-    field = bke::get_implicit_type_conversions().try_convert(
+    field = *bke::get_implicit_type_conversions().try_convert(
         std::move(field), bke::attribute_type_to_cpp_type(data_type));
   }
 
@@ -221,7 +221,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeStoreNamedAttribute", GEO_NODE_STORE_NAMED_ATTRIBUTE);
+  geo_node_type_base(
+      &ntype, "GeometryNodeStoreNamedAttribute"_ustr, GEO_NODE_STORE_NAMED_ATTRIBUTE);
   ntype.ui_name = "Store Named Attribute";
   ntype.ui_description =
       "Store the result of a field on a geometry as an attribute with the specified name";

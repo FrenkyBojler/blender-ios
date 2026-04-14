@@ -19,13 +19,13 @@ namespace blender::nodes::node_geo_import_stl {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Path")
+  b.add_input<decl::String>("Path"_ustr)
       .subtype(PROP_FILEPATH)
       .path_filter("*.stl")
       .optional_label()
       .description("Path to a STL file");
 
-  b.add_output<decl::Geometry>("Mesh");
+  b.add_output<decl::Geometry>("Mesh"_ustr);
 }
 
 class LoadStlCache : public memory_cache::CachedValue {
@@ -91,7 +91,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImportSTL", GEO_NODE_IMPORT_STL);
+  geo_node_type_base(&ntype, "GeometryNodeImportSTL"_ustr, GEO_NODE_IMPORT_STL);
   ntype.ui_name = "Import STL";
   ntype.ui_description = "Import a mesh from an STL file";
   ntype.enum_name_legacy = "IMPORT_STL";
