@@ -994,7 +994,7 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
   /* Biggest possible reasonable values... */
   if (file_attribute_column_type_enabled(params, COLUMN_DATETIME, layout)) {
     const char *lang = BLT_lang_get();
-    tm test = {59, 59, 3, 30, 8, 199, 6, 365, 0}; /* September 30, 2099 03:59:59 */
+    constexpr tm test = {59, 59, 3, 30, 8, 199, 6, 365, 0}; /* September 30, 2099 03:59:59 */
     std::string modified_s = compact ? date_format::date(&test, lang) :
                                        date_format::datetime(&test, lang);
     int width = file_string_width(modified_s.c_str());
