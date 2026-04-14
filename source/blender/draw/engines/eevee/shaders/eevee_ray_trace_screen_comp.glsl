@@ -10,13 +10,11 @@
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_trace_screen)
 
-#include "eevee_bxdf_sampling_lib.glsl"
 #include "eevee_closure_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_ray_trace_screen_lib.glsl"
-#include "eevee_ray_types_lib.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_spherical_harmonics.bsl.hh"
@@ -110,8 +108,12 @@ void main()
        * with clamp to border mode, which can introduce too much energy if the border pixels are
        * bright. */
       hit.valid = all(lessThan(abs(history_ndc_hit_P), float2(1.0f)));
+
+      float2 history_ss_hit_P = history_ndc_hit_P * 0.5f + 0.5f;
+
       /* Fetch radiance at hit-point. */
-      radiance = textureLod(radiance_front_tx, history_ndc_hit_P * 0.5f + 0.5f, 0.0f).rgb;
+      radiance = raytrace_sample_screen(
+          radiance_front_tx, uniform_buf.raytrace, hit, roughness, history_ss_hit_P);
     }
   }
   else if (trace_refraction) {
@@ -125,7 +127,9 @@ void main()
                           ray_view);
 
     if (hit.valid) {
-      radiance = textureLod(radiance_back_tx, hit.ss_hit_P.xy, 0.0f).rgb;
+      /* Fetch radiance at hit-point. */
+      radiance = raytrace_sample_screen(
+          radiance_back_tx, uniform_buf.raytrace, hit, roughness, hit.ss_hit_P.xy);
     }
   }
 

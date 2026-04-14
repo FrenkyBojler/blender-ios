@@ -13,12 +13,10 @@
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_trace_planar)
 
-#include "eevee_bxdf_sampling_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_ray_trace_screen_lib.glsl"
-#include "eevee_ray_types_lib.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 
@@ -98,7 +96,8 @@ void main()
 
   if (hit.valid) {
     /* Evaluate radiance at hit-point. */
-    radiance = textureLod(planar_radiance_tx, float3(hit.ss_hit_P.xy, planar_id), 0.0f).rgb;
+    radiance = raytrace_sample_screen(
+        planar_radiance_tx, uniform_buf.raytrace, hit, roughness, hit.ss_hit_P.xy, planar_id);
   }
   else {
     /* Using ray direction as geometric normal to bias the sampling position.
