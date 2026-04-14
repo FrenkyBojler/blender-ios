@@ -497,7 +497,7 @@ class PROJECT_OP_RemoveVariable(Operator):
         project = bpy.data.project
         if project is None:
             return False
-        return project.active_variable_index < len(project.variables)
+        return project.active_variable_index >= 0 and project.active_variable_index < len(project.variables)
 
     def execute(self, context):
         project = bpy.data.project
@@ -522,7 +522,7 @@ class PROJECT_OP_MoveVariable(Operator):
         project = bpy.data.project
         if project is None:
             return False
-        return project.active_variable_index < len(project.variables)
+        return project.active_variable_index >= 0 and project.active_variable_index < len(project.variables)
 
     def execute(self, context):
         project = bpy.data.project
