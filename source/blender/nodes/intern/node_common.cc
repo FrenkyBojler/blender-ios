@@ -55,6 +55,8 @@
 
 #include "ED_node.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "node_common.h"
 #include "node_util.hh"
 
@@ -505,9 +507,18 @@ void node_group_declare(NodeDeclarationBuilder &b)
   if (!group) {
     return;
   }
-  if (ID_IS_LINKED(&group->id) && (group->id.tag & ID_TAG_MISSING)) {
-    r_declaration.skip_updating_sockets = true;
-    return;
+  if (ID_IS_LINKED(&group->id)) {
+    if (ID_MISSING(&group->id)) {
+      r_declaration.skip_updating_sockets = true;
+      return;
+    }
+    /* Currently the missing flag is only set on original data. */
+    if (const ID *orig_group = DEG_get_original_id(&group->id)) {
+      if (ID_MISSING(orig_group)) {
+        r_declaration.skip_updating_sockets = true;
+        return;
+      }
+    }
   }
   r_declaration.skip_updating_sockets = false;
 
@@ -578,7 +589,7 @@ void register_node_type_frame()
   bke::bNodeType *ntype = MEM_new<bke::bNodeType>("frame node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeFrame", NODE_FRAME);
+  bke::node_type_base(*ntype, "NodeFrame"_ustr, NODE_FRAME);
   ntype->ui_name = "Frame";
   ntype->ui_description =
       "Collect related nodes together in a common area. Useful for organization when the "
@@ -651,7 +662,7 @@ void register_node_type_reroute()
   bke::bNodeType *ntype = MEM_new<bke::bNodeType>("frame node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeReroute", NODE_REROUTE);
+  bke::node_type_base(*ntype, "NodeReroute"_ustr, NODE_REROUTE);
   ntype->ui_name = "Reroute";
   ntype->ui_description =
       "A single-socket organization tool that supports one input and multiple outputs";
@@ -688,7 +699,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 {
   ntree->ensure_topology_cache();
 
-  const Span<bNode *> all_reroute_nodes = ntree->nodes_by_type("NodeReroute");
+  const Span<bNode *> all_reroute_nodes = ntree->nodes_by_type("NodeReroute"_ustr);
 
   VectorSet<int> reroute_nodes;
   for (const bNode *reroute : all_reroute_nodes) {
@@ -791,7 +802,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     bNode &reroute_node = *all_nodes[reroute_index];
     NodeReroute *storage = static_cast<NodeReroute *>(reroute_node.storage);
     if (reroute_type->idname != storage->type_idname) {
-      StringRef(reroute_type->idname).copy_utf8_truncated(storage->type_idname);
+      reroute_type->idname.ref().copy_utf8_truncated(storage->type_idname);
       nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
     }
   }
@@ -939,10 +950,10 @@ static compositor::NodeOperation *node_implicit_conversion_compositor_operation(
 void register_node_type_implicit_conversion()
 {
   /* Adapt type node is used for all tree types, needs dynamic allocation. */
-  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("Implicit Conversion node type");
+  bke::bNodeType *ntype = MEM_new<bke::bNodeType>(__func__);
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeImplicitConversion");
+  bke::node_type_base(*ntype, "NodeImplicitConversion"_ustr);
   ntype->ui_name = "Implicit Conversion";
   ntype->ui_description = "Implicitly convert the input value to a fixed socket type";
   ntype->nclass = NODE_CLASS_CONVERTER;
@@ -1161,7 +1172,7 @@ void register_node_type_group_input()
   bke::bNodeType *ntype = MEM_new<bke::bNodeType>("node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeGroupInput", NODE_GROUP_INPUT);
+  bke::node_type_base(*ntype, "NodeGroupInput"_ustr, NODE_GROUP_INPUT);
   ntype->ui_name = "Group Input";
   ntype->ui_description =
       "Expose connected data from inside a node group as inputs to its interface";
@@ -1230,7 +1241,7 @@ static void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfo
 static void node_group_output_extra_info(nodes::NodeExtraInfoParams &params)
 {
   get_compositor_group_output_extra_info(params);
-  const Span<const bNode *> group_output_nodes = params.tree.nodes_by_type("NodeGroupOutput");
+  const Span<const bNode *> group_output_nodes = params.tree.nodes_by_type("NodeGroupOutput"_ustr);
   if (group_output_nodes.size() <= 1) {
     return;
   }
@@ -1247,10 +1258,10 @@ static void node_group_output_extra_info(nodes::NodeExtraInfoParams &params)
 void register_node_type_group_output()
 {
   /* used for all tree types, needs dynamic allocation */
-  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("node type");
+  bke::bNodeType *ntype = MEM_new<bke::bNodeType>(__func__);
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeGroupOutput", NODE_GROUP_OUTPUT);
+  bke::node_type_base(*ntype, "NodeGroupOutput"_ustr, NODE_GROUP_OUTPUT);
   ntype->ui_name = "Group Output";
   ntype->ui_description = "Output data from inside of a node group";
   ntype->enum_name_legacy = "GROUP_OUTPUT";

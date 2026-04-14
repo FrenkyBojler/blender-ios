@@ -77,7 +77,7 @@ static bke::bake::BakeSocketConfig make_bake_socket_config(
   return config;
 }
 
-static std::shared_ptr<AttributeFieldInput> make_attribute_field(
+static ImplicitSharingPtr<AttributeFieldInput> make_attribute_field(
     const Object &self_object,
     const ComputeContext &compute_context,
     const bNode &node,
@@ -88,8 +88,8 @@ static std::shared_ptr<AttributeFieldInput> make_attribute_field(
       self_object.id.name, compute_context.hash(), node.identifier, item.identifier);
   std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
       node.label_or_name(), item.name);
-  return std::make_shared<AttributeFieldInput>(
-      std::move(attribute_name), type, std::move(socket_inspection_name));
+  return ImplicitSharingPtr<AttributeFieldInput>(MEM_new<AttributeFieldInput>(
+      __func__, std::move(attribute_name), type, std::move(socket_inspection_name)));
 }
 
 static Vector<SocketValueVariant> move_simulation_state_to_values(
@@ -454,7 +454,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSimulationInput", GEO_NODE_SIMULATION_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationInput"_ustr, GEO_NODE_SIMULATION_INPUT);
   ntype.ui_name = "Simulation Input";
   ntype.ui_description = "Input data for the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_INPUT";
@@ -830,8 +830,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item_full_name(IFACE_("Simulation"), [](LinkSearchOpParams &params) {
-    bNode &input_node = params.add_node("GeometryNodeSimulationInput");
-    bNode &output_node = params.add_node("GeometryNodeSimulationOutput");
+    bNode &input_node = params.add_node("GeometryNodeSimulationInput"_ustr);
+    bNode &output_node = params.add_node("GeometryNodeSimulationOutput"_ustr);
     output_node.location[0] = 300;
 
     auto &input_storage = *static_cast<NodeGeometrySimulationInput *>(input_node.storage);
@@ -872,7 +872,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput", GEO_NODE_SIMULATION_OUTPUT);
+  geo_node_type_base(&ntype, "GeometryNodeSimulationOutput"_ustr, GEO_NODE_SIMULATION_OUTPUT);
   ntype.ui_name = "Simulation Output";
   ntype.ui_description = "Output data from the simulation zone";
   ntype.enum_name_legacy = "SIMULATION_OUTPUT";

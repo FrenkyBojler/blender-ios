@@ -149,7 +149,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                              bke::MeshFieldContext(*mesh, domain),
                                              "custom_normal",
                                              domain,
-                                             fn::make_constant_field(true),
+                                             fn::Field<bool>(true),
                                              custom_normal);
         }
       });
@@ -224,7 +224,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSetMeshNormal");
+  geo_node_type_base(&ntype, "GeometryNodeSetMeshNormal"_ustr);
   ntype.ui_name = "Set Mesh Normal";
   ntype.ui_description = "Store a normal vector for each mesh element";
   ntype.nclass = NODE_CLASS_GEOMETRY;
