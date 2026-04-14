@@ -435,7 +435,7 @@ static wmOperatorStatus select_linked_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
-  const bool deselect = !RNA_boolean_get(op->ptr, "deselect");
+  const bool select = !RNA_boolean_get(op->ptr, "deselect");
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
@@ -445,7 +445,7 @@ static wmOperatorStatus select_linked_exec(bContext *C, wmOperator *op)
     if (selectable_strokes.is_empty()) {
       return;
     }
-    ed::curves::select_linked(info.drawing.strokes_for_write(), selectable_strokes, deselect);
+    ed::curves::select_linked(info.drawing.strokes_for_write(), selectable_strokes, select);
   });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
