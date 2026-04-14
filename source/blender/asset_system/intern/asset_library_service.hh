@@ -190,7 +190,7 @@ class AssetLibraryService {
   AssetLibrary *find_loaded_on_disk_asset_library_from_name(StringRef name) const;
 
   AssetLibrary *get_online_essentials_asset_library();
-  AssetLibrary *get_remote_asset_library(const bUserAssetLibrary &custom_library);
+  AssetLibrary *get_preferences_remote_asset_library(const bUserAssetLibrary &custom_library);
   /**
    * Get the given asset library. Opens it (i.e. creates a new AssetLibrary instance) if necessary.
    *

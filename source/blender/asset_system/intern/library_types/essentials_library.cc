@@ -97,7 +97,11 @@ bool is_online_essentials_url(const StringRef url)
 }
 
 OnlineEssentialsLibrary::OnlineEssentialsLibrary()
-    : RemoteAssetLibrary(URL, "Online Essentials", online_essentials_cache_directory_path())
+    : RemoteAssetLibrary(ASSET_LIBRARY_ONLINE_ESSENTIALS,
+                         /*is_read_only=*/true,
+                         /*remote_url=*/URL,
+                         /*name=*/"Online Essentials",
+                         /*root_path=*/online_essentials_cache_directory_path())
 {
 }
 

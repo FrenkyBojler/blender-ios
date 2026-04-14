@@ -111,7 +111,7 @@ AssetLibrary *AssetLibraryService::get_asset_library(
         if (custom_library->remote_url == online_essentials_url()) {
           return this->get_online_essentials_asset_library();
         }
-        return this->get_remote_asset_library(*custom_library);
+        return this->get_preferences_remote_asset_library(*custom_library);
       }
 
       std::string root_path = custom_library->dirpath;
@@ -146,7 +146,7 @@ AssetLibrary *AssetLibraryService::get_online_essentials_asset_library()
   return lib;
 }
 
-AssetLibrary *AssetLibraryService::get_remote_asset_library(
+AssetLibrary *AssetLibraryService::get_preferences_remote_asset_library(
     const bUserAssetLibrary &custom_library)
 {
   if (!custom_library.remote_url[0]) {
@@ -163,8 +163,8 @@ AssetLibrary *AssetLibraryService::get_remote_asset_library(
     return lib;
   }
 
-  std::unique_ptr<RemoteAssetLibrary> lib_uptr = std::make_unique<RemoteAssetLibrary>(
-      custom_library);
+  std::unique_ptr<PreferencesRemoteAssetLibrary> lib_uptr =
+      std::make_unique<PreferencesRemoteAssetLibrary>(custom_library);
   AssetLibrary *lib = lib_uptr.get();
   lib->load_or_reload_catalogs();
 
