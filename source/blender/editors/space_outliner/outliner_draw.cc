@@ -1008,7 +1008,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 struct RestrictProperties {
   bool initialized;
 
-  PropertyRNA *object_hide_viewport, *object_hide_select, *object_hide_render, *object_holdout;
+  PropertyRNA *object_hide_viewport, *object_hide_select, *object_hide_render, *object_holdout, *object_indirect_only;
   PropertyRNA *base_hide_viewport;
   PropertyRNA *collection_hide_viewport, *collection_hide_select, *collection_hide_render;
   PropertyRNA *layer_collection_exclude, *layer_collection_holdout,
@@ -1024,7 +1024,6 @@ struct RestrictPropertiesActive {
   bool object_hide_viewport;
   bool object_hide_select;
   bool object_hide_render;
-  bool object_holdout;
   bool base_hide_viewport;
   bool collection_hide_viewport;
   bool collection_hide_select;
@@ -1170,6 +1169,7 @@ static void outliner_draw_restrictbuts(ui::Block *block,
     props.object_hide_select = RNA_struct_type_find_property(RNA_Object, "hide_select");
     props.object_hide_render = RNA_struct_type_find_property(RNA_Object, "hide_render");
     props.object_holdout = RNA_struct_type_find_property(RNA_Object, "is_holdout");
+    props.object_indirect_only = RNA_struct_type_find_property(RNA_Object, "visible_camera");
     props.base_hide_viewport = RNA_struct_type_find_property(RNA_ObjectBase, "hide_viewport");
     props.collection_hide_viewport = RNA_struct_type_find_property(RNA_Collection,
                                                                    "hide_viewport");
@@ -1383,9 +1383,25 @@ static void outliner_draw_restrictbuts(ui::Block *block,
                                   -1,
                                   0,
                                   0,
-                                  TIP_("Globally disable in renders\n"
-                                       " \u2022 Shift to set children"));
-          //printf(props.object_holdout == nullptr ? "Is null\n" : "not null\n");
+                                  std::nullopt);
+        }
+        if (space_outliner->show_restrict_flags & SO_RESTRICT_INDIRECT_ONLY) {
+          const Object *ob = id_cast<Object *>(te.store_elem->id);
+          if (OB_TYPE_IS_GEOMETRY(ob->type) && ob->type != OB_GREASE_PENCIL) {
+            bt = uiDefIconButR_prop(block,
+                                  ui::ButtonType::IconToggle,
+                                  ICON_NONE,
+                                  int(region->v2d.cur.xmax - restrict_offsets.indirect_only),
+                                  te.ys,
+                                  UI_UNIT_X,
+                                  UI_UNIT_Y,
+                                  &ptr,
+                                  props.object_indirect_only,
+                                  -1,
+                                  0,
+                                  0,
+                                  std::nullopt);
+          }
         }
       }
       else if (tselem->type == TSE_CONSTRAINT) {
