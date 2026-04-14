@@ -44,7 +44,8 @@ static const EnumPropertyItem io_stl_export_evaluation_mode[] = {
      "DAG_EVAL_VIEWPORT",
      0,
      "Viewport",
-     "Export objects as they appear in the viewport"},
+     "Export objects as they appear in the viewport (when in sculptmode though, a potential "
+     "multiresolution modifier is not evaluated for the exported mesh)"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static wmOperatorStatus wm_stl_export_invoke(bContext *C,
@@ -208,7 +209,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "export_eval_mode",
                io_stl_export_evaluation_mode,
-               DAG_EVAL_VIEWPORT,
+               DAG_EVAL_RENDER,
                "Object Properties",
                "Determines properties like object visibility, modifiers etc., where they differ "
                "for Render and Viewport");
