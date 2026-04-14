@@ -32,6 +32,7 @@
 #include "DNA_space_enums.h"
 #include "DNA_userdef_types.h"
 
+#include "ED_asset.hh"
 #include "ED_fileselect.hh"
 #include "ED_render.hh"
 
@@ -53,32 +54,19 @@ RemoteLibraryDefinitionRef::RemoteLibraryDefinitionRef(const bUserAssetLibrary &
   BLI_assert((library_definition.flag & ASSET_LIBRARY_USE_REMOTE_URL) != 0);
 }
 
-RemoteAssetLibrary::RemoteAssetLibrary(const StringRef remote_url,
-                                       const StringRef name,
-                                       const StringRef cache_root_path)
-    : AssetLibrary(ASSET_LIBRARY_CUSTOM, /*is_read_only=*/true, name, cache_root_path)
+/* -------------------------------------------------------------------- */
+/** \name Remote Library Base Class
+ *
+ *  Used by #PreferencesRemoteAssetLibrary and #OnlineEssentialsLibrary.
+ * \{ */
+
+RemoteAssetLibrary::RemoteAssetLibrary(eAssetLibraryType library_type,
+                                       bool is_read_only,
+                                       StringRef remote_url,
+                                       StringRef name,
+                                       StringRef root_path)
+    : AssetLibrary(library_type, is_read_only, name, root_path), remote_url_(remote_url)
 {
-  import_method_ = ASSET_IMPORT_APPEND_REUSE;
-  may_override_import_method_ = false;
-  remote_url_ = remote_url;
-}
-
-std::optional<AssetLibraryReference> RemoteAssetLibrary::library_reference() const
-{
-  for (auto [i, asset_library] : U.asset_libraries.enumerate()) {
-    if ((asset_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) == 0) {
-      continue;
-    }
-
-    if (asset_library.remote_url == this->remote_url_) {
-      AssetLibraryReference library_ref{};
-      library_ref.type = ASSET_LIBRARY_CUSTOM;
-      library_ref.custom_library_index = i;
-      return library_ref;
-    }
-  }
-
-  return {};
 }
 
 std::optional<StringRefNull> RemoteAssetLibrary::remote_url() const
@@ -90,6 +78,50 @@ void RemoteAssetLibrary::refresh_catalogs()
 {
   this->catalog_service().reload_catalogs();
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Preferences Remote Library
+ * \{ */
+
+PreferencesRemoteAssetLibrary::PreferencesRemoteAssetLibrary(
+    const bUserAssetLibrary &custom_library)
+    : RemoteAssetLibrary(ASSET_LIBRARY_CUSTOM,
+                         /*is_read_only=*/true,
+                         /*remote_url=*/custom_library.remote_url,
+                         /*name=*/custom_library.name,
+                         /*root_path=*/custom_library.dirpath),
+      user_library_(custom_library)
+{
+  BLI_assert(custom_library.flag & ASSET_LIBRARY_USE_REMOTE_URL);
+
+  import_method_ = ASSET_IMPORT_APPEND_REUSE;
+  may_override_import_method_ = false;
+}
+
+std::optional<AssetLibraryReference> PreferencesRemoteAssetLibrary::library_reference() const
+{
+  const bUserAssetLibrary *library_definition = user_library_.user_asset_library();
+  if (library_definition == nullptr) {
+    return {};
+  }
+
+  const int index = BLI_findindex(&U.asset_libraries, library_definition);
+  if (index == -1) {
+    /* Should have been caught by the #user_asset_library() call above already. */
+    BLI_assert_unreachable();
+    return {};
+  }
+
+  BLI_assert(library_definition->flag & ASSET_LIBRARY_USE_REMOTE_URL);
+  AssetLibraryReference library_ref{};
+  library_ref.type = ASSET_LIBRARY_CUSTOM;
+  library_ref.custom_library_index = index;
+  return library_ref;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Remote Library Loading Status
@@ -166,10 +198,11 @@ void RemoteLibraryLoadingStatus::ping_new_preview(const bContext &C,
 
 void RemoteLibraryLoadingStatus::ping_new_assets(const bContext &C, const StringRef url)
 {
-  WM_msg_publish_remote_io(CTX_wm_message_bus(&C), url);
+  wmWindowManager *wm = CTX_wm_manager(&C);
+
+  ed::asset::list::on_remote_assets_downloaded(*wm, url);
 
   /* Redraw drags, they may show some "asset being downloaded" info. */
-  const wmWindowManager *wm = CTX_wm_manager(&C);
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     WM_event_add_mousemove(CTX_wm_window(&C));
   }

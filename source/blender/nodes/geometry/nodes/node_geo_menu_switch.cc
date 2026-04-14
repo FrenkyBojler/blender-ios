@@ -174,7 +174,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (params.in_out() == SOCK_IN) {
     if (data_type == SOCK_MENU) {
       params.add_item(IFACE_("Menu"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeMenuSwitch");
+        bNode &node = params.add_node("GeometryNodeMenuSwitch"_ustr);
         params.update_and_connect_available_socket(node, "Menu"_ustr);
       });
     }
@@ -182,7 +182,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   else {
     if (data_type != SOCK_MENU) {
       params.add_item(IFACE_("Output"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeMenuSwitch");
+        bNode &node = params.add_node("GeometryNodeMenuSwitch"_ustr);
         node_storage(node).data_type = params.socket.type;
         params.update_and_connect_available_socket(node, "Output"_ustr);
       });
@@ -388,15 +388,16 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       return;
     }
 
-    Vector<GField> item_fields(enum_def_.items_num + 1);
-    item_fields[0] = std::move(condition);
+    Vector<GField> item_fields;
+    item_fields.reserve(enum_def_.items_num + 1);
+    item_fields.append(std::move(condition));
     for (const int i : IndexRange(enum_def_.items_num)) {
-      item_fields[i + 1] = input_values[i]->extract<GField>();
+      item_fields.append(input_values[i]->extract<GField>());
     }
     std::unique_ptr<MultiFunction> multi_function = std::make_unique<MenuSwitchFn>(
         enum_def_, *field_base_type_);
-    std::shared_ptr<fn::FieldOperation> operation = FieldOperation::from(std::move(multi_function),
-                                                                         std::move(item_fields));
+    fn::FieldOperationPtr operation = FieldOperation::from(std::move(multi_function),
+                                                           std::move(item_fields));
 
     params.set_output(0, SocketValueVariant::From(GField(operation, 0)));
     for (const int item_i : IndexRange(enum_def_.items_num)) {
@@ -572,7 +573,7 @@ static void register_node()
 {
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "GeometryNodeMenuSwitch", GEO_NODE_MENU_SWITCH);
+  common_node_type_base(&ntype, "GeometryNodeMenuSwitch"_ustr, GEO_NODE_MENU_SWITCH);
   ntype.ui_name = "Menu Switch";
   ntype.ui_description = "Select from multiple inputs by name";
   ntype.enum_name_legacy = "MENU_SWITCH";

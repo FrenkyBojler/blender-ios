@@ -297,19 +297,21 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements requirements)
 
 void VKTexturePool::AllocationHandle::free()
 {
-  VKDevice &device = VKBackend::get().device;
-  /* TODO(not_mark): allocation needs to go to discard pool, but for that it needs to be tracked.
-   * This is only OK right now because `max_unused_cycles_` is sufficiently large. */
-  vmaFreeMemory(device.mem_allocator_get(), allocation);
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  discard_pool.discard_allocation(allocation);
   segments = {};
 }
 
 VKTexturePool::VKTexturePool()
 {
-  /* For unknown reasons, VKImageCache causes sporadic crashes on some AMD cards on Mesa,
-   * which is not always reproducible (#154768, #155202). As Mesa has fast VkImage handle
-   * creation, it is simply not instantiated there. */
-  if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+  /* VKImageCache causes issues on several platforms.
+   * - On many RDNA2 Mesa configs (dGPU, iGPU), causes sporadic crashes (#154768, #155202).
+   * - On Intel Meteor/Arrow/Alder Lake and older iGPUs, causes visual artifacts (#156496).
+   * As most platforms have fast VkImage handle creation, it is simply not instantiated there. */
+  bool use_image_cache_workaround =
+      GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) ||
+      GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_ANY);
+  if (!use_image_cache_workaround) {
     image_cache_ = VKImageCache();
   }
 }
@@ -392,10 +394,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
 
   /* If no compatible region was found, allocate new memory. */
   if (image_info.allocation == VK_NULL_HANDLE) {
-    requirements.size = std::max(allocation_size, requirements.size);
+    VkMemoryRequirements allocation_requirements = requirements;
+    allocation_requirements.size = std::max(allocation_size, requirements.size);
 
     AllocationHandle handle;
-    handle.alloc(requirements);
+    handle.alloc(allocation_requirements);
 
     std::optional<VKMemorySegment> segment_opt = handle.acquire(requirements);
     if (segment_opt) {

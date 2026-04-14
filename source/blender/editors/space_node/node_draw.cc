@@ -2780,7 +2780,7 @@ static void node_draw_extra_info_panel(const bContext &C,
 
 static short get_viewer_shortcut_icon(const bNode &node)
 {
-  BLI_assert(node.is_type("CompositorNodeViewer") || node.is_type("GeometryNodeViewer"));
+  BLI_assert(node.is_type("CompositorNodeViewer"_ustr) || node.is_type("GeometryNodeViewer"_ustr));
   switch (node.custom1) {
     case NODE_VIEWER_SHORTCUT_NONE:
       /* No change by default. */
@@ -3098,7 +3098,7 @@ static void node_draw_basis(const bContext &C,
     block_emboss_set(&block, ui::EmbossType::Emboss);
   }
   /* Viewer node shortcuts. */
-  if (node.is_type("CompositorNodeViewer")) {
+  if (node.is_type("CompositorNodeViewer"_ustr)) {
     short shortcut_icon = get_viewer_shortcut_icon(node);
     iconofs -= iconbutw;
     const bool is_active = node.flag & NODE_DO_OUTPUT;
@@ -4396,7 +4396,7 @@ static void draw_frame_overlays(const bContext &C,
                                 const bNodeTree &ntree,
                                 Span<ui::Block *> blocks)
 {
-  for (const bNode *node : ntree.nodes_by_type("NodeFrame")) {
+  for (const bNode *node : ntree.nodes_by_type("NodeFrame"_ustr)) {
     frame_node_draw_overlay(C, tree_draw_ctx, region, snode, *node, *blocks[node->index()]);
   }
 }
@@ -4659,9 +4659,15 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   GPU_matrix_pop_projection();
 }
 
-static void snode_setup_v2d(SpaceNode &snode, ARegion &region, const float2 &center)
+static void snode_setup_v2d(SpaceNode &snode,
+                            ARegion &region,
+                            const float2 &center,
+                            const float size_x)
 {
   View2D &v2d = region.v2d;
+  BLI_assert(!BLI_rctf_is_empty(&v2d.cur));
+  const float aspect = BLI_rctf_size_x(&v2d.cur) / BLI_rctf_size_y(&v2d.cur);
+  BLI_rctf_resize(&v2d.cur, size_x, size_x / aspect);
 
   /* Shift view to node tree center. */
   ui::view2d_center_set(&v2d, center[0], center[1]);
@@ -4676,7 +4682,7 @@ static Map<const bNode *, const bNode *> find_menu_switch_sources_for_index_swit
     bke::ComputeContextCache &compute_context_cache)
 {
   Map<const bNode *, const bNode *> result;
-  for (const bNode *index_switch_node : ntree.nodes_by_type("GeometryNodeIndexSwitch")) {
+  for (const bNode *index_switch_node : ntree.nodes_by_type("GeometryNodeIndexSwitch"_ustr)) {
     const bNodeSocket &index_socket = index_switch_node->input_socket(0);
     const ComputeContext *compute_context = ed::space_node::compute_context_for_edittree_socket(
         snode, compute_context_cache, index_socket);
@@ -4788,7 +4794,6 @@ void node_draw_space(const bContext &C, ARegion &region)
   ui::view2d_view_ortho(&v2d);
   draw_background_color();
   GPU_depth_test(GPU_DEPTH_NONE);
-  GPU_scissor_test(true);
 
   /* XXX `snode->runtime->cursor` set in coordinate-space for placing new nodes,
    * used for drawing noodles too. */
@@ -4826,17 +4831,20 @@ void node_draw_space(const bContext &C, ARegion &region)
     /* Current View2D center, will be set temporarily for parent node trees. */
     float2 center;
     ui::view2d_center_get(&v2d, &center.x, &center.y);
+    const float size_x = BLI_rctf_size_x(&v2d.cur);
 
     /* Store new view center in path and current edit tree. */
     copy_v2_v2(path->view_center, center);
+    path->view_width = size_x;
     if (snode.edittree) {
       copy_v2_v2(snode.edittree->view_center, center);
+      snode.edittree->view_width = size_x;
     }
 
     /* Top-level edit tree. */
     bNodeTree *ntree = path->nodetree;
     if (ntree) {
-      snode_setup_v2d(snode, region, center);
+      snode_setup_v2d(snode, region, center, size_x);
 
       /* Backdrop. */
       draw_nodespace_back_pix(C, region, snode, path->parent_key);
@@ -4845,8 +4853,7 @@ void node_draw_space(const bContext &C, ARegion &region)
         GPU_matrix_push_projection();
         wmOrtho2_region_pixelspace(&region);
 
-        const bool is_compositor = ntree->type == NTREE_COMPOSIT;
-        const bool show_render_region = is_compositor &&
+        const bool show_render_region = ED_node_is_compositor(&snode) &&
                                         snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
                                         snode.overlay.flag & SN_OVERLAY_SHOW_RENDER_REGION &&
                                         snode.flag & SNODE_BACKDRAW;
