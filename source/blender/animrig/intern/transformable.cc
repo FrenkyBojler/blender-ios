@@ -234,6 +234,7 @@ Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
       rotation_mode_(&pchan.rotmode),
       scale_({pchan.scale, 3})
 {
+  static_assert(std::is_same_v<short, decltype(pchan.rotmode)>);
   build_rotations_array(rotations_, pchan.eul, pchan.quat, pchan.rotAxis, &pchan.rotAngle);
   rna_path_from_id_ = get_pose_bone_rna_path(pchan);
 }
