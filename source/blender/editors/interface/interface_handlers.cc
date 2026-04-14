@@ -3257,7 +3257,6 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
     textbox_textedit_set_cursor_pos(static_cast<ButtonTextBox *>(but), region, xy);
     return;
   }
-  float x = xy.x;
   /* XXX pass on as arg. */
   uiFontStyle fstyle = style_get()->widget;
   const float aspect = but->block->aspect;
@@ -3287,7 +3286,7 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   }
 
   /* mouse dragged outside the widget to the left */
-  if (x < startx) {
+  if (xy.x < startx) {
     int i = but->ofs;
 
     str_last = &str[but->ofs];
@@ -3295,7 +3294,7 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
     while (i > 0) {
       if (BLI_str_cursor_step_prev_utf8(str, but->ofs, &i)) {
         /* 0.25 == scale factor for less sensitivity */
-        if (BLF_width(fstyle.uifont_id, str + i, (str_last - str) - i) > (startx - x) * 0.25f) {
+        if (BLF_width(fstyle.uifont_id, str + i, (str_last - str) - i) > (startx - xy.x) * 0.25f) {
           break;
         }
       }
@@ -3310,7 +3309,7 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   else {
     but->pos = but->ofs +
                BLF_str_offset_from_cursor_position(
-                   fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs), int(x - startx));
+                   fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs), int(xy.x - startx));
   }
 
   button_text_password_hide(password_str, but, true);
