@@ -134,6 +134,7 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   bf_compositor
+  bf_editor_util
   PRIVATE bf::dependencies::optional::audaspace
   PRIVATE bf::dependencies::optional::fftw3
 )

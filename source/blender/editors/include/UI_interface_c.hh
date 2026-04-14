@@ -697,12 +697,7 @@ void draw_safe_areas(uint pos,
                      const rctf *rect,
                      const float title_aspect[2],
                      const float action_aspect[2]);
-
-void draw_composition_guides(uint shdr_pos,
-                             eCompositionGuideFlags flag,
-                             rctf *rect,
-                             const float color[4]);
-
+                     
 /** State for scroll-drawing. */
 enum {
   SCROLL_PRESSED = 1 << 0,

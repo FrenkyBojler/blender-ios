@@ -59,6 +59,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d_offscreen.hh"
 #include "ED_viewer_path.hh"
+#include "ED_util.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -586,7 +587,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   if (ca && (v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
     GPU_blend(GPU_BLEND_ALPHA);
 
-    ui::draw_composition_guides(shdr_pos,
+    ED_draw_composition_guides(shdr_pos,
                                 static_cast<eCompositionGuideFlags>(ca->composition_guide_flags),
                                 &viewborder,
                                 ca->composition_guide_color);
