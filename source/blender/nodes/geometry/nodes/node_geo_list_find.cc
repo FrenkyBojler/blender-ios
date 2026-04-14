@@ -15,15 +15,15 @@ namespace blender::nodes::node_geo_list_find_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("Boolean")
+  b.add_input<decl::Bool>("Boolean"_ustr)
       .structure_type(StructureType::List)
       .hide_value()
       .description("Boolean list to search");
 
-  b.add_output<decl::Int>("Indices")
+  b.add_output<decl::Int>("Indices"_ustr)
       .structure_type(StructureType::List)
       .description("Indices where value is true");
-  b.add_output<decl::Int>("Count").description("Number of true values found");
+  b.add_output<decl::Int>("Count"_ustr).description("Number of true values found");
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -34,20 +34,20 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (params.in_out() == SOCK_IN) {
     if (params.other_socket().type == SOCK_BOOLEAN) {
       params.add_item(IFACE_("Boolean"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeListFind");
-        params.update_and_connect_available_socket(node, "Boolean");
+        bNode &node = params.add_node("GeometryNodeListFind"_ustr);
+        params.update_and_connect_available_socket(node, "Boolean"_ustr);
       });
     }
   }
   else {
     if (params.other_socket().type == SOCK_INT) {
       params.add_item(IFACE_("Indices"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeListFind");
-        params.update_and_connect_available_socket(node, "Indices");
+        bNode &node = params.add_node("GeometryNodeListFind"_ustr);
+        params.update_and_connect_available_socket(node, "Indices"_ustr);
       });
       params.add_item(IFACE_("Count"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeListFind");
-        params.update_and_connect_available_socket(node, "Count");
+        bNode &node = params.add_node("GeometryNodeListFind"_ustr);
+        params.update_and_connect_available_socket(node, "Count"_ustr);
       });
     }
   }
@@ -55,7 +55,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr bool_list = params.extract_input<ListPtr>("Boolean");
+  ListPtr bool_list = params.extract_input<ListPtr>("Boolean"_ustr);
 
   if (!bool_list) {
     params.set_default_remaining_outputs();
@@ -75,31 +75,31 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int count = matching_indices.size();
 
-  if (params.output_is_required("Indices")) {
+  if (params.output_is_required("Indices"_ustr)) {
     const CPPType &int_type = CPPType::get<int>();
     if (count == 0) {
       List::ArrayData indices_data = List::ArrayData::ForDefaultValue(int_type, 0);
       ListPtr indices_list = List::create(int_type, std::move(indices_data), 0);
-      params.set_output("Indices", std::move(indices_list));
+      params.set_output("Indices"_ustr, std::move(indices_list));
     }
     else {
       List::ArrayData indices_data = List::ArrayData::ForUninitialized(int_type, count);
-      MutableSpan<int> indices_span(static_cast<int *>(indices_data.data), count);
+      MutableSpan<int> indices_span = indices_data.span_for_write(int_type, count).typed<int>();
       indices_span.copy_from(matching_indices);
       ListPtr indices_list = List::create(int_type, std::move(indices_data), count);
-      params.set_output("Indices", std::move(indices_list));
+      params.set_output("Indices"_ustr, std::move(indices_list));
     }
   }
 
-  if (params.output_is_required("Count")) {
-    params.set_output("Count", count);
+  if (params.output_is_required("Count"_ustr)) {
+    params.set_output("Count"_ustr, count);
   }
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListFind");
+  geo_node_type_base(&ntype, "GeometryNodeListFind"_ustr);
   ntype.ui_name = "Find in List";
   ntype.ui_description = "Find indices where a boolean list is true";
   ntype.nclass = NODE_CLASS_CONVERTER;

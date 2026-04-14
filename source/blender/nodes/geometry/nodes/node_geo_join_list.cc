@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List")
+    b.add_input(type, "List"_ustr)
         .structure_type(StructureType::List)
         .multi_input()
         .hide_value()
@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_output(type, "List").structure_type(StructureType::List).align_with_previous();
+    b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
   }
 }
 
@@ -49,9 +49,9 @@ class SocketSearchOp {
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeJoinList");
+    bNode &node = params.add_node("GeometryNodeJoinList"_ustr);
     node.custom1 = socket_type;
-    params.update_and_connect_available_socket(node, "List");
+    params.update_and_connect_available_socket(node, "List"_ustr);
   }
 };
 
@@ -66,14 +66,14 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeoNodesMultiInput<ListPtr> lists = params.extract_input<GeoNodesMultiInput<ListPtr>>("List");
+  GeoNodesMultiInput<ListPtr> lists = params.extract_input<GeoNodesMultiInput<ListPtr>>("List"_ustr);
 
   if (lists.values.is_empty()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  if (!params.output_is_required("List")) {
+  if (!params.output_is_required("List"_ustr)) {
     return;
   }
 
@@ -100,7 +100,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (valid_lists.size() == 1) {
-    params.set_output("List", std::move(valid_lists[0]));
+    params.set_output("List"_ustr, std::move(valid_lists[0]));
     return;
   }
 
@@ -112,7 +112,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (total_size == 0) {
     List::ArrayData empty_data = List::ArrayData::ForDefaultValue(*common_type, 0);
     ListPtr empty_list = List::create(*common_type, std::move(empty_data), 0);
-    params.set_output("List", std::move(empty_list));
+    params.set_output("List"_ustr, std::move(empty_list));
     return;
   }
 
@@ -138,12 +138,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (all_single && first_value != nullptr) {
     List::SingleData joined_data = List::SingleData::ForValue(GPointer(*common_type, first_value));
     ListPtr joined_list = List::create(*common_type, std::move(joined_data), total_size);
-    params.set_output("List", std::move(joined_list));
+    params.set_output("List"_ustr, std::move(joined_list));
     return;
   }
 
   List::ArrayData joined_data = List::ArrayData::ForUninitialized(*common_type, total_size);
-  GMutableSpan dst_span(*common_type, joined_data.data, total_size);
+  GMutableSpan dst_span = joined_data.span_for_write(*common_type, total_size);
 
   int64_t offset = 0;
   for (const ListPtr &list : valid_lists) {
@@ -156,7 +156,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   ListPtr joined_list = List::create(*common_type, std::move(joined_data), total_size);
-  params.set_output("List", std::move(joined_list));
+  params.set_output("List"_ustr, std::move(joined_list));
 }
 
 static void node_rna(StructRNA *srna)
@@ -181,7 +181,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeJoinList");
+  geo_node_type_base(&ntype, "GeometryNodeJoinList"_ustr);
   ntype.ui_name = "Join List";
   ntype.ui_description = "Join multiple lists together";
   ntype.nclass = NODE_CLASS_CONVERTER;

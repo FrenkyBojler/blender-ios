@@ -26,12 +26,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
-    b.add_output(type, "List").structure_type(StructureType::List).align_with_previous();
+    b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+    b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
   }
 
-  b.add_input<decl::Int>("Start").default_value(0).description("Starting index (inclusive)");
-  b.add_input<decl::Int>("End").default_value(-1).description(
+  b.add_input<decl::Int>("Start"_ustr).default_value(0).description("Starting index (inclusive)");
+  b.add_input<decl::Int>("End"_ustr).default_value(-1).description(
       "Ending index (exclusive, -1 means end of list)");
 }
 
@@ -42,11 +42,11 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeListSlice");
+    bNode &node = params.add_node("GeometryNodeListSlice"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -60,32 +60,32 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
-      params.add_item(IFACE_("Start"), SocketSearchOp{"Start", SOCK_INT});
-      params.add_item(IFACE_("End"), SocketSearchOp{"End", SOCK_INT});
+      params.add_item(IFACE_("Start"), SocketSearchOp{"Start"_ustr, SOCK_INT});
+      params.add_item(IFACE_("End"), SocketSearchOp{"End"_ustr, SOCK_INT});
     }
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
   else {
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List");
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  if (!params.output_is_required("List")) {
+  if (!params.output_is_required("List"_ustr)) {
     return;
   }
 
   const int list_size = list->size();
-  int start = params.extract_input<int>("Start");
-  int end = params.extract_input<int>("End");
+  int start = params.extract_input<int>("Start"_ustr);
+  int end = params.extract_input<int>("End"_ustr);
 
   if (start < 0) {
     start = list_size + start;
@@ -101,14 +101,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     const CPPType &type = list->cpp_type();
     List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
     ListPtr empty_list = List::create(type, std::move(empty_data), 0);
-    params.set_output("List", std::move(empty_list));
+    params.set_output("List"_ustr, std::move(empty_list));
     return;
   }
 
   const int slice_size = end - start;
 
   if (start == 0 && end == list_size) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
@@ -118,21 +118,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (const auto *single_data = std::get_if<List::SingleData>(&list_data)) {
     List::SingleData slice_data = List::SingleData::ForValue(GPointer(type, single_data->value));
     ListPtr sliced_list = List::create(type, std::move(slice_data), slice_size);
-    params.set_output("List", std::move(sliced_list));
+    params.set_output("List"_ustr, std::move(sliced_list));
     return;
   }
 
   if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {
     const GSpan src_span(type, array_data->data, list_size);
     List::ArrayData slice_data = List::ArrayData::ForUninitialized(type, slice_size);
-    GMutableSpan dst_span(type, slice_data.data, slice_size);
+    GMutableSpan dst_span = slice_data.span_for_write(type, slice_size);
 
     for (int i = 0; i < slice_size; i++) {
       type.copy_construct(src_span[start + i], dst_span[i]);
     }
 
     ListPtr sliced_list = List::create(type, std::move(slice_data), slice_size);
-    params.set_output("List", std::move(sliced_list));
+    params.set_output("List"_ustr, std::move(sliced_list));
   }
 }
 
@@ -158,7 +158,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListSlice");
+  geo_node_type_base(&ntype, "GeometryNodeListSlice"_ustr);
   ntype.ui_name = "Slice List";
   ntype.ui_description = "Extract a portion of a list";
   ntype.nclass = NODE_CLASS_CONVERTER;

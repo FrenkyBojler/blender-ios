@@ -27,8 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
 
   const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-  b.add_input(type, "List").structure_type(StructureType::List).hide_value();
-  b.add_output(type, "List").structure_type(StructureType::List).align_with_previous();
+  b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+  b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -41,9 +41,9 @@ class SocketSearchOp {
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeListReverse");
+    bNode &node = params.add_node("GeometryNodeListReverse"_ustr);
     node.custom1 = socket_type;
-    params.update_and_connect_available_socket(node, "List");
+    params.update_and_connect_available_socket(node, "List"_ustr);
   }
 };
 
@@ -58,21 +58,21 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List");
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  if (!params.output_is_required("List")) {
+  if (!params.output_is_required("List"_ustr)) {
     return;
   }
 
   const int list_size = list->size();
 
   if (list_size <= 1) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
@@ -80,21 +80,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   const List::DataVariant &list_data = list->data();
 
   if (std::get_if<List::SingleData>(&list_data)) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
   if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {
     const GSpan src_span(type, array_data->data, list_size);
     List::ArrayData reversed_data = List::ArrayData::ForUninitialized(type, list_size);
-    GMutableSpan dst_span(type, reversed_data.data, list_size);
+    GMutableSpan dst_span = reversed_data.span_for_write(type, list_size);
 
     for (int i = 0; i < list_size; i++) {
       type.copy_construct(src_span[list_size - 1 - i], dst_span[i]);
     }
 
     ListPtr reversed_list = List::create(type, std::move(reversed_data), list_size);
-    params.set_output("List", std::move(reversed_list));
+    params.set_output("List"_ustr, std::move(reversed_list));
     return;
   }
 
@@ -123,7 +123,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListReverse");
+  geo_node_type_base(&ntype, "GeometryNodeListReverse"_ustr);
   ntype.ui_name = "Reverse List";
   ntype.ui_description = "Reverse the order of elements in a list";
   ntype.nclass = NODE_CLASS_CONVERTER;

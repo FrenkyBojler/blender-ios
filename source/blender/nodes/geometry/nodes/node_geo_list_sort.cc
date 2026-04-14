@@ -30,11 +30,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
-    b.add_output(type, "List").structure_type(StructureType::List).align_with_previous();
+    b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+    b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
   }
 
-  b.add_input<decl::Float>("Weights")
+  b.add_input<decl::Float>("Weights"_ustr)
       .default_value(0.0f)
       .hide_value()
       .structure_type(StructureType::Dynamic)
@@ -49,11 +49,11 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeSortList");
+    bNode &node = params.add_node("GeometryNodeSortList"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -67,37 +67,37 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_FLOAT)) {
-      params.add_item(IFACE_("Weights"), SocketSearchOp{"Weights", SOCK_FLOAT});
+      params.add_item(IFACE_("Weights"), SocketSearchOp{"Weights"_ustr, SOCK_FLOAT});
     }
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
   else {
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List");
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  if (!params.output_is_required("List")) {
+  if (!params.output_is_required("List"_ustr)) {
     return;
   }
 
   const int list_size = list->size();
 
   if (list_size == 0) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
   bke::SocketValueVariant weights_variant = params.extract_input<bke::SocketValueVariant>(
-      "Weights");
+      "Weights"_ustr);
 
   ListPtr weights_list;
   if (weights_variant.is_context_dependent_field()) {
@@ -105,14 +105,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     weights_list = evaluate_field_to_list(std::move(field), list_size);
     if (!weights_list) {
       params.error_message_add(NodeWarningType::Error, "Failed to evaluate weights field");
-      params.set_output("List", std::move(list));
+      params.set_output("List"_ustr, std::move(list));
       return;
     }
   }
   else if (weights_variant.is_list()) {
     weights_list = weights_variant.get<ListPtr>();
     if (!weights_list) {
-      params.set_output("List", std::move(list));
+      params.set_output("List"_ustr, std::move(list));
       return;
     }
     if (weights_list->size() != list_size) {
@@ -125,11 +125,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else if (weights_variant.is_single()) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
   else {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
@@ -159,7 +159,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const List::DataVariant &list_data = list->data();
 
   if (std::get_if<List::SingleData>(&list_data)) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
@@ -167,7 +167,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {
     const GSpan src_span(type, array_data->data, list_size);
-    GMutableSpan dst_span(type, sorted_array_data.data, list_size);
+    GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
 
     for (const int i : indices.index_range()) {
       const int src_index = indices[i];
@@ -176,7 +176,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   ListPtr sorted_list = List::create(type, std::move(sorted_array_data), list_size);
-  params.set_output("List", std::move(sorted_list));
+  params.set_output("List"_ustr, std::move(sorted_list));
 }
 
 static void node_rna(StructRNA *srna)
@@ -201,7 +201,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListSort");
+  geo_node_type_base(&ntype, "GeometryNodeListSort"_ustr);
   ntype.ui_name = "Sort List";
   ntype.ui_description = "Sort a list based on weights";
   ntype.nclass = NODE_CLASS_CONVERTER;

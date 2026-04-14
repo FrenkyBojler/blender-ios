@@ -31,18 +31,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
-    b.add_output(type, "List").structure_type(StructureType::List).align_with_previous();
+    b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+    b.add_output(type, "List"_ustr).structure_type(StructureType::List).align_with_previous();
   }
 
-  b.add_input<decl::Int>("Index")
+  b.add_input<decl::Int>("Index"_ustr)
       .default_value(0)
       .structure_type(StructureType::Dynamic)
       .description("Index or indices of elements to replace (negative counts from end)");
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "Value")
+    b.add_input(type, "Value"_ustr)
         .field_on_all()
         .description("New value for the element (can be a field evaluated at each index)");
   }
@@ -55,11 +55,11 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeListSetItem");
+    bNode &node = params.add_node("GeometryNodeListSetItem"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -73,26 +73,26 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
-      params.add_item(IFACE_("Index"), SocketSearchOp{"Index", SOCK_INT});
+      params.add_item(IFACE_("Index"), SocketSearchOp{"Index"_ustr, SOCK_INT});
     }
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
+    params.add_item(IFACE_("Value"), SocketSearchOp{"Value"_ustr, socket_type});
   }
   else {
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List");
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  if (!params.output_is_required("List")) {
+  if (!params.output_is_required("List"_ustr)) {
     return;
   }
 
@@ -100,13 +100,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (list_size == 0) {
     params.error_message_add(NodeWarningType::Warning, "Cannot set item in empty list");
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
   const CPPType &type = list->cpp_type();
 
-  bke::SocketValueVariant index_variant = params.extract_input<bke::SocketValueVariant>("Index");
+  bke::SocketValueVariant index_variant = params.extract_input<bke::SocketValueVariant>("Index"_ustr);
 
   Vector<int> indices;
   if (index_variant.is_single()) {
@@ -136,11 +136,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (indices.is_empty()) {
-    params.set_output("List", std::move(list));
+    params.set_output("List"_ustr, std::move(list));
     return;
   }
 
-  bke::SocketValueVariant value_variant = params.extract_input<bke::SocketValueVariant>("Value");
+  bke::SocketValueVariant value_variant = params.extract_input<bke::SocketValueVariant>("Value"_ustr);
 
   ListPtr value_list;
   if (value_variant.is_context_dependent_field()) {
@@ -155,7 +155,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   List::ArrayData result_data = List::ArrayData::ForUninitialized(type, list_size);
-  GMutableSpan dst_span(type, result_data.data, list_size);
+  GMutableSpan dst_span = result_data.span_for_write(type, list_size);
 
   const GVArray src_varray = list->varray();
   for (int i = 0; i < list_size; i++) {
@@ -176,7 +176,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   ListPtr result_list = List::create(type, std::move(result_data), list_size);
-  params.set_output("List", std::move(result_list));
+  params.set_output("List"_ustr, std::move(result_list));
 }
 
 static void node_rna(StructRNA *srna)
@@ -201,7 +201,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListSetItem");
+  geo_node_type_base(&ntype, "GeometryNodeListSetItem"_ustr);
   ntype.ui_name = "Set List Item";
   ntype.ui_description =
       "Replace values at specific indices in a list (supports field inputs and multiple indices)";

@@ -28,16 +28,16 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
-    b.add_output(type, "Unique")
+    b.add_input(type, "List"_ustr).structure_type(StructureType::List).hide_value();
+    b.add_output(type, "Unique"_ustr)
         .structure_type(StructureType::List)
         .description("List of unique values from the input");
   }
 
-  b.add_output<decl::Int>("Counts")
+  b.add_output<decl::Int>("Counts"_ustr)
       .structure_type(StructureType::List)
       .description("Number of times each unique value appears");
-  b.add_output<decl::Int>("Inverse")
+  b.add_output<decl::Int>("Inverse"_ustr)
       .structure_type(StructureType::List)
       .description("Indices to reconstruct the original list from unique values");
 }
@@ -49,11 +49,11 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 class SocketSearchOp {
  public:
-  const StringRef socket_name;
+  UString socket_name;
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeListUnique");
+    bNode &node = params.add_node("GeometryNodeListUnique"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -66,20 +66,20 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
-    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+    params.add_item(IFACE_("List"), SocketSearchOp{"List"_ustr, socket_type});
   }
   else {
     if (socket_type == SOCK_INT) {
-      params.add_item(IFACE_("Counts"), SocketSearchOp{"Counts", SOCK_INT});
-      params.add_item(IFACE_("Inverse"), SocketSearchOp{"Inverse", SOCK_INT});
+      params.add_item(IFACE_("Counts"), SocketSearchOp{"Counts"_ustr, SOCK_INT});
+      params.add_item(IFACE_("Inverse"), SocketSearchOp{"Inverse"_ustr, SOCK_INT});
     }
-    params.add_item(IFACE_("Unique"), SocketSearchOp{"Unique", socket_type});
+    params.add_item(IFACE_("Unique"), SocketSearchOp{"Unique"_ustr, socket_type});
   }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List");
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -92,12 +92,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     const CPPType &type = list->cpp_type();
     List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
     ListPtr empty_list = List::create(type, std::move(empty_data), 0);
-    params.set_output("Unique", std::move(empty_list));
+    params.set_output("Unique"_ustr, std::move(empty_list));
 
     const CPPType &int_type = CPPType::get<int>();
     List::ArrayData empty_int_data = List::ArrayData::ForDefaultValue(int_type, 0);
-    params.set_output("Counts", List::create(int_type, std::move(empty_int_data), 0));
-    params.set_output("Inverse", List::create(int_type, std::move(empty_int_data), 0));
+    params.set_output("Counts"_ustr, List::create(int_type, std::move(empty_int_data), 0));
+    params.set_output("Inverse"_ustr, List::create(int_type, std::move(empty_int_data), 0));
     return;
   }
 
@@ -187,35 +187,35 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int unique_count = unique_indices.size();
 
   List::ArrayData unique_data = List::ArrayData::ForUninitialized(type, unique_count);
-  GMutableSpan unique_span(type, unique_data.data, unique_count);
+  GMutableSpan unique_span = unique_data.span_for_write(type, unique_count);
 
   for (int i = 0; i < unique_count; i++) {
     input_varray.get_to_uninitialized(unique_indices[i], unique_span[i]);
   }
 
   ListPtr unique_list = List::create(type, std::move(unique_data), unique_count);
-  params.set_output("Unique", std::move(unique_list));
+  params.set_output("Unique"_ustr, std::move(unique_list));
 
   const CPPType &int_type = CPPType::get<int>();
   List::ArrayData counts_data = List::ArrayData::ForUninitialized(int_type, unique_count);
-  GMutableSpan counts_span(int_type, counts_data.data, unique_count);
+  GMutableSpan counts_span = counts_data.span_for_write(int_type, unique_count);
 
   for (int i = 0; i < unique_count; i++) {
     int_type.copy_construct(&unique_counts[i], counts_span[i]);
   }
 
   ListPtr counts_list = List::create(int_type, std::move(counts_data), unique_count);
-  params.set_output("Counts", std::move(counts_list));
+  params.set_output("Counts"_ustr, std::move(counts_list));
 
   List::ArrayData inverse_data = List::ArrayData::ForUninitialized(int_type, list_size);
-  GMutableSpan inverse_span(int_type, inverse_data.data, list_size);
+  GMutableSpan inverse_span = inverse_data.span_for_write(int_type, list_size);
 
   for (int i = 0; i < list_size; i++) {
     int_type.copy_construct(&inverse_indices[i], inverse_span[i]);
   }
 
   ListPtr inverse_list = List::create(int_type, std::move(inverse_data), list_size);
-  params.set_output("Inverse", std::move(inverse_list));
+  params.set_output("Inverse"_ustr, std::move(inverse_list));
 }
 
 static void node_rna(StructRNA *srna)
@@ -240,7 +240,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeListUnique");
+  geo_node_type_base(&ntype, "GeometryNodeListUnique"_ustr);
   ntype.ui_name = "Unique List";
   ntype.ui_description = "Find unique values in a list with counts and inverse mapping";
   ntype.nclass = NODE_CLASS_CONVERTER;
