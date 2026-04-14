@@ -1,0 +1,1 @@
+Referenced by issue #157310, Geometry Nodes format string assert with `{s:01}` if input is a string
