@@ -487,27 +487,55 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         layout.prop(item, "show_composition_guides", text="Composition Guides")
 
     @classmethod
-    def draw_panel(cls, item, layout):
-        if (not item.show_composition_guides):
+    def draw_panel(cls, item, layout, two_cols=False):
+        if not item.show_composition_guides:
             layout.enabled = False
-        layout.use_property_split = True
 
-        layout.prop(item, "show_composition_thirds")
-        col = layout.column(heading="Center", align=True)
-        col.prop(item, "show_composition_center")
-        col.prop(item, "show_composition_center_diagonal", text="Diagonal")
+        layout.use_property_split = not two_cols
 
-        col = layout.column(heading="Golden", align=True)
-        col.prop(item, "show_composition_golden", text="Ratio")
-        col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
-        col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
+        if two_cols:
+            # Left Side
+            split = layout.split(factor=0.5, align=True)
+            col = split.column(align=True)                
+            col.prop(item, "show_composition_thirds")
 
-        col = layout.column(heading="Harmony", align=True)
-        col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
-        col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
+            col = col.column(heading="Golden", align=True)
+            col.prop(item, "show_composition_golden", text="Ratio")
+            col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
+            col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
+        
+            col = col.column()
+            col.prop(item, "composition_guide_color", text="Color")
+        
+            # Right Side
+            col = split.column(align=True)
 
-        col = layout.column()
-        col.prop(item, "composition_guide_color", text="Color")
+            col = col.column(heading="Center", align=True)
+            col.prop(item, "show_composition_center")
+            col.prop(item, "show_composition_center_diagonal", text="Diagonal")
+
+            col = col.column(heading="Harmony", align=True)
+            col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
+            col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
+            
+        else:
+            layout.prop(item, "show_composition_thirds")
+
+            col = layout.column(heading="Center", align=True)
+            col.prop(item, "show_composition_center")
+            col.prop(item, "show_composition_center_diagonal", text="Diagonal")
+
+            col = layout.column(heading="Golden", align=True)
+            col.prop(item, "show_composition_golden", text="Ratio")
+            col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
+            col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
+
+            col = layout.column(heading="Harmony", align=True)
+            col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
+            col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
+
+            col = layout.column()
+            col.prop(item, "composition_guide_color", text="Color")
 
 
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):
