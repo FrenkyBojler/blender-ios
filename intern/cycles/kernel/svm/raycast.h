@@ -77,7 +77,7 @@ ccl_device bool svm_raycast(KernelGlobals kg,
   }
   else {
     /* Ray-trace, leaving out shadow opaque to avoid early exit. */
-    const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
+    const uint visibility = PATH_RAY_RAYCAST;
     if (!scene_intersect(kg, &ray, visibility, &isect)) {
       return false;
     }
@@ -94,12 +94,11 @@ ccl_device_inline
 #  else
 ccl_device_noinline
 #  endif
-    void
-    svm_node_raycast(KernelGlobals kg,
-                     ConstIntegratorGenericState state,
-                     ccl_private ShaderData *sd,
-                     ccl_private float *ccl_restrict stack,
-                     const ccl_global SVMNodeRaycast &ccl_restrict node)
+    void svm_node_raycast(KernelGlobals kg,
+                          ConstIntegratorGenericState state,
+                          ccl_private ShaderData *sd,
+                          ccl_private float *ccl_restrict stack,
+                          const ccl_global SVMNodeRaycast &ccl_restrict node)
 {
   const float distance = stack_load(stack, node.distance);
 
