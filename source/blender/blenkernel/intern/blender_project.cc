@@ -49,6 +49,9 @@ StringRefNull BlenderProject::get_root_path() const
 ProjectVariable *BlenderProject::new_variable()
 {
   this->variables.append(std::make_unique<ProjectVariable>());
+
+  this->is_dirty = true;
+
   return this->variables.last().get();
 }
 
@@ -64,6 +67,8 @@ int BlenderProject::remove_variable(ProjectVariable *var)
 
   if (index != -1) {
     this->variables.remove(index);
+
+    this->is_dirty = true;
   }
 
   return index;
@@ -84,6 +89,8 @@ void BlenderProject::move_variable(int from_index, int to_index)
                 this->variables.data() + from_index,
                 this->variables.data() + from_index + 1);
   }
+
+  this->is_dirty = true;
 }
 
 }  // namespace bke
