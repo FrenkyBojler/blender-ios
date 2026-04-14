@@ -1,1 +1,2 @@
 Referenced by issue #152277, Shading errors with harden normals in bevel operator
+Referenced by issue #157315, Regression: Gradient Texture Control Works Differently on Positive and Negative Mesh Positions
