@@ -1938,6 +1938,7 @@ class SEQUENCER_PT_view_safe_areas_center_cut(SequencerButtonsPanel_Output, Pane
         col.prop(safe_data, "title_center", slider=True)
         col.prop(safe_data, "action_center", slider=True)
 
+
 class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
     bl_label = ""
     bl_options = {'DEFAULT_CLOSED'}
@@ -1952,17 +1953,18 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
     def draw_header(self, context):
         layout = self.layout
         overlay_settings = context.space_data.preview_overlay
-        
+
         from bpy.types import DATA_PT_camera_display_composition_guides
-        DATA_PT_camera_display_composition_guides.draw_panel_header(overlay_settings, layout)            
-        
+        DATA_PT_camera_display_composition_guides.draw_panel_header(overlay_settings, layout)
+
     def draw(self, context):
         layout = self.layout
         overlay_settings = context.space_data.preview_overlay
-        
+
         from bpy.types import DATA_PT_camera_display_composition_guides
         DATA_PT_camera_display_composition_guides.draw_panel(overlay_settings, layout, True)
- 
+
+
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'UI'

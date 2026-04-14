@@ -496,17 +496,17 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         if two_cols:
             # Left Side
             split = layout.split(factor=0.5, align=True)
-            col = split.column(align=True)                
+            col = split.column(align=True)
             col.prop(item, "show_composition_thirds")
 
             col = col.column(heading="Golden", align=True)
             col.prop(item, "show_composition_golden", text="Ratio")
             col.prop(item, "show_composition_golden_tria_a", text="Triangle A")
             col.prop(item, "show_composition_golden_tria_b", text="Triangle B")
-        
+
             col = col.column()
             col.prop(item, "composition_guide_color", text="Color")
-        
+
             # Right Side
             col = split.column(align=True)
 
@@ -517,7 +517,7 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
             col = col.column(heading="Harmony", align=True)
             col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
             col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
-            
+
         else:
             layout.prop(item, "show_composition_thirds")
 
