@@ -354,15 +354,12 @@ void SyncModule::sync_pointcloud(const ObjectRef &ob_ref)
   };
 
   if (material.has_volume) {
-    sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
-      drawcall_add(pass, pass.gpumat == material.volume_occupancy.gpumat);
-    });
-
-    /* Do not render surface if we are rendering a volume object
-     * and do not have a surface closure. */
+    /* Volumes not supported for now. */
+    /* NOTE: Point Cloud volumes used to work at some point,
+     * but we didn't catch the regression due to the test being disabled. :( */
     if (!material.has_surface) {
-      // TODO: This was the previous behavior, but is it correct to skip extract_object_attributes?
-      inst_.volume.object_sync(ob_handle);
+      /* Do not render surface if we are rendering a volume object
+       * and do not have a surface closure. */
       return;
     }
   }
@@ -490,16 +487,10 @@ void SyncModule::sync_curves(const ObjectRef &ob_ref, HairParticleInfo const *ha
   };
 
   if (material.has_volume) {
-    /* Only support single volume material for now. */
-    sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
-      drawcall_add(pass);
-    });
-
-    /* Do not render surface if we are rendering a volume object
-     * and do not have a surface closure. */
+    /* Volumes not supported for now. */
     if (!material.has_surface) {
-      // TODO: This was the previous behavior, but is it correct to skip extract_object_attributes?
-      inst_.volume.object_sync(ob_handle);
+      /* Do not render surface if we are rendering a volume object
+       * and do not have a surface closure. */
       return;
     }
   }
