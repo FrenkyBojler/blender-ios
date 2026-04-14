@@ -9,14 +9,14 @@
 namespace blender::nodes::node_geo_grease_pencil_point_color__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
-{  
-  b.add_output<decl::Color>("Vertex Color"_ustr).field_source();
+{
+  b.add_output<decl::Color>("Color"_ustr).field_source();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<ColorGeometry4f> vertex_color = AttributeFieldInput::get_field<ColorGeometry4f, "vertex_color">();
-  params.set_output("Vertex Color"_ustr, std::move(vertex_color));
+  params.set_output("Color"_ustr, std::move(vertex_color));
 }
 
 static void node_register()
