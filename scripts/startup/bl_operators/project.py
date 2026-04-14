@@ -488,7 +488,7 @@ class PROJECT_OP_AddVariable(Operator):
 
 
 class PROJECT_OP_RemoveVariable(Operator):
-    """Removes the active variable from the current project"""
+    """Remove the active variable from the current project"""
     bl_idname = "project.remove_variable"
     bl_label = "Remove Variable"
 
