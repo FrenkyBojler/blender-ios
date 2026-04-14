@@ -1041,9 +1041,9 @@ static void context_selected_key_blocks(ID *owner_id_key, Vector<PointerRNA> *r_
   }
 }
 
-static bool tree_interface_item_prop_matched(PropertyRNA *prop,
-                                             const bNodeTreeInterfaceItem &item,
-                                             const bNodeTreeInterfaceItem &active_item)
+static bool tree_interface_item_can_set_prop(const bNodeTreeInterfaceItem &item,
+                                             const bNodeTreeInterfaceItem &active_item,
+                                             PropertyRNA *prop)
 {
   if (active_item.item_type != item.item_type) {
     return false;
@@ -1097,7 +1097,7 @@ static void ui_context_matched_tree_interface_items(PointerRNA *ptr,
     return;
   }
   ntree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
-    if (tree_interface_item_prop_matched(prop, item, *active_item)) {
+    if (tree_interface_item_can_set_prop(item, *active_item, prop)) {
       r_lb->append(RNA_pointer_create_discrete(&ntree->id, RNA_NodeTreeInterfaceItem, &item));
     }
     return true;
