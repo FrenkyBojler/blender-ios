@@ -52,9 +52,10 @@ class TestEntry:
                 setattr(self, field, json_dict[field])
 
     def migrate(self):
-        missing_keys = self.output.keys() - self.output_all_runs.keys()
-        for key in missing_keys:
-            self.output_all_runs[key] = [self.output[key]]
+        if self.output:
+            missing_keys = self.output.keys() - self.output_all_runs.keys()
+            for key in missing_keys:
+                self.output_all_runs[key] = [self.output[key]]
 
 
 class TestQueue:
@@ -63,6 +64,7 @@ class TestQueue:
     def __init__(self, filepath: pathlib.Path):
         self.filepath = filepath
         self.has_multiple_categories = False
+        self.has_multiple_devices = False
         self.entries = []
 
         if self.filepath.is_file():
@@ -237,9 +239,12 @@ class TestConfig:
 
         # Detect number of categories for more compact printing.
         categories = set()
+        devices = set()
         for entry in entries:
             categories.add(entry.category)
+            devices.add(entry.device_type)
         self.queue.has_multiple_categories = len(categories) > 1
+        self.queue.has_multiple_devices = len(devices) > 1
 
         # Replace actual entries.
         self.queue.entries = entries

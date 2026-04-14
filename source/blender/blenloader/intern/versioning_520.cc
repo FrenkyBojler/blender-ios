@@ -22,6 +22,7 @@
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
@@ -207,6 +208,31 @@ static void version_geometry_nodes_properties(FileData &fd,
   nmd.modifier.system_properties = system_props;
   IDP_FreeProperty(nmd.settings_legacy.properties);
   nmd.settings_legacy.properties = nullptr;
+}
+
+static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
+{
+  node_tree.ensure_interface_cache();
+  Set<StringRef> all_identifiers;
+  for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
+    if (item->item_type == NODE_INTERFACE_PANEL) {
+      continue;
+    }
+    auto &socket = *bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
+    /* Socket identifiers are required to be valid RNA identifiers and unique. */
+    if (!RNA_validate_identifier(socket.identifier, true)) {
+      RNA_identifier_sanitize(socket.identifier, true);
+      if (all_identifiers.contains(socket.identifier)) {
+        std::string new_identifier = BLI_uniquename_cb(
+            [&](StringRef name) { return all_identifiers.contains(name); },
+            '_',
+            socket.identifier);
+        MEM_SAFE_DELETE(socket.identifier);
+        socket.identifier = BLI_strdup(new_identifier.c_str());
+      }
+    }
+    all_identifiers.add(socket.identifier);
+  }
 }
 
 /* Saving file extension is now a property of the File Output node. So inherit this
@@ -431,6 +457,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
+    for (bNodeTree &tree : bmain->nodetrees) {
+      sanitize_node_tree_interface_socket_identifiers(tree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 20)) {
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
