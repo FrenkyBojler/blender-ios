@@ -32,12 +32,17 @@ SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 /* If using compute, the shader should define its own pixel. */
 #if !defined(PIXEL) && defined(GPU_FRAGMENT_SHADER)
 #  define PIXEL gl_FragCoord.xy
-#elif defined(GPU_LIBRARY_SHADER)
+#elif !defined(GPU_COMPUTE_SHADER)
 #  define PIXEL float2(0)
 #endif
 
 #ifdef GLSL_CPP_STUBS
 #  define LIGHT_CLOSURE_EVAL_COUNT 3
+#endif
+
+/* For forward compat until everything is ported to BSL. */
+#ifdef SRT_CONSTANT_light_closure_eval_count
+#  define LIGHT_CLOSURE_EVAL_COUNT SRT_light_closure_eval_count
 #endif
 
 #if !defined(LIGHT_CLOSURE_EVAL_COUNT)

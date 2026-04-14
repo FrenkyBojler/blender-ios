@@ -19,7 +19,6 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_light_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_shadow_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_hiz_data)
 FRAGMENT_SHADER_CREATE_INFO(eevee_volume_probe_data)
-FRAGMENT_SHADER_CREATE_INFO(eevee_fullscreen)
 
 #include "draw_view_lib.glsl"
 #include "eevee_closure_lib.glsl"
@@ -30,6 +29,18 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_fullscreen)
 #include "gpu_shader_fullscreen_lib.glsl"
 
 namespace eevee::deferred {
+
+struct VertOut {
+  [[smooth]] float2 screen_uv;
+};
+
+[[vertex]]
+void fullscreen_vert([[vertex_id]] const int vert_id,
+                     [[position]] float4 &out_position,
+                     [[out]] VertOut &v_out)
+{
+  fullscreen_vertex(vert_id, out_position, v_out.screen_uv);
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Probe Capture Pipeline
@@ -51,7 +62,6 @@ struct SphereProbeEval {
   [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
   [[legacy_info]] ShaderCreateInfo eevee_volume_probe_data;
-  [[legacy_info]] ShaderCreateInfo eevee_fullscreen;
 };
 
 /* Sphere probe evaluate everything as diffuse since they can only rely on volume lightprobes being
@@ -59,6 +69,7 @@ struct SphereProbeEval {
 [[fragment, early_fragment_tests]]
 void sphere_eval_frag([[resource_table]] SphereProbeEval &srt,
                       [[frag_coord]] const float4 frag_co,
+                      [[in]] const VertOut v_out,
                       [[out]] ProbeEvalOut &frag_out)
 {
   int2 texel = int2(frag_co.xy);
@@ -96,7 +107,7 @@ void sphere_eval_frag([[resource_table]] SphereProbeEval &srt,
     }
   }
 
-  float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
+  float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
   float3 Ng = gbuf.header.geometry_normal(gbuf.surface_N());
   float3 V = drw_world_incident_vector(P);
   float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
@@ -149,6 +160,8 @@ struct PlanarProbeEval {
   [[compilation_constant]] bool legacy_sphere_probe_enable;
   [[compilation_constant]] int light_closure_eval_count;
 
+  [[legacy_info]] ShaderCreateInfo draw_view;
+  [[legacy_info]] ShaderCreateInfo draw_object_infos;
   [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_utility_texture;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
@@ -156,14 +169,12 @@ struct PlanarProbeEval {
   [[legacy_info]] ShaderCreateInfo eevee_lightprobe_data;
   [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
-  [[legacy_info]] ShaderCreateInfo draw_view;
-  [[legacy_info]] ShaderCreateInfo eevee_fullscreen;
-  [[legacy_info]] ShaderCreateInfo draw_object_infos;
 };
 
 [[fragment, early_fragment_tests]]
 void planar_eval_frag([[resource_table]] PlanarProbeEval &srt,
                       [[frag_coord]] const float4 frag_co,
+                      [[in]] const VertOut v_out,
                       [[out]] ProbeEvalOut &frag_out)
 {
   int2 texel = int2(frag_co.xy);
@@ -236,7 +247,7 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval &srt,
     cl_refract.data *= inv_weight;
   }
 
-  float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
+  float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
   float3 Ng = gbuf.header.geometry_normal(gbuf.surface_N());
   float3 V = drw_world_incident_vector(P);
   float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
@@ -292,12 +303,6 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval &srt,
   frag_out.radiance.xyz += radiance_refract * cl_refract.color;
   frag_out.radiance.xyz += radiance_front * albedo_front;
   frag_out.radiance.xyz += radiance_back * albedo_back;
-}
-
-[[vertex]]
-void fullscreen_vert([[vertex_id]] const int vert_id, [[position]] float4 &out_position)
-{
-  fullscreen_vertex(vert_id, out_position);
 }
 
 PipelineGraphic sphere_eval(fullscreen_vert,
