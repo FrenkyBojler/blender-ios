@@ -858,7 +858,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL_DIAMETER);
   RNA_def_property_int_funcs(prop, nullptr, "rna_UnifiedPaintSettings_size_set", nullptr);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_DIAMETER * 10);
+  RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_DIAMETER * 2);
   RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_DIAMETER, 1, -1);
   RNA_def_property_ui_text(prop, "Size", "Diameter of the brush");
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_size_update");
@@ -1264,7 +1264,7 @@ static void rna_def_uv_sculpt(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL_DIAMETER);
   RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_DIAMETER, 1, 1);
-  RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_DIAMETER * 10);
+  RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_DIAMETER * 2);
   RNA_def_property_ui_text(prop, "Size", "");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
