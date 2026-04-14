@@ -337,8 +337,6 @@ void BLF_batch_discard()
   }
 }
 
-/** \} */
-
 /* -------------------------------------------------------------------- */
 /** \name Text Drawing: GPU
  * \{ */
@@ -392,15 +390,14 @@ int blf_font_draw_mono(FontBLF *font,
 
   int columns = 0;
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+
   blf_batch_draw_begin(font);
 
   ShapingData text(font, gc, str, str_len);
-
   for (const ShapedGlyph &glyph : text.glyphs) {
     const int x = ft_pix_to_int_floor(glyph.bounds.xmin);
     const int y = ft_pix_to_int_floor(glyph.bounds.ymin);
     blf_glyph_draw(glyph.font, glyph.gc, glyph.g, x, y);
-
     const int col = UNLIKELY(glyph.g->c == '\t') ? (tab_columns - (columns % tab_columns)) :
                                                    BLI_wcwidth_safe(char32_t(glyph.g->c));
     columns += col;
@@ -511,11 +508,15 @@ static void blf_glyph_draw_buffer(FontBufInfoBLF *buf_info,
                                   const ft_pix pen_x,
                                   const ft_pix pen_y_basis)
 {
-  const int chx = ft_pix_to_int(pen_x + ft_pix_from_int(g->pos[0]));
-  const int chy = ft_pix_to_int(pen_y_basis + ft_pix_from_int(g->dims[1]));
+  /* Match the GPU path: floor pen_x then add pos[0] in integer space. */
+  const int chx = ft_pix_to_int_floor(pen_x) + g->pos[0];
 
-  ft_pix pen_y = (g->pitch < 0) ? (pen_y_basis + ft_pix_from_int(g->dims[1] - g->pos[1])) :
-                                  (pen_y_basis - ft_pix_from_int(g->dims[1] - g->pos[1]));
+  /* Match the GPU path's Y calculation: baseline + pos[1] gives the top of the glyph
+   * (in bottom-up coordinates). The bitmap rows start from pen_y upward. */
+  const int glyph_y = ft_pix_to_int_floor(pen_y_basis) + g->pos[1] - g->dims[1];
+  const int chy = glyph_y + g->dims[1];
+
+  ft_pix pen_y = ft_pix_from_int(glyph_y);
 
   if ((chx + g->dims[0]) < 0 ||                  /* Out of bounds: left. */
       chx >= buf_info->dims[0] ||                /* Out of bounds: right. */
@@ -623,14 +624,9 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
 {
   ft_pix pen_x = ft_pix_from_int(font->pos[0]);
   ft_pix pen_y_basis = ft_pix_from_int(font->pos[1]) + pen_y;
-
-  /* Buffer specific variables. */
   FontBufInfoBLF *buf_info = &font->buf_info;
 
-  /* Another buffer specific call for color conversion. */
-
   ShapingData text(font, gc, str, str_len);
-
   for (const ShapedGlyph &glyph : text.glyphs) {
     const int x = pen_x + glyph.bounds.xmin;
     const int y = pen_y_basis + glyph.bounds.ymin;
@@ -684,6 +680,7 @@ size_t blf_font_width_to_strlen(
     *r_width = w;
   }
 
+  blf_glyph_cache_release(font);
   return len;
 }
 
@@ -714,6 +711,8 @@ size_t blf_font_width_to_rstrlen(
   if (r_width) {
     *r_width = w;
   }
+
+  blf_glyph_cache_release(font);
   return len;
 }
 
@@ -1061,6 +1060,8 @@ static void blf_font_wrap_apply(FontBLF *font,
      *
      * This is _only_ done when we know for sure the character is ASCII (newline or a space).
      */
+    /* Ensure at least one character in the wrapped line.
+     * Null glyphs (control characters) contribute no width so cannot cause overflow. */
     pen_x_next = pen_x + advance_x;
     /* Ensure at least one character in the wrapped line. */
     const bool overflows = pen_x_next >= wrap.wrap_width && pen_x != 0;
@@ -1226,6 +1227,13 @@ void blf_font_boundbox__wrap(
                       r_info,
                       blf_font_boundbox_wrap_cb,
                       r_box);
+
+  if (r_box->xmin > r_box->xmax) {
+    r_box->xmin = 0;
+    r_box->ymin = 0;
+    r_box->xmax = 0;
+    r_box->ymax = 0;
+  }
 }
 
 /** Utility for  #blf_font_draw_buffer__wrap. */

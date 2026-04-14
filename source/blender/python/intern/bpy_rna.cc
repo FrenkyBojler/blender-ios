@@ -1960,11 +1960,11 @@ static int pyrna_py_to_prop(
           }
         }
 
-        /* if property is an OperatorProperties/GizmoProperties pointer and value is a map,
-         * forward back to pyrna_pydict_to_props */
+        /* if property is an OperatorProperties/GizmoProperties/PropertyGroup pointer and value
+         * is a map, forward back to pyrna_pydict_to_props */
         if (PyDict_Check(value)) {
           const StructRNA *base_type = RNA_struct_base_child_of(ptr_type, nullptr);
-          if (ELEM(base_type, RNA_OperatorProperties, RNA_GizmoProperties)) {
+          if (ELEM(base_type, RNA_OperatorProperties, RNA_GizmoProperties, RNA_PropertyGroup)) {
             PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
             if (opptr.type) {
               return pyrna_pydict_to_props(&opptr, value, false, error_prefix);
@@ -4437,10 +4437,11 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
   const StructRNA *srna_base = static_cast<const StructRNA *>(py_srna->ptr->data);
 
   if (srna_base == RNA_Node) {
+    const UString idname(id);
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = bke::node_type_find_alias(UString(id)).c_str();
+    id = bke::node_type_find_alias(idname).c_str();
 
-    bke::bNodeType *nt = bke::node_type_find(id);
+    bke::bNodeType *nt = bke::node_type_find(idname);
     if (nt) {
       PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_Struct, nt->rna_ext.srna);
       return pyrna_struct_CreatePyObject(&ptr);
