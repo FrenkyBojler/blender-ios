@@ -150,7 +150,8 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(9863459873456, source_, src_uv_map_field_);
+    fn::GFieldDeepHasher hasher;
+    return get_default_hash(9863459873456, source_, hasher.ensure(src_uv_map_field_));
   }
 
   void prepare_for_execution() override
