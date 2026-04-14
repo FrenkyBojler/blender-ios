@@ -530,13 +530,9 @@ void all_library_reload_catalogs_if_dirty()
 bool is_or_contains_remote_libraries(const AssetLibraryReference &reference)
 {
   switch (reference.type) {
+    /* Also returns true since it contains the online essentials. */
     case ASSET_LIBRARY_ALL:
-      for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
-        if (asset_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
-          return true;
-        }
-      }
-      break;
+      return true;
     case ASSET_LIBRARY_ESSENTIALS:
     case ASSET_LIBRARY_ONLINE_ESSENTIALS:
       return true;
