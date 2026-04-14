@@ -42,7 +42,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 
 /* For forward compat until everything is ported to BSL. */
 #ifdef SRT_CONSTANT_light_closure_eval_count
-#  define LIGHT_CLOSURE_EVAL_COUNT SRT_light_closure_eval_count
+#  define LIGHT_CLOSURE_EVAL_COUNT SRT_CONSTANT_light_closure_eval_count
 #endif
 
 #if !defined(LIGHT_CLOSURE_EVAL_COUNT)
@@ -141,7 +141,7 @@ void light_eval_single(uint l_idx,
     return;
   }
 
-#if defined(SPECIALIZED_SHADOW_PARAMS)
+#if defined(SPECIALIZED_SHADOW_PARAMS) || defined(SRT_CONSTANT_shadow_ray_count)
   int ray_count = shadow_ray_count;
   int ray_step_count = shadow_ray_step_count;
 #else
