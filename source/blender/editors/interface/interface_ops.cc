@@ -1049,13 +1049,8 @@ static bool tree_interface_item_prop_matched(PropertyRNA *prop,
     return false;
   }
   const char *prop_id = RNA_property_identifier(prop);
-  const bool is_generic_prop = STR_ELEM(prop_id,
-                                        "socket_type",
-                                        "description",
-                                        "optional_label",
-                                        "hide_value",
-                                        "hide_in_modifier",
-                                        "structure_type");
+  const bool is_generic_prop = STR_ELEM(
+      prop_id, "socket_type", "description", "optional_label", "hide_value", "hide_in_modifier");
 
   switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
@@ -1071,6 +1066,9 @@ static bool tree_interface_item_prop_matched(PropertyRNA *prop,
           return !STREQ(prop_id, "socket_type");
         }
         return true;
+      }
+      if (STREQ(prop_id, "structure_type")) {
+        return sock.flag & NODE_INTERFACE_SOCKET_INPUT;
       }
       if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
         return nodes::socket_type_supports_attributes(sock.socket_typeinfo()->type);
