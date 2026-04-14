@@ -524,11 +524,11 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask, bo
         for (const int i : curve_writers) {
           bke::GSpanAttributeWriter &selection = selection_writers[i];
           GMutableSpan selection_curve = selection.span.slice(points);
-          const array_utils::BooleanMix has_anything_selected = array_utils::booleans_mix_calc(
+          const array_utils::BooleanMix selection_state = array_utils::booleans_mix_calc(
               VArray<bool>::from_span(selection_curve.typed<bool>()));
-          const bool all_points_selected = has_anything_selected ==
+          const bool all_points_selected = selection_state ==
                                            array_utils::BooleanMix::AllTrue;
-          if (has_anything_selected != array_utils::BooleanMix::AllFalse) {
+          if (selection_state != array_utils::BooleanMix::AllFalse) {
             if (select || all_points_selected) {
               fill_selection(selection_curve, select);
             }
