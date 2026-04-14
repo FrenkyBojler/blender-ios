@@ -63,6 +63,10 @@ class Sampling {
    * Accumulation sampling from sample interactive_mode_threshold to sample_count_.
    */
   static constexpr int interactive_mode_threshold = 3;
+  /**
+   * For overwriting pixel jitter sample position.
+   */
+  Vector<float> pixel_jitter_sample = {};
 
   SamplingDataBuf data_ = {"SamplingDataBuf"};
 

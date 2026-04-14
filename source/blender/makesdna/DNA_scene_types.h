@@ -2674,6 +2674,10 @@ struct SceneEEVEE {
 
   float overscan = 3.0f;
   float light_threshold = 0.01f;
+
+  #
+  #
+  Vector<float> pixel_jitter_sample;
 };
 
 struct SceneGpencil {

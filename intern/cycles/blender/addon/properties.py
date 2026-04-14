@@ -10,6 +10,7 @@ from bpy.props import (
     CollectionProperty,
     EnumProperty,
     FloatProperty,
+    FloatVectorProperty,
     IntProperty,
     PointerProperty,
     StringProperty,
@@ -876,6 +877,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     use_pixel_jitter: BoolProperty(
         name="Use Pixel Jitter",
         default=False,
+    )
+
+    # For setting custom pixel jitter sample sequences.
+    pixel_jitter_sample: FloatVectorProperty(
+        name="Pixel jitter sample overwrite value (used if vector length is 2)",
+        size=2,
+        default=[],
     )
 
     seed: IntProperty(

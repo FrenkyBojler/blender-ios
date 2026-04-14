@@ -75,6 +75,9 @@ void Sampling::init(const Scene *scene)
     dof_sample_count_ = 1;
   }
 
+  /* Options for overwriting pixel jitter sample position. */
+  //pixel_jitter_sample = scene->eevee.pixel_jitter_sample; // TODO
+
   /* Only multiply after to have full the full DoF web pattern for each time steps. */
   sample_count_ *= motion_blur_steps_;
 
@@ -141,15 +144,23 @@ void Sampling::step()
     }
     /* TODO(fclem) we could use some persistent states to speedup the computation. */
     double2 r, offset = {0, 0};
-    /* Using 2,3 primes as per UE4 Temporal AA presentation.
-     * http://advances.realtimerendering.com/s2014/epic/TemporalAA.pptx (slide 14) */
-    uint2 primes = {2, 3};
-    BLI_halton_2d(primes, offset, sample_filter + 1, r);
-    /* WORKAROUND: We offset the distribution to make the first sample (0,0). This way, we are
-     * assured that at least one of the samples inside the TAA rotation will match the one from the
-     * draw manager. This makes sure overlays are correctly composited in static scene. */
-    data_.dimensions[SAMPLING_FILTER_U] = fractf(r[0] + (1.0 / 2.0));
-    data_.dimensions[SAMPLING_FILTER_V] = fractf(r[1] + (2.0 / 3.0));
+    if (pixel_jitter_sample.size() == 2) {
+      r[0] = pixel_jitter_sample[0];
+      r[1] = pixel_jitter_sample[1];
+      data_.dimensions[SAMPLING_FILTER_U] = fractf(r[0] + 0.5f);
+      data_.dimensions[SAMPLING_FILTER_V] = fractf(r[1] + 0.5f);
+    }
+    else {
+      /* Using 2,3 primes as per UE4 Temporal AA presentation.
+       * http://advances.realtimerendering.com/s2014/epic/TemporalAA.pptx (slide 14) */
+      uint2 primes = {2, 3};
+      BLI_halton_2d(primes, offset, sample_filter + 1, r);
+      /* WORKAROUND: We offset the distribution to make the first sample (0,0). This way, we are
+       * assured that at least one of the samples inside the TAA rotation will match the one from
+       * the draw manager. This makes sure overlays are correctly composited in static scene. */
+      data_.dimensions[SAMPLING_FILTER_U] = fractf(r[0] + (1.0f / 2.0f));
+      data_.dimensions[SAMPLING_FILTER_V] = fractf(r[1] + (2.0f / 3.0f));
+    }
     /* TODO de-correlate. */
     data_.dimensions[SAMPLING_TIME] = r[0];
     data_.dimensions[SAMPLING_CLOSURE] = r[1];

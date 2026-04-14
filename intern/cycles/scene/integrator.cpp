@@ -157,6 +157,10 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
 
   SOCKET_BOOLEAN(use_pixel_jitter, "Use Pixel Jitter", false);
+  SOCKET_FLOAT_ARRAY(
+      pixel_jitter_sample,
+      "Pixel jitter sample overwrite value (used if not empty)",
+      array<float>());
 
   static NodeEnum denoiser_type_enum;
   denoiser_type_enum.insert("none", DENOISER_NONE);
@@ -328,7 +332,12 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
   /* Randomize the seed every frame when applying pixel jitter. */
   if (use_pixel_jitter) {
-    kintegrator->seed = hash_uint3(seed, pixel_jitter_state.a2, pixel_jitter_state.a3);
+    if (pixel_jitter_sample.size() == 2) {
+      kintegrator->seed = hash_uint2(seed, frame_index);
+    }
+    else {
+      kintegrator->seed = hash_uint3(seed, pixel_jitter_state.a2, pixel_jitter_state.a3);
+    }
   }
   /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
    * work properly. Therefore, hash the seed in those cases. */
@@ -379,7 +388,14 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
   if (use_pixel_jitter) {
-    kintegrator->pixel_jitter = pixel_jitter_state.next();
+    if (pixel_jitter_sample.size() == 2) {
+      kintegrator->pixel_jitter = make_float2(pixel_jitter_sample[0],
+                                              pixel_jitter_sample[1]);
+      ++frame_index;
+    }
+    else {
+      kintegrator->pixel_jitter = pixel_jitter_state.next();
+    }
   }
   else {
     kintegrator->pixel_jitter = make_float2(FLT_MAX);

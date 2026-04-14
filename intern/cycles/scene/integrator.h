@@ -115,7 +115,9 @@ class Integrator : public Node {
   NODE_SOCKET_API(float, scrambling_distance)
 
   NODE_SOCKET_API(bool, use_pixel_jitter);
+  NODE_SOCKET_API_ARRAY(array<float>, pixel_jitter_sample);
   HaltonSequence pixel_jitter_state;
+  int frame_index = 0;
 
   NODE_SOCKET_API(bool, use_denoise);
   NODE_SOCKET_API(DenoiserType, denoiser_type);
