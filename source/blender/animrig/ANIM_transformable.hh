@@ -21,11 +21,10 @@
 
 namespace blender {
 
-struct PointerRNA;
-struct PropertyRNA;
 struct bPoseChannel;
 struct ID;
-
+struct PointerRNA;
+struct PropertyRNA;
 class StringRef;
 class StringRefNull;
 
@@ -70,6 +69,9 @@ Rotation identity_rotation(eRotationModes mode);
 /**
  * Returns a new rotation, interpolated between `a` and `b` based on `factor`. If `factor` is 0
  * the result is `a`.
+ * If the rotation mode on `a` and `b` does not match, then `b` is converted into the mode of `a`
+ * first. The returned rotation is always in the rotation mode of `a`.
+ * Quaternion rotations use spherical interpolation, all other modes use linear.
  */
 Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float factor);
 
@@ -92,6 +94,8 @@ class Transformable {
   ID *owner_id_;
   void *data_;
 
+  /* This is the path from the owner ID to the struct that the Transformable represents. Has to be
+   * created in the constructor. For structs that are an ID this is an empty string. */
   std::string rna_path_from_id_;
 
   /* We are assuming here that the ground truth of transforms is store in separate loc rot scale
@@ -112,7 +116,7 @@ class Transformable {
  public:
   /* There has to be a constructor for every struct supported. */
   /* Constructor for pose bones. */
-  Transformable(Object &obj, bPoseChannel &pchan);
+  Transformable(Object &owner_id, bPoseChannel &pchan);
 
   Type type() const
   {

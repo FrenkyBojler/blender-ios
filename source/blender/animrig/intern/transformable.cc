@@ -5,6 +5,8 @@
 /** \file
  * \ingroup animrig
  */
+#include <type_traits>
+
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 
@@ -224,9 +226,9 @@ static void build_rotations_array(
   rotations[ROT_IDX_AXIS_ANGLE][3] = angle;
 }
 
-Transformable::Transformable(Object &obj, bPoseChannel &pchan)
+Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
     : type_(Transformable::Type::POSE_BONE),
-      owner_id_(&obj.id),
+      owner_id_(&owner_id.id),
       data_(&pchan),
       location_({pchan.loc, 3}),
       rotation_mode_(&pchan.rotmode),
