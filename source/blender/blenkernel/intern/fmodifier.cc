@@ -1315,6 +1315,13 @@ bool remove_fmodifier(ListBaseT<FModifier> *modifiers, FModifier *fcm)
       BKE_fcurve_handles_recalc(*update_fcu);
     }
 
+    if (FModifier *fcm_first = static_cast<FModifier *>(modifiers->first)) {
+      const FModifierTypeInfo *fmi_first = get_fmodifier_typeinfo(fcm_first->type);
+      if (fmi_first->requires_flag & FMI_REQUIRES_ORIGINAL_DATA) {
+        /* Modifier is first in stack, enable it.  */
+        fcm_first->flag &= ~FMODIFIER_FLAG_DISABLED;
+      }
+    }
     return true;
   }
 
