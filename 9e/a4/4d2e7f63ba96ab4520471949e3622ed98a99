@@ -3,3 +3,4 @@ Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by issue #154938, Performance regression in 2.90 splash screen scene
 Referenced by issue #155963, Odd entries in the Keymap dropdown
 Referenced by issue #156381, Crash when Axes to Rotation node has equal axes input
+Referenced by issue #157333, Stroke mode set to both, with transpaerent fill, strokes draw on closed
