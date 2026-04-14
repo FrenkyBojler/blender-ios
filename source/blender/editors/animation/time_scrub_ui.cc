@@ -69,12 +69,10 @@ static void get_current_time_str(
     const Scene *scene, bool display_seconds, const float frame, char *r_str, uint str_maxncpy)
 {
   if (display_seconds) {
-    BLI_timecode_string_from_time(r_str,
-                                  str_maxncpy,
-                                  -1,
-                                  FRA2TIME(int(frame)),
-                                  scene->frames_per_second(),
-                                  U.timecode_style);
+    const float frame_len = scene->r.framelen > 0 ? scene->r.framelen : 1.0;
+    const float seconds = (frame / float(scene->frames_per_second())) / frame_len;
+    BLI_timecode_string_from_time(
+        r_str, str_maxncpy, -1, seconds, scene->frames_per_second(), U.timecode_style);
   }
   else if (scene->r.flag & SCER_SHOW_SUBFRAME) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.02f", frame);
