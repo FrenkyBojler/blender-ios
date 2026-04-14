@@ -34,6 +34,7 @@ class PreferencesRemoteAssetLibrary : public RemoteAssetLibrary {
  public:
   PreferencesRemoteAssetLibrary(const bUserAssetLibrary &custom_library);
   std::optional<AssetLibraryReference> library_reference() const override;
+  bool is_enabled() const;
 };
 
 }  // namespace blender::asset_system

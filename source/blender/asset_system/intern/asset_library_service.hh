@@ -28,7 +28,7 @@ namespace asset_system {
 
 class AllAssetLibrary;
 class OnDiskAssetLibrary;
-class RemoteAssetLibrary;
+class PreferencesRemoteAssetLibrary;
 class RuntimeAssetLibrary;
 
 /**
@@ -56,7 +56,7 @@ class AssetLibraryService {
   /** Mapping of a (type, root path) pair to the AssetLibrary instance. */
   Map<OnDiskLibraryIdentifier, std::unique_ptr<OnDiskAssetLibrary>> on_disk_libraries_;
   using URLLibraryIdentifier = std::string;
-  Map<URLLibraryIdentifier, std::unique_ptr<RemoteAssetLibrary>> remote_libraries_;
+  Map<URLLibraryIdentifier, std::unique_ptr<PreferencesRemoteAssetLibrary>> remote_libraries_;
   /**
    * Library without a known path, i.e. the "Current File" library if the file isn't saved yet. If
    * the file was saved, a valid path for the library can be determined and #on_disk_libraries_

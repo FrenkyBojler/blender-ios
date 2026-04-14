@@ -155,7 +155,8 @@ AssetLibrary *AssetLibraryService::get_preferences_remote_asset_library(
 
   const StringRefNull remote_url = custom_library.remote_url;
 
-  std::unique_ptr<RemoteAssetLibrary> *lib_uptr_ptr = remote_libraries_.lookup_ptr(remote_url);
+  std::unique_ptr<PreferencesRemoteAssetLibrary> *lib_uptr_ptr = remote_libraries_.lookup_ptr(
+      remote_url);
   if (lib_uptr_ptr != nullptr) {
     CLOG_DEBUG(&LOG, "get \"%s\" (cached)", remote_url.c_str());
     AssetLibrary *lib = lib_uptr_ptr->get();
@@ -709,8 +710,12 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
     break;
   }
 
-  if (online_essentials_library_) {
-    fn(*online_essentials_library_);
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+
+  if (!skip_remote_libraries) {
+    if (online_essentials_library_) {
+      fn(*online_essentials_library_);
+    }
   }
 
   for (const auto &asset_lib_uptr : on_disk_libraries_.values()) {
@@ -724,9 +729,11 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
     }
   }
 
-  if (USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries)) {
+  if (!skip_remote_libraries) {
     for (const auto &asset_lib_uptr : remote_libraries_.values()) {
-      fn(*asset_lib_uptr);
+      if (asset_lib_uptr->is_enabled()) {
+        fn(*asset_lib_uptr);
+      }
     }
   }
 }

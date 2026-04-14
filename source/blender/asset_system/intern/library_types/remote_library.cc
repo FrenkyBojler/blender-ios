@@ -121,6 +121,16 @@ std::optional<AssetLibraryReference> PreferencesRemoteAssetLibrary::library_refe
   return library_ref;
 }
 
+bool PreferencesRemoteAssetLibrary::is_enabled() const
+{
+  const bUserAssetLibrary *library_definition = user_library_.user_asset_library();
+  if (!library_definition) {
+    return false;
+  }
+
+  return (library_definition->flag & ASSET_LIBRARY_DISABLED) == 0;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
