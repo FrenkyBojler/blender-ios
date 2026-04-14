@@ -1376,7 +1376,7 @@ void RNA_def_struct_translation_context(StructRNA *srna, const char *context)
 /* Property Definition */
 
 PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
-                              const char *identifier,
+                              const char *identifier_c_str,
                               int type,
                               int subtype)
 {
@@ -1386,12 +1386,17 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   PropertyDefRNA *dprop = nullptr;
   PropertyRNA *prop;
 
+  const UString identifier(identifier_c_str);
+
   if (DefRNA.preprocess) {
     const char *error = nullptr;
 
-    if (!RNA_validate_identifier(identifier, true, &error)) {
-      CLOG_ERROR(
-          &LOG, "property identifier \"%s.%s\" - %s", CONTAINER_RNA_ID(cont), identifier, error);
+    if (!RNA_validate_identifier(identifier.c_str(), true, &error)) {
+      CLOG_ERROR(&LOG,
+                 "property identifier \"%s.%s\" - %s",
+                 CONTAINER_RNA_ID(cont),
+                 identifier.c_str(),
+                 error);
       DefRNA.error = true;
     }
 
@@ -1399,8 +1404,9 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
 
     /* TODO: detect super-type collisions. */
     for (PropertyDefRNA &other_def : dcont->properties) {
-      if (other_def.prop && STREQ(other_def.prop->identifier.c_str(), identifier)) {
-        CLOG_ERROR(&LOG, "duplicate identifier \"%s.%s\"", CONTAINER_RNA_ID(cont), identifier);
+      if (other_def.prop && other_def.prop->identifier == identifier) {
+        CLOG_ERROR(
+            &LOG, "duplicate identifier \"%s.%s\"", CONTAINER_RNA_ID(cont), identifier.c_str());
         DefRNA.error = true;
         break;
       }
@@ -1433,7 +1439,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
           CLOG_ERROR(&LOG,
                      "subtype does not apply to 'PROP_BOOLEAN' \"%s.%s\"",
                      CONTAINER_RNA_ID(cont),
-                     identifier);
+                     identifier.c_str());
           DefRNA.error = true;
         }
       }
@@ -1446,7 +1452,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
         CLOG_ERROR(&LOG,
                    "subtype does not apply to 'PROP_INT' \"%s.%s\"",
                    CONTAINER_RNA_ID(cont),
-                   identifier);
+                   identifier.c_str());
         DefRNA.error = true;
       }
 #endif
@@ -1498,7 +1504,8 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
     case PROP_COLLECTION:
       break;
     default:
-      CLOG_ERROR(&LOG, "\"%s.%s\", invalid property type.", CONTAINER_RNA_ID(cont), identifier);
+      CLOG_ERROR(
+          &LOG, "\"%s.%s\", invalid property type.", CONTAINER_RNA_ID(cont), identifier.c_str());
       DefRNA.error = true;
       return nullptr;
   }
@@ -1509,10 +1516,10 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   }
 
   prop->magic = RNA_MAGIC;
-  prop->identifier = UString(identifier);
+  prop->identifier = identifier;
   prop->type = PropertyType(type);
   prop->subtype = PropertySubType(subtype);
-  prop->name = identifier;
+  prop->name = identifier.c_str();
   prop->description = "";
   prop->deprecated = nullptr;
   prop->translation_context = BLT_I18NCONTEXT_DEFAULT_BPYRNA;
@@ -1543,40 +1550,40 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
     switch (type) {
       case PROP_BOOLEAN:
         DefRNA.silent = true;
-        RNA_def_property_boolean_sdna(prop, nullptr, identifier, 0);
+        RNA_def_property_boolean_sdna(prop, nullptr, identifier.c_str(), 0);
         DefRNA.silent = false;
         break;
       case PROP_INT: {
         DefRNA.silent = true;
-        RNA_def_property_int_sdna(prop, nullptr, identifier);
+        RNA_def_property_int_sdna(prop, nullptr, identifier.c_str());
         DefRNA.silent = false;
         break;
       }
       case PROP_FLOAT: {
         DefRNA.silent = true;
-        RNA_def_property_float_sdna(prop, nullptr, identifier);
+        RNA_def_property_float_sdna(prop, nullptr, identifier.c_str());
         DefRNA.silent = false;
         break;
       }
       case PROP_STRING: {
         DefRNA.silent = true;
-        RNA_def_property_string_sdna(prop, nullptr, identifier);
+        RNA_def_property_string_sdna(prop, nullptr, identifier.c_str());
         DefRNA.silent = false;
         break;
       }
       case PROP_ENUM:
         DefRNA.silent = true;
-        RNA_def_property_enum_sdna(prop, nullptr, identifier);
+        RNA_def_property_enum_sdna(prop, nullptr, identifier.c_str());
         DefRNA.silent = false;
         break;
       case PROP_POINTER:
         DefRNA.silent = true;
-        RNA_def_property_pointer_sdna(prop, nullptr, identifier);
+        RNA_def_property_pointer_sdna(prop, nullptr, identifier.c_str());
         DefRNA.silent = false;
         break;
       case PROP_COLLECTION:
         DefRNA.silent = true;
-        RNA_def_property_collection_sdna(prop, nullptr, identifier, nullptr);
+        RNA_def_property_collection_sdna(prop, nullptr, identifier.c_str(), nullptr);
         DefRNA.silent = false;
         break;
     }
@@ -5001,23 +5008,23 @@ PropertyRNA *RNA_def_collection_runtime(StructOrFunctionRNA *cont_,
 
 /* Function */
 
-static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
+static FunctionRNA *rna_def_function(StructRNA *srna, const UString identifier)
 {
   StructDefRNA *dsrna;
   FunctionDefRNA *dfunc;
 
   if (DefRNA.preprocess) {
     const char *error = nullptr;
-    if (!RNA_validate_identifier(identifier, false, &error)) {
-      CLOG_ERROR(&LOG, "function identifier \"%s\" - %s", identifier, error);
+    if (!RNA_validate_identifier(identifier.c_str(), false, &error)) {
+      CLOG_ERROR(&LOG, "function identifier \"%s\" - %s", identifier.c_str(), error);
       DefRNA.error = true;
     }
   }
 
   auto func_ptr = std::make_unique<FunctionRNA>();
   auto *func = func_ptr.get();
-  func->identifier = UString(identifier);
-  func->description = identifier;
+  func->identifier = identifier;
+  func->description = identifier.c_str();
 
   srna->functions.append(std::move(func_ptr));
 
@@ -5034,16 +5041,18 @@ static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
   return func;
 }
 
-FunctionRNA *RNA_def_function(StructRNA *srna, const char *identifier, const char *call)
+FunctionRNA *RNA_def_function(StructRNA *srna, const char *identifier_c_str, const char *call)
 {
   FunctionRNA *func;
   FunctionDefRNA *dfunc;
 
+  const UString identifier(identifier_c_str);
+
   if (std::find_if(srna->functions.begin(), srna->functions.end(), [&](const auto &func) {
-        return STREQ(func->identifier.c_str(), identifier);
+        return func->identifier == identifier;
       }) != srna->functions.end())
   {
-    CLOG_ERROR(&LOG, "%s.%s already defined.", srna->identifier.c_str(), identifier);
+    CLOG_ERROR(&LOG, "%s.%s already defined.", srna->identifier.c_str(), identifier.c_str());
     return nullptr;
   }
 
@@ -5064,7 +5073,7 @@ FunctionRNA *RNA_def_function_runtime(StructRNA *srna, const char *identifier, C
 {
   FunctionRNA *func;
 
-  func = rna_def_function(srna, identifier);
+  func = rna_def_function(srna, UString(identifier));
 
   if (DefRNA.preprocess) {
     CLOG_ERROR(&LOG, "only at runtime.");
@@ -5514,12 +5523,13 @@ static void rna_def_property_free(StructOrFunctionRNA *cont_, PropertyRNA *prop)
   }
 }
 
-static PropertyRNA *rna_def_property_find_py_id(ContainerRNA *cont, const char *identifier)
+static PropertyRNA *rna_def_property_find_py_id(ContainerRNA *cont, const char *identifier_c_str)
 {
+  const UString identifier(identifier_c_str);
   for (PropertyRNA *prop = static_cast<PropertyRNA *>(cont->properties.first); prop;
        prop = prop->next)
   {
-    if (STREQ(prop->identifier.c_str(), identifier)) {
+    if (prop->identifier == identifier) {
       return prop;
     }
   }

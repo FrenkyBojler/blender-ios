@@ -1040,13 +1040,14 @@ PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifi
   return nullptr;
 }
 
-FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
+FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier_c_str)
 {
 #if 1
+  const UString identifier(identifier_c_str);
   for (; srna; srna = srna->base) {
     std::unique_ptr<FunctionRNA> *func = std::find_if(
         srna->functions.begin(), srna->functions.end(), [&](const auto &func) {
-          return STREQ(func->identifier.c_str(), identifier);
+          return func->identifier == identifier;
         });
     if (func != srna->functions.end()) {
       return func->get();
@@ -1065,7 +1066,7 @@ FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
   func = nullptr;
 
   RNA_PROP_BEGIN (&tptr, funcptr, iterprop) {
-    if (STREQ(identifier, RNA_function_identifier(funcptr.data))) {
+    if (identifier == RNA_function_identifier(funcptr.data)) {
       func = funcptr.data;
       break;
     }
