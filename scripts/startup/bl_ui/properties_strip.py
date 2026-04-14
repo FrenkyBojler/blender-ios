@@ -151,7 +151,10 @@ def draw_compositor_effect_node_group_errors(layout, node_tree, strip_input_num)
                 output_sockets.append(socket)
 
     if color_input_sockets_num < strip_input_num:
-        layout.label(text="Node group must have at least {strip_input_num} Color inputs.", icon='ERROR')
+        layout.label(
+            text=f"Node group must have at least {strip_input_num} Color input{
+                's' if strip_input_num > 1 else ''}.",
+            icon='ERROR')
 
     if len(output_sockets) < 1:
         layout.label(text="Node group must have an output.", icon='ERROR')
