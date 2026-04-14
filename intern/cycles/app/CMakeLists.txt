@@ -35,11 +35,11 @@ endif()
 
 if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
   list(APPEND INC_SYS
-    ${SDL3_INCLUDE_DIRS}
+    ${SDL2_INCLUDE_DIRS}
   )
   list(APPEND LIB
     bf::dependencies::epoxy
-    ${SDL3_LIBRARIES}
+    ${SDL2_LIBRARIES}
   )
 endif()
 
