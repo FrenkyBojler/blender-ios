@@ -71,7 +71,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_ALPHA_ID 4
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
 #define SOCK_NORMAL_ID 5
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
 #define SOCK_WEIGHT_ID 6
 
   /* Panel for Diffuse settings. */

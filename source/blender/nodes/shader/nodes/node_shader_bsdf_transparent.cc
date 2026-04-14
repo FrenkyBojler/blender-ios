@@ -13,7 +13,7 @@ namespace nodes::node_shader_bsdf_transparent_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
   b.add_output<decl::Shader>("BSDF"_ustr);
 }
 

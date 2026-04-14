@@ -238,6 +238,8 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_panel_toggle = false;
   bool is_layer_name = false;
   bool is_volume_grid_name = false;
+  /** This socket is only used in local node trees. */
+  bool is_shader_internal = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -308,7 +310,7 @@ class SocketDeclaration : public ItemDeclaration {
   int compositor_domain_priority() const;
 
  protected:
-  void set_common_flags(bNodeSocket &socket) const;
+  void set_common_flags(const bNodeTree &ntree, bNodeSocket &socket) const;
   bool matches_common_data(const bNodeSocket &socket) const;
 };
 
@@ -490,6 +492,7 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
   BaseSocketDeclarationBuilder &is_volume_grid_name(bool value = true);
+  BaseSocketDeclarationBuilder &is_shader_internal(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;

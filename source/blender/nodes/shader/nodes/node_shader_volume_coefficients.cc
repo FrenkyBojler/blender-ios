@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Shader>("Volume"_ustr).translation_context(BLT_I18NCONTEXT_ID_ID);
 
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
 #define SOCK_WEIGHT_ID 0
 
   PanelDeclarationBuilder &abs = b.add_panel("Absorption"_ustr).default_closed(false);

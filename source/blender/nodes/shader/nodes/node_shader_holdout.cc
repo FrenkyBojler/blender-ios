@@ -10,7 +10,7 @@ namespace nodes::node_shader_holdout_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
   b.add_output<decl::Shader>("Holdout"_ustr);
 }
 

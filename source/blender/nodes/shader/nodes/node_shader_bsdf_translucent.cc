@@ -12,7 +12,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color"_ustr).default_value({0.8f, 0.8f, 0.8f, 1.0f});
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
   b.add_output<decl::Shader>("BSDF"_ustr);
 }
 

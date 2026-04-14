@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("IOR"_ustr).default_value(1.45f).min(0.0f).max(1000.0f);
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
   b.add_output<decl::Shader>("BSDF"_ustr);
 }
 

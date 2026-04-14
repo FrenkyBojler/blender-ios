@@ -284,11 +284,14 @@ bNodeSocket &SocketDeclaration::update_or_build(bNodeTree &ntree,
   return this->build(ntree, node);
 }
 
-void SocketDeclaration::set_common_flags(bNodeSocket &socket) const
+void SocketDeclaration::set_common_flags(const bNodeTree &ntree, bNodeSocket &socket) const
 {
+  const bool is_local_tree = ntree.id.tag & ID_TAG_NO_MAIN;
+  const bool force_available = is_local_tree && is_shader_internal;
+
   SET_FLAG_FROM_TEST(socket.flag, hide_value, SOCK_HIDE_VALUE);
   SET_FLAG_FROM_TEST(socket.flag, is_multi_input, SOCK_MULTI_INPUT);
-  SET_FLAG_FROM_TEST(socket.flag, !is_available, SOCK_UNAVAIL);
+  SET_FLAG_FROM_TEST(socket.flag, !(force_available || is_available), SOCK_UNAVAIL);
 }
 
 bool SocketDeclaration::matches_common_data(const bNodeSocket &socket) const
@@ -305,8 +308,10 @@ bool SocketDeclaration::matches_common_data(const bNodeSocket &socket) const
   if (((socket.flag & SOCK_MULTI_INPUT) != 0) != this->is_multi_input) {
     return false;
   }
-  if (((socket.flag & SOCK_UNAVAIL) != 0) != !this->is_available) {
-    return false;
+  if (!this->is_shader_internal) {
+    if (((socket.flag & SOCK_UNAVAIL) != 0) != !this->is_available) {
+      return false;
+    }
   }
   return true;
 }
@@ -970,6 +975,15 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_layer_name(const 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_volume_grid_name(const bool value)
 {
   decl_base_->is_volume_grid_name = value;
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_shader_internal(bool value)
+{
+  decl_base_->is_shader_internal = value;
+  if (value) {
+    decl_base_->is_available = false;
+  }
   return *this;
 }
 

@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("IOR"_ustr).default_value(1.5f).min(0.0f).max(1000.0f);
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).is_shader_internal();
 
   PanelDeclarationBuilder &film = b.add_panel("Thin Film"_ustr).default_closed(true);
   film.add_input<decl::Float>("Thin Film Thickness"_ustr)
