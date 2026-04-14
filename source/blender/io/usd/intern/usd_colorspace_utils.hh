@@ -10,6 +10,7 @@
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/usd/usd/attribute.h>
+#include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdShade/shader.h>
 
 namespace blender {
@@ -20,6 +21,9 @@ namespace blender::io::usd {
 
 /** Get the interop ID for tagging exported USD stages. */
 pxr::TfToken colorspace_scene_linear_interop_id();
+
+/** Tag a prim with the scene linear color space. */
+void colorspace_apply_to_prim(const pxr::UsdPrim &prim);
 
 /** Convert an imported USD color to scene linear. */
 void colorspace_attr_to_scene_linear(const pxr::UsdAttribute &attr, pxr::GfVec3f &color);

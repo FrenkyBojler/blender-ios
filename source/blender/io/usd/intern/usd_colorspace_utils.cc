@@ -33,6 +33,16 @@ pxr::TfToken colorspace_scene_linear_interop_id()
   return (interop_id.is_empty()) ? pxr::TfToken() : pxr::TfToken(interop_id);
 }
 
+void colorspace_apply_to_prim(const pxr::UsdPrim &prim)
+{
+  const pxr::TfToken interop_id = colorspace_scene_linear_interop_id();
+  if (interop_id.IsEmpty()) {
+    return;
+  }
+  pxr::UsdColorSpaceAPI cs_api = pxr::UsdColorSpaceAPI::Apply(prim);
+  cs_api.CreateColorSpaceNameAttr(pxr::VtValue(interop_id));
+}
+
 static const ColorSpace *colorspace_from_attr(const pxr::UsdAttribute &attr)
 {
   pxr::TfToken cs_name = pxr::UsdColorSpaceAPI::ComputeColorSpaceName(attr);

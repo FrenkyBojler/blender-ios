@@ -197,6 +197,7 @@ void copy_blender_attribute_to_primvar(const GVArray &attribute,
         copy_blender_buffer_to_primvar<ColorGeometry4f, pxr::GfVec4f>(
             attribute.typed<ColorGeometry4f>(), time, primvar, value_writer);
       }
+      colorspace_apply_to_prim(primvar.GetAttr().GetPrim());
       break;
     case bke::AttrType::ColorByte:
       if (primvar.GetTypeName() == pxr::SdfValueTypeNames->Color3fArray) {
@@ -207,6 +208,7 @@ void copy_blender_attribute_to_primvar(const GVArray &attribute,
         copy_blender_buffer_to_primvar<ColorGeometry4b, pxr::GfVec4f>(
             attribute.typed<ColorGeometry4b>(), time, primvar, value_writer);
       }
+      colorspace_apply_to_prim(primvar.GetAttr().GetPrim());
       break;
     case bke::AttrType::Quaternion:
       copy_blender_buffer_to_primvar<math::Quaternion, pxr::GfQuatf>(
