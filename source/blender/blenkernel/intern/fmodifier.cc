@@ -1197,9 +1197,10 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   fcm->influence = 1.0f;
   BLI_addtail(modifiers, fcm);
 
-  /* special checks for whether modifier can be added */
+  /* Special checks for whether modifier can be added. */
   if (!is_first_modifier && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
-    /* Modifiers requiring original data, disable modifier if it's not first in the stack.
+    /* Modifiers requiring original data can only be first in the stack, disable modifier
+     * otherwise.
      */
     fcm->flag |= FMODIFIER_FLAG_DISABLED;
   }
