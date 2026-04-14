@@ -228,7 +228,10 @@ void RNA_def_mask(BlenderRNA *brna);
 void RNA_def_xr(BlenderRNA *brna);
 
 /* Not sure if that's should be here, but that's the best place I could think of... */
-void rna_def_composition_guides(StructRNA *srna, const char *dna_prop_name, int noteflag);
+void rna_def_composition_guides(StructRNA *srna,
+                                const char *dna_flag_prop_name,
+                                const char *dna_color_prop_name,
+                                int noteflag);
 
 /* Common Define functions */
 

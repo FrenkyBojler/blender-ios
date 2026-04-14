@@ -472,25 +472,24 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         'BLENDER_WORKBENCH',
     }
 
+    def draw_header(self, context):
+        cam = context.camera
+        self.draw_panel_header(cam, self.layout)
+
     def draw(self, context):
         layout = self.layout
 
         cam = context.camera
-        self.draw_flags(cam, layout)
-
-        col = layout.column()
-        col.prop(cam, "composition_guide_color", text="Color")
-
-    def draw_header(self, context):
-        cam = context.camera
-        self._draw_header(cam, self.layout)
+        self.draw_panel(cam, layout)
 
     @classmethod
-    def _draw_header(cls, item, layout):
+    def draw_panel_header(cls, item, layout):
         layout.prop(item, "show_composition_guides", text="Composition Guides")
 
     @classmethod
-    def draw_flags(cls, item, layout):
+    def draw_panel(cls, item, layout):
+        if (not item.show_composition_guides):
+            layout.enabled = False
         layout.use_property_split = True
 
         layout.prop(item, "show_composition_thirds")
@@ -506,6 +505,9 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         col = layout.column(heading="Harmony", align=True)
         col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
         col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
+
+        col = layout.column()
+        col.prop(item, "composition_guide_color", text="Color")
 
 
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):

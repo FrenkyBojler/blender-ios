@@ -659,7 +659,10 @@ static void rna_def_camera_dof_settings_data(BlenderRNA *brna)
 }
 
 /* This method is abit hacky but works... */
-void rna_def_composition_guides(StructRNA *srna, const char *dna_flag_prop_name, int noteflag)
+void rna_def_composition_guides(StructRNA *srna,
+                                const char *dna_flag_prop_name,
+                                const char *dna_color_prop_name,
+                                int noteflag)
 {
   PropertyRNA *prop;
 
@@ -712,6 +715,12 @@ void rna_def_composition_guides(StructRNA *srna, const char *dna_flag_prop_name,
   RNA_def_property_boolean_sdna(
       prop, nullptr, dna_flag_prop_name, COMPOSITION_GUIDES_HARMONY_TRI_B);
   RNA_def_property_ui_text(prop, "Harmonious Triangle B", "Display harmony B composition guide");
+  RNA_def_property_update(prop, noteflag, nullptr);
+
+  prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_float_sdna(prop, nullptr, dna_color_prop_name);
+  RNA_def_property_ui_text(
+      prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
   RNA_def_property_update(prop, noteflag, nullptr);
 }
 
@@ -968,11 +977,10 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Lens Unit", "Unit to edit lens in for the user interface");
 
   /* dtx */
-  rna_def_composition_guides(srna, "composition_guide_flags", NC_CAMERA | ND_DRAW_RENDER_VIEWPORT);
-  prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
-  RNA_def_property_ui_text(
-      prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
-  RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+  rna_def_composition_guides(srna,
+                             "composition_guide_flags",
+                             "composition_guide_color",
+                             NC_CAMERA | ND_DRAW_RENDER_VIEWPORT);
 
   /* Panoramic settings. */
   prop = RNA_def_property(srna, "panorama_type", PROP_ENUM, PROP_NONE);

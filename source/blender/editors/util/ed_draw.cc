@@ -1140,7 +1140,10 @@ static void drawviewborder_grid3(uint shdr_pos, const rctf *rect, float fac)
 }
 
 /* harmonious triangle */
-static void drawviewborder_triangle(uint shdr_pos, const rctf *rect, const char golden, const char dir)
+static void drawviewborder_triangle(uint shdr_pos,
+                                    const rctf *rect,
+                                    const char golden,
+                                    const char dir)
 {
   /* Has to create local copies in order to use std::swap*/
   float xmin = rect->xmin;

@@ -57,9 +57,9 @@
 #include "ED_info.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
+#include "ED_util.hh"
 #include "ED_view3d_offscreen.hh"
 #include "ED_viewer_path.hh"
-#include "ED_util.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -588,9 +588,9 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
     GPU_blend(GPU_BLEND_ALPHA);
 
     ED_draw_composition_guides(shdr_pos,
-                                static_cast<eCompositionGuideFlags>(ca->composition_guide_flags),
-                                &viewborder,
-                                ca->composition_guide_color);
+                               static_cast<eCompositionGuideFlags>(ca->composition_guide_flags),
+                               &viewborder,
+                               ca->composition_guide_color);
 
     if (ca->flag & CAM_SHOW_SAFE_MARGINS) {
       rctf margins_rect{};
