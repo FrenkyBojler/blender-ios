@@ -570,6 +570,7 @@ FrameBuffer *GLTexture::framebuffer_get()
       return framebuffer_;
     }
 
+    /* Textures can be shared between contexts but this helper framebuffer cannot. */
     GPU_framebuffer_free(framebuffer_);
     framebuffer_ = nullptr;
     framebuffer_context_ = nullptr;
