@@ -1519,7 +1519,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                            system->wp_color_manager_get() :
                                            nullptr;
   if (color_manager) {
-
     wp_image_description_v1 *image_description = nullptr;
 
     if (system->supports_color_manager_extended_srgb_linear()) {
