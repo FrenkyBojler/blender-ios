@@ -940,6 +940,7 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
   const bool supports_fields = nodes::socket_type_supports_fields(stype->type);
   const bool supports_grids = nodes::socket_type_supports_grids(stype->type);
   const bool supports_dynamic = supports_fields || supports_grids;
+  const bool supports_lists = true;
   switch (this->structure_type) {
     case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD:
       if (!supports_fields) {
@@ -953,6 +954,11 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
       break;
     case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC:
       if (!supports_dynamic) {
+        this->structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+      }
+      break;
+    case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST:
+      if (!supports_lists) {
         this->structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
       }
       break;
