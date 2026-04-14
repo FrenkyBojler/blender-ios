@@ -389,7 +389,7 @@ float3 raytrace_sample_screen(sampler2D radiance_tx,
 
   float3 radiance;
   /* Fetch radiance at hit-point. */
-  if (true) {
+  if (pixel_footprint < 1.0f) {
     radiance = textureLod(radiance_tx, ss_hit_P, 0.0f).rgb;
   }
   else {
@@ -430,7 +430,7 @@ float3 raytrace_sample_screen(sampler2DArray radiance_tx,
 
   float3 radiance;
   /* Fetch radiance at hit-point. */
-  if (true) {
+  if (pixel_footprint < 1.0f) {
     radiance = textureLod(radiance_tx, float3(ss_hit_P, layer), 0.0f).rgb;
   }
   else {
