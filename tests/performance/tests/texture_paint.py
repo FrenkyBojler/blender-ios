@@ -4,6 +4,7 @@
 
 import api
 import enum
+import pathlib
 
 
 class ObjectType(enum.IntEnum):
@@ -176,7 +177,8 @@ def _run_brush_test(args: dict):
 
 
 class TexturePaintBrushTest(api.Test):
-    def __init__(self, object_type: ObjectType, dimension: int, data_type: DataType):
+    def __init__(self, filepath: pathlib.Path, object_type: ObjectType, dimension: int, data_type: DataType):
+        self.filepath = filepath
         self.object_type = object_type
         self.dimension = dimension
         self.data_type = data_type
@@ -194,12 +196,16 @@ class TexturePaintBrushTest(api.Test):
             'data_type': self.data_type
         }
 
-        result, _ = env.run_in_blender(_run_brush_test, args)
+        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
 
         return result
 
 
-def generate(_env):
-    brush_tests = [TexturePaintBrushTest(object_type, dimension, data_type)
+def generate(env):
+    filepaths = env.find_blend_files('texture_paint/*')
+    # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
+    assert len(filepaths) == 1
+
+    brush_tests = [TexturePaintBrushTest(filepaths[0], object_type, dimension, data_type)
                    for object_type in ObjectType for dimension in DIMENSIONS for data_type in DataType]
     return brush_tests
