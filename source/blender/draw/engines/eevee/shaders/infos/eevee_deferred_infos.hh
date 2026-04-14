@@ -142,49 +142,6 @@ FRAGMENT_SOURCE("eevee_deferred_aov_clear_frag.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_deferred_capture_eval)
-/* Early fragment test is needed to avoid processing fragments without correct GBuffer data. */
-EARLY_FRAGMENT_TEST(true)
-/* Inputs. */
-FRAGMENT_OUT(0, float4, out_radiance)
-DEFINE_VALUE("LIGHT_CLOSURE_EVAL_COUNT", "1")
-TYPEDEF_SOURCE("eevee_defines.hh")
-ADDITIONAL_INFO(eevee_gbuffer_data)
-ADDITIONAL_INFO(eevee_utility_texture)
-ADDITIONAL_INFO(eevee_sampling_data)
-ADDITIONAL_INFO(eevee_light_data)
-ADDITIONAL_INFO(eevee_shadow_data)
-ADDITIONAL_INFO(eevee_hiz_data)
-ADDITIONAL_INFO(eevee_volume_probe_data)
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(eevee_fullscreen)
-ADDITIONAL_INFO(draw_object_infos)
-FRAGMENT_SOURCE("eevee_deferred_capture_frag.glsl")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_deferred_planar_eval)
-/* Early fragment test is needed to avoid processing fragments without correct GBuffer data. */
-EARLY_FRAGMENT_TEST(true)
-/* Inputs. */
-FRAGMENT_OUT(0, float4, out_radiance)
-DEFINE("SPHERE_PROBE")
-DEFINE_VALUE("LIGHT_CLOSURE_EVAL_COUNT", "2")
-TYPEDEF_SOURCE("eevee_defines.hh")
-ADDITIONAL_INFO(eevee_gbuffer_data)
-ADDITIONAL_INFO(eevee_utility_texture)
-ADDITIONAL_INFO(eevee_sampling_data)
-ADDITIONAL_INFO(eevee_light_data)
-ADDITIONAL_INFO(eevee_lightprobe_data)
-ADDITIONAL_INFO(eevee_shadow_data)
-ADDITIONAL_INFO(eevee_hiz_data)
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(eevee_fullscreen)
-ADDITIONAL_INFO(draw_object_infos)
-FRAGMENT_SOURCE("eevee_deferred_planar_frag.glsl")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
 /* -------------------------------------------------------------------- */
 /** \name Debug
  * \{ */
