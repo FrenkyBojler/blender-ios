@@ -91,15 +91,8 @@ import imbuf  # type: ignore[import-not-found]
 import mathutils  # type: ignore[import-not-found]
 from gpu_extras.batch import batch_for_shader  # type: ignore[import-not-found]
 
-# Initialize the GPU early; if it fails and WITHOUT_GPU is set, fall back to
-# `gpu = None` so the GPU test methods skip cleanly. Without WITHOUT_GPU, abort.
-try:
-    gpu.init()
-except SystemError as ex:
-    if os.environ.get("WITHOUT_GPU"):
-        gpu = None
-    else:
-        sys.exit("GPU initialization failed: {:s}".format(str(ex)))
+# GPU initialization is deferred to `main()` so --mode=BUFFER doesn't pay for it.
+# When init fails and `WITHOUT_GPU` is set, GPU test methods skip cleanly.
 
 
 # ------------------------------------------------------------------------------
@@ -3462,7 +3455,7 @@ def argparse_create() -> argparse.ArgumentParser:
 # Main
 
 def main() -> None:
-    global USE_GENERATE_TEST_DATA, SHOW_HTML, OUTPUT_DIR, FONTS_VFONT
+    global USE_GENERATE_TEST_DATA, SHOW_HTML, OUTPUT_DIR, FONTS_VFONT, gpu
 
     if "--" in sys.argv:
         argv = [sys.argv[0]] + sys.argv[sys.argv.index("--") + 1:]
@@ -3481,6 +3474,16 @@ def main() -> None:
 
     active_kinds = set(MODE_KINDS[args.mode])
     attach_test_methods(args.mode)
+
+    # GPU is needed for the GPU and VFont pipelines (offscreen rendering).
+    if "gpu" in active_kinds or "vfont" in active_kinds:
+        try:
+            gpu.init()
+        except SystemError as ex:
+            if os.environ.get("WITHOUT_GPU"):
+                gpu = None
+            else:
+                sys.exit("GPU initialization failed: {:s}".format(str(ex)))
 
     if args.keyword:
         remaining.extend(["-k", args.keyword])
