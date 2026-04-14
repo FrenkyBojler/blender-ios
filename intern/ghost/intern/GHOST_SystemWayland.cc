@@ -1600,6 +1600,9 @@ struct GWL_Display {
    *   outside of WAYLAND (without locking the `timer_mutex`).
    */
   GHOST_TimerManager *key_repeat_timer_manager = nullptr;
+
+  bool supports_color_manager_feature_windows_scrgb = false;
+  bool supports_color_manager_extended_srgb_linear = false;
 };
 
 /**
@@ -7079,6 +7082,65 @@ static const wl_output_listener output_listener = {
     /*description*/ output_handle_description,
 };
 
+struct ColorManagerV1Data {
+  GWL_Display *display;
+  std::unordered_set<uint32_t> supported_intents;
+  std::unordered_set<uint32_t> supported_features;
+  std::unordered_set<uint32_t> supported_transfers;
+  std::unordered_set<uint32_t> supported_primaries;
+};
+
+static void color_manager_v1_supported_intent(void *data,
+                                              struct wp_color_manager_v1 * /*wp_color_manager_v1*/,
+                                              uint32_t render_intent)
+{
+  ColorManagerV1Data *cm_data = static_cast<ColorManagerV1Data *>(data);
+  cm_data->supported_intents.insert(render_intent);
+}
+
+static void color_manager_v1_supported_feature(
+    void *data, struct wp_color_manager_v1 * /*wp_color_manager_v1*/, uint32_t feature)
+{
+  ColorManagerV1Data *cm_data = static_cast<ColorManagerV1Data *>(data);
+  cm_data->supported_features.insert(feature);
+}
+static void color_manager_v1_supported_tf_named(
+    void *data, struct wp_color_manager_v1 * /*wp_color_manager_v1*/, uint32_t tf)
+{
+  ColorManagerV1Data *cm_data = static_cast<ColorManagerV1Data *>(data);
+  cm_data->supported_transfers.insert(tf);
+}
+static void color_manager_v1_supported_primaries_named(
+    void *data, struct wp_color_manager_v1 * /*wp_color_manager_v1*/, uint32_t primaries)
+{
+  ColorManagerV1Data *cm_data = static_cast<ColorManagerV1Data *>(data);
+  cm_data->supported_primaries.insert(primaries);
+}
+static void color_manager_v1_done(void *data, struct wp_color_manager_v1 * /*wp_color_manager_v1*/)
+{
+  ColorManagerV1Data *cm_data = static_cast<ColorManagerV1Data *>(data);
+
+  if (cm_data->supported_features.contains(WP_COLOR_MANAGER_V1_FEATURE_WINDOWS_SCRGB)) {
+    cm_data->display->supports_color_manager_feature_windows_scrgb = true;
+  }
+  if (cm_data->supported_features.contains(WP_COLOR_MANAGER_V1_FEATURE_SET_PRIMARIES) &&
+      cm_data->supported_primaries.contains(WP_COLOR_MANAGER_V1_PRIMARIES_SRGB) &&
+      cm_data->supported_transfers.contains(WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR))
+  {
+    cm_data->display->supports_color_manager_extended_srgb_linear = true;
+  }
+
+  delete (cm_data);
+}
+
+static const wp_color_manager_v1_listener color_manager_v1_listener = {
+    /*supported_intent*/ color_manager_v1_supported_intent,
+    /*supported_feature*/ color_manager_v1_supported_feature,
+    /*supported_tf_named*/ color_manager_v1_supported_tf_named,
+    /*supported_primaries_named*/ color_manager_v1_supported_primaries_named,
+    /*done*/ color_manager_v1_done,
+};
+
 #undef LOG
 
 /** \} */
@@ -7275,9 +7337,12 @@ static void gwl_registry_wp_color_manager_add(GWL_Display *display,
                                               const GWL_RegisteryAdd_Params &params)
 {
   const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+  ColorManagerV1Data *data = new ColorManagerV1Data();
+  data->display = display;
 
   display->wp.color_manager = static_cast<wp_color_manager_v1 *>(wl_registry_bind(
       display->wl.registry, params.name, &wp_color_manager_v1_interface, version));
+  wp_color_manager_v1_add_listener(display->wp.color_manager, &color_manager_v1_listener, data);
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_color_manager_remove(GWL_Display *display,
@@ -9784,6 +9849,14 @@ wp_viewporter *GHOST_SystemWayland::wp_viewporter_get()
 wp_color_manager_v1 *GHOST_SystemWayland::wp_color_manager_get()
 {
   return display_->wp.color_manager;
+}
+bool GHOST_SystemWayland::supports_color_manager_feature_windows_scrgb() const
+{
+  return display_->supports_color_manager_feature_windows_scrgb;
+}
+bool GHOST_SystemWayland::supports_color_manager_extended_srgb_linear() const
+{
+  return display_->supports_color_manager_extended_srgb_linear;
 }
 
 zwp_pointer_gestures_v1 *GHOST_SystemWayland::wp_pointer_gestures_get()

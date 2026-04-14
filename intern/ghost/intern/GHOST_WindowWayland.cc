@@ -1519,13 +1519,27 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                            system->wp_color_manager_get() :
                                            nullptr;
   if (color_manager) {
-    window_->wp.color_management_surface = wp_color_manager_v1_get_surface(color_manager,
-                                                                           window_->wl.surface);
 
     wp_image_description_v1 *image_description = nullptr;
 
-    if (true) {
+    if (system->supports_color_manager_extended_srgb_linear()) {
+      wp_image_description_creator_params_v1 *image_creator_params =
+          wp_color_manager_v1_create_parametric_creator(color_manager);
+      wp_image_description_creator_params_v1_set_tf_named(
+          image_creator_params, WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR);
+      wp_image_description_creator_params_v1_set_primaries_named(
+          image_creator_params, WP_COLOR_MANAGER_V1_PRIMARIES_SRGB);
+
+      image_description = wp_image_description_creator_params_v1_create(image_creator_params);
+      hdr_info_.use_pass_through = true;
+      hdr_info_.hdr_enabled = true;
+      hdr_info_.wide_gamut_enabled = true;
+      hdr_info_.sdr_white_level = 1.0f;
+    }
+    else if (system->supports_color_manager_feature_windows_scrgb()) {
       /* Create an image description compatible with windows specific definition of scrgb.
+       *
+       * NOTE: This code-path is being used by NVIDIA 595 and higher.
        *
        * - Uses sRGB (BT.709) color primaries and white point
        * - Transfer charateristics is linear
@@ -1542,16 +1556,21 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
        * https://wayland.app/protocols/color-management-v1#wp_color_manager_v1:request:create_windows_scrgb
        */
       image_description = wp_color_manager_v1_create_windows_scrgb(color_manager);
-    }
-    else {
-      //
+      hdr_info_.use_pass_through = true;
+      hdr_info_.hdr_enabled = true;
+      hdr_info_.wide_gamut_enabled = true;
+      hdr_info_.sdr_white_level = 2.5375f;
     }
 
-    wp_color_management_surface_v1_set_image_description(
-        window_->wp.color_management_surface,
-        image_description,
-        WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL);
-    wp_image_description_v1_destroy(image_description);
+    if (image_description) {
+      window_->wp.color_management_surface = wp_color_manager_v1_get_surface(color_manager,
+                                                                             window_->wl.surface);
+      wp_color_management_surface_v1_set_image_description(
+          window_->wp.color_management_surface,
+          image_description,
+          WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL);
+      wp_image_description_v1_destroy(image_description);
+    }
   }
 
   wp_fractional_scale_manager_v1 *fractional_scale_manager =
@@ -1760,14 +1779,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     window_->backend.vulkan_window_info = new GHOST_ContextVK_WindowInfo;
     window_->backend.vulkan_window_info->size[0] = window_->frame.size[0];
     window_->backend.vulkan_window_info->size[1] = window_->frame.size[1];
-
-    /* There is no HDR on/off settings as on Windows, so from the Window side consider it to be
-     * enabled when color manager protocol is supported. It may still get disabled if Vulkan has no
-     * appropriate surface format. */
-    hdr_info_.hdr_enabled = color_manager != nullptr;
-    hdr_info_.wide_gamut_enabled = color_manager != nullptr;
-    hdr_info_.use_pass_through = color_manager != nullptr;
-    hdr_info_.sdr_white_level = 2.5375f;
   }
 #endif
 

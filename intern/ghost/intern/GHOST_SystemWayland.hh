@@ -263,6 +263,9 @@ class GHOST_SystemWayland : public GHOST_System {
   struct wp_viewporter *wp_viewporter_get();
   struct wp_color_manager_v1 *wp_color_manager_get();
 
+  bool supports_color_manager_feature_windows_scrgb() const;
+  bool supports_color_manager_extended_srgb_linear() const;
+
   struct xdg_wm_base *xdg_decor_shell_get();
   struct zxdg_decoration_manager_v1 *xdg_decor_manager_get();
   /* End `xdg_decor`. */
@@ -356,6 +359,8 @@ class GHOST_SystemWayland : public GHOST_System {
 
   std::atomic<bool> has_pending_actions_for_window = false;
 #endif
+
+  void set_color_manager_supports_scrgb();
 
  private:
   /**
