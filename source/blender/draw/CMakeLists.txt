@@ -394,6 +394,8 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_attributes_volume_lib.glsl
   engines/eevee/shaders/eevee_attributes_world_lib.glsl
   engines/eevee/shaders/eevee_bxdf_lib.glsl
+  engines/eevee/shaders/eevee_bxdf_lut.bsl.hh
+  engines/eevee/shaders/eevee_bxdf_lut_lib.bsl.hh
   engines/eevee/shaders/eevee_bxdf_microfacet_lib.glsl
   engines/eevee/shaders/eevee_bxdf_diffuse_lib.glsl
   engines/eevee/shaders/eevee_bxdf_sampling_lib.glsl
@@ -472,8 +474,8 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_lookdev_copy_world_comp.glsl
   engines/eevee/shaders/eevee_lookdev_display_frag.glsl
   engines/eevee/shaders/eevee_lookdev_display_vert.glsl
-  engines/eevee/shaders/eevee_ltc_lib.glsl
-  engines/eevee/shaders/eevee_lut_comp.bsl.hh
+  engines/eevee/shaders/eevee_ltc_lib.bsl.hh
+  engines/eevee/shaders/eevee_ltc_lut_lib.bsl.hh
   engines/eevee/shaders/eevee_motion_blur_dilate_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_flatten_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_gather_comp.glsl
@@ -558,10 +560,8 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_utility_tx_lib.glsl
   engines/eevee/shaders/eevee_velocity_lib.glsl
   engines/eevee/shaders/eevee_vertex_copy_comp.glsl
-  engines/eevee/shaders/eevee_volume_integration_comp.glsl
-  engines/eevee/shaders/eevee_volume_lib.glsl
-  engines/eevee/shaders/eevee_volume_resolve_frag.glsl
-  engines/eevee/shaders/eevee_volume_scatter_comp.glsl
+  engines/eevee/shaders/eevee_volume.bsl.hh
+  engines/eevee/shaders/eevee_volume_lib.bsl.hh
 
   engines/eevee/eevee_camera_shared.hh
   engines/eevee/eevee_debug_shared.hh

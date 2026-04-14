@@ -892,7 +892,7 @@ struct WeightPaintStroke final : public PaintStroke {
   void redraw(bool final) override;
   bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
-  void done(bool is_cancel) override;
+  void done(bool is_cancel, bool stroke_started) override;
 };
 
 bool WeightPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
@@ -1909,7 +1909,7 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   ED_region_tag_redraw(vc->region);
 }
 
-void WeightPaintStroke::done(bool /*is_cancel*/)
+void WeightPaintStroke::done(bool /*is_cancel*/, bool /*stroke_started*/)
 {
   Object &ob = *this->object;
 
@@ -1954,7 +1954,7 @@ static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   if (retval == OPERATOR_FINISHED) {
     WeightPaintStroke *stroke = static_cast<WeightPaintStroke *>(op->customdata);
     if (stroke) {
-      stroke->free(C, op);
+      stroke->finish(C);
       MEM_delete(stroke);
     }
     return OPERATOR_FINISHED;
