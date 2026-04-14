@@ -67,6 +67,8 @@ RemoteAssetLibrary::RemoteAssetLibrary(eAssetLibraryType library_type,
                                        StringRef root_path)
     : AssetLibrary(library_type, is_read_only, name, root_path), remote_url_(remote_url)
 {
+  import_method_ = ASSET_IMPORT_APPEND_REUSE;
+  may_override_import_method_ = false;
 }
 
 std::optional<StringRefNull> RemoteAssetLibrary::remote_url() const
@@ -95,9 +97,6 @@ PreferencesRemoteAssetLibrary::PreferencesRemoteAssetLibrary(
       user_library_(custom_library)
 {
   BLI_assert(custom_library.flag & ASSET_LIBRARY_USE_REMOTE_URL);
-
-  import_method_ = ASSET_IMPORT_APPEND_REUSE;
-  may_override_import_method_ = false;
 }
 
 std::optional<AssetLibraryReference> PreferencesRemoteAssetLibrary::library_reference() const
