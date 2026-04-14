@@ -9,12 +9,168 @@
 #include "FN_multi_function_builder.hh"
 #include "FN_multi_function_registry.hh"
 
+#include <numeric>
+
 namespace blender::fn::multi_function {
+
+/**
+ * An multi-function for the powf operation that more optimally handles simple and
+ * common cases like raising to the power of 2.
+ */
+class PowFunction : public MultiFunction {
+ private:
+  static inline const MultiFunction *pow_generic = nullptr;
+  static inline const MultiFunction *pow_2 = nullptr;
+  static inline const MultiFunction *pow_3 = nullptr;
+
+ public:
+  PowFunction()
+  {
+    static Signature signature = []() {
+      pow_2 = &registry::lookup("float ** 2"_ustr);
+      pow_3 = &registry::lookup("float ** 3"_ustr);
+      static auto pow_generic_fn = build::SI2_SO<float, float, float>(
+          "pow generic",
+          [](const float a, const float b) { return safe_powf(a, b); },
+          build::exec_presets::Materialized());
+      pow_generic = &pow_generic_fn;
+
+      Signature signature;
+      SignatureBuilder builder("float ** float", signature);
+      builder.single_input<float>("Base");
+      builder.single_input<float>("Exponent");
+      builder.single_output<float>("Result");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, Params params, Context context) const override
+  {
+    /* Use GVArray here to avoid unnecessary conversions to typed virtual arrays. */
+    const GVArray &base = params.readonly_single_input(0, "Base");
+    const GVArray &exponent = params.readonly_single_input(1, "Exponent");
+    MutableSpan<float> result = params.uninitialized_single_output<float>(2, "Result");
+
+    if (exponent.is_single()) {
+      float exponent_single;
+      exponent.get_internal_single(&exponent_single);
+      const int exponent_int = int(exponent_single);
+      /* Handle some exponents without invoking the general powf function. */
+      if (float(exponent_int) == exponent_single) {
+        switch (exponent_int) {
+          case 0: {
+            index_mask::masked_fill(result, 1.0f, mask);
+            return;
+          }
+          case 1: {
+            base.materialize_to_uninitialized(mask, result.data());
+            return;
+          }
+          case 2: {
+            ParamsBuilder sub_params{*pow_2, &mask};
+            sub_params.add_readonly_single_input(base);
+            sub_params.add_uninitialized_single_output(result);
+            pow_2->call(mask, sub_params, context);
+            return;
+          }
+          case 3: {
+            ParamsBuilder sub_params{*pow_3, &mask};
+            sub_params.add_readonly_single_input(base);
+            sub_params.add_uninitialized_single_output(result);
+            pow_3->call(mask, sub_params, context);
+            return;
+          }
+          default: {
+            break;
+          }
+        }
+      }
+    }
+    pow_generic->call(mask, params, context);
+  }
+};
+
+class DivideFunction : public MultiFunction {
+ private:
+  static inline const MultiFunction *multiply = nullptr;
+  static inline const MultiFunction *divide_generic = nullptr;
+
+ public:
+  DivideFunction()
+  {
+    static Signature signature = []() {
+      multiply = &registry::lookup("float * float"_ustr);
+      static auto divide_generic_fn = build::SI2_SO<float, float, float>(
+          "float / float",
+          [](float a, float b) { return safe_divide(a, b); },
+          build::exec_presets::AllSpanOrSingle());
+      divide_generic = &divide_generic_fn;
+
+      Signature signature;
+      SignatureBuilder builder("float / float", signature);
+      builder.single_input<float>("A");
+      builder.single_input<float>("B");
+      builder.single_output<float>("Result");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context context) const override
+  {
+    const GVArray &a = params.readonly_single_input(0, "A");
+    const GVArray &b = params.readonly_single_input(1, "B");
+    MutableSpan<float> result = params.uninitialized_single_output<float>(2, "Result");
+
+    if (b.is_single()) {
+      float divisor;
+      b.get_internal_single(&divisor);
+      if (divisor == 0.0f) {
+        /* We define the output to be 0 for division by zero. Same as #safe_divide. */
+        index_mask::masked_fill(result, 0.0f, mask);
+        return;
+      }
+      if (divisor == 1.0f) {
+        /* If the divisor is 1 the result is the dividend. */
+        a.materialize_to_uninitialized(mask, result.data());
+        return;
+      }
+      /* Use multiplication by the inverse which is more efficient than division. */
+      const float inverse = 1.0f / divisor;
+      ParamsBuilder sub_params{*multiply, &mask};
+      sub_params.add_readonly_single_input(a);
+      sub_params.add_readonly_single_input_value(inverse);
+      sub_params.add_uninitialized_single_output(result);
+      multiply->call(mask, sub_params, context);
+      return;
+    }
+    if (a.is_single()) {
+      float dividend;
+      a.get_internal_single(&dividend);
+      if (dividend == 0.0f) {
+        /* If the dividend is zero the result is always zero regardless of the divisor. */
+        index_mask::masked_fill(result, 0.0f, mask);
+        return;
+      }
+    }
+    /* General case. */
+    divide_generic->call(mask, params, context);
+  }
+};
 
 void register_common_functions()
 {
   static constexpr auto exec_fast = build::exec_presets::AllSpanOrSingle();
 
+  registry::add_new_cb([]() {
+    return build::SI1_SO<float, float>(
+        "float ** 2", [](const float a) { return a * a; }, exec_fast);
+  });
+  registry::add_new_cb([]() {
+    return build::SI1_SO<float, float>(
+        "float ** 3", [](const float a) { return a * a * a; }, exec_fast);
+  });
   registry::add_new_cb([] {
     return build::SI1_SO<float, float>("exp(float)", [](const float a) { return expf(a); });
   });
@@ -101,16 +257,8 @@ void register_common_functions()
     return build::SI2_SO<float, float, float>(
         "float * float", [](const float a, const float b) { return a * b; }, exec_fast);
   });
-  registry::add_new_cb([] {
-    return build::SI2_SO<float, float, float>(
-        "float / float",
-        [](const float a, const float b) { return safe_divide(a, b); },
-        exec_fast);
-  });
-  registry::add_new_cb([] {
-    return build::SI2_SO<float, float, float>(
-        "float ^ float", [](const float a, const float b) { return safe_powf(a, b); }, exec_fast);
-  });
+  registry::add_new_cb([] { return DivideFunction(); });
+  registry::add_new_cb([] { return PowFunction(); });
   registry::add_new_cb([] {
     return build::SI2_SO<float, float, float>(
         "log(float, float)",
@@ -260,7 +408,7 @@ void register_common_functions()
         exec_fast);
   });
   registry::add_new_cb([] {
-    return build::SI2_SO<float3, float3, float3>("float3 ^ float3", [](float3 a, float3 b) {
+    return build::SI2_SO<float3, float3, float3>("float3 ** float3", [](float3 a, float3 b) {
       return float3(safe_powf(a.x, b.x), safe_powf(a.y, b.y), safe_powf(a.z, b.z));
     });
   });
@@ -349,6 +497,160 @@ void register_common_functions()
   registry::add_new_cb([] {
     return build::SI1_SO<float3, float3>(
         "tan(float3)", [](const float3 &a) { return float3(tanf(a.x), tanf(a.y), tanf(a.z)); });
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int + int", [](int a, int b) { return a + b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int - int", [](int a, int b) { return a - b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int * int", [](int a, int b) { return a * b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int / int", [](int a, int b) { return math::safe_divide(a, b); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "floor(int, int)",
+        [](int a, int b) { return (b != 0) ? divide_floor_i(a, b) : 0; },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "divide_ceil(int, int)",
+        [](int a, int b) { return (b != 0) ? -divide_floor_i(a, -b) : 0; },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "divide_round(int, int)",
+        [](int a, int b) {
+          /* Derived from `divide_round_i` but fixed to be safe and handle negative inputs. */
+          const int c = math::abs(b);
+          return (a >= 0) ? math::safe_divide((2 * a + c), (2 * c)) * math::sign(b) :
+                            -math::safe_divide((2 * -a + c), (2 * c)) * math::sign(b);
+        },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int ** int", [](int a, int b) { return math::pow(a, b); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI3_SO<int, int, int, int>(
+        "int * int + int", [](int a, int b, int c) { return a * b + c; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "mod_periodic(int, int)",
+        [](int a, int b) { return b != 0 ? math::mod_periodic(a, b) : 0; },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int % int", [](int a, int b) { return b != 0 ? a % b : 0; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI1_SO<int, int>("abs(int)", [](int a) { return math::abs(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI1_SO<int, int>(
+        "sign(int)", [](int a) { return math::sign(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "min(int, int)", [](int a, int b) { return math::min(a, b); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "max(int, int)", [](int a, int b) { return math::max(a, b); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>("gcd(int, int)",
+                                            [](int a, int b) { return std::gcd(a, b); });
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>("lcm(int, int)",
+                                            [](int a, int b) { return std::lcm(a, b); });
+  });
+  registry::add_new_cb(
+      [] { return mf::build::SI1_SO<int, int>("-int", [](int a) { return -a; }, exec_fast); });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "bool && bool", [](bool a, bool b) { return a && b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "bool || bool", [](bool a, bool b) { return a || b; }, exec_fast);
+  });
+  registry::add_new_cb(
+      [] { return mf::build::SI1_SO<bool, bool>("!bool", [](bool a) { return !a; }, exec_fast); });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "!(bool && bool)", [](bool a, bool b) { return !(a && b); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "!(bool || bool)", [](bool a, bool b) { return !(a || b); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "bool == bool", [](bool a, bool b) { return a == b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "bool != bool", [](bool a, bool b) { return a != b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "!bool || bool", [](bool a, bool b) { return !a || b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<bool, bool, bool>(
+        "bool && !bool", [](bool a, bool b) { return a && !b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int & int", [](int a, int b) { return a & b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int | int", [](int a, int b) { return a | b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return mf::build::SI2_SO<int, int, int>(
+        "int ^ int", [](int a, int b) { return a ^ b; }, exec_fast);
+  });
+  registry::add_new_cb(
+      [] { return build::SI1_SO<int, int>("~int", [](int a) { return ~a; }, exec_fast); });
+  registry::add_new_cb([] {
+    return build::SI2_SO<int, int, int>(
+        "shift(int, int)",
+        [](int a, int b) {
+          const uint32_t value = a;
+          const int shift = math::clamp(b, -32, 32);
+          const uint64_t wide_value = uint64_t(value) << 16;
+          const uint64_t wide_result = shift > 0 ? wide_value << shift : wide_value >> -shift;
+          return uint32_t(wide_result >> 16);
+        },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<int, int, int>(
+        "rotate(int, int)",
+        [](int a, int b) {
+          const uint32_t value = a;
+          const int shift = math::mod_periodic(b, 32);
+          const uint64_t wide_value = uint64_t(value) | (uint64_t(value) << 32);
+          const uint64_t double_result = (wide_value << shift);
+          return uint32_t((double_result | (double_result >> 32)) & ((uint64_t(1) << 33) - 1));
+        },
+        exec_fast);
   });
 }
 

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -698,6 +698,11 @@ msgid "Vertex Color"
 msgstr "शिरोबिन्दु रंग"
 
 
+msgctxt "Operator"
+msgid "Poly"
+msgstr "बहु"
+
+
 msgid "All"
 msgstr "सभी"
 
@@ -712,6 +717,10 @@ msgstr "छटा"
 
 msgid "Fill"
 msgstr "भरण"
+
+
+msgid "Both"
+msgstr "दोनों"
 
 
 msgid "Background Image"
@@ -2573,8 +2582,28 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Mirror"
-msgstr "दर्पण"
+msgid "Placement"
+msgstr "नियोजन"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Merge"
+msgstr "विलय करें"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
 
 
 msgid "Snap"
@@ -2585,16 +2614,16 @@ msgid "Import"
 msgstr "आयात करें"
 
 
-msgid "Light"
-msgstr "प्रकाश"
-
-
-msgid "Math"
-msgstr "गणित"
-
-
 msgid "UV"
 msgstr "यूवी"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
+msgid "Light"
+msgstr "प्रकाश"
 
 
 msgid "Rigid Body"
@@ -2613,20 +2642,16 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
 msgid "Hooks"
 msgstr "खूँटी"
-
-
-msgid "Names"
-msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2635,18 +2660,6 @@ msgstr "हड्डी विकल्प बंद/बुझ"
 
 msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "Merge"
-msgstr "विलय करें"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
 
 
 msgid "Basic"
@@ -3375,10 +3388,6 @@ msgid "Delete Marker"
 msgstr "चिन्हक मिटाएँ"
 
 
-msgid "Placement"
-msgstr "नियोजन"
-
-
 msgid "Whole Frame"
 msgstr "संप गठन"
 
@@ -3596,10 +3605,6 @@ msgstr "समतल"
 
 msgid "Side"
 msgstr "किनारा"
-
-
-msgid "Both"
-msgstr "दोनों"
 
 
 msgid "Next Keyframe"
@@ -5188,11 +5193,6 @@ msgstr "प्राथमिकता"
 
 msgid "Draw:"
 msgstr "चित्रण:"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "बहु"
 
 
 msgctxt "Operator"

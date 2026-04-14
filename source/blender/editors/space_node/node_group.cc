@@ -108,7 +108,7 @@ static StringRef group_ntree_idname(bContext *C)
   return snode->tree_idname;
 }
 
-StringRef node_group_idname(const bContext *C)
+UString node_group_idname(const bContext *C)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -125,10 +125,10 @@ StringRef node_group_idname(const bContext *C)
     return ntreeType_Geometry->group_idname;
   }
 
-  return "";
+  return ""_ustr;
 }
 
-static bNode *node_group_get_active(bContext *C, const StringRef node_idname)
+static bNode *node_group_get_active(bContext *C, const UString node_idname)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node = bke::node_get_active(*snode->edittree);
@@ -149,7 +149,7 @@ static wmOperatorStatus node_group_edit_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  const StringRef node_idname = node_group_idname(C);
+  const UString node_idname = node_group_idname(C);
   const bool exit = RNA_boolean_get(op->ptr, "exit");
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
@@ -314,7 +314,7 @@ static wmOperatorStatus node_group_ungroup_exec(bContext *C, wmOperator * /*op*/
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
-  const StringRef node_idname = node_group_idname(C);
+  const UString node_idname = node_group_idname(C);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 
@@ -627,7 +627,7 @@ static void node_group_make_insert_selected(const bContext &C,
 static bNode *node_group_make_from_nodes(const bContext &C,
                                          bNodeTree &ntree,
                                          const Span<bNode *> nodes_to_group,
-                                         const StringRef ntype,
+                                         const UString ntype,
                                          const StringRef ntreetype)
 {
   Main *bmain = CTX_data_main(&C);
@@ -656,13 +656,14 @@ static bNode *node_group_make_from_nodes(const bContext &C,
 static bNode *node_group_make_from_node_declaration(bContext &C,
                                                     bNodeTree &ntree,
                                                     bNode &src_node,
-                                                    const StringRef node_idname)
+                                                    const UString node_idname)
 {
   Main &bmain = *CTX_data_main(&C);
 
   bNodeTree *wrapper_group = bke::node_tree_add_tree(
       &bmain, bke::node_label(ntree, src_node), ntree.idname);
   wrapper_group->color_tag = int(bke::node_color_tag(src_node));
+  wrapper_group->default_group_node_width = src_node.width;
 
   NodeSetInterfaceParams params;
   /* Hidden sockets are exposed but hidden on the group node instance. */
@@ -718,7 +719,7 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
   const StringRef ntree_idname = group_ntree_idname(C);
-  const StringRef node_idname = node_group_idname(C);
+  const UString node_idname = node_group_idname(C);
   Main *bmain = CTX_data_main(C);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
@@ -780,7 +781,7 @@ static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
   bNodeTree *ntree = snode->edittree;
-  const StringRef node_idname = node_group_idname(C);
+  const UString node_idname = node_group_idname(C);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
