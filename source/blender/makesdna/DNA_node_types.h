@@ -876,8 +876,9 @@ enum {
   SHD_SUBSURFACE_GAUSSIAN = 2,
 #endif
   SHD_SUBSURFACE_BURLEY = 3,
-  SHD_SUBSURFACE_RANDOM_WALK = 4,
+  SHD_SUBSURFACE_RANDOM_WALK_LEGACY = 4,
   SHD_SUBSURFACE_RANDOM_WALK_SKIN = 5,
+  SHD_SUBSURFACE_RANDOM_WALK = 6,
 };
 
 /* blur node */
@@ -1713,7 +1714,7 @@ struct bNode {
    * to catch typos earlier. One can compare with `bNodeType::idname` directly if the idname might
    * not be registered.
    */
-  bool is_type(StringRef query_idname) const;
+  bool is_type(UString query_idname) const;
 
   const nodes::NodeDeclaration *declaration() const;
   /** A span containing all internal links when the node is muted. */
@@ -1979,8 +1980,8 @@ struct bNodeTree {
   Span<bNodeSocket *> all_sockets();
   Span<const bNodeSocket *> all_sockets() const;
   /** Efficient lookup of all nodes with a specific type. */
-  Span<bNode *> nodes_by_type(StringRefNull type_idname);
-  Span<const bNode *> nodes_by_type(StringRefNull type_idname) const;
+  Span<bNode *> nodes_by_type(UString type_idname);
+  Span<const bNode *> nodes_by_type(UString type_idname) const;
   /** Frame nodes without any parents. */
   Span<bNode *> root_frames() const;
   /** A span containing all links in the node tree. */
