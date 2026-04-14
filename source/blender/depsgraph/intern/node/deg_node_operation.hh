@@ -210,6 +210,9 @@ enum class OperationCode {
 
   SEQUENCES_EVAL,
 
+  /* Compositor. ---------------------------------------------------------- */
+  COMPOSITOR_EVAL,
+
   /* instancing system. --------------------------------------------------- */
 
   /* Operation on an instancer object. Relations from instanced objects go here. */

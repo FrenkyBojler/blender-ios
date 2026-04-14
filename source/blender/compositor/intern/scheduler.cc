@@ -26,7 +26,7 @@ namespace blender::compositor {
 static bool has_file_output_recursive(const bNodeTree &node_group)
 {
   node_group.ensure_topology_cache();
-  for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
+  for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile"_ustr)) {
     if (!node->is_muted()) {
       return true;
     }
@@ -54,7 +54,7 @@ static bool has_viewer_recursive(const bNodeTree &node_group,
 
   /* If this is the active node group, check if a viewer node exists.  */
   if (active_node_group_instance_key == instance_key) {
-    for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
+    for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer"_ustr)) {
       if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
         return true;
       }
@@ -119,7 +119,7 @@ static void add_output_nodes(const Context &context,
 
   /* Add File Output nodes. */
   if (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::FileOutputNode)) {
-    for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
+    for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile"_ustr)) {
       if (!node->is_muted()) {
         node_stack.push(node);
       }
@@ -132,7 +132,7 @@ static void add_output_nodes(const Context &context,
   const bool is_root_node_group = instance_key == bke::NODE_INSTANCE_KEY_BASE;
   const bool should_add_viewer = is_active_node_group || (is_root_node_group && !viewer_exists);
   if (flag_is_set(needed_outputs_types, NodeGroupOutputTypes::ViewerNode) && should_add_viewer) {
-    for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
+    for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer"_ustr)) {
       if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
         node_stack.push(node);
         viewer_exists = true;
@@ -354,14 +354,14 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
  * doesn't always guarantee an optimal evaluation order, as the optimal evaluation order is very
  * difficult to compute, however, this method works well in most cases. Moreover it assumes that
  * all buffers will have roughly the same size, which may not always be the case. */
-VectorSet<const bNode *> compute_schedule(const Context &context,
-                                          const bNodeTree &node_group,
-                                          NodeGroupOutputTypes needed_outputs_types,
-                                          const Set<StringRef> &needed_outputs,
-                                          const bNodeInstanceKey instance_key,
-                                          const bNodeInstanceKey active_node_group_instance_key)
+Schedule compute_schedule(const Context &context,
+                          const bNodeTree &node_group,
+                          NodeGroupOutputTypes needed_outputs_types,
+                          const Set<StringRef> &needed_outputs,
+                          const bNodeInstanceKey instance_key,
+                          const bNodeInstanceKey active_node_group_instance_key)
 {
-  VectorSet<const bNode *> schedule;
+  Schedule schedule;
 
   /* Validate node group. */
   node_group.ensure_topology_cache();
@@ -412,6 +412,7 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
       }
 
       if (node.is_group_output() && !needed_outputs.contains(input->identifier)) {
+        schedule.unneeded_inputs.add(input);
         continue;
       }
 
@@ -429,7 +430,7 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
       }
 
       /* The dependency node was already schedule, so skip it. */
-      if (schedule.contains(&output->owner_node())) {
+      if (schedule.nodes.contains(&output->owner_node())) {
         continue;
       }
 
@@ -459,7 +460,7 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
     if (sorted_dependency_nodes.is_empty()) {
       /* The node might have already been scheduled, so we don't use add_new here and simply don't
        * add it if it was already scheduled. */
-      schedule.add(node_stack.pop());
+      schedule.nodes.add(node_stack.pop());
     }
   }
 
