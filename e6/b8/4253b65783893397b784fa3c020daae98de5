@@ -1,0 +1,1 @@
+Referenced by issue #156992, RenderDoc debugging broken with Vulkan due to no-op VKContext::finish
