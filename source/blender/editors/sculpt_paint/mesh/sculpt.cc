@@ -244,6 +244,20 @@ int vert_face_set_max_get(const int /*face_set_offset*/, const BMVert & /*vert*/
   return face_set_none_id;
 }
 
+Set<int> vert_face_sets_get(const GroupedSpan<int> vert_to_face_map,
+                            const Span<int> face_sets,
+                            const int vert)
+{
+  Set<int> result;
+  for (const int face : vert_to_face_map[vert]) {
+    result.add(face_sets[face]);
+  }
+  if (result.is_empty()) {
+    result.add(face_set_none_id);
+  }
+  return result;
+}
+
 bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
                        const Span<int> face_sets,
                        const int vert,
