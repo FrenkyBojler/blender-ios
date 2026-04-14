@@ -360,8 +360,6 @@ class GHOST_SystemWayland : public GHOST_System {
   std::atomic<bool> has_pending_actions_for_window = false;
 #endif
 
-  void set_color_manager_supports_scrgb();
-
  private:
   /**
    * Support freeing the internal data separately from the destructor

@@ -22,7 +22,6 @@
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
 #include "vk_vertex_attribute_object.hh"
-#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
 
