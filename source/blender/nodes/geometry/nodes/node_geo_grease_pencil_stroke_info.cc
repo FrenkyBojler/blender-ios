@@ -9,26 +9,22 @@
 namespace blender::nodes::node_geo_grease_pencil_stroke_info__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
-{  
-  b.add_output<decl::Color>("Vertex Color"_ustr).field_source();
-  b.add_output<decl::Float>("Opacity"_ustr).field_source();
+{
   b.add_output<decl::Float>("Softness"_ustr).field_source();
   b.add_output<decl::Bool>("Is Hidden"_ustr).field_source();
+  b.add_output<decl::Float>("Creation Time"_ustr).field_source();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<ColorGeometry4f> vertex_color = AttributeFieldInput::get_field<ColorGeometry4f, "vertex_color">();
-  params.set_output("Vertex Color"_ustr, std::move(vertex_color));
-
-  Field<float> opacity = AttributeFieldInput::get_field<float, "opacity">();
-  params.set_output("Opacity"_ustr, std::move(opacity));
-
   Field<float> softness = AttributeFieldInput::get_field<float, "softness">();
   params.set_output("Softness"_ustr, std::move(softness));
 
   Field<bool> hide_stroke = AttributeFieldInput::get_field<bool, "hide_stroke">();
   params.set_output("Is Hidden"_ustr, std::move(hide_stroke));
+
+  Field<float> init_time = AttributeFieldInput::get_field<float, "init_time">();
+  params.set_output("Creation Time"_ustr, std::move(init_time));
 }
 
 static void node_register()

@@ -9,16 +9,12 @@
 namespace blender::nodes::node_geo_grease_pencil_time__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
-{  
-  b.add_output<decl::Float>("Initial Time"_ustr).field_source();
+{
   b.add_output<decl::Float>("Delta Time"_ustr).field_source();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float> init_time = AttributeFieldInput::get_field<float, "init_time">();
-  params.set_output("Initial Time"_ustr, std::move(init_time));
-
   Field<float> delta_time = AttributeFieldInput::get_field<float, "delta_time">();
   params.set_output("Delta Time"_ustr, std::move(delta_time));
 }
@@ -27,9 +23,10 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilTime");
-  ntype.ui_name = "Grease Pencil Time";
-  ntype.ui_description = "Retrieve when and how quickly a Grease Pencil stroke is drawn";
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilPointDeltaTime");
+  ntype.ui_name = "Point Delta Time";
+  ntype.ui_description =
+      "Retrieve the difference in time between when each point in a Grease Pencil curve is drawn";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
