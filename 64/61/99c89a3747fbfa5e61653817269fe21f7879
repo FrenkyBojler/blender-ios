@@ -1,1 +1,2 @@
 Referenced by pull request #157311, Fix: Bug in library flag reading due to incorrect data size
+Referenced by commit 34c4f8dbc0e8ca69f4b4b782a3a42732cb775122, Fix: incorrect types size in library flag reading
