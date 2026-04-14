@@ -125,6 +125,8 @@ class MultiFunction : NonCopyable, NonMovable {
 
   ExecutionHints execution_hints() const;
 
+  virtual void prepare_for_execution() {}
+
  protected:
   /* Make the function use the given signature. This should be called once in the constructor of
    * child classes. No copy of the signature is made, so the caller has to make sure that the

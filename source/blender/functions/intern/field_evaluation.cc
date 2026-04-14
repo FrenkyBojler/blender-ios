@@ -283,6 +283,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 
   mf::procedure_optimization::move_destructs_up(procedure, return_instr);
 
+  procedure.prepare_for_execution();
+
   // std::cout << procedure.to_dot() << "\n";
   BLI_assert(procedure.validate());
 }
