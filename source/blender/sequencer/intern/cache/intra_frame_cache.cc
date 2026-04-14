@@ -8,6 +8,8 @@
 
 #include "BLI_map.hh"
 
+#include "BKE_global.hh"
+
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
@@ -138,6 +140,9 @@ ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip)
 
 void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf *image)
 {
+  if (G.is_rendering) {
+    return;
+  }
   if (scene == nullptr || scene->ed == nullptr || strip == nullptr || image == nullptr) {
     return;
   }
@@ -150,6 +155,9 @@ void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf 
 
 void intra_frame_cache_put_composite(Scene *scene, const Strip *strip, ImBuf *image)
 {
+  if (G.is_rendering) {
+    return;
+  }
   if (scene == nullptr || scene->ed == nullptr || strip == nullptr || image == nullptr) {
     return;
   }
@@ -170,6 +178,9 @@ void intra_frame_cache_destroy(Scene *scene)
 
 void intra_frame_cache_set_cur_frame(Scene *scene, float frame, int view_id, int width, int height)
 {
+  if (G.is_rendering) {
+    return;
+  }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (cache != nullptr) {
     if (cache->timeline_frame != frame || cache->view_id != view_id || cache->width != width ||

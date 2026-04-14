@@ -13,6 +13,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BKE_global.hh"
 #include "BKE_scene.hh"
 
 #include "IMB_imbuf.hh"
@@ -107,6 +108,9 @@ void final_image_cache_put(Scene *scene,
                            int2 image_size,
                            ImBuf *image)
 {
+  if (G.is_rendering) {
+    return;
+  }
   const FinalImageCache::Key key = {
       int(math::round(timeline_frame)), view_id, display_channel, image_size};
 

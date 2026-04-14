@@ -432,12 +432,6 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   BKE_image_signal(mainp, ima, nullptr, IMA_SIGNAL_FREE);
   BKE_image_backup_render(scene, ima, true);
 
-  /* cleanup sequencer caches before starting user triggered render.
-   * otherwise, invalidated cache entries can make their way into
-   * the output rendering. We can't put that into RE_RenderFrame,
-   * since sequence rendering can call that recursively... */
-  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
-
   RE_SetReports(re, op->reports);
 
   if (is_animation) {
@@ -893,9 +887,6 @@ static void render_endjob(void *rjv)
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
 
-  /* Prevent render cache from polluting preview cache in VSE. */
-  seq::cache_cleanup(rj->scene, seq::CacheCleanup::FinalAndIntra);
-
   if (rj->single_layer) {
     BKE_ntree_update_tag_id_changed(rj->main, &rj->scene->id);
     BKE_ntree_update(*rj->main);
@@ -1151,9 +1142,6 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* flush sculpt and editmode changes */
   ED_editors_flush_edits_ex(bmain, true, false);
-
-  /* Prevent preview cache from polluting render cache in VSE. */
-  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   /* store spare
    * get view3d layer, local layer, make this nice API call to render
