@@ -97,12 +97,28 @@ static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 
 static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
-  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
+  BlenderProject *project = ptr->parent().data_as<BlenderProject>();
+  BLI_assert(project != nullptr);
+
+  ProjectVariable *var = ptr->data_as<ProjectVariable>();
 
   std::string new_name(value);
   BKE_ensure_valid_variable_name(new_name);
 
-  var->name = new_name;
+  if (var->name == new_name) {
+    return;
+  }
+
+  auto check_name_is_used = [&](const StringRef name) -> bool {
+    for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
+      if (other_var->name == name) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  var->name = BLI_uniquename_cb(check_name_is_used, '.', new_name);
 }
 
 static void rna_ProjectVariable_description_get(PointerRNA *ptr, char *value)
@@ -272,29 +288,42 @@ static PointerRNA rna_iterator_BlenderProject_variables_get(CollectionPropertyIt
   return RNA_pointer_create_with_parent(iter->parent, RNA_ProjectVariable, var_ptr);
 }
 
-static ProjectVariable *rna_ProjectVariables_new(bke::BlenderProject *project_data,
-                                                 ReportList *reports,
-                                                 const char *name,
-                                                 int type)
+static PointerRNA rna_ProjectVariables_new(bke::BlenderProject *project,
+                                           ReportList *reports,
+                                           const char *name,
+                                           int type)
 {
   if (name[0] == 0) {
     BKE_reportf(reports, RPT_ERROR, "Invalid variable name '%s': name must not be empty.", name);
-    return nullptr;
+    return {};
   }
 
-  ProjectVariable *new_var = project_data->new_variable();
-  new_var->name = std::string(name);
+  auto check_name_is_used = [&](const StringRef name) -> bool {
+    for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
+      if (other_var->name == name) {
+        return true;
+      }
+    }
+    return false;
+  };
+  std::string unique_name = BLI_uniquename_cb(check_name_is_used, '.', name);
+
+  ProjectVariable *new_var = project->new_variable();
+  new_var->name = unique_name;
   new_var->description = std::string();
   new_var->type = bke::ProjectVarType(type);
   new_var->value_int = 0;
   new_var->value_float = 0.0;
   new_var->value_string = std::string();
 
-  project_data->active_variable_index = project_data->variables.size() - 1;
+  project->active_variable_index = project->variables.size() - 1;
 
   project_mark_dirty();
 
-  return new_var;
+  return RNA_pointer_create_with_parent(
+      RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project),
+      RNA_ProjectVariable,
+      new_var);
 }
 
 void rna_ProjectVariables_remove(bke::BlenderProject *project_data,
@@ -439,6 +468,7 @@ static void rna_def_ProjectVariables(BlenderRNA *brna, PropertyRNA *cprop)
                       "The data type of the variable");
   parm = RNA_def_pointer(
       func, "variable", "ProjectVariable", "", "Newly created project variable");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
   /* BlenderProject.variables.remove(variable) */
