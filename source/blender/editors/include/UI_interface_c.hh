@@ -78,6 +78,7 @@ struct wmWindow;
 namespace ed::asset {
 struct AssetFilterSettings;
 }
+
 namespace ui {
 class AbstractView;
 class AbstractViewItem;
@@ -88,11 +89,6 @@ struct ButtonExtraOpIcon;
 struct TooltipData;
 struct PopupBlockHandle;
 struct Block;
-}  // namespace ui
-
-/* Defines */
-
-namespace ui {
 
 /**
  * Character used for splitting labels (right align text after this character).
@@ -1970,6 +1966,7 @@ void button_number_slider_step_size_set(Button *but, float step_size);
 void button_number_slider_precision_set(Button *but, float precision);
 
 void button_label_alpha_factor_set(Button *but, float alpha_factor);
+void button_label_draw_icon_border_set(Button *but, bool use_icon_border);
 
 void button_search_preview_grid_size_set(Button *but, int rows, int cols);
 
