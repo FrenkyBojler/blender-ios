@@ -6,69 +6,84 @@
  * \ingroup bli
  */
 
-#include <fmt/format.h>
+#include <algorithm>
 #include <iomanip>
-#include <regex>
-#include <sstream>
 #include <string>
+
+#include <fmt/format.h>
 
 #include "BLI_map.hh"
 #include "BLI_string_date.hh"
 
+#include "BLT_translation.hh"
+
 namespace blender::date_format {
 
+static const char *months[12] = {CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Jan"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Feb"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Mar"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Apr"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "May"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Jun"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Jul"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Aug"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Sep"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Oct"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Nov"),
+                                 CTX_N_(BLT_I18NCONTEXT_SHORTMONTH, "Dec")};
+
 struct CLDRPatterns {
-  const char date[17];
-  const char time[9];
+  const char date[25];
+  const char time[18];
 };
 
 static const Map<std::string, CLDRPatterns> &locale_patterns = *([]() {
   return new Map<std::string, CLDRPatterns>{
-      {"default", {"%d %b %Y", "%H:%M"}},
-      {"en_US", {"%b %d, %Y", "%I:%M %p"}},   /* English (US).*/
-      {"en_GB", {"%d %b %Y", "%H:%M"}},       /* English (UK). */
-      {"ar_EG", {"%d %b %Y", "%I:%M %p"}},    /* Arabic (Egypt). */
-      {"eu_EU", {"%d %b %Y", "%H:%M"}},       /* Basque. */
-      {"bg_BG", {"%d %b %Y", "%H:%M"}},       /* Bulgarian. */
-      {"ca_AD", {"%d %b %Y", "%H:%M"}},       /* Catalan. */
-      {"zh_HANS", {"%Y年%b%d日", "%H:%M"}},   /* Chinese (Simplified). */
-      {"zh_HANT", {"%Y年%b%d日", "%H:%M"}},   /* Chinese (Traditional). */
-      {"hr", {"%d %b %Y", "%H:%M"}},          /* Croatian. */
-      {"cs_CZ", {"%d %b %Y", "%H:%M"}},       /* Czech. */
-      {"da", {"%d %b %Y", "%H:%M"}},          /* Danish. */
-      {"nl_NL", {"%d %b %Y", "%H:%M"}},       /* Dutch - Nederlands. */
-      {"fi_FI", {"%d %b %Y", "%H:%M"}},       /* Finnish. */
-      {"fr_FR", {"%d %b %Y", "%H:%M"}},       /* French. */
-      {"ka", {"%d %b %Y", "%H:%M"}},          /* Georgian. */
-      {"de_DE", {"%d %b %Y", "%H:%M"}},       /* German. */
-      {"el_GR", {"%d %b %Y", "%H:%M"}},       /* Greek. */
-      {"he_IL", {"%d %b %Y", "%H:%M"}},       /* Hebrew. */
-      {"hi_IN", {"%d %b %Y", "%H:%M"}},       /* Hindi. */
-      {"hu_HU", {"%Y. %b %d", "%H:%M"}},      /* Hungarian. */
-      {"id_ID", {"%d %b %Y", "%H:%M"}},       /* Indonesian. */
-      {"it_IT", {"%d %b %Y", "%H:%M"}},       /* Italian. */
-      {"ja_JP", {"%Y年%b月%d日", "%H:%M"}},   /* Japanese. */
-      {"ko_KR", {"%Y년 %B월%d일", "%H:%M"}},  /* Korean. */
-      {"nb", {"%d %b %Y", "%H:%M"}},          /* Norwegian. */
-      {"fa_IR", {"%d %b %Y", "%H:%M"}},       /* Persian. */
-      {"pl_PL", {"%d %b %Y", "%H:%M"}},       /* Polish. */
-      {"pt_BR", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Brazil). */
-      {"pt_PT", {"%d %b %Y", "%H:%M"}},       /* Portuguese (Portugal). */
-      {"ro_RO", {"%d %b %Y", "%H:%M"}},       /* Romanian. */
-      {"ru_RU", {"%d %b %Y", "%H:%M"}},       /* Russian. */
-      {"sr_RS", {"%d %b %Y", "%H:%M"}},       /* Serbian (Cyrillic). */
-      {"sr_RS@latin", {"%d %b %Y", "%H:%M"}}, /* Serbian (Latin). */
-      {"sk_SK", {"%d %b %Y", "%H:%M"}},       /* Slovak. */
-      {"sl", {"%d %b %Y", "%H:%M"}},          /* Slovenian. */
-      {"es", {"%d %b %Y", "%H:%M"}},          /* Spanish. */
-      {"sv_SE", {"%d %b %Y", "%H:%M"}},       /* Swedish. */
-      {"sw", {"%d %b %Y", "%H:%M"}},          /* Swahili. */
-      {"ta", {"%d %b %Y", "%H:%M"}},          /* Tamil. */
-      {"th_TH", {"%d %b %Y", "%H:%M"}},       /* Thai. */
-      {"tr_TR", {"%d %b %Y", "%H:%M"}},       /* Turkish. */
-      {"uk_UA", {"%d %b %Y", "%H:%M"}},       /* Ukrainian. */
-      {"ur", {"%d %b %Y", "%I:%M %p"}},       /* Urdu. */
-      {"vi_VN", {"%d %b %Y", "%H:%M"}},       /* Vietnamese. */
+      {"default", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},
+      {"en_US", {"{d:02} {b} {Y}", "{I}:{M:02} {p}"}},      /* English (US).*/
+      {"en_GB", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* English (UK). */
+      {"ar_EG", {"{d:02} {b} {Y}", "{I}:{M} {p}"}},         /* Arabic (Egypt). */
+      {"eu_EU", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Basque. */
+      {"bg_BG", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Bulgarian. */
+      {"ca_AD", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Catalan. */
+      {"zh_HANS", {"{Y}年{m}月{d}日", "{H:02}:{M:02}"}},    /* Chinese (Simplified). */
+      {"zh_HANT", {"{Y}年{m}月{d}日", "{H:02}:{M:02}"}},    /* Chinese (Traditional). */
+      {"hr", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Croatian. */
+      {"cs_CZ", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Czech. */
+      {"da", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Danish. */
+      {"nl_NL", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Dutch - Nederlands. */
+      {"fi_FI", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Finnish. */
+      {"fr_FR", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* French. */
+      {"ka", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Georgian. */
+      {"de_DE", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* German. */
+      {"el_GR", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Greek. */
+      {"he_IL", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Hebrew. */
+      {"hi_IN", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Hindi. */
+      {"hu_HU", {"{Y}. {b} {d:02}", "{H:02}:{M:02}"}},      /* Hungarian. */
+      {"id_ID", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Indonesian. */
+      {"it_IT", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Italian. */
+      {"ja_JP", {"{Y}年{m}月{d}日", "{H:02}:{M:02}"}},      /* Japanese. */
+      {"ko_KR", {"{Y}년 {m}월{d}일", "{H:02}:{M:02}"}},     /* Korean. */
+      {"nb", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Norwegian. */
+      {"fa_IR", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Persian. */
+      {"pl_PL", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Polish. */
+      {"pt_BR", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Portuguese (Brazil). */
+      {"pt_PT", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Portuguese (Portugal). */
+      {"ro_RO", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Romanian. */
+      {"ru_RU", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Russian. */
+      {"sr_RS", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Serbian (Cyrillic). */
+      {"sr_RS@latin", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}}, /* Serbian (Latin). */
+      {"sk_SK", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Slovak. */
+      {"sl", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Slovenian. */
+      {"es", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Spanish. */
+      {"sv_SE", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Swedish. */
+      {"sw", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Swahili. */
+      {"ta", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},          /* Tamil. */
+      {"th_TH", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Thai. */
+      {"tr_TR", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Turkish. */
+      {"uk_UA", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Ukrainian. */
+      {"ur", {"{d:02} {b} {Y}", "{I}:{M} {p}"}},            /* Urdu. */
+      {"vi_VN", {"{d:02} {b} {Y}", "{H:02}:{M:02}"}},       /* Vietnamese. */
   };
 }());
 
@@ -95,37 +110,24 @@ static const CLDRPatterns *get_locale_patterns(const char *locale_iso)
   return locale_patterns.lookup_ptr("default");
 }
 
-static std::locale make_locale_fallbacks(const char *iso)
-{
-  if (iso && iso[0]) {
-    try {
-      return std::locale(iso);
-    }
-    catch (...) {
-      try {
-        std::string s = std::string(iso) + ".UTF-8";
-        return std::locale(s.c_str());
-      }
-      catch (...) {
-      }
-    }
-  }
-  try {
-    return std::locale("");
-  }
-  catch (...) {
-    return std::locale::classic();
-  }
-}
-
 static std::string format_with_pattern(const std::tm *tm,
                                        const std::string &pattern,
                                        const char *locale_iso)
 {
-  std::ostringstream oss{};
-  oss.imbue(make_locale_fallbacks(locale_iso));
-  oss << std::put_time(tm, pattern.c_str());
-  return oss.str();
+  BLI_assert(tm->tm_mon >= 0 && tm->tm_mon < 12);
+  const int month_index = std::clamp(tm->tm_mon, 0, 11);
+
+  return fmt::format(fmt::runtime(pattern),
+                     fmt::arg("Y", tm->tm_year + 1900),
+                     fmt::arg("m", tm->tm_mon + 1),
+                     fmt::arg("b", CTX_IFACE_(BLT_I18NCONTEXT_SHORTMONTH, months[month_index])),
+                     fmt::arg("d", tm->tm_mday),
+                     fmt::arg("H", tm->tm_hour),
+                     fmt::arg("M", tm->tm_min),
+                     fmt::arg("I", (tm->tm_hour % 12) == 0 ? 12 : (tm->tm_hour % 12)),
+                     fmt::arg("p",
+                              (tm->tm_hour < 12) ? CTX_IFACE_(BLT_I18NCONTEXT_TIME, "AM") :
+                                                   CTX_IFACE_(BLT_I18NCONTEXT_TIME, "PM")));
 }
 
 /* Public functions. */
@@ -139,12 +141,7 @@ std::string time(const std::tm *date_time, const char *locale_iso)
 std::string date(const std::tm *date_time, const char *locale_iso)
 {
   const CLDRPatterns *pattern = get_locale_patterns(locale_iso);
-  std::string out = format_with_pattern(date_time, pattern->date, locale_iso);
-
-  /* Remove the leading zero from the day. */
-  std::regex leading_zero_re(R"((^|[\s,\.])0([1-9])(\b))");
-  out = std::regex_replace(out, leading_zero_re, "$1$2");
-  return out;
+  return format_with_pattern(date_time, pattern->date, locale_iso);
 }
 
 std::string datetime(const std::tm *datetime,

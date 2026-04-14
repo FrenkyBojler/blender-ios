@@ -414,12 +414,12 @@ set(SRC
   BLI_voxel.h
   BLI_winstuff.h
   BLI_winstuff_com.hh
-
   # Without these files listed, they aren't known to CMake.
   ../../../extern/json/include/json.hpp
 )
 
 set(LIB
+  PRIVATE bf::blentranslation
   PUBLIC bf::dna
   PRIVATE bf::extern::json
   PRIVATE bf::extern::xxhash
