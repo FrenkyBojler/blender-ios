@@ -12,7 +12,9 @@ not the main Tracy client library, which is built as a pre-compiled library in
 This target is not a dependency of Blender nor any other extern target, and is only
 meant to be manually built by developers. As the Tracy repository does not provide
 pre-built profiler frontend binaries for all platforms, this target is provided for
-developers to conveniently build the profiler locally.
+developers to conveniently build the profiler locally. Note that this target will
+download required dependency packages (GLFW, ImGui, Capstone, etc...) from the
+internet via CPM if they aren't available locally system-wide.
 
 As such, an exception is made by naming the target `tracy_profiler` instead of
 `extern_tracy_profiler` to allow developers to conveniently use `make/ninja tracy_profiler`
