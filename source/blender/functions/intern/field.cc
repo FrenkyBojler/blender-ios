@@ -105,15 +105,15 @@ bool field_equal_deep(const GFieldRef &a, const GFieldRef &b)
   const auto *a_op = std::get_if<GFieldRef::MultiFn>(&a.variant());
   const auto *b_op = std::get_if<GFieldRef::MultiFn>(&b.variant());
   if (a_op && b_op) {
+    if (a_op->output_i != b_op->output_i) {
+      return false;
+    }
     const Span<GField> a_inputs = a_op->node->inputs();
     const Span<GField> b_inputs = b_op->node->inputs();
     if (a_inputs.size() != b_inputs.size()) {
       return false;
     }
-    if (a_op->output_i != b_op->output_i) {
-      return false;
-    }
-    if (!a_op->node->multi_function().equals(a_op->node->multi_function())) {
+    if (!a_op->node->multi_function().equals(b_op->node->multi_function())) {
       return false;
     }
     for (const int i : a_inputs.index_range()) {
@@ -149,13 +149,18 @@ uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
     if (cache.contains(current)) {
       continue;
     }
-    uint64_t hash = current.hash();
+    uint64_t hash;
     if (const auto *multi_fn = std::get_if<GFieldRef::MultiFn>(&current.variant())) {
-      hash = get_default_hash(hash, multi_fn->node->multi_function().hash(), multi_fn->output_i);
+      hash = get_default_hash(multi_fn->output_i);
+      hash = get_default_hash(hash, multi_fn->node->multi_function().hash());
       for (const GField &input : multi_fn->node->inputs()) {
         hash = get_default_hash(hash, cache.lookup(input));
       }
     }
+    else {
+      hash = current.hash();
+    }
+
     cache.add(current, hash);
   }
 
