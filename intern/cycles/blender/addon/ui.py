@@ -1443,7 +1443,7 @@ class CYCLES_OBJECT_PT_visibility(CyclesButtonsPanel, Panel):
         if has_geometry_visibility(ob):
             col = layout.column(heading="Mask")
             col.prop(ob, "is_shadow_catcher")
-            col.prop(ob, "is_holdout")
+            col.prop(ob, "is_holdout", toggle=False)
 
 
 class CYCLES_OBJECT_PT_visibility_ray_visibility(CyclesButtonsPanel, Panel):
