@@ -598,7 +598,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
                                       svm_node_get<SVMNodeMixVectorNonUniform>(kg, &offset));
       break;
       SVM_CASE(NODE_SCENE_TIME)
-      svm_node_scene_time(kg, stack, node.y, node.z);
+      svm_node_scene_time(kg, stack, svm_node_get<SVMNodeSceneTime>(kg, &offset));
       break;
       default:
         kernel_assert(!"Unknown node type was passed to the SVM machine");

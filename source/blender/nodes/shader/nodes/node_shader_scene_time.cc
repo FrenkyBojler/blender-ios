@@ -17,8 +17,8 @@ namespace nodes::node_shader_scene_time_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Seconds");
-  b.add_output<decl::Float>("Frame");
+  b.add_output<decl::Float>("Seconds"_ustr);
+  b.add_output<decl::Float>("Frame"_ustr);
 }
 
 static int node_shader_gpu(GPUMaterial *mat,
@@ -49,7 +49,7 @@ void register_node_type_sh_scene_time()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeSceneTime", SH_NODE_SCENE_TIME);
+  sh_node_type_base(&ntype, "ShaderNodeSceneTime"_ustr, SH_NODE_SCENE_TIME);
   ntype.ui_name = "Scene Time";
   ntype.ui_description = "Input the current scene time in seconds or frames";
   ntype.nclass = NODE_CLASS_INPUT;

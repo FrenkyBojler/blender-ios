@@ -8183,17 +8183,15 @@ SceneTimeNode::SceneTimeNode() : ShaderNode(get_node_type()) {}
 
 void SceneTimeNode::compile(SVMCompiler &compiler)
 {
-  ShaderOutput *seconds_out = output("Seconds");
-  ShaderOutput *frame_out = output("Frame");
-
-  compiler.add_node(NODE_SCENE_TIME,
-                    compiler.stack_assign(seconds_out), compiler.stack_assign(frame_out));
+  compiler.add_node(this,
+                    NODE_SCENE_TIME,
+                    SVMNodeSceneTime{.seconds_out = compiler.output("Seconds"),
+                                     .frame_out = compiler.output("Frame")});
 }
 
 void SceneTimeNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_scene_time");
 }
-
 
 CCL_NAMESPACE_END

@@ -1126,7 +1126,7 @@ static ShaderNode *add_node(Scene *scene,
     raycast->set_only_local(b_node.custom1);
     node = raycast;
   }
-  else if (b_node.is_type("ShaderNodeSceneTime")) {
+  else if (b_node.is_type("ShaderNodeSceneTime"_ustr)) {
     node = graph->create_node<SceneTimeNode>();
   }
 
