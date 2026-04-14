@@ -287,36 +287,7 @@ enum {
   LIBOVERRIDE_PROP_TAG_NEEDS_RETORE = 1 << 1,
 };
 
-#
-#
-struct IDOverrideLibraryRuntime {
-  struct GHash *rna_path_to_override_properties = nullptr;
-  uint tag = 0;
-};
-
-/* IDOverrideLibraryRuntime->tag. */
-enum {
-  /** This override needs to be reloaded. */
-  LIBOVERRIDE_TAG_NEEDS_RELOAD = 1 << 0,
-
-  /**
-   * This override contains properties with forbidden changes, which should be restored to their
-   * linked reference value.
-   */
-  LIBOVERRIDE_TAG_NEEDS_RESTORE = 1 << 1,
-
-  /**
-   * This override is detected as being cut from its hierarchy root. Temporarily used during
-   * resync process.
-   */
-  LIBOVERRIDE_TAG_RESYNC_ISOLATED_FROM_ROOT = 1 << 2,
-  /**
-   * This override was detected as needing resync outside of the resync process (it is a 'really
-   * need resync' case, not a 'need resync for hierarchy reasons' one). Temporarily used during
-   * resync process.
-   */
-  LIBOVERRIDE_TAG_NEED_RESYNC_ORIGINAL = 1 << 3,
-};
+struct IDOverrideLibraryRuntime;
 
 /* Main container for all overriding data info of a data-block. */
 struct IDOverrideLibrary {
@@ -570,18 +541,6 @@ struct Library {
   bke::library::LibraryRuntime *runtime = nullptr;
 
   void *_pad2 = nullptr;
-};
-
-/**
- * #Library.flag
- *
- * Some of these flags define a 'virtual' library, which may not be an actual blendfile, store
- * 'archived' embedded data, etc. IDs contained in these virtual libraries are _not_ managed by
- * regular linking code.
- */
-enum LibraryFlag {
-  /** The library is an 'archive' that only contains embedded linked data. */
-  LIBRARY_FLAG_IS_ARCHIVE = 1 << 0,
 };
 
 /**
