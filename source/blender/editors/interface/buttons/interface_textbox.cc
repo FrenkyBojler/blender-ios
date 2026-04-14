@@ -287,9 +287,16 @@ float textbox_padding_bottom()
 
 TextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname)
 {
-  return region->runtime->textbox_states
-      .lookup_or_add_cb_as(idname, std::make_unique<TextboxState>)
-      .get();
+  for (uiTextboxStateLink &link : region->textbox_states) {
+    if (link.idname == idname) {
+      return &link.state;
+    }
+  }
+  uiTextboxStateLink *link = MEM_new<uiTextboxStateLink>(__func__);
+  link->idname = BLI_strdupn(idname.data(), idname.size());
+  link->state.visible_lines = textbox_minimum_visible_lines;
+  BLI_addtail(&region->textbox_states, link);
+  return &link->state;
 }
 
 int ButtonTextBox::line_scroll() const

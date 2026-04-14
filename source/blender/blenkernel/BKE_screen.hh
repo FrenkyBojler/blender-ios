@@ -26,7 +26,6 @@
 #include "BKE_context.hh"
 
 namespace blender {
-struct TextboxState;
 namespace bke::id {
 class IDRemapper;
 }
@@ -567,8 +566,6 @@ struct ARegionRuntime {
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
-
-  Map<std::string, std::unique_ptr<TextboxState>> textbox_states;
 };
 
 }  // namespace bke
