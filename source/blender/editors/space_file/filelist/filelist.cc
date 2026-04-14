@@ -109,7 +109,7 @@ void filelist_remote_asset_library_refresh_online_assets_status(
     return;
   }
 
-  if ((filelist->asset_library_ref->type == ASSET_LIBRARY_ALL) ||
+  if (ELEM(filelist->asset_library_ref->type, ASSET_LIBRARY_ALL, ASSET_LIBRARY_ESSENTIALS) ||
       (filelist->asset_library->remote_url() == remote_url))
   {
     remote_asset_library_refresh_online_assets_status(filelist);
