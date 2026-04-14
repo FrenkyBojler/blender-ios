@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -397,10 +397,6 @@ msgstr "Közép"
 
 msgid "Bottom"
 msgstr "Alulnézet"
-
-
-msgid "Show Hotkey List"
-msgstr "Gyorsbillentyűk listája mutatása"
 
 
 msgid "Action"
@@ -1242,6 +1238,15 @@ msgid "Material"
 msgstr "Anyag"
 
 
+msgid "Threshold"
+msgstr "Küszöbszint"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Vonallánc"
+
+
 msgid "All"
 msgstr "Mind"
 
@@ -1252,10 +1257,6 @@ msgstr "Pontosság"
 
 msgid "Simplify"
 msgstr "Egyszerűsítés"
-
-
-msgid "Threshold"
-msgstr "Küszöbszint"
 
 
 msgid "Iterations"
@@ -6609,16 +6610,28 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
 msgid "Clean Up"
 msgstr "Tisztítás"
 
 
+msgid "Merge"
+msgstr "Összefésülés"
+
+
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Metaball"
+msgstr "Meta test"
+
+
 msgid "Import"
 msgstr "Importálás"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mirror"
@@ -6635,14 +6648,6 @@ msgstr "Navigáció"
 
 msgid "Align View"
 msgstr "Nézet igazítása"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Meta test"
 
 
 msgid "Light"
@@ -6671,10 +6676,6 @@ msgstr "Kulcsozás"
 
 msgid "Tracking"
 msgstr "Követés"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
 
 
 msgctxt "MovieClip"
@@ -15363,11 +15364,6 @@ msgstr "Alap vastagság"
 
 msgid "Image Border"
 msgstr "Képkeret"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Vonallánc"
 
 
 msgid "Parent:"

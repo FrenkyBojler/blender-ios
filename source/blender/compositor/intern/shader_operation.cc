@@ -30,10 +30,12 @@
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_type_conversions.hh"
 
 #include "COM_context.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
+#include "COM_scheduler.hh"
 #include "COM_shader_node.hh"
 #include "COM_shader_operation.hh"
 #include "COM_utilities.hh"
@@ -42,7 +44,7 @@ namespace blender::compositor {
 
 ShaderOperation::ShaderOperation(Context &context,
                                  PixelCompileUnit &compile_unit,
-                                 const VectorSet<const bNode *> &schedule)
+                                 const Schedule &schedule)
     : PixelOperation(context, compile_unit, schedule)
 {
   material_ = GPU_material_from_callbacks(
@@ -471,7 +473,7 @@ void ShaderOperation::populate_results_for_node(const bNode &node)
      * of the execution schedule, then an output result needs to be populated for it. */
     const bool is_operation_output = is_output_linked_to_node_conditioned(
         *output, [&](const bNode &node) {
-          return schedule_.contains(&node) && !compile_unit_.contains(&node);
+          return schedule_.nodes.contains(&node) && !compile_unit_.contains(&node);
         });
 
     /* If the output is used as the node preview, then an output result needs to be populated for
@@ -570,6 +572,17 @@ void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bN
 
   ShaderNode &input_node = *shader_nodes_.lookup(&input.owner_node());
   GPUNodeStack &input_stack = input_node.get_input(input.identifier);
+
+  /* Conversion is not possible, link a zero constant instead. */
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (!conversions.is_convertible(Result::cpp_type(source_type), Result::cpp_type(target_type))) {
+    const char *function_name = get_set_function_name(target_type);
+    const float *default_value = static_cast<const float *>(
+        Result::cpp_type(target_type).default_value());
+    GPU_link(material_, function_name, GPU_constant(default_value), &input_stack.link);
+    return;
+  }
+
   const UString function_name = UString(
       fmt::format("{}_to_{}", Result::type_name(source_type), Result::type_name(target_type)));
 

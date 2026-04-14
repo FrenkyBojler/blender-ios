@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-11-14 10:59+0000\n"
 "Last-Translator: Isaac Gicheha <shwaky3@gmail.com>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -4635,6 +4635,10 @@ msgid "Flat"
 msgstr "Frofa"
 
 
+msgid "Threshold"
+msgstr "Kizingiti"
+
+
 msgid "Curve used for the jitter effect"
 msgstr "Curve inayotumika kwa athari ya jitter"
 
@@ -4661,6 +4665,11 @@ msgstr "Nguvu ya Curve"
 
 msgid "Curve used for the strength"
 msgstr "Curve inayotumika kwa nguvu"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Poli"
 
 
 msgid "Dilate/Contract"
@@ -4828,10 +4837,6 @@ msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Idadi ya hatua za kurahisisha (thamani kubwa hupunguza usahihi wa kujaza)"
 
 
-msgid "Threshold"
-msgstr "Kizingiti"
-
-
 msgid "Threshold to consider color transparent for filling"
 msgstr "Kizingiti cha kuzingatia rangi kuwa wazi kwa kujaza"
 
@@ -4956,10 +4961,6 @@ msgstr "Onyesha mistari ya usaidizi kwa upanuzi wa kiharusi"
 
 msgid "Show Lasso"
 msgstr "Onyesha Lasso"
-
-
-msgid "Do not display fill color while drawing the stroke"
-msgstr "Usionyeshe rangi ya kujaza wakati wa kuchora alama"
 
 
 msgid "Factor of Simplify using adaptive algorithm"
@@ -24714,6 +24715,10 @@ msgid "Name for new preset"
 msgstr "Jina la kuweka upya mapema"
 
 
+msgid "Reports"
+msgstr "Ripoti"
+
+
 msgid "Open windows"
 msgstr "Fungua madirisha"
 
@@ -27908,10 +27913,6 @@ msgid "Calculate Overlap"
 msgstr "Kokotoa Muingiliano"
 
 
-msgid "Calculate self intersections and overlap before filling"
-msgstr "Kokotoa makutano ya kibinafsi na kuingiliana kabla ya kujaza"
-
-
 msgid "Mask Layers"
 msgstr "Tabaka za Kinyago"
 
@@ -28268,6 +28269,10 @@ msgid "Texture Pixel Size factor along the stroke"
 msgstr "Kipengele cha Ukubwa wa Pixel ya Muundo pamoja na mpigo"
 
 
+msgid "Placement"
+msgstr "Kuweka"
+
+
 msgid "Show stroke fills of this material"
 msgstr "Onyesha mijazo ya kiharusi ya nyenzo hii"
 
@@ -28377,20 +28382,20 @@ msgid "Utilities"
 msgstr "Huduma"
 
 
-msgid "Show/Hide"
-msgstr "Onyesha/Ficha"
-
-
 msgid "Clean Up"
 msgstr "Safisha"
 
 
-msgid "Pivot Point"
-msgstr "Egemeo"
+msgid "Merge"
+msgstr "Unganisha"
 
 
-msgid "Snap"
-msgstr "Picha"
+msgid "Show/Hide"
+msgstr "Onyesha/Ficha"
+
+
+msgid "Metaball"
+msgstr "Mpira wa miguu"
 
 
 msgid "Read"
@@ -28413,8 +28418,20 @@ msgid "Instances"
 msgstr "Matukio"
 
 
+msgid "Pivot Point"
+msgstr "Egemeo"
+
+
+msgid "Snap"
+msgstr "Picha"
+
+
 msgid "Import"
 msgstr "Ingiza"
+
+
+msgid "Deprecated"
+msgstr "Imeacha kutumika"
 
 
 msgid "Mirror"
@@ -28425,16 +28442,8 @@ msgid "Navigation"
 msgstr "Urambazaji"
 
 
-msgid "Deprecated"
-msgstr "Imeacha kutumika"
-
-
 msgid "Select Linked"
 msgstr "Chagua Imeunganishwa"
-
-
-msgid "Metaball"
-msgstr "Mpira wa miguu"
 
 
 msgid "Light"
@@ -28445,20 +28454,16 @@ msgid "Light Probe"
 msgstr "Uchunguzi wa Mwanga"
 
 
+msgid "Layout"
+msgstr "Mpangilio"
+
+
 msgid "Apply"
 msgstr "Tumia"
 
 
 msgid "Asset"
 msgstr "Mali"
-
-
-msgid "Layout"
-msgstr "Mpangilio"
-
-
-msgid "Bone Collections"
-msgstr "Mikusanyo ya Mifupa"
 
 
 msgid "Adjust"
@@ -28473,8 +28478,8 @@ msgid "Tracking"
 msgstr "Kufuatilia"
 
 
-msgid "Merge"
-msgstr "Unganisha"
+msgid "Bone Collections"
+msgstr "Mikusanyo ya Mifupa"
 
 
 msgid "Keyframe Insert Pie"
@@ -42854,11 +42859,6 @@ msgid "Add Node Color Preset"
 msgstr "Ongeza Uwekaji Awali wa Rangi ya Nodi"
 
 
-msgctxt "Operator"
-msgid "Add Attribute"
-msgstr "Ongeza Sifa"
-
-
 msgid "Go to parent node tree"
 msgstr "Nenda kwa mti wa nodi ya wazazi"
 
@@ -46665,10 +46665,6 @@ msgstr "Vipengele vilivyo zaidi ya pikseli za ukingo kutoka kwenye kingo za pich
 
 msgid "Minimal distance accepted between two features"
 msgstr "Umbali mdogo unakubalika kati ya vipengele viwili"
-
-
-msgid "Placement"
-msgstr "Kuweka"
 
 
 msgid "Placement for detected features"
@@ -51015,6 +51011,11 @@ msgstr "Tenganisha"
 
 msgid "Unlink active font data-block"
 msgstr "Tenganisha kizuizi cha data cha fonti amilifu"
+
+
+msgctxt "Operator"
+msgid "Add Attribute"
+msgstr "Ongeza Sifa"
 
 
 msgid "Add attribute to geometry"
@@ -56290,11 +56291,6 @@ msgid "Triangulate selected faces"
 msgstr "Tatua nyuso zilizochaguliwa"
 
 
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "Chagua Kitanzi cha Mpaka"
-
-
 msgid "Select boundary edges around the selected faces"
 msgstr "Chagua kingo za mipaka karibu na nyuso zilizochaguliwa"
 
@@ -58169,10 +58165,6 @@ msgstr "Aina ya Mti"
 
 msgid "Copy color to all selected nodes"
 msgstr "Nakili rangi kwa nodi zote zilizochaguliwa"
-
-
-msgid "Overlay Mode"
-msgstr "Njia ya Uwekeleaji"
 
 
 msgctxt "Operator"
@@ -81463,6 +81455,10 @@ msgid "Display white edges"
 msgstr "Onyesha kingo nyeupe"
 
 
+msgid "Overlay Mode"
+msgstr "Njia ya Uwekeleaji"
+
+
 msgid "Overlay mode of rasterized mask"
 msgstr "Njia ya kuwekelea ya barakoa iliyoboreshwa"
 
@@ -93950,11 +93946,6 @@ msgid "Cursor to Grid"
 msgstr "Mshale kwa Gridi"
 
 
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Poli"
-
-
 msgid "Display Cursor"
 msgstr "Kishale cha Onyesho"
 
@@ -96947,10 +96938,6 @@ msgstr "Pikseli ndogo ya Kuzuia Aliasing"
 
 msgid "Hinting"
 msgstr "Kudokeza"
-
-
-msgid "Reports"
-msgstr "Ripoti"
 
 
 msgid "New Data"
@@ -100312,10 +100299,6 @@ msgstr "Alama %d kukabiliana %s"
 
 msgid "Marker offset %s"
 msgstr "Kiweka alama %s"
-
-
-msgid "Selecting the camera is only supported in object mode"
-msgstr "Kuteua kamera kunatumika tu katika hali ya kitu"
 
 
 msgid "Scene not found"
@@ -104054,10 +104037,6 @@ msgid "Dynamic Topology found: %s, disabled"
 msgstr "Topolojia Inayobadilika imepatikana: %s, imezimwa"
 
 
-msgid "Palette created"
-msgstr "Palette imeundwa"
-
-
 msgid "Sample color for %s"
 msgstr "Sampuli ya rangi ya %s"
 
@@ -104068,6 +104047,10 @@ msgstr "Brashi."
 
 msgid "Palette. Use Left Click to sample more colors"
 msgstr "Paleti."
+
+
+msgid "Palette created"
+msgstr "Palette imeundwa"
 
 
 msgid "Compiled without sound support"
@@ -108615,18 +108598,6 @@ msgid "Cannot load the baked data"
 msgstr "Haiwezi kupakia data iliyookwa"
 
 
-msgid "Missing property for input socket \"%s\""
-msgstr "Sifa inayokosekana kwa soketi ya kuingiza \"%s\""
-
-
-msgid "Property type does not match input socket \"(%s)\""
-msgstr "Aina ya kipengee hailingani na tundu la kuingiza \"(%s)\""
-
-
-msgid "Node group's geometry input must be the first"
-msgstr "Ingizo la jiometri ya kikundi cha nodi lazima liwe la kwanza"
-
-
 msgid "Node group must have an output socket"
 msgstr "Kikundi cha nodi lazima kiwe na tundu la kutoa"
 
@@ -111350,10 +111321,6 @@ msgstr "Weka rangi"
 
 msgid "Glow"
 msgstr "Mwangaza"
-
-
-msgid "Blur X"
-msgstr "Waa X"
 
 
 msgid "Object Pivot"

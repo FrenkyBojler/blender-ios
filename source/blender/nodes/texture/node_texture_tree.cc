@@ -137,8 +137,8 @@ void register_node_tree_type_tex()
   bke::bNodeTreeType *tt = ntreeType_Texture = MEM_new<bke::bNodeTreeType>(__func__);
 
   tt->type = NTREE_TEXTURE;
-  tt->idname = "TextureNodeTree";
-  tt->group_idname = "TextureNodeGroup";
+  tt->idname = "TextureNodeTree"_ustr;
+  tt->group_idname = "TextureNodeGroup"_ustr;
   tt->ui_name = N_("Texture Node Editor");
   tt->ui_icon = ICON_NODE_TEXTURE; /* Defined in `drawnode.cc`. */
   tt->ui_description = N_("Edit textures using nodes");

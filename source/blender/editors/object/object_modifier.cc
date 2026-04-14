@@ -1107,6 +1107,9 @@ static bool modifier_apply_obdata(ReportList *reports,
       /* Remove strings referring to attributes if they no longer exist. */
       bke::mesh_remove_invalid_attribute_strings(*mesh);
 
+      /* Make sure that if there are uv maps, one is marked as active. */
+      bke::mesh_ensure_active_uv_map(*mesh);
+
       if (md_eval->type == eModifierType_Multires) {
         multires_customdata_delete(mesh);
       }
@@ -3493,15 +3496,23 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
   PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
   PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
+  PropertyRNA *type_prop = RNA_struct_find_property(&input_ptr, "type");
+  if (!type_prop) {
+    return OPERATOR_CANCELLED;
+  }
 
-  int type = RNA_enum_get(&input_ptr, "type");
+  int type = RNA_property_enum_get(&input_ptr, type_prop);
   if (type == int(nodes::GeometryNodesInputType::Attribute)) {
     type = int(nodes::GeometryNodesInputType::Value);
   }
   else {
     type = int(nodes::GeometryNodesInputType::Attribute);
   }
-  RNA_enum_set(&input_ptr, "type", type);
+  EnumPropertyItem type_item;
+  if (!RNA_property_enum_item_from_value(nullptr, &input_ptr, type_prop, type, &type_item)) {
+    return OPERATOR_CANCELLED;
+  }
+  RNA_property_enum_set(&input_ptr, type_prop, type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
