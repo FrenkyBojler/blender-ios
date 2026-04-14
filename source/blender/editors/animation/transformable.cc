@@ -13,10 +13,11 @@
 #include "DNA_object_types.h"
 
 #include "ANIM_rna.hh"
-#include "ANIM_transformable.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
+
+#include "ED_transformable.hh"
 
 namespace blender::animrig {
 

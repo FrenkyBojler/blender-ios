@@ -37,13 +37,13 @@
 
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
+#include "ED_transformable.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
 #include "ANIM_rna.hh"
-#include "ANIM_transformable.hh"
 
 #include "armature_intern.hh"
 

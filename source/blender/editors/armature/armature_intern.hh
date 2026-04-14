@@ -12,7 +12,7 @@
 
 #include "BLI_span.hh"
 
-#include "ANIM_transformable.hh"
+#include "ED_transformable.hh"
 
 namespace blender {
 

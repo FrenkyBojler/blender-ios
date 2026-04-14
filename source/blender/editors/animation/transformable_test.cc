@@ -1,4 +1,3 @@
-#include "ANIM_transformable.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
@@ -16,6 +15,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
+
+#include "ED_transformable.hh"
 
 #include "CLG_log.h"
 #include "testing/testing.h"
