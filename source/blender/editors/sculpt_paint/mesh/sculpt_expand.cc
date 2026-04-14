@@ -377,7 +377,7 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
                 continue;
               }
               if (expand_cache.snap) {
-                const int face_set = face_set::vert_face_set_get(
+                const int face_set = face_set::vert_face_set_max_get(
                     vert_to_face_map, face_sets, vert);
                 enabled_verts[vert].set(expand_cache.snap_enabled_face_sets->contains(face_set));
                 continue;
