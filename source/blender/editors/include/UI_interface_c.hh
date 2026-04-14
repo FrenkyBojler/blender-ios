@@ -80,7 +80,6 @@ struct AssetFilterSettings;
 }
 
 namespace ui {
-
 class AbstractView;
 class AbstractViewItem;
 struct Layout;
