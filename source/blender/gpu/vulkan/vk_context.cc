@@ -22,6 +22,7 @@
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
 #include "vk_vertex_attribute_object.hh"
+#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
 
@@ -428,8 +429,9 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
                                          bool wait_for_submission)
 {
   const bool do_blit_to_swapchain = swap_chain_data.image != VK_NULL_HANDLE;
-  const bool use_shader = swap_chain_data.surface_format.colorSpace ==
-                          VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
+  const bool use_shader = ELEM(swap_chain_data.surface_format.colorSpace,
+                               VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
+                               VK_COLOR_SPACE_PASS_THROUGH_EXT);
 
   /* When swapchain is invalid/minimized we only flush the render graph to free GPU resources. */
   if (!do_blit_to_swapchain) {

@@ -8,6 +8,7 @@
 
 #include "GHOST_WindowWayland.hh"
 #include "GHOST_SystemWayland.hh"
+#include "GHOST_Types.hh"
 #include "GHOST_WaylandUtils.hh"
 #include "GHOST_WindowManager.hh"
 #include "GHOST_utildefines.hh"
@@ -1514,20 +1515,37 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   wl_surface_add_listener(window_->wl.surface, &wl_surface_listener, window_);
 
   /* Color management */
-  wp_color_manager_v1 *color_manager = system->wp_color_manager_get();
+  wp_color_manager_v1 *color_manager = type == GHOST_kDrawingContextTypeVulkan ?
+                                           system->wp_color_manager_get() :
+                                           nullptr;
   if (color_manager) {
     window_->wp.color_management_surface = wp_color_manager_v1_get_surface(color_manager,
                                                                            window_->wl.surface);
 
-    wp_image_description_creator_params_v1 *image_creator_params =
-        wp_color_manager_v1_create_parametric_creator(color_manager);
-    wp_image_description_creator_params_v1_set_tf_named(
-        image_creator_params, WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB);
-    wp_image_description_creator_params_v1_set_primaries_named(image_creator_params,
-                                                               WP_COLOR_MANAGER_V1_PRIMARIES_SRGB);
+    wp_image_description_v1 *image_description = nullptr;
 
-    wp_image_description_v1 *image_description = wp_image_description_creator_params_v1_create(
-        image_creator_params);
+    if (true) {
+      /* Create an image description compatible with windows specific definition of scrgb.
+       *
+       * - Uses sRGB (BT.709) color primaries and white point
+       * - Transfer charateristics is linear
+       * - Value range is extended
+       * - Value of 1.0 corresponse to 80 cd/m3
+       * - Reference white value is unknown but should be assumed to be 2.5375.
+       *
+       * Note: EGL_EXT_gl_colorspace_scrgb_linear definition differs from Windows-scRGB by using
+       * R=G=B=1.0 as the reference white level, while Windows-scRGB reference white level is
+       * unknown or varies. However, it seems probable that Windows implements both
+       * EGL_EXT_gl_colorspace_scrgb_linear and Vulkan VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT as
+       * Windows-scRGB.
+       *
+       * https://wayland.app/protocols/color-management-v1#wp_color_manager_v1:request:create_windows_scrgb
+       */
+      image_description = wp_color_manager_v1_create_windows_scrgb(color_manager);
+    }
+    else {
+      //
+    }
 
     wp_color_management_surface_v1_set_image_description(
         window_->wp.color_management_surface,
@@ -1747,9 +1765,9 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
      * enabled when color manager protocol is supported. It may still get disabled if Vulkan has no
      * appropriate surface format. */
     hdr_info_.hdr_enabled = color_manager != nullptr;
-    hdr_info_.wide_gamut_enabled = true;
+    hdr_info_.wide_gamut_enabled = color_manager != nullptr;
     hdr_info_.use_pass_through = color_manager != nullptr;
-    hdr_info_.sdr_white_level = 1.0f;
+    hdr_info_.sdr_white_level = 2.5375f;
   }
 #endif
 
