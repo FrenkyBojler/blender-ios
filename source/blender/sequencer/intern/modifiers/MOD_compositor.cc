@@ -305,6 +305,11 @@ class CompositorModifierContext : public CompositorContext {
   void evaluate()
   {
     using namespace compositor;
+    const StripModifierData &smd = this->modifier_data_->modifier;
+    const bool is_mask_used = smd.mask_input_type == STRIP_MASK_INPUT_STRIP ?
+                                  smd.mask_strip != nullptr :
+                                  smd.mask_id != nullptr;
+
     const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
                                                                 modifier_data_->node_group);
     NodeGroupOperation node_group_operation(*this,
@@ -342,7 +347,7 @@ class CompositorModifierContext : public CompositorContext {
           input_result->allocate_invalid();
         }
       }
-      else if (input_socket == interface_inputs[1]) {
+      else if (is_mask_used && input_socket == interface_inputs[1]) {
         if (socket_type == SOCK_RGBA) {
           /* Second socket is the mask input. */
           render_mask_input(this->mod_context_, this->timeline_frame_);
