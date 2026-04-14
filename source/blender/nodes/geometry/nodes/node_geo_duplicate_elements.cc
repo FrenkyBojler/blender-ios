@@ -1209,9 +1209,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryDuplicateElements &storage = node_storage(params.node());
   const AttrDomain duplicate_domain = AttrDomain(storage.domain);
 
-  const Field<int> count_field(FieldOperation::from(
-      fn::multi_function::registry::lookup("max(int, int)"_ustr),
-      {fn::make_constant_field<int>(0), params.extract_input<Field<int>>("Amount"_ustr)}));
+  const Field<int> count_field(
+      FieldOperation::from(fn::multi_function::registry::lookup("max(int, int)"_ustr),
+                           {fn::Field<int>(0), params.extract_input<Field<int>>("Amount"_ustr)}));
 
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   IndexAttributes attribute_outputs;
@@ -1290,7 +1290,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeDuplicateElements", GEO_NODE_DUPLICATE_ELEMENTS);
+  geo_node_type_base(&ntype, "GeometryNodeDuplicateElements"_ustr, GEO_NODE_DUPLICATE_ELEMENTS);
   ntype.ui_name = "Duplicate Elements";
   ntype.ui_description = "Generate an arbitrary number copies of each selected input element";
   ntype.enum_name_legacy = "DUPLICATE_ELEMENTS";

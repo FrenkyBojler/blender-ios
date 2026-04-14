@@ -1388,7 +1388,8 @@ char RNA_property_array_item_char(PropertyRNA *prop, int index)
                           PROP_EULER,
                           PROP_VELOCITY,
                           PROP_ACCELERATION,
-                          PROP_COORDS))
+                          PROP_COORDS,
+                          PROP_PIXEL))
   {
     return vectoritem[index];
   }
@@ -1425,7 +1426,8 @@ int RNA_property_array_item_index(PropertyRNA *prop, char name)
                 PROP_XYZ_LENGTH,
                 PROP_EULER,
                 PROP_VELOCITY,
-                PROP_ACCELERATION))
+                PROP_ACCELERATION,
+                PROP_PIXEL))
   {
     switch (name) {
       case 'x':
@@ -4479,6 +4481,11 @@ int RNA_property_enum_step(
   int step_tot = 0;
 
   RNA_property_enum_items(const_cast<bContext *>(C), ptr, prop, &item_array, &totitem, &free);
+
+  if (!totitem) {
+    return result_value;
+  }
+
   i = RNA_enum_from_value(item_array, from_value);
   i_init = i;
 

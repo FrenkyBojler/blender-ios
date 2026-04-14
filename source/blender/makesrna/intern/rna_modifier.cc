@@ -1412,10 +1412,10 @@ static void rna_BevelModifier_weight_attribute_visit_for_search(
   PointerRNA mesh_ptr = RNA_id_pointer_create(ob->data);
   PropertyRNA *attributes_prop = RNA_struct_find_property(&mesh_ptr, "attributes");
   RNA_PROP_BEGIN (&mesh_ptr, itemptr, attributes_prop) {
-    const CustomDataLayer *layer = static_cast<const CustomDataLayer *>(itemptr.data);
-    if (bke::allow_procedural_attribute_access(layer->name)) {
+    const StringRefNull name = rna_Attribute_name_get(itemptr);
+    if (bke::allow_procedural_attribute_access(name)) {
       StringPropertySearchVisitParams visit_params{};
-      visit_params.text = layer->name;
+      visit_params.text = name;
       visit_fn(visit_params);
     }
   }
@@ -2077,13 +2077,6 @@ static bool rna_NodesModifier_is_input_used(PointerRNA nmd_ptr,
 
   BKE_reportf(reports, RPT_ERROR, "Input '%s' not found", identifier);
   return false;
-}
-
-static IDProperty **rna_NodesModifier_settings_properties(PointerRNA *ptr)
-{
-  NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
-  NodesModifierSettings *settings = &nmd->settings;
-  return &settings->properties;
 }
 
 static void rna_Lineart_start_level_set(PointerRNA *ptr, int value)
@@ -8165,7 +8158,6 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "NodesModifier", "Modifier");
   RNA_def_struct_ui_text(srna, "Nodes Modifier", "");
   RNA_def_struct_sdna(srna, "NodesModifierData");
-  RNA_def_struct_idprops_func(srna, "rna_NodesModifier_settings_properties");
   RNA_def_struct_ui_icon(srna, ICON_GEOMETRY_NODES);
 
   RNA_define_lib_overridable(true);
