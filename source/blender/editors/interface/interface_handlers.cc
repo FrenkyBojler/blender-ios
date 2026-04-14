@@ -3756,7 +3756,8 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
      * that region to ensure it is in view can't work and causes issues. #97530 */
     but_ensure_in_view(C, data->region, but);
   }
-  if (but->type == ButtonType::TextBox) {
+  /* Text buttons already shows text exit cursor. */
+  if (but->type != ButtonType::TextBox) {
     WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
   }
 
@@ -9499,6 +9500,7 @@ static void button_activate_init(bContext *C,
     const bool horizontal = (BLI_rctf_size_x(&but->rect) < BLI_rctf_size_y(&but->rect));
     WM_cursor_modal_set(data->window, horizontal ? WM_CURSOR_X_MOVE : WM_CURSOR_Y_MOVE);
   }
+  /* Texbox buttons allows to select text activation, show text edit cursor when hovering. */
   if (but->type == ButtonType::TextBox) {
     WM_cursor_modal_set(data->window, WM_CURSOR_TEXT_EDIT);
   }
