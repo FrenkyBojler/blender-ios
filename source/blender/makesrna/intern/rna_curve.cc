@@ -479,14 +479,21 @@ static void rna_Curve_bevelObject_set(PointerRNA *ptr, PointerRNA value, ReportL
   Object *ob = static_cast<Object *>(value.data);
 
   if (ob) {
-    /* If bevel object has got the save curve, as object, for which it's set as bevobj,
+    /* If bevel object has got the same curve, as object, for which it's set as bevobj,
      * there could be an infinite loop in curve evaluation. */
     if (ob->type == OB_CURVES_LEGACY && ob->data != id_cast<ID *>(cu)) {
+      if (cu->bevobj) {
+        id_us_min(&cu->bevobj->id);
+      }
       cu->bevobj = ob;
+      id_us_plus_no_lib(&ob->id);
       id_lib_extern(&ob->id);
     }
   }
   else {
+    if (cu->bevobj) {
+      id_us_min(&cu->bevobj->id);
+    }
     cu->bevobj = nullptr;
   }
 }
@@ -552,15 +559,49 @@ static void rna_Curve_taperObject_set(PointerRNA *ptr, PointerRNA value, ReportL
   Object *ob = static_cast<Object *>(value.data);
 
   if (ob) {
-    /* If taper object has got the save curve, as object, for which it's set as bevobj,
+    /* If taper object has got the same curve, as object, for which it's set as taperobj,
      * there could be an infinite loop in curve evaluation. */
     if (ob->type == OB_CURVES_LEGACY && ob->data != id_cast<ID *>(cu)) {
+      if (cu->taperobj) {
+        id_us_min(&cu->taperobj->id);
+      }
       cu->taperobj = ob;
+      id_us_plus_no_lib(&ob->id);
       id_lib_extern(&ob->id);
     }
   }
   else {
+    if (cu->taperobj) {
+      id_us_min(&cu->taperobj->id);
+    }
     cu->taperobj = nullptr;
+  }
+}
+
+static void rna_Curve_textoncurveObject_set(PointerRNA *ptr,
+                                            PointerRNA value,
+                                            ReportList * /*reports*/)
+{
+  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
+  Object *ob = static_cast<Object *>(value.data);
+
+  if (ob) {
+    /* If text on curve object has got the same curve, as object, for which it's set as textoncurve,
+     * there could be an infinite loop in curve evaluation. */
+    if (ob->type == OB_CURVES_LEGACY && ob->data != id_cast<ID *>(cu)) {
+      if (cu->textoncurve) {
+        id_us_min(&cu->textoncurve->id);
+      }
+      cu->textoncurve = ob;
+      id_us_plus_no_lib(&ob->id);
+      id_lib_extern(&ob->id);
+    }
+  }
+  else {
+    if (cu->textoncurve) {
+      id_us_min(&cu->textoncurve->id);
+    }
+    cu->textoncurve = nullptr;
   }
 }
 
@@ -1310,8 +1351,9 @@ static void rna_def_font(BlenderRNA * /*brna*/, StructRNA *srna)
   /* pointers */
   prop = RNA_def_property(srna, "follow_curve", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "textoncurve");
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Curve_otherObject_poll");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, "rna_Curve_textoncurveObject_set", nullptr, "rna_Curve_otherObject_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Text on Curve", "Curve deforming text object");
   RNA_def_property_update(prop, 0, "rna_Curve_update_deps");
@@ -1813,7 +1855,7 @@ static void rna_def_curve(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bevel_object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_pointer_sdna(prop, nullptr, "bevobj");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(
       prop, "Bevel Object", "The name of the Curve object that defines the bevel shape");
@@ -1827,7 +1869,7 @@ static void rna_def_curve(BlenderRNA *brna)
   prop = RNA_def_property(srna, "taper_object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_pointer_sdna(prop, nullptr, "taperobj");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(
       prop, "Taper Object", "Curve object name that defines the taper (width)");

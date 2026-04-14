@@ -137,9 +137,9 @@ static void curve_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Curve *curve = reinterpret_cast<Curve *>(id);
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->bevobj, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->taperobj, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->textoncurve, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->bevobj, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->taperobj, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->textoncurve, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->key, IDWALK_CB_USER);
   for (int i = 0; i < curve->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->mat[i], IDWALK_CB_USER);
