@@ -321,6 +321,26 @@ void rna_ProjectVariables_remove(bke::BlenderProject *project_data,
   project_mark_dirty();
 }
 
+void rna_ProjectVariables_move(bke::BlenderProject *project_data,
+                               ReportList *reports,
+                               int from_index,
+                               int to_index)
+{
+  if (from_index >= project_data->variables.size()) {
+    BKE_reportf(reports, RPT_ERROR, "From index is out of bounds of the variable list.");
+    return;
+  }
+
+  if (to_index >= project_data->variables.size()) {
+    BKE_reportf(reports, RPT_ERROR, "To index is out of bounds of the variable list.");
+    return;
+  }
+
+  project_data->move_variable(from_index, to_index);
+
+  project_mark_dirty();
+}
+
 /* --------------------------------------------------------- */
 
 static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
@@ -428,6 +448,32 @@ static void rna_def_ProjectVariables(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_pointer(
       func, "variable", "ProjectVariable", "Variable", "The variable to remove");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
+
+  /* BlenderProject.variables.move(from_index, to_index) */
+  func = RNA_def_function(srna, "move", "rna_ProjectVariables_move");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(
+      func, "Move a variable from one position to another in the list of variables");
+  parm = RNA_def_int(func,
+                     "from_index",
+                     0,
+                     0,
+                     INT_MAX,
+                     "From Index",
+                     "The index of the variable to move",
+                     0,
+                     INT_MAX);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(func,
+                     "to_index",
+                     0,
+                     0,
+                     INT_MAX,
+                     "To Index",
+                     "The index to move the variable to",
+                     0,
+                     INT_MAX);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
 static void rna_def_blender_project(BlenderRNA *brna)

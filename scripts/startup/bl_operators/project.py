@@ -507,6 +507,36 @@ class PROJECT_OP_RemoveVariable(Operator):
         return {'FINISHED'}
 
 
+class PROJECT_OP_MoveVariable(Operator):
+    """Move the active variable up or down in the list of variables"""
+    bl_idname = "project.move_variable"
+    bl_label = "Move Variable"
+
+    direction: bpy.props.EnumProperty(items=[
+        ('UP', "Move Up", ""),
+        ('DOWN', "Move Down", ""),
+    ])
+
+    @classmethod
+    def poll(cls, context):
+        project = bpy.data.project
+        if project is None:
+            return False
+        return project.active_variable_index < len(project.variables)
+
+    def execute(self, context):
+        project = bpy.data.project
+
+        index = project.active_variable_index
+        if self.direction == 'UP' and index > 0:
+            project.variables.move(index, index - 1)
+            project.active_variable_index -= 1
+        elif self.direction == 'DOWN' and (index + 1) < len(project.variables):
+            project.variables.move(index, index + 1)
+            project.active_variable_index += 1
+        return {'FINISHED'}
+
+
 # -------------------------------------------------------------
 # Auto-loading / clearing of projects when loading/saving blend files or
 # exiting.
@@ -583,6 +613,7 @@ classes = (
     PROJECT_OP_OpenBlendInProject,
     PROJECT_OP_AddVariable,
     PROJECT_OP_RemoveVariable,
+    PROJECT_OP_MoveVariable,
 )
 
 

@@ -279,8 +279,8 @@ class PROJECT_PT_variables(Panel):
         col = row.column(align=True)
         col.operator("project.add_variable", text="", icon='ADD')
         col.operator("project.remove_variable", text="", icon='REMOVE')
-        # col.operator("project.move_variable", text="", icon='TRIA_UP').type = 'UP'
-        # col.operator("project.move_variable", text="", icon='TRIA_DOWN').type = 'DOWN'
+        col.operator("project.move_variable", text="", icon='TRIA_UP').direction = 'UP'
+        col.operator("project.move_variable", text="", icon='TRIA_DOWN').direction = 'DOWN'
 
         col = layout.column()
         col.alignment = 'LEFT'

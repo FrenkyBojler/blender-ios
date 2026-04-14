@@ -104,6 +104,8 @@ class BlenderProject {
    * wasn't found.
    */
   int remove_variable(ProjectVariable *var);
+
+  void move_variable(int from_index, int to_index);
 };
 
 }  // namespace bke

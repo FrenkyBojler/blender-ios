@@ -69,6 +69,23 @@ int BlenderProject::remove_variable(ProjectVariable *var)
   return index;
 }
 
+void BlenderProject::move_variable(int from_index, int to_index)
+{
+  BLI_assert(from_index < this->variables.size());
+  BLI_assert(to_index < this->variables.size());
+
+  if (from_index < to_index) {
+    std::rotate(this->variables.data() + from_index,
+                this->variables.data() + from_index + 1,
+                this->variables.data() + to_index + 1);
+  }
+  else if (from_index > to_index) {
+    std::rotate(this->variables.data() + to_index,
+                this->variables.data() + from_index,
+                this->variables.data() + from_index + 1);
+  }
+}
+
 }  // namespace bke
 
 bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain)
