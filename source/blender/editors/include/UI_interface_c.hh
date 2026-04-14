@@ -1675,7 +1675,6 @@ std::string button_extra_icon_string_get_operator_keymap(const bContext &C,
  * - AutoButR: RNA property button with type automatically defined.
  */
 
-
 /**
  * Ways to limit what is displayed in ID-search popup.
  * \note We may want to add LOCAL, LIBRARY ... as needed.
