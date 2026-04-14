@@ -62,9 +62,9 @@ class MultiFunction : NonCopyable, NonMovable {
     return get_default_hash(this);
   }
 
-  virtual bool equals(const MultiFunction & /*other*/) const
+  virtual bool equals(const MultiFunction &other) const
   {
-    return false;
+    return this == &other;
   }
 
   int param_amount() const
