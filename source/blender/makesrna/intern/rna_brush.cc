@@ -1133,38 +1133,6 @@ static const EnumPropertyItem *rna_BrushTextureSlot_map_mode_itemf(bContext *C,
 #  undef rna_enum_brush_texture_slot_map_sculpt_mode_items
 }
 
-static void rna_MeshAutomaskingSettings_invert_cavity_set(PointerRNA *ptr, bool val)
-{
-  Brush *brush = static_cast<Brush *>(ptr->data);
-  if (!brush->mesh_automasking_settings) {
-    return;
-  }
-
-  if (val) {
-    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
-    brush->mesh_automasking_settings->flags |= BRUSH_AUTOMASKING_CAVITY_INVERTED;
-  }
-  else {
-    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
-  }
-}
-
-static void rna_MeshAutomaskingSettings_cavity_set(PointerRNA *ptr, bool val)
-{
-  Brush *brush = static_cast<Brush *>(ptr->data);
-  if (!brush->mesh_automasking_settings) {
-    return;
-  }
-
-  if (val) {
-    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
-    brush->mesh_automasking_settings->flags |= BRUSH_AUTOMASKING_CAVITY_NORMAL;
-  }
-  else {
-    brush->mesh_automasking_settings->flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
-  }
-}
-
 static std::optional<std::string> rna_BrushCurvesSculptSettings_path(const PointerRNA * /*ptr*/)
 {
   return "curves_sculpt_settings";
