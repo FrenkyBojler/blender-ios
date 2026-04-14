@@ -835,8 +835,8 @@ LibraryFlag blo_bhead_library_flag(const FileData *fd, const BHead *bhead)
   if (fd->library_flag_offset < 0) {
     return LibraryFlag(0);
   }
-  return *reinterpret_cast<const LibraryFlag *>(
-      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_flag_offset));
+  return LibraryFlag(*reinterpret_cast<const uint16_t *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_flag_offset)));
 }
 
 static void read_blender_header(FileData *fd)
@@ -5090,8 +5090,13 @@ static int expand_cb(LibraryIDLinkCallbackData *cb_data)
 
   /* Expand process can be re-entrant or have other complex interactions that will not work well
    * with loop-back pointers. Further more, processing such data should not be needed here anyway.
+   *
+   * The exception are root liboverride pointers - when linking a data from a liboverride
+   * hierarchy, it is mandatory to get the whole hierarchy in.
    */
-  if (cb_data->cb_flag & (IDWALK_CB_LOOPBACK)) {
+  if ((cb_data->cb_flag & IDWALK_CB_LOOPBACK) &&
+      !(cb_data->cb_flag & IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_ROOT))
+  {
     return IDWALK_RET_NOP;
   }
 
