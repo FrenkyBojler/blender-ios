@@ -200,7 +200,8 @@ def make_runner(
 
 
 def attach_test_methods(mode: str) -> None:
-    """Generate test_<kind>_<case> methods on each registered test class.
+    """
+    Generate test_<kind>_<case> methods on each registered test class.
 
     Called from main() after --mode is parsed. For each kind in the active mode,
     walks the matching case list on the class (``cases_buffer`` for buffer/gpu,
