@@ -1008,7 +1008,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 struct RestrictProperties {
   bool initialized;
 
-  PropertyRNA *object_hide_viewport, *object_hide_select, *object_hide_render, *object_holdout, *object_indirect_only;
+  PropertyRNA *object_hide_viewport, *object_hide_select, *object_hide_render, *object_holdout,
+      *object_indirect_only;
   PropertyRNA *base_hide_viewport;
   PropertyRNA *collection_hide_viewport, *collection_hide_select, *collection_hide_render;
   PropertyRNA *layer_collection_exclude, *layer_collection_holdout,
@@ -1389,18 +1390,18 @@ static void outliner_draw_restrictbuts(ui::Block *block,
           const Object *ob = id_cast<Object *>(te.store_elem->id);
           if (OB_TYPE_IS_GEOMETRY(ob->type) && ob->type != OB_GREASE_PENCIL) {
             bt = uiDefIconButR_prop(block,
-                                  ui::ButtonType::IconToggle,
-                                  ICON_NONE,
-                                  int(region->v2d.cur.xmax - restrict_offsets.indirect_only),
-                                  te.ys,
-                                  UI_UNIT_X,
-                                  UI_UNIT_Y,
-                                  &ptr,
-                                  props.object_indirect_only,
-                                  -1,
-                                  0,
-                                  0,
-                                  std::nullopt);
+                                    ui::ButtonType::IconToggle,
+                                    ICON_NONE,
+                                    int(region->v2d.cur.xmax - restrict_offsets.indirect_only),
+                                    te.ys,
+                                    UI_UNIT_X,
+                                    UI_UNIT_Y,
+                                    &ptr,
+                                    props.object_indirect_only,
+                                    -1,
+                                    0,
+                                    0,
+                                    std::nullopt);
           }
         }
       }
