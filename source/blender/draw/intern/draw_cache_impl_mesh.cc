@@ -1078,11 +1078,11 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   /* Sanity check. */
-  if ((ob.type == OB_MESH) && (mesh.runtime->edit_mesh != nullptr) && (ob.mode & OB_MODE_EDIT)) {
+  if ((mesh.runtime->edit_mesh != nullptr) && (ob.mode & OB_MODE_EDIT)) {
     BLI_assert(BKE_object_get_editmesh_eval_final(&ob) != nullptr);
   }
 
-  const bool is_editmode = (ob.type == OB_MESH) && ob.mode == OB_MODE_EDIT;
+  const bool is_editmode = ob.mode == OB_MODE_EDIT;
 
   DRWBatchFlag batch_requested = cache.batch_requested;
   cache.batch_requested = DRWBatchFlag(0);
@@ -1107,9 +1107,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache.cd_needed.orco != 0) {
       /* Orco is always extracted from final mesh. */
-      const Mesh *me_final = ((ob.type == OB_MESH) && mesh.runtime->edit_mesh) ?
-                                 BKE_object_get_editmesh_eval_final(&ob) :
-                                 &mesh;
+      const Mesh *me_final = (mesh.runtime->edit_mesh) ? BKE_object_get_editmesh_eval_final(&ob) :
+                                                         &mesh;
       if (CustomData_get_layer(&me_final->vert_data, CD_ORCO) == nullptr) {
         /* Skip orco calculation */
         cache.cd_needed.orco = 0;
@@ -1207,10 +1206,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
    * Normal updates should be part of the brush loop and only run during the stroke when the
    * brush needs to sample the surface. The drawing code should only update the normals
    * per redraw when smooth shading is enabled. */
-  if (ob.type == OB_MESH) {
-    if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob)) {
-      bke::pbvh::update_normals_from_eval(ob, *pbvh);
-    }
+  if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob)) {
+    bke::pbvh::update_normals_from_eval(ob, *pbvh);
   }
 
   /* This is the mesh before modifier evaluation, used to test how the mesh changed during
