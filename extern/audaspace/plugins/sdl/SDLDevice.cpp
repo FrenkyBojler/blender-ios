@@ -57,6 +57,8 @@ SDLDevice::SDLDevice(DeviceSpecs specs, int buffersize) :
 	m_playback(false),
 	m_stream(nullptr)
 {
+	SDL_InitSubSystem(SDL_INIT_AUDIO);
+
 	if(specs.channels == CHANNELS_INVALID)
 		specs.channels = CHANNELS_STEREO;
 	if(specs.format == FORMAT_INVALID)
@@ -105,6 +107,7 @@ SDLDevice::~SDLDevice()
 		SDL_PauseAudioStreamDevice(m_stream);
 		SDL_DestroyAudioStream(m_stream);
 	}
+	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 
 	destroy();
 }
