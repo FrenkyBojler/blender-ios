@@ -1840,7 +1840,7 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
   }
   for (const Mesh *mesh : src_meshes) {
     for (const bDeformGroup &src : mesh->vertex_group_names) {
-      if (existing_names.contains(src.name)) {
+      if (!existing_names.add(src.name)) {
         continue;
       }
       copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, src);
@@ -1850,8 +1850,11 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
 
 static int get_mapped_material_index(const MeshRealizeInfo &info, const int index)
 {
+  if (info.mesh->totcol == 0) {
+    return info.material_index_map.first();
+  }
   const bool valid = IndexRange(info.mesh->totcol).contains(index);
-  return valid ? info.material_index_map[index] : 0;
+  return valid ? info.material_index_map[index] : info.material_index_map.first();
 }
 
 /**
@@ -2418,7 +2421,7 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
   }
   for (const Curves *src_curve : src_curves) {
     for (const bDeformGroup &src : src_curve->geometry.vertex_group_names) {
-      if (existing_names.contains(src.name)) {
+      if (!existing_names.add(src.name)) {
         continue;
       }
       copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, src);

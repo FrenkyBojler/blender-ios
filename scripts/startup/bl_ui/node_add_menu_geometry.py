@@ -20,6 +20,7 @@ class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeBlurAttribute")
         self.node_operator(layout, "GeometryNodeCaptureAttribute")
         self.node_operator(layout, "GeometryNodeRemoveAttribute")
+        self.node_operator(layout, "GeometryNodeRenameAttribute")
         self.node_operator(layout, "GeometryNodeStoreNamedAttribute", search_weight=1.0)
 
         self.draw_assets_for_catalog(layout, self.bl_label)
@@ -850,7 +851,12 @@ class NODE_MT_gn_utilities_math_base(node_add_menu.NodeMenu):
             context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0,
         )
         self.node_operator_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
-        self.node_operator_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
+        self.node_operator_with_searchable_enum(
+            context,
+            layout,
+            "FunctionNodeIntegerMath",
+            "operation",
+            defaults_callback=node_add_menu.set_int_math_node_default_props)
         self.node_operator(layout, "ShaderNodeClamp")
         self.node_operator(layout, "FunctionNodeCompare")
         self.node_operator(layout, "ShaderNodeFloatCurve")
@@ -901,7 +907,12 @@ class NODE_MT_gn_utilities_vector_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
+        self.node_operator_with_searchable_enum(
+            context,
+            layout,
+            "ShaderNodeVectorMath",
+            "operation",
+            defaults_callback=node_add_menu.set_vector_math_node_defaults)
         self.node_operator(layout, "ShaderNodeVectorRotate")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

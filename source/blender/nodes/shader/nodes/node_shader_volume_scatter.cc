@@ -96,7 +96,7 @@ static int node_shader_gpu_volume_scatter(GPUMaterial *mat,
                                           GPUNodeStack *in,
                                           GPUNodeStack *out)
 {
-  if (node_socket_not_zero(in[SOCK_DENSITY_ID]) && node_socket_not_black(in[SOCK_COLOR_ID])) {
+  if (in[SOCK_DENSITY_ID].socket_not_zero() && in[SOCK_COLOR_ID].socket_not_black()) {
     /* Consider there is absorption phenomenon when there is scattering since
      * `extinction = scattering + absorption`. */
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_SCATTER | GPU_MATFLAG_VOLUME_ABSORPTION);
@@ -116,7 +116,7 @@ void register_node_type_sh_volume_scatter()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeVolumeScatter", SH_NODE_VOLUME_SCATTER);
+  sh_node_type_base(&ntype, "ShaderNodeVolumeScatter"_ustr, SH_NODE_VOLUME_SCATTER);
   ntype.ui_name = "Volume Scatter";
   ntype.ui_description =
       "Scatter light as it passes through the volume, often used to add fog to a scene";

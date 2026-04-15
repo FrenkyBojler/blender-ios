@@ -24,7 +24,7 @@ static int node_shader_gpu_volume_absorption(GPUMaterial *mat,
                                              GPUNodeStack *in,
                                              GPUNodeStack *out)
 {
-  if (node_socket_not_zero(in[SOCK_DENSITY_ID]) && node_socket_not_white(in[SOCK_COLOR_ID])) {
+  if (in[SOCK_DENSITY_ID].socket_not_zero() && in[SOCK_COLOR_ID].socket_not_white()) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_ABSORPTION);
   }
   return GPU_stack_link(mat, node, "node_volume_absorption", in, out);
@@ -42,7 +42,7 @@ void register_node_type_sh_volume_absorption()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeVolumeAbsorption", SH_NODE_VOLUME_ABSORPTION);
+  sh_node_type_base(&ntype, "ShaderNodeVolumeAbsorption"_ustr, SH_NODE_VOLUME_ABSORPTION);
   ntype.ui_name = "Volume Absorption";
   ntype.ui_description = "Absorb light as it passes through the volume";
   ntype.enum_name_legacy = "VOLUME_ABSORPTION";

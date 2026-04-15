@@ -66,6 +66,12 @@ void ED_space_image_set(Main *bmain, SpaceImage *sima, Image *ima, bool automati
 
   id_us_ensure_real(id_cast<ID *>(sima->image));
 
+  if (ima) {
+    sima->xof = ima->runtime->view_offset[0];
+    sima->yof = ima->runtime->view_offset[1];
+    sima->zoom = ima->runtime->view_zoom;
+  }
+
   WM_main_add_notifier(NC_SPACE | ND_SPACE_IMAGE, nullptr);
 }
 
@@ -178,7 +184,7 @@ ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima,
         return ibuf;
       }
 
-      if (ibuf->byte_buffer.data || ibuf->float_buffer.data || ibuf->gpu.texture) {
+      if (ibuf->byte_data() || ibuf->float_data() || ibuf->gpu.texture) {
         return ibuf;
       }
       BKE_image_release_ibuf(sima->image, ibuf, *r_lock);

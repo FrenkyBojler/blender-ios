@@ -75,7 +75,6 @@ class EditSelectionFieldInput final : public bke::GeometryFieldInput {
   EditSelectionFieldInput(bke::AttrType data_type)
       : bke::GeometryFieldInput(bke::attribute_type_to_cpp_type(data_type), "Edit Selection")
   {
-    category_ = Category::NamedAttribute;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -104,7 +103,6 @@ class SculptSelectionFieldInput final : public bke::GeometryFieldInput {
   SculptSelectionFieldInput(bke::AttrType data_type)
       : bke::GeometryFieldInput(bke::attribute_type_to_cpp_type(data_type), "Sculpt Selection")
   {
-    category_ = Category::NamedAttribute;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -155,20 +153,20 @@ static GField get_selection_field(const eObjectMode object_mode, const bke::Attr
 {
   switch (object_mode) {
     case OB_MODE_OBJECT:
-      return fn::make_constant_field(bke::attribute_type_to_cpp_type(data_type),
-                                     true_value(data_type));
+      return fn::GField::from_non_owning_constant(bke::attribute_type_to_cpp_type(data_type),
+                                                  true_value(data_type));
     case OB_MODE_EDIT:
-      return GField(std::make_shared<EditSelectionFieldInput>(data_type));
+      return GField::from_input<EditSelectionFieldInput>(data_type);
     case OB_MODE_SCULPT:
     case OB_MODE_SCULPT_CURVES:
     case OB_MODE_SCULPT_GREASE_PENCIL:
-      return GField(std::make_shared<SculptSelectionFieldInput>(data_type));
+      return GField::from_input<SculptSelectionFieldInput>(data_type);
     case OB_MODE_PAINT_GREASE_PENCIL:
-      return fn::make_constant_field(bke::attribute_type_to_cpp_type(data_type),
-                                     true_value(data_type));
+      return fn::GField::from_non_owning_constant(bke::attribute_type_to_cpp_type(data_type),
+                                                  true_value(data_type));
     default:
-      return fn::make_constant_field(bke::attribute_type_to_cpp_type(data_type),
-                                     false_value(data_type));
+      return fn::GField::from_non_owning_constant(bke::attribute_type_to_cpp_type(data_type),
+                                                  false_value(data_type));
   }
 }
 
@@ -185,7 +183,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeToolSelection", GEO_NODE_TOOL_SELECTION);
+  geo_node_type_base(&ntype, "GeometryNodeToolSelection"_ustr, GEO_NODE_TOOL_SELECTION);
   ntype.ui_name = "Selection";
   ntype.ui_description = "User selection of the edited geometry, for tool execution";
   ntype.enum_name_legacy = "TOOL_SELECTION";

@@ -125,10 +125,10 @@ static int node_shader_gpu_volume_coefficients(GPUMaterial *mat,
                                                GPUNodeStack *in,
                                                GPUNodeStack *out)
 {
-  if (node_socket_not_black(in[SOCK_SCATTER_COEFFICIENTS_ID])) {
+  if (in[SOCK_SCATTER_COEFFICIENTS_ID].socket_not_black()) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_SCATTER | GPU_MATFLAG_VOLUME_ABSORPTION);
   }
-  if (node_socket_not_black(in[SOCK_ABSORPTION_COEFFICIENTS_ID])) {
+  if (in[SOCK_ABSORPTION_COEFFICIENTS_ID].socket_not_black()) {
     GPU_material_flag_set(mat, GPU_MATFLAG_VOLUME_ABSORPTION);
   }
   return GPU_stack_link(mat, node, "node_volume_coefficients", in, out);
@@ -153,7 +153,7 @@ void register_node_type_sh_volume_coefficients()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeVolumeCoefficients", SH_NODE_VOLUME_COEFFICIENTS);
+  sh_node_type_base(&ntype, "ShaderNodeVolumeCoefficients"_ustr, SH_NODE_VOLUME_COEFFICIENTS);
   ntype.ui_name = "Volume Coefficients";
   ntype.ui_description =
       "Model all three physical processes in a volume, represented by their coefficients";

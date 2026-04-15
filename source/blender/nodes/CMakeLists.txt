@@ -71,6 +71,8 @@ set(INC_SYS
 
 set(SRC
   intern/compositor_gizmos.cc
+  intern/compositor_nodes_caller_ui.cc
+  intern/compositor_nodes_srna.cc
   intern/dependencies.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
@@ -83,10 +85,12 @@ set(SRC
   intern/geometry_nodes_list.cc
   intern/geometry_nodes_log.cc
   intern/geometry_nodes_repeat_zone.cc
+  intern/geometry_nodes_srna.cc
   intern/geometry_nodes_warning.cc
   intern/inverse_eval.cc
   intern/list_function_eval.cc
   intern/math_functions.cc
+  intern/node_caller_ui.cc
   intern/node_common.cc
   intern/node_declaration.cc
   intern/node_exec.cc
@@ -108,9 +112,12 @@ set(SRC
   intern/value_elem.cc
   intern/volume_grid_function_eval.cc
 
+  NOD_caller_ui.hh
   NOD_common.hh
   NOD_composite.hh
   NOD_compositor_gizmos.hh
+  NOD_compositor_nodes_caller_ui.hh
+  NOD_compositor_nodes_srna.hh
   NOD_defaults.hh
   NOD_dependencies.hh
   NOD_geometry.hh
@@ -130,6 +137,7 @@ set(SRC
   NOD_geometry_nodes_list.hh
   NOD_geometry_nodes_list_fwd.hh
   NOD_geometry_nodes_log.hh
+  NOD_geometry_nodes_srna.hh
   NOD_geometry_nodes_values.hh
   NOD_geometry_nodes_warning.hh
   NOD_inverse_eval_params.hh
@@ -142,6 +150,7 @@ set(SRC
   NOD_node_declaration.hh
   NOD_node_extra_info.hh
   NOD_node_in_compute_context.hh
+  NOD_nodes_srna.hh
   NOD_partial_eval.hh
   NOD_register.hh
   NOD_rna_define.hh
@@ -190,6 +199,7 @@ set(LIB
   bf_nodes_texture
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
   PRIVATE bf::intern::clog
   PRIVATE bf::dependencies::optional::gmp

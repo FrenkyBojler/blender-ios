@@ -99,8 +99,8 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
-  intern/gpu_texture_pool.cc
   intern/gpu_texture_mipmap.cc
+  intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -821,8 +821,8 @@ set(GLSL_INC
   intern
   shaders
   shaders/common
-  shaders/material
   shaders/infos
+  shaders/material
 
   vulkan/shaders
 )
@@ -851,6 +851,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")

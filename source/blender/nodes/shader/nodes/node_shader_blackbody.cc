@@ -6,7 +6,7 @@
 #include "NOD_multi_function.hh"
 #include "node_shader_util.hh"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "IMB_colormanagement.hh"
 
 namespace blender {
@@ -72,7 +72,7 @@ void register_node_type_sh_blackbody()
 
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "ShaderNodeBlackbody", SH_NODE_BLACKBODY);
+  common_node_type_base(&ntype, "ShaderNodeBlackbody"_ustr, SH_NODE_BLACKBODY);
   ntype.ui_name = "Blackbody";
   ntype.ui_description = "Convert a blackbody temperature to an RGB value";
   ntype.enum_name_legacy = "BLACKBODY";
