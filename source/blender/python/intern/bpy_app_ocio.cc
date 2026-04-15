@@ -58,7 +58,6 @@ static PyObject *make_ocio_info()
     return nullptr;
   }
 
-#undef SetStrItem
 #undef SetObjItem
 
   return ocio_info;
