@@ -38,6 +38,7 @@
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
+#include "buttons/interface_label.hh"
 #include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
@@ -2676,7 +2677,7 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
                                        Button *but,
                                        rcti *rect)
 {
-  /* Draw text. */
+  /* Draw multiline text. */
   ButtonLabel *multiline_button = static_cast<ButtonLabel *>(but);
 
   const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET) / but->block->aspect;
@@ -2684,6 +2685,7 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
 
   FontStyleDrawParams params{};
   params.align = multiline_button->text_align;
+  params.word_clip = false;
 
   float ymax = rect->ymax - padding;
   rcti line_rect = *rect;
@@ -2696,9 +2698,11 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
     line_rect.ymax = ymax;
     ymax -= line_height;
     line_rect.ymin = ymax;
+    /* Break when there is not more space to draw. */
     if (line_rect.ymax < sccisors_ymin) {
       break;
     }
+    /* Skip the line if the line is not in visible bounds. */
     if (line_rect.ymin > sccisors_ymax) {
       continue;
     }

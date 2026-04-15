@@ -392,13 +392,6 @@ struct ButtonPush : public Button {
   bool draw_as_link = false;
 };
 
-struct TextWrapCache {
-  int wrap_width = 0;
-  float aspect = 0.0f;
-  std::string text;
-  Vector<StringRef> wrapped_lines;
-};
-
 /** Derived struct for #ButtonType::Num */
 struct ButtonNumber : public Button {
   float step_size = 0.0f;
@@ -1649,8 +1642,6 @@ Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
 bool button_opens_link(const Button *button);
 std::string button_get_link(const Button *button, bContext *C);
 bool button_draw_as_link(const Button *button);
-
-bool button_label_is_multiline(const Button *button);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;

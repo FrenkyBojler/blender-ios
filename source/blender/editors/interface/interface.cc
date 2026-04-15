@@ -74,6 +74,7 @@
 
 #include "CLG_log.h"
 
+#include "buttons/interface_label.hh"
 #include "interface_intern.hh"
 
 namespace blender::ui {
@@ -7107,18 +7108,6 @@ void update_text_styles()
   style->tooltip.character_weight = weight;
 }
 
-void invalidate_text_wrap_cache(const ARegion &region)
-{
-  for (Block &block : region.runtime->uiblocks) {
-    block.text_wrap_cache.clear();
-    for (Button &button : block.buttons()) {
-      if (button.type == ButtonType::Label) {
-        static_cast<ButtonLabel &>(button).wrap_cache.reset();
-      }
-    }
-  }
-}
-
 void exit()
 {
   resources_free();
@@ -7165,12 +7154,6 @@ std::string button_get_link(const Button *button, bContext *C)
 #else
   return "";
 #endif
-}
-
-bool button_label_is_multiline(const Button *button)
-{
-  return button->type == ButtonType::Label &&
-         static_cast<const ButtonLabel *>(button)->is_multiline;
 }
 
 }  // namespace blender::ui
