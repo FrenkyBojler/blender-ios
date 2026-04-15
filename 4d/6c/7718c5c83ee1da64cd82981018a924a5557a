@@ -1,1 +1,2 @@
 Referenced by issue #156290, Adaptive subdivision breaks link between geometry nodes store named attributes and shader editor
+Referenced by issue #157384, Avoiding buffer allocation for single value attributes can break attribute retrieval
