@@ -30,6 +30,11 @@ struct PointerRNA;
 struct PropertyRNA;
 struct StructRNA;
 struct wmOperatorType;
+struct TextboxState;
+
+namespace wm {
+enum class OpCallContext : int8_t;
+}
 
 /* Layout
  *
@@ -54,13 +59,6 @@ struct ItemInternal;
 struct LayoutInternal;
 struct Layout;
 struct LayoutRoot;
-}  // namespace ui
-
-namespace wm {
-enum class OpCallContext : int8_t;
-}
-
-namespace ui {
 
 struct PanelLayout {
   Layout *header;
@@ -384,7 +382,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
 
   /**
    * Add a new split sub-layout, items placed in this sub-layout are added horizontally next to
-   * each other in row, but width is splitted between the first item and remaining items.
+   * each other in row, but width is split between the first item and remaining items.
    * \param percentage: Width percent to split.
    */
   Layout &split(float percentage, bool align);
@@ -405,6 +403,11 @@ struct Layout : public Item, NonCopyable, NonMovable {
 
   /** Adds a label item that will display text and/or icon in the layout. */
   void label(StringRef name, int icon);
+
+  /**
+   * Adds link item, displays a url that can be clicked in the layout.
+   */
+  void link(StringRef url, StringRef name, int icon);
 
   /**
    * Adds a menu item, which is a button that when active will display a menu.
@@ -658,6 +661,17 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    std::optional<StringRefNull> placeholder = std::nullopt);
 
   /**
+   * Adds a string property item as textbox, this will let multiline text editing, textbox state
+   * will be persistent at runtime.
+   */
+  void textbox(const bContext *C, PointerRNA *ptr, StringRefNull propname);
+  /**
+   * Adds a string property item as textbox, this will let multiline text editing.
+   * \param textbox_state: custom allocation for persistent textbox state.
+   */
+  void textbox_with_state(PointerRNA *ptr, StringRefNull propname, TextboxState *textbox_state);
+
+  /**
    * Adds a RNA property item, and sets a custom popover to expose its value.
    */
   void prop_with_popover(PointerRNA *ptr,
@@ -669,6 +683,15 @@ struct Layout : public Item, NonCopyable, NonMovable {
                          int icon,
                          const char *panel_type);
 
+  /**
+   * Adds a RNA property item, and sets a custom menu to expose its value.
+   */
+  void prop_with_menu(PointerRNA *ptr,
+                      blender::StringRefNull propname,
+                      eUI_Item_Flag flag,
+                      std::optional<blender::StringRefNull> name,
+                      int icon,
+                      const char *menu_type);
   /**
    * Adds a RNA property item, and sets a custom menu to expose its value.
    */

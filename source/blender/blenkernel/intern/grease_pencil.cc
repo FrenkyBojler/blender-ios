@@ -291,7 +291,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   ResourceScope scope;
 
   Vector<CustomDataLayer, 16> layers_data_layers;
-  bke::AttributeStorage::BlendWriteData attribute_data{scope};
+  bke::AttributeStorage::BlendWriteData attribute_data{writer, scope};
   attribute_storage_blend_write_prepare(
       grease_pencil->attribute_storage.wrap(),
       !BLO_write_is_undo(writer),
@@ -299,6 +299,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
       attribute_data);
   grease_pencil->attribute_storage.dna_attributes = attribute_data.attributes.data();
   grease_pencil->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+  BLO_write_generated_pointer_tag(writer, grease_pencil->attribute_storage.dna_attributes);
 
   CustomData_reset(&grease_pencil->layers_data_legacy);
 
@@ -314,8 +315,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   write_layer_tree(*grease_pencil, writer);
 
   /* Write materials. */
-  BLO_write_pointer_array(
-      writer, grease_pencil->material_array_num, grease_pencil->material_array);
+  writer->write_pointer_array(grease_pencil->material_array_num, grease_pencil->material_array);
   /* Write vertex group names. */
   BKE_defbase_blend_write(writer, &grease_pencil->vertex_group_names);
 }
@@ -522,17 +522,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           int *fill_points_by_curve_data = static_cast<int(*)>(BLI_memarena_alloc(
               pf_arena, sizeof(*fill_points_by_curve_data) * size_t(fill.size() + 1)));
-          const MutableSpan<int> fill_points_by_curve_data_span = MutableSpan(
-              fill_points_by_curve_data, fill.size() + 1);
-
-          fill.foreach_index(
-              [&](const int64_t curve_i, const int64_t pos) {
-                fill_points_by_curve_data[pos] = points_by_curve[curve_i].size();
-              },
-              exec_mode::grain_size(256));
-
-          OffsetIndices<int> fill_points_by_curve = offset_indices::accumulate_counts_to_offsets(
-              fill_points_by_curve_data_span);
+          const OffsetIndices<int> fill_points_by_curve = offset_indices::gather_selected_offsets(
+              points_by_curve, fill, MutableSpan(fill_points_by_curve_data, fill.size() + 1));
 
           fill.foreach_index(
               [&](const int64_t curve_i, const int64_t pos) {
@@ -4611,7 +4602,7 @@ static void write_drawing_array(GreasePencil &grease_pencil,
                                 ResourceScope &scope,
                                 BlendWriter *writer)
 {
-  BLO_write_pointer_array(writer, grease_pencil.drawing_array_num, grease_pencil.drawing_array);
+  writer->write_pointer_array(grease_pencil.drawing_array_num, grease_pencil.drawing_array);
   for (int i = 0; i < grease_pencil.drawing_array_num; i++) {
     GreasePencilDrawingBase *drawing_base = grease_pencil.drawing_array[i];
     switch (GreasePencilDrawingType(drawing_base->type)) {
@@ -4620,12 +4611,9 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         drawing_copy = *reinterpret_cast<GreasePencilDrawing *>(drawing_base);
         bke::CurvesGeometry &curves = drawing_copy.geometry.wrap();
 
-        bke::CurvesGeometry::BlendWriteData write_data(scope);
+        bke::CurvesGeometry::BlendWriteData write_data(writer, scope);
         curves.blend_write_prepare(write_data, !BLO_write_is_undo(writer));
         drawing_copy.runtime = nullptr;
-
-        BLO_write_shared_tag(writer, curves.curve_offsets);
-        BLO_write_shared_tag(writer, curves.custom_knots);
 
         writer->write_struct_at_address_cast<GreasePencilDrawing>(drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);
@@ -4727,23 +4715,23 @@ static void read_layer_tree(GreasePencil &grease_pencil, BlendDataReader *reader
 static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
 {
   writer->write_struct(node);
-  BLO_write_string(writer, node->base.name);
-  BLO_write_string(writer, node->parsubstr);
-  BLO_write_string(writer, node->viewlayername);
+  writer->write_string(node->base.name);
+  writer->write_string(node->parsubstr);
+  writer->write_string(node->viewlayername);
 
-  BLO_write_int32_array(writer, node->frames_storage.num, node->frames_storage.keys);
+  writer->write_int32_array(node->frames_storage.num, node->frames_storage.keys);
   writer->write_struct_array(node->frames_storage.num, node->frames_storage.values);
 
   writer->write_struct_list(&node->masks);
   for (GreasePencilLayerMask &mask : node->masks) {
-    BLO_write_string(writer, mask.layer_name);
+    writer->write_string(mask.layer_name);
   }
 }
 
 static void write_layer_tree_group(BlendWriter *writer, GreasePencilLayerTreeGroup *node)
 {
   writer->write_struct(node);
-  BLO_write_string(writer, node->base.name);
+  writer->write_string(node->base.name);
   for (GreasePencilLayerTreeNode &child : node->children) {
     switch (child.type) {
       case GP_LAYER_TREE_LEAF: {

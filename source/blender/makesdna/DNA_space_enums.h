@@ -799,6 +799,7 @@ enum {
   /** All gizmos. */
   SI_GIZMO_HIDE = (1 << 0),
   SI_GIZMO_HIDE_NAVIGATE = (1 << 1),
+  SI_GIZMO_HIDE_ACTIVE_NODE = (1 << 2),
 };
 
 /** Keep in sync with `STEPS_LEN` in `grid_frag.glsl`. */
@@ -847,6 +848,7 @@ enum eSpaceNodeOverlay_Flag {
    * of connected reroute nodes.
    */
   SN_OVERLAY_SHOW_REROUTE_AUTO_LABELS = (1 << 7),
+  SN_OVERLAY_SHOW_RENDER_REGION = (1 << 8),
 };
 
 enum eSpaceNodeOverlay_preview_shape {

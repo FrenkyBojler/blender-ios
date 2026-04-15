@@ -1158,7 +1158,8 @@ void Slot::identifier_ensure_prefix()
 Action &action_add(Main &bmain, const StringRefNull name)
 {
   bAction *dna_action = BKE_action_add(&bmain, name.c_str());
-  id_us_clear_real(&dna_action->id);
+  BLI_assert(dna_action->id.us == 1);
+  id_us_min(&dna_action->id);
   return dna_action->wrap();
 }
 
@@ -1925,6 +1926,28 @@ Vector<FCurve *> Channelbag::fcurve_create_many(Main *bmain,
     DEG_relations_tag_update(bmain);
   }
   return new_fcurves;
+}
+
+FCurve &Channelbag::fcurve_clone(const FCurve &old_fcurve,
+                                 const StringRefNull new_path,
+                                 const int new_array_index,
+                                 const StringRef new_group_name)
+{
+  FCurve *new_fcurve = this->fcurve_find({new_path, new_array_index});
+  if (new_fcurve) {
+    MEM_delete(new_fcurve->bezt);
+    new_fcurve->bezt = MEM_dupalloc(old_fcurve.bezt);
+  }
+  else {
+    new_fcurve = BKE_fcurve_copy(&old_fcurve);
+    MEM_delete(new_fcurve->rna_path);
+    new_fcurve->rna_path = BLI_strdup(new_path.data());
+    new_fcurve->array_index = new_array_index;
+    this->fcurve_append(*new_fcurve);
+  }
+  bActionGroup &agrp = this->channel_group_ensure(new_group_name.data());
+  this->fcurve_assign_to_channel_group(*new_fcurve, agrp);
+  return *new_fcurve;
 }
 
 void Channelbag::fcurve_append(FCurve &fcurve)
