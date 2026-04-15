@@ -1576,7 +1576,7 @@ static void ANIM_OT_replace_action_new(wmOperatorType *ot)
 /** \name Convert
  * \{ */
 
-static Vector<animrig::Transformable> get_transformables_for_rotation_conversion(bContext *C)
+static Vector<animrig::Transformable> selected_transformables_from_context(bContext *C)
 {
   Vector<animrig::Transformable> transformables;
   Vector<PointerRNA> pointers;
@@ -1603,7 +1603,7 @@ static Vector<animrig::Transformable> get_transformables_for_rotation_conversion
   return transformables;
 }
 
-static wmOperatorStatus rotation_mode_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 {
   const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
   const bool bake = RNA_boolean_get(op->ptr, "bake");
@@ -1612,7 +1612,7 @@ static wmOperatorStatus rotation_mode_set_exec(bContext *C, wmOperator *op)
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
   Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
 
-  for (animrig::Transformable &transformable : get_transformables_for_rotation_conversion(C)) {
+  for (animrig::Transformable &transformable : selected_transformables_from_context(C)) {
     if (transformable.get_rotation_mode() == mode) {
       continue;
     }
@@ -1640,6 +1640,9 @@ static wmOperatorStatus rotation_mode_set_exec(bContext *C, wmOperator *op)
       transformable.set_rotation_mode(mode);
       transformable.set_rotation(current_rotation.converted_to_mode(mode));
     }
+    else {
+      transformable.set_rotation_mode(mode);
+    }
 
     if (prev_id != owner_id) {
       /* Notifiers and updates. */
@@ -1656,29 +1659,34 @@ static wmOperatorStatus rotation_mode_set_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool rotation_mode_set_poll(bContext *C)
+static bool rotation_mode_convert_poll(bContext *C)
 {
-  return get_transformables_for_rotation_conversion(C).size() > 0;
+  switch (CTX_data_mode_enum(C)) {
+    case CTX_MODE_OBJECT:
+      return true;
+    case CTX_MODE_POSE:
+      return true;
+
+    default:
+      break;
+  }
+  return false;
 }
 
-static void ANIM_OT_rotation_mode_set(wmOperatorType *ot)
+static void ANIM_OT_rotation_mode_convert(wmOperatorType *ot)
 {
-  /* identifiers */
-  ot->name = "Set Rotation Mode";
-  ot->idname = "ANIM_OT_rotation_mode_set";
+  ot->name = "Convert Rotation Mode";
+  ot->idname = "ANIM_OT_rotation_mode_convert";
   ot->description =
-      "Set the rotation mode used by the selection. Converts any animation on rotation to that "
-      "new mode";
+      "On all selected, change the rotation mode and convert any existing animation into that new "
+      "mode";
 
-  /* callbacks */
   ot->invoke = WM_menu_invoke;
-  ot->exec = rotation_mode_set_exec;
-  ot->poll = rotation_mode_set_poll;
+  ot->exec = rotation_mode_convert_exec;
+  ot->poll = rotation_mode_convert_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* properties */
   ot->prop = RNA_def_enum(ot->srna,
                           "mode",
                           rna_enum_object_rotation_mode_items,
@@ -1748,7 +1756,7 @@ void ED_operatortypes_anim()
   WM_operatortype_append(ANIM_OT_replace_action);
   WM_operatortype_append(ANIM_OT_replace_action_new);
 
-  WM_operatortype_append(ANIM_OT_rotation_mode_set);
+  WM_operatortype_append(ANIM_OT_rotation_mode_convert);
 
   WM_operatortype_append(ed::animrig::POSELIB_OT_create_pose_asset);
   WM_operatortype_append(ed::animrig::POSELIB_OT_asset_modify);

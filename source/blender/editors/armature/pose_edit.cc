@@ -622,7 +622,7 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 /* ********************************************** */
 
-static wmOperatorStatus rotation_mode_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 {
   const short mode = RNA_enum_get(op->ptr, "type");
   const bool bake = RNA_boolean_get(op->ptr, "bake");
@@ -687,7 +687,7 @@ void POSE_OT_rotation_mode_set(wmOperatorType *ot)
 
   /* callbacks */
   ot->invoke = WM_menu_invoke;
-  ot->exec = rotation_mode_set_exec;
+  ot->exec = rotation_mode_convert_exec;
   ot->poll = ED_operator_posemode;
 
   /* flags */
