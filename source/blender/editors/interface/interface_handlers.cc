@@ -5273,7 +5273,6 @@ static int do_but_TEXTBOX(bContext *C,
     case BUTTON_STATE_TEXT_EDITING:
     case BUTTON_STATE_HIGHLIGHT: {
       if ELEM (event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) {
-        const int prev_scroll = textbox->line_scroll();
         textbox_add_scroll(textbox, (event->type == WHEELUPMOUSE ? -1 : 1));
         ED_region_tag_redraw(data->region);
         return WM_UI_HANDLER_BREAK;
