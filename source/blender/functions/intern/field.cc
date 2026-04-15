@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <ranges>
-
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 
@@ -147,26 +145,22 @@ uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
     return *cached;
   }
 
+  /* With a post-order DFS traversal, push each node twice. On the first pop (not yet in
+   * `visited`), push a field's children. On the second pop (already in `visited`), all children
+   * will be in `cache`, so compute and store the hash. Checking the cache for a hash avoids
+   * duplicate work when the same sub-field is reached via multiple paths (e.g. diamond-shaped
+   * graphs). */
+  Set<GFieldRef, 8> visited;
   Stack<GFieldRef, 16> stack;
-  VectorSet<GFieldRef, 8> visited;
   stack.push(field);
   while (!stack.is_empty()) {
     GFieldRef current = stack.pop();
-    if (visited.contains(current)) {
+    if (cache.contains(current)) {
       continue;
     }
-    visited.add(current);
-    if (const auto *multi_fn = std::get_if<GFieldRef::MultiFn>(&current.variant())) {
-      for (const GField &input : multi_fn->node->inputs()) {
-        stack.push(input);
-      }
-    }
-  }
-
-  for (const GFieldRef &current : visited | std::views::reverse) {
-    cache.lookup_or_add_cb(current, [&]() {
-      return std::visit(
-          [&]<typename T>(const T &v) {
+    if (visited.contains(current)) {
+      const uint64_t hash = std::visit(
+          [&]<typename T>(const T &v) -> uint64_t {
             if constexpr (std::is_same_v<T, GFieldRef::Value>) {
               return v.type->hash_or_fallback(v.value, uint64_t(v.type));
             }
@@ -174,11 +168,24 @@ uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
               return v.node->hash();
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-              return get_default_hash(v.node->multi_function().hash(), v.output_i);
+              uint64_t hash = get_default_hash(v.node->multi_function().hash(), v.output_i);
+              for (const GField &input_field : v.node->inputs()) {
+                hash = get_default_hash(hash, cache.lookup(input_field));
+              }
+              return hash;
             }
           },
           current.variant());
-    });
+      cache.add_new(current, hash);
+      continue;
+    }
+    visited.add(current);
+    stack.push(current);
+    if (const auto *multi_fn = std::get_if<GFieldRef::MultiFn>(&current.variant())) {
+      for (const GField &input : multi_fn->node->inputs()) {
+        stack.push(input);
+      }
+    }
   }
 
   return cache.lookup(field);
