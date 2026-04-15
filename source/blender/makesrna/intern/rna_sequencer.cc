@@ -159,6 +159,7 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "BKE_anim_data.hh"
 #  include "BKE_context.hh"
 #  include "BKE_global.hh"
+#  include "BKE_node_runtime.hh"
 #  include "BKE_report.hh"
 
 #  include "WM_api.hh"
@@ -169,6 +170,8 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "IMB_imbuf.hh"
 
 #  include "MOV_read.hh"
+
+#  include "NOD_nodes_srna.hh"
 
 #  include "ED_sequencer.hh"
 
@@ -908,8 +911,16 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
 #  endif
   adt = BKE_animdata_from_id(&scene->id);
   if (adt) {
-    BKE_animdata_fix_paths_rename(
-        &scene->id, adt, nullptr, "sequence_editor.strips_all", oldname, strip->name + 2, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&scene->id,
+                                  adt,
+                                  nullptr,
+                                  "sequence_editor.strips_all",
+                                  oldname,
+                                  strip->name + 2,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -1583,8 +1594,16 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
     BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
 
     SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
-    BKE_animdata_fix_paths_rename(
-        &scene->id, adt, nullptr, rna_path_prefix, oldname, smd->name, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&scene->id,
+                                  adt,
+                                  nullptr,
+                                  rna_path_prefix,
+                                  oldname,
+                                  smd->name,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -1881,32 +1900,82 @@ static bool rna_Compositor_node_group_poll(PointerRNA * /*ptr*/, PointerRNA valu
   return true;
 }
 
-static void strip_compositor_node_group_update(Main *bmain, PointerRNA *ptr)
+static void rna_CompositorEffect_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
+  rna_Strip_invalidate_raw_update(bmain, scene, ptr);
+
   /* Tag depsgraph relations for an update since the strip could now be referencing a different
    * node tree. */
   DEG_relations_tag_update(bmain);
 
   /* Strips from other scenes could be modified, so use the scene of the strip as opposed to the
    * active scene argument. */
-  Scene *strip_scene = reinterpret_cast<Scene *>(ptr->owner_id);
-  Editing *ed = seq::editing_get(strip_scene);
+  Scene *sequencer_scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Editing *ed = seq::editing_get(sequencer_scene);
+  if (!ed) {
+    return;
+  }
 
   /* The sequencer stores a cached mapping between compositor node trees and strips that use them,
    * so we need to invalidate the cache since the node tree changed. */
   seq::strip_lookup_invalidate(ed);
 }
 
-static void rna_CompositorEffect_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-  rna_Strip_invalidate_raw_update(bmain, scene, ptr);
-  strip_compositor_node_group_update(bmain, ptr);
-}
-
 static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_StripModifier_update(bmain, scene, ptr);
-  strip_compositor_node_group_update(bmain, ptr);
+
+  /* Tag depsgraph relations for an update since the strip could now be referencing a different
+   * node tree. */
+  DEG_relations_tag_update(bmain);
+
+  /* Strips from other scenes could be modified, so use the scene of the strip as opposed to the
+   * active scene argument. */
+  Scene *sequencer_scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Editing *ed = seq::editing_get(sequencer_scene);
+  if (!ed) {
+    return;
+  }
+
+  /* The sequencer stores a cached mapping between compositor node trees and strips that use them,
+   * so we need to invalidate the cache since the node tree changed. */
+  seq::strip_lookup_invalidate(ed);
+
+  auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  seq::compositor_nodes_update_interface(*sequencer_scene, *cmd);
+}
+
+static StructRNA *rna_SequencerCompositorModifierProperties_refine(PointerRNA *ptr)
+{
+  auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  if (!cmd->node_group || ID_MISSING(cmd->node_group)) {
+    return RNA_SequencerCompositorModifierPropertiesEmpty;
+  }
+  BLI_assert(cmd->node_group->runtime->compositor_nodes_srna_data);
+  return cmd->node_group->runtime->compositor_nodes_srna_data->properties_struct;
+}
+
+static std::optional<std::string> rna_SequencerCompositorModifierProperties_path(
+    const PointerRNA *ptr)
+{
+  const auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  return fmt::format("modifiers[\"{}\"].properties", BLI_str_escape(cmd->modifier.name));
+}
+
+static IDProperty **rna_SequencerCompositorModifier_idprops(PointerRNA *ptr)
+{
+  auto *md = ptr->data_as<StripModifierData>();
+  return &md->system_properties;
+}
+
+static PointerRNA rna_SequencerCompositorModifierProperties_get(PointerRNA *ptr)
+{
+  auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
+  if (!cmd->node_group) {
+    return PointerRNA_NULL;
+  }
+  return RNA_pointer_create_discrete(
+      ptr->owner_id, RNA_SequencerCompositorModifierProperties, cmd);
 }
 
 }  // namespace blender
@@ -2490,7 +2559,6 @@ static void rna_def_strip(BlenderRNA *brna)
   /* Strip positioning. */
   /* Cache has to be invalidated before and after transformation. */
   prop = RNA_def_property(srna, "frame_final_duration", PROP_INT, PROP_TIME);
-  RNA_def_property_range(prop, 1, MAXFRAME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Length", "The length of the contents of this strip after the handles are applied");
@@ -2502,10 +2570,12 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_deprecated(prop, "Replaced by '.duration'.", 510, 600);
 
   prop = RNA_def_property(srna, "duration", PROP_INT, PROP_TIME);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Strip Duration", "Length of the strip in frames from left handle to right handle");
-  RNA_def_property_int_funcs(prop, "rna_Strip_duration_get", nullptr, nullptr);
+  RNA_def_property_int_funcs(
+      prop, "rna_Strip_duration_get", "rna_Strip_duration_set", "rna_Strip_duration_range");
+  RNA_def_property_editable_func(prop, "rna_Strip_time_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
@@ -2661,14 +2731,6 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, seq::MAX_CHANNELS);
   RNA_def_property_ui_text(prop, "Channel", "Vertical position of the strip");
   RNA_def_property_int_funcs(prop, nullptr, "rna_Strip_channel_set", nullptr); /* overlap test */
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
-
-  prop = RNA_def_property(srna, "use_linear_modifiers", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_USE_LINEAR_MODIFIERS);
-  RNA_def_property_ui_text(prop,
-                           "Use Linear Modifiers",
-                           "Calculate modifiers in linear space instead of sequencer's space");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
@@ -4333,14 +4395,34 @@ static void rna_def_tonemap_modifier(BlenderRNA *brna)
   rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
 }
 
+static void rna_def_compositor_modifier_nodes_properties(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SequencerCompositorModifierProperties", nullptr);
+  RNA_def_struct_ui_text(srna, "Sequencer Compositor Modifier Properties", "");
+  RNA_def_struct_refine_func(srna, "rna_SequencerCompositorModifierProperties_refine");
+  RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorModifier_idprops");
+  RNA_def_struct_path_func(srna, "rna_SequencerCompositorModifierProperties_path");
+
+  srna = RNA_def_struct(brna, "SequencerCompositorModifierPropertiesEmpty", nullptr);
+  RNA_def_struct_ui_text(srna, "Sequencer Compositor Modifier Empty Properties", "");
+  RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorModifier_idprops");
+  RNA_def_struct_path_func(srna, "rna_SequencerCompositorModifierProperties_path");
+}
+
 static void rna_def_compositor_modifier(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
+  rna_def_compositor_modifier_nodes_properties(brna);
+
   StructRNA *srna = RNA_def_struct(brna, "SequencerCompositorModifierData", "StripModifier");
   RNA_def_struct_sdna(srna, "SequencerCompositorModifierData");
   RNA_def_struct_ui_icon(srna, ICON_NODE_COMPOSITING);
   RNA_def_struct_ui_text(srna, "SequencerCompositorModifierData", "Compositor Modifier");
 
-  PropertyRNA *prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Node Group", "Node group that controls what this modifier does");
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_Compositor_node_group_poll");
@@ -4349,6 +4431,12 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
       prop, NC_SCENE | ND_SEQUENCER, "rna_CompositorModifier_node_group_update");
 
   rna_def_modifier_panel_open_prop(srna, "open_mask_input_panel", 1);
+
+  prop = RNA_def_property(srna, "properties", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "SequencerCompositorModifierProperties");
+  RNA_def_property_ui_text(prop, "Properties", "");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_SequencerCompositorModifierProperties_get", nullptr, nullptr, nullptr);
 }
 
 static void rna_def_modifiers(BlenderRNA *brna)

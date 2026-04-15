@@ -49,8 +49,12 @@ bool button_is_editable(const Button *but)
 
 bool button_is_editable_as_text(const Button *but)
 {
-  return ELEM(
-      but->type, ButtonType::Text, ButtonType::Num, ButtonType::NumSlider, ButtonType::SearchMenu);
+  return ELEM(but->type,
+              ButtonType::TextBox,
+              ButtonType::Text,
+              ButtonType::Num,
+              ButtonType::NumSlider,
+              ButtonType::SearchMenu);
 }
 
 bool button_is_toggle(const Button *but)
@@ -339,7 +343,12 @@ Button *button_find_mouse_over_ex(const ARegion *region,
   for (Block &block : region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
-
+    /* Skip when the mouse is hovering auto-scroll handlers. */
+    if ((block.flag & BLOCK_CLIPTOP && block.rect.ymax - UI_MENU_SCROLL_MOUSE < my) ||
+        (block.flag & BLOCK_CLIPBOTTOM && block.rect.ymin + UI_MENU_SCROLL_MOUSE > my))
+    {
+      continue;
+    }
     for (Button &but : block.buttons() | std::views::reverse) {
       if (find_poll && find_poll(&but, find_custom_data) == false) {
         continue;

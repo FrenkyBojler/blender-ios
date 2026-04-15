@@ -26,7 +26,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   endif()
 endif()
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 
 if(NOT EXECUTABLE_OUTPUT_PATH)
   set(FIRST_RUN TRUE)
@@ -57,51 +57,16 @@ endif()
 # -----------------------------------------------------------------------------
 # Set policy
 
-# see "cmake --help-policy CMP0003"
-# So library linking is more sane
-cmake_policy(SET CMP0003 NEW)
-
-# So BUILDINFO and BLENDERPATH strings are automatically quoted
-cmake_policy(SET CMP0005 NEW)
-
-# So syntax problems are errors
-cmake_policy(SET CMP0010 NEW)
-
-# Input directories must have CMakeLists.txt
-cmake_policy(SET CMP0014 NEW)
-
-# Silence draco warning on macOS, new policy works fine.
-if(POLICY CMP0068)
-  cmake_policy(SET CMP0068 NEW)
-endif()
-
-# find_package() uses <PackageName>_ROOT variables.
-if(POLICY CMP0074)
-  cmake_policy(SET CMP0074 NEW)
-endif()
 
 # find_package() uses uppercase <PackageName>_ROOT variables.
 if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-# Install CODE|SCRIPT allow the use of generator expressions.
-if(POLICY CMP0087)
-  cmake_policy(SET CMP0087 NEW)
-endif()
-
-# Allow to specify language per file.
-if(POLICY CMP0119)
-  cmake_policy(SET CMP0119 NEW)
-endif()
-
 # Install DESTINATION paths are normalized.
 if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW)
 endif()
-
-# The target_sources() command converts relative paths to absolute.
-cmake_policy(SET CMP0076 NEW)
 
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
@@ -211,12 +176,9 @@ if(WIN32)
   )
 endif()
 
-
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.19")
-  # This changes the default value from Off to On, but will still allow people to manually change
-  # this setting through their CMakeCache.txt if they desire to do so.
-  set(CMAKE_OPTIMIZE_DEPENDENCIES ON CACHE INTERNAL "")
-endif()
+# This changes the default value from Off to On, but will still allow people to manually change
+# this setting through their CMakeCache.txt if they desire to do so.
+set(CMAKE_OPTIMIZE_DEPENDENCIES ON CACHE INTERNAL "")
 
 # -----------------------------------------------------------------------------
 # Declare Options
@@ -287,7 +249,7 @@ mark_as_advanced(BUILDINFO_OVERRIDE_TIME)
 
 # CMAKE 3.28.2 has issues with the combination of PCH and unity builds, disable for now.
 # upstream ticket https://gitlab.kitware.com/cmake/cmake/-/issues/25650
-if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16" AND NOT ${CMAKE_VERSION} VERSION_EQUAL "3.28.2")
+if(NOT ${CMAKE_VERSION} VERSION_EQUAL "3.28.2")
   option(WITH_UNITY_BUILD "\
 Enable unity build for modules that support it to improve compile times.\n\
 WARNING: this option allows files to be built without all necessary headers!\n
@@ -956,16 +918,12 @@ mark_as_advanced(
   WITH_GPU_SHADER_ASSERT
 )
 
-if(POLICY CMP0119)
-  option(WITH_GPU_SHADER_CPP_COMPILATION "\
-  Compiler shaders using C++. \
-  Allows testing shader compilation offline and enable C++ IDE support for shader code"
-    ON
-  )
-  mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
-else()
-  set(WITH_GPU_SHADER_CPP_COMPILATION OFF)
-endif()
+option(WITH_GPU_SHADER_CPP_COMPILATION "\
+Compiler shaders using C++. \
+Allows testing shader compilation offline and enable C++ IDE support for shader code"
+  ON
+)
+mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
 
 
 # OpenGL
@@ -998,7 +956,7 @@ endif()
 
 if(WIN32)
   getDefaultWindowsPrefixBase(CMAKE_GENERIC_PROGRAM_FILES)
-  set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/${})
+  set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/)
 endif()
 
 option(WITH_STRSIZE_DEBUG "\
@@ -1112,7 +1070,7 @@ if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang")
     elseif(APPLE)
       # AppleClang doesn't support all sanitizers, but leak gives error.
       # Build type is not known for multi-config generator, so don't add object-size sanitizer.
-      if(CMAKE_BUILD_TYPE MATCHES "Debug" OR GENERATOR_IS_MULTI_CONFIG)
+      if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR GENERATOR_IS_MULTI_CONFIG)
         # Silence the warning that object-size is not effective in -O0.
         set(_asan_defaults "${_asan_defaults}")
       else()
@@ -1489,8 +1447,9 @@ set(CXX_WARNINGS "")
 # suppress warnings by modifying the code or for code which is maintained externally.
 # For GCC this typically means adding `-Wno-*` arguments to negate warnings
 # that are useful in the general case.
-set(C_REMOVE_STRICT_FLAGS "")
-set(CXX_REMOVE_STRICT_FLAGS "")
+set(C_REMOVE_STRICT_FLAGS "")    # C-only.
+set(CXX_REMOVE_STRICT_FLAGS "")  # C++-only.
+set(C_AND_CXX_REMOVE_STRICT_FLAGS "")   # Shared C & C++.
 
 # Libraries to link to targets in setup_platform_linker_libs
 set(PLATFORM_LINKLIBS "")
@@ -1515,7 +1474,7 @@ if(WITH_COMPILER_CODE_COVERAGE)
   endif()
 endif()
 
-if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
   if(WITH_COMPILER_ASAN)
     if(NOT APPLE)
       # Avoid passing address sanitizer compiler flags to `try_compile`.
@@ -1593,10 +1552,10 @@ endif()
 # Add the default compiler SIMD flags if enabled
 #
 if(WITH_COMPILER_SIMD)
-  set(COMPILER_SSE42_FLAG "")
-  get_sse_flags(COMPILER_SSE42_FLAG)
-  string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
-  string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
+  set(COMPILER_SIMD_FLAGS "")
+  get_compiler_simd_flags(COMPILER_SIMD_FLAGS)
+  string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SIMD_FLAGS}")
+  string(APPEND CMAKE_C_FLAGS " ${COMPILER_SIMD_FLAGS}")
 endif()
 
 # Enable SSE2NEON SIMD support if found.
@@ -1625,7 +1584,7 @@ if(WITH_IMAGE_OPENJPEG)
   endif()
 endif()
 
-if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+if(WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
   # See also:
   # - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in
   #   `./extern/Eigen3/Eigen/src/Core/util/Memory.h`
@@ -1778,7 +1737,7 @@ Keep at '0' to automatically compute optimal values for each build."
     set(_link_mem 10000)
     if(WITH_COMPILER_ASAN)
       set(_link_mem 30000)
-    elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+    elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
       set(_link_mem 20000)
     endif()
 
@@ -1831,7 +1790,7 @@ Keep at '0' to automatically compute optimal values for each build."
       else()
         set(_compile_heavy_mem 15000)
       endif()
-    elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+    elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
       set(_compile_heavy_mem 2000)
     endif()
 
@@ -1897,7 +1856,7 @@ Keep at '0' to automatically compute optimal values for each build."
       else()
         set(_compile_mem 4000)
       endif()
-    elseif("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+    elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
       set(_compile_mem 500)
     endif()
 
@@ -2074,18 +2033,18 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   # flags to undo strict flags
   add_check_c_compiler_flags(
-    C_REMOVE_STRICT_FLAGS
+    C_AND_CXX_REMOVE_STRICT_FLAGS
 
-    C_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
-    C_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
-    C_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
-    C_WARN_NO_TYPE_LIMITS -Wno-type-limits
-    C_WARN_NO_INT_IN_BOOL_CONTEXT -Wno-int-in-bool-context
-    C_WARN_NO_FORMAT -Wno-format
-    C_WARN_NO_SWITCH -Wno-switch
-    C_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    C_WARN_NO_UNUSED_VARIABLE -Wno-uninitialized
-    C_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
+    C_AND_CXX_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
+    C_AND_CXX_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
+    C_AND_CXX_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
+    C_AND_CXX_WARN_NO_TYPE_LIMITS -Wno-type-limits
+    C_AND_CXX_WARN_NO_INT_IN_BOOL_CONTEXT -Wno-int-in-bool-context
+    C_AND_CXX_WARN_NO_FORMAT -Wno-format
+    C_AND_CXX_WARN_NO_SWITCH -Wno-switch
+    C_AND_CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    C_AND_CXX_WARN_NO_UNINITIALIZED -Wno-uninitialized
+    C_AND_CXX_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
   )
 
 
@@ -2095,16 +2054,14 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     CXX_WARN_NO_CLASS_MEMACCESS -Wno-class-memaccess
     CXX_WARN_NO_COMMENT -Wno-comment
     CXX_WARN_NO_UNUSED_TYPEDEFS -Wno-unused-local-typedefs
-    CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    CXX_WARN_NO_UNINITIALIZED -Wno-uninitialized
     CXX_WARN_NO_REORDER -Wno-reorder
   )
 
 
   if(NOT APPLE)
     add_check_c_compiler_flags(
-      C_REMOVE_STRICT_FLAGS
-      C_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable
+      C_AND_CXX_REMOVE_STRICT_FLAGS
+      C_AND_CXX_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable
     )
   endif()
 
@@ -2115,16 +2072,16 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     # it's a bit odd to remove this flag and then add it right back in
     # but order matters here, the C/CXX warn flags come before the standard
     # W3 flag, which will reset all flags to their default state.
-    remove_cc_flag("/W3")
-    # From the clang-cl docs 
-    # /W0                     Disable all warnings
-    # /W1                     Enable -Wall
-    # /W2                     Enable -Wall
-    # /W3                     Enable -Wall
-    # /W4                     Enable -Wall and -Wextra
-    # /Wall                   Enable -Weverything
+    remove_c_and_cxx_flag("/W3")
+    # From the clang-cl docs
+    # `/W0                     Disable all warnings`
+    # `/W1                     Enable -Wall`
+    # `/W2                     Enable -Wall`
+    # `/W3                     Enable -Wall`
+    # `/W4                     Enable -Wall and -Wextra`
+    # `/Wall                   Enable -Weverything`
     #
-    # -Wall will turn into /Wall for clang-cl which in turn will enable -Weverything
+    # `-Wall` will turn into /Wall for clang-cl which in turn will enable `-Weverything`
     # which is just too much, pass /W3 so we end up on the same flag configuration
     # as the other platforms.
     set(_Wall_flag /W3)
@@ -2188,27 +2145,27 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   # flags to undo strict flags
 
   add_check_c_compiler_flags(
-    C_REMOVE_STRICT_FLAGS
+    C_AND_CXX_REMOVE_STRICT_FLAGS
 
-    C_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
-    C_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    C_WARN_NO_UNUSED_MACROS -Wno-unused-macros
-    C_WARN_NO_MISLEADING_INDENTATION -Wno-misleading-indentation
+    C_AND_CXX_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
+    C_AND_CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    C_AND_CXX_WARN_NO_UNUSED_MACROS -Wno-unused-macros
+    C_AND_CXX_WARN_NO_MISLEADING_INDENTATION -Wno-misleading-indentation
 
-    C_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations
-    C_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers
-    C_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
-    C_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast
-    C_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes
-    C_WARN_NO_DUPLICATE_ENUM -Wno-duplicate-enum
-    C_WARN_NO_UNDEF -Wno-undef
-    C_WARN_NO_MISSING_NORETURN -Wno-missing-noreturn
-    C_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
-    C_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
-    C_WARN_NO_STRICT_PROTOTYPES -Wno-strict-prototypes
-    C_WARN_NO_BITWISE_INSTEAD_OF_LOGICAL -Wno-bitwise-instead-of-logical
-    C_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
-    C_WARN_NO_SINGLE_BIT_BITFIELD_CONSTANT_CONVERSION -Wno-single-bit-bitfield-constant-conversion
+    C_AND_CXX_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations
+    C_AND_CXX_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers
+    C_AND_CXX_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
+    C_AND_CXX_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast
+    C_AND_CXX_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes
+    C_AND_CXX_WARN_NO_DUPLICATE_ENUM -Wno-duplicate-enum
+    C_AND_CXX_WARN_NO_UNDEF -Wno-undef
+    C_AND_CXX_WARN_NO_MISSING_NORETURN -Wno-missing-noreturn
+    C_AND_CXX_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
+    C_AND_CXX_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
+    C_AND_CXX_WARN_NO_STRICT_PROTOTYPES -Wno-strict-prototypes
+    C_AND_CXX_WARN_NO_BITWISE_INSTEAD_OF_LOGICAL -Wno-bitwise-instead-of-logical
+    C_AND_CXX_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
+    C_AND_CXX_WARN_NO_SINGLE_BIT_BITFIELD_CONSTANT_CONVERSION -Wno-single-bit-bitfield-constant-conversion
   )
 
   add_check_cxx_compiler_flags(
@@ -2355,6 +2312,16 @@ if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
 endif()
 
 if(WITH_COMPILER_SHORT_FILE_MACRO)
+
+  set(_is_new_c TRUE)
+  if(DEFINED CACHE{C_MACRO_PREFIX_MAP})
+    set(_is_new_c FALSE)
+  endif()
+  set(_is_new_cxx TRUE)
+  if(DEFINED CACHE{CXX_MACRO_PREFIX_MAP})
+    set(_is_new_cxx FALSE)
+  endif()
+
   # Use `-fmacro-prefix-map` for Clang and GCC (MSVC doesn't support this).
   set(C_PREFIX_MAP_FLAGS "")
   set(CXX_PREFIX_MAP_FLAGS "")
@@ -2391,15 +2358,19 @@ if(WITH_COMPILER_SHORT_FILE_MACRO)
       unset(_bin_dir)
     endif()
   else()
-    message(
-      WARNING
-      "-fmacro-prefix-map flag is NOT supported by C/C++ compiler."
-      " Disabling WITH_COMPILER_SHORT_FILE_MACRO."
-    )
+    if(_is_new_c OR _is_new_cxx)
+      message(
+        WARNING
+        "-fmacro-prefix-map flag is NOT supported by C/C++ compiler."
+        " Disabling WITH_COMPILER_SHORT_FILE_MACRO."
+      )
+    endif()
     set(WITH_COMPILER_SHORT_FILE_MACRO OFF)
   endif()
   unset(C_PREFIX_MAP_FLAGS)
   unset(CXX_PREFIX_MAP_FLAGS)
+  unset(_is_new_c)
+  unset(_is_new_cxx)
 endif()
 
 # Include warnings first, so its possible to disable them with user defined flags
@@ -2436,8 +2407,8 @@ endif()
 if(WITH_ASSERT_RELEASE)
   # CMake seemingly be setting the NDEBUG flag on its own already on some configurations
   # therefore we need to remove the flags if they happen to be set.
-  remove_cc_flag("-DNDEBUG") # GCC/CLang
-  remove_cc_flag("/DNDEBUG") # MSVC
+  remove_c_and_cxx_flag("-DNDEBUG") # GCC/CLang
+  remove_c_and_cxx_flag("/DNDEBUG") # MSVC
 else()
   set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
     $<$<CONFIG:Release>:NDEBUG>

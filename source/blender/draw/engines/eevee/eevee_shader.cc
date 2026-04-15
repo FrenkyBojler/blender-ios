@@ -24,6 +24,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_math_bits.h"
+#include <fmt/format.h>
 
 namespace blender::eevee {
 
@@ -443,7 +444,7 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case LIGHT_CULLING_DEBUG:
       return "eevee_light_culling_debug";
     case LIGHT_CULLING_SELECT:
-      return "eevee_light_culling_select";
+      return "eevee_light_culling_cull";
     case LIGHT_CULLING_SORT:
       return "eevee_light_culling_sort";
     case LIGHT_CULLING_TILE:
@@ -453,11 +454,11 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case LIGHT_SHADOW_SETUP:
       return "eevee_light_shadow_setup";
     case RAY_DENOISE_SPATIAL:
-      return "eevee_ray_denoise_spatial";
+      return "eevee_raytracing_denoise_spatial";
     case RAY_DENOISE_TEMPORAL:
-      return "eevee_ray_denoise_temporal";
+      return "eevee_raytracing_denoise_temporal";
     case RAY_DENOISE_BILATERAL:
-      return "eevee_ray_denoise_bilateral";
+      return "eevee_raytracing_denoise_bilateral";
     case RAY_GENERATE:
       return "eevee_ray_generate";
     case RAY_TRACE_FALLBACK:
@@ -518,6 +519,8 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_shadow_tilemap_init";
     case SHADOW_TILEMAP_TAG_UPDATE:
       return "eevee_shadow_tag_update";
+    case SHADOW_TILEMAP_TAG_UPDATE_PROPAGATE:
+      return "eevee_shadow_tag_update_propagate";
     case SHADOW_TILEMAP_TAG_USAGE_OPAQUE:
       return "eevee_shadow_tag_usage_opaque";
     case SHADOW_TILEMAP_TAG_USAGE_SURFELS:
@@ -587,38 +590,64 @@ gpu::Shader *ShaderModule::static_shader_get(eShaderType shader_type)
 
 /* Helper class to get free sampler slots for materials. */
 class SlotAllocator {
-  uint64_t available_samplers_ = ~uint64_t(0u);
-  uint32_t available_vertex_id_ = ~uint32_t(0u);
+  /* Assumes slots reserved from ShaderCreateInfos are always below 32. */
+  uint32_t available_samplers_ = ~uint32_t(0u);
+  /* But some backends may allow more samplers that we can use for material textures.
+   * These slots are just increased linearly. */
+  int total_requested_samplers_ = 0;
   bool sampler_overflow_ = false;
+
+  uint32_t available_vertex_id_ = ~uint32_t(0u);
   bool vertex_id_overflow_ = false;
 
+  Set<std::string> visited_infos;
+
  public:
+  /** WATCH: Recursive. */
   void reserve_slots(const gpu::shader::ShaderCreateInfo &info)
   {
+    if (!visited_infos.add_overwrite(info.name_)) {
+      /* Avoid infinite recursion or visiting an info more than once. */
+      return;
+    }
     using namespace blender::gpu::shader;
     for (const ShaderCreateInfo::VertIn &vert_in : info.vertex_inputs_) {
       available_vertex_id_ &= ~(uint32_t(1) << vert_in.index);
     }
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
+
+    for (const auto &[info_name, _] : info.additional_infos_) {
+      const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
+          GPU_shader_create_info_get(info_name.c_str()));
+      /** WATCH: Recursive. */
+      reserve_slots(*info);
+    }
+
+    total_requested_samplers_ = count_bits_uint64(uint64_t(~available_samplers_));
   }
 
   bool sampler_overflow() const
   {
     return sampler_overflow_;
+  }
+
+  int requested_sampler_count() const
+  {
+    return total_requested_samplers_;
   }
 
   bool vertex_id_overflow() const
@@ -628,12 +657,15 @@ class SlotAllocator {
 
   int get_next_sampler()
   {
-    if (available_samplers_ == 0) {
+    int next_sampler = available_samplers_ == 0 ? total_requested_samplers_++ :
+                                                  bitscan_forward_clear_uint(&available_samplers_);
+    if (next_sampler >= GPU_max_textures()) {
       /* Should result in compilation failure. */
       sampler_overflow_ = true;
       return -1;
     }
-    return bitscan_forward_clear_uint64(&available_samplers_);
+
+    return next_sampler;
   }
 
   void set_vertex_input(int index)
@@ -760,26 +792,17 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
       break;
   }
 
-  SlotAllocator available_slots;
-
   if (!pipeline_info_name.is_empty()) {
     info.additional_info(pipeline_info_name);
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
-        GPU_shader_create_info_get(pipeline_info_name.c_str()));
-    available_slots.reserve_slots(*info);
   }
   if (!additional_info_name.is_empty()) {
     info.additional_info(additional_info_name);
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
-        GPU_shader_create_info_get(additional_info_name.c_str()));
-    available_slots.reserve_slots(*info);
   }
   if (!geometry_info_name.is_empty()) {
     info.additional_info(geometry_info_name);
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
-        GPU_shader_create_info_get(geometry_info_name.c_str()));
-    available_slots.reserve_slots(*info);
   }
+  SlotAllocator available_slots;
+  available_slots.reserve_slots(info);
   return available_slots;
 }
 
@@ -848,6 +871,20 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.additional_info("eevee_raycast");
   }
 
+  if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
+  {
+    info.additional_info("eevee_hiz_prev_data");
+    info.additional_info("eevee_previous_layer_radiance");
+  }
+
+  /* Only deferred material allow use of cryptomatte and render passes. */
+  if (pipeline_type == MAT_PIPE_DEFERRED) {
+    info.additional_info("eevee_render_pass_out");
+    info.additional_info("eevee_cryptomatte_out");
+  }
+
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 
@@ -857,23 +894,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
-  /* Only deferred material allow use of cryptomatte and render passes. */
-  if (pipeline_type == MAT_PIPE_DEFERRED) {
-    info.additional_info("eevee_render_pass_out");
-    info.additional_info("eevee_cryptomatte_out");
-  }
-
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
     info.define("MAT_SHADER_TO_RGBA");
   }
-
-  if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA))
-  {
-    info.additional_info("eevee_hiz_prev_data");
-    info.additional_info("eevee_previous_layer_radiance");
-  }
-
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_DIFFUSE)) {
     info.define("MAT_DIFFUSE");
   }
@@ -1221,9 +1244,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     frag_gen << "}\n\n";
 
     /* TODO(fclem): Find a way to pass material parameters inside the material UBO. */
-    info.define("thickness_mode",
-                thickness_type == MAT_THICKNESS_SLAB ? "THICKNESS_MODE_SLAB" :
-                                                       "THICKNESS_MODE_SPHERE");
+    info.define("thickness_mode", thickness_type == MAT_THICKNESS_SLAB ? "false" : "true");
 
     frag_gen << "float nodetree_thickness()\n";
     frag_gen << "{\n";
@@ -1278,9 +1299,11 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   /* Make shaders that have as too many samplers fail compilation and have correct error
    * report instead of raising an error. */
   if (slots.sampler_overflow()) {
-    /* We ran out of binding slots. Many systems inside the GPU backend assume a max amount of 64
-     * samplers. */
-    std::cerr << "Error: EEVEE: Material " << material_name << " uses too many samplers."
+    /* We ran out of binding slots. */
+    std::cerr << fmt::format("Error: EEVEE: Material {} uses too many samplers. ({}/{})",
+                             material_name,
+                             slots.requested_sampler_count(),
+                             GPU_max_textures())
               << std::endl;
     /* Avoid assert in ShaderCreateInfo::finalize. */
     info.batch_resources_.clear();

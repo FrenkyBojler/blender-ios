@@ -85,20 +85,28 @@ void Instance::init()
 
     if (camera) {
       if (scene->r.mode & R_BORDER) {
-        rctf viewborder;
-        /* TODO(fclem) Might be better to get it from DRW. */
-        ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
-        float viewborder_sizex = BLI_rctf_size_x(&viewborder);
-        float viewborder_sizey = BLI_rctf_size_y(&viewborder);
-        rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
-        rect.ymin = floorf(viewborder.ymin + (scene->r.border.ymin * viewborder_sizey));
-        rect.xmax = floorf(viewborder.xmin + (scene->r.border.xmax * viewborder_sizex));
-        rect.ymax = floorf(viewborder.ymin + (scene->r.border.ymax * viewborder_sizey));
-        /* Clamp it to the viewport area. */
-        rect.xmin = max(rect.xmin, 0);
-        rect.ymin = max(rect.ymin, 0);
-        rect.xmax = min(rect.xmax, size.x);
-        rect.ymax = min(rect.ymax, size.y);
+        if (draw_ctx->is_viewport_image_render()) {
+          rect.xmin = scene->r.border.xmin * size[0];
+          rect.ymin = scene->r.border.ymin * size[1];
+          rect.xmax = scene->r.border.xmax * size[0];
+          rect.ymax = scene->r.border.ymax * size[1];
+        }
+        else {
+          rctf viewborder;
+          /* TODO(fclem) Might be better to get it from DRW. */
+          ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
+          float viewborder_sizex = BLI_rctf_size_x(&viewborder);
+          float viewborder_sizey = BLI_rctf_size_y(&viewborder);
+          rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
+          rect.ymin = floorf(viewborder.ymin + (scene->r.border.ymin * viewborder_sizey));
+          rect.xmax = floorf(viewborder.xmin + (scene->r.border.xmax * viewborder_sizex));
+          rect.ymax = floorf(viewborder.ymin + (scene->r.border.ymax * viewborder_sizey));
+          /* Clamp it to the viewport area. */
+          rect.xmin = max(rect.xmin, 0);
+          rect.ymin = max(rect.ymin, 0);
+          rect.xmax = min(rect.xmax, size.x);
+          rect.ymax = min(rect.ymax, size.y);
+        }
       }
     }
     else if (v3d->flag2 & V3D_RENDER_BORDER) {
@@ -396,39 +404,32 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
     return;
   }
 
-  ObjectHandle &ob_handle = sync.sync_object(ob_ref);
-
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
-    auto sync_hair =
-        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandleRange _res_handle = manager->resource_handle_for_psys(
-              ob_ref, ob->object_to_world());
-          sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
-        };
-    foreach_hair_particle_handle(*this, ob_ref, ob_handle, sync_hair);
+    auto sync_hair = [&](const HairParticleInfo &info) { sync.sync_curves(ob_ref, &info); };
+    foreach_hair_particle(*this, ob_ref, sync_hair);
   }
 
   if (object_is_visible) {
     switch (ob->type) {
       case OB_LAMP:
-        lights.sync_light(ob, ob_handle);
+        lights.sync_light(ob_ref);
         break;
       case OB_MESH:
-        if (!sync.sync_sculpt(ob, ob_handle, ob_ref)) {
-          sync.sync_mesh(ob, ob_handle, ob_ref);
+        if (!sync.sync_sculpt(ob_ref)) {
+          sync.sync_mesh(ob_ref);
         }
         break;
       case OB_POINTCLOUD:
-        sync.sync_pointcloud(ob, ob_handle, ob_ref);
+        sync.sync_pointcloud(ob_ref);
         break;
       case OB_VOLUME:
-        sync.sync_volume(ob, ob_handle, ob_ref);
+        sync.sync_volume(ob_ref);
         break;
       case OB_CURVES:
-        sync.sync_curves(ob, ob_handle, ob_ref);
+        sync.sync_curves(ob_ref);
         break;
       case OB_LIGHTPROBE:
-        light_probes.sync_probe(ob, ob_handle);
+        light_probes.sync_probe(ob_ref);
         break;
       default:
         break;
@@ -628,7 +629,7 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
       RenderPass *vector_rp = RE_pass_find_by_name(
           render_layer, vector_pass_name.c_str(), view_name);
       if (vector_rp) {
-        memset(vector_rp->ibuf->float_buffer.data,
+        memset(vector_rp->ibuf->float_data_for_write(),
                0,
                sizeof(float) * 4 * vector_rp->rectx * vector_rp->recty);
       }

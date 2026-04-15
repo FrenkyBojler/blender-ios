@@ -34,6 +34,12 @@ class AbstractTreeViewItem;
 class TreeViewItemDropTarget;
 struct Layout;
 
+enum class TreeViewSortOrder : uint8_t {
+  None = 0,
+  InvertRoot = 1,
+  InvertNested = 2,
+};
+
 /* ---------------------------------------------------------------------- */
 /** \name Tree-View Item Container
  *
@@ -100,6 +106,8 @@ class TreeViewItemContainer {
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
   void sort_alpha();
+  /* Sort tree item list in reverse order. */
+  void foreach_sort_invert(TreeViewSortOrder order);
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
@@ -143,6 +151,11 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * When true, sort elements alphabetically.
    */
   std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
+  /**
+   * Invert sort order.
+   */
+  std::shared_ptr<TreeViewSortOrder> invert_sort_type_ = std::make_shared<TreeViewSortOrder>(
+      TreeViewSortOrder::None);
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -168,6 +181,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
+  TreeViewSortOrder invert_sort_type_get() const;
 
  protected:
   virtual void build_tree() = 0;
@@ -198,6 +212,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * Scroll the view so the active item is visible.
    */
   void scroll_active_into_view();
+  void sort_inverted();
 };
 
 /** \} */
@@ -329,13 +344,6 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
    * the item itself, not the parents. Item matching is expected to change quite a bit anyway.
    */
   virtual bool matches_single(const AbstractTreeViewItem &other) const;
-
-  /**
-   * Can be called from the #AbstractTreeViewItem::build_row() implementation, but not earlier. The
-   * hovered state can't be queried reliably otherwise.
-   * Note that this does a linear lookup in the old block, so isn't too great performance-wise.
-   */
-  bool is_hovered() const;
 
   void ensure_parents_uncollapsed();
 

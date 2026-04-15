@@ -47,6 +47,24 @@
 
 namespace blender::ui {
 
+enum {
+  UI_ID_NOP = 0,
+  UI_ID_RENAME = 1 << 0,
+  UI_ID_BROWSE = 1 << 1,
+  UI_ID_ADD_NEW = 1 << 2,
+  UI_ID_ALONE = 1 << 4,
+  UI_ID_OPEN = 1 << 3,
+  UI_ID_DELETE = 1 << 5,
+  UI_ID_LOCAL = 1 << 6,
+  UI_ID_AUTO_NAME = 1 << 7,
+  UI_ID_FAKE_USER = 1 << 8,
+  UI_ID_PIN = 1 << 9,
+  UI_ID_PREVIEWS = 1 << 10,
+  UI_ID_OVERRIDE = 1 << 11,
+  UI_ID_FULL = UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_ALONE |
+               UI_ID_DELETE | UI_ID_LOCAL,
+};
+
 struct TemplateID {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -631,7 +649,7 @@ ID *template_id_liboverride_hierarchy_make(
     ID *hierarchy_root = id_override->override_library->hierarchy_root;
     if (GS(hierarchy_root->name) == ID_OB) {
       Object *object_hierarchy_root = reinterpret_cast<Object *>(hierarchy_root);
-      if (!BKE_scene_has_object(scene, object_hierarchy_root)) {
+      if (!BKE_scene_has_object(*bmain, scene, object_hierarchy_root)) {
         if (!ID_IS_LINKED(collection_active_context)) {
           BKE_collection_object_add(bmain, collection_active_context, object_hierarchy_root);
         }

@@ -550,7 +550,7 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
      * duplicated scenes.
      *
      * So instead, prevent any resync until all new IDs have been remapped. */
-    BKE_layer_collection_resync_forbid();
+    BKE_layer_collection_resync_forbid(*ctx.bmain);
 
     /* Newly created data-blocks may reference IDs that themselves have also been duplicated in the
      * "current duplication". E.g. a scene may have a custom property that refers to itself; when
@@ -583,7 +583,7 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
       }
     }
 
-    BKE_layer_collection_resync_allow();
+    BKE_layer_collection_resync_allow(*ctx.bmain);
 
     if (ctx.bmain != nullptr) {
 #ifndef NDEBUG
@@ -670,7 +670,7 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
   if (strip_new->modifiers.first) {
     BLI_listbase_clear(&strip_new->modifiers);
 
-    modifier_list_copy(strip_new, strip);
+    modifier_list_copy(strip_new, strip, ctx.copy_flag);
   }
   BLI_assert(modifier_persistent_uids_are_valid(*strip));
 

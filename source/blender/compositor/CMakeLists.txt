@@ -410,8 +410,8 @@ set(GLSL_INC
   ../gpu/shaders/common
 
   shaders
-  shaders/library
   shaders/infos
+  shaders/library
 )
 
 set(GLSL_C "")
@@ -432,6 +432,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
