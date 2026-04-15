@@ -4,4 +4,4 @@ Referenced by issue #129604, Geometry Nodes: Primitives UV Map display issue
 Referenced by issue #156552, Blender 5.1: Attributes stored by a Geometry Nodes modifier are reflected in Object Mode, but are not reflected in Edit Mode even with "Display Modifier in Edit Mode" toggle enabled
 Referenced by pull request #156583, Fix #156552: Viewport display ignores attributes in edit mode
 Referenced by commit 25eef6469a35d64252ddac431f2347527aec1ba6, Fix #156552: Viewport display ignores attributes in edit mode
-Referenced by issue #157370, Anim Playback is Slower with Eevee in 5.1.1 vs 4.5.7
+Referenced by issue #157370, Anim Playback of certain scenes is slower in 5.1.1 vs 4.5.7
