@@ -31,7 +31,7 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop);
 std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone);
 
 /** Get the rna path for the given rotation mode. */
-StringRef get_rotation_mode_path(eRotationModes rotation_mode);
+StringRefNull get_rotation_mode_path(eRotationModes rotation_mode);
 
 /**
  * Given an RNA path to a rotation property, return the corresponding rotation mode.

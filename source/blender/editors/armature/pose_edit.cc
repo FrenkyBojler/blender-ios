@@ -42,6 +42,7 @@
 #include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_transformable.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
@@ -637,7 +638,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
       /* Already in the correct mode. */
       continue;
     }
-    animrig::Rotateable rotateable(*pchan);
+    animrig::Transformable transformable(*ob, *pchan);
     int visited_actions = 0;
     animrig::foreach_action_slot_use(
         ob->id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
@@ -649,10 +650,10 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
           animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
               {&action, slot_handle});
           if (bake) {
-            animrig::bake_rotation_fcurves(channelbag_fcurve_map, rotateable);
+            animrig::bake_rotation_fcurves(channelbag_fcurve_map, transformable);
           }
           animrig::convert_pose_bone_rotation_keys(
-              CTX_data_main(C), rotateable, channelbag_fcurve_map, eRotationModes(mode));
+              CTX_data_main(C), transformable, channelbag_fcurve_map, eRotationModes(mode));
           DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
           visited_actions++;
           return true;

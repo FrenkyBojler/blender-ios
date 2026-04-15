@@ -87,7 +87,7 @@ std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
   return fmt::format("pose.bones[\"{}\"]", name_esc);
 }
 
-StringRef get_rotation_mode_path(const eRotationModes rotation_mode)
+StringRefNull get_rotation_mode_path(const eRotationModes rotation_mode)
 {
   switch (rotation_mode) {
     case ROT_MODE_QUAT:

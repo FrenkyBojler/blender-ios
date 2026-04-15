@@ -97,6 +97,7 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 
 #  include "ED_armature.hh"
 #  include "ED_object.hh"
+#  include "ED_transformable.hh"
 
 #  include "WM_api.hh"
 
@@ -274,10 +275,11 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
     return;
   }
 
+  Object *ob = id_cast<Object *>(id);
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
   Map<std::pair<animrig::Action *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
 
-  animrig::Rotateable rotateable(*pchan);
+  animrig::Transformable transformable(*ob, *pchan);
   bool converted_actions = false;
   animrig::foreach_action_slot_use(
       *id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
@@ -289,10 +291,10 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
         animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
             {&action, slot_handle});
         if (bake) {
-          animrig::bake_rotation_fcurves(channelbag_fcurve_map, rotateable);
+          animrig::bake_rotation_fcurves(channelbag_fcurve_map, transformable);
         }
         converted_actions |= animrig::convert_pose_bone_rotation_keys(
-            main, rotateable, channelbag_fcurve_map, eRotationModes(rotation_mode));
+            main, transformable, channelbag_fcurve_map, eRotationModes(rotation_mode));
         DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
         return true;
       });

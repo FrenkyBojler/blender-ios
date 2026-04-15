@@ -16,6 +16,8 @@
 #include "ANIM_fcurve.hh"
 #include "ANIM_rna.hh"
 
+#include "ED_transformable.hh"
+
 namespace blender::animrig {
 
 void SortedFCurveBuffer::insert_fcurve(FCurve &fcurve)
@@ -46,36 +48,6 @@ FCurve *SortedFCurveBuffer::get_fcurve_by_array_index(const int array_index) con
   return nullptr;
 }
 
-Rotateable::Rotateable(Object &object)
-    : rotation_mode_(&object.rotmode),
-      quaternion_(object.quat),
-      rot_axis_(object.rotAxis),
-      rot_angle_(&object.rotAngle),
-      euler_(object.rot),
-      fcurve_group_name_("")
-{
-  rna_path_from_id = "";
-}
-
-Rotateable::Rotateable(bPoseChannel &pose_bone)
-    : rotation_mode_(&pose_bone.rotmode),
-      quaternion_(pose_bone.quat),
-      rot_axis_(pose_bone.rotAxis),
-      rot_angle_(&pose_bone.rotAngle),
-      euler_(pose_bone.eul),
-      fcurve_group_name_(pose_bone.name)
-{
-  rna_path_from_id = get_pose_bone_rna_path(pose_bone);
-}
-
-std::string Rotateable::get_rna_path_for_property(const StringRef property_name) const
-{
-  if (rna_path_from_id.empty()) {
-    return std::string(property_name);
-  }
-  return fmt::format("{}.{}", rna_path_from_id, property_name);
-}
-
 static int compare_int(const void *a, const void *b)
 {
   return *(static_cast<const int *>(a)) - *(static_cast<const int *>(b));
@@ -103,26 +75,6 @@ static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
   /* Keys have to be sorted to produce euler filtered results. */
   qsort(keyframe_ids.data(), keyframe_ids.size(), sizeof(int64_t), compare_int);
   return keyframe_ids;
-}
-
-static void rotation_values_to_quat(const float4 &rotation_values,
-                                    const eRotationModes mode,
-                                    float4 &r_quat)
-{
-  switch (mode) {
-    case ROT_MODE_QUAT:
-      copy_qt_qt(r_quat, rotation_values);
-      break;
-
-    case ROT_MODE_AXISANGLE:
-      axis_angle_to_quat(r_quat, &rotation_values[1], rotation_values[0]);
-      break;
-
-    default:
-      eulO_to_quat(r_quat, rotation_values, mode);
-      break;
-  }
-  normalize_qt(r_quat);
 }
 
 static void quat_to_rotation_values(const float4 &quat,
@@ -182,15 +134,14 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
                                           const eRotationModes from_mode,
                                           const eRotationModes to_mode,
                                           const float2 range,
-                                          const Rotateable &rotateable)
+                                          const Transformable &transformable)
 {
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
   float4 previous_conversion(0);
   float4 converted_rotation(0);
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
-  float4 rotation_values = rotateable.get_rotation(from_mode);
-  float4 rot_quat(0);
+  Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
   KeyframeSettings settings;
   for (const FCurve *fcurve : evaluation_buffer) {
     if (!fcurve || !fcurve->bezt) {
@@ -219,12 +170,13 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
       if (!fcurve) {
         continue;
       }
-      rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
+      rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
     }
     /* Convert those to the new rotation mode. This always goes via quaternion to keep it
-     * simple.  */
-    rotation_values_to_quat(rotation_values, from_mode, rot_quat);
-    quat_to_rotation_values(rot_quat, to_mode, previous_conversion, converted_rotation);
+     * simple. */
+    Rotation rot_quat = rotation_values.converted_to_mode(ROT_MODE_QUAT);
+    quat_to_rotation_values(
+        float4(rot_quat.values.data()), to_mode, previous_conversion, converted_rotation);
     for (int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
@@ -244,7 +196,7 @@ static void convert_rotation_mode_range(Main &bmain,
                                         const eRotationModes from_mode,
                                         const eRotationModes to_mode,
                                         const float2 range,
-                                        const Rotateable &rotateable)
+                                        const Transformable &transformable)
 {
   const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
@@ -255,15 +207,12 @@ static void convert_rotation_mode_range(Main &bmain,
   const bool is_euler_to_euler = from_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
 
   {
-    const StringRef rotation_property_name = get_rotation_mode_path(to_mode);
-    const std::string to_mode_rna_path = rotateable.get_rna_path_for_property(
-        rotation_property_name);
+    const std::string to_mode_rna_path = transformable.rna_path_to_rotation_mode(to_mode);
 
     if (is_euler_to_euler) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
-      FCurveDescriptor descriptor = {
-          to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, rotateable.get_group_name()};
+      FCurveDescriptor descriptor = {to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, ""};
       BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
                          evaluation_buffer_count == 3,
                      "Both rotation modes are euler so should have 3 elements.");
@@ -285,8 +234,7 @@ static void convert_rotation_mode_range(Main &bmain,
       else if (to_mode == ROT_MODE_AXISANGLE) {
         prop_subtype = PROP_AXISANGLE;
       }
-      FCurveDescriptor descriptor = {
-          to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, rotateable.get_group_name()};
+      FCurveDescriptor descriptor = {to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, ""};
       for (const int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
@@ -295,7 +243,7 @@ static void convert_rotation_mode_range(Main &bmain,
   }
 
   convert_fcurves_rotation_mode(
-      evaluation_buffer, insertion_buffer, from_mode, to_mode, range, rotateable);
+      evaluation_buffer, insertion_buffer, from_mode, to_mode, range, transformable);
 
   if (is_euler_to_euler) {
     /* Free the FCurves that have been duplicated beforehand. */
@@ -313,7 +261,7 @@ static void convert_rotation_mode_range(Main &bmain,
 }
 
 bool convert_pose_bone_rotation_keys(Main *bmain,
-                                     const Rotateable &rotateable,
+                                     const Transformable &transformable,
                                      const ChannelbagToFCurveMap &channelbag_fcurve_map,
                                      const eRotationModes to_mode)
 {
@@ -322,7 +270,8 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   for (const auto &item : channelbag_fcurve_map.items()) {
     Channelbag *channelbag = item.key;
     const RNAFCurveMap &fcu_map = item.value;
-    const std::string rotation_mode_path = rotateable.get_rna_path_for_property("rotation_mode");
+    const std::string rotation_mode_path = fmt::format(
+        "{}.{}", transformable.rna_path(), "rotation_mode");
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
     FCurve *rotation_mode_fcurve = nullptr;
     if (const SortedFCurveBuffer *rotation_mode_buffer = fcu_map.lookup_ptr(rotation_mode_path)) {
@@ -334,15 +283,13 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
       /* Defaulting back to the struct value means that this can have unexpected results when
        * dealing with action layers. The rotation mode can still be animated by a higher layer but
        * that means we cannot know the correct rotation mode for the current layer. */
-      rotation_mode_ranges = {{0, rotateable.get_rotation_mode()}};
+      rotation_mode_ranges = {{0, transformable.get_rotation_mode()}};
     }
 
     for (const int i : rotation_mode_ranges.index_range()) {
       const std::pair<float, eRotationModes> &rotation_mode_range = rotation_mode_ranges[i];
       const eRotationModes from_mode = rotation_mode_range.second;
-      const StringRef rotation_property_name = get_rotation_mode_path(from_mode);
-      const std::string from_mode_rna_path = rotateable.get_rna_path_for_property(
-          rotation_property_name);
+      const std::string from_mode_rna_path = transformable.rna_path_to_rotation_mode(from_mode);
       const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(from_mode_rna_path);
       if (!rotation_fcurves) {
         continue;
@@ -352,7 +299,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
         range[1] = rotation_mode_ranges[i + 1].first;
       }
       convert_rotation_mode_range(
-          *bmain, *channelbag, *rotation_fcurves, from_mode, to_mode, range, rotateable);
+          *bmain, *channelbag, *rotation_fcurves, from_mode, to_mode, range, transformable);
       modified_keys = true;
     }
     if (rotation_mode_fcurve && rotation_mode_fcurve->bezt) {
@@ -390,13 +337,12 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, const slot_handl
 }
 
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
-                           const Rotateable &rotateable)
+                           const Transformable &transformable)
 {
   /* Need to bake on all potential FCurves to cover. */
-  const Array<StringRef> rotation_modes = {
-      "rotation_euler", "rotation_quaternion", "rotation_axis_angle"};
-  for (const StringRef rotation_mode : rotation_modes) {
-    std::string rotation_rna_path = rotateable.get_rna_path_for_property(rotation_mode);
+  const Array<eRotationModes> rotation_modes = {ROT_MODE_EUL, ROT_MODE_QUAT, ROT_MODE_AXISANGLE};
+  for (const eRotationModes rotation_mode : rotation_modes) {
+    std::string rotation_rna_path = transformable.rna_path_to_rotation_mode(rotation_mode);
 
     for (const RNAFCurveMap &rna_fcurve_map : channelbag_fcurve_map.values()) {
       const SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);

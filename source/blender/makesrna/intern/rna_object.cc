@@ -335,6 +335,7 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 #  include "ED_mesh.hh"
 #  include "ED_object.hh"
 #  include "ED_particle.hh"
+#  include "ED_transformable.hh"
 
 #  include "DEG_depsgraph_query.hh"
 
@@ -1218,7 +1219,7 @@ static void rna_Object_convert_rotation_mode(
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
   Map<std::pair<animrig::Action *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
 
-  animrig::Rotateable rotateable(*ob);
+  animrig::Transformable transformable(*ob);
   bool converted_actions = false;
   animrig::foreach_action_slot_use(
       *id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
@@ -1230,10 +1231,10 @@ static void rna_Object_convert_rotation_mode(
         animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
             {&action, slot_handle});
         if (bake) {
-          animrig::bake_rotation_fcurves(channelbag_fcurve_map, rotateable);
+          animrig::bake_rotation_fcurves(channelbag_fcurve_map, transformable);
         }
         converted_actions |= animrig::convert_pose_bone_rotation_keys(
-            main, rotateable, channelbag_fcurve_map, eRotationModes(rotation_mode));
+            main, transformable, channelbag_fcurve_map, eRotationModes(rotation_mode));
         DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
         return true;
       });
