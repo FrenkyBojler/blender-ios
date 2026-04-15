@@ -30,11 +30,7 @@ namespace blender {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-<<<<<<< HEAD
-#define BLENDER_FILE_SUBVERSION 8
-=======
 #define BLENDER_FILE_SUBVERSION 20
->>>>>>> origin/main
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and cancel loading the file, showing a warning to
