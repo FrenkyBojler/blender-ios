@@ -49,7 +49,8 @@ private:
 	SDL_AudioStream* m_stream;
 
 	/**
-	 * Mixes the next bytes into the audio stream.
+	 * SDL callback to mix the next bytes into the audio stream.
+	 * Uses the SDL_AudioStreamCallback signature.
 	 * \param userdata The SDL device.
 	 * \param stream The target audio stream.
 	 * \param additional_amount The number of bytes needed.
