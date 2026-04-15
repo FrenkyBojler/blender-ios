@@ -156,6 +156,7 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
     is_alpha_blend |= material->is_alpha_blend_transparent;
     has_transparent_shadows |= material->has_transparent_shadows;
+    use_scene_time |= material->use_scene_time;
 
     GPUMaterial *gpu_material = material->shading.gpumat;
     blender::Material *bl_material = GPU_material_get_material(gpu_material);
