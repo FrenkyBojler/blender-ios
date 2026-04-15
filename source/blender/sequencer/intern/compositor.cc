@@ -111,7 +111,7 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
      * if conversion above has failed. */
     ensure_ibuf_is_linear_space(&input, true);
     result.allocate_texture(size);
-    GPU_texture_update(result, GPU_DATA_FLOAT, input.float_buffer.data);
+    GPU_texture_update(result, GPU_DATA_FLOAT, input.float_data());
   }
 }
 
@@ -140,7 +140,7 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     image.y = output_size_y;
     IMB_alloc_float_pixels(&image, 4, false);
   }
-  std::memcpy(image.float_buffer.data,
+  std::memcpy(image.float_data_for_write(),
               result_cpu.cpu_data().data(),
               IMB_get_pixel_count(&image) * sizeof(float) * 4);
 

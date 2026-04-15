@@ -70,10 +70,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
   const AttrDomain domain = AttrDomain(node.custom1);
 
-  GField output_field{
-      std::make_shared<bke::EvaluateAtIndexInput>(params.extract_input<Field<int>>("Index"_ustr),
-                                                  params.extract_input<GField>("Value"_ustr),
-                                                  domain)};
+  GField output_field = GField::from_input<bke::EvaluateAtIndexInput>(
+      params.extract_input<Field<int>>("Index"_ustr),
+      params.extract_input<GField>("Value"_ustr),
+      domain);
   params.set_output<GField>("Value"_ustr, std::move(output_field));
 }
 
@@ -101,7 +101,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldAtIndex", GEO_NODE_EVALUATE_AT_INDEX);
+  geo_node_type_base(&ntype, "GeometryNodeFieldAtIndex"_ustr, GEO_NODE_EVALUATE_AT_INDEX);
   ntype.ui_name = "Evaluate at Index";
   ntype.ui_description = "Retrieve data of other elements in the context's geometry";
   ntype.enum_name_legacy = "FIELD_AT_INDEX";
