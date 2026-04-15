@@ -16,9 +16,7 @@
 #  include <nvsdk_ngx_defs_dlssd.h>
 
 #  ifdef _WIN32
-#    define WIN32_LEAN_AND_MEAN
-#    define VC_EXTRALEAN
-#    include <windows.h>
+#    include "util/windows.h"
 
 #    define dynamic_library_open(path) LoadLibraryW(path)
 #    define dynamic_library_close(lib) FreeLibrary(static_cast<HMODULE>(lib))
