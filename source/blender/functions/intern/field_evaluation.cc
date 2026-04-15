@@ -16,7 +16,6 @@
 #include "FN_multi_function_procedure_builder.hh"
 #include "FN_multi_function_procedure_executor.hh"
 #include "FN_multi_function_procedure_optimization.hh"
-#include <iostream>
 
 namespace blender::fn {
 
@@ -240,7 +239,6 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                     BLI_assert_unreachable();
                   }
                 }
-                std::cout << "Procedure call: " << multi_function.debug_name() << "\n";
                 builder.add_call_with_all_variables(multi_function, variables);
               }
             }
