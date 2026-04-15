@@ -89,7 +89,7 @@ static void rna_ShapeKey_name_set(PointerRNA *ptr, const char *value)
   /* make sure the name is truly unique */
   if (ptr->owner_id) {
     Key *key = rna_ShapeKey_find_key(ptr->owner_id);
-    BKE_keyblock_name_set(key, kb, value, oldname);
+    BKE_keyblock_rename(key, kb, value, oldname);
   }
 }
 

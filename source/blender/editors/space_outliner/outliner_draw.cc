@@ -38,6 +38,7 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
+#include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -50,7 +51,6 @@
 #include "BKE_particle.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_key.hh"
 
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
@@ -1000,7 +1000,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
         case TSE_SHAPE_KEY_BLOCK: {
           Key *key = id_cast<Key *>(tselem->id);
           KeyBlock *keyblock = static_cast<KeyBlock *>(te->directdata);
-          BKE_keyblock_name_set(key, keyblock, keyblock->name, oldname);
+          BKE_keyblock_rename(key, keyblock, keyblock->name, oldname);
           WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Shape Key");
