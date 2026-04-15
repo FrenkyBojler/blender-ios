@@ -192,7 +192,7 @@ class AlignRotationToVectorFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(923784566987, main_axis_mode_.as_int(), pivot_axis_mode_);
+    return get_default_hash(int64_t(923784566987), main_axis_mode_.as_int(), pivot_axis_mode_);
   }
 };
 

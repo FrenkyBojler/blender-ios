@@ -143,7 +143,7 @@ class SampleIndexFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(876931127865, list_);
+    return get_default_hash(int64_t(876931127865), list_);
   }
 };
 

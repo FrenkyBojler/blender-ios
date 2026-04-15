@@ -313,7 +313,7 @@ class SampleNearestFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(872347547444, domain_, src_component_);
+    return get_default_hash(int64_t(872347547444), domain_, src_component_);
   }
 };
 

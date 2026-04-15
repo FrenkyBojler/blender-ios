@@ -436,7 +436,7 @@ bool BaryWeightFromPositionFn::equals(const MultiFunction &other) const
 
 uint64_t BaryWeightFromPositionFn::hash() const
 {
-  return get_default_hash(23987565431, source_.get_mesh());
+  return get_default_hash(int64_t(23987565431), source_.get_mesh());
 }
 
 NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
@@ -485,7 +485,7 @@ bool NearestCornerFromPositionFn::equals(const MultiFunction &other) const
 
 uint64_t NearestCornerFromPositionFn::hash() const
 {
-  return get_default_hash(543876264190, source_.get_mesh());
+  return get_default_hash(int64_t(543876264190), source_.get_mesh());
 }
 
 BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field)

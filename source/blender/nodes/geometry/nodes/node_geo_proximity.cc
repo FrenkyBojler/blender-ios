@@ -286,7 +286,7 @@ class ProximityFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(58237454573, target_, type_, group_id_field_);
+    return get_default_hash(int64_t(58237454573), target_, type_, group_id_field_);
   }
 };
 

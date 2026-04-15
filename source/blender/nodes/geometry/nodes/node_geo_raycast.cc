@@ -242,7 +242,7 @@ class RaycastFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(765978398566, target_);
+    return get_default_hash(int64_t(765978398566), target_);
   }
 };
 
