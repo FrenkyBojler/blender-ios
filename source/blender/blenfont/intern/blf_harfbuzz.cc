@@ -270,19 +270,36 @@ ShapingData::ShapingData(FontBLF *font,
     hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
 
-    size_t str8_offset = 0;
+    /* Precompute mapping from UTF-32 codepoint index -> UTF-8 byte offset.
+     * HarfBuzz may reorder glyphs and multiple glyphs can share the same cluster,
+     * so we must not rely on glyph iteration order to compute UTF-8 offsets. */
+    std::vector<size_t> utf8_offsets(char_count);
+    size_t tmp_offset = 0;
+    for (size_t ci = 0; ci < char_count; ++ci) {
+      utf8_offsets[ci] = tmp_offset;
+      tmp_offset += size_t(BLI_str_utf8_from_unicode_len(str32[ci]));
+    }
+
+    size_t glyph_str8_offset = 0;
     for (i = 0; i < glyph_count; i++) {
       uint32_t glyph_id = hb_glyph_info[i].codepoint;
-      char32_t codepoint = str32[hb_glyph_info[i].cluster];
-      GlyphBLF *g = blf_glyph_ensure(segment_font, segment_gc, codepoint, glyph_id);
-      if (UNLIKELY(g == nullptr)) {
-        /* Still track UTF-8 offset for missing glyphs */
-        str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
-        continue;
+      unsigned int cluster = hb_glyph_info[i].cluster;
+      if (cluster >= char_count) {
+        /* Safety clamp; cluster should normally be within range. */
+        cluster = unsigned(int(char_count) - 1);
       }
+      char32_t codepoint = str32[cluster];
+      GlyphBLF *g = blf_glyph_ensure(segment_font, segment_gc, codepoint, glyph_id);
       const int advance = ((font->flags & BLF_MONOSPACED) ?
                                ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
                                glyph_pos[i].x_advance);
+
+      if (UNLIKELY(g == nullptr)) {
+        /* Still advance pen for missing glyphs using HarfBuzz-provided advance. */
+        pen_x += advance;
+        glyph_str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
+        continue;
+      }
 
       if (g->box_xmin == g->box_xmax) {
         /* Can happen with some spacing characters. */
@@ -296,8 +313,11 @@ ShapingData::ShapingData(FontBLF *font,
                      glyph_pos[i].y_offset,
                      g->box_ymax + glyph_pos[i].y_offset};
 
-      this->glyphs.append({segment_font, segment_gc, g, bounds, str8_offset});
-      str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
+      /* Use precomputed UTF-8 byte offset for the glyph's cluster. */
+      this->glyphs.append({segment_font, segment_gc, g, bounds, utf8_offsets[cluster]});
+      // for RTL (maybe):
+      // this->glyphs.append({segment_font, segment_gc, g, bounds, glyph_str8_offset});
+
       pen_x += advance;
       max_height = std::max(g->box_ymax - g->box_ymin, max_height);
     }
