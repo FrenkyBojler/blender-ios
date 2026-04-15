@@ -2,3 +2,4 @@ Referenced by issue #151762, Regression: Auto Depth interaction incorrectly affe
 Referenced by issue #154080, Image editor missing border and background grid
 Referenced by issue #154216, 3D Viewport grid fades near geometry, making it hard to gauge depth
 Referenced by issue #155334, Red line on grid doesn't draw in 5.1 beta
+Referenced by pull request #157381, Fix #157358: Orthographic grid clipping when viewport is resized
