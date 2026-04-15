@@ -392,6 +392,12 @@ template<typename T> constexpr bool is_field_v<Field<T>> = true;
 
 Field<bool> invert_boolean_field(const Field<bool> &field);
 
+/**
+ * "Deep" hashing for fields that considers the operation and inputs semantically, rather than
+ * just the shallow data (i.e. memory address) of the field data, like the default "hash()"
+ * implementation. Because common field reuse would give this potentially exponential cost, this
+ * struct caches the hashes of intermediate fields.
+ */
 struct GFieldDeepHasher {
   mutable Mutex mutex;
   Map<GFieldRef, uint64_t> cache;
@@ -402,6 +408,13 @@ struct GFieldDeepHasher {
     return const_cast<GFieldDeepHasher *>(this)->ensure(field);
   }
 };
+
+/**
+ * Compares the semantic equality of field inputs and operations, rather than memory-address
+ * shallow equality of the default implementation. Ideally preceded by hashing to avoid calls where
+ * possible, since this can be expensive (cost related to depth of field network in the worst
+ * case).
+ */
 bool field_equal_deep(const GFieldRef &a, const GFieldRef &b);
 
 struct GFieldEqualityDeep {

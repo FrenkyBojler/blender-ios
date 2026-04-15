@@ -125,6 +125,12 @@ class MultiFunction : NonCopyable, NonMovable {
 
   ExecutionHints execution_hints() const;
 
+  /**
+   * For performance reasons it might make sense to delay construction of data inside the node
+   * until we can be sure that the function will be evaluated. This method should be called before
+   * execution. The work must be protected by a lock though, since it may be called from multiple
+   * threads.
+   */
   virtual void prepare_for_execution() const {}
 
  protected:
