@@ -240,9 +240,9 @@ static void convert_rotation_mode_range(Main &bmain,
 }
 
 bool convert_rotation_keys(Main *bmain,
-                                     const animrig::Transformable &transformable,
-                                     const ChannelbagToFCurveMap &channelbag_fcurve_map,
-                                     const eRotationModes to_mode)
+                           const animrig::Transformable &transformable,
+                           const ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           const eRotationModes to_mode)
 {
   bool modified_keys = false;
 

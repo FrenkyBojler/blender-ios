@@ -1336,9 +1336,9 @@ using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
  * \returns true if any animation data was modified.
  */
 bool convert_rotation_keys(Main *bmain,
-                                     const animrig::Transformable &transformable,
-                                     const ChannelbagToFCurveMap &fcurves_by_rna_path,
-                                     eRotationModes to_mode);
+                           const animrig::Transformable &transformable,
+                           const ChannelbagToFCurveMap &fcurves_by_rna_path,
+                           eRotationModes to_mode);
 
 /**
  * Creates a map of RNA paths and the rotation FCurves associated with that rna path.
