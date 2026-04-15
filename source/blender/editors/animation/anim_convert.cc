@@ -134,7 +134,7 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   }
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
-  animrig::Rotation previous_conversion = rotation_values;
+  animrig::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
   Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
   for (const int64_t frame_id : keyframe_ids) {
