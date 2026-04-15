@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #157125, Fix #155830: Invalid freestyle attributes on CustomData
+Referenced by issue #157350, Freestyle Python API: NotUP1D(pyNatureUP1D(Nature.EDGE_MARK)) causes empty strokes error
