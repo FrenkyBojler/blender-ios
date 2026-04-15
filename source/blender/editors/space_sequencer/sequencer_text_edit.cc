@@ -676,7 +676,7 @@ static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
       }
       /* range fully inside deleted area */
       else if (pos <= range->start && del_end >= range->end) {
-        range->start = range->end = 0; 
+        range->start = range->end = 0;
       }
       /* deleted area inside range */
       else if (pos >= range->start && del_end <= range->end) {

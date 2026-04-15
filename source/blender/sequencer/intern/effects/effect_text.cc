@@ -636,7 +636,8 @@ static void text_draw(const char *text_ptr,
 
       update_font_state(runtime->font, attr, current_state);
 
-      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) : 1.0f;
+      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) :
+                                                          1.0f;
       float final_x = character.position.x + accumulation_shift - centering_offset;
 
       BLF_position(runtime->font, final_x, character.position.y, 0.0f);
