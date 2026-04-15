@@ -102,14 +102,10 @@ SDLDevice::SDLDevice(DeviceSpecs specs, int buffersize) :
 
 SDLDevice::~SDLDevice()
 {
-	if(m_stream)
-	{
-		SDL_PauseAudioStreamDevice(m_stream);
-		SDL_DestroyAudioStream(m_stream);
-	}
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
-
 	destroy();
+
+	SDL_DestroyAudioStream(m_stream);
+	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 class SDLDeviceFactory : public IDeviceFactory
