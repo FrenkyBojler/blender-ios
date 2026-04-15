@@ -1603,7 +1603,7 @@ static Vector<animrig::Transformable> selected_transformables_from_context(bCont
   return transformables;
 }
 
-static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
   const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
   const bool bake = RNA_boolean_get(op->ptr, "bake");
@@ -1682,7 +1682,7 @@ static void ANIM_OT_rotation_mode_convert(wmOperatorType *ot)
       "mode";
 
   ot->invoke = WM_menu_invoke;
-  ot->exec = rotation_mode_convert_exec;
+  ot->exec = pose_bone_rotmode_exec;
   ot->poll = rotation_mode_convert_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

@@ -622,45 +622,19 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 
 /* ********************************************** */
 
-static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
+  BKE_report(op->reports,
+             RPT_WARNING,
+             "pose.rotation_mode_set is deprecated. Use anim.rotation_mode_convert instead");
   const short mode = RNA_enum_get(op->ptr, "type");
-  const bool bake = RNA_boolean_get(op->ptr, "bake");
   Object *prev_ob = nullptr;
-
-  /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
 
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
-    if (pchan->rotmode == mode) {
-      /* Already in the correct mode. */
-      continue;
-    }
-    animrig::Transformable transformable(*ob, *pchan);
-    int visited_actions = 0;
-    animrig::foreach_action_slot_use(
-        ob->id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
-          if (!data_map.contains({&action, slot_handle})) {
-            ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
-            data_map.add({&action, slot_handle}, fcurve_map);
-          }
-          ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
-          if (bake) {
-            bake_rotation_fcurves(channelbag_fcurve_map, transformable);
-          }
-          convert_rotation_keys(
-              CTX_data_main(C), transformable, channelbag_fcurve_map, eRotationModes(mode));
-          DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
-          visited_actions++;
-          return true;
-        });
-
-    if (visited_actions == 0) {
-      /* No animation, just convert the values. */
-      BKE_rotMode_change_values(
-          pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, mode);
-    }
+    /* use API Method for conversions... */
+    BKE_rotMode_change_values(
+        pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, mode);
 
     /* finally, set the new rotation type */
     pchan->rotmode = mode;
@@ -687,7 +661,7 @@ void POSE_OT_rotation_mode_set(wmOperatorType *ot)
 
   /* callbacks */
   ot->invoke = WM_menu_invoke;
-  ot->exec = rotation_mode_convert_exec;
+  ot->exec = pose_bone_rotmode_exec;
   ot->poll = ED_operator_posemode;
 
   /* flags */
@@ -696,12 +670,6 @@ void POSE_OT_rotation_mode_set(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(
       ot->srna, "type", rna_enum_object_rotation_mode_items, 0, "Rotation Mode", "");
-  RNA_def_boolean(ot->srna,
-                  "bake",
-                  false,
-                  "Bake",
-                  "Creates a key on every frame before conversion so interpolation is preserved "
-                  "in the new mode");
 }
 
 /* ********************************************** */
