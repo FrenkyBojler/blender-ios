@@ -3975,6 +3975,20 @@ static int do_but_textedit(
         searchbox_event(C, data->searchbox, but, data->region, event);
 #endif
       }
+      else if (textbox && (event->type == MOUSEPAN)) {
+        int type = event->type;
+        int value = event->val;
+
+        pan_to_scroll(event, &type, &value);
+        int scroll_dir = 1;
+        if (event->flag & WM_EVENT_SCROLL_INVERT) {
+          scroll_dir = -1;
+        }
+        if (type != MOUSEPAN) {
+          textbox_add_scroll(textbox, (type == WHEELUPMOUSE ? -1 : 1) * scroll_dir);
+        }
+        retval = WM_UI_HANDLER_BREAK;
+      }
       do_but_extra_operator_icons_mousemove(but, data, event);
 
       break;
@@ -4127,23 +4141,6 @@ static int do_but_textedit(
         const eStrCursorJumpType jump = textedit_jump_type_from_event(event);
         textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
         retval = WM_UI_HANDLER_BREAK;
-        break;
-      }
-      case MOUSEPAN: {
-        if (textbox) {
-          int type = event->type;
-          int value = event->val;
-
-          pan_to_scroll(event, &type, &value);
-          int scroll_dir = 1;
-          if (event->flag & WM_EVENT_SCROLL_INVERT) {
-            scroll_dir = -1;
-          }
-          if (type != MOUSEPAN) {
-            textbox_add_scroll(textbox, (type == WHEELUPMOUSE ? -1 : 1) * scroll_dir);
-          }
-          retval = WM_UI_HANDLER_BREAK;
-        }
         break;
       }
       case WHEELDOWNMOUSE:
