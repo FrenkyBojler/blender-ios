@@ -135,7 +135,7 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
       break;
 
     case ROT_MODE_AXISANGLE:
-      axis_angle_to_quat(quat, this->values.data(), this->values[3]);
+      axis_angle_to_quat(quat, &this->values[1], this->values[0]);
       break;
 
     default:
@@ -153,7 +153,7 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
 
     case ROT_MODE_AXISANGLE:
       converted.values.reinitialize(4);
-      quat_to_axis_angle(converted.values.data(), &converted.values[3], quat);
+      quat_to_axis_angle(&converted.values[1], &converted.values[0], quat);
       break;
 
     default:
@@ -170,7 +170,7 @@ Rotation identity_rotation(const eRotationModes mode)
     case ROT_MODE_QUAT:
       return {{1, 0, 0, 0}, mode};
     case ROT_MODE_AXISANGLE:
-      return {{0, 1, 0, 0}, mode};
+      return {{0, 0, 1, 0}, mode};
     default:
       return {{0, 0, 0}, mode};
   }
@@ -222,9 +222,9 @@ static void build_rotations_array(
 
   rotations[ROT_IDX_AXIS_ANGLE] = Array<float *>(4);
   for (int i : IndexRange(3)) {
-    rotations[ROT_IDX_AXIS_ANGLE][i] = &axis[i];
+    rotations[ROT_IDX_AXIS_ANGLE][i + 1] = &axis[i];
   }
-  rotations[ROT_IDX_AXIS_ANGLE][3] = angle;
+  rotations[ROT_IDX_AXIS_ANGLE][0] = angle;
 }
 
 Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
