@@ -464,7 +464,12 @@ void IMB_crop(ImBuf *ibuf, const rcti &rect)
     return;
   }
 
-  const rcti src_rect = rect;
+  const rcti src_rect = {
+      .xmin = rect.xmin,
+      .xmax = rect.xmax + 1,
+      .ymin = rect.ymin,
+      .ymax = rect.ymax + 1,
+  };
   const rcti dst_rect = {
       .xmin = 0,
       .xmax = size_dst.x,
