@@ -275,7 +275,7 @@ class ProximityFunction : public mf::MultiFunction {
     if (target_ != other_op->target_) {
       return false;
     }
-    if (group_id_field_ != other_op->group_id_field_) {
+    if (!fn::field_equal_deep(group_id_field_, other_op->group_id_field_)) {
       return false;
     }
     return true;

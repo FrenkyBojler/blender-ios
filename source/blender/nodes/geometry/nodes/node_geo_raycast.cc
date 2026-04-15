@@ -234,7 +234,7 @@ class RaycastFunction : public mf::MultiFunction {
     if (!other_op) {
       return false;
     }
-    if (target_ != other_op->target_) {
+    if (target_.get_mesh() != other_op->target_.get_mesh()) {
       return false;
     }
     return true;

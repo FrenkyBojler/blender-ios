@@ -181,7 +181,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
       /* Compute group ids on mesh. */
       bke::MeshFieldContext field_context{mesh, bke::AttrDomain::Face};
       FieldEvaluator field_evaluator{field_context, mesh.faces_num};
-      field_evaluator.add(std::move(group_id_field_));
+      field_evaluator.add(group_id_field_);
       field_evaluator.evaluate();
       const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
 

@@ -230,8 +230,10 @@ class SampleCurveFunction : public mf::MultiFunction {
  public:
   SampleCurveFunction(GeometrySet geometry_set,
                       const GeometryNodeCurveSampleMode length_mode,
-                      const GField &src_field)
-      : geometry_set_(std::move(geometry_set)), src_field_(src_field), length_mode_(length_mode)
+                      GField src_field)
+      : geometry_set_(std::move(geometry_set)),
+        src_field_(std::move(src_field)),
+        length_mode_(length_mode)
   {
     mf::SignatureBuilder builder{"Sample Curve", signature_};
     builder.single_input<int>("Curve Index");
@@ -440,7 +442,7 @@ class SampleCurveFunction : public mf::MultiFunction {
       const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       source_context_.emplace(bke::CurvesFieldContext{curves_id, AttrDomain::Point});
       source_evaluator_ = std::make_unique<FieldEvaluator>(*source_context_, curves.points_num());
-      source_evaluator_->add(std::move(src_field_));
+      source_evaluator_->add(src_field_);
       source_evaluator_->evaluate();
       source_data_ = &source_evaluator_->get_evaluated(0);
     });
