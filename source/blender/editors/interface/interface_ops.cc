@@ -1054,8 +1054,7 @@ static bool tree_interface_item_can_set_prop(const bNodeTreeInterfaceItem &item,
 
   switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
-      const bNodeTreeInterfaceSocket &sock = reinterpret_cast<const bNodeTreeInterfaceSocket &>(
-          item);
+      const auto &sock = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
       if ((sock.flag & NODE_INTERFACE_SOCKET_SELECT) == 0) {
         return false;
       }
@@ -1074,13 +1073,11 @@ static bool tree_interface_item_can_set_prop(const bNodeTreeInterfaceItem &item,
         return nodes::socket_type_supports_attributes(sock.socket_typeinfo()->type);
       }
       /* Other properties only support batch setting for selected items of the same type. */
-      const bNodeTreeInterfaceSocket *active_sock =
-          reinterpret_cast<const bNodeTreeInterfaceSocket *>(&active_item);
+      const auto *active_sock = reinterpret_cast<const bNodeTreeInterfaceSocket *>(&active_item);
       return sock.socket_typeinfo()->type == active_sock->socket_typeinfo()->type;
     }
     case NODE_INTERFACE_PANEL: {
-      const bNodeTreeInterfacePanel &panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(
-          item);
+      const auto &panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(item);
       return panel.flag & NODE_INTERFACE_PANEL_SELECT;
     }
   }
