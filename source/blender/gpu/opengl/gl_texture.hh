@@ -48,7 +48,6 @@ class GLTexture : public Texture {
   GLuint tex_id_ = 0;
   /** Legacy workaround for texture copy. Created when using framebuffer_get(). */
   FrameBuffer *framebuffer_ = nullptr;
-
   /** True if this texture is bound to at least one texture unit. */
   /* TODO(fclem): How do we ensure thread safety here? */
   bool is_bound_ = false;
