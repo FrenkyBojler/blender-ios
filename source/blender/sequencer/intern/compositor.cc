@@ -83,14 +83,18 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
           GPU_texture_update(input_tex, GPU_DATA_FLOAT, input.float_buffer.data);
         }
 
-        /* Allocate compositor result texture. */
-        result.set_precision(input_is_byte ? compositor::ResultPrecision::Half : get_precision());
+        /* Allocate compositor result texture. We use global compositor precision even
+         * for byte inputs. In theory Half precision should be enough, but that leads to potential
+         * small differences between CPU & GPU paths. */
+        result.set_precision(get_precision());
         result.allocate_texture(size);
 
         /* Convert input texture into the compositor result texture. */
         GPU_texture_bind(input_tex,
                          GPU_shader_get_sampler_binding(shader, ocio_shader.input_sampler_name()));
         result.bind_as_image(shader, ocio_shader.output_image_name());
+
+        GPU_shader_uniform_1b(shader, "premultiply_output", input_is_byte);
 
         compositor::compute_dispatch_threads_at_least(shader, size);
 
@@ -143,6 +147,9 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
   std::memcpy(image.float_data_for_write(),
               result_cpu.cpu_data().data(),
               IMB_get_pixel_count(&image) * sizeof(float) * 4);
+  const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
+      COLOR_ROLE_SCENE_LINEAR);
+  IMB_colormanagement_assign_float_colorspace(&image, to_colorspace);
 
   if (this->use_gpu()) {
     result_cpu.release();
