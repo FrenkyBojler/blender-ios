@@ -436,7 +436,7 @@ bool BaryWeightFromPositionFn::equals(const MultiFunction &other) const
 
 uint64_t BaryWeightFromPositionFn::hash() const
 {
-  return get_default_hash(9863459873456, source_.get_mesh());
+  return get_default_hash(23987565431, source_.get_mesh());
 }
 
 NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
@@ -495,7 +495,7 @@ BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_fiel
   mf::SignatureBuilder builder{"Sample Barycentric Triangles", signature_};
   builder.single_input<int>("Triangle Index");
   builder.single_input<float3>("Barycentric Weight");
-  builder.single_output("Value", source_data_->type());
+  builder.single_output("Value", src_field_.cpp_type());
   this->set_signature(&signature_);
 }
 

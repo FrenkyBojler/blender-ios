@@ -146,7 +146,8 @@ class AxesToRotationFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(9875347984, primary_axis_.as_int(), secondary_axis_.as_int());
+    return get_default_hash(
+        9875347984, primary_axis_.as_int(), secondary_axis_.as_int(), tertiary_axis_.as_int());
   }
 };
 

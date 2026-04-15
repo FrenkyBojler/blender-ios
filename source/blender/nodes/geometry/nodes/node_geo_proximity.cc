@@ -275,6 +275,9 @@ class ProximityFunction : public mf::MultiFunction {
     if (target_ != other_op->target_) {
       return false;
     }
+    if (type_ != other_op->type_) {
+      return false;
+    }
     if (!fn::field_equal_deep(group_id_field_, other_op->group_id_field_)) {
       return false;
     }
@@ -283,7 +286,7 @@ class ProximityFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    return get_default_hash(58237454573, target_, group_id_field_);
+    return get_default_hash(58237454573, target_, type_, group_id_field_);
   }
 };
 
