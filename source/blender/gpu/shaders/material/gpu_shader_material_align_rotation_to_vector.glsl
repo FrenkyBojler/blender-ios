@@ -20,8 +20,9 @@ float angle_normalized_v3v3(float3 v1, float3 v2)
 
 float3 project_plane_normalized_v3_v3v3(float3 p, float3 v_plane)
 {
-  const float mul = dot(p, v_plane);
-  return p - v_plane * mul;
+  const float3 v_plane_n = normalize(v_plane);
+  const float mul = dot(p, v_plane_n);
+  return p - v_plane_n * mul;
 }
 
 float angle_signed_on_axis_v3v3_v3(float3 v1, float3 v2, float3 axis)
@@ -34,9 +35,14 @@ float angle_signed_on_axis_v3v3_v3(float3 v1, float3 v2, float3 axis)
 
   const float3 tproj = cross(v2_proj, v1_proj);
   if (dot(tproj, axis) < 0.0f) {
-    angle = M_PI * 2.0 - angle;
+    angle = M_PI * 2.0f - angle;
   }
   return angle;
+}
+
+bool is_near_zero(float3 v)
+{
+  return length(v) <= 1e-8f;
 }
 
 [[node]]
@@ -55,10 +61,11 @@ void align_rotation_to_vector_auto_pivot(float4 rotation_in,
   const float3 new_axis = normalize(input_vector);
 
   float3 rotation_axis = cross(old_axis, new_axis);
-  if (is_zero(rotation_axis)) {
+  /* `is_zero` is too strict here, tiny float leftovers can still happen. */
+  if (is_near_zero(rotation_axis)) {
     /* The vectors are linearly dependent, so we fall back to another axis. */
     rotation_axis = cross(old_axis, float3(1.0f, 0.0f, 0.0f));
-    if (is_zero(rotation_axis)) {
+    if (is_near_zero(rotation_axis)) {
       /* This is now guaranteed to not be zero. */
       rotation_axis = cross(old_axis, float3(0.0f, 1.0f, 0.0f));
     }
@@ -82,7 +89,7 @@ void align_rotation_to_vector_fixed_pivot(float4 rotation_in,
                                           float3 local_pivot_axis,
                                           out float4 rotation)
 {
-  if (local_main_axis == local_pivot_axis) {
+  if (all(equal(local_main_axis, local_pivot_axis))) {
     /* Can't compute any meaningful rotation angle in this case. */
     rotation = rotation_in;
     return;

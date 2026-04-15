@@ -69,7 +69,7 @@ static int gpu_shader_rotation_to_quaternion(GPUMaterial *mat,
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(
+  fn_cmp_node_type_base(
       &ntype, "FunctionNodeRotationToQuaternion"_ustr, FN_NODE_ROTATION_TO_QUATERNION);
   ntype.ui_name = "Rotation to Quaternion";
   ntype.ui_description = "Retrieve the quaternion components representing a rotation";
