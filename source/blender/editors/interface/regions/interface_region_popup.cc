@@ -860,7 +860,6 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     /* the block and buttons were positioned in window space as in 2.4x, now
      * these menu blocks are regions so we bring it back to region space.
      * additionally we add some padding for the menu shadow or rounded menus */
-
     region->winrct.xmin = block->rect.xmin - margin;
     region->winrct.xmax = block->rect.xmax + margin;
     region->winrct.ymin = block->rect.ymin - margin;
