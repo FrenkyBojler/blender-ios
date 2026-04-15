@@ -46,11 +46,10 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
-namespace blender {
-
-namespace ui {
+namespace blender::ui {
 
 struct ButtonItem;
 
@@ -2752,6 +2751,63 @@ void button_configure_search(Button *but,
   }
 }
 
+void Layout::textbox(const bContext *C, PointerRNA *ptr, StringRefNull propname)
+{
+  TextboxState *textbox_state = textbox_ensure_state(
+      CTX_wm_region(C), fmt::format("{}.{}", RNA_struct_identifier(ptr->type), propname));
+  this->textbox_with_state(ptr, propname, textbox_state);
+}
+
+void Layout::textbox_with_state(PointerRNA *ptr,
+                                StringRefNull propname,
+                                TextboxState *textbox_state)
+{
+
+  Block *block = this->block();
+  PropertyRNA *prop = RNA_struct_find_property_check(*ptr, propname.c_str(), PROP_STRING);
+
+  BLI_assert(textbox_state);
+
+  if (!prop) {
+    item_disabled(this, propname.c_str());
+    RNA_warning(
+        "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    return;
+  }
+
+  this->row(true).alignment_set(LayoutAlign::Expand);
+
+  const float line_heigth = fontstyle_height_max(UI_FSTYLE_WIDGET);
+
+  /** Ensure minumun value is set. */
+  textbox_state->visible_lines = std::max(textbox_state->visible_lines,
+                                          textbox_minimum_visible_lines);
+
+  int w, h;
+  item_rna_size(block->curlayout, "", ICON_NONE, ptr, prop, -1, false, false, &w, &h);
+  Button *but = uiDefButR_prop(block,
+                               ButtonType::TextBox,
+                               RNA_property_ui_name(prop),
+                               0,
+                               0,
+                               w,
+                               line_heigth * textbox_state->visible_lines + textbox_padding_top() +
+                                   textbox_padding_bottom(),
+                               ptr,
+                               prop,
+                               0,
+                               0,
+                               0,
+                               std::nullopt);
+  ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
+  textbox->state = textbox_state;
+
+  if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
+    button_flag_enable(but, BUT_TEXTEDIT_UPDATE);
+  }
+  block_layout_set_current(block, this);
+}
+
 void Layout::prop_search(PointerRNA *ptr,
                          PropertyRNA *prop,
                          PointerRNA *searchptr,
@@ -3124,8 +3180,9 @@ void Layout::popover(const bContext *C,
                      std::string(panel_type).c_str());
     return;
   }
-  pt->popup_draw_direction = direction;
   this->popover(C, pt, name_opt, icon);
+  ButtonMenu *popover_button = static_cast<ButtonMenu *>(this->block()->buttons_ptrs.last().get());
+  popover_button->popup_attach_direction = direction;
 }
 
 void Layout::popover_group(
@@ -3227,6 +3284,84 @@ Button *uiItemL_ex(
 void Layout::label(const StringRef name, int icon)
 {
   uiItem_simple(this, name, icon);
+}
+
+void Layout::link(const StringRef url, const StringRef name, int icon)
+{
+  wmOperatorType *ot = WM_operatortype_find("WM_OT_url_open", false); /* print error next */
+
+  if (!ot || !ot->srna) {
+    item_disabled(this, "WM_OT_url_open");
+    RNA_warning_bare("UILayout::link(): %s '%s'",
+                     ot ? "operator missing srna" : "unknown operator",
+                     "WM_OT_url_open");
+    return;
+  }
+  if (name.is_empty()) {
+    item_disabled(this, "WM_OT_url_open");
+    RNA_warning_bare("UILayout::link(): missing link name");
+    return;
+  }
+
+  /* Force the button to not be expanded full width. */
+  Layout *layout = &this->row(false);
+  layout->alignment_set(this->alignment());
+  layout = &layout->row(false);
+  layout->alignment_set(LayoutAlign::Center);
+
+  if (this->root()->type == LayoutType::Menu && !icon) {
+    icon = ICON_BLANK1;
+  }
+  Block *block = layout->block();
+  block_layout_set_current(block, layout);
+  block_new_button_group(block, ButtonGroupFlag(0));
+
+  /* Match button width to label items. */
+  const int w = text_icon_width_ex(layout, name, icon, text_pad_none, UI_FSTYLE_WIDGET);
+
+  /* Create the button. */
+  Button *button;
+  wm::OpCallContext context = wm::OpCallContext::InvokeDefault;
+  if (icon) {
+    button = uiDefIconTextButO_ptr(
+        block, ButtonType::But, ot, context, icon, name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+  }
+  else {
+    button = uiDefButO_ptr(
+        block, ButtonType::But, ot, context, name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+  }
+
+  if (layout->red_alert()) {
+    button_flag_enable(button, BUT_REDALERT);
+  }
+  PointerRNA *opptr = button_operator_ptr_ensure(button);
+  opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
+
+  static_cast<ButtonPush *>(button)->draw_as_link = true;
+
+  if (this->alignment() == LayoutAlign::Right) {
+    button->drawflag &= ~BUT_TEXT_LEFT;
+    button->drawflag |= BUT_TEXT_RIGHT;
+  }
+  else if (this->alignment() == LayoutAlign::Left) {
+    button->drawflag &= ~BUT_TEXT_RIGHT;
+    button->drawflag |= BUT_TEXT_LEFT;
+  }
+  /* Show only URL in the tooltip. */
+  ui::button_func_tooltip_custom_set(
+      button,
+      [](bContext & /*C*/, ui::TooltipData &data, ui::Button *but, void * /*argN*/) {
+        tooltip_text_field_add(data, but->str, {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_NORMAL, false);
+        tooltip_text_field_add(data,
+                               RNA_string_get(but->opptr, "url"),
+                               {},
+                               ui::TIP_STYLE_NORMAL,
+                               ui::TIP_LC_DIMMED,
+                               false);
+      },
+      nullptr,
+      nullptr);
+  RNA_string_set(opptr, "url", url.data());
 }
 
 PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout)
@@ -6232,5 +6367,4 @@ EmbossType Layout::emboss_or_undefined() const
   return emboss_;
 }
 
-}  // namespace ui
-}  // namespace blender
+}  // namespace blender::ui

@@ -58,11 +58,9 @@
 
 #include <fmt/format.h>
 
-namespace blender {
+namespace blender::ui {
 
 static CLG_LogRef LOG = {"ui.icon"};
-
-namespace ui {
 
 struct IconImage {
   int w;
@@ -167,14 +165,15 @@ static DrawInfo *def_internal_icon(
 
       /* Here we store the rect in the icon - same as before */
       if (size == bbuf->x && size == bbuf->y && xofs == 0 && yofs == 0) {
-        memcpy(iimg->rect, bbuf->byte_buffer.data, size * size * 4 * sizeof(uint8_t));
+        memcpy(iimg->rect, bbuf->byte_data(), size * size * 4 * sizeof(uint8_t));
       }
       else {
         /* this code assumes square images */
         imgsize = bbuf->x;
+        const uchar *data = bbuf->byte_data();
         for (y = 0; y < size; y++) {
           memcpy(&iimg->rect[y * size],
-                 &bbuf->byte_buffer.data[(y + yofs) * imgsize + xofs],
+                 &data[(y + yofs) * imgsize + xofs],
                  size * 4 * sizeof(uint8_t));
         }
       }
@@ -1683,7 +1682,7 @@ static void icon_draw_size(float x,
     const ImBuf *ibuf = static_cast<const ImBuf *>(icon->obj);
 
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    icon_draw_rect(x, y, w, h, ibuf->x, ibuf->y, ibuf->byte_buffer.data, alpha, desaturate);
+    icon_draw_rect(x, y, w, h, ibuf->x, ibuf->y, ibuf->byte_data(), alpha, desaturate);
     GPU_blend(GPU_BLEND_ALPHA);
   }
   else if (di->type == ICON_TYPE_VECTOR) {
@@ -1724,7 +1723,7 @@ static void icon_draw_size(float x,
     }
 
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    icon_draw_rect(x, y, w, h, w, h, ibuf->byte_buffer.data, alpha, desaturate);
+    icon_draw_rect(x, y, w, h, w, h, ibuf->byte_data(), alpha, desaturate);
     GPU_blend(GPU_BLEND_ALPHA);
   }
   else if (di->type == ICON_TYPE_EVENT) {
@@ -2357,5 +2356,4 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size)
 #endif
 }
 
-}  // namespace ui
-}  // namespace blender
+}  // namespace blender::ui

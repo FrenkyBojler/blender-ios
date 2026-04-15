@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
@@ -228,15 +229,17 @@ void AS_asset_library_essential_import_method_update()
 
 namespace asset_system {
 
-AssetLibrary::AssetLibrary(
-    eAssetLibraryType library_type,
-    StringRef name,
-    StringRef root_path,
-    std::optional<AssetCatalogService::read_only_tag> catalogs_read_only_tag)
+AssetLibrary::AssetLibrary(eAssetLibraryType library_type,
+                           const bool is_read_only,
+                           StringRef name,
+                           StringRef root_path)
     : library_type_(library_type),
+      is_read_only_(is_read_only),
       name_(name),
       root_path_(std::make_shared<std::string>(utils::normalize_directory_path(root_path))),
-      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_, catalogs_read_only_tag))
+      catalog_service_(std::make_unique<AssetCatalogService>(
+          *root_path_,
+          is_read_only ? std::optional{AssetCatalogService::read_only_tag{}} : std::nullopt))
 {
 }
 
@@ -272,15 +275,14 @@ void AssetLibrary::refresh_catalogs()
 
 void AssetLibrary::load_or_reload_catalogs()
 {
-  {
-    std::lock_guard lock{catalog_service_mutex_};
-    /* Should never actually be the case, catalog service gets allocated with the asset library. */
-    if (catalog_service_ == nullptr) {
-      auto catalog_service = std::make_unique<AssetCatalogService>(*root_path_);
-      catalog_service->load_from_disk();
-      catalog_service_ = std::move(catalog_service);
-      return;
-    }
+  std::lock_guard lock{catalog_service_mutex_};
+
+  /* Should never actually be the case, catalog service gets allocated with the asset library. */
+  if (catalog_service_ == nullptr) {
+    auto catalog_service = std::make_unique<AssetCatalogService>(*root_path_);
+    catalog_service->load_from_disk();
+    catalog_service_ = std::move(catalog_service);
+    return;
   }
 
   /* The catalog service was created before without being associated with a definition file. */
@@ -450,6 +452,11 @@ StringRefNull AssetLibrary::name() const
 StringRefNull AssetLibrary::root_path() const
 {
   return *root_path_;
+}
+
+bool AssetLibrary::is_read_only() const
+{
+  return is_read_only_;
 }
 
 Vector<AssetLibraryReference> all_valid_asset_library_refs()

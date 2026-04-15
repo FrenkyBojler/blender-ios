@@ -140,6 +140,11 @@ static void sima_zoom_set(
     sima->xof += ((location[0] - 0.5f) * w - sima->xof) * (sima->zoom - oldzoom) / sima->zoom;
     sima->yof += ((location[1] - 0.5f) * h - sima->yof) * (sima->zoom - oldzoom) / sima->zoom;
   }
+
+  Image *ima = ED_space_image(sima);
+  if (ima) {
+    ima->runtime->view_zoom = sima->zoom;
+  }
 }
 
 static void sima_zoom_set_factor(SpaceImage *sima,
@@ -244,8 +249,7 @@ static bool image_from_context_has_data_poll(bContext *C)
 
   void *lock;
   ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, iuser, &lock);
-  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data ||
-                                    ibuf->gpu.texture));
+  const bool has_buffer = (ibuf && (ibuf->byte_data() || ibuf->float_data() || ibuf->gpu.texture));
   BKE_image_release_ibuf(ima, ibuf, lock);
   return has_buffer;
 }
@@ -428,6 +432,12 @@ static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
   sima->yof += offset[1];
 
   ED_region_tag_redraw(CTX_wm_region(C));
+
+  Image *ima = ED_space_image(sima);
+  if (ima) {
+    ima->runtime->view_offset[0] = sima->xof;
+    ima->runtime->view_offset[1] = sima->yof;
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1006,6 +1016,8 @@ static wmOperatorStatus image_view_selected_exec(bContext *C, wmOperator * /*op*
   ViewLayer *view_layer;
   Object *obedit;
 
+  const Main *bmain = CTX_data_main(C);
+
   /* retrieve state */
   sima = CTX_wm_space_image(C);
   region = CTX_wm_region(C);
@@ -1017,7 +1029,7 @@ static wmOperatorStatus image_view_selected_exec(bContext *C, wmOperator * /*op*
   float min[2], max[2];
   if (ED_space_image_show_uvedit(sima, obedit)) {
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-        scene, view_layer, nullptr);
+        *bmain, scene, view_layer, nullptr);
     bool success = ED_uvedit_minmax_multi(scene, objects, min, max);
     if (!success) {
       return OPERATOR_CANCELLED;
@@ -2365,7 +2377,7 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
   }
 
   /* get a filename for menu */
-  BLI_path_split_dir_part(first_ibuf->filepath, di, sizeof(di));
+  BLI_path_split_dir_part(first_ibuf->filepath.c_str(), di, sizeof(di));
   BKE_reportf(op->reports, RPT_INFO, "%d image(s) will be saved in %s", tot, di);
 
   iter = IMB_moviecacheIter_new(image->runtime->cache);
@@ -2373,12 +2385,12 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
     if (ibuf != nullptr && ibuf->userflags & IB_BITMAPDIRTY) {
-      if (0 == IMB_save_image(ibuf, ibuf->filepath, IB_byte_data)) {
+      if (0 == IMB_save_image(ibuf, ibuf->filepath.c_str(), IB_byte_data)) {
         BKE_reportf(op->reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
         break;
       }
 
-      BKE_reportf(op->reports, RPT_INFO, "Saved %s", ibuf->filepath);
+      BKE_reportf(op->reports, RPT_INFO, "Saved %s", ibuf->filepath.c_str());
       ibuf->userflags &= ~IB_BITMAPDIRTY;
     }
 
@@ -2750,6 +2762,7 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void image_new_draw(bContext * /*C*/, wmOperator *op)
 {
+  /* TODO: Deduplicate with texture_paint_add_texture_paint_slot_ui */
   ui::Layout &layout = *op->layout;
 
   /* copy of WM_operator_props_dialog_popup() layout */
@@ -2757,13 +2770,21 @@ static void image_new_draw(bContext * /*C*/, wmOperator *op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
+  layout.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &dim_col = layout.column(true);
+  dim_col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  dim_col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
   ui::Layout &col = layout.column(false);
-  col.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  const int gen_type = RNA_enum_get(op->ptr, "generated_type");
+  ui::Layout &color_col = col.column(false);
+  if (gen_type == IMA_GENTYPE_BLANK) {
+    color_col.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  col.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -2861,8 +2882,8 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
   const int size_x = ibuf->x;
   const int size_y = ibuf->y;
 
-  if (ibuf->float_buffer.data) {
-    float *float_pixels = ibuf->float_buffer.data;
+  if (ibuf->float_data()) {
+    float *float_pixels = ibuf->float_data_for_write();
 
     float *orig_float_pixels = MEM_dupalloc(float_pixels);
     for (int x = 0; x < size_x; x++) {
@@ -2879,12 +2900,11 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
     }
     MEM_delete(orig_float_pixels);
 
-    if (ibuf->byte_buffer.data) {
+    if (ibuf->byte_data()) {
       IMB_byte_from_float(ibuf);
     }
   }
-  else if (ibuf->byte_buffer.data) {
-    uchar *char_pixels = ibuf->byte_buffer.data;
+  else if (uchar *char_pixels = ibuf->byte_data_for_write()) {
     uchar *orig_char_pixels = MEM_dupalloc(char_pixels);
     for (int x = 0; x < size_x; x++) {
       const int source_pixel_x = use_flip_x ? size_x - x - 1 : x;
@@ -3193,9 +3213,9 @@ static wmOperatorStatus image_invert_exec(bContext *C, wmOperator *op)
   }
 
   /* TODO: make this into an IMB_invert_channels(ibuf,r,g,b,a) method!? */
-  if (ibuf->float_buffer.data) {
+  if (float *float_data = ibuf->float_data_for_write()) {
 
-    float *fp = ibuf->float_buffer.data;
+    float *fp = float_data;
     for (i = size_t(ibuf->x) * ibuf->y; i > 0; i--, fp += 4) {
       if (r) {
         fp[0] = 1.0f - fp[0];
@@ -3211,13 +3231,11 @@ static wmOperatorStatus image_invert_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (ibuf->byte_buffer.data) {
+    if (ibuf->byte_data()) {
       IMB_byte_from_float(ibuf);
     }
   }
-  else if (ibuf->byte_buffer.data) {
-
-    uchar *cp = ibuf->byte_buffer.data;
+  else if (uchar *cp = ibuf->byte_data_for_write()) {
     for (i = size_t(ibuf->x) * ibuf->y; i > 0; i--, cp += 4) {
       if (r) {
         cp[0] = 255 - cp[0];
@@ -3659,19 +3677,19 @@ bool ED_space_image_color_sample(
 
   if (uv[0] >= 0.0f && uv[1] >= 0.0f && uv[0] < 1.0f && uv[1] < 1.0f) {
     const float *fp;
-    uchar *cp;
+    const uchar *cp;
     int x = int(uv[0] * ibuf->x), y = int(uv[1] * ibuf->y);
 
     CLAMP(x, 0, ibuf->x - 1);
     CLAMP(y, 0, ibuf->y - 1);
 
-    if (ibuf->float_buffer.data) {
-      fp = (ibuf->float_buffer.data + (ibuf->channels) * (y * ibuf->x + x));
+    if (ibuf->float_data()) {
+      fp = (ibuf->float_data() + (ibuf->channels) * (y * ibuf->x + x));
       copy_v3_v3(r_col, fp);
       ret = true;
     }
-    else if (ibuf->byte_buffer.data) {
-      cp = ibuf->byte_buffer.data + 4 * (y * ibuf->x + x);
+    else if (ibuf->byte_data()) {
+      cp = ibuf->byte_data() + 4 * (y * ibuf->x + x);
       rgb_uchar_to_float(r_col, cp);
       IMB_colormanagement_colorspace_to_scene_linear_v3(r_col, ibuf->byte_buffer.colorspace);
       ret = true;
@@ -4324,7 +4342,7 @@ static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
     /* Initialize properties from reference tile. */
     RNA_int_set(ptr, "width", ibuf->x);
     RNA_int_set(ptr, "height", ibuf->y);
-    RNA_boolean_set(ptr, "float", ibuf->float_buffer.data != nullptr);
+    RNA_boolean_set(ptr, "float", ibuf->float_data() != nullptr);
     RNA_boolean_set(ptr, "alpha", ibuf->planes > 24);
 
     BKE_image_release_ibuf(ima, ibuf, nullptr);

@@ -59,7 +59,7 @@ enum eStripFlag {
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
-  SEQ_USE_LINEAR_MODIFIERS = (1 << 23),
+  /* (1 << 23) unused, set to zero by versioning code. */
 
   /* Flags for whether those properties are animated or not */
   SEQ_AUDIO_VOLUME_ANIMATED = (1 << 24),
@@ -905,6 +905,8 @@ struct StripModifierData {
    */
   uint16_t layout_panel_open_flag = 0;
   uint16_t ui_expand_flag = 0;
+
+  struct IDProperty *system_properties = nullptr;
 
   blender::seq::StripModifierDataRuntime *runtime = nullptr;
 };
