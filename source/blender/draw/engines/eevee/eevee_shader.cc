@@ -657,8 +657,9 @@ class SlotAllocator {
 
   int get_next_sampler()
   {
-    int next_sampler = available_samplers_ == 0 ? total_requested_samplers_++ :
+    int next_sampler = available_samplers_ == 0 ? total_requested_samplers_ :
                                                   bitscan_forward_clear_uint(&available_samplers_);
+    total_requested_samplers_++;
     if (next_sampler >= GPU_max_textures()) {
       /* Should result in compilation failure. */
       sampler_overflow_ = true;
