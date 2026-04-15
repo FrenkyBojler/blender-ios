@@ -183,41 +183,39 @@ static void convert_rotation_mode_range(Main &bmain,
 
   const bool is_euler_to_euler = from_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
 
-  {
-    const std::string to_mode_rna_path = transformable.rna_path_to_rotation_mode(to_mode);
+  const std::string to_mode_rna_path = transformable.rna_path_to_rotation_mode(to_mode);
 
-    if (is_euler_to_euler) {
-      /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
-       * rotation mode would influence the result. */
-      animrig::FCurveDescriptor descriptor = {
-          to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, transformable.fcurve_group_name()};
-      BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
-                         evaluation_buffer_count == 3,
-                     "Both rotation modes are euler so should have 3 elements.");
-      for (const int i : IndexRange(3)) {
-        descriptor.array_index = i;
-        insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
-        evaluation_buffer[i] = BKE_fcurve_copy(insertion_buffer[i]);
-      }
+  if (is_euler_to_euler) {
+    /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
+     * rotation mode would influence the result. */
+    animrig::FCurveDescriptor descriptor = {
+        to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, transformable.fcurve_group_name()};
+    BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
+                       evaluation_buffer_count == 3,
+                   "Both rotation modes are euler so should have 3 elements.");
+    for (const int i : IndexRange(3)) {
+      descriptor.array_index = i;
+      insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
+      evaluation_buffer[i] = BKE_fcurve_copy(insertion_buffer[i]);
     }
-    else {
-      for (const int i : IndexRange(evaluation_buffer_count)) {
-        evaluation_buffer[i] = fcurve_buffer.get_fcurve_by_array_index(i);
-      }
-      /* Is needed to get correct FCurve colors. */
-      PropertySubType prop_subtype = PROP_EULER;
-      if (to_mode == ROT_MODE_QUAT) {
-        prop_subtype = PROP_QUATERNION;
-      }
-      else if (to_mode == ROT_MODE_AXISANGLE) {
-        prop_subtype = PROP_AXISANGLE;
-      }
-      animrig::FCurveDescriptor descriptor = {
-          to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, transformable.fcurve_group_name()};
-      for (const int i : IndexRange(insertion_buffer_count)) {
-        descriptor.array_index = i;
-        insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
-      }
+  }
+  else {
+    for (const int i : IndexRange(evaluation_buffer_count)) {
+      evaluation_buffer[i] = fcurve_buffer.get_fcurve_by_array_index(i);
+    }
+    /* Is needed to get correct FCurve colors. */
+    PropertySubType prop_subtype = PROP_EULER;
+    if (to_mode == ROT_MODE_QUAT) {
+      prop_subtype = PROP_QUATERNION;
+    }
+    else if (to_mode == ROT_MODE_AXISANGLE) {
+      prop_subtype = PROP_AXISANGLE;
+    }
+    animrig::FCurveDescriptor descriptor = {
+        to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, transformable.fcurve_group_name()};
+    for (const int i : IndexRange(insertion_buffer_count)) {
+      descriptor.array_index = i;
+      insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
     }
   }
 

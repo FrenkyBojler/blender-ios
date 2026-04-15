@@ -1331,7 +1331,9 @@ using RNAFCurveMap = Map<StringRefNull, SortedFCurveBuffer>;
 using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
 
 /**
- * Convert any keyframe data for the given bone to the given rotation mode.
+ * Convert any keyframe data for the given transformable to the given rotation mode.
+ * This will respect an animated rotation mode and will convert from the correct mode based on that
+ * animation.
  *
  * \returns true if any animation data was modified.
  */
