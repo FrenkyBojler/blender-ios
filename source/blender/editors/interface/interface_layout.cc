@@ -1933,7 +1933,7 @@ void Layout::prop(PointerRNA *ptr,
                   eUI_Item_Flag flag,
                   const std::optional<StringRef> name_opt,
                   int icon,
-                  const std::optional<StringRef> placeholder_opt)
+                  const std::optional<StringRef> placeholder)
 {
 
   Block *block = this->block();
@@ -2329,8 +2329,8 @@ void Layout::prop(PointerRNA *ptr,
   }
 
   if (but) {
-    if (placeholder_opt) {
-      button_placeholder_set(but, *placeholder_opt);
+    if (placeholder) {
+      button_placeholder_set(but, *placeholder);
     }
     else if (name_opt && name_opt->is_empty()) {
       button_placeholder_set(but, RNA_property_ui_name(prop));
@@ -2743,7 +2743,7 @@ void Layout::prop_search(PointerRNA *ptr,
                          const std::optional<StringRefNull> name_opt,
                          int icon,
                          bool results_are_suggestions,
-                         const std::optional<StringRefNull> placeholder_opt)
+                         const std::optional<StringRefNull> placeholder)
 {
   const bool use_prop_sep = this->use_property_split();
   Block *block = this->block();
@@ -2811,8 +2811,8 @@ void Layout::prop_search(PointerRNA *ptr,
                                    "UILayout.prop_search()");
   BLI_assert(but->type == ButtonType::SearchMenu);
 
-  if (placeholder_opt) {
-    button_placeholder_set(but, *placeholder_opt);
+  if (placeholder) {
+    button_placeholder_set(but, *placeholder);
   }
   else if (name_opt && name_opt->is_empty()) {
     button_placeholder_set(but, RNA_property_ui_name(prop));
