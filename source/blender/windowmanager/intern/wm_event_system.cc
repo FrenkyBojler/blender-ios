@@ -785,6 +785,8 @@ void wm_event_do_notifiers(bContext *C)
           region_params.region = &region;
           region_params.scene = scene;
           region_params.notifier = note;
+
+          ED_region_do_listen(&region_params);
         }
 
         ED_screen_areas_iter (&win, screen, area) {
@@ -809,6 +811,8 @@ void wm_event_do_notifiers(bContext *C)
             region_params.region = &region;
             region_params.scene = scene;
             region_params.notifier = note;
+
+            ED_region_do_listen(&region_params);
           }
         }
       }
