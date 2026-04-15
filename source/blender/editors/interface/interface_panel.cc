@@ -1472,8 +1472,8 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
-  const bool show_icons = U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT;
-  if (!show_icons) {
+  const bool compact = U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT;
+  if (!compact) {
     BLF_enable(fontid, BLF_ROTATION);
     BLF_rotation(fontid, is_left ? M_PI_2 : -M_PI_2);
   }
@@ -1493,8 +1493,8 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
     const int category_width = round_fl_to_int(
-        show_icons ? 10.5 * UI_SCALE_FAC * zoom :
-                     BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+        compact ? 10.5 * UI_SCALE_FAC * zoom :
+                  BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
@@ -1624,7 +1624,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     /* Tab titles. */
     BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
 
-    if (show_icons) {
+    if (compact) {
       if (pc_dyn.icon != ICON_NONE) {
         const float icon_size = 16.0f * UI_SCALE_FAC * zoom;
         const float ofs_x = float(rct_xmax - rct_xmin - icon_size) / 2.0f;
