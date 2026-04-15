@@ -122,7 +122,8 @@ enum RotationModeIndices : uint8_t {
   ROT_IDX_MAX_ENUM,
 };
 
-Rotation Rotation::converted_to_mode(const eRotationModes mode) const
+Rotation Rotation::converted_to_mode(const eRotationModes mode,
+                                     const Rotation *reference_euler) const
 {
   if (mode == this->mode) {
     return *this;
@@ -158,7 +159,14 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
 
     default:
       converted.values.reinitialize(3);
-      quat_to_eulO(converted.values.data(), mode, quat);
+      if (reference_euler) {
+        BLI_assert(reference_euler->mode >= ROT_MODE_EUL);
+        quat_to_compatible_eulO(
+            converted.values.data(), reference_euler->values.data(), mode, quat);
+      }
+      else {
+        quat_to_eulO(converted.values.data(), mode, quat);
+      }
       break;
   }
   return converted;

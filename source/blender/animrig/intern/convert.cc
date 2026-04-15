@@ -77,26 +77,6 @@ static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
   return keyframe_ids;
 }
 
-static void quat_to_rotation_values(const float4 &quat,
-                                    const eRotationModes mode,
-                                    const float4 &reference_rotation,
-                                    float4 &r_rotation_values)
-{
-  switch (mode) {
-    case ROT_MODE_QUAT:
-      copy_qt_qt(r_rotation_values, quat);
-      break;
-
-    case ROT_MODE_AXISANGLE:
-      quat_to_axis_angle(&r_rotation_values[1], r_rotation_values, quat);
-      break;
-
-    default:
-      quat_to_compatible_eulO(r_rotation_values, reference_rotation, mode, quat);
-      break;
-  }
-}
-
 /* Returns the ranges in which a rotation mode is active. Each entry denotes the starting point of
  * the range and it ends with the next entry. If the FCurve has any keys, there will be at least
  * one entry with the starting mode. */
@@ -136,9 +116,6 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
                                           const float2 range,
                                           const Transformable &transformable)
 {
-  /* Storing the previous rotation for euler angles larger than 180 degrees. */
-  float4 previous_conversion(0);
-  float4 converted_rotation(0);
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
   Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
@@ -156,6 +133,9 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
     break;
   }
 
+  /* Storing the previous rotation for euler angles larger than 180 degrees. */
+  Rotation previous_conversion = rotation_values;
+
   Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
   for (const int64_t frame_id : keyframe_ids) {
     const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
@@ -172,15 +152,11 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
       }
       rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
     }
-    /* Convert those to the new rotation mode. This always goes via quaternion to keep it
-     * simple. */
-    Rotation rot_quat = rotation_values.converted_to_mode(ROT_MODE_QUAT);
-    quat_to_rotation_values(
-        float4(rot_quat.values.data()), to_mode, previous_conversion, converted_rotation);
+    Rotation converted_rotation = rotation_values.converted_to_mode(to_mode, &previous_conversion);
     for (int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
-      insert_vert_fcurve(fcurve, {frame, converted_rotation[i]}, settings, INSERTKEY_FAST);
+      insert_vert_fcurve(fcurve, {frame, converted_rotation.values[i]}, settings, INSERTKEY_FAST);
     }
     previous_conversion = converted_rotation;
   }

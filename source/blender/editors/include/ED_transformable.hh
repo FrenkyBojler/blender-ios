@@ -59,7 +59,7 @@ struct Rotation {
   /**
    * Returns a copy of the rotation in the given mode.
    */
-  Rotation converted_to_mode(eRotationModes mode) const;
+  Rotation converted_to_mode(eRotationModes mode, const Rotation *reference_euler = nullptr) const;
 };
 
 /**
