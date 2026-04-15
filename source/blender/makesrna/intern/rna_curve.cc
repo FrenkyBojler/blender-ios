@@ -586,8 +586,8 @@ static void rna_Curve_textoncurveObject_set(PointerRNA *ptr,
   Object *ob = static_cast<Object *>(value.data);
 
   if (ob) {
-    /* If text on curve object has got the same curve, as object, for which it's set as textoncurve,
-     * there could be an infinite loop in curve evaluation. */
+    /* If text on curve object has got the same curve, as object, for which it's set as
+     * textoncurve, there could be an infinite loop in curve evaluation. */
     if (ob->type == OB_CURVES_LEGACY && ob->data != id_cast<ID *>(cu)) {
       if (cu->textoncurve) {
         id_us_min(&cu->textoncurve->id);
