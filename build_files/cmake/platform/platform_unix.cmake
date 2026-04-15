@@ -299,7 +299,7 @@ endif()
 
 if(WITH_SDL)
   find_package_wrapper(SDL3)
-  set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
+  set_and_warn_library_found("SDL" SDL3_FOUND WITH_SDL)
 endif()
 
 # Codecs
