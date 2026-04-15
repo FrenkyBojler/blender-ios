@@ -1108,8 +1108,8 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
   rcti safe_rect = crop_rect;
   safe_rect.xmin = max_ii(0, crop_rect.xmin);
   safe_rect.ymin = max_ii(0, crop_rect.ymin);
-  safe_rect.xmax = min_ii(dumprect_size[0], crop_rect.xmax);
-  safe_rect.ymax = min_ii(dumprect_size[1], crop_rect.ymax);
+  safe_rect.xmax = min_ii(dumprect_size[0] - 1, crop_rect.xmax);
+  safe_rect.ymax = min_ii(dumprect_size[1] - 1, crop_rect.ymax);
 
   /* Validate rectangle. */
   if (!BLI_rcti_is_valid(&safe_rect)) {

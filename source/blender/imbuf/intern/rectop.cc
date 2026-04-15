@@ -456,19 +456,20 @@ void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rct
   dst->y = size_dst.y;
 }
 
-void IMB_crop(ImBuf *ibuf, const rcti &dst_rect)
+void IMB_crop(ImBuf *ibuf, const rcti &rect)
 {
   const int2 src_size(ibuf->x, ibuf->y);
-  const int2 size_dst(BLI_rcti_size_x(&dst_rect), BLI_rcti_size_y(&dst_rect));
+  const int2 size_dst(BLI_rcti_size_x(&rect) + 1, BLI_rcti_size_y(&rect) + 1);
   if (src_size == size_dst) {
     return;
   }
 
-  const rcti src_rect = {
+  const rcti src_rect = rect;
+  const rcti dst_rect = {
       .xmin = 0,
-      .xmax = ibuf->x,
+      .xmax = size_dst.x,
       .ymin = 0,
-      .ymax = ibuf->y,
+      .ymax = size_dst.y,
   };
 
   if (const uchar *byte_data = ibuf->byte_data()) {
@@ -482,8 +483,8 @@ void IMB_crop(ImBuf *ibuf, const rcti &dst_rect)
         IB_TAKE_OWNERSHIP);
   }
 
-  ibuf->x = size_dst[0];
-  ibuf->y = size_dst[1];
+  ibuf->x = size_dst.x;
+  ibuf->y = size_dst.y;
 }
 
 /**

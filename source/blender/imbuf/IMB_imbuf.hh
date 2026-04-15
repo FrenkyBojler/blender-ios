@@ -296,10 +296,9 @@ void IMB_copy_rect(uchar *dst,
                    const rcti &dst_rect);
 
 /**
- * In-place image crop. New buffers will be allocated to fit the cropped region. `dst_rect` is
- * exclusive.
+ * In-place image crop. `rect` is *inclusive*.
  */
-void IMB_crop(ImBuf *ibuf, const rcti &dst_rect);
+void IMB_crop(ImBuf *ibuf, const rcti &rect);
 
 /**
  * Replace the buffers in the destination image with data copied from the specified recangle of

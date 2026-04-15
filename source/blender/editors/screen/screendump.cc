@@ -75,13 +75,7 @@ static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
     scd->dumpsy = dumprect_size[1];
     scd->dumprect = dumprect;
     if (area) {
-      /* Convert to exclusive bounds. */
-      scd->crop = rcti{
-          .xmin = area->totrct.xmin,
-          .xmax = area->totrct.xmax + 1,
-          .ymin = area->totrct.ymin,
-          .ymax = area->totrct.ymax + 1,
-      };
+      scd->crop = area->totrct;
     }
 
     BKE_image_format_init(&scd->im_format);
