@@ -343,59 +343,142 @@ void IMB_blend_color_float(const MutableSpan<float4> dst,
 /** \name Crop
  * \{ */
 
-static void *create_cropped_buffer(const void *src_void,
-                                   const int src_size[2],
-                                   const int stride,
-                                   const rcti *crop)
+static void copy_to_cropped_bufffer(void *dst_void,
+                                    const int2 &dst_size,
+                                    const void *src_void,
+                                    const int2 &src_size,
+                                    const int stride,
+                                    const rcti &src_rect,
+                                    const rcti &dst_rect)
 {
-  const int size_dst[2] = {
-      BLI_rcti_size_x(crop) + 1,
-      BLI_rcti_size_y(crop) + 1,
-  };
-  const size_t dst_buffer_size = size_t(size_dst[0]) * size_t(size_dst[1]);
-  auto *dst = MEM_new_array_uninitialized<std::byte>(dst_buffer_size * stride, __func__);
+  BLI_assert(src_size.x > 0 && src_size.y > 0);
+  BLI_assert(dst_size.x > 0 && dst_size.y > 0);
+  BLI_assert(src_rect.xmin >= 0 && src_rect.ymin >= 0);
+  BLI_assert(dst_rect.xmin >= 0 && dst_rect.ymin >= 0);
+  BLI_assert(src_rect.xmax <= src_size.x && src_rect.ymax <= src_size.y);
+  BLI_assert(dst_rect.xmax <= dst_size.x && dst_rect.ymax <= dst_size.y);
+  BLI_assert(BLI_rcti_size_x(&src_rect) == BLI_rcti_size_x(&dst_rect));
+  BLI_assert(BLI_rcti_size_y(&src_rect) == BLI_rcti_size_y(&dst_rect));
+  auto *dst = static_cast<std::byte *>(dst_void);
   const auto *src = static_cast<const std::byte *>(src_void);
-  auto *dst_row = static_cast<std::byte *>(dst);
-  for (const int y : IndexRange(size_dst[1])) {
-    const std::byte *row_src = src + size_t(src_size[0]) * stride * (y + crop->ymin);
-    std::byte *row_dst = dst_row + size_t(size_dst[0]) * stride * y;
-    std::copy_n(row_src + crop->xmin * stride, size_dst[0] * stride, row_dst);
+  for (const int rect_y : IndexRange(BLI_rcti_size_y(&dst_rect))) {
+    const int src_y = src_rect.ymin + rect_y;
+    const int dst_y = dst_rect.ymin + rect_y;
+    const std::byte *row_src = src + size_t(src_size.x) * stride * src_y;
+    std::byte *row_dst = dst + size_t(dst_size.x) * stride * dst_y;
+    std::copy_n(row_src + size_t(src_rect.xmin) * stride,
+                BLI_rcti_size_x(&dst_rect) * stride,
+                row_dst + size_t(dst_rect.xmin) * stride);
   }
+}
+
+static void *create_cropped_buffer_impl(const void *src_void,
+                                        const int2 &src_size,
+                                        const int stride,
+                                        const rcti &src_rect,
+                                        const rcti &dst_rect)
+{
+  const int2 dst_size(BLI_rcti_size_x(&dst_rect), BLI_rcti_size_y(&dst_rect));
+  BLI_assert(dst_size.x > 0 && dst_size.y > 0);
+  const size_t dst_buffer_size = size_t(dst_size.x) * size_t(dst_size.y);
+  auto *dst = MEM_new_array_uninitialized<std::byte>(dst_buffer_size * stride, __func__);
+  copy_to_cropped_bufffer(dst, dst_size, src_void, src_size, stride, src_rect, dst_rect);
   return dst;
 }
 
-void IMB_rect_crop(ImBuf *ibuf, const rcti *crop)
+static float *create_cropped_buffer(const float *src,
+                                    const int2 &src_size,
+                                    const int channels,
+                                    const rcti &src_rect,
+                                    const rcti &dst_rect)
 {
-  const int size_src[2] = {
-      ibuf->x,
-      ibuf->y,
-  };
-  const int size_dst[2] = {
-      BLI_rcti_size_x(crop) + 1,
-      BLI_rcti_size_y(crop) + 1,
-  };
-  BLI_assert(size_dst[0] > 0 && size_dst[1] > 0);
-  BLI_assert(crop->xmin >= 0 && crop->ymin >= 0);
-  BLI_assert(crop->xmax < ibuf->x && crop->ymax < ibuf->y);
+  /* For some reason channels == 0 means 4-channel default. */
+  const int stride = (channels == 0 ? 4 : channels) * sizeof(float);
+  return static_cast<float *>(
+      create_cropped_buffer_impl(src, src_size, stride, src_rect, dst_rect));
+}
 
-  if ((size_dst[0] == ibuf->x) && (size_dst[1] == ibuf->y)) {
+static uchar *create_cropped_buffer(const uchar *src,
+                                    const int2 &src_size,
+                                    const rcti &src_rect,
+                                    const rcti &dst_rect)
+{
+  /* Byte buffers always have 4 channels. */
+  const int stride = 4 * sizeof(uchar);
+  return static_cast<uchar *>(
+      create_cropped_buffer_impl(src, src_size, stride, src_rect, dst_rect));
+}
+
+void IMB_copy_rect(float *dst,
+                   const int2 &dst_size,
+                   const float *src,
+                   const int2 &src_size,
+                   const int channels,
+                   const rcti &src_rect,
+                   const rcti &dst_rect)
+{
+  /* For some reason channels == 0 means 4-channel default. */
+  const int stride = (channels == 0 ? 4 : channels) * sizeof(float);
+  copy_to_cropped_bufffer(dst, dst_size, src, src_size, stride, src_rect, dst_rect);
+}
+
+void IMB_copy_rect(uchar *dst,
+                   const int2 &dst_size,
+                   const uchar *src,
+                   const int2 &src_size,
+                   const rcti &src_rect,
+                   const rcti &dst_rect)
+{
+  /* Byte buffers always have 4 channels. */
+  const int stride = 4 * sizeof(uchar);
+  copy_to_cropped_bufffer(dst, dst_size, src, src_size, stride, src_rect, dst_rect);
+}
+
+void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rcti &dst_rect)
+{
+  const int2 src_size(src->x, src->y);
+  const int2 size_dst(BLI_rcti_size_x(&dst_rect), BLI_rcti_size_y(&dst_rect));
+  if (const uchar *byte_data = src->byte_data()) {
+    IMB_assign_byte_buffer(
+        dst, create_cropped_buffer(byte_data, src_size, src_rect, dst_rect), IB_TAKE_OWNERSHIP);
+    dst->byte_buffer.colorspace = src->byte_buffer.colorspace;
+  }
+  if (const float *float_data = src->float_data()) {
+    IMB_assign_float_buffer(
+        dst,
+        create_cropped_buffer(float_data, src_size, src->channels, src_rect, dst_rect),
+        IB_TAKE_OWNERSHIP);
+    dst->float_buffer.colorspace = src->float_buffer.colorspace;
+    dst->channels = src->channels;
+  }
+
+  dst->x = size_dst.x;
+  dst->y = size_dst.y;
+}
+
+void IMB_crop(ImBuf *ibuf, const rcti &dst_rect)
+{
+  const int2 src_size(ibuf->x, ibuf->y);
+  const int2 size_dst(BLI_rcti_size_x(&dst_rect), BLI_rcti_size_y(&dst_rect));
+  if (src_size == size_dst) {
     return;
   }
 
+  const rcti src_rect = {
+      .xmin = 0,
+      .xmax = ibuf->x,
+      .ymin = 0,
+      .ymax = ibuf->y,
+  };
+
   if (const uchar *byte_data = ibuf->byte_data()) {
-    /* Byte buffers always have 4 channels. */
-    const int stride = 4 * sizeof(uchar);
     IMB_assign_byte_buffer(
-        ibuf,
-        static_cast<uchar *>(create_cropped_buffer(byte_data, size_src, stride, crop)),
-        IB_TAKE_OWNERSHIP);
+        ibuf, create_cropped_buffer(byte_data, src_size, src_rect, dst_rect), IB_TAKE_OWNERSHIP);
   }
   if (const float *float_data = ibuf->float_data()) {
-    /* channels == 0 means 4-channel default. */
-    const int stride = (ibuf->channels == 0 ? 4 : ibuf->channels) * sizeof(float);
     IMB_assign_float_buffer(
         ibuf,
-        static_cast<float *>(create_cropped_buffer(float_data, size_src, stride, crop)),
+        create_cropped_buffer(float_data, src_size, ibuf->channels, src_rect, dst_rect),
         IB_TAKE_OWNERSHIP);
   }
 
@@ -578,36 +661,6 @@ static void imb_rectclip3(ImBuf *dbuf,
   }
 }
 
-/* copy and blend */
-
-void IMB_rectcpy(ImBuf *dbuf,
-                 const ImBuf *sbuf,
-                 int destx,
-                 int desty,
-                 int srcx,
-                 int srcy,
-                 int width,
-                 int height)
-{
-  IMB_rectblend(dbuf,
-                dbuf,
-                sbuf,
-                nullptr,
-                nullptr,
-                nullptr,
-                0,
-                destx,
-                desty,
-                destx,
-                desty,
-                srcx,
-                srcy,
-                width,
-                height,
-                IMB_BLEND_COPY,
-                false);
-}
-
 using IMB_blend_func = void (*)(uchar *dst, const uchar *src1, const uchar *src2);
 using IMB_blend_func_float = void (*)(float *dst, const float *src1, const float *src2);
 
@@ -707,23 +760,7 @@ void IMB_rectblend(ImBuf *dbuf,
     srcskip = destskip;
   }
 
-  if (mode == IMB_BLEND_COPY) {
-    /* copy */
-    for (; height > 0; height--) {
-      if (do_char) {
-        memcpy(drect, srect, width * sizeof(int));
-        drect += destskip;
-        srect += srcskip;
-      }
-
-      if (do_float) {
-        memcpy(drectf, srectf, sizeof(float[4]) * width);
-        drectf += destskip * 4;
-        srectf += srcskip * 4;
-      }
-    }
-  }
-  else if (mode == IMB_BLEND_COPY_RGB) {
+  if (mode == IMB_BLEND_COPY_RGB) {
     /* copy rgb only */
     for (; height > 0; height--) {
       if (do_char) {

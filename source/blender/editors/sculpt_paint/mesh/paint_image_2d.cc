@@ -1094,7 +1094,7 @@ static void paint_2d_set_region(
 
 static int paint_2d_torus_split_region(ImagePaintRegion region[4],
                                        ImBuf *dbuf,
-                                       ImBuf *sbuf,
+                                       const ImBuf *sbuf,
                                        short paint_tile)
 {
   int destx = region->destx;
@@ -1157,7 +1157,7 @@ static int paint_2d_torus_split_region(ImagePaintRegion region[4],
   return tot;
 }
 
-static void paint_2d_lift_smear(ImBuf *ibuf, ImBuf *ibufb, int *pos, short paint_tile)
+static void paint_2d_lift_smear(const ImBuf *ibuf, ImBuf *ibufb, int *pos, short paint_tile)
 {
   ImagePaintRegion region[4];
   int a, tot;
@@ -1166,23 +1166,19 @@ static void paint_2d_lift_smear(ImBuf *ibuf, ImBuf *ibufb, int *pos, short paint
   tot = paint_2d_torus_split_region(region, ibufb, ibuf, paint_tile);
 
   for (a = 0; a < tot; a++) {
-    IMB_rectblend(ibufb,
-                  ibufb,
-                  ibuf,
-                  nullptr,
-                  nullptr,
-                  nullptr,
-                  0,
-                  region[a].destx,
-                  region[a].desty,
-                  region[a].destx,
-                  region[a].desty,
-                  region[a].srcx,
-                  region[a].srcy,
-                  region[a].width,
-                  region[a].height,
-                  IMB_BLEND_COPY,
-                  false);
+    const rcti src_rect = {
+        .xmin = region[a].srcx,
+        .xmax = region[a].srcx + region[a].width,
+        .ymin = region[a].srcy,
+        .ymax = region[a].srcy + region[a].height,
+    };
+    const rcti dst_rect = {
+        .xmin = region[a].destx,
+        .xmax = region[a].destx + region[a].width,
+        .ymin = region[a].desty,
+        .ymax = region[a].desty + region[a].height,
+    };
+    IMB_copy_rect(ibufb, ibuf, src_rect, dst_rect);
   }
 }
 

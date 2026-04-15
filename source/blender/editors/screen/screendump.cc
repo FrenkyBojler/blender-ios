@@ -75,7 +75,13 @@ static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
     scd->dumpsy = dumprect_size[1];
     scd->dumprect = dumprect;
     if (area) {
-      scd->crop = area->totrct;
+      /* Convert to exclusive bounds. */
+      scd->crop = rcti{
+          .xmin = area->totrct.xmin,
+          .xmax = area->totrct.xmax + 1,
+          .ymin = area->totrct.ymin,
+          .ymax = area->totrct.ymax + 1,
+      };
     }
 
     BKE_image_format_init(&scd->im_format);
@@ -121,7 +127,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
 
       /* crop to show only single editor */
       if (use_crop) {
-        IMB_rect_crop(ibuf, &scd->crop);
+        IMB_crop(ibuf, scd->crop);
       }
 
       if ((scd->im_format.planes == R_IMF_PLANES_BW) &&

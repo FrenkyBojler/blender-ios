@@ -257,7 +257,6 @@ enum IMB_BlendMode {
   IMB_BLEND_COLOR = 23,
   IMB_BLEND_INTERPOLATE = 24,
 
-  IMB_BLEND_COPY = 1000,
   IMB_BLEND_COPY_RGB = 1001,
   IMB_BLEND_COPY_ALPHA = 1002,
 };
@@ -276,9 +275,38 @@ void IMB_blend_color_float(MutableSpan<float4> dst,
                            IMB_BlendMode mode);
 
 /**
- * In-place image crop.
+ * Copy a rectangle of pixel data from one image buffer to another. The source and destination
+ * buffers are described by the pointers and corresponding 2D sizes. The buffers must point to
+ * memory large enough to hold data based on the sizes. The source and destination rectangles are
+ * exclusive and must be the same size, but they can be at different locations in the image. The
+ * source and destination buffers must not reference the same memory.
  */
-void IMB_rect_crop(ImBuf *ibuf, const rcti *crop);
+void IMB_copy_rect(float *dst,
+                   const int2 &dst_size,
+                   const float *src,
+                   const int2 &src_size,
+                   int channels,
+                   const rcti &src_rect,
+                   const rcti &dst_rect);
+void IMB_copy_rect(uchar *dst,
+                   const int2 &dst_size,
+                   const uchar *src,
+                   const int2 &src_size,
+                   const rcti &src_rect,
+                   const rcti &dst_rect);
+
+/**
+ * In-place image crop. New buffers will be allocated to fit the cropped region. `dst_rect` is
+ * exclusive.
+ */
+void IMB_crop(ImBuf *ibuf, const rcti &dst_rect);
+
+/**
+ * Replace the buffers in the destination image with data copied from the specified recangle of
+ * the source image. The rectangles are exclusive and must be the same but the can be at different
+ * locations in the images.
+ */
+void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rcti &dst_rect);
 
 /**
  * In-place size setting (caller must fill in buffer contents).
@@ -293,14 +321,6 @@ void IMB_rectclip(ImBuf *dbuf,
                   int *srcy,
                   int *width,
                   int *height);
-void IMB_rectcpy(ImBuf *dbuf,
-                 const ImBuf *sbuf,
-                 int destx,
-                 int desty,
-                 int srcx,
-                 int srcy,
-                 int width,
-                 int height);
 void IMB_rectblend(ImBuf *dbuf,
                    const ImBuf *obuf,
                    const ImBuf *sbuf,

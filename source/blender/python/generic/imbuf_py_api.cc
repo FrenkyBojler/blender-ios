@@ -273,6 +273,10 @@ static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
 
+  /* #IMB_crop uses exclusive #rcti bounds; Python function expects inclusive values. */
+  crop.xmax++;
+  crop.ymax++;
+
   if (/* X range. */
       !(crop.xmin >= 0 && crop.xmax < self->ibuf->x) ||
       /* Y range. */
@@ -285,7 +289,7 @@ static PyObject *py_imbuf_crop(Py_ImBuf *self, PyObject *args, PyObject *kw)
     PyErr_SetString(PyExc_ValueError, "ImBuf crop min/max not in range");
     return nullptr;
   }
-  IMB_rect_crop(self->ibuf, &crop);
+  IMB_crop(self->ibuf, crop);
   Py_RETURN_NONE;
 }
 

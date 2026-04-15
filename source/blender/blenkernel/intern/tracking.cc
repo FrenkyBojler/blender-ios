@@ -2686,7 +2686,19 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
 
   searchibuf = IMB_allocImBuf(w, h, 32, ibuf->float_data() ? IB_float_data : IB_byte_data);
 
-  IMB_rectcpy(searchibuf, ibuf, 0, 0, x, y, w, h);
+  const rcti src_rect = {
+      .xmin = x,
+      .xmax = x + w,
+      .ymin = y,
+      .ymax = y + h,
+  };
+  const rcti dst_rect = {
+      .xmin = 0,
+      .xmax = w,
+      .ymin = 0,
+      .ymax = h,
+  };
+  IMB_copy_rect(searchibuf, ibuf, src_rect, dst_rect);
 
   if (disable_channels) {
     if ((track->flag & TRACK_PREVIEW_GRAYSCALE) || (track->flag & TRACK_DISABLE_RED) ||

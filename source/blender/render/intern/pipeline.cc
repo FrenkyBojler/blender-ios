@@ -2704,25 +2704,22 @@ void RE_layer_load_from_file(
     }
     else {
       if ((ibuf->x - x >= layer->rectx) && (ibuf->y - y >= layer->recty)) {
-        ImBuf *ibuf_clip;
-
         if (ibuf->float_data() == nullptr) {
           IMB_float_from_byte(ibuf);
         }
-
-        ibuf_clip = IMB_allocImBuf(layer->rectx, layer->recty, 32, IB_float_data);
-        if (ibuf_clip) {
-          IMB_rectcpy(ibuf_clip, ibuf, 0, 0, x, y, layer->rectx, layer->recty);
-
-          memcpy(rpass->ibuf->float_data_for_write(),
-                 ibuf_clip->float_data(),
-                 sizeof(float[4]) * layer->rectx * layer->recty);
-          IMB_freeImBuf(ibuf_clip);
-        }
-        else {
-          BKE_reportf(
-              reports, RPT_ERROR, "%s: failed to allocate clip buffer '%s'", __func__, filepath);
-        }
+        const rcti src_rect = {
+            .xmin = x,
+            .xmax = x + layer->rectx,
+            .ymin = y,
+            .ymax = y + layer->recty,
+        };
+        const rcti dst_rect = {
+            .xmin = 0,
+            .xmax = layer->rectx,
+            .ymin = 0,
+            .ymax = layer->recty,
+        };
+        IMB_copy_rect(rpass->ibuf, ibuf, src_rect, dst_rect);
       }
       else {
         BKE_reportf(reports,
