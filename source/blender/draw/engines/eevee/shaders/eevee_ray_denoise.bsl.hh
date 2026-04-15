@@ -246,14 +246,18 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     float pdf = closure_evaluate_pdf(closure, ray_direction, V, thickness);
     float weight = pdf * ray_pdf_inv;
 
-    radiance_accum += ray_radiance.rgb * weight;
+    float3 log_radiance = colorspace::log_from_scene_linear(ray_radiance.rgb);
+
+    radiance_accum += log_radiance * weight;
     weight_accum += weight;
 
+    /* Use scene linear radiance to better estimate noise. */
     rgb_moment += square(ray_radiance.rgb) * weight;
   }
   float inv_weight = safe_rcp(weight_accum);
-
   radiance_accum *= inv_weight;
+  radiance_accum = colorspace::scene_linear_from_log(radiance_accum);
+
   /* Use radiance sum as signal mean. */
   float3 rgb_mean = radiance_accum;
   rgb_moment *= inv_weight;
