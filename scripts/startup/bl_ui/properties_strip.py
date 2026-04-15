@@ -141,12 +141,15 @@ class STRIP_PT_adjust_crop(StripButtonsPanel, Panel):
 def draw_compositor_effect_node_group_errors(layout, node_tree, strip_input_num):
     if not node_tree or not node_tree.interface:
         return
+    float_input_sockets_num = 0
     color_input_sockets_num = 0
     output_sockets = []
     for socket in node_tree.interface.items_tree:
         if socket.item_type == 'SOCKET':
             if socket.in_out == 'INPUT' and socket.socket_type == 'NodeSocketColor':
                 color_input_sockets_num += 1
+            elif socket.in_out == 'INPUT' and socket.socket_type == 'NodeSocketFloat':
+                float_input_sockets_num += 1
             elif socket.in_out == 'OUTPUT':
                 output_sockets.append(socket)
 
@@ -155,6 +158,8 @@ def draw_compositor_effect_node_group_errors(layout, node_tree, strip_input_num)
             text=f"Node group must have at least {strip_input_num} Color input{
                 's' if strip_input_num > 1 else ''}.",
             icon='ERROR')
+    if float_input_sockets_num == 0:
+        layout.label(text="Node group does not have an input of type Float. Fade is unused.", icon='ERROR')
 
     if len(output_sockets) < 1:
         layout.label(text="Node group must have an output.", icon='ERROR')
