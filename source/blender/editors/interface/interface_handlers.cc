@@ -5275,11 +5275,7 @@ static int do_but_TEXTBOX(bContext *C,
       if ELEM (event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) {
         const int prev_scroll = textbox->line_scroll();
         textbox_add_scroll(textbox, (event->type == WHEELUPMOUSE ? -1 : 1));
-        /* Let owning region to scroll if textbox scroll didn't change. */
         ED_region_tag_redraw(data->region);
-        if (data->state == BUTTON_STATE_HIGHLIGHT && prev_scroll == textbox->line_scroll()) {
-          return WM_UI_HANDLER_CONTINUE;
-        }
         return WM_UI_HANDLER_BREAK;
       }
       if (!(event->val == KM_PRESS && event->type == LEFTMOUSE)) {
