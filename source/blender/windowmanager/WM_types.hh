@@ -1451,7 +1451,7 @@ struct wmDropBox {
    * For #wmEventType::TIMER events, only the ones created from this #wmDropBox.timer are passed to
    * it.
    */
-  void (*on_hover_event)(bContext *C, wmDropBox &dropbox, const wmEvent *event);
+  void (*on_event_while_hover)(bContext *C, wmDropBox &dropbox, const wmEvent *event);
   /** Custom data for drawing. */
   void *draw_data;
 

@@ -187,7 +187,7 @@ void dropboxes_ui()
 
   wmDropBox *dropbox = WM_dropbox_add(
       lb, "UI_OT_view_drop", view_drop_poll, nullptr, nullptr, view_drop_tooltip);
-  dropbox->on_hover_event = region_view_scroll_at_borders;
+  dropbox->on_event_while_hover = region_view_scroll_at_borders;
 
   WM_dropbox_add(lb,
                  "UI_OT_drop_name",
