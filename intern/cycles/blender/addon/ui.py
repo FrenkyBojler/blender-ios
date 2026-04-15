@@ -19,6 +19,9 @@ from bl_ui.properties_view_layer import (
 )
 
 from bl_ui.properties_object import has_geometry_visibility
+from bpy.app.translations import (
+    pgettext_rpt as rpt_,
+)
 
 
 class CyclesPresetPanel(PresetPanel, Panel):
@@ -232,14 +235,12 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
+        layout.active = not (cscene.use_preview_denoising and cscene.preview_denoiser == 'DLSS')
+
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        has_oidn_gpu = has_oidn_gpu_devices(context)
-        effective_preview_denoiser = get_effective_preview_denoiser(context, has_oidn_gpu)
-
         heading = layout.column(align=True, heading="Noise Threshold")
-        heading.active = effective_preview_denoiser != 'DLSS'
         row = heading.row(align=True)
         row.prop(cscene, "use_preview_adaptive_sampling", text="")
         sub = row.row()
@@ -247,7 +248,6 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "preview_adaptive_threshold", text="")
 
         col = layout.column(align=True)
-        col.active = effective_preview_denoiser != 'DLSS'
         if cscene.use_preview_adaptive_sampling:
             col.prop(cscene, "preview_samples", text="Max Samples")
             col.prop(cscene, "preview_adaptive_min_samples", text="Min Samples")
@@ -285,8 +285,13 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
         effective_preview_denoiser = get_effective_preview_denoiser(context, has_oidn_gpu)
 
         if effective_preview_denoiser == 'DLSS':
-            col.prop(cscene, "preview_denoising_dlss_quality", text="Mode")
-            col.active = sub.active
+            if has_dlss_gpu_devices(context):
+                col.prop(cscene, "preview_denoising_dlss_quality", text="Mode")
+            else:
+                col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % "7.5",
+                          icon='INFO', translate=False)
+                col.label(text=rpt_("and NVIDIA driver version %s or newer") % "590",
+                          icon='BLANK1', translate=False)
             return
 
         col.prop(cscene, "preview_denoising_input_passes", text="Passes")
