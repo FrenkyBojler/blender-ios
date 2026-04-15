@@ -425,7 +425,7 @@ static uchar *colormanage_cache_get(ImBuf *ibuf,
       return nullptr;
     }
 
-    return static_cast<uchar *>(cache_ibuf->byte_buffer.data);
+    return static_cast<uchar *>(cache_ibuf->byte_data_for_write());
   }
 
   return nullptr;
@@ -890,11 +890,11 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
     return;
   }
 
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     const char *to_colorspace = global_role_scene_linear;
     const bool predivide = IMB_alpha_affects_rgb(ibuf);
 
-    if (ibuf->byte_buffer.data) {
+    if (ibuf->byte_data()) {
       IMB_free_byte_pixels(ibuf);
     }
 
@@ -906,7 +906,7 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
       }
     }
 
-    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+    IMB_colormanagement_transform_float(ibuf->float_data_for_write(),
                                         ibuf->x,
                                         ibuf->y,
                                         ibuf->channels,
@@ -1332,6 +1332,10 @@ const char *IMB_colormanagement_space_from_filepath_rules(const char *filepath)
 }
 
 const ColorSpace *IMB_colormanagement_space_get_named(const char *name)
+{
+  return g_config()->get_color_space(name);
+}
+const ColorSpace *IMB_colormanagement_space_get_named(StringRefNull name)
 {
   return g_config()->get_color_space(name);
 }
@@ -2010,11 +2014,11 @@ bool IMB_colormanagement_display_processor_needed(
     const ColorManagedViewSettings *view_settings,
     const ColorManagedDisplaySettings *display_settings)
 {
-  if (ibuf->float_buffer.data == nullptr && ibuf->byte_buffer.colorspace) {
+  if (ibuf->float_data() == nullptr && ibuf->byte_buffer.colorspace) {
     return !is_colorspace_same_as_display(
         ibuf->byte_buffer.colorspace, view_settings, display_settings);
   }
-  if (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.colorspace) {
+  if (ibuf->byte_data() == nullptr && ibuf->float_buffer.colorspace) {
     return !is_colorspace_same_as_display(
         ibuf->float_buffer.colorspace, view_settings, display_settings);
   }
@@ -2036,8 +2040,8 @@ static void colormanage_display_buffer_process_ex(
   ColormanageProcessor *processor = cm_processor ? &*cm_processor : nullptr;
 
   display_buffer_apply_threaded(ibuf,
-                                ibuf->float_buffer.data,
-                                ibuf->byte_buffer.data,
+                                ibuf->float_data(),
+                                ibuf->byte_data_for_write(),
                                 display_buffer,
                                 display_buffer_byte,
                                 processor);
@@ -2068,7 +2072,6 @@ struct ProcessorTransformThread {
   int tot_line;
   int channels;
   bool predivide;
-  bool float_from_byte;
 };
 
 struct ProcessorTransformInitData {
@@ -2079,7 +2082,6 @@ struct ProcessorTransformInitData {
   int height;
   int channels;
   bool predivide;
-  bool float_from_byte;
 };
 
 static void processor_transform_init_handle(ProcessorTransformThread *handle,
@@ -2090,7 +2092,6 @@ static void processor_transform_init_handle(ProcessorTransformThread *handle,
   const int channels = init_data->channels;
   const int width = init_data->width;
   const bool predivide = init_data->predivide;
-  const bool float_from_byte = init_data->float_from_byte;
 
   const size_t offset = size_t(channels) * start_line * width;
 
@@ -2113,7 +2114,6 @@ static void processor_transform_init_handle(ProcessorTransformThread *handle,
 
   handle->channels = channels;
   handle->predivide = predivide;
-  handle->float_from_byte = float_from_byte;
 }
 
 static void do_processor_transform_thread(ProcessorTransformThread *handle)
@@ -2124,28 +2124,11 @@ static void do_processor_transform_thread(ProcessorTransformThread *handle)
   const int width = handle->width;
   const int height = handle->tot_line;
   const bool predivide = handle->predivide;
-  const bool float_from_byte = handle->float_from_byte;
-
-  if (float_from_byte) {
-    IMB_buffer_float_from_byte(float_buffer,
-                               byte_buffer,
-                               IB_PROFILE_SRGB,
-                               IB_PROFILE_SRGB,
-                               false,
-                               width,
-                               height,
-                               width,
-                               width);
-    handle->cm_processor->apply(float_buffer, width, height, channels, predivide);
-    IMB_premultiply_rect_float(float_buffer, 4, width, height);
+  if (byte_buffer != nullptr) {
+    handle->cm_processor->apply_byte(byte_buffer, width, height, channels);
   }
-  else {
-    if (byte_buffer != nullptr) {
-      handle->cm_processor->apply_byte(byte_buffer, width, height, channels);
-    }
-    if (float_buffer != nullptr) {
-      handle->cm_processor->apply(float_buffer, width, height, channels, predivide);
-    }
+  if (float_buffer != nullptr) {
+    handle->cm_processor->apply(float_buffer, width, height, channels, predivide);
   }
 }
 
@@ -2155,8 +2138,7 @@ static void processor_transform_apply_threaded(uchar *byte_buffer,
                                                const int height,
                                                const int channels,
                                                ColormanageProcessor *cm_processor,
-                                               const bool predivide,
-                                               const bool float_from_byte)
+                                               const bool predivide)
 {
   ProcessorTransformInitData init_data;
 
@@ -2167,7 +2149,6 @@ static void processor_transform_apply_threaded(uchar *byte_buffer,
   init_data.height = height;
   init_data.channels = channels;
   init_data.predivide = predivide;
-  init_data.float_from_byte = float_from_byte;
 
   threading::parallel_for(IndexRange(height), 64, [&](const IndexRange y_range) {
     ProcessorTransformThread handle;
@@ -2197,11 +2178,6 @@ static void colormanagement_transform_ex(uchar *byte_buffer,
     return;
   }
 
-  if (STREQ(from_colorspace, to_colorspace)) {
-    /* if source and destination color spaces are identical, do nothing. */
-    return;
-  }
-
   ColormanageProcessor cm_processor = ColormanageProcessor::colorspace_processor_new(
       from_colorspace, to_colorspace);
   if (cm_processor.is_noop()) {
@@ -2209,7 +2185,7 @@ static void colormanagement_transform_ex(uchar *byte_buffer,
   }
 
   processor_transform_apply_threaded(
-      byte_buffer, float_buffer, width, height, channels, &cm_processor, predivide, false);
+      byte_buffer, float_buffer, width, height, channels, &cm_processor, predivide);
 }
 
 void IMB_colormanagement_transform_float(float *buffer,
@@ -2236,7 +2212,7 @@ void IMB_colormanagement_transform_byte(uchar *buffer,
 }
 
 void IMB_colormanagement_transform_byte_to_float(float *float_buffer,
-                                                 uchar *byte_buffer,
+                                                 const uchar *byte_buffer,
                                                  int width,
                                                  int height,
                                                  int channels,
@@ -2251,7 +2227,7 @@ void IMB_colormanagement_transform_byte_to_float(float *float_buffer,
     int64_t pixel_count = int64_t(width) * height;
     threading::parallel_for(IndexRange(pixel_count), 256 * 1024, [&](IndexRange pix_range) {
       float *dst_ptr = float_buffer + pix_range.first() * channels;
-      uchar *src_ptr = byte_buffer + pix_range.first() * channels;
+      const uchar *src_ptr = byte_buffer + pix_range.first() * channels;
       for ([[maybe_unused]] const int i : pix_range) {
         /* Equivalent of rgba_uchar_to_float + premultiply. */
         float cr = float(src_ptr[0]) * (1.0f / 255.0f);
@@ -2268,10 +2244,17 @@ void IMB_colormanagement_transform_byte_to_float(float *float_buffer,
     });
     return;
   }
-  ColormanageProcessor cm_processor = ColormanageProcessor::colorspace_processor_new(
+  const ColormanageProcessor cm_processor = ColormanageProcessor::colorspace_processor_new(
       from_colorspace, to_colorspace);
-  processor_transform_apply_threaded(
-      byte_buffer, float_buffer, width, height, channels, &cm_processor, false, true);
+  threading::parallel_for(IndexRange(height), 64, [&](const IndexRange y_range) {
+    const size_t offset = size_t(channels) * y_range.first() * width;
+    const uchar *src = byte_buffer + offset;
+    float *dst = float_buffer + offset;
+    IMB_buffer_float_from_byte(
+        dst, src, IB_PROFILE_SRGB, IB_PROFILE_SRGB, false, width, y_range.size(), width, width);
+    cm_processor.apply(dst, width, y_range.size(), channels, false);
+    IMB_premultiply_rect_float(dst, 4, width, y_range.size());
+  });
 }
 
 void IMB_colormanagement_transform_v4(float pixel[4],
@@ -2410,13 +2393,13 @@ void IMB_colormanagement_imbuf_to_byte_texture(uchar *out_buffer,
 {
   /* Byte buffer storage, only for sRGB, scene linear and data texture since other
    * color space conversions can't be done on the GPU. */
-  BLI_assert(ibuf->byte_buffer.data);
-  BLI_assert(ibuf->float_buffer.data == nullptr);
+  BLI_assert(ibuf->byte_data());
+  BLI_assert(ibuf->float_data() == nullptr);
   BLI_assert(IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace));
 
-  const uchar *in_buffer = ibuf->byte_buffer.data;
+  const uchar *in_buffer = ibuf->byte_data();
   const bool use_premultiply = IMB_alpha_affects_rgb(ibuf) && store_premultiplied;
 
   for (int y = 0; y < height; y++) {
@@ -2456,9 +2439,9 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
 {
   /* Float texture are stored in scene linear color space, with premultiplied
    * alpha depending on the image alpha mode. */
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     /* Float source buffer. */
-    const float *in_buffer = ibuf->float_buffer.data;
+    const float *in_buffer = ibuf->float_data();
     const int in_channels = ibuf->channels;
     const bool use_unpremultiply = IMB_alpha_affects_rgb(ibuf) && !store_premultiplied;
 
@@ -2501,7 +2484,7 @@ void IMB_colormanagement_imbuf_to_float_texture(float *out_buffer,
   }
   else {
     /* Byte source buffer. */
-    const uchar *in_buffer = ibuf->byte_buffer.data;
+    const uchar *in_buffer = ibuf->byte_data();
     const bool use_premultiply = IMB_alpha_affects_rgb(ibuf) && store_premultiplied;
 
     const ocio::CPUProcessor *processor =
@@ -2637,13 +2620,13 @@ static void colormanagement_imbuf_make_display_space(
     const ColorManagedDisplaySpace display_space,
     bool make_byte)
 {
-  if (!ibuf->byte_buffer.data && make_byte) {
+  if (!ibuf->byte_data() && make_byte) {
     IMB_alloc_byte_pixels(ibuf);
   }
 
   colormanage_display_buffer_process_ex(ibuf,
-                                        ibuf->float_buffer.data,
-                                        ibuf->byte_buffer.data,
+                                        ibuf->float_data_for_write(),
+                                        ibuf->byte_data_for_write(),
                                         view_settings,
                                         display_settings,
                                         display_space);
@@ -2690,7 +2673,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
   ImBuf *colormanaged_ibuf = ibuf;
 
   /* Update byte buffer if exists but invalid. */
-  if (ibuf->float_buffer.data && ibuf->byte_buffer.data &&
+  if (ibuf->float_data() && ibuf->byte_data() &&
       (ibuf->userflags & (IB_DISPLAY_BUFFER_INVALID | IB_RECT_INVALID)) != 0)
   {
     IMB_byte_from_float(ibuf);
@@ -2721,14 +2704,18 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
 
     colormanaged_ibuf = imbuf_ensure_editable(ibuf, colormanaged_ibuf, allocate_result);
 
-    if (colormanaged_ibuf->float_buffer.data && colormanaged_ibuf->channels == 4) {
-      IMB_alpha_under_color_float(
-          colormanaged_ibuf->float_buffer.data, colormanaged_ibuf->x, colormanaged_ibuf->y, color);
+    if (colormanaged_ibuf->float_data() && colormanaged_ibuf->channels == 4) {
+      IMB_alpha_under_color_float(colormanaged_ibuf->float_data_for_write(),
+                                  colormanaged_ibuf->x,
+                                  colormanaged_ibuf->y,
+                                  color);
     }
 
-    if (colormanaged_ibuf->byte_buffer.data) {
-      IMB_alpha_under_color_byte(
-          colormanaged_ibuf->byte_buffer.data, colormanaged_ibuf->x, colormanaged_ibuf->y, color);
+    if (colormanaged_ibuf->byte_data()) {
+      IMB_alpha_under_color_byte(colormanaged_ibuf->byte_data_for_write(),
+                                 colormanaged_ibuf->x,
+                                 colormanaged_ibuf->y,
+                                 color);
     }
   }
 
@@ -2744,7 +2731,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
                                                  DISPLAY_SPACE_IMAGE_OUTPUT,
                                              byte_output);
 
-    if (colormanaged_ibuf->float_buffer.data) {
+    if (colormanaged_ibuf->float_data()) {
       /* Float buffer isn't linear anymore.
        * - Image format write callback checks for this flag and assumes no space
        *   conversion should happen if ibuf->float_buffer.colorspace != nullptr. */
@@ -2759,8 +2746,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
     /* Linear render or regular file output: conversion between two color spaces. */
 
     /* Detect which color space we need to convert between. */
-    const char *from_colorspace = (ibuf->float_buffer.data &&
-                                   !(byte_output && ibuf->byte_buffer.data)) ?
+    const char *from_colorspace = (ibuf->float_data() && !(byte_output && ibuf->byte_data())) ?
                                       /* From float buffer. */
                                       (ibuf->float_buffer.colorspace) ?
                                       ibuf->float_buffer.colorspace->name().c_str() :
@@ -2784,7 +2770,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
     /* TODO: can we check with OCIO if color spaces are the same but have different names? */
     if (to_colorspace[0] == '\0' || STREQ(from_colorspace, to_colorspace)) {
       /* No conversion needed, but may still need to allocate byte buffer for output. */
-      if (byte_output && !ibuf->byte_buffer.data) {
+      if (byte_output && !ibuf->byte_data()) {
         ibuf->byte_buffer.colorspace = ibuf->float_buffer.colorspace;
         IMB_byte_from_float(ibuf);
       }
@@ -2797,9 +2783,9 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
         colormanaged_ibuf->byte_buffer.colorspace = colormanage_colorspace_get_named(
             to_colorspace);
 
-        if (colormanaged_ibuf->byte_buffer.data) {
+        if (colormanaged_ibuf->byte_data()) {
           /* Byte to byte. */
-          IMB_colormanagement_transform_byte(colormanaged_ibuf->byte_buffer.data,
+          IMB_colormanagement_transform_byte(colormanaged_ibuf->byte_data_for_write(),
                                              colormanaged_ibuf->x,
                                              colormanaged_ibuf->y,
                                              colormanaged_ibuf->channels,
@@ -2812,7 +2798,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
         }
       }
       else {
-        if (!colormanaged_ibuf->float_buffer.data) {
+        if (!colormanaged_ibuf->float_data()) {
           /* Byte to float. */
           IMB_float_from_byte(colormanaged_ibuf);
           IMB_free_byte_pixels(colormanaged_ibuf);
@@ -2821,9 +2807,9 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
           from_colorspace = global_role_scene_linear;
         }
 
-        if (colormanaged_ibuf->float_buffer.data) {
+        if (colormanaged_ibuf->float_data()) {
           /* Float to float. */
-          IMB_colormanagement_transform_float(colormanaged_ibuf->float_buffer.data,
+          IMB_colormanagement_transform_float(colormanaged_ibuf->float_data_for_write(),
                                               colormanaged_ibuf->x,
                                               colormanaged_ibuf->y,
                                               colormanaged_ibuf->channels,
@@ -2847,10 +2833,10 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
 /** \name Public Display Buffers Interfaces
  * \{ */
 
-uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
-                                  const ColorManagedViewSettings *view_settings,
-                                  const ColorManagedDisplaySettings *display_settings,
-                                  void **cache_handle)
+const uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
+                                        const ColorManagedViewSettings *view_settings,
+                                        const ColorManagedDisplaySettings *display_settings,
+                                        void **cache_handle)
 {
   uchar *display_buffer;
   ColormanageCacheViewSettings cache_view_settings;
@@ -2876,11 +2862,11 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   }
 
   /* No float buffer and byte buffer is already in display space, let's just use it. */
-  if (ibuf->float_buffer.data == nullptr && ibuf->byte_buffer.colorspace && ibuf->channels == 4) {
+  if (ibuf->float_data() == nullptr && ibuf->byte_buffer.colorspace && ibuf->channels == 4) {
     if (is_colorspace_same_as_display(
             ibuf->byte_buffer.colorspace, applied_view_settings, display_settings))
     {
-      return ibuf->byte_buffer.data;
+      return ibuf->byte_data();
     }
   }
 
@@ -2890,8 +2876,8 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   if (ibuf->invalid_rect.xmin != ibuf->invalid_rect.xmax) {
     if ((ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) == 0) {
       IMB_partial_display_buffer_update_threaded(ibuf,
-                                                 ibuf->float_buffer.data,
-                                                 ibuf->byte_buffer.data,
+                                                 ibuf->float_data(),
+                                                 ibuf->byte_data(),
                                                  ibuf->x,
                                                  0,
                                                  0,
@@ -2944,7 +2930,7 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   return display_buffer;
 }
 
-uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle)
+const uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle)
 {
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
@@ -4220,8 +4206,36 @@ ColormanageProcessor ColormanageProcessor::colorspace_processor_new(StringRefNul
                                                                     StringRefNull to_colorspace)
 {
   ColormanageProcessor processor;
+
   processor.is_data_result_ = IMB_colormanagement_space_name_is_data(to_colorspace.c_str());
+
+  if (from_colorspace == to_colorspace) {
+    return processor;
+  }
+
   processor.cpu_processor_ = g_config()->get_cpu_processor(from_colorspace, to_colorspace);
+
+  return processor;
+}
+
+ColormanageProcessor ColormanageProcessor::colorspace_processor_from_scene_linear_new(
+    const ColorSpace &to_colorspace)
+{
+  ColormanageProcessor processor;
+
+  processor.is_data_result_ = to_colorspace.is_data();
+  processor.cpu_processor_ = to_colorspace.get_from_scene_linear_cpu_processor();
+
+  return processor;
+}
+
+ColormanageProcessor ColormanageProcessor::colorspace_processor_to_scene_linear_new(
+    const ColorSpace &from_colorspace)
+{
+  ColormanageProcessor processor;
+
+  processor.is_data_result_ = from_colorspace.is_data();
+  processor.cpu_processor_ = from_colorspace.get_to_scene_linear_cpu_processor();
 
   return processor;
 }
@@ -4300,7 +4314,8 @@ bool ColormanageProcessor::is_noop() const
     return false;
   }
 
-  if (!cpu_processor_) {
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
+  if (!cpu_processor) {
     /* The CPU processor might have failed to be created, for example when the requested color
      * space does not exist in the configuration, or if there is a missing lookup table, or the
      * configuration is invalid due to other reasons.
@@ -4313,7 +4328,7 @@ bool ColormanageProcessor::is_noop() const
     return true;
   }
 
-  return cpu_processor_->is_noop();
+  return cpu_processor->is_noop();
 }
 
 void ColormanageProcessor::apply_v4(float pixel[4]) const
@@ -4322,8 +4337,9 @@ void ColormanageProcessor::apply_v4(float pixel[4]) const
     BKE_curvemapping_evaluate_premulRGBF(curve_mapping_, pixel, pixel);
   }
 
-  if (cpu_processor_) {
-    cpu_processor_->apply_rgba(pixel);
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
+  if (cpu_processor) {
+    cpu_processor->apply_rgba(pixel);
   }
 }
 
@@ -4333,8 +4349,9 @@ void ColormanageProcessor::apply_v4_predivide(float pixel[4]) const
     BKE_curvemapping_evaluate_premulRGBF(curve_mapping_, pixel, pixel);
   }
 
-  if (cpu_processor_) {
-    cpu_processor_->apply_rgba_predivide(pixel);
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
+  if (cpu_processor) {
+    cpu_processor->apply_rgba_predivide(pixel);
   }
 }
 
@@ -4344,8 +4361,9 @@ void ColormanageProcessor::apply_v3(float pixel[3]) const
     BKE_curvemapping_evaluate_premulRGBF(curve_mapping_, pixel, pixel);
   }
 
-  if (cpu_processor_) {
-    cpu_processor_->apply_rgb(pixel);
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
+  if (cpu_processor) {
+    cpu_processor->apply_rgb(pixel);
   }
 }
 
@@ -4384,7 +4402,8 @@ void ColormanageProcessor::apply(
     }
   }
 
-  if (cpu_processor_ && channels >= 3) {
+  const ocio::CPUProcessor *cpu_processor = get_cpu_processor();
+  if (cpu_processor && channels >= 3) {
     /* apply OCIO processor */
     const ocio::PackedImage img(buffer,
                                 width,
@@ -4396,10 +4415,10 @@ void ColormanageProcessor::apply(
                                 size_t(channels) * sizeof(float) * width);
 
     if (predivide) {
-      cpu_processor_->apply_predivide(img);
+      cpu_processor->apply_predivide(img);
     }
     else {
-      cpu_processor_->apply(img);
+      cpu_processor->apply(img);
     }
   }
 }

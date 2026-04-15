@@ -2537,7 +2537,7 @@ struct GeometryNodesLazyFunctionBuilder {
 
     Vector<const lf::FunctionNode *> &local_side_effect_nodes =
         scope_.construct<Vector<const lf::FunctionNode *>>();
-    for (const bNode *bnode : btree_.nodes_by_type("GeometryNodeWarning")) {
+    for (const bNode *bnode : btree_.nodes_by_type("GeometryNodeWarning"_ustr)) {
       if (bnode->output_socket(0).is_directly_linked()) {
         /* The warning node is not a side-effect node. Instead, the user explicitly used the output
          * socket to specify when the warning node should be used. */
@@ -2964,7 +2964,7 @@ struct GeometryNodesLazyFunctionBuilder {
           this->build_multi_function_node(bnode, fn_item, graph_params);
           break;
         }
-        if (bnode.is_type("NodeEnableOutput")) {
+        if (bnode.is_type("NodeEnableOutput"_ustr)) {
           this->build_enable_output_node(bnode, graph_params);
           break;
         }
@@ -4273,6 +4273,9 @@ ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
       bke::node_tree_copy_tree_ex(btree, nullptr, false),
       [](bNodeTree *btree) { BKE_id_free(nullptr, &btree->id); }};
   lf_graph_info->tree = btree_copy;
+
+  btree_copy->ensure_topology_cache();
+  BLI_assert(btree.all_sockets().size() == btree_copy->all_sockets().size());
 
   btree_copy->runtime->self_geometry_nodes_lazy_function_graph_info = lf_graph_info.get();
 

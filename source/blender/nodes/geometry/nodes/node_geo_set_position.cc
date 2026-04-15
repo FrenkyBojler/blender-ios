@@ -66,7 +66,8 @@ static void set_curves_position(bke::CurvesGeometry &curves,
 
   if (attributes.contains("handle_right") && attributes.contains("handle_left")) {
     fn::Field<float3> delta(fn::FieldOperation::from(
-        get_sub_fn(), {position_field, bke::AttributeFieldInput::position_field()}));
+        get_sub_fn(),
+        {position_field, bke::AttributeFieldInput::get_field<float3, "position">()}));
     for (const StringRef name : {"handle_left", "handle_right"}) {
       attribute_names.append(name);
       fields.append(Field<float3>(fn::FieldOperation::from(
@@ -162,7 +163,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetPosition", GEO_NODE_SET_POSITION);
+  geo_node_type_base(&ntype, "GeometryNodeSetPosition"_ustr, GEO_NODE_SET_POSITION);
   ntype.ui_name = "Set Position";
   ntype.ui_description = "Set the location of each point";
   ntype.enum_name_legacy = "SET_POSITION";
