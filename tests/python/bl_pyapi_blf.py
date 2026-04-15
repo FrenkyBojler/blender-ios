@@ -1962,6 +1962,7 @@ class TestStressComplexScripts(TestImageComparison_MixIn, unittest.TestCase):
     name_prefix = "stress_complex_scripts."
     _cases_generic = [
         # RTL script with combining vowel marks.
+        # NOTE: The default font has no Arabic glyphs; rendered as placeholders.
         CaseGeneric(
             name="arabic",
             text="\u0628\u064e\u0633\u0650\u0645\u064f \u0627\u0644\u0644\u0651\u0647\u0650",
@@ -1976,6 +1977,7 @@ class TestStressComplexScripts(TestImageComparison_MixIn, unittest.TestCase):
             ),
         ),
         # Indic script with combining vowel signs and conjunct-forming virama.
+        # NOTE: The default font has no Devanagari glyphs; rendered as placeholders.
         CaseGeneric(
             name="devanagari",
             text="\u0928\u092e\u0938\u094d\u0924\u0947",
@@ -1990,6 +1992,7 @@ class TestStressComplexScripts(TestImageComparison_MixIn, unittest.TestCase):
             ),
         ),
         # Combining above/below marks with no inter-word spaces.
+        # NOTE: The default font has no Thai glyphs; rendered as placeholders.
         CaseGeneric(
             name="thai",
             text="\u0e2a\u0e27\u0e31\u0e2a\u0e14\u0e35\u0e04\u0e23\u0e31\u0e1a",
@@ -2004,6 +2007,7 @@ class TestStressComplexScripts(TestImageComparison_MixIn, unittest.TestCase):
             ),
         ),
         # Composing syllables from separate jamo components.
+        # NOTE: The default font has no Hangul glyphs; rendered as placeholders.
         CaseGeneric(
             name="hangul_jamo",
             text="\u1100\u1161\u11a8 \u1102\u1161\u11bc",
@@ -2027,6 +2031,7 @@ class TestStressWidths(TestImageComparison_MixIn, unittest.TestCase):
 
     name_prefix = "stress_widths."
     _cases_generic = [
+        # NOTE: The default font has no CJK glyphs; rendered as placeholders.
         CaseGeneric(
             name="cjk",
             text="\u4e16\u754c\u4f60\u597d",
