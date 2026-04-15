@@ -42,13 +42,13 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
   if (!gpu) {
     /* CPU path: ensure input is linear float. */
     ensure_ibuf_is_linear_space(&input, true);
-    BLI_assert(input.float_buffer.data);
-    result.wrap_external(input.float_buffer.data, size);
+    BLI_assert(input.float_data());
+    result.wrap_external(input.float_data_for_write(), size);
     return;
   }
 
   /* GPU path: do necessary color space conversions (if any) to linear space on the GPU. */
-  const bool input_is_byte = input.float_buffer.data == nullptr;
+  const bool input_is_byte = input.float_data() == nullptr;
   const char *input_colorspace = input_is_byte ? IMB_colormanagement_get_byte_colorspace(&input) :
                                                  IMB_colormanagement_get_float_colorspace(&input);
   const char *linear_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -77,10 +77,10 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
                                                      "seq_comp_input");
       if (input_tex) {
         if (input_is_byte) {
-          GPU_texture_update(input_tex, GPU_DATA_UBYTE, input.byte_buffer.data);
+          GPU_texture_update(input_tex, GPU_DATA_UBYTE, input.byte_data());
         }
         else {
-          GPU_texture_update(input_tex, GPU_DATA_FLOAT, input.float_buffer.data);
+          GPU_texture_update(input_tex, GPU_DATA_FLOAT, input.float_data());
         }
 
         /* Allocate compositor result texture. We use global compositor precision even
