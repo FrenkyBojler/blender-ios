@@ -5272,10 +5272,13 @@ static int do_but_TEXTBOX(bContext *C,
   switch (data->state) {
     case BUTTON_STATE_TEXT_EDITING:
     case BUTTON_STATE_HIGHLIGHT: {
-      if ELEM (event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) {
-        textbox_add_scroll(textbox, (event->type == WHEELUPMOUSE ? -1 : 1));
-        ED_region_tag_redraw(data->region);
-        return WM_UI_HANDLER_BREAK;
+      if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE)) {
+        if (textbox->last_total_lines > textbox->visible_lines()) {
+          textbox_add_scroll(textbox, (event->type == WHEELUPMOUSE ? -1 : 1));
+          ED_region_tag_redraw(data->region);
+          return WM_UI_HANDLER_BREAK;
+        }
+        return WM_UI_HANDLER_CONTINUE;
       }
       if (!(event->val == KM_PRESS && event->type == LEFTMOUSE)) {
         break;
