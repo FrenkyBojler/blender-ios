@@ -67,15 +67,15 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
 
+        self.draw_menu(layout, "Input/Constant")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeAmbientOcclusion", poll=object_material_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeAttribute")
         self.node_operator(layout, "ShaderNodeBevel", poll=object_material_shader_nodes_poll(context))
-        self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeCameraData",
             ["View Vector", "View Z Depth", "View Distance"],
         )
-        self.node_operator(layout, "ShaderNodeRGB")
         self.node_operator(layout, "ShaderNodeVertexColor", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeHairInfo",
@@ -99,7 +99,6 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Random Per Island",
             ],
         )
-        self.node_operator(layout, "FunctionNodeInputInt")
         self.node_operator(layout, "ShaderNodeLayerWeight", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context,
@@ -123,7 +122,6 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Portal Depth"
             ],
         )
-        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeObjectInfo",
             ["Location", "Color", "Alpha", "Object Index", "Material Index", "Random"],
@@ -147,8 +145,6 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         )
         self.node_operator(layout, "ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeUVMap", poll=object_material_shader_nodes_poll(context))
-        self.node_operator(layout, "ShaderNodeValue")
-        self.node_operator(layout, "FunctionNodeInputVector")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeVolumeInfo",
             ["Color", "Density", "Flame", "Temperature"],
@@ -157,6 +153,25 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeWireframe", poll=object_material_shader_nodes_poll(context))
 
         self.draw_assets_for_catalog(layout, self.bl_label)
+
+
+class NODE_MT_shader_node_input_constant_base(node_add_menu.NodeMenu):
+    bl_label = "Constant"
+    bl_translation_context = i18n_contexts.id_nodetree
+    menu_path = "Input/Constant"
+
+    def draw(self, context):
+        del context
+        layout = self.layout
+
+        self.node_operator(layout, "FunctionNodeInputBool")
+        self.node_operator(layout, "ShaderNodeRGB")
+        self.node_operator(layout, "FunctionNodeInputInt")
+        self.node_operator(layout, "FunctionNodeInputMenu")
+        self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputVector")
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_shader_node_output_base(node_add_menu.NodeMenu):
@@ -403,7 +418,12 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
+        self.node_operator_with_searchable_enum(
+            context,
+            layout,
+            "ShaderNodeVectorMath",
+            "operation",
+            defaults_callback=node_add_menu.set_vector_math_node_defaults)
         self.node_operator(layout, "ShaderNodeVectorRotate")
         self.node_operator(layout, "ShaderNodeVectorTransform")
 
@@ -420,7 +440,12 @@ class NODE_MT_shader_node_math_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeClamp")
         self.node_operator(layout, "ShaderNodeFloatCurve")
         self.node_operator(layout, "ShaderNodeMapRange")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator_with_searchable_enum(
+            context,
+            layout,
+            "ShaderNodeMath",
+            "operation",
+            defaults_callback=node_add_menu.set_math_node_default_props)
         self.node_operator(layout, "ShaderNodeMix")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
@@ -501,6 +526,7 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
 add_menus = {
     # menu `bl_idname`: base-class.
     "NODE_MT_category_shader_input": NODE_MT_shader_node_input_base,
+    "NODE_MT_category_shader_input_constant": NODE_MT_shader_node_input_constant_base,
     "NODE_MT_category_shader_output": NODE_MT_shader_node_output_base,
     "NODE_MT_category_shader_color": NODE_MT_shader_node_color_base,
     "NODE_MT_category_shader_shader": NODE_MT_shader_node_shader_base,
@@ -521,6 +547,7 @@ add_menus = node_add_menu.generate_menus(
 swap_menus = {
     # menu `bl_idname`: base-class.
     "NODE_MT_shader_node_input_swap": NODE_MT_shader_node_input_base,
+    "NODE_MT_shader_node_input_constant_swap": NODE_MT_shader_node_input_constant_base,
     "NODE_MT_shader_node_output_swap": NODE_MT_shader_node_output_base,
     "NODE_MT_shader_node_color_swap": NODE_MT_shader_node_color_base,
     "NODE_MT_shader_node_shader_swap": NODE_MT_shader_node_shader_base,

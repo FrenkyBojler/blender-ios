@@ -170,7 +170,7 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
   if (mtex->tex && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
     /* For consistency, sampling always returns color in linear space. */
-    if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
+    if (tex_ibuf && tex_ibuf->float_data() == nullptr) {
       convert_to_linear = true;
       colorspace = tex_ibuf->byte_buffer.colorspace;
     }
@@ -998,6 +998,14 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.mode = BKE_paintmode_get_active_from_context(C);
   if (pcontext.mode == PaintMode::Sculpt) {
     pcontext.sd = CTX_data_tool_settings(C)->sculpt;
+  }
+
+  if (ELEM(pcontext.mode,
+           PaintMode::Sculpt,
+           PaintMode::Vertex,
+           PaintMode::Weight,
+           PaintMode::Texture3D))
+  {
     pcontext.base = CTX_data_active_base(C);
   }
 
@@ -1127,13 +1135,19 @@ static void paint_draw_legacy_3D_view_brush_cursor(PaintCursorContext &pcontext)
 
 static void paint_cursor_draw_3D_view_brush_cursor(PaintCursorContext &pcontext)
 {
-
+  BLI_assert(ELEM(pcontext.mode,
+                  PaintMode::Sculpt,
+                  PaintMode::Vertex,
+                  PaintMode::Weight,
+                  PaintMode::Texture3D));
   /* These paint tools are not using the SculptSession, so they need to use the default 2D brush
    * cursor in the 3D view. */
-  if (pcontext.mode != PaintMode::Sculpt || !pcontext.ss) {
+  if (pcontext.mode == PaintMode::Texture3D) {
     paint_draw_legacy_3D_view_brush_cursor(pcontext);
     return;
   }
+
+  BLI_assert(pcontext.ss);
 
   mesh_cursor_update_and_init(pcontext);
 

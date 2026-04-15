@@ -161,7 +161,7 @@ enum_volume_interpolation = (
 enum_world_mis = (
     ('NONE',
      "None",
-     "Don't sample the background, faster but might cause noise for non-solid backgrounds"),
+     "Do not sample the background, faster but might cause noise for non-solid backgrounds"),
     ('AUTOMATIC',
      "Auto",
      "Automatically try to determine the best setting"),
@@ -178,16 +178,6 @@ enum_device_type = (
     ('ONEAPI', "oneAPI", "oneAPI", 6)
 )
 
-enum_texture_limit = (
-    ('OFF', "No Limit", "No texture size limit", 0),
-    ('128', "128", "Limit texture size to 128 pixels", 1),
-    ('256', "256", "Limit texture size to 256 pixels", 2),
-    ('512', "512", "Limit texture size to 512 pixels", 3),
-    ('1024', "1024", "Limit texture size to 1024 pixels", 4),
-    ('2048', "2048", "Limit texture size to 2048 pixels", 5),
-    ('4096', "4096", "Limit texture size to 4096 pixels", 6),
-    ('8192', "8192", "Limit texture size to 8192 pixels", 7),
-)
 
 enum_fast_gi_method = (
     ('REPLACE', "Replace", "Replace global illumination with ambient occlusion after a specified number of bounces"),
@@ -288,11 +278,11 @@ def enum_optix_denoiser(self, context):
 
 
 def enum_preview_denoiser(self, context):
-    dlss_items = enum_dlss_denoiser(self, context)
     optix_items = enum_optix_denoiser(self, context)
     oidn_items = enum_openimagedenoise_denoiser(self, context)
+    dlss_items = enum_dlss_denoiser(self, context)
 
-    if len(dlss_items) or len(optix_items) or len(oidn_items):
+    if len(optix_items) or len(oidn_items) or len(dlss_items):
         items = [
             ('AUTO',
              "Automatic",
@@ -302,9 +292,9 @@ def enum_preview_denoiser(self, context):
     else:
         items = [('AUTO', "None", n_("Blender was compiled without a viewport denoiser"), 0)]
 
-    items += dlss_items
     items += optix_items
     items += oidn_items
+    items += dlss_items
     return items
 
 
@@ -316,7 +306,7 @@ def enum_denoiser(self, context):
 
 
 enum_denoising_input_passes = (
-    ('RGB', "None", "Don't use utility passes for denoising", 1),
+    ('RGB', "None", "Do not use utility passes for denoising", 1),
     ('RGB_ALBEDO', "Albedo", "Use albedo pass for denoising", 2),
     ('RGB_ALBEDO_NORMAL', "Albedo and Normal", "Use albedo and normal passes for denoising", 3),
 )
@@ -701,6 +691,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         "learns the light distribution of the scene and guides path into directions "
         "with high direct and indirect light contributions",
         default=False,
+        update=update_render_passes,
     )
 
     use_deterministic_guiding: BoolProperty(
@@ -920,6 +911,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         subtype='PIXEL'
     )
 
+    use_pixel_jitter: BoolProperty(
+        name="Use Pixel Jitter",
+        default=False,
+    )
+
     seed: IntProperty(
         name="Seed",
         description="Seed value for integrator to get different noise patterns",
@@ -1046,18 +1042,20 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         subtype='FACTOR',
     )
 
-    texture_limit: EnumProperty(
-        name="Viewport Texture Limit",
-        default='OFF',
-        description="Limit texture size used by viewport rendering",
-        items=enum_texture_limit
+    texture_resolution: FloatProperty(
+        name="Viewport Texture Resolution",
+        default=1.0,
+        description="Scale factor for texture resolution used by viewport rendering",
+        min=0.00001, max=1.0,
+        subtype='FACTOR',
     )
 
-    texture_limit_render: EnumProperty(
-        name="Render Texture Limit",
-        default='OFF',
-        description="Limit texture size used by final rendering",
-        items=enum_texture_limit
+    texture_resolution_render: FloatProperty(
+        name="Render Texture Resolution",
+        default=1.0,
+        description="Scale factor for texture resolution used by final rendering",
+        min=0.00001, max=1.0,
+        subtype='FACTOR',
     )
 
     use_fast_gi: BoolProperty(
@@ -1305,6 +1303,11 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                     "(lower values give more accurate and detailed results, but also increased render time)",
         default=1.0,
         min=0.0000001, max=100000.0, soft_min=0.1, soft_max=100.0, precision=4
+    )
+    use_shadows: BoolProperty(
+        name="Shadows",
+        description="Enable shadow casting from the world",
+        default=True,
     )
 
     @classmethod

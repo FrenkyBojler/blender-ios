@@ -62,7 +62,7 @@ Scene ::Scene(const SceneParams &params_, Device *device)
   light_manager = make_unique<LightManager>();
   geometry_manager = make_unique<GeometryManager>();
   object_manager = make_unique<ObjectManager>();
-  image_manager = make_unique<ImageManager>(device->info);
+  image_manager = make_unique<ImageManager>(device->info, params);
   particle_system_manager = make_unique<ParticleSystemManager>();
   bake_manager = make_unique<BakeManager>();
   procedural_manager = make_unique<ProceduralManager>();
@@ -413,7 +413,8 @@ Scene::MotionType Scene::need_motion() const
     return MOTION_BLUR;
   }
   if (Pass::contains(passes, PASS_MOTION) ||
-      (integrator->get_use_denoise() && integrator->get_use_denoise_pass_motion()))
+      (integrator->get_use_denoise() &&
+       (integrator->get_denoiser_passes() & DENOISER_PASS_MOTION) != 0))
   {
     return MOTION_PASS;
   }
@@ -642,7 +643,7 @@ bool Scene::update_camera_resolution(Progress &progress, int width, int height)
   }
 
   if (integrator->get_use_pixel_jitter()) {
-    integrator->set_frame(integrator->get_frame() + 1);
+    integrator->tag_use_pixel_jitter_modified();
 
     integrator->device_update(device, &dscene, this);
     update_data = true;
@@ -832,14 +833,55 @@ void Scene::tag_has_volume_modified()
   has_volume_modified_ = true;
 }
 
-template<> Light *Scene::create_node<Light>()
+bool Scene::use_light_mis() const
 {
-  unique_ptr<Light> node = make_unique<Light>();
-  Light *node_ptr = node.get();
+  for (const Object *object : objects) {
+    if (!object->get_geometry()->is_light()) {
+      continue;
+    }
+
+    const Light *light = static_cast<const Light *>(object->get_geometry());
+    if (light->get_is_enabled() && light->get_use_mis() && light->is_traceable()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+template<class T> T *Scene::create_light_node()
+{
+  unique_ptr<T> node = make_unique<T>();
+  T *node_ptr = node.get();
   node->set_owner(this);
   geometry.push_back(std::move(node));
   light_manager->tag_update(this, LightManager::LIGHT_ADDED);
   return node_ptr;
+}
+
+template<> PointLight *Scene::create_node<PointLight>()
+{
+  return create_light_node<PointLight>();
+}
+
+template<> SpotLight *Scene::create_node<SpotLight>()
+{
+  return create_light_node<SpotLight>();
+}
+
+template<> AreaLight *Scene::create_node<AreaLight>()
+{
+  return create_light_node<AreaLight>();
+}
+
+template<> SunLight *Scene::create_node<SunLight>()
+{
+  return create_light_node<SunLight>();
+}
+
+template<> BackgroundLight *Scene::create_node<BackgroundLight>()
+{
+  return create_light_node<BackgroundLight>();
 }
 
 template<> Mesh *Scene::create_node<Mesh>()
@@ -1004,7 +1046,7 @@ template<> void Scene::delete_node(Geometry *node)
   else {
     flag = GeometryManager::MESH_REMOVED;
     if (node->has_volume) {
-      volume_manager->tag_update(node);
+      volume_manager->tag_update({node});
     }
   }
 
@@ -1018,7 +1060,7 @@ template<> void Scene::delete_node(Object *node)
 
   uint flag = ObjectManager::OBJECT_REMOVED;
   if (node->get_geometry()->has_volume) {
-    volume_manager->tag_update(node, flag);
+    volume_manager->tag_update({node}, flag);
   }
 
   objects.erase_by_swap(node);
@@ -1068,6 +1110,7 @@ template<typename T> static void assert_same_owner(const set<T *> &nodes, const 
 template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwner *owner)
 {
   assert_same_owner(nodes, owner);
+  volume_manager->tag_update(nodes);
   geometry.erase_in_set(nodes);
   geometry_manager->tag_update(this, GeometryManager::GEOMETRY_REMOVED);
   light_manager->tag_update(this, LightManager::LIGHT_REMOVED);
@@ -1076,6 +1119,7 @@ template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwne
 template<> void Scene::delete_nodes(const set<Object *> &nodes, const NodeOwner *owner)
 {
   assert_same_owner(nodes, owner);
+  volume_manager->tag_update(nodes, ObjectManager::OBJECT_REMOVED);
   objects.erase_in_set(nodes);
   object_manager->tag_update(this, ObjectManager::OBJECT_REMOVED);
 }

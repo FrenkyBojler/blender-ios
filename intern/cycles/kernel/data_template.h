@@ -232,10 +232,24 @@ KERNEL_STRUCT_MEMBER(integrator, int, use_guiding_mis_weights)
 KERNEL_STRUCT_MEMBER(integrator, float2, pixel_jitter)
 KERNEL_STRUCT_END(KernelIntegrator)
 
+/* Image. */
+
+KERNEL_STRUCT_BEGIN(KernelImage, image)
+KERNEL_STRUCT_MEMBER(image, float, mip_bias)
+
+/* Padding. */
+KERNEL_STRUCT_MEMBER(image, int, pad1)
+KERNEL_STRUCT_MEMBER(image, int, pad2)
+KERNEL_STRUCT_MEMBER(image, int, pad3)
+KERNEL_STRUCT_END(KernelImage)
+
 /* SVM. For shader specialization. */
 
 KERNEL_STRUCT_BEGIN(KernelSVMUsage, svm_usage)
 #define SHADER_NODE_TYPE(type) KERNEL_STRUCT_MEMBER(svm_usage, int, type)
+#define SHADER_NODE_TYPE_DERIVATIVE(type) \
+  SHADER_NODE_TYPE(type) \
+  SHADER_NODE_TYPE(type##_DERIVATIVE)
 #include "kernel/svm/node_types_template.h"
 KERNEL_STRUCT_END(KernelSVMUsage)
 

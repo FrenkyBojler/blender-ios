@@ -265,7 +265,7 @@ MetalDeviceQueue::~MetalDeviceQueue()
 
 int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
 {
-  int state_count = 4194304;
+  size_t state_count = 4194304;
 
   /* Increasing the state count doesn't notably benefit M1-family systems. */
   if (MetalInfo::get_apple_gpu_architecture(metal_device_->mtlDevice) != APPLE_M1) {
@@ -273,13 +273,13 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
         [metal_device_->mtlDevice recommendedMaxWorkingSetSize];
 
     /* Only use 90% of available working set for safety. */
-    int percent = 90;
-    if (auto str = getenv("WORKING_SET_PERCENT_OVERRIDE")) {
+    size_t percent = 90;
+    if (auto str = getenv("CYCLES_METAL_WORKING_SET_PERCENT")) {
       percent = atoi(str);
     }
 
     const size_t max_working_set = (max_recommended_working_set * percent) / 100;
-    int max_safe_state_count = 0;
+    size_t max_safe_state_count = 0;
 
     if (stats_.mem_used < max_working_set) {
       const size_t headroom = max_working_set - stats_.mem_used;
@@ -291,13 +291,23 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
       /* If RAM is limited, we can still render with reduced state count. */
       if (max_safe_state_count < state_count) {
         metal_printf(
-            "Reducing state count to fit within available RAM. %d -> %d (%.1f%% of original size)",
+            "Reducing state count to fit within available RAM. %zu -> %zu (%.1f%% of original "
+            "size)",
             state_count,
             max_safe_state_count,
             double(max_safe_state_count) / double(state_count) * 100.0);
         state_count = max_safe_state_count;
       }
       else {
+        /* Aggressive safety margin: only grow if it leaves us at < 50% max working set
+         * utilization. */
+        size_t grow_percent = 50;
+        if (auto str = getenv("CYCLES_METAL_GROW_PERCENT")) {
+          grow_percent = atoi(str);
+        }
+
+        max_safe_state_count = (max_safe_state_count * grow_percent) / 100;
+
         /* Limit to two "doublings" - we see diminishing returns after that. */
         for (int i = 0; i < 2; i++) {
           /* Determine whether we can double the state count, and leave enough GPU-available
@@ -305,7 +315,7 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
            * work submission overheads. */
           if (max_safe_state_count > state_count * 2) {
             state_count *= 2;
-            metal_printf("Doubling state count to exploit available RAM (new size = %d)",
+            metal_printf("Doubling state count to exploit available RAM (new size = %zu)",
                          state_count);
           }
         }
@@ -387,6 +397,17 @@ void MetalDeviceQueue::init_execution()
     write_resource(blas_array, metal_device_->blas_array[slot], slot);
   }
 
+  /* Populate image bindings. */
+  load_image_info();
+
+  /* Synchronize memory copies. */
+  synchronize();
+}
+
+void MetalDeviceQueue::load_image_info()
+{
+  /* TODO: Can this be optimized to only update info ids that changed? Why is this done delayed
+   * instead of immediately when allocating the image? */
   device_vector<KernelImageInfo> &image_info = metal_device_->image_info;
   id<MTLBuffer> &image_bindings = metal_device_->image_bindings;
   std::vector<id<MTLResource>> &image_info_id_map = metal_device_->image_info_id_map;
@@ -409,9 +430,6 @@ void MetalDeviceQueue::init_execution()
       }
     }
   }
-
-  /* Synchronize memory copies. */
-  synchronize();
 }
 
 bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
@@ -702,7 +720,7 @@ void MetalDeviceQueue::zero_to_device(device_memory &mem)
       return;
     }
 
-    assert(mem.type != MEM_GLOBAL && mem.type != MEM_IMAGE_TEXTURE);
+    assert(mem.type != MEM_IMAGE_TEXTURE);
 
     if (mem.memory_size() == 0) {
       return;
@@ -744,7 +762,7 @@ void MetalDeviceQueue::copy_to_device(device_memory &mem)
       metal_device_->mem_alloc(mem);
     }
 
-    assert(mem.device_pointer != 0);
+    assert(mem.device->mem_device_ptr(mem, metal_device_) != 0);
     assert(mem.host_pointer != nullptr);
     /* No need to copy - Apple Silicon has Unified Memory Architecture. */
   }
@@ -753,6 +771,20 @@ void MetalDeviceQueue::copy_to_device(device_memory &mem)
 void MetalDeviceQueue::copy_from_device(device_memory & /*mem*/)
 {
   /* No need to copy - Apple Silicon has Unified Memory Architecture. */
+}
+
+void *MetalDeviceQueue::copy_from_device_synchronized(device_memory &mem,
+                                                      vector<uint8_t> & /*storage*/)
+{
+  if (mem.memory_size() == 0) {
+    return nullptr;
+  }
+
+  /* Wait until kernels have finished before returning from unified memory. */
+  synchronize();
+
+  device_ptr d_ptr = mem.device->mem_device_ptr(mem, metal_device_);
+  return (d_ptr) ? reinterpret_cast<MetalDevice::MetalMem *>(d_ptr)->hostPtr : nullptr;
 }
 
 void MetalDeviceQueue::prepare_resources(DeviceKernel /*kernel*/)

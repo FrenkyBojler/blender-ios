@@ -252,11 +252,6 @@ DLSSDenoiser::~DLSSDenoiser()
   delete ngx_device_;
 }
 
-uint DLSSDenoiser::get_device_type_mask() const
-{
-  return DEVICE_MASK_CUDA | DEVICE_MASK_OPTIX;
-}
-
 bool DLSSDenoiser::is_device_supported(const DeviceInfo &device)
 {
   if (device.type != DEVICE_CUDA && device.type != DEVICE_OPTIX) {

@@ -22,9 +22,6 @@ class DLSSDenoiser : public DenoiserGPU {
 
   static bool is_device_supported(const DeviceInfo &device);
 
- protected:
-  virtual uint get_device_type_mask() const override;
-
  private:
   bool denoise_create_if_needed(DenoiseContext &context) override;
 
