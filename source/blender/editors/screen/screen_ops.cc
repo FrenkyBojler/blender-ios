@@ -7182,43 +7182,44 @@ void ED_region_add_animation_timer(bContext *C,
 
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region)
 {
-  RegionAnimationEdge dir = RegionAnimationEdge::All;
-  float duration;
+  RegionAnimationEdge edge = RegionAnimationEdge::All;
+  float duration = ANIMATION_DURATION_REGION_V;
   float delay = 0.0f;
-  if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_RIGHT) {
-    dir = RegionAnimationEdge::Left;
+  RegionAnimationType anim_type = RegionAnimationType::Slide;
+  const bool hiding = region->flag & RGN_FLAG_HIDDEN;
+  // RegionAnimationEase easing = hiding ? RegionAnimationEase::QuadIn :
+  // RegionAnimationEase::QuadOut; RegionAnimationEase easing = RegionAnimationEase::QuadIn;
+  RegionAnimationEase easing = hiding ? RegionAnimationEase::ExpoOut : RegionAnimationEase::ExpoIn;
+
+  if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) {
+    edge = RegionAnimationEdge::Bottom;
+  }
+  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
+    edge = RegionAnimationEdge::Top;
+  }
+  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_RIGHT) {
+    edge = RegionAnimationEdge::Left;
     duration = ANIMATION_DURATION_REGION_H;
   }
   else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_LEFT) {
-    dir = RegionAnimationEdge::Right;
+    edge = RegionAnimationEdge::Right;
     duration = ANIMATION_DURATION_REGION_H;
   }
-  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
-    dir = RegionAnimationEdge::Top;
-    duration = ANIMATION_DURATION_REGION_V;
-  }
-  else if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) {
-    dir = RegionAnimationEdge::Bottom;
-    duration = ANIMATION_DURATION_REGION_V;
-  }
-
-  RegionAnimationType anim_type = RegionAnimationType::Slide;
-  const bool hiding = region->flag & RGN_FLAG_HIDDEN;
-  RegionAnimationEase easing = hiding ? RegionAnimationEase::QuadIn : RegionAnimationEase::QuadOut;
 
   if (region->next && region->next->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
-    if (hiding) {
-      delay = ANIMATION_DURATION_REGION_V;
-    }
+    /* Wait for asset shelf header to animate away before hiding the main portion. */
+    delay = hiding ? ANIMATION_DURATION_REGION_ALIGNED : 0.0f;
     SET_FLAG_FROM_TEST(region->next->flag, hiding, RGN_FLAG_HIDDEN);
     ED_region_visibility_change_update_animated(C, area, region->next);
   }
 
-  if (!hiding && region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
-    delay = ANIMATION_DURATION_REGION_V;
+  if (region->alignment & (RGN_SPLIT_PREV | RGN_ALIGN_HIDE_WITH_PREV)) {
+    /* Wait for asset shelf to animate into place before showing its header. */
+    delay = hiding ? 0.0f : ANIMATION_DURATION_REGION_V;
+    duration = ANIMATION_DURATION_REGION_ALIGNED;
   }
 
-  ED_region_add_animation_timer(C, area, region, delay, duration, anim_type, dir, easing);
+  ED_region_add_animation_timer(C, area, region, delay, duration, anim_type, edge, easing);
 
   RegionAlphaInfo *rgi = static_cast<RegionAlphaInfo *>(region->runtime->regiontimer->customdata);
 

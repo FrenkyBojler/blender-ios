@@ -861,17 +861,10 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
      * these menu blocks are regions so we bring it back to region space.
      * additionally we add some padding for the menu shadow or rounded menus */
 
-    const int top_margin = (block->direction & UI_DIR_DOWN) ?
-                               (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0) :
-                               margin;
-    const int bottom_margin = (block->direction & UI_DIR_DOWN) ?
-                                  margin :
-                                  (block->flag & BLOCK_POPOVER ? UI_POPUP_MENU_TOP : 0);
-
     region->winrct.xmin = block->rect.xmin - margin;
     region->winrct.xmax = block->rect.xmax + margin;
-    region->winrct.ymin = block->rect.ymin - bottom_margin;
-    region->winrct.ymax = block->rect.ymax + top_margin;
+    region->winrct.ymin = block->rect.ymin - margin;
+    region->winrct.ymax = block->rect.ymax + UI_POPUP_MENU_TOP;
 
     block_translate(block, -region->winrct.xmin, -region->winrct.ymin);
     /* Popups can change size, fix scroll offset if a panel was closed. */
@@ -1016,45 +1009,6 @@ PopupBlockHandle *popup_block_create(bContext *C,
   /* keep centered on window resizing */
   if (block->bounds_type == BLOCK_BOUNDS_POPUP_CENTER) {
     type.listener = block_region_popup_window_listener;
-  }
-
-  if (!(U.uiflag & USER_REDUCE_MOTION)) {
-    float duration = ANIMATION_DURATION_MENU;
-    RegionAnimationEdge edge;
-    RegionAnimationType anim_type = RegionAnimationType::Slide;
-    RegionAnimationEase ease = RegionAnimationEase::CircOut;
-
-    if (block->direction & UI_DIR_UP) {
-      edge = RegionAnimationEdge::Top;
-      duration = ANIMATION_DURATION_MENU;
-    }
-    else if (block->direction & UI_DIR_DOWN) {
-      edge = RegionAnimationEdge::Bottom;
-      duration = ANIMATION_DURATION_MENU;
-    }
-    else if (block->direction & UI_DIR_LEFT) {
-      edge = RegionAnimationEdge::Left;
-      duration = ANIMATION_DURATION_SUBMENU;
-    }
-    else if (block->direction & UI_DIR_RIGHT) {
-      edge = RegionAnimationEdge::Right;
-      duration = ANIMATION_DURATION_SUBMENU;
-    }
-    else {
-      edge = RegionAnimationEdge::All;
-      if (block->flag & BLOCK_MOVEMOUSE_QUIT) {
-        anim_type = RegionAnimationType::Fade;
-        duration = ANIMATION_DURATION_SMALL_DIALOG;
-      }
-      else {
-        anim_type = RegionAnimationType::Expand;
-        duration = ANIMATION_DURATION_LARGE_DIALOG;
-        ease = RegionAnimationEase::BackOut;
-      }
-    }
-
-    ED_region_add_animation_timer(
-        C, handle->ctx_area, region, 0.0f, duration, anim_type, edge, ease);
   }
 
   return handle;
