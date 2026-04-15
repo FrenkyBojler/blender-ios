@@ -409,11 +409,9 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_debug_irradiance_grid_vert.glsl
   engines/eevee/shaders/eevee_debug_irradiance_grid_frag.glsl
   engines/eevee/shaders/eevee_deferred_aov_clear_frag.glsl
-  engines/eevee/shaders/eevee_deferred_capture_frag.glsl
+  engines/eevee/shaders/eevee_deferred_eval.bsl.hh
   engines/eevee/shaders/eevee_deferred_combine_frag.glsl
   engines/eevee/shaders/eevee_deferred_thickness_amend_frag.glsl
-  engines/eevee/shaders/eevee_deferred_light_frag.glsl
-  engines/eevee/shaders/eevee_deferred_planar_frag.glsl
   engines/eevee/shaders/eevee_deferred_tile_classify_frag.glsl
   engines/eevee/shaders/eevee_depth_of_field_accumulator_lib.glsl
   engines/eevee/shaders/eevee_depth_of_field_bokeh_lut_comp.glsl
@@ -893,6 +891,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
