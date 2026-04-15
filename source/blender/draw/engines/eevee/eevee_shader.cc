@@ -620,7 +620,7 @@ class SlotAllocator {
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
+      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER && res.slot >= 0) {
         available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
@@ -886,11 +886,19 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.additional_info("eevee_cryptomatte_out");
   }
 
+  for (auto &resource : info.batch_resources_) {
+    if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+      /* Don't assign slots for material textures, they may overlap with our internal slots. */
+      resource.slot = -1;
+    }
+  }
+
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 
   for (auto &resource : info.batch_resources_) {
     if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+      /* Assign non overlapping slots for material textures. */
       resource.slot = slots.get_next_sampler();
     }
   }
