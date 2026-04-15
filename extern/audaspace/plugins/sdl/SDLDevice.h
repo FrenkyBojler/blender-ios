@@ -57,6 +57,11 @@ private:
 	 */
 	AUD_LOCAL static void SDL_mix(void* userdata, SDL_AudioStream* stream, int additional_amount, int total_amount);
 
+	/**
+	 * Helper function to convert Audaspace DeviceSpecs structs to SDL SDL_AudioSpec structs.
+	 */
+	AUD_LOCAL static SDL_AudioSpec sdl_audiospec_from_device_specs(const DeviceSpecs &specs);
+
 	// delete copy constructor and operator=
 	SDLDevice(const SDLDevice&) = delete;
 	SDLDevice& operator=(const SDLDevice&) = delete;
