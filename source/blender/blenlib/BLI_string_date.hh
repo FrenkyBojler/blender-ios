@@ -18,14 +18,14 @@
 
 namespace blender::date_format {
 
-std::string date(const std::tm *date_time, const char *locale_iso = nullptr);
+std::string date(const std::tm *date_time, const StringRef locale_iso = {});
 
-std::string time(const std::tm *date_time, const char *locale_iso = nullptr);
+std::string time(const std::tm *date_time, const StringRef locale_iso = {});
 
 std::string datetime(const std::tm *date_time,
-                     const char *locale_iso = nullptr,
+                     const StringRef locale_iso = {},
                      const std::tm *now = nullptr,
-                     const StringRef &today = {},
-                     const StringRef &yesterday = {});
+                     const StringRef today = {},
+                     const StringRef yesterday = {});
 
 }  // namespace blender::date_format
