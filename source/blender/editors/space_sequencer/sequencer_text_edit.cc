@@ -662,26 +662,30 @@ static void text_style_ranges_shift(ListBase *style_ranges, int pos, int delta)
         range->start += delta;
         range->end += delta;
       }
-      else if (pos > range->start && pos < range->end) {
+      else if (pos > range->start && pos <= range->end) {
         range->end += delta;
       }
     }
     else {
-      int delete_end = pos + std::abs(delta);
-      if (range->start >= delete_end) {
+      int del_len = std::abs(delta);
+      int del_end = pos + del_len;
+
+      if (range->start >= del_end) {
         range->start += delta;
         range->end += delta;
       }
-      else if (pos <= range->start && delete_end >= range->end) {
-        range->start = 0;
-        range->end = 0;
+      /* range fully inside deleted area */
+      else if (pos <= range->start && del_end >= range->end) {
+        range->start = range->end = 0; 
       }
-      else if (pos >= range->start && delete_end <= range->end) {
+      /* deleted area inside range */
+      else if (pos >= range->start && del_end <= range->end) {
         range->end += delta;
       }
-      else if (pos < range->start && delete_end > range->start) {
+      /* deletion overlaps start of range */
+      else if (pos < range->start && del_end > range->start) {
         range->start = pos;
-        range->end = std::max(pos, range->end + delta);
+        range->end = std::max(pos, range->end - (del_end - range->start));
       }
     }
 

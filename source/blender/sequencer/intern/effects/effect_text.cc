@@ -209,6 +209,8 @@ static void init_text_effect(Strip *strip)
   data->anchor_y = SEQ_TEXT_ALIGN_Y_CENTER;
   data->align = SEQ_TEXT_ALIGN_X_CENTER;
   data->wrap_width = 1.0f;
+
+  BLI_listbase_clear(&data->style_ranges);
 }
 
 static void text_font_unload(TextVars *data, const bool do_id_user)
@@ -602,36 +604,39 @@ static void text_draw(const char *text_ptr,
     BLF_enable(runtime->font, BLF_NO_FALLBACK);
   }
 
-  StyleAttributes current_state = {{0}, -1.0f, false, false};
-  TextStyleRange *range_it = static_cast<TextStyleRange *>(text_vars->style_ranges.first);
+  StyleAttributes current_state = {{0.0f, 0.0f, 0.0f, 0.0f}, -1.0f, false, false};
 
   for (const LineInfo &line : runtime->lines) {
     float centering_offset = compute_line_expansion(line, text_vars) / 2.0f;
     float accumulation_shift = 0.0f;
 
     for (const CharInfo &character : line.characters) {
-      while (range_it && character.offset >= range_it->end) {
-        range_it = range_it->next;
+      /* Search for range at this specific character offset. */
+      TextStyleRange *range = nullptr;
+      for (TextStyleRange *r = (TextStyleRange *)text_vars->style_ranges.first; r; r = r->next) {
+        if (character.offset >= r->start && character.offset < r->end) {
+          range = r;
+          break;
+        }
       }
 
       StyleAttributes attr;
-      if (range_it && character.offset >= range_it->start) {
-        copy_v4_v4(attr.color, range_it->color);
-        attr.size = range_it->size;
-        attr.bold = range_it->is_bold;
-        attr.italic = range_it->is_italic;
+      if (range) {
+        copy_v4_v4(attr.color, range->color);
+        attr.size = range->size;
+        attr.bold = range->is_bold;
+        attr.italic = range->is_italic;
       }
       else {
         copy_v4_v4(attr.color, text_vars->color);
         attr.size = text_vars->text_size;
-        attr.bold = (text_vars->flag & SEQ_TEXT_BOLD);
-        attr.italic = (text_vars->flag & SEQ_TEXT_ITALIC);
+        attr.bold = (text_vars->flag & SEQ_TEXT_BOLD) != 0;
+        attr.italic = (text_vars->flag & SEQ_TEXT_ITALIC) != 0;
       }
 
       update_font_state(runtime->font, attr, current_state);
 
-      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) :
-                                                          1.0f;
+      float scale_ratio = (text_vars->text_size > 0.0f) ? (attr.size / text_vars->text_size) : 1.0f;
       float final_x = character.position.x + accumulation_shift - centering_offset;
 
       BLF_position(runtime->font, final_x, character.position.y, 0.0f);
@@ -642,7 +647,7 @@ static void text_draw(const char *text_ptr,
     }
   }
 
-  /* Restore default state. */
+  /* Cleanup font state. */
   BLF_disable(runtime->font, BLF_BOLD | BLF_ITALIC);
   if (!use_fallback) {
     BLF_disable(runtime->font, BLF_NO_FALLBACK);
