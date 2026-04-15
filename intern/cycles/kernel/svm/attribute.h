@@ -29,7 +29,7 @@ ccl_device AttributeDescriptor svm_node_attr_init(KernelGlobals kg,
 
   if (sd->object != OBJECT_NONE) {
     desc = find_attribute(kg, sd, node.attr);
-    if (desc.offset == ATTR_STD_NOT_FOUND) {
+    if (desc.element == ATTR_ELEMENT_NONE) {
       desc = attribute_not_found();
       desc.offset = 0;
       desc.type = (NodeAttributeType)node.output_type;

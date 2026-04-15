@@ -368,7 +368,7 @@ ccl_device_inline void volume_shader_motion_blur(KernelGlobals kg,
   }
 
   const AttributeDescriptor v_desc = find_attribute(kg, sd, ATTR_STD_VOLUME_VELOCITY);
-  kernel_assert(v_desc.offset != ATTR_STD_NOT_FOUND);
+  kernel_assert(v_desc.element != ATTR_ELEMENT_NONE);
 
   const float3 P = sd->P;
   const float velocity_scale = kernel_data_fetch(objects, sd->object).velocity_scale;
