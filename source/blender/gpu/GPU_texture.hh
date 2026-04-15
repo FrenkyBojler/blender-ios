@@ -1038,7 +1038,9 @@ void GPU_texture_read(gpu::Texture *texture, eGPUDataFormat data_format, int mip
 /**
  * Calculate memory size in bytes needed to read a \a mip_level from a \a texture.
  */
-size_t GPU_texture_read_size(gpu::Texture *texture, eGPUDataFormat data_format, int mip_level);
+size_t GPU_texture_read_size_get(const gpu::Texture *texture,
+                                 eGPUDataFormat data_format,
+                                 int mip_level);
 
 /** \} */
 

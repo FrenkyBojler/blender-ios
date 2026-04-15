@@ -1496,22 +1496,6 @@ void gpu::MTLTexture::mip_range_set(int min, int max)
   texture_view_dirty_flags_ |= TEXTURE_VIEW_MIP_DIRTY;
 }
 
-size_t gpu::MTLTexture::read_size(int mip, eGPUDataFormat type) const
-{
-  BLI_assert(!(format_flag_ & GPU_FORMAT_COMPRESSED));
-  BLI_assert(mip <= mipmaps_);
-  BLI_assert(validate_data_format(format_, type));
-
-  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-  int extent[3] = {1, 1, 1};
-  this->mip_size_get(mip, extent);
-
-  size_t sample_len = extent[0] * max_ii(extent[1], 1) * max_ii(extent[2], 1);
-  size_t sample_size = to_bytesize(format_, type);
-  size_t texture_size = sample_len * sample_size;
-  return texture_size;
-}
-
 void gpu::MTLTexture::read(int mip, eGPUDataFormat type, void *data)
 {
   BLI_assert(!(format_flag_ & GPU_FORMAT_COMPRESSED));
@@ -1522,7 +1506,7 @@ void gpu::MTLTexture::read(int mip, eGPUDataFormat type, void *data)
   int extent[3] = {1, 1, 1};
   this->mip_size_get(mip, extent);
 
-  size_t texture_size = read_size(mip, type);
+  size_t texture_size = read_size_get(mip, type);
   int num_channels = to_component_len(format_);
 
   /* Ensure texture is baked. */
