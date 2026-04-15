@@ -41,9 +41,6 @@ static PyObject *make_sdl_info()
 {
   PyObject *sdl_info;
   int pos = 0;
-#ifdef WITH_SDL
-  int sdl_ver = 0;
-#endif
 
   sdl_info = PyStructSequence_New(&BlenderAppSDLType);
   if (sdl_info == nullptr) {
@@ -56,9 +53,8 @@ static PyObject *make_sdl_info()
 
 #ifdef WITH_SDL
   SetObjItem(PyBool_FromLong(1));
-  sdl_ver = SDL_GetVersion();
-
   {
+    int sdl_ver = SDL_GetVersion();
     const int major = SDL_VERSIONNUM_MAJOR(sdl_ver);
     const int minor = SDL_VERSIONNUM_MINOR(sdl_ver);
     const int patch = SDL_VERSIONNUM_MICRO(sdl_ver);
