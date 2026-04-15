@@ -10,6 +10,7 @@
 
 #include "BKE_nla.hh"
 
+#include "BKE_action.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
 
@@ -62,6 +63,8 @@ struct MPathTarget;
 namespace animrig {
 class Action;
 class Slot;
+class Channelbag;
+class Transformable;
 }  // namespace animrig
 
 /* ************************************************ */
@@ -1305,5 +1308,49 @@ void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget *> &r_targe
 void animviz_free_motionpath_targets(Vector<MPathTarget *> &targets);
 
 /** \} */
+
+/**
+ * A non owning storage buffer for FCurves where they are sorted by `array_index`.
+ */
+class SortedFCurveBuffer {
+  Vector<FCurve *> fcurves_;
+
+ public:
+  void insert_fcurve(FCurve &fcurve);
+  Span<FCurve *> fcurves() const;
+  /**
+   * Returns the FCurve with the given array index from the buffer or a nullptr if that index
+   * does not exist.
+   */
+  FCurve *get_fcurve_by_array_index(int array_index) const;
+};
+
+/* FCurves grouped by their RNA path. */
+using RNAFCurveMap = Map<StringRefNull, SortedFCurveBuffer>;
+/* For each Channelbag FCurves grouped by their RNA path. */
+using ChannelbagToFCurveMap = Map<animrig::Channelbag *, RNAFCurveMap>;
+
+/**
+ * Convert any keyframe data for the given bone to the given rotation mode.
+ *
+ * \returns true if any animation data was modified.
+ */
+bool convert_rotation_keys(Main *bmain,
+                                     const animrig::Transformable &transformable,
+                                     const ChannelbagToFCurveMap &fcurves_by_rna_path,
+                                     eRotationModes to_mode);
+
+/**
+ * Creates a map of RNA paths and the rotation FCurves associated with that rna path.
+ * That means `rotation_euler` and `rotation_quaternion` will have different entries in the map.
+ */
+ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
+                                                animrig::slot_handle_t slot_handle);
+
+/**
+ * Bake all existing rotation fcurves that start with the given `base_rna_path`.
+ */
+void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           const animrig::Transformable &transformable);
 
 }  // namespace blender

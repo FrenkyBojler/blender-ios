@@ -33,7 +33,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_convert.hh"
 
 namespace blender {
 
@@ -330,6 +329,7 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
+#  include "ED_anim_api.hh"
 #  include "ED_curve.hh"
 #  include "ED_lattice.hh"
 #  include "ED_mesh.hh"
@@ -1217,23 +1217,21 @@ static void rna_Object_convert_rotation_mode(
   }
 
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
+  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
 
   animrig::Transformable transformable(*ob);
   bool converted_actions = false;
   animrig::foreach_action_slot_use(
       *id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
         if (!data_map.contains({&action, slot_handle})) {
-          animrig::ChannelbagToFCurveMap fcurve_map = animrig::build_rotation_fcurve_map(
-              action, slot_handle);
+          ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
           data_map.add({&action, slot_handle}, fcurve_map);
         }
-        animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
-            {&action, slot_handle});
+        ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
         if (bake) {
-          animrig::bake_rotation_fcurves(channelbag_fcurve_map, transformable);
+          bake_rotation_fcurves(channelbag_fcurve_map, transformable);
         }
-        converted_actions |= animrig::convert_pose_bone_rotation_keys(
+        converted_actions |= convert_rotation_keys(
             main, transformable, channelbag_fcurve_map, eRotationModes(rotation_mode));
         DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
         return true;

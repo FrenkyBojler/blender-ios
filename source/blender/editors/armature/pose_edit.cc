@@ -48,7 +48,6 @@
 #include "ANIM_action_iterators.hh"
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
-#include "ANIM_convert.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
 
@@ -630,7 +629,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
   Object *prev_ob = nullptr;
 
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
+  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
 
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
@@ -643,16 +642,14 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
     animrig::foreach_action_slot_use(
         ob->id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
           if (!data_map.contains({&action, slot_handle})) {
-            animrig::ChannelbagToFCurveMap fcurve_map = animrig::build_rotation_fcurve_map(
-                action, slot_handle);
+            ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
             data_map.add({&action, slot_handle}, fcurve_map);
           }
-          animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
-              {&action, slot_handle});
+          ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
           if (bake) {
-            animrig::bake_rotation_fcurves(channelbag_fcurve_map, transformable);
+            bake_rotation_fcurves(channelbag_fcurve_map, transformable);
           }
-          animrig::convert_pose_bone_rotation_keys(
+          convert_rotation_keys(
               CTX_data_main(C), transformable, channelbag_fcurve_map, eRotationModes(mode));
           DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
           visited_actions++;

@@ -12,13 +12,13 @@
 #include "BKE_fcurve.hh"
 
 #include "ANIM_action.hh"
-#include "ANIM_convert.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_rna.hh"
 
+#include "ED_anim_api.hh"
 #include "ED_transformable.hh"
 
-namespace blender::animrig {
+namespace blender {
 
 void SortedFCurveBuffer::insert_fcurve(FCurve &fcurve)
 {
@@ -114,12 +114,12 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
                                           const eRotationModes from_mode,
                                           const eRotationModes to_mode,
                                           const float2 range,
-                                          const Transformable &transformable)
+                                          const animrig::Transformable &transformable)
 {
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
-  Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
-  KeyframeSettings settings;
+  animrig::Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
+  animrig::KeyframeSettings settings;
   for (const FCurve *fcurve : evaluation_buffer) {
     if (!fcurve || !fcurve->bezt) {
       continue;
@@ -134,7 +134,7 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
   }
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
-  Rotation previous_conversion = rotation_values;
+  animrig::Rotation previous_conversion = rotation_values;
 
   Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
   for (const int64_t frame_id : keyframe_ids) {
@@ -152,7 +152,8 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
       }
       rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
     }
-    Rotation converted_rotation = rotation_values.converted_to_mode(to_mode, &previous_conversion);
+    animrig::Rotation converted_rotation = rotation_values.converted_to_mode(to_mode,
+                                                                             &previous_conversion);
     for (int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
@@ -167,12 +168,12 @@ static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_
 }
 
 static void convert_rotation_mode_range(Main &bmain,
-                                        Channelbag &channelbag,
+                                        animrig::Channelbag &channelbag,
                                         const SortedFCurveBuffer &fcurve_buffer,
                                         const eRotationModes from_mode,
                                         const eRotationModes to_mode,
                                         const float2 range,
-                                        const Transformable &transformable)
+                                        const animrig::Transformable &transformable)
 {
   const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
@@ -188,7 +189,7 @@ static void convert_rotation_mode_range(Main &bmain,
     if (is_euler_to_euler) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
-      FCurveDescriptor descriptor = {
+      animrig::FCurveDescriptor descriptor = {
           to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, transformable.fcurve_group_name()};
       BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
                          evaluation_buffer_count == 3,
@@ -211,7 +212,7 @@ static void convert_rotation_mode_range(Main &bmain,
       else if (to_mode == ROT_MODE_AXISANGLE) {
         prop_subtype = PROP_AXISANGLE;
       }
-      FCurveDescriptor descriptor = {
+      animrig::FCurveDescriptor descriptor = {
           to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, transformable.fcurve_group_name()};
       for (const int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
@@ -238,15 +239,15 @@ static void convert_rotation_mode_range(Main &bmain,
   }
 }
 
-bool convert_pose_bone_rotation_keys(Main *bmain,
-                                     const Transformable &transformable,
+bool convert_rotation_keys(Main *bmain,
+                                     const animrig::Transformable &transformable,
                                      const ChannelbagToFCurveMap &channelbag_fcurve_map,
                                      const eRotationModes to_mode)
 {
   bool modified_keys = false;
 
   for (const auto &item : channelbag_fcurve_map.items()) {
-    Channelbag *channelbag = item.key;
+    animrig::Channelbag *channelbag = item.key;
     const RNAFCurveMap &fcu_map = item.value;
     const std::string rotation_mode_path = fmt::format(
         "{}.{}", transformable.rna_path(), "rotation_mode");
@@ -297,14 +298,15 @@ static bool is_rotation_mode_path(const StringRefNull rna_path)
   return rna_path.substr(start_of_propname, rna_path.size()) == "rotation_mode";
 }
 
-ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, const slot_handle_t slot_handle)
+ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
+                                                const animrig::slot_handle_t slot_handle)
 {
   ChannelbagToFCurveMap rotation_map;
-  for (Channelbag *channelbag : channelbags_for_action_slot(action, slot_handle)) {
+  for (animrig::Channelbag *channelbag : channelbags_for_action_slot(action, slot_handle)) {
     RNAFCurveMap &curves = rotation_map.lookup_or_add(channelbag, {});
     for (FCurve *fcurve : channelbag->fcurves()) {
       StringRefNull rna_path(fcurve->rna_path);
-      if (!is_rotation_path(rna_path) && !is_rotation_mode_path(rna_path)) {
+      if (!animrig::is_rotation_path(rna_path) && !is_rotation_mode_path(rna_path)) {
         continue;
       }
       SortedFCurveBuffer &fcurve_buffer = curves.lookup_or_add(rna_path, {});
@@ -315,7 +317,7 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, const slot_handl
 }
 
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
-                           const Transformable &transformable)
+                           const animrig::Transformable &transformable)
 {
   /* Need to bake on all potential FCurves to cover. */
   const Array<eRotationModes> rotation_modes = {ROT_MODE_EUL, ROT_MODE_QUAT, ROT_MODE_AXISANGLE};
@@ -333,10 +335,10 @@ void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
         }
         float2 range;
         BKE_fcurve_calc_range(fcurve, &range[0], &range[1], false);
-        bake_fcurve(fcurve, int2(range), 1, BakeCurveRemove::ALL);
+        animrig::bake_fcurve(fcurve, int2(range), 1, animrig::BakeCurveRemove::ALL);
       }
     }
   }
 }
 
-}  // namespace blender::animrig
+}  // namespace blender
