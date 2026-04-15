@@ -193,9 +193,8 @@ uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
 
 const FieldInputsPtr &FieldInput::field_inputs() const
 {
-  const char *func = __func__;
   field_inputs_mutex_.ensure([&]() {
-    FieldInputs *inputs = MEM_new<FieldInputs>(func);
+    FieldInputs *inputs = MEM_new<FieldInputs>(__func__);
     inputs->inputs.add(*this);
     field_inputs_ = FieldInputsPtr(inputs);
   });
@@ -292,11 +291,11 @@ static FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
 
 GField::GField(const GField &other) : variant_(other.variant_)
 {
-  const char *func = __func__;
   std::visit(
       [&]<typename T>(T &v) {
         if constexpr (std::is_same_v<T, OwnedConstant>) {
-          void *new_value = MEM_new_uninitialized_aligned(v.type->size, v.type->alignment, func);
+          void *new_value = MEM_new_uninitialized_aligned(
+              v.type->size, v.type->alignment, __func__);
           v.type->copy_construct(v.value, new_value);
           v.value = new_value;
         }
