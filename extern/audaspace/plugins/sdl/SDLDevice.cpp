@@ -27,10 +27,7 @@ void SDLDevice::SDL_mix(void* userdata, SDL_AudioStream* stream, int additional_
 	SDLDevice* device = (SDLDevice*)userdata;
 
 	if(!device->m_playback)
-	{
-		SDL_PauseAudioStreamDevice(stream);
 		return;
-	}
 
 	const int sample_size = AUD_DEVICE_SAMPLE_SIZE(device->m_specs);
 	const int num_samples = additional_amount / sample_size;
@@ -42,13 +39,10 @@ void SDLDevice::SDL_mix(void* userdata, SDL_AudioStream* stream, int additional_
 
 void SDLDevice::playing(bool playing)
 {
-	if(!m_playback)
-	{
-		if(playing)
-			SDL_ResumeAudioStreamDevice(m_stream);
-		else
-			SDL_PauseAudioStreamDevice(m_stream);
-	}
+	if(playing)
+		SDL_ResumeAudioStreamDevice(m_stream);
+	else
+		SDL_PauseAudioStreamDevice(m_stream);
 
 	m_playback = playing;
 }
