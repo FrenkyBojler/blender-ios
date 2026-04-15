@@ -1418,11 +1418,11 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   else {
 #ifndef NDEBUG
     const char *error = nullptr;
-    if (!RNA_validate_identifier(identifier, true, &error)) {
+    if (!RNA_validate_identifier(identifier.c_str(), true, &error)) {
       CLOG_ERROR(&LOG,
                  "runtime property identifier \"%s.%s\" - %s",
                  CONTAINER_RNA_ID(cont),
-                 identifier,
+                 identifier.c_str(),
                  error);
       DefRNA.error = true;
     }
@@ -1885,22 +1885,29 @@ void RNA_def_property_ui_range(
 
 #ifndef NDEBUG
   if (min > max) {
-    CLOG_ERROR(&LOG, "\"%s.%s\", min > max.", srna->identifier, prop->identifier);
+    CLOG_ERROR(&LOG, "\"%s.%s\", min > max.", srna->identifier.c_str(), prop->identifier.c_str());
     DefRNA.error = true;
   }
 
   if (step < 0 || step > 1000) {
-    CLOG_ERROR(&LOG, "\"%s.%s\", step outside range.", srna->identifier, prop->identifier);
+    CLOG_ERROR(&LOG,
+               "\"%s.%s\", step outside range.",
+               srna->identifier.c_str(),
+               prop->identifier.c_str());
     DefRNA.error = true;
   }
 
   if (step == 0) {
-    CLOG_ERROR(&LOG, "\"%s.%s\", step is zero.", srna->identifier, prop->identifier);
+    CLOG_ERROR(
+        &LOG, "\"%s.%s\", step is zero.", srna->identifier.c_str(), prop->identifier.c_str());
     DefRNA.error = true;
   }
 
   if (precision < -1 || precision > UI_PRECISION_FLOAT_MAX) {
-    CLOG_ERROR(&LOG, "\"%s.%s\", precision outside range.", srna->identifier, prop->identifier);
+    CLOG_ERROR(&LOG,
+               "\"%s.%s\", precision outside range.",
+               srna->identifier.c_str(),
+               prop->identifier.c_str());
     DefRNA.error = true;
   }
 #endif
@@ -1962,7 +1969,7 @@ void RNA_def_property_range(PropertyRNA *prop, double min, double max)
 
 #ifndef NDEBUG
   if (min > max) {
-    CLOG_ERROR(&LOG, "\"%s.%s\", min > max.", srna->identifier, prop->identifier);
+    CLOG_ERROR(&LOG, "\"%s.%s\", min > max.", srna->identifier.c_str(), prop->identifier.c_str());
     DefRNA.error = true;
   }
 #endif

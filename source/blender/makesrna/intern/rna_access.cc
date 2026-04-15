@@ -1720,7 +1720,7 @@ bool RNA_property_pointer_poll(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *v
   prop = rna_ensure_property(prop);
 
   if (prop->type != PROP_POINTER) {
-    printf("%s: %s is not a pointer property.\n", __func__, prop->identifier);
+    printf("%s: %s is not a pointer property.\n", __func__, prop->identifier.c_str());
     return false;
   }
 
