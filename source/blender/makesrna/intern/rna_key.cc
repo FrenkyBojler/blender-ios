@@ -50,7 +50,6 @@ const EnumPropertyItem rna_enum_keyblock_type_items[] = {
 #  include "BLI_string_utf8.h"
 #  include "BLI_string_utils.hh"
 
-#  include "BKE_animsys.h"
 #  include "BKE_key.hh"
 #  include "BKE_main.hh"
 
@@ -87,22 +86,11 @@ static void rna_ShapeKey_name_set(PointerRNA *ptr, const char *value)
   /* make a copy of the old name first */
   STRNCPY(oldname, kb->name);
 
-  /* copy the new name into the name slot */
-  STRNCPY_UTF8(kb->name, value);
-
   /* make sure the name is truly unique */
   if (ptr->owner_id) {
     Key *key = rna_ShapeKey_find_key(ptr->owner_id);
-    BLI_uniquename(&key->block,
-                   kb,
-                   CTX_DATA_(BLT_I18NCONTEXT_ID_SHAPEKEY, "Key"),
-                   '.',
-                   offsetof(KeyBlock, name),
-                   sizeof(kb->name));
+    BKE_keyblock_name_set(key, kb, value, oldname);
   }
-
-  /* fix all the animation data which may link to this */
-  BKE_animdata_fix_paths_rename_all(nullptr, "key_blocks", oldname, kb->name);
 }
 
 static float rna_ShapeKey_frame_get(PointerRNA *ptr)

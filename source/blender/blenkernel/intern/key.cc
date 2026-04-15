@@ -50,6 +50,7 @@
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_scene.hh"
+#include "BKE_animsys.h"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -1906,4 +1907,22 @@ std::optional<Array<bool>> BKE_keyblock_get_dependent_keys(const Key *key, const
   return marked;
 }
 
+void BKE_keyblock_name_set(Key *key, KeyBlock *kb, const char *newname, const char *oldname)
+{
+  /* copy the new name into the name slot */
+  if (kb->name != newname) {
+    STRNCPY_UTF8(kb->name, newname);
+  }
+
+  /* make sure the name is truly unique */
+    BLI_uniquename(&key->block,
+                   kb,
+                   CTX_DATA_(BLT_I18NCONTEXT_ID_SHAPEKEY, "Key"),
+                   '.',
+                   offsetof(KeyBlock, name),
+                   sizeof(kb->name));
+
+  /* fix all the animation data which may link to this */
+  BKE_animdata_fix_paths_rename_all(nullptr, "key_blocks", oldname, kb->name);
+}
 }  // namespace blender
