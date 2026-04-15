@@ -4,6 +4,7 @@
 
 #include <ranges>
 
+#include "BLI_set.hh"
 #include "BLI_stack.hh"
 
 #include "FN_field.hh"
@@ -147,11 +148,14 @@ uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
   }
 
   Stack<GFieldRef, 16> stack;
-  Vector<GFieldRef, 8> ordered;
+  VectorSet<GFieldRef, 8> visited;
   stack.push(field);
   while (!stack.is_empty()) {
     GFieldRef current = stack.pop();
-    ordered.append(current);
+    if (visited.contains(current)) {
+      continue;
+    }
+    visited.add(current);
     if (const auto *multi_fn = std::get_if<GFieldRef::MultiFn>(&current.variant())) {
       for (const GField &input : multi_fn->node->inputs()) {
         stack.push(input);
@@ -159,7 +163,7 @@ uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
     }
   }
 
-  for (const GFieldRef &current : ordered | std::views::reverse) {
+  for (const GFieldRef &current : visited | std::views::reverse) {
     cache.lookup_or_add_cb(current, [&]() {
       return std::visit(
           [&]<typename T>(const T &v) {
