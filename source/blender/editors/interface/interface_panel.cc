@@ -1472,7 +1472,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
-  const bool show_icons = U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS;
+  const bool show_icons = U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT;
   if (!show_icons) {
     BLF_enable(fontid, BLF_ROTATION);
     BLF_rotation(fontid, is_left ? M_PI_2 : -M_PI_2);
@@ -2709,7 +2709,7 @@ int handler_panel_region(bContext *C,
       retval = panel_category_show_active_tab(region, event->xy);
     }
     else if (event->type == MOUSEMOVE && U.flag & USER_TOOLTIPS &&
-             U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS)
+             U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT)
     {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
