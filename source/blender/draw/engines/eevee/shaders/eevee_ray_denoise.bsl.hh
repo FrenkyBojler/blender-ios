@@ -20,6 +20,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_sampling_data)
 SHADER_LIBRARY_CREATE_INFO(draw_view)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
+#include "draw_math_geom_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_closure_lib.glsl"
 #include "eevee_colorspace_lib.bsl.hh"
@@ -162,7 +163,10 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   }
 
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
-  float3 P = drw_point_screen_to_world(float3(uv, 0.5f));
+  float depth = reverse_z::read(texelFetch(srt.depth_tx, texel_fullres, 0).r);
+  float3 vs_P = drw_point_screen_to_view(float3(uv, depth));
+  float scene_z = vs_P.z;
+  float3 P = drw_point_view_to_world(vs_P);
   float3 V = drw_world_incident_vector(P);
 
   Thickness thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
@@ -191,9 +195,31 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   float weight_accum = 0.0f;
   float closest_hit_time = 1.0e10f;
 
+  /* In order to avoid costly texture fetchs, we assume the neighbors to be on the same plane as
+   * the shading point. We compute the fake surface derivatives form the normal. */
+  float3 vs_N = drw_normal_world_to_view(closure.N);
+  float2 pixel_uv_size = uniform_buf.raytrace.full_resolution_inv *
+                         float(srt.raytrace_resolution_scale);
+  float3 vs_Pdx = drw_point_screen_to_view(float3(uv + float2(pixel_uv_size.x, 0.0), depth));
+  float3 vs_Pdy = drw_point_screen_to_view(float3(uv + float2(0.0, pixel_uv_size.y), depth));
+  float2x3 dPdxy;
+  dPdxy[0] = line_plane_intersect(vs_Pdx, drw_view_incident_vector(vs_Pdx), vs_P, vs_N) - vs_P;
+  dPdxy[1] = line_plane_intersect(vs_Pdy, drw_view_incident_vector(vs_Pdy), vs_P, vs_N) - vs_P;
+  dPdxy[0] = drw_normal_view_to_world(dPdxy[0]);
+  dPdxy[1] = drw_normal_view_to_world(dPdxy[1]);
+  /* Unfortunately the above heuristic introduces high variance at higher roughness.
+   * Contacts are not so important at higher roughness so we can roll off the heuristic. */
+  float bias = max(0.2f, saturate((0.75f - apparent_roughness) / (0.75f - 0.3f)));
+  dPdxy[0] *= bias;
+  dPdxy[1] *= bias;
+
   for (uint i = 0u; i < sample_count; i++) {
     float2 offset_f = (fract(hammersley_2d(i, sample_count) + noise) - 0.5f) * filter_size;
     int2 offset = int2(floor(offset_f + 0.5f));
+    if (i == 0u) {
+      /* Make sure to always sample the center pixel. */
+      offset = int2(0);
+    }
     int2 sample_texel = texel + offset;
 
     float4 ray_data = imageLoad(srt.ray_data_img, sample_texel);
@@ -208,6 +234,11 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     }
 
     closest_hit_time = min(closest_hit_time, ray_time);
+
+    /* Correct ray hit position.
+     * Instead of just reusing the ray direction (leading to screen space blur, loosing contact
+     * sharpness), get the neighbor pixel position and reconstruct the actual hit position. */
+    ray_direction = safe_normalize(dPdxy * float2(offset) + ray_direction * ray_time);
 
     /* Slide 54. */
     /* The reference is wrong.
@@ -230,8 +261,6 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   float3 rgb_variance = abs(rgb_moment - square(rgb_mean));
   float hit_variance = reduce_max(rgb_variance);
 
-  float depth = reverse_z::read(texelFetch(srt.depth_tx, texel_fullres, 0).r);
-  float scene_z = drw_depth_screen_to_view(depth);
   float hit_depth = drw_depth_view_to_screen(scene_z - closest_hit_time);
 
   imageStoreFast(srt.out_radiance_img, texel_fullres, float4(radiance_accum, 0.0f));
