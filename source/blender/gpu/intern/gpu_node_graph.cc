@@ -22,6 +22,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
+
 #include "GPU_texture.hh"
 #include "GPU_vertex_format.hh"
 
