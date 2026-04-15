@@ -517,8 +517,8 @@ PipelineGraphic sphere_eval(fullscreen_vert,
 PipelineGraphic planar_eval(fullscreen_vert,
                             planar_eval_frag,
                             PlanarProbeEval{
-                                .light_closure_eval_count = 2,
                                 .legacy_sphere_probe_enable = true,
+                                .light_closure_eval_count = 2,
                             });
 
 }  // namespace eevee::deferred
