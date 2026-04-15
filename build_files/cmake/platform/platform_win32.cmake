@@ -531,12 +531,10 @@ endif()
 
 set(openjph_ROOT ${LIBDIR}/openjph)
 
-if(WITH_IMAGE_OPENEXR)
-  set(IMATH_ROOT ${LIBDIR}/imath)
-  find_package(IMATH REQUIRED CONFIG)
-  set(OpenEXR_ROOT ${LIBDIR}/openexr)
-  find_package(OpenEXR REQUIRED CONFIG)
-endif()
+set(IMATH_ROOT ${LIBDIR}/imath)
+find_package(IMATH REQUIRED CONFIG)
+set(OpenEXR_ROOT ${LIBDIR}/openexr)
+find_package(OpenEXR REQUIRED CONFIG)
 
 # Try to find tiff first then complain and set static and maybe wrong paths
 windows_find_package(TIFF)

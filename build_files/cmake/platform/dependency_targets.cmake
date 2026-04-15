@@ -182,13 +182,7 @@ endif()
 # -----------------------------------------------------------------------------
 # Configure OpenEXR
 
-add_library(bf_deps_optional_openexr INTERFACE)
-add_library(bf::dependencies::optional::openexr ALIAS bf_deps_optional_openexr)
-
-if(WITH_IMAGE_OPENEXR)
-  target_compile_definitions(bf_deps_optional_openexr INTERFACE WITH_IMAGE_OPENEXR)
-  target_link_libraries(bf_deps_optional_openexr INTERFACE OpenEXR::OpenEXR)
-endif()
+add_library(bf::dependencies::openexr ALIAS OpenEXR::OpenEXR)
 
 # -----------------------------------------------------------------------------
 # Configure WebP

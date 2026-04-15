@@ -95,7 +95,7 @@ function(cycles_external_libraries_append libraries)
     bf::dependencies::zlib
     bf::dependencies::optional::embree
     bf::dependencies::opencolorio
-    bf::dependencies::optional::openexr
+    bf::dependencies::openexr
     bf::dependencies::optional::openimagedenoise
     bf::dependencies::optional::openpgl
     bf::dependencies::optional::opensubdiv

@@ -151,10 +151,6 @@ list(APPEND LIB
   bf_nodes_compositor_generated
 )
 
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_IMAGE_OPENEXR)
-endif()
-
 blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 target_link_libraries(bf_nodes_compositor_generated bf_nodes_composite)
 
