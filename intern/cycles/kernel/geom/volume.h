@@ -81,7 +81,25 @@ ccl_device float4 volume_attribute_float4(KernelGlobals kg,
                                           const bool stochastic)
 {
   if (desc.element & (ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
-    return kernel_data_fetch(attributes_float4, desc.offset);
+    switch (desc.type) {
+      case NODE_ATTR_FLOAT: {
+        const float f = kernel_data_fetch(attributes_float, desc.offset);
+        return make_float4(f, f, f, 1.0f);
+      }
+      case NODE_ATTR_FLOAT2: {
+        const float2 f = kernel_data_fetch(attributes_float2, desc.offset);
+        return make_float4(f.x, f.y, 1.0f, 1.0f);
+      }
+      case NODE_ATTR_FLOAT3: {
+        const float3 f = kernel_data_fetch(attributes_float3, desc.offset);
+        return make_float4(f.x, f.y, f.z, 1.0f);
+      }
+      case NODE_ATTR_FLOAT4:
+      case NODE_ATTR_RGBA:
+        return kernel_data_fetch(attributes_float4, desc.offset);
+      case NODE_ATTR_MATRIX:
+        return zero_float4();
+    }
   }
   if (desc.element & ATTR_ELEMENT_VOXEL) {
     /* todo: optimize this so we don't have to transform both here and in
