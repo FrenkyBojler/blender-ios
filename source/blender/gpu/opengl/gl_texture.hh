@@ -49,7 +49,8 @@ class GLTexture : public Texture {
   GLuint tex_id_ = 0;
   /** Legacy workaround for texture copy. Created when using framebuffer_get(). */
   FrameBuffer *framebuffer_ = nullptr;
-  /** Framebuffers are not shared across contexts so this is to track where the cache was created. */
+  /** Framebuffers are not shared across contexts so this is to track where the cache was created.
+   */
   GLContext *framebuffer_context_ = nullptr;
 
   /** True if this texture is bound to at least one texture unit. */
