@@ -43,6 +43,6 @@ set(NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_INCLUDE_DIRS})
 set(SDL_FOUND ${WITH_SDL})
 if(SDL_FOUND)
   set(USE_SDL3 TRUE)
-  # This probably shouldn't be used, but it is.
-  set(SDL_LIBRARY "${SDL3_LIBRARY}")
+  set(SDL_LIBRARY SDL3::SDL3)
+  get_target_property(SDL_INCLUDE_DIR SDL3::Headers INTERFACE_INCLUDE_DIRECTORIES)
 endif()
