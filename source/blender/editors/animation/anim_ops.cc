@@ -19,6 +19,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_anim_data.hh"
+#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
@@ -38,6 +39,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -49,6 +51,7 @@
 #include "ED_sequencer.hh"
 #include "ED_space_graph.hh"
 #include "ED_time_scrub_ui.hh"
+#include "ED_transformable.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -59,6 +62,7 @@
 #include "SEQ_time.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
 #include "ANIM_animdata.hh"
 
 #include "anim_intern.hh"
@@ -1568,6 +1572,126 @@ static void ANIM_OT_replace_action_new(wmOperatorType *ot)
 }
 
 /** \} */
+/* -------------------------------------------------------------------- */
+/** \name Convert
+ * \{ */
+
+static Vector<animrig::Transformable> get_transformables_for_rotation_conversion(bContext *C)
+{
+  Vector<animrig::Transformable> transformables;
+  Vector<PointerRNA> pointers;
+  switch (CTX_data_mode_enum(C)) {
+    case CTX_MODE_OBJECT: {
+      CTX_data_selected_objects(C, &pointers);
+      for (PointerRNA &ptr : pointers) {
+        transformables.append({*id_cast<Object *>(ptr.owner_id)});
+      }
+      break;
+    }
+    case CTX_MODE_POSE: {
+      CTX_data_selected_pose_bones(C, &pointers);
+      for (PointerRNA &ptr : pointers) {
+        transformables.append(
+            {*id_cast<Object *>(ptr.owner_id), *static_cast<bPoseChannel *>(ptr.data)});
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+  return transformables;
+}
+
+static wmOperatorStatus rotation_mode_set_exec(bContext *C, wmOperator *op)
+{
+  const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
+  const bool bake = RNA_boolean_get(op->ptr, "bake");
+  ID *prev_id = nullptr;
+
+  /* A map built per action to make it quicker to find the FCurves by RNA path. */
+  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
+
+  for (animrig::Transformable &transformable : get_transformables_for_rotation_conversion(C)) {
+    if (transformable.get_rotation_mode() == mode) {
+      continue;
+    }
+    ID *owner_id = transformable.owner_id();
+    int visited_actions = 0;
+    animrig::foreach_action_slot_use(
+        *owner_id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+          if (!data_map.contains({&action, slot_handle})) {
+            ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
+            data_map.add({&action, slot_handle}, fcurve_map);
+          }
+          ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
+          if (bake) {
+            bake_rotation_fcurves(channelbag_fcurve_map, transformable);
+          }
+          convert_rotation_keys(CTX_data_main(C), transformable, channelbag_fcurve_map, mode);
+          DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+          visited_actions++;
+          return true;
+        });
+
+    if (visited_actions == 0) {
+      /* No animation, just convert the values. */
+      animrig::Rotation current_rotation = transformable.get_rotation();
+      transformable.set_rotation_mode(mode);
+      transformable.set_rotation(current_rotation.converted_to_mode(mode));
+    }
+
+    if (prev_id != owner_id) {
+      /* Notifiers and updates. */
+      DEG_id_tag_update(transformable.owner_id(), ID_RECALC_GEOMETRY);
+      if (GS(owner_id->name) == ID_OB) {
+        Object *ob = id_cast<Object *>(owner_id);
+        WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
+        WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+      }
+      prev_id = owner_id;
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static bool rotation_mode_set_poll(bContext *C)
+{
+  return get_transformables_for_rotation_conversion(C).size() > 0;
+}
+
+static void ANIM_OT_rotation_mode_set(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set Rotation Mode";
+  ot->idname = "ANIM_OT_rotation_mode_set";
+  ot->description =
+      "Set the rotation mode used by the selection. Converts any animation on rotation to that "
+      "new mode";
+
+  /* callbacks */
+  ot->invoke = WM_menu_invoke;
+  ot->exec = rotation_mode_set_exec;
+  ot->poll = rotation_mode_set_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  ot->prop = RNA_def_enum(ot->srna,
+                          "mode",
+                          rna_enum_object_rotation_mode_items,
+                          ROT_MODE_QUAT,
+                          "Rotation Mode",
+                          "The rotation mode to convert the selection to");
+  RNA_def_boolean(ot->srna,
+                  "bake",
+                  false,
+                  "Bake",
+                  "Creates a key on every frame before conversion so interpolation is preserved "
+                  "in the new mode");
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Registration
@@ -1623,6 +1747,8 @@ void ED_operatortypes_anim()
   WM_operatortype_append(ANIM_OT_merge_animation);
   WM_operatortype_append(ANIM_OT_replace_action);
   WM_operatortype_append(ANIM_OT_replace_action_new);
+
+  WM_operatortype_append(ANIM_OT_rotation_mode_set);
 
   WM_operatortype_append(ed::animrig::POSELIB_OT_create_pose_asset);
   WM_operatortype_append(ed::animrig::POSELIB_OT_asset_modify);

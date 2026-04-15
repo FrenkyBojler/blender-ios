@@ -187,6 +187,7 @@ class Transformable {
    * the given rotation, the `value` is converted.
    */
   void set_rotation(const Rotation &value);
+  void set_rotation_mode(const eRotationModes mode);
   /**
    * Returns the current rotation mode of the transformable.
    */

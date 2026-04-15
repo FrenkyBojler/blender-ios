@@ -466,6 +466,11 @@ void Transformable::set_rotation(const Rotation &rotation)
   }
 }
 
+void Transformable::set_rotation_mode(const eRotationModes mode)
+{
+  *rotation_mode_ = mode;
+}
+
 eRotationModes Transformable::get_rotation_mode() const
 {
   return eRotationModes(*rotation_mode_);
