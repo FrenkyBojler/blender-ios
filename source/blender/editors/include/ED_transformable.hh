@@ -98,6 +98,10 @@ class Transformable {
    * created in the constructor. For structs that are an ID this is an empty string. */
   std::string rna_path_from_id_;
 
+  /* We have to have this here until animfiltering code is updated to not require the custom FCurve
+   * group to separate channels for pose bones. */
+  std::string fcurve_group_name_;
+
   /* We are assuming here that the ground truth of transforms is store in separate loc rot scale
    * and not in a matrix, thus skew is not supported. */
   MutableSpan<float> location_;
@@ -134,6 +138,7 @@ class Transformable {
     return data_;
   }
 
+  StringRefNull fcurve_group_name() const;
   /* Returns the rna path from the ID to the struct represented by this transformable. If the
    * struct is an ID this is an empty string. */
   StringRefNull rna_path() const;

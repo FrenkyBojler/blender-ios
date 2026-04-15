@@ -188,7 +188,8 @@ static void convert_rotation_mode_range(Main &bmain,
     if (is_euler_to_euler) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
-      FCurveDescriptor descriptor = {to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, ""};
+      FCurveDescriptor descriptor = {
+          to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, transformable.fcurve_group_name()};
       BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
                          evaluation_buffer_count == 3,
                      "Both rotation modes are euler so should have 3 elements.");
@@ -210,7 +211,8 @@ static void convert_rotation_mode_range(Main &bmain,
       else if (to_mode == ROT_MODE_AXISANGLE) {
         prop_subtype = PROP_AXISANGLE;
       }
-      FCurveDescriptor descriptor = {to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, ""};
+      FCurveDescriptor descriptor = {
+          to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, transformable.fcurve_group_name()};
       for (const int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);

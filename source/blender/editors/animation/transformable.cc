@@ -12,6 +12,7 @@
 
 #include "DNA_object_types.h"
 
+#include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
 
 #include "RNA_access.hh"
@@ -232,6 +233,7 @@ Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
     : type_(Transformable::Type::POSE_BONE),
       owner_id_(&owner_id.id),
       data_(&pchan),
+      fcurve_group_name_(pchan.name),
       location_({pchan.loc, 3}),
       rotation_mode_(&pchan.rotmode),
       scale_({pchan.scale, 3})
@@ -245,6 +247,7 @@ Transformable::Transformable(Object &object)
     : type_(Transformable::Type::OBJECT),
       owner_id_(&object.id),
       data_(&object),
+      fcurve_group_name_("Object Transforms"),
       location_({object.loc, 3}),
       rotation_mode_(&object.rotmode),
       scale_({object.scale, 3})
@@ -252,6 +255,11 @@ Transformable::Transformable(Object &object)
   static_assert(std::is_same_v<short, decltype(object.rotmode)>);
   build_rotations_array(rotations_, object.rot, object.quat, object.rotAxis, &object.rotAngle);
   rna_path_from_id_ = "";
+}
+
+StringRefNull Transformable::fcurve_group_name() const
+{
+  return fcurve_group_name_;
 }
 
 StringRefNull Transformable::rna_path() const
