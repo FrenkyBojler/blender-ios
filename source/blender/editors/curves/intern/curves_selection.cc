@@ -526,8 +526,7 @@ void select_linked(bke::CurvesGeometry &curves, const IndexMask &curves_mask, co
           GMutableSpan selection_curve = selection.span.slice(points);
           const array_utils::BooleanMix selection_state = array_utils::booleans_mix_calc(
               VArray<bool>::from_span(selection_curve.typed<bool>()));
-          const bool all_points_selected = selection_state ==
-                                           array_utils::BooleanMix::AllTrue;
+          const bool all_points_selected = selection_state == array_utils::BooleanMix::AllTrue;
           if (selection_state != array_utils::BooleanMix::AllFalse) {
             if (unselect == all_points_selected) {
               fill_selection(selection_curve, !unselect);
