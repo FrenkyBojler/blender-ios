@@ -326,6 +326,38 @@ if(WITH_VULKAN_BACKEND)
 endif()
 
 # -----------------------------------------------------------------------------
+# Configure Embree
+
+add_library(bf_deps_optional_embree INTERFACE)
+add_library(bf::dependencies::optional::embree ALIAS bf_deps_optional_embree)
+
+if(WITH_CYCLES_EMBREE)
+  target_include_directories(bf_deps_optional_embree SYSTEM INTERFACE ${EMBREE_INCLUDE_DIRS})
+  target_link_libraries(bf_deps_optional_embree INTERFACE ${EMBREE_LIBRARIES})
+endif()
+
+# -----------------------------------------------------------------------------
+# Configure OpenPGL
+
+add_library(bf_deps_optional_openpgl INTERFACE)
+add_library(bf::dependencies::optional::openpgl ALIAS bf_deps_optional_openpgl)
+
+if(WITH_CYCLES_PATH_GUIDING)
+  target_include_directories(bf_deps_optional_openpgl SYSTEM INTERFACE ${OPENPGL_INCLUDE_DIR})
+  target_link_libraries(bf_deps_optional_openpgl INTERFACE ${OPENPGL_LIBRARIES})
+endif()
+
+# -----------------------------------------------------------------------------
+# Configure NanoVDB
+
+add_library(bf_deps_optional_nanovdb INTERFACE)
+add_library(bf::dependencies::optional::nanovdb ALIAS bf_deps_optional_nanovdb)
+
+if(WITH_NANOVDB)
+  target_include_directories(bf_deps_optional_nanovdb SYSTEM INTERFACE ${NANOVDB_INCLUDE_DIR})
+endif()
+
+# -----------------------------------------------------------------------------
 # Configure Epoxy
 
 add_library(bf_deps_epoxy INTERFACE)
@@ -408,7 +440,7 @@ if(WITH_AUDASPACE)
   endif()
   target_include_directories(bf_deps_optional_audaspace SYSTEM INTERFACE ${AUDASPACE_C_INCLUDE_DIRS} ${AUDASPACE_PY_INCLUDE_DIRS})
   if(WITH_SYSTEM_AUDASPACE)
-    target_link_libraries(bf_deps_optional_audaspace INTERFACE ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
+    target_link_libraries(bf_deps_optional_audaspace INTERFACE ${AUDASPACE_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
   else()
     target_link_libraries(bf_deps_optional_audaspace INTERFACE audaspace audaspace-py)
   endif()

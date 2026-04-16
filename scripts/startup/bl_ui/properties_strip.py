@@ -11,6 +11,7 @@ from bpy.app.translations import (
     pgettext_rpt as rpt_,
 )
 from rna_prop_ui import PropertyPanel
+from bl_ui.utils import PresetPanel
 
 
 class StripButtonsPanel:
@@ -31,6 +32,13 @@ class StripColorTagPicker:
     @classmethod
     def poll(cls, context):
         return context.active_strip is not None
+
+
+class STRIP_PT_effect_text_style_presets(PresetPanel, Panel):
+    bl_label = "Text Style Presets"
+    preset_subdir = "sequencer/text_style"
+    preset_operator = "script.execute_preset"
+    preset_add_operator = "sequencer.text_strip_style_preset_add"
 
 
 class STRIP_PT_color_tag_picker(StripColorTagPicker, Panel):
@@ -62,7 +70,7 @@ class STRIP_PT_strip(StripButtonsPanel, Panel):
         }:
             icon_header = 'SHADERFX'
         elif strip_type in {
-                'CROSS', 'GAMMA_CROSS', 'WIPE',
+                'CROSS', 'GAMMA_CROSS', 'WIPE', 'COMPOSITOR',
         }:
             icon_header = 'ARROW_LEFTRIGHT'
         elif strip_type == 'SCENE':
@@ -130,6 +138,35 @@ class STRIP_PT_adjust_crop(StripButtonsPanel, Panel):
         col.prop(strip.crop, "min_y")
 
 
+def draw_compositor_effect_node_group_errors(layout, node_tree, strip_input_num):
+    if not node_tree or not node_tree.interface:
+        return
+    float_input_sockets_num = 0
+    color_input_sockets_num = 0
+    output_sockets = []
+    for socket in node_tree.interface.items_tree:
+        if socket.item_type == 'SOCKET':
+            if socket.in_out == 'INPUT' and socket.socket_type == 'NodeSocketColor':
+                color_input_sockets_num += 1
+            elif socket.in_out == 'INPUT' and socket.socket_type == 'NodeSocketFloat':
+                float_input_sockets_num += 1
+            elif socket.in_out == 'OUTPUT':
+                output_sockets.append(socket)
+
+    if color_input_sockets_num < strip_input_num:
+        layout.label(
+            text=f"Node group must have at least {strip_input_num} Color input{
+                's' if strip_input_num > 1 else ''}.",
+            icon='ERROR')
+    if float_input_sockets_num == 0:
+        layout.label(text="Node group does not have an input of type Float. Fade is unused.", icon='ERROR')
+
+    if len(output_sockets) < 1:
+        layout.label(text="Node group must have an output.", icon='ERROR')
+    elif output_sockets[0].socket_type != 'NodeSocketColor':
+        layout.label(text="The first node group output must have the Color type.", icon='ERROR')
+
+
 class STRIP_PT_effect(StripButtonsPanel, Panel):
     bl_label = "Effect Strip"
 
@@ -146,6 +183,7 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             'ALPHA_UNDER',
             'CROSS',
             'GAMMA_CROSS',
+            'COMPOSITOR',
             'MULTIPLY',
             'WIPE',
             'GLOW',
@@ -157,6 +195,12 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             'COLORMIX',
         }
 
+    def draw_header_preset(self, context):
+        strip = context.active_strip
+
+        if strip.type == 'TEXT':
+            STRIP_PT_effect_text_style_presets.draw_panel_header(self.layout)
+
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -164,6 +208,12 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
         strip = context.active_strip
 
         layout.active = not strip.mute
+
+        strip_type = strip.type
+
+        if strip_type == 'COMPOSITOR':
+            layout.template_ID(strip, "node_group", new="node.new_compositor_sequencer_node_group")
+            draw_compositor_effect_node_group_errors(layout, strip.node_group, strip.input_count)
 
         if strip.input_count > 0:
             col = layout.column()
@@ -175,8 +225,6 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
                 row = col.row()
                 row.prop(strip, "input_2")
                 row.operator("sequencer.swap_inputs", text="", icon='SORT_DESC')
-
-        strip_type = strip.type
 
         if strip_type == 'COLOR':
             layout.template_color_picker(strip, "color", value_slider=True, cubic=True)
@@ -261,7 +309,7 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             layout.prop(strip, "wrap_width", text="Wrap Width")
 
         col = layout.column(align=True)
-        if strip_type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER', 'ALPHA_UNDER'}:
+        if strip_type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER', 'ALPHA_UNDER', 'COMPOSITOR'}:
             col.prop(strip, "use_default_fade", text="Default Fade")
             if not strip.use_default_fade:
                 col.prop(strip, "effect_fader", text="Effect Fader")
@@ -965,7 +1013,7 @@ class STRIP_PT_adjust_video(StripButtonsPanel, Panel):
         return strip.type in {
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
-            'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
+            'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'COMPOSITOR',
             'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
@@ -997,7 +1045,7 @@ class STRIP_PT_adjust_color(StripButtonsPanel, Panel):
         return strip.type in {
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
-            'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
+            'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'COMPOSITOR',
             'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
@@ -1034,6 +1082,7 @@ classes = (
     STRIP_PT_scene_sound,
     STRIP_PT_mask,
     STRIP_PT_effect_text_style,
+    STRIP_PT_effect_text_style_presets,
     STRIP_PT_effect_text_outline,
     STRIP_PT_effect_text_shadow,
     STRIP_PT_effect_text_box,

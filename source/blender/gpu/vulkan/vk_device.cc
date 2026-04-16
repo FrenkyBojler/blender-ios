@@ -23,6 +23,7 @@
 #include "gpu_shader_dependency_private.hh"
 
 #include "GPU_capabilities.hh"
+#include "gpu_capabilities_private.hh"
 
 #include "BLI_math_matrix_types.hh"
 
@@ -75,8 +76,10 @@ void VKWorkarounds::log() const
 {
   CLOG_DEBUG(&LOG,
              "Activated workarounds\n"
-             " - [%c] Not 16/32 bit aligned image formats",
-             not_aligned_pixel_formats ? 'X' : ' ');
+             " - [%c] Not 16/32 bit aligned image formats\n"
+             " - [%c] No texture pool",
+             not_aligned_pixel_formats ? 'X' : ' ',
+             GCaps.texture_pool_workaround ? 'X' : ' ');
 }
 
 void VKDevice::reinit()

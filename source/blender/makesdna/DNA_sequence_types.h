@@ -27,15 +27,8 @@ struct VFont;
 struct bSound;
 
 namespace seq {
-struct FinalImageCache;
-struct IntraFrameCache;
-struct MediaPresence;
-struct PreviewCache;
-struct ThumbnailCache;
+struct EditingRuntime;
 struct TextVarsRuntime;
-struct PrefetchJob;
-struct SourceImageCache;
-struct StripLookup;
 struct StripRuntime;
 struct StripModifierDataRuntime;
 }  // namespace seq
@@ -66,7 +59,7 @@ enum eStripFlag {
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
-  SEQ_USE_LINEAR_MODIFIERS = (1 << 23),
+  /* (1 << 23) unused, set to zero by versioning code. */
 
   /* Flags for whether those properties are animated or not */
   SEQ_AUDIO_VOLUME_ANIMATED = (1 << 24),
@@ -147,6 +140,7 @@ enum StripType {
   STRIP_TYPE_MUL = 14,
   /* Removed (behavior was the same as alpha-over), only used when reading old files. */
   STRIP_TYPE_OVERDROP_REMOVED = 15,
+  STRIP_TYPE_COMPOSITOR = 16,
   /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
@@ -400,7 +394,7 @@ struct Strip {
   /** List of channels for meta-strips. */
   ListBaseT<struct SeqTimelineChannel> channels = {nullptr, nullptr};
 
-  /* List of strip connections (one-way, not bidirectional). */
+  /* List of one-way strip connections (they are required to point back to this strip). */
   ListBaseT<struct StripConnection> connections = {nullptr, nullptr};
 
   /** The linked "bSound" object. */
@@ -459,6 +453,11 @@ struct Strip {
 
 #ifdef __cplusplus
   bool is_effect() const;
+  int effect_num_inputs_get() const;
+  bool is_effect_with_inputs() const
+  {
+    return this->effect_num_inputs_get() != 0;
+  }
 
   /**
    * Get timeline frame where strip content starts.
@@ -594,25 +593,6 @@ enum eEditingCacheFlag {
   SEQ_CACHE_UNUSED_11 = (1 << 11), /* Was SEQ_CACHE_DISK_CACHE_ENABLE */
 };
 
-enum eEditingRuntimeFlag {
-  SEQ_SHOW_TRANSFORM_PREVIEW = (1 << 0),
-};
-
-struct EditingRuntime {
-  seq::StripLookup *strip_lookup = nullptr;
-  seq::MediaPresence *media_presence = nullptr;
-  seq::ThumbnailCache *thumbnail_cache = nullptr;
-  seq::IntraFrameCache *intra_frame_cache = nullptr;
-  seq::SourceImageCache *source_image_cache = nullptr;
-  seq::FinalImageCache *final_image_cache = nullptr;
-  seq::PreviewCache *preview_cache = nullptr;
-  /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
-   * blade tool. */
-  int transform_preview_frame = 0;
-  /** Determines if transform_preview_frame should be used for transform preview. */
-  uint32_t flag = 0; /* eEditingRuntimeFlag */
-};
-
 struct Editing {
   /**
    * The current meta-strip being edited and/or viewed, may be null, in which case the top-most
@@ -637,10 +617,12 @@ struct Editing {
   int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
   int cache_flag = 0;              /* eEditingCacheFlag */
 
-  seq::PrefetchJob *prefetch_job = nullptr;
+  seq::EditingRuntime *runtime = nullptr;
 
-  EditingRuntime runtime;
-
+#if defined(__cplusplus) && !defined(DNA_NO_EXTERNAL_CONSTRUCTORS)
+  Editing();
+  ~Editing();
+#endif
 #ifdef __cplusplus
   /** Access currently displayed strips, from root sequence or a meta-strip. */
   ListBaseT<Strip> *current_strips();
@@ -692,18 +674,25 @@ enum eEffectTextFlags {
   SEQ_TEXT_OUTLINE = (1 << 4),
 };
 
-/** #TextVars.anchor_x, #TextVars.align */
+/** #TextVars.align */
 enum eEffectTextAlignX {
   SEQ_TEXT_ALIGN_X_LEFT = 0,
   SEQ_TEXT_ALIGN_X_CENTER = 1,
   SEQ_TEXT_ALIGN_X_RIGHT = 2,
 };
 
-/** #TextVars.anchor_y, formerly #TextVars.align_y */
-enum eEffectTextAlignY {
-  SEQ_TEXT_ALIGN_Y_TOP = 0,
-  SEQ_TEXT_ALIGN_Y_CENTER = 1,
-  SEQ_TEXT_ALIGN_Y_BOTTOM = 2,
+/** #TextVars.anchor_x */
+enum eEffectTextAnchorX {
+  SEQ_TEXT_ANCHOR_X_LEFT = 0,
+  SEQ_TEXT_ANCHOR_X_CENTER = 1,
+  SEQ_TEXT_ANCHOR_X_RIGHT = 2,
+};
+
+/** #TextVars.anchor_y */
+enum eEffectTextAnchorY {
+  SEQ_TEXT_ANCHOR_Y_TOP = 0,
+  SEQ_TEXT_ANCHOR_Y_CENTER = 1,
+  SEQ_TEXT_ANCHOR_Y_BOTTOM = 2,
 };
 
 enum eModColorBalanceMethod {
@@ -826,10 +815,10 @@ struct TextVars {
   int selection_end_offset = 0;
 
   /** Replaced by `anchor_y` in 4.4. */
-  DNA_DEPRECATED char align_y_legacy = 0; /* eEffectTextAlignY */
+  DNA_DEPRECATED char align_y_legacy = 0;
 
-  char anchor_x = 0; /* eEffectTextAlignX */
-  char anchor_y = 0; /* eEffectTextAlignY */
+  char anchor_x = 0; /* eEffectTextAnchorX */
+  char anchor_y = 0; /* eEffectTextAnchorY */
   char _pad1 = {};
   seq::TextVarsRuntime *runtime = nullptr;
 
@@ -844,6 +833,10 @@ struct ColorMixVars {
   int blend_effect = 0; /* StripBlendMode */
   /** Blend factor [0.0f, 1.0f]. */
   float factor = 0;
+};
+
+struct CompositorEffectVars {
+  struct bNodeTree *node_group = nullptr;
 };
 
 /** \} */
@@ -890,6 +883,10 @@ enum eModMaskTime {
   STRIP_MASK_TIME_ABSOLUTE = 1,
 };
 
+enum SequencerCompositorModifierFlag {
+  HIDE_DATABLOCK_SELECTOR = (1 << 0),
+};
+
 struct StripModifierData {
   struct StripModifierData *next = nullptr, *prev = nullptr;
   int type = 0; /* eStripModifierType */
@@ -909,6 +906,8 @@ struct StripModifierData {
    */
   uint16_t layout_panel_open_flag = 0;
   uint16_t ui_expand_flag = 0;
+
+  struct IDProperty *system_properties = nullptr;
 
   blender::seq::StripModifierDataRuntime *runtime = nullptr;
 };
@@ -960,6 +959,11 @@ struct SequencerTonemapModifierData {
 
 struct SequencerCompositorModifierData {
   StripModifierData modifier;
+
+  /* #SequencerCompositorModifierFlag. */
+  int8_t flag = 0;
+  char _pad[7] = {};
+
   struct bNodeTree *node_group = nullptr;
 };
 

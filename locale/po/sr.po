@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-23 10:33+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1497,6 +1497,15 @@ msgid "Vertex Color"
 msgstr "Боја темена"
 
 
+msgid "Threshold"
+msgstr "Праг"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Полигон"
+
+
 msgid "All"
 msgstr "Све"
 
@@ -1507,10 +1516,6 @@ msgstr "Прецизност"
 
 msgid "Simplify"
 msgstr "Поједностављивање"
-
-
-msgid "Threshold"
-msgstr "Праг"
 
 
 msgid "Input Samples"
@@ -1535,6 +1540,10 @@ msgstr "Потез"
 
 msgid "Fill"
 msgstr "Испуна"
+
+
+msgid "Both"
+msgstr "Обе"
 
 
 msgid "Background Image"
@@ -5026,6 +5035,10 @@ msgid "Deformation"
 msgstr "Деформација"
 
 
+msgid "Plane Normal"
+msgstr "Нормала плоче"
+
+
 msgid "Rake"
 msgstr "Грабуље"
 
@@ -7046,6 +7059,10 @@ msgid "All Keying Sets"
 msgstr "Све збирке кључева"
 
 
+msgid "Restore Frame"
+msgstr "Поврати кадар"
+
+
 msgid "Render Data"
 msgstr "Демон рендеринга"
 
@@ -8469,6 +8486,10 @@ msgid "Dots"
 msgstr "Туфне"
 
 
+msgid "Placement"
+msgstr "Локација"
+
+
 msgid "Material slot in an object"
 msgstr "Слот материјала у објекту"
 
@@ -8477,68 +8498,16 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Rigid Body"
-msgstr "Круто тело"
-
-
-msgid "Apply"
-msgstr "Примени"
-
-
-msgid "Track"
-msgstr "Стаза"
-
-
-msgid "Quick Effects"
-msgstr "Брзи ефекти"
-
-
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
-
-
-msgid "Hooks"
-msgstr "Удице"
-
-
-msgid "Clear Transform"
-msgstr "Очисти трансформације"
-
-
-msgid "In-Betweens"
-msgstr "У међувремену"
-
-
-msgid "Propagate"
-msgstr "Пренеси"
-
-
-msgid "Names"
-msgstr "Имена"
-
-
-msgid "Toggle Bone Options"
-msgstr "Мање/више информација"
-
-
-msgid "Enable Bone Options"
-msgstr "Омогући опције костију"
-
-
-msgid "Disable Bone Options"
-msgstr "Онемогући опције костију"
-
-
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Merge"
 msgstr "Сједини"
+
+
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
 
 
 msgid "Special Characters"
@@ -8549,24 +8518,24 @@ msgid "Metaball"
 msgstr "Мета лопта"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
+msgid "Names"
+msgstr "Имена"
 
 
 msgid "Bone Roll"
 msgstr "Ролна костију"
 
 
-msgid "Tracking"
-msgstr "Праћење"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
 msgid "Snap"
 msgstr "Лепљење"
+
+
+msgid "Import"
+msgstr "Увоз"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mirror"
@@ -8593,16 +8562,68 @@ msgid "Select Linked"
 msgstr "Изабери повезано"
 
 
-msgid "Import"
-msgstr "Увоз"
-
-
 msgid "Light"
 msgstr "Светлост"
 
 
 msgid "Relations"
 msgstr "Односи"
+
+
+msgid "Rigid Body"
+msgstr "Круто тело"
+
+
+msgid "Apply"
+msgstr "Примени"
+
+
+msgid "Track"
+msgstr "Стаза"
+
+
+msgid "Quick Effects"
+msgstr "Брзи ефекти"
+
+
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Hooks"
+msgstr "Удице"
+
+
+msgid "Tracking"
+msgstr "Праћење"
+
+
+msgid "Clear Transform"
+msgstr "Очисти трансформације"
+
+
+msgid "In-Betweens"
+msgstr "У међувремену"
+
+
+msgid "Propagate"
+msgstr "Пренеси"
+
+
+msgid "Toggle Bone Options"
+msgstr "Мање/више информација"
+
+
+msgid "Enable Bone Options"
+msgstr "Омогући опције костију"
+
+
+msgid "Disable Bone Options"
+msgstr "Онемогући опције костију"
+
+
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
 
 
 msgid "Basic"
@@ -10877,6 +10898,10 @@ msgid "Mix Shader"
 msgstr "Мешање сенчења"
 
 
+msgid "Base"
+msgstr "Основа"
+
+
 msgid "Space of the input normal"
 msgstr "Простор улазне нормале"
 
@@ -12331,10 +12356,6 @@ msgstr "Детектуј могућности"
 
 msgid "Automatically detect features and place markers to track"
 msgstr "Самостално детектуј могућност и постави маркер на стазу"
-
-
-msgid "Placement"
-msgstr "Локација"
 
 
 msgid "Placement for detected features"
@@ -13802,10 +13823,6 @@ msgid "Side"
 msgstr "Са стране"
 
 
-msgid "Both"
-msgstr "Обе"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Додај модификатор Ф-криве"
@@ -14427,10 +14444,6 @@ msgid "Clear Outer"
 msgstr "Очисти спољашње"
 
 
-msgid "Plane Normal"
-msgstr "Нормала плоче"
-
-
 msgid "Axis Threshold"
 msgstr "Праг оса"
 
@@ -14787,22 +14800,6 @@ msgstr "Споји изабрана темена"
 
 msgid "Merge method to use"
 msgstr "Избор метода спајања."
-
-
-msgid "At Center"
-msgstr "У центар"
-
-
-msgid "At Cursor"
-msgstr "За курсор"
-
-
-msgid "At First"
-msgstr "За прво"
-
-
-msgid "At Last"
-msgstr "За последње"
 
 
 msgid "Median"
@@ -17143,10 +17140,6 @@ msgstr "Прекини анимацију"
 
 msgid "Cancel animation, returning to the original frame"
 msgstr "Прекида анимацију и враћа се на почетни кадар"
-
-
-msgid "Restore Frame"
-msgstr "Поврати кадар"
 
 
 msgctxt "Operator"
@@ -20297,10 +20290,6 @@ msgid "Translate Tooltips"
 msgstr "Преводи описе"
 
 
-msgid "Base"
-msgstr "Основа"
-
-
 msgid "Case"
 msgstr "Велика/мала слова"
 
@@ -21407,10 +21396,6 @@ msgstr "Маска"
 msgctxt "Sequence"
 msgid "Sound"
 msgstr "Звук"
-
-
-msgid "Use Linear Modifiers"
-msgstr "Користи линеарни модификатор"
 
 
 msgid "Multiply Colors"
@@ -22588,6 +22573,10 @@ msgid "Report a Bug"
 msgstr "Пријава грешке"
 
 
+msgid "Object Index"
+msgstr "Индекс објекта"
+
+
 msgid "No output node"
 msgstr "Без излазног чвора"
 
@@ -22798,11 +22787,6 @@ msgid "Cursor to Grid"
 msgstr "Курсор на вођице"
 
 
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Полигон"
-
-
 msgid "Data Source:"
 msgstr "Извор података:"
 
@@ -22864,11 +22848,6 @@ msgstr "Структурно"
 msgctxt "Operator"
 msgid "Force Field"
 msgstr "Поље утицаја"
-
-
-msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Испеци сву физику"
 
 
 msgid "Cache is disabled until the file is saved"
@@ -23298,6 +23277,11 @@ msgstr "Дуплирај маркер на сцену..."
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Сачувај умножак..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Излаз"
 
@@ -23310,11 +23294,6 @@ msgstr "Рендеруј анимацију"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "Назад на претходно"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Сачувај умножак..."
 
 
 msgctxt "Operator"
@@ -25263,10 +25242,6 @@ msgstr "Боја1"
 
 msgid "Color2"
 msgstr "Боја2"
-
-
-msgid "Object Index"
-msgstr "Индекс објекта"
 
 
 msgid "Color Fac"

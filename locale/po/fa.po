@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-23 10:33+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-11-19 06:24+0000\n"
 "Last-Translator: \"M. Amin Taheri\" <amintaheri2001@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -1426,6 +1426,10 @@ msgstr "ﮓﻧﺭ"
 
 msgid "Saturation"
 msgstr "ﻉﺎﺒﺷﺍ"
+
+
+msgid "Both"
+msgstr "ﻭﺩ ﺮﻫ"
 
 
 msgctxt "File browser"
@@ -3078,8 +3082,36 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
+
+
+msgid "Pivot Point"
+msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+
+
+msgid "Import"
+msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
+
+
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "ﻪﻨﯾﺁ"
+
+
+msgid "Add Image"
+msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
+
+
+msgid "Relations"
+msgstr "ﻂﺑﺍﻭﺭ"
+
+
+msgid "Layout"
+msgstr "ﺡﺮﻃ"
 
 
 msgid "Apply"
@@ -3090,36 +3122,8 @@ msgid "Convert"
 msgstr "ﻞﯾﺪﺒﺗ"
 
 
-msgid "Layout"
-msgstr "ﺡﺮﻃ"
-
-
 msgid "Tracking"
 msgstr "ﯽﺑﺎﯾﺩﺭ"
-
-
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
-
-
-msgid "Pivot Point"
-msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
-
-
-msgid "Mirror"
-msgstr "ﻪﻨﯾﺁ"
-
-
-msgid "Import"
-msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
-
-
-msgid "Add Image"
-msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
-
-
-msgid "Relations"
-msgstr "ﻂﺑﺍﻭﺭ"
 
 
 msgid "Key"
@@ -3881,10 +3885,6 @@ msgstr "ﻥﺩﺮﮐ‌ﺯﺎﺑ"
 
 msgid "Play"
 msgstr "ﺶﺨﭘ"
-
-
-msgid "Both"
-msgstr "ﻭﺩ ﺮﻫ"
 
 
 msgid "Flat"
