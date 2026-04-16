@@ -51,6 +51,11 @@ struct WriteData;
 struct FileData;
 enum eReportType : uint16_t;
 
+/**
+ * Allows code using #BlendWriter to customize how a specific struct is written. Often, small
+ * changes to the struct data are done before it is written (e.g. zeroing runtime pointers and
+ * setting generated pointers).
+ */
 class BlendStructWriter {
  private:
   WriteData *wd_;
@@ -64,11 +69,19 @@ class BlendStructWriter {
   {
   }
 
+  /**
+   * Mark the pointer at the given offset as purely runtime. That means that it will be zeroed.
+   */
   void runtime_ptr(const int64_t offset)
   {
     data_.slice(offset, sizeof(void *)).fill(0);
   }
 
+  /**
+   * Tag the pointer at the given offset as "maybe generated". That means that it may be remapped
+   * to a stable pointer. This only does something if the pointee has been tagged with
+   * #BLO_write_generated_pointer_tag before.
+   */
   void maybe_generated_ptr(const int64_t offset);
 
   /** Utility to keep code simpler in some cases at a small performance cost. */
