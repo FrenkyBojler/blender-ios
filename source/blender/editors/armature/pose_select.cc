@@ -120,7 +120,7 @@ static void deselect_pose_bones(const Set<bPoseChannel *> &pose_bones)
 static bool pose_select_parents(bContext *C, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      *CTX_data_main(C), CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   bool changed_any_selection = false;
   for (Object *pose_object : objects) {
@@ -151,7 +151,7 @@ static bool pose_select_parents(bContext *C, const bool extend)
 static bool pose_select_children(bContext *C, const bool all, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      *CTX_data_main(C), CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   bool changed_any_selection = false;
 
