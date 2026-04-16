@@ -25,7 +25,6 @@
 #include "BLI_kdtree.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 
@@ -53,6 +52,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -2521,29 +2521,14 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna, "clear", false, "Clear Seams", "Clear instead of marking seams");
 }
-enum class CopyMirroredMeshAxis {
-  Negative_X = 0,
-  Positive_X = 1,
-  Negative_Y = 2,
-  Positive_Y = 3,
-  Negative_Z = 4,
-  Positive_Z = 5
-};
-enum class CopyMirroredWorldSpace {
-  Global = 0,
-  Local = 1,
-};
 
 static bool uv_copy_mirrored_faces(const Scene *scene,
-                                   Object *obedit,
-                                   const CopyMirroredMeshAxis mesh_axis,
-                                   const bool use_global_space,
+                                   BMesh *bm,
+                                   const int mesh_axis,
                                    const int uv_axis,
                                    const int precision,
                                    int *r_double_warn)
 {
-  BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
-
   *r_double_warn = 0;
   const float precision_scale = powf(10.0f, precision);
   /* TODO: replace mirror look-ups with #EditMeshSymmetryHelper. */
@@ -2556,13 +2541,9 @@ static bool uv_copy_mirrored_faces(const Scene *scene,
   BMVert *v;
   BMIter iter;
 
-  const int axis = int(mesh_axis) / 2;
+  const int axis = mesh_axis % 3;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-    float3 coordinates = v->co;
-    if (use_global_space) {
-      mul_v3_m4v3(coordinates, obedit->object_to_world().ptr(), v->co);
-    }
-    float3 pos = math::round(coordinates * precision_scale);
+    float3 pos = math::round(float3(v->co) * precision_scale);
     if (pos[axis] >= 0.0f) {
       if (!mirror_gt.add_overwrite(pos, v)) {
         (*r_double_warn)++;
@@ -2634,8 +2615,8 @@ static bool uv_copy_mirrored_faces(const Scene *scene,
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
 
   bool changed = false;
-  const int other_uv_axis = (uv_axis) ? 0 : 1;
-  const int direction = int(mesh_axis) % 2;
+  const int other_uv_axis = 1 - uv_axis;
+  const bool is_negative = mesh_axis >= OB_NEGX;
   for (const auto &[f_dst, f_src] : face_map.items()) {
 
     /* Skip unless both faces have all their UVs selected. */
@@ -2646,10 +2627,7 @@ static bool uv_copy_mirrored_faces(const Scene *scene,
     {
       float f_dst_center[3];
       BM_face_calc_center_median(f_dst, f_dst_center);
-      if (use_global_space) {
-        mul_v3_m4v3(f_dst_center, obedit->object_to_world().ptr(), f_dst_center);
-      }
-      if (direction ? (f_dst_center[axis] > 0.0f) : (f_dst_center[axis] < 0.0f)) {
+      if (is_negative ? (f_dst_center[axis] > 0.0f) : (f_dst_center[axis] < 0.0f)) {
         continue;
       }
     }
@@ -2688,18 +2666,19 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
       *bmain, scene, view_layer, nullptr);
   const int precision = RNA_int_get(op->ptr, "precision");
 
-  const CopyMirroredMeshAxis mesh_axis = (CopyMirroredMeshAxis)RNA_enum_get(op->ptr, "mesh_axis");
-  const bool use_world_space = (CopyMirroredWorldSpace)RNA_enum_get(op->ptr, "world_space") ==
-                               CopyMirroredWorldSpace::Global;
+  const int mesh_axis = RNA_enum_get(op->ptr, "mesh_axis");
   const int uv_axis = RNA_enum_get(op->ptr, "uv_axis");
 
   int total_duplicates = 0;
   int meshes_with_duplicates = 0;
+
   for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
     int double_warn = 0;
 
     bool changed = uv_copy_mirrored_faces(
-        scene, obedit, mesh_axis, use_world_space, uv_axis, precision, &double_warn);
+        scene, em->bm, mesh_axis, uv_axis, precision, &double_warn);
 
     if (double_warn) {
       total_duplicates += double_warn;
@@ -2724,31 +2703,9 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 }
 void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
 {
-  static const EnumPropertyItem mesh_axis_items[] = {
-      {int(CopyMirroredMeshAxis::Negative_X), "NEGATIVE_X", 0, "-X to +X", ""},
-      {int(CopyMirroredMeshAxis::Positive_X), "POSITIVE_X", 0, "+X to -X", ""},
-      {int(CopyMirroredMeshAxis::Negative_Y), "NEGATIVE_Y", 0, "-Y to +Y", ""},
-      {int(CopyMirroredMeshAxis::Positive_Y), "POSITIVE_Y", 0, "+Y to -Y", ""},
-      {int(CopyMirroredMeshAxis::Negative_Z), "NEGATIVE_Z", 0, "-Z to +Z", ""},
-      {int(CopyMirroredMeshAxis::Positive_Z), "POSITIVE_Z", 0, "+Z to -Z", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-  static const EnumPropertyItem world_space[] = {
-      {int(CopyMirroredWorldSpace::Global),
-       "GLOBAL",
-       ICON_ORIENTATION_GLOBAL,
-       "Global",
-       "Mirror around the world transform space"},
-      {int(CopyMirroredWorldSpace::Local),
-       "LOCAL",
-       ICON_ORIENTATION_LOCAL,
-       "Local",
-       "Mirror around the local transform space"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
   static const EnumPropertyItem uv_axis_items[] = {
-      {0, "X", 0, "x", ""},
-      {1, "Y", 0, "y", ""},
+      {0, "X", 0, "X", ""},
+      {1, "Y", 0, "Y", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2763,18 +2720,11 @@ void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
 
   RNA_def_enum(ot->srna,
                "mesh_axis",
-               mesh_axis_items,
-               int(CopyMirroredMeshAxis::Positive_X),
+               rna_enum_object_axis_flip_items,
+               OB_POSX,
                "Mesh Axis",
                "Mirror vertices based on mesh axis");
-  RNA_def_enum(ot->srna,
-               "world_space",
-               world_space,
-               int(CopyMirroredWorldSpace::Local),
-               "World Space",
-               "World space to mirror mesh based on");
   RNA_def_enum(ot->srna, "uv_axis", uv_axis_items, 0, "UV Axis", "Axis to mirror UV coordinates");
-
   RNA_def_int(ot->srna,
               "precision",
               3,
