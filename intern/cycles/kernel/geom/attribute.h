@@ -23,7 +23,7 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_forceinline bool is_attribute_found(const ccl_private AttributeDescriptor &desc)
 {
-  return desc.element != ATTR_ELEMENT_NONE;
+  return desc.offset != ATTR_STD_NOT_FOUND;
 }
 
 ccl_device_inline AttributeDescriptor attribute_not_found()
