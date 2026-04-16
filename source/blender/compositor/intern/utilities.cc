@@ -33,7 +33,14 @@ const bNodeSocket *get_output_linked_to_input(const bNodeSocket &input)
   if (!input.is_logically_linked()) {
     return nullptr;
   }
-  return input.logically_linked_sockets()[0];
+
+  for (const bNodeSocket *output : input.logically_linked_sockets()) {
+    if (is_socket_available(output)) {
+      return output;
+    }
+  }
+
+  return nullptr;
 }
 
 ResultType socket_data_type_to_result_type(const eNodeSocketDatatype data_type,
@@ -133,6 +140,9 @@ bool is_output_linked_to_node_conditioned(const bNodeSocket &output,
                                           FunctionRef<bool(const bNode &)> condition)
 {
   for (const bNodeSocket *input : output.logically_linked_sockets()) {
+    if (!is_socket_available(input)) {
+      continue;
+    }
     if (condition(input->owner_node())) {
       return true;
     }
@@ -149,6 +159,9 @@ int number_of_inputs_linked_to_output_conditioned(const bNodeSocket &output,
 
   int count = 0;
   for (const bNodeSocket *input : output.logically_linked_sockets()) {
+    if (!is_socket_available(input)) {
+      continue;
+    }
     if (condition(*input)) {
       count++;
     }

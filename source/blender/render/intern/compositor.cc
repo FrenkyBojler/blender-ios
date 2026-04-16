@@ -391,7 +391,14 @@ class Context : public compositor::Context {
   {
     /* Blender aliases the Image pass name to be the Combined pass, so we return the combined pass
      * in that case. */
-    const char *pass_name = StringRef(name) == "Image" ? "Combined" : name;
+    const char *pass_name = StringRef(name) == "Image" ? RE_PASSNAME_COMBINED : name;
+    const char *fallback_pass_name = nullptr;
+    if (StringRef(name) == "Noisy Image") {
+      fallback_pass_name = RE_PASSNAME_COMBINED;
+    }
+    else if (StringRef(name) == "Noisy Shadow Catcher") {
+      fallback_pass_name = "Shadow Catcher";
+    }
 
     if (!scene) {
       return this->get_invalid_pass();
@@ -420,10 +427,13 @@ class Context : public compositor::Context {
       return this->get_invalid_pass();
     }
 
-    RenderPass *render_pass = RE_pass_find_by_name(
-        render_layer, pass_name, this->get_view_name().data());
-    if (!render_pass) {
-      return this->get_invalid_pass();
+    const char *view_name = this->get_view_name().data();
+    RenderPass *render_pass = RE_pass_find_by_name(render_layer, pass_name, view_name);
+    if ((!render_pass || !render_pass->ibuf || !render_pass->ibuf->float_data()) &&
+        fallback_pass_name)
+    {
+      /* Falling back to non-denoise pass. */
+      render_pass = RE_pass_find_by_name(render_layer, fallback_pass_name, view_name);
     }
 
     if (!render_pass || !render_pass->ibuf || !render_pass->ibuf->float_data()) {

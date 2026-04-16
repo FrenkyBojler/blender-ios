@@ -135,6 +135,11 @@ static void declare_extra_passes(NodeDeclarationBuilder &b,
  * exist in the new state. The outputs are set as unavailable, so they are not accessible to the
  * user. This is useful to retain links if the user changed the render engine and thus the passes
  * changed. */
+static bool linked_missing_output_has_fallback(const bNodeSocket *output)
+{
+  return STR_ELEM(output->identifier, "Noisy Image", "Noisy Shadow Catcher");
+}
+
 static void declare_old_linked_outputs(NodeDeclarationBuilder &b)
 {
   Set<UString> added_outputs_identifiers;
@@ -151,7 +156,11 @@ static void declare_old_linked_outputs(NodeDeclarationBuilder &b)
     if (!output->is_directly_linked()) {
       continue;
     }
-    declare_existing_output(b, output).available(false);
+
+    BaseSocketDeclarationBuilder &builder = declare_existing_output(b, output);
+    if (!linked_missing_output_has_fallback(output)) {
+      builder.available(false);
+    }
   }
 }
 
