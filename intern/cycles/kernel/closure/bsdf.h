@@ -44,7 +44,7 @@ ccl_device_inline float bsdf_get_roughness_pass_squared(const ccl_private Shader
 {
   if (sc->type == CLOSURE_BSDF_OREN_NAYAR_ID) {
     ccl_private OrenNayarBsdf *bsdf = (ccl_private OrenNayarBsdf *)sc;
-    return sqr(sqr(bsdf->roughness));
+    return sqr(sqr(bsdf->param.roughness));
   }
 
   /* For the Principled BSDF, we want the Roughness pass to return the value that
@@ -413,6 +413,7 @@ ccl_device_inline int bsdf_label(const KernelGlobals kg,
     case CLOSURE_BSSRDF_BURLEY_ID:
     case CLOSURE_BSSRDF_RANDOM_WALK_ID:
     case CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID:
+    case CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID:
       label = LABEL_REFLECT | LABEL_DIFFUSE;
       break;
 #ifdef __SVM__

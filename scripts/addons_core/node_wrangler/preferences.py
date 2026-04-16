@@ -79,7 +79,11 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
             ("NEVER", "Never", "Never collapse the new merge nodes")
         ),
         default='NON_SHADER',
-        description="When merging nodes with the Ctrl+Numpad0 hotkey (and similar) specify whether to collapse them or show the full node with options expanded")
+        description=(
+            "When merging nodes with the Ctrl+Numpad0 hotkey (and similar) "
+            "specify whether to collapse them or show the full node with options expanded"
+        ),
+    )
     merge_position: EnumProperty(
         name="Mix Node Position",
         items=(
@@ -87,12 +91,10 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
             ("BOTTOM", "Bottom", "Place the Mix node at the same height as the lowest node")
         ),
         default='CENTER',
-        description="When merging nodes with the Ctrl+Numpad0 hotkey (and similar) specify the position of the new nodes")
-
-    show_hotkey_list: BoolProperty(
-        name="Show Hotkey List",
-        default=False,
-        description="Expand this box into a list of all the hotkeys for functions in this addon"
+        description=(
+            "When merging nodes with the Ctrl+Numpad0 hotkey (and similar) "
+            "specify the position of the new nodes"
+        ),
     )
     hotkey_list_filter: StringProperty(
         name="        Filter by Name",
@@ -100,29 +102,17 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
         description="Show only hotkeys that have this text in their name",
         options={'TEXTEDIT_UPDATE'}
     )
-    show_principled_lists: BoolProperty(
-        name="Show Principled Naming Tags",
-        default=False,
-        description="Expand this box into a list of all naming tags for Principled Texture setup"
-    )
     principled_tags: bpy.props.PointerProperty(type=NWPrincipledPreferences)
 
-    def draw(self, context):
-        layout = self.layout
-        col = layout.column()
-        col.prop(self, "merge_position")
-        col.prop(self, "merge_hide")
+    def draw_principled_tags(self, layout):
+        header, panel = layout.panel("NW_PT_prefs_principled_tags", default_closed=True)
+        header.label(text="Principled Texture Tags")
 
-        box = layout.box()
-        col = box.column(align=True)
-        col.prop(
-            self,
-            "show_principled_lists",
-            text='Edit tags for auto texture detection in Principled BSDF setup',
-            toggle=True)
-        if self.show_principled_lists:
+        if panel:
+            panel.separator(factor=0.5)
+
             tags = self.principled_tags
-
+            col = panel.column(align=True)
             col.prop(tags, "base_color")
             col.prop(tags, "metallic")
             col.prop(tags, "specular")
@@ -136,13 +126,17 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
             col.prop(tags, "alpha")
             col.prop(tags, "ambient_occlusion")
 
-        box = layout.box()
-        col = box.column(align=True)
-        hotkey_button_name = iface_("Hide Hotkey List") if self.show_hotkey_list else iface_("Show Hotkey List")
-        col.prop(self, "show_hotkey_list", text=hotkey_button_name, translate=False, toggle=True)
-        if self.show_hotkey_list:
+    def draw_hotkey_list(self, layout):
+        header, panel = layout.panel("NW_PT_prefs_hotkey_list", default_closed=True)
+        header.label(text="Hotkey List")
+
+        if panel:
+            panel.separator(factor=0.5)
+            col = panel.column(align=True)
+
             col.prop(self, "hotkey_list_filter", icon="VIEWZOOM")
             col.separator()
+
             for hotkey in kmi_defs:
                 if hotkey[7]:
                     hotkey_name = hotkey[7]
@@ -159,6 +153,20 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
                         if hotkey[3]:
                             keystr = iface_("Ctrl", i18n_contexts.ui_events_keymaps) + " " + keystr
                         row.label(text=keystr, translate=False)
+
+    def draw(self, _context):
+        layout = self.layout
+        col = layout.column()
+        col.prop(self, "merge_position")
+        col.prop(self, "merge_hide")
+
+        col = layout.column(align=True)
+
+        box = col.box().column(align=True)
+        self.draw_principled_tags(box)
+
+        box = col.box().column(align=True)
+        self.draw_hotkey_list(box)
 
 
 #
@@ -271,22 +279,28 @@ kmi_defs = (
     # LINK ACTIVE TO SELECTED
     # Don't use names, don't replace links (K)
     ("node.nw_link_active_to_selected", 'K', 'PRESS', False, False, False,
-        (('replace', False), ('use_node_name', False), ('use_outputs_names', False),), n_("Link Active to Selected (Don't Replace Links)")),
+        (('replace', False), ('use_node_name', False), ('use_outputs_names', False),),
+        n_("Link Active to Selected (Don't Replace Links)")),
     # Don't use names, replace links (Shift K)
     ("node.nw_link_active_to_selected", 'K', 'PRESS', False, True, False,
-        (('replace', True), ('use_node_name', False), ('use_outputs_names', False),), n_("Link Active to Selected (Replace Links)")),
+        (('replace', True), ('use_node_name', False), ('use_outputs_names', False),),
+        n_("Link Active to Selected (Replace Links)")),
     # Use node name, don't replace links (')
     ("node.nw_link_active_to_selected", 'QUOTE', 'PRESS', False, False, False,
-        (('replace', False), ('use_node_name', True), ('use_outputs_names', False),), n_("Link Active to Selected (Don't Replace Links, Node Names)")),
+        (('replace', False), ('use_node_name', True), ('use_outputs_names', False),),
+        n_("Link Active to Selected (Don't Replace Links, Node Names)")),
     # Use node name, replace links (Shift ')
     ("node.nw_link_active_to_selected", 'QUOTE', 'PRESS', False, True, False,
-        (('replace', True), ('use_node_name', True), ('use_outputs_names', False),), n_("Link Active to Selected (Replace Links, Node Names)")),
+        (('replace', True), ('use_node_name', True), ('use_outputs_names', False),),
+        n_("Link Active to Selected (Replace Links, Node Names)")),
     # Don't use names, don't replace links (;)
     ("node.nw_link_active_to_selected", 'SEMI_COLON', 'PRESS', False, False, False,
-        (('replace', False), ('use_node_name', False), ('use_outputs_names', True),), n_("Link Active to Selected (Don't Replace Links, Output Names)")),
+        (('replace', False), ('use_node_name', False), ('use_outputs_names', True),),
+        n_("Link Active to Selected (Don't Replace Links, Output Names)")),
     # Don't use names, replace links (')
     ("node.nw_link_active_to_selected", 'SEMI_COLON', 'PRESS', False, True, False,
-        (('replace', True), ('use_node_name', False), ('use_outputs_names', True),), n_("Link Active to Selected (Replace Links, Output Names)")),
+        (('replace', True), ('use_node_name', False), ('use_outputs_names', True),),
+        n_("Link Active to Selected (Replace Links, Output Names)")),
     # CHANGE MIX FACTOR
     ("node.nw_factor", 'LEFT_ARROW', 'PRESS', False,
      False, True, (('option', -0.1),), n_("Reduce Mix Factor by 0.1")),
@@ -351,7 +365,8 @@ kmi_defs = (
     ("node.nw_reset_nodes", 'BACK_SPACE', 'PRESS', False, False,
      False, None, n_("Reset Nodes")),
     # MENUS
-    ('wm.call_menu', 'W', 'PRESS', False, True, False, (('name', interface.NodeWranglerMenu.bl_idname),), n_("Node Wrangler (Menu)")),
+    ('wm.call_menu', 'W', 'PRESS', False, True, False,
+     (('name', interface.NodeWranglerMenu.bl_idname),), n_("Node Wrangler (Menu)")),
     ('wm.call_menu', 'SLASH', 'PRESS', False, False, False,
      (('name', interface.NWAddReroutesMenu.bl_idname),), n_("Add Reroutes (Menu)")),
     ('wm.call_menu', 'NUMPAD_SLASH', 'PRESS', False, False, False,

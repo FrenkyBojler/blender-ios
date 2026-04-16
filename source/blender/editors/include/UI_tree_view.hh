@@ -23,15 +23,22 @@
 #include "UI_abstract_view.hh"
 #include "UI_resources.hh"
 
-struct bContext;
-struct uiBlock;
+namespace blender {
 
-namespace blender::ui {
+struct bContext;
+
+namespace ui {
 
 class AbstractTreeView;
 class AbstractTreeViewItem;
 class TreeViewItemDropTarget;
 struct Layout;
+
+enum class TreeViewSortOrder : uint8_t {
+  None = 0,
+  InvertRoot = 1,
+  InvertNested = 2,
+};
 
 /* ---------------------------------------------------------------------- */
 /** \name Tree-View Item Container
@@ -98,6 +105,9 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  void sort_alpha();
+  /* Sort tree item list in reverse order. */
+  void foreach_sort_invert(TreeViewSortOrder order);
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
@@ -137,6 +147,16 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
 
+  /**
+   * When true, sort elements alphabetically.
+   */
+  std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
+  /**
+   * Invert sort order.
+   */
+  std::shared_ptr<TreeViewSortOrder> invert_sort_type_ = std::make_shared<TreeViewSortOrder>(
+      TreeViewSortOrder::None);
+
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
   friend class TreeViewLayoutBuilder;
@@ -145,18 +165,13 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
  public:
   /* virtual */ ~AbstractTreeView() override = default;
 
-  void draw_overlays(const ARegion &region, const uiBlock &block) const override;
+  void draw_overlays(const ARegion &region, const Block &block) const override;
 
   void foreach_item(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_root_item(ItemIterFn iter_fn) const;
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
-
-  /**
-   * \param xy: The mouse coordinates in window space.
-   */
-  AbstractTreeViewItem *find_hovered(const ARegion &region, const int2 &xy);
 
   /** Visual feature: Define a number of item rows the view will show by default. If there
    * are fewer items, empty dummy items will be added. These contribute to the view bounds, so the
@@ -166,6 +181,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
+  TreeViewSortOrder invert_sort_type_get() const;
 
  protected:
   virtual void build_tree() = 0;
@@ -184,7 +200,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool supports_scrolling() const override;
 
-  void draw_hierarchy_lines(const ARegion &region, const uiBlock &block) const;
+  void draw_hierarchy_lines(const ARegion &region, const Block &block) const;
   void get_hierarchy_lines(const ARegion &region,
                            const TreeViewOrItem &parent,
                            const float aspect,
@@ -196,6 +212,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * Scroll the view so the active item is visible.
    */
   void scroll_active_into_view();
+  void sort_inverted();
 };
 
 /** \} */
@@ -225,6 +242,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   std::string label_;
 
  public:
+  AbstractTreeViewItem();
   /* virtual */ ~AbstractTreeViewItem() override = default;
 
   virtual void build_row(Layout &row) = 0;
@@ -288,6 +306,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   int count_parents() const;
 
   void on_filter() override;
+  StringRefNull label() const;
 
  protected:
   /** See AbstractViewItem::get_rename_string(). */
@@ -326,13 +345,6 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
    */
   virtual bool matches_single(const AbstractTreeViewItem &other) const;
 
-  /**
-   * Can be called from the #AbstractTreeViewItem::build_row() implementation, but not earlier. The
-   * hovered state can't be queried reliably otherwise.
-   * Note that this does a linear lookup in the old block, so isn't too great performance-wise.
-   */
-  bool is_hovered() const;
-
   void ensure_parents_uncollapsed();
 
  private:
@@ -344,10 +356,10 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
    */
   bool set_state_active() final;
 
-  void add_treerow_button(uiBlock &block);
+  void add_treerow_button(Block &block);
   int indent_width() const;
   void add_indent(Layout &row) const;
-  void add_collapse_chevron(uiBlock &block) const;
+  void add_collapse_chevron(Block &block) const;
   void add_rename_button(Layout &row);
 
   bool has_active_child() const;
@@ -464,4 +476,5 @@ template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
   return dynamic_cast<ViewType &>(view_item_.get_tree_view());
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

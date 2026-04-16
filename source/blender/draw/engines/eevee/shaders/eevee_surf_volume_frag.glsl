@@ -19,12 +19,12 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_volume)
 
-#include "eevee_volume_lib.glsl"
+#include "eevee_volume_lib.bsl.hh"
 
 /* Needed includes for shader nodes. */
 #include "eevee_attributes_volume_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"
-#include "eevee_occupancy_lib.glsl"
+#include "eevee_occupancy_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 
 GlobalData init_globals(float3 wP)
@@ -70,7 +70,7 @@ VolumeProperties eval_froxel(int3 froxel, float jitter)
 #endif
 
   g_data = init_globals(wP);
-  attrib_load(VolumePoint(0));
+  attrib_load(VolumePoint{0});
   nodetree_volume();
 
 #if defined(MAT_GEOM_VOLUME)
