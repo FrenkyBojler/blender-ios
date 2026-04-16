@@ -1497,18 +1497,6 @@ class SEQUENCER_MT_modifier_add(Menu):
             icon=cls.MODIFIER_TYPES_TO_ICONS[mod_type],
         ).type = mod_type
 
-    @classmethod
-    def operator_modifier_add_asset(cls, layout, name, icon='NONE'):
-        props = layout.operator(
-            "sequencer.strip_modifier_add_node_group",
-            text=name,
-            text_ctxt=cls.MODIFIER_TYPES_I18N_CONTEXT,
-            icon=icon,
-        )
-        props.asset_library_type = 'ESSENTIALS'
-        props.asset_library_identifier = ""
-        props.relative_asset_identifier = "nodes/compositing_nodes_essentials.blend/NodeTree/" + name
-
     def draw(self, context):
         layout = self.layout
         strip = context.active_strip
@@ -1532,7 +1520,6 @@ class SEQUENCER_MT_modifier_add(Menu):
             self.operator_modifier_add(layout, 'ECHO')
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
-            self.operator_modifier_add_asset(layout, 'Chromatic Aberration', icon='COLOR')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
             self.operator_modifier_add(layout, 'COMPOSITOR')
             self.operator_modifier_add(layout, 'CURVES')
