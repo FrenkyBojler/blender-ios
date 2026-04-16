@@ -1535,7 +1535,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
       hdr_info_.sdr_white_level = 1.0f;
     }
     else if (system->supports_color_manager_feature_windows_scrgb()) {
-      /* Create an image description compatible with windows specific definition of scrgb.
+      /* Create an image description compatible with MS-Windows specific definition of scRGB.
        *
        * NOTE: This code-path is being used by NVIDIA 595 and higher.
        *
