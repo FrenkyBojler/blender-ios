@@ -4623,7 +4623,8 @@ void customdata_data_transfer_interp_normal_normals(const CustomDataTransferLaye
   interp_cd(sources, weights, count, tmp_dst);
   if (space_transform) {
     /* tmp_dst is in source space so far, bring it back in destination space. */
-    BLI_space_transform_invert_normal(space_transform, tmp_dst);
+    mul_transposed_mat3_m4_v3(space_transform->local2target, tmp_dst);
+    normalize_v3(tmp_dst);
   }
 
   CustomData_data_mix_value(data_type, tmp_dst, data_dst, mix_mode, mix_factor);
