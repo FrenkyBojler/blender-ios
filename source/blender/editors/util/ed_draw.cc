@@ -990,7 +990,7 @@ void ED_region_image_overlay_info_text_draw(const int render_size_x,
 void ED_region_render_region_draw(int x,
                                   int y,
                                   const rcti *render_frame,
-                                  const rcti *viewer_frame,
+                                  const rctf *viewer_frame,
                                   float zoomx,
                                   float zoomy,
                                   float passepartout_alpha)
@@ -1024,12 +1024,12 @@ void ED_region_render_region_draw(int x,
     float viewer_bottom = -inf;
     float viewer_top = inf;
     if (viewer_frame) {
-      const float viewer_width = BLI_rcti_size_x(viewer_frame);
-      const float viewer_height = BLI_rcti_size_y(viewer_frame);
-      viewer_left = viewer_frame->xmin - viewer_width / 2;
-      viewer_right = viewer_frame->xmax - viewer_width / 2;
-      viewer_bottom = viewer_frame->ymin - viewer_height / 2;
-      viewer_top = viewer_frame->ymax - viewer_height / 2;
+      const float viewer_width = BLI_rctf_size_x(viewer_frame);
+      const float viewer_height = BLI_rctf_size_y(viewer_frame);
+      viewer_left = viewer_frame->xmin - viewer_width / 2.0f;
+      viewer_right = viewer_frame->xmax - viewer_width / 2.0f;
+      viewer_bottom = viewer_frame->ymin - viewer_height / 2.0f;
+      viewer_top = viewer_frame->ymax - viewer_height / 2.0f;
     }
     immUniformColor4f(0.0f, 0.0f, 0.0f, passepartout_alpha);
     const bool frames_overlap = (render_left < viewer_right) && (render_right > viewer_left) &&
