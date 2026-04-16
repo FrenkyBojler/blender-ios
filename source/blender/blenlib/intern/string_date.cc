@@ -19,51 +19,51 @@
 
 namespace blender::date_format {
 
-static constexpr std::array<StringRef, 12> months = {CTX_N_(BLT_I18NCONTEXT_TIME, "Jan"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Feb"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Mar"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Apr"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "May"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Jun"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Jul"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Aug"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Sep"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Oct"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Nov"),
-                                                     CTX_N_(BLT_I18NCONTEXT_TIME, "Dec")};
-
 struct LocalePatterns {
-  StringRef locale; /* key, e.g. "en_US" or "" for default. */
+  StringRef locale;
   StringRef date;
   StringRef time;
 };
 
-static constexpr std::array<LocalePatterns, 9> locale_patterns = {{
-    {"", "{d:02} {b} {Y}", "{H:02}:{M:02}"},         /* default */
-    {"en_US", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},   /* English (US) */
-    {"ar_EG", "{d:02} {b} {Y}", "{I}:{M} {p}"},      /* Arabic (Egypt) */
-    {"zh_HANS", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Simplified) */
-    {"zh_HANT", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Traditional) */
-    {"hu_HU", "{Y}. {b} {d:02}", "{H:02}:{M:02}"},   /* Hungarian */
-    {"ja_JP", "{Y}年{m}月{d}日", "{H:02}:{M:02}"},   /* Japanese */
-    {"ko_KR", "{Y}년 {m}월 {d}일", "{H:02}:{M:02}"}, /* Korean */
-    {"ur", "{d:02} {b} {Y}", "{I}:{M} {p}"},         /* Urdu */
-}};
-
 static const LocalePatterns *get_locale_patterns(const StringRef locale_iso)
 {
-  for (const LocalePatterns &pattern : locale_patterns) {
+  static constexpr std::array<LocalePatterns, 9> patterns = {{
+      {"", "{d:02} {b} {Y}", "{H:02}:{M:02}"},         /* default */
+      {"en_US", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},   /* English (US) */
+      {"ar_EG", "{d:02} {b} {Y}", "{I}:{M} {p}"},      /* Arabic (Egypt) */
+      {"zh_HANS", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Simplified) */
+      {"zh_HANT", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Traditional) */
+      {"hu_HU", "{Y}. {b} {d:02}", "{H:02}:{M:02}"},   /* Hungarian */
+      {"ja_JP", "{Y}年{m}月{d}日", "{H:02}:{M:02}"},   /* Japanese */
+      {"ko_KR", "{Y}년 {m}월 {d}일", "{H:02}:{M:02}"}, /* Korean */
+      {"ur", "{d:02} {b} {Y}", "{I}:{M} {p}"},         /* Urdu */
+  }};
+
+  for (const LocalePatterns &pattern : patterns) {
     if (pattern.locale == locale_iso) {
       return &pattern;
     }
   }
 
   /* Fallback default pattern (index 0). */
-  return &locale_patterns[0];
+  return &patterns[0];
 }
 
 static std::string format_with_pattern(const std::tm *tm, std::string pattern)
 {
+  static constexpr std::array<StringRef, 12> months = {CTX_N_(BLT_I18NCONTEXT_TIME, "Jan"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Feb"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Mar"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Apr"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "May"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Jun"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Jul"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Aug"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Sep"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Oct"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Nov"),
+                                                       CTX_N_(BLT_I18NCONTEXT_TIME, "Dec")};
+
   BLI_assert(tm->tm_mon >= 0 && tm->tm_mon < 12);
   const int month_index = std::clamp(tm->tm_mon, 0, 11);
 
