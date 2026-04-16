@@ -37,17 +37,14 @@ namespace io::alembic {
 AbcReaderConstructorArgs create_reader_constructor_args(const IObject &object,
                                                         ImportSettings &settings)
 {
-  AbcReaderConstructorArgs args;
-  args.object = object;
-  args.settings = &settings;
-  return args;
+  return AbcReaderConstructorArgs{.object = object, .settings = settings};
 }
 
 AbcObjectReader::AbcObjectReader(const AbcReaderConstructorArgs &args)
     : m_object(nullptr),
       m_iobject(args.object),
-      m_settings(args.settings),
-      m_is_reading_a_file_sequence(args.settings->is_sequence),
+      m_settings(&args.settings),
+      m_is_reading_a_file_sequence(args.settings.is_sequence),
       m_min_time(std::numeric_limits<chrono_t>::max()),
       m_max_time(std::numeric_limits<chrono_t>::min()),
       m_refcount(0),

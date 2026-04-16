@@ -68,8 +68,8 @@ template<typename Schema> static bool has_animations(Schema &schema, ImportSetti
 }
 
 struct AbcReaderConstructorArgs {
-  Alembic::Abc::IObject object;
-  ImportSettings *settings;
+  const Alembic::Abc::IObject &object;
+  ImportSettings &settings;
 };
 
 AbcReaderConstructorArgs create_reader_constructor_args(const Alembic::Abc::IObject &object,

@@ -111,7 +111,7 @@ std::optional<SampleInterpolationSettings> get_sample_interpolation_settings(
     const Alembic::AbcCoreAbstract::TimeSamplingPtr &time_sampling,
     size_t samples_number);
 
-AbcObjectReader *create_reader(const AbcReaderConstructorArgs args);
+AbcObjectReader *create_reader(const AbcReaderConstructorArgs &args);
 
 }  // namespace io::alembic
 }  // namespace blender

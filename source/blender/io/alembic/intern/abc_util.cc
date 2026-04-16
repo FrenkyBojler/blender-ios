@@ -154,7 +154,7 @@ std::optional<SampleInterpolationSettings> get_sample_interpolation_settings(
 
 // #define USE_NURBS
 
-AbcObjectReader *create_reader(const AbcReaderConstructorArgs args)
+AbcObjectReader *create_reader(const AbcReaderConstructorArgs &args)
 {
   AbcObjectReader *reader = nullptr;
 
