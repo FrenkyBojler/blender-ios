@@ -16,8 +16,8 @@
 
 #include "BLO_readfile.hh"
 
-#include "BLT_lang.hh"
 #include "BLT_date_string.hh"
+#include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_blendfile.hh"
