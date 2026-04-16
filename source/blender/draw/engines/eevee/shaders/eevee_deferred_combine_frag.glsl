@@ -207,7 +207,8 @@ void main()
     if (sum_weight >= 1e-5f) {
       average_roughness *= safe_rcp(sum_weight);
     }
-    output_renderpass_value(uniform_buf.render_pass.denoising_roughness_id, sqrt(average_roughness));
+    output_renderpass_value(uniform_buf.render_pass.denoising_roughness_id,
+                            sqrt(average_roughness));
   }
 
   out_combined = float4(out_direct + out_indirect, 0.0f);
