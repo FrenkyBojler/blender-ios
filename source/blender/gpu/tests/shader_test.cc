@@ -773,7 +773,7 @@ template<typename T> T atomicMax(threadgroup T &mem, T data) { return atomic_fet
   {
     std::string input = R"(
 #define A
-#if defined(A) && !defined ( B ) && defined A && !defined  B
+#if defined(A) && !defined ( B ) && defined A && !defined  B 
 High there!
 #endif
 )";
@@ -877,11 +877,11 @@ Success
     std::string expect = R"(
 
 
+  
 
-
-
+  
     Success
-
+  
 
 
 
