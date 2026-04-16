@@ -2623,7 +2623,7 @@ static int handle_panel_category_cycling(const wmEvent *event,
 static ARegion *WM_panel_category_tooltip_init(
     bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
 {
-  return ui::tooltip_create_from_panel_category(C, region->runtime->category_tip_name);
+  return ui::tooltip_create_from_panel_category(C, TIP_(region->runtime->category_tip_name));
 }
 
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
