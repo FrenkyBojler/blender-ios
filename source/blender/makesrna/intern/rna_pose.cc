@@ -260,7 +260,7 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
 
 static void rna_PoseChannel_convert_rotation_mode(ID *id,
                                                   bPoseChannel *pchan,
-                                                  Main *main,
+                                                  Main *bmain,
                                                   bContext *C,
                                                   const short rotation_mode,
                                                   const bool bake)
@@ -274,6 +274,10 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
     return;
   }
 
+  if (!BKE_id_is_editable(bmain, id)) {
+    return;
+  }
+
   Object *ob = id_cast<Object *>(id);
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
   Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
@@ -282,6 +286,9 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
   bool converted_actions = false;
   animrig::foreach_action_slot_use(
       *id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+        if (!BKE_id_is_editable(bmain, &action.id)) {
+          return true;
+        }
         if (!data_map.contains({&action, slot_handle})) {
           ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
           data_map.add({&action, slot_handle}, fcurve_map);
@@ -291,7 +298,7 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
           bake_rotation_fcurves(channelbag_fcurve_map, transformable);
         }
         converted_actions |= convert_rotation_keys(
-            main, transformable, channelbag_fcurve_map, eRotationModes(rotation_mode));
+            bmain, transformable, channelbag_fcurve_map, eRotationModes(rotation_mode));
         DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
         return true;
       });

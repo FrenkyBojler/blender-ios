@@ -1603,7 +1603,7 @@ static Vector<animrig::Transformable> selected_transformables_from_context(bCont
   return transformables;
 }
 
-static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 {
   const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
   const bool bake = RNA_boolean_get(op->ptr, "bake");
@@ -1611,15 +1611,25 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
   Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
+  int skipped_actions = 0;
+
+  Main *bmain = CTX_data_main(C);
 
   for (animrig::Transformable &transformable : selected_transformables_from_context(C)) {
     if (transformable.get_rotation_mode() == mode) {
       continue;
     }
     ID *owner_id = transformable.owner_id();
+    if (!BKE_id_is_editable(bmain, owner_id)) {
+      continue;
+    }
     int visited_actions = 0;
     animrig::foreach_action_slot_use(
         *owner_id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+          if (!BKE_id_is_editable(bmain, &action.id)) {
+            skipped_actions++;
+            return true;
+          }
           if (!data_map.contains({&action, slot_handle})) {
             ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
             data_map.add({&action, slot_handle}, fcurve_map);
@@ -1628,7 +1638,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
           if (bake) {
             bake_rotation_fcurves(channelbag_fcurve_map, transformable);
           }
-          convert_rotation_keys(CTX_data_main(C), transformable, channelbag_fcurve_map, mode);
+          convert_rotation_keys(bmain, transformable, channelbag_fcurve_map, mode);
           DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
           visited_actions++;
           return true;
@@ -1656,6 +1666,12 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
     }
   }
 
+  if (skipped_actions > 0) {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Skipped actions because they cannot be edited: %d",
+                skipped_actions);
+  }
   return OPERATOR_FINISHED;
 }
 
@@ -1682,7 +1698,7 @@ static void ANIM_OT_rotation_mode_convert(wmOperatorType *ot)
       "mode";
 
   ot->invoke = WM_menu_invoke;
-  ot->exec = pose_bone_rotmode_exec;
+  ot->exec = rotation_mode_convert_exec;
   ot->poll = rotation_mode_convert_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
