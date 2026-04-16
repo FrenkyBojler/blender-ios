@@ -269,7 +269,7 @@ ResultT eval(sampler2D hiz_tx,
           time += 1.0f;
         }
 
-        const float lod = floor((float(j) - noise.w) * uniform_buf.ao.lod_factor);
+        const float lod = floor(1.0f + (float(j) - noise.w) * uniform_buf.ao.lod_factor);
 
         const float2 sample_uv = ssray.origin.xy + ssray.direction.xy * time;
         float sample_depth = textureLod(hiz_tx, sample_uv * uniform_buf.hiz.uv_scale, lod).r;
