@@ -2687,11 +2687,14 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
   searchibuf = IMB_allocImBuf(w, h, 32, ibuf->float_data() ? IB_float_data : IB_byte_data);
 
   /* Clamp copy region to image bounds. */
+  int dst_x = 0, dst_y = 0;
   if (x < 0) {
+    dst_x = -x;
     w += x;
     x = 0;
   }
   if (y < 0) {
+    dst_y = -y;
     h += y;
     y = 0;
   }
@@ -2709,10 +2712,10 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
       .ymax = y + h,
   };
   const rcti dst_rect = {
-      .xmin = 0,
-      .xmax = w,
-      .ymin = 0,
-      .ymax = h,
+      .xmin = dst_x,
+      .xmax = dst_x + w,
+      .ymin = dst_y,
+      .ymax = dst_y + h,
   };
   IMB_copy_rect(searchibuf, ibuf, src_rect, dst_rect);
 
