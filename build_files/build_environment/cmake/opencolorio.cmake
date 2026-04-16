@@ -149,8 +149,9 @@ else()
   )
 
   harvest(external_opencolorio opencolorio/include opencolorio/include "*.h")
-  harvest_rpath_lib(external_opencolorio opencolorio/lib opencolorio/lib "*${SHAREDLIBEXT}*")
+  # Cmake files first because harvest_rpath_lib edits them.
   harvest(external_opencolorio opencolorio/lib/cmake/OpenColorIO opencolorio/lib/cmake/OpenColorIO "*.cmake")
+  harvest_rpath_lib(external_opencolorio opencolorio/lib opencolorio/lib "*${SHAREDLIBEXT}*")
   harvest_rpath_python(
     external_opencolorio
     opencolorio/lib/python${PYTHON_SHORT_VERSION}
