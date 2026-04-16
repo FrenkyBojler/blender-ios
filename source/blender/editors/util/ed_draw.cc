@@ -1024,28 +1024,35 @@ void ED_region_render_region_draw(int x,
     float viewer_bottom = -inf;
     float viewer_top = inf;
     if (viewer_frame) {
-      const int viewer_width = BLI_rcti_size_x(viewer_frame);
-      const int viewer_height = BLI_rcti_size_y(viewer_frame);
+      const float viewer_width = BLI_rcti_size_x(viewer_frame);
+      const float viewer_height = BLI_rcti_size_y(viewer_frame);
       viewer_left = viewer_frame->xmin - viewer_width / 2;
       viewer_right = viewer_frame->xmax - viewer_width / 2;
       viewer_bottom = viewer_frame->ymin - viewer_height / 2;
       viewer_top = viewer_frame->ymax - viewer_height / 2;
     }
     immUniformColor4f(0.0f, 0.0f, 0.0f, passepartout_alpha);
-    /* Each part is drawn if there is space between render frame and viewer frame bounds. */
-    if (render_top < viewer_top) {
-      immRectf(pos, viewer_left, render_top, viewer_right, viewer_top);
+    const bool frames_overlap = (render_left < viewer_right) && (render_right > viewer_left) &&
+                                (render_top > viewer_bottom) && (render_bottom < viewer_top);
+    if (frames_overlap) {
+      /* Each part is drawn if there is space between render frame and viewer frame bounds. */
+      if (render_top < viewer_top) {
+        immRectf(pos, viewer_left, render_top, viewer_right, viewer_top);
+      }
+      if (render_bottom > viewer_bottom) {
+        immRectf(pos, viewer_left, viewer_bottom, viewer_right, render_bottom);
+      }
+      const float clip_bottom = max_ff(render_bottom, viewer_bottom);
+      const float clip_top = min_ff(render_top, viewer_top);
+      if (render_left > viewer_left) {
+        immRectf(pos, viewer_left, clip_bottom, render_left, clip_top);
+      }
+      if (render_right < viewer_right) {
+        immRectf(pos, render_right, clip_bottom, viewer_right, clip_top);
+      }
     }
-    if (render_bottom > viewer_bottom) {
-      immRectf(pos, viewer_left, viewer_bottom, viewer_right, render_bottom);
-    }
-    const float clip_bottom = max_ff(render_bottom, viewer_bottom);
-    const float clip_top = min_ff(render_top, viewer_top);
-    if (render_left > viewer_left) {
-      immRectf(pos, viewer_left, clip_bottom, render_left, clip_top);
-    }
-    if (render_right < viewer_right) {
-      immRectf(pos, render_right, clip_bottom, viewer_right, clip_top);
+    else {
+      immRectf(pos, viewer_left, viewer_bottom, viewer_right, viewer_top);
     }
   }
 
