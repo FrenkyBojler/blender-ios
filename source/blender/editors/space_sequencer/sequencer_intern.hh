@@ -439,5 +439,7 @@ MenuType add_catalog_assets_menu_type();
 MenuType add_unassigned_assets_menu_type();
 MenuType add_scene_menu_type();
 
+void sequencer_stip_modifier_add_asset_register();
+
 }  // namespace ed::vse
 }  // namespace blender

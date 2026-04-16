@@ -319,6 +319,12 @@ enum GeometryNodeAssetTraitFlag {
 };
 ENUM_OPERATORS(GeometryNodeAssetTraitFlag);
 
+enum CompositorNodeAssetTraitFlag {
+  COMPOSIT_NODE_ASSET_SCENE = (1 << 0),
+  COMPOSIT_NODE_ASSET_STRIP_MODIFIER = (1 << 1),
+};
+ENUM_OPERATORS(CompositorNodeAssetTraitFlag);
+
 /* Data structs, for `node->storage`. */
 
 enum CMPNodeMaskType {
@@ -1933,6 +1939,7 @@ struct bNodeTree {
   bNestedNodeRef *nested_node_refs = nullptr;
 
   struct GeometryNodeAssetTraits *geometry_node_asset_traits = nullptr;
+  struct CompositorNodeAssetTraits *compositor_node_asset_traits = nullptr;
 
   /** Image representing what the node group does. */
   struct PreviewImage *preview = nullptr;
@@ -2151,6 +2158,12 @@ struct GeometryNodeAssetTraits {
   int flag = 0;
   char _pad[4] = {};
   char *node_tool_idname = nullptr;
+};
+
+struct CompositorNodeAssetTraits {
+  /* #CompositorNodeAssetTraitFlag. */
+  int flag = 0;
+  char _pad[4] = {};
 };
 
 struct NodeFrame {
