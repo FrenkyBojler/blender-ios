@@ -241,6 +241,7 @@ class POSE_OT_convert_rotation(bpy.types.Operator):
         layout.prop(self, 'target_rotation_mode')
 
     def execute(self, context):
+        self.report({'WARNING'}, "This operator is deprecated. Use anim.rotation_mode_convert instead")
         obj = context.active_object
 
         assigned_action = obj.animation_data and obj.animation_data.action
