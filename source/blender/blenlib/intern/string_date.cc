@@ -104,7 +104,7 @@ std::string datetime(const std::tm *datetime,
   bool is_yesterday = false;
   if (now && !today.is_empty() && !yesterday.is_empty()) {
     is_today = (datetime->tm_yday == now->tm_yday && datetime->tm_year == now->tm_year);
-    tm yesterday_tm = *now;
+    std::tm yesterday_tm = *now;
     yesterday_tm.tm_mday--;
     mktime(&yesterday_tm);
     is_yesterday = (datetime->tm_yday == yesterday_tm.tm_yday &&
