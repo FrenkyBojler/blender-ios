@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -1497,6 +1497,15 @@ msgid "Vertex Color"
 msgstr "Boja temena"
 
 
+msgid "Threshold"
+msgstr "Prag"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Poligon"
+
+
 msgid "All"
 msgstr "Sve"
 
@@ -1507,10 +1516,6 @@ msgstr "Preciznost"
 
 msgid "Simplify"
 msgstr "Pojednostavljivanje"
-
-
-msgid "Threshold"
-msgstr "Prag"
 
 
 msgid "Input Samples"
@@ -1535,6 +1540,10 @@ msgstr "Potez"
 
 msgid "Fill"
 msgstr "Ispuna"
+
+
+msgid "Both"
+msgstr "Obe"
 
 
 msgid "Background Image"
@@ -8477,6 +8486,10 @@ msgid "Dots"
 msgstr "Tufne"
 
 
+msgid "Placement"
+msgstr "Lokacija"
+
+
 msgid "Material slot in an object"
 msgstr "Slot materijala u objektu"
 
@@ -8485,12 +8498,48 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Mirror"
-msgstr "Ogledalo"
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Merge"
+msgstr "Sjedini"
+
+
+msgid "Show/Hide"
+msgstr "Prikaži/sakrij"
+
+
+msgid "Special Characters"
+msgstr "Specijalni znaci"
+
+
+msgid "Metaball"
+msgstr "Meta lopta"
+
+
+msgid "Names"
+msgstr "Imena"
+
+
+msgid "Bone Roll"
+msgstr "Rolna kostiju"
 
 
 msgid "Snap"
 msgstr "Lepljenje"
+
+
+msgid "Import"
+msgstr "Uvoz"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
 msgid "UV Mapping"
@@ -8513,24 +8562,8 @@ msgid "Select Linked"
 msgstr "Izaberi povezano"
 
 
-msgid "Import"
-msgstr "Uvoz"
-
-
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
 msgid "Light"
 msgstr "Svetlost"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Relations"
@@ -8553,12 +8586,16 @@ msgid "Quick Effects"
 msgstr "Brzi efekti"
 
 
-msgid "Show/Hide"
-msgstr "Prikaži/sakrij"
+msgid "Keying"
+msgstr "Zbirka tastera"
 
 
 msgid "Hooks"
 msgstr "Udice"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
 
 
 msgid "Clear Transform"
@@ -8571,10 +8608,6 @@ msgstr "U međuvremenu"
 
 msgid "Propagate"
 msgstr "Prenesi"
-
-
-msgid "Names"
-msgstr "Imena"
 
 
 msgid "Toggle Bone Options"
@@ -8591,26 +8624,6 @@ msgstr "Onemogući opcije kostiju"
 
 msgid "Mesh Select Mode"
 msgstr "Mod izbora mreže"
-
-
-msgid "Merge"
-msgstr "Sjedini"
-
-
-msgid "Keying"
-msgstr "Zbirka tastera"
-
-
-msgid "Special Characters"
-msgstr "Specijalni znaci"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
-
-
-msgid "Bone Roll"
-msgstr "Rolna kostiju"
 
 
 msgid "Basic"
@@ -12345,10 +12358,6 @@ msgid "Automatically detect features and place markers to track"
 msgstr "Samostalno detektuj mogućnost i postavi marker na stazu"
 
 
-msgid "Placement"
-msgstr "Lokacija"
-
-
 msgid "Placement for detected features"
 msgstr "Lokacija detektovanih mogućnosti"
 
@@ -13814,10 +13823,6 @@ msgid "Side"
 msgstr "Sa strane"
 
 
-msgid "Both"
-msgstr "Obe"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Dodaj modifikator F-krive"
@@ -14795,22 +14800,6 @@ msgstr "Spoji izabrana temena"
 
 msgid "Merge method to use"
 msgstr "Izbor metoda spajanja."
-
-
-msgid "At Center"
-msgstr "U centar"
-
-
-msgid "At Cursor"
-msgstr "Za kursor"
-
-
-msgid "At First"
-msgstr "Za prvo"
-
-
-msgid "At Last"
-msgstr "Za poslednje"
 
 
 msgid "Median"
@@ -21409,10 +21398,6 @@ msgid "Sound"
 msgstr "Zvuk"
 
 
-msgid "Use Linear Modifiers"
-msgstr "Koristi linearni modifikator"
-
-
 msgid "Multiply Colors"
 msgstr "Umnožene boje"
 
@@ -22588,6 +22573,10 @@ msgid "Report a Bug"
 msgstr "Prijava greške"
 
 
+msgid "Object Index"
+msgstr "Indeks objekta"
+
+
 msgid "No output node"
 msgstr "Bez izlaznog čvora"
 
@@ -22796,11 +22785,6 @@ msgstr "Kursor na izbor"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Kursor na vođice"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Poligon"
 
 
 msgid "Data Source:"
@@ -25258,10 +25242,6 @@ msgstr "Boja1"
 
 msgid "Color2"
 msgstr "Boja2"
-
-
-msgid "Object Index"
-msgstr "Indeks objekta"
 
 
 msgid "Color Fac"

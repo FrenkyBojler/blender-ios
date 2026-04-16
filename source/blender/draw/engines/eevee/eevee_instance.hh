@@ -24,6 +24,7 @@
 
 #include "DNA_lightprobe_types.h"
 
+#include "DNA_view3d_types.h"
 #include "DRW_render.hh"
 
 #include "eevee_ambient_occlusion.hh"
@@ -314,9 +315,10 @@ class Instance : public DrawEngine {
     return is_light_bake;
   }
 
-  bool is_xr() const
+  bool is_custom_matrix() const
   {
-    return draw_ctx && draw_ctx->mode == DRWContext::VIEWPORT_XR;
+    return (v3d && v3d->flag & V3D_CUSTOM_MATRIX) ||
+           (draw_ctx && draw_ctx->mode == DRWContext::VIEWPORT_XR);
   }
 
   bool overlays_enabled() const
@@ -354,14 +356,14 @@ class Instance : public DrawEngine {
            ((v3d->shading.type == OB_MATERIAL) && (v3d->overlay.flag & V3D_OVERLAY_LOOK_DEV));
   }
 
-  int get_recalc_flags(const ObjectRef &ob_ref)
+  uint get_recalc_flags(const ObjectRef &ob_ref)
   {
     return ob_ref.recalc_flags(depsgraph_last_update_);
   }
 
-  int get_recalc_flags(const blender::World &world)
+  uint get_recalc_flags(const blender::World &world)
   {
-    return world.last_update > depsgraph_last_update_ ? int(ID_RECALC_SHADING) : 0;
+    return world.last_update > depsgraph_last_update_ ? uint(ID_RECALC_SHADING) : 0;
   }
 
  private:
@@ -371,8 +373,6 @@ class Instance : public DrawEngine {
    */
   void render_sample();
   void render_read_result(RenderLayer *render_layer, const char *view_name);
-
-  void mesh_sync(Object *ob, ObjectHandle &ob_handle);
 
   void update_eval_members();
 

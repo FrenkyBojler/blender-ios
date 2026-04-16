@@ -99,6 +99,7 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_mipmap.cc
   intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
@@ -117,7 +118,6 @@ set(SRC
   shader_tool/namespace.cc
   shader_tool/processor.cc
   shader_tool/resource_table.cc
-  shader_tool/shader_tool.cc
   shader_tool/string.cc
   shader_tool/struct.cc
   shader_tool/template.cc
@@ -392,6 +392,7 @@ set(METAL_SRC
   metal/mtl_state.mm
   metal/mtl_storage_buffer.mm
   metal/mtl_texture.mm
+  metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
@@ -545,6 +546,7 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
+  shaders/gpu_shader_2D_update_mipmaps.bsl.hh
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl
@@ -819,8 +821,8 @@ set(GLSL_INC
   intern
   shaders
   shaders/common
-  shaders/material
   shaders/infos
+  shaders/material
 
   vulkan/shaders
 )
@@ -849,6 +851,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -668,22 +668,6 @@ msgstr "ด้านล่าง"
 
 msgid "Place the Mix node at the same height as the lowest node"
 msgstr "วางโหนดผสมไว้ที่ความสูงเดียวกับโหนดที่อยู่ต่ำที่สุด"
-
-
-msgid "Show Hotkey List"
-msgstr "แสดงรายการปุ่มลัด"
-
-
-msgid "Expand this box into a list of all the hotkeys for functions in this addon"
-msgstr "ขยายกล่องนี้เพื่อแสดงรายการปุ่มลัดทั้งหมดสำหรับฟังก์ชันต่างๆ ในส่วนเสริมนี้"
-
-
-msgid "Show Principled Naming Tags"
-msgstr "แสดงป้ายระบุการตั้งชื่อตามหลักการ"
-
-
-msgid "Expand this box into a list of all naming tags for Principled Texture setup"
-msgstr "ขยายกล่องนี้ให้เป็นรายการป้ายระบุชื่อทั้งหมดสำหรับการตั้งค่าพื้นผิวตามหลักการ"
 
 
 msgid "Fribidi Library"
@@ -4957,12 +4941,52 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Math"
+msgstr "คณิตศาสตร์"
+
+
+msgid "Merge"
+msgstr "ผสาน"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "Names"
+msgstr "ชื่อ"
+
+
+msgid "Pivot Point"
+msgstr "จุดหมุน"
 
 
 msgid "Snap"
 msgstr "ยึดติด"
+
+
+msgid "Import"
+msgstr "นำเข้า"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "แก้ไข"
+
+
+msgid "Mask Edit"
+msgstr "การแก้ไขหน้ากาก"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
 
 
 msgid "Local View"
@@ -4989,28 +5013,16 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
 msgid "Light"
 msgstr "แสง"
 
 
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Add Image"
 msgstr "เพิ่มภาพ"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
 
 
 msgid "Apply"
@@ -5021,40 +5033,12 @@ msgid "Track"
 msgstr "แทร็ค"
 
 
-msgid "Hooks"
-msgstr "ตะขอ"
-
-
-msgid "Names"
-msgstr "ชื่อ"
-
-
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
-msgid "Merge"
-msgstr "ผสาน"
-
-
 msgid "Keying"
 msgstr "คีย์"
 
 
-msgid "Pivot Point"
-msgstr "จุดหมุน"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "แก้ไข"
-
-
-msgid "Mask Edit"
-msgstr "การแก้ไขหน้ากาก"
+msgid "Hooks"
+msgstr "ตะขอ"
 
 
 msgid "Zoom"
@@ -6315,12 +6299,12 @@ msgid "Single Image"
 msgstr "ภาพเดี่ยว"
 
 
-msgid "Overlays"
-msgstr "วางซ้อน"
-
-
 msgid "View Lock"
 msgstr "ล็อกมุมมอง"
+
+
+msgid "Overlays"
+msgstr "วางซ้อน"
 
 
 msgid "Mask Display"

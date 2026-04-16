@@ -229,10 +229,19 @@ KERNEL_STRUCT_MEMBER(integrator, int, use_volume_guiding)
 KERNEL_STRUCT_MEMBER(integrator, int, use_guiding_direct_light)
 KERNEL_STRUCT_MEMBER(integrator, int, use_guiding_mis_weights)
 
-/* Padding. */
-KERNEL_STRUCT_MEMBER(integrator, int, pad1)
-KERNEL_STRUCT_MEMBER(integrator, int, pad2)
+KERNEL_STRUCT_MEMBER(integrator, float2, pixel_jitter)
 KERNEL_STRUCT_END(KernelIntegrator)
+
+/* Image. */
+
+KERNEL_STRUCT_BEGIN(KernelImage, image)
+KERNEL_STRUCT_MEMBER(image, float, mip_bias)
+
+/* Padding. */
+KERNEL_STRUCT_MEMBER(image, int, pad1)
+KERNEL_STRUCT_MEMBER(image, int, pad2)
+KERNEL_STRUCT_MEMBER(image, int, pad3)
+KERNEL_STRUCT_END(KernelImage)
 
 /* SVM. For shader specialization. */
 

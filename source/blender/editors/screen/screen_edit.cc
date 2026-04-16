@@ -103,8 +103,7 @@ ScrArea *area_split(const wmWindow *win,
                     bScreen *screen,
                     ScrArea *area,
                     const eScreenAxis dir_axis,
-                    const float fac,
-                    const bool merge)
+                    const float fac)
 {
   ScrArea *newa = nullptr;
 
@@ -187,10 +186,6 @@ ScrArea *area_split(const wmWindow *win,
     ED_area_data_copy(newa, area, true);
   }
 
-  /* remove double vertices en edges */
-  if (merge) {
-    BKE_screen_remove_double_scrverts(screen);
-  }
   BKE_screen_remove_double_scredges(screen);
   BKE_screen_remove_unused_scredges(screen);
 
@@ -457,7 +452,6 @@ static bool screen_area_join_aligned(
   }
 
   screen_delarea(C, screen, sa2);
-  BKE_screen_remove_double_scrverts(screen);
   /* Update preview thumbnail */
   BKE_icon_changed(screen->id.icon_id);
 
@@ -478,7 +472,7 @@ static ScrArea *screen_area_trim(
                                            ((*area)->v3->vec.y - (*area)->v1->vec.y));
   fac = (reverse == vertical) ? 1.0f - fac : fac;
   ScrArea *newsa = area_split(
-      CTX_wm_window(C), screen, *area, vertical ? SCREEN_AXIS_V : SCREEN_AXIS_H, fac, true);
+      CTX_wm_window(C), screen, *area, vertical ? SCREEN_AXIS_V : SCREEN_AXIS_H, fac);
 
   /* area_split always returns smallest of the two areas, so might have to swap. */
   if (((fac > 0.5f) == vertical) != reverse) {
@@ -1430,17 +1424,15 @@ bool ED_screen_change(bContext *C, bScreen *screen)
   return false;
 }
 
-static void screen_set_3dview_camera(Scene *scene,
-                                     ViewLayer *view_layer,
-                                     ScrArea *area,
-                                     View3D *v3d)
+static void screen_set_3dview_camera(
+    const Main &bmain, Scene *scene, ViewLayer *view_layer, ScrArea *area, View3D *v3d)
 {
   /* Fix any cameras that are used in the 3d view but not in the scene. */
   BKE_screen_view3d_sync(v3d, scene);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   if (!v3d->camera || !BKE_view_layer_base_find(view_layer, v3d->camera)) {
-    v3d->camera = BKE_view_layer_camera_find(scene, view_layer);
+    v3d->camera = BKE_view_layer_camera_find(bmain, scene, view_layer);
   }
   ListBaseT<ARegion> *regionbase;
 
@@ -1505,18 +1497,19 @@ void ED_screen_scene_change(bContext *C,
 #endif
 
   /* Update 3D view cameras. */
+  const Main *bmain = CTX_data_main(C);
   const bScreen *screen = WM_window_get_active_screen(win);
   for (ScrArea &area : screen->areabase) {
     for (SpaceLink &sl : area.spacedata) {
       if (sl.spacetype == SPACE_VIEW3D) {
         View3D *v3d = reinterpret_cast<View3D *>(&sl);
-        screen_set_3dview_camera(scene, view_layer, &area, v3d);
+        screen_set_3dview_camera(*bmain, scene, view_layer, &area, v3d);
       }
     }
   }
 
   if (refresh_toolsystem) {
-    WM_toolsystem_refresh_screen_window(win);
+    WM_toolsystem_refresh_screen_window(*bmain, win);
   }
 }
 

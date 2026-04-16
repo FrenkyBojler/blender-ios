@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -820,14 +820,6 @@ msgstr "Bawah"
 
 msgid "Place the Mix node at the same height as the lowest node"
 msgstr "Menaruh simpul Campur di ketinggian yang sama dengan simpul terendah"
-
-
-msgid "Show Hotkey List"
-msgstr "Tampilkan Daftar Tombol Pintas"
-
-
-msgid "Expand this box into a list of all the hotkeys for functions in this addon"
-msgstr "Ekspansi kotak ini menjadi daftar semua tombol pintas untuk fungsi-fungsi dalam addon ini"
 
 
 msgid "Fribidi Library"
@@ -5153,6 +5145,10 @@ msgid "Flat"
 msgstr "Datar"
 
 
+msgid "Threshold"
+msgstr "Ambang"
+
+
 msgid "Curve Jitter"
 msgstr "Jitter Kurva"
 
@@ -5183,6 +5179,11 @@ msgstr "Kekuatan Kurva"
 
 msgid "Curve used for the strength"
 msgstr "Kurva digunakan untuk kekuatan"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Poli"
 
 
 msgid "Dilate/Contract"
@@ -5365,10 +5366,6 @@ msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Jumlah langkah penyederhanaan (nilai besar mengurangi akurasi pengisian)"
 
 
-msgid "Threshold"
-msgstr "Ambang"
-
-
 msgid "Threshold to consider color transparent for filling"
 msgstr "Ambang untuk mempertimbangkan warna transparan untuk pengisian"
 
@@ -5510,10 +5507,6 @@ msgstr "Menampilkan garis bantuan untuk ekstensi sapuan"
 
 msgid "Show Lasso"
 msgstr "Tampilkan Lasso"
-
-
-msgid "Do not display fill color while drawing the stroke"
-msgstr "Jangan menampilkan warna isi saat menggambarkan sapuan"
 
 
 msgid "Factor of Simplify using adaptive algorithm"
@@ -5676,24 +5669,8 @@ msgid "Stroke"
 msgstr "Sapuan"
 
 
-msgid "Vertex Color affects to Stroke only"
-msgstr "Warna Titik Sudut hanya mempengaruhi Sapuan"
-
-
 msgid "Fill"
 msgstr "Isi"
-
-
-msgid "Vertex Color affects to Fill only"
-msgstr "Warna Titik Sudut mempengaruhi Isi saja"
-
-
-msgid "Stroke & Fill"
-msgstr "Sapuan & Isi"
-
-
-msgid "Vertex Color affects to Stroke and Fill"
-msgstr "Warna Titik Sudut mempengaruhi Sapuan dan Isi"
 
 
 msgid "Byte Color Attribute Value"
@@ -15683,24 +15660,28 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Mirror"
-msgstr "Cermin"
+msgid "Math"
+msgstr "Matematika"
 
 
-msgid "Snap"
-msgstr "Jepret"
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Metaball"
+msgstr "Metabola"
 
 
 msgid "Sample"
 msgstr "Sampel"
 
 
-msgid "Navigation"
-msgstr "Navigasi"
-
-
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
+msgid "Names"
+msgstr "Nama"
 
 
 msgid "Gizmo"
@@ -15711,20 +15692,32 @@ msgid "Instances"
 msgstr "Contoh-contoh"
 
 
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
+msgid "Snap"
+msgstr "Jepret"
 
 
 msgid "Import"
 msgstr "Impor"
 
 
-msgid "Utilities"
-msgstr "Utilitas"
+msgid "UV"
+msgstr "UV"
 
 
-msgid "Metaball"
-msgstr "Metabola"
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Light"
@@ -15735,16 +15728,12 @@ msgid "Light Probe"
 msgstr "Probe Cahaya"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Add Image"
 msgstr "Tambah Gambar"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
 
 
 msgid "Apply"
@@ -15761,18 +15750,6 @@ msgstr "Aset"
 
 msgid "Hooks"
 msgstr "Kait"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
 
 
 msgid "Tracking"
@@ -16502,6 +16479,10 @@ msgstr "Tumbuh"
 
 msgid "Vanish"
 msgstr "Hilang"
+
+
+msgid "Stroke & Fill"
+msgstr "Sapuan & Isi"
 
 
 msgid "Fills"
@@ -21916,14 +21897,6 @@ msgid "Difference Mode"
 msgstr "Mode Perbedaan"
 
 
-msgid "Burn Mode"
-msgstr "Mode Bakar"
-
-
-msgid "Absolute Mode"
-msgstr "Mode Absolut"
-
-
 msgid "TIFF"
 msgstr "TIFF"
 
@@ -26435,14 +26408,6 @@ msgid "Surface Guiding Probability"
 msgstr "Probabilitas Pemandu Permukaan"
 
 
-msgid "No Limit"
-msgstr "Tidak Ada Batas"
-
-
-msgid "No texture size limit"
-msgstr "Tidak ada batas ukuran tekstur"
-
-
 msgid "Tile Size"
 msgstr "Ukurang"
 
@@ -27447,10 +27412,6 @@ msgstr "Masker"
 msgctxt "Sequence"
 msgid "Sound"
 msgstr "Suara"
-
-
-msgid "Use Linear Modifiers"
-msgstr "Modus Pahat"
 
 
 msgid "Multiply Colors"
@@ -28537,10 +28498,6 @@ msgid "No output node"
 msgstr "Tidak ada node keluaran"
 
 
-msgid "Texture Limit"
-msgstr "Batas Tekstur"
-
-
 msgid "Distance Culling"
 msgstr "Culling Jarak"
 
@@ -29141,11 +29098,6 @@ msgstr "Kursor ke Asal Dunia"
 msgctxt "Operator"
 msgid "Cursor to Grid"
 msgstr "Kursor ke Grid"
-
-
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Poli"
 
 
 msgid "Display Cursor"
@@ -32497,16 +32449,16 @@ msgid "Subtype"
 msgstr "Subtipe"
 
 
+msgid "Compositing..."
+msgstr "Pengomposisian..."
+
+
 msgid " Named Attribute"
 msgstr " Atribut bernama"
 
 
 msgid " Named Attributes"
 msgstr " Atribut Bernama"
-
-
-msgid "Compositing..."
-msgstr "Pengomposisian..."
 
 
 msgid "3D Float Vector"
@@ -33661,10 +33613,6 @@ msgstr "Modus Sunting"
 
 msgid "Strips must have the same number of inputs"
 msgstr "Partikel"
-
-
-msgid "Blur X"
-msgstr "X Buram"
 
 
 msgid "Object Pivot"
