@@ -83,9 +83,6 @@ class BlendStructWriter {
    * #BLO_write_generated_pointer_tag before.
    */
   void maybe_generated_ptr(const int64_t offset);
-
-  /** Utility to keep code simpler in some cases at a small performance cost. */
-  void any_pointer_maybe_generated();
 };
 
 using BlendStructWriterFn = FunctionRef<void(BlendStructWriter &struct_writer)>;

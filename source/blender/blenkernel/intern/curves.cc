@@ -116,7 +116,8 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* Write LibData */
   writer->write_id_struct(id_address, curves, [](BlendStructWriter &struct_writer) {
-    struct_writer.any_pointer_maybe_generated();
+    struct_writer.maybe_generated_ptr(
+        offsetof(Curves, Curves::geometry.attribute_storage.dna_attributes));
   });
   BKE_id_blend_write(writer, &curves->id);
 

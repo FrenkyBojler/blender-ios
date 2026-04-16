@@ -963,19 +963,16 @@ void BlendStructWriter::maybe_generated_ptr(const int64_t offset)
     /* When writing to file, all pointers are remapped to stable pointers. */
     return;
   }
+#ifndef NDEBUG
+  const dna::pointers::StructInfo &struct_info =
+      wd_->stable_address_ids.sdna_pointers->get_for_struct(struct_nr_);
+  BLI_assert(struct_info.has_pointer_at_offset(offset));
+#endif
+
   /* In undo case, replace generated pointers by corresponding stable pointers. */
   const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(data_.data(), offset));
   const void *p_ptr_address_id = get_address_id(*wd_, *p_ptr);
   *p_ptr = p_ptr_address_id;
-}
-
-void BlendStructWriter::any_pointer_maybe_generated()
-{
-  const dna::pointers::StructInfo &struct_info =
-      wd_->stable_address_ids.sdna_pointers->get_for_struct(struct_nr_);
-  for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
-    this->maybe_generated_ptr(pointer_info.offset);
-  }
 }
 
 static void writestruct_nr(WriteData *wd,
