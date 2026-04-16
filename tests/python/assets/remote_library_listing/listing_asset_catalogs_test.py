@@ -16,6 +16,7 @@ blender -b --factory-startup -P tests/python/assets/remote_library_listing/listi
 # CLI argument, will be set to its actual value in main() below.
 arg_outdir: Path
 
+
 class ListingDownloaderTest(unittest.TestCase):
     cats_path: Path
 
@@ -50,7 +51,7 @@ class ListingDownloaderTest(unittest.TestCase):
                 simple_name="cats-muesli",
             ),
         ]
-        asset_library_meta =api_models.AssetLibraryMeta(
+        asset_library_meta = api_models.AssetLibraryMeta(
             api_versions={},
             contact=api_models.Contact(name="Unit the Tester"),
             name="Cats of\nAmsterdam",
@@ -63,10 +64,10 @@ class ListingDownloaderTest(unittest.TestCase):
 
         # The line numbers are determined by listing_asset_catalogs._ASSET_CATS_HEADER.
         header_num_lines = len(listing_asset_catalogs._ASSET_CATS_HEADER.splitlines())
-        self.assertIn("Cats of Amsterdam", file_lines[header_num_lines-3])
+        self.assertIn("Cats of Amsterdam", file_lines[header_num_lines - 3])
 
         # The catalogs should be ordered by path, and sanitized.
-        written_cats = file_lines[header_num_lines+1:]
+        written_cats = file_lines[header_num_lines + 1:]
         expect_cats = [
             "cdf49402-6814-5c20-a026-9f3211d8a615:Cats/Laksa:cats-laksa",
             "d7ce44c8-d1df-5055-bae4-8a6ed03b8329:Cats/Muesli Huntress:cats-muesli",
