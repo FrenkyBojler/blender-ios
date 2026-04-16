@@ -24,6 +24,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_math_bits.h"
+#include <fmt/format.h>
 
 namespace blender::eevee {
 
@@ -171,8 +172,8 @@ ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
   }
   {
     const eShaderType shader_list[] = {
-        HORIZON_DENOISE, HORIZON_RESOLVE, HORIZON_SCAN, HORIZON_SETUP};
-    request(HORIZON_SCAN_SHADERS, AS_SPAN(shader_list));
+        FAST_GI_DENOISE, FAST_GI_RESOLVE, FAST_GI_SCAN, FAST_GI_SETUP};
+    request(FAST_GI_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {LIGHT_CULLING_DEBUG,
@@ -361,7 +362,7 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
     case DEFERRED_AOV_CLEAR:
       return "eevee_deferred_aov_clear";
     case DEFERRED_CAPTURE_EVAL:
-      return "eevee_deferred_capture_eval";
+      return "eevee_deferred_sphere_eval";
     case DEFERRED_PLANAR_EVAL:
       return "eevee_deferred_planar_eval";
     case DEFERRED_THICKNESS_AMEND:
@@ -374,14 +375,14 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_hiz_update";
     case HIZ_UPDATE_LAYER:
       return "eevee_hiz_update_layer";
-    case HORIZON_DENOISE:
-      return "eevee_horizon_denoise";
-    case HORIZON_RESOLVE:
-      return "eevee_horizon_resolve";
-    case HORIZON_SCAN:
-      return "eevee_horizon_scan";
-    case HORIZON_SETUP:
-      return "eevee_horizon_setup";
+    case FAST_GI_DENOISE:
+      return "eevee_fast_gi_denoise";
+    case FAST_GI_RESOLVE:
+      return "eevee_fast_gi_resolve";
+    case FAST_GI_SCAN:
+      return "eevee_fast_gi_scan";
+    case FAST_GI_SETUP:
+      return "eevee_fast_gi_setup";
     case LOOKDEV_COPY_WORLD:
       return "eevee_lookdev_copy_world";
     case LOOKDEV_DISPLAY:
@@ -589,9 +590,14 @@ gpu::Shader *ShaderModule::static_shader_get(eShaderType shader_type)
 
 /* Helper class to get free sampler slots for materials. */
 class SlotAllocator {
-  uint64_t available_samplers_ = ~uint64_t(0u);
-  uint32_t available_vertex_id_ = ~uint32_t(0u);
+  /* Assumes slots reserved from ShaderCreateInfos are always below 32. */
+  uint32_t available_samplers_ = ~uint32_t(0u);
+  /* But some backends may allow more samplers that we can use for material textures.
+   * These slots are just increased linearly. */
+  int total_requested_samplers_ = 0;
   bool sampler_overflow_ = false;
+
+  uint32_t available_vertex_id_ = ~uint32_t(0u);
   bool vertex_id_overflow_ = false;
 
   Set<std::string> visited_infos;
@@ -610,17 +616,17 @@ class SlotAllocator {
     }
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_samplers_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint32_t(1) << res.slot);
       }
     }
 
@@ -630,11 +636,18 @@ class SlotAllocator {
       /** WATCH: Recursive. */
       reserve_slots(*info);
     }
+
+    total_requested_samplers_ = count_bits_uint64(uint64_t(~available_samplers_));
   }
 
   bool sampler_overflow() const
   {
     return sampler_overflow_;
+  }
+
+  int requested_sampler_count() const
+  {
+    return total_requested_samplers_;
   }
 
   bool vertex_id_overflow() const
@@ -644,12 +657,15 @@ class SlotAllocator {
 
   int get_next_sampler()
   {
-    if (available_samplers_ == 0) {
+    int next_sampler = available_samplers_ == 0 ? total_requested_samplers_++ :
+                                                  bitscan_forward_clear_uint(&available_samplers_);
+    if (next_sampler >= GPU_max_textures()) {
       /* Should result in compilation failure. */
       sampler_overflow_ = true;
       return -1;
     }
-    return bitscan_forward_clear_uint64(&available_samplers_);
+
+    return next_sampler;
   }
 
   void set_vertex_input(int index)
@@ -856,7 +872,8 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   }
 
   if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
-      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA))
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
   {
     info.additional_info("eevee_hiz_prev_data");
     info.additional_info("eevee_previous_layer_radiance");
@@ -1282,9 +1299,11 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   /* Make shaders that have as too many samplers fail compilation and have correct error
    * report instead of raising an error. */
   if (slots.sampler_overflow()) {
-    /* We ran out of binding slots. Many systems inside the GPU backend assume a max amount of 64
-     * samplers. */
-    std::cerr << "Error: EEVEE: Material " << material_name << " uses too many samplers."
+    /* We ran out of binding slots. */
+    std::cerr << fmt::format("Error: EEVEE: Material {} uses too many samplers. ({}/{})",
+                             material_name,
+                             slots.requested_sampler_count(),
+                             GPU_max_textures())
               << std::endl;
     /* Avoid assert in ShaderCreateInfo::finalize. */
     info.batch_resources_.clear();
