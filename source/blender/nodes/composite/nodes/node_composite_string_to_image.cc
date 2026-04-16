@@ -103,7 +103,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         .panel_toggle()
         .description("Wrap text into new lines if it exceeds the specified width");
     panel.add_input<decl::Int>("Width"_ustr, "Wrap Width"_ustr)
-        .default_value(4096)
+        .default_value(1920)
         .min(0)
         .subtype(PROP_PIXEL)
         .description(
