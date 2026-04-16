@@ -1540,9 +1540,9 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
        * NOTE: This code-path is being used by NVIDIA 595 and higher.
        *
        * - Uses sRGB (BT.709) color primaries and white point
-       * - Transfer charateristics is linear
+       * - Transfer characteristics is linear
        * - Value range is extended
-       * - Value of 1.0 corresponse to 80 cd/m3
+       * - Value of 1.0 corresponds to 80 cd/m^2
        * - Reference white value is unknown but should be assumed to be 2.5375.
        *
        * Note: EGL_EXT_gl_colorspace_scrgb_linear definition differs from Windows-scRGB by using
