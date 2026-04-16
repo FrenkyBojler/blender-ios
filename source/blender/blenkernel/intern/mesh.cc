@@ -290,9 +290,11 @@ static void mesh_foreach_path(ID *id, BPathForeachPathData *bpath_data)
     /* CustomDataExternal should only be the case for CD_MDISPS, but check all layers regardless.
      */
     const Span<CustomDataLayer> layers(data.layers, data.totlayer);
-    if (std::any_of(layers.begin(), layers.end(), [&](const CustomDataLayer &layer) {
-          return CustomData_external_test(&data, eCustomDataType(layer.type));
-        }))
+    if (std::any_of(layers.begin(),
+                    layers.end(),
+                    [&](const CustomDataLayer &layer) {
+                      return CustomData_external_test(&data, eCustomDataType(layer.type));
+                    }))
     {
       BKE_bpath_foreach_path_fixed_process(
           bpath_data, data.external->filepath, sizeof(data.external->filepath));
@@ -389,7 +391,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BLO_write_generated_pointer_tag(writer, mesh->attribute_storage.dna_attributes);
 
   writer->write_id_struct(id_address, mesh, [](BlendStructWriter &struct_writer) {
-    struct_writer.maybe_generated_ptr(offsetof(Mesh, Mesh::attribute_storage.dna_attributes));
+    struct_writer.maybe_generated_ptr(offsetof(Mesh, attribute_storage.dna_attributes));
   });
   BKE_id_blend_write(writer, &mesh->id);
 
