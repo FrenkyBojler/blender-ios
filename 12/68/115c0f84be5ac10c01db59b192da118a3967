@@ -1,2 +1,3 @@
 Referenced by issue #157385, Wrong socket shape in String input Node
 Referenced by pull request #157451, Fix #157385: Wrong socket shape in String input Node
+Referenced by commit 3c2bfa918bd8683c7d0d5ab7371257fd6945d864, Fix #157385: Wrong socket shape in String input Node
