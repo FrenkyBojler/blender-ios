@@ -95,26 +95,27 @@ struct PlayheadDimensions {
   float tri_height;
 };
 
-static void get_playhead_dimensions(const Scene *scene,
-                                    const rcti *scrub_region_rect,
-                                    const float current_frame,
-                                    const bool display_seconds,
-                                    PlayheadDimensions &r_dimensions)
+static PlayheadDimensions get_playhead_dimensions(const Scene *scene,
+                                                  const rcti *scrub_region_rect,
+                                                  const float current_frame,
+                                                  const bool display_seconds)
 {
+  PlayheadDimensions dimensions;
   constexpr int max_frame_string_len = 64;
   char frame_str[max_frame_string_len];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, max_frame_string_len);
 
-  r_dimensions.text_width = ui::fontstyle_string_width(UI_FSTYLE_WIDGET, frame_str);
-  r_dimensions.text_padding = 4.0f * UI_SCALE_FAC;
+  dimensions.text_width = ui::fontstyle_string_width(UI_FSTYLE_WIDGET, frame_str);
+  dimensions.text_padding = 4.0f * UI_SCALE_FAC;
   const float box_min_width = 24.0f * UI_SCALE_FAC;
-  r_dimensions.box_width = std::max(r_dimensions.text_width + (2.0f * r_dimensions.text_padding),
-                                    box_min_width);
-  r_dimensions.box_margin = 2.0f * UI_SCALE_FAC;
-  r_dimensions.shadow_width = UI_SCALE_FAC;
-  r_dimensions.tri_top = ceil(scrub_region_rect->ymin + r_dimensions.box_margin);
-  r_dimensions.tri_half_width = 6.0f * UI_SCALE_FAC;
-  r_dimensions.tri_height = 6.0f * UI_SCALE_FAC;
+  dimensions.box_width = std::max(dimensions.text_width + (2.0f * dimensions.text_padding),
+                                  box_min_width);
+  dimensions.box_margin = 2.0f * UI_SCALE_FAC;
+  dimensions.shadow_width = UI_SCALE_FAC;
+  dimensions.tri_top = ceil(scrub_region_rect->ymin + dimensions.box_margin);
+  dimensions.tri_half_width = 6.0f * UI_SCALE_FAC;
+  dimensions.tri_height = 6.0f * UI_SCALE_FAC;
+  return dimensions;
 }
 
 static void draw_playhead_stalk(const float region_x,
@@ -223,8 +224,9 @@ static void draw_playhead_ghost(const float frame,
                                 const bool display_stalk)
 {
   const float region_x = ui::view2d_view_to_region_x(v2d, frame);
-  PlayheadDimensions dimensions;
-  get_playhead_dimensions(scene, scrub_region_rect, frame, display_seconds, dimensions);
+
+  PlayheadDimensions dimensions = get_playhead_dimensions(
+      scene, scrub_region_rect, frame, display_seconds);
   float fg_color[4];
   ui::theme::get_color_4fv(TH_CFRAME, fg_color);
   float bg_color[4];
@@ -258,8 +260,8 @@ static void draw_current_frame(const Scene *scene,
   char frame_str[max_frame_string_len];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, max_frame_string_len);
 
-  PlayheadDimensions dimensions;
-  get_playhead_dimensions(scene, scrub_region_rect, current_frame, display_seconds, dimensions);
+  PlayheadDimensions dimensions = get_playhead_dimensions(
+      scene, scrub_region_rect, current_frame, display_seconds);
 
   float fg_color[4];
   ui::theme::get_color_4fv(TH_CFRAME, fg_color);
