@@ -2,17 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if(WIN32)
-  set(SDL_EXTRA_ARGS
-    -DSDL_STATIC=OFF
-  )
-else()
-  set(SDL_EXTRA_ARGS
-    -DSDL_STATIC=ON
-    -DSDL_SHARED=OFF
-    -DSDL_SNDIO=OFF
-  )
-endif()
+set(SDL_EXTRA_ARGS
+  -DSDL_STATIC=OFF
+)
 
 ExternalProject_Add(external_sdl
   URL file://${PACKAGE_DIR}/${SDL_FILE}
