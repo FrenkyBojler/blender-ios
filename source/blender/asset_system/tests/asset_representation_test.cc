@@ -15,8 +15,6 @@
 
 #include "ED_asset_mark_clear.hh"
 
-#include "BLI_string.h"
-
 #include "../intern/utils.hh"
 
 #include "testing/testing.h"
