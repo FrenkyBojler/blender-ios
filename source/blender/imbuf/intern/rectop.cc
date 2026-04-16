@@ -348,65 +348,67 @@ static void copy_to_cropped_bufffer(void *dst_void,
                                     const void *src_void,
                                     const int2 &src_size,
                                     const int stride,
-                                    const rcti &src_rect,
-                                    const rcti &dst_rect)
+                                    const int2 &src_rect_pos,
+                                    const int2 &dst_rect_pos,
+                                    const int2 &rect_size)
 {
   BLI_assert(src_size.x > 0 && src_size.y > 0);
   BLI_assert(dst_size.x > 0 && dst_size.y > 0);
-  BLI_assert(src_rect.xmin >= 0 && src_rect.ymin >= 0);
-  BLI_assert(dst_rect.xmin >= 0 && dst_rect.ymin >= 0);
-  BLI_assert(src_rect.xmax <= src_size.x && src_rect.ymax <= src_size.y);
-  BLI_assert(dst_rect.xmax <= dst_size.x && dst_rect.ymax <= dst_size.y);
-  BLI_assert(BLI_rcti_size_x(&src_rect) == BLI_rcti_size_x(&dst_rect));
-  BLI_assert(BLI_rcti_size_y(&src_rect) == BLI_rcti_size_y(&dst_rect));
+  BLI_assert(rect_size.x > 0 && rect_size.y > 0);
+  BLI_assert(src_rect_pos.x >= 0 && src_rect_pos.y >= 0);
+  BLI_assert(dst_rect_pos.x >= 0 && dst_rect_pos.y >= 0);
+  BLI_assert((src_rect_pos.x + rect_size.x) <= src_size.x &&
+             (src_rect_pos.y + rect_size.y) <= src_size.y);
+  BLI_assert((dst_rect_pos.x + rect_size.x) <= dst_size.x &&
+             (dst_rect_pos.y + rect_size.y) <= dst_size.y);
   auto *dst = static_cast<std::byte *>(dst_void);
   const auto *src = static_cast<const std::byte *>(src_void);
-  for (const int rect_y : IndexRange(BLI_rcti_size_y(&dst_rect))) {
-    const int src_y = src_rect.ymin + rect_y;
-    const int dst_y = dst_rect.ymin + rect_y;
+  for (const int rect_y : IndexRange(rect_size.y)) {
+    const int src_y = src_rect_pos.y + rect_y;
+    const int dst_y = dst_rect_pos.y + rect_y;
     const std::byte *row_src = src + size_t(src_size.x) * stride * src_y;
     std::byte *row_dst = dst + size_t(dst_size.x) * stride * dst_y;
-    std::copy_n(row_src + size_t(src_rect.xmin) * stride,
-                BLI_rcti_size_x(&dst_rect) * stride,
-                row_dst + size_t(dst_rect.xmin) * stride);
+    std::copy_n(row_src + size_t(src_rect_pos.x) * stride,
+                size_t(rect_size.x) * stride,
+                row_dst + size_t(dst_rect_pos.x) * stride);
   }
 }
 
 static void *create_cropped_buffer_impl(const void *src_void,
                                         const int2 &src_size,
                                         const int stride,
-                                        const rcti &src_rect,
-                                        const rcti &dst_rect)
+                                        const int2 &src_rect_pos,
+                                        const int2 &rect_size)
 {
-  const int2 dst_size(BLI_rcti_size_x(&dst_rect), BLI_rcti_size_y(&dst_rect));
-  BLI_assert(dst_size.x > 0 && dst_size.y > 0);
-  const size_t dst_buffer_size = size_t(dst_size.x) * size_t(dst_size.y);
+  BLI_assert(rect_size.x > 0 && rect_size.y > 0);
+  const size_t dst_buffer_size = size_t(rect_size.x) * size_t(rect_size.y);
   auto *dst = MEM_new_array_uninitialized<std::byte>(dst_buffer_size * stride, __func__);
-  copy_to_cropped_bufffer(dst, dst_size, src_void, src_size, stride, src_rect, dst_rect);
+  copy_to_cropped_bufffer(
+      dst, rect_size, src_void, src_size, stride, src_rect_pos, int2(0, 0), rect_size);
   return dst;
 }
 
 static float *create_cropped_buffer(const float *src,
                                     const int2 &src_size,
                                     const int channels,
-                                    const rcti &src_rect,
-                                    const rcti &dst_rect)
+                                    const int2 &src_rect_pos,
+                                    const int2 &rect_size)
 {
   /* For some reason channels == 0 means 4-channel default. */
   const int stride = (channels == 0 ? 4 : channels) * sizeof(float);
   return static_cast<float *>(
-      create_cropped_buffer_impl(src, src_size, stride, src_rect, dst_rect));
+      create_cropped_buffer_impl(src, src_size, stride, src_rect_pos, rect_size));
 }
 
 static uchar *create_cropped_buffer(const uchar *src,
                                     const int2 &src_size,
-                                    const rcti &src_rect,
-                                    const rcti &dst_rect)
+                                    const int2 &src_rect_pos,
+                                    const int2 &rect_size)
 {
   /* Byte buffers always have 4 channels. */
   const int stride = 4 * sizeof(uchar);
   return static_cast<uchar *>(
-      create_cropped_buffer_impl(src, src_size, stride, src_rect, dst_rect));
+      create_cropped_buffer_impl(src, src_size, stride, src_rect_pos, rect_size));
 }
 
 void IMB_copy_rect(float *dst,
@@ -414,35 +416,44 @@ void IMB_copy_rect(float *dst,
                    const float *src,
                    const int2 &src_size,
                    const int channels,
-                   const rcti &src_rect,
-                   const rcti &dst_rect)
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size)
 {
   /* For some reason channels == 0 means 4-channel default. */
   const int stride = (channels == 0 ? 4 : channels) * sizeof(float);
-  copy_to_cropped_bufffer(dst, dst_size, src, src_size, stride, src_rect, dst_rect);
+  copy_to_cropped_bufffer(
+      dst, dst_size, src, src_size, stride, src_rect_pos, dst_rect_pos, rect_size);
 }
 
 void IMB_copy_rect(uchar *dst,
                    const int2 &dst_size,
                    const uchar *src,
                    const int2 &src_size,
-                   const rcti &src_rect,
-                   const rcti &dst_rect)
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size)
 {
   /* Byte buffers always have 4 channels. */
   const int stride = 4 * sizeof(uchar);
-  copy_to_cropped_bufffer(dst, dst_size, src, src_size, stride, src_rect, dst_rect);
+  copy_to_cropped_bufffer(
+      dst, dst_size, src, src_size, stride, src_rect_pos, dst_rect_pos, rect_size);
 }
 
-void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rcti &dst_rect)
+void IMB_copy_rect(ImBuf *dst,
+                   const ImBuf *src,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size)
 {
   if (src->byte_data() && dst->byte_data()) {
     IMB_copy_rect(dst->byte_data_for_write(),
                   int2(dst->x, dst->y),
                   src->byte_data(),
                   int2(src->x, src->y),
-                  src_rect,
-                  dst_rect);
+                  src_rect_pos,
+                  dst_rect_pos,
+                  rect_size);
   }
   if (src->float_data() && dst->float_data()) {
     IMB_copy_rect(dst->float_data_for_write(),
@@ -450,45 +461,32 @@ void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rct
                   src->float_data(),
                   int2(src->x, src->y),
                   src->channels,
-                  src_rect,
-                  dst_rect);
+                  src_rect_pos,
+                  dst_rect_pos,
+                  rect_size);
   }
 }
 
-void IMB_crop(ImBuf *ibuf, const rcti &rect)
+void IMB_crop(ImBuf *ibuf, const int2 &rect_pos, const int2 &rect_size)
 {
   const int2 src_size(ibuf->x, ibuf->y);
-  const int2 size_dst(BLI_rcti_size_x(&rect) + 1, BLI_rcti_size_y(&rect) + 1);
-  if (src_size == size_dst) {
+  if (src_size == rect_size) {
     return;
   }
 
-  const rcti src_rect = {
-      .xmin = rect.xmin,
-      .xmax = rect.xmax + 1,
-      .ymin = rect.ymin,
-      .ymax = rect.ymax + 1,
-  };
-  const rcti dst_rect = {
-      .xmin = 0,
-      .xmax = size_dst.x,
-      .ymin = 0,
-      .ymax = size_dst.y,
-  };
-
   if (const uchar *byte_data = ibuf->byte_data()) {
     IMB_assign_byte_buffer(
-        ibuf, create_cropped_buffer(byte_data, src_size, src_rect, dst_rect), IB_TAKE_OWNERSHIP);
+        ibuf, create_cropped_buffer(byte_data, src_size, rect_pos, rect_size), IB_TAKE_OWNERSHIP);
   }
   if (const float *float_data = ibuf->float_data()) {
     IMB_assign_float_buffer(
         ibuf,
-        create_cropped_buffer(float_data, src_size, ibuf->channels, src_rect, dst_rect),
+        create_cropped_buffer(float_data, src_size, ibuf->channels, rect_pos, rect_size),
         IB_TAKE_OWNERSHIP);
   }
 
-  ibuf->x = size_dst.x;
-  ibuf->y = size_dst.y;
+  ibuf->x = rect_size.x;
+  ibuf->y = rect_size.y;
 }
 
 /**

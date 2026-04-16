@@ -2707,19 +2707,7 @@ void RE_layer_load_from_file(
         if (ibuf->float_data() == nullptr) {
           IMB_float_from_byte(ibuf);
         }
-        const rcti src_rect = {
-            .xmin = x,
-            .xmax = x + layer->rectx,
-            .ymin = y,
-            .ymax = y + layer->recty,
-        };
-        const rcti dst_rect = {
-            .xmin = 0,
-            .xmax = layer->rectx,
-            .ymin = 0,
-            .ymax = layer->recty,
-        };
-        IMB_copy_rect(rpass->ibuf, ibuf, src_rect, dst_rect);
+        IMB_copy_rect(rpass->ibuf, ibuf, int2(x, y), int2(0, 0), int2(layer->rectx, layer->recty));
       }
       else {
         BKE_reportf(reports,

@@ -2704,20 +2704,7 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
   if (y + h > ibuf->y) {
     h = ibuf->y - y;
   }
-
-  const rcti src_rect = {
-      .xmin = x,
-      .xmax = x + w,
-      .ymin = y,
-      .ymax = y + h,
-  };
-  const rcti dst_rect = {
-      .xmin = dst_x,
-      .xmax = dst_x + w,
-      .ymin = dst_y,
-      .ymax = dst_y + h,
-  };
-  IMB_copy_rect(searchibuf, ibuf, src_rect, dst_rect);
+  IMB_copy_rect(searchibuf, ibuf, int2(x, y), int2(dst_x, dst_y), int2(w, h));
 
   if (disable_channels) {
     if ((track->flag & TRACK_PREVIEW_GRAYSCALE) || (track->flag & TRACK_DISABLE_RED) ||

@@ -276,36 +276,39 @@ void IMB_blend_color_float(MutableSpan<float4> dst,
 
 /**
  * Copy a rectangle of pixel data from one image buffer to another. The source and destination
- * buffers are described by the pointers and corresponding 2D sizes. The buffers must point to
- * memory large enough to hold data based on the sizes. The source and destination rectangles are
- * exclusive and must be the same size, but they can be at different locations in the image. The
- * source and destination buffers must not reference the same memory.
+ * buffers are described by the pointers and corresponding 2D sizes. They must not reference the
+ * same memory.
  */
 void IMB_copy_rect(float *dst,
                    const int2 &dst_size,
                    const float *src,
                    const int2 &src_size,
                    int channels,
-                   const rcti &src_rect,
-                   const rcti &dst_rect);
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
 void IMB_copy_rect(uchar *dst,
                    const int2 &dst_size,
                    const uchar *src,
                    const int2 &src_size,
-                   const rcti &src_rect,
-                   const rcti &dst_rect);
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
 
 /**
  * In-place image crop. `rect` is *inclusive*.
  */
-void IMB_crop(ImBuf *ibuf, const rcti &rect);
+void IMB_crop(ImBuf *ibuf, const int2 &rect_pos, const int2 &rect_size);
 
 /**
- * Replace the buffers in the destination image with data copied from the specified recangle of
- * the source image. The rectangles are exclusive and must be the same but the can be at different
- * locations in the images.
+ * Copy a rectangle of pixel data from one image buffer to another. Data outside of the destination
+ * rectangle is not written to.
  */
-void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rcti &dst_rect);
+void IMB_copy_rect(ImBuf *dst,
+                   const ImBuf *src,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
 
 /**
  * In-place size setting (caller must fill in buffer contents).

@@ -699,25 +699,14 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
     final_ibuf = IMB_allocImBuf(width, height, 32, IB_float_data);
 
     if (orig_ibuf->float_data() != nullptr) {
-      const rcti src_rect = {
-          .xmin = clamped_origin_x,
-          .xmax = clamped_origin_x + clamped_width,
-          .ymin = clamped_origin_y,
-          .ymax = clamped_origin_y + clamped_height,
-      };
-      const rcti dst_rect = {
-          .xmin = dst_offset_x,
-          .xmax = dst_offset_x + clamped_width,
-          .ymin = dst_offset_y,
-          .ymax = dst_offset_y + clamped_height,
-      };
       IMB_copy_rect(final_ibuf->float_data_for_write(),
                     int2(final_ibuf->x, final_ibuf->y),
                     orig_ibuf->float_data(),
                     int2(orig_ibuf->x, orig_ibuf->y),
                     orig_ibuf->channels,
-                    src_rect,
-                    dst_rect);
+                    int2(clamped_origin_x, clamped_origin_y),
+                    int2(dst_offset_x, dst_offset_y),
+                    int2(clamped_width, clamped_height));
     }
     else {
       /* TODO(sergey): We don't do any color space or alpha conversion

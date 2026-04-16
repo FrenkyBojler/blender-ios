@@ -26,7 +26,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
-#include "BLI_rect.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -90,6 +90,14 @@ void ED_image_paint_tile_lock_end()
  * These buffers are also used for undo when available.
  *
  * \{ */
+
+static void calc_tile_rect(
+    const ImBuf &ibuf, const int x_tile, const int y_tile, int2 &r_tile_pos, int2 &r_tile_size)
+{
+  r_tile_pos = int2(x_tile * ED_IMAGE_UNDO_TILE_SIZE, y_tile * ED_IMAGE_UNDO_TILE_SIZE);
+  r_tile_size = math::min(int2(ibuf.x, ibuf.y), r_tile_pos + int2(ED_IMAGE_UNDO_TILE_SIZE)) -
+                r_tile_pos;
+}
 
 struct PaintTileKey {
   int x_tile, y_tile;
@@ -191,16 +199,6 @@ void *ED_image_paint_tile_find(PaintTileMap *paint_tile_map,
   return ptile->rect.pt;
 }
 
-static rcti calc_tile_rect(const ImBuf &ibuf, const int x_tile, const int y_tile)
-{
-  return rcti{
-      .xmin = x_tile * ED_IMAGE_UNDO_TILE_SIZE,
-      .xmax = std::min(ibuf.x, ED_IMAGE_UNDO_TILE_SIZE * x_tile + ED_IMAGE_UNDO_TILE_SIZE),
-      .ymin = y_tile * ED_IMAGE_UNDO_TILE_SIZE,
-      .ymax = std::min(ibuf.y, y_tile * ED_IMAGE_UNDO_TILE_SIZE + ED_IMAGE_UNDO_TILE_SIZE),
-  };
-}
-
 void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
                                Image *image,
                                ImBuf *ibuf,
@@ -247,13 +245,9 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
                                                            "PaintTile.mask");
   }
 
-  const rcti src_rect = calc_tile_rect(*ibuf, ptile->x_tile, ptile->y_tile);
-  const rcti dst_rect = {
-      .xmin = 0,
-      .xmax = BLI_rcti_size_x(&src_rect),
-      .ymin = 0,
-      .ymax = BLI_rcti_size_y(&src_rect),
-  };
+  int2 tile_pos;
+  int2 tile_copy_size;
+  calc_tile_rect(*ibuf, ptile->x_tile, ptile->y_tile, tile_pos, tile_copy_size);
 
   if (ibuf->float_data()) {
     ptile->rect.pt = MEM_new_array_zeroed<float[4]>(square_i(ED_IMAGE_UNDO_TILE_SIZE),
@@ -263,8 +257,9 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
                   ibuf->float_data(),
                   int2(ibuf->x, ibuf->y),
                   ibuf->channels,
-                  src_rect,
-                  dst_rect);
+                  tile_pos,
+                  int2(0, 0),
+                  tile_copy_size);
   }
   else {
     ptile->rect.pt = MEM_new_array_zeroed<char[4]>(square_i(ED_IMAGE_UNDO_TILE_SIZE),
@@ -273,8 +268,9 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->byte_data(),
                   int2(ibuf->x, ibuf->y),
-                  src_rect,
-                  dst_rect);
+                  tile_pos,
+                  int2(0, 0),
+                  tile_copy_size);
   }
 
   ptile->use_float = has_float;
@@ -311,32 +307,29 @@ static void ptile_restore_runtime_map(PaintTileMap *paint_tile_map)
   for (PaintTile *ptile : paint_tile_map->map.values()) {
     Image *image = ptile->image;
     ImBuf *ibuf = BKE_image_acquire_ibuf(image, &ptile->iuser, nullptr);
-    const bool has_float = (ibuf->float_data() != nullptr);
 
-    const rcti dst_rect = calc_tile_rect(*ibuf, ptile->x_tile, ptile->y_tile);
-    const rcti src_rect = {
-        .xmin = 0,
-        .xmax = BLI_rcti_size_x(&dst_rect),
-        .ymin = 0,
-        .ymax = BLI_rcti_size_y(&dst_rect),
-    };
+    int2 tile_pos;
+    int2 tile_copy_size;
+    calc_tile_rect(*ibuf, ptile->x_tile, ptile->y_tile, tile_pos, tile_copy_size);
 
-    if (has_float) {
+    if (ibuf->float_data()) {
       IMB_copy_rect(ibuf->float_data_for_write(),
                     int2(ibuf->x, ibuf->y),
                     ptile->rect.fp,
                     int2(ED_IMAGE_UNDO_TILE_SIZE),
                     ibuf->channels,
-                    src_rect,
-                    dst_rect);
+                    int2(0, 0),
+                    tile_pos,
+                    tile_copy_size);
     }
     else {
       IMB_copy_rect(ibuf->byte_data_for_write(),
                     int2(ibuf->x, ibuf->y),
                     ptile->rect.byte_ptr,
                     int2(ED_IMAGE_UNDO_TILE_SIZE),
-                    src_rect,
-                    dst_rect);
+                    int2(0, 0),
+                    tile_pos,
+                    tile_copy_size);
     }
 
     /* Force OpenGL reload (maybe partial update will operate better?) */
@@ -391,29 +384,27 @@ static void utile_init_from_imbuf(UndoImageTile *utile,
                                   const int y_tile,
                                   const ImBuf *ibuf)
 {
-  const rcti src_rect = calc_tile_rect(*ibuf, x_tile, y_tile);
-  const rcti dst_rect = {
-      .xmin = 0,
-      .xmax = BLI_rcti_size_x(&src_rect),
-      .ymin = 0,
-      .ymax = BLI_rcti_size_y(&src_rect),
-  };
+  int2 tile_pos;
+  int2 tile_copy_size;
+  calc_tile_rect(*ibuf, x_tile, y_tile, tile_pos, tile_copy_size);
   if (ibuf->float_data()) {
     IMB_copy_rect(utile->rect.fp,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->float_data(),
                   int2(ibuf->x, ibuf->y),
                   ibuf->channels,
-                  src_rect,
-                  dst_rect);
+                  tile_pos,
+                  int2(0, 0),
+                  tile_copy_size);
   }
   else {
     IMB_copy_rect(utile->rect.byte_ptr,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->byte_data(),
                   int2(ibuf->x, ibuf->y),
-                  src_rect,
-                  dst_rect);
+                  tile_pos,
+                  int2(0, 0),
+                  tile_copy_size);
   }
 }
 
@@ -422,29 +413,27 @@ static void utile_restore(const UndoImageTile *utile,
                           const int y_tile,
                           ImBuf *ibuf)
 {
-  const rcti dst_rect = calc_tile_rect(*ibuf, x_tile, y_tile);
-  const rcti src_rect = {
-      .xmin = 0,
-      .xmax = BLI_rcti_size_x(&dst_rect),
-      .ymin = 0,
-      .ymax = BLI_rcti_size_y(&dst_rect),
-  };
+  int2 tile_pos;
+  int2 tile_copy_size;
+  calc_tile_rect(*ibuf, x_tile, y_tile, tile_pos, tile_copy_size);
   if (ibuf->float_data()) {
     IMB_copy_rect(ibuf->float_data_for_write(),
                   int2(ibuf->x, ibuf->y),
                   utile->rect.fp,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->channels,
-                  src_rect,
-                  dst_rect);
+                  int2(0, 0),
+                  tile_pos,
+                  tile_copy_size);
   }
   else {
     IMB_copy_rect(ibuf->byte_data_for_write(),
                   int2(ibuf->x, ibuf->y),
                   utile->rect.byte_ptr,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
-                  src_rect,
-                  dst_rect);
+                  int2(0, 0),
+                  tile_pos,
+                  tile_copy_size);
   }
 }
 
