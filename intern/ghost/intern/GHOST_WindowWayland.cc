@@ -1305,6 +1305,62 @@ static const wp_fractional_scale_v1_listener wp_fractional_scale_listener = {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Listener (Image Description), #wp_image_description_v1_listener
+ * \{ */
+
+static CLG_LogRef LOG_WL_IMAGE_DESCRIPTION = {"ghost.wl.handle.image_description"};
+#define LOG (&LOG_WL_IMAGE_DESCRIPTION)
+
+struct GWL_ImageDescriptionWait {
+  bool done;
+  bool ready;
+};
+
+static void image_description_handle_failed(void *data,
+                                            wp_image_description_v1 * /*image_description*/,
+                                            uint32_t cause,
+                                            const char *msg)
+{
+  CLOG_WARN(LOG, "failed (cause=%u): %s", cause, msg ? msg : "");
+  static_cast<GWL_ImageDescriptionWait *>(data)->done = true;
+}
+
+static void image_description_handle_ready(void *data,
+                                           wp_image_description_v1 * /*image_description*/,
+                                           uint32_t identity)
+{
+  CLOG_INFO(LOG, "ready (identity=%u)", identity);
+  GWL_ImageDescriptionWait *wait = static_cast<GWL_ImageDescriptionWait *>(data);
+  wait->done = true;
+  wait->ready = true;
+}
+
+#ifdef WP_IMAGE_DESCRIPTION_V1_READY2_SINCE_VERSION
+static void image_description_handle_ready2(void *data,
+                                            wp_image_description_v1 * /*image_description*/,
+                                            uint32_t identity_lo,
+                                            uint32_t identity_hi)
+{
+  CLOG_INFO(LOG, "ready2 (identity_lo=%u, identity_hi=%u)", identity_lo, identity_hi);
+  GWL_ImageDescriptionWait *wait = static_cast<GWL_ImageDescriptionWait *>(data);
+  wait->done = true;
+  wait->ready = true;
+}
+#endif /* WP_IMAGE_DESCRIPTION_V1_READY2_SINCE_VERSION */
+
+static const wp_image_description_v1_listener image_description_listener = {
+    /*failed*/ image_description_handle_failed,
+    /*ready*/ image_description_handle_ready,
+#ifdef WP_IMAGE_DESCRIPTION_V1_READY2_SINCE_VERSION
+    /*ready2*/ image_description_handle_ready2,
+#endif
+};
+
+#undef LOG
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Listener (XDG Decoration Listener), #zxdg_toplevel_decoration_v1_listener
  * \{ */
 
@@ -1560,12 +1616,33 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     }
 
     if (image_description) {
-      window_->wp.color_management_surface = wp_color_manager_v1_get_surface(color_manager,
-                                                                             window_->wl.surface);
-      wp_color_management_surface_v1_set_image_description(
-          window_->wp.color_management_surface,
-          image_description,
-          WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL);
+      /* Wait for ready/failed on a dedicated queue to avoid re-entering other listeners.
+       * Using a not-yet-ready description could cause a fatal protocol error. */
+      wl_display *display = system->wl_display_get();
+      wl_event_queue *event_queue = system->wp_color_manager_queue_get();
+      wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(image_description), event_queue);
+
+      GWL_ImageDescriptionWait wait = {false, false};
+      wp_image_description_v1_add_listener(image_description, &image_description_listener, &wait);
+      while (!wait.done) {
+        if (wl_display_dispatch_queue(display, event_queue) == -1) {
+          break;
+        }
+      }
+
+      if (wait.ready) {
+        window_->wp.color_management_surface = wp_color_manager_v1_get_surface(
+            color_manager, window_->wl.surface);
+        wp_color_management_surface_v1_set_image_description(
+            window_->wp.color_management_surface,
+            image_description,
+            WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL);
+      }
+      else {
+        hdr_info_.hdr_enabled = false;
+        hdr_info_.wide_gamut_enabled = false;
+        hdr_info_.sdr_white_level = 1.0f;
+      }
       wp_image_description_v1_destroy(image_description);
     }
   }

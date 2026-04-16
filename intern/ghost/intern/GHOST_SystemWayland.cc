@@ -1481,6 +1481,12 @@ struct GWL_Display {
     wp_fractional_scale_manager_v1 *fractional_scale_manager = nullptr;
     wp_viewporter *viewporter = nullptr;
     wp_color_manager_v1 *color_manager = nullptr;
+    /**
+     * Dedicated event queue for image description ready/failed dispatch,
+     * so waits inside window construction do not re-enter other listeners.
+     * Lifetime tied to `color_manager`.
+     */
+    wl_event_queue *color_manager_queue = nullptr;
     zwp_pointer_constraints_v1 *pointer_constraints = nullptr;
     zwp_pointer_gestures_v1 *pointer_gestures = nullptr;
 #ifdef WITH_INPUT_IME
@@ -6650,6 +6656,7 @@ static void gwl_seat_capability_pointer_multitouch_enable(GWL_Seat *seat)
   const uint pointer_gestures_version = zwp_pointer_gestures_v1_get_version(pointer_gestures);
 #ifdef ZWP_POINTER_GESTURE_HOLD_V1_INTERFACE
   if (pointer_gestures_version >= ZWP_POINTER_GESTURES_V1_GET_HOLD_GESTURE_SINCE_VERSION)
+
   { /* Hold gesture. */
     zwp_pointer_gesture_hold_v1 *gesture = zwp_pointer_gestures_v1_get_hold_gesture(
         pointer_gestures, seat->wl.pointer);
@@ -7348,12 +7355,17 @@ static void gwl_registry_wp_color_manager_add(GWL_Display *display,
   display->wp.color_manager = static_cast<wp_color_manager_v1 *>(wl_registry_bind(
       display->wl.registry, params.name, &wp_color_manager_v1_interface, version));
   wp_color_manager_v1_add_listener(display->wp.color_manager, &color_manager_v1_listener, data);
+  display->wp.color_manager_queue = wl_display_create_queue(display->wl.display);
   gwl_registry_entry_add(display, params, nullptr);
 }
 static void gwl_registry_wp_color_manager_remove(GWL_Display *display,
                                                  void * /*user_data*/,
                                                  const bool /*on_exit*/)
 {
+  if (display->wp.color_manager_queue) {
+    wl_event_queue_destroy(display->wp.color_manager_queue);
+    display->wp.color_manager_queue = nullptr;
+  }
   wp_color_manager_v1 **value_p = &display->wp.color_manager;
   wp_color_manager_v1_destroy(*value_p);
   *value_p = nullptr;
@@ -9854,6 +9866,10 @@ wp_viewporter *GHOST_SystemWayland::wp_viewporter_get()
 wp_color_manager_v1 *GHOST_SystemWayland::wp_color_manager_get()
 {
   return display_->wp.color_manager;
+}
+wl_event_queue *GHOST_SystemWayland::wp_color_manager_queue_get()
+{
+  return display_->wp.color_manager_queue;
 }
 bool GHOST_SystemWayland::supports_color_manager_feature_windows_scrgb() const
 {

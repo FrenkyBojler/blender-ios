@@ -262,6 +262,7 @@ class GHOST_SystemWayland : public GHOST_System {
   struct wp_fractional_scale_manager_v1 *wp_fractional_scale_manager_get();
   struct wp_viewporter *wp_viewporter_get();
   struct wp_color_manager_v1 *wp_color_manager_get();
+  struct wl_event_queue *wp_color_manager_queue_get();
 
   bool supports_color_manager_feature_windows_scrgb() const;
   bool supports_color_manager_extended_srgb_linear() const;
