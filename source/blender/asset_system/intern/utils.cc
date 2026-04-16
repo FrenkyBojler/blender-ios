@@ -6,6 +6,8 @@
  * \ingroup asset_system
  */
 
+/* For PATH_MAX (at least on Windows). */
+#include "BLI_fileops.h"  // IWYU pragma: keep
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
