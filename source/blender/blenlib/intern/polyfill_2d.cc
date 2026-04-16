@@ -296,7 +296,7 @@ static void kdtree2d_init(KDTree2D *tree, const uint32_t coords_num, const PolyI
     if (indices[i].sign != CONVEX) {
       node->neg = node->pos = KDNODE_UNSET;
       node->index = indices[i].index;
-      node->axis = 0;
+      node->axis = false;
       node->flag = 0;
       node++;
     }
@@ -365,7 +365,7 @@ static uint32_t kdtree2d_balance_recursive(KDTreeNode2D *nodes,
 
 static void kdtree2d_balance(KDTree2D *tree)
 {
-  tree->root = kdtree2d_balance_recursive(tree->nodes, tree->node_num, 0, tree->coords, 0);
+  tree->root = kdtree2d_balance_recursive(tree->nodes, tree->node_num, false, tree->coords, 0);
 }
 
 static void kdtree2d_init_mapping(KDTree2D *tree)
