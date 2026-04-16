@@ -19,7 +19,7 @@
 
 #include "ED_transformable.hh"
 
-namespace blender::animrig {
+namespace blender::ed {
 
 /**
  * Returns true if the given property index matches the axis flag.
@@ -255,7 +255,7 @@ std::string Transformable::rna_path_to_property(const PropertyType prop_type) co
       property_name = "location";
       break;
     case PropertyType::ROTATION: {
-      property_name = get_rotation_mode_path(eRotationModes(*rotation_mode_));
+      property_name = animrig::get_rotation_mode_path(eRotationModes(*rotation_mode_));
       break;
     }
     case PropertyType::SCALE:
@@ -483,4 +483,4 @@ void Transformable::blend_rotation_to(const Rotation &target,
   }
 }
 
-}  // namespace blender::animrig
+}  // namespace blender::ed

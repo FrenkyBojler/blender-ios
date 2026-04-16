@@ -148,7 +148,7 @@ struct tPoseSlideOp {
   ePoseSlide_Channels channels;
   /** Axis-limits for transforms. If any flag is set, the transforms are only applied for that
    * axis. If none are set, all axes are modified. */
-  animrig::AxisFlag axislock;
+  ed::AxisFlag axislock;
 
   tSlider *slider;
 
@@ -177,9 +177,9 @@ static const EnumPropertyItem prop_channels_types[] = {
 /* Property enum for ePoseSlide_AxisLock */
 static const EnumPropertyItem prop_axis_lock_types[] = {
     {0, "FREE", 0, "Free", "All axes are affected"},
-    {animrig::AXIS_FLAG_X, "X", 0, "X", "Only X-axis transforms are affected"},
-    {animrig::AXIS_FLAG_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
-    {animrig::AXIS_FLAG_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"},
+    {ed::AXIS_FLAG_X, "X", 0, "X", "Only X-axis transforms are affected"},
+    {ed::AXIS_FLAG_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
+    {ed::AXIS_FLAG_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -221,7 +221,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
 
   /* Get the set of properties/axes that can be operated on. */
   pso->channels = ePoseSlide_Channels(RNA_enum_get(op->ptr, "channels"));
-  pso->axislock = animrig::AxisFlag(RNA_enum_get(op->ptr, "axis_lock"));
+  pso->axislock = ed::AxisFlag(RNA_enum_get(op->ptr, "axis_lock"));
 
   pso->slider = ED_slider_create(C);
   ED_slider_factor_set(pso->slider, RNA_float_get(op->ptr, "factor"));
@@ -329,11 +329,11 @@ static bool pose_frame_range_from_id_get(const tPoseSlideOp *pso,
 /* Apply linear blending to the values of the given `prop_type`. */
 static void pose_slide_apply_linear(tPoseSlideOp &pso,
                                     SlideSubject &slide_subject,
-                                    const animrig::Transformable::PropertyType prop_type)
+                                    const ed::Transformable::PropertyType prop_type)
 {
 
   const float factor = ED_slider_factor_get(pso.slider);
-  animrig::Transformable *transformable = slide_subject.transformable;
+  ed::Transformable *transformable = slide_subject.transformable;
   Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
@@ -356,10 +356,10 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
    * what they do. They take the linear interpolation of the values based on the current frame and
    * blend the current pose towards or away from it. The usefulness of this is likely limited and
    * the naming could be better. Also this could be combined into a single slider. */
-  Array<float> current_frame_breakdown = animrig::property_interpolated(
+  Array<float> current_frame_breakdown = ed::property_interpolated(
       prev_values, next_values, current_frame_factor);
 
-  const animrig::AxisFlag axis_flag = animrig::AxisFlag(pso.axislock);
+  const ed::AxisFlag axis_flag = ed::AxisFlag(pso.axislock);
 
   switch (pso.mode) {
 
@@ -376,7 +376,7 @@ static void pose_slide_apply_linear(tPoseSlideOp &pso,
     case POSESLIDE_BREAKDOWN: /* Make the current pose slide around between the endpoints. */
     {
       /* Perform simple linear interpolation. */
-      Array<float> breakdown = animrig::property_interpolated(prev_values, next_values, factor);
+      Array<float> breakdown = ed::property_interpolated(prev_values, next_values, factor);
       transformable->set_property(prop_type, breakdown, axis_flag);
       break;
     }
@@ -441,28 +441,28 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
          * and push/relax. */
         const float current_frame_factor = (pso.current_frame - pso.prev_frame) /
                                            float(pso.next_frame - pso.prev_frame);
-        const Array<float> current_frame_breakdown = animrig::property_interpolated(
+        const Array<float> current_frame_breakdown = ed::property_interpolated(
             prev_frame_values, next_frame_values, current_frame_factor);
         if (pso.mode == POSESLIDE_PUSH) {
-          values = animrig::property_interpolated(base_values, current_frame_breakdown, -factor);
+          values = ed::property_interpolated(base_values, current_frame_breakdown, -factor);
         }
         else {
-          values = animrig::property_interpolated(base_values, current_frame_breakdown, factor);
+          values = ed::property_interpolated(base_values, current_frame_breakdown, factor);
         }
         break;
       }
 
       case POSESLIDE_BREAKDOWN:
-        values = animrig::property_interpolated(prev_frame_values, next_frame_values, factor);
+        values = ed::property_interpolated(prev_frame_values, next_frame_values, factor);
         break;
 
       case POSESLIDE_BLEND: {
         const float blend_factor = fabs((factor - 0.5f) * 2);
         if (factor < 0.5) {
-          values = animrig::property_interpolated(base_values, prev_frame_values, blend_factor);
+          values = ed::property_interpolated(base_values, prev_frame_values, blend_factor);
         }
         else {
-          values = animrig::property_interpolated(base_values, next_frame_values, blend_factor);
+          values = ed::property_interpolated(base_values, next_frame_values, blend_factor);
         }
         break;
       }
@@ -481,7 +481,7 @@ static void pose_slide_apply_property_snapshots(tPoseSlideOp &pso,
  */
 static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject)
 {
-  animrig::Transformable *transformable = slide_subject->transformable;
+  ed::Transformable *transformable = slide_subject->transformable;
   float prev_frame, next_frame;
 
   if (!pose_frame_range_from_id_get(pso, transformable->owner_id(), &prev_frame, &next_frame)) {
@@ -490,7 +490,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject
   }
 
   const std::string path = transformable->rna_path_to_property(
-      animrig::Transformable::PropertyType::ROTATION);
+      ed::Transformable::PropertyType::ROTATION);
 
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
@@ -498,8 +498,8 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject
   /* By using `get_rotation()` we use the current values as default in case they are not animated.
    * Due to using spherical interpolation, the not-animated values may be modified which may not be
    * expected by the user. Ideally this throws a warning.  */
-  animrig::Rotation rot_prev_frame = transformable->get_rotation();
-  animrig::Rotation rot_next_frame = rot_prev_frame;
+  ed::Rotation rot_prev_frame = transformable->get_rotation();
+  ed::Rotation rot_next_frame = rot_prev_frame;
   Vector<FCurve *> quaternion_fcurves = fcurves_filtered_by_path(slide_subject->fcurves, path);
   for (const FCurve *fcurve : quaternion_fcurves) {
     rot_prev_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
@@ -514,34 +514,34 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject
       /* Compute breakdown based on actual frame range. */
       const float interp_factor = (current_frame - pso->prev_frame) /
                                   float(pso->next_frame - pso->prev_frame);
-      animrig::Rotation current = transformable->get_rotation();
-      animrig::Rotation breakdown = animrig::rotation_interpolated(
+      ed::Rotation current = transformable->get_rotation();
+      ed::Rotation breakdown = ed::rotation_interpolated(
           rot_prev_frame, rot_next_frame, interp_factor);
 
       if (pso->mode == POSESLIDE_PUSH) {
         transformable->set_rotation(breakdown);
-        transformable->blend_rotation_to(current, factor, animrig::AXIS_FLAG_NONE);
+        transformable->blend_rotation_to(current, factor, ed::AXIS_FLAG_NONE);
       }
       else {
         BLI_assert(pso->mode == POSESLIDE_RELAX);
         transformable->set_rotation(current);
-        transformable->blend_rotation_to(breakdown, factor, animrig::AXIS_FLAG_NONE);
+        transformable->blend_rotation_to(breakdown, factor, ed::AXIS_FLAG_NONE);
       }
       break;
     }
 
     case POSESLIDE_BREAKDOWN:
       transformable->set_rotation(rot_prev_frame);
-      transformable->blend_rotation_to(rot_next_frame, factor, animrig::AXIS_FLAG_NONE);
+      transformable->blend_rotation_to(rot_next_frame, factor, ed::AXIS_FLAG_NONE);
       break;
 
     case POSESLIDE_BLEND: {
       const float blend_factor = fabs((factor - 0.5f) * 2);
       if (factor < 0.5) {
-        transformable->blend_rotation_to(rot_prev_frame, blend_factor, animrig::AXIS_FLAG_NONE);
+        transformable->blend_rotation_to(rot_prev_frame, blend_factor, ed::AXIS_FLAG_NONE);
       }
       else {
-        transformable->blend_rotation_to(rot_next_frame, blend_factor, animrig::AXIS_FLAG_NONE);
+        transformable->blend_rotation_to(rot_next_frame, blend_factor, ed::AXIS_FLAG_NONE);
       }
       break;
     }
@@ -557,7 +557,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, SlideSubject *slide_subject
  */
 static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 {
-  const animrig::AxisFlag axis_flag = animrig::AxisFlag(pso->axislock);
+  const ed::AxisFlag axis_flag = ed::AxisFlag(pso->axislock);
   const float slider_factor = ED_slider_factor_get(pso->slider);
   /* For each link, handle each set of transforms. */
   for (SlideSubject &slide_subject : pso->slide_subjects) {
@@ -566,29 +566,27 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead.
      */
-    animrig::Transformable *transformable = slide_subject.transformable;
+    ed::Transformable *transformable = slide_subject.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
         (slide_subject.transform_flag & ACT_TRANS_LOC))
     {
       transformable->blend_property_to(
-          animrig::Transformable::PropertyType::LOCATION, 0.0f, slider_factor, axis_flag);
+          ed::Transformable::PropertyType::LOCATION, 0.0f, slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
         (slide_subject.transform_flag & ACT_TRANS_SCALE))
     {
       transformable->blend_property_to(
-          animrig::Transformable::PropertyType::SCALE, 1.0f, slider_factor, axis_flag);
+          ed::Transformable::PropertyType::SCALE, 1.0f, slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
         (slide_subject.transform_flag & ACT_TRANS_ROT))
     {
       transformable->blend_rotation_to(
-          animrig::identity_rotation(transformable->get_rotation_mode()),
-          slider_factor,
-          axis_flag);
+          ed::identity_rotation(transformable->get_rotation_mode()), slider_factor, axis_flag);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
@@ -627,20 +625,20 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 
   /* For each link, handle each set of transforms. */
   for (SlideSubject &slide_subject : pso->slide_subjects) {
-    animrig::Transformable *transformable = slide_subject.transformable;
+    ed::Transformable *transformable = slide_subject.transformable;
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) &&
         (slide_subject.transform_flag & ACT_TRANS_LOC))
     {
       /* Calculate these for the 'location' vector, and use location curves. */
-      pose_slide_apply_linear(*pso, slide_subject, animrig::Transformable::PropertyType::LOCATION);
+      pose_slide_apply_linear(*pso, slide_subject, ed::Transformable::PropertyType::LOCATION);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) &&
         (slide_subject.transform_flag & ACT_TRANS_SCALE))
     {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_apply_linear(*pso, slide_subject, animrig::Transformable::PropertyType::SCALE);
+      pose_slide_apply_linear(*pso, slide_subject, ed::Transformable::PropertyType::SCALE);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) &&
@@ -649,8 +647,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
       /* Everything depends on the rotation mode. */
       const eRotationModes rot_mode = transformable->get_rotation_mode();
       if (rot_mode > 0) {
-        pose_slide_apply_linear(
-            *pso, slide_subject, animrig::Transformable::PropertyType::ROTATION);
+        pose_slide_apply_linear(*pso, slide_subject, ed::Transformable::PropertyType::ROTATION);
       }
       else if (rot_mode == ROT_MODE_AXISANGLE) {
         /* TODO: need to figure out how to do this! */
@@ -760,9 +757,9 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   }
 
   if (ELEM(pso->channels, PS_TFM_LOC, PS_TFM_ROT, PS_TFM_SCALE)) {
-    status.item_bool("", pso->axislock & animrig::AXIS_FLAG_X, ICON_EVENT_X);
-    status.item_bool("", pso->axislock & animrig::AXIS_FLAG_Y, ICON_EVENT_Y);
-    status.item_bool("", pso->axislock & animrig::AXIS_FLAG_Z, ICON_EVENT_Z);
+    status.item_bool("", pso->axislock & ed::AXIS_FLAG_X, ICON_EVENT_X);
+    status.item_bool("", pso->axislock & ed::AXIS_FLAG_Y, ICON_EVENT_Y);
+    status.item_bool("", pso->axislock & ed::AXIS_FLAG_Z, ICON_EVENT_Z);
     status.item(pso->axislock == 0 ? IFACE_("Axis Constraint") : IFACE_("Axis Only"), ICON_NONE);
   }
 
@@ -888,18 +885,18 @@ static void pose_slide_toggle_channels_mode(wmOperator *op,
   RNA_enum_set(op->ptr, "channels", pso->channels);
 
   /* Reset axis limits too for good measure */
-  pso->axislock = animrig::AXIS_FLAG_NONE;
+  pso->axislock = ed::AXIS_FLAG_NONE;
   RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
 }
 
 /**
  * Handle an event to toggle axis locks - returns whether any change in state is needed.
  */
-static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, animrig::AxisFlag axis)
+static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, ed::AxisFlag axis)
 {
   /* Axis can only be set when a transform is set - it doesn't make sense otherwise */
   if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE, PS_TFM_PROPS)) {
-    pso->axislock = animrig::AXIS_FLAG_NONE;
+    pso->axislock = ed::AXIS_FLAG_NONE;
     RNA_enum_set(op->ptr, "axis_lock", pso->axislock);
     return false;
   }
@@ -907,7 +904,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op, tPoseSlideOp *pso, anim
   /* Turn on or off? */
   if (pso->axislock == axis) {
     /* Already limiting on this axis, so turn off */
-    pso->axislock = animrig::AXIS_FLAG_NONE;
+    pso->axislock = ed::AXIS_FLAG_NONE;
   }
   else {
     /* Only this axis */
@@ -1042,19 +1039,19 @@ static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEv
           /* Axis Locks */
           /* XXX: Hardcoded... */
           case EVT_XKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, animrig::AXIS_FLAG_X)) {
+            if (pose_slide_toggle_axis_locks(op, pso, ed::AXIS_FLAG_X)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_YKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, animrig::AXIS_FLAG_Y)) {
+            if (pose_slide_toggle_axis_locks(op, pso, ed::AXIS_FLAG_Y)) {
               do_pose_update = true;
             }
             break;
           }
           case EVT_ZKEY: {
-            if (pose_slide_toggle_axis_locks(op, pso, animrig::AXIS_FLAG_Z)) {
+            if (pose_slide_toggle_axis_locks(op, pso, ed::AXIS_FLAG_Z)) {
               do_pose_update = true;
             }
             break;

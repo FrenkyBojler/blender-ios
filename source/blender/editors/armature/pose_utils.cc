@@ -155,7 +155,7 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(ID &id,
 /**
  * Stores a `PropertySnapshot` of the property with the given `property_name` in the given vector.
  * If the property does not exist in the `ptr` the function doesn't do anything. Also the property
- * has to be supported by `animrig::rna_property_get_as_float`.
+ * has to be supported by `ed::rna_property_get_as_float`.
  */
 static void store_property_snapshot(PointerRNA &ptr,
                                     StringRef property_name,
@@ -191,18 +191,16 @@ static void pchan_to_slide_subject(ListBaseT<SlideSubject> &slide_subjects,
   BLI_addtail(&slide_subjects, slide_subject);
   slide_subject->fcurves = curves;
 
-  animrig::Transformable *transformable = MEM_new<animrig::Transformable>(
+  ed::Transformable *transformable = MEM_new<ed::Transformable>(
       "transformable_pose_bone", ob, pchan);
   slide_subject->transformable = transformable;
 
   /* Set pchan's transform flags. */
   slide_subject->transform_flag = transFlags;
 
-  slide_subject->old_loc = transformable->get_property(
-      animrig::Transformable::PropertyType::LOCATION);
+  slide_subject->old_loc = transformable->get_property(ed::Transformable::PropertyType::LOCATION);
   slide_subject->old_rot = transformable->get_rotation();
-  slide_subject->old_scale = transformable->get_property(
-      animrig::Transformable::PropertyType::SCALE);
+  slide_subject->old_scale = transformable->get_property(ed::Transformable::PropertyType::SCALE);
 
   slide_subject->ptr = bone_ptr;
 
@@ -368,16 +366,14 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 {
   /* Iterate over each transformable affected, restoring all channels to their original values. */
   for (SlideSubject &slide_subject : *slide_subjects) {
-    animrig::Transformable *transformable = slide_subject.transformable;
+    ed::Transformable *transformable = slide_subject.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
-    transformable->set_property(animrig::Transformable::PropertyType::LOCATION,
-                                slide_subject.old_loc,
-                                animrig::AXIS_FLAG_NONE);
+    transformable->set_property(
+        ed::Transformable::PropertyType::LOCATION, slide_subject.old_loc, ed::AXIS_FLAG_NONE);
     transformable->set_rotation(slide_subject.old_rot);
-    transformable->set_property(animrig::Transformable::PropertyType::SCALE,
-                                slide_subject.old_scale,
-                                animrig::AXIS_FLAG_NONE);
+    transformable->set_property(
+        ed::Transformable::PropertyType::SCALE, slide_subject.old_scale, ed::AXIS_FLAG_NONE);
 
     for (PropertySnapshot &extra_prop : slide_subject.additional_properties) {
       animrig::rna_property_set_as_float(

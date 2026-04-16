@@ -28,7 +28,7 @@ struct PropertyRNA;
 class StringRef;
 class StringRefNull;
 
-namespace animrig {
+namespace ed {
 
 /**
  * Used to limit the modification of properties to certain axes.
@@ -192,5 +192,5 @@ class Transformable {
   void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
 };
 
-}  // namespace animrig
+}  // namespace ed
 }  // namespace blender

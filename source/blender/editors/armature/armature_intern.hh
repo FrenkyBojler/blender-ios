@@ -162,7 +162,7 @@ struct SlideSubject {
   SlideSubject *next, *prev;
 
   /** The Transformable which the data is attached to */
-  animrig::Transformable *transformable;
+  ed::Transformable *transformable;
   /* A pointer to the data represented by this link. */
   PointerRNA ptr;
   /** F-Curves for this Transformable. */
@@ -173,7 +173,7 @@ struct SlideSubject {
 
   /** Transform values at start of operator (to be restored before each modal step). */
   Array<float> old_loc;
-  animrig::Rotation old_rot;
+  ed::Rotation old_rot;
   Array<float> old_scale;
 
   /* Additional properties of the transformable to affect which are not custom properties. */

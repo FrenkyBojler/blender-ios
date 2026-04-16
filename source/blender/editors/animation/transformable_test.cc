@@ -21,7 +21,7 @@
 #include "CLG_log.h"
 #include "testing/testing.h"
 
-namespace blender::animrig::tests {
+namespace blender::ed::tests {
 
 class TransformableTest : public testing::Test {
  public:
@@ -198,4 +198,4 @@ TEST_F(TransformableTest, transformable_axis_constraints)
                    0.001);
 }
 
-}  // namespace blender::animrig::tests
+}  // namespace blender::ed::tests
