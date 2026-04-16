@@ -304,7 +304,10 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   CustomData_reset(&grease_pencil->layers_data_legacy);
 
   /* Write LibData */
-  writer->write_id_struct(id_address, grease_pencil);
+  writer->write_id_struct<GreasePencil>(
+      id_address, grease_pencil, [](BlendStructWriter<GreasePencil> &struct_writer) {
+        struct_writer.any_pointer_maybe_generated();
+      });
   BKE_id_blend_write(writer, &grease_pencil->id);
 
   grease_pencil->attribute_storage.wrap().blend_write(*writer, attribute_data);

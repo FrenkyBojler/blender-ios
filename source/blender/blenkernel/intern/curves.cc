@@ -115,7 +115,10 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   curves->geometry.wrap().blend_write_prepare(write_data, !BLO_write_is_undo(writer));
 
   /* Write LibData */
-  writer->write_id_struct(id_address, curves);
+  writer->write_id_struct<Curves>(
+      id_address, curves, [](BlendStructWriter<Curves> &struct_writer) {
+        struct_writer.any_pointer_maybe_generated();
+      });
   BKE_id_blend_write(writer, &curves->id);
 
   /* Direct data */

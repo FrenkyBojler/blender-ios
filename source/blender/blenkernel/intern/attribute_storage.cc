@@ -709,8 +709,12 @@ void AttributeStorage::blend_write(BlendWriter &writer,
                                    const AttributeStorage::BlendWriteData &write_data)
 {
   /* Use string argument to avoid confusion with the C++ class with the same name. */
-  writer.write_struct_array_by_name(
-      "Attribute", write_data.attributes.size(), write_data.attributes.data());
+  writer.write_struct_array<blender::Attribute>(
+      write_data.attributes.size(),
+      write_data.attributes.data(),
+      [](BlendStructWriter<blender::Attribute> &struct_writer) {
+        struct_writer.any_pointer_maybe_generated();
+      });
   for (const blender::Attribute &attr_dna : write_data.attributes) {
     writer.write_string(attr_dna.name);
     switch (AttrStorageType(attr_dna.storage_type)) {
