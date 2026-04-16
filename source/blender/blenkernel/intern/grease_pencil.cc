@@ -4617,7 +4617,10 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         curves.blend_write_prepare(write_data, !BLO_write_is_undo(writer));
         drawing_copy.runtime = nullptr;
 
-        writer->write_struct_at_address_cast<GreasePencilDrawing>(drawing_base, &drawing_copy);
+        writer->write_struct_at_address_cast<GreasePencilDrawing>(
+            drawing_base, &drawing_copy, [](BlendStructWriter &struct_writer) {
+              struct_writer.any_pointer_maybe_generated();
+            });
         curves.blend_write(*writer, grease_pencil.id, write_data);
         break;
       }
