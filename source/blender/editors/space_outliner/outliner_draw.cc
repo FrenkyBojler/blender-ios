@@ -49,6 +49,7 @@
 #include "BKE_particle.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_image.hh"
 
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
@@ -3503,6 +3504,15 @@ static void outliner_draw_tree_element(ui::Block *block,
     }
 
     offsx += int(UI_UNIT_X + ui::fontstyle_string_width(fstyle, te->name));
+    if (tselem->id && (GS(tselem->id->name) == ID_IM)) {
+      int x, y;
+      Image *image = id_cast<Image *>(tselem->id);
+      BKE_image_get_size(image, nullptr, &x, &y);
+      char im_size[32];
+      BLI_snprintf(im_size, sizeof(im_size), "(%d x %d)", x, y);
+      ui::fontstyle_draw_simple(fstyle, startx + offsx, *starty + 5 * ufac, im_size, text_color);
+      offsx += int(UI_UNIT_X + ui::fontstyle_string_width(fstyle, im_size));
+    }
 
     /* Closed item, we draw the icons, not when it's a scene, or master-server list though. */
     if (!TSELEM_OPEN(tselem, space_outliner)) {
