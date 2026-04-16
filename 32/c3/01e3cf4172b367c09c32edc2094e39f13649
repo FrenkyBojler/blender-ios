@@ -15,3 +15,4 @@ Referenced by issue #152746, Copy Paste From Float Curve to RGB Curve Crashes Bl
 Referenced by issue #151909, OSL getmessage("trace", "geom:uv", trace_uv); not finding attribute
 Referenced by issue #95848, Cycles shading nodes missing updates when editing muted nodes
 Referenced by issue #156696, Blender 5.x cannot use the Shader Editor nodetree anymore for Freestyle Textures
+Referenced by pull request #157491, Fix #156696: Freestyle Line Style texture nodetree not working
