@@ -41,7 +41,6 @@
 #include "BLI_math_time.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_string.h"
-#include "BLI_string_date.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_threads.h"
@@ -54,6 +53,7 @@
 #include "BLO_core_file_reader.hh"
 #include "BLO_readfile.hh"
 
+#include "BLT_date_string.hh"
 #include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
@@ -3296,7 +3296,7 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   const time_t ts_now = time(nullptr);
   const tm now_tm = *localtime(&ts_now);
   const char *lang = BLT_lang_get();
-  std::string modified_s = blender::date_format::datetime(
+  std::string modified_s = blender::date_string::datetime(
       &mod_time, lang, &now_tm, TIP_("Today"), TIP_("Yesterday"));
 
   /* Size. */

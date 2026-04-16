@@ -3,7 +3,7 @@
  */
 
 /** \file
- * \ingroup bli
+ * \ingroup blt
  */
 
 #include <algorithm>
@@ -13,11 +13,11 @@
 
 #include <fmt/format.h>
 
-#include "BLI_string_date.hh"
+#include "BLT_date_string.hh"
 
 #include "BLT_translation.hh"
 
-namespace blender::date_format {
+namespace blender::date_string {
 
 struct LocalePatterns {
   StringRef locale;
@@ -125,4 +125,4 @@ std::string datetime(const std::tm *datetime,
   }
 }
 
-}  // namespace blender::date_format
+}  // namespace blender::date_string

@@ -12,12 +12,12 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_string_date.hh"
 #include "BLI_string_utf8.h"
 
 #include "BLO_readfile.hh"
 
 #include "BLT_lang.hh"
+#include "BLT_date_string.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_blendfile.hh"
@@ -88,7 +88,7 @@ static void template_recent_files_tooltip_func(bContext & /*C*/,
     const time_t ts_now = time(nullptr);
     const tm now = *localtime(&ts_now);
     const char *lang = BLT_lang_get();
-    std::string modified_s = date_format::datetime(
+    std::string modified_s = date_string::datetime(
         &mod_time, lang, &now, TIP_("Today"), TIP_("Yesterday"));
     tooltip_text_field_add(tip,
                            fmt::format(fmt::runtime(TIP_("Modified: {}")), modified_s),
