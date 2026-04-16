@@ -4415,8 +4415,8 @@ static int do_but_textedit_select(
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &but->rect);
 
-      rect.ymax -= textbox_padding_top() / block->aspect;
-      rect.ymin += textbox_padding_bottom() / block->aspect;
+      rect.ymax -= textbox_text_pad() / block->aspect;
+      rect.ymin += textbox_text_pad() / block->aspect;
 
       if (BLI_rctf_isect_y(&rect, event->xy[1])) {
         break;
@@ -5282,34 +5282,60 @@ static int do_but_TEXTBOX(bContext *C,
   switch (data->state) {
     case BUTTON_STATE_TEXT_EDITING:
     case BUTTON_STATE_HIGHLIGHT: {
-      if (!(event->val == KM_PRESS && event->type == LEFTMOUSE)) {
-        break;
-      }
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &textbox->rect);
 
-      /* Try activate textbox scrollbar. */
       rctf scroll_rect = rect;
       scroll_rect.xmin = rect.xmax - button_text_padding(textbox);
-      scroll_rect.ymin += textbox_padding_bottom() / block->aspect;
+      scroll_rect.ymin += (textbox_grip_height() + textbox_text_pad()) / block->aspect;
 
-      if (BLI_rctf_isect_pt(&scroll_rect, UNPACK2(event->xy))) {
-        if (data->state == BUTTON_STATE_HIGHLIGHT) {
-          WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
+      rctf grip_rect = rect;
+      grip_rect.xmin = grip_rect.xmax - button_text_padding(textbox);
+      grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
+
+      if (event->type == MOUSEMOVE) {
+        if (BLI_rctf_isect_pt(&scroll_rect, UNPACK2(event->xy))) {
+          if (textbox->last_total_lines > textbox->visible_lines()) {
+            WM_cursor_modal_restore(win);
+            WM_cursor_set(win, WM_CURSOR_DEFAULT);
+            data->changed_cursor = false;
+          }
+          break;
         }
-        else {
-          WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+        if (BLI_rctf_isect_pt(&grip_rect, UNPACK2(event->xy))) {
+          if (win->cursor != WM_CURSOR_NS_SCROLL) {
+            if (textbox->editstr && !win->modalcursor) {
+              WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
+            }
+            else {
+              WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+            }
+          }
+          break;
         }
+        if (win->cursor != WM_CURSOR_TEXT_EDIT) {
+          if (textbox->editstr && !win->modalcursor) {
+            WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
+          }
+          else {
+            WM_cursor_set(win, WM_CURSOR_TEXT_EDIT);
+          }
+        }
+        break;
+      }
+      if (!(event->val == KM_PRESS && event->type == LEFTMOUSE)) {
+        break;
+      }
+      /* Try activate textbox scrollbar. */
+      if (textbox->last_total_lines > textbox->visible_lines() &&
+          BLI_rctf_isect_pt(&scroll_rect, UNPACK2(event->xy)))
+      {
         button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_SCROLLING);
-        WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
         WM_event_add_mousemove(win);
         return WM_UI_HANDLER_BREAK;
       }
 
       /* Try activate textbox grip button. */
-      rctf grip_rect = rect;
-      grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
-
       if (BLI_rctf_isect_pt(&grip_rect, UNPACK2(event->xy))) {
         if (data->state == BUTTON_STATE_HIGHLIGHT) {
           WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
@@ -5318,7 +5344,6 @@ static int do_but_TEXTBOX(bContext *C,
           WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
         }
         button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_RESIZING);
-        WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
         data->dragstarty = event->xy[1];
         data->origvalue = textbox->visible_lines();
         return WM_UI_HANDLER_BREAK;
@@ -5327,12 +5352,9 @@ static int do_but_TEXTBOX(bContext *C,
     }
     case BUTTON_STATE_TEXTBOX_SCROLLING: {
       if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-        if (textbox->editstr) {
-          WM_cursor_set(win, WM_CURSOR_TEXT_EDIT);
-        }
-        else {
-          WM_cursor_modal_restore(win);
-        }
+        /* Add mouse move to set back active mouse cursor. */
+        WM_event_add_mousemove(win);
+        WM_cursor_modal_restore(win);
         button_activate_state(
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
@@ -5341,7 +5363,7 @@ static int do_but_TEXTBOX(bContext *C,
         int mx = event->xy[0];
         int my = event->xy[1];
         window_to_block(data->region, block, &mx, &my);
-        const float ymin = textbox->rect.ymin + textbox_padding_bottom() / block->aspect;
+        const float ymin = textbox->rect.ymin + textbox_grip_height() / block->aspect;
         const float range = textbox->rect.ymax - ymin;
         const int scroll = round_fl_to_int(
             (range - (my - ymin)) / range *
@@ -5357,12 +5379,9 @@ static int do_but_TEXTBOX(bContext *C,
     }
     case BUTTON_STATE_TEXTBOX_RESIZING: {
       if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-        if (textbox->editstr) {
-          WM_cursor_set(win, WM_CURSOR_TEXT_EDIT);
-        }
-        else {
-          WM_cursor_modal_restore(win);
-        }
+        /* Add mouse move to set back active mouse cursor. */
+        WM_event_add_mousemove(win);
+        WM_cursor_modal_restore(win);
         button_activate_state(
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
