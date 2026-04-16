@@ -9,8 +9,11 @@
  * into other surface shaders.
  */
 
-#include "infos/eevee_material_infos.hh"
+#include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_surf_capture_infos.hh"
 
+FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_capture)
 
@@ -20,7 +23,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_capture)
 #include "eevee_surf_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
-float4 closure_to_rgba(Closure cl)
+float4 closure_to_rgba(Closure /*cl*/)
 {
   return float4(0.0f);
 }
@@ -37,13 +40,12 @@ void main()
   float3 albedo = float3(0.0f);
 
   for (int i = 0; i < CLOSURE_BIN_COUNT; i++) {
-    ClosureUndetermined cl = g_closure_get_resolved(i, 1.0f);
+    ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
     if (cl.weight <= CLOSURE_WEIGHT_CUTOFF) {
       continue;
     }
-    if (cl.type != CLOSURE_BSDF_TRANSLUCENT_ID &&
-        cl.type != CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID)
-    {
+    if (!closure_has_transmission(cl.type)) {
+      /* Refraction is not supported in volume light probe capture. */
       albedo += cl.color;
     }
   }

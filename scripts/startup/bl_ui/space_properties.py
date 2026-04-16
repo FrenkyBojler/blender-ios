@@ -17,7 +17,7 @@ tabs_attr_infos = (
     ("show_properties_view_layer", "View Layer", 'RENDERLAYERS'),
     ("show_properties_scene", "Scene", 'SCENE_DATA'),
     ("show_properties_world", "World", 'WORLD'),
-    ("show_properties_collection", "Collection", 'OUTLINER_COLLECTION'),
+    ("show_properties_collection", "Collection", 'GROUP'),
     ("show_properties_object", "Object", 'OBJECT_DATA'),
     ("show_properties_modifiers", "Modifiers", 'MODIFIER'),
     ("show_properties_effects", "Effects", 'SHADERFX'),
@@ -101,7 +101,7 @@ class PROPERTIES_PT_navigation_bar(Panel):
         sub.scale_x = 0.8
         sub.scale_y = 0.8
         sub.separator(factor=0.7)
-        sub.popover(panel="PROPERTIES_PT_visibility", text="")
+        sub.popover(panel="PROPERTIES_PT_visibility", text="", direction='HORIZONTAL')
         sub.active = has_hidden_tabs(view)
 
 
