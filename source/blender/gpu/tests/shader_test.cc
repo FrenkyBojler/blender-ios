@@ -593,7 +593,7 @@ static void test_eevee_lib()
   /* TODO(fclem): Not passing currently. Need to be updated. */
   // gpu_shader_lib_test("eevee_shadow_test.glsl", "eevee_tests_data");
   gpu_shader_lib_test("eevee_occupancy_test.glsl");
-  gpu_shader_lib_test("eevee_horizon_scan_test.glsl");
+  gpu_shader_lib_test("eevee_fast_gi_test.glsl");
 #ifndef __APPLE__ /* PSOs fail to compile on Mac. Try to port them to compute shader to see if it \
                    * fixes the issue. */
   gpu_shader_lib_test("eevee_gbuffer_normal_test.glsl", "eevee_tests_data");
@@ -773,7 +773,7 @@ template<typename T> T atomicMax(threadgroup T &mem, T data) { return atomic_fet
   {
     std::string input = R"(
 #define A
-#if defined(A) && !defined ( B ) && defined A && !defined  B 
+#if defined(A) && !defined ( B ) && defined A && !defined  B
 High there!
 #endif
 )";
@@ -877,11 +877,11 @@ Success
     std::string expect = R"(
 
 
-  
 
-  
+
+
     Success
-  
+
 
 
 
