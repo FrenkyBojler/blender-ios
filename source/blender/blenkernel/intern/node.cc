@@ -5598,7 +5598,7 @@ StringRefNull node_socket_label(const bNodeSocket &sock)
 
 StringRef node_socket_extend_label(const bNode &node, const bNodeSocket &sock)
 {
-  StringRef name = node.is_type("NodeReroute") && (node.label[0] != '\0') ?
+  StringRef name = node.is_type("NodeReroute"_ustr) && (node.label[0] != '\0') ?
                        node.label :
                        (sock.name ? sock.name : node_socket_label(sock));
 
