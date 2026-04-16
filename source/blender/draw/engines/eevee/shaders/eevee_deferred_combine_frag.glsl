@@ -70,7 +70,10 @@ void main()
   float3 out_direct = float3(0.0f);
   float3 out_indirect = float3(0.0f);
   float3 average_normal = float3(0.0f);
-  float average_squared_roughness = 0.0f;
+  /* Denoising render pass data. */
+  float average_roughness = 0.0f;
+  float3 diffuse_albedo = float3(0.0f);
+  float3 specular_albedo = float3(0.0f);
 
   for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < closure_count; i++) {
     ClosureUndetermined cl = gbuf.layer_get(i);
@@ -90,9 +93,17 @@ void main()
 
     average_normal += cl.N * closure_weight;
 
-    /* Accumulate squared roughness like in Cycles. */
-    float closure_roughness = closure_apparent_roughness_get(cl);
-    average_squared_roughness += square(closure_roughness) * closure_weight;
+    if (render_passes_denoising_enabled) {
+      /* These two values are equivalent between Cycles and EEVEE:
+       * - Cycles: sqrtf(bsdf_get_specular_roughness_squared(sc))
+       * - EEVEE: square(closure_apparent_roughness_get(cl)) */
+      float closure_roughness = closure_apparent_roughness_get(cl);
+      float roughness_sq = square(closure_roughness);
+      float diffuse_weight = smoothstep(0.0f, 0.15f, roughness_sq);
+      average_roughness += roughness_sq * closure_weight;
+      diffuse_albedo += diffuse_weight * cl.color;
+      specular_albedo += (1.0 - diffuse_weight) * cl.color;
+    }
 
     switch (cl.type) {
       case CLOSURE_BSDF_TRANSLUCENT_ID:
@@ -189,15 +200,14 @@ void main()
                             float4(average_normal, 1.0f));
 
     output_renderpass_color(uniform_buf.render_pass.denoising_diffuse_albedo_id,
-                            float4(diffuse_color, 1.0f));
+                            float4(diffuse_albedo, 1.0f));
     output_renderpass_color(uniform_buf.render_pass.denoising_specular_albedo_id,
-                            float4(specular_color, 1.0f));
+                            float4(specular_albedo, 1.0f));
 
     if (sum_weight >= 1e-5f) {
-      average_squared_roughness *= safe_rcp(sum_weight);
+      average_roughness *= safe_rcp(sum_weight);
     }
-    output_renderpass_value(uniform_buf.render_pass.denoising_roughness_id,
-                            sqrt(average_squared_roughness));
+    output_renderpass_value(uniform_buf.render_pass.denoising_roughness_id, sqrt(average_roughness));
   }
 
   out_combined = float4(out_direct + out_indirect, 0.0f);
