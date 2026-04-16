@@ -5298,28 +5298,17 @@ static int do_but_TEXTBOX(bContext *C,
           if (textbox->last_total_lines > textbox->visible_lines()) {
             WM_cursor_modal_restore(win);
             WM_cursor_set(win, WM_CURSOR_DEFAULT);
-            data->changed_cursor = false;
           }
           break;
         }
         if (BLI_rctf_isect_pt(&grip_rect, UNPACK2(event->xy))) {
           if (win->cursor != WM_CURSOR_NS_SCROLL) {
-            if (textbox->editstr && !win->modalcursor) {
-              WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
-            }
-            else {
-              WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
-            }
+            WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
           }
           break;
         }
         if (win->cursor != WM_CURSOR_TEXT_EDIT) {
-          if (textbox->editstr && !win->modalcursor) {
-            WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
-          }
-          else {
-            WM_cursor_set(win, WM_CURSOR_TEXT_EDIT);
-          }
+          WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
         }
         break;
       }
@@ -5337,12 +5326,7 @@ static int do_but_TEXTBOX(bContext *C,
 
       /* Try activate textbox grip button. */
       if (BLI_rctf_isect_pt(&grip_rect, UNPACK2(event->xy))) {
-        if (data->state == BUTTON_STATE_HIGHLIGHT) {
-          WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
-        }
-        else {
-          WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
-        }
+        WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
         button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_RESIZING);
         data->dragstarty = event->xy[1];
         data->origvalue = textbox->visible_lines();
@@ -9520,10 +9504,6 @@ static void button_activate_init(bContext *C,
   if (but->type == ButtonType::Grip) {
     const bool horizontal = (BLI_rctf_size_x(&but->rect) < BLI_rctf_size_y(&but->rect));
     WM_cursor_modal_set(data->window, horizontal ? WM_CURSOR_X_MOVE : WM_CURSOR_Y_MOVE);
-  }
-  /* Texbox buttons allows to select text activation, show text edit cursor when hovering. */
-  if (but->type == ButtonType::TextBox) {
-    WM_cursor_modal_set(data->window, WM_CURSOR_TEXT_EDIT);
   }
   else if (but->type == ButtonType::Num) {
     numedit_set_active(but);
