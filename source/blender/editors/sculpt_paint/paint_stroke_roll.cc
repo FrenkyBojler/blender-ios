@@ -1678,21 +1678,40 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
   const float ty = fy - float(iy);
 
   /* Bilinear interpolation of UV from 4 nearest LUT cells. */
-  const float2 &uv00 = cache.roll_lut_uv[iy * RES + ix];
-  const float2 &uv10 = cache.roll_lut_uv[iy * RES + ix + 1];
-  const float2 &uv01 = cache.roll_lut_uv[(iy + 1) * RES + ix];
-  const float2 &uv11 = cache.roll_lut_uv[(iy + 1) * RES + ix + 1];
+  float2 uv00 = cache.roll_lut_uv[iy * RES + ix];
+  float2 uv10 = cache.roll_lut_uv[iy * RES + ix + 1];
+  float2 uv01 = cache.roll_lut_uv[(iy + 1) * RES + ix];
+  float2 uv11 = cache.roll_lut_uv[(iy + 1) * RES + ix + 1];
+  float3 t00 = cache.roll_lut_tan[iy * RES + ix];
+  float3 t10 = cache.roll_lut_tan[iy * RES + ix + 1];
+  float3 t01 = cache.roll_lut_tan[(iy + 1) * RES + ix];
+  float3 t11 = cache.roll_lut_tan[(iy + 1) * RES + ix + 1];
 
   /* If any of the 4 LUT pixels was never rasterized (no grid quad covered
-   * it), its UV is the FLT_MAX sentinel.  Return large U so this result
-   * loses the mirror-symmetry comparison. */
-  if (UNLIKELY(uv00.x >= FLT_MAX * 0.5f || uv10.x >= FLT_MAX * 0.5f ||
-               uv01.x >= FLT_MAX * 0.5f || uv11.x >= FLT_MAX * 0.5f))
-  {
-    r_out[0] = FLT_MAX;
-    r_out[1] = r_out[2] = 0.0f;
-    zero_v3(r_tan);
-    return;
+   * it), fill it from the nearest valid neighbor among the other 3 so the
+   * bilinear sample produces a sensible UV instead of a V-near-zero value
+   * that lands on tile boundaries under texture repeat. */
+  constexpr float INVALID = FLT_MAX * 0.5f;
+  const bool b00 = uv00.x >= INVALID;
+  const bool b10 = uv10.x >= INVALID;
+  const bool b01 = uv01.x >= INVALID;
+  const bool b11 = uv11.x >= INVALID;
+  if (UNLIKELY(b00 || b10 || b01 || b11)) {
+    /* If ALL four are invalid, fall back to FLT_MAX so the symmetry
+     * comparison in sculpt_apply_texture discards this sample. */
+    if (b00 && b10 && b01 && b11) {
+      r_out[0] = FLT_MAX;
+      r_out[1] = r_out[2] = 0.0f;
+      zero_v3(r_tan);
+      return;
+    }
+    /* Find any valid neighbor to clone from. */
+    const float2 fill_uv = !b00 ? uv00 : !b10 ? uv10 : !b01 ? uv01 : uv11;
+    const float3 fill_t = !b00 ? t00 : !b10 ? t10 : !b01 ? t01 : t11;
+    if (b00) { uv00 = fill_uv; t00 = fill_t; }
+    if (b10) { uv10 = fill_uv; t10 = fill_t; }
+    if (b01) { uv01 = fill_uv; t01 = fill_t; }
+    if (b11) { uv11 = fill_uv; t11 = fill_t; }
   }
 
   const float2 uv_result = (1 - tx) * (1 - ty) * uv00 + tx * (1 - ty) * uv10 +
@@ -1702,11 +1721,7 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
   r_out[1] = uv_result.y;
   r_out[2] = 0.0f;
 
-  /* Bilinear interpolation of tangent. */
-  const float3 &t00 = cache.roll_lut_tan[iy * RES + ix];
-  const float3 &t10 = cache.roll_lut_tan[iy * RES + ix + 1];
-  const float3 &t01 = cache.roll_lut_tan[(iy + 1) * RES + ix];
-  const float3 &t11 = cache.roll_lut_tan[(iy + 1) * RES + ix + 1];
+  /* Bilinear interpolation of tangent (using filled-in values if edge). */
   const float3 tan = math::normalize((1 - tx) * (1 - ty) * t00 + tx * (1 - ty) * t10 +
                                      (1 - tx) * ty * t01 + tx * ty * t11);
   copy_v3_v3(r_tan, tan);
