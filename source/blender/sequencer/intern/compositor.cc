@@ -12,6 +12,7 @@
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_utilities.hh"
 
+#include "GPU_state.hh"
 #include "GPU_texture_pool.hh"
 
 #include "IMB_colormanagement.hh"
@@ -131,9 +132,7 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     return;
   }
 
-  compositor::Result result_cpu = this->use_gpu() ? result.download_to_cpu() : result;
-
-  result_translation_ = result_cpu.domain().transformation.location();
+  result_translation_ = result.domain().transformation.location();
   const int output_size_x = result.domain().data_size.x;
   const int output_size_y = result.domain().data_size.y;
   if (output_size_x != image.x || output_size_y != image.y || !image.float_buffer.data) {
@@ -144,16 +143,19 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     image.y = output_size_y;
     IMB_alloc_float_pixels(&image, 4, false);
   }
-  std::memcpy(image.float_data_for_write(),
-              result_cpu.cpu_data().data(),
-              IMB_get_pixel_count(&image) * sizeof(float) * 4);
+
+  if (this->use_gpu()) {
+    GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+    GPU_texture_read(result.gpu_texture(), GPU_DATA_FLOAT, 0, image.float_data_for_write());
+  }
+  else {
+    std::memcpy(image.float_data_for_write(),
+                result.cpu_data().data(),
+                IMB_get_pixel_count(&image) * sizeof(float) * 4);
+  }
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);
   IMB_colormanagement_assign_float_colorspace(&image, to_colorspace);
-
-  if (this->use_gpu()) {
-    result_cpu.release();
-  }
 }
 
 void CompositorContext::write_outputs(const bNodeTree &node_group,
