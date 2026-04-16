@@ -436,24 +436,23 @@ void IMB_copy_rect(uchar *dst,
 
 void IMB_copy_rect(ImBuf *dst, const ImBuf *src, const rcti &src_rect, const rcti &dst_rect)
 {
-  const int2 src_size(src->x, src->y);
-  const int2 size_dst(BLI_rcti_size_x(&dst_rect), BLI_rcti_size_y(&dst_rect));
-  if (const uchar *byte_data = src->byte_data()) {
-    IMB_assign_byte_buffer(
-        dst, create_cropped_buffer(byte_data, src_size, src_rect, dst_rect), IB_TAKE_OWNERSHIP);
-    dst->byte_buffer.colorspace = src->byte_buffer.colorspace;
+  if (src->byte_data() && dst->byte_data()) {
+    IMB_copy_rect(dst->byte_data_for_write(),
+                  int2(dst->x, dst->y),
+                  src->byte_data(),
+                  int2(src->x, src->y),
+                  src_rect,
+                  dst_rect);
   }
-  if (const float *float_data = src->float_data()) {
-    IMB_assign_float_buffer(
-        dst,
-        create_cropped_buffer(float_data, src_size, src->channels, src_rect, dst_rect),
-        IB_TAKE_OWNERSHIP);
-    dst->float_buffer.colorspace = src->float_buffer.colorspace;
-    dst->channels = src->channels;
+  if (src->float_data() && dst->float_data()) {
+    IMB_copy_rect(dst->float_data_for_write(),
+                  int2(dst->x, dst->y),
+                  src->float_data(),
+                  int2(src->x, src->y),
+                  src->channels,
+                  src_rect,
+                  dst_rect);
   }
-
-  dst->x = size_dst.x;
-  dst->y = size_dst.y;
 }
 
 void IMB_crop(ImBuf *ibuf, const rcti &rect)

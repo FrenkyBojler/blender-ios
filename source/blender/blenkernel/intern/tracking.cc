@@ -2686,6 +2686,22 @@ ImBuf *BKE_tracking_get_search_imbuf(const ImBuf *ibuf,
 
   searchibuf = IMB_allocImBuf(w, h, 32, ibuf->float_data() ? IB_float_data : IB_byte_data);
 
+  /* Clamp copy region to image bounds. */
+  if (x < 0) {
+    w += x;
+    x = 0;
+  }
+  if (y < 0) {
+    h += y;
+    y = 0;
+  }
+  if (x + w > ibuf->x) {
+    w = ibuf->x - x;
+  }
+  if (y + h > ibuf->y) {
+    h = ibuf->y - y;
+  }
+
   const rcti src_rect = {
       .xmin = x,
       .xmax = x + w,
