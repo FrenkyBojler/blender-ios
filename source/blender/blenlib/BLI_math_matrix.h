@@ -567,10 +567,6 @@ void BLI_space_transform_apply(const struct SpaceTransform *data, float co[3]);
 void BLI_space_transform_invert(const struct SpaceTransform *data, float co[3]);
 void BLI_space_transform_apply_normal(const struct SpaceTransform *data, float no[3]);
 void BLI_space_transform_invert_normal(const struct SpaceTransform *data, float no[3]);
-/**
- * TODO: Investigate making this the default behavior for #BLI_space_transform_invert_normal.
- */
-void BLI_space_transform_invert_normal_non_uniform(const struct SpaceTransform *data, float no[3]);
 
 #define BLI_SPACE_TRANSFORM_SETUP(data, local, target) \
   BLI_space_transform_from_matrices( \

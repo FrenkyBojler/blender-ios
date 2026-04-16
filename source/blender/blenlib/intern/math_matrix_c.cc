@@ -2965,12 +2965,6 @@ void BLI_space_transform_apply_normal(const SpaceTransform *data, float no[3])
 
 void BLI_space_transform_invert_normal(const SpaceTransform *data, float no[3])
 {
-  mul_mat3_m4_v3((const_cast<SpaceTransform *>(data))->target2local, no);
-  normalize_v3(no);
-}
-
-void BLI_space_transform_invert_normal_non_uniform(const SpaceTransform *data, float no[3])
-{
   mul_transposed_mat3_m4_v3(data->local2target, no);
   normalize_v3(no);
 }
