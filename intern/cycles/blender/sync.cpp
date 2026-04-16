@@ -304,11 +304,12 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
   /* For auto refresh images. */
   ImageManager *image_manager = scene->image_manager.get();
   const int frame = b_scene->r.cfra;
+  const bool frame_update = scene->frame_last_synced != frame;
   const bool auto_refresh_update = image_manager->set_animation_frame_update(frame);
 
-  if (scene->frame_last_synced != frame) {
-    sync_scene_attributes();
+  if (frame_update) {
     scene->frame_last_synced = frame;
+    has_updates_ = true;
   }
 
   if (!has_updates_ && !auto_refresh_update) {
@@ -323,10 +324,11 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
    * implicit check on whether it is a background render or not. What is the nicer thing here? */
   const bool background = !b_v3d;
 
+  sync_scene_attributes();
   sync_view_layer(b_view_layer);
   sync_integrator(b_view_layer, background, denoise_device_info);
   sync_film(b_view_layer, b_screen, b_v3d);
-  sync_shaders(b_depsgraph, b_screen, b_v3d, auto_refresh_update);
+  sync_shaders(b_depsgraph, b_screen, b_v3d, auto_refresh_update || frame_update);
   sync_images();
 
   geometry_synced.clear(); /* use for objects and motion sync */
@@ -581,8 +583,6 @@ void BlenderSync::sync_scene_attributes()
 
   scene_attribute->set_time(time);
   scene_attribute->set_frame(frame);
-
-  scene_attribute->tag_update(scene, SceneAttributes::UPDATE_ALL);
 }
 
 /* Film */

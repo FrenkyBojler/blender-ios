@@ -17,10 +17,6 @@
 #include "util/task.h"
 #include "util/time.h"
 
-
-#include "scene/shader.h"
-
-
 CCL_NAMESPACE_BEGIN
 
 NODE_DEFINE(SceneAttributes)
@@ -64,8 +60,6 @@ void SceneAttributes::tag_update(Scene *scene, const uint32_t flag)
 {
   if (flag == UPDATE_ALL) {
     tag_modified();
-
-    scene->shader_manager->tag_update(scene, ShaderManager::SHADER_MODIFIED);
   }
 }
 
