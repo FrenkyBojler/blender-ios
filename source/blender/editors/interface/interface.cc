@@ -6109,32 +6109,39 @@ bool button_is_color_gamma(Button &but)
 void button_placeholder_set(Button *but, const StringRef placeholder_text)
 {
   MEM_SAFE_DELETE(but->placeholder);
-  if (placeholder_text.is_empty()) {
-    but->placeholder = nullptr;
-  }
-  else {
-    but->placeholder = BLI_strdupn(placeholder_text.data(), placeholder_text.size());
-  }
+  but->placeholder = BLI_strdupn(placeholder_text.data(), placeholder_text.size());
 }
 
 const char *button_placeholder_get(Button *but)
 {
   const char *placeholder = (but->placeholder) ? but->placeholder : nullptr;
 
-  if (!placeholder && but->rnaprop) {
+  if (but->rnaprop) {
     if (but->type == ButtonType::SearchMenu) {
-      StructRNA *type = RNA_property_pointer_type(&but->rnapoin, but->rnaprop);
-      const short idcode = RNA_type_to_ID_code(type);
-      if (idcode != 0) {
-        RNA_enum_name(rna_enum_id_type_items, idcode, &placeholder);
-        placeholder = CTX_IFACE_(BLT_I18NCONTEXT_ID_ID, placeholder);
+      if (!placeholder && but->str.empty()) {
+        placeholder = RNA_property_ui_name(but->rnaprop);
       }
-      else if (type && !STREQ(RNA_struct_identifier(type), "UnknownType")) {
-        placeholder = RNA_struct_ui_name(type);
+
+      /* Add ID type name as label even if placeholder is explicitly empty. */
+      else if (!placeholder || placeholder[0] == '\0') {
+        StructRNA *type = RNA_property_pointer_type(&but->rnapoin, but->rnaprop);
+        const short idcode = RNA_type_to_ID_code(type);
+        if (idcode != 0) {
+          RNA_enum_name(rna_enum_id_type_items, idcode, &placeholder);
+          placeholder = CTX_IFACE_(BLT_I18NCONTEXT_ID_ID, placeholder);
+        }
+        else if (type && !STREQ(RNA_struct_identifier(type), "UnknownType")) {
+          placeholder = RNA_struct_ui_name(type);
+        }
       }
     }
-    else if (but->type == ButtonType::Text && but->icon == ICON_VIEWZOOM) {
-      placeholder = CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Search");
+    else if (!placeholder) {
+      if (but->type == ButtonType::Text && but->icon == ICON_VIEWZOOM) {
+        placeholder = CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Search");
+      }
+      else if (but->str.empty()) {
+        placeholder = RNA_property_ui_name(but->rnaprop);
+      }
     }
   }
 

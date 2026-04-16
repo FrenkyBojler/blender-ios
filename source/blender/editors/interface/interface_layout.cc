@@ -2336,8 +2336,8 @@ void Layout::prop(PointerRNA *ptr,
     if (placeholder) {
       button_placeholder_set(but, *placeholder);
     }
-    else if (name_opt && name_opt->is_empty()) {
-      button_placeholder_set(but, RNA_property_ui_name(prop));
+    else if (!(name_opt && name_opt->is_empty())) {
+      button_placeholder_set(but, "");
     }
 
     if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)) {
@@ -2892,8 +2892,8 @@ void Layout::prop_search(PointerRNA *ptr,
   if (placeholder) {
     button_placeholder_set(but, *placeholder);
   }
-  else if (name_opt && name_opt->is_empty()) {
-    button_placeholder_set(but, RNA_property_ui_name(prop));
+  else if (!(name_opt && name_opt->is_empty())) {
+    button_placeholder_set(but, "");
   }
 
   button_configure_search(
