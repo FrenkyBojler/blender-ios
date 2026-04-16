@@ -196,7 +196,11 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   return timeline;
 }
 
-void VKContext::finish() {}
+void VKContext::finish()
+{
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+}
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 {
@@ -371,13 +375,13 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
   r_pipeline_data.vk_pipeline = vk_pipeline;
 
   /* Update push constants. */
-  r_pipeline_data.push_constants_data = nullptr;
-  r_pipeline_data.push_constants_size = 0;
+  r_pipeline_data.push_constants_range = IndexRange::from_begin_size(0, 0);
   const VKPushConstants::Layout &push_constants_layout =
       vk_shader.interface_get().push_constants_layout_get();
   if (push_constants_layout.storage_type_get() == VKPushConstants::StorageType::PUSH_CONSTANTS) {
-    r_pipeline_data.push_constants_size = push_constants_layout.size_in_bytes();
-    r_pipeline_data.push_constants_data = vk_shader.push_constants.data();
+    r_pipeline_data.push_constants_range = render_graph().copy_push_constants(
+        Span<uint8_t>(static_cast<const uint8_t *>(vk_shader.push_constants.data()),
+                      push_constants_layout.size_in_bytes()));
   }
 
   /* Update descriptor set. */
@@ -565,7 +569,9 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
   switch (openxr_data.data_transfer_mode) {
     case GHOST_kVulkanXRModeCPU:
-      openxr_data.cpu.image_data = color_attachment->read(0, data_format);
+      openxr_data.cpu.image_data = MEM_new_uninitialized(
+          color_attachment->read_size_get(0, data_format), __func__);
+      color_attachment->read(0, data_format, openxr_data.cpu.image_data);
       break;
 
     case GHOST_kVulkanXRModeFD: {

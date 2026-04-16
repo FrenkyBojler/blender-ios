@@ -643,7 +643,7 @@ static void uilist_filter_items(uiList *ui_list,
         int t_idx, t_ni, prev_ni;
         flt_data->items_shown = 0;
         for (i = 0, shown_idx = 0; i < len; i++) {
-          if (ui::list_item_index_is_filtered_visible(ui_list, i)) {
+          if (ui::uilist_item_index_is_filtered_visible(ui_list, i)) {
             filter_neworder[shown_idx++] = filter_neworder[i];
           }
         }
@@ -671,7 +671,7 @@ static void uilist_filter_items(uiList *ui_list,
         /* we still have to set flt_data->items_shown... */
         flt_data->items_shown = 0;
         for (i = 0; i < len; i++) {
-          if (ui::list_item_index_is_filtered_visible(ui_list, i)) {
+          if (ui::uilist_item_index_is_filtered_visible(ui_list, i)) {
             flt_data->items_shown++;
           }
         }
@@ -2586,6 +2586,17 @@ static void rna_def_layout_panel_state(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Is Open", "");
 }
 
+static void rna_def_ui_textbox_state(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "TextboxState", nullptr);
+  RNA_def_struct_sdna(srna, "TextboxState");
+  PropertyRNA *prop;
+  prop = RNA_def_property(srna, "visible_lines", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  prop = RNA_def_property(srna, "scroll", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
 void RNA_def_ui(BlenderRNA *brna)
 {
   rna_def_ui_layout(brna);
@@ -2596,6 +2607,7 @@ void RNA_def_ui(BlenderRNA *brna)
   rna_def_asset_shelf(brna);
   rna_def_file_handler(brna);
   rna_def_layout_panel_state(brna);
+  rna_def_ui_textbox_state(brna);
 }
 
 }  // namespace blender

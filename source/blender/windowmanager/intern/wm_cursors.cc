@@ -79,12 +79,12 @@ struct BCursor {
 };
 
 /**
- * A static array aligned with #WMCursorType for simple lookups.
+ * A static array aligned with #wmCursorType for simple lookups.
  */
 static BCursor g_cursors[WM_CURSOR_NUM] = {{nullptr}};
 
 /** Blender cursor to GHOST standard cursor conversion. */
-static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
+static GHOST_TStandardCursor convert_to_ghost_standard_cursor(wmCursorType curs)
 {
   switch (curs) {
     case WM_CURSOR_DEFAULT:
@@ -443,7 +443,7 @@ void WM_cursor_set(wmWindow *win, int curs)
     return;
   }
 
-  GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
+  GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(wmCursorType(curs));
 
   if (!use_only_custom_cursors && ghost_cursor != GHOST_kStandardCursorCustom &&
       ghost_window->hasCursorShape(ghost_cursor))
@@ -825,7 +825,7 @@ static uint8_t *cursor_bitmap_from_text(const char *text,
 
 static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_id)
 {
-  struct WMCursorText {
+  struct wmCursorText {
     char text[CURSOR_TEXT_BUFFER_SIZE];
     int font_id;
   };
@@ -838,7 +838,7 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
                                      int r_bitmap_size[2],
                                      int r_hot_spot[2],
                                      bool *r_can_invert_color) -> uint8_t * {
-    const WMCursorText &cursor_text = *static_cast<const WMCursorText *>(
+    const wmCursorText &cursor_text = *static_cast<const wmCursorText *>(
         cursor_generator->user_data);
 
     int bitmap_size[2];
@@ -865,13 +865,13 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
     return bitmap_rgba;
   };
 
-  WMCursorText *cursor_text = MEM_new<WMCursorText>(__func__);
+  wmCursorText *cursor_text = MEM_new<wmCursorText>(__func__);
   STRNCPY_UTF8(cursor_text->text, text);
   cursor_text->font_id = font_id;
 
   cursor_generator->user_data = static_cast<void *>(cursor_text);
   cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
-    const WMCursorText *cursor_text = static_cast<WMCursorText *>(cursor_generator->user_data);
+    const wmCursorText *cursor_text = static_cast<wmCursorText *>(cursor_generator->user_data);
     MEM_delete(cursor_text);
     MEM_delete(cursor_generator);
   };
@@ -976,7 +976,7 @@ void WM_cursor_progress(wmWindow *win, float progress_factor)
 }
 
 #ifndef WITH_HEADLESS
-static void wm_add_cursor(WMCursorType cursor,
+static void wm_add_cursor(wmCursorType cursor,
                           const char *svg_source,
                           const float2 &hotspot,
                           bool can_invert = false)

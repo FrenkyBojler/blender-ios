@@ -495,7 +495,7 @@ uint64_t ShaderManager::get_attribute_id(AttributeStandard std)
   return (uint64_t)std;
 }
 
-int ShaderManager::get_shader_id(Shader *shader, bool smooth)
+int ShaderManager::get_shader_id(const Shader *shader, bool smooth)
 {
   /* get a shader id to pass to the kernel */
   int id = shader->id;
@@ -506,7 +506,7 @@ int ShaderManager::get_shader_id(Shader *shader, bool smooth)
   }
 
   /* default flags */
-  id |= SHADER_CAST_SHADOW | SHADER_AREA_LIGHT;
+  id |= SHADER_CAST_SHADOW;
 
   return id;
 }
@@ -892,7 +892,7 @@ string ShaderManager::get_cryptomatte_materials(Scene *scene)
   string manifest = "{";
   unordered_set<ustring> materials;
   for (Shader *shader : scene->shaders) {
-    if (materials.count(shader->name)) {
+    if (materials.contains(shader->name)) {
       continue;
     }
     materials.insert(shader->name);

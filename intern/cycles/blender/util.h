@@ -336,7 +336,7 @@ static inline bool image_is_builtin(blender::Image &ima, blender::RenderEngine &
   }
 
   return BKE_image_has_packedfile(&ima) || image_source == blender::IMA_SRC_GENERATED ||
-         image_source == blender::IMA_SRC_MOVIE ||
+         image_source == blender::IMA_SRC_MOVIE || BKE_image_is_dirty(&ima) ||
          ((engine.flag & blender::RE_ENGINE_PREVIEW) != 0 &&
           image_source != blender::IMA_SRC_SEQUENCE);
 }
@@ -477,14 +477,14 @@ static inline void set_string(blender::PointerRNA &ptr, const char *name, const 
 /* Relative Paths */
 
 static inline string blender_absolute_path(blender::Main &b_data,
-                                           blender::ID &b_id,
+                                           blender::ID *b_id,
                                            const string &path)
 {
   if (path.size() >= 2 && path[0] == '/' && path[1] == '/') {
     string dirname;
 
-    if (b_id.lib) {
-      dirname = blender_absolute_path(b_data, b_id.lib->id, b_id.lib->filepath);
+    if (b_id && b_id->lib) {
+      dirname = blender_absolute_path(b_data, &b_id->lib->id, b_id->lib->filepath);
     }
     else {
       dirname = b_data.filepath;
@@ -787,7 +787,7 @@ class EdgeMap {
   bool exists(int v0, int v1)
   {
     get_sorted_verts(v0, v1);
-    return edges_.find(std::pair<int, int>(v0, v1)) != edges_.end();
+    return edges_.contains(std::pair<int, int>(v0, v1));
   }
 
  protected:
