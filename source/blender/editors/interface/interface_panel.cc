@@ -2623,7 +2623,29 @@ static int handle_panel_category_cycling(const wmEvent *event,
 static ARegion *WM_panel_category_tooltip_init(
     bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
 {
-  return ui::tooltip_create_from_panel_category(C, TIP_(region->runtime->category_tip_name));
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+
+  bScreen *screen = CTX_wm_screen(C);
+  const int mouse_x = screen->tool_tip->event_xy[0];
+  const int mouse_y = screen->tool_tip->event_xy[1];
+  PanelCategoryDyn *tab = nullptr;
+  for (PanelCategoryDyn &ptd : region->runtime->panels_category) {
+    if (BLI_rcti_isect_pt(&ptd.rect, mouse_x - region->winrct.xmin, mouse_y - region->winrct.ymin))
+    {
+      tab = &ptd;
+      break;
+    }
+  }
+
+  if (tab) {
+    const int x = tab->rect.xmax + region->winrct.xmin +
+                  int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC);
+    const int y = tab->rect.ymax + region->winrct.ymin + int(4.0f * UI_SCALE_FAC);
+    return ui::tooltip_create_from_panel_category(
+        C, TIP_(region->runtime->category_tip_name), x, y);
+  }
+
+  return nullptr;
 }
 
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)

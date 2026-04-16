@@ -3051,7 +3051,10 @@ ARegion *tooltip_create_from_button_or_extra_icon(bContext *C,
                                                   ButtonExtraOpIcon *extra_icon,
                                                   bool is_quick_tip);
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
-ARegion *tooltip_create_from_panel_category(bContext *C, const std::string &category_name);
+ARegion *tooltip_create_from_panel_category(bContext *C,
+                                            const std::string &category_name,
+                                            const int x,
+                                            const int y);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 
