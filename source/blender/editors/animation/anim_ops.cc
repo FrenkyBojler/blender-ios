@@ -1611,6 +1611,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
   Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
+  int skipped_datablocks = 0;
   int skipped_actions = 0;
 
   Main *bmain = CTX_data_main(C);
@@ -1621,6 +1622,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
     }
     ID *owner_id = transformable.owner_id();
     if (!BKE_id_is_editable(bmain, owner_id)) {
+      skipped_datablocks++;
       continue;
     }
     int visited_actions = 0;
@@ -1664,6 +1666,13 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
       }
       prev_id = owner_id;
     }
+  }
+
+  if (skipped_datablocks > 0) {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Skipped data-blocks because they cannot be edited: %d",
+                skipped_datablocks);
   }
 
   if (skipped_actions > 0) {
