@@ -1252,9 +1252,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       node->custom1 = data->parametrization;
     }
 
-    writer->write_struct<bNode>(node, [](BlendStructWriter<bNode> &struct_writer) {
-      struct_writer.runtime_ptr(&bNode::runtime);
-      struct_writer.runtime_ptr(&bNode::typeinfo);
+    writer->write_struct(node, [](BlendStructWriter &struct_writer) {
+      struct_writer.runtime_ptr(offsetof(bNode, bNode::runtime));
+      struct_writer.runtime_ptr(offsetof(bNode, bNode::typeinfo));
     });
 
     if (node->prop) {

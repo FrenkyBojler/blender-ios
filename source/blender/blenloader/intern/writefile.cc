@@ -871,7 +871,7 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const int64_t nr,
                                       const void *adr,
                                       const void *data,
-                                      const GBlendStructWriterFn fn)
+                                      const BlendStructWriterFn fn)
 {
   BLI_assert(struct_nr > 0 && struct_nr <= dna::sdna_struct_id_get_max());
 
@@ -928,7 +928,7 @@ static void writestruct_at_address_nr(WriteData *wd,
     if (fn) {
       for (const int i : IndexRange(nr)) {
         const int offset = i * struct_info.size_in_bytes;
-        GBlendStructWriter struct_writer(
+        BlendStructWriter struct_writer(
             *wd,
             struct_nr,
             {static_cast<char *>(POINTER_OFFSET(buffer, offset)), struct_info.size_in_bytes});
@@ -957,7 +957,7 @@ static void writestruct_at_address_nr(WriteData *wd,
   mywrite(wd, data_to_write, size_t(bh.len));
 }
 
-void GBlendStructWriter::maybe_generated_ptr(const int64_t offset)
+void BlendStructWriter::maybe_generated_ptr(const int64_t offset)
 {
   if (!wd_->use_memfile) {
     /* When writing to file, all pointers are remapped to stable pointers. */
@@ -969,7 +969,7 @@ void GBlendStructWriter::maybe_generated_ptr(const int64_t offset)
   *p_ptr = p_ptr_address_id;
 }
 
-void GBlendStructWriter::any_pointer_maybe_generated()
+void BlendStructWriter::any_pointer_maybe_generated()
 {
   const dna::pointers::StructInfo &struct_info =
       wd_->stable_address_ids.sdna_pointers->get_for_struct(struct_nr_);
@@ -983,7 +983,7 @@ static void writestruct_nr(WriteData *wd,
                            const int struct_nr,
                            const int64_t nr,
                            const void *adr,
-                           const GBlendStructWriterFn fn)
+                           const BlendStructWriterFn fn)
 {
   writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr, fn);
 }
@@ -1069,7 +1069,7 @@ static void writelist_nr(WriteData *wd,
                          const int filecode,
                          const int struct_nr,
                          const ListBase *lb,
-                         const GBlendStructWriterFn fn)
+                         const BlendStructWriterFn fn)
 {
   const Link *link = static_cast<Link *>(lb->first);
 
@@ -2205,7 +2205,7 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
 
 void BlendWriter::write_struct_by_name(const char *struct_name,
                                        const void *data,
-                                       const GBlendStructWriterFn fn)
+                                       const BlendStructWriterFn fn)
 {
   this->write_struct_array_by_name(struct_name, 1, data, fn);
 }
@@ -2213,7 +2213,7 @@ void BlendWriter::write_struct_by_name(const char *struct_name,
 void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const int64_t array_size,
                                              const void *data,
-                                             const GBlendStructWriterFn fn)
+                                             const BlendStructWriterFn fn)
 {
   int struct_id = this->struct_id_by_name(struct_name);
   if (UNLIKELY(struct_id == -1)) {
@@ -2225,7 +2225,7 @@ void BlendWriter::write_struct_array_by_name(const char *struct_name,
 
 void BlendWriter::write_struct_by_id(const int struct_id,
                                      const void *data,
-                                     const GBlendStructWriterFn fn)
+                                     const BlendStructWriterFn fn)
 {
   writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, 1, data, fn);
 }
@@ -2233,7 +2233,7 @@ void BlendWriter::write_struct_by_id(const int struct_id,
 void BlendWriter::write_struct_at_address_by_id(const int struct_id,
                                                 const void *address,
                                                 const void *data,
-                                                const GBlendStructWriterFn fn)
+                                                const BlendStructWriterFn fn)
 {
   this->write_struct_at_address_by_id_with_filecode(BLO_CODE_DATA, struct_id, address, data, fn);
 }
@@ -2242,7 +2242,7 @@ void BlendWriter::write_struct_at_address_by_id_with_filecode(const int filecode
                                                               const int struct_id,
                                                               const void *address,
                                                               const void *data,
-                                                              const GBlendStructWriterFn fn)
+                                                              const BlendStructWriterFn fn)
 {
   writestruct_at_address_nr(this->wd, filecode, struct_id, 1, address, data, fn);
 }
@@ -2250,7 +2250,7 @@ void BlendWriter::write_struct_at_address_by_id_with_filecode(const int filecode
 void BlendWriter::write_struct_array_by_id(const int struct_id,
                                            const int64_t array_size,
                                            const void *data,
-                                           const GBlendStructWriterFn fn)
+                                           const BlendStructWriterFn fn)
 {
   writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, data, fn);
 }
@@ -2259,21 +2259,21 @@ void BlendWriter::write_struct_array_at_address_by_id(const int struct_id,
                                                       const int64_t array_size,
                                                       const void *address,
                                                       const void *data,
-                                                      const GBlendStructWriterFn fn)
+                                                      const BlendStructWriterFn fn)
 {
   writestruct_at_address_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, address, data, fn);
 }
 
 void BlendWriter::write_struct_list_by_id(const int struct_id,
                                           const ListBase *list,
-                                          const GBlendStructWriterFn fn)
+                                          const BlendStructWriterFn fn)
 {
   writelist_nr(this->wd, BLO_CODE_DATA, struct_id, list, fn);
 }
 
 void BlendWriter::write_struct_list_by_name(const char *struct_name,
                                             ListBase *list,
-                                            const GBlendStructWriterFn fn)
+                                            const BlendStructWriterFn fn)
 {
   int struct_id = this->struct_id_by_name(struct_name);
   if (UNLIKELY(struct_id == -1)) {
