@@ -985,6 +985,8 @@ static bool has_external_files(Main *bmain, ReportList *reports)
 constexpr int DRAG_THRESHOLD = 4;
 
 struct ScreenshotOperatorData {
+  const asset_system::AssetRepresentation *asset;
+
   void *draw_handle;
   int2 drag_start, drag_end, last_cursor;
   /* Screenshot points may not be set immediately to allow for clicking to create a screenshot with
@@ -1218,8 +1220,12 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     }
   }
 
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
+  /* Will be null if the operator was executed directly, without the invoke callback. */
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+
+  const asset_system::AssetRepresentation *asset_handle = data ? data->asset : CTX_wm_asset(C);
   BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
+
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
 
   Main *bmain = CTX_data_main(C);
@@ -1447,6 +1453,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
 
   op->customdata = MEM_new_zeroed<ScreenshotOperatorData>(__func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+  data->asset = CTX_wm_asset(C);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->is_mouse_down = false;
   RNA_int_get_array(op->ptr, "p1", data->p1);
