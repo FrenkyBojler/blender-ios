@@ -173,7 +173,7 @@ ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
   {
     const eShaderType shader_list[] = {
         FAST_GI_DENOISE, FAST_GI_RESOLVE, FAST_GI_SCAN, FAST_GI_SETUP};
-    request(FAST_GI_SCAN_SHADERS, AS_SPAN(shader_list));
+    request(FAST_GI_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {LIGHT_CULLING_DEBUG,
