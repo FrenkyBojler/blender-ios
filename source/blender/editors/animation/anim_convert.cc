@@ -9,11 +9,18 @@
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 
+#include "BKE_context.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_lib_id.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_rna.hh"
+
+#include "DEG_depsgraph.hh"
+
+#include "WM_api.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_transformable.hh"
@@ -336,6 +343,56 @@ void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
         animrig::bake_fcurve(fcurve, int2(range), 1, animrig::BakeCurveRemove::ALL);
       }
     }
+  }
+}
+
+void convert_to_rotation_mode(bContext &C,
+                              animrig::Transformable &transformable,
+                              const eRotationModes to_mode,
+                              const bool bake)
+{
+  if (transformable.get_rotation_mode() == to_mode) {
+    return;
+  }
+  Main *bmain = CTX_data_main(&C);
+  if (!BKE_id_is_editable(bmain, transformable.owner_id())) {
+    return;
+  }
+  /* A map built per action to make it quicker to find the FCurves by RNA path. */
+  Map<std::pair<animrig::Action *, int32_t>, ChannelbagToFCurveMap> data_map;
+
+  bool converted_actions = false;
+  animrig::foreach_action_slot_use(
+      *transformable.owner_id(),
+      [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+        if (!BKE_id_is_editable(bmain, &action.id)) {
+          return true;
+        }
+        if (!data_map.contains({&action, slot_handle})) {
+          ChannelbagToFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
+          data_map.add({&action, slot_handle}, fcurve_map);
+        }
+        ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
+        if (bake) {
+          bake_rotation_fcurves(channelbag_fcurve_map, transformable);
+        }
+        converted_actions |= convert_rotation_keys(
+            bmain, transformable, channelbag_fcurve_map, to_mode);
+        DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+        return true;
+      });
+
+  if (converted_actions) {
+    transformable.set_rotation_mode(to_mode);
+    ID *id = transformable.owner_id();
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, id);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, id);
+  }
+  else {
+    animrig::Rotation rotation = transformable.get_rotation();
+    transformable.set_rotation_mode(to_mode);
+    transformable.set_rotation(rotation.converted_to_mode(to_mode));
   }
 }
 

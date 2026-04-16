@@ -1355,4 +1355,14 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(animrig::Action &action,
 void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
                            const animrig::Transformable &transformable);
 
+/**
+ * A high level function that converts the given transformable and the animation on its rotation
+ * channels into a different rotation mode. In contrast to the lower level functions like
+ * `convert_rotation_keys`, this tags the dependency graph for updates and sends WM notifiers.
+ */
+void convert_to_rotation_mode(bContext &C,
+                              animrig::Transformable &transformable,
+                              eRotationModes to_mode,
+                              bool bake);
+
 }  // namespace blender
