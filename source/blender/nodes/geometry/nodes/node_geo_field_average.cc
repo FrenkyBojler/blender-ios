@@ -95,7 +95,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Mean"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldAverage");
+          bNode &node = params.add_node("GeometryNodeFieldAverage"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Mean"_ustr);
         },
@@ -103,7 +103,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Median"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldAverage");
+          bNode &node = params.add_node("GeometryNodeFieldAverage"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Median"_ustr);
         },
@@ -113,7 +113,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Value"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldAverage");
+          bNode &node = params.add_node("GeometryNodeFieldAverage"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Value"_ustr);
         },
@@ -240,10 +240,10 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
   }
 
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const final
   {
-    input_.node().for_each_field_input_recursive(fn);
-    group_index_.node().for_each_field_input_recursive(fn);
+    fn(input_);
+    fn(group_index_);
   }
 
   uint64_t hash() const override
@@ -251,7 +251,7 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
     return get_default_hash(input_, group_index_, source_domain_, operation_);
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const FieldAverageInput *other_field = dynamic_cast<const FieldAverageInput *>(&other)) {
       return input_ == other_field->input_ && group_index_ == other_field->group_index_ &&
@@ -275,16 +275,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> group_index_field = params.extract_input<Field<int>>("Group Index"_ustr);
   const GField input_field = params.extract_input<GField>("Value"_ustr);
   if (params.output_is_required("Mean"_ustr)) {
-    params.set_output<GField>(
-        "Mean"_ustr,
-        GField{std::make_shared<FieldAverageInput>(
-            source_domain, input_field, group_index_field, Operation::Mean)});
+    params.set_output<GField>("Mean"_ustr,
+                              GField::from_input<FieldAverageInput>(
+                                  source_domain, input_field, group_index_field, Operation::Mean));
   }
   if (params.output_is_required("Median"_ustr)) {
     params.set_output<GField>(
         "Median"_ustr,
-        GField{std::make_shared<FieldAverageInput>(
-            source_domain, input_field, group_index_field, Operation::Median)});
+        GField::from_input<FieldAverageInput>(
+            source_domain, input_field, group_index_field, Operation::Median));
   }
 }
 
@@ -323,7 +322,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldAverage");
+  geo_node_type_base(&ntype, "GeometryNodeFieldAverage"_ustr);
   ntype.ui_name = "Field Average";
   ntype.ui_description = "Calculate the mean and median of a given field";
   ntype.nclass = NODE_CLASS_CONVERTER;

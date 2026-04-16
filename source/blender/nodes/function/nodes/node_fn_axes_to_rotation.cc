@@ -131,6 +131,10 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
   if (node.custom1 == node.custom2) {
+    static auto fallback_fn = mf::build::SI2_SO<float3, float3, math::Quaternion>(
+        "Axes to Rotation fallback",
+        [](const float3 & /*a*/, const float3 & /*b*/) { return math::Quaternion::identity(); });
+    builder.set_matching_fn(fallback_fn);
     return;
   }
   builder.construct_and_set_matching_fn<AxesToRotationFunction>(
@@ -175,7 +179,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeAxesToRotation", FN_NODE_AXES_TO_ROTATION);
+  fn_node_type_base(&ntype, "FunctionNodeAxesToRotation"_ustr, FN_NODE_AXES_TO_ROTATION);
   ntype.ui_name = "Axes to Rotation";
   ntype.ui_description =
       "Create a rotation from a primary and (ideally orthogonal) secondary axis";

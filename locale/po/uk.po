@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-30 09:56+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -3810,6 +3810,10 @@ msgid "Use always Vertex Color mode"
 msgstr "Вжити завжди режим Кольору Вершин"
 
 
+msgid "Threshold"
+msgstr "Поріг"
+
+
 msgid "Curve Jitter"
 msgstr "Крива тремтіння"
 
@@ -3840,6 +3844,11 @@ msgstr "Крива сили"
 
 msgid "Curve used for the strength"
 msgstr "Крива, використовувана для сили"
+
+
+msgctxt "Operator"
+msgid "Poly"
+msgstr "Полі"
 
 
 msgid "Eraser Mode"
@@ -3976,10 +3985,6 @@ msgstr "Спрощення"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Кількість кроків спрощення (більші значення зменшують точність заповнення)"
-
-
-msgid "Threshold"
-msgstr "Поріг"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -25922,10 +25927,6 @@ msgid "Calculate Overlap"
 msgstr "Розрахувати перекриття"
 
 
-msgid "Calculate self intersections and overlap before filling"
-msgstr "Перед заповненням розрахувати самоперетини та перекриття"
-
-
 msgid "Mask Layers"
 msgstr "Шари маски"
 
@@ -26242,6 +26243,10 @@ msgid "Texture Pixel Size factor along the stroke"
 msgstr "Фактор Розміру Пікселя Текстури уздовж штриха"
 
 
+msgid "Placement"
+msgstr "Розміщення"
+
+
 msgid "Show stroke fills of this material"
 msgstr "Показувати заповнення штриха з цим матеріалом"
 
@@ -26310,28 +26315,64 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
+msgid "Face Data"
+msgstr "Дані граней"
+
+
+msgid "Select by Face Strength"
+msgstr "Вибрати за Силою Грані"
+
+
+msgid "Set Face Strength"
+msgstr "Задати Силу Грані"
+
+
 msgid "Math"
 msgstr "Математика"
-
-
-msgid "Names"
-msgstr "Назви"
 
 
 msgid "Utilities"
 msgstr "Утиліти"
 
 
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Merge"
+msgstr "Об'єднання"
 
 
 msgid "Show/Hide"
 msgstr "Показати/приховати"
 
 
-msgid "Clean Up"
-msgstr "Вичищення"
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Sample"
+msgstr "Вибірка"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Primitives"
+msgstr "Примітиви"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
 
 
 msgid "Pivot Point"
@@ -26342,16 +26383,16 @@ msgid "Snap"
 msgstr "Підхоп"
 
 
+msgid "Import"
+msgstr "Імпортувати"
+
+
 msgid "Proportional Editing Falloff"
 msgstr "Спад Пропорційного Редагування"
 
 
 msgid "Mask Edit"
 msgstr "Редагування Маски"
-
-
-msgid "Sample"
-msgstr "Вибірка"
 
 
 msgid "Automasking"
@@ -26362,16 +26403,12 @@ msgid "Face Sets Edit"
 msgstr "Редагування Наборів Граней"
 
 
-msgid "Primitives"
-msgstr "Примітиви"
-
-
 msgid "Vertex Group Locks"
 msgstr "Блокування Груп Вершин"
 
 
-msgid "Import"
-msgstr "Імпортувати"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Mirror"
@@ -26410,10 +26447,6 @@ msgid "Select More/Less"
 msgstr "Вибрати більше/менше"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Select Similar"
 msgstr "Вибрати подібні"
 
@@ -26434,10 +26467,6 @@ msgid "Assign Material"
 msgstr "Призначити Матеріал"
 
 
-msgid "Metaball"
-msgstr "Метакуля"
-
-
 msgid "Light"
 msgstr "Слабко"
 
@@ -26452,6 +26481,10 @@ msgstr "Додати Зображення"
 
 msgid "Relations"
 msgstr "Зв'язки"
+
+
+msgid "Layout"
+msgstr "Розстановка"
 
 
 msgid "Rigid Body"
@@ -26486,12 +26519,16 @@ msgid "Link/Transfer Data"
 msgstr "Пов'язати/Перенести Дані"
 
 
+msgid "Keying"
+msgstr "Ключування"
+
+
 msgid "Hooks"
 msgstr "Гачки"
 
 
-msgid "Layout"
-msgstr "Розстановка"
+msgid "Tracking"
+msgstr "Стеження"
 
 
 msgid "Sculpt Set Pivot"
@@ -26514,14 +26551,6 @@ msgid "Propagate"
 msgstr "Поширити"
 
 
-msgid "Keying"
-msgstr "Ключування"
-
-
-msgid "Tracking"
-msgstr "Стеження"
-
-
 msgid "Toggle Bone Options"
 msgstr "Перемкнути параметри кісток"
 
@@ -26536,30 +26565,6 @@ msgstr "Відключити параметри кісток"
 
 msgid "Mesh Select Mode"
 msgstr "Режим Вибору Сіті"
-
-
-msgid "Face Data"
-msgstr "Дані граней"
-
-
-msgid "Select by Face Strength"
-msgstr "Вибрати за Силою Грані"
-
-
-msgid "Set Face Strength"
-msgstr "Задати Силу Грані"
-
-
-msgid "Merge"
-msgstr "Об'єднання"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
 
 
 msgid "Basic"
@@ -39734,10 +39739,6 @@ msgid "Minimal distance accepted between two features"
 msgstr "Мінімальна допустима відстань між двома деталями"
 
 
-msgid "Placement"
-msgstr "Розміщення"
-
-
 msgid "Placement for detected features"
 msgstr "Розміщення виявлених деталей"
 
@@ -47159,11 +47160,6 @@ msgid "Triangulate selected faces"
 msgstr "Тріангулювати вибрані грані"
 
 
-msgctxt "Operator"
-msgid "Select Boundary Loop"
-msgstr "Вибрати межову петлю"
-
-
 msgid "Select boundary edges around the selected faces"
 msgstr "Вибрати межові ребра навколо вибраних граней"
 
@@ -48675,10 +48671,6 @@ msgstr "Скопіювати колір для всіх обраних вузл�
 
 msgid "Option"
 msgstr "Опція"
-
-
-msgid "Overlay Mode"
-msgstr "Режим Накладання"
 
 
 msgid "HDR"
@@ -68831,6 +68823,10 @@ msgid "Display white edges"
 msgstr "Показувати білі краї"
 
 
+msgid "Overlay Mode"
+msgstr "Режим Накладання"
+
+
 msgid "Overlay mode of rasterized mask"
 msgstr "Режим накладання растрованої маски"
 
@@ -77156,11 +77152,6 @@ msgid "Cursor to Grid"
 msgstr "Курсор до Сітки"
 
 
-msgctxt "Operator"
-msgid "Poly"
-msgstr "Полі"
-
-
 msgid "Display Cursor"
 msgstr "Показ Курсора"
 
@@ -82321,10 +82312,6 @@ msgid "Marker offset %s"
 msgstr "Зсув мітки %s"
 
 
-msgid "Selecting the camera is only supported in object mode"
-msgstr "Вибирання камери підтримується лише в режимі об'єкта"
-
-
 msgid "Scene not found"
 msgstr "Сцену не знайдено"
 
@@ -85068,10 +85055,6 @@ msgid "Dynamic Topology found: %s, disabled"
 msgstr "Знайдена Динамічна топологія: %s, вимкнено"
 
 
-msgid "Palette created"
-msgstr "Палітру створено"
-
-
 msgid "Sample color for %s"
 msgstr "Вибірка кольору для %s"
 
@@ -85082,6 +85065,10 @@ msgstr "Пензель. Використовуйте лівий клацок м�
 
 msgid "Palette. Use Left Click to sample more colors"
 msgstr "Палітра. Використовуйте лівий клацок миші, щоб вибрати більше кольорів"
+
+
+msgid "Palette created"
+msgstr "Палітру створено"
 
 
 msgid "Compiled without sound support"
@@ -88284,10 +88271,6 @@ msgstr "Рекурсія виявлена у секвенсері відео. С
 
 msgid "Glow"
 msgstr "Сяяння"
-
-
-msgid "Blur X"
-msgstr "Розмив по X"
 
 
 msgid "Rim"
