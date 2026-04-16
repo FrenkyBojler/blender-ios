@@ -4873,6 +4873,15 @@ void node_draw_space(const bContext &C, ARegion &region)
           rcti viewer_region = {0, 0, 0, 0};
           if (ibuf) {
             BLI_rcti_init(&viewer_region, 0, ibuf->x, 0, ibuf->y);
+            if (ibuf->flags & IB_has_display_window) {
+              const float2 display_offset = float2(ibuf->display_offset);
+
+              /* Apply display_offset to viewer_region to match backdrop drawing. */
+              viewer_region.xmin += display_offset.x;
+              viewer_region.xmax += display_offset.x;
+              viewer_region.ymin += display_offset.y;
+              viewer_region.ymax += display_offset.y;
+            }
           }
           BKE_image_release_ibuf(ima, ibuf, lock);
 
