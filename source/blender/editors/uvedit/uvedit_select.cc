@@ -5798,7 +5798,22 @@ static bool overlap_tri_tri_uv_test(const float t1[3][2],
   return false;
 }
 
-static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
+enum eUVSelectOverlapMode {
+  UV_SELECT_OVERLAP_FACE = 0,
+  UV_SELECT_OVERLAP_ISLAND = 1,
+};
+
+static EnumPropertyItem prop_select_overlap_mode_items[] = {
+    {UV_SELECT_OVERLAP_FACE, "FACE", 0, "Face", "Select only overlapping faces"},
+    {UV_SELECT_OVERLAP_ISLAND,
+     "ISLAND",
+     0,
+     "Island",
+     "Select the entire UV island for overlapping faces"},
+    {0},
+};
+
+static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend, const bool select_island)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const Main *bmain = CTX_data_main(C);
@@ -6034,6 +6049,27 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     BLI_bvhtree_overlap_ex(probe_tree, uv_tree, nullptr, bvh_overlap_fn, &query_data, 1, 0);
   }
 
+  if (select_island) {
+    for (const int i : IndexRange(objects.size())) {
+      if (!objects_tag[i].has_overlap) {
+        continue;
+      }
+
+      Object *obedit = objects[i];
+      BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+      UVSelectLinkedHelper linked_helper(scene, bm);
+
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
+          linked_helper.face_add(efa);
+        }
+      }
+      linked_helper.tag_all();
+    }
+  }
+
   for (const int i : IndexRange(objects.size())) {
     Object *obedit = objects[i];
     const ChangedInfo &tag_info = objects_tag[i];
@@ -6074,14 +6110,15 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 static wmOperatorStatus uv_select_overlap_exec(bContext *C, wmOperator *op)
 {
   bool extend = RNA_boolean_get(op->ptr, "extend");
-  return uv_select_overlap(C, extend);
+  const eUVSelectOverlapMode mode = eUVSelectOverlapMode(RNA_enum_get(op->ptr, "mode"));
+  return uv_select_overlap(C, extend, mode == UV_SELECT_OVERLAP_ISLAND);
 }
 
 void UV_OT_select_overlap(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Select Overlap";
-  ot->description = "Select all UV faces which overlap each other";
+  ot->description = "Select overlapping UV faces or entire islands containing overlaps";
   ot->idname = "UV_OT_select_overlap";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -6090,6 +6127,8 @@ void UV_OT_select_overlap(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
+  ot->prop = RNA_def_enum(
+      ot->srna, "mode", prop_select_overlap_mode_items, UV_SELECT_OVERLAP_FACE, "Mode", "");
   RNA_def_boolean(ot->srna,
                   "extend",
                   false,
