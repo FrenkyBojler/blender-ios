@@ -1296,7 +1296,6 @@ static void gizmo_node_backdrop_prop_matrix_get(const wmGizmo *gz,
   NodeTransformWidgetGroup *transform_group = static_cast<NodeTransformWidgetGroup *>(
       gz->parent_gzgroup->customdata);
   const float2 offset = transform_group->state.offset;
-
   matrix[0][0] = snode->zoom;
   matrix[1][1] = snode->zoom;
   matrix[3][0] = snode->xof + offset.x * snode->zoom;
@@ -1312,7 +1311,6 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo *gz,
   NodeTransformWidgetGroup *transform_group = static_cast<NodeTransformWidgetGroup *>(
       gz->parent_gzgroup->customdata);
   const float2 offset = transform_group->state.offset;
-
   SpaceNode *snode = static_cast<SpaceNode *>(gz_prop->custom_func.user_data);
   snode->zoom = matrix[0][0];
   snode->xof = matrix[3][0] - offset.x * snode->zoom;
@@ -1381,8 +1379,8 @@ void transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   transform_group->state.offset = ibuf->flags & IB_has_display_window ?
                                       float2(ibuf->display_offset) :
                                       float2(0.0f);
-
   const float2 dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
+
   RNA_float_set_array(cage->ptr, "dimensions", dims);
   WM_gizmo_set_matrix_location(cage, origin);
   WM_gizmo_set_flag(cage, WM_GIZMO_HIDDEN, false);
