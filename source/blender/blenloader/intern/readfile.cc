@@ -819,6 +819,26 @@ static const IDHash *blo_bhead_id_deep_hash(const FileData *fd, const BHead *bhe
       POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_deep_hash_offset));
 }
 
+const char *blo_bhead_library_filepath(const FileData *fd, const BHead *bhead)
+{
+  BLI_assert(blo_bhead_is_id(bhead) && (bhead->code & 0xFFFF) == ID_LI);
+  if (fd->library_filepath_offset < 0) {
+    return nullptr;
+  }
+  return reinterpret_cast<const char *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_filepath_offset));
+}
+
+LibraryFlag blo_bhead_library_flag(const FileData *fd, const BHead *bhead)
+{
+  BLI_assert(blo_bhead_is_id(bhead) && (bhead->code & 0xFFFF) == ID_LI);
+  if (fd->library_flag_offset < 0) {
+    return LibraryFlag(0);
+  }
+  return LibraryFlag(*reinterpret_cast<const uint16_t *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->library_flag_offset)));
+}
+
 static void read_blender_header(FileData *fd)
 {
   const BlenderHeaderVariant header_variant = BLO_readfile_blender_header_decode(fd->file);
@@ -890,6 +910,11 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
             fd->filesdna, "ID", "short", "flag");
         fd->id_deep_hash_offset = DNA_struct_member_offset_by_name_with_alias(
             fd->filesdna, "ID", "IDHash", "deep_hash");
+
+        fd->library_filepath_offset = DNA_struct_member_offset_by_name_with_alias(
+            fd->filesdna, "Library", "char", "filepath[]");
+        fd->library_flag_offset = DNA_struct_member_offset_by_name_with_alias(
+            fd->filesdna, "Library", "ushort", "flag");
 
         fd->filesubversion = subversion;
 
@@ -4135,18 +4160,18 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     read_undo_tag_all_noundo_ids(fd);
   }
 
-  /* Prevent any run of layer collections rebuild during readfile process, and the do_versions
-   * calls.
-   *
-   * NOTE: Typically readfile code should not trigger such updates anyway. But some calls to
-   * non-BLO functions (e.g. ID deletion) can indirectly trigger it. */
-  BKE_layer_collection_resync_forbid();
-
   bfd = MEM_new<BlendFileData>(__func__);
 
   bfd->main = BKE_main_new();
   bfd->main->versionfile = fd->fileversion;
   STRNCPY(bfd->filepath, filepath);
+
+  /* Prevent any run of layer collections rebuild during readfile process, and the do_versions
+   * calls.
+   *
+   * NOTE: Typically readfile code should not trigger such updates anyway. But some calls to
+   * non-BLO functions (e.g. ID deletion) can indirectly trigger it. */
+  BKE_layer_collection_resync_forbid(*bfd->main);
 
   fd->bmain = bfd->main;
   fd->fd_bmain = bfd->main;
@@ -4395,7 +4420,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       BKE_main_id_refcount_recompute(bfd->main, false);
 
       /* Necessary to allow 2.80 layer collections conversion code to work. */
-      BKE_layer_collection_resync_allow();
+      BKE_layer_collection_resync_allow(*bfd->main);
 
       /* Yep, second splitting... but this is a very cheap operation, so no big deal. */
       blo_split_main(bfd->main);
@@ -4413,7 +4438,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       }
       blo_join_main(bfd->main);
 
-      BKE_layer_collection_resync_forbid();
+      BKE_layer_collection_resync_forbid(*bfd->main);
 
       /* And we have to compute those user-reference-counts again, as `do_versions_after_linking()`
        * does not always properly handle user counts, and/or that function does not take into
@@ -4448,7 +4473,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         }
         FOREACH_MAIN_ID_END;
 #endif
-        BKE_id_delete(bfd->main, &lib);
+        BKE_id_delete(
+            bfd->main,
+            &lib,
+            {.extra_remapping_flags = (ID_REMAP_FORCE_UI_POINTERS | ID_REMAP_SKIP_USER_REFCOUNT |
+                                       ID_REMAP_SKIP_UPDATE_TAGGING | ID_REMAP_SKIP_USER_CLEAR)});
       }
     }
 
@@ -4501,7 +4530,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
                                             fd->reports->duration.lib_overrides;
     }
 
-    BKE_layer_collection_resync_allow();
+    BKE_layer_collection_resync_allow(*bfd->main);
 
     BKE_collections_after_lib_link(bfd->main);
 
@@ -4511,7 +4540,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     bfd->main->need_preview_render_restart = fd->need_preview_render_restart;
   }
   else {
-    BKE_layer_collection_resync_allow();
+    BKE_layer_collection_resync_allow(*bfd->main);
   }
 
   BLI_assert(!bfd->main->split_mains);
@@ -5061,8 +5090,13 @@ static int expand_cb(LibraryIDLinkCallbackData *cb_data)
 
   /* Expand process can be re-entrant or have other complex interactions that will not work well
    * with loop-back pointers. Further more, processing such data should not be needed here anyway.
+   *
+   * The exception are root liboverride pointers - when linking a data from a liboverride
+   * hierarchy, it is mandatory to get the whole hierarchy in.
    */
-  if (cb_data->cb_flag & (IDWALK_CB_LOOPBACK)) {
+  if ((cb_data->cb_flag & IDWALK_CB_LOOPBACK) &&
+      !(cb_data->cb_flag & IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_ROOT))
+  {
     return IDWALK_RET_NOP;
   }
 

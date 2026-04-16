@@ -105,6 +105,17 @@ std::optional<StringRefNull> rna_translate_ui_text(
   return BLT_pgettext(BLT_I18NCONTEXT_DEFAULT, text);
 }
 
+static void rna_uiItemTextBox(
+    Layout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *state_ptr)
+{
+  if (state_ptr && !RNA_pointer_is_null(state_ptr)) {
+    layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>());
+  }
+  else {
+    layout->textbox(C, ptr, propname);
+  }
+}
+
 static void rna_uiItemR(Layout *layout,
                         PointerRNA *ptr,
                         const char *propname,
@@ -1499,6 +1510,12 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "Return the icon for this enum item");
 
   /* items */
+  func = RNA_def_function(srna, "textbox", "rna_uiItemTextBox");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  api_ui_item_rna_common(func);
+  parm = RNA_def_pointer(func, "textbox_state", "TextboxState", 0, "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
+
   func = RNA_def_function(srna, "prop", "rna_uiItemR");
   RNA_def_function_ui_description(func,
                                   "Item. Exposes an RNA item and places it into the layout.");
@@ -1963,6 +1980,10 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "template_strip_modifiers", "template_strip_modifiers");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Generates the UI layout for the strip modifier stack");
+
+  func = RNA_def_function(srna, "template_collection_importer", "template_collection_importer");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  RNA_def_function_ui_description(func, "Generates the UI layout for the collection importer");
 
   func = RNA_def_function(srna, "template_collection_exporters", "template_collection_exporters");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);

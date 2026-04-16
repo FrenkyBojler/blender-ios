@@ -26,7 +26,6 @@
 #include "BKE_context.hh"
 
 namespace blender {
-
 namespace bke::id {
 class IDRemapper;
 }
@@ -38,7 +37,6 @@ class AssetRepresentation;
 namespace ui {
 struct Layout;
 struct Block;
-enum class PopupAttachDirection : int8_t;
 }  // namespace ui
 
 struct ARegion;
@@ -96,6 +94,7 @@ struct wmSpaceTypeListenerParams {
   ScrArea *area;
   const wmNotifier *notifier;
   const Scene *scene;
+  const Main *bmain;
 };
 
 struct SpaceType {
@@ -230,6 +229,12 @@ enum class ARegionTypeFlag {
    * region.
    */
   UsePanelCategoryTabs = (1 << 1),
+
+  /**
+   * When using panel categories, this hides the sidebar tab where there is only one category
+   * active.
+   */
+  HideSinglePanelCategories = (1 << 2),
 };
 ENUM_OPERATORS(ARegionTypeFlag)
 
@@ -411,7 +416,6 @@ struct PanelType {
   /** Sub panels. */
   PanelType *parent;
   ListBaseT<LinkData> children;
-  ui::PopupAttachDirection popup_draw_direction;
   /** RNA integration. */
   ExtensionRNA rna_ext;
 };

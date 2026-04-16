@@ -78,11 +78,11 @@ class GLTexture : public Texture {
    * \warning This resets the mipmap range.
    */
   void generate_mipmap() override;
-  void copy_to(Texture *dst) override;
+  void copy_to(Texture *dst, IndexRange mip_levels) override;
   void clear(const double4 data) override;
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
-  void *read(int mip, eGPUDataFormat type) override;
+  void read(int mip, eGPUDataFormat type, void *data) override;
 
   void check_feedback_loop();
 
