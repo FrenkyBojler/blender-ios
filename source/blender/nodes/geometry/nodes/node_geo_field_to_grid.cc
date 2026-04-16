@@ -116,13 +116,13 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
   if (params.in_out() == SOCK_IN) {
     params.add_item(IFACE_("Topology"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       node_storage(node).data_type = *data_type;
       params.update_and_connect_available_socket(node, "Topology"_ustr);
     });
     params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
       const UString name(bke::node_socket_extend_label(params.node, params.socket));
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, name.c_str());
       params.update_and_connect_available_socket(node, name);
@@ -131,7 +131,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   else {
     params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
       const UString name(bke::node_socket_extend_label(params.node, params.socket));
-      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      bNode &node = params.add_node("GeometryNodeFieldToGrid"_ustr);
       socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, name.c_str());
       params.update_and_connect_available_socket(node, name);
@@ -404,7 +404,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldToGrid");
+  geo_node_type_base(&ntype, "GeometryNodeFieldToGrid"_ustr);
   ntype.ui_name = "Field to Grid";
   ntype.ui_description =
       "Create new grids by evaluating new values on an existing volume grid topology";

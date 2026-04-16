@@ -1017,8 +1017,8 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
     return;
   }
 
-  const float2 origin = seq::image_transform_origin_offset_pixelspace_get(
-      CTX_data_sequencer_scene(C), strip);
+  const float2 origin = seq::image_transform_origin_preview_offset_get(CTX_data_sequencer_scene(C),
+                                                                       strip);
 
   /* Origin. */
   GPU_program_point_size(true);
@@ -1036,8 +1036,8 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   GPU_program_point_size(false);
 
   /* Outline. */
-  const Array<float2> strip_image_quad = seq::image_transform_final_quad_get(
-      CTX_data_sequencer_scene(C), strip);
+  const Array<float2> strip_image_quad = seq::image_transform_quad_get(CTX_data_sequencer_scene(C),
+                                                                       strip);
 
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -1559,18 +1559,12 @@ static gpu::Texture *create_texture(const ImBuf &ibuf)
  * If there are no buffers at all scene linear space is returned. */
 static const char *get_texture_colorspace_name(const ImBuf &ibuf)
 {
-  if (ibuf.byte_data()) {
-    if (ibuf.float_buffer.colorspace) {
-      return IMB_colormanagement_colorspace_get_name(ibuf.float_buffer.colorspace);
-    }
-    return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
+  if (ibuf.float_data()) {
+    return IMB_colormanagement_get_float_colorspace(&ibuf);
   }
 
   if (ibuf.byte_data()) {
-    if (ibuf.byte_buffer.colorspace) {
-      return IMB_colormanagement_colorspace_get_name(ibuf.byte_buffer.colorspace);
-    }
-    return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE);
+    return IMB_colormanagement_get_byte_colorspace(&ibuf);
   }
 
   /* Fail-safe fallback. */

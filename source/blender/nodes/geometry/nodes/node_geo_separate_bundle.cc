@@ -203,7 +203,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
     params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
       const UString name(bke::node_socket_extend_label(params.node, params.socket));
-      bNode &node = params.add_node("NodeSeparateBundle");
+      bNode &node = params.add_node("NodeSeparateBundle"_ustr);
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<SeparateBundleItemsAccessor>(
               params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
@@ -215,7 +215,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       return;
     }
     params.add_item(IFACE_("Bundle"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("NodeSeparateBundle");
+      bNode &node = params.add_node("NodeSeparateBundle"_ustr);
       params.connect_available_socket(node, "Bundle"_ustr);
 
       SpaceNode &snode = *CTX_wm_space_node(&params.C);
@@ -238,7 +238,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  sh_geo_node_type_base(&ntype, "NodeSeparateBundle", NODE_SEPARATE_BUNDLE);
+  sh_geo_node_type_base(&ntype, "NodeSeparateBundle"_ustr, NODE_SEPARATE_BUNDLE);
   ntype.ui_name = "Separate Bundle";
   ntype.ui_description = "Split a bundle into multiple sockets.";
   ntype.nclass = NODE_CLASS_CONVERTER;

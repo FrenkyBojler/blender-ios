@@ -160,7 +160,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (other_socket.in_out == SOCK_IN) {
     params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
       const UString name(bke::node_socket_extend_label(params.node, params.socket));
-      bNode &node = params.add_node("NodeEvaluateClosure");
+      bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<EvaluateClosureOutputItemsAccessor>(
               params.node_tree, node, params.socket.typeinfo->type, name.c_str());
@@ -170,7 +170,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   if (other_socket.type == SOCK_CLOSURE) {
     params.add_item(IFACE_("Closure"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("NodeEvaluateClosure");
+      bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
       params.connect_available_socket(node, "Closure"_ustr);
 
       SpaceNode &snode = *CTX_wm_space_node(&params.C);
@@ -183,9 +183,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Item"),
         [](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("NodeEvaluateClosure");
-
           const UString name(bke::node_socket_extend_label(params.node, params.socket));
+          bNode &node = params.add_node("NodeEvaluateClosure"_ustr);
           const auto *item =
               socket_items::add_item_with_socket_type_and_name<EvaluateClosureInputItemsAccessor>(
                   params.node_tree, node, params.socket.typeinfo->type, name.c_str());
@@ -219,7 +218,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
+  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure"_ustr, NODE_EVALUATE_CLOSURE);
   ntype.ui_name = "Evaluate Closure";
   ntype.ui_description = "Execute a given closure";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -269,7 +268,7 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
 {
   const bNode &node = output_socket.owner_node();
   const bNodeTree &tree = node.owner_tree();
-  BLI_assert(node.is_type("NodeEvaluateClosure"));
+  BLI_assert(node.is_type("NodeEvaluateClosure"_ustr));
   const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
   if (output_socket.index() >= storage.output_items.items_num) {
     return nullptr;

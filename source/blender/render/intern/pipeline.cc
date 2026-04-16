@@ -1158,7 +1158,7 @@ static bool node_tree_has_group_output(const bNodeTree *node_tree)
   }
 
   node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("NodeGroupOutput")) {
+  for (const bNode *node : node_tree->nodes_by_type("NodeGroupOutput"_ustr)) {
     if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
       return true;
     }
@@ -1678,7 +1678,7 @@ static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
 
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
-  if (!GPU_is_safe_texture_size(width, height)) {
+  if (width > 8192 || height > 8192) {
     BKE_report(reports, RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
   }

@@ -409,7 +409,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item("File Output", [](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("CompositorNodeOutputFile");
+    bNode &node = params.add_node("CompositorNodeOutputFile"_ustr);
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.socket.type);
 
     const UString name(bke::node_socket_extend_label(params.node, params.socket));
@@ -897,7 +897,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeOutputFile", CMP_NODE_OUTPUT_FILE);
+  cmp_node_type_base(&ntype, "CompositorNodeOutputFile"_ustr, CMP_NODE_OUTPUT_FILE);
   ntype.ui_name = "File Output";
   ntype.ui_description = "Write image file to disk";
   ntype.enum_name_legacy = "OUTPUT_FILE";
