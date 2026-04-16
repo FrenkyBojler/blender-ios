@@ -305,7 +305,7 @@ ResultT eval(sampler2D hiz_tx,
 
         const float2 sample_uv_data = sample_uv * uniform_buf.raytrace.fast_gi_uv_scale;
         /* Need to account for LOD0 of radiance texture being the tracing resolution. */
-        float lod_data = lod - uniform_buf.raytrace.fast_gi_lod_bias;
+        float lod_data = (lod - uniform_buf.raytrace.fast_gi_lod_bias) * 4.0f;
 
         float3 radiance = sample_radiance<ResultT>(screen_radiance_tx, sample_uv_data, lod_data);
         /* Take emitter surface normal into consideration. */

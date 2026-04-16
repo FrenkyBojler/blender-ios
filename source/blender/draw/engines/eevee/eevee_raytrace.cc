@@ -492,6 +492,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   data_.fast_gi_resolution_scale = fast_gi_resolution_scale;
   data_.fast_gi_resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) *
                                        fast_gi_resolution_scale);
+
   /* TODO(fclem): Eventually all uniform data is setup here. */
 
   inst_.uniform_data.push_update();
