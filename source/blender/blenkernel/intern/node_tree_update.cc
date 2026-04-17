@@ -18,6 +18,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_image.hh"
@@ -33,6 +34,7 @@
 
 #include "MOD_nodes.hh"
 
+#include "NOD_compositor_nodes_srna.hh"
 #include "NOD_dependencies.hh"
 #include "NOD_geo_viewer.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
@@ -50,6 +52,10 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
 
 namespace blender {
 
@@ -210,6 +216,7 @@ static bool is_tree_changed(const bNodeTree &tree)
 using TreeNodePair = std::pair<bNodeTree *, bNode *>;
 using ObjectModifierPair = std::pair<Object *, ModifierData *>;
 using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
+using StripModifierPair = std::pair<Scene *, StripModifierData *>;
 
 /**
  * Cache common data about node trees from the #Main database that is expensive to retrieve on
@@ -221,6 +228,7 @@ struct NodeTreeRelations {
   std::optional<Vector<bNodeTree *>> all_trees_;
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
+  std::optional<MultiValueMap<bNodeTree *, StripModifierPair>> strip_modifier_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -289,10 +297,46 @@ struct NodeTreeRelations {
     }
   }
 
+  void ensure_strip_modifier_users()
+  {
+    if (strip_modifier_users_.has_value()) {
+      return;
+    }
+    strip_modifier_users_.emplace();
+    if (bmain_ == nullptr) {
+      return;
+    }
+
+    for (Scene &scene : bmain_->scenes) {
+      Editing *ed = seq::editing_get(&scene);
+      if (!ed) {
+        continue;
+      }
+      for (Strip *strip : seq::query_all_strips_recursive(&ed->seqbase)) {
+        for (StripModifierData &modifier : strip->modifiers) {
+          if (modifier.type != eSeqModifierType_Compositor) {
+            continue;
+          }
+          const SequencerCompositorModifierData *modifier_data =
+              reinterpret_cast<SequencerCompositorModifierData *>(&modifier);
+          if (modifier_data->node_group != nullptr && !ID_MISSING(modifier_data->node_group)) {
+            strip_modifier_users_->add(modifier_data->node_group, {&scene, &modifier});
+          }
+        }
+      }
+    }
+  }
+
   Span<ObjectModifierPair> get_modifier_users(bNodeTree *ntree)
   {
     BLI_assert(modifiers_users_.has_value());
     return modifiers_users_->lookup(ntree);
+  }
+
+  Span<StripModifierPair> get_strip_modifier_users(bNodeTree *ntree)
+  {
+    BLI_assert(strip_modifier_users_.has_value());
+    return strip_modifier_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
@@ -399,6 +443,18 @@ class NodeTreeMainUpdater {
 
             if (md->type == eModifierType_Nodes) {
               MOD_nodes_update_interface(object, reinterpret_cast<NodesModifierData *>(md));
+            }
+          }
+        }
+        if (ntree->type == NTREE_COMPOSIT) {
+          relations_.ensure_strip_modifier_users();
+          for (const StripModifierPair &pair : relations_.get_strip_modifier_users(ntree)) {
+            Scene *scene = pair.first;
+            StripModifierData *md = pair.second;
+
+            if (md->type == eSeqModifierType_Compositor) {
+              seq::compositor_nodes_update_interface(
+                  *scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
             }
           }
         }
@@ -588,6 +644,10 @@ class NodeTreeMainUpdater {
       if (ntree.type == NTREE_GEOMETRY) {
         ntree.runtime->geometry_nodes_srna_data = nodes::create_geometry_nodes_rna_for_modifier(
             ntree);
+      }
+      else if (ntree.type == NTREE_COMPOSIT) {
+        ntree.runtime->compositor_nodes_srna_data =
+            nodes::create_compositor_nodes_rna_for_strip_modifier(ntree);
       }
     }
 
@@ -900,7 +960,7 @@ class NodeTreeMainUpdater {
 
     if (ntree.type == NTREE_SHADER) {
       /* Check if the tree itself has an animated image. */
-      for (const StringRefNull idname : {"ShaderNodeTexImage", "ShaderNodeTexEnvironment"}) {
+      for (const UString idname : {"ShaderNodeTexImage"_ustr, "ShaderNodeTexEnvironment"_ustr}) {
         for (const bNode *node : ntree.nodes_by_type(idname)) {
           Image *image = reinterpret_cast<Image *>(node->id);
           if (image != nullptr && BKE_image_is_animated(image)) {
@@ -910,10 +970,10 @@ class NodeTreeMainUpdater {
         }
       }
       /* Check if the tree has a material output. */
-      for (const StringRefNull idname : {"ShaderNodeOutputMaterial",
-                                         "ShaderNodeOutputLight",
-                                         "ShaderNodeOutputWorld",
-                                         "ShaderNodeOutputAOV"})
+      for (const UString idname : {"ShaderNodeOutputMaterial"_ustr,
+                                   "ShaderNodeOutputLight"_ustr,
+                                   "ShaderNodeOutputWorld"_ustr,
+                                   "ShaderNodeOutputAOV"_ustr})
       {
         const Span<const bNode *> nodes = ntree.nodes_by_type(idname);
         if (!nodes.is_empty()) {
@@ -924,7 +984,7 @@ class NodeTreeMainUpdater {
     }
     if (ntree.type == NTREE_GEOMETRY) {
       /* Check if there is a simulation zone. */
-      if (!ntree.nodes_by_type("GeometryNodeSimulationOutput").is_empty()) {
+      if (!ntree.nodes_by_type("GeometryNodeSimulationOutput"_ustr).is_empty()) {
         ntree.runtime->runtime_flag |= NTREE_RUNTIME_FLAG_HAS_SIMULATION_ZONE;
       }
     }
@@ -935,7 +995,7 @@ class NodeTreeMainUpdater {
     /* Automatically tag a bake item as attribute when the input is a field. The flag should not be
      * removed automatically even when the field input is disconnected because the baked data may
      * still contain attribute data instead of a single value. */
-    for (bNode *node : ntree.nodes_by_type("GeometryNodeBake")) {
+    for (bNode *node : ntree.nodes_by_type("GeometryNodeBake"_ustr)) {
       NodeGeometryBake &storage = *static_cast<NodeGeometryBake *>(node->storage);
       for (const int i : IndexRange(storage.items_num)) {
         const bNodeSocket &socket = node->input_socket(i);
@@ -1071,13 +1131,13 @@ class NodeTreeMainUpdater {
             socket->display_shape = get_socket_shape(*socket);
           }
 
-          if (node->is_type("NodeGetBundleItem")) {
+          if (node->is_type("NodeGetBundleItem"_ustr)) {
             bNodeSocket &socket = *node->output_by_identifier("Item"_ustr);
             const auto &storage = *static_cast<const NodeGetBundleItem *>(node->storage);
             socket.display_shape = get_socket_shape(
                 socket, storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
           }
-          else if (node->is_type("NodeStoreBundleItem")) {
+          else if (node->is_type("NodeStoreBundleItem"_ustr)) {
             bNodeSocket &socket = *node->input_by_identifier("Item"_ustr);
             const auto &storage = *static_cast<const NodeStoreBundleItem *>(node->storage);
             socket.display_shape = get_socket_shape(
@@ -1112,7 +1172,7 @@ class NodeTreeMainUpdater {
       const bool node_updated = this->should_update_individual_node(ntree, *node);
 
       Vector<bNodeSocket *> locally_defined_enums;
-      if (node->is_type("GeometryNodeMenuSwitch")) {
+      if (node->is_type("GeometryNodeMenuSwitch"_ustr)) {
         bNodeSocket &enum_input = node->input_socket(0);
         BLI_assert(enum_input.is_available() && enum_input.type == SOCK_MENU);
         /* Generate new enum items when the node has changed, otherwise keep existing items. */
@@ -1195,7 +1255,7 @@ class NodeTreeMainUpdater {
           }
         }
       }
-      else if (node->is_type("GeometryNodeMenuSwitch")) {
+      else if (node->is_type("GeometryNodeMenuSwitch"_ustr)) {
         /* First input is always the node's own menu, propagate only to the enum case inputs. */
         const bNodeSocket *output = node->output_sockets().first();
         for (bNodeSocket *input : node->input_sockets().drop_front(1)) {
@@ -1206,7 +1266,7 @@ class NodeTreeMainUpdater {
           }
         }
       }
-      else if (node->is_type("GeometryNodeForeachGeometryElementInput")) {
+      else if (node->is_type("GeometryNodeForeachGeometryElementInput"_ustr)) {
         /* Propagate menu from element inputs to field inputs. */
         BLI_assert(node->input_sockets().size() == node->output_sockets().size());
         /* Inputs Geometry, Selection and outputs Index, Element are ignored. */
@@ -1622,7 +1682,7 @@ class NodeTreeMainUpdater {
     if (node.is_group_output()) {
       return true;
     }
-    if (node.is_type("GeometryNodeWarning")) {
+    if (node.is_type("GeometryNodeWarning"_ustr)) {
       return true;
     }
     if (nodes::gizmos::is_builtin_gizmo_node(node)) {
@@ -1769,7 +1829,7 @@ class NodeTreeMainUpdater {
 
           /* The Image Texture node has a special case. The behavior of the color output changes
            * depending on whether the Alpha output is linked. */
-          if (node.is_type("ShaderNodeTexImage") && socket.index() == 0) {
+          if (node.is_type("ShaderNodeTexImage"_ustr) && socket.index() == 0) {
             BLI_assert(STREQ(socket.name, "Color"));
             const bNodeSocket &alpha_socket = node.output_socket(1);
             BLI_assert(STREQ(alpha_socket.name, "Alpha"));
@@ -1872,7 +1932,7 @@ class NodeTreeMainUpdater {
         }
         /* The Normal node has a special case, because the value stored in the first output
          * socket is used as input in the node. */
-        if ((node.is_type("ShaderNodeNormal") || node.is_type("CompositorNodeNormal")) &&
+        if ((node.is_type("ShaderNodeNormal"_ustr) || node.is_type("CompositorNodeNormal"_ustr)) &&
             socket.index() == 1)
         {
           BLI_assert(STREQ(socket.name, "Dot"));
@@ -1919,7 +1979,7 @@ class NodeTreeMainUpdater {
     if (ntree.type == NTREE_GEOMETRY) {
       /* Create references for simulations and bake nodes in geometry nodes.
        * Those are the nodes that we want to store settings for at a higher level. */
-      for (StringRefNull idname : {"GeometryNodeSimulationOutput", "GeometryNodeBake"}) {
+      for (const UString idname : {"GeometryNodeSimulationOutput"_ustr, "GeometryNodeBake"_ustr}) {
         for (const bNode *node : ntree.nodes_by_type(idname)) {
           nested_node_paths.append({node->identifier, -1});
         }
