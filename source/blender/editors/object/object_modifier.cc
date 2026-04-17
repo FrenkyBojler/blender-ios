@@ -1723,6 +1723,13 @@ static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus modifier_remove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmOperatorStatus retval;
+  if (RNA_boolean_get(op->ptr, "remove_active")) {
+    Object *ob = context_active_object(C);
+    const ModifierData *md = BKE_object_active_modifier(ob);
+    RNA_string_set(op->ptr, "modifier", md->name);
+    return modifier_remove_exec(C, op);
+  }
+
   if (edit_modifier_invoke_properties_with_hover(C, op, event, &retval)) {
     return modifier_remove_exec(C, op);
   }
@@ -1744,6 +1751,9 @@ void OBJECT_OT_modifier_remove(wmOperatorType *ot)
   edit_modifier_properties(ot);
   edit_modifier_report_property(ot);
   modifier_register_use_selected_objects_prop(ot);
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "remove_active", false, "Modifier", "Name of the modifier to edit");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 static wmOperatorStatus modifiers_clear_exec(bContext *C, wmOperator * /*op*/)
