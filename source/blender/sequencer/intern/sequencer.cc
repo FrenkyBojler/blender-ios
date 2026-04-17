@@ -602,6 +602,15 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
       BKE_main_id_newptr_and_tag_clear(ctx.bmain);
 
       BKE_main_collection_sync(ctx.bmain);
+
+      /* #BKE_main_collection_sync only *tags* all view layers as out-of-sync and relies on lazy
+       * resync via #BKE_view_layer_synced_ensure on access. However, the depsgraph's copy-on-eval
+       * path (#scene_copy_inplace_no_main) calls #BKE_id_copy_ex with `bmain=nullptr`, which
+       * skips that lazy sync inside #scene_copy_data and then asserts in
+       * #BKE_view_layer_copy_data. Force an eager resync here so that any subsequent depsgraph
+       * evaluation that copy-on-evals the newly duplicated scene(s) finds their view layers
+       * already in-sync. This is especially important for scenes with multiple view layers. */
+      BKE_main_view_layers_synced_ensure(ctx.bmain);
     }
   }
   else {
