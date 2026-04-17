@@ -73,6 +73,14 @@ struct AbcReadGeometryParams {
   float velocity_scale = 1.0f;
 };
 
+struct AbcReaderConstructorArgs {
+  const Alembic::Abc::IObject &object;
+  ImportSettings &settings;
+};
+
+AbcReaderConstructorArgs create_reader_constructor_args(const Alembic::Abc::IObject &object,
+                                                        ImportSettings &settings);
+
 class AbcObjectReader {
  protected:
   std::string m_name;
@@ -101,7 +109,8 @@ class AbcObjectReader {
  public:
   AbcObjectReader *parent_reader;
 
-  explicit AbcObjectReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+ public:
+  explicit AbcObjectReader(const AbcReaderConstructorArgs &args);
 
   virtual ~AbcObjectReader() = default;
 
