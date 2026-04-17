@@ -187,6 +187,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     filter_size = max(filter_size, 3.0f);
     sample_count = max(sample_count, 5u);
   }
+  filter_size *= 0.5f;
 
   float2 noise = utility_tx_fetch(utility_tx, float2(texel_fullres), UTIL_BLUE_NOISE_LAYER).ba;
   noise += sampling_rng_1D_get(SAMPLING_CLOSURE);
@@ -215,12 +216,10 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   dPdxy[1] *= bias;
 
   for (uint i = 0u; i < sample_count; i++) {
-    float2 offset_f = (fract(hammersley_2d(i, sample_count) + noise) - 0.5f) * filter_size;
+    float2 Xi = fract(hammersley_2d(i, sample_count) + float2(noise.x, 0.0f));
+    float2 offset_f = sample_disk(Xi) * filter_size;
     int2 offset = int2(floor(offset_f + 0.5f));
-    if (i == 0u) {
-      /* Make sure to always sample the center pixel. */
-      offset = int2(0);
-    }
+
     int2 sample_texel = texel + offset;
 
     float4 ray_data = imageLoad(srt.ray_data_img, sample_texel);
