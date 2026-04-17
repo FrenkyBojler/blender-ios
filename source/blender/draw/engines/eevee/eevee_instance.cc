@@ -336,9 +336,6 @@ void Instance::update_eval_members()
 
 void Instance::begin_sync()
 {
-  uniform_data.data.scene.time = BKE_scene_frame_get(scene) / scene->frames_per_second();
-  uniform_data.data.scene.frame = BKE_scene_frame_get(scene);
-
   /* Needs to be first for sun light parameters.
    * Also not skipped to be able to request world shader.
    * If engine shaders are not ready, will skip the pipeline sync. */

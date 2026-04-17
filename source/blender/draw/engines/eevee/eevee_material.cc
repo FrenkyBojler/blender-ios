@@ -13,6 +13,7 @@
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_scene.hh"
 
 #include "NOD_shader.h"
 
@@ -109,6 +110,9 @@ MaterialModule::~MaterialModule()
 
 void MaterialModule::begin_sync()
 {
+  inst_.uniform_data.data.scene.time = BKE_scene_frame_get(inst_.scene) / inst_.scene->frames_per_second();
+  inst_.uniform_data.data.scene.frame = BKE_scene_frame_get(inst_.scene);
+
   queued_shaders_count = 0;
   queued_textures_count = 0;
   queued_optimize_shaders_count = 0;
