@@ -353,7 +353,6 @@ static std::optional<PreprocessedSampleData> preprocess_sample(StringRefNull iob
   return data;
 }
 
-
 AbcCurveReader::AbcCurveReader(const AbcReaderConstructorArgs &args) : AbcObjectReader(args)
 {
   ICurves abc_curves(m_iobject, kWrapExisting);
