@@ -8707,14 +8707,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       prop, "Shadows Resolution Scale", "Resolution percentage of shadow maps");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, 0, "rna_SceneEEVEE_shadow_resolution_update");
-
-  /* For upscaling denoisers */
-  prop = RNA_def_property(srna, "pixel_jitter_sample", PROP_FLOAT, PROP_COORDS);
-  RNA_def_property_range(prop, -0.5f, 0.5f);
-  RNA_def_property_array(prop, 2);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  //RNA_def_property_update(prop, 0, "rna_SceneEEVEE_pixel_jitter_sample_update");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
 static void rna_def_scene_gpencil(BlenderRNA *brna)

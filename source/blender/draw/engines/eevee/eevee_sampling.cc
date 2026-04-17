@@ -8,6 +8,8 @@
  * Random number generator, contains persistent state and sample count logic.
  */
 
+#include "RNA_access.h"
+
 #include "BKE_colortools.hh"
 #include "BKE_scene.hh"
 
@@ -76,7 +78,24 @@ void Sampling::init(const Scene *scene)
   }
 
   /* Options for overwriting pixel jitter sample position. */
-  //pixel_jitter_sample = scene->eevee.pixel_jitter_sample; // TODO
+  PointerRNA prop_scene;
+  RNA_id_pointer_create(&scene->id, &prop_scene);
+  blender::PropertyRNA *pixel_jitter_sample_prop = RNA_struct_find_property(&prop_scene,
+                                                                            "pixel_jitter_sample");
+  pixel_jitter_sample = {};
+  if (pixel_jitter_sample_prop) {
+    const int array_length = RNA_property_array_length(&prop_scene, pixel_jitter_sample_prop);
+    if (array_length == 2) {
+      pixel_jitter_sample.resize(array_length);
+      RNA_property_float_get_array(&cscene, pixel_jitter_sample_prop, pixel_jitter_sample.data());
+    }
+    else if (array_length != 0) {
+      printf("%s: scene.pixel_jitter_sample length is not 0 or 2.\n", __func__);
+    }
+  }
+  else {
+    printf("%s: scene.pixel_jitter_sample not found.\n", __func__);
+  }
 
   /* Only multiply after to have full the full DoF web pattern for each time steps. */
   sample_count_ *= motion_blur_steps_;
