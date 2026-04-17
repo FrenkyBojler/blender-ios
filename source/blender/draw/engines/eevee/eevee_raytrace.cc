@@ -216,6 +216,7 @@ void RayTraceModule::sync()
     pass.bind_image("out_radiance_img", &denoised_temporal_tx_);
     pass.bind_image("in_variance_img", &hit_variance_tx_);
     pass.bind_image("out_variance_img", &denoise_variance_tx_);
+    pass.bind_image("tile_mask_img", &tile_raytrace_denoise_tx_);
     pass.bind_ssbo("tiles_coord_buf", &raytrace_denoise_tiles_buf_);
     pass.bind_resources(inst_.sampling);
     pass.dispatch(raytrace_denoise_dispatch_buf_);
@@ -656,12 +657,7 @@ RayTraceResultTexture RayTraceModule::trace(
     gpu::TextureFormat variance_format = gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT;
 
     denoise_variance_tx_.acquire(variance_size, variance_format, usage_rw);
-    if (denoise_buf->variance_history_tx.acquire(variance_size, variance_format, usage_rw)) {
-      /* Clear to zero to avoid sampling NaN in reprojection. There is still a possibility to
-       * sample outdated variance but it should not be that big of an issue nor be peceivable.
-       * It is also deterministic */
-      denoise_buf->variance_history_tx.clear(float4(0));
-    }
+    denoise_buf->variance_history_tx.acquire(variance_size, variance_format, usage_rw);
 
     denoise_buf->tilemask_history_tx.ensure_2d_array(gpu::TextureFormat::RAYTRACE_TILEMASK_FORMAT,
                                                      tile_raytrace_denoise_tx_.size().xy(),

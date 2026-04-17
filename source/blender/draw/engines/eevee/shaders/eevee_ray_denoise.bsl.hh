@@ -142,6 +142,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
       bool tile_is_unused = !flag_test(tile_mask, 1u << 0u);
       if (tile_is_unused) {
         int2 texel_fullres_neighbor = texel_fullres + int2(x, y) * int(tile_size);
+        /* FIXME(fclem): This isn't safe! */
         srt.invalid_pixel_write(texel_fullres_neighbor);
       }
     }
@@ -313,6 +314,8 @@ struct DenoiseTemporal {
   [[image(2, write, RAYTRACE_RADIANCE_FORMAT)]] image2D out_radiance_img;
   [[image(4, write, RAYTRACE_VARIANCE_FORMAT)]] image2D out_variance_img;
 
+  [[image(6, read, RAYTRACE_TILEMASK_FORMAT)]] uimage2DArray tile_mask_img;
+
   [[resource_table]] srt_t<TileBuffer> tiles;
 
   LocalStatistics local_statistics_get(int2 texel, float3 center_radiance)
@@ -465,6 +468,30 @@ void temporal_main([[resource_table]] DenoiseTemporal &srt,
   constexpr uint tile_size = RAYTRACE_GROUP_SIZE;
   int2 texel_fullres = int2(local_id.xy + tile_coord * tile_size);
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
+
+  /* Clear neighbor tiles that will not be processed. */
+  /* TODO(fclem): Optimize this. We don't need to clear the whole ring. */
+  for (int x = -1; x <= 1; x++) {
+    for (int y = -1; y <= 1; y++) {
+      if (x == 0 && y == 0) {
+        continue;
+      }
+
+      int2 tile_coord_neighbor = int2(tile_coord) + int2(x, y);
+      if (!in_image_range(tile_coord_neighbor, srt.tile_mask_img)) {
+        continue;
+      }
+
+      int3 sample_tile = int3(tile_coord_neighbor, srt.closure_index);
+
+      uint tile_mask = imageLoadFast(srt.tile_mask_img, sample_tile).r;
+      bool tile_is_unused = !flag_test(tile_mask, 1u << 0u);
+      if (tile_is_unused) {
+        int2 texel_fullres_neighbor = texel_fullres + int2(x, y) * int(tile_size);
+        imageStore(srt.out_variance_img, texel_fullres_neighbor, float4(0.0f));
+      }
+    }
+  }
 
   /* Check if texel is out of bounds,
    * so we can utilize fast texture functions and early-out if not. */
