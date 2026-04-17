@@ -166,7 +166,7 @@ StringImage::StringImage(Context &context,
                          const HorizontalAlignment horizontal_alignment,
                          const VerticalAlignment vertical_alignment,
                          const std::optional<int> wrap_width)
-    : result(context.create_result(ResultType::Color))
+    : result(context.create_result(ResultType::Float))
 {
   if (string.empty() || !font || size <= 0.0f) {
     return;
@@ -202,7 +202,7 @@ StringImage::StringImage(Context &context,
   /* Fill the background with alpha since the draws function does not initialize the background. */
   this->result.allocate_texture(int2(total_width, total_height), false, ResultStorageType::CPU);
   parallel_for(this->result.domain().data_size,
-               [&](const int2 texel) { this->result.store_pixel(texel, Color(float4(0.0f))); });
+               [&](const int2 texel) { this->result.store_pixel(texel, 0.0f); });
 
   BLF_buffer_col(font_identifier, Color(1.0f, 1.0f, 1.0f, 1.0f));
   BLF_buffer(font_identifier,
@@ -210,6 +210,7 @@ StringImage::StringImage(Context &context,
              nullptr,
              total_width,
              total_height,
+             1,
              nullptr);
 
   /* Draw each of lines in the appropriate position. */
@@ -223,7 +224,7 @@ StringImage::StringImage(Context &context,
     BLF_draw_buffer(font_identifier, lines[i].data(), lines[i].size());
   }
 
-  BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, nullptr);
+  BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, 1, nullptr);
 
   /* Move the image to account for the requested alignment. */
   const float horizontal_offset = compute_horizontal_offset(

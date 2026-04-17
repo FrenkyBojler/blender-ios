@@ -69,7 +69,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image"_ustr)
+  b.add_output<decl::Float>("Image"_ustr)
       .structure_type(StructureType::Dynamic)
       .description("The image containing the paragraph of text");
 
