@@ -563,6 +563,12 @@ struct TransSnap {
   void (*snap_source_fn)(TransInfo *);
 
   /**
+   * Set when face project applies rotation alignment to objects.
+   * Used to detect when rotation needs to be reset after snapping is toggled off.
+   */
+  bool face_project_applied_rotation;
+
+  /**
    * Re-usable snap context data.
    */
   union {

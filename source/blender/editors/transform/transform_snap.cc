@@ -520,8 +520,27 @@ bool transform_snap_project_individual_is_active(const TransInfo *t)
 void transform_snap_project_individual_apply(TransInfo *t)
 {
   if (!transform_snap_project_individual_is_active(t)) {
+    if (t->tsnap.face_project_applied_rotation) {
+      t->tsnap.face_project_applied_rotation = false;
+      float mat[3][3];
+      unit_m3(mat);
+      FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+        for (const int i : IndexRange(tc->data_len)) {
+          TransData *td = &tc->data[i];
+          if (td->flag & TD_SKIP) {
+            continue;
+          }
+          if ((t->flag & T_PROP_EDIT) && (td->factor == 0.0f)) {
+            continue;
+          }
+          transform_data_ext_rotate(td, &tc->data_ext[i], mat, true);
+        }
+      }
+    }
     return;
   }
+
+  bool applied_rotation = false;
 
   /* XXX: flickers in object mode. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -541,6 +560,9 @@ void transform_snap_project_individual_apply(TransInfo *t)
       bool hit = false;
       if (t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) {
         hit = applyFaceProject(t, tc, td, td_ext);
+        if (hit && (t->tsnap.flag & SCE_SNAP_ROTATE) && (t->options & CTX_OBJECT)) {
+          applied_rotation = true;
+        }
         if (td_ext) {
           td_ext++;
         }
@@ -554,6 +576,8 @@ void transform_snap_project_individual_apply(TransInfo *t)
 #endif
     }
   }
+
+  t->tsnap.face_project_applied_rotation |= applied_rotation;
 }
 
 static bool transform_snap_mixed_is_active(const TransInfo *t)
@@ -605,6 +629,7 @@ void resetSnapping(TransInfo *t)
   t->tsnap.target_operation = SCE_SNAP_TARGET_ALL;
   t->tsnap.source_operation = SCE_SNAP_SOURCE_CLOSEST;
   t->tsnap.last = 0;
+  t->tsnap.face_project_applied_rotation = false;
 
   t->tsnap.snapNormal[0] = 0;
   t->tsnap.snapNormal[1] = 0;
