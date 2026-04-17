@@ -1907,12 +1907,14 @@ std::optional<Array<bool>> BKE_keyblock_get_dependent_keys(const Key *key, const
   return marked;
 }
 
-void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname, const char *oldname)
+void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
 {
+  char oldname[sizeof(kb->name)];
+
+  /* make a copy of the old name first */
+  STRNCPY(oldname, kb->name);
   /* copy the new name into the name slot */
-  if (kb->name != newname) {
-    STRNCPY_UTF8(kb->name, newname);
-  }
+  STRNCPY_UTF8(kb->name, newname);
 
   /* make sure the name is truly unique */
   BLI_uniquename(&key->block,

@@ -81,15 +81,11 @@ static Key *rna_ShapeKey_find_key(ID *id)
 static void rna_ShapeKey_name_set(PointerRNA *ptr, const char *value)
 {
   KeyBlock *kb = static_cast<KeyBlock *>(ptr->data);
-  char oldname[sizeof(kb->name)];
-
-  /* make a copy of the old name first */
-  STRNCPY(oldname, kb->name);
 
   /* make sure the name is truly unique */
   if (ptr->owner_id) {
     Key *key = rna_ShapeKey_find_key(ptr->owner_id);
-    BKE_keyblock_rename(key, kb, value, oldname);
+    BKE_keyblock_rename(key, kb, value);
   }
 }
 
