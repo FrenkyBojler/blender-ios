@@ -343,6 +343,9 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
    * Count how many buttons are added to the header to check if there is enough space. */
   int buttons_number = 0;
   ui::Layout &name_row = row.row(true);
+  name_row.label(md->name, ICON_NONE);
+  /* TODO: Cleanup the code later if we just want modifier name in panel header. */
+  return;
 
   /* Display mode switching buttons. */
   if (ob->type == OB_MESH) {

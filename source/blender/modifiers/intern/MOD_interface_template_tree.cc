@@ -120,7 +120,7 @@ class ModifierDropTarget : public ui::TreeViewItemDropTarget {
     Object *ob = CTX_data_active_object(C);
     wmDragdataModifier *drag_data = static_cast<wmDragdataModifier *>(drag_info.drag_data.poin);
     int drop_index = BLI_findindex(&ob->modifiers, md_);
-    int drag_index = BLI_findindex(&ob->modifiers, drag_data->modifier_data);
+    const int drag_index = BLI_findindex(&ob->modifiers, drag_data->modifier_data);
     switch (drag_info.drop_location) {
       case ui::DropLocation::Into:
         BLI_assert_unreachable();

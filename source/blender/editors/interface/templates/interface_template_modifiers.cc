@@ -46,7 +46,9 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
       if (mti->panel_register == nullptr) {
         continue;
       }
-
+      if ((md.flag & eModifierFlag_Active) == 0) {
+        continue;
+      }
       char panel_idname[MAX_NAME];
       modifier_panel_id(&md, panel_idname);
 
@@ -65,7 +67,9 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
       if (mti->panel_register == nullptr) {
         continue;
       }
-
+      if ((md.flag & eModifierFlag_Active) == 0) {
+        continue;
+      }
       /* Move to the next instanced panel corresponding to the next modifier. */
       while ((panel->type == nullptr) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
