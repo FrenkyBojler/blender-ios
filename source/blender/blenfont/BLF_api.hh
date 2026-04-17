@@ -367,11 +367,16 @@ void BLF_shadow_offset(int fontid, int x, int y);
 
 /**
  * Make font be rasterized into a given memory image/buffer.
- * The image is assumed to have 4 color channels (RGBA) per pixel.
+ * The image is assumed to have either 4 color channels (RGBA) or 1 gray-scale channel per pixel.
  * When done, call this function with null buffer pointers.
  */
-void BLF_buffer(
-    int fontid, float *fbuf, unsigned char *cbuf, int w, int h, const ColorSpace *colorspace);
+void BLF_buffer(int fontid,
+                float *fbuf,
+                unsigned char *cbuf,
+                int w,
+                int h,
+                int channels_count,
+                const ColorSpace *colorspace);
 
 /**
  * Opaque structure used to push/pop values set by the #BLF_buffer function.

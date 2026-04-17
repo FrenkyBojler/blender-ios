@@ -233,6 +233,10 @@ struct FontBufInfoBLF {
   /** Buffer size, keep signed so comparisons with negative values work. */
   int dims[2];
 
+  /** The number of channels in the buffer. Can be either 1 or 4 for grayscale and color buffers
+   * respectively. Color members are ignored in case of grayscale buffers. */
+  int channels_count;
+
   /** Color-space of the byte buffer (float is scene linear). */
   const ColorSpace *colorspace;
 
