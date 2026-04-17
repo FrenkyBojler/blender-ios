@@ -6,6 +6,7 @@
 
 #include "IO_subdiv_disabler.hh"
 #include "usd.hh"
+#include "usd_colorspace_utils.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_hook.hh"
 #include "usd_instancing_utils.hh"
@@ -53,6 +54,8 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_timeit.hh"
+
+#include "ED_util.hh"
 
 #include <IMB_imbuf.hh>
 #include <IMB_imbuf_types.hh>
@@ -187,6 +190,10 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
     const math::EulerXYZ eul = math::to_euler(math::transpose(mrot));
     xf_api.SetRotate(pxr::GfVec3f(eul.x().degree(), eul.y().degree(), eul.z().degree()));
   }
+
+  /* Colorspace on the root prim. It's also applied on all individual prims that need
+   * it, but perhaps this is useful to signal the overall colorspace of the file. */
+  colorspace_apply_to_prim(root_xf.GetPrim());
 
   for (const auto &path : pxr::SdfPath(params.root_prim_path).GetPrefixes()) {
     auto xform = pxr::UsdGeomXform::Define(stage, path);
@@ -813,6 +820,8 @@ bool USD_export(const bContext *C,
   job->scene = scene;
   job->export_ok = false;
   set_job_filepath(job, filepath);
+
+  ED_editors_flush_edits(job->bmain);
 
   job->depsgraph = DEG_graph_new(job->bmain, scene, view_layer, params->evaluation_mode);
   job->params = *params;

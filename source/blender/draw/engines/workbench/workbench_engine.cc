@@ -401,13 +401,13 @@ class Instance : public DrawEngine {
 
   void hair_sync(Manager &manager,
                  ObjectRef &ob_ref,
-                 ResourceHandleRange emitter_handle,
+                 ResourceHandle emitter_handle,
                  const ObjectState &object_state,
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    ResourceHandleRange handle = manager.resource_handle_for_psys(
-        ob_ref, ob_ref.object->object_to_world());
+    ResourceHandle handle = manager.resource_handle_for_psys(ob_ref,
+                                                             ob_ref.object->object_to_world());
 
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
@@ -422,7 +422,7 @@ class Instance : public DrawEngine {
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
       pass.push_constant("emitter_object_id", int(emitter_handle.raw()));
       gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
-      pass.draw(batch, handle, material_index);
+      pass.draw(batch, {handle}, material_index);
     });
   }
 
@@ -667,7 +667,7 @@ static void write_render_color_output(RenderLayer *layer,
                                4,
                                0,
                                GPU_DATA_FLOAT,
-                               rp->ibuf->float_buffer.data);
+                               rp->ibuf->float_data_for_write());
   }
 }
 
@@ -686,13 +686,13 @@ static void write_render_z_output(RenderLayer *layer,
                                BLI_rcti_size_x(rect),
                                BLI_rcti_size_y(rect),
                                GPU_DATA_FLOAT,
-                               rp->ibuf->float_buffer.data);
+                               rp->ibuf->float_data_for_write());
 
     int pix_num = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
 
     /* Convert GPU depth [0..1] to view Z [near..far] */
     if (draw::View::default_get().is_persp()) {
-      for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
+      for (float &z : MutableSpan(rp->ibuf->float_data_for_write(), pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
         }
@@ -708,7 +708,7 @@ static void write_render_z_output(RenderLayer *layer,
       float far = draw::View::default_get().far_clip();
       float range = fabsf(far - near);
 
-      for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
+      for (float &z : MutableSpan(rp->ibuf->float_data_for_write(), pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
         }

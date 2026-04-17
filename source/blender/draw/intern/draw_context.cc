@@ -158,7 +158,7 @@ DRWContext::DRWContext(Mode mode_,
   }
 
   /* View layer can be lazily synced. */
-  BKE_view_layer_synced_ensure(this->scene, this->view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(depsgraph), this->scene, this->view_layer);
 
   /* fclem: Is this still needed ? */
   if (this->object_edit && rv3d) {
@@ -777,10 +777,6 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
   View3D *v3d = draw_ctx.v3d;
 
-  /* EEVEE is not supported for now. */
-  const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
-                                             BKE_scene_uses_blender_workbench(draw_ctx.scene);
-
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
@@ -843,7 +839,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 #endif
 
-      if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob, draw_ctx)) {
+      if (!supports_handle_ranges(&dupli, ob, draw_ctx)) {
         /* Sync the dupli as a single object. */
         if (!evil::DEG_iterator_temp_object_from_dupli(
                 ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
@@ -1982,7 +1978,9 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   draw_ctx.engines_data_validate();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     if (use_obedit) {
-      FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, object_type, object_mode, ob_iter) {
+      FOREACH_OBJECT_IN_MODE_BEGIN (
+          DEG_get_bmain(depsgraph), scene, view_layer, v3d, object_type, object_mode, ob_iter)
+      {
         /* Depsgraph usually does this, but we use a different iterator.
          * So we have to do it manually. */
         ob_iter->runtime->select_id = DEG_get_original(ob_iter)->runtime->select_id;
