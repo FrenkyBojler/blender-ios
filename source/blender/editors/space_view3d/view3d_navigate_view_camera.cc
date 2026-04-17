@@ -10,6 +10,7 @@
 #include "BKE_layer.hh"
 
 #include "DEG_depsgraph.hh"
+
 #include "ED_sequencer.hh"
 
 #include "WM_api.hh"
