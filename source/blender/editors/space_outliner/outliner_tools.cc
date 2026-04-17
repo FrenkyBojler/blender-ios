@@ -48,6 +48,7 @@
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -60,7 +61,6 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_image.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -1662,11 +1662,11 @@ static void id_select_linked_fn(bContext *C,
 }
 
 static void image_pack_fn(bContext *C,
-                       ReportList * /*reports*/,
-                       Scene * /*scene*/,
-                       TreeElement * /*te*/,
-                       TreeStoreElem * /*tsep*/,
-                       TreeStoreElem *tselem)
+                          ReportList * /*reports*/,
+                          Scene * /*scene*/,
+                          TreeElement * /*te*/,
+                          TreeStoreElem * /*tsep*/,
+                          TreeStoreElem *tselem)
 {
   ID *id = tselem->id;
 
@@ -3087,10 +3087,10 @@ static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
       ED_undo_push(C, "Select");
       break;
     case OUTLINER_IDOP_PACK:
-    if (idlevel == ID_IM) {
-      outliner_do_libdata_operation(C, op->reports, scene, space_outliner, image_pack_fn);
-      ED_undo_push(C, "Pack Image");
-    }
+      if (idlevel == ID_IM) {
+        outliner_do_libdata_operation(C, op->reports, scene, space_outliner, image_pack_fn);
+        ED_undo_push(C, "Pack Image");
+      }
     default:
       /* Invalid - unhandled. */
       break;
