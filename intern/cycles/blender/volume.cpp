@@ -189,8 +189,7 @@ static void sync_smoke_volume(blender::Scene &b_scene,
                               Scene *scene,
                               BObjectInfo &b_ob_info,
                               Volume *volume,
-                              const float frame,
-                              std::optional<blender::Bounds<blender::float3>> &bounds)
+                              const float frame)
 {
   if (!b_ob_info.is_real_object_data()) {
     return;
@@ -244,9 +243,17 @@ static void sync_smoke_volume(blender::Scene &b_scene,
     attr->data_voxel_for_write() = scene->image_manager->add_image(std::move(loader), params);
   }
 
+  /* Create a matrix to transform from object space to normalized texture space [0, 1]. */
   if (volume->need_attribute(scene, ATTR_STD_GENERATED_TRANSFORM)) {
-    blender::Mesh &b_mesh = *blender::id_cast<blender::Mesh *>(b_ob_info.object_data);
-    bounds = b_mesh.bounds_min_max();
+    const blender::Mesh &b_mesh = *blender::id_cast<const blender::Mesh *>(b_ob_info.object_data);
+
+    float3 loc;
+    float3 size;
+    mesh_texture_space(b_mesh, loc, size);
+
+    Attribute *attr = volume->attributes.add(ATTR_STD_GENERATED_TRANSFORM);
+    Transform *tfm = attr->data_transform_for_write();
+    *tfm = transform_translate(-loc) * transform_scale(size);
   }
 }
 
@@ -304,8 +311,7 @@ static void sync_volume_object(blender::Main &b_data,
                                blender::Scene &b_scene,
                                BObjectInfo &b_ob_info,
                                Scene *scene,
-                               Volume *volume,
-                               std::optional<blender::Bounds<blender::float3>> &bounds)
+                               Volume *volume)
 {
   blender::Volume &b_volume = *blender::id_cast<blender::Volume *>(b_ob_info.object_data);
   BKE_volume_load(&b_volume, &b_data);
@@ -393,31 +399,10 @@ static void sync_volume_object(blender::Main &b_data,
   }
 #endif
 
-  if (volume->need_attribute(scene, ATTR_STD_GENERATED_TRANSFORM)) {
-    bounds = BKE_volume_min_max(&b_volume);
-  }
-}
-
-void BlenderSync::sync_volume(BObjectInfo &b_ob_info, Volume *volume)
-{
-  volume->clear(true);
-
-  std::optional<blender::Bounds<blender::float3>> bounds;
-
-  if (view_layer.use_volumes) {
-    if (GS(b_ob_info.object_data->name) == blender::ID_VO) {
-      /* Volume object. Create only attributes, bounding mesh will then
-       * be automatically generated later. */
-      sync_volume_object(*b_data, *b_scene, b_ob_info, scene, volume, bounds);
-    }
-    else {
-      /* Smoke domain. */
-      sync_smoke_volume(*b_scene, scene, b_ob_info, volume, b_scene->r.cfra, bounds);
-    }
-  }
-
   /* Create a matrix to transform from object space to normalized texture space [0, 1]. */
-  if (bounds.has_value()) {
+  if (volume->need_attribute(scene, ATTR_STD_GENERATED_TRANSFORM)) {
+    std::optional<const blender::Bounds<blender::float3>> bounds = BKE_volume_min_max(&b_volume);
+
     const blender::float3 size = bounds->size();
     const float3 loc = make_float3(bounds->min[0], bounds->min[1], bounds->min[2]);
     const float3 inv_size = safe_divide(one_float3(), make_float3(size[0], size[1], size[2]));
@@ -425,6 +410,23 @@ void BlenderSync::sync_volume(BObjectInfo &b_ob_info, Volume *volume)
     Attribute *attr = volume->attributes.add(ATTR_STD_GENERATED_TRANSFORM);
     Transform *tfm = attr->data_transform_for_write();
     *tfm = transform_scale(inv_size) * transform_translate(-loc);
+  }
+}
+
+void BlenderSync::sync_volume(BObjectInfo &b_ob_info, Volume *volume)
+{
+  volume->clear(true);
+
+  if (view_layer.use_volumes) {
+    if (GS(b_ob_info.object_data->name) == blender::ID_VO) {
+      /* Volume object. Create only attributes, bounding mesh will then
+       * be automatically generated later. */
+      sync_volume_object(*b_data, *b_scene, b_ob_info, scene, volume);
+    }
+    else {
+      /* Smoke domain. */
+      sync_smoke_volume(*b_scene, scene, b_ob_info, volume, b_scene->r.cfra);
+    }
   }
 
   volume->merge_grids(scene);
