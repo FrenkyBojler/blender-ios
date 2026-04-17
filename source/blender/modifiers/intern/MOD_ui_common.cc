@@ -523,6 +523,111 @@ PanelType *modifier_subpanel_register(ARegionType *region_type,
   return panel_type;
 }
 
+void modifier_row_draw(ui::Layout &row, Object &object, ModifierData *modifier_data, Scene &scene, int index)
+{
+    PointerRNA modifier_ptr = RNA_pointer_create_discrete(&object.id, RNA_Modifier, modifier_data);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(modifier_data->type));
+
+    /* Modifier Icon. */
+    ui::Layout *sub = &row.row(true);
+    sub->emboss_set(ui::EmbossType::None);
+    if (mti->is_disabled && mti->is_disabled(&scene, modifier_data, false)) {
+        sub->red_alert_set(true);
+    }
+    sub->label("", mti->icon);
+    row.prop(&modifier_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+
+   /* Display mode switching buttons. */
+   if (object.type == OB_MESH) {
+     int last_cage_index;
+     int cage_index = BKE_modifiers_get_cage_index(&scene, &object, &last_cage_index, false);
+     if (BKE_modifier_supports_cage(&scene, modifier_data) && (index <= last_cage_index)) {
+       sub = &row.row(true);
+       sub->emboss_set(ui::EmbossType::Emboss);
+       if (index < cage_index || !BKE_modifier_couldbe_cage(&scene, modifier_data)) {
+         sub->active_set(false);
+       }
+       sub->prop(&modifier_ptr, "show_on_cage", UI_ITEM_NONE, "", ICON_NONE);
+     }
+   } /* Tessellation point for curve-typed objects. */
+   else if (ELEM(object.type, OB_CURVES_LEGACY, OB_SURF, OB_FONT)) {
+     /* Smooth modifier can work with tessellated curves only (works on mesh edges explicitly). */
+     if (modifier_data->type == eModifierType_Smooth) {
+       /* Add button (appearing to be OFF) and add tip why this can't be changed. */
+       sub = &row.row(true);
+       sub->emboss_set(ui::EmbossType::Emboss);
+       ui::Block *block = sub->block();
+       static int apply_on_spline_always_off_hack = 0;
+       ui::Button *but = uiDefIconButBitI(block,
+                                          ui::ButtonType::Toggle,
+                                          eModifierMode_ApplyOnSpline,
+                                          ICON_SURFACE_DATA,
+                                          0,
+                                          0,
+                                          UI_UNIT_X - 2,
+                                          UI_UNIT_Y,
+                                          &apply_on_spline_always_off_hack,
+                                          0.0,
+                                          0.0,
+                                          RPT_("Apply on Spline"));
+       button_disable(but,
+                      "This modifier can only deform filled curve/surface, not the control points");
+     }
+     /* Some modifiers can work with pre-tessellated curves only. */
+     else if (ELEM(modifier_data->type, eModifierType_Hook, eModifierType_Softbody, eModifierType_MeshDeform))
+     {
+       /* Add button (appearing to be ON) and add tip why this can't be changed. */
+       sub = &row.row(true);
+       sub->emboss_set(ui::EmbossType::Emboss);
+       ui::Block *block = sub->block();
+       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
+       ui::Button *but = uiDefIconButBitI(block,
+                                          ui::ButtonType::Toggle,
+                                          eModifierMode_ApplyOnSpline,
+                                          ICON_SURFACE_DATA,
+                                          0,
+                                          0,
+                                          UI_UNIT_X - 2,
+                                          UI_UNIT_Y,
+                                          &apply_on_spline_always_on_hack,
+                                          0.0,
+                                          0.0,
+                                          RPT_("Apply on Spline"));
+       button_disable(but,
+                      "This modifier can only deform control points, not the filled curve/surface");
+     }
+     else if (mti->type != ModifierTypeType::Constructive) {
+       /* Constructive modifiers tessellates curve before applying. */
+      row.prop(&modifier_ptr, "use_apply_on_spline", UI_ITEM_NONE, "", ICON_NONE);
+     }
+   }
+   /* Collision and Surface are always enabled, hide buttons. */
+   if (!ELEM(modifier_data->type, eModifierType_Collision, eModifierType_Surface)) {
+     if (mti->flags & eModifierTypeFlag_SupportsEditmode) {
+       sub = &row.row(true);
+       sub->emboss_set(ui::EmbossType::Emboss);
+       sub->active_set(modifier_data->mode & eModifierMode_Realtime);
+       sub->prop(&modifier_ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
+     }
+     row.prop(&modifier_ptr, "show_viewport", UI_ITEM_NONE, "", ICON_NONE);
+     row.prop(&modifier_ptr, "show_render", UI_ITEM_NONE, "", ICON_NONE);
+   }
+
+   /* Switch context buttons. */
+   if (modifier_is_simulation(modifier_data) == 1) {
+     PointerRNA op_ptr = row.op("WM_OT_properties_context_change", "", ICON_PROPERTIES);
+     if (!RNA_pointer_is_null(&op_ptr)) {
+       RNA_string_set(&op_ptr, "context", "PHYSICS");
+     }
+   }
+   else if (modifier_is_simulation(modifier_data) == 2) {
+     PointerRNA op_ptr = row.op("WM_OT_properties_context_change", "", ICON_PROPERTIES);
+     if (!RNA_pointer_is_null(&op_ptr)) {
+       RNA_string_set(&op_ptr, "context", "PARTICLES");
+     }
+   }
+}
+
 /** \} */
 
 }  // namespace blender

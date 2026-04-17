@@ -63,6 +63,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def draw(self, _context):
         layout = self.layout
         layout.operator("wm.call_menu", text="Add Modifier", icon='ADD').name = "OBJECT_MT_modifier_add"
+        layout.template_modifier_tree()
         layout.template_modifiers()
 
 

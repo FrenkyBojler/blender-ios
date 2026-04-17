@@ -62,6 +62,7 @@ set(SRC
   intern/MOD_grease_pencil_weight_angle.cc
   intern/MOD_grease_pencil_weight_proximity.cc
   intern/MOD_hook.cc
+  intern/MOD_interface_template_tree.cc
   intern/MOD_laplaciandeform.cc
   intern/MOD_laplaciansmooth.cc
   intern/MOD_lattice.cc

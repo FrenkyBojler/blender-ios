@@ -2791,6 +2791,10 @@ namespace ed::object::shapekey {
 void template_tree(ui::Layout *layout, bContext *C);
 }
 
+namespace modifier {
+void template_tree(ui::Layout *layout, bContext *C);
+}
+
 namespace ui {
 /**
  * \return: True if the list item with unfiltered, unordered index \a item_idx is visible given the

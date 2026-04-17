@@ -44,6 +44,8 @@ void modifier_vgroup_ui(ui::Layout &layout,
 void modifier_grease_pencil_curve_header_draw(const bContext * /*C*/, Panel *panel);
 void modifier_grease_pencil_curve_panel_draw(const bContext * /*C*/, Panel *panel);
 
+void modifier_row_draw(ui::Layout &row, Object &object, ModifierData *modifier_data, Scene &scene, int index);
+
 /**
  * Draw modifier error message.
  */
