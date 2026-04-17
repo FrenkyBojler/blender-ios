@@ -998,8 +998,10 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           break;
         }
         case TSE_SHAPE_KEY_BLOCK: {
-          Key *key = id_cast<Key *>(tselem->id);
+          const Key *key = id_cast<Key *>(tselem->id);
           KeyBlock *keyblock = static_cast<KeyBlock *>(te->directdata);
+          /* Outliner renaming already sets the new name to the KeyBlock. Restore the old name
+          before calling rename function which will ensure unique name. */
           char newname[sizeof(keyblock->name)];
           STRNCPY_UTF8(newname, keyblock->name);
           STRNCPY_UTF8(keyblock->name, oldname);

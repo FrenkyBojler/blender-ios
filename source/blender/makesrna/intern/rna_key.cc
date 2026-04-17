@@ -82,11 +82,10 @@ static void rna_ShapeKey_name_set(PointerRNA *ptr, const char *value)
 {
   KeyBlock *kb = static_cast<KeyBlock *>(ptr->data);
 
+  BLI_assert(ptr->owner_id);
   /* make sure the name is truly unique */
-  if (ptr->owner_id) {
-    Key *key = rna_ShapeKey_find_key(ptr->owner_id);
-    BKE_keyblock_rename(key, kb, value);
-  }
+  const Key *key = rna_ShapeKey_find_key(ptr->owner_id);
+  BKE_keyblock_rename(key, kb, value);
 }
 
 static float rna_ShapeKey_frame_get(PointerRNA *ptr)

@@ -1907,7 +1907,7 @@ std::optional<Array<bool>> BKE_keyblock_get_dependent_keys(const Key *key, const
   return marked;
 }
 
-void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
+void BKE_keyblock_rename(const Key *key, KeyBlock *kb, const char *newname)
 {
   char oldname[sizeof(kb->name)];
 
