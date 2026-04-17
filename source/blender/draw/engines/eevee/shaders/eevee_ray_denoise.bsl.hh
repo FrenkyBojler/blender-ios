@@ -514,16 +514,6 @@ void temporal_main([[resource_table]] DenoiseTemporal &srt,
   imageStoreFast(srt.out_variance_img, texel_fullres, float4(out_variance));
 }
 
-/* In order to remove some more fireflies, "tone-map" the color samples during the accumulation. */
-float3 to_accumulation_space(float3 color)
-{
-  return color / (1.0f + reduce_max(color));
-}
-float3 from_accumulation_space(float3 color)
-{
-  return color / (1.0f - reduce_max(color));
-}
-
 struct DenoiseBilateral {
   [[legacy_info]] ShaderCreateInfo eevee_gbuffer_data;
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
@@ -599,7 +589,8 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
       float2(texel_fullres) + 0.5f, float2(3, 5), float2(0.0f));
   noise += sampling_rng_2D_get(SAMPLING_RAYTRACE_W);
 
-  float3 accum_radiance = to_accumulation_space(in_radiance);
+  /* In order to remove more fireflies, "tone-map" the color samples during the accumulation. */
+  float3 accum_radiance = colorspace::log_from_scene_linear(in_radiance);
   float accum_weight = 1.0f;
   /* We want to resize the blur depending on the roughness and keep the amount of sample low.
    * So we do a random sampling around the center point. */
@@ -645,12 +636,12 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
     float normal_weight = filter_angle_weight(center_closure.N, sample_closure.N);
     float weight = depth_weight * spatial_weight * normal_weight;
 
-    accum_radiance += to_accumulation_space(radiance) * weight;
+    accum_radiance += colorspace::log_from_scene_linear(radiance) * weight;
     accum_weight += weight;
   }
 
   float3 out_radiance = accum_radiance * safe_rcp(accum_weight);
-  out_radiance = from_accumulation_space(out_radiance);
+  out_radiance = colorspace::scene_linear_from_log(out_radiance);
 
   imageStoreFast(srt.out_radiance_img, texel_fullres, float4(out_radiance, 0.0f));
 }
