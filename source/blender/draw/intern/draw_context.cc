@@ -1914,7 +1914,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   using namespace blender::draw;
   const int viewport_size[2] = {BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)};
 
-  bool use_gpencil = !draw_surface && DRW_render_check_grease_pencil(depsgraph, v3d);
+  const bool use_gpencil = !draw_surface && DRW_render_check_grease_pencil(depsgraph, v3d);
 
   DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
                                                       DRWContext::SELECT_OBJECT;
@@ -1924,50 +1924,47 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   draw_ctx.enable_engines(use_gpencil);
   draw_ctx.engines_data_validate();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
-    /* NOTE: remove before committing! (reduce diff-noise). */
-    {
-      /* When selecting pose-bones in pose mode, check for visibility not select-ability
-       * as pose-bones have their own selection restriction flag. */
-      const bool use_pose_exception = (draw_ctx.object_pose != nullptr);
+    /* When selecting pose-bones in pose mode, check for visibility not select-ability
+     * as pose-bones have their own selection restriction flag. */
+    const bool use_pose_exception = (draw_ctx.object_pose != nullptr);
 
-      const int object_type_exclude_select = v3d->object_type_exclude_select;
-      bool filter_exclude = false;
+    const int object_type_exclude_select = v3d->object_type_exclude_select;
+    bool filter_exclude = false;
 
-      auto should_draw_object = [&](Object &ob) {
-        if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+    auto should_draw_object = [&](Object &ob) {
+      if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+        return false;
+      }
+      if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
+        if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
           return false;
         }
-        if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
-          if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
+      }
+      else {
+        if ((ob.base_flag & BASE_SELECTABLE) == 0) {
+          return false;
+        }
+      }
+
+      if ((object_type_exclude_select & (1 << ob.type)) == 0) {
+        if (object_filter_fn != nullptr) {
+          if (ob.base_flag & BASE_FROM_DUPLI) {
+            /* pass (use previous filter_exclude value) */
+          }
+          else {
+            filter_exclude = (object_filter_fn(&ob, object_filter_user_data) == false);
+          }
+          if (filter_exclude) {
             return false;
           }
         }
-        else {
-          if ((ob.base_flag & BASE_SELECTABLE) == 0) {
-            return false;
-          }
-        }
+      }
+      return true;
+    };
 
-        if ((object_type_exclude_select & (1 << ob.type)) == 0) {
-          if (object_filter_fn != nullptr) {
-            if (ob.base_flag & BASE_FROM_DUPLI) {
-              /* pass (use previous filter_exclude value) */
-            }
-            else {
-              filter_exclude = (object_filter_fn(&ob, object_filter_user_data) == false);
-            }
-            if (filter_exclude) {
-              return false;
-            }
-          }
-        }
-        return true;
-      };
-
-      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
-        drw_engines_cache_populate(ob_ref, duplis, extraction);
-      });
-    }
+    foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+      drw_engines_cache_populate(ob_ref, duplis, extraction);
+    });
   });
 
   /* Setup frame-buffer. */

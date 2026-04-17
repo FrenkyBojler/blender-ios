@@ -528,48 +528,36 @@ eV3DSelectObjectFilter ED_view3d_select_filter_from_mode(const Scene *scene,
 {
   const ToolSettings *ts = scene->toolsettings;
 
-  if (ts->object_flag & SCE_OBJECT_MODE_LOCK) {
-    bool use_pose_mode = false;
-    bool use_pose_weight_paint = false;
+  if (!(ts->object_flag & SCE_OBJECT_MODE_LOCK)) {
+    return VIEW3D_SELECT_FILTER_NOP;
+  }
 
-    {
-      if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) &&
-          /* Only restrict selection to bones when the user turns on "Lock Object Modes".
-           * If the lock is off, skip this so other objects can still be selected.
-           * See #66950 & #125822. */
-          (ts->object_flag & SCE_OBJECT_MODE_LOCK))
-      {
-        if (!(v3d->flag2 & V3D_HIDE_OVERLAYS)) {
-          /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
-          const Object *obpose = OBPOSE_FROM_OBACT(obact);
-          if (obpose == nullptr) {
-            const Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
-            if (obweight) {
-              /* Only use Armature pose selection, when connected armature is in pose mode. */
-              const Object *ob_armature = BKE_modifiers_is_deformed_by_armature(
-                  const_cast<Object *>(obweight));
-              if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
-                obpose = ob_armature;
-                use_pose_weight_paint = true;
-              }
-            }
-          }
-          if (obpose && obpose->mode == OB_MODE_POSE) {
-            use_pose_mode = true;
-          }
+  if (!(v3d->flag2 & V3D_HIDE_OVERLAYS) &&
+      /* Only restrict selection to bones when the user turns on "Lock Object Modes".
+       * If the lock is off, skip this so other objects can still be selected.
+       * See #66950 & #125822. */
+      (v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT))
+  {
+    /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
+    const Object *obpose = OBPOSE_FROM_OBACT(obact);
+    if (obpose == nullptr) {
+      const Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
+      if (obweight) {
+        /* Only use Armature pose selection, when connected armature is in pose mode. */
+        const Object *ob_armature = BKE_modifiers_is_deformed_by_armature(
+            const_cast<Object *>(obweight));
+        if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
+          return VIEW3D_SELECT_FILTER_WPAINT_POSE_MODE_LOCK;
         }
       }
     }
-
-    if (use_pose_mode) {
-      if (use_pose_weight_paint) {
-        return VIEW3D_SELECT_FILTER_WPAINT_POSE_MODE_LOCK;
-      }
+    if (obpose && obpose->mode == OB_MODE_POSE) {
+      /* Any pose mode. */
       return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE;
     }
-    return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK;
   }
-  return VIEW3D_SELECT_FILTER_NOP;
+
+  return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK;
 }
 
 /** Implement #VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK. */
