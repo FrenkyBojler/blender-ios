@@ -400,6 +400,17 @@ struct BsdfEval {
   Spectrum sum;
 };
 
+enum DenoisingPassFlag {
+  /* Whether to omit reflections from the denoising depth pass. */
+  DENOISING_PASS_NO_DEPTH_PASS_REFLECTIONS = (1 << 0),
+  /* Whether to omit reflections from the denoising normal pass. */
+  DENOISING_PASS_NO_NORMAL_PASS_REFLECTIONS = (1 << 1),
+  /* Whether to omit reflections from the denoising albedo pass. */
+  DENOISING_PASS_NO_ALBEDO_PASS_REFLECTIONS = (1 << 2),
+  /* Whether to store the view space z value in the denoising depth pass. */
+  DENOISING_PASS_USE_CAMERA_Z_DEPTH = (1 << 3),
+};
+
 /* Closure Filter */
 
 enum FilterClosures {

@@ -52,6 +52,11 @@ class Film : public Node {
 
   NODE_SOCKET_API(bool, use_sample_count)
 
+  NODE_SOCKET_API(bool, denoising_pass_no_depth_reflections);
+  NODE_SOCKET_API(bool, denoising_pass_no_normal_reflections);
+  NODE_SOCKET_API(bool, denoising_pass_no_albedo_reflections);
+  NODE_SOCKET_API(bool, denoising_pass_use_camera_z_depth);
+
  private:
   size_t filter_table_offset_;
   bool prev_have_uv_pass = false;

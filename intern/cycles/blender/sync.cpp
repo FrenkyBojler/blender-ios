@@ -618,6 +618,16 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   else {
     film->set_use_approximate_shadow_catcher(!get_boolean(crl, "use_pass_shadow_catcher"));
   }
+
+  /* Denoising passes. */
+  film->set_denoising_pass_no_depth_reflections(
+      get_boolean(crl, "denoising_pass_no_depth_reflections"));
+  film->set_denoising_pass_no_normal_reflections(
+      get_boolean(crl, "denoising_pass_no_normal_reflections"));
+  film->set_denoising_pass_no_albedo_reflections(
+      get_boolean(crl, "denoising_pass_no_albedo_reflections"));
+  film->set_denoising_pass_use_camera_z_depth(
+      get_boolean(crl, "denoising_pass_use_camera_z_depth"));
 }
 
 /* Render Layer */

@@ -123,6 +123,14 @@ NODE_DEFINE(Film)
 
   SOCKET_BOOLEAN(use_sample_count, "Use Sample Count Pass", false);
 
+  SOCKET_BOOLEAN(
+      denoising_pass_no_depth_reflections, "Disable Denoising Depth Pass Reflections", false);
+  SOCKET_BOOLEAN(
+      denoising_pass_no_normal_reflections, "Disable Denoising Normal Pass Reflections", false);
+  SOCKET_BOOLEAN(
+      denoising_pass_no_albedo_reflections, "Disable Denoising Albedo Pass Reflections", false);
+  SOCKET_BOOLEAN(denoising_pass_use_camera_z_depth, "Denoising Pass Use Camera Z Depth", false);
+
   return type;
 }
 
@@ -450,6 +458,21 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
   kfilm->cryptomatte_passes = cryptomatte_passes;
   kfilm->cryptomatte_depth = cryptomatte_depth;
+
+  /* denoiser pass parameters */
+  kfilm->denoising_pass_flag = 0;
+  if (denoising_pass_no_depth_reflections || denoising_pass_use_camera_z_depth) {
+    kfilm->denoising_pass_flag |= DENOISING_PASS_NO_DEPTH_PASS_REFLECTIONS;
+  }
+  if (denoising_pass_no_normal_reflections) {
+    kfilm->denoising_pass_flag |= DENOISING_PASS_NO_NORMAL_PASS_REFLECTIONS;
+  }
+  if (denoising_pass_no_albedo_reflections) {
+    kfilm->denoising_pass_flag |= DENOISING_PASS_NO_ALBEDO_PASS_REFLECTIONS;
+  }
+  if (denoising_pass_use_camera_z_depth) {
+    kfilm->denoising_pass_flag |= DENOISING_PASS_USE_CAMERA_Z_DEPTH;
+  }
 
   clear_modified();
 }
