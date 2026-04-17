@@ -432,14 +432,22 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
   };
 
   auto get_struct_members = [&](string_view struct_name) {
-    vector<pair<Token, Token>> members;
+    /* Search in symbol table first. */
+    for (const auto &symbol : metadata_.symbol_table) {
+      if (symbol.is_struct && symbol.identifier == struct_name) {
+        return symbol.members;
+      }
+    }
+
+    /* Search symbols inside this file. This can help find instanciated structs. */
+    vector<pair<string, string>> members;
     parser().foreach_match("sA{", [&](const Tokens &t) {
       if (t[1].str() != struct_name) {
         return;
       }
       Scope body = t.back().scope();
       body.foreach_declaration([&](Scope, Token, Token type, Scope, Token name, Scope, Token) {
-        members.emplace_back(type, name);
+        members.emplace_back(type.str(), name.str());
       });
     });
     return members;
@@ -496,7 +504,7 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
 
       parser.replace(t[0], t[4], struct_type + " " + struct_var);
 
-      vector<pair<Token, Token>> struct_members = get_struct_members(struct_type);
+      vector<pair<string, string>> struct_members = get_struct_members(struct_type);
 
       if (struct_members.empty()) {
         report_error(symbol_name, "Couldn't find type to unpack.");
@@ -509,8 +517,8 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
       var_list.foreach_token(Word, [&](Token tok) {
         if (struct_members.size() > member_index) {
           auto [member_type, member_name] = struct_members[member_index];
-          assignments += string(member_type.str()) + " " + string(tok.str()) + "=" + struct_var +
-                         "." + string(member_name.str()) + ";";
+          assignments += member_type + " " + string(tok.str()) + "=" + struct_var + "." +
+                         member_name + ";";
           member_index++;
         }
         else {
