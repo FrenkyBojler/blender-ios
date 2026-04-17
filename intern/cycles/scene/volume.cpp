@@ -705,18 +705,6 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
   std::ranges::fill(volume->get_shader(), 0);
   std::ranges::fill(volume->get_smooth(), false);
 
-  /* Create a matrix to transform from object space to generated texture space [0, 1]. */
-  if (volume->need_attribute(scene, ATTR_STD_GENERATED_TRANSFORM)) {
-    volume->compute_bounds();
-
-    const float3 size = safe_divide(one_float3(), volume->bounds.size());
-    const float3 loc = volume->bounds.center() * size - make_float3(0.5f);
-
-    Attribute *attr = volume->attributes.add(ATTR_STD_GENERATED_TRANSFORM);
-    Transform *tfm = attr->data_transform_for_write();
-    *tfm = transform_translate(-loc) * transform_scale(size);
-  }
-
   /* Print stats. */
   LOG_DEBUG << "Memory usage volume mesh: "
             << (vertices.size() * sizeof(float3) + indices.size() * sizeof(int)) /
