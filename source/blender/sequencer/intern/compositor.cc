@@ -101,11 +101,11 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
 
         GPU_texture_unbind(input_tex);
         result.unbind_as_image();
-        ocio_shader.unbind_shader_and_resources();
         pool.release_texture(input_tex);
 
         use_fallback = false;
       }
+      ocio_shader.unbind_shader_and_resources();
     }
   }
 
