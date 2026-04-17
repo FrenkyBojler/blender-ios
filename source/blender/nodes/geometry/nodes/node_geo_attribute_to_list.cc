@@ -277,7 +277,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
   if (type == SOCK_GEOMETRY) {
     params.add_item(IFACE_("Geometry"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeAttributeToList");
+      bNode &node = params.add_node("GeometryNodeAttributeToList"_ustr);
       params.connect_available_socket(node, "Geometry"_ustr);
     });
   }
@@ -286,7 +286,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 
   params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeAttributeToList");
+    bNode &node = params.add_node("GeometryNodeAttributeToList"_ustr);
     socket_items::add_item_with_socket_type_and_name<AttributeToListItemsAccessor>(
         params.node_tree, node, type, params.socket.name);
     params.update_and_connect_available_socket(node, UString(params.socket.name));
@@ -313,7 +313,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeAttributeToList");
+  geo_node_type_base(&ntype, "GeometryNodeAttributeToList"_ustr);
   ntype.ui_name = "Attribute to List";
   ntype.ui_description = "Evaluate the input fields on the geometry and output the result as list";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;

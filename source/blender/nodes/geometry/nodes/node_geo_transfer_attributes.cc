@@ -389,7 +389,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeTransferAttributes");
+  geo_node_type_base(&ntype, "GeometryNodeTransferAttributes"_ustr);
   ntype.ui_name = "Transfer Attributes";
   ntype.ui_description = "Copy attributes from one geometry to another";
   ntype.nclass = NODE_CLASS_GEOMETRY;

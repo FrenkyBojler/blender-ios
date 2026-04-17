@@ -37,7 +37,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeTagFilter");
+  geo_node_type_base(&ntype, "GeometryNodeTagFilter"_ustr);
   ntype.ui_name = "Tag Filter";
   ntype.ui_description = "Check if a filter string matches a list of tags";
   ntype.nclass = NODE_CLASS_CONVERTER;

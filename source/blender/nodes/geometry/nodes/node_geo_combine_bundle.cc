@@ -280,7 +280,7 @@ std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
 std::optional<StringRefNull> combine_bundle_node_type(const bNodeTree & /*tree*/,
                                                       const bNode &node)
 {
-  BLI_assert(node.is_type("NodeCombineBundle"));
+  BLI_assert(node.is_type("NodeCombineBundle"_ustr));
   /* Not using topology cache because this is called while building the node. */
   for (const bNodeSocket &socket : node.inputs) {
     if (socket.type != SOCK_STRING) {

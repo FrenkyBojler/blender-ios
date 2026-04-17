@@ -104,7 +104,7 @@ static void bundle_type_string_search_exec(bContext *C, void *data_v, void * /*i
   if (!node) {
     return;
   }
-  if (!node->is_type("NodeCombineBundle")) {
+  if (!node->is_type("NodeCombineBundle"_ustr)) {
     return;
   }
   const auto &storage = *static_cast<NodeCombineBundle *>(node->storage);

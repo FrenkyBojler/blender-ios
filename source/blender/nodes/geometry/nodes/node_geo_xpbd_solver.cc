@@ -2861,7 +2861,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeXPBDSolver");
+  geo_node_type_base(&ntype, "GeometryNodeXPBDSolver"_ustr);
   ntype.ui_name = "XPBD Solver";
   ntype.ui_description = "Simulate physics using the XPBD framework";
   ntype.nclass = NODE_CLASS_GEOMETRY;

@@ -95,7 +95,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "NodeGetNestedBundlePaths");
+  geo_node_type_base(&ntype, "NodeGetNestedBundlePaths"_ustr);
   ntype.ui_name = "Get Nested Bundle Paths";
   ntype.ui_description = "Get paths to items in a nested bundle with a filter";
   ntype.nclass = NODE_CLASS_CONVERTER;
