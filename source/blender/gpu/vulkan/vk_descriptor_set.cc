@@ -21,6 +21,11 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
+static bool use_shader_read_only_optimal(const VkAccessFlags access_mask)
+{
+  return (access_mask & VK_ACCESS_SHADER_READ_BIT) && !(access_mask & VK_ACCESS_SHADER_WRITE_BIT);
+}
+
 void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
                                                    render_graph::VKResourceAccessInfo &access_info,
                                                    render_graph::VKPipelineData &r_pipeline_data)
@@ -177,7 +182,8 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_image(
   access_info.images.append({texture.vk_image_handle(),
                              resource_binding.access_mask,
                              to_vk_image_aspect_flag_bits(texture.device_format_get()),
-                             subimage});
+                             subimage,
+                             use_shader_read_only_optimal(resource_binding.access_mask)});
 }
 
 void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachment(
@@ -291,11 +297,16 @@ void VKDescriptorSetUpdator::bind_image_resource(const VKStateManager &state_man
                                                  const VKResourceBinding &resource_binding)
 {
   VKTexture &texture = *state_manager.images_.get(resource_binding.binding);
+  const VkImageLayout vk_image_layout = render_graph::to_vk_image_layout(
+      resource_binding.access_mask,
+      to_vk_image_aspect_flag_bits(texture.device_format_get()),
+      false,
+      use_shader_read_only_optimal(resource_binding.access_mask));
   bind_image(
       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
       VK_NULL_HANDLE,
       texture.image_view_get(resource_binding.arrayed, VKImageViewFlags::NO_SWIZZLING).vk_handle(),
-      VK_IMAGE_LAYOUT_GENERAL,
+      vk_image_layout,
       resource_binding.location);
 }
 

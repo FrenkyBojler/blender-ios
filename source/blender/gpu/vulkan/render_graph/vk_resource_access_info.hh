@@ -26,6 +26,11 @@
 namespace blender::gpu::render_graph {
 class VKResourceStateTracker;
 
+VkImageLayout to_vk_image_layout(VkAccessFlags vk_access_flags,
+                                 VkImageAspectFlags vk_image_aspect,
+                                 bool supports_local_read,
+                                 bool use_shader_read_only_optimal = false);
+
 /** Struct describing the access to an image. */
 struct VKImageAccess {
   VkImage vk_image;
@@ -38,6 +43,8 @@ struct VKImageAccess {
    * image load/store.
    */
   VKSubImageRange subimage;
+  /** Use `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL` for read-only shader image access. */
+  bool use_shader_read_only_optimal = false;
 
   /** Determine the image layout for the vk_access_flags. */
   VkImageLayout to_vk_image_layout(bool supports_local_read) const;

@@ -256,7 +256,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
     access_info.images.append({image,
                                VK_ACCESS_SHADER_READ_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {0, VK_REMAINING_MIP_LEVELS, 1, VK_REMAINING_ARRAY_LAYERS}});
+                               {0, VK_REMAINING_MIP_LEVELS, 1, VK_REMAINING_ARRAY_LAYERS},
+                               true});
     VKDrawNode::CreateInfo draw(access_info);
     draw.node_data.first_instance = 0;
     draw.node_data.first_vertex = 0;
@@ -302,7 +303,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
           "old_layout=" +
           color_attachment_layout_str() +
           ", "
-          "new_layout=VK_IMAGE_LAYOUT_GENERAL, "
+          "new_layout=VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, "
           "image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
@@ -336,7 +337,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
           "VK_ACCESS_TRANSFER_WRITE_BIT, dst_access_mask=VK_ACCESS_SHADER_READ_BIT, "
           "VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
           "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, "
-          "VK_ACCESS_TRANSFER_WRITE_BIT, old_layout=VK_IMAGE_LAYOUT_GENERAL, "
+          "VK_ACCESS_TRANSFER_WRITE_BIT, old_layout=VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, "
           "new_layout=" +
           color_attachment_layout_str() + ", image=0x1, subresource_range=" + endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "

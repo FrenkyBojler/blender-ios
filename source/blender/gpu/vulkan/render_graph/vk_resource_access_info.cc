@@ -13,11 +13,17 @@
 
 namespace blender::gpu::render_graph {
 
-VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
+VkImageLayout to_vk_image_layout(const VkAccessFlags vk_access_flags,
+                                 const VkImageAspectFlags vk_image_aspect,
+                                 const bool supports_local_read,
+                                 const bool use_shader_read_only_optimal)
 {
-  if (vk_access_flags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT)) {
-    /* TODO: when read only use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL */
+  if (vk_access_flags & VK_ACCESS_SHADER_WRITE_BIT) {
     return VK_IMAGE_LAYOUT_GENERAL;
+  }
+  if (vk_access_flags & VK_ACCESS_SHADER_READ_BIT) {
+    return use_shader_read_only_optimal ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL :
+                                          VK_IMAGE_LAYOUT_GENERAL;
   }
 
   if (supports_local_read && vk_access_flags & (VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
@@ -47,6 +53,12 @@ VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
   }
   BLI_assert_unreachable();
   return VK_IMAGE_LAYOUT_UNDEFINED;
+}
+
+VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
+{
+  return render_graph::to_vk_image_layout(
+      vk_access_flags, vk_image_aspect, supports_local_read, use_shader_read_only_optimal);
 }
 
 void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
