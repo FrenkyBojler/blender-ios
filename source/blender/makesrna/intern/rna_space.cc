@@ -769,9 +769,28 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
 static ScrArea *rna_area_from_space(const PointerRNA *ptr)
 {
   BLI_assert(RNA_struct_is_a(ptr->type, RNA_Space));
-  bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
   SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
-  return BKE_screen_find_area_from_space(screen, link);
+
+  switch (GS(ptr->owner_id)) {
+    case ID_WM: {
+      const wmWindowManager *wm = id_cast<wmWindowManager *>(ptr->owner_id);
+      for (const wmWindow &win : wm->windows) {
+        for (ScrArea &area : win.global_areas.areabase) {
+          if (BLI_findindex(&area.spacedata, link) != -1) {
+            return &area;
+          }
+        }
+      }
+      break;
+    }
+    case ID_SCR: {
+      const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+      return BKE_screen_find_area_from_space(screen, link);
+    }
+    default:
+      break;
+  }
+  return nullptr;
 }
 
 static void area_region_from_regiondata(bScreen *screen,
