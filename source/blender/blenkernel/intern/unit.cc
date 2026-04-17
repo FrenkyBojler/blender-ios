@@ -2592,4 +2592,18 @@ bool BKE_unit_is_suppressed(const void *usys_pt, int index)
   return (usys->units[index].flag & B_UNIT_DEF_SUPPRESS) != 0;
 }
 
+UnitConverterFn BKE_unit_converter_get(const void *usys_pt,
+                                       int index,
+                                       UnitConvertDirection direction)
+{
+  const double scalar = BKE_unit_scalar_get(usys_pt, index);
+  const double bias = BKE_unit_bias_get(usys_pt, index);
+
+  if (direction == UnitConvertDirection::UNIT_TO_RAW) {
+    return [scalar, bias](double value) { return (value + bias) * scalar; };
+  }
+
+  return [scalar, bias](double value) { return value / scalar - bias; };
+}
+
 }  // namespace blender

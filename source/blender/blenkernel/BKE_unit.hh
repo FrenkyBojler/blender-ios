@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_function_ref.hh"
 #include "BLI_sys_types.h"
 
 namespace blender {
@@ -135,6 +136,15 @@ double BKE_unit_scalar_get(const void *usys_pt, int index);
 double BKE_unit_bias_get(const void *usys_pt, int index);
 bool BKE_unit_is_suppressed(const void *usys_pt, int index);
 
+enum class UnitConvertDirection {
+  RAW_TO_UNIT = 0,
+  UNIT_TO_RAW = 1,
+};
+
+using UnitConverterFn = FunctionRef<double(double)>;
+UnitConverterFn BKE_unit_converter_get(const void *usys_pt,
+                                       int index,
+                                       UnitConvertDirection direction);
 /** Aligned with #PropertyUnit and `bpyunits_ucategories_items` in `bpy_utils_units.cc`. */
 enum {
   B_UNIT_NONE = 0,
