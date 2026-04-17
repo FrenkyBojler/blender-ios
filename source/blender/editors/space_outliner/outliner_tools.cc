@@ -60,6 +60,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_image.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -1660,6 +1661,30 @@ static void id_select_linked_fn(bContext *C,
   object::select_linked_by_id(C, id);
 }
 
+static void image_pack_fn(bContext *C,
+                       ReportList * /*reports*/,
+                       Scene * /*scene*/,
+                       TreeElement * /*te*/,
+                       TreeStoreElem * /*tsep*/,
+                       TreeStoreElem *tselem)
+{
+  ID *id = tselem->id;
+
+  if (GS(id->name) == ID_IM) {
+    Main *bmain = CTX_data_main(C);
+    Image *image = reinterpret_cast<Image *>(id);
+    if (ID_IS_LINKED(id) || ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
+      return;
+    }
+    if (BKE_image_is_dirty(image)) {
+      BKE_image_memorypack(image);
+    }
+    else {
+      BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain, &image->id));
+    }
+  }
+}
+
 static void singleuser_action_fn(bContext *C,
                                  ReportList * /*reports*/,
                                  Scene * /*scene*/,
@@ -2812,6 +2837,7 @@ enum eOutlinerIdOpTypes {
   OUTLINER_IDOP_RENAME,
 
   OUTLINER_IDOP_SELECT_LINKED,
+  OUTLINER_IDOP_PACK,
 };
 
 /* TODO: implement support for changing the ID-block used. */
@@ -2838,6 +2864,7 @@ static const EnumPropertyItem prop_id_op_types[] = {
     {OUTLINER_IDOP_FAKE_CLEAR, "CLEAR_FAKE", 0, "Clear Fake User", ""},
     {OUTLINER_IDOP_RENAME, "RENAME", 0, "Rename", ""},
     {OUTLINER_IDOP_SELECT_LINKED, "SELECT_LINKED", 0, "Select Linked", ""},
+    {OUTLINER_IDOP_PACK, "PACK", 0, "Pack", "Pack ID like images into .blend file"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -3058,7 +3085,11 @@ static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
       ED_outliner_select_sync_from_all_tag(C);
       ED_undo_push(C, "Select");
       break;
-
+    case OUTLINER_IDOP_PACK:
+    if (idlevel == ID_IM) {
+      outliner_do_libdata_operation(C, op->reports, scene, space_outliner, image_pack_fn);
+      ED_undo_push(C, "Pack Image");
+    }
     default:
       /* Invalid - unhandled. */
       break;
