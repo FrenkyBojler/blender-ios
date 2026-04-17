@@ -391,6 +391,46 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
     return return_type;
   };
 
+  auto get_argument_type = [&](Scope args, string_view arg_name) {
+    string return_type;
+    args.foreach_scope(ScopeType::FunctionArg, [&](Scope arg) {
+      const Token name = arg.back();
+      if (name == ']') {
+        /* No array support for now. */
+        return;
+      }
+      if (name.str() == arg_name) {
+        Token type = name.prev() == '&' ? name.prev(2) : name.prev();
+        return_type = type.str();
+      }
+    });
+    return return_type;
+  };
+
+  auto get_local_symbol_type = [&](Scope fn_body, Token symbol) {
+    string return_type;
+    string_view symbol_str = symbol.str();
+    fn_body.foreach_token(Word, [&](Token tok) {
+      if (tok != Word || tok.str() != symbol_str || tok.index_ >= symbol.index_) {
+        return;
+      }
+      /* Check if it is in a visible scope. */
+      Scope tok_scope = tok.scope();
+      if (tok_scope != symbol.scope() && !tok_scope.contains(symbol.scope())) {
+        return;
+      }
+      /* Check if it is a definition. */
+      /* TODO(fclem): Comma declaration. */
+      bool is_reference = tok.prev() == Ampersand;
+      if (is_reference ? (tok.next() != '=' || tok.next() != Word) : (tok.prev() != Word)) {
+        return;
+      }
+      Token type_tok = tok.prev(is_reference ? 2 : 1);
+      return_type = type_tok.str();
+    });
+    return return_type;
+  };
+
   auto get_struct_members = [&](string_view struct_name) {
     vector<pair<Token, Token>> members;
     parser().foreach_match("sA{", [&](const Tokens &t) {
@@ -405,27 +445,51 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
     return members;
   };
 
-  parser().foreach_scope(ScopeType::Function, [&](Scope body) {
+  parser().foreach_function([&](bool, Token, Token, Scope args, bool, Scope body) {
     /* Unique index per binding to avoid to mess with scopes. */
     int index = 0;
     body.foreach_match("A[..]=", [&](const Tokens &t) {
       if (t[0].str() != "auto") {
         return;
       }
-      Token fn_name = t.back().next(1);
+      Token symbol_name = t.back().next(1);
       /* For now only support expanding form a single function call. */
-      if (fn_name != Word || t.back().next(2) != '(') {
-        report_error(fn_name, "Expected function call");
-      }
-      Token after_fn = t.back().next(2).scope().back().next();
-      if (after_fn != ';') {
-        report_error(after_fn, "Expected single function call");
+      if (symbol_name != Word) {
+        report_error(symbol_name, "Expected either a function call or a single variable");
+        return;
       }
 
-      string struct_type = get_function_return_type(fn_name.str());
-      if (struct_type.empty()) {
-        report_error(fn_name, "Couldn't infer function return type. Can be caused by overload.");
-        return;
+      Token after_symbol = Token::invalid(&parser);
+      string struct_type;
+      if (symbol_name.next(1) == '(') {
+        after_symbol = symbol_name.next(1).scope().back().next();
+        if (after_symbol != ';') {
+          report_error(after_symbol, "Expected single function call");
+          return;
+        }
+        struct_type = get_function_return_type(symbol_name.str());
+        if (struct_type.empty()) {
+          report_error(symbol_name,
+                       "Couldn't infer function return type. Can be caused by overload.");
+          return;
+        }
+      }
+      else {
+        after_symbol = symbol_name.next(1);
+        if (after_symbol != ';') {
+          report_error(after_symbol, "Expected single symbol to unpack");
+          return;
+        }
+        struct_type = get_local_symbol_type(body, symbol_name);
+
+        if (struct_type.empty()) {
+          struct_type = get_argument_type(args, symbol_name.str());
+        }
+
+        if (struct_type.empty()) {
+          report_error(symbol_name, "Couldn't infer local symbol type.");
+          return;
+        }
       }
 
       string struct_var = "_u" + to_string(index);
@@ -433,6 +497,11 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
       parser.replace(t[0], t[4], struct_type + " " + struct_var);
 
       vector<pair<Token, Token>> struct_members = get_struct_members(struct_type);
+
+      if (struct_members.empty()) {
+        report_error(symbol_name, "Couldn't find type to unpack.");
+        return;
+      }
 
       Scope var_list = t[1].scope();
       string assignments = ";";
@@ -454,7 +523,7 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
       /* Drop trailing semicolon.  */
       assignments = assignments.substr(0, assignments.size() - 1);
 
-      parser.insert_after(after_fn.prev(), assignments);
+      parser.insert_after(after_symbol.prev(), assignments);
       index++;
     });
   });

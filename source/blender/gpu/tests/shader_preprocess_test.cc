@@ -2356,10 +2356,17 @@ S test()
   return S{};
 }
 
-void fn()
+void fn(S u)
 {
+  S t;
+  {
+    int u;
+    int t;
+  }
   auto [a, b] = S{};
   auto [c, d] = test();
+  auto [e, f] = t;
+  auto [g, h] = u;
 }
 )";
     string expect = R"(
@@ -2375,10 +2382,17 @@ S test()
   return S_ctor_();
 }
 
-void fn()
+void fn(S u)
 {
+  S t;
+  {
+    int u;
+    int t;
+  }
   S _u0= S_ctor_();int a=_u0.i;float b=_u0.b;
   S _u1= test();int c=_u1.i;float d=_u1.b;
+  S _u2= t;int e=_u2.i;float f=_u2.b;
+  S _u3= u;int g=_u3.i;float h=_u3.b;
 }
 )";
     string error;
