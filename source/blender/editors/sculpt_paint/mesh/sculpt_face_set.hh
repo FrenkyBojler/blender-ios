@@ -45,6 +45,20 @@ bool vert_has_unique_face_set(OffsetIndices<int> faces,
                               Span<int> face_sets,
                               const SubdivCCG &subdiv_ccg,
                               SubdivCCGCoord coord);
+bool coord_has_face_set(OffsetIndices<int> faces,
+                        Span<int> corner_verts,
+                        GroupedSpan<int> vert_to_face_map,
+                        Span<int> face_sets,
+                        const SubdivCCG &subdiv_ccg,
+                        SubdivCCGCoord coord,
+                        int face_set);
+bool coord_has_face_set(OffsetIndices<int> faces,
+                        Span<int> corner_verts,
+                        GroupedSpan<int> vert_to_face_map,
+                        Span<int> face_sets,
+                        const SubdivCCG &subdiv_ccg,
+                        SubdivCCGCoord coord,
+                        const Set<int> &face_set_ids);
 bool vert_has_unique_face_set(int face_set_offset, const BMVert &vert);
 
 constexpr float FACE_SET_MIN_FADE = 0.05f;

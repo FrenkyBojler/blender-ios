@@ -390,18 +390,19 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::Grids: {
       const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
+      const OffsetIndices<int> faces = base_mesh.faces();
+      const Span<int> corner_verts = base_mesh.corner_verts();
+      const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = base_mesh.attributes();
       const VArraySpan face_sets = *attributes.lookup_or_default<int>(
           ".sculpt_face_set", bke::AttrDomain::Face, 0);
 
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-      const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       const Span<float3> positions = subdiv_ccg.positions;
       BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
       for (const int grid : IndexRange(subdiv_ccg.grids_num)) {
         const int start = grid * key.grid_area;
-        const int face_set = face_sets[grid_to_face_map[grid]];
 
         BKE_subdiv_ccg_foreach_visible_grid_vert(key, grid_hidden, grid, [&](const int offset) {
           const int vert = start + offset;
@@ -409,17 +410,16 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
             return;
           }
           if (expand_cache.snap) {
-            if (expand_cache.snap_enabled_face_sets->contains(face_set)) {
+            const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
+            if (face_set::coord_has_face_set(faces,
+                                             corner_verts,
+                                             vert_to_face_map,
+                                             face_sets,
+                                             subdiv_ccg,
+                                             coord,
+                                             *expand_cache.snap_enabled_face_sets))
+            {
               enabled_verts[vert].set(true);
-
-              SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
-              SubdivCCGNeighbors neighbors;
-              BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, true, neighbors);
-              for (const SubdivCCGCoord neighbor : neighbors.duplicates()) {
-                const int neighbor_vert = neighbor.to_index(key);
-                enabled_verts[neighbor_vert].set(enabled_verts[neighbor_vert] ||
-                                                 enabled_verts[vert]);
-              }
             }
             return;
           }
@@ -1448,8 +1448,13 @@ static void init_from_face_set_boundary(const Depsgraph &depsgraph,
       threading::parallel_for(IndexRange(totvert), 1024, [&](const IndexRange range) {
         for (const int vert : range) {
           const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
-          vert_has_face_set[vert] = face_set::vert_has_face_set(
-              subdiv_ccg, face_sets, coord.grid_index, active_face_set);
+          vert_has_face_set[vert] = face_set::coord_has_face_set(faces,
+                                                                 corner_verts,
+                                                                 vert_to_face_map,
+                                                                 face_sets,
+                                                                 subdiv_ccg,
+                                                                 coord,
+                                                                 active_face_set);
           vert_has_unique_face_set[vert] = face_set::vert_has_unique_face_set(
               faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord);
         }

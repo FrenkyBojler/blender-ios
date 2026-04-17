@@ -370,6 +370,78 @@ bool vert_has_unique_face_set(const OffsetIndices<int> faces,
   return true;
 }
 
+bool coord_has_face_set(const OffsetIndices<int> faces,
+                        const Span<int> corner_verts,
+                        const GroupedSpan<int> vert_to_face_map,
+                        const Span<int> face_sets,
+                        const SubdivCCG &subdiv_ccg,
+                        const SubdivCCGCoord coord,
+                        const int face_set)
+{
+  if (face_sets.is_empty()) {
+    return face_set == face_set_none_id;
+  }
+
+  if (face_set == face_set_none_id) {
+    return false;
+  }
+
+  Set<int> face_set_ids;
+  face_set_ids.add(face_set);
+  return coord_has_face_set(
+      faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord, face_set_ids);
+}
+
+/* Check if coord is in any face set in face_set_ids. */
+bool coord_has_face_set(const OffsetIndices<int> faces,
+                        const Span<int> corner_verts,
+                        const GroupedSpan<int> vert_to_face_map,
+                        const Span<int> face_sets,
+                        const SubdivCCG &subdiv_ccg,
+                        const SubdivCCGCoord coord,
+                        const Set<int> &face_set_ids)
+{
+  if (face_sets.is_empty()) {
+    return face_set_ids.contains(face_set_none_id);
+  }
+
+  if (face_set_ids.is_empty()) {
+    return false;
+  }
+
+  int v1, v2;
+  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
+      subdiv_ccg, coord, corner_verts, faces, v1, v2);
+  switch (adjacency) {
+    case SubdivCCGAdjacencyType::Vertex: {
+      for (const int face_index : vert_to_face_map[v1]) {
+        if (face_set_ids.contains(face_sets[face_index])) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case SubdivCCGAdjacencyType::Edge:
+      for (const int face_index : vert_to_face_map[v1]) {
+        const Span<int> face = corner_verts.slice(faces[face_index]);
+        if (!face.contains(v2)) {
+          continue;
+        }
+        if (face_set_ids.contains(face_sets[face_index])) {
+          return true;
+        }
+      }
+      return false;
+    case SubdivCCGAdjacencyType::None: {
+      const int face_index = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, coord.grid_index);
+      return face_set_ids.contains(face_sets[face_index]);
+    }
+  }
+
+  BLI_assert_unreachable();
+  return false;
+}
+
 bool vert_has_unique_face_set(const int /*face_set_offset*/, const BMVert & /*vert*/)
 {
   /* TODO: Obviously not fully implemented yet. Needs to be implemented for Relax Face Sets brush
