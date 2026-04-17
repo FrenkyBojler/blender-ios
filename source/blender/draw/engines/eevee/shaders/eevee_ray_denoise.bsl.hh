@@ -363,7 +363,7 @@ struct DenoiseTemporal {
     return result;
   }
 
-  float4 radiance_history_fetch(int2 texel, float bilinear_weight)
+  float4 history_validate(int2 texel, float bilinear_weight, float3 history_radiance)
   {
     /* Out of history view. Return sample without weight. */
     if (!in_texture_range(texel, radiance_history_tx)) {
@@ -377,7 +377,6 @@ struct DenoiseTemporal {
     if (!is_valid_history) {
       return float4(0.0f);
     }
-    float3 history_radiance = texelFetch(radiance_history_tx, texel, 0).rgb;
     /* Exclude unprocessed pixels. */
     if (all(equal(history_radiance, FLT_11_11_10_MAX))) {
       return float4(0.0f);
@@ -395,11 +394,14 @@ struct DenoiseTemporal {
     int2 texel = int2(floor(texel_co));
 
     /* Radiance needs to be manually interpolated because any pixel might contain invalid data. */
+    float4x3 gather4 = transpose(float3x4(textureGather(radiance_history_tx, uv, gatherComp0),
+                                          textureGather(radiance_history_tx, uv, gatherComp1),
+                                          textureGather(radiance_history_tx, uv, gatherComp2)));
     float4 history_radiance;
-    history_radiance = radiance_history_fetch(texel + int2(0, 1), bilinear_weights.x);
-    history_radiance += radiance_history_fetch(texel + int2(1, 1), bilinear_weights.y);
-    history_radiance += radiance_history_fetch(texel + int2(1, 0), bilinear_weights.z);
-    history_radiance += radiance_history_fetch(texel + int2(0, 0), bilinear_weights.w);
+    history_radiance = history_validate(texel + int2(0, 1), bilinear_weights.x, gather4[0]);
+    history_radiance += history_validate(texel + int2(1, 1), bilinear_weights.y, gather4[1]);
+    history_radiance += history_validate(texel + int2(1, 0), bilinear_weights.z, gather4[2]);
+    history_radiance += history_validate(texel + int2(0, 0), bilinear_weights.w, gather4[3]);
 
     /* Use YCoCg for clamping and accumulation to avoid color shift artifacts. */
     float4 history_radiance_YCoCg;
@@ -422,6 +424,11 @@ struct DenoiseTemporal {
       return float2(0.0f);
     }
 
+    /* This samples the history with bilinear filter. This can read invalid data that are outside
+     * the validity mask. But we make sure to clear the texture to 0 to avoid sampling NaN.
+     * The resulting undefined behavior (sampling untouched history form multiple frames ago) is
+     * not a huge concern as it will decay into a finite variance value. Moreover, the result is
+     * deterministic in render. */
     float history_variance = texture(variance_history_tx, uv).r;
 
     int2 history_texel = int2(floor(uv * float2(textureSize(variance_history_tx, 0).xy)));
