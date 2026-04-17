@@ -2973,7 +2973,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
-  const short type = RNA_enum_get(op->ptr, "type");
+  const eFModifier_Types type = static_cast<eFModifier_Types>(RNA_enum_get(op->ptr, "type"));
 
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -2989,16 +2989,15 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   else {
     filter |= (ANIMFILTER_SEL | ANIMFILTER_CURVE_VISIBLE);
   }
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   const RemovalMode mode = RemovalMode(RNA_enum_get(op->ptr, "mode"));
-  int fmod_count = 0;
-  int fc_count = 0;
+  int num_deleted_fmods = 0;
+  int num_fcurves = 0;
 
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.data);
-    fc_count++;
+    num_fcurves++;
 
     switch (mode) {
       case RemovalMode::ALL: {
@@ -3006,7 +3005,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
           FModifier *next = fcm->next;
           remove_fmodifier(&fcu->modifiers, fcm);
           fcm = next;
-          fmod_count++;
+          num_deleted_fmods++;
         }
         break;
       }
@@ -3016,7 +3015,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
           FModifier *next = fcm->next;
           if (fcm->type == type) {
             remove_fmodifier(&fcu->modifiers, fcm);
-            fmod_count++;
+            num_deleted_fmods++;
           }
           fcm = next;
         }
@@ -3026,7 +3025,7 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
       case RemovalMode::FIRST: {
         if (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first)) {
           remove_fmodifier(&fcu->modifiers, fcm);
-          fmod_count++;
+          num_deleted_fmods++;
         }
         break;
       }
@@ -3044,8 +3043,8 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   BKE_reportf(op->reports,
               RPT_INFO,
               "Removed %d F-Modifier(s) from the %d selected F-Curve(s)",
-              fmod_count,
-              fc_count);
+              num_deleted_fmods,
+              num_fcurves);
 
   return OPERATOR_FINISHED;
 }
