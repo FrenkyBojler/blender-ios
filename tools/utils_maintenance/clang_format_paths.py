@@ -123,10 +123,31 @@ def convert_tabs_to_spaces(files: Sequence[str]) -> None:
             fh.write(data)
 
 
+def clang_format_check_version(clang_format_cmd: str) -> tuple[int, int, int] | None:
+    version_output = subprocess.check_output((clang_format_cmd, "-version")).decode('utf-8')
+
+    # We print this after calling the command, so we don't print anything in case the file does not exist.
+    print("Checking {}...".format(clang_format_cmd))
+
+    version: str | None = next(iter(v for v in version_output.split() if v[0].isdigit()), None)
+    if version is None:
+        print("    Unable to detect 'clang-format -version'")
+        return None
+
+    version = version.split("-")[0]
+    # Ensure exactly 3 numbers.
+    version_num: tuple[int, int, int] = (tuple(int(n) for n in version.split(".")) + (0, 0, 0))[:3]  # type: ignore
+    if version_num < VERSION_MIN:
+        print("    Version of ", clang_format_cmd, " is too old:", version_num, "<", VERSION_MIN)
+        return None
+
+    return version_num
+
+
 def clang_format_ensure_version() -> tuple[int, int, int] | None:
     global CLANG_FORMAT_CMD
     clang_format_cmd = None
-    version_output = ""
+    clang_format_version = None
     for i in range(2, -1, -1):
         clang_format_cmd = (
             "clang-format-" + (".".join(["{:d}"] * i).format(*VERSION_MIN[:i]))
@@ -134,20 +155,16 @@ def clang_format_ensure_version() -> tuple[int, int, int] | None:
             "clang-format"
         )
         try:
-            version_output = subprocess.check_output((clang_format_cmd, "-version")).decode('utf-8')
+            clang_format_version = clang_format_check_version(clang_format_cmd)
+            if not clang_format_version:
+                continue
         except FileNotFoundError:
+            clang_format_version = None
             continue
         CLANG_FORMAT_CMD = clang_format_cmd
         break
-    version: str | None = next(iter(v for v in version_output.split() if v[0].isdigit()), None)
-    if version is None:
-        return None
 
-    version = version.split("-")[0]
-    # Ensure exactly 3 numbers.
-    version_num: tuple[int, int, int] = (tuple(int(n) for n in version.split(".")) + (0, 0, 0))[:3]  # type: ignore
-    print("Using {:s} ({:d}.{:d}.{:d})...".format(CLANG_FORMAT_CMD, version_num[0], version_num[1], version_num[2]))
-    return version_num
+    return clang_format_version
 
 
 def clang_format_file(files: list[str]) -> bytes:
@@ -220,12 +237,11 @@ def argparse_create() -> argparse.ArgumentParser:
 
 def main() -> int:
     version = clang_format_ensure_version()
-    if version is None:
-        print("Unable to detect 'clang-format -version'")
+    if not version:
+        print("Could not find a suitable version of clang-format")
         return 1
-    if version < VERSION_MIN:
-        print("Version of clang-format is too old:", version, "<", VERSION_MIN)
-        return 1
+
+    print("Using {:s} ({:d}.{:d}.{:d})...".format(CLANG_FORMAT_CMD, version[0], version[1], version[2]))
 
     args = argparse_create().parse_args()
 
