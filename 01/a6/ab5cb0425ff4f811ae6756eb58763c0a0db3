@@ -2,3 +2,4 @@ Referenced by issue #156892, Regression: EEVEE with Vulkan when rendering comple
 Referenced by pull request #156934, Fix #156892: EEVEE: Regression in max allowed number of samplers
 Referenced by commit 6f0fe9329ccc6bffff91f7655b0672ce7aa5b596, Fix #156892: EEVEE: Regression in max allowed number of samplers
 Referenced by pull request #157422, Fix: EEVEE SlotAllocator
+Referenced by commit c6aac32388335db6a4e42f9bd76025171a57abb1, Fix: EEVEE SlotAllocator
