@@ -2067,7 +2067,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   int selsta = but->selsta, selend = but->selend;
 #ifdef WITH_INPUT_IME
   /* If is IME compositing, move the cursor. */
-  if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+  if (ime_data && !ime_data->composite.empty() && ime_data->cursor_pos != -1) {
     but_pos += ime_data->cursor_pos;
     /* Translate selection if the IME composite string is inserted before the selection. */
     if (selsta != selend) {
@@ -2431,7 +2431,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       /* FIXME: IME is modifying `const char *drawstr`! */
       ime_data = button_ime_data_get(but);
 
-      if (ime_data && ime_data->composite.size()) {
+      if (ime_data && !ime_data->composite.empty()) {
         /* insert composite string into cursor pos */
         char tmp_drawstr[UI_MAX_DRAW_STR];
         STRNCPY(tmp_drawstr, drawstr);
@@ -2522,7 +2522,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
 #ifdef WITH_INPUT_IME
     /* If is IME compositing, move the cursor. */
-    if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+    if (ime_data && !ime_data->composite.empty() && ime_data->cursor_pos != -1) {
       but_pos_ofs += ime_data->cursor_pos;
     }
 #endif
@@ -2571,7 +2571,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (ime_reposition_window) {
       button_ime_reposition(but, ime_win_x, ime_win_y, false);
     }
-    if (ime_data && ime_data->composite.size()) {
+    if (ime_data && !ime_data->composite.empty()) {
       /* Composite underline. */
       widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
     }
