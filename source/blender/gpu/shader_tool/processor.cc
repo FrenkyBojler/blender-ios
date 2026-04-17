@@ -655,7 +655,7 @@ void SourceProcessor::lower_binary_literals(Parser &parser)
   parser().foreach_token(Number, [&](const Token tok) {
     string_view str = tok.str();
     if (str.starts_with("0b") || str.starts_with("0B")) {
-      size_t value = std::stol(string(str.substr(2)), nullptr, 2);
+      int64_t value = std::stoll(string(str.substr(2)), nullptr, 2);
       parser.replace(tok.str_index_start(),
                      tok.str_index_last_no_whitespace(),
                      std::to_string(value) + (str.ends_with("u") ? "u" : ""));
@@ -1167,7 +1167,7 @@ void SourceProcessor::lint_reserved_tokens(Parser &parser)
   };
 
   parser().foreach_token(Word, [&](Token tok) {
-    if (reserved_symbols.find(string(tok.str())) != reserved_symbols.end()) {
+    if (reserved_symbols.contains(string(tok.str()))) {
       string err = string(tok.str()) + " is a reserved token";
       report_error(tok, err.c_str());
     }
@@ -1328,7 +1328,7 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser)
       if (t[0].prev() == Struct) {
         return;
       }
-      if (builtin_types.find(string(t[0].str())) != builtin_types.end()) {
+      if (builtin_types.contains(string(t[0].str()))) {
         report_error(t[0],
                      "Aggregate is error prone for built-in vector and matrix types, use "
                      "constructors instead");

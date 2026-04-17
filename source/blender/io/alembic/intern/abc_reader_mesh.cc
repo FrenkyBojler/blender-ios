@@ -490,8 +490,7 @@ static void read_mesh_sample(const std::string &iobject_full_name,
 
 /* ************************************************************************** */
 
-AbcMeshReader::AbcMeshReader(const IObject &object, ImportSettings &settings)
-    : AbcObjectReader(object, settings)
+AbcMeshReader::AbcMeshReader(const AbcReaderConstructorArgs &args) : AbcObjectReader(args)
 {
   m_settings->read_flag |= MOD_MESHSEQ_READ_ALL;
 
@@ -840,7 +839,7 @@ void AbcMeshReader::assign_facesets_to_material_indices(const ISampleSelector &s
   int current_mat = 0;
 
   for (const std::string &grp_name : face_sets) {
-    if (r_mat_map.find(grp_name) == r_mat_map.end()) {
+    if (!r_mat_map.contains(grp_name)) {
       r_mat_map[grp_name] = ++current_mat;
     }
 
@@ -1012,8 +1011,7 @@ static void read_edge_creases(Mesh *mesh,
 
 /* ************************************************************************** */
 
-AbcSubDReader::AbcSubDReader(const IObject &object, ImportSettings &settings)
-    : AbcObjectReader(object, settings)
+AbcSubDReader::AbcSubDReader(const AbcReaderConstructorArgs &args) : AbcObjectReader(args)
 {
   m_settings->read_flag |= MOD_MESHSEQ_READ_ALL;
 
