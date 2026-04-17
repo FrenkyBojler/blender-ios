@@ -301,6 +301,7 @@ if(WITH_SDL)
   find_package_wrapper(SDL3)
   set_and_warn_library_found("SDL" SDL3_FOUND WITH_SDL)
 endif()
+add_bundled_libraries(sdl/lib)
 
 # Codecs
 if(WITH_CODEC_SNDFILE)

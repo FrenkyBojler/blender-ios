@@ -220,6 +220,7 @@ endif()
 if(WITH_SDL)
   find_package(SDL3 REQUIRED CONFIG)
 endif()
+add_bundled_libraries(sdl/lib)
 
 set(EPOXY_ROOT_DIR ${LIBDIR}/epoxy)
 find_package(Epoxy REQUIRED)
