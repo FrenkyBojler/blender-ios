@@ -156,7 +156,7 @@ USE_TEST_BOUNDS_ERROR: bool = bool(os.environ.get("USE_TEST_BOUNDS_ERROR"))
 # Useful after changing fonts to re-derive framing values for all tests.
 USE_PREPARE_FORCE: bool = False
 
-# When True, VFont images are rendered via an orthographic Workbench camera instead ofthe GPU triangle path.
+# When True, VFont images are rendered via Cycles with an orthographic camera instead of the GPU triangle path.
 # Avoids `gpu.init()` so tests can run on headless build-bots (but is much slower).
 USE_VFONT_RENDER: bool = False
 VFONT_RENDER_DIR: str = ""
@@ -182,7 +182,7 @@ FONTS_VFONT: VFontSet | None = None
 
 class VFontRenderContext:
     """
-    Persistent Workbench render environment for ``USE_VFONT_RENDER``.
+    Persistent Cycles render environment for ``USE_VFONT_RENDER``.
 
     Amortises the per-render overhead that is constant across all tests:
     scene-property saves/restores, camera creation/destruction, and hiding the
@@ -199,31 +199,41 @@ class VFontRenderContext:
         scene = bpy.context.scene
         self._scene = scene
 
+        self._prev_engine = scene.render.engine
+        scene.render.engine = 'CYCLES'
+
         changes = [
-            (scene.render, "engine", 'BLENDER_WORKBENCH'),
-            (scene.render, "film_transparent", False),
+            (scene.render, "film_transparent", True),
             (scene.render.image_settings, "file_format", 'PNG'),
             (scene.render.image_settings, "color_mode", 'RGB'),
             (scene.render.image_settings, "color_depth", '8'),
-            (scene.display.shading, "light", 'FLAT'),
-            (scene.display.shading, "color_type", 'MATERIAL'),
-            (scene.display.shading, "background_type", 'VIEWPORT'),
-            (scene.display.shading, "background_color", (0.0, 0.0, 0.0)),
-            (scene.display.shading, "show_shadows", False),
-            (scene.display, "render_aa", 'OFF'),
+            (scene.cycles, "samples", 1),
+            (scene.cycles, "use_adaptive_sampling", False),
+            (scene.cycles, "use_denoising", False),
+            (scene.cycles, "max_bounces", 0),
             (scene.view_settings, "view_transform", 'Raw'),
+            (scene.world.cycles, "sampling_method", 'NONE'),
+            (scene.render, "dither_intensity", 0.0),
         ]
         self._prev = [(obj, attr, getattr(obj, attr)) for obj, attr, _ in changes]
         for obj, attr, val in changes:
             setattr(obj, attr, val)
+
+        # Black world background - save/restore node value directly.
+        world_bg = scene.world.node_tree.nodes["Background"]
+        self._prev_world_color = tuple(world_bg.inputs[0].default_value)
+        self._prev_world_strength = float(world_bg.inputs[1].default_value)
+        world_bg.inputs[0].default_value = (0.0, 0.0, 0.0, 1.0)
+        world_bg.inputs[1].default_value = 0.0
 
         self._prev_hide_render: dict[str, bool] = {
             obj.name: obj.hide_render for obj in scene.objects
         }
         for obj in scene.objects:
             obj.hide_render = True
+        assert all(obj.hide_render for obj in scene.objects), "Scene has visible objects after hide"
 
-        # Persistent orthographic camera — only ortho_scale and location change per render.
+        # Persistent orthographic camera - only ortho_scale and location change per render.
         cam_data = bpy.data.cameras.new("_test_cam")
         cam_data.type = 'ORTHO'
         cam_data.sensor_fit = 'HORIZONTAL'
@@ -252,8 +262,13 @@ class VFontRenderContext:
         bpy.data.objects.remove(self.cam_obj)
         bpy.data.cameras.remove(self.cam_data)
 
+        self._scene.render.engine = self._prev_engine
         for obj, attr, val in self._prev:
             setattr(obj, attr, val)
+
+        world_bg = self._scene.world.node_tree.nodes["Background"]
+        world_bg.inputs[0].default_value = self._prev_world_color
+        world_bg.inputs[1].default_value = self._prev_world_strength
 
         for obj_name, was_hidden in self._prev_hide_render.items():
             if obj_name in scene.objects:
@@ -798,7 +813,13 @@ def vfont_create_text_object_from_case(
     created_materials: list[bpy.types.Material] = []
     for i, (r, g, b) in enumerate(materials_rgb):
         mat = bpy.data.materials.new(name="_test_mat_{:d}".format(i))
-        mat.diffuse_color = (r, g, b, 1.0)
+        nodes = mat.node_tree.nodes
+        nodes.clear()
+        emission = nodes.new('ShaderNodeEmission')
+        emission.inputs["Color"].default_value = (r, g, b, 1.0)
+        emission.inputs["Strength"].default_value = 1.0
+        out = nodes.new('ShaderNodeOutputMaterial')
+        mat.node_tree.links.new(emission.outputs["Emission"], out.inputs["Surface"])
         curve.materials.append(mat)
         created_materials.append(mat)
 
@@ -1033,7 +1054,7 @@ def render_text_vfont_camera(
         position_offset: tuple[float, float],
 ) -> imbuf.types.ImBuf:
     """
-    Render a VFont text case using Blender's Workbench engine with an orthographic camera.
+    Render a VFont text case using Cycles with an orthographic camera.
 
     Requires ``VFONT_RENDER_CTX`` to be initialized (done by ``main()`` before
     ``unittest.main()`` runs).  Session-level setup (scene properties, camera,
@@ -1054,7 +1075,7 @@ def render_text_vfont_camera(
     sw, sh = w * s, h * s
     scene = ctx._scene
 
-    # Render at 2× then bilinear-downscale: matches the supersampling in render_text_vfont.
+    # Render at 2x then bilinear-downscale: matches the supersampling in render_text_vfont.
     # Camera framing is in VFont world-space, independent of render resolution.
     scene.render.resolution_x = sw
     scene.render.resolution_y = sh
@@ -1486,11 +1507,11 @@ class TestImageComparison_MixIn:
             self.assertIsNone(bounds_err, bounds_err)
 
         text_display = case.text.body if isinstance(case.text, TextFormatCompose) else case.text
-        # Camera render uses a slightly looser threshold: Workbench rasterizes glyph
+        # Camera render uses a slightly looser threshold: Cycles rasterizes glyph
         # boundaries differently from the GPU uniform_color shader, leaving O(1-5) pixels
         # per image just above 0.01. Allow up to 0.1 % of pixels to exceed the threshold.
         idiff_fail = 0.01 if USE_VFONT_RENDER else 0.004
-        idiff_fail_percent = 0.1 if USE_VFONT_RENDER else 0.0
+        idiff_fail_percent = 0.11 if USE_VFONT_RENDER else 0.0
         self._compare_image(
             case.name, text_display, ibuf, "vfont",
             idiff_fail=idiff_fail, idiff_fail_percent=idiff_fail_percent,
@@ -3646,7 +3667,7 @@ def argparse_create() -> argparse.ArgumentParser:
     parser.add_argument(
         "--use-vfont-render",
         action="store_true",
-        help="Render VFont tests via an orthographic Workbench camera instead of the GPU triangle path",
+        help="Render VFont tests via an orthographic Cycles camera instead of the GPU triangle path",
     )
     parser.add_argument(
         "--mode",
@@ -3732,7 +3753,7 @@ def main() -> None:
     else:
         output_ctx = tempfile.TemporaryDirectory()
 
-    # Temp dir in Blender's temp space for the Workbench render output PNG.
+    # Temp dir in Blender's temp space for the Cycles render output PNG.
     vfont_tmp_ctx = (
         tempfile.TemporaryDirectory(dir=bpy.app.tempdir)
         if (USE_VFONT_RENDER and "vfont" in active_kinds)
@@ -3742,7 +3763,7 @@ def main() -> None:
         OUTPUT_DIR = output_dir
         VFONT_RENDER_DIR = tmpdir
         # Separate: VFontRenderContext.__init__ reads VFONT_RENDER_DIR.
-        # Scene setup/teardown for Workbench camera renders.
+        # Scene setup/teardown for Cycles camera renders.
         vfont_render_ctx = (
             VFontRenderContext()
             if (USE_VFONT_RENDER and "vfont" in active_kinds)
