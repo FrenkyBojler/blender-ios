@@ -9,8 +9,8 @@
 #include <fmt/format.h>
 
 #include "BKE_context.hh"
-#include "BKE_object.hh"
 #include "BKE_modifier.hh"
+#include "BKE_object.hh"
 #include "BKE_report.hh"
 
 #include "BLI_listbase.h"
@@ -30,8 +30,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_undo.hh"
 #include "ED_object.hh"
+#include "ED_undo.hh"
 
 #include "MOD_ui_common.hh"
 
@@ -57,7 +57,8 @@ struct wmDragdataModifier {
 
 class ModifierDragController : public ui::AbstractViewItemDragController {
   ModifierData *drag_md_;
-  public:
+
+ public:
   ModifierDragController(ModifierTreeView &view, ModifierData *md)
       : AbstractViewItemDragController(view), drag_md_(md)
   {
@@ -77,25 +78,23 @@ class ModifierDragController : public ui::AbstractViewItemDragController {
 };
 
 class ModifierDropTarget : public ui::TreeViewItemDropTarget {
-    ModifierData *md_;
+  ModifierData *md_;
 
  public:
-
-    ModifierDropTarget(ui::AbstractTreeViewItem &item,
-                     ui::DropBehavior behavior,
-                     ModifierData *md)
+  ModifierDropTarget(ui::AbstractTreeViewItem &item, ui::DropBehavior behavior, ModifierData *md)
       : TreeViewItemDropTarget(item, behavior), md_(md)
   {
   }
 
-   bool can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const override
-   {
+  bool can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const override
+  {
     return drag.type == WM_DRAG_MODIFIER;
-   }
+  }
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
-    const wmDragdataModifier *drag_data = static_cast<const wmDragdataModifier *>(drag_info.drag_data.poin);
+    const wmDragdataModifier *drag_data = static_cast<const wmDragdataModifier *>(
+        drag_info.drag_data.poin);
     const StringRef drag_name = drag_data->modifier_data->name;
     const StringRef drop_name = md_->name;
 
@@ -135,7 +134,8 @@ class ModifierDropTarget : public ui::TreeViewItemDropTarget {
         drop_index -= drag_index > drop_index;
         break;
     }
-    ed::object::modifier_move_to_index(nullptr, RPT_WARNING, ob, drag_data->modifier_data, drop_index, true);
+    ed::object::modifier_move_to_index(
+        nullptr, RPT_WARNING, ob, drag_data->modifier_data, drop_index, true);
     ED_undo_push(C, "Reorder Modifier");
     return true;
   }
@@ -146,8 +146,10 @@ class ModifierItem : public ui::AbstractTreeViewItem {
   Object &object_;
   ModifierData *modifier_data_;
   int index_;
-  public:
-  ModifierItem(Scene &scene, Object &object, ModifierData *md, int index) : scene_(scene), object_(object), modifier_data_(md), index_(index)
+
+ public:
+  ModifierItem(Scene &scene, Object &object, ModifierData *md, int index)
+      : scene_(scene), object_(object), modifier_data_(md), index_(index)
   {
     label_ = modifier_data_->name;
   };
@@ -182,8 +184,7 @@ class ModifierItem : public ui::AbstractTreeViewItem {
 
   bool rename(const bContext &C, StringRefNull new_name) override
   {
-    PointerRNA ptr = RNA_pointer_create_discrete(
-        &object_.id, RNA_Modifier, modifier_data_);
+    PointerRNA ptr = RNA_pointer_create_discrete(&object_.id, RNA_Modifier, modifier_data_);
     /* Call rna setter as it already handles the unique names. */
     PropertyRNA *prop = RNA_struct_find_property(&ptr, "name");
     RNA_property_string_set(&ptr, prop, new_name.c_str());
@@ -200,8 +201,7 @@ class ModifierItem : public ui::AbstractTreeViewItem {
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
   {
-    return std::make_unique<ModifierDropTarget>(
-        *this, ui::DropBehavior::Reorder, modifier_data_);
+    return std::make_unique<ModifierDropTarget>(*this, ui::DropBehavior::Reorder, modifier_data_);
   }
 };
 
@@ -222,12 +222,10 @@ void template_tree(ui::Layout *layout, bContext *C)
   ui::Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block,
-      "Modifier Tree View",
-      std::make_unique<ModifierTreeView>(*ob, *CTX_data_scene(C)));
+      *block, "Modifier Tree View", std::make_unique<ModifierTreeView>(*ob, *CTX_data_scene(C)));
   tree_view->set_context_menu_title("Modifier");
   tree_view->set_default_rows(4);
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
-}
+}  // namespace blender::modifier
