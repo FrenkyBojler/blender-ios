@@ -238,11 +238,6 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_panel_toggle = false;
   bool is_layer_name = false;
   bool is_volume_grid_name = false;
-  /** WORKAROUND: This socket is only available in local node trees.
-   * Some sockets need to be unavailable in the editor but available in local node trees when
-   * building shaders. Only used for shader "Weight" sockets.
-   */
-  bool is_shader_internal = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -495,11 +490,6 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
   BaseSocketDeclarationBuilder &is_volume_grid_name(bool value = true);
-  /** WORKAROUND: This socket is only available in local node trees.
-   * Some sockets need to be unavailable in the editor but available in local node trees when
-   * building shaders. Only used for shader "Weight" sockets.
-   */
-  BaseSocketDeclarationBuilder &is_shader_internal(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
