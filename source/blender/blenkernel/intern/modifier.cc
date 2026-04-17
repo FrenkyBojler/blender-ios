@@ -111,10 +111,15 @@ void BKE_modifier_init()
   virtualModifierCommonData.smd = *(reinterpret_cast<ShapeKeyModifierData *>(md));
   BKE_modifier_free(md);
 
+  md = BKE_modifier_new(eModifierType_CaptureShaderAttribute);
+  virtualModifierCommonData.implicit_cature_modifier_data = *(reinterpret_cast<AttributeCaptureModifierData *>(md));
+  BKE_modifier_free(md);
+
   virtualModifierCommonData.amd.modifier.mode |= eModifierMode_Virtual;
   virtualModifierCommonData.cmd.modifier.mode |= eModifierMode_Virtual;
   virtualModifierCommonData.lmd.modifier.mode |= eModifierMode_Virtual;
   virtualModifierCommonData.smd.modifier.mode |= eModifierMode_Virtual;
+  virtualModifierCommonData.implicit_cature_modifier_data.modifier.mode |= eModifierMode_Virtual;
 }
 
 const ModifierTypeInfo *BKE_modifier_get_info(ModifierType type)
@@ -657,6 +662,9 @@ ModifierData *BKE_modifiers_get_virtual_modifierlist(const Object *ob,
     virtual_modifier_data->smd.modifier.next = md;
     md = &virtual_modifier_data->smd.modifier;
   }
+
+  virtual_modifier_data->implicit_cature_modifier_data.modifier.next = md;
+  md = &virtual_modifier_data->implicit_cature_modifier_data.modifier;
 
   return md;
 }

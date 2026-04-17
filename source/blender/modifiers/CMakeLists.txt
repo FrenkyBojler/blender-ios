@@ -84,6 +84,7 @@ set(SRC
   intern/MOD_particlesystem.cc
   intern/MOD_remesh.cc
   intern/MOD_screw.cc
+  intern/MOD_shader_attribute_capture.cc
   intern/MOD_shapekey.cc
   intern/MOD_shrinkwrap.cc
   intern/MOD_simpledeform.cc

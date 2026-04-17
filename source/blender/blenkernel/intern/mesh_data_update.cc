@@ -620,6 +620,8 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
     }
   }
 
+  
+
   BLI_linklist_free(reinterpret_cast<LinkNode *>(datamasks), nullptr);
 
   for (md = firstmd; md; md = md->next) {

@@ -125,6 +125,7 @@ enum ModifierType {
   eModifierType_GreasePencilBuild = 84,
   eModifierType_GreasePencilSimplify = 85,
   eModifierType_GreasePencilTexture = 86,
+  eModifierType_CaptureShaderAttribute = 87,
   NUM_MODIFIER_TYPES,
 };
 
@@ -2593,6 +2594,10 @@ struct NodesModifierData {
   NodesModifierBake *find_bake(int id);
   const NodesModifierBake *find_bake(int id) const;
 #endif
+};
+
+struct AttributeCaptureModifierData {
+  ModifierData modifier;
 };
 
 /** #MeshToVolumeModifierData.resolution_mode */

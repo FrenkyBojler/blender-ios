@@ -580,6 +580,7 @@ struct VirtualModifierData {
   CurveModifierData cmd;
   LatticeModifierData lmd;
   ShapeKeyModifierData smd;
+  AttributeCaptureModifierData implicit_cature_modifier_data;
 };
 
 /**
