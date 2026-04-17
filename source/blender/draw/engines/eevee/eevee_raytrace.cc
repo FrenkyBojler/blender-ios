@@ -651,12 +651,18 @@ RayTraceResultTexture RayTraceModule::trace(
   if (use_temporal_denoise) {
     denoise_buf->denoised_temporal_tx.acquire(
         extent, gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, usage_rw);
-    denoise_variance_tx_.acquire(use_bilateral_denoise ? extent : int2(1),
-                                 gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
-                                 usage_rw);
-    denoise_buf->variance_history_tx.acquire(use_bilateral_denoise ? extent : int2(1),
-                                             gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
-                                             usage_rw);
+
+    int2 variance_size = use_bilateral_denoise ? extent : int2(1);
+    gpu::TextureFormat variance_format = gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT;
+
+    denoise_variance_tx_.acquire(variance_size, variance_format, usage_rw);
+    if (denoise_buf->variance_history_tx.acquire(variance_size, variance_format, usage_rw)) {
+      /* Clear to zero to avoid sampling NaN in reprojection. There is still a possibility to
+       * sample outdated variance but it should not be that big of an issue nor be peceivable.
+       * It is also deterministic */
+      denoise_buf->variance_history_tx.clear(float4(0));
+    }
+
     denoise_buf->tilemask_history_tx.ensure_2d_array(gpu::TextureFormat::RAYTRACE_TILEMASK_FORMAT,
                                                      tile_raytrace_denoise_tx_.size().xy(),
                                                      tile_raytrace_denoise_tx_.size().z,
