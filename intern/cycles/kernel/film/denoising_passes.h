@@ -67,7 +67,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
 
     diffuse_albedo += closure_albedo * diffuse_weight;
     specular_albedo += closure_albedo * (1.0f - diffuse_weight);
-    specular_roughness += roughness * closure_weight;
+    specular_roughness += sqrtf(roughness) * closure_weight;
 
     sum_weight += closure_weight;
     sum_nonspecular_weight += closure_weight * diffuse_weight;
@@ -118,7 +118,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
 
   if (INTEGRATOR_STATE(state, path, bounce) == 0) {
     if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
-      const float denoising_roughness = ensure_finite(sqrtf(specular_roughness) *
+      const float denoising_roughness = ensure_finite(specular_roughness *
                                                       average(denoising_feature_throughput));
       film_write_pass_float(buffer + kernel_data.film.pass_denoising_roughness,
                             denoising_roughness);
