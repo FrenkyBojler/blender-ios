@@ -56,6 +56,10 @@
 
 #include "interface_intern.hh"
 
+#ifndef WITH_HEADLESS
+#  include "thorvg.h"
+#endif /* WITH_HEADLESS */
+
 #include <fmt/format.h>
 
 namespace blender::ui {
@@ -1469,18 +1473,55 @@ static int get_draw_size(enum eIconSizes size)
   }
 }
 
-static void svg_replace_color_attributes(std::string &svg,
-                                         const std::string &name,
-                                         const size_t start,
-                                         const size_t end)
+static void tvg_apply_color_override(
+    tvg::Picture *picture, const char *id_name, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
 {
+  const uint32_t id = tvg::Accessor::id(id_name);
+  const tvg::Paint *paint_const = picture->paint(id);
+  if (paint_const == nullptr) {
+    return;
+  }
+
+  switch (paint_const->type()) {
+    case tvg::Type::Shape: {
+      // cast to concrete Shape and call fill()
+      const tvg::Shape *shape_const = static_cast<const tvg::Shape *>(paint_const);
+      tvg::Shape *shape = const_cast<tvg::Shape *>(shape_const);
+      shape->fill(r, g, b, a);
+      break;
+    }
+    case tvg::Type::Scene: {
+      // For groups, iterate children and color shapes.
+      const tvg::Scene *scene_const = static_cast<const tvg::Scene *>(paint_const);
+      tvg::Scene *scene = const_cast<tvg::Scene *>(scene_const);
+      for (const tvg::Paint *child_const : scene->paints()) {
+        if (child_const && child_const->type() == tvg::Type::Shape) {
+          const tvg::Shape *child_shape_const = static_cast<const tvg::Shape *>(child_const);
+          tvg::Shape *child_shape = const_cast<tvg::Shape *>(child_shape_const);
+          child_shape->fill(r, g, b, a);
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static void icon_source_edit_cb(void *data)
+{
+  tvg::Picture *picture = static_cast<tvg::Picture *>(data);
+
+  if (picture == nullptr) {
+    return;
+  }
+
   bTheme *btheme = theme::theme_get();
 
   uchar white[] = {255, 255, 255, 255};
   uchar black[] = {0, 0, 0, 255};
   uchar logo_orange[] = {232, 125, 13, 255};
   uchar logo_blue[] = {38, 87, 135, 255};
-
   /* Tool colors hardcoded for now. */
   uchar tool_add[] = {117, 255, 175, 255};
   uchar tool_remove[] = {245, 107, 91, 255};
@@ -1541,10 +1582,6 @@ static void svg_replace_color_attributes(std::string &svg,
   };
 
   for (const ColorItem &item : items) {
-    if (name != item.name) {
-      continue;
-    }
-
     uchar color[4];
     if (item.col) {
       memcpy(color, item.col, sizeof(color));
@@ -1561,75 +1598,7 @@ static void svg_replace_color_attributes(std::string &svg,
       continue;
     }
 
-    std::string hexcolor = fmt::format("{:02x}{:02x}{:02x}", color[0], color[1], color[2]);
-
-    size_t att_start = start;
-    while (true) {
-      constexpr static StringRef key = "fill=\"";
-      att_start = svg.find(key, att_start);
-      if (att_start == std::string::npos || att_start > end) {
-        break;
-      }
-      const size_t att_end = svg.find("\"", att_start + key.size());
-      if (att_end != std::string::npos && att_end < end) {
-        svg.replace(att_start, att_end - att_start, key + "#" + hexcolor);
-      }
-      att_start += StringRef(key + "#rrggbb\"").size();
-    }
-
-    att_start = start;
-    while (true) {
-      constexpr static StringRef key = "fill:";
-      att_start = svg.find(key, att_start);
-      if (att_start == std::string::npos || att_start > end) {
-        break;
-      }
-      const size_t att_end = svg.find(";", att_start + key.size());
-      if (att_end != std::string::npos && att_end - att_start < end) {
-        svg.replace(att_start, att_end - att_start, key + "#" + hexcolor);
-      }
-      att_start += StringRef(key + "#rrggbb").size();
-    }
-  }
-}
-
-static void icon_source_edit_cb(std::string &svg)
-{
-  size_t g_start = 0;
-
-  /* Scan string, processing only groups with our keyword ids. */
-
-  while (true) {
-    /* Look for a blender id, quick exit if not found. */
-    constexpr static StringRef key = "id=\"";
-    const size_t id_start = svg.find(key + "blender_", g_start);
-    if (id_start == std::string::npos) {
-      return;
-    }
-
-    /* Scan back to beginning of this group element. */
-    g_start = svg.rfind("<g", id_start);
-    if (g_start == std::string::npos) {
-      /* Malformed. */
-      return;
-    }
-
-    /* Scan forward to end of the group. */
-    const size_t g_end = svg.find("</g>", id_start);
-    if (g_end == std::string::npos) {
-      /* Malformed. */
-      return;
-    }
-
-    /* Get group id name. */
-    const size_t id_end = svg.find("\"", id_start + key.size());
-    if (id_end != std::string::npos) {
-      std::string id_name = svg.substr(id_start + key.size(), id_end - id_start - key.size());
-      /* Replace this group's colors. */
-      svg_replace_color_attributes(svg, id_name, g_start, g_end);
-    }
-
-    g_start = g_end;
+    tvg_apply_color_override(picture, item.name, color[0], color[1], color[2], color[3]);
   }
 }
 

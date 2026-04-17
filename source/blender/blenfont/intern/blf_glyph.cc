@@ -352,15 +352,13 @@ static GlyphBLF *blf_glyph_cache_add_blank(GlyphCacheBLF *gc, const uint charcod
   return result;
 }
 
-static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc,
-                                         const uint charcode,
-                                         const bool color,
-                                         FunctionRef<void(std::string &)> edit_source_cb = nullptr)
+static GlyphBLF *blf_glyph_cache_add_svg(
+    GlyphCacheBLF *gc,
+    const uint charcode,
+    const bool color,
+    FunctionRef<void(tvg::Picture *)> edit_source_cb = nullptr)
 {
   std::string svg_source = blf_get_icon_svg(int(charcode) - BLF_ICON_OFFSET);
-  if (edit_source_cb) {
-    edit_source_cb(svg_source);
-  }
 
   /* Create a Picture and parse the SVG into it. */
   tvg::Picture *picture = tvg::Picture::gen();
@@ -385,6 +383,10 @@ static GlyphBLF *blf_glyph_cache_add_svg(GlyphCacheBLF *gc,
   scale = float(dest_w) / width;
 
   picture->scale(scale);
+
+  if (color && svg_source.find("blender_") != std::string::npos) {
+    edit_source_cb(picture);
+  }
 
   Array<uchar> render_bmp(dest_w * dest_h * 4);
 
@@ -1408,7 +1410,7 @@ GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode
 GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
                                 const uint icon_id,
                                 bool color,
-                                FunctionRef<void(std::string &)> edit_source_cb)
+                                FunctionRef<void(void *)> edit_source_cb)
 {
   GlyphBLF *g = blf_glyph_cache_find_glyph(gc, icon_id + BLF_ICON_OFFSET, 0);
   if (g) {

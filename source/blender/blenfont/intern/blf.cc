@@ -631,7 +631,7 @@ void BLF_draw_svg_icon(uint icon_id,
                        const float color[4],
                        float outline_alpha,
                        bool multicolor,
-                       FunctionRef<void(std::string &)> edit_source_cb)
+                       FunctionRef<void(void *)> edit_source_cb)
 {
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
@@ -668,7 +668,7 @@ Array<uchar> BLF_svg_icon_bitmap(uint icon_id,
                                  int *r_width,
                                  int *r_height,
                                  bool multicolor,
-                                 FunctionRef<void(std::string &)> edit_source_cb)
+                                 FunctionRef<void(void *)> edit_source_cb)
 {
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];

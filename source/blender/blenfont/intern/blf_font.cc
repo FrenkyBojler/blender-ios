@@ -661,7 +661,7 @@ void blf_draw_svg_icon(FontBLF *font,
                        const float color[4],
                        const float outline_alpha,
                        const bool multicolor,
-                       FunctionRef<void(std::string &)> edit_source_cb)
+                       FunctionRef<void(void *)> edit_source_cb)
 {
   BLI_assert(outline_alpha <= 1.0f); /* Higher values overflow, caller must ensure. */
   blf_font_size(font, size);
@@ -703,7 +703,7 @@ Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
                                  int *r_width,
                                  int *r_height,
                                  const bool multicolor,
-                                 FunctionRef<void(std::string &)> edit_source_cb)
+                                 FunctionRef<void(void *)> edit_source_cb)
 {
   blf_font_size(font, size);
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
