@@ -278,7 +278,7 @@ class ProximityFunction : public mf::MultiFunction {
     if (type_ != other_op->type_) {
       return false;
     }
-    fn::GFieldEqualityDeep equality_test;
+    fn::FieldEqualityDeep equality_test;
     if (!equality_test.ensure(group_id_field_, other_op->group_id_field_)) {
       return false;
     }

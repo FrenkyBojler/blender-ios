@@ -99,7 +99,7 @@ uint64_t GField::hash() const
       ref.variant_);
 }
 
-bool GFieldEqualityDeep::ensure(const GFieldRef &a, const GFieldRef &b)
+bool FieldEqualityDeep::ensure(const GFieldRef &a, const GFieldRef &b)
 {
   if (const bool *cached = this->cache.lookup_ptr({a, b})) {
     return *cached;
@@ -183,7 +183,7 @@ bool GFieldEqualityDeep::ensure(const GFieldRef &a, const GFieldRef &b)
   return cache.lookup({a, b});
 }
 
-uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)
+uint64_t FieldHashDeep::ensure(const GFieldRef &field)
 {
   if (const uint64_t *cached = cache.lookup_ptr(field)) {
     return *cached;

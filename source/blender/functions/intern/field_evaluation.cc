@@ -154,7 +154,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 {
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
-  Map<GFieldRef, mf::Variable *, 4, DefaultProbingStrategy, GFieldDeepHasher, GFieldEqualityDeep>
+  Map<GFieldRef, mf::Variable *, 4, DefaultProbingStrategy, FieldHashDeep, FieldEqualityDeep>
       variable_by_field;
   Map<std::reference_wrapper<const FieldInput>, mf::Variable *> variable_by_field_input;
 

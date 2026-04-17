@@ -398,14 +398,14 @@ Field<bool> invert_boolean_field(const Field<bool> &field);
  * implementation. Because common field reuse would give this potentially exponential cost, this
  * struct caches the hashes of intermediate fields.
  */
-struct GFieldDeepHasher {
+struct FieldHashDeep {
   mutable Mutex mutex;
   Map<GFieldRef, uint64_t> cache;
   uint64_t ensure(const GFieldRef &field);
   uint64_t operator()(const GFieldRef &field) const
   {
     std::lock_guard lock(this->mutex);
-    return const_cast<GFieldDeepHasher *>(this)->ensure(field);
+    return const_cast<FieldHashDeep *>(this)->ensure(field);
   }
 };
 
@@ -413,14 +413,14 @@ struct GFieldDeepHasher {
  * Compares the semantic equality of field inputs and operations, rather than memory-address
  * shallow equality of the default implementation.
  */
-struct GFieldEqualityDeep {
+struct FieldEqualityDeep {
   mutable Mutex mutex;
   Map<std::pair<GFieldRef, GFieldRef>, bool> cache;
   bool ensure(const GFieldRef &a, const GFieldRef &b);
   bool operator()(const GFieldRef &a, const GFieldRef &b) const
   {
     std::lock_guard lock(this->mutex);
-    return const_cast<GFieldEqualityDeep *>(this)->ensure(a, b);
+    return const_cast<FieldEqualityDeep *>(this)->ensure(a, b);
   }
 };
 

@@ -160,7 +160,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    fn::GFieldDeepHasher hasher;
+    fn::FieldHashDeep hasher;
     return get_default_hash(
         int64_t(23478953456), source_.get_mesh(), hasher.ensure(group_id_field_));
   }
@@ -174,7 +174,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     if (source_.get_mesh() != other_op->source_.get_mesh()) {
       return false;
     }
-    fn::GFieldEqualityDeep equality_test;
+    fn::FieldEqualityDeep equality_test;
     if (!equality_test.ensure(group_id_field_, other_op->group_id_field_)) {
       return false;
     }

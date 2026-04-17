@@ -460,7 +460,7 @@ class SampleCurveFunction : public mf::MultiFunction {
     if (geometry_set_.get_curves() != other_op->geometry_set_.get_curves()) {
       return false;
     }
-    fn::GFieldEqualityDeep equality_test;
+    fn::FieldEqualityDeep equality_test;
     if (!equality_test.ensure(src_field_, other_op->src_field_)) {
       return false;
     }
@@ -469,7 +469,7 @@ class SampleCurveFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    fn::GFieldDeepHasher hasher;
+    fn::FieldHashDeep hasher;
     return get_default_hash(length_mode_, geometry_set_.get_curves(), hasher.ensure(src_field_));
   }
 };

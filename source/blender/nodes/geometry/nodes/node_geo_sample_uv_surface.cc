@@ -141,7 +141,7 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
     if (source_.get_mesh() != other_op->source_.get_mesh()) {
       return false;
     }
-    fn::GFieldEqualityDeep equality_test;
+    fn::FieldEqualityDeep equality_test;
     if (!equality_test.ensure(src_uv_map_field_, other_op->src_uv_map_field_)) {
       return false;
     }
@@ -150,7 +150,7 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
 
   uint64_t hash() const override
   {
-    fn::GFieldDeepHasher hasher;
+    fn::FieldHashDeep hasher;
     return get_default_hash(int64_t(9863459873456), source_, hasher.ensure(src_uv_map_field_));
   }
 
