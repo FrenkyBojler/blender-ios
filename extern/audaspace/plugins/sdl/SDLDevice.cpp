@@ -80,8 +80,6 @@ SDLDevice::SDLDevice(DeviceSpecs specs, int buffersize) :
 	m_playback(false),
 	m_stream(nullptr)
 {
-	SDL_InitSubSystem(SDL_INIT_AUDIO);
-
 	if(specs.channels == CHANNELS_INVALID)
 		specs.channels = CHANNELS_STEREO;
 	if(specs.format == FORMAT_INVALID)
@@ -90,6 +88,9 @@ SDLDevice::SDLDevice(DeviceSpecs specs, int buffersize) :
 		specs.rate = RATE_48000;
 
 	m_specs = specs;
+
+	if(!SDL_InitSubSystem(SDL_INIT_AUDIO))
+		AUD_THROW(DeviceException, "Failed to initialize SDL Audio subsystem.");
 
 	const SDL_AudioSpec audiospec = sdl_audiospec_from_device_specs(specs);
 	m_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audiospec, SDLDevice::SDL_mix, this);
