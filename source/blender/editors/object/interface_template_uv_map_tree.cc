@@ -15,6 +15,7 @@
 
 #include "BLI_index_range.hh"
 #include "BLI_string.h"
+#include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
 
@@ -28,18 +29,27 @@
 #include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
-#include "WM_types.hh"
 #include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "ED_mesh.hh"
 #include "ED_undo.hh"
 
 namespace blender::ed::mesh::uvmap {
 
-struct UVMapDragData {
-  Mesh *mesh;
-  char uv_name[sizeof(CustomDataLayer::name)];
-};
+static int uv_uid_from_name(const Mesh &mesh, StringRefNull uv_name)
+{
+  return mesh.uv_map_names().index_of_try(uv_name);
+}
+
+static std::optional<std::string> uv_name_from_uid(const VectorSet<StringRefNull> &uv_names,
+                                                   int uv_uid)
+{
+  if (!uv_names.index_range().contains(uv_uid)) {
+    return std::nullopt;
+  }
+  return std::string(uv_names[uv_uid]);
+}
 
 class UVMapTreeView : public ui::AbstractTreeView {
  protected:
@@ -61,7 +71,7 @@ class UVMapDragController : public ui::AbstractViewItemDragController {
 
  public:
   UVMapDragController(UVMapTreeView &view, Mesh &mesh, StringRefNull drag_uv_name)
-    : AbstractViewItemDragController(view), mesh_(mesh), drag_uv_name_(drag_uv_name)
+      : AbstractViewItemDragController(view), mesh_(mesh), drag_uv_name_(drag_uv_name)
   {
   }
 
@@ -72,10 +82,46 @@ class UVMapDragController : public ui::AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    UVMapDragData *drag_data = MEM_new<UVMapDragData>(__func__);
-    drag_data->mesh = &mesh_;
-    STRNCPY(drag_data->uv_name, drag_uv_name_.c_str());
-    return drag_data;
+    Vector<int> selected_uv_uids;
+    view_.foreach_view_item([&](ui::AbstractViewItem &item) {
+      if (!item.is_selected()) {
+        return;
+      }
+      std::optional<std::string> debug_name = item.debug_name();
+      if (!debug_name) {
+        return;
+      }
+      const int uv_uid = uv_uid_from_name(mesh_, *debug_name);
+      if (uv_uid != -1) {
+        selected_uv_uids.append(uv_uid);
+      }
+    });
+
+    const int drag_uv_uid = uv_uid_from_name(mesh_, drag_uv_name_);
+    bool has_drag_uv_uid = false;
+    for (const int uid : selected_uv_uids) {
+      if (uid == drag_uv_uid) {
+        has_drag_uv_uid = true;
+        break;
+      }
+    }
+    if (drag_uv_uid != -1 && !has_drag_uv_uid) {
+      selected_uv_uids.append(drag_uv_uid);
+    }
+
+    if (selected_uv_uids.is_empty()) {
+      return nullptr;
+    }
+
+    int *selected_uids = MEM_new_array_zeroed<int>(selected_uv_uids.size() + 2,
+                                                   "Selected UV Map UIDs");
+    selected_uids[0] = int(mesh_.id.session_uid);
+    for (const int i : selected_uv_uids.index_range()) {
+      selected_uids[i + 1] = selected_uv_uids[i];
+    }
+    selected_uids[selected_uv_uids.size() + 1] = -1;
+
+    return selected_uids;
   }
 };
 
@@ -99,12 +145,12 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
-    const UVMapDragData *drag_data = static_cast<const UVMapDragData *>(drag.poin);
-    if (drag_data == nullptr) {
+    const int *drag_uids = static_cast<const int *>(drag.poin);
+    if (drag_uids == nullptr || drag_uids[1] == -1) {
       return false;
     }
 
-    return drag_data->mesh == &mesh_;
+    return drag_uids[0] == int(mesh_.id.session_uid);
   }
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
@@ -130,8 +176,8 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
 
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
-    const UVMapDragData *drag_data = static_cast<const UVMapDragData *>(drag_info.drag_data.poin);
-    if (drag_data == nullptr || drag_data->mesh != &mesh_) {
+    const int *drag_uids = static_cast<const int *>(drag_info.drag_data.poin);
+    if (drag_uids == nullptr || drag_uids[1] == -1 || drag_uids[0] != int(mesh_.id.session_uid)) {
       return false;
     }
 
@@ -139,9 +185,24 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
-    const VectorSet<StringRefNull> uv_names = mesh_.uv_map_names();
-    const int from_index = uv_names.index_of_try(drag_data->uv_name);
-    const int drop_index = uv_names.index_of_try(drop_uv_name_);
+    const VectorSet<StringRefNull> initial_uv_names = mesh_.uv_map_names();
+    Vector<std::string> drag_uv_names;
+    for (int i = 1; drag_uids[i] != -1; i++) {
+      const std::optional<std::string> drag_uv_name = uv_name_from_uid(initial_uv_names,
+                                                                       drag_uids[i]);
+      if (drag_uv_name) {
+        drag_uv_names.append(*drag_uv_name);
+      }
+    }
+
+    if (drag_uv_names.is_empty()) {
+      return false;
+    }
+
+    const std::string &first_drag_name = drag_uv_names.first();
+
+    const int from_index = initial_uv_names.index_of_try(first_drag_name);
+    const int drop_index = initial_uv_names.index_of_try(drop_uv_name_);
     if (from_index == -1 || drop_index == -1) {
       return false;
     }
@@ -163,11 +224,30 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
-    bke::AttributeStorage &attribute_storage = mesh_.attribute_storage.wrap();
-    const StringRefNull from_name = drag_data->uv_name;
-    const int target_storage_index = attribute_storage.index_of(uv_names[to_index]);
-    if (target_storage_index == -1 || !attribute_storage.move(from_name, target_storage_index)) {
-      return false;
+    for (const int i : drag_uv_names.index_range()) {
+      const VectorSet<StringRefNull> current_uv_names = mesh_.uv_map_names();
+      const StringRefNull drag_uv_name(drag_uv_names[i].c_str());
+      const int drag_index = current_uv_names.index_of_try(drag_uv_name);
+      if (drag_index == -1) {
+        continue;
+      }
+
+      if (i > 0) {
+        /* Place subsequent items directly after the previously moved item. */
+        to_index += int(drag_index > to_index);
+      }
+
+      if (to_index < 0 || to_index >= current_uv_names.size()) {
+        return false;
+      }
+
+      bke::AttributeStorage &attribute_storage = mesh_.attribute_storage.wrap();
+      const int target_storage_index = attribute_storage.index_of(current_uv_names[to_index]);
+      if (target_storage_index == -1 ||
+          !attribute_storage.move(drag_uv_name, target_storage_index))
+      {
+        return false;
+      }
     }
 
     DEG_id_tag_update(&mesh_.id, ID_RECALC_GEOMETRY);
@@ -217,7 +297,8 @@ class UVMapItem : public ui::AbstractTreeViewItem {
     ui::Layout &sub = row.row(true);
     sub.use_property_decorate_set(false);
     PropertyRNA *active_render_prop = RNA_struct_find_property(&layer_ptr, "active_render");
-    const int render_icon = (active_render_prop && RNA_property_boolean_get(&layer_ptr, active_render_prop)) ?
+    const int render_icon = (active_render_prop &&
+                             RNA_property_boolean_get(&layer_ptr, active_render_prop)) ?
                                 ICON_RESTRICT_RENDER_OFF :
                                 ICON_RESTRICT_RENDER_ON;
     sub.prop(&layer_ptr, "active_render", ui::ITEM_R_ICON_ONLY, std::nullopt, render_icon);
@@ -273,6 +354,11 @@ class UVMapItem : public ui::AbstractTreeViewItem {
     return uv_name_;
   }
 
+  std::optional<std::string> debug_name() const override
+  {
+    return uv_name_;
+  }
+
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<UVMapDragController>(
@@ -281,8 +367,7 @@ class UVMapItem : public ui::AbstractTreeViewItem {
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
   {
-    return std::make_unique<UVMapDropTarget>(
-        *this, ui::DropBehavior::Reorder, mesh_, uv_name_);
+    return std::make_unique<UVMapDropTarget>(*this, ui::DropBehavior::Reorder, mesh_, uv_name_);
   }
 };
 
@@ -311,6 +396,7 @@ void template_tree(ui::Layout *layout, bContext *C)
   ui::AbstractTreeView *tree_view = block_add_view(
       *block, "UV Map Tree View", std::make_unique<UVMapTreeView>(*mesh));
   tree_view->set_default_rows(4);
+  tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
