@@ -2982,13 +2982,8 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
 
   /* Filter data. */
   eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
-                              ANIMFILTER_FCURVESONLY);
-  if (RNA_boolean_get(op->ptr, "only_active")) {
-    filter |= ANIMFILTER_ACTIVE;
-  }
-  else {
-    filter |= (ANIMFILTER_SEL | ANIMFILTER_CURVE_VISIBLE);
-  }
+                              ANIMFILTER_FCURVESONLY | ANIMFILTER_SEL | ANIMFILTER_CURVE_VISIBLE);
+
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   const RemovalMode mode = RemovalMode(RNA_enum_get(op->ptr, "mode"));
@@ -3058,7 +3053,6 @@ static void fmodifier_delete_ui(bContext * /*C*/, wmOperator *op)
   if (RNA_enum_get(op->ptr, "mode") == int(RemovalMode::TYPE)) {
     layout.prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  layout.prop(op->ptr, "only_active", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
@@ -3105,12 +3099,6 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
   RNA_def_enum_funcs(prop, graph_fmodifier_itemf);
   ot->prop = prop;
-
-  RNA_def_boolean(ot->srna,
-                  "only_active",
-                  false,
-                  "Only Active",
-                  "Only remove Modifier(s) from active F-Curve");
 }
 
 /** \} */
