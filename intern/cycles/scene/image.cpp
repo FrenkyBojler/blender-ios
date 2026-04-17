@@ -547,7 +547,7 @@ void ImageManager::device_gpu_load_requested(Device *device, DeviceQueue &queue,
    * existing allocation for unified memory. */
   vector<uint8_t> local_storage;
   const uint8_t *access_state = reinterpret_cast<const uint8_t *>(
-      queue.copy_from_device_synchronized(dscene.image_texture_tile_access, local_storage));
+      queue.copy_from_device_synchronized(dscene.image_texture_tile_access_state, local_storage));
 
   /* Load tiles requested by this device in parallel. */
   parallel_for(blocked_range<size_t>(0, images.size(), 1), [&](const blocked_range<size_t> &r) {
@@ -725,12 +725,12 @@ void ImageManager::device_free(Scene *scene)
 
 void ImageManager::evict_unused(Device *device, Scene *scene)
 {
-  if (!DebugFlags().texture_cache.eviction) {
+  if (!DebugFlags().texture_cache.use_eviction) {
     return;
   }
 
   DeviceScene &dscene = scene->dscene;
-  device_vector<uint8_t> &tile_access = dscene.image_texture_tile_access;
+  device_vector<uint8_t> &tile_access = dscene.image_texture_tile_access_state;
 
   if (tile_access.size() == 0) {
     return;
@@ -744,7 +744,8 @@ void ImageManager::evict_unused(Device *device, Scene *scene)
                            {dscene.image_textures.data(), dscene.image_textures.size()},
                            tile_access.data());
 
-  /* Zero access state on both host and device again. */
+  /* Reset access state on both host and device, so no more tiles are marked as used.
+   * Any tile not marked as used before the next eviction cycle will be evicted. */
   memset(tile_access.data(), KERNEL_TILE_ACCESS_NONE, tile_access.size() * sizeof(uint8_t));
   tile_access.zero_to_device();
   tile_access.clear_modified();

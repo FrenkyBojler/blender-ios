@@ -553,6 +553,8 @@ void Device::host_free(const MemoryType /*type*/, void *host_pointer, const size
 
 void Device::mem_or_from_device(device_memory &mem)
 {
+  /* Note that we always accumulate into the host buffer without zeroing, as CPU and unified
+   * memory write into the host buffer and we need to combine with those flags. */
   const size_t size = mem.memory_size();
   vector<uint8_t> tmp(size);
   uint8_t *combined = static_cast<uint8_t *>(mem.host_pointer);

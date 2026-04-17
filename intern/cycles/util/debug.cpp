@@ -93,7 +93,7 @@ DebugFlags::TextureCache::TextureCache()
 
 void DebugFlags::TextureCache::reset()
 {
-  eviction = true;
+  use_eviction = true;
   preserve_unused = 0;
 }
 

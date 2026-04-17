@@ -76,7 +76,7 @@ void debug_flags_sync_from_scene(blender::Scene &b_scene)
   /* Synchronize OptiX flags. */
   flags.optix.use_debug = get_boolean(cscene, "debug_use_optix_debug");
   /* Synchronize Texture Cache flags. */
-  flags.texture_cache.eviction = get_boolean(cscene, "debug_texture_cache_eviction");
+  flags.texture_cache.use_eviction = get_boolean(cscene, "debug_use_texture_cache_eviction");
   flags.texture_cache.preserve_unused = get_int(cscene, "debug_texture_cache_preserve_unused");
 }
 

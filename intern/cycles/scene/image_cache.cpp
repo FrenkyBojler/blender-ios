@@ -114,7 +114,7 @@ void ImageCache::device_free(DeviceScene &dscene)
   images.clear();
   images_first_free.clear();
   dscene.image_texture_tile_descriptors.free();
-  dscene.image_texture_tile_access.free();
+  dscene.image_texture_tile_access_state.free();
 
   /* Reset eviction statistics. */
   stats.reset();
@@ -517,7 +517,7 @@ void ImageCache::load_image_tiled(DeviceScene &dscene,
     const thread_scoped_lock device_lock(device_mutex);
 
     device_vector<KernelTileDescriptor> &tile_descriptors = dscene.image_texture_tile_descriptors;
-    device_vector<uint8_t> &tile_access = dscene.image_texture_tile_access;
+    device_vector<uint8_t> &tile_access = dscene.image_texture_tile_access_state;
 
     const int tile_descriptor_offset = tile_descriptors.size();
     tile_descriptors.resize(tile_descriptor_offset + levels.size() + num_tiles);
@@ -648,7 +648,7 @@ void ImageCache::load_requested_tiles(Device &device,
 
   /* Scan access state for this image's tiles. */
   for (size_t tile_idx = 0; tile_idx < tex.tile_num; tile_idx++) {
-    if (access_state[base_offset + tile_idx] != KERNEL_TILE_ACCESS_REQUESTED) {
+    if (!(access_state[base_offset + tile_idx] & KERNEL_TILE_ACCESS_REQUESTED)) {
       continue;
     }
 
@@ -863,7 +863,9 @@ void ImageCache::evict_unused(const Device &device,
     }
   }
 
-  /* Evict device-resident tiles until preserved bytes fits within the budget. */
+  /* Evict device-resident tiles until preserved bytes fits within the budget.
+   * Note this means tiles loaded earlier will be preserved, as tiles loaded later are
+   * less likely to be needed often. */
   for (const UnusedTile &tile : unused_tiles) {
     if (preserved_bytes <= preserve_budget) {
       /* Within budget, preserve remaining device-resident tiles. */
@@ -886,7 +888,7 @@ void ImageCache::evict_unused(const Device &device,
 
 size_t ImageCache::memory_size(DeviceScene &dscene) const
 {
-  return dscene.image_texture_tile_access.memory_size() +
+  return dscene.image_texture_tile_access_state.memory_size() +
          dscene.image_texture_tile_descriptors.memory_size();
 }
 
@@ -900,10 +902,10 @@ void ImageCache::copy_to_device(DeviceScene &dscene)
 
   thread_scoped_lock device_lock(device_mutex);
   dscene.image_texture_tile_descriptors.copy_to_device_if_modified();
-  dscene.image_texture_tile_access.copy_to_device_if_modified();
+  dscene.image_texture_tile_access_state.copy_to_device_if_modified();
 
   dscene.image_texture_tile_descriptors.clear_modified();
-  dscene.image_texture_tile_access.clear_modified();
+  dscene.image_texture_tile_access_state.clear_modified();
 }
 
 void ImageCache::copy_to_device(DeviceScene &dscene, DeviceQueue &queue)

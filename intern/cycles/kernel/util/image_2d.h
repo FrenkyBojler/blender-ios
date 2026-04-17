@@ -148,7 +148,8 @@ kernel_image_tile_map(KernelGlobals kg,
                         tile_descriptor);
       /* Set access state that will be read back to host. Using a byte
        * instead of a bitmask avoids the need for atomics. */
-      kernel_data_array(image_texture_tile_access)[access_index] = KERNEL_TILE_ACCESS_REQUESTED;
+      kernel_data_array(
+          image_texture_tile_access_state)[access_index] = KERNEL_TILE_ACCESS_REQUESTED;
     }
     if (tile_descriptor == KERNEL_TILE_LOAD_REQUEST) {
       sd->flag |= SD_CACHE_MISS;
@@ -174,8 +175,9 @@ kernel_image_tile_map(KernelGlobals kg,
 
   /* Mark tile as used for cache eviction tracking. Read before writing as we
    * expect most of the time this was already written. */
-  if (kernel_data_array(image_texture_tile_access)[access_index] != KERNEL_TILE_ACCESS_USED) {
-    kernel_data_array(image_texture_tile_access)[access_index] = KERNEL_TILE_ACCESS_USED;
+  if (kernel_data_array(image_texture_tile_access_state)[access_index] != KERNEL_TILE_ACCESS_USED)
+  {
+    kernel_data_array(image_texture_tile_access_state)[access_index] = KERNEL_TILE_ACCESS_USED;
   }
 
   /* Remap coordinates into tiled image space. */

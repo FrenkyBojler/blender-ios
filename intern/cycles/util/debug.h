@@ -114,7 +114,7 @@ class DebugFlags {
     void reset();
 
     /* Enable texture cache eviction. */
-    bool eviction = true;
+    bool use_eviction = true;
 
     /* Preserve unused image cache tile memory in megabytes. */
     int preserve_unused = 0;

@@ -914,9 +914,9 @@ class CYCLES_RENDER_PT_performance_texture_cache(CyclesButtonsPanel, Panel):
             cscene = context.scene.cycles
             col = layout.column(heading="Debug")
             col.active = rd.use_texture_cache
-            col.prop(cscene, "debug_texture_cache_eviction")
+            col.prop(cscene, "debug_use_texture_cache_eviction")
             sub = col.column()
-            sub.active = cscene.debug_texture_cache_eviction
+            sub.active = cscene.debug_use_texture_cache_eviction
             sub.prop(cscene, "debug_texture_cache_preserve_unused")
 
 

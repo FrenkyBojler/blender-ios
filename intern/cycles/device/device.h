@@ -293,7 +293,8 @@ class Device {
   /* Returns path guiding device handle. */
   virtual void *get_guiding_device() const;
 
-  /* Read back a device_memory byte buffer from device and OR values into the host buffer. */
+  /* Read back a device_memory byte buffer from device and OR values into the host buffer.
+   * The host buffer is not zeroed as part of this. */
   virtual void mem_or_from_device(device_memory &mem);
 
   /* Sub-devices */
