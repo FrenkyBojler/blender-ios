@@ -28,6 +28,8 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
@@ -442,6 +444,83 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
   ot->exec = mesh_uv_texture_remove_exec;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+enum class UvTextureMoveDirection {
+  Up = -1,
+  Down = 1,
+};
+
+static bool uv_texture_move_poll(bContext *C)
+{
+  if (!uv_maps_poll(C)) {
+    return false;
+  }
+
+  Object *ob = ed::object::context_object(C);
+  Mesh *mesh = id_cast<Mesh *>(ob->data);
+  if (mesh->runtime->edit_mesh != nullptr) {
+    return false;
+  }
+  return mesh->uv_map_names().size() > 1;
+}
+
+static wmOperatorStatus mesh_uv_texture_move_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = ed::object::context_object(C);
+  Mesh *mesh = id_cast<Mesh *>(ob->data);
+
+  const UvTextureMoveDirection direction = UvTextureMoveDirection(
+      RNA_enum_get(op->ptr, "direction"));
+
+  const VectorSet<StringRefNull> uv_names = mesh->uv_map_names();
+  const StringRefNull active_name = mesh->active_uv_map_name();
+
+  const int active_uv_index = uv_names.index_of_try(active_name);
+  if (active_uv_index == -1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int target_uv_index = active_uv_index + int(direction);
+  if (target_uv_index < 0 || target_uv_index >= uv_names.size()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bke::AttributeStorage &attribute_storage = mesh->attribute_storage.wrap();
+  const int target_storage_index = attribute_storage.index_of(uv_names[target_uv_index]);
+  if (target_storage_index == -1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!attribute_storage.move(active_name, target_storage_index)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, mesh);
+
+  return OPERATOR_FINISHED;
+}
+
+void MESH_OT_uv_texture_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem direction_items[] = {
+      {int(UvTextureMoveDirection::Up), "UP", 0, "Up", "Move the active UV map up"},
+      {int(UvTextureMoveDirection::Down), "DOWN", 0, "Down", "Move the active UV map down"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  ot->name = "Move UV Map";
+  ot->description = "Move UV map in the list";
+  ot->idname = "MESH_OT_uv_texture_move";
+
+  ot->poll = uv_texture_move_poll;
+  ot->exec = mesh_uv_texture_move_exec;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(
+      ot->srna, "direction", direction_items, int(UvTextureMoveDirection::Up), "Direction", "");
 }
 
 static bool mesh_customdata_mask_clear_poll(bContext *C)

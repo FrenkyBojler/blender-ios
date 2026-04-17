@@ -129,14 +129,6 @@ class MESH_UL_vgroups(UIList):
         layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
 
 
-class MESH_UL_uvmaps(UIList):
-    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
-        # assert(isinstance(item, (bpy.types.MeshTexturePolyLayer, bpy.types.MeshLoopColorLayer)))
-        layout.prop(item, "name", text="", emboss=False, icon='GROUP_UVS')
-        icon = 'RESTRICT_RENDER_OFF' if item.active_render else 'RESTRICT_RENDER_ON'
-        layout.prop(item, "active_render", text="", icon=icon, emboss=False)
-
-
 class MeshButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -391,11 +383,18 @@ class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
         row = layout.row()
         col = row.column()
 
-        col.template_list("MESH_UL_uvmaps", "uvmaps", me, "uv_layers", me.uv_layers, "active_index", rows=2)
+        col.template_uv_map_tree()
 
         col = row.column(align=True)
         col.operator("mesh.uv_texture_add", icon='ADD', text="")
         col.operator("mesh.uv_texture_remove", icon='REMOVE', text="")
+
+        if me.uv_layers:
+            col.separator()
+            props = col.operator("mesh.uv_texture_move", icon='TRIA_UP', text="")
+            props.direction = 'UP'
+            props = col.operator("mesh.uv_texture_move", icon='TRIA_DOWN', text="")
+            props.direction = 'DOWN'
 
         draw_attribute_warnings(context, layout, me.uv_layers)
 
@@ -724,7 +723,6 @@ classes = (
     MESH_MT_color_attribute_context_menu,
     MESH_MT_attribute_context_menu,
     MESH_UL_vgroups,
-    MESH_UL_uvmaps,
     MESH_UL_attributes,
     DATA_PT_context_mesh,
     DATA_PT_vertex_groups,
