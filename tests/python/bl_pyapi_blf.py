@@ -62,6 +62,8 @@ so they can print out framing which can be used as input.
 
   ./blender.bin ... -- --mode=ALL --generate -k my_test
 """
+from __future__ import annotations
+
 __all__ = (
     "main",
 )
@@ -80,7 +82,7 @@ import unicodedata
 import unittest
 
 from collections.abc import Callable, Iterator
-from typing import ContextManager, NamedTuple
+from typing import ContextManager, NamedTuple, Self
 
 import blf  # type: ignore[import-not-found]
 import bpy  # type: ignore[import-not-found]
@@ -153,6 +155,15 @@ USE_TEST_BOUNDS_ERROR: bool = bool(os.environ.get("USE_TEST_BOUNDS_ERROR"))
 # Force prepare mode on every case, overriding per-case `prepare=True/False`.
 # Useful after changing fonts to re-derive framing values for all tests.
 USE_PREPARE_FORCE: bool = False
+
+# When True, VFont images are rendered via an orthographic Workbench camera instead ofthe GPU triangle path.
+# Avoids `gpu.init()` so tests can run on headless build-bots (but is much slower).
+USE_VFONT_RENDER: bool = False
+VFONT_RENDER_DIR: str = ""
+
+IDIFF_FAIL: float = 0.004
+IDIFF_FAIL_PERCENT: float = 0.0
+
 SHOW_HTML: str = ""
 COMPARE_IMAGES: list["ComparedImage"] = []
 OUTPUT_DIR: str = ""
@@ -167,6 +178,89 @@ class VFontSet(NamedTuple):
 
 
 FONTS_VFONT: VFontSet | None = None
+
+
+class VFontRenderContext:
+    """
+    Persistent Workbench render environment for ``USE_VFONT_RENDER``.
+
+    Amortises the per-render overhead that is constant across all tests:
+    scene-property saves/restores, camera creation/destruction, and hiding the
+    pre-existing scene objects.  Created once before ``unittest.main()`` runs
+    (alongside ``FONTS_VFONT``) and torn down in the same ``finally`` block.
+
+    Each call to ``render_text_vfont_camera`` only needs to:
+      - update the camera ``ortho_scale`` and ``location`` for the current size,
+      - create/destroy the per-case text object and materials,
+      - call ``bpy.ops.render.render(write_still=True)``.
+    """
+
+    def __init__(self) -> None:
+        scene = bpy.context.scene
+        self._scene = scene
+
+        changes = [
+            (scene.render, "engine", 'BLENDER_WORKBENCH'),
+            (scene.render, "film_transparent", False),
+            (scene.render.image_settings, "file_format", 'PNG'),
+            (scene.render.image_settings, "color_mode", 'RGB'),
+            (scene.render.image_settings, "color_depth", '8'),
+            (scene.display.shading, "light", 'FLAT'),
+            (scene.display.shading, "color_type", 'MATERIAL'),
+            (scene.display.shading, "background_type", 'VIEWPORT'),
+            (scene.display.shading, "background_color", (0.0, 0.0, 0.0)),
+            (scene.display.shading, "show_shadows", False),
+            (scene.display, "render_aa", 'OFF'),
+            (scene.view_settings, "view_transform", 'Raw'),
+        ]
+        self._prev = [(obj, attr, getattr(obj, attr)) for obj, attr, _ in changes]
+        for obj, attr, val in changes:
+            setattr(obj, attr, val)
+
+        self._prev_hide_render: dict[str, bool] = {
+            obj.name: obj.hide_render for obj in scene.objects
+        }
+        for obj in scene.objects:
+            obj.hide_render = True
+
+        # Persistent orthographic camera — only ortho_scale and location change per render.
+        cam_data = bpy.data.cameras.new("_test_cam")
+        cam_data.type = 'ORTHO'
+        cam_data.sensor_fit = 'HORIZONTAL'
+        self.cam_data: bpy.types.Camera = cam_data
+        self.cam_obj = bpy.data.objects.new("_test_cam_obj", cam_data)
+        scene.collection.objects.link(self.cam_obj)
+
+        self.tmp_path = os.path.join(VFONT_RENDER_DIR, "render.png")
+        for obj, attr, val in [
+            (scene, "camera", self.cam_obj),
+            (scene.render, "filepath", self.tmp_path),
+        ]:
+            self._prev.append((obj, attr, getattr(obj, attr)))
+            setattr(obj, attr, val)
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.teardown()
+
+    def teardown(self) -> None:
+        """Destroy the camera and restore every saved scene property."""
+        scene = self._scene
+
+        bpy.data.objects.remove(self.cam_obj)
+        bpy.data.cameras.remove(self.cam_data)
+
+        for obj, attr, val in self._prev:
+            setattr(obj, attr, val)
+
+        for obj_name, was_hidden in self._prev_hide_render.items():
+            if obj_name in scene.objects:
+                scene.objects[obj_name].hide_render = was_hidden
+
+
+VFONT_RENDER_CTX: VFontRenderContext | None = None
 
 
 # Test classes are registered here by TestImageComparison_MixIn.__init_subclass__
@@ -188,20 +282,6 @@ MODE_KINDS: dict[str, tuple[str, ...]] = {
 }
 
 
-def make_runner(
-        case: "CaseBuffer | CaseVFont",
-        kind: str,
-) -> Callable[["TestImageComparison_MixIn"], None]:
-    """Build a unittest test method that runs ``case`` for the given kind."""
-    if kind == "vfont":
-        def runner(self: "TestImageComparison_MixIn") -> None:
-            self._run_case_vfont(case)  # type: ignore[arg-type]
-    else:
-        def runner(self: "TestImageComparison_MixIn") -> None:
-            self._run_render_case(case, kind)  # type: ignore[arg-type]
-    return runner
-
-
 def attach_test_methods(mode: str) -> None:
     """
     Generate test_<kind>_<case> methods on each registered test class.
@@ -210,6 +290,19 @@ def attach_test_methods(mode: str) -> None:
     walks the matching case list on the class (``cases_buffer`` for buffer/gpu,
     ``cases_vfont`` for vfont) and skips kinds with no cases.
     """
+    def make_runner(
+            case: CaseBuffer | CaseVFont,
+            kind: str,
+    ) -> Callable[[TestImageComparison_MixIn], None]:
+        """Build a unittest test method that runs ``case`` for the given kind."""
+        if kind == "vfont":
+            def runner(self: TestImageComparison_MixIn) -> None:
+                self._run_case_vfont(case)  # type: ignore[arg-type]
+        else:
+            def runner(self: TestImageComparison_MixIn) -> None:
+                self._run_render_case(case, kind)  # type: ignore[arg-type]
+        return runner
+
     kinds = MODE_KINDS[mode]
     for cls in TEST_CLASSES:
         cases_buffer = cls.__dict__.get("cases_buffer", ())
@@ -314,7 +407,7 @@ class TextFormatCompose:
             smallcaps: bool | None = None,
             material: int | None = None,
             kerning: float | None = None,
-    ) -> "TextFormatCompose":
+    ) -> TextFormatCompose:
         if bold is not None:
             self._bold = bold
         if italic is not None:
@@ -329,7 +422,7 @@ class TextFormatCompose:
             self._kerning = kerning
         return self
 
-    def text(self, value: str) -> "TextFormatCompose":
+    def text(self, value: str) -> TextFormatCompose:
         span = StyleSpan(
             self._bold, self._italic, self._underline,
             self._smallcaps, self._material, self._kerning,
@@ -583,7 +676,7 @@ def render_text_buffer(font_id: int, case: CaseBuffer) -> imbuf.types.ImBuf:
     return ibuf
 
 
-def render_text_gpu(font_id: int, case: CaseBuffer) -> object:
+def render_text_gpu(font_id: int, case: CaseBuffer) -> imbuf.types.ImBuf:
     """Render text via the GPU draw path into an imbuf."""
     blf.size(font_id, case.font_size)
     blf.color(font_id, 1.0, 1.0, 1.0, 1.0)
@@ -672,20 +765,13 @@ def generate_random_words(word_count: int, seed: int, *, titlecase: bool = True)
     return words
 
 
-def vfont_to_triangles(
+def vfont_create_text_object_from_case(
         case: CaseVFont,
         fonts: VFontSet,
-) -> tuple[
-    list[tuple[float, float]],
-    list[tuple[int, int, int]],
-    list[int],
-]:
-    """
-    Build a VFont text object from the given case, convert to mesh, and extract 2D triangles.
-
-    Returns ``(vertices, indices, material_indices)`` where vertices are ``(x, y)`` pairs,
-    indices are triangle index triples, and material_indices is a per-triangle material slot.
-    """
+        collection: bpy.types.Collection,
+        default_material: tuple[float, float, float] | None = None,
+) -> tuple[bpy.types.Curve, bpy.types.Object, list[bpy.types.Material]]:
+    """Create a FONT curve object from a test case. Caller must remove on cleanup."""
     body = case.text.body if isinstance(case.text, TextFormatCompose) else case.text
 
     curve = bpy.data.curves.new(name="_test_text", type='FONT')
@@ -706,7 +792,22 @@ def vfont_to_triangles(
     curve.offset = case.geometry_offset
     curve.extrude = case.geometry_extrude
 
+    materials_rgb = case.materials if case.materials is not None else (
+        [default_material] if default_material is not None else []
+    )
+    created_materials: list[bpy.types.Material] = []
+    for i, (r, g, b) in enumerate(materials_rgb):
+        mat = bpy.data.materials.new(name="_test_mat_{:d}".format(i))
+        mat.diffuse_color = (r, g, b, 1.0)
+        curve.materials.append(mat)
+        created_materials.append(mat)
+
+    obj = bpy.data.objects.new(name="_test_text_obj", object_data=curve)
+    collection.objects.link(obj)
+
     if isinstance(case.text, TextFormatCompose):
+        bpy.context.view_layer.objects.active = obj
+        bpy.context.view_layer.update()
         for i, span in enumerate(case.text.spans):
             ci = curve.body_format[i]
             ci.use_bold = span.bold
@@ -715,17 +816,6 @@ def vfont_to_triangles(
             ci.use_small_caps = span.smallcaps
             ci.material_index = span.material
             ci.kerning = span.kerning
-
-    created_materials: list[bpy.types.Material] = []
-    if case.materials is not None:
-        for i, (r, g, b) in enumerate(case.materials):
-            mat = bpy.data.materials.new(name="_test_mat_{:d}".format(i))
-            mat.diffuse_color = (r, g, b, 1.0)
-            curve.materials.append(mat)
-            created_materials.append(mat)
-
-    obj = bpy.data.objects.new(name="_test_text_obj", object_data=curve)
-    bpy.context.collection.objects.link(obj)
 
     if case.text_boxes is not None:
         bpy.context.view_layer.objects.active = obj
@@ -738,6 +828,26 @@ def vfont_to_triangles(
             tb.width = tb_data.width
             tb.height = tb_data.height
 
+    return curve, obj, created_materials
+
+
+def vfont_to_triangles(
+        case: CaseVFont,
+        fonts: VFontSet,
+) -> tuple[
+    list[tuple[float, float]],
+    list[tuple[int, int, int]],
+    list[int],
+]:
+    """
+    Build a VFont text object from the given case, convert to mesh, and extract 2D triangles.
+
+    Returns ``(vertices, indices, material_indices)`` where vertices are ``(x, y)`` pairs,
+    indices are triangle index triples, and material_indices is a per-triangle material slot.
+    """
+    curve, obj, created_materials = vfont_create_text_object_from_case(
+        case, fonts, bpy.context.collection,
+    )
     cm = case.with_context_fn(obj) if case.with_context_fn is not None else contextlib.nullcontext()
     try:
         with cm:
@@ -916,6 +1026,64 @@ def render_text_vfont(
     return ibuf_hi
 
 
+def render_text_vfont_camera(
+        case: CaseVFont,
+        fonts: VFontSet,
+        image_size: tuple[int, int],
+        position_offset: tuple[float, float],
+) -> imbuf.types.ImBuf:
+    """
+    Render a VFont text case using Blender's Workbench engine with an orthographic camera.
+
+    Requires ``VFONT_RENDER_CTX`` to be initialized (done by ``main()`` before
+    ``unittest.main()`` runs).  Session-level setup (scene properties, camera,
+    hidden objects, temp file) lives in the context; this function only creates
+    and destroys the per-case text object.
+
+    Camera is orthographic, positioned so that VFont world-space coordinates map to
+    pixels identically to the GPU triangle path::
+
+       pixel_x = vertex_x * VFONT_PPU + position_offset[0]
+       pixel_y = vertex_y * VFONT_PPU + position_offset[1]
+    """
+    ctx = VFONT_RENDER_CTX
+    assert ctx is not None, "VFONT_RENDER_CTX must be initialised before rendering"
+
+    w, h = image_size
+    s = globals_vfont.scale_oversample
+    sw, sh = w * s, h * s
+    scene = ctx._scene
+
+    # Render at 2× then bilinear-downscale: matches the supersampling in render_text_vfont.
+    # Camera framing is in VFont world-space, independent of render resolution.
+    scene.render.resolution_x = sw
+    scene.render.resolution_y = sh
+    scene.render.resolution_percentage = 100
+    ctx.cam_data.ortho_scale = w / VFONT_PPU
+    ctx.cam_obj.location = (
+        (w / 2.0 - position_offset[0]) / VFONT_PPU,
+        (h / 2.0 - position_offset[1]) / VFONT_PPU,
+        10.0,
+    )
+
+    curve, text_obj, created_materials = vfont_create_text_object_from_case(
+        case, fonts, scene.collection, default_material=(1.0, 1.0, 1.0),
+    )
+    cm = case.with_context_fn(text_obj) if case.with_context_fn is not None else contextlib.nullcontext()
+    try:
+        with cm:
+            bpy.ops.render.render(write_still=True)
+        ibuf = imbuf.load(ctx.tmp_path)
+        ibuf.resize(image_size, method='BILINEAR')
+    finally:
+        bpy.data.objects.remove(text_obj)
+        bpy.data.curves.remove(curve)
+        for mat in created_materials:
+            bpy.data.materials.remove(mat)
+
+    return ibuf
+
+
 # ---------------------------------------------------------------------------
 # HTML report (only used with --show-html)
 
@@ -929,9 +1097,6 @@ def write_html_report(html_path: str) -> None:
     """
     import base64
     from html import escape as html_escape
-
-    if not COMPARE_IMAGES:
-        return
 
     def img_uri(path: str) -> str:
         if not os.path.exists(path):
@@ -1135,7 +1300,14 @@ class TestImageComparison_MixIn:
         case = self._scale_case(case)
         render_fn = self._RENDER_FUNCS[kind]
         ibuf = render_fn(self.font_id, case)
-        self._compare_image(case.name, case.text, ibuf, kind)
+        self._compare_image(
+            case.name,
+            case.text,
+            ibuf,
+            kind,
+            idiff_fail=IDIFF_FAIL,
+            idiff_fail_percent=IDIFF_FAIL_PERCENT,
+        )
 
     def _compute_prepare_buffer(
             self, case: CaseBuffer,
@@ -1287,7 +1459,7 @@ class TestImageComparison_MixIn:
                 )
 
     def _run_case_vfont(self, case: CaseVFont) -> None:
-        """VFont pipeline: bpy curve -> triangles -> GPU render. Bundles dims + render."""
+        """VFont pipeline: bpy curve -> triangles -> render. Bundles dims + render."""
         assert isinstance(self, unittest.TestCase)
         assert self.fonts_vfont is not None
         verts, tris, tri_materials = vfont_to_triangles(case, self.fonts_vfont)
@@ -1304,17 +1476,25 @@ class TestImageComparison_MixIn:
                 msg="Dimensions mismatch for {:s}:".format(case.name),
             )
 
-        ibuf = render_text_vfont(
-            verts, tris, tri_materials,
-            case.size, case.position_offset, case.materials,
-        )
+        if USE_VFONT_RENDER:
+            ibuf = render_text_vfont_camera(case, self.fonts_vfont, case.size, case.position_offset)
+        else:
+            ibuf = render_text_vfont(verts, tris, tri_materials, case.size, case.position_offset, case.materials)
 
         if USE_TEST_BOUNDS_ERROR:
             bounds_err = check_image_bounds(ibuf, case.name)
             self.assertIsNone(bounds_err, bounds_err)
 
         text_display = case.text.body if isinstance(case.text, TextFormatCompose) else case.text
-        self._compare_image(case.name, text_display, ibuf, "vfont")
+        # Camera render uses a slightly looser threshold: Workbench rasterizes glyph
+        # boundaries differently from the GPU uniform_color shader, leaving O(1-5) pixels
+        # per image just above 0.01. Allow up to 0.1 % of pixels to exceed the threshold.
+        idiff_fail = 0.01 if USE_VFONT_RENDER else 0.004
+        idiff_fail_percent = 0.1 if USE_VFONT_RENDER else 0.0
+        self._compare_image(
+            case.name, text_display, ibuf, "vfont",
+            idiff_fail=idiff_fail, idiff_fail_percent=idiff_fail_percent,
+        )
 
     @staticmethod
     def _compute_prepare_vfont(
@@ -1355,7 +1535,11 @@ class TestImageComparison_MixIn:
         "vfont": RENDER_DIR_VFONT,
     }
 
-    def _compare_image(self, name: str, text: str, ibuf: object, kind: str) -> None:
+    def _compare_image(
+            self, name: str, text: str, ibuf: imbuf.types.ImBuf, kind: str, *,
+            idiff_fail: float,
+            idiff_fail_percent: float,
+    ) -> None:
         """
         Compare rendered image against a reference using idiff, or generate if --generate.
 
@@ -1363,6 +1547,9 @@ class TestImageComparison_MixIn:
         tags the ComparedImage entry for HTML grouping and disambiguates the on-disk
         ``_test.png`` filename so the two pipelines don't overwrite each other.
         The reference image has no kind suffix (one golden file per case).
+        ``idiff_fail`` sets the per-channel failure threshold passed to idiff.
+        ``idiff_fail_percent`` sets the allowable fraction of pixels (percent) that may
+        exceed the threshold before the comparison fails.
         """
         assert isinstance(self, unittest.TestCase)
         name_full = self.name_prefix + name
@@ -1385,13 +1572,16 @@ class TestImageComparison_MixIn:
             self.assertTrue(IDIFF_BIN, "idiff not found, set IDIFF_BIN or install OpenImageIO")
             diff_path = os.path.join(OUTPUT_DIR, "{:s}_{:s}_diff.png".format(name_full, kind))
             result = subprocess.run(
-                [IDIFF_BIN, "-fail", "0.004", "-failpercent", "0",
+                [IDIFF_BIN,
+                 "-fail", "{:.4f}".format(idiff_fail),
+                 "-failpercent", "{:.4f}".format(idiff_fail_percent),
                  "-o", diff_path, "-abs", "-scale", "10",
                  ref_path, out_path],
                 capture_output=True,
                 text=True,
             )
-            passed = result.returncode == 0
+            # 0 = identical, 1 = within warn/failpercent tolerance, 2 = fail, 3+ = error.
+            passed = result.returncode in {0, 1}
             test_path = out_path
             idiff_output = result.stdout.rstrip()
 
@@ -2938,9 +3128,6 @@ class TestSpacing(TestImageComparison_MixIn, unittest.TestCase):
 class TestGeometry(TestImageComparison_MixIn, unittest.TestCase):
     """
     Test geometry offset and extrude.
-
-    These are expected to produce ugly geometry (overlapping outlines);
-    the purpose is to verify the parameters take effect, not visual quality.
     """
 
     name_prefix = "geometry."
@@ -2949,17 +3136,17 @@ class TestGeometry(TestImageComparison_MixIn, unittest.TestCase):
             name="offset_positive",
             text=" ".join(generate_random_words(4, seed=50)),
             size=(599, 84),
-            expected_dimensions=(8.033791, 0.886813),
+            expected_dimensions=(7.873791, 0.726813),
             position_offset=(12.4, 29.1),
-            geometry_offset=0.1,
+            geometry_offset=0.02,
         ),
         CaseVFont(
             name="offset_negative",
             text=" ".join(generate_random_words(4, seed=50)),
             size=(591, 65),
-            expected_dimensions=(7.922851, 0.621273),
+            expected_dimensions=(7.793791, 0.646813),
             position_offset=(8.0, 15.5),
-            geometry_offset=-0.1,
+            geometry_offset=-0.02,
         ),
     ]
 
@@ -3457,6 +3644,11 @@ def argparse_create() -> argparse.ArgumentParser:
         help="Filter tests by name pattern (passed as -k to unittest)",
     )
     parser.add_argument(
+        "--use-vfont-render",
+        action="store_true",
+        help="Render VFont tests via an orthographic Workbench camera instead of the GPU triangle path",
+    )
+    parser.add_argument(
         "--mode",
         choices=tuple(MODE_KINDS),
         default="BUFFER",
@@ -3472,7 +3664,8 @@ def argparse_create() -> argparse.ArgumentParser:
 # Main
 
 def main() -> None:
-    global USE_GENERATE_TEST_DATA, SHOW_HTML, OUTPUT_DIR, FONTS_VFONT, gpu
+    global USE_GENERATE_TEST_DATA, USE_VFONT_RENDER, VFONT_RENDER_DIR, SHOW_HTML, OUTPUT_DIR, FONTS_VFONT
+    global VFONT_RENDER_CTX, gpu
 
     if "--" in sys.argv:
         argv = [sys.argv[0]] + sys.argv[sys.argv.index("--") + 1:]
@@ -3506,6 +3699,8 @@ def main() -> None:
         remaining.extend(["-k", args.keyword])
 
     USE_GENERATE_TEST_DATA = args.generate
+    if args.use_vfont_render:
+        USE_VFONT_RENDER = True
     SHOW_HTML = args.show_html or ""
 
     # Load the bpy VectorFont once if any vfont tests are active.
@@ -3517,34 +3712,39 @@ def main() -> None:
             bold_italic=bpy.data.fonts.load(FONT_PATH_BOLD_ITALIC),
         )
 
-    # By default non-reference outputs go to a TemporaryDirectory that's cleaned
-    # up after the run, so plain invocations leave no artifacts behind. Only
-    # --show-html (manual inspection) persists to a per-mode subdir of TEST_DIR.
+    # Persistent dir for test images (--show-html) or a throwaway temp dir.
     output_ctx: contextlib.AbstractContextManager[str]
     if SHOW_HTML:
-        # Per-mode dir so the BUFFER, GPU and VFONT runs don't overwrite each
-        # other. ALL writes all kinds into a single output_all/ - filenames
-        # carry _buffer / _gpu / _vfont suffixes so they don't collide.
         output_dir_path = os.path.join(TEST_DIR, "output_" + args.mode.lower())
         os.makedirs(output_dir_path, exist_ok=True)
         output_ctx = contextlib.nullcontext(output_dir_path)
     else:
         output_ctx = tempfile.TemporaryDirectory()
 
-    try:
-        with output_ctx as output_dir:
-            OUTPUT_DIR = output_dir
+    # Temp dir in Blender's temp space for the Workbench render output PNG.
+    vfont_tmp_ctx = (
+        tempfile.TemporaryDirectory(dir=bpy.app.tempdir)
+        if (USE_VFONT_RENDER and "vfont" in active_kinds)
+        else contextlib.nullcontext("")
+    )
+    with output_ctx as output_dir, vfont_tmp_ctx as tmpdir:
+        OUTPUT_DIR = output_dir
+        VFONT_RENDER_DIR = tmpdir
+        # Separate: VFontRenderContext.__init__ reads VFONT_RENDER_DIR.
+        # Scene setup/teardown for Workbench camera renders.
+        vfont_render_ctx = (
+            VFontRenderContext()
+            if (USE_VFONT_RENDER and "vfont" in active_kinds)
+            else contextlib.nullcontext(None)
+        )
+        with vfont_render_ctx as VFONT_RENDER_CTX:
             unittest.main(argv=remaining, exit=False)
-            if SHOW_HTML:
-                if COMPARE_IMAGES:
-                    write_html_report(SHOW_HTML)
-                else:
-                    sys.stderr.write("No images generated as part of running tests")
-    finally:
-        if FONTS_VFONT is not None:
-            for font in FONTS_VFONT:
-                bpy.data.fonts.remove(font)
-            FONTS_VFONT = None
+    if FONTS_VFONT is not None:
+        for font in FONTS_VFONT:
+            bpy.data.fonts.remove(font)
+        FONTS_VFONT = None
+    if SHOW_HTML:
+        write_html_report(SHOW_HTML)
 
 
 if __name__ == "__main__":

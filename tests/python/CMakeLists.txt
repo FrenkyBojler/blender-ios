@@ -380,18 +380,26 @@ add_blender_test(
   --mode=BUFFER
 )
 
-add_blender_test(
-  script_pyapi_blf_gpu
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
-  --
-  --mode=GPU
-)
+# TODO: investigate if this can be supported, as the GPU can be used for rendering.
+# Requires `gpu.init()`, not available for the build-bots for the default environment.
+if(FALSE)
+  add_blender_test(
+    script_pyapi_blf_gpu
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+    --
+    --mode=GPU
+  )
+endif()
 
 add_blender_test(
   script_pyapi_blf_vfont
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
   --
   --mode=VFONT
+  # Use Workbench render instead of simple GPU rasterization.
+  # Most build-bots systems fail with `gpu.init()` otherwise this could be avoided.
+  # Ideally it could be removed eventually as it's slower.
+  --use-vfont-render
 )
 
 # ------------------------------------------------------------------------------
