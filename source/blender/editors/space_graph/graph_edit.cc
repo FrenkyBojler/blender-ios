@@ -2990,44 +2990,37 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   int num_fmods_deleted = 0;
   int num_fcurves_affected = 0;
 
-  /* Create a struct to store collected data. */
-  struct FModifierRef {
-    FCurve *fcu;
-    FModifier *fcm;
-  };
-  std::vector<FModifierRef> fmods_to_delete;
-
   /* Collect the F-Mods to delete. */
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.data);
 
-    bool is_curve_affected = false;
+    /* Keep track of the modifiers to delete, so that we don't delete
+     * them while looping over them. */
+    Vector<FModifier *> fmods_to_delete;
 
     for (FModifier &fcm : fcu->modifiers) {
       if (mode == RemovalMode::ALL || (mode == RemovalMode::TYPE && fcm.type == type)) {
-        fmods_to_delete.push_back({fcu, &fcm});
-        is_curve_affected = true;
+        fmods_to_delete.append(&fcm);
       }
     }
 
-    if (mode == RemovalMode::FIRST && fcu->modifiers.first) {
+    if (mode == RemovalMode::FIRST) {
       if (FModifier *first = static_cast<FModifier *>(fcu->modifiers.first)) {
-        fmods_to_delete.push_back({fcu, first});
-        is_curve_affected = true;
+        fmods_to_delete.append(first);
       }
     }
 
-    if (is_curve_affected) {
+    /* Delete the modifiers. */
+    for (FModifier *fmod : fmods_to_delete) {
+      remove_fmodifier(&fcu->modifiers, fmod);
+      num_fmods_deleted++;
+    }
+
+    if (!fmods_to_delete.is_empty()) {
       num_fcurves_affected++;
     }
 
     ale.update |= ANIM_UPDATE_DEPS;
-  }
-
-  /* Second loop to delete F-Mods */
-  for (const FModifierRef &ref : fmods_to_delete) {
-    remove_fmodifier(&ref.fcu->modifiers, ref.fcm);
-    num_fmods_deleted++;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
