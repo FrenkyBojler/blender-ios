@@ -14,12 +14,14 @@
 #include "BKE_duplilist.hh"
 #include "BKE_object.hh"
 #include "BLI_map.hh"
+#include "BLI_math_matrix_types.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
 
 #include "DRW_engine.hh"
+#include "GPU_capabilities.hh"
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 
@@ -239,6 +241,22 @@ void VelocityModule::geometry_steps_fill()
     geom.len = src_len;
     geom.ofs = dst_ofs;
     dst_ofs += src_len;
+  }
+
+  /* Fallback when velocity buffer could not be allocated.  */
+  if (GPU_max_storage_buffer_size() < dst_ofs * sizeof(float) * 4) {
+    // report via inst that velocities could not be loaded to GPU, only object and camera velocity
+    // would be used.
+    inst_.info_append_i18n(
+        "Error: Could not allocate velocity geometry buffer. Only object and camera velocities "
+        "will be used.");
+    for (VelocityObjectData &vel : velocity_map.values()) {
+      vel.geo.len[step_] = -1;
+      vel.geo.ofs[step_] = -1;
+      /* Avoid reuse. */
+      vel.id = 0;
+    }
+    return;
   }
   /* TODO(@fclem): Fail gracefully (disable motion blur + warning print) if
    * `tot_len * sizeof(float4)` is greater than max SSBO size. */
