@@ -41,10 +41,14 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
+
+#include "SEQ_iterator.hh"
+#include "SEQ_sequencer.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
@@ -598,6 +602,22 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
         STRNCPY_UTF8(win.view_layer_name, view_layer->name);
       }
     }
+  }
+
+  /* Update any sequencer scene strips referencing this view layer by name. */
+  for (Scene &scene_iter : bmain->scenes) {
+    Editing *ed = seq::editing_get(&scene_iter);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [scene, oldname, view_layer](Strip *strip) {
+      if (strip->type == STRIP_TYPE_SCENE && strip->scene == scene &&
+          STREQ(strip->scene_view_layer_name, oldname))
+      {
+        STRNCPY_UTF8(strip->scene_view_layer_name, view_layer->name);
+      }
+      return true;
+    });
   }
 
   /* Dependency graph uses view layer name based lookups. */

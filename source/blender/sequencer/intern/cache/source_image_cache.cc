@@ -6,8 +6,10 @@
  * \ingroup sequencer
  */
 
+#include "BLI_hash.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_scene_types.h"
@@ -45,10 +47,14 @@ struct SourceImageCache {
     float source_frame = 0.0f;
     int view_id = 0;
     eDrawType scene_draw_type = OB_SOLID;
+    /** Scene strip: hash of #Strip::scene_view_layer_name so cache entries differ per view layer.
+     */
+    uint64_t scene_view_layer_name_hash = 0;
 
     uint64_t hash() const
     {
-      return get_default_hash(source_frame, view_id, scene_draw_type);
+      return get_default_hash(
+          source_frame, view_id, scene_draw_type, scene_view_layer_name_hash);
     }
 
     friend bool operator==(const Key &a, const Key &b) = default;
@@ -129,7 +135,11 @@ static SourceImageCache::Key get_key(const RenderData *context,
   if (!context->render && strip->type == STRIP_TYPE_SCENE) {
     draw_type = eDrawType(scene->r.seq_prev_type);
   }
-  return {frame_index, context->view_id, draw_type};
+  uint64_t scene_vl_hash = 0;
+  if (strip->type == STRIP_TYPE_SCENE) {
+    scene_vl_hash = hash_string(StringRefNull(strip->scene_view_layer_name));
+  }
+  return {frame_index, context->view_id, draw_type, scene_vl_hash};
 }
 
 ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, float timeline_frame)

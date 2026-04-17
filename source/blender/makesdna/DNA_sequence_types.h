@@ -401,6 +401,9 @@ struct Strip {
   struct Scene *scene = nullptr;
   /** Override scene camera. */
   struct Object *scene_camera = nullptr;
+  /** Name of the view layer to render for SCENE strips. Empty means the scene's default render
+   * view layer. */
+  char scene_view_layer_name[/*MAX_NAME*/ 64] = "";
   /** For MOVIECLIP strips. */
   struct MovieClip *clip = nullptr;
   /** For MASK strips. */
