@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #157483, Fix: Running operator_function_py_api test clears recent files
+Referenced by commit 3581d96afbaec2f46385f01b7309c4ca7a9ebbac, Fix: Running operator_function_py_api test clears recent files
