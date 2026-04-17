@@ -269,10 +269,11 @@ ResultT eval(sampler2D hiz_tx,
           time += 1.0f;
         }
 
-        const float lod = floor(1.0f + (float(j) - noise.w) * uniform_buf.ao.lod_factor);
+        const float lod = log2(time * uniform_buf.ao.lod_factor);
 
         const float2 sample_uv = ssray.origin.xy + ssray.direction.xy * time;
-        float sample_depth = textureLod(hiz_tx, sample_uv * uniform_buf.hiz.uv_scale, lod).r;
+        float sample_depth =
+            textureLod(hiz_tx, sample_uv * uniform_buf.hiz.uv_scale, floor(noise.w + lod)).r;
 
         if (sample_depth == 1.0f && !reversed) {
           /* Skip background. Avoids making shadow on the geometry near the far plane. */
@@ -305,7 +306,7 @@ ResultT eval(sampler2D hiz_tx,
 
         const float2 sample_uv_data = sample_uv * uniform_buf.raytrace.fast_gi_uv_scale;
         /* Need to account for LOD0 of radiance texture being the tracing resolution. */
-        float lod_data = (lod - uniform_buf.raytrace.fast_gi_lod_bias) * 4.0f;
+        float lod_data = lod - uniform_buf.raytrace.fast_gi_lod_bias;
 
         float3 radiance = sample_radiance<ResultT>(screen_radiance_tx, sample_uv_data, lod_data);
         /* Take emitter surface normal into consideration. */
