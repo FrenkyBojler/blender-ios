@@ -95,7 +95,7 @@ bNodeSocket &Float::build(bNodeTree &ntree, bNode &node) const
                                                      this->subtype,
                                                      this->identifier.ref(),
                                                      this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueFloat &value = *static_cast<bNodeSocketValueFloat *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
@@ -144,7 +144,7 @@ bNodeSocket &Float::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
   if (socket.typeinfo->subtype != this->subtype) {
     modify_subtype_except_for_storage(socket, this->subtype);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueFloat &value = *static_cast<bNodeSocketValueFloat *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
@@ -167,7 +167,7 @@ bNodeSocket &Int::build(bNodeTree &ntree, bNode &node) const
                                                      this->subtype,
                                                      this->identifier.ref(),
                                                      this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueInt &value = *static_cast<bNodeSocketValueInt *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
@@ -213,7 +213,7 @@ bNodeSocket &Int::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &so
   if (socket.typeinfo->subtype != this->subtype) {
     modify_subtype_except_for_storage(socket, this->subtype);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueInt &value = *static_cast<bNodeSocketValueInt *>(socket.default_value);
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
@@ -233,7 +233,7 @@ bNodeSocket &Vector::build(bNodeTree &ntree, bNode &node) const
       SOCK_VECTOR, this->subtype, this->dimensions);
   bNodeSocket &socket = *bke::node_add_socket(
       ntree, node, this->in_out, idname, this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueVector &value = *static_cast<bNodeSocketValueVector *>(socket.default_value);
   std::copy_n(&this->default_value[0], this->dimensions, value.value);
   value.dimensions = this->dimensions;
@@ -287,7 +287,7 @@ bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   if (socket.typeinfo->subtype != this->subtype) {
     modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueVector &value = *static_cast<bNodeSocketValueVector *>(socket.default_value);
   if (value.dimensions != this->dimensions) {
     modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
@@ -311,7 +311,7 @@ bNodeSocket &IntVector::build(bNodeTree &ntree, bNode &node) const
       SOCK_INT_VECTOR, this->subtype, this->dimensions);
   bNodeSocket &socket = *bke::node_add_socket(
       ntree, node, this->in_out, idname, this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueIntVector &value = *static_cast<bNodeSocketValueIntVector *>(
       socket.default_value);
   std::copy_n(&this->default_value[0], this->dimensions, value.value);
@@ -363,7 +363,7 @@ bNodeSocket &IntVector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSock
   if (socket.typeinfo->subtype != this->subtype) {
     modify_subtype_except_for_storage(socket, this->subtype, this->dimensions);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueIntVector &value = *static_cast<bNodeSocketValueIntVector *>(
       socket.default_value);
   if (value.dimensions != this->dimensions) {
@@ -391,7 +391,7 @@ bNodeSocket &Bool::build(bNodeTree &ntree, bNode &node) const
                                                      PROP_NONE,
                                                      this->identifier.ref(),
                                                      this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueBoolean &value = *static_cast<bNodeSocketValueBoolean *>(socket.default_value);
   value.value = this->default_value;
   return socket;
@@ -422,7 +422,7 @@ bNodeSocket &Bool::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -436,7 +436,7 @@ bNodeSocket &Color::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *bke::node_add_static_socket(
       ntree, node, this->in_out, SOCK_RGBA, PROP_NONE, this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueRGBA &value = *static_cast<bNodeSocketValueRGBA *>(socket.default_value);
   copy_v4_v4(value.value, this->default_value);
   return socket;
@@ -467,7 +467,7 @@ bNodeSocket &Color::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -485,7 +485,7 @@ bNodeSocket &Rotation::build(bNodeTree &ntree, bNode &node) const
                                                      PROP_NONE,
                                                      this->identifier.ref(),
                                                      this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueRotation &value = *static_cast<bNodeSocketValueRotation *>(socket.default_value);
   copy_v3_v3(value.value_euler, float3(this->default_value));
   return socket;
@@ -519,7 +519,7 @@ bNodeSocket &Rotation::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocke
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -533,7 +533,7 @@ bNodeSocket &Matrix::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *bke::node_add_static_socket(
       ntree, node, this->in_out, SOCK_MATRIX, PROP_NONE, this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -565,7 +565,7 @@ bNodeSocket &Matrix::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -586,7 +586,7 @@ bNodeSocket &String::build(bNodeTree &ntree, bNode &node) const
                                                      this->name.ref());
   STRNCPY((static_cast<bNodeSocketValueString *>(socket.default_value))->value,
           this->default_value.c_str());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -618,7 +618,7 @@ bNodeSocket &String::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   if (socket.typeinfo->subtype != this->subtype) {
     modify_subtype_except_for_storage(socket, this->subtype);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   bNodeSocketValueString &value = *static_cast<bNodeSocketValueString *>(socket.default_value);
   value.subtype = this->subtype;
   return socket;
@@ -643,7 +643,7 @@ bNodeSocket &Menu::build(bNodeTree &ntree, bNode &node) const
       ntree, node, this->in_out, SOCK_MENU, PROP_NONE, this->identifier.ref(), this->name.ref());
 
   (static_cast<bNodeSocketValueMenu *>(socket.default_value))->value = this->default_value.value;
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -669,7 +669,7 @@ bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -708,7 +708,7 @@ bNodeSocket &Bundle::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *bke::node_add_static_socket(
       ntree, node, this->in_out, SOCK_BUNDLE, PROP_NONE, this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -737,7 +737,7 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -763,7 +763,7 @@ bNodeSocket &Closure::build(bNodeTree &ntree, bNode &node) const
                                                      PROP_NONE,
                                                      this->identifier.ref(),
                                                      this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -792,7 +792,7 @@ bNodeSocket &Closure::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -813,7 +813,7 @@ bNodeSocket &IDSocketDeclaration::build(bNodeTree &ntree, bNode &node) const
     *static_cast<ID **>(socket.default_value) = id;
     id_us_plus(id);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -841,7 +841,7 @@ bNodeSocket &IDSocketDeclaration::update_or_build(bNodeTree &ntree,
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -855,7 +855,7 @@ bNodeSocket &Geometry::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *bke::node_add_socket(
       ntree, node, this->in_out, "NodeSocketGeometry", this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -925,7 +925,7 @@ bNodeSocket &Shader::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *bke::node_add_socket(
       ntree, node, this->in_out, "NodeSocketShader", this->identifier.ref(), this->name.ref());
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 
@@ -1026,7 +1026,7 @@ bNodeSocket &Custom::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   if (socket.typeinfo->idname != idname_) {
     return this->build(ntree, node);
   }
-  this->set_common_flags(ntree, socket);
+  this->set_common_flags(socket);
   return socket;
 }
 

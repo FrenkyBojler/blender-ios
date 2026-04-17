@@ -284,7 +284,7 @@ bNodeSocket &SocketDeclaration::update_or_build(bNodeTree &ntree,
   return this->build(ntree, node);
 }
 
-void SocketDeclaration::set_common_flags(const bNodeTree &ntree, bNodeSocket &socket) const
+void SocketDeclaration::set_common_flags(bNodeSocket &socket) const
 {
   SET_FLAG_FROM_TEST(socket.flag, hide_value, SOCK_HIDE_VALUE);
   SET_FLAG_FROM_TEST(socket.flag, is_multi_input, SOCK_MULTI_INPUT);

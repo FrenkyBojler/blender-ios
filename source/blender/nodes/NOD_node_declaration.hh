@@ -308,7 +308,7 @@ class SocketDeclaration : public ItemDeclaration {
   int compositor_domain_priority() const;
 
  protected:
-  void set_common_flags(const bNodeTree &ntree, bNodeSocket &socket) const;
+  void set_common_flags(bNodeSocket &socket) const;
   bool matches_common_data(const bNodeSocket &socket) const;
 };
 
