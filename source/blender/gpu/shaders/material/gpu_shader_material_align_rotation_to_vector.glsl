@@ -40,11 +40,6 @@ float angle_signed_on_axis_v3v3_v3(float3 v1, float3 v2, float3 axis)
   return angle;
 }
 
-bool is_near_zero(float3 v)
-{
-  return length(v) <= 1e-8f;
-}
-
 [[node]]
 void align_rotation_to_vector_auto_pivot(float4 rotation_in,
                                          float factor,
@@ -61,11 +56,10 @@ void align_rotation_to_vector_auto_pivot(float4 rotation_in,
   const float3 new_axis = normalize(input_vector);
 
   float3 rotation_axis = cross(old_axis, new_axis);
-  /* `is_zero` is too strict here, tiny float leftovers can still happen. */
-  if (is_near_zero(rotation_axis)) {
+  if (is_zero(rotation_axis)) {
     /* The vectors are linearly dependent, so we fall back to another axis. */
     rotation_axis = cross(old_axis, float3(1.0f, 0.0f, 0.0f));
-    if (is_near_zero(rotation_axis)) {
+    if (is_zero(rotation_axis)) {
       /* This is now guaranteed to not be zero. */
       rotation_axis = cross(old_axis, float3(0.0f, 1.0f, 0.0f));
     }
