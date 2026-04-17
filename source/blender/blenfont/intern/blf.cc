@@ -978,10 +978,10 @@ void BLF_buffer(int fontid,
                 uchar *cbuf,
                 int w,
                 int h,
-                int channels_count,
+                int channel_count,
                 const ColorSpace *colorspace)
 {
-  BLI_assert(channels_count == 1 || channels_count == 4);
+  BLI_assert(channel_count == 1 || channel_count == 4);
 
   FontBLF *font = blf_get(fontid);
 
@@ -990,7 +990,7 @@ void BLF_buffer(int fontid,
     font->buf_info.cbuf = cbuf;
     font->buf_info.dims[0] = w;
     font->buf_info.dims[1] = h;
-    font->buf_info.channels_count = channels_count;
+    font->buf_info.channel_count = channel_count;
     font->buf_info.colorspace = colorspace;
   }
 }

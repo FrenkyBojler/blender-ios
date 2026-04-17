@@ -803,9 +803,9 @@ static void blf_glyph_draw_buffer(FontBufInfoBLF *buf_info,
       const int x_start = (chx >= 0) ? 0 : -chx;
       const uchar *a_ptr = g->bitmap + x_start + (yb * g->pitch);
       const int64_t buf_ofs = (int64_t(buf_info->dims[0]) * (pen_y_px + y) + (chx + x_start)) *
-                              buf_info->channels_count;
+                              buf_info->channel_count;
       float *fbuf = buf_info->fbuf + buf_ofs;
-      if (buf_info->channels_count == 4) {
+      if (buf_info->channel_count == 4) {
         for (int x = x_start; x < width_clip; x++, a_ptr++, fbuf += 4) {
           const char a_byte = *a_ptr;
           if (a_byte) {
@@ -824,7 +824,7 @@ static void blf_glyph_draw_buffer(FontBufInfoBLF *buf_info,
         for (int x = x_start; x < width_clip; x++, a_ptr++, fbuf++) {
           const char a_byte = *a_ptr;
           if (a_byte) {
-            *fbuf = a_byte / 255.0f;
+            *fbuf = (a_byte / 255.0f) * b_col_float[0];
           }
         }
       }
@@ -844,9 +844,9 @@ static void blf_glyph_draw_buffer(FontBufInfoBLF *buf_info,
       const int x_start = (chx >= 0) ? 0 : -chx;
       const uchar *a_ptr = g->bitmap + x_start + (yb * g->pitch);
       const int64_t buf_ofs = (int64_t(buf_info->dims[0]) * (pen_y_px + y) + (chx + x_start)) *
-                              buf_info->channels_count;
+                              buf_info->channel_count;
       uchar *cbuf = buf_info->cbuf + buf_ofs;
-      if (buf_info->channels_count == 4) {
+      if (buf_info->channel_count == 4) {
         for (int x = x_start; x < width_clip; x++, a_ptr++, cbuf += 4) {
           const char a_byte = *a_ptr;
 
@@ -866,7 +866,8 @@ static void blf_glyph_draw_buffer(FontBufInfoBLF *buf_info,
         for (int x = x_start; x < width_clip; x++, a_ptr++, cbuf++) {
           const char a_byte = *a_ptr;
           if (a_byte) {
-            *cbuf = a_byte;
+            const float a = (a_byte / 255.0f) * b_col_float[0];
+            *cbuf = unit_float_to_uchar_clamp(a);
           }
         }
       }
@@ -1831,7 +1832,7 @@ static void blf_font_fill(FontBLF *font)
   font->buf_info.cbuf = nullptr;
   font->buf_info.dims[0] = 0;
   font->buf_info.dims[1] = 0;
-  font->buf_info.channels_count = 4;
+  font->buf_info.channel_count = 4;
   font->buf_info.col_init[0] = 0;
   font->buf_info.col_init[1] = 0;
   font->buf_info.col_init[2] = 0;

@@ -375,7 +375,7 @@ void BLF_buffer(int fontid,
                 unsigned char *cbuf,
                 int w,
                 int h,
-                int channels_count,
+                int channel_count,
                 const ColorSpace *colorspace);
 
 /**
@@ -398,7 +398,8 @@ void BLF_buffer_state_pop(BLFBufferState *buffer_state);
 void BLF_buffer_state_free(BLFBufferState *buffer_state);
 
 /**
- * Set the color to be used for text.
+ * Set the color to be used for text. The red channel of the color is used in case of a grayscale
+ * buffer.
  */
 void BLF_buffer_col(int fontid, const float srgb_color[4]) ATTR_NONNULL(2);
 
