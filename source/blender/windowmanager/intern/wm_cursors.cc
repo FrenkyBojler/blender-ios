@@ -256,12 +256,10 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
   tvg::SwCanvas *canvas = tvg::SwCanvas::gen();
   uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(bitmap_rgba);
   canvas->target(
-      bitmap_rgba_uint32, dest_size[0], dest_size[0], dest_size[1], tvg::ColorSpace::ABGR8888);
+      bitmap_rgba_uint32, dest_size[0], dest_size[0], dest_size[1], tvg::ColorSpace::ABGR8888S);
 
-  /* Push the SVG image to the canvas. */
-  canvas->push(picture);
-  /* Release the paint object. */
-  tvg::Paint::rel(picture);
+  /* Add the SVG image to the canvas. */
+  canvas->add(picture);
 
   /* Draw to the bitmap. */
   canvas->draw(true);
@@ -809,10 +807,10 @@ static uint8_t *cursor_bitmap_from_text(const char *text,
   if (text_to_draw) {
     const float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     BLF_buffer_col(font_id, color);
-    BLF_buffer(font_id, nullptr, bitmap_rgba, dest_size[0], dest_size[1], nullptr);
+    BLF_buffer(font_id, nullptr, bitmap_rgba, dest_size[0], dest_size[1], 4, nullptr);
     BLF_position(font_id, font_padding, font_padding + font_descender, 0.0f);
     BLF_draw_buffer(font_id, text, text_len);
-    BLF_buffer(font_id, nullptr, nullptr, 0, 0, nullptr);
+    BLF_buffer(font_id, nullptr, nullptr, 0, 0, 4, nullptr);
 
     cursor_bitmap_rgba_flip_y(bitmap_rgba, dest_size);
   }

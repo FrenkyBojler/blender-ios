@@ -52,12 +52,10 @@ ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
     /* Create a canvas that will draw to our bitmap. */
     tvg::SwCanvas *canvas = tvg::SwCanvas::gen();
     uint32_t *bitmap_rgba_uint32 = reinterpret_cast<uint32_t *>(ibuf->byte_buffer.data);
-    canvas->target(bitmap_rgba_uint32, dest_w, dest_w, dest_h, tvg::ColorSpace::ABGR8888);
+    canvas->target(bitmap_rgba_uint32, dest_w, dest_w, dest_h, tvg::ColorSpace::ABGR8888S);
 
-    /* Push the SVG image to the canvas. */
-    canvas->push(picture);
-    /* Release the paint object. */
-    tvg::Paint::rel(picture);
+    /* Add the SVG image to the canvas. */
+    canvas->add(picture);
 
     /* Draw to the bitmap. */
     canvas->draw(true);
