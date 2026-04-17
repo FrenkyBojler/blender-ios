@@ -78,6 +78,7 @@ struct wmWindow;
 namespace ed::asset {
 struct AssetFilterSettings;
 }
+
 namespace ui {
 class AbstractView;
 class AbstractViewItem;
@@ -88,11 +89,6 @@ struct ButtonExtraOpIcon;
 struct TooltipData;
 struct PopupBlockHandle;
 struct Block;
-}  // namespace ui
-
-/* Defines */
-
-namespace ui {
 
 /**
  * Character used for splitting labels (right align text after this character).
@@ -538,6 +534,8 @@ enum class ButtonType : int8_t {
   But = 1,
   Row,
   Text,
+  /** A multi-line text button */
+  TextBox,
   /** Drop-down list. */
   Menu,
   ButMenu,
@@ -1674,23 +1672,6 @@ std::string button_extra_icon_string_get_operator_keymap(const bContext &C,
  * - PickerButtons: buttons like the color picker (for code sharing).
  * - AutoButR: RNA property button with type automatically defined.
  */
-enum {
-  UI_ID_NOP = 0,
-  UI_ID_RENAME = 1 << 0,
-  UI_ID_BROWSE = 1 << 1,
-  UI_ID_ADD_NEW = 1 << 2,
-  UI_ID_ALONE = 1 << 4,
-  UI_ID_OPEN = 1 << 3,
-  UI_ID_DELETE = 1 << 5,
-  UI_ID_LOCAL = 1 << 6,
-  UI_ID_AUTO_NAME = 1 << 7,
-  UI_ID_FAKE_USER = 1 << 8,
-  UI_ID_PIN = 1 << 9,
-  UI_ID_PREVIEWS = 1 << 10,
-  UI_ID_OVERRIDE = 1 << 11,
-  UI_ID_FULL = UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_ALONE |
-               UI_ID_DELETE | UI_ID_LOCAL,
-};
 
 /**
  * Ways to limit what is displayed in ID-search popup.
@@ -1970,6 +1951,7 @@ void button_number_slider_step_size_set(Button *but, float step_size);
 void button_number_slider_precision_set(Button *but, float precision);
 
 void button_label_alpha_factor_set(Button *but, float alpha_factor);
+void button_label_draw_icon_border_set(Button *but, bool use_icon_border);
 
 void button_search_preview_grid_size_set(Button *but, int rows, int cols);
 
@@ -2361,6 +2343,8 @@ void exit();
 /* When changing UI font, update text style weights with default font weight
  * if non-variable. Therefore fixed weight bold font will look bold. */
 void update_text_styles();
+
+void invalidate_text_wrap_cache(const ARegion &region);
 
 #define UI_UNIT_X ((void)0, U.widget_unit)
 #define UI_UNIT_Y ((void)0, U.widget_unit)
@@ -2915,6 +2899,7 @@ enum FontStyleAlign {
 struct FontStyleDrawParams {
   FontStyleAlign align;
   uint word_wrap : 1;
+  bool word_clip = true;
 };
 
 /* Styled text draw */
@@ -3162,7 +3147,11 @@ bool view_item_drag_start(bContext &C, AbstractViewItem &item);
  * \param xy: Coordinate to find a view item at, in window space.
  * \param pad: Extra padding added to the bounding box of the view.
  */
-AbstractView *region_view_find_at(const ARegion *region, const int xy[2], int pad);
+AbstractView *region_view_find_at(const ARegion *region,
+                                  const int xy[2],
+                                  int pad,
+                                  Block **r_block = nullptr);
+void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEvent *event);
 /**
  * \param xy: Coordinate to find a view item at, in window space.
  */
