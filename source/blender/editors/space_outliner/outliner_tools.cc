@@ -1682,6 +1682,7 @@ static void image_pack_fn(bContext *C,
     else {
       BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain, &image->id));
     }
+    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, nullptr);
   }
 }
 
