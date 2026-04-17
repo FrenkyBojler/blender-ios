@@ -7,7 +7,6 @@
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_node_tree_update.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_type_conversions.hh"
 
@@ -281,8 +280,6 @@ class ShaderNodesInliner {
 
     this->restore_zones_in_output_tree();
     this->position_nodes_in_output_tree();
-
-    BKE_ntree_update_without_main(dst_tree_);
     return true;
   }
 
