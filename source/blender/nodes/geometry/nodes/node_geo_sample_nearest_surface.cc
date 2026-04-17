@@ -174,7 +174,8 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     if (source_.get_mesh() != other_op->source_.get_mesh()) {
       return false;
     }
-    if (!fn::field_equal_deep(group_id_field_, other_op->group_id_field_)) {
+    fn::GFieldEqualityDeep equality_test;
+    if (!equality_test.ensure(group_id_field_, other_op->group_id_field_)) {
       return false;
     }
     return true;

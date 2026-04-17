@@ -460,7 +460,8 @@ class SampleCurveFunction : public mf::MultiFunction {
     if (geometry_set_.get_curves() != other_op->geometry_set_.get_curves()) {
       return false;
     }
-    if (!fn::field_equal_deep(src_field_, other_op->src_field_)) {
+    fn::GFieldEqualityDeep equality_test;
+    if (!equality_test.ensure(src_field_, other_op->src_field_)) {
       return false;
     }
     return true;

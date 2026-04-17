@@ -411,16 +411,16 @@ struct GFieldDeepHasher {
 
 /**
  * Compares the semantic equality of field inputs and operations, rather than memory-address
- * shallow equality of the default implementation. Ideally preceded by hashing to avoid calls where
- * possible, since this can be expensive (cost related to depth of field network in the worst
- * case).
+ * shallow equality of the default implementation.
  */
-bool field_equal_deep(const GFieldRef &a, const GFieldRef &b);
-
 struct GFieldEqualityDeep {
+  mutable Mutex mutex;
+  Map<std::pair<GFieldRef, GFieldRef>, bool> cache;
+  bool ensure(const GFieldRef &a, const GFieldRef &b);
   bool operator()(const GFieldRef &a, const GFieldRef &b) const
   {
-    return field_equal_deep(a, b);
+    std::lock_guard lock(this->mutex);
+    return const_cast<GFieldEqualityDeep *>(this)->ensure(a, b);
   }
 };
 

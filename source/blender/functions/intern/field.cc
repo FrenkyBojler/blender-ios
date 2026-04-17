@@ -99,51 +99,88 @@ uint64_t GField::hash() const
       ref.variant_);
 }
 
-bool field_equal_deep(const GFieldRef &a, const GFieldRef &b)
+bool GFieldEqualityDeep::ensure(const GFieldRef &a, const GFieldRef &b)
 {
+  if (const bool *cached = this->cache.lookup_ptr({a, b})) {
+    return *cached;
+  }
+
+  Set<std::pair<GFieldRef, GFieldRef>, 8> visited;
   Stack<std::pair<GFieldRef, GFieldRef>, 16> stack;
   stack.push({a, b});
   while (!stack.is_empty()) {
     const auto [curr_a, curr_b] = stack.pop();
-    if (curr_a.variant().index() != curr_b.variant().index()) {
-      return false;
+    if (cache.contains({curr_a, curr_b})) {
+      continue;
     }
-    if (!std::visit(
-            [&]<typename T>(const T &v_a) -> bool {
-              const auto &v_b = std::get<T>(curr_b.variant());
-              if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-                if (v_a.type != v_b.type) {
-                  return false;
-                }
-                return v_a.type->is_equal_or_false(v_a.value, v_b.value);
-              }
-              else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-                return v_a.node->is_equal_to(*v_b.node);
-              }
-              else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-                if (v_a.output_i != v_b.output_i) {
-                  return false;
-                }
-                const Span<GField> a_inputs = v_a.node->inputs();
-                const Span<GField> b_inputs = v_b.node->inputs();
-                if (a_inputs.size() != b_inputs.size()) {
-                  return false;
-                }
-                if (!v_a.node->multi_function().equals(v_b.node->multi_function())) {
-                  return false;
-                }
-                for (const int i : a_inputs.index_range()) {
-                  stack.push({a_inputs[i], b_inputs[i]});
-                }
-                return true;
-              }
-            },
-            curr_a.variant()))
-    {
-      return false;
+    if (visited.contains({curr_a, curr_b})) {
+      if (curr_a.variant().index() != curr_b.variant().index()) {
+        cache.add_new({curr_a, curr_b}, false);
+      }
+      else if (!std::visit(
+                   [&]<typename T>(const T &v_a) -> bool {
+                     const auto &v_b = std::get<T>(curr_b.variant());
+                     if constexpr (std::is_same_v<T, GFieldRef::Value>) {
+                       if (v_a.type != v_b.type) {
+                         return false;
+                       }
+                       return v_a.type->is_equal_or_false(v_a.value, v_b.value);
+                     }
+                     else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
+                       return v_a.node->is_equal_to(*v_b.node);
+                     }
+                     else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
+                       if (v_a.output_i != v_b.output_i) {
+                         return false;
+                       }
+                       const Span<GField> a_inputs = v_a.node->inputs();
+                       const Span<GField> b_inputs = v_b.node->inputs();
+                       if (a_inputs.size() != b_inputs.size()) {
+                         return false;
+                       }
+                       if (!v_a.node->multi_function().equals(v_b.node->multi_function())) {
+                         return false;
+                       }
+                       for (const int i : a_inputs.index_range()) {
+                         if (!cache.lookup({a_inputs[i], b_inputs[i]})) {
+                           return false;
+                         }
+                       }
+                       return true;
+                     }
+                   },
+                   curr_a.variant()))
+      {
+        cache.add_new({curr_a, curr_b}, false);
+      }
+      else {
+        cache.add_new({curr_a, curr_b}, true);
+      }
+      continue;
+    }
+    visited.add({curr_a, curr_b});
+    stack.push({curr_a, curr_b});
+    if (const auto *a_multi_fn = std::get_if<GFieldRef::MultiFn>(&curr_a.variant())) {
+      if (const auto *b_multi_fn = std::get_if<GFieldRef::MultiFn>(&curr_b.variant())) {
+        if (a_multi_fn->output_i != b_multi_fn->output_i) {
+          continue;
+        }
+        const Span<GField> a_inputs = a_multi_fn->node->inputs();
+        const Span<GField> b_inputs = b_multi_fn->node->inputs();
+        if (a_inputs.size() != b_inputs.size()) {
+          continue;
+        }
+        if (!a_multi_fn->node->multi_function().equals(b_multi_fn->node->multi_function())) {
+          continue;
+        }
+        for (const int i : a_inputs.index_range()) {
+          stack.push({a_inputs[i], b_inputs[i]});
+        }
+      }
     }
   }
-  return true;
+
+  return cache.lookup({a, b});
 }
 
 uint64_t GFieldDeepHasher::ensure(const GFieldRef &field)

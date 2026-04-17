@@ -141,7 +141,8 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
     if (source_.get_mesh() != other_op->source_.get_mesh()) {
       return false;
     }
-    if (!fn::field_equal_deep(src_uv_map_field_, other_op->src_uv_map_field_)) {
+    fn::GFieldEqualityDeep equality_test;
+    if (!equality_test.ensure(src_uv_map_field_, other_op->src_uv_map_field_)) {
       return false;
     }
     return true;
