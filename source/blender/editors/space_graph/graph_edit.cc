@@ -2987,46 +2987,47 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   const RemovalMode mode = RemovalMode(RNA_enum_get(op->ptr, "mode"));
-  int num_deleted_fmods = 0;
-  int num_fcurves = 0;
+  int num_fmods_deleted = 0;
+  int num_fcurves_affected = 0;
 
+  /* Create a struct to store collected data. */
+  struct FModifierRef {
+    FCurve *fcu;
+    FModifier *fcm;
+  };
+  std::vector<FModifierRef> fmods_to_delete;
+
+  /* Collect the F-Mods to delete. */
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.data);
-    num_fcurves++;
 
-    switch (mode) {
-      case RemovalMode::ALL: {
-        for (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm != nullptr;) {
-          FModifier *next = fcm->next;
-          remove_fmodifier(&fcu->modifiers, fcm);
-          fcm = next;
-          num_deleted_fmods++;
-        }
-        break;
-      }
+    bool is_curve_affected = false;
 
-      case RemovalMode::TYPE: {
-        for (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm != nullptr;) {
-          FModifier *next = fcm->next;
-          if (fcm->type == type) {
-            remove_fmodifier(&fcu->modifiers, fcm);
-            num_deleted_fmods++;
-          }
-          fcm = next;
-        }
-        break;
-      }
-
-      case RemovalMode::FIRST: {
-        if (FModifier *fcm = static_cast<FModifier *>(fcu->modifiers.first)) {
-          remove_fmodifier(&fcu->modifiers, fcm);
-          num_deleted_fmods++;
-        }
-        break;
+    for (FModifier &fcm : fcu->modifiers) {
+      if (mode == RemovalMode::ALL || (mode == RemovalMode::TYPE && fcm.type == type)) {
+        fmods_to_delete.push_back({fcu, &fcm});
+        is_curve_affected = true;
       }
     }
 
+    if (mode == RemovalMode::FIRST && fcu->modifiers.first) {
+      if (FModifier *first = static_cast<FModifier *>(fcu->modifiers.first)) {
+        fmods_to_delete.push_back({fcu, first});
+        is_curve_affected = true;
+      }
+    }
+
+    if (is_curve_affected) {
+      num_fcurves_affected++;
+    }
+
     ale.update |= ANIM_UPDATE_DEPS;
+  }
+
+  /* Second loop to delete F-Mods */
+  for (const FModifierRef &ref : fmods_to_delete) {
+    remove_fmodifier(&ref.fcu->modifiers, ref.fcm);
+    num_fmods_deleted++;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
@@ -3037,9 +3038,9 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports,
               RPT_INFO,
-              "Removed %d F-Modifier(s) from the %d selected F-Curve(s)",
-              num_deleted_fmods,
-              num_fcurves);
+              "Removed %d F-Modifier(s) from %d selected F-Curve(s)",
+              num_fmods_deleted,
+              num_fcurves_affected);
 
   return OPERATOR_FINISHED;
 }
@@ -3062,7 +3063,7 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
   /* Identifiers */
   ot->name = "Delete F-Curve Modifier(s)";
   ot->idname = "GRAPH_OT_fmodifier_delete";
-  ot->description = "Remove Modifier(s) from the active/selected F-Curves";
+  ot->description = "Remove Modifier(s) from the selected F-Curves";
 
   /* API callbacks */
   ot->exec = graph_fmodifier_delete_exec;
@@ -3074,12 +3075,16 @@ void GRAPH_OT_fmodifier_delete(wmOperatorType *ot)
 
   /* Id-props */
   static const EnumPropertyItem mode_items[] = {
-      {int(RemovalMode::ALL), "ALL", 0, "Remove All", "Remove all F-Curve modifiers"},
+      {int(RemovalMode::ALL),
+       "ALL",
+       0,
+       "Remove All",
+       "Remove all modifiers from the selected F-Curves"},
       {int(RemovalMode::FIRST),
        "FIRST",
        0,
        "Remove First",
-       "Only remove the first F-Curve modifier regardless of type"},
+       "Only remove the first modifier from each F-Curve regardless of type"},
       {int(RemovalMode::TYPE),
        "TYPE",
        0,
