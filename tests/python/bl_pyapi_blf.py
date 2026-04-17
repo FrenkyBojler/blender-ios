@@ -3685,16 +3685,6 @@ def main() -> None:
     active_kinds = set(MODE_KINDS[args.mode])
     attach_test_methods(args.mode)
 
-    # GPU is needed for the GPU and VFont pipelines (offscreen rendering).
-    if "gpu" in active_kinds or "vfont" in active_kinds:
-        try:
-            gpu.init()
-        except SystemError as ex:
-            if os.environ.get("WITHOUT_GPU"):
-                gpu = None
-            else:
-                sys.exit("GPU initialization failed: {:s}".format(str(ex)))
-
     if args.keyword:
         remaining.extend(["-k", args.keyword])
 
@@ -3702,6 +3692,27 @@ def main() -> None:
     if args.use_vfont_render:
         USE_VFONT_RENDER = True
     SHOW_HTML = args.show_html or ""
+
+    # GPU is needed for the GPU and VFont pipelines (off-screen rendering).
+    gpu_needed = False
+    if "gpu" in active_kinds:
+        gpu_needed = True
+    elif "vfont" in active_kinds:
+        if not USE_VFONT_RENDER:
+            gpu_needed = True
+    if gpu_needed:
+        # Expect failure.
+        try:
+            gpu.init()
+        except SystemError as ex:
+            if os.environ.get("WITHOUT_GPU"):
+                gpu = None
+                # Without this VFont won't work.
+                if "vfont" in active_kinds:
+                    USE_VFONT_RENDER = True
+            else:
+                sys.exit("GPU initialization failed: {:s}".format(str(ex)))
+    del gpu_needed
 
     # Load the bpy VectorFont once if any vfont tests are active.
     if "vfont" in active_kinds:
