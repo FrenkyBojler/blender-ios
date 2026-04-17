@@ -252,21 +252,21 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     weight_accum += weight;
 
     /* Use scene linear radiance to better estimate noise. */
-    rgb_moment += square(ray_radiance.rgb) * weight;
+    rgb_moment += square(log_radiance) * weight;
   }
   float inv_weight = safe_rcp(weight_accum);
   radiance_accum *= inv_weight;
-  radiance_accum = colorspace::scene_linear_from_log(radiance_accum);
 
   /* Use radiance sum as signal mean. */
   float3 rgb_mean = radiance_accum;
   rgb_moment *= inv_weight;
 
-  float3 rgb_variance = abs(rgb_moment - square(rgb_mean));
+  float3 rgb_variance = abs(rgb_moment - square(rgb_mean)) * safe_rcp(rgb_mean);
   float hit_variance = reduce_max(rgb_variance);
 
   float hit_depth = drw_depth_view_to_screen(scene_z - closest_hit_time);
 
+  radiance_accum = colorspace::scene_linear_from_log(radiance_accum);
   imageStoreFast(srt.out_radiance_img, texel_fullres, float4(radiance_accum, 0.0f));
   imageStoreFast(srt.out_variance_img, texel_fullres, float4(hit_variance));
   imageStoreFast(srt.out_hit_depth_img, texel_fullres, float4(hit_depth));
