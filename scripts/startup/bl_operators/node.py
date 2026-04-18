@@ -1084,12 +1084,53 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             # Test all sub-classes
             types_to_check.extend(t.__subclasses__())
 
+    # Finds the closest common parent of the given items, and the index of the first item/item parent within it.
+    @staticmethod
+    def find_position_in_closest_common_parent(items):
+        def get_ancestors(item):
+            ancestors = []
+            while (item := item.parent) is not None:
+                ancestors.append(item)
+            ancestors.reverse()
+            return ancestors
+
+        # First index relative to the closest common parent
+        first_index = items[0].position
+        common_ancestors = get_ancestors(items[0])
+
+        for item in items[1:]:
+            item_ancestors = get_ancestors(item)
+            for i, (common_parent, item_parent) in enumerate(zip(common_ancestors, item_ancestors)):
+                # Discard ancestors after first mismatch and update first index at the new common parent
+                if common_parent != item_parent:
+                    common_ancestors = common_ancestors[:i]
+                    first_index = min(common_parent.position, item_parent.position)
+                    break
+            else:
+                # If the new item has fewer ancestors, trim. In any case, update the first index.
+                if len(common_ancestors) > len(item_ancestors):
+                    first_index = min(common_ancestors[len(item_ancestors)].position, item.position)
+                    common_ancestors = common_ancestors[:len(item_ancestors)]
+                elif len(item_ancestors) > len(common_ancestors):
+                    first_index = min(first_index, item_ancestors[len(common_ancestors)].position)
+                else:
+                    first_index = min(first_index, item.position)
+
+        return common_ancestors[-1], first_index
+
     def execute(self, context):
+        def any_parent_selected(item):
+            while (item := item.parent) is not None:
+                if item.select:
+                    return True
+            return False
+
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
 
-        # Remember active item and position to determine target position.
+        # Remember selected and active items and position of active item to determine target position.
+        selected_items = [i for i in interface.items_tree if i.select]
         active_item = interface.active
         active_pos = active_item.position if active_item else -1
 
@@ -1102,12 +1143,24 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
         else:
             return {'CANCELLED'}
 
-        if active_item:
+        if self.item_type == 'PANEL' and len(selected_items) > 1:
+            top_selected_items = [i for i in selected_items if not any_parent_selected(i)]
+            common_parent, first_index = self.find_position_in_closest_common_parent(top_selected_items)
+            for selected_item in top_selected_items:
+                # Move all selected items to the new panel, and the new panel under their common parent.
+                interface.move_to_parent(selected_item, item, len(item.interface_items))
+            if common_parent:
+                # Move new panel under deepest common parent, at the first index of any selected item.
+                interface.move_to_parent(item, common_parent, first_index)
+        elif active_item:
             # Insert into active panel if possible, otherwise insert after active item.
             if active_item.item_type == 'PANEL' and item.item_type != 'PANEL':
                 interface.move_to_parent(item, active_item, len(active_item.interface_items))
             else:
                 interface.move_to_parent(item, active_item.parent, active_pos + 1)
+
+        for i in interface.items_tree:
+            i.select = False
         interface.active = item
 
         return {'FINISHED'}
