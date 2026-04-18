@@ -118,6 +118,8 @@ struct RandomParameters {
   float random_hue;
   float random_saturation;
   float random_value;
+
+  float random_noise_scale;
 };
 
 RandomParameters unpack_random(uint4 random_packed)
@@ -125,7 +127,25 @@ RandomParameters unpack_random(uint4 random_packed)
   float2 unpacked_x = unpackUnorm2x16(random_packed.x);
   float2 unpacked_y = unpackUnorm2x16(random_packed.y);
   float2 unpacked_z = unpackUnorm2x16(random_packed.z);
-  return {unpacked_x.x, unpacked_x.y, unpacked_y.x, unpacked_y.y, unpacked_z.x, unpacked_z.y};
+  return {unpacked_x.x,
+          unpacked_x.y,
+          unpacked_y.x,
+          unpacked_y.y,
+          unpacked_z.x,
+          unpacked_z.y,
+          uintBitsToFloat(random_packed.w)};
+}
+
+float simple_noise(float x)
+{
+  int int_x = int(x);
+  float factor = smoothstep(0.0f, 1.0f, fract(x));
+  return mix(hash_uint_to_float(int_x), hash_uint_to_float(int_x + 1), factor);
+}
+
+float noise_level_2(float x)
+{
+  return (simple_noise(x) + simple_noise(x * 0.353953f)) * 0.5f;
 }
 
 float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
@@ -133,8 +153,10 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
   RandomParameters Parameters = unpack_random(gp_materials[matid].random_packed);
 
+  float noise_x = float(i) * Parameters.random_noise_scale;
+
   if (Parameters.random_rotation > 0.0f) {
-    float rand = hash_uint_to_float(i + 6963723);
+    float rand = noise_level_2(noise_x + 69637.532f);
     rand -= 0.5f;
     rand *= 2.0f;
     rand *= M_PI;
@@ -150,7 +172,7 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   }
 
   if (Parameters.random_size > 0.0f) {
-    float rand = hash_uint_to_float(i + 1855321);
+    float rand = noise_level_2(noise_x + 18559.853f);
 
     rand *= Parameters.random_size;
     rand = 1.0f - rand;
@@ -169,9 +191,9 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
     float4 col_hsva;
     rgb_to_hsv(col, col_hsva);
 
-    float rand_hue = hash_uint_to_float(i + 97715151);
-    float rand_sat = hash_uint_to_float(i + 16430206);
-    float rand_val = hash_uint_to_float(i + 86191990);
+    float rand_hue = noise_level_2(noise_x + 97715.184f);
+    float rand_sat = noise_level_2(noise_x + 16430.953f);
+    float rand_val = noise_level_2(noise_x + 86191.195f);
 
     col_hsva.x += (rand_hue - 0.5f) * Parameters.random_hue;
     col_hsva.y *= 1.0f + (rand_sat * 2.0f - 1.0f) * Parameters.random_saturation;
@@ -185,7 +207,7 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   }
 
   if (Parameters.random_strength > 0.0f) {
-    float rand = hash_uint_to_float(i + 689163);
+    float rand = noise_level_2(noise_x + 68916.135f);
 
     rand -= 1.0f;
     rand *= Parameters.random_strength;

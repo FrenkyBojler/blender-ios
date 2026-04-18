@@ -341,6 +341,9 @@ struct MaterialGPencilStyle {
   float random_hue_factor = 0;
   float random_saturation_factor = 0;
   float random_value_factor = 0;
+
+  float random_noise_scale = 0;
+  char _pad3[4] = {};
 };
 
 struct MaterialLineArt {

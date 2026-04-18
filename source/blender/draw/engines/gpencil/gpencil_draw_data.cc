@@ -285,6 +285,8 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       mat_data->random_packed.z = (unit_float_to_ushort_clamp(gp_style->random_saturation_factor));
       mat_data->random_packed.z |= (unit_float_to_ushort_clamp(gp_style->random_value_factor))
                                    << 16;
+
+      mat_data->random_packed.w = float_as_uint(gp_style->random_noise_scale);
     }
     else {
       mat_data->random_packed = uint4(0);
