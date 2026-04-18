@@ -113,7 +113,9 @@ static float event_to_knot(const InsertKnotOpData &ikcd, const wmEvent &event)
       0.0f, std::min(1.0f, (float(event.mval[0]) - winx * 0.1f) / padded_width));
   const float knot_value = ikcd.knot_range.x +
                            (ikcd.knot_range.y - ikcd.knot_range.x) * normalized;
-  return make_knot_safe(ikcd, knot_value);
+  const float knot_value_in_range = std::max(ikcd.knot_range.x,
+                                             std::min(ikcd.knot_range.y, knot_value));
+  return make_knot_safe(ikcd, knot_value_in_range);
 }
 
 static void modified_lattice_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)

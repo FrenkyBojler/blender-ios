@@ -153,7 +153,7 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
     }
   }
 
-  /* Finishes copying of the top of trapecy above. In particular case Q(1,2). */
+  /* Finishes copying of the top of trapezoid above. In particular case Q(1,2). */
   for (const int j : IndexRange::from_begin_size(1, std::max(top - 2, 0))) {
     const int dst_point = new_points[repeat + j - 1] % points_after_num;
     for (const int term_point : IndexRange(affected_by_num)) {
@@ -182,7 +182,7 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
     return m;
   }
   const int degree = order - 1;
-  /* Number of points on the top of trapecy from `calc_knot_insertion_weights`. */
+  /* Number of points on the top of trapezoid from `calc_knot_insertion_weights`. */
   const int top = degree - mult + 1;
   const IndexRange points_to_replace = IndexRange::from_begin_size(
       last_knot_index - degree - repeat, top + 2 * repeat);
@@ -208,14 +208,14 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
 
   Array<WeightVector> point_weights(new_points.size());
   const int src_size = points_to_replace.size();
-  const int midle = (new_points.size() + 1) / 2;
-  for (const int i : IndexRange::from_begin_size(0, midle)) {
+  const int middle = (new_points.size() + 1) / 2;
+  for (const int i : IndexRange::from_begin_size(0, middle)) {
     WeightVector &single_point_weights = point_weights[i];
     single_point_weights.resize(src_size);
     single_point_weights[i] = 1.0f;
   }
-  const int till_midle = new_points.size() / 2;
-  for (const int i : IndexRange::from_begin_size(0, till_midle)) {
+  const int till_middle = new_points.size() / 2;
+  for (const int i : IndexRange::from_begin_size(0, till_middle)) {
     WeightVector &single_point_weights = point_weights.last(i);
     single_point_weights.resize(src_size);
     single_point_weights[src_size - 1 - i] = 1.0f;
@@ -223,8 +223,8 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
 
   /**
    * Logical scheme for two loops below with order = 5 and repeat = 2.
-   * It reverses effect done with the trapecy from `calc_knot_insertion_weights`.
-   * Calculations start from top and side edges of the trapecy:
+   * It reverses effect done with the trapezoid from `calc_knot_insertion_weights`.
+   * Calculations start from top and side edges of the trapezoid:
    *  P(0,0)  Q(0,1)  Q(0,2)  Q(1,2)  Q(2,2) Q(3,1)  P(4,0).
    * Only some points are needed to recalculate all bottom points:
    *  P(0,0), P(1,0), P(2,0), P(3,0), P(4,0) back.
@@ -241,12 +241,12 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
    *              V         V         V
    *  P(0,0) -> P(1,0) -> P(2,0)    P(3,0) <- P(4,0)
    *                        |         |
-   *                      midle       |
-   *                               till_midle (used to process only right side)
+   *                      middle      |
+   *                               till_middle (used to process only right side)
    *
    */
-  for (const int iter : IndexRange::from_begin_end(1, midle)) {
-    const IndexRange i_range = IndexRange::from_begin_size(iter, std::min(midle - iter, repeat));
+  for (const int iter : IndexRange::from_begin_end(1, middle)) {
+    const IndexRange i_range = IndexRange::from_begin_size(iter, std::min(middle - iter, repeat));
     for (const int i_reverse : i_range.index_range()) {
       const int i = i_range.last(i_reverse);
       const int t = repeat - i + iter;
@@ -257,9 +257,9 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
     }
   }
 
-  for (const int iter : IndexRange::from_begin_end(1, till_midle)) {
+  for (const int iter : IndexRange::from_begin_end(1, till_middle)) {
     const IndexRange i_range = IndexRange::from_begin_size(iter,
-                                                           std::min(till_midle - iter, repeat));
+                                                           std::min(till_middle - iter, repeat));
     for (const int i_reverse : i_range.index_range()) {
       const int i = i_range.last(i_reverse);
       const int t = repeat - i + iter;
