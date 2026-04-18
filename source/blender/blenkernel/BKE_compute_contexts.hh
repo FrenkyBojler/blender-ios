@@ -87,6 +87,24 @@ class ModifierComputeContext : public ComputeContext {
   void print_current_in_line(std::ostream &stream) const override;
 };
 
+class ImplicitCatureModifierComputeContext : public ComputeContext {
+ private:
+  /** #ModifierData.persistent_uid. */
+  int modifier_uid_;
+
+ public:
+  ImplicitCatureModifierComputeContext(const ComputeContext *parent, int modifier_uid);
+
+  int modifier_uid() const
+  {
+    return modifier_uid_;
+  }
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
 class NodeComputeContext : public ComputeContext {
  private:
   int32_t node_id_;

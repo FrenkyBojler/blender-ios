@@ -78,6 +78,22 @@ void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
   }
 }
 
+ImplicitCatureModifierComputeContext::ImplicitCatureModifierComputeContext(const ComputeContext *parent,
+                                               const int modifier_uid)
+    : ComputeContext(parent), modifier_uid_(modifier_uid)
+{
+}
+
+ComputeContextHash ImplicitCatureModifierComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "IMPLICIT CAPTURE MODIFIER", modifier_uid_);
+}
+
+void ImplicitCatureModifierComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  stream << "Implicit capture modifier: " << modifier_uid_;
+}
+
 NodeComputeContext::NodeComputeContext(const ComputeContext *parent,
                                        int32_t node_id,
                                        const bNodeTree *tree)

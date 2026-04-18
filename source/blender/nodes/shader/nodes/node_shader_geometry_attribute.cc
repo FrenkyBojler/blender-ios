@@ -202,7 +202,7 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
       return "";
     }();
 
-    printf("Bind to\"%s\";\n", capture_name.c_str());
+    // printf("Bind to\"%s\";\n", capture_name.c_str());
     GPUNodeLink *attribute = GPU_attribute(mat, CD_AUTO_FROM_NAME, capture_name.c_str());
     GPU_link(mat, func_name.c_str(), attribute, &out[output_index].link);
     output_index++;

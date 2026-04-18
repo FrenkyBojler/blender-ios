@@ -1796,6 +1796,9 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
 
   LoggingEnabledState get_logging_enabled_state(const lf::Context &context) const override
   {
+    if (context.user_data == nullptr) {
+      return LoggingEnabledState{false};
+    }
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     return LoggingEnabledState{user_data.verbose_log};
   }
