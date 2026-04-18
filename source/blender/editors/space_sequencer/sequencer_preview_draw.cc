@@ -1069,11 +1069,15 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *runtime = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if (data->selection_start_offset == -1 || strip_text_selection_range_get(data).is_empty()) {
     return;
   }
 
+  const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+      sseq->render_size);
+  const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
   const IndexRange sel_range = strip_text_selection_range_get(data);
   const int2 selection_start = strip_text_cursor_offset_to_position(runtime, sel_range.first());
   const int2 selection_end = strip_text_cursor_offset_to_position(runtime, sel_range.last());
@@ -1092,16 +1096,19 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
       character_end = line.characters[selection_end.x];
     }
 
-    const float line_y = character_start.position.y + runtime->font_descender;
+    const float line_y = (character_start.position.y + runtime->font_descender) / render_scale;
+    const float char_start_x = character_start.position.x / render_scale;
+    const float char_end_x = (character_end.position.x + character_end.advance_x) / render_scale;
+    const float line_height = runtime->line_height / render_scale;
 
     const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
     const float view_aspect = scene->r.xasp / scene->r.yasp;
     float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
     float2 selection_quad[4] = {
-        {character_start.position.x, line_y},
-        {character_start.position.x, line_y + runtime->line_height},
-        {character_end.position.x + character_end.advance_x, line_y + runtime->line_height},
-        {character_end.position.x + character_end.advance_x, line_y},
+        {char_start_x, line_y},
+        {char_start_x, line_y + line_height},
+        {char_end_x, line_y + line_height},
+        {char_end_x, line_y},
     };
 
     immBegin(GPU_PRIM_TRIS, 6);
@@ -1137,17 +1144,24 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *runtime = data->runtime;
   const Scene *scene = CTX_data_sequencer_scene(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
+  const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+      sseq->render_size);
+  const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
   const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
   float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
   const int2 cursor_position = strip_text_cursor_offset_to_position(runtime, data->cursor_offset);
   const float cursor_width = 10;
-  float2 cursor_coords = runtime->lines[cursor_position.y].characters[cursor_position.x].position;
+  float2 cursor_coords = runtime->lines[cursor_position.y].characters[cursor_position.x].position / render_scale;
+  const float scaled_line_height = runtime->line_height / render_scale;
+  const float scaled_font_descender = runtime->font_descender / render_scale;
+
   /* Clamp cursor coords to be inside of text boundbox. Compensate for cursor width, but also line
    * width hardcoded in shader. */
-  const float bound_left = float(runtime->text_boundbox.xmin) + U.pixelsize;
-  const float bound_right = float(runtime->text_boundbox.xmax) - (cursor_width + U.pixelsize);
+  const float bound_left = (float(runtime->text_boundbox.xmin) / render_scale) + U.pixelsize;
+  const float bound_right = (float(runtime->text_boundbox.xmax) / render_scale) - (cursor_width + U.pixelsize);
   /* Note: do not use std::clamp since due to math above left can become larger than right. */
   cursor_coords.x = std::max(cursor_coords.x, bound_left);
   cursor_coords.x = std::min(cursor_coords.x, bound_right);
@@ -1156,11 +1170,11 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
 
   float2 cursor_quad[4] = {
       {cursor_coords.x, cursor_coords.y},
-      {cursor_coords.x, cursor_coords.y + runtime->line_height},
-      {cursor_coords.x + cursor_width, cursor_coords.y + runtime->line_height},
+      {cursor_coords.x, cursor_coords.y + scaled_line_height},
+      {cursor_coords.x + cursor_width, cursor_coords.y + scaled_line_height},
       {cursor_coords.x + cursor_width, cursor_coords.y},
   };
-  const float2 descender_offs{0.0f, float(runtime->font_descender)};
+  const float2 descender_offs{0.0f, scaled_font_descender};
 
   immBegin(GPU_PRIM_TRIS, 6);
   immUniformThemeColor(TH_SEQ_TEXT_CURSOR);

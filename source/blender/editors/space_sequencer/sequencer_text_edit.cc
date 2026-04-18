@@ -20,6 +20,7 @@
 
 #include "SEQ_effects.hh"
 #include "SEQ_relations.hh"
+#include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_transform.hh"
 
@@ -848,6 +849,7 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   const Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const View2D *v2d = ui::view2d_fromcontext(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   int2 mval_region;
   WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
@@ -860,10 +862,13 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C), strip);
   // MSVC 2019 can't decide here for some reason, pick the template for it.
   transform_mat = math::invert<float, 3>(transform_mat);
+  const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(sseq->render_size);
+  const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
 
   mouse_loc.x /= view_aspect;
   mouse_loc = math::transform_point(transform_mat, mouse_loc);
   mouse_loc -= view_offs;
+  mouse_loc *= render_scale;
   data->cursor_offset = find_closest_cursor_offset(data, float2(mouse_loc));
 }
 
