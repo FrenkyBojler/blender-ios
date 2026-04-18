@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "BKE_material.hh"
 
 #include "NOD_rna_define.hh"

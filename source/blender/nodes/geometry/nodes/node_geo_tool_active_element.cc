@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 

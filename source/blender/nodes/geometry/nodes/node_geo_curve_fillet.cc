@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "DNA_grease_pencil_types.h"
 
 #include "BKE_grease_pencil.hh"

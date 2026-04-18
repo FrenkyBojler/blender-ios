@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.h"
 #include "BLI_ordered_edge.hh"

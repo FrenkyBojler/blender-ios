@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"

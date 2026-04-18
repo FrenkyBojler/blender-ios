@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "GEO_foreach_geometry.hh"
 #include "GEO_resample_curves.hh"
 

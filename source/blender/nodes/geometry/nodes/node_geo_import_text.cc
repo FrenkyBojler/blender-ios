@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "BLI_fileops.h"
 #include "BLI_generic_key_string.hh"
 #include "BLI_memory_cache_file_load.hh"

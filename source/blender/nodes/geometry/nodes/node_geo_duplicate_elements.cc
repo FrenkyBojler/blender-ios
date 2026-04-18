@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "BLI_array_utils.hh"
 #include "BLI_noise.hh"
 #include "BLI_offset_indices.hh"

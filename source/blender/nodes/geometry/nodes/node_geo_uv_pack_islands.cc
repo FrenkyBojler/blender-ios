@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "GEO_uv_pack.hh"
 #include "GEO_uv_parametrizer.hh"
 

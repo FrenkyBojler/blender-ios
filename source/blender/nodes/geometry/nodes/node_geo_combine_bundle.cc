@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"

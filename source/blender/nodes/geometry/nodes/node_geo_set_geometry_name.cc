@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup geonodes
+ */
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_geometry_name {
