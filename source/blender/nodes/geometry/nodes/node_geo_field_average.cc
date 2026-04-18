@@ -95,7 +95,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Mean"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldAverage");
+          bNode &node = params.add_node("GeometryNodeFieldAverage"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Mean"_ustr);
         },
@@ -103,7 +103,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Median"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldAverage");
+          bNode &node = params.add_node("GeometryNodeFieldAverage"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Median"_ustr);
         },
@@ -113,7 +113,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(
         IFACE_("Value"),
         [type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node("GeometryNodeFieldAverage");
+          bNode &node = params.add_node("GeometryNodeFieldAverage"_ustr);
           node.custom1 = *type;
           params.update_and_connect_available_socket(node, "Value"_ustr);
         },
@@ -141,7 +141,7 @@ template<typename T> static T calculate_median(MutableSpan<T> values)
     const auto middle_itr = values.begin() + values.size() / 2;
     std::nth_element(values.begin(), middle_itr, values.end());
     if (values.size() % 2 == 0) {
-      const auto left_middle_itr = std::max_element(values.begin(), middle_itr);
+      auto *const left_middle_itr = std::max_element(values.begin(), middle_itr);
       return math::midpoint<T>(*left_middle_itr, *middle_itr);
     }
     return *middle_itr;
@@ -322,7 +322,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeFieldAverage");
+  geo_node_type_base(&ntype, "GeometryNodeFieldAverage"_ustr);
   ntype.ui_name = "Field Average";
   ntype.ui_description = "Calculate the mean and median of a given field";
   ntype.nclass = NODE_CLASS_CONVERTER;

@@ -644,6 +644,7 @@ void wm_event_do_notifiers(bContext *C)
       }
 
       if (notifier_refreshes_node_group_operators(*note)) {
+        ed::geometry::clear_operator_asset_trees();
         ed::geometry::register_node_group_operators(*C);
       }
 
@@ -4165,9 +4166,7 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     /* Does polls for drop regions and checks #uiButs. */
     /* Need to be here to make sure region context is true. */
-    if (ELEM(event->type, MOUSEMOVE, EVT_DROP) || ISKEYMODIFIER(event->type)) {
-      wm_drags_check_ops(C, event);
-    }
+    wm_drags_handle_events(C, event);
   }
 
   return wm_handlers_do(
@@ -5069,6 +5068,9 @@ bool WM_event_handler_region_v2d_mask_poll(const wmWindow * /*win*/,
                                            const ARegion *region,
                                            const wmEvent *event)
 {
+  if (wm_event_always_pass(event)) {
+    return true;
+  }
   rcti rect = region->v2d.mask;
   BLI_rcti_translate(&rect, region->winrct.xmin, region->winrct.ymin);
   return event_or_prev_in_rect(event, &rect);

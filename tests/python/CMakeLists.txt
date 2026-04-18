@@ -267,7 +267,7 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
-if (WITH_GPU_BACKEND_TESTS)
+if(WITH_GPU_BACKEND_TESTS)
   if(WITH_OPENGL_BACKEND)
     add_blender_test(
       script_pyapi_gpu_opengl
@@ -537,6 +537,11 @@ if(TEST_SRC_DIR_EXISTS)
     object_api
     --python ${TEST_PYTHON_DIR}/bl_object.py
   )
+
+  add_blender_test(
+    node_tools
+    --python ${TEST_PYTHON_DIR}/bl_node_tool.py
+  )
 endif()
 
 add_blender_test(
@@ -545,10 +550,10 @@ add_blender_test(
 )
 
 add_blender_test(
-  geonode_file_reporting
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geonode_file_reporting.py
+  geo_node_file_reporting
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geo_node_file_reporting.py
   --
-  --testdir "${TEST_SRC_DIR}/io_tests"
+  --testdir "${TEST_SRC_DIR}"
 )
 
 # ------------------------------------------------------------------------------
@@ -874,14 +879,14 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   if(WITH_FREESTYLE)
     list(APPEND render_tests render_layer)
     list(APPEND workbench_tests render_layer)
-    endif()
-    
-    if(WITH_MOD_FLUID)
+  endif()
+
+  if(WITH_MOD_FLUID)
     list(APPEND render_tests motion_blur reports volume)
     list(APPEND workbench_tests volume)
-    endif()
-    
-    if(WITH_OPENVDB AND WITH_MOD_FLUID)
+  endif()
+
+  if(WITH_OPENVDB AND WITH_MOD_FLUID)
     # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
     list(APPEND workbench_tests openvdb)
