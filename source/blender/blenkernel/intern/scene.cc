@@ -1063,7 +1063,7 @@ static void scene_blend_write_compositor_forward_compat(Scene &scene,
   bNodeSocket *composite_input = nullptr;
   bke::bNodeType ntype;
   for (bNode &node : temp_nodetree_copy->nodes.items_mutable()) {
-    if (node.is_type("NodeGroupOutput") && (node.flag & NODE_DO_OUTPUT)) {
+    if (node.is_type("NodeGroupOutput"_ustr) && (node.flag & NODE_DO_OUTPUT)) {
       composite_node = &version_node_add_unknown(*temp_nodetree_copy,
                                                  ntype,
                                                  "CompositorNodeComposite",
@@ -1407,8 +1407,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
                                     sce->toolsettings->sculpt->automasking_cavity_curve_op);
         BKE_curvemapping_init(sce->toolsettings->sculpt->automasking_cavity_curve_op);
       }
-
-      BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
     }
 
     /* Relink grease pencil interpolation curves. */
