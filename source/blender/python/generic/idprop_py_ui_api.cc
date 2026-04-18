@@ -375,7 +375,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
     ui_data->default_array = new_default_array;
   }
   else {
-    const int value = PyC_Long_AsBool(default_value);
+    const int value = PyC_Object_AsBool(default_value);
     if ((value == -1) && PyErr_Occurred()) {
       PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;

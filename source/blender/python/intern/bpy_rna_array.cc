@@ -39,7 +39,7 @@ namespace blender {
 struct ItemConvertArgData;
 
 using ItemConvertFunc = void (*)(const ItemConvertArgData *arg, PyObject *py_data, char *data);
-using ItemTypeCheckFunc = int (*)(PyObject *py_data);
+using ItemTypeCheckFunc = bool (*)(PyObject *py_data);
 using RNA_SetArrayFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const char *data);
 using RNA_SetIndexFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int index, void *data_item);
 
@@ -672,21 +672,10 @@ static void py_to_bool(const ItemConvertArgData * /*arg*/, PyObject *py, char *d
   *reinterpret_cast<bool *>(data) = bool(PyObject_IsTrue(py));
 }
 
-static int py_float_check(PyObject *py)
+static bool py_float_check(PyObject *py)
 {
   /* accept both floats and integers */
   return PyNumber_Check(py);
-}
-
-static int py_int_check(PyObject *py)
-{
-  /* accept only integers */
-  return PyLong_Check(py);
-}
-
-static int py_bool_check(PyObject *py)
-{
-  return PyBool_Check(py);
 }
 
 static void float_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, void *value)
@@ -758,7 +747,7 @@ int pyrna_py_to_array(
                         ptr,
                         prop,
                         param_data,
-                        py_int_check,
+                        PyC_Long_CheckCompatible,
                         "int",
                         sizeof(int),
                         &convert_item,
@@ -774,7 +763,7 @@ int pyrna_py_to_array(
                         ptr,
                         prop,
                         param_data,
-                        py_bool_check,
+                        PyC_Bool_CheckCompatible,
                         "boolean",
                         sizeof(bool),
                         &convert_item,
@@ -829,7 +818,7 @@ int pyrna_py_to_array_index(PointerRNA *ptr,
                               arraydim,
                               arrayoffset,
                               index,
-                              py_int_check,
+                              PyC_Long_CheckCompatible,
                               "int",
                               &convert_item,
                               int_set_index,
@@ -846,7 +835,7 @@ int pyrna_py_to_array_index(PointerRNA *ptr,
                               arraydim,
                               arrayoffset,
                               index,
-                              py_bool_check,
+                              PyC_Bool_CheckCompatible,
                               "boolean",
                               &convert_item,
                               bool_set_index,
@@ -1072,7 +1061,7 @@ int pyrna_array_contains_py(PointerRNA *ptr, PropertyRNA *prop, PyObject *value)
       return i < len ? 1 : 0;
     }
     case PROP_BOOLEAN: {
-      const int value_i = PyC_Long_AsBool(value);
+      const int value_i = PyC_Object_AsBool(value);
       if (value_i == -1 && PyErr_Occurred()) {
         PyErr_Clear();
         return 0;

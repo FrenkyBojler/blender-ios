@@ -11,7 +11,10 @@ import bpy
 from bpy.props import (
     BoolProperty,
     IntProperty,
+    IntVectorProperty,
     FloatProperty,
+    FloatVectorProperty,
+    BoolVectorProperty,
     EnumProperty,
     StringProperty,
     PointerProperty,
@@ -579,6 +582,210 @@ class TestPropCollectionAndPointer(unittest.TestCase):
         self.assertEqual(id_inst.test_collection[1].test_prop, 24)
 
     # TODO: Add expected failure cases (e.g. assigning propertygroup to a Pointer property, etc.).
+
+
+class TestPropTypeFloatLike(unittest.TestCase):
+
+    class FloatLike:
+        def __init__(self, value):
+            self._value = value
+
+        def __float__(self):
+            return self._value
+
+    value_a = 3.0
+    value_b = 7.0
+
+    def setUp(self):
+        self.test_float_getset_storage = 0.0
+        self.test_float_array_getset_storage = (0.0, 0.0)
+
+        id_type.test_float = FloatProperty()
+        id_type.test_float_getset = FloatProperty(
+            get=lambda s: self.FloatLike(self.test_float_getset_storage),
+            set=lambda s, v: setattr(self, "test_float_getset_storage", v),
+        )
+        id_type.test_float_array = FloatVectorProperty(size=2)
+        id_type.test_float_array_getset = FloatVectorProperty(
+            size=2,
+            get=lambda s: [self.FloatLike(v) for v in self.test_float_array_getset_storage],
+            set=lambda s, v: setattr(self, "test_float_array_getset_storage", tuple(v)),
+        )
+
+    def tearDown(self):
+        del id_type.test_float
+        del id_type.test_float_getset
+        del id_type.test_float_array
+        del id_type.test_float_array_getset
+
+    def test_value_direct(self):
+        id_inst.test_float = self.FloatLike(self.value_a)
+        self.assertEqual(id_inst.test_float, self.value_a)
+        id_inst.test_float = self.FloatLike(self.value_b)
+        self.assertEqual(id_inst.test_float, self.value_b)
+
+    def test_value_callback_get(self):
+        self.test_float_getset_storage = self.value_a
+        self.assertEqual(id_inst.test_float_getset, self.value_a)
+        self.test_float_getset_storage = self.value_b
+        self.assertEqual(id_inst.test_float_getset, self.value_b)
+
+    def test_value_callback_set(self):
+        id_inst.test_float_getset = self.FloatLike(self.value_a)
+        self.assertEqual(id_inst.test_float_getset, self.value_a)
+        id_inst.test_float_getset = self.FloatLike(self.value_b)
+        self.assertEqual(id_inst.test_float_getset, self.value_b)
+
+    def test_array_direct(self):
+        id_inst.test_float_array = [self.FloatLike(self.value_a), self.FloatLike(self.value_b)]
+        self.assertEqual(id_inst.test_float_array[0], self.value_a)
+        self.assertEqual(id_inst.test_float_array[1], self.value_b)
+
+    def test_array_callback_get(self):
+        self.test_float_array_getset_storage = (self.value_a, self.value_b)
+        self.assertEqual(id_inst.test_float_array_getset[0], self.value_a)
+        self.assertEqual(id_inst.test_float_array_getset[1], self.value_b)
+
+    def test_array_callback_set(self):
+        id_inst.test_float_array_getset = [self.FloatLike(self.value_b), self.FloatLike(self.value_a)]
+        self.assertEqual(id_inst.test_float_array_getset[0], self.value_b)
+        self.assertEqual(id_inst.test_float_array_getset[1], self.value_a)
+
+
+class TestPropTypeIntLike(unittest.TestCase):
+
+    class IntLike:
+        def __init__(self, value):
+            self._value = value
+
+        def __index__(self):
+            return self._value
+
+    value_a = 3
+    value_b = 7
+
+    def setUp(self):
+        self.test_int_getset_storage = 0
+        self.test_int_array_getset_storage = (0, 0)
+
+        id_type.test_int = IntProperty()
+        id_type.test_int_getset = IntProperty(
+            get=lambda s: self.IntLike(self.test_int_getset_storage),
+            set=lambda s, v: setattr(self, "test_int_getset_storage", v),
+        )
+        id_type.test_int_array = IntVectorProperty(size=2)
+        id_type.test_int_array_getset = IntVectorProperty(
+            size=2,
+            get=lambda s: [self.IntLike(v) for v in self.test_int_array_getset_storage],
+            set=lambda s, v: setattr(self, "test_int_array_getset_storage", tuple(v)),
+        )
+
+    def tearDown(self):
+        del id_type.test_int
+        del id_type.test_int_getset
+        del id_type.test_int_array
+        del id_type.test_int_array_getset
+
+    def test_value_direct(self):
+        id_inst.test_int = self.IntLike(self.value_a)
+        self.assertEqual(id_inst.test_int, self.value_a)
+        id_inst.test_int = self.IntLike(self.value_b)
+        self.assertEqual(id_inst.test_int, self.value_b)
+
+    def test_value_callback_get(self):
+        self.test_int_getset_storage = self.value_a
+        self.assertEqual(id_inst.test_int_getset, self.value_a)
+        self.test_int_getset_storage = self.value_b
+        self.assertEqual(id_inst.test_int_getset, self.value_b)
+
+    def test_value_callback_set(self):
+        id_inst.test_int_getset = self.IntLike(self.value_a)
+        self.assertEqual(id_inst.test_int_getset, self.value_a)
+        id_inst.test_int_getset = self.IntLike(self.value_b)
+        self.assertEqual(id_inst.test_int_getset, self.value_b)
+
+    def test_array_direct(self):
+        id_inst.test_int_array = [self.IntLike(self.value_a), self.IntLike(self.value_b)]
+        self.assertEqual(id_inst.test_int_array[0], self.value_a)
+        self.assertEqual(id_inst.test_int_array[1], self.value_b)
+
+    def test_array_callback_get(self):
+        self.test_int_array_getset_storage = (self.value_a, self.value_b)
+        self.assertEqual(id_inst.test_int_array_getset[0], self.value_a)
+        self.assertEqual(id_inst.test_int_array_getset[1], self.value_b)
+
+    def test_array_callback_set(self):
+        id_inst.test_int_array_getset = [self.IntLike(self.value_b), self.IntLike(self.value_a)]
+        self.assertEqual(id_inst.test_int_array_getset[0], self.value_b)
+        self.assertEqual(id_inst.test_int_array_getset[1], self.value_a)
+
+
+class TestPropTypeBoolLike(unittest.TestCase):
+
+    class BoolLike:
+        def __init__(self, value):
+            self._value = value
+
+        def __bool__(self):
+            return self._value
+
+    value_a = True
+    value_b = False
+
+    def setUp(self):
+        self.test_bool_getset_storage = False
+        self.test_bool_array_getset_storage = (False, False)
+
+        id_type.test_bool = BoolProperty()
+        id_type.test_bool_getset = BoolProperty(
+            get=lambda s: self.BoolLike(self.test_bool_getset_storage),
+            set=lambda s, v: setattr(self, "test_bool_getset_storage", v),
+        )
+        id_type.test_bool_array = BoolVectorProperty(size=2)
+        id_type.test_bool_array_getset = BoolVectorProperty(
+            size=2,
+            get=lambda s: [self.BoolLike(v) for v in self.test_bool_array_getset_storage],
+            set=lambda s, v: setattr(self, "test_bool_array_getset_storage", tuple(v)),
+        )
+
+    def tearDown(self):
+        del id_type.test_bool
+        del id_type.test_bool_getset
+        del id_type.test_bool_array
+        del id_type.test_bool_array_getset
+
+    def test_value_direct(self):
+        id_inst.test_bool = self.BoolLike(self.value_a)
+        self.assertEqual(id_inst.test_bool, self.value_a)
+        id_inst.test_bool = self.BoolLike(self.value_b)
+        self.assertEqual(id_inst.test_bool, self.value_b)
+
+    def test_value_callback_get(self):
+        self.test_bool_getset_storage = self.value_a
+        self.assertEqual(id_inst.test_bool_getset, self.value_a)
+        self.test_bool_getset_storage = self.value_b
+        self.assertEqual(id_inst.test_bool_getset, self.value_b)
+
+    def test_value_callback_set(self):
+        id_inst.test_bool_getset = self.BoolLike(self.value_a)
+        self.assertEqual(id_inst.test_bool_getset, self.value_a)
+        id_inst.test_bool_getset = self.BoolLike(self.value_b)
+        self.assertEqual(id_inst.test_bool_getset, self.value_b)
+
+    def test_array_direct(self):
+        id_inst.test_bool_array = [self.BoolLike(self.value_a), self.BoolLike(self.value_b)]
+        self.assertEqual(id_inst.test_bool_array[0], self.value_a)
+        self.assertEqual(id_inst.test_bool_array[1], self.value_b)
+
+    def test_array_callback_get(self):
+        self.test_bool_array_getset_storage = (self.value_a, self.value_b)
+        self.assertEqual(id_inst.test_bool_array_getset[0], self.value_a)
+        self.assertEqual(id_inst.test_bool_array_getset[1], self.value_b)
+
+    def test_array_callback_set(self):
+        id_inst.test_bool_array_getset = [self.BoolLike(self.value_b), self.BoolLike(self.value_a)]
+        self.assertEqual(id_inst.test_bool_array_getset[0], self.value_b)
+        self.assertEqual(id_inst.test_bool_array_getset[1], self.value_a)
 
 
 if __name__ == '__main__':

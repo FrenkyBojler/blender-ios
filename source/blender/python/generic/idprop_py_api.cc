@@ -485,7 +485,7 @@ static IDProperty *idp_from_PyBool(IDProperty *prop_exist,
                                    const bool can_create)
 {
   IDProperty *prop = nullptr;
-  const bool value = PyC_Long_AsBool(ob);
+  const bool value = PyC_Object_AsBool(ob);
   if (prop_exist) {
     if (prop_exist->type == IDP_BOOLEAN) {
       IDP_bool_set(prop_exist, value);
@@ -810,7 +810,7 @@ static IDProperty *idp_from_PySequence_Fast(IDProperty *prop_exist,
         void *prop_data = IDP_array_voidp_get(prop);
         for (i = 0; i < val.array.len; i++) {
           item = ob_seq_fast_items[i];
-          const int value = PyC_Long_AsBool(item);
+          const int value = PyC_Object_AsBool(item);
           if ((value == -1) && PyErr_Occurred()) {
             continue;
           }
@@ -877,7 +877,7 @@ static IDProperty *idp_from_PySequence_Fast(IDProperty *prop_exist,
       int8_t *prop_data = IDP_array_bool_get(prop);
       for (i = 0; i < val.array.len; i++) {
         item = ob_seq_fast_items[i];
-        const int value = PyC_Long_AsBool(item);
+        const int value = PyC_Object_AsBool(item);
         if ((value == -1) && PyErr_Occurred()) {
           IDP_FreeProperty(prop);
           return nullptr;
@@ -2342,7 +2342,7 @@ static int BPy_IDArray_SetItem(BPy_IDArray *self, Py_ssize_t index, PyObject *va
       break;
     }
     case IDP_BOOLEAN: {
-      const int i = PyC_Long_AsBool(value);
+      const int i = PyC_Object_AsBool(value);
       if (i == -1 && PyErr_Occurred()) {
         return -1;
       }

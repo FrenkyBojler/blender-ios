@@ -172,7 +172,7 @@ static int bpy_bm_elem_hflag_set(BPy_BMElem *self, PyObject *value, void *flag)
 
   BPY_BM_CHECK_INT(self);
 
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return -1;
   }
 
@@ -454,7 +454,7 @@ static int bpy_bmesh_uv_select_sync_valid_set(BPy_BMesh *self, PyObject *value, 
   BPY_BM_CHECK_INT(self);
 
   int param;
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return -1;
   }
   self->bm->uv_select_sync_valid = param;
@@ -1635,7 +1635,7 @@ static PyObject *bpy_bmesh_select_flush(BPy_BMesh *self, PyObject *value)
 
   BPY_BM_CHECK_OBJ(self);
 
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
   BM_mesh_select_flush_from_verts(self->bm, param);
@@ -1703,7 +1703,7 @@ static PyObject *bpy_bmesh_uv_select_flush(BPy_BMesh *self, PyObject *value)
 
   BPY_BM_CHECK_OBJ(self);
 
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
   BMesh *bm = self->bm;
@@ -1736,7 +1736,7 @@ static PyObject *bpy_bmesh_uv_select_flush_shared(BPy_BMesh *self, PyObject *val
 
   BPY_BM_CHECK_OBJ(self);
 
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
   BMesh *bm = self->bm;
@@ -2234,17 +2234,17 @@ PyDoc_STRVAR(
 static PyObject *bpy_bmesh_calc_volume(BPy_BMElem *self, PyObject *args, PyObject *kw)
 {
   static const char *kwlist[] = {"signed", nullptr};
-  PyObject *is_signed = Py_False;
+  bool is_signed = false;
 
   BPY_BM_CHECK_OBJ(self);
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kw, "|$O!:calc_volume", const_cast<char **>(kwlist), &PyBool_Type, &is_signed))
+          args, kw, "|$O&:calc_volume", const_cast<char **>(kwlist), PyC_ParseBool, &is_signed))
   {
     return nullptr;
   }
 
-  return PyFloat_FromDouble(BM_mesh_calc_volume(self->bm, is_signed != Py_False));
+  return PyFloat_FromDouble(BM_mesh_calc_volume(self->bm, is_signed));
 }
 
 PyDoc_STRVAR(
@@ -2306,7 +2306,7 @@ static PyObject *bpy_bm_elem_select_set(BPy_BMElem *self, PyObject *value)
 
   BPY_BM_CHECK_OBJ(self);
 
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
 
@@ -2332,7 +2332,7 @@ static PyObject *bpy_bm_elem_hide_set(BPy_BMElem *self, PyObject *value)
 
   BPY_BM_CHECK_OBJ(self);
 
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
 
@@ -2850,7 +2850,7 @@ static PyObject *bpy_bmface_uv_select_set(BPy_BMFace *self, PyObject *value)
   BMesh *bm = self->bm;
   BPY_BM_CHECK_OBJ(self);
   int param;
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
   BM_face_uvselect_set(bm, self->f, param);
@@ -3115,7 +3115,7 @@ static PyObject *bpy_bmloop_uv_select_vert_set(BPy_BMLoop *self, PyObject *value
   BMesh *bm = self->bm;
   BPY_BM_CHECK_OBJ(self);
   int param;
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
 
@@ -3146,7 +3146,7 @@ static PyObject *bpy_bmloop_uv_select_edge_set(BPy_BMLoop *self, PyObject *value
   BMesh *bm = self->bm;
   BPY_BM_CHECK_OBJ(self);
   int param;
-  if ((param = PyC_Long_AsBool(value)) == -1) {
+  if ((param = PyC_Object_AsBool(value)) == -1) {
     return nullptr;
   }
   BM_loop_edge_uvselect_set(bm, self->l, param);

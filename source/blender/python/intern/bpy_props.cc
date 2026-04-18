@@ -777,7 +777,7 @@ static bool bpy_prop_boolean_get_fn(PointerRNA *ptr, PropertyRNA *prop)
     value = false;
   }
   else {
-    const int value_i = PyC_Long_AsBool(ret);
+    const int value_i = PyC_Object_AsBool(ret);
 
     if (value_i == -1 && PyErr_Occurred()) {
       PyC_Err_PrintWithFunc(py_func);
@@ -825,7 +825,7 @@ static bool bpy_prop_boolean_get_transform_fn(PointerRNA *ptr,
     PyC_Err_PrintWithFunc(py_func);
   }
   else {
-    const int value_i = PyC_Long_AsBool(ret);
+    const int value_i = PyC_Object_AsBool(ret);
 
     if (value_i == -1 && PyErr_Occurred()) {
       PyC_Err_PrintWithFunc(py_func);
@@ -911,7 +911,7 @@ static bool bpy_prop_boolean_set_transform_fn(
     PyC_Err_PrintWithFunc(py_func);
   }
   else {
-    const int value_i = PyC_Long_AsBool(ret);
+    const int value_i = PyC_Object_AsBool(ret);
 
     if (value_i == -1 && PyErr_Occurred()) {
       PyC_Err_PrintWithFunc(py_func);

@@ -131,7 +131,8 @@ static bool bpy_op_parse_args(PyObject *args, const char **r_context_str, bool *
       C_exec = PyUnicode_AsUTF8(arg);
       is_exec = true;
     }
-    else if ((r_is_undo != nullptr) && (!is_undo_set && (PyBool_Check(arg) || PyLong_Check(arg))))
+    else if ((r_is_undo != nullptr) &&
+             (!is_undo_set && (PyC_Bool_CheckCompatible(arg) || PyC_Long_CheckCompatible(arg))))
     {
       C_undo = PyObject_IsTrue(arg);
       is_undo_set = true;

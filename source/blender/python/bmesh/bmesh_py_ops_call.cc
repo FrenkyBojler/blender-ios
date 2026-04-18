@@ -151,7 +151,7 @@ static int bpy_slot_from_py(BMesh *bm,
 {
   switch (slot->slot_type) {
     case BMO_OP_SLOT_BOOL: {
-      const int param = PyC_Long_AsBool(value);
+      const int param = PyC_Object_AsBool(value);
 
       if (param == -1) {
         PyErr_Format(PyExc_TypeError,

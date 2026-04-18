@@ -126,28 +126,28 @@ int PyC_AsArray_FAST(void *array,
       case sizeof(int64_t): {
         int64_t *array_bool = static_cast<int64_t *>(array);
         for (i = 0; i < length; i++) {
-          array_bool[i] = (PyLong_AsLong(value_fast_items[i]) != 0);
+          array_bool[i] = (PyC_Object_AsBool(value_fast_items[i]) != 0);
         }
         break;
       }
       case sizeof(int32_t): {
         int32_t *array_bool = static_cast<int32_t *>(array);
         for (i = 0; i < length; i++) {
-          array_bool[i] = (PyLong_AsLong(value_fast_items[i]) != 0);
+          array_bool[i] = (PyC_Object_AsBool(value_fast_items[i]) != 0);
         }
         break;
       }
       case sizeof(int16_t): {
         int16_t *array_bool = static_cast<int16_t *>(array);
         for (i = 0; i < length; i++) {
-          array_bool[i] = (PyLong_AsLong(value_fast_items[i]) != 0);
+          array_bool[i] = (PyC_Object_AsBool(value_fast_items[i]) != 0);
         }
         break;
       }
       case sizeof(int8_t): {
         int8_t *array_bool = static_cast<int8_t *>(array);
         for (i = 0; i < length; i++) {
-          array_bool[i] = (PyLong_AsLong(value_fast_items[i]) != 0);
+          array_bool[i] = (PyC_Object_AsBool(value_fast_items[i]) != 0);
         }
         break;
       }
@@ -503,13 +503,11 @@ void PyC_List_Fill(PyObject *list, PyObject *value)
 int PyC_ParseBool(PyObject *o, void *p)
 {
   bool *bool_p = static_cast<bool *>(p);
-  long value;
-  if (((value = PyLong_AsLong(o)) == -1) || !ELEM(value, 0, 1)) {
-    PyErr_Format(PyExc_ValueError, "expected a bool or int (0/1), got %s", Py_TYPE(o)->tp_name);
+  const int result = PyC_Object_AsBool(o);
+  if (result == -1) {
     return 0;
   }
-
-  *bool_p = value ? true : false;
+  *bool_p = result ? true : false;
   return 1;
 }
 
@@ -1891,6 +1889,40 @@ void PyC_StdFilesFlush()
  *
  * \{ */
 
+bool PyC_Long_CheckCompatible(PyObject *value)
+{
+  /* accept only integers */
+  if (PyLong_Check(value)) {
+    return true;
+  }
+  /* NOTE: #PyLong_AsLong use `__index__` when available. */
+  const PyTypeObject *py_type = Py_TYPE(value);
+  if (py_type->tp_as_number && py_type->tp_as_number->nb_index) {
+    return true;
+  }
+  return false;
+}
+
+bool PyC_Bool_CheckCompatible(PyObject *value)
+{
+  if (PyBool_Check(value)) {
+    return true;
+  }
+  if (PyLong_Check(value)) {
+    int overflow;
+    long long result = PyLong_AsLongLongAndOverflow(value, &overflow);
+    if (overflow == 0 && ELEM(result, 0, 1)) {
+      return true;
+    }
+    return false;
+  }
+  const PyTypeObject *py_type = Py_TYPE(value);
+  if (py_type->tp_as_number && py_type->tp_as_number->nb_bool) {
+    return true;
+  }
+  return false;
+}
+
 /* Compiler optimizes out redundant checks. */
 #if defined(__GNUC__) && !defined(__clang__)
 #  pragma GCC diagnostic push
@@ -1924,19 +1956,6 @@ static ulong pyc_Long_AsUnsignedLong(PyObject *value)
   return to_return;
 }
 
-int PyC_Long_AsBool(PyObject *value)
-{
-  const int test = PyLong_AsInt(value);
-  if (UNLIKELY(test == -1 && PyErr_Occurred())) {
-    return -1;
-  }
-  if (UNLIKELY(uint(test) > 1)) {
-    PyErr_SetString(PyExc_TypeError, "Python number not a bool (0/1)");
-    return -1;
-  }
-  return test;
-}
-
 int8_t PyC_Long_AsI8(PyObject *value)
 {
   const int test = PyLong_AsInt(value);
@@ -1961,6 +1980,34 @@ int16_t PyC_Long_AsI16(PyObject *value)
     return -1;
   }
   return int16_t(test);
+}
+
+int PyC_Object_AsBool(PyObject *value)
+{
+  if (value == Py_True) {
+    return true;
+  }
+  if (value == Py_False) {
+    return false;
+  }
+
+  int result;
+  const PyTypeObject *o_type = Py_TYPE(value);
+  if (o_type->tp_as_number && o_type->tp_as_number->nb_bool) {
+    /* Follow CPython by treating any non-zero return result is true. */
+    if ((result = (*o_type->tp_as_number->nb_bool)(value)) == -1) [[unlikely]] {
+      /* The error has been set. */
+      return -1;
+    }
+  }
+  else {
+    if (((result = PyC_Long_AsI32(value)) == -1) || !ELEM(result, 0, 1)) [[unlikely]] {
+      PyErr_Format(
+          PyExc_ValueError, "expected a bool or int (0/1), got %s", Py_TYPE(value)->tp_name);
+      return -1;
+    }
+  }
+  return result ? true : false;
 }
 
 /* Inlined in header:

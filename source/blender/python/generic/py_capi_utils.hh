@@ -306,7 +306,7 @@ void PyC_StdFilesFlush();
 /**
  * Use with PyArg_ParseTuple's "O&" formatting.
  *
- * \see #PyC_Long_AsBool for a similar function to use outside of argument parsing.
+ * \see #PyC_Object_AsBool for a similar function to use outside of argument parsing.
  */
 [[nodiscard]] int PyC_ParseBool(PyObject *o, void *p);
 
@@ -418,7 +418,6 @@ struct PyC_StringEnum {
  */
 [[nodiscard]] int PyC_CheckArgs_DeepCopy(PyObject *args);
 
-/* Integer parsing (with overflow checks), -1 on error. */
 /**
  * Comparison with #PyObject_IsTrue
  * ================================
@@ -441,10 +440,17 @@ struct PyC_StringEnum {
  * If coercing a value is desired, it can be done explicitly: `data.value = bool(value)`
  *
  * \see #PyC_ParseBool for use with #PyArg_ParseTuple and related functions.
+ * \see #PyC_Bool_CheckCompatible to if type checking is needed.
  *
  * \note Don't use `bool` return type, so -1 can be used as an error value.
  */
-[[nodiscard]] int PyC_Long_AsBool(PyObject *value);
+[[nodiscard]] int PyC_Object_AsBool(PyObject *value);
+
+[[nodiscard]] bool PyC_Long_CheckCompatible(PyObject *value);
+/** Check if the value can be used with #PyC_Object_AsBool */
+[[nodiscard]] bool PyC_Bool_CheckCompatible(PyObject *value);
+
+/* Integer parsing (with overflow checks), -1 on error. */
 [[nodiscard]] int8_t PyC_Long_AsI8(PyObject *value);
 [[nodiscard]] int16_t PyC_Long_AsI16(PyObject *value);
 #if 0 /* inline */

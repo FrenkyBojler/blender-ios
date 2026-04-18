@@ -1682,10 +1682,27 @@ static int pyrna_py_to_prop(
           param = PyObject_IsTrue(value);
         }
         else {
-          param = PyC_Long_AsI32(value);
-
-          if (UNLIKELY(param & ~1)) { /* Only accept 0/1. */
-            param = -1;               /* Error out below. */
+          if (value == Py_True) {
+            param = 1;
+          }
+          else if (value == Py_False) {
+            param = 0;
+          }
+          else {
+            const PyTypeObject *value_type = Py_TYPE(value);
+            if (value_type->tp_as_number && value_type->tp_as_number->nb_bool) {
+              param = (*value_type->tp_as_number->nb_bool)(value);
+              if (param == -1) [[unlikely]] {
+                /* An error has already been raised. */
+                return -1;
+              }
+            }
+            else {
+              param = PyC_Long_AsI32(value);
+              if (UNLIKELY(param & ~1)) { /* Only accept 0/1. */
+                param = -1;               /* Error out below. */
+              }
+            }
           }
         }
 
@@ -2270,7 +2287,7 @@ static int pyrna_py_to_prop_array_index(BPy_PropertyArrayRNA *self, int index, P
     /* See if we can coerce into a Python type - 'PropertyType'. */
     switch (RNA_property_type(prop)) {
       case PROP_BOOLEAN: {
-        const int param = PyC_Long_AsBool(value);
+        const int param = PyC_Object_AsBool(value);
 
         if (param == -1) {
           /* Error is set. */
@@ -5989,7 +6006,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
             (static_cast<int *>(array))[i] = int(PyC_Long_AsI32(item));
             break;
           case PROP_RAW_BOOLEAN:
-            (static_cast<bool *>(array))[i] = bool(PyC_Long_AsBool(item));
+            (static_cast<bool *>(array))[i] = bool(PyC_Object_AsBool(item));
             break;
           case PROP_RAW_FLOAT:
             (static_cast<float *>(array))[i] = float(PyFloat_AsDouble(item));

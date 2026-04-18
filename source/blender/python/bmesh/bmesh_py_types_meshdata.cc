@@ -120,7 +120,7 @@ static int bpy_bmloopuv_pin_uv_set(BPy_BMLoopUV *self, PyObject *value, void * /
   if (UNLIKELY(!bpy_bmloopuv_pin_uv_ok_or_error(self))) {
     return -1;
   }
-  *self->pin = PyC_Long_AsBool(value);
+  *self->pin = PyC_Object_AsBool(value);
   return 0;
 }
 
@@ -243,7 +243,7 @@ static int bpy_bmvertskin_flag_set(BPy_BMVertSkin *self, PyObject *value, void *
 {
   const int flag = POINTER_AS_INT(flag_p);
 
-  switch (PyC_Long_AsBool(value)) {
+  switch (PyC_Object_AsBool(value)) {
     case true:
       self->data->flag |= flag;
       return 0;
