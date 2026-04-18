@@ -36,7 +36,8 @@ static void read_face_display_color(Mesh *mesh,
   const StringRef attr_name(pv_name.GetString());
 
   if (primvar.GetInterpolation() == pxr::UsdGeomTokens->constant) {
-    const ColorGeometry4f value = detail::convert_value<USDT, ColorGeometry4f>(usd_colors[0]);
+    ColorGeometry4f value = detail::convert_value<USDT, ColorGeometry4f>(usd_colors[0]);
+    colorspace_attr_to_scene_linear(primvar.GetAttr(), value);
     set_single_value(attributes,
                      attr_name,
                      color_domain,

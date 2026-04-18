@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include "usd_colorspace_utils.hh"
+
 #include "BLI_color.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_quaternion_types.hh"
@@ -237,6 +239,7 @@ void copy_primvar_to_blender_buffer(const pxr::UsdGeomPrimvar &primvar,
 
   constexpr bool is_same = std::is_same_v<USDT, BlenderT>;
   constexpr bool is_compatible = detail::is_layout_compatible<USDT, BlenderT>::value;
+  constexpr bool is_color = std::is_same_v<BlenderT, ColorGeometry4f>;
 
   const pxr::TfToken pv_interp = primvar.GetInterpolation();
   const pxr::TfToken pv_name = pxr::UsdGeomPrimvar::StripPrimvarsName(primvar.GetPrimvarName());
@@ -244,7 +247,10 @@ void copy_primvar_to_blender_buffer(const pxr::UsdGeomPrimvar &primvar,
 
   /* Map constant interpolation to single-value attributes. */
   if (pv_interp == pxr::UsdGeomTokens->constant) {
-    const BlenderT value = detail::convert_value<USDT, BlenderT>(usd_data[0]);
+    BlenderT value = detail::convert_value<USDT, BlenderT>(usd_data[0]);
+    if constexpr (is_color) {
+      colorspace_attr_to_scene_linear(primvar.GetAttr(), value);
+    }
     set_single_value(attributes, attr_name, domain, data_type, bke::AttributeInitValue(value));
     return;
   }
@@ -289,6 +295,10 @@ void copy_primvar_to_blender_buffer(const pxr::UsdGeomPrimvar &primvar,
         }
       }
     }
+  }
+
+  if constexpr (is_color) {
+    colorspace_attr_to_scene_linear(primvar.GetAttr(), attribute);
   }
 
   attribute_writer.finish();
