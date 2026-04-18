@@ -148,6 +148,9 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
   bool has_transparent_shadows = false;
   float inflate_bounds = 0.0f;
   bool use_scene_time = false;
+
+  bool time_changed = inst_.uniform_data.data.scene.time_changed;
+
   for (const Material *material : materials) {
     has_volume |= material->has_volume;
     if (material->has_volume && !material->has_surface) {
@@ -170,7 +173,8 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
 
   inst_.cryptomatte.sync_object(ob_handle);
 
-  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows, use_scene_time);
+  inst_.shadows.sync_object(
+      ob_handle, is_alpha_blend, has_transparent_shadows, use_scene_time && time_changed);
 
   if (has_volume) {
     inst_.volume.object_sync(ob_handle);

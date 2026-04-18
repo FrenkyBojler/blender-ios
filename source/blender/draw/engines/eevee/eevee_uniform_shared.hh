@@ -47,8 +47,8 @@ struct [[host_shared]] ShadowSceneData {
 struct [[host_shared]] SceneData {
  float time;
  float frame;
- uint _pad0;
- uint _pad1;
+ float frame_last_synced;
+ bool32_t time_changed;
 };
 
 /* Light Clamping. */
