@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup funcnodes
+ */
+
 #include <cmath>
 
 #include "BLI_listbase.h"

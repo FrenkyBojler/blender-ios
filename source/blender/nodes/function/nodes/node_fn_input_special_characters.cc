@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup funcnodes
+ */
+
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_input_special_characters_cc {

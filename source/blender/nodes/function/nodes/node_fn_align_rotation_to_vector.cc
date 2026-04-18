@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup funcnodes
+ */
+
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_rotation.hh"
 #include "BLI_math_vector.h"

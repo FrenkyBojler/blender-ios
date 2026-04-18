@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup funcnodes
+ */
+
 #include "BLI_math_euler.hh"
 
 #include "NOD_geometry_nodes_gizmos.hh"

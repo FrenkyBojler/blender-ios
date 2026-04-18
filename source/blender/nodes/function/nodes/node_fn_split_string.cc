@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup funcnodes
+ */
+
 #include "BLI_string_utf8.h"
 
 #include "../geometry/node_geometry_util.hh"
