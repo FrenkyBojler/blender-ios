@@ -5,11 +5,14 @@
 /** \defgroup render Rendering
  *  \ingroup blender
  */
+
 /** \defgroup bmesh BMesh
  *  \ingroup blender
  */
+
 /** \defgroup compositor Compositing
- *  \ingroup blender */
+ *  \ingroup blender
+ */
 
 /** \defgroup python Python
  *  \ingroup blender
@@ -67,6 +70,10 @@
  *  \ingroup nodes
  */
 
+ /** \defgroup funcnodes Nodes (Function)
+ *  \ingroup nodes
+ */
+
 /** \defgroup geonodes Nodes (Geometry)
  *  \ingroup nodes
  */
@@ -78,6 +85,7 @@
 /** \defgroup texnodes Nodes (Texture)
  *  \ingroup nodes
  */
+
 /** \defgroup modifiers Object Modifiers
  *  \ingroup blender
  */
@@ -100,6 +108,7 @@
 /** \defgroup DNA Struct DNA (File Format)
  *  \ingroup blender data
  */
+
 /** \defgroup RNA RNA (Data API)
  *  \ingroup blender data
  */
