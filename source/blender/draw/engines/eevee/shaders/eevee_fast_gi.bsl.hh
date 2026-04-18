@@ -254,6 +254,7 @@ ResultT eval(sampler2D hiz_tx,
 /* NOTE: Full loop unroll hint increases performance on Apple Silicon. */
 #  pragma clang loop unroll(full)
 #endif
+      float prev_time = 0.0f;
       for (int j = 0; j < sample_count; j++) {
         /* Always cross at least one pixel. */
         float time = 1.0f + square((float(j) + noise.y) / float(sample_count)) * ssray.max_time;
@@ -263,8 +264,10 @@ ResultT eval(sampler2D hiz_tx,
            * max depth. The HiZ would need to contain the min depth instead to avoid this. */
           time += 1.0f;
         }
+        float stride = time - prev_time;
+        prev_time = time;
 
-        float lod = (float(j) - noise.w) * uniform_buf.ao.lod_factor;
+        float lod = (log2(stride) - noise.w) * uniform_buf.ao.lod_factor;
 
         float2 sample_uv = ssray.origin.xy + ssray.direction.xy * time;
         float sample_depth =
