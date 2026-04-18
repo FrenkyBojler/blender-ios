@@ -5,7 +5,6 @@
 
 # This script is part of the official build environment, see wiki page for details.
 # https://developer.blender.org/docs/handbook/release_process/build/rocky_8/
-*
 set -e
 
 if [ `id -u` -ne 0 ]; then
