@@ -67,6 +67,10 @@
  *  \ingroup nodes
  */
 
+/** \defgroup geonodes Nodes (Geometry)
+ *  \ingroup nodes
+ */
+
 /** \defgroup shdnodes Nodes (Shader)
  *  \ingroup nodes
  */
