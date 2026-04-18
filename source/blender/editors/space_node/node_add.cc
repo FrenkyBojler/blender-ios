@@ -1341,87 +1341,44 @@ static wmOperatorStatus node_add_group_input_node_exec(bContext *C, wmOperator *
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
+  bNodeTreeInterface &interface = ntree->tree_interface;
 
-  bool single_socket = false;
-  char socket_identifier[int(sizeof(bNodeSocket::idname))];
-  bool single_panel = false;
-  int panel_identifier = 0;
-  if (RNA_struct_property_is_set(op->ptr, "socket_identifier")) {
-    single_socket = true;
-    RNA_string_get(op->ptr, "socket_identifier", socket_identifier);
-  }
-  if (RNA_struct_property_is_set(op->ptr, "panel_identifier")) {
-    single_panel = true;
-    panel_identifier = RNA_int_get(op->ptr, "panel_identifier");
-  }
-  if (single_socket && single_panel) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot set both socket and panel identifier");
-    return OPERATOR_CANCELLED;
-  }
-
-  bNodeTreeInterfacePanel *interface_panel = nullptr;
-
-  if (single_socket) {
-    /* Ensure the requested socket exists in the node interface. */
-    bNodeTreeInterfaceSocket *interface_socket = nullptr;
-    for (bNodeTreeInterfaceSocket *tsocket : ntree->interface_inputs()) {
-      if (STREQ(socket_identifier, tsocket->identifier)) {
-        interface_socket = tsocket;
-        break;
-      }
-    }
-    if (!interface_socket) {
-      BKE_report(
-          op->reports,
-          RPT_ERROR,
-          fmt::format("Invalid socket_identifier: Socket \"%s\" not found", socket_identifier)
-              .c_str());
-      return OPERATOR_CANCELLED;
-    }
-  }
-  if (single_panel) {
-    /* Ensure the requested panel exists in the node interface. */
-    for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
-      bNodeTreeInterfacePanel *tpanel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(
-          item);
-      if (tpanel && tpanel->identifier == panel_identifier) {
-        interface_panel = tpanel;
-        break;
-      }
-    }
-
-    if (!interface_panel) {
-      BKE_report(op->reports, RPT_ERROR, "Invalid panel identifier");
-      return OPERATOR_CANCELLED;
-    }
-  }
+  const bool only_selected = RNA_boolean_get(op->ptr, "only_selected_sockets");
+  const bool all_panel_contents = RNA_boolean_get(op->ptr, "all_panel_contents");
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
   bNode *group_input_node = add_node(*C, "NodeGroupInput"_ustr, snode->runtime->cursor);
 
-  if (single_socket) {
-    /* Hide all other sockets in the new node, to only display the selected one. */
-    for (bNodeSocket &socket : group_input_node->outputs) {
-      if (!STREQ(socket.identifier, socket_identifier)) {
-        socket.flag |= SOCK_HIDDEN;
+  if (only_selected) {
+    /* Hide unselected sockets, only visit unselected panels. */
+    const std::function<void(bNodeTreeInterfaceItem*)> hide_unselected = [&](bNodeTreeInterfaceItem *item) {
+      switch (eNodeTreeInterfaceItemType(item->item_type)) {
+        case NODE_INTERFACE_SOCKET: {
+          auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
+          if (socket->flag & NODE_INTERFACE_SOCKET_INPUT && !(socket->flag & NODE_INTERFACE_SOCKET_SELECT)) {
+            auto *node_socket = group_input_node->output_by_identifier(UString(socket->identifier));
+            node_socket->flag |= SOCK_HIDDEN;
+          }
+          break;
+        }
+        case NODE_INTERFACE_PANEL: {
+          auto *interface_panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
+          bool ignore_contents = !all_panel_contents && interface_panel->header_toggle_socket();
+          if (!(interface_panel->flag & NODE_INTERFACE_PANEL_SELECT) || ignore_contents) {
+            for (auto *sub_item : interface_panel->items()) {
+              hide_unselected(sub_item);
+            }
+          }
+          break;
+        }
       }
-    }
-  }
-  if (single_panel) {
-    /* Initially hide all sockets. */
-    for (bNodeSocket &socket : group_input_node->outputs) {
-      socket.flag |= SOCK_HIDDEN;
-    }
-    /* Show only sockets contained in the dragged panel. */
-    for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_inputs()) {
-      if (interface_panel->contains_recursive(iface_socket->item)) {
-        bNodeSocket *socket = bke::node_find_socket(
-            *group_input_node, SOCK_OUT, iface_socket->identifier);
-        BLI_assert(socket);
-        socket->flag &= ~SOCK_HIDDEN;
-      }
-    }
+    };
+
+    hide_unselected(reinterpret_cast<bNodeTreeInterfaceItem *>(&interface.root_panel));
+
+    /* Hide __extend__ socket */
+    group_input_node->output_by_identifier("__extend__"_ustr)->flag |= SOCK_HIDDEN;
   }
 
   return OPERATOR_FINISHED;
@@ -1455,34 +1412,33 @@ static bool node_add_group_input_node_poll(bContext *C)
 
   const SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
+  bNodeTreeInterface &interface = ntree->tree_interface;
 
-  bNodeTreeInterface interface = ntree->tree_interface;
-  bNodeTreeInterfaceItem *active_item = interface.active_item();
-
-  if (auto *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(active_item)) {
-    if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-      CTX_wm_operator_poll_msg_set(C, "Cannot drag an output socket");
-      return false;
-    }
-    return true;
-  }
-
-  if (auto *panel = bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(active_item)) {
-    bool has_inputs = false;
-    for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
-      if (panel->contains_recursive(socket->item)) {
-        has_inputs = true;
-        break;
+  const std::function<bool(bNodeTreeInterfaceItem*, bool)> contains_any_selected_input = [&](bNodeTreeInterfaceItem *item, bool parent_selected) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
+        return socket->flag & NODE_INTERFACE_SOCKET_INPUT && (parent_selected || socket->flag & NODE_INTERFACE_SOCKET_SELECT);
+      }
+      case NODE_INTERFACE_PANEL: {
+        auto *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
+        for (auto *sub_item : panel->items()) {
+          /* There's no need to handle the header toggle differently during poll. */
+          if (contains_any_selected_input(sub_item, parent_selected || panel->flag & NODE_INTERFACE_PANEL_SELECT)) {
+            return true;
+          }
+        }
       }
     }
+    return false;
+  };
 
-    if (!has_inputs) {
-      CTX_wm_operator_poll_msg_set(C, "Cannot drag panel with no inputs");
-      return false;
-    }
-    return true;
+  if (!contains_any_selected_input(reinterpret_cast<bNodeTreeInterfaceItem*>(&interface.root_panel), false)) {
+    CTX_wm_operator_poll_msg_set(C, "No selected input sockets or panels");
+    return false;
   }
-  return false;
+
+  return true;
 }
 
 void NODE_OT_add_group_input_node(wmOperatorType *ot)
@@ -1497,23 +1453,18 @@ void NODE_OT_add_group_input_node(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  PropertyRNA *prop = RNA_def_string(ot->srna,
-                                     "socket_identifier",
-                                     nullptr,
-                                     int(sizeof(bNodeSocket::idname)),
-                                     "Socket Identifier",
-                                     "Socket to include in the added group input/output node");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
-  prop = RNA_def_int(ot->srna,
-                     "panel_identifier",
-                     0,
-                     INT_MIN,
-                     INT_MAX,
-                     "Panel Identifier",
-                     "Panel from which to add sockets to the added group input/output node",
-                     INT_MIN,
-                     INT_MAX);
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+  PropertyRNA *prop = RNA_def_boolean(ot->srna,
+                                     "only_selected_sockets",
+                                     true,
+                                     "Only Selected Sockets",
+                                     "Include only selected sockets/panels in the added group input node");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "all_panel_contents",
+                         false,
+                         "All Panel Contents",
+                         "Include sockets in all selected panels, even if they have a panel toggle");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
