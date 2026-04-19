@@ -701,9 +701,16 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
     /* Units supported by BKE_unit_value_scale().
      * Assumption: BKE_unit_value_scale() is linear and zero maps to zero for these
      * unit types, so the scaled value can be used as a scaler factor. */
-    case PROP_UNIT_LENGTH:
-    case PROP_UNIT_MASS: {
+    case PROP_UNIT_LENGTH: {
       unit_scaler = user_unit_linear_get(b_unit, scene->unit.length_unit).first;
+      const double scene_scale = BKE_unit_value_scale(scene->unit, b_unit, 1.0);
+      if (scene_scale != 0.0) {
+        unit_scaler /= scene_scale;
+      }
+      break;
+    }
+    case PROP_UNIT_MASS: {
+      unit_scaler = user_unit_linear_get(b_unit, scene->unit.mass_unit).first;
       const double scene_scale = BKE_unit_value_scale(scene->unit, b_unit, 1.0);
       if (scene_scale != 0.0) {
         unit_scaler /= scene_scale;
@@ -715,8 +722,8 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
       unit_scaler = user_unit_linear_get(b_unit, scene->unit.time_unit).first;
       break;
     case PROP_UNIT_TEMPERATURE: {
-      const std::pair<double, double> coeffs = user_unit_linear_get(
-          b_unit, scene->unit.temperature_unit);
+      const std::pair<double, double> coeffs = user_unit_linear_get(b_unit,
+                                                                    scene->unit.temperature_unit);
       unit_scaler = coeffs.first;
       if (r_offset) {
         *r_offset = -float(coeffs.second);
