@@ -465,7 +465,6 @@ static bool treesort_custom(const tTreeSort &x1, const tTreeSort &x2)
     return false;
   }
 
-  /* Get parent and collection from first element's parent. */
   TreeElement *parent = x1.te->parent;
   if (!parent) {
     return false;
@@ -476,7 +475,6 @@ static bool treesort_custom(const tTreeSort &x1, const tTreeSort &x2)
     return false;
   }
 
-  /* Look up sort indices in the collection. */
   Object *ob1 = reinterpret_cast<Object *>(x1.id);
   Object *ob2 = reinterpret_cast<Object *>(x2.id);
 
