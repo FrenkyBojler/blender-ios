@@ -442,6 +442,7 @@ struct tTreeSort {
   ID *id;
   const char *name;
   short idcode;
+  int index;
 };
 
 /* If both items are objects in the same parent collection, sort by
@@ -451,46 +452,49 @@ static int treesort_custom(const void *v1, const void *v2)
   const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
   const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
 
+  /* Only sort objects that are in a collection. */
   if (x1->idcode != ID_OB || x2->idcode != ID_OB) {
-    return 0; /*Preserrves original order for non objects.*/
+    return 0;
   }
 
+  if (!x1->id || !x2->id) {
+    return 0;
+  }
+
+  /* Get parent and collection from first element's parent. */
   TreeElement *parent = x1->te->parent;
   if (!parent) {
-    return 0; /*Preserves original order if there's no parent.*/
+    return 0;
   }
 
   Collection *col = outliner_collection_from_tree_element(parent);
   if (!col) {
-    return 0; /*Preserves original order if not in colleciton.*/
+    return 0;
   }
 
-  Object *ob1 = (Object *)TREESTORE(x1->te)->id;
-  Object *ob2 = (Object *)TREESTORE(x2->te)->id;
+  /* Look up sort indices in the collection. */
+  Object *ob1 = reinterpret_cast<Object *>(x1->id);
+  Object *ob2 = reinterpret_cast<Object *>(x2->id);
 
   CollectionObject *cob1 = BKE_collection_object_find_in(col, ob1);
   CollectionObject *cob2 = BKE_collection_object_find_in(col, ob2);
 
-  const int a = cob1 ? cob1->sort_index : INT_MAX;
-  const int b = cob2 ? cob2->sort_index : INT_MAX;
+  const int sort1 = cob1 ? cob1->sort_index : INT_MAX;
+  const int sort2 = cob2 ? cob2->sort_index : INT_MAX;
 
-  if (a < b)
+  if (sort1 < sort2) {
     return -1;
-  if (a > b)
+  }
+  if (sort1 > sort2) {
     return 1;
-  return 0;
-}
+  }
 
-/* Move children that are not in the collection to the end of the list. */
-static int treesort_child_not_in_collection(const void *v1, const void *v2)
-{
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
-  /* Among objects first come the ones in the collection, followed by the ones not on it.
-   * This way we can have the dashed lines in a separate style connecting the former. */
-  if ((x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) != (x2->te->flag & TE_CHILD_NOT_IN_COLLECTION)) {
-    return (x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) ? 1 : -1;
+  /* Tiebreaker: use insertion order to maintain stable sort. */
+  if (x1->index < x2->index) {
+    return -1;
+  }
+  if (x1->index > x2->index) {
+    return 1;
   }
   return 0;
 }
@@ -613,7 +617,8 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
 
   const TreeElement *first_te = static_cast<TreeElement *>(lb->first);
   const TreeStoreElem *first_tselem = TREESTORE(first_te);
-  const bool inside_armature_data = ELEM(first_tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL);
+  const bool inside_armature_data = ELEM(
+      first_tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL);
   const bool has_armature_data_bone_collections = ELEM(last_tselem->type,
                                                        TSE_BONE_COLLECTION_BASE);
 
@@ -633,7 +638,8 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         tp->name = te.name;
         tp->idcode = te.idcode;
 
-        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
+        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL))
+        {
           tp->idcode = 0; /* Don't sort this. */
         }
         if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
@@ -691,11 +697,14 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
       tTreeSort *tear = tear_vec.data();
       tTreeSort *tp = tear;
 
+      int index = 0;
       for (TreeElement &te : *lb) {
         TreeStoreElem *tselem = TREESTORE(&te);
         tp->te = &te;
         tp->name = te.name;
         tp->idcode = te.idcode;
+        tp->id = tselem->id;
+        tp->index = index;
 
         if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
           tp->idcode = 0; /* Don't sort this. */
@@ -704,6 +713,7 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
           tp->idcode = 1; /* Do sort this. */
         }
         tp++;
+        index++;
       }
 
       if (tear->idcode == 1) {
@@ -760,7 +770,8 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
         tp->idcode = te.idcode;
         tp->id = tselem->id;
 
-        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
+        if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL))
+        {
           tp->idcode = 0; /* Don't sort this. */
         }
         if (ELEM(tselem->type, TSE_ID_BASE, TSE_DEFGROUP, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {

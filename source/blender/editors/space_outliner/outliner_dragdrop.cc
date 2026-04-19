@@ -242,7 +242,6 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
                                                          TreeElementInsertType *r_insert_type)
 {
   TreeElement *te = outliner_drop_insert_find(C, xy, r_insert_type);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (!te) {
     return nullptr;
   }
@@ -261,9 +260,8 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
 
   Collection *collection = outliner_collection_from_tree_element(collection_te);
 
-  /* In non-custom modes or for the Master collection, only allow dropping INTO.
-   * Otherwise let outliner_drop_insert_find() decide BEFORE/AFTER vs INTO. */
-  if (space_outliner->sort_method != SO_SORT_CUSTOM || (collection->flag & COLLECTION_IS_MASTER)) {
+  /* Master collection doesn't support relative sibling placement in this context. */
+  if (collection->flag & COLLECTION_IS_MASTER) {
     *r_insert_type = TE_INSERT_INTO;
   }
 
@@ -1163,9 +1161,19 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   /* Get collection to drop into. */
   TreeElementInsertType insert_type;
   TreeElement *te_hovered = outliner_drop_insert_collection_find(C, xy, &insert_type);
+  if (!te_hovered) {
+    return false;
+  }
+
   TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
                                                                            te_hovered);
-  Collection *to_collection = outliner_collection_from_tree_element(collection_te);
+  Collection *to_collection = collection_te ?
+                                  outliner_collection_from_tree_element(collection_te) :
+                                  nullptr;
+
+  if (!to_collection) {
+    return false;
+  }
 
   if (!ID_IS_EDITABLE(to_collection) || ID_IS_OVERRIDE_LIBRARY(to_collection)) {
     if (insert_type == TE_INSERT_INTO) {
@@ -1188,7 +1196,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
-  if (outliner_is_collection_dragged_into_itself(te, id)) {
+  if (outliner_is_collection_dragged_into_itself(te_hovered, id)) {
     return false;
   }
 
@@ -1401,8 +1409,10 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   blender::Vector<CollectionObject *> dragged_cobs;
   bool is_custom_sort_move = false;
 
+  /* Only use custom sort for objects, not for collections. Collections aren't in the
+   * collection's gobject list and don't have sort_index values. */
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  if (space_outliner->sort_method == SO_SORT_CUSTOM) {
+  if (space_outliner->sort_method == SO_SORT_CUSTOM && !dragging_collection) {
     is_custom_sort_move = true;
     for (CollectionObject &cob : data.to->gobject) {
       cobs.append(&cob);
