@@ -161,7 +161,7 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
 
   int output_index = 0;
   
-  const std::string capture_prefix = std::string(".capture[") + BKE_id_name(node_group->id) + "]";
+  const std::string capture_prefix = std::string(".a_capture[") + BKE_id_name(node_group->id) + "]";
   node_group->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
     if (eNodeTreeInterfaceItemType(item.item_type) != NODE_INTERFACE_SOCKET) {
       return true;
@@ -180,7 +180,7 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
       return true;
     }
     
-    const std::string capture_name = capture_prefix + "." + socket.identifier;
+    const std::string capture_name = capture_prefix + "[" + socket.identifier + "]";
 
     const auto func_name = [&]() -> StringRefNull {
       if (type->idname == "NodeSocketFloat") {

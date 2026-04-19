@@ -384,10 +384,10 @@ static void modify_geometry_set(ModifierData *md,
     tree->ensure_interface_cache();
     Array<std::string> names(tree->interface_outputs().size(), "AAA");
 
-    const std::string capture_prefix = std::string(".capture[") + BKE_id_name(tree->id) + "]";
+    const std::string capture_prefix = std::string(".a_capture[") + BKE_id_name(tree->id) + "]";
     const Span<const bNodeTreeInterfaceSocket *> outputs = tree->interface_outputs();
     for (const int index : outputs.index_range()) {
-      names[index] = capture_prefix + "." + outputs[index]->identifier;
+      names[index] = capture_prefix + "[" + outputs[index]->identifier + "]";
     }
 
     const bke::ImplicitCatureModifierComputeContext base_compute_context(&data_block_compute_context, md->persistent_uid);
