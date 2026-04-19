@@ -141,7 +141,7 @@ void DEG_add_collection_geometry_customdata_mask(DepsNodeHandle *node_handle,
                                                  Collection *collection,
                                                  const CustomData_MeshMasks *masks);
 void DEG_add_node_tree_output_relation(DepsNodeHandle *node_handle,
-                                       bNodeTree *node_tree,
+                                       const bNodeTree *node_tree,
                                        const char *description);
 void DEG_add_bone_relation(DepsNodeHandle *handle,
                            Object *object,

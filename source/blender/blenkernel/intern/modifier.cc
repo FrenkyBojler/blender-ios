@@ -112,6 +112,7 @@ void BKE_modifier_init()
   BKE_modifier_free(md);
 
   md = BKE_modifier_new(eModifierType_CaptureShaderAttribute);
+  StringRef("Implicit Capture Modifier").copy_utf8_truncated(md->name);
   virtualModifierCommonData.implicit_cature_modifier_data = *(reinterpret_cast<AttributeCaptureModifierData *>(md));
   BKE_modifier_free(md);
 
@@ -120,6 +121,11 @@ void BKE_modifier_init()
   virtualModifierCommonData.lmd.modifier.mode |= eModifierMode_Virtual;
   virtualModifierCommonData.smd.modifier.mode |= eModifierMode_Virtual;
   virtualModifierCommonData.implicit_cature_modifier_data.modifier.mode |= eModifierMode_Virtual;
+}
+
+const VirtualModifierData &virtual_modifiers()
+{
+  return virtualModifierCommonData;
 }
 
 const ModifierTypeInfo *BKE_modifier_get_info(ModifierType type)

@@ -158,9 +158,7 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
   if (node_group == nullptr) {
     return 0;
   }
-  
-  printf("\n");
-  
+
   int output_index = 0;
   
   const std::string capture_prefix = std::string(".capture[") + BKE_id_name(node_group->id) + "]";

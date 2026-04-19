@@ -107,6 +107,10 @@
 #include "intern/depsgraph_relation.hh"
 #include "intern/depsgraph_type.hh"
 
+namespace blender {
+const VirtualModifierData &virtual_modifiers();
+}
+
 namespace blender::deg {
 
 /* ***************** */
@@ -270,6 +274,7 @@ OperationNode *DepsgraphRelationBuilder::get_node(const OperationKey &key) const
 {
   OperationNode *op_node = find_node(key);
   if (op_node == nullptr) {
+    BLI_assert(false);
     fprintf(stderr,
             "find_node_operation: Failed for (%s, '%s')\n",
             operationCodeAsString(key.opcode),
@@ -930,10 +935,6 @@ void DepsgraphRelationBuilder::build_object_layer_component_relations(Object *ob
 
 void DepsgraphRelationBuilder::build_object_modifiers(Object *object)
 {
-  if (BLI_listbase_is_empty(&object->modifiers)) {
-    return;
-  }
-
   const OperationKey eval_init_key(
       &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_INIT);
   const OperationKey eval_key(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
@@ -977,6 +978,35 @@ void DepsgraphRelationBuilder::build_object_modifiers(Object *object)
 
     previous_key = modifier_key;
   }
+  /* Virtual modifiers are eval data :( . */
+  {
+    const VirtualModifierData &virtual_modifiers = ::blender::virtual_modifiers();
+
+    const OperationKey modifier_key(&object->id, NodeType::GEOMETRY, OperationCode::MODIFIER, virtual_modifiers.implicit_cature_modifier_data.modifier.name);
+
+    /* Relation for the modifier stack chain. */
+    add_relation(previous_key, modifier_key, "Modifier");
+
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(virtual_modifiers.implicit_cature_modifier_data.modifier.type));
+    if (mti->update_depsgraph) {
+      const BuilderStack::ScopedEntry stack_entry = stack_.trace(virtual_modifiers.implicit_cature_modifier_data.modifier);
+
+      DepsNodeHandle handle = create_node_handle(modifier_key);
+      ctx.node = reinterpret_cast<blender::DepsNodeHandle *>(&handle);
+      mti->update_depsgraph(const_cast<ModifierData *>(&virtual_modifiers.implicit_cature_modifier_data.modifier), &ctx);
+    }
+
+    /* Time dependency. */
+    if (BKE_modifier_depends_ontime(scene_, const_cast<ModifierData *>(&virtual_modifiers.implicit_cature_modifier_data.modifier))) {
+      const TimeSourceKey time_src_key;
+      add_relation(time_src_key, modifier_key, "Time Source -> Modifier");
+    }
+
+    previous_key = modifier_key;
+  }
+  
+  
+  
   add_relation(previous_key, eval_key, "modifier stack order");
 
   /* Build IDs referenced by the modifiers. */

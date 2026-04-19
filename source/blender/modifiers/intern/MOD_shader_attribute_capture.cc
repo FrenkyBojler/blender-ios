@@ -15,6 +15,7 @@
 #include "BLI_generic_pointer.hh"
 
 #include "BKE_lib_id.hh"
+#include "BKE_object.hh"
 #include "BKE_attribute.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_fields.hh"
@@ -289,67 +290,65 @@ static void capture_named(const bNodeTree &tree,
   }
 }
 
-static void modify_geometry_set(ModifierData *md,
-                                const ModifierEvalContext *ctx,
-                                bke::GeometrySet *geometry_set)
+static Set<const bNodeTree *> material_geometry_trees(const Span<const Material *> materials)
 {
-  BLI_assert(geometry_set != nullptr);
-  
   Set<const bNodeTree *> materials_trees;
-  if (const Mesh *mesh = geometry_set->get_mesh()) {
-    Stack<const bNodeTree *> stack;
-    for (const Material *material : Span{mesh->mat, mesh->totcol}) {
-      if (material == nullptr) {
-        continue;
-      }
-      
-      materials_trees.add(material->nodetree);
-      
-      stack.push(material->nodetree);
-      while (!stack.is_empty()) {
-        const bNodeTree *tree = stack.pop();
-        tree->ensure_topology_cache();
-        for (const bNode *group_node : tree->group_nodes()) {
-          const bNodeTree *other_tree = id_cast<const bNodeTree *>(group_node->id);
-          if (other_tree == nullptr) {
+  Stack<const bNodeTree *> stack;
+  for (const Material *material : materials) {
+    if (material == nullptr) {
+      continue;
+    }
+    
+    const Material *original_material = id_cast<const Material *>(DEG_get_original_id(&material->id));
+
+    materials_trees.add(original_material->nodetree);
+
+    stack.push(original_material->nodetree);
+    while (!stack.is_empty()) {
+      const bNodeTree *tree = stack.pop();
+      tree->ensure_topology_cache();
+      for (const bNode *group_node : tree->group_nodes()) {
+        const bNodeTree *other_tree = id_cast<const bNodeTree *>(group_node->id);
+        if (other_tree == nullptr) {
+          continue;
+        }
+
+        if (ID_IS_LINKED(other_tree)) {
+          if (ID_MISSING(other_tree)) {
             continue;
           }
-
-          if (ID_IS_LINKED(other_tree)) {
-            if (ID_MISSING(other_tree)) {
+          /* Currently the missing flag is only set on original data. */
+          if (const ID *orig_group = DEG_get_original_id(&other_tree->id)) {
+            if (ID_MISSING(orig_group)) {
               continue;
             }
-            /* Currently the missing flag is only set on original data. */
-            if (const ID *orig_group = DEG_get_original_id(&other_tree->id)) {
-              if (ID_MISSING(orig_group)) {
-                continue;
-              }
-            }
           }
-          
-          if (!materials_trees.add(other_tree)) {
-            continue;
-          }
-          
-          stack.push(other_tree);
         }
+        
+        if (!materials_trees.add(other_tree)) {
+          continue;
+        }
+        
+        stack.push(other_tree);
       }
     }
   }
 
+
   Set<const bNodeTree *> geometry_nodes;
   for (const bNodeTree *material_tree : materials_trees) {
-    material_tree->ensure_topology_cache();
     for (const bNode *node : material_tree->nodes_by_type("ShaderNodeGeometryAttribute"_ustr)) {
+
       const bNodeTree *geometry_tree = id_cast<const bNodeTree *>(node->id);
       if (geometry_tree == nullptr) {
         continue;
       }
-      
+
       if (ID_IS_LINKED(geometry_tree)) {
         if (ID_MISSING(geometry_tree)) {
           continue;
         }
+
         /* Currently the missing flag is only set on original data. */
         if (const ID *orig_group = DEG_get_original_id(&geometry_tree->id)) {
           if (ID_MISSING(orig_group)) {
@@ -357,9 +356,23 @@ static void modify_geometry_set(ModifierData *md,
           }
         }
       }
-      
+
       geometry_nodes.add(geometry_tree);
     }
+  }
+
+  return geometry_nodes;
+}
+
+static void modify_geometry_set(ModifierData *md,
+                                const ModifierEvalContext *ctx,
+                                bke::GeometrySet *geometry_set)
+{
+  BLI_assert(geometry_set != nullptr);
+
+  Set<const bNodeTree *> geometry_nodes;
+  if (const Mesh *mesh = geometry_set->get_mesh()) {
+    geometry_nodes = material_geometry_trees(Span{mesh->mat, mesh->totcol});
   }
 
   if (geometry_nodes.is_empty()) {
@@ -381,6 +394,24 @@ static void modify_geometry_set(ModifierData *md,
     capture_named(*tree, base_compute_context, names, *geometry_set);
   }
 }
+
+static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
+{
+  Set<const bNodeTree *> geometry_nodes;
+  if (ctx->object != nullptr) {
+    const Mesh *mesh = BKE_object_get_original_mesh(ctx->object);
+    if (mesh != nullptr) {
+      geometry_nodes = material_geometry_trees(Span{mesh->mat, mesh->totcol});
+    }
+  }
+
+  for (const bNodeTree *tree : geometry_nodes) {
+    DEG_add_node_tree_output_relation(ctx->node, tree, "Implicit Attribute Capture");
+  }
+
+  // TODO: Also gather all materials of all objects in all modifiers props and in modifier node tree props.
+}
+
 
 }
 
@@ -410,7 +441,7 @@ ModifierTypeInfo modifierType_CaptureShaderAttribute = {
     /*required_data_mask*/ nullptr,
     /*free_data*/ nullptr,
     /*is_disabled*/ nullptr,
-    /*update_depsgraph*/ nullptr,
+    /*update_depsgraph*/ mod_shader_attribute_capture::update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,

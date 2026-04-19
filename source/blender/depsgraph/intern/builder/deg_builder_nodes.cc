@@ -113,6 +113,10 @@
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
 
+namespace blender {
+const VirtualModifierData &virtual_modifiers();
+}
+
 namespace blender::deg {
 
 /* ************ */
@@ -924,10 +928,6 @@ void DepsgraphNodeBuilder::build_object_instance_collection(Object *object, bool
 
 void DepsgraphNodeBuilder::build_object_modifiers(Object *object)
 {
-  if (BLI_listbase_is_empty(&object->modifiers)) {
-    return;
-  }
-
   const ModifierMode modifier_mode = (graph_->mode == DAG_EVAL_VIEWPORT) ? eModifierMode_Realtime :
                                                                            eModifierMode_Render;
 
@@ -968,6 +968,23 @@ void DepsgraphNodeBuilder::build_object_modifiers(Object *object)
     }
 
     if (is_modifier_visibility_animated(object, &modifier)) {
+      graph_->has_animated_visibility = true;
+    }
+  }
+
+  {
+    const VirtualModifierData &virtual_modifiers = ::blender::virtual_modifiers();
+
+    OperationNode *modifier_node = add_operation_node(
+        &object->id, NodeType::GEOMETRY, OperationCode::MODIFIER, nullptr, virtual_modifiers.implicit_cature_modifier_data.modifier.name);
+
+    /* Mute modifier mode if the modifier is not enabled for the dependency graph mode.
+     * This handles static (non-animated) mode of the modifier. */
+    if ((virtual_modifiers.implicit_cature_modifier_data.modifier.mode & modifier_mode) == 0) {
+      modifier_node->flag |= DEPSOP_FLAG_MUTE;
+    }
+
+    if (is_modifier_visibility_animated(object, &virtual_modifiers.implicit_cature_modifier_data.modifier)) {
       graph_->has_animated_visibility = true;
     }
   }

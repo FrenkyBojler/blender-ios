@@ -160,7 +160,7 @@ void DEG_add_collection_geometry_customdata_mask(DepsNodeHandle *node_handle,
 }
 
 void DEG_add_node_tree_output_relation(DepsNodeHandle *node_handle,
-                                       bNodeTree *node_tree,
+                                       const bNodeTree *node_tree,
                                        const char *description)
 {
   deg::OperationKey ntree_output_key(
