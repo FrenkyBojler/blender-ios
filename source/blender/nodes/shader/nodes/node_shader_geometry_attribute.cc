@@ -6,16 +6,19 @@
 
 #include "node_util.hh"
 
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
+#include "BLI_cache_mutex.hh"
 
 #include "BKE_node_tree_interface.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
+#include "BKE_compute_context_cache.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -23,6 +26,7 @@
 #include "NOD_geometry_nodes_srna.hh"
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_geometry_nodes_execute.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "ED_node.hh"
 #include "ED_object.hh"
@@ -32,6 +36,7 @@
 #include "wm_event_system.hh"
 
 #include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -39,7 +44,9 @@ namespace blender {
 
 namespace nodes::node_shader_geometry_attribute_cc {
 
-static void interface_socket_declaration(const bNodeTreeInterfaceSocket &io_socket, DeclarationListBuilder &b)
+static void interface_socket_declaration(const bNodeTreeInterfaceSocket &io_socket,
+                                         const SocketUsageInferenceFn &usafe_fn,
+                                         DeclarationListBuilder &b)
 {
   bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(io_socket.socket_type);
   eNodeSocketDatatype datatype = SOCK_CUSTOM;
@@ -94,9 +101,12 @@ static void interface_socket_declaration(const bNodeTreeInterfaceSocket &io_sock
   decl->description(io_socket.description ? io_socket.description : "");
   decl->panel_toggle(io_socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
   decl->optional_label(io_socket.flag & NODE_INTERFACE_SOCKET_OPTIONAL_LABEL);
+  decl->usage_inference(usafe_fn);
 }
 
-static void declare_panel_recursive(DeclarationListBuilder &b, const bNodeTreeInterfacePanel &io_parent_panel)
+static void declare_panel_recursive(DeclarationListBuilder &b,
+                                    const SocketUsageInferenceFn &usafe_fn,
+                                    const bNodeTreeInterfacePanel &io_parent_panel)
 {
   for (const bNodeTreeInterfaceItem *item : io_parent_panel.items()) {
     switch (eNodeTreeInterfaceItemType(item->item_type)) {
@@ -105,7 +115,7 @@ static void declare_panel_recursive(DeclarationListBuilder &b, const bNodeTreeIn
         if (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
           continue;
         }
-        interface_socket_declaration(io_socket, b);
+        interface_socket_declaration(io_socket, usafe_fn, b);
         break;
       }
       case NODE_INTERFACE_PANEL: {
@@ -113,7 +123,7 @@ static void declare_panel_recursive(DeclarationListBuilder &b, const bNodeTreeIn
         auto &panel_b = b.add_panel(UString(io_panel.name), io_panel.identifier)
                             .description(StringRef(io_panel.description))
                             .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
-        declare_panel_recursive(panel_b, io_panel);
+        declare_panel_recursive(panel_b, usafe_fn, io_panel);
         break;
       }
     }
@@ -124,6 +134,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
+    return;
+  }
+  
+  const bNodeTree *tree = b.tree_or_null();
+  if (tree == nullptr) {
     return;
   }
 
@@ -154,7 +169,30 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_default_layout();
 
-  declare_panel_recursive(b, group->tree_interface.root_panel);
+  auto output_is_enabled = [tree, node, group](const int socket_i) -> bool {
+    PointerRNA node_ptr = RNA_pointer_create_discrete(const_cast<ID *>(&tree->id), RNA_ShaderNodeGeometryAttribute, const_cast<bNode *>(node));
+    PointerRNA properties_ptr = RNA_pointer_get(&node_ptr, "properties");
+
+    ResourceScope scope;
+    Vector<InferenceValue> input_values = nodes::get_geometry_nodes_input_inference_values(*group, properties_ptr, scope);
+    const auto get_input_value = [&](const int group_input_i) {
+      return input_values[group_input_i];
+    };
+
+    bke::ComputeContextCache compute_context_cache;
+    SocketValueInferencer value_inferencer(*group, scope, compute_context_cache, get_input_value);
+    socket_usage_inference::SocketUsageInferencer usage_inferencer(*group, scope, value_inferencer, compute_context_cache);
+
+    return !usage_inferencer.is_disabled_group_output(socket_i);
+  };
+
+  declare_panel_recursive(b,
+                          [group, output_is_enabled](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
+                            params.tree.ensure_topology_cache();
+                            const int socket_i = params.socket.index();
+                            return output_is_enabled(socket_i);;
+                          },
+                          group->tree_interface.root_panel);
 }
 
 struct SocketSearchData {
@@ -185,9 +223,6 @@ struct DrawGroupInputsContext {
     // return this->input_usages[this->tree->interface_input_index(socket)].is_used;
   }
 };
-
-
-
 
 static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                          ui::Layout &layout,
@@ -544,13 +579,6 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     row.label("", ICON_BLANK1);
   }
 }
-
-
-
-
-
-
-
 
 void draw_geometry_nodes_modifier_ui(const bContext &C,
                                      PointerRNA *node_ptr,

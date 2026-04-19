@@ -61,6 +61,7 @@
 #include "IMB_imbuf.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLF_api.hh"
 
@@ -144,6 +145,8 @@ struct TreeDrawContext {
    * currently drawn node tree can be retrieved from the log below.
    */
   geo_log::ContextualGeoTreeLogs tree_logs;
+  
+  const Map<std::pair<const bNodeTree *, uint32_t>, std::shared_ptr<nodes::geo_eval_log::GeoNodesLog>> *shader_eval_logs;
 
   NestedTreePreviews *nested_group_infos = nullptr;
 
@@ -4722,7 +4725,7 @@ static void draw_nodetree(const bContext &C,
   tree_draw_ctx.extra_info_rows_per_node.reinitialize(nodes.size());
   tree_draw_ctx.menu_switch_source_by_index_switch =
       find_menu_switch_sources_for_index_switch_nodes(*snode, ntree, compute_context_cache);
-
+  // printf("%s;\n", AT);
   BLI_SCOPED_DEFER([&]() { ntree.runtime->sockets_on_active_gizmo_paths.clear(); });
   if (ntree.type == NTREE_GEOMETRY) {
     tree_draw_ctx.tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
@@ -4745,6 +4748,17 @@ static void draw_nodetree(const bContext &C,
         &scene->runtime->compositor.per_node_execution_time;
   }
   else if (ntree.type == NTREE_SHADER) {
+    const Object *object = CTX_data_active_object(&C);
+    // printf("%s;\n", AT);
+    if (object != nullptr) {
+      // printf("%s;\n", AT);
+      const Object *evaluated_object = id_cast<const Object *>(DEG_get_evaluated_id(tree_draw_ctx.depsgraph, &object->id));
+      if (evaluated_object != nullptr) {
+        // printf("%s;\n", AT);
+        tree_draw_ctx.shader_eval_logs = shader_geometry_log(*evaluated_object); 
+      }
+    }
+    
     if (USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) &&
         BKE_scene_uses_shader_previews(CTX_data_scene(&C)) &&
         snode->overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&

@@ -45,6 +45,8 @@ class ComputeContextCache {
       foreach_geometry_element_zone_contexts_cache_;
   Map<std::pair<const ComputeContext *, int32_t>, const EvaluateClosureComputeContext *>
       evaluate_closure_contexts_cache_;
+  Map<std::pair<const ComputeContext *, int32_t>, const NodeComputeContext *>
+      shader_geo_attribute_contexts_cache_;
 
  public:
   const DataBlockComputeContext &for_data_block(const ComputeContext *parent,
@@ -64,6 +66,10 @@ class ComputeContextCache {
   const GroupNodeComputeContext &for_group_node(const ComputeContext *parent,
                                                 int32_t node_id,
                                                 const bNodeTree *tree = nullptr);
+                                                
+  const NodeComputeContext &for_shader_attribute(const ComputeContext *parent,
+                                                 int32_t node_id,
+                                                 const bNodeTree *tree = nullptr);
 
   const SimulationZoneComputeContext &for_simulation_zone(const ComputeContext *parent,
                                                           int output_node_id);

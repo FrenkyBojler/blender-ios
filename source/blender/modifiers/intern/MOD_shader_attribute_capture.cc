@@ -24,6 +24,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_compute_contexts.hh"
+#include "BKE_idprop.hh"
 #include "BKE_node_runtime.hh"
 
 #include "FN_field.hh"
@@ -45,11 +46,13 @@
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_srna.hh"
 #include "NOD_geometry.hh"
+#include "NOD_dependencies.hh"
 #include "NOD_menu_value.hh"
 
 #include "GEO_foreach_geometry.hh"
 
 #include "MOD_modifiertypes.hh"
+#include "MOD_nodes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -462,6 +465,7 @@ static void capture_named(const bNodeTree &tree,
                           const ModifierEvalContext *ctx,
                           const ComputeContext &base_compute_context,
                           const Span<std::string> output_names,
+                          nodes::geo_eval_log::GeoNodesLog &logger,
                           bke::GeometrySet &r_geometry)
 {
   BLI_assert(output_names.size() == tree.interface_outputs().size());
@@ -491,6 +495,8 @@ static void capture_named(const bNodeTree &tree,
 
   nodes::GeoNodesCallData call_data;
 
+  call_data.eval_log = &logger;
+
   nodes::GeoNodesModifierData modifier_eval_data{};
   modifier_eval_data.depsgraph = ctx->depsgraph;
   modifier_eval_data.self_object = ctx->object;
@@ -509,7 +515,13 @@ static void capture_named(const bNodeTree &tree,
     const bNodeTreeInterfaceSocket &interface_socket = *tree.interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
     const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-    BLI_assert(socket_type != SOCK_GEOMETRY);
+
+    if (socket_type == SOCK_GEOMETRY && i == 0) {
+      bke::SocketValueVariant &value = scope.construct<bke::SocketValueVariant>();
+      value.set(r_geometry);
+      param_inputs[function.inputs.main[0]] = &value;
+      continue;
+    }
 
     PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, interface_socket.identifier);
     bke::SocketValueVariant value = init_socket_cpp_value(
@@ -549,10 +561,14 @@ static void capture_named(const bNodeTree &tree,
                             param_input_usages,
                             param_output_usages,
                             param_set_outputs};
-  lazy_function.execute(lf_params, lf_context);
-  lazy_function.destruct_storage(lf_context.storage);
+  {
+    nodes::ScopedComputeContextTimer timer{lf_context};
+    lazy_function.execute(lf_params, lf_context);
+    
+    lazy_function.destruct_storage(lf_context.storage);
 
-  store_output_attributes(r_geometry, tree, output_names, param_outputs);
+    store_output_attributes(r_geometry, tree, output_names, param_outputs);
+  }
 
   for (const int i : IndexRange(num_outputs)) {
     if (param_set_outputs[i]) {
@@ -580,6 +596,10 @@ static MultiValueMap<const bNodeTree *, const bNodeTree *> material_geometry_tre
       const bNodeTree *tree = stack.pop();
       tree->ensure_topology_cache();
       for (const bNode *group_node : tree->group_nodes()) {
+        if (group_node->is_muted()) {
+          continue;
+        }
+        
         const bNodeTree *other_tree = id_cast<const bNodeTree *>(group_node->id);
         if (other_tree == nullptr) {
           continue;
@@ -610,6 +630,10 @@ static MultiValueMap<const bNodeTree *, const bNodeTree *> material_geometry_tre
   MultiValueMap<const bNodeTree *, const bNodeTree *> geometry_nodes;
   for (const bNodeTree *material_tree : materials_trees) {
     for (const bNode *node : material_tree->nodes_by_type("ShaderNodeGeometryAttribute"_ustr)) {
+
+      if (node->is_muted()) {
+        continue;
+      }
 
       const bNodeTree *geometry_tree = id_cast<const bNodeTree *>(node->id);
       if (geometry_tree == nullptr) {
@@ -642,6 +666,8 @@ static void modify_geometry_set(ModifierData *md,
 {
   BLI_assert(geometry_set != nullptr);
 
+  AttributeCaptureModifierData &modifier_data = *reinterpret_cast<AttributeCaptureModifierData *>(md);
+
   MultiValueMap<const bNodeTree *, const bNodeTree *> geometry_nodes;
   if (const Mesh *mesh = geometry_set->get_mesh()) {
     geometry_nodes = material_geometry_trees(Span{mesh->mat, mesh->totcol});
@@ -650,11 +676,32 @@ static void modify_geometry_set(ModifierData *md,
   if (geometry_nodes.is_empty()) {
     return;
   }
+        
+  if (modifier_data.runtime == nullptr) {
+    modifier_data.runtime = new ShaderGeometryNodeModifierRuntime();
+  } else {
+    modifier_data.runtime->eval_logs.clear();
+  }
 
   bke::DataBlockComputeContext data_block_compute_context{nullptr, ctx->object->id};
   for (const auto [material_tree, geometry_trees] : geometry_nodes.items()) {
     for (const bNodeTree *geometry_tree : geometry_trees) {
       geometry_tree->ensure_interface_cache();
+
+      const bNode *output_node = geometry_tree->group_output_node();
+      const std::string error_prefix = BKE_id_name(geometry_tree->id);
+      if (output_node == nullptr) {
+        BKE_modifier_set_error(ctx->object, md, (error_prefix + "Node group must have a group output node").c_str());
+        continue;
+      }
+
+      const nodes::GeometryNodesLazyFunctionGraphInfo *lf_graph_info =
+          nodes::ensure_geometry_nodes_lazy_function_graph(*geometry_tree).get();
+      if (lf_graph_info == nullptr) {
+        BKE_modifier_set_error(ctx->object, md, (error_prefix + "Cannot evaluate node group").c_str());
+        continue;
+      }
+
       Array<std::string> names(geometry_tree->interface_outputs().size());
 
       const std::string capture_prefix = std::string("._a_capture[") + BKE_id_name(geometry_tree->id) + "]";
@@ -676,8 +723,66 @@ static void modify_geometry_set(ModifierData *md,
       PointerRNA node_ptr = RNA_pointer_create_discrete(const_cast<ID *>(&material_tree->id), RNA_ShaderNodeGeometryAttribute, const_cast<bNode *>(node));
       PointerRNA properties_ptr = RNA_pointer_get(&node_ptr, "properties");
 
+      auto eval_log = std::make_unique<nodes::geo_eval_log::GeoNodesLog>();
+
       const bke::ImplicitCatureModifierComputeContext base_compute_context(&data_block_compute_context, md->persistent_uid);
-      capture_named(*geometry_tree, properties_ptr, ctx, base_compute_context, names, *geometry_set);
+      capture_named(*geometry_tree, properties_ptr, ctx, base_compute_context, names, *eval_log.get(), *geometry_set);
+      
+      modifier_data.runtime->eval_logs.add(std::make_pair(material_tree, node->identifier), std::move(eval_log));
+    }
+  }
+}
+
+static void find_dependencies_from_settings(const bNode &node,
+                                            nodes::EvalDependencies &deps)
+{
+  IDP_foreach_property(node.prop, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+    if (ID *id = IDP_ID_get(property)) {
+      deps.add_generic_id_full(id);
+    }
+  });
+}
+
+static const CustomData_MeshMasks dependency_data_mask{CD_MASK_PROP_ALL | CD_MASK_MDEFORMVERT,
+                                                       CD_MASK_PROP_ALL,
+                                                       CD_MASK_PROP_ALL,
+                                                       CD_MASK_PROP_ALL,
+                                                       CD_MASK_PROP_ALL};
+
+static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
+                                    Collection &collection)
+{
+  DEG_add_collection_geometry_relation(ctx->node, &collection, "Nodes Modifier");
+  DEG_add_collection_geometry_customdata_mask(ctx->node, &collection, &dependency_data_mask);
+}
+
+static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
+                                Object &object,
+                                const nodes::EvalDependencies::ObjectDependencyInfo &info)
+{
+  if (info.transform) {
+    DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
+  }
+  if (&object == ctx->object) {
+    return;
+  }
+  if (info.geometry) {
+    if (object.type == OB_EMPTY && object.instance_collection != nullptr) {
+      add_collection_relation(ctx, *object.instance_collection);
+    }
+    else if (DEG_object_has_geometry_component(&object)) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_GEOMETRY, "Nodes Modifier");
+      DEG_add_customdata_mask(ctx->node, &object, &dependency_data_mask);
+    }
+  }
+  if (object.type == OB_CAMERA) {
+    if (info.camera_parameters) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+    }
+  }
+  if (object.type == OB_ARMATURE) {
+    if (info.pose) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
     }
   }
 }
@@ -693,17 +798,76 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   }
 
   Set<const bNodeTree *> linked_geometry_nodes;
-  for (const Span<const bNodeTree *> trees : geometry_nodes.values()) {
+  for (const auto [material_tree, trees] : geometry_nodes.items()) {
     for (const bNodeTree *tree : trees) {
       if (linked_geometry_nodes.add(tree)) {        
         DEG_add_node_tree_output_relation(ctx->node, tree, "Implicit Attribute Capture");
+
+        nodes::EvalDependencies eval_deps = nodes::gather_eval_dependencies_recursive(*tree);
+
+        const auto node = [&]() -> const bNode * {
+          for (const bNode *node : material_tree->nodes_by_type("ShaderNodeGeometryAttribute"_ustr)) {
+            if (node->id == &tree->id) {
+              return node;
+            }
+          }
+          BLI_assert(false);
+          return nullptr;
+        }();
+
+        /* Create dependencies to data-blocks referenced by the settings in the modifier. */
+        find_dependencies_from_settings(*node, eval_deps);
+
+        for (ID *id : eval_deps.ids.values()) {
+          switch (ID_Type(GS(id->name))) {
+            case ID_OB: {
+              Object *object = reinterpret_cast<Object *>(id);
+              add_object_relation(
+                  ctx, *object, eval_deps.objects_info.lookup_default(object->id.session_uid, {}));
+              break;
+            }
+            case ID_GR: {
+              Collection *collection = reinterpret_cast<Collection *>(id);
+              add_collection_relation(ctx, *collection);
+              break;
+            }
+            case ID_IM:
+            case ID_TE: {
+              DEG_add_generic_id_relation(ctx->node, id, "Nodes Modifier");
+              break;
+            }
+            case ID_VF: {
+              DEG_add_vfont_relation(ctx->node, reinterpret_cast<VFont *>(id), "Nodes Modifier");
+              break;
+            }
+            case ID_MA: {
+              /* Purposefully don't add relations for materials. While there are material sockets,
+               * the pointers are only passed around as handles rather than dereferenced. */
+              break;
+            }
+            default: {
+              /* Other types don't need depsgraph dependencies currently. */
+              break;
+            }
+          }
+        }
+
+        if (eval_deps.needs_own_transform) {
+          DEG_add_depends_on_transform_relation(ctx->node, "Nodes Modifier");
+        }
+        if (eval_deps.needs_active_camera) {
+          DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
+        }
+        /* Active camera is a scene parameter that can change, so we need a relation for that, too. */
+        if (eval_deps.needs_active_camera || eval_deps.needs_scene_render_params) {
+          DEG_add_scene_relation(ctx->node, ctx->scene, DEG_SCENE_COMP_PARAMETERS, "Nodes Modifier");
+        }
       }
     }
   }
 
   // TODO: Also gather all materials of all objects in all modifiers props and in modifier node tree props.
 }
-
 
 }
 

@@ -374,6 +374,16 @@ const RepeatZoneComputeContext &ComputeContextCache::for_repeat_zone(const Compu
       });
 }
 
+const NodeComputeContext &ComputeContextCache::for_shader_attribute(const ComputeContext *parent,
+                                                                    int32_t node_id,
+                                                                    const bNodeTree *tree)
+{
+  return *shader_geo_attribute_contexts_cache_.lookup_or_add_cb(
+      std::pair{parent, node_id}, [&]() {
+        return &this->for_any_uncached<NodeComputeContext>(parent, node_id, tree);
+      });
+}
+
 const ForeachGeometryElementZoneComputeContext &ComputeContextCache::
     for_foreach_geometry_element_zone(const ComputeContext *parent,
                                       int32_t output_node_id,

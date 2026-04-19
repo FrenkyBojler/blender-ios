@@ -24,6 +24,7 @@
 namespace blender {
 
 struct NodesModifierRuntime;
+struct ShaderGeometryNodeModifierRuntime;
 namespace bke {
 struct BVHTreeFromMesh;
 }
@@ -2598,6 +2599,8 @@ struct NodesModifierData {
 
 struct AttributeCaptureModifierData {
   ModifierData modifier;
+
+  ShaderGeometryNodeModifierRuntime *runtime = nullptr;
 };
 
 /** #MeshToVolumeModifierData.resolution_mode */

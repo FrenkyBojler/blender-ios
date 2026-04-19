@@ -935,6 +935,13 @@ void DepsgraphRelationBuilder::build_object_layer_component_relations(Object *ob
 
 void DepsgraphRelationBuilder::build_object_modifiers(Object *object)
 {
+  // TODO: bke::object_type_support_modifiers()
+  if (BLI_listbase_is_empty(&object->modifiers)) {
+    if (!ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_MBALL, OB_LATTICE, OB_CURVES, OB_POINTCLOUD, OB_VOLUME)) {
+      return;      
+    }
+  }
+  
   const OperationKey eval_init_key(
       &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_INIT);
   const OperationKey eval_key(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
@@ -2673,11 +2680,11 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
   }
   /* Make sure uber update is the last in the dependencies.
    * Only do it here unless there are modifiers. This avoids transitive relations. */
-  if (BLI_listbase_is_empty(&object->modifiers)) {
-    OperationKey obdata_ubereval_key(
-        &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
-    add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
-  }
+  // if (BLI_listbase_is_empty(&object->modifiers)) {
+  //   OperationKey obdata_ubereval_key(
+  //       &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
+  //   add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
+  // }
   if (object->type == OB_MBALL) {
     Object *mom = BKE_mball_basis_find(*bmain_, scene_, object);
     ComponentKey mom_geom_key(&mom->id, NodeType::GEOMETRY);

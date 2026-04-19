@@ -1067,3 +1067,24 @@ void ContextualGeoTreeLogs::foreach_tree_log(FunctionRef<void(GeoTreeLog &)> cal
 }
 
 }  // namespace blender::nodes::geo_eval_log
+
+namespace blender {
+
+const Map<std::pair<const bNodeTree *, uint32_t>, std::shared_ptr<nodes::geo_eval_log::GeoNodesLog>> *shader_geometry_log(const Object &eval_object)
+{
+  for (ModifierData &modifier : eval_object.modifiers) {
+    if (modifier.type != eModifierType_CaptureShaderAttribute) {
+      continue;
+    }
+    const AttributeCaptureModifierData &modifier_data = *reinterpret_cast<AttributeCaptureModifierData *>(&modifier);
+    if (modifier_data.runtime == nullptr) {
+      continue;
+    }
+    printf("Fount logs!;\n");
+    return &modifier_data.runtime->eval_logs;
+  }
+  
+  return nullptr;
+}
+
+}

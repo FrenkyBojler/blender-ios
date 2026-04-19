@@ -513,4 +513,6 @@ class GeoNodesLog {
 
 }  // namespace nodes::geo_eval_log
 
+const Map<std::pair<const bNodeTree *, uint32_t>, std::shared_ptr<nodes::geo_eval_log::GeoNodesLog>> *shader_geometry_log(const Object &eval_object);
+
 }  // namespace blender
