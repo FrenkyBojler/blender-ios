@@ -549,6 +549,10 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
 
         layout.separator()
 
+        layout.menu("FILEBROWSER_MT_select", text="Select")
+
+        layout.separator()
+        
         layout.operator("file.filenum", text="Increase Number", icon='ADD').increment = 1
         layout.operator("file.filenum", text="Decrease Number", icon='REMOVE').increment = -1
 
