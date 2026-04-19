@@ -442,39 +442,43 @@ struct tTreeSort {
   ID *id;
   const char *name;
   short idcode;
-  int index;
 };
+
+/* alphabetical comparator */
+static bool treesort_alpha(const tTreeSort &x1, const tTreeSort &x2)
+{
+  int comp = BLI_strcasecmp_natural(x1.name, x2.name);
+
+  return comp < 0;
+}
 
 /* If both items are objects in the same parent collection, sort by
  * their CollectionObject.sort_index. Otherwise fall back to natural name order. */
-static int treesort_custom(const void *v1, const void *v2)
+static bool treesort_custom(const tTreeSort &x1, const tTreeSort &x2)
 {
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
   /* Only sort objects that are in a collection. */
-  if (x1->idcode != ID_OB || x2->idcode != ID_OB) {
-    return 0;
+  if (x1.idcode != ID_OB || x2.idcode != ID_OB) {
+    return false;
   }
 
-  if (!x1->id || !x2->id) {
-    return 0;
+  if (!x1.id || !x2.id) {
+    return false;
   }
 
   /* Get parent and collection from first element's parent. */
-  TreeElement *parent = x1->te->parent;
+  TreeElement *parent = x1.te->parent;
   if (!parent) {
-    return 0;
+    return false;
   }
 
   Collection *col = outliner_collection_from_tree_element(parent);
   if (!col) {
-    return 0;
+    return false;
   }
 
   /* Look up sort indices in the collection. */
-  Object *ob1 = reinterpret_cast<Object *>(x1->id);
-  Object *ob2 = reinterpret_cast<Object *>(x2->id);
+  Object *ob1 = reinterpret_cast<Object *>(x1.id);
+  Object *ob2 = reinterpret_cast<Object *>(x2.id);
 
   CollectionObject *cob1 = BKE_collection_object_find_in(col, ob1);
   CollectionObject *cob2 = BKE_collection_object_find_in(col, ob2);
@@ -482,76 +486,43 @@ static int treesort_custom(const void *v1, const void *v2)
   const int sort1 = cob1 ? cob1->sort_index : INT_MAX;
   const int sort2 = cob2 ? cob2->sort_index : INT_MAX;
 
-  if (sort1 < sort2) {
-    return -1;
-  }
-  if (sort1 > sort2) {
-    return 1;
+  if (sort1 == sort2) {
+    return treesort_alpha(x1, x2);
   }
 
-  /* Tiebreaker: use insertion order to maintain stable sort. */
-  if (x1->index < x2->index) {
-    return -1;
-  }
-  if (x1->index > x2->index) {
-    return 1;
-  }
-  return 0;
-}
-
-/* alphabetical comparator */
-static int treesort_alpha(const void *v1, const void *v2)
-{
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
-  int comp = BLI_strcasecmp_natural(x1->name, x2->name);
-
-  if (comp > 0) {
-    return 1;
-  }
-  if (comp < 0) {
-    return -1;
-  }
-  return 0;
+  return sort1 < sort2;
 }
 
 /* Comparator for type sort. Keep non-objects before object. For objects, place members of the
  * collection before "not in collection”, then group by object type, then by natural name. */
-static int treesort_type_ob(const void *v1, const void *v2)
+static bool treesort_type_ob(const tTreeSort &x1, const tTreeSort &x2)
 {
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
   /* Keep non objects before objects. */
-  const bool a_is_ob = (x1->idcode == ID_OB);
-  const bool b_is_ob = (x2->idcode == ID_OB);
+  const bool a_is_ob = (x1.idcode == ID_OB);
+  const bool b_is_ob = (x2.idcode == ID_OB);
   if (a_is_ob != b_is_ob) {
-    return a_is_ob ? 1 : -1;
+    return !a_is_ob;
   }
 
   /* If neither are objects, preserve existing order. */
   if (!a_is_ob) {
-    return 0;
+    return false;
   }
 
-  const bool a_not_in = (x1->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
-  const bool b_not_in = (x2->te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  const bool a_not_in = (x1.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
+  const bool b_not_in = (x2.te->flag & TE_CHILD_NOT_IN_COLLECTION) != 0;
   if (a_not_in != b_not_in) {
-    return a_not_in ? 1 : -1;
+    return !a_not_in;
   }
 
   /* Group by object type. */
-  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
-  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
-  if (ob1->type < ob2->type) {
-    return -1;
-  }
-  if (ob1->type > ob2->type) {
-    return 1;
+  const Object *ob1 = reinterpret_cast<const Object *>(x1.id);
+  const Object *ob2 = reinterpret_cast<const Object *>(x2.id);
+  if (ob1->type != ob2->type) {
+    return ob1->type < ob2->type;
   }
 
-  return BLI_strcasecmp_natural(x1->name, x2->name);
+  return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
 }
 
 /* this is nice option for later? doesn't look too useful... */
@@ -650,7 +621,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
 
       if (tear->idcode == 1) {
         const int skip_back = has_armature_data_bone_collections ? 1 : 0;
-        qsort(tear, totelem - skip_back, sizeof(tTreeSort), treesort_alpha);
+        std::sort(tear, tear + totelem - skip_back, treesort_alpha);
       }
       else {
         int skip_front = 0;
@@ -661,7 +632,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         }
 
         if (skip_front < totelem) {
-          qsort(tear + skip_front, totelem - skip_front, sizeof(tTreeSort), treesort_alpha);
+          std::sort(tear + skip_front, tear + totelem, treesort_alpha);
         }
       }
 
@@ -697,14 +668,12 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
       tTreeSort *tear = tear_vec.data();
       tTreeSort *tp = tear;
 
-      int index = 0;
       for (TreeElement &te : *lb) {
         TreeStoreElem *tselem = TREESTORE(&te);
         tp->te = &te;
         tp->name = te.name;
         tp->idcode = te.idcode;
         tp->id = tselem->id;
-        tp->index = index;
 
         if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEFGROUP)) {
           tp->idcode = 0; /* Don't sort this. */
@@ -713,11 +682,10 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
           tp->idcode = 1; /* Do sort this. */
         }
         tp++;
-        index++;
       }
 
       if (tear->idcode == 1) {
-        qsort(tear, totelem, sizeof(tTreeSort), treesort_custom);
+        std::sort(tear, tear + totelem, treesort_custom);
       }
       else {
         int skip = 0;
@@ -727,7 +695,7 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
           }
         }
         if (skip < totelem) {
-          qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_custom);
+          std::stable_sort(tear + skip, tear + totelem, treesort_custom);
         }
       }
 
@@ -781,7 +749,7 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
       }
 
       if (tear->idcode == 1) {
-        qsort(tear, totelem, sizeof(tTreeSort), treesort_type_ob);
+        std::sort(tear, tear + totelem, treesort_type_ob);
       }
       else {
         int skip = 0;
@@ -791,7 +759,7 @@ static void outliner_sort_type(ListBaseT<TreeElement> *lb)
           }
         }
         if (skip < totelem) {
-          qsort(tear + skip, totelem - skip, sizeof(tTreeSort), treesort_type_ob);
+          std::sort(tear + skip, tear + totelem, treesort_type_ob);
         }
       }
 
