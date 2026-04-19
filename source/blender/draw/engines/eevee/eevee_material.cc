@@ -116,10 +116,10 @@ void MaterialModule::begin_sync()
   if (frame != inst_.uniform_data.data.scene.frame_last_synced) {
     inst_.uniform_data.data.scene.frame_last_synced = frame;
     inst_.uniform_data.data.scene.time_changed = true;
-  }
 
-  inst_.uniform_data.data.scene.time = frame / inst_.scene->frames_per_second();
-  inst_.uniform_data.data.scene.frame = frame;
+    inst_.uniform_data.data.scene.time = frame / inst_.scene->frames_per_second();
+    inst_.uniform_data.data.scene.frame = frame;
+  }
 
   queued_shaders_count = 0;
   queued_textures_count = 0;
