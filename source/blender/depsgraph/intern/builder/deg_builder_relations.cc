@@ -3187,6 +3187,10 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
         add_relation(group_preprocess_key, ntree_geo_preprocess_key, "Group Node Preprocess");
       }
     }
+    else if (bnode->is_type("ShaderNodeGeometryAttribute"_ustr)) {
+      bNodeTree *geometry_attribute_tree = id_cast<bNodeTree *>(id);
+      build_nodetree(geometry_attribute_tree);
+    }
     else {
       /* Ignore this case. It can happen when the node type is not known currently. Either because
        * it belongs to an add-on or because it comes from a different Blender version that does
