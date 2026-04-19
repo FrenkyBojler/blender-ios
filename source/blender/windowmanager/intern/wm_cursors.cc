@@ -211,6 +211,50 @@ static void cursor_bitmap_rgba_flip_y(uint8_t *buffer, const size_t size[2])
   MEM_delete(line);
 }
 
+static bool cursor_shadow(tvg::SwCanvas *canvas, tvg::Picture *picture)
+{
+  bool added = false;
+
+  tvg::Scene *scene = tvg::Scene::gen();
+
+  if (scene) {
+    /* Add picture into scene. Ownership transfers to scene on success. */
+    if (scene->add(picture) == tvg::Result::Success) {
+      const int r = 0, g = 0, b = 0;
+      const int opacity = 70;
+      const double angle_deg = 135.0f;
+      const double distance = 3.0f;
+      const double blur_sigma = 2.0f;
+      const int quality = 50;
+
+      if (scene->add(tvg::SceneEffect::DropShadow,
+                     r,
+                     g,
+                     b,
+                     opacity,
+                     angle_deg,
+                     distance,
+                     blur_sigma,
+                     quality) == tvg::Result::Success)
+      {
+        canvas->add(scene);
+        added = true;
+      }
+      else {
+        /* If adding effect failed, fall back to drawing the picture directly.
+         * Scene still owns picture; release scene to avoid leak and re-add picture. */
+        tvg::Paint::rel(scene);
+      }
+    }
+    else {
+      /* Failed to add picture into scene: release scene and fall back. */
+      tvg::Paint::rel(scene);
+    }
+  }
+
+  return added;
+}
+
 /**
  * \param svg: The contents of an SVG file.
  * \param cursor_size: The maximum dimension in pixels for the resulting cursors width or height.
@@ -242,10 +286,18 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
   float width;
   float height;
   picture->size(&width, &height);
-  const size_t dest_size[2] = {
+  size_t dest_size[2] = {
       std::min(size_t(ceil(width * scale)), size_t(cursor_size)),
       std::min(size_t(ceil(height * scale)), size_t(cursor_size)),
   };
+
+  const bool shadow = true;
+
+  if (shadow) {
+    dest_size[0] += 2;
+    dest_size[1] += 2;
+  }
+
   uint8_t *bitmap_rgba = alloc_fn(sizeof(uint8_t[4]) * dest_size[0] * dest_size[1]);
   if (bitmap_rgba == nullptr) {
     tvg::Paint::rel(picture);
@@ -259,7 +311,9 @@ static uint8_t *cursor_bitmap_from_svg(const char *svg,
       bitmap_rgba_uint32, dest_size[0], dest_size[0], dest_size[1], tvg::ColorSpace::ABGR8888S);
 
   /* Add the SVG image to the canvas. */
-  canvas->add(picture);
+  if (!shadow || !cursor_shadow(canvas, picture)) {
+    canvas->add(picture);
+  }
 
   /* Draw to the bitmap. */
   canvas->draw(true);
