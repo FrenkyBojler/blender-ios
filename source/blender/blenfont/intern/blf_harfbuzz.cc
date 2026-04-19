@@ -385,7 +385,7 @@ int ShapingData::draw_mono(const int tab_columns)
   return columns;
 }
 
-size_t ShapingData::width_to_strlen(const int width, int *r_width)
+size_t ShapingData::width_to_strlen(const int width, int *r_width) const
 {
   size_t len = this->glyphs.last().index_utf8;
   int w = ft_pix_to_int(this->width);
@@ -405,7 +405,7 @@ size_t ShapingData::width_to_strlen(const int width, int *r_width)
   return len;
 }
 
-size_t ShapingData::width_to_rstrlen(const int width, int *r_width)
+size_t ShapingData::width_to_rstrlen(const int width, int *r_width) const
 {
   size_t len = this->glyphs.last().index_utf8;
   int w = ft_pix_to_int(this->width);
@@ -425,7 +425,7 @@ size_t ShapingData::width_to_rstrlen(const int width, int *r_width)
   return len;
 }
 
-void ShapingData::boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info)
+void ShapingData::boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info) const
 {
   r_box->xmin = 0;
   r_box->xmax = ft_pix_to_int(this->width);
@@ -437,7 +437,7 @@ void ShapingData::boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info)
   }
 }
 
-size_t ShapingData::offset_from_cursor_position(int location_x)
+size_t ShapingData::offset_from_cursor_position(int location_x) const
 {
   for (const ShapedGlyph &glyph : this->glyphs) {
     if (ft_pix_from_int(location_x) < ((glyph.bounds.xmin + glyph.bounds.xmax) / 2)) {
@@ -447,7 +447,7 @@ size_t ShapingData::offset_from_cursor_position(int location_x)
   return this->glyphs.is_empty() ? 0 : this->glyphs.last().index_utf8 + 1;
 }
 
-void ShapingData::offset_to_glyph_bounds(size_t str_offset, rcti *r_glyph_bounds)
+void ShapingData::offset_to_glyph_bounds(size_t str_offset, rcti *r_glyph_bounds) const
 {
   for (const ShapedGlyph &glyph : this->glyphs) {
     if (glyph.index_utf8 >= str_offset) {

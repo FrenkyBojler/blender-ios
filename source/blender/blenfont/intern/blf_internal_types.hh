@@ -217,11 +217,11 @@ struct ShapingData {
 
   void draw(const ft_pix pen_y, ResultBLF *r_info = nullptr);
   int draw_mono(const int tab_columns);
-  size_t width_to_strlen(const int width, int *r_width = nullptr);
-  size_t width_to_rstrlen(const int width, int *r_width = nullptr);
-  void boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info = nullptr);
-  size_t offset_from_cursor_position(int location_x);
-  void offset_to_glyph_bounds(size_t str_offset, rcti *r_glyph_bounds);
+  size_t width_to_strlen(const int width, int *r_width = nullptr) const;
+  size_t width_to_rstrlen(const int width, int *r_width = nullptr) const;
+  void boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info = nullptr) const;
+  size_t offset_from_cursor_position(int location_x) const;
+  void offset_to_glyph_bounds(size_t str_offset, rcti *r_glyph_bounds) const;
 };
 
 struct BatchBLF {
