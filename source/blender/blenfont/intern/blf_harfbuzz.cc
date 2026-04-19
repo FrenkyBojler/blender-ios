@@ -356,6 +356,108 @@ ShapingData::ShapingData(FontBLF *font,
   }
 }
 
+void ShapingData::draw(const ft_pix pen_y, ResultBLF *r_info)
+{
+  for (const ShapedGlyph &glyph : this->glyphs) {
+    const int x = ft_pix_to_int_floor(glyph.bounds.xmin);
+    const int y = ft_pix_to_int_floor(pen_y + glyph.bounds.ymin);
+    blf_glyph_draw(glyph.font, glyph.gc, glyph.g, x, y);
+  }
+
+  if (r_info) {
+    r_info->lines = 1;
+    r_info->width = ft_pix_to_int(this->width);
+  }
+}
+
+int ShapingData::draw_mono(const int tab_columns)
+{
+  int columns = 0;
+  for (const ShapedGlyph &glyph : this->glyphs) {
+    const int x = ft_pix_to_int_floor(glyph.bounds.xmin);
+    const int y = ft_pix_to_int_floor(glyph.bounds.ymin);
+    blf_glyph_draw(glyph.font, glyph.gc, glyph.g, x, y);
+    const int col = UNLIKELY(glyph.g->c == '\t') ? (tab_columns - (columns % tab_columns)) :
+                                                   BLI_wcwidth_safe(char32_t(glyph.g->c));
+    columns += col;
+  }
+
+  return columns;
+}
+
+size_t ShapingData::width_to_strlen(const int width, int *r_width)
+{
+  size_t len = this->glyphs.last().index_utf8;
+  int w = ft_pix_to_int(this->width);
+
+  for (const ShapedGlyph &glyph : this->glyphs) {
+    if (glyph.bounds.xmax > ft_pix_from_int(width)) {
+      len = glyph.index_utf8;
+      w = ft_pix_to_int(glyph.bounds.xmax);
+      break;
+    }
+  }
+
+  if (r_width) {
+    *r_width = w;
+  }
+
+  return len;
+}
+
+size_t ShapingData::width_to_rstrlen(const int width, int *r_width)
+{
+  size_t len = this->glyphs.last().index_utf8;
+  int w = ft_pix_to_int(this->width);
+
+  for (const ShapedGlyph &glyph : this->glyphs) {
+    if (glyph.bounds.xmin > (this->width - ft_pix_from_int(width))) {
+      len = glyph.index_utf8;
+      w = ft_pix_to_int(this->width - glyph.bounds.xmin);
+      break;
+    }
+  }
+
+  if (r_width) {
+    *r_width = w;
+  }
+
+  return len;
+}
+
+void ShapingData::boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info)
+{
+  r_box->xmin = 0;
+  r_box->xmax = ft_pix_to_int(this->width);
+  r_box->ymin = ft_pix_to_int(pen_y);
+  r_box->ymax = ft_pix_to_int(pen_y + this->height);
+  if (r_info) {
+    r_info->lines = 1;
+    r_info->width = r_box->xmax;
+  }
+}
+
+size_t ShapingData::offset_from_cursor_position(int location_x)
+{
+  for (const ShapedGlyph &glyph : this->glyphs) {
+    if (ft_pix_from_int(location_x) < ((glyph.bounds.xmin + glyph.bounds.xmax) / 2)) {
+      return glyph.index_utf8;
+    }
+  }
+  return this->glyphs.is_empty() ? 0 : this->glyphs.last().index_utf8 + 1;
+}
+
+void ShapingData::offset_to_glyph_bounds(size_t str_offset, rcti *r_glyph_bounds)
+{
+  for (const ShapedGlyph &glyph : this->glyphs) {
+    if (glyph.index_utf8 >= str_offset) {
+      *r_glyph_bounds = glyph.integer_bounds();
+      return;
+    }
+  }
+  std::memset(r_glyph_bounds, 0, sizeof(rcti));
+}
+
 #else
 
 /* Fallback when Harfbuzz is not available, legacy layout only. */

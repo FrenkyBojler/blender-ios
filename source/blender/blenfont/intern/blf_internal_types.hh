@@ -214,6 +214,14 @@ struct ShapingData {
               blender::Vector<hb_feature_t> *features = nullptr);
   bool load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
   void legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
+
+  void draw(const ft_pix pen_y, ResultBLF *r_info = nullptr);
+  int draw_mono(const int tab_columns);
+  size_t width_to_strlen(const int width, int *r_width = nullptr);
+  size_t width_to_rstrlen(const int width, int *r_width = nullptr);
+  void boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info = nullptr);
+  size_t offset_from_cursor_position(int location_x);
+  void offset_to_glyph_bounds(size_t str_offset, rcti *r_glyph_bounds);
 };
 
 struct BatchBLF {
@@ -337,10 +345,15 @@ struct FontBufInfoBLF {
   /** Buffer size, keep signed so comparisons with negative values work. */
   int dims[2];
 
+  /** The number of channels in the buffer. Can be either 1 or 4 for grayscale and color buffers
+   * respectively. The red channel of the color is used in case of a grayscale buffer. */
+  int channel_count;
+
   /** Color-space of the byte buffer (float is scene linear). */
   const ColorSpace *colorspace;
 
-  /** The color, the alphas is get from the glyph! (color is sRGB space). */
+  /** The color, the alphas is get from the glyph! (color is sRGB space). The red channel of the
+   * color is used in case of a grayscale buffer. */
   float col_init[4];
   /** Cached conversion from 'col_init'. */
   unsigned char col_char[4];
