@@ -78,7 +78,14 @@ template<typename T> struct BandL0 {
     return L0_M0_coef(direction) * M0;
   }
 
-  static BandL0<T> madd(BandL0<T> a, float b, BandL0<T> c)
+  static BandL0<T> madd_scalar(BandL0<T> a, float b, BandL0<T> c)
+  {
+    BandL0<T> result;
+    result.M0 = a.M0 * b + c.M0;
+    return result;
+  }
+
+  static BandL0<T> madd(BandL0<T> a, T b, BandL0<T> c)
   {
     BandL0<T> result;
     result.M0 = a.M0 * b + c.M0;
@@ -123,7 +130,16 @@ template<typename T> struct BandL1 {
            L1_Mp1_coef(direction) * Mp1;
   }
 
-  static BandL1<T> madd(BandL1<T> a, float b, BandL1<T> c)
+  static BandL1<T> madd_scalar(BandL1<T> a, float b, BandL1<T> c)
+  {
+    BandL1<T> result;
+    result.Mn1 = a.Mn1 * b + c.Mn1;
+    result.M0 = a.M0 * b + c.M0;
+    result.Mp1 = a.Mp1 * b + c.Mp1;
+    return result;
+  }
+
+  static BandL1<T> madd(BandL1<T> a, T b, BandL1<T> c)
   {
     BandL1<T> result;
     result.Mn1 = a.Mn1 * b + c.Mn1;
@@ -369,6 +385,16 @@ SphericalHarmonicL1<float4> triple_product(SphericalHarmonicL1<float4> a,
 
 SphericalHarmonicL1<float4> madd(SphericalHarmonicL1<float4> a,
                                  float b,
+                                 SphericalHarmonicL1<float4> c)
+{
+  SphericalHarmonicL1<float4> result;
+  result.L0 = BandL0<float4>::madd_scalar(a.L0, b, c.L0);
+  result.L1 = BandL1<float4>::madd_scalar(a.L1, b, c.L1);
+  return result;
+}
+
+SphericalHarmonicL1<float4> madd(SphericalHarmonicL1<float4> a,
+                                 float4 b,
                                  SphericalHarmonicL1<float4> c)
 {
   SphericalHarmonicL1<float4> result;

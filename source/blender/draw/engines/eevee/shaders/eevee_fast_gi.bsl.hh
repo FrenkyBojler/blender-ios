@@ -784,6 +784,26 @@ void scan([[work_group_id]] const uint3 group_id,
 /** \name Denoise
  * \{ */
 
+struct SampleHistory {
+  [[sampler(11)]] sampler2D history_sh_0_tx;
+  [[sampler(12)]] sampler2D history_sh_1_tx;
+  [[sampler(13)]] sampler2D history_sh_2_tx;
+  [[sampler(14)]] sampler2D history_sh_3_tx;
+
+  [[sampler(15)]] usampler2DArray history_tile_validity_tx;
+
+  SphericalHarmonicL1<float4> load_sh(int2 texel) const
+  {
+    SphericalHarmonicL1<float4> sh;
+    sh.L0.M0 = texelFetch(history_sh_0_tx, texel, 0);
+    sh.L1.Mn1 = texelFetch(history_sh_1_tx, texel, 0);
+    sh.L1.M0 = texelFetch(history_sh_2_tx, texel, 0);
+    sh.L1.Mp1 = texelFetch(history_sh_3_tx, texel, 0);
+    sh = spherical_harmonics::decompress(sh);
+    return sh;
+  }
+};
+
 struct Denoise {
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
@@ -795,6 +815,7 @@ struct Denoise {
 void denoise([[work_group_id]] const uint3 group_id,
              [[local_invocation_id]] const uint3 local_id,
              [[resource_table]] Denoise &srt,
+             [[resource_table]] SampleHistory &sh_history,
              [[resource_table]] SampleInput &sh_in,
              [[resource_table]] SampleOutput &sh_out,
              [[resource_table]] Tiles &tiles)
@@ -814,15 +835,15 @@ void denoise([[work_group_id]] const uint3 group_id,
   float3 center_N = sh_in.sample_normal_get(texel, is_valid);
 
   if (!is_valid) {
-#if 0 /* This is not needed as the next stage doesn't do bilinear filtering. */
-    imageStore(sh_out.sh_0_img, texel, float4(0.0f));
+    /* Needed for history reprojection. But not for resolve as it uses manual bilaterial filter. */
+    imageStore(sh_out.sh_0_img, texel, float4(-1.0f));
     imageStore(sh_out.sh_1_img, texel, float4(0.0f));
     imageStore(sh_out.sh_2_img, texel, float4(0.0f));
     imageStore(sh_out.sh_3_img, texel, float4(0.0f));
-#endif
     return;
   }
 
+  float4 accum_L0_moment = float4(0.0f);
   SphericalHarmonicL1<float4> accum_sh = {};
   float accum_weight = 0.0f;
   /* 3x3 filter. */
@@ -839,10 +860,55 @@ void denoise([[work_group_id]] const uint3 group_id,
         SphericalHarmonicL1<float4> sample_sh = sh_in.load_sh(sample_texel);
         accum_sh = spherical_harmonics::madd(sample_sh, sample_weight, accum_sh);
         accum_weight += sample_weight;
+        /* Compute local statistic. */
+        accum_L0_moment += sample_sh.L0.M0 * sample_weight;
       }
     }
   }
-  accum_sh = spherical_harmonics::mul(accum_sh, safe_rcp(accum_weight));
+  float inv_weight = safe_rcp(accum_weight);
+
+  /* Local statistics. */
+  float4 L0_mean = accum_sh.L0.M0 * inv_weight;
+  float4 L0_variance = abs(accum_L0_moment - square(L0_mean));
+  float4 L0_deviation = max(float4(1e-4f), sqrt(L0_variance));
+
+  /* Reproject. */
+  float2 history_uv =
+      drw_ndc_to_screen(project_point(uniform_buf.raytrace.history_persmat, center_P)).xy;
+  float2 noise = interleaved_gradient_noise(float2(texel), float2(0), float2(0));
+  int2 history_texel = int2(floor(noise + history_uv / texel_size));
+
+  int2 history_tile = texel / RAYTRACE_GROUP_SIZE;
+  uint mask = texelFetch(sh_history.history_tile_validity_tx, int3(history_tile, 0), 0).x;
+
+  bool valid_history;
+  SphericalHarmonicL1<float4> history_sh;
+  if (mask == 0u || !in_range_exclusive(history_uv, float2(0.0f), float2(1.0f))) {
+    /* We need to avoid sampling if there no weight as the texture values could be undefined. */
+    history_sh = SphericalHarmonicL1<float4>{};
+    valid_history = false;
+  }
+  else {
+    history_sh = sh_history.load_sh(history_texel);
+    valid_history = true;
+    /* Check for invalid pixels. */
+    if (history_sh.L0.M0.w < 0.0f) {
+      history_sh = SphericalHarmonicL1<float4>{};
+      valid_history = false;
+    }
+  }
+
+  float4 clamp_min = L0_mean - L0_deviation;
+  float4 clamp_max = L0_mean + L0_deviation;
+
+  /* Clamp history to variance bounding box. */
+  float4 L0_history_clamped = clamp(history_sh.L0.M0, clamp_min, clamp_max);
+  float4 clamp_fac = abs(L0_history_clamped - L0_mean) * safe_rcp(abs(history_sh.L0.M0 - L0_mean));
+
+  float mix_factor = valid_history ? (0.95f * reduce_min(clamp_fac)) : 0.0f;
+  accum_sh = spherical_harmonics::mul(accum_sh, inv_weight * (1.0f - mix_factor));
+  accum_sh = spherical_harmonics::madd(history_sh, mix_factor, accum_sh);
+
   sh_out.write(texel, accum_sh);
 }
 

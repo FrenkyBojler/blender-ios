@@ -318,6 +318,11 @@ void RayTraceModule::sync()
     pass.bind_texture("fast_gi_radiance_1_tx", &fast_gi_radiance_tx_[1]);
     pass.bind_texture("fast_gi_radiance_2_tx", &fast_gi_radiance_tx_[2]);
     pass.bind_texture("fast_gi_radiance_3_tx", &fast_gi_radiance_tx_[3]);
+    pass.bind_texture("history_sh_0_tx", &fast_gi_radiance_history_tx_[0]);
+    pass.bind_texture("history_sh_1_tx", &fast_gi_radiance_history_tx_[1]);
+    pass.bind_texture("history_sh_2_tx", &fast_gi_radiance_history_tx_[2]);
+    pass.bind_texture("history_sh_3_tx", &fast_gi_radiance_history_tx_[3]);
+    pass.bind_texture("history_tile_validity_tx", &fast_gi_history_tile_tx_);
     pass.bind_texture("screen_normal_tx", &downsampled_in_normal_tx_);
     pass.bind_image("sh_0_img", &fast_gi_radiance_denoised_tx_[0]);
     pass.bind_image("sh_1_img", &fast_gi_radiance_denoised_tx_[1]);
@@ -530,16 +535,35 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
         downsampled_in_normal_tx_ptr_[i] = downsampled_in_normal_tx_.mip_view(i);
       }
 
-      fast_gi_radiance_tx_[0].acquire(
-          tracing_res_fast_gi, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_rw);
-      fast_gi_radiance_denoised_tx_[0].acquire(
-          tracing_res_fast_gi, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_rw);
-      for (int i : IndexRange(1, 3)) {
-        fast_gi_radiance_tx_[i].acquire(
-            tracing_res_fast_gi, gpu::TextureFormat::UNORM_8_8_8_8, usage_rw);
-        fast_gi_radiance_denoised_tx_[i].acquire(
-            tracing_res_fast_gi, gpu::TextureFormat::UNORM_8_8_8_8, usage_rw);
+      bool invalid_history = false;
+
+      rt_buffer.fast_gi_tilemask_history_tx.ensure_2d_array(
+          gpu::TextureFormat::RAYTRACE_TILEMASK_FORMAT,
+          tile_fast_gi_tracing_tx_.size().xy(),
+          tile_fast_gi_tracing_tx_.size().z,
+          usage_rw);
+      fast_gi_history_tile_tx_ = rt_buffer.fast_gi_tilemask_history_tx;
+
+      gpu::TextureFormat L0_fmt = gpu::TextureFormat::SFLOAT_16_16_16_16;
+      gpu::TextureFormat L1_fmt = gpu::TextureFormat::UNORM_8_8_8_8;
+      for (int i : IndexRange(4)) {
+        gpu::TextureFormat format = i == 0 ? L0_fmt : L1_fmt;
+        fast_gi_radiance_tx_[i].acquire(tracing_res_fast_gi, format, usage_rw);
+        fast_gi_radiance_denoised_tx_[i].acquire(tracing_res_fast_gi, format, usage_rw);
+        invalid_history |= rt_buffer.fast_gi_radiance_history_tx[i].acquire(
+            tracing_res_fast_gi, format, usage_rw);
+
+        fast_gi_radiance_history_tx_[i] = rt_buffer.fast_gi_radiance_history_tx[i];
       }
+
+      if (invalid_history) {
+        for (int i : IndexRange(4)) {
+          /* Avoid uninitialized memory that can contain NaNs. */
+          rt_buffer.fast_gi_radiance_history_tx[i].clear(float4(0.0f));
+        }
+        rt_buffer.fast_gi_tilemask_history_tx.clear(uint4(0u));
+      }
+
       for (int i : IndexRange(3)) {
         fast_gi_scan_output_tx_[i] = result.closures[i];
       }
@@ -553,9 +577,16 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
       inst_.manager->submit(fast_gi_denoise_ps_, render_view);
       inst_.manager->submit(fast_gi_resolve_ps_, render_view);
 
+      GPU_texture_copy(rt_buffer.fast_gi_tilemask_history_tx, tile_fast_gi_tracing_tx_);
+
       for (int i : IndexRange(4)) {
         fast_gi_radiance_tx_[i].release();
+        /* Swap history and output buffers, and retain the "new" history buffer until
+         * next cycle so we can reuse it as input. */
+        TextureFromPool::swap(fast_gi_radiance_denoised_tx_[i],
+                              rt_buffer.fast_gi_radiance_history_tx[i]);
         fast_gi_radiance_denoised_tx_[i].release();
+        rt_buffer.fast_gi_radiance_history_tx[i].retain();
       }
 
       GPU_debug_group_end();

@@ -15,9 +15,14 @@
 #include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 
+#include "draw_pass.hh"
+
+#include "eevee_material.hh"
 #include "eevee_raytrace_shared.hh"
 
 namespace blender::eevee {
+
+using namespace draw;
 
 class Instance;
 
@@ -63,6 +68,8 @@ struct RayTraceBuffer {
    * transmission.
    */
   Texture radiance_feedback_tx = {"radiance_feedback_tx"};
+  TextureFromPool fast_gi_radiance_history_tx[4] = {{"fast_gi_radiance_history_tx_"}};
+  Texture fast_gi_tilemask_history_tx = {"fast_gi_tilemask_history_tx"};
   /**
    * Perspective matrix for which the radiance feedback buffer was recorded.
    * Can be different from de-noise buffer's history matrix.
@@ -198,6 +205,8 @@ class RayTraceModule {
   /** Texture containing the fast GI local radiance. */
   TextureFromPool fast_gi_radiance_tx_[4] = {{"fast_gi_radiance_tx_"}};
   TextureFromPool fast_gi_radiance_denoised_tx_[4] = {{"fast_gi_radiance_denoised_tx_"}};
+  gpu::Texture *fast_gi_radiance_history_tx_[4] = {nullptr};
+  gpu::Texture *fast_gi_history_tile_tx_ = nullptr;
   /** Texture containing the input screen radiance but re-projected. */
   Texture downsampled_in_radiance_tx_ = {"downsampled_in_radiance_tx_"};
   /** Texture containing the view space normal. The BSDF normal is arbitrarily chosen. */
