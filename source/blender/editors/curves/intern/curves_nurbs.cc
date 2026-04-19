@@ -43,30 +43,25 @@ void find_span_mult(
     const float knot, const Span<float> knots, const int order, int &r_span, int &r_mult)
 {
   if (knot == knots.last(order - 1)) {
-    r_span = knots.size() - order;
-    r_mult = count_knot_multiplicity_left(knot, knots, r_span) +
-             count_knot_multiplicity_right(knot, knots, r_span + 1);
+    r_mult = count_knot_multiplicity_left(knot, knots, r_span - 1);
+    r_span = knots.size() - order - r_mult;
+    r_mult += count_knot_multiplicity_right(knot, knots, r_span);
     return;
   }
+  r_span = -1;
   int low = order - 1;
   int high = knots.size() - order;
   while (low <= high) {
-    const int mid = low + (high - low + 1) / 2;
-    if (knot < knots[mid]) {
-      high = mid - 1;
-    }
-    else if (knot >= knots[mid + 1]) {
-      low = mid;
+    const int mid = low + (high - low) / 2;
+    if (knots[mid] <= knot) {
+      r_span = mid;
+      low = mid + 1;
     }
     else {
-      r_span = mid;
-      r_mult = count_knot_multiplicity_left(knot, knots, mid);
-      return;
+      high = mid - 1;
     }
   }
-  r_span = -1;
-  r_mult = 0;
-  return;
+  r_mult = count_knot_multiplicity_left(knot, knots, r_span);
 }
 
 WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
