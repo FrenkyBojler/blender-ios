@@ -644,6 +644,8 @@ class NodeTreeMainUpdater {
       if (ntree.type == NTREE_GEOMETRY) {
         ntree.runtime->geometry_nodes_srna_data = nodes::create_geometry_nodes_rna_for_modifier(
             ntree);
+        ntree.runtime->shader_geometry_nodes_srna_data = nodes::create_shader_geometry_nodes_rna_for_modifier(
+            ntree);
       }
       else if (ntree.type == NTREE_COMPOSIT) {
         ntree.runtime->compositor_nodes_srna_data =

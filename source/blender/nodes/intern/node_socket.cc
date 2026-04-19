@@ -29,6 +29,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "DNA_collection_types.h"
@@ -53,6 +54,8 @@
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+
+#include "DEG_depsgraph_build.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
@@ -1069,7 +1072,7 @@ static bke::bNodeSocketType *make_socket_type_virtual()
   return stype;
 }
 
-static void make_common_type_prop(StructRNA &srna,
+static PropertyRNA *make_common_type_prop(StructRNA &srna,
                                   const bNodeTreeInterfaceSocket &socket,
                                   const EnumPropertyItem *items,
                                   const nodes::GeometryNodesInputType default_type,
@@ -1085,8 +1088,9 @@ static void make_common_type_prop(StructRNA &srna,
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  return prop;
 }
-static void make_common_type_prop(StructRNA &srna,
+static PropertyRNA *make_common_type_prop(StructRNA &srna,
                                   const bNodeTreeInterfaceSocket &socket,
                                   const EnumPropertyItem *items,
                                   const nodes::CompositorNodesInputType default_type,
@@ -1100,6 +1104,7 @@ static void make_common_type_prop(StructRNA &srna,
       r_generated.scope.add_value(fmt::format("{} {}", TIP_("Type for"), socket.name)).c_str(),
       "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  return prop;
 }
 static PointerRNA find_compositor_modifier(PointerRNA *ptr)
 {
@@ -1111,9 +1116,18 @@ static PointerRNA find_compositor_modifier(PointerRNA *ptr)
   }
   return PointerRNA_NULL;
 }
-static void set_common_sequencer_update_function(PropertyRNA *prop)
+static PointerRNA find_shader_geometry_node(PointerRNA *ptr)
 {
-  RNA_def_property_update_runtime(prop, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {
+  if (const std::optional<AncestorPointerRNA> ancestor =
+          RNA_struct_search_closest_ancestor_by_type(ptr, RNA_ShaderGeometryNodeProperties))
+  {
+    return PointerRNA(ptr->owner_id, ancestor->type, ancestor->data);
+  }
+  return PointerRNA_NULL;
+}
+static void set_common_update_function(PropertyRNA *prop)
+{
+  static const auto sequencer_update = [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {
     Scene *sequencer_scene = reinterpret_cast<Scene *>(ptr->owner_id);
     Editing *ed = seq::editing_get(sequencer_scene);
     if (!ed) {
@@ -1132,8 +1146,44 @@ static void set_common_sequencer_update_function(PropertyRNA *prop)
       return true;
     });
     seq::relations_invalidate_cache(sequencer_scene, modifier_strip);
+  };
+  
+  static const auto shader_geometry_update = [](Main *bmain, Scene * /*scene*/, PointerRNA *ptr) {
+    
+    PointerRNA node_ptr = find_shader_geometry_node(ptr);
+    if (RNA_pointer_is_null(&node_ptr)) {
+      return;
+    }
+    
+    const bNode *node = node_ptr.data_as<bNode>();
+    if (node == nullptr) {
+      return;
+    }
+    const bNodeTree &own_tree = *id_cast<const bNodeTree *>(node_ptr.owner_id);
+    if (own_tree.type != NTREE_SHADER) {
+      return;
+    }
+
+    if (!node->is_type("ShaderNodeGeometryAttribute"_ustr)) {
+      return;
+    }
+    
+    bNodeTree *geometry_tree = id_cast<bNodeTree *>(node->id);
+    if (geometry_tree == nullptr) {
+      return;
+    }
+
+    // TODO: We must tag all objects depend on that tree via virtual modifier, but node tree itself want changed.
+    BKE_ntree_update_tag_all(geometry_tree);
+    BKE_main_ensure_invariants(*bmain, geometry_tree->id);
+    DEG_relations_tag_update(bmain);
+  };
+  
+  RNA_def_property_update_runtime(prop, [](Main *bmain, Scene *scene, PointerRNA *ptr) {
+    sequencer_update(bmain, scene, ptr);
+    shader_geometry_update(bmain, scene, ptr);
   });
-  RNA_def_property_update_notifier(prop, NC_SCENE | ND_SEQUENCER);
+  RNA_def_property_update_notifier(prop, NC_NODE | NA_EDITED | NC_SCENE | ND_SEQUENCER);
 }
 
 static void make_common_attribute_name_prop(StructRNA &srna,
@@ -1177,11 +1227,11 @@ static void make_common_value_props(StructRNA &srna,
                         r_generated);
 }
 
-static void make_common_fallback_props(StructRNA &srna,
+static PropertyRNA *make_common_fallback_props(StructRNA &srna,
                                        const bNodeTreeInterfaceSocket &socket,
                                        nodes::GeneratedTreeSrnaData &r_generated)
 {
-  make_common_type_prop(srna,
+  return make_common_type_prop(srna,
                         socket,
                         nodes::geometry_nodes_input_type_items_fallback,
                         nodes::GeometryNodesInputType::Fallback,
@@ -1218,6 +1268,7 @@ static bke::bNodeSocketType *make_socket_type_bool()
                           nodes::GeometryNodesInputType::Value,
                           r_generated);
     make_common_attribute_name_prop(srna, socket, r_generated);
+    set_common_update_function(prop);
     prop = RNA_def_string(
         &srna,
         "layer_name",
@@ -1235,7 +1286,7 @@ static bke::bNodeSocketType *make_socket_type_bool()
     const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
     PropertyRNA *prop = RNA_def_boolean(
         &srna, "value", data->value, socket.name, socket.description);
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1282,6 +1333,7 @@ static bke::bNodeSocketType *make_socket_type_rotation()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_and_attribute_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1298,7 +1350,7 @@ static bke::bNodeSocketType *make_socket_type_rotation()
                                                socket.description,
                                                -FLT_MAX,
                                                FLT_MAX);
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1324,7 +1376,8 @@ static bke::bNodeSocketType *make_socket_type_matrix()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    make_common_fallback_props(srna, socket, r_generated);
+    PropertyRNA *prop = make_common_fallback_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1355,7 +1408,8 @@ static bke::bNodeSocketType *make_socket_type_bundle()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    make_common_fallback_props(srna, socket, r_generated);
+    PropertyRNA *prop = make_common_fallback_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1386,7 +1440,8 @@ static bke::bNodeSocketType *make_socket_type_closure()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    make_common_fallback_props(srna, socket, r_generated);
+    PropertyRNA *prop = make_common_fallback_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1435,6 +1490,7 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
     make_common_value_and_attribute_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1452,7 +1508,7 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                          data->min,
                          data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1496,6 +1552,7 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
     make_common_value_and_attribute_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1512,7 +1569,7 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
                                     data->min,
                                     data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1557,6 +1614,7 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
     make_common_value_and_attribute_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1575,7 +1633,7 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
                                 data->min,
                                 data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1611,7 +1669,7 @@ static bke::bNodeSocketType *make_socket_type_int_vector(PropertySubType subtype
                               data->min,
                               data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1654,6 +1712,7 @@ static bke::bNodeSocketType *make_socket_type_rgba()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_and_attribute_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1670,7 +1729,7 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                                             socket.description,
                                             0.0f,
                                             1.0f);
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1711,6 +1770,7 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
     make_common_value_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1725,7 +1785,7 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
                           socket.name,
                           socket.description);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1796,6 +1856,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1811,7 +1872,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                      default_value_found ? data->value : 0,
                                      socket.name,
                                      socket.description);
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1845,6 +1906,7 @@ static bke::bNodeSocketType *make_socket_type_object()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1852,7 +1914,7 @@ static bke::bNodeSocketType *make_socket_type_object()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     PropertyRNA *prop = RNA_def_pointer_runtime(
         &srna, "value", RNA_Object, socket.name, socket.description);
-    set_common_sequencer_update_function(prop);
+    set_common_update_function(prop);
     make_common_type_prop(srna,
                           socket,
                           nodes::compositor_nodes_input_type_items_value,
@@ -1878,7 +1940,8 @@ static bke::bNodeSocketType *make_socket_type_geometry()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    make_common_fallback_props(srna, socket, r_generated);
+    PropertyRNA *prop = make_common_fallback_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1917,6 +1980,7 @@ static bke::bNodeSocketType *make_socket_type_collection()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1954,6 +2018,7 @@ static bke::bNodeSocketType *make_socket_type_texture()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -1992,6 +2057,7 @@ static bke::bNodeSocketType *make_socket_type_image()
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
+    set_common_update_function(prop);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                   StructRNA &srna,
@@ -2029,6 +2095,7 @@ static bke::bNodeSocketType *make_socket_type_material()
         &srna, "value", RNA_Material, socket.name, socket.description);
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    set_common_update_function(prop);
     make_common_value_props(srna, socket, r_generated);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,

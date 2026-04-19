@@ -32,6 +32,7 @@
 #include "RNA_enum_types.hh"
 
 #include "NOD_common.hh"
+#include "NOD_nodes_srna.hh"
 
 #include "rna_internal.hh"
 #include "rna_internal_types.hh"
@@ -825,6 +826,36 @@ const EnumPropertyItem *rna_node_socket_type_itemf(
   *r_free = true;
 
   return item;
+}
+
+static StructRNA *rna_ShGeometryNodeProperties_refine(PointerRNA *ptr)
+{
+  auto *node = ptr->data_as<bNode>();
+  if (!node->id || ID_MISSING(node->id)) {
+    return RNA_ShaderGeometryNodePropertiesEmpty;
+  }
+  return id_cast<bNodeTree *>(node->id)->runtime->shader_geometry_nodes_srna_data->properties_struct;
+}
+
+static PointerRNA rna_ShGeometryNodeProperties_get(PointerRNA *ptr)
+{
+  auto *node = ptr->data_as<bNode>();
+  if (node->id == nullptr) {
+    return PointerRNA_NULL;
+  }
+  return RNA_pointer_create_with_parent(*ptr, RNA_ShaderGeometryNodeProperties, node);
+}
+
+static IDProperty **rna_node_idprops(PointerRNA *ptr)
+{
+  auto *node = ptr->data_as<bNode>();
+  return &node->prop;
+}
+
+static std::optional<std::string> rna_ShGeometryNodeProperties_path(const PointerRNA *ptr)
+{
+  const auto *node = ptr->data_as<bNode>();
+  return fmt::format("nodes[\"{}\"].properties", BLI_str_escape(node->name));
 }
 
 static const char *get_legacy_node_type(const PointerRNA *ptr)
@@ -5231,8 +5262,26 @@ static void def_sh_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 }
 
-static void def_sh_geometry_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+static void rna_def_sh_geometry_node_properties(BlenderRNA *brna)
 {
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "ShaderGeometryNodeProperties", nullptr);
+  RNA_def_struct_ui_text(srna, "Shader Geometry Node Properties", "");
+  RNA_def_struct_refine_func(srna, "rna_ShGeometryNodeProperties_refine");
+  RNA_def_struct_system_idprops_func(srna, "rna_node_idprops");
+  RNA_def_struct_path_func(srna, "rna_ShGeometryNodeProperties_path");
+
+  srna = RNA_def_struct(brna, "ShaderGeometryNodePropertiesEmpty", nullptr);
+  RNA_def_struct_ui_text(srna, "Shader Geometry Node Empty Properties", "");
+  RNA_def_struct_system_idprops_func(srna, "rna_node_idprops");
+  RNA_def_struct_path_func(srna, "rna_ShGeometryNodeProperties_path");
+}
+
+static void def_sh_geometry_attribute(BlenderRNA *brna, StructRNA *srna)
+{
+  rna_def_sh_geometry_node_properties(brna);
+  
   PropertyRNA *prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "id");
   RNA_def_property_struct_type(prop, "NodeTree");
@@ -5241,6 +5290,12 @@ static void def_sh_geometry_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_shader_geometry_attribute_node_tree_update");
+
+  prop = RNA_def_property(srna, "properties", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ShaderGeometryNodeProperties");
+  RNA_def_property_ui_text(prop, "Properties", "");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_ShGeometryNodeProperties_get", nullptr, nullptr, nullptr);
 }
 
 static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)

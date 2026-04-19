@@ -165,6 +165,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
   /** Contains RNA types generated for the compositor strip modifier interface. */
   std::shared_ptr<nodes::GeneratedTreeSrnaData> compositor_nodes_srna_data;
+  /** Contains RNA types generated for the shader geometry node interface. */
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> shader_geometry_nodes_srna_data;
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;

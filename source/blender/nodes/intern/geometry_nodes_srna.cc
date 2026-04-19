@@ -223,4 +223,97 @@ std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
   return generated;
 }
 
+static const bNode *find_node_data_from_system_property(const PointerRNA *ptr)
+{
+  for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+    if (RNA_struct_is_a(ancestor.type, RNA_Node)) {
+      return static_cast<const bNode *>(ancestor.data);
+    }
+  }
+  const auto *tree = id_cast<const bNodeTree *>(ptr->owner_id);
+  for (const bNode *node : tree->all_nodes()) {
+    bool found = false;
+    IDP_foreach_property(node->prop, 0, [&](IDProperty *id_prop) {
+      if (id_prop == ptr->data) {
+        found = true;
+      }
+    });
+    if (found) {
+      return node;
+    }
+  }
+  return nullptr;
+}
+
+static std::optional<std::string> rna_ShNodesGeometryNodePropertyInput_path(const PointerRNA *ptr)
+{
+  StructRNA *srna = ptr->type;
+  const char *identifier = RNA_struct_identifier(srna);
+  const bNode *node = find_node_data_from_system_property(ptr);
+  std::string name_esc = BLI_str_escape(node->name);
+  return fmt::format("nodes[\"{}\"].properties.inputs.{}", name_esc, identifier);
+}
+
+static StructRNA *get_shader_geometry_input_socket_struct_rna(const bNodeTree &tree,
+                                                              const bNodeTreeInterfaceSocket &socket,
+                                                              GeneratedTreeSrnaData &r_generated)
+{
+  const bke::bNodeSocketType *stype = socket.socket_typeinfo();
+  if (!stype) {
+    return nullptr;
+  }
+  // TODO: Does this actually need to copy the string?
+  const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
+      socket.identifier);
+
+  StructRNA *srna = RNA_def_struct_ptr(
+      r_generated.generated_rna, srna_identifier.c_str(), RNA_PropertyGroup);
+  RNA_def_struct_path_func_runtime(srna, rna_ShNodesGeometryNodePropertyInput_path);
+  if (stype->make_geometry_nodes_input_srna) {
+    stype->make_geometry_nodes_input_srna(tree, *srna, socket, r_generated);
+  }
+
+  return srna;
+}
+
+static StructRNA *create_shader_geometry_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
+{
+  StructRNA *srna = RNA_def_struct_ptr(
+      r_generated.generated_rna, "ShaderGeometryNodeInterfaceInputs", RNA_PropertyGroup);
+
+  for (const bNodeTreeInterfaceSocket *socket : tree.interface_inputs()) {
+    StructRNA *socket_srna = get_shader_geometry_input_socket_struct_rna(tree, *socket, r_generated);
+    if (!socket_srna) {
+      continue;
+    }
+
+    const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
+    PropertyRNA *prop = RNA_def_pointer_runtime(
+        srna, identifier.c_str(), socket_srna, socket->name, "");
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  }
+
+  return srna;
+}
+
+std::shared_ptr<GeneratedTreeSrnaData> create_shader_geometry_nodes_rna_for_modifier(
+    const bNodeTree &tree)
+{
+  auto generated = std::make_unique<GeneratedTreeSrnaData>();
+  tree.ensure_interface_cache();
+
+  StructRNA *srna = RNA_def_struct_ptr(
+      generated->generated_rna, "ShaderGeometryNodeInterface", RNA_ShaderGeometryNodeProperties);
+  generated->properties_struct = srna;
+
+  StructRNA *inputs_srna = create_shader_geometry_inputs_srna(tree, *generated);
+
+  PropertyRNA *prop;
+  prop = RNA_def_pointer_runtime(
+      srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+
+  return generated;
+}
+
 }  // namespace blender::nodes

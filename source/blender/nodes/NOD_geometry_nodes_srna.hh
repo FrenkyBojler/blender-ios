@@ -31,5 +31,8 @@ extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute
 std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
     const bNodeTree &tree);
 
+std::shared_ptr<GeneratedTreeSrnaData> create_shader_geometry_nodes_rna_for_modifier(
+    const bNodeTree &tree);
+
 }  // namespace nodes
 }  // namespace blender

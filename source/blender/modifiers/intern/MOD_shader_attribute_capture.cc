@@ -11,6 +11,10 @@
 #include "BLI_stack.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_span.hh"
+#include "BLI_math_quaternion_types.hh"
+#include "BLI_math_quaternion.hh"
+#include "BLI_math_rotation_types.hh"
+#include "BLI_math_rotation.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_generic_pointer.hh"
 
@@ -29,11 +33,19 @@
 #include "DNA_object_types.h"
 #include "DNA_node_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_collection_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_material_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
 
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_execute.hh"
+#include "NOD_geometry_nodes_srna.hh"
 #include "NOD_geometry.hh"
+#include "NOD_menu_value.hh"
 
 #include "GEO_foreach_geometry.hh"
 
@@ -42,6 +54,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_access.hh"
 
 #include "UI_resources.hh"
 
@@ -204,8 +217,249 @@ static void store_output_attributes(bke::GeometrySet &geometry,
   });
 }
 
+template<typename T>
+[[nodiscard]] static std::optional<bke::SocketValueVariant> load_attribute_field_input(
+    PointerRNA &input_props_ptr)
+{
+  const std::string attribute_name = RNA_string_get(&input_props_ptr, "attribute_name");
+  if (!bke::allow_procedural_attribute_access(attribute_name)) {
+    return std::nullopt;
+  }
+  return bke::SocketValueVariant::From(bke::AttributeFieldInput::from<T>(attribute_name));
+}
+
+template<typename T>
+static bke::SocketValueVariant load_data_block_input(const nodes::GeoNodesCallData *call_data,
+                                                     PointerRNA &input_props_ptr)
+{
+  PropertyRNA &prop = *RNA_struct_find_property(&input_props_ptr, "value");
+  if (RNA_property_type(&prop) == PROP_STRING) {
+    if (!call_data) {
+      return bke::SocketValueVariant::From(static_cast<T *>(nullptr));
+    }
+    BLI_assert(call_data->operator_data);
+    const std::string name = RNA_string_get(&input_props_ptr, "value");
+    const ID *id_orig = call_data->operator_data->input_ids->lookup_default(name, nullptr);
+    if (!id_orig) {
+      return bke::SocketValueVariant::From(static_cast<T *>(nullptr));
+    }
+    const ID *id_eval = call_data->operator_data->depsgraphs->get_evaluated_id(*id_orig);
+    return bke::SocketValueVariant::From(id_cast<T *>(const_cast<ID *>(id_eval)));
+  }
+
+  BLI_assert(RNA_property_type(&prop) == PROP_POINTER);
+  T *data_block = id_cast<T *>(RNA_pointer_get(&input_props_ptr, "value").owner_id);
+  return bke::SocketValueVariant::From(data_block);
+}
+
+static bke::SocketValueVariant init_socket_cpp_value(const nodes::GeoNodesCallData *call_data,
+                                                     PointerRNA *input_props_ptr,
+                                                     const bNodeTreeInterfaceSocket &io_socket)
+{
+  const bke::bNodeSocketType *stype = io_socket.socket_typeinfo();
+  const eNodeSocketDatatype socket_type = stype->type;
+  switch (socket_type) {
+    case SOCK_FLOAT: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        const float value = RNA_float_get(input_props_ptr, "value");
+        return bke::SocketValueVariant(value);
+      }
+      if (type == nodes::GeometryNodesInputType::Attribute) {
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<float>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
+        }
+      }
+      break;
+    }
+    case SOCK_VECTOR: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        float3 value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        return bke::SocketValueVariant(value);
+      }
+      if (type == nodes::GeometryNodesInputType::Attribute) {
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<float3>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
+        }
+      }
+      break;
+    }
+    case SOCK_RGBA: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        ColorGeometry4f value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        return bke::SocketValueVariant(value);
+      }
+      if (type == nodes::GeometryNodesInputType::Attribute) {
+        if (std::optional<bke::SocketValueVariant> value =
+                load_attribute_field_input<ColorGeometry4f>(*input_props_ptr))
+        {
+          return std::move(*value);
+        }
+      }
+      break;
+    }
+    case SOCK_BOOLEAN: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        const bool value = RNA_boolean_get(input_props_ptr, "value");
+        return bke::SocketValueVariant(value);
+      }
+      if (type == nodes::GeometryNodesInputType::Attribute) {
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<bool>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
+        }
+      }
+      if (type == nodes::GeometryNodesInputType::Layer) {
+        const std::string layer_name = RNA_string_get(input_props_ptr, "layer_name");
+        return bke::SocketValueVariant::From(
+            fn::GField::from_input<bke::NamedLayerSelectionFieldInput>(layer_name));
+      }
+      break;
+    }
+    case SOCK_INT: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        const int value = RNA_int_get(input_props_ptr, "value");
+        return bke::SocketValueVariant(value);
+      }
+      if (type == nodes::GeometryNodesInputType::Attribute) {
+        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<int>(
+                *input_props_ptr))
+        {
+          return std::move(*value);
+        }
+      }
+      break;
+    }
+    case SOCK_ROTATION: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        float3 value_euler;
+        RNA_float_get_array(input_props_ptr, "value", value_euler);
+        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+        return bke::SocketValueVariant(value_rotation);
+      }
+      if (type == nodes::GeometryNodesInputType::Attribute) {
+        if (std::optional<bke::SocketValueVariant> value =
+                load_attribute_field_input<math::Quaternion>(*input_props_ptr))
+        {
+          return std::move(*value);
+        }
+      }
+      break;
+    }
+    case SOCK_MENU: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        const int value = RNA_enum_get(input_props_ptr, "value");
+        return bke::SocketValueVariant::From(nodes::MenuValue(value));
+      }
+      break;
+    }
+    case SOCK_STRING: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        const std::string value = RNA_string_get(input_props_ptr, "value");
+        return bke::SocketValueVariant(value);
+      }
+      break;
+    }
+    case SOCK_OBJECT: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Object>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_IMAGE: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Image>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_COLLECTION: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Collection>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_TEXTURE: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Tex>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_MATERIAL: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Material>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_FONT: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<VFont>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_SCENE: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Scene>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Text>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_MASK: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<Mask>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_SOUND: {
+      const auto type = nodes::GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == nodes::GeometryNodesInputType::Value) {
+        return load_data_block_input<bSound>(call_data, *input_props_ptr);
+      }
+      break;
+    }
+    case SOCK_GEOMETRY:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+    case SOCK_SHADER:
+    case SOCK_CUSTOM:
+    case SOCK_INT_VECTOR:
+      break;
+  }
+
+  return *stype->geometry_nodes_default_value;
+}
 
 static void capture_named(const bNodeTree &tree,
+                          const PointerRNA &properties_ptr,
+                          const ModifierEvalContext *ctx,
                           const ComputeContext &base_compute_context,
                           const Span<std::string> output_names,
                           bke::GeometrySet &r_geometry)
@@ -231,7 +485,38 @@ static void capture_named(const bNodeTree &tree,
 
   tree.ensure_interface_cache();
 
-  BLI_assert(tree.interface_inputs().size() == 0);
+  PointerRNA inputs_ptr = RNA_pointer_get(const_cast<PointerRNA *>(&properties_ptr), "inputs");
+
+  ResourceScope scope;
+
+  nodes::GeoNodesCallData call_data;
+
+  nodes::GeoNodesModifierData modifier_eval_data{};
+  modifier_eval_data.depsgraph = ctx->depsgraph;
+  modifier_eval_data.self_object = ctx->object;
+  call_data.modifier_data = &modifier_eval_data;
+
+  call_data.simulation_params = nullptr;
+  call_data.bake_params = nullptr;
+
+  nodes::GeoNodesSideEffectNodes side_effect_nodes;
+  call_data.side_effect_nodes = &side_effect_nodes;
+
+  call_data.call_depth_limit = U.geometry_nodes_stack_limit;
+
+  /* Prepare main inputs. */
+  for (const int i : tree.interface_inputs().index_range()) {
+    const bNodeTreeInterfaceSocket &interface_socket = *tree.interface_inputs()[i];
+    const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    BLI_assert(socket_type != SOCK_GEOMETRY);
+
+    PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, interface_socket.identifier);
+    bke::SocketValueVariant value = init_socket_cpp_value(
+        &call_data, &input_props_ptr, interface_socket);
+    param_inputs[function.inputs.main[i]] = &scope.construct<bke::SocketValueVariant>(
+        std::move(value));
+  }
 
   /* Prepare used-outputs inputs. */
   Array<bool> output_used_inputs(tree.interface_outputs().size(), true);
@@ -242,7 +527,6 @@ static void capture_named(const bNodeTree &tree,
   BLI_assert(function.inputs.references_to_propagate.geometry_outputs.size() == 0);
 
   /* Prepare memory for output values. */
-  ResourceScope scope;
   LinearAllocator<> &allocator = scope.allocator();
   for (const int i : IndexRange(num_outputs)) {
     const lf::Output &lf_output = lazy_function.outputs()[i];
@@ -250,16 +534,6 @@ static void capture_named(const bNodeTree &tree,
     void *buffer = allocator.allocate(type);
     param_outputs[i] = {type, buffer};
   }
-
-  nodes::GeoNodesCallData call_data;
-  call_data.modifier_data = nullptr;
-  call_data.simulation_params = nullptr;
-  call_data.bake_params = nullptr;
-
-  nodes::GeoNodesSideEffectNodes side_effect_nodes;
-  call_data.side_effect_nodes = &side_effect_nodes;
-
-  call_data.call_depth_limit = U.geometry_nodes_stack_limit;
 
   nodes::GeoNodesUserData user_data;
   user_data.call_data = &call_data;
@@ -278,8 +552,6 @@ static void capture_named(const bNodeTree &tree,
   lazy_function.execute(lf_params, lf_context);
   lazy_function.destruct_storage(lf_context.storage);
 
-  BLI_assert(param_outputs.size() == output_names.size());
-
   store_output_attributes(r_geometry, tree, output_names, param_outputs);
 
   for (const int i : IndexRange(num_outputs)) {
@@ -290,7 +562,7 @@ static void capture_named(const bNodeTree &tree,
   }
 }
 
-static Set<const bNodeTree *> material_geometry_trees(const Span<const Material *> materials)
+static MultiValueMap<const bNodeTree *, const bNodeTree *> material_geometry_trees(const Span<const Material *> materials)
 {
   Set<const bNodeTree *> materials_trees;
   Stack<const bNodeTree *> stack;
@@ -335,7 +607,7 @@ static Set<const bNodeTree *> material_geometry_trees(const Span<const Material 
   }
 
 
-  Set<const bNodeTree *> geometry_nodes;
+  MultiValueMap<const bNodeTree *, const bNodeTree *> geometry_nodes;
   for (const bNodeTree *material_tree : materials_trees) {
     for (const bNode *node : material_tree->nodes_by_type("ShaderNodeGeometryAttribute"_ustr)) {
 
@@ -357,7 +629,7 @@ static Set<const bNodeTree *> material_geometry_trees(const Span<const Material 
         }
       }
 
-      geometry_nodes.add(geometry_tree);
+      geometry_nodes.add(material_tree, geometry_tree);
     }
   }
 
@@ -370,7 +642,7 @@ static void modify_geometry_set(ModifierData *md,
 {
   BLI_assert(geometry_set != nullptr);
 
-  Set<const bNodeTree *> geometry_nodes;
+  MultiValueMap<const bNodeTree *, const bNodeTree *> geometry_nodes;
   if (const Mesh *mesh = geometry_set->get_mesh()) {
     geometry_nodes = material_geometry_trees(Span{mesh->mat, mesh->totcol});
   }
@@ -380,24 +652,39 @@ static void modify_geometry_set(ModifierData *md,
   }
 
   bke::DataBlockComputeContext data_block_compute_context{nullptr, ctx->object->id};
-  for (const bNodeTree *tree : geometry_nodes) {
-    tree->ensure_interface_cache();
-    Array<std::string> names(tree->interface_outputs().size(), "AAA");
+  for (const auto [material_tree, geometry_trees] : geometry_nodes.items()) {
+    for (const bNodeTree *geometry_tree : geometry_trees) {
+      geometry_tree->ensure_interface_cache();
+      Array<std::string> names(geometry_tree->interface_outputs().size());
 
-    const std::string capture_prefix = std::string(".a_capture[") + BKE_id_name(tree->id) + "]";
-    const Span<const bNodeTreeInterfaceSocket *> outputs = tree->interface_outputs();
-    for (const int index : outputs.index_range()) {
-      names[index] = capture_prefix + "[" + outputs[index]->identifier + "]";
+      const std::string capture_prefix = std::string("._a_capture[") + BKE_id_name(geometry_tree->id) + "]";
+      const Span<const bNodeTreeInterfaceSocket *> outputs = geometry_tree->interface_outputs();
+      for (const int index : outputs.index_range()) {
+        names[index] = capture_prefix + "[" + outputs[index]->identifier + "]";
+      }
+
+      const auto node = [&]() -> const bNode * {
+        for (const bNode *node : material_tree->nodes_by_type("ShaderNodeGeometryAttribute"_ustr)) {
+          if (node->id == &geometry_tree->id) {
+            return node;
+          }
+        }
+        BLI_assert(false);
+        return nullptr;
+      }();
+
+      PointerRNA node_ptr = RNA_pointer_create_discrete(const_cast<ID *>(&material_tree->id), RNA_ShaderNodeGeometryAttribute, const_cast<bNode *>(node));
+      PointerRNA properties_ptr = RNA_pointer_get(&node_ptr, "properties");
+
+      const bke::ImplicitCatureModifierComputeContext base_compute_context(&data_block_compute_context, md->persistent_uid);
+      capture_named(*geometry_tree, properties_ptr, ctx, base_compute_context, names, *geometry_set);
     }
-
-    const bke::ImplicitCatureModifierComputeContext base_compute_context(&data_block_compute_context, md->persistent_uid);
-    capture_named(*tree, base_compute_context, names, *geometry_set);
   }
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  Set<const bNodeTree *> geometry_nodes;
+  MultiValueMap<const bNodeTree *, const bNodeTree *> geometry_nodes;
   if (ctx->object != nullptr) {
     const Mesh *mesh = BKE_object_get_original_mesh(ctx->object);
     if (mesh != nullptr) {
@@ -405,8 +692,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     }
   }
 
-  for (const bNodeTree *tree : geometry_nodes) {
-    DEG_add_node_tree_output_relation(ctx->node, tree, "Implicit Attribute Capture");
+  Set<const bNodeTree *> linked_geometry_nodes;
+  for (const Span<const bNodeTree *> trees : geometry_nodes.values()) {
+    for (const bNodeTree *tree : trees) {
+      if (linked_geometry_nodes.add(tree)) {        
+        DEG_add_node_tree_output_relation(ctx->node, tree, "Implicit Attribute Capture");
+      }
+    }
   }
 
   // TODO: Also gather all materials of all objects in all modifiers props and in modifier node tree props.

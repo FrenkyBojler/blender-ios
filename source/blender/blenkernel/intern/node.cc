@@ -242,6 +242,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
   dst_runtime.geometry_nodes_srna_data = ntree_src->runtime->geometry_nodes_srna_data;
   dst_runtime.compositor_nodes_srna_data = ntree_src->runtime->compositor_nodes_srna_data;
+  dst_runtime.shader_geometry_nodes_srna_data = ntree_src->runtime->shader_geometry_nodes_srna_data;
 
   if (ntree_src->geometry_node_asset_traits) {
     ntree_dst->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(
