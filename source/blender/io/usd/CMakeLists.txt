@@ -32,11 +32,11 @@ if(WIN32)
   # Some USD library headers trigger the "unreferenced formal parameter"
   # warning alert.
   # Silence them by restore warn C4100 back to w4
-  remove_cc_flag("/w34100")
+  remove_c_and_cxx_flag("/w34100")
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
     # USD currently does not support the new preprocessor,
     # so we remove it here and disable sse2neon
-    remove_cc_flag("/Zc:preprocessor")
+    remove_c_and_cxx_flag("/Zc:preprocessor")
     add_definitions(-DDISABLE_SSE2NEON)
   endif()
 endif()
@@ -60,6 +60,7 @@ set(SRC
   intern/usd_asset_utils.cc
   intern/usd_attribute_utils.cc
   intern/usd_blend_shape_utils.cc
+  intern/usd_colorspace_utils.cc
   intern/usd_capi_export.cc
   intern/usd_capi_import.cc
   intern/usd_hierarchy_iterator.cc
@@ -114,6 +115,7 @@ set(SRC
   intern/usd_asset_utils.hh
   intern/usd_attribute_utils.hh
   intern/usd_blend_shape_utils.hh
+  intern/usd_colorspace_utils.hh
   intern/usd_exporter_context.hh
   intern/usd_hash_types.hh
   intern/usd_hierarchy_iterator.hh

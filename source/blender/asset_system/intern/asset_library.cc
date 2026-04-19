@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "AS_asset_catalog_tree.hh"
+#include "AS_asset_catalog.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 #include "AS_remote_library.hh"
@@ -17,8 +17,7 @@
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_listbase.h"  // IWYU pragma: keep
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -27,7 +26,6 @@
 #include "DNA_windowmanager_types.h"
 
 #include "asset_catalog_collection.hh"
-#include "asset_catalog_definition_file.hh"
 #include "asset_library_service.hh"
 #include "essentials_library.hh"
 #include "runtime_library.hh"
@@ -228,15 +226,17 @@ void AS_asset_library_essential_import_method_update()
 
 namespace asset_system {
 
-AssetLibrary::AssetLibrary(
-    eAssetLibraryType library_type,
-    StringRef name,
-    StringRef root_path,
-    std::optional<AssetCatalogService::read_only_tag> catalogs_read_only_tag)
+AssetLibrary::AssetLibrary(eAssetLibraryType library_type,
+                           const bool is_read_only,
+                           StringRef name,
+                           StringRef root_path)
     : library_type_(library_type),
+      is_read_only_(is_read_only),
       name_(name),
       root_path_(std::make_shared<std::string>(utils::normalize_directory_path(root_path))),
-      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_, catalogs_read_only_tag))
+      catalog_service_(std::make_unique<AssetCatalogService>(
+          *root_path_,
+          is_read_only ? std::optional{AssetCatalogService::read_only_tag{}} : std::nullopt))
 {
 }
 
@@ -272,15 +272,14 @@ void AssetLibrary::refresh_catalogs()
 
 void AssetLibrary::load_or_reload_catalogs()
 {
-  {
-    std::lock_guard lock{catalog_service_mutex_};
-    /* Should never actually be the case, catalog service gets allocated with the asset library. */
-    if (catalog_service_ == nullptr) {
-      auto catalog_service = std::make_unique<AssetCatalogService>(*root_path_);
-      catalog_service->load_from_disk();
-      catalog_service_ = std::move(catalog_service);
-      return;
-    }
+  std::lock_guard lock{catalog_service_mutex_};
+
+  /* Should never actually be the case, catalog service gets allocated with the asset library. */
+  if (catalog_service_ == nullptr) {
+    auto catalog_service = std::make_unique<AssetCatalogService>(*root_path_);
+    catalog_service->load_from_disk();
+    catalog_service_ = std::move(catalog_service);
+    return;
   }
 
   /* The catalog service was created before without being associated with a definition file. */
@@ -298,6 +297,7 @@ std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_on_disk_asset(
     const int id_type,
     std::unique_ptr<AssetMetaData> metadata)
 {
+  std::scoped_lock lock{asset_storage_.external_assets_mutex};
   return asset_storage_.external_assets.lookup_key_or_add(std::make_shared<AssetRepresentation>(
       relative_asset_path, name, id_type, std::move(metadata), *this));
 }
@@ -309,12 +309,14 @@ std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_online_asset(
     std::unique_ptr<AssetMetaData> metadata,
     OnlineAssetInfo online_info)
 {
+  std::scoped_lock lock{asset_storage_.external_assets_mutex};
   return asset_storage_.external_assets.lookup_key_or_add(std::make_shared<AssetRepresentation>(
       relative_asset_path, name, id_type, std::move(metadata), *this, online_info));
 }
 
 std::weak_ptr<AssetRepresentation> AssetLibrary::add_local_id_asset(ID &id)
 {
+  std::scoped_lock lock{asset_storage_.local_id_assets_mutex};
   return asset_storage_.local_id_assets.lookup_key_or_add(
       std::make_shared<AssetRepresentation>(id, *this));
 }
@@ -326,6 +328,9 @@ bool AssetLibrary::remove_asset(AssetRepresentation &asset)
   if (&asset.owner_asset_library_ != this) {
     return asset.owner_asset_library_.remove_asset(asset);
   }
+
+  std::scoped_lock lock_externs{asset_storage_.external_assets_mutex};
+  std::scoped_lock lock_locals{asset_storage_.local_id_assets_mutex};
 
   BLI_assert(asset_storage_.local_id_assets.contains_as(&asset) ||
              asset_storage_.external_assets.contains_as(&asset));
@@ -339,6 +344,8 @@ bool AssetLibrary::remove_asset(AssetRepresentation &asset)
 void AssetLibrary::remap_ids_and_remove_invalid(const bke::id::IDRemapper &mappings)
 {
   Set<AssetRepresentation *> removed_assets;
+
+  std::scoped_lock lock{asset_storage_.local_id_assets_mutex};
 
   for (const auto &asset_ptr : asset_storage_.local_id_assets) {
     AssetRepresentation &asset = *asset_ptr;
@@ -450,6 +457,11 @@ StringRefNull AssetLibrary::name() const
 StringRefNull AssetLibrary::root_path() const
 {
   return *root_path_;
+}
+
+bool AssetLibrary::is_read_only() const
+{
+  return is_read_only_;
 }
 
 Vector<AssetLibraryReference> all_valid_asset_library_refs()

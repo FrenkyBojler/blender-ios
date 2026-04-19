@@ -117,7 +117,9 @@ static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreety
                                                                SOCK_RGBA,
                                                                SOCK_MATRIX,
                                                                SOCK_MENU,
-                                                               SOCK_STRING);
+                                                               SOCK_STRING,
+                                                               SOCK_OBJECT,
+                                                               SOCK_FONT);
 }
 
 /**
@@ -149,8 +151,8 @@ void register_node_tree_type_cmp()
   bke::bNodeTreeType *tt = ntreeType_Composite = MEM_new<bke::bNodeTreeType>(__func__);
 
   tt->type = NTREE_COMPOSIT;
-  tt->idname = "CompositorNodeTree";
-  tt->group_idname = "CompositorNodeGroup";
+  tt->idname = "CompositorNodeTree"_ustr;
+  tt->group_idname = "CompositorNodeGroup"_ustr;
   tt->ui_name = N_("Compositor");
   tt->ui_icon = ICON_NODE_COMPOSITING;
   tt->ui_description = N_("Create effects and post-process renders, images, and the 3D Viewport");

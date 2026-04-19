@@ -30,6 +30,11 @@ struct PointerRNA;
 struct PropertyRNA;
 struct StructRNA;
 struct wmOperatorType;
+struct TextboxState;
+
+namespace wm {
+enum class OpCallContext : int8_t;
+}
 
 /* Layout
  *
@@ -54,13 +59,6 @@ struct ItemInternal;
 struct LayoutInternal;
 struct Layout;
 struct LayoutRoot;
-}  // namespace ui
-
-namespace wm {
-enum class OpCallContext : int8_t;
-}
-
-namespace ui {
 
 struct PanelLayout {
   Layout *header;
@@ -407,6 +405,11 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void label(StringRef name, int icon);
 
   /**
+   * Adds link item, displays a url that can be clicked in the layout.
+   */
+  void link(StringRef url, StringRef name, int icon);
+
+  /**
    * Adds a menu item, which is a button that when active will display a menu.
    * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
    */
@@ -653,6 +656,17 @@ struct Layout : public Item, NonCopyable, NonMovable {
                    StringRefNull searchpropname,
                    std::optional<StringRefNull> name,
                    int icon);
+
+  /**
+   * Adds a string property item as textbox, this will let multi-line text editing, textbox state
+   * will be persistent at runtime.
+   */
+  void textbox(const bContext *C, PointerRNA *ptr, StringRefNull propname);
+  /**
+   * Adds a string property item as textbox, this will let multi-line text editing.
+   * \param textbox_state: custom allocation for persistent textbox state.
+   */
+  void textbox_with_state(PointerRNA *ptr, StringRefNull propname, TextboxState *textbox_state);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.

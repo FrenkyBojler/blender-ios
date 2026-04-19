@@ -465,7 +465,8 @@ class FILEBROWSER_PT_directory_path(Panel):
         subsubrow.popover("FILEBROWSER_PT_display", text="")
 
         subsubrow = subrow.row(align=True)
-        subsubrow.prop(params, "use_filter", toggle=True, icon='FILTER', icon_only=True)
+        subsubrow.prop(params, "use_filter", toggle=True, icon=(
+            'FILTER_FILLED' if params.use_filter else 'FILTER'), icon_only=True)
         subsubrow.popover("FILEBROWSER_PT_filter", text="")
 
         if space.active_operator:
@@ -583,8 +584,8 @@ class FILEBROWSER_MT_view_pie(Menu):
 
         pie = layout.menu_pie()
         view = context.space_data
-
-        pie.prop_enum(view.params, "display_type", value='LIST_VERTICAL')
+        if view.browse_mode == 'FILES':
+            pie.prop_enum(view.params, "display_type", value='LIST_VERTICAL')
         pie.prop_enum(view.params, "display_type", value='LIST_HORIZONTAL')
         pie.prop_enum(view.params, "display_type", value='THUMBNAIL')
 
