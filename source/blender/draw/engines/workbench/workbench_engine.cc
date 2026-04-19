@@ -489,8 +489,8 @@ class Instance : public DrawEngine {
                                GPU_ATTACHMENT_TEXTURE(resources_.color_tx),
                                id_attachment);
     resources_.clear_fb.bind();
-    float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float (*)[4]>(clear_colors));
+    std::array<double4, 2> clear_colors = {double4(scene_state_.background_color), double4(0.0f)};
+    GPU_framebuffer_multi_clear(resources_.clear_fb, clear_colors);
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(
@@ -569,9 +569,11 @@ class Instance : public DrawEngine {
         anti_aliasing_ps_.sync(scene_state_, resources_);
       }
       this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
-      /* Perform render step between samples to allow
-       * flushing of freed GPUBackend resources. */
-      if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+      /* Metal: Perform render step between samples to allow flushing of freed GPUBackend
+       * resources. Vulkan: Perform render step between samples to avoid allocation of a high
+       * amount of command buffer memory that can eventually result in out-of-memory errors or a
+       * TDR when submitted as one large command buffer. */
+      if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
         GPU_flush();
       }
       GPU_render_step();
@@ -665,7 +667,7 @@ static void write_render_color_output(RenderLayer *layer,
                                4,
                                0,
                                GPU_DATA_FLOAT,
-                               rp->ibuf->float_buffer.data);
+                               rp->ibuf->float_data_for_write());
   }
 }
 
@@ -684,13 +686,13 @@ static void write_render_z_output(RenderLayer *layer,
                                BLI_rcti_size_x(rect),
                                BLI_rcti_size_y(rect),
                                GPU_DATA_FLOAT,
-                               rp->ibuf->float_buffer.data);
+                               rp->ibuf->float_data_for_write());
 
     int pix_num = BLI_rcti_size_x(rect) * BLI_rcti_size_y(rect);
 
     /* Convert GPU depth [0..1] to view Z [near..far] */
     if (draw::View::default_get().is_persp()) {
-      for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
+      for (float &z : MutableSpan(rp->ibuf->float_data_for_write(), pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
         }
@@ -706,7 +708,7 @@ static void write_render_z_output(RenderLayer *layer,
       float far = draw::View::default_get().far_clip();
       float range = fabsf(far - near);
 
-      for (float &z : MutableSpan(rp->ibuf->float_buffer.data, pix_num)) {
+      for (float &z : MutableSpan(rp->ibuf->float_data_for_write(), pix_num)) {
         if (z == 1.0f) {
           z = 1e10f; /* Background */
         }

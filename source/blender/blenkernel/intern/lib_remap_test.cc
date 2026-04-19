@@ -5,7 +5,7 @@
 
 #include "CLG_log.h"
 
-#include "GHOST_Path-api.hh"
+#include "GHOST_ISystemPaths.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -90,7 +90,7 @@ class LibRemapTest : public ::testing::Test {
     RNA_exit();
     IMB_exit();
     BKE_appdir_exit();
-    GHOST_DisposeSystemPaths();
+    GHOST_ISystemPaths::dispose();
     CLG_exit();
   }
 };
@@ -102,7 +102,6 @@ class MaterialTestData : public TestData {
   MaterialTestData()
   {
     material = BKE_material_add(this->bmain, "Material");
-    nodes::node_tree_shader_default(this->C, this->bmain, &this->material->id);
     this->material_nodetree = this->material->nodetree;
   }
 };

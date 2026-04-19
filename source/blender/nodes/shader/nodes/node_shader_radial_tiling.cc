@@ -24,33 +24,37 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
 
-  b.add_output<decl::Vector>("Segment Coordinates")
+  b.add_output<decl::Vector>("Segment Coordinates"_ustr)
       .no_muted_links()
       .description("Segment coordinates for texture mapping within each angular segment");
-  b.add_output<decl::Float>("Segment ID")
+  b.add_output<decl::Float>("Segment ID"_ustr)
       .no_muted_links()
       .description(
           "Unique ID for every angular segment starting at 0 and increasing counterclockwise by "
           "1");
-  b.add_output<decl::Float>("Segment Width")
+  b.add_output<decl::Float>("Segment Width"_ustr)
       .no_muted_links()
       .description(
           "Relative width of each angular segment. "
           "May be used to scale textures to fit into each segment");
-  b.add_output<decl::Float>("Segment Rotation")
+  b.add_output<decl::Float>("Segment Rotation"_ustr)
       .no_muted_links()
       .description(
           "Counterclockwise rotation of each segment coordinates system. May be used to align the "
           "rotation of the textures of each segment");
 
-  b.add_input<decl::Vector>("Vector")
+  b.add_input<decl::Vector>("Vector"_ustr)
       .dimensions(2)
       .default_value(float3{0.0f, 0.0f, 0.0f})
       .description("Input texture coordinates");
-  b.add_input<decl::Float>("Sides").min(2.0f).max(1000.0f).default_value(5.0f).description(
-      "Number of angular segments for tiling. A non-integer value results in an irregular "
-      "segment");
-  b.add_input<decl::Float>("Roundness")
+  b.add_input<decl::Float>("Sides"_ustr)
+      .min(2.0f)
+      .max(1000.0f)
+      .default_value(5.0f)
+      .description(
+          "Number of angular segments for tiling. A non-integer value results in an irregular "
+          "segment");
+  b.add_input<decl::Float>("Roundness"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.0f)
@@ -65,7 +69,7 @@ static void node_shader_buts_radial_tiling(ui::Layout &layout, bContext * /*C*/,
 
 static void node_shader_init_radial_tiling(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeRadialTiling *storage = MEM_new_for_free<NodeRadialTiling>(__func__);
+  NodeRadialTiling *storage = MEM_new<NodeRadialTiling>(__func__);
   storage->normalize = false;
 
   node->storage = storage;

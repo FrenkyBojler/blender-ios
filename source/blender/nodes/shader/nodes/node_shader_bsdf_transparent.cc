@@ -12,9 +12,9 @@ namespace nodes::node_shader_bsdf_transparent_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>("Weight").available(false);
-  b.add_output<decl::Shader>("BSDF");
+  b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_output<decl::Shader>("BSDF"_ustr);
 }
 
 static int node_shader_gpu_bsdf_transparent(GPUMaterial *mat,
@@ -73,6 +73,7 @@ void register_node_type_sh_bsdf_transparent()
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_transparent;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 

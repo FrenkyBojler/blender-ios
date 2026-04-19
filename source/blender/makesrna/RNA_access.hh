@@ -79,7 +79,7 @@ PointerRNA RNA_pointer_create_with_parent(const PointerRNA &parent, StructRNA *t
  * and is a shortcut for:
  *
  *    PointerRNA id_ptr = RNA_id_pointer_create(id);
- *    PointerRNA ptr = RNA_pointer_create_with_parent(id_ptr, &RNA_Type, data);
+ *    PointerRNA ptr = RNA_pointer_create_with_parent(id_ptr, RNA_Type, data);
  */
 PointerRNA RNA_pointer_create_id_subdata(ID &id, StructRNA *type, void *data);
 
@@ -115,6 +115,11 @@ const char *RNA_struct_ui_description_raw(const StructRNA *type);
 const char *RNA_struct_translation_context(const StructRNA *type);
 int RNA_struct_ui_icon(const StructRNA *type);
 
+/**
+ * Debug utility to print a #StructRNA.
+ */
+std::string RNA_struct_to_string(const StructRNA &type);
+
 PropertyRNA *RNA_struct_name_property(const StructRNA *type);
 const EnumPropertyItem *RNA_struct_property_tag_defines(const StructRNA *type);
 PropertyRNA *RNA_struct_iterator_property(StructRNA *type);
@@ -122,7 +127,7 @@ StructRNA *RNA_struct_base(StructRNA *type);
 /**
  * Use to find the sub-type directly below a base-type.
  *
- * So if type were `RNA_SpotLight`, `RNA_struct_base_of(type, &RNA_ID)` would return `&RNA_Light`.
+ * So if type were `RNA_SpotLight`, `RNA_struct_base_of(type, RNA_ID)` would return `RNA_Light`.
  */
 const StructRNA *RNA_struct_base_child_of(const StructRNA *type, const StructRNA *parent_type);
 
@@ -166,6 +171,12 @@ bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
  * Remove an id-property.
  */
 bool RNA_struct_system_idprops_unset(PointerRNA *ptr, const char *identifier);
+
+/**
+ * If true, the name of the struct is unique among all names in the public namespace and can be
+ * looked up with #RNA_struct_find.
+ */
+bool RNA_struct_in_public_namespace(const StructRNA *type);
 
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
 
@@ -216,7 +227,7 @@ PropertyRNA *RNA_struct_type_find_property_no_base(StructRNA *srna, const char *
 PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifier);
 
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
-const ListBaseT<FunctionRNA> *RNA_struct_type_functions(StructRNA *srna);
+Span<std::unique_ptr<FunctionRNA>> RNA_struct_type_functions(StructRNA *srna);
 
 [[nodiscard]] char *RNA_struct_name_get_alloc_ex(
     PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
@@ -666,6 +677,12 @@ int RNA_property_collection_raw_set(ReportList *reports,
 size_t RNA_raw_type_sizeof(RawPropertyType type);
 RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
 
+/**
+ * Update the system properties (IDProperties) for a specific RNA type, converting so that
+ * properties match the current RNA definition.
+ */
+void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
+
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_pointer_remove(PointerRNA *ptr, PropertyRNA *prop);
@@ -920,6 +937,16 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, ##__VA_ARGS__)
 #else
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
+#endif
+
+/** A formattable RNA warning, without the default `__func__` trace. */
+#if defined __GNUC__
+#  define RNA_warning_bare(format, args...) _RNA_warning(format "\n", ##args)
+#elif defined(_MSVC_TRADITIONAL) && \
+    !_MSVC_TRADITIONAL /* The "new preprocessor" is enabled via `/Zc:preprocessor`. */
+#  define RNA_warning_bare(format, ...) _RNA_warning(format "\n", ##__VA_ARGS__)
+#else
+#  define RNA_warning_bare(format, ...) _RNA_warning(format "\n", __VA_ARGS__)
 #endif
 
 /** Use to implement the #RNA_warning macro which includes `__func__` suffix. */

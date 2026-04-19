@@ -116,11 +116,12 @@ static float uvedit_old_center[2];
 static void uvedit_vertex_buttons(const bContext *C, ui::Block *block)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   float center[2];
   int imx, imy, step, digits;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
+      *bmain, scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   ED_space_image_get_size(sima, &imx, &imy);
 
@@ -192,6 +193,7 @@ static void uvedit_vertex_buttons(const bContext *C, ui::Block *block)
 static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   float center[2], delta[2];
   int imx, imy;
@@ -201,7 +203,7 @@ static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
+      *bmain, scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   ED_space_image_get_size(sima, &imx, &imy);
   uvedit_center(scene, objects, center);
@@ -219,7 +221,7 @@ static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
 
   WM_event_add_notifier(C, NC_IMAGE, sima->image);
   for (Object *obedit : objects) {
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
   }
 }
 
@@ -245,7 +247,7 @@ static void image_panel_uv(const bContext *C, Panel *panel)
 
 void ED_uvedit_buttons_register(ARegionType *art)
 {
-  PanelType *pt = MEM_callocN<PanelType>(__func__);
+  PanelType *pt = MEM_new_zeroed<PanelType>(__func__);
 
   STRNCPY_UTF8(pt->idname, "IMAGE_PT_uv");
   STRNCPY_UTF8(pt->label, N_("UV Vertex")); /* XXX C panels unavailable through RNA bpy.types! */

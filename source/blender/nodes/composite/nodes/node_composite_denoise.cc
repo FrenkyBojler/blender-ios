@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #ifndef __APPLE__
 #  include "BLI_system.h"
 #endif
@@ -30,13 +26,11 @@
 
 #include "node_composite_util.hh"
 
-namespace blender {
-
 #ifdef WITH_OPENIMAGEDENOISE
 #  include <OpenImageDenoise/oidn.hpp>
 #endif
 
-namespace nodes::node_composite_denoise_cc {
+namespace blender::nodes::node_composite_denoise_cc {
 
 static const EnumPropertyItem prefilter_items[] = {
     {CMP_NODE_DENOISE_PREFILTER_NONE,
@@ -73,41 +67,43 @@ static const EnumPropertyItem quality_items[] = {
     {CMP_NODE_DENOISE_QUALITY_FAST, "FAST", 0, "Fast", "High performance"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_output<decl::Color>("Image"_ustr)
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 
-  b.add_input<decl::Color>("Albedo")
+  b.add_input<decl::Color>("Albedo"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Vector>("Normal")
+  b.add_input<decl::Vector>("Normal"_ustr)
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-1.0f)
       .max(1.0f)
       .hide_value()
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Bool>("HDR").default_value(true);
-  b.add_input<decl::Menu>("Prefilter")
+  b.add_input<decl::Bool>("HDR"_ustr).default_value(true);
+  b.add_input<decl::Menu>("Prefilter"_ustr)
       .default_value(CMP_NODE_DENOISE_PREFILTER_ACCURATE)
       .static_items(prefilter_items)
       .optional_label();
-  b.add_input<decl::Menu>("Quality")
+  b.add_input<decl::Menu>("Quality"_ustr)
       .default_value(CMP_NODE_DENOISE_QUALITY_SCENE)
       .static_items(quality_items)
       .optional_label();
 }
 
-static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeDenoise *ndg = MEM_new_for_free<NodeDenoise>(__func__);
+  NodeDenoise *ndg = MEM_new<NodeDenoise>(__func__);
   node->storage = ndg;
 }
 
@@ -128,7 +124,7 @@ static bool is_oidn_supported()
 #endif
 }
 
-static void node_composit_buts_denoise(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
+static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
 {
 #ifndef WITH_OPENIMAGEDENOISE
   layout.label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
@@ -265,12 +261,7 @@ class DenoiseOperation : public NodeOperation {
         }
       }
 
-      /* Float3 results might be stored in 4-component textures due to hardware limitations, so we
-       * need to use the pixel stride of the texture. */
-      const int normal_channels_count = this->context().use_gpu() ?
-                                            GPU_texture_component_len(
-                                                GPU_texture_format(input_normal)) :
-                                            input_normal.channels_count();
+      const int normal_channels_count = input_normal.channels_count();
       int normal_pixel_stride = sizeof(float) * normal_channels_count;
 
       const int64_t normal_buffer_size = int64_t(width) * height * normal_channels_count;
@@ -302,7 +293,7 @@ class DenoiseOperation : public NodeOperation {
     }
 
     for (float *buffer : temporary_buffers_to_free) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
 #endif
   }
@@ -395,12 +386,8 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new DenoiseOperation(context, node);
 }
 
-}  // namespace nodes::node_composite_denoise_cc
-
-static void register_node_type_cmp_denoise()
+static void node_register()
 {
-  namespace file_ns = nodes::node_composite_denoise_cc;
-
   static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDenoise", CMP_NODE_DENOISE);
@@ -408,15 +395,15 @@ static void register_node_type_cmp_denoise()
   ntype.ui_description = "Denoise renders from Cycles and other ray tracing renderers";
   ntype.enum_name_legacy = "DENOISE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_denoise_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_denoise;
-  ntype.initfunc = file_ns::node_composit_init_denonise;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_draw_buttons;
+  ntype.initfunc = node_init;
   bke::node_type_storage(
       ntype, "NodeDenoise", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_denoise)
+NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender
+}  // namespace blender::nodes::node_composite_denoise_cc

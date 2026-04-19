@@ -135,7 +135,7 @@ short ANIM_fcurve_keyframes_loop(KeyframeEditData *ked,
 
   /* if fcu_cb (F-Curve post-editing callback) has been specified then execute it */
   if (fcu_cb) {
-    fcu_cb(fcu);
+    fcu_cb(*fcu);
   }
 
   /* done */
@@ -153,18 +153,6 @@ static short agrp_keyframes_loop(KeyframeEditData *ked,
 {
   /* sanity check */
   if (agrp == nullptr) {
-    return 0;
-  }
-
-  /* Legacy actions. */
-  if (agrp->wrap().is_legacy()) {
-    for (FCurve &fcu : agrp->channels) {
-      if (fcu.grp == agrp) {
-        if (ANIM_fcurve_keyframes_loop(ked, &fcu, key_ok, key_cb, fcu_cb)) {
-          return 1;
-        }
-      }
-    }
     return 0;
   }
 
@@ -828,7 +816,7 @@ short bezt_to_cfraelem(KeyframeEditData *ked, BezTriple *bezt)
     return 0;
   }
 
-  CfraElem *ce = MEM_callocN<CfraElem>("cfraElem");
+  CfraElem *ce = MEM_new_zeroed<CfraElem>("cfraElem");
   BLI_addtail(&ked->cfra_elem_list, ce);
 
   /* bAnimListElem so we can do NLA mapping, we want the cfra to be in "global" time */

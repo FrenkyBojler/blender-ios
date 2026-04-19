@@ -6,8 +6,9 @@
  * \ingroup shader_tool
  */
 
+#include <algorithm>
+
 #include "intermediate.hh"
-#include "metadata.hh"
 #include "processor.hh"
 
 namespace blender::gpu::shader {
@@ -18,8 +19,18 @@ using namespace metadata;
 string SourceProcessor::template_arguments_mangle(const Scope template_args)
 {
   string args_concat;
-  template_args.foreach_scope(ScopeType::TemplateArg,
-                              [&](const Scope &scope) { args_concat += 'T' + scope.str(); });
+  template_args.foreach_scope(ScopeType::TemplateArg, [&](const Scope &scope) {
+    string str;
+    if (scope[1] == '<') {
+      str = string(scope[0].str()) + template_arguments_mangle(scope[1].scope());
+    }
+    else {
+      str = scope.str();
+    }
+    /* In order to support negative integer literals. Replace minus sign by underscore. */
+    replace(str.begin(), str.end(), '-', '_');
+    args_concat += 'T' + str;
+  });
   return args_concat;
 }
 
@@ -30,9 +41,9 @@ static void parse_template_definition(const Scope arg,
                                       report_callback report_error)
 {
   const Token type = arg.front();
-  const Token name = type.next();
-  const string name_str = name.str();
-  const string type_str = type.str();
+  const Token name = type.str() == "enum" ? type.next().next() : type.next();
+  const string_view name_str = name.str();
+  const string_view type_str = type.str();
 
   arg_list.emplace_back(name_str);
 
@@ -45,7 +56,7 @@ static void parse_template_definition(const Scope arg,
     bool found = false;
     /* Search argument list for type-names. If type-name matches, the template argument is
      * present inside the function signature. */
-    fn_args.foreach_match("ww", [&](const vector<Token> &tokens) {
+    fn_args.foreach_match("AA", [&](const vector<Token> &tokens) {
       if (tokens[0].str() == name_str) {
         found = true;
       }
@@ -56,7 +67,9 @@ static void parse_template_definition(const Scope arg,
     /* Values cannot be resolved using type deduction. */
     all_template_args_in_function_signature = false;
   }
-  else if (type_str == "int" || type_str == "uint") {
+  else if (type_str == "int" || type_str == "uint" || type_str == "char" || type_str == "uchar" ||
+           type_str == "short" || type_str == "ushort")
+  {
     /* Values cannot be resolved using type deduction. */
     all_template_args_in_function_signature = false;
   }
@@ -65,69 +78,94 @@ static void parse_template_definition(const Scope arg,
   }
 }
 
-static void lower_template_instantiation(SourceProcessor::Parser &parser,
-                                         const vector<Token> &toks,
-                                         const Scope &parent_scope,
-                                         const Token &fn_start,
-                                         const Token &fn_name,
-                                         const vector<string> &arg_list,
-                                         const string &fn_decl,
-                                         const bool all_template_args_in_function_signature,
-                                         report_callback report_error)
+static void lower_template_instantiation(
+    SourceProcessor::Parser &parser,
+    const Scope &parent_scope,
+    const Token &inst_start,
+    const Token &inst_name,
+    const Scope &inst_args,
+    const Token &fn_start,
+    const Token &fn_end,
+    const Token &fn_name,
+    /* Method template instantiation reside outside of their struct.
+     * For this reason they have the struct name_prepended. */
+    const string_view full_specified_name,
+    const bool is_method,
+    const vector<string> &arg_list,
+    const string &fn_decl,
+    const bool all_template_args_in_function_signature,
+    report_callback report_error)
 {
-  if (toks[2].scope() != parent_scope || fn_name.str() != toks[2].str() ||
-      toks[2].str_index_start() < fn_name.str_index_start())
+  if (inst_name.scope() != parent_scope || full_specified_name != inst_name.str() ||
+      /* Do not match instantiation before template declaration. */
+      inst_name.str_index_start() < fn_name.str_index_start())
   {
     return;
   }
 
-  const Scope inst_args = toks[3].scope();
-  const Token inst_start = toks[0];
-  const Token inst_end = toks[0].find_next(SemiColon);
+  const Token inst_end = inst_start.find_next(SemiColon);
 
   /* Parse template values. */
   vector<pair<string, string>> arg_name_value_pairs;
   int i = 0;
-  toks[3].scope().foreach_scope(ScopeType::TemplateArg, [&](const Scope &arg) {
+  inst_args.foreach_scope(ScopeType::TemplateArg, [&](const Scope &arg) {
     if (i < arg_list.size()) {
       arg_name_value_pairs.emplace_back(arg_list[i], arg.str());
     }
     i++;
   });
   if (i != arg_list.size()) {
-    report_error(ERROR_TOK(toks[3]), "Invalid amount of argument in template instantiation.");
+    report_error(ERROR_TOK(inst_args.front()),
+                 "Invalid amount of argument in template instantiation.");
   }
+
+  const bool is_struct = (fn_name.prev() == Struct);
 
   /* Specialize template content. */
   SourceProcessor::Parser instance_parser(fn_decl, report_error);
+
   instance_parser().foreach_token(Word, [&](const Token &word) {
-    string token_str = word.str();
+    string_view token_str = word.str();
     for (const auto &arg_name_value : arg_name_value_pairs) {
       if (token_str == arg_name_value.first) {
         instance_parser.replace(word, arg_name_value.second, true);
       }
     }
+    if (is_struct && word.next() != AngleOpen && token_str == fn_name.str()) {
+      /* Append template args after unspecified struct typename references.
+       * `A func(A<T> b) {}` > `A<T> func(A<T> b) {}`. */
+      instance_parser.insert_after(word.str_index_last_no_whitespace(),
+                                   SourceProcessor::template_arguments_mangle(inst_args));
+    }
   });
 
-  if (!all_template_args_in_function_signature) {
+  if (!is_struct && !all_template_args_in_function_signature) {
     /* Append template args after function name.
      * `void func() {}` > `void func<a, 1>() {}`. */
-    size_t pos = fn_decl.find(" " + fn_name.str());
+    size_t pos = fn_decl.find(" " + string(fn_name.str()));
     instance_parser.insert_after(pos + fn_name.str().size(),
                                  SourceProcessor::template_arguments_mangle(inst_args));
   }
   /* Paste template content in place of instantiation. */
   string instance = instance_parser.result_get();
   parser.erase(inst_start, inst_end);
-  parser.insert_line_number(inst_end, fn_start.line_number());
-  parser.insert_after(inst_end, instance);
-  parser.insert_line_number(inst_end, inst_end.line_number(true));
+  if (is_method) {
+    /* Method are put back in their classes. */
+    parser.insert_line_number(fn_end, fn_start.line_number());
+    parser.insert_after(fn_end, instance);
+    parser.insert_line_number(fn_end, inst_end.line_number(true));
+  }
+  else {
+    parser.insert_line_number(inst_end, fn_start.line_number());
+    parser.insert_after(inst_end, instance);
+    parser.insert_line_number(inst_end, inst_end.line_number(true));
+  }
 }
 
 void SourceProcessor::lower_template_dependent_names(Parser &parser)
 {
-  parser().foreach_match("tw<..>", [&](const Tokens &toks) {
-    if (toks[0].prev() == '.' || toks[0].prev() == Deref) {
+  parser().foreach_match("tA<..>", [&](const Tokens &toks) {
+    if (toks[0].prev() == '.' || (toks[0].prev().prev() == '-' && toks[0].prev() == '>')) {
       parser.erase(toks[0]);
     }
   });
@@ -136,13 +174,29 @@ void SourceProcessor::lower_template_dependent_names(Parser &parser)
 
 void SourceProcessor::lower_templates(Parser &parser)
 {
-  /* Process templated function calls first to avoid matching them later. */
+  auto lint_explicit = [&](const Token symbol_name) {
+    if (symbol_name.next().scope().type() != parser::ScopeType::Template) {
+      report_error_(
+          ERROR_TOK(symbol_name),
+          "Template instantiation and specialization require explicit template arguments");
+    }
+  };
+  parser().foreach_match("t<>AA", [&](const vector<Token> &toks) { lint_explicit(toks[4]); });
+  parser().foreach_match("t<>A<..>A", [&](const vector<Token> &toks) { lint_explicit(toks[8]); });
+  parser().foreach_match("tAA", [&](const vector<Token> &toks) { lint_explicit(toks[2]); });
+  parser().foreach_match("tA<..>A", [&](const vector<Token> &toks) { lint_explicit(toks[6]); });
 
-  parser().foreach_match("w<..>(..)", [&](const vector<Token> &tokens) {
+  /* Process templated function calls first to avoid matching them later. */
+  parser().foreach_match("A<..>(..)", [&](const vector<Token> &tokens) {
     const Scope template_args = tokens[1].scope();
-    template_args.foreach_match("w<..>", [&parser](const vector<Token> &tokens) {
+    template_args.foreach_match("A<..>", [&parser](const vector<Token> &tokens) {
       parser.replace(tokens[1].scope(), template_arguments_mangle(tokens[1].scope()), true);
     });
+  });
+  parser.apply_mutations();
+  /* Likewise, process templated struct method definitions. */
+  parser().foreach_match("A<..>A<", [&](const vector<Token> &tokens) {
+    parser.replace(tokens[1].scope(), template_arguments_mangle(tokens[1].scope()), true);
   });
   parser.apply_mutations();
 
@@ -153,11 +207,11 @@ void SourceProcessor::lower_templates(Parser &parser)
     parser.replace(template_args, template_arguments_mangle(template_args), true);
   };
   /* Replace full specialization by simple functions. */
-  parser().foreach_match("t<>ww<", [&](const vector<Token> &tokens) {
+  parser().foreach_match("t<>AA<", [&](const vector<Token> &tokens) {
     process_specialization(tokens[0], tokens[5].scope());
   });
   /* Replace full specialization by simple struct. */
-  parser().foreach_match("t<>sw<..>", [&](const vector<Token> &tokens) {
+  parser().foreach_match("t<>sA<..>", [&](const vector<Token> &tokens) {
     process_specialization(tokens[0], tokens[5].scope());
   });
 
@@ -179,7 +233,7 @@ void SourceProcessor::lower_templates(Parser &parser)
     bool all_template_args_in_function_signature = false;
     template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
       parse_template_definition(
-          arg, arg_list, Scope::invalid(), all_template_args_in_function_signature, report_error_);
+          arg, arg_list, Scope(parser), all_template_args_in_function_signature, report_error_);
     });
 
     /* Remove declaration. */
@@ -188,12 +242,17 @@ void SourceProcessor::lower_templates(Parser &parser)
 
     /* Replace instantiations. */
     Scope parent_scope = template_scope.scope();
-    parent_scope.foreach_match("tsw<", [&](const vector<Token> &tokens) {
+    parent_scope.foreach_match("tsA<", [&](const vector<Token> &tokens) {
       lower_template_instantiation(parser,
-                                   tokens,
                                    parent_scope,
+                                   tokens[0],
+                                   tokens[2],
+                                   tokens[3].scope(),
                                    struct_start,
+                                   struct_end,
                                    struct_name,
+                                   struct_name.str(),
+                                   false,
                                    arg_list,
                                    struct_decl,
                                    all_template_args_in_function_signature,
@@ -237,14 +296,30 @@ void SourceProcessor::lower_templates(Parser &parser)
     Token template_keyword = template_scope.front().prev();
     parser.erase(template_keyword, fn_end);
 
+    string full_specified_name(fn_name.str());
+
     /* Replace instantiations. */
     Scope parent_scope = template_scope.scope();
-    parent_scope.foreach_match("tww<", [&](const vector<Token> &tokens) {
+    bool is_method = parent_scope.type() == ScopeType::Struct;
+    if (is_method) {
+      string struct_name = parent_scope.front().prev().full_symbol_name();
+
+      full_specified_name = struct_name + namespace_separator + full_specified_name;
+      /* Search instantiations in the scope containing the struct. */
+      parent_scope = parent_scope.scope();
+    }
+
+    parent_scope.foreach_match("tAA<", [&](const vector<Token> &tokens) {
       lower_template_instantiation(parser,
-                                   tokens,
                                    parent_scope,
+                                   tokens[0],
+                                   tokens[2],
+                                   tokens[3].scope(),
                                    fn_start,
+                                   fn_end,
                                    fn_name,
+                                   full_specified_name,
+                                   is_method,
                                    arg_list,
                                    fn_decl,
                                    all_template_args_in_function_signature,
@@ -252,9 +327,27 @@ void SourceProcessor::lower_templates(Parser &parser)
     });
   };
 
-  parser().foreach_match("t<..>ww(..)c?{..}", [&](const vector<Token> &tokens) {
+  /* Templated return type. */
+  parser().foreach_match("t<..>m?A<..>A(..)c?{..}", [&](const vector<Token> &tokens) {
+    process_template_function(tokens[5].is_valid() ? tokens[5] : tokens[7],
+                              tokens[12],
+                              tokens[12].scope(),
+                              tokens[1].scope(),
+                              tokens[22]);
+  });
+
+  parser().foreach_match("t<..>m?AA(..)c?{..}", [&](const vector<Token> &tokens) {
+    process_template_function(tokens[5].is_valid() ? tokens[5] : tokens[7],
+                              tokens[8],
+                              tokens[9].scope(),
+                              tokens[1].scope(),
+                              tokens[18]);
+  });
+
+  /* Entry point functions. */
+  parser().foreach_match("t<..>[[..]]AA(..){..}", [&](const vector<Token> &tokens) {
     process_template_function(
-        tokens[5], tokens[6], tokens[7].scope(), tokens[1].scope(), tokens[16]);
+        tokens[5], tokens[12], tokens[13].scope(), tokens[1].scope(), tokens.back());
   });
 
   parser.apply_mutations();
@@ -270,7 +363,7 @@ void SourceProcessor::lower_templates(Parser &parser)
   });
 
   /* Process calls to templated types or functions. */
-  parser().foreach_match("w<..>", [&](const vector<Token> &tokens) {
+  parser().foreach_match("A<..>", [&](const vector<Token> &tokens) {
     parser.replace(tokens[1].scope(), template_arguments_mangle(tokens[1].scope()), true);
   });
 

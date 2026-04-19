@@ -220,6 +220,7 @@ static bool bake_strokes(Object *ob,
       lmd->intersection_mask,
       lmd->radius,
       lmd->opacity,
+      lmd->fill_strokes,
       lmd->shadow_selection,
       lmd->silhouette_selection,
       lmd->source_vertex_group,
@@ -314,7 +315,7 @@ static void lineart_bake_startjob(void *customdata, wmJobWorkerStatus *worker_st
     for (const int object : bj->objects.index_range()) {
       Object *ob = bj->objects[object];
       if (bake_single_target(bj, ob, frame)) {
-        DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+        DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(bj->C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
       }
     }
@@ -415,7 +416,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
   lineart_bake_startjob(bj, &worker_status);
 
   /* Need to call endjob manually to clear interface locking status when bake is not called as
-   * background task, otherwise spaes like 3d viewport can be unresponsive. */
+   * background task, otherwise spaces like 3d viewport can be unresponsive. */
   lineart_bake_endjob(bj);
 
   MEM_delete(bj);
@@ -473,7 +474,7 @@ static void lineart_gpencil_clear_strokes_exec_common(Object *ob)
 
     lmd->flags &= (~MOD_LINEART_IS_BAKED);
   }
-  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+  DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
 }
 
 static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext *C, wmOperator *op)

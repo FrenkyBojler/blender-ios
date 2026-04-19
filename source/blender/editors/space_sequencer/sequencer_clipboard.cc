@@ -52,7 +52,6 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "ANIM_action.hh"
-#include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 
 #include "UI_view2d.hh"
@@ -162,7 +161,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
   /* Create an empty sequence editor data to store all copied strips. */
-  scene_dst->ed = MEM_new_for_free<Editing>(__func__);
+  scene_dst->ed = MEM_new<Editing>(__func__);
   seq::seqbase_duplicate_recursive(bmain_src,
                                    scene_src,
                                    scene_dst,
@@ -308,8 +307,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
-  seq::iterator_set_expand(
-      scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
   VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
@@ -365,7 +363,7 @@ static bool sequencer_paste_animation(Main *bmain_dst, Scene *scene_dst, Scene *
     return false;
   }
 
-  for (FCurve *fcu : animrig::legacy::fcurves_for_assigned_action(scene_src->adt)) {
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(scene_src->adt)) {
     animrig::action_fcurve_attach(act_dst->wrap(),
                                   scene_dst->adt->slot_handle,
                                   *BKE_fcurve_copy(fcu),

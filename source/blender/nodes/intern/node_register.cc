@@ -32,14 +32,14 @@ static void register_undefined_types()
    */
 
   bke::NodeTreeTypeUndefined.type = NTREE_UNDEFINED;
-  bke::NodeTreeTypeUndefined.idname = "NodeTreeUndefined";
+  bke::NodeTreeTypeUndefined.idname = "NodeTreeUndefined"_ustr;
   bke::NodeTreeTypeUndefined.ui_name = N_("Undefined");
   bke::NodeTreeTypeUndefined.ui_description = N_("Undefined Node Tree Type");
 
   bke::node_type_base_custom(bke::NodeTypeUndefined, "NodeUndefined", "Undefined", "UNDEFINED", 0);
   bke::NodeTypeUndefined.poll = node_undefined_poll;
 
-  bke::NodeSocketTypeUndefined.idname = "NodeSocketUndefined";
+  bke::NodeSocketTypeUndefined.idname = "NodeSocketUndefined"_ustr;
   /* extra type info for standard socket types */
   bke::NodeSocketTypeUndefined.type = SOCK_CUSTOM;
   bke::NodeSocketTypeUndefined.subtype = PROP_NONE;
@@ -147,6 +147,7 @@ void register_nodes()
 
   register_node_type_frame();
   register_node_type_reroute();
+  register_node_type_implicit_conversion();
   register_node_type_group_input();
   register_node_type_group_output();
 

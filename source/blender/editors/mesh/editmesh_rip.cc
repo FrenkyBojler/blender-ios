@@ -413,7 +413,8 @@ static UnorderedLoopPair *edbm_tagged_loop_pairs_to_fill(BMesh *bm)
   }
 
   if (total_tag) {
-    UnorderedLoopPair *uloop_pairs = MEM_malloc_arrayN<UnorderedLoopPair>(total_tag, __func__);
+    UnorderedLoopPair *uloop_pairs = MEM_new_array_uninitialized<UnorderedLoopPair>(total_tag,
+                                                                                    __func__);
     UnorderedLoopPair *ulp = uloop_pairs;
 
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -656,7 +657,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
     bmesh_kernel_vert_separate(bm, v, &vout, &vout_len, true);
 
     if (vout_len < 2) {
-      MEM_freeN(vout);
+      MEM_delete(vout);
       /* set selection back to avoid active-unselected vertex */
       BM_vert_select_set(bm, v, true);
       /* should never happen */
@@ -741,7 +742,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
       BM_edge_create(bm, vout[1], vout[0], nullptr, BM_CREATE_NOP);
     }
 
-    MEM_freeN(vout);
+    MEM_delete(vout);
 
     return OPERATOR_FINISHED;
   }
@@ -820,7 +821,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
     }
     else {
       if (fill_uloop_pairs) {
-        MEM_freeN(fill_uloop_pairs);
+        MEM_delete(fill_uloop_pairs);
       }
       return OPERATOR_CANCELLED;
     }
@@ -862,7 +863,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
 
   if (do_fill && fill_uloop_pairs) {
     edbm_tagged_loop_pairs_do_fill_faces(bm, fill_uloop_pairs);
-    MEM_freeN(fill_uloop_pairs);
+    MEM_delete(fill_uloop_pairs);
   }
 
   if (totvert_orig == bm->totvert) {
@@ -995,7 +996,7 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
 
   if (do_fill && fill_uloop_pairs) {
     edbm_tagged_loop_pairs_do_fill_faces(bm, fill_uloop_pairs);
-    MEM_freeN(fill_uloop_pairs);
+    MEM_delete(fill_uloop_pairs);
   }
 
   if ((totvert_orig == bm->totvert) && (totedge_orig == bm->totedge)) {
@@ -1016,10 +1017,11 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
 /* based on mouse cursor position, it defines how is being ripped */
 static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
 
   bool no_vertex_selected = true;
@@ -1129,7 +1131,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Rip";
   ot->idname = "MESH_OT_rip";
-  ot->description = "Disconnect vertex or edges from connected geometry";
+  ot->description = "Disconnect vertices or edges from connected geometry";
 
   /* API callbacks. */
   ot->invoke = edbm_rip_invoke;

@@ -249,7 +249,7 @@ TEST(string, StrPartitionEx)
 /* BLI_str_partition_utf8 */
 TEST(string, StrPartitionUtf8)
 {
-  const uint delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* ying-yang */, '\0'};
+  const uint delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* yin-yang */, '\0'};
   const char *sep, *suf;
   size_t pre_len;
 
@@ -308,7 +308,7 @@ TEST(string, StrPartitionUtf8)
 /* BLI_str_rpartition_utf8 */
 TEST(string, StrRPartitionUtf8)
 {
-  const uint delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* ying-yang */, '\0'};
+  const uint delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* yin-yang */, '\0'};
   const char *sep, *suf;
   size_t pre_len;
 
@@ -367,7 +367,7 @@ TEST(string, StrRPartitionUtf8)
 /* BLI_str_partition_ex_utf8 */
 TEST(string, StrPartitionExUtf8)
 {
-  const uint delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* ying-yang */, '\0'};
+  const uint delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* yin-yang */, '\0'};
   const char *sep, *suf;
   size_t pre_len;
 
@@ -775,7 +775,7 @@ static void string_join_array_test_truncate(const char *strings[],
   { /* Ensure the allocated version is the same. */
     char *buffer_alloc = BLI_string_join_arrayN(strings, strings_num);
     EXPECT_STREQ(buffer_alloc, buffer);
-    MEM_freeN(buffer_alloc);
+    MEM_delete(buffer_alloc);
   }
 
   for (int dst_size = buffer_len + 1; dst_size > 0; dst_size--) {
@@ -796,7 +796,7 @@ static void string_join_array_with_sep_char_test_truncate(const char *strings[],
   { /* Ensure the allocated version is the same. */
     char *buffer_alloc = BLI_string_join_array_by_sep_charN('|', strings, strings_num);
     EXPECT_STREQ(buffer_alloc, buffer);
-    MEM_freeN(buffer_alloc);
+    MEM_delete(buffer_alloc);
   }
 
   for (int dst_size = buffer_len + 1; dst_size > 0; dst_size--) {

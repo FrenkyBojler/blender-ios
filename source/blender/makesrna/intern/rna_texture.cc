@@ -144,29 +144,29 @@ static StructRNA *rna_Texture_refine(PointerRNA *ptr)
 
   switch (tex->type) {
     case TEX_BLEND:
-      return &RNA_BlendTexture;
+      return RNA_BlendTexture;
     case TEX_CLOUDS:
-      return &RNA_CloudsTexture;
+      return RNA_CloudsTexture;
     case TEX_DISTNOISE:
-      return &RNA_DistortedNoiseTexture;
+      return RNA_DistortedNoiseTexture;
     case TEX_IMAGE:
-      return &RNA_ImageTexture;
+      return RNA_ImageTexture;
     case TEX_MAGIC:
-      return &RNA_MagicTexture;
+      return RNA_MagicTexture;
     case TEX_MARBLE:
-      return &RNA_MarbleTexture;
+      return RNA_MarbleTexture;
     case TEX_MUSGRAVE:
-      return &RNA_MusgraveTexture;
+      return RNA_MusgraveTexture;
     case TEX_NOISE:
-      return &RNA_NoiseTexture;
+      return RNA_NoiseTexture;
     case TEX_STUCCI:
-      return &RNA_StucciTexture;
+      return RNA_StucciTexture;
     case TEX_VORONOI:
-      return &RNA_VoronoiTexture;
+      return RNA_VoronoiTexture;
     case TEX_WOOD:
-      return &RNA_WoodTexture;
+      return RNA_WoodTexture;
     default:
-      return &RNA_Texture;
+      return RNA_Texture;
   }
 }
 
@@ -257,10 +257,11 @@ void rna_TextureSlot_update(bContext *C, PointerRNA *ptr)
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, id);
       break;
     case ID_BR: {
+      const Main *bmain = CTX_data_main(C);
       Scene *scene = CTX_data_scene(C);
       MTex *mtex = static_cast<MTex *>(ptr->data);
       ViewLayer *view_layer = CTX_data_view_layer(C);
-      BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
+      BKE_paint_invalidate_overlay_tex(*bmain, scene, view_layer, mtex->tex);
       BKE_brush_tag_unsaved_changes(reinterpret_cast<Brush *>(id));
       WM_main_add_notifier(NC_BRUSH, id);
       break;
@@ -586,6 +587,7 @@ static void rna_def_colormapping(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blend_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, blend_type_items);
   RNA_def_property_ui_text(prop, "Blend Type", "Mode used to mix with texture output color");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_Color_mapping_update");
 
   prop = RNA_def_property(srna, "blend_color", PROP_FLOAT, PROP_COLOR);
@@ -658,6 +660,7 @@ static void rna_def_mtex(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, blend_type_items);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Blend Type", "Mode used to apply the texture");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_NONE);
@@ -1223,6 +1226,8 @@ static void rna_def_texture_image(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Image", "");
   RNA_def_property_update(prop, 0, "rna_Texture_update");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "image_user", PROP_POINTER, PROP_NEVER_NULL);
   RNA_def_property_pointer_sdna(prop, nullptr, "iuser");

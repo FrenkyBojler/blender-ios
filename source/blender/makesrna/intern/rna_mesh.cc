@@ -34,6 +34,63 @@ const EnumPropertyItem rna_enum_mesh_delimit_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_loop_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit edge loop selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit edge loop selection at sharp edges"},
+    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
+    {BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS,
+     "INNER_CORNERS",
+     0,
+     "Inner Corners",
+     "Stop boundary selection at vertices with more than three edges"},
+    {BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS,
+     "OUTER_CORNERS",
+     0,
+     "Outer Corners",
+     "Stop boundary selection at vertices with two edges when they share a face that is not an "
+     "n-gon"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_ring_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit edge ring selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit edge ring selection at sharp edges"},
+    {BMW_DELIMIT_FACE_MARK_MATERIAL,
+     "MATERIAL",
+     0,
+     "Material",
+     "Delimit edge ring selection at material boundaries"},
+    {BMW_DELIMIT_EDGE_RING_NGONS,
+     "NGONS",
+     0,
+     "N-gons",
+     "Allow edge ring selection to step over n-gons with an even number of sides"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_mesh_walk_delimit_face_loop_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit face loop selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit face loop selection at sharp edges"},
+    {BMW_DELIMIT_FACE_MARK_MATERIAL,
+     "MATERIAL",
+     0,
+     "Material",
+     "Delimit face loop selection at material boundaries"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
     {REMESH_VOXEL, "VOXEL", 0, "Voxel", "Use the voxel remesher"},
     {REMESH_QUAD, "QUAD", 0, "Quad", "Use the quad remesher"},
@@ -311,7 +368,7 @@ bool rna_Mesh_loop_triangles_lookup_int(PointerRNA *ptr, int index, PointerRNA *
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshLoopTriangle, const_cast<int3 *>(&mesh->corner_tris()[index]), *r_ptr);
+      *ptr, RNA_MeshLoopTriangle, const_cast<int3 *>(&mesh->corner_tris()[index]), *r_ptr);
   return true;
 }
 
@@ -336,7 +393,7 @@ bool rna_Mesh_loop_triangle_polygons_lookup_int(PointerRNA *ptr, int index, Poin
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_ReadOnlyInteger, const_cast<int *>(&mesh->corner_tri_faces()[index]), *r_ptr);
+      *ptr, RNA_ReadOnlyInteger, const_cast<int *>(&mesh->corner_tri_faces()[index]), *r_ptr);
   return true;
 }
 
@@ -731,7 +788,7 @@ static void rna_Mesh_uv_layers_begin(CollectionPropertyIterator *iter, PointerRN
 PointerRNA rna_Mesh_uv_layers_iterator_get(CollectionPropertyIterator *iter)
 {
   CustomDataLayer *layer = *static_cast<CustomDataLayer **>(rna_iterator_array_get(iter));
-  return RNA_pointer_create_with_parent(iter->parent, &RNA_MeshUVLoopLayer, layer);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_MeshUVLoopLayer, layer);
 }
 
 static int rna_Mesh_uv_layers_length(PointerRNA *ptr)
@@ -753,7 +810,7 @@ static PointerRNA rna_Mesh_uv_layer_active_get(PointerRNA *ptr)
   Mesh *mesh = rna_mesh(ptr);
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
       *ptr, mesh->active_uv_map_name(), ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
-  attr_ptr.type = &RNA_MeshUVLoopLayer;
+  attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
 
@@ -791,7 +848,7 @@ static PointerRNA rna_Mesh_uv_layer_clone_get(PointerRNA *ptr)
 {
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
       *ptr, rna_mesh(ptr)->clone_uv_map_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
-  attr_ptr.type = &RNA_MeshUVLoopLayer;
+  attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
 
@@ -799,7 +856,7 @@ static void rna_Mesh_uv_layer_clone_set(PointerRNA *ptr, PointerRNA value, Repor
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -820,7 +877,7 @@ static int rna_Mesh_uv_layer_clone_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_clone_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -833,7 +890,7 @@ static PointerRNA rna_Mesh_uv_layer_stencil_get(PointerRNA *ptr)
 {
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
       *ptr, rna_mesh(ptr)->stencil_uv_map_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
-  attr_ptr.type = &RNA_MeshUVLoopLayer;
+  attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
 
@@ -841,7 +898,7 @@ static void rna_Mesh_uv_layer_stencil_set(PointerRNA *ptr, PointerRNA value, Rep
 {
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(value);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
@@ -862,7 +919,7 @@ static int rna_Mesh_uv_layer_stencil_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_stencil_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   const VectorSet<StringRefNull> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
@@ -951,11 +1008,6 @@ static PointerRNA rna_MeshUVLoopLayer_pin_ensure(PointerRNA ptr)
   return bool_layer_ensure(&ptr, BKE_uv_map_pin_name_get);
 }
 
-static void rna_MeshUVLoopLayer_uv_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  rna_Attribute_data_begin(iter, ptr);
-}
-
 static bool rna_MeshUVLoopLayer_active_render_get(PointerRNA *ptr)
 {
   return rna_Attribute_name_get(*ptr) == rna_mesh(ptr)->default_uv_map_name();
@@ -996,12 +1048,35 @@ static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
   }
   Mesh *mesh = rna_mesh(ptr);
   const StringRefNull name = rna_Attribute_name_get(*ptr);
-  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
+  MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
   mesh->clone_uv_map_attribute = BLI_strdupn(name.c_str(), name.size());
   BKE_mesh_tessface_clear(mesh);
+}
+
+bool rna_MeshUVLoopLayer_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
+{
+  CollectionPropertyIterator iter;
+  rna_Attribute_data_begin(&iter, ptr);
+  if (!iter.valid) {
+    *r_ptr = PointerRNA_NULL;
+    return false;
+  }
+
+  ArrayIterator *internal = &iter.internal.array;
+  if (index < 0 || index >= internal->length) {
+    *r_ptr = PointerRNA_NULL;
+    return false;
+  }
+
+  internal->ptr += internal->itemsize * index;
+
+  *r_ptr = RNA_pointer_create_with_parent(
+      iter.parent, RNA_MeshUVLoop, rna_iterator_array_get(&iter));
+  rna_iterator_array_end(&iter);
+  return true;
 }
 
 static void rna_Mesh_vertex_colors_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1013,7 +1088,7 @@ static void rna_Mesh_vertex_colors_begin(CollectionPropertyIterator *iter, Point
 PointerRNA rna_Mesh_vertex_colors_iterator_get(CollectionPropertyIterator *iter)
 {
   CustomDataLayer *layer = *static_cast<CustomDataLayer **>(rna_iterator_array_get(iter));
-  return RNA_pointer_create_with_parent(iter->parent, &RNA_MeshLoopColorLayer, layer);
+  return RNA_pointer_create_with_parent(iter->parent, RNA_MeshLoopColorLayer, layer);
 }
 
 static int rna_Mesh_vertex_colors_length(PointerRNA *ptr)
@@ -1037,7 +1112,7 @@ static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
                                                          rna_mesh(ptr)->active_color_attribute,
                                                          ATTR_DOMAIN_MASK_CORNER,
                                                          CD_MASK_PROP_BYTE_COLOR);
-  attr_ptr.type = &RNA_MeshLoopColorLayer;
+  attr_ptr.type = RNA_MeshLoopColorLayer;
   return attr_ptr;
 }
 
@@ -1315,8 +1390,7 @@ static bool rna_MeshEdge_is_loose_get(PointerRNA *ptr)
 {
   const Mesh *mesh = rna_mesh(ptr);
   const int index = rna_MeshEdge_index_get(ptr);
-  const bke::LooseEdgeCache &loose_edges = mesh->loose_edges();
-  return loose_edges.count > 0 && loose_edges.is_loose_bits[index];
+  return mesh->loose_edges().contains(index);
 }
 
 static int rna_MeshLoopTriangle_material_index_get(PointerRNA *ptr)
@@ -1490,7 +1564,7 @@ bool rna_Mesh_vertices_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
     return false;
   }
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshVertex, &mesh->vert_positions_for_write()[index], *r_ptr);
+      *ptr, RNA_MeshVertex, &mesh->vert_positions_for_write()[index], *r_ptr);
   return true;
 }
 
@@ -1512,7 +1586,7 @@ bool rna_Mesh_edges_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
     return false;
   }
   MutableSpan<int2> edges = mesh->edges_for_write();
-  rna_pointer_create_with_ancestors(*ptr, &RNA_MeshEdge, &edges[index], *r_ptr);
+  rna_pointer_create_with_ancestors(*ptr, RNA_MeshEdge, &edges[index], *r_ptr);
   return true;
 }
 
@@ -1539,7 +1613,7 @@ bool rna_Mesh_polygons_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
     return false;
   }
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshPolygon, &mesh->face_offsets_for_write()[index], *r_ptr);
+      *ptr, RNA_MeshPolygon, &mesh->face_offsets_for_write()[index], *r_ptr);
   return true;
 }
 
@@ -1566,7 +1640,7 @@ bool rna_Mesh_loops_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
     return false;
   }
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshLoop, &mesh->corner_verts_for_write()[index], *r_ptr);
+      *ptr, RNA_MeshLoop, &mesh->corner_verts_for_write()[index], *r_ptr);
   return true;
 }
 
@@ -1602,7 +1676,7 @@ bool rna_Mesh_vertex_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshNormalValue, const_cast<float3 *>(&mesh->vert_normals()[index]), *r_ptr);
+      *ptr, RNA_MeshNormalValue, const_cast<float3 *>(&mesh->vert_normals()[index]), *r_ptr);
   return true;
 }
 
@@ -1633,7 +1707,7 @@ bool rna_Mesh_poly_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshNormalValue, const_cast<float3 *>(&mesh->face_normals()[index]), *r_ptr);
+      *ptr, RNA_MeshNormalValue, const_cast<float3 *>(&mesh->face_normals()[index]), *r_ptr);
   return true;
 }
 
@@ -1664,7 +1738,7 @@ bool rna_Mesh_corner_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_MeshNormalValue, const_cast<float3 *>(&normals[index]), *r_ptr);
+      *ptr, RNA_MeshNormalValue, const_cast<float3 *>(&normals[index]), *r_ptr);
   return true;
 }
 
@@ -1769,7 +1843,7 @@ static PointerRNA rna_Mesh_vertex_color_new(Mesh *mesh,
                                                          mesh->active_color_attribute,
                                                          ATTR_DOMAIN_MASK_CORNER,
                                                          CD_MASK_PROP_BYTE_COLOR);
-  attr_ptr.type = &RNA_MeshLoopColorLayer;
+  attr_ptr.type = RNA_MeshLoopColorLayer;
   return attr_ptr;
 }
 
@@ -1797,7 +1871,7 @@ static PointerRNA rna_Mesh_uv_layers_new(Mesh *mesh,
   if (mesh->default_uv_map_name().is_empty()) {
     mesh->uv_maps_default_set(used_name);
   }
-  attr_ptr.type = &RNA_MeshUVLoopLayer;
+  attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
 
@@ -2279,7 +2353,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_MeshUVLoopLayer_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2317,12 +2391,12 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV", "UV coordinates on face corners");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_collection_funcs(prop,
-                                    "rna_MeshUVLoopLayer_uv_begin",
+                                    "rna_Attribute_data_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2337,7 +2411,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_MeshUVLoopLayer_pin_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 

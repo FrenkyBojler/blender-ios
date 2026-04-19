@@ -154,8 +154,8 @@ static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
 
   if (tot_doubles != 0) {
     uint tot = totvert * step_tot;
-    int *full_doubles_map = MEM_malloc_arrayN<int>(tot, __func__);
-    copy_vn_i(full_doubles_map, int(tot), -1);
+    int *full_doubles_map = MEM_new_array_uninitialized<int>(tot, __func__);
+    std::fill_n(full_doubles_map, int(tot), -1);
 
     uint tot_doubles_left = tot_doubles;
     for (uint i = 0; i < totvert; i += 1) {
@@ -182,10 +182,10 @@ static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
                                         false);
 
     BKE_id_free(nullptr, tmp);
-    MEM_freeN(full_doubles_map);
+    MEM_delete(full_doubles_map);
   }
 
-  MEM_freeN(vert_tag);
+  MEM_delete(vert_tag);
 
   return result;
 }
@@ -459,10 +459,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   /* build face -> edge map */
   if (faces_num) {
 
-    edge_face_map = MEM_malloc_arrayN<uint>(totedge, __func__);
+    edge_face_map = MEM_new_array_uninitialized<uint>(totedge, __func__);
     memset(edge_face_map, 0xff, sizeof(*edge_face_map) * totedge);
 
-    vert_loop_map = MEM_malloc_arrayN<uint>(totvert, __func__);
+    vert_loop_map = MEM_new_array_uninitialized<uint>(totvert, __func__);
     memset(vert_loop_map, 0xff, sizeof(*vert_loop_map) * totvert);
 
     for (const int64_t i : faces_orig.index_range()) {
@@ -486,7 +486,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
      * Sort edge verts for correct face flipping
      * NOT REALLY NEEDED but face flipping is nice. */
 
-    vert_connect = MEM_malloc_arrayN<ScrewVertConnect>(totvert, __func__);
+    vert_connect = MEM_new_array_uninitialized<ScrewVertConnect>(totvert, __func__);
     /* skip the first slice of verts. */
     // vert_connect = (ScrewVertConnect *) &medge_new[totvert];
     vc = vert_connect;
@@ -805,7 +805,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   /* we can avoid if using vert alloc trick */
   if (vert_connect) {
-    MEM_freeN(vert_connect);
+    MEM_delete(vert_connect);
     vert_connect = nullptr;
   }
 
@@ -844,7 +844,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         vert_loop_map ? vert_loop_map[edges_new[i][0]] : UINT_MAX,
         vert_loop_map ? vert_loop_map[edges_new[i][1]] : UINT_MAX,
     };
-    const bool has_mloop_orig = mloop_index_orig[0] != UINT_MAX;
+
+    const bool has_mloop_orig = edge_face_map && (edge_face_map[i] != UINT_MAX) &&
+                                (mloop_index_orig[0] != UINT_MAX);
 
     int mat_nr;
 
@@ -1001,11 +1003,11 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
   if (edge_face_map) {
-    MEM_freeN(edge_face_map);
+    MEM_delete(edge_face_map);
   }
 
   if (vert_loop_map) {
-    MEM_freeN(vert_loop_map);
+    MEM_delete(vert_loop_map);
   }
 
   if (do_remove_doubles) {

@@ -242,7 +242,7 @@ static std::optional<std::string> rna_ColorRamp_path(const PointerRNA *ptr)
               /* all node color ramp properties called 'color_ramp'
                * prepend path from ID to the node
                */
-              PointerRNA node_ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
+              PointerRNA node_ptr = RNA_pointer_create_discrete(id, RNA_Node, node);
               std::string node_path = RNA_path_from_ID_to_struct(&node_ptr).value_or("");
               return fmt::format("{}.color_ramp", node_path);
             }
@@ -306,7 +306,7 @@ static std::optional<std::string> rna_ColorRampElement_path(const PointerRNA *pt
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
           if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
-            ramp_ptr = RNA_pointer_create_discrete(id, &RNA_ColorRamp, node->storage);
+            ramp_ptr = RNA_pointer_create_discrete(id, RNA_ColorRamp, node->storage);
             COLRAMP_GETPATH;
           }
         }
@@ -318,7 +318,7 @@ static std::optional<std::string> rna_ColorRampElement_path(const PointerRNA *pt
 
         BKE_linestyle_modifier_list_color_ramps(id_cast<FreestyleLineStyle *>(id), &listbase);
         for (link = static_cast<LinkData *>(listbase.first); link; link = link->next) {
-          ramp_ptr = RNA_pointer_create_discrete(id, &RNA_ColorRamp, link->data);
+          ramp_ptr = RNA_pointer_create_discrete(id, RNA_ColorRamp, link->data);
           COLRAMP_GETPATH;
         }
         BLI_freelistN(&listbase);
@@ -448,12 +448,12 @@ static const ColorManagedDisplaySettings *rna_display_settings_from_view_setting
   PointerRNA parent_ptr = ptr->parent();
   if (parent_ptr.data) {
     PointerRNA display_ptr = RNA_pointer_get(&parent_ptr, "display_settings");
-    if (display_ptr.type == &RNA_ColorManagedDisplaySettings) {
+    if (display_ptr.type == RNA_ColorManagedDisplaySettings) {
       return display_ptr.data_as<const ColorManagedDisplaySettings>();
     }
   }
 
-  if (ptr->owner_id && GS(ptr->owner_id) == ID_SCE) {
+  if (ptr->owner_id && GS(ptr->owner_id->name) == ID_SCE) {
     return &reinterpret_cast<const Scene *>(ptr->owner_id)->display_settings;
   }
 
@@ -471,7 +471,7 @@ static ColorManagedViewSettings *rna_view_settings_from_display_settings(Pointer
   PointerRNA parent_ptr = ptr->parent();
   if (parent_ptr.data) {
     PointerRNA view_ptr = RNA_pointer_get(&parent_ptr, "view_settings");
-    if (view_ptr.type == &RNA_ColorManagedViewSettings) {
+    if (view_ptr.type == RNA_ColorManagedViewSettings) {
       return view_ptr.data_as<ColorManagedViewSettings>();
     }
   }
@@ -517,7 +517,7 @@ static void rna_display_and_view_settings_node_update(Main *bmain, PointerRNA *p
   if (id && GS(id->name) == ID_NT) {
     /* Find a node ancestor and tag it. */
     PointerRNA node_ptr = ptr->parent();
-    while (node_ptr.data && !RNA_struct_is_a(node_ptr.type, &RNA_Node)) {
+    while (node_ptr.data && !RNA_struct_is_a(node_ptr.type, RNA_Node)) {
       node_ptr = node_ptr.parent();
     }
 
@@ -760,26 +760,6 @@ static const EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_ite
   return items;
 }
 
-struct Seq_colorspace_cb_data {
-  ColorManagedColorspaceSettings *colorspace_settings;
-  Strip *r_seq;
-};
-
-/**
- * Color-space could be changed for scene, but also sequencer-strip.
- * If property pointer matches one of strip, set `r_seq`,
- * so not all cached images have to be invalidated.
- */
-static bool strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
-{
-  Seq_colorspace_cb_data *cd = static_cast<Seq_colorspace_cb_data *>(user_data);
-  if (strip->data && &strip->data->colorspace_settings == cd->colorspace_settings) {
-    cd->r_seq = strip;
-    return false;
-  }
-  return true;
-}
-
 static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
                                                              Scene * /*scene*/,
                                                              PointerRNA *ptr)
@@ -818,7 +798,6 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
     if (scene->ed) {
       ColorManagedColorspaceSettings *colorspace_settings =
           static_cast<ColorManagedColorspaceSettings *>(ptr->data);
-      Seq_colorspace_cb_data cb_data = {colorspace_settings, nullptr};
 
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
@@ -826,8 +805,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       }
       else {
         /* Strip colorspace was likely changed. */
-        seq::foreach_strip(&scene->ed->seqbase, strip_find_colorspace_settings_cb, &cb_data);
-        Strip *strip = cb_data.r_seq;
+        Strip *strip = rna_strip_find_by_colorspace_settings(scene->ed, colorspace_settings);
 
         if (strip) {
           seq::strip_free_movie_readers(strip);

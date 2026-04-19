@@ -118,8 +118,14 @@ ENUM_OPERATORS(ePaintSymmetryAreas);
 
 #define PAINT_SYMM_AREAS 8
 
-void BKE_paint_invalidate_overlay_tex(Scene *scene, ViewLayer *view_layer, const Tex *tex);
-void BKE_paint_invalidate_cursor_overlay(Scene *scene, ViewLayer *view_layer, CurveMapping *curve);
+void BKE_paint_invalidate_overlay_tex(const Main &bmain,
+                                      Scene *scene,
+                                      ViewLayer *view_layer,
+                                      const Tex *tex);
+void BKE_paint_invalidate_cursor_overlay(const Main &bmain,
+                                         Scene *scene,
+                                         ViewLayer *view_layer,
+                                         CurveMapping *curve);
 void BKE_paint_invalidate_overlay_all();
 ePaintOverlayControlFlags BKE_paint_get_overlay_flags();
 void BKE_paint_reset_overlay_invalid(ePaintOverlayControlFlags flag);
@@ -179,10 +185,12 @@ const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(PaintMode mode);
 uint BKE_paint_get_brush_type_offset_from_paintmode(PaintMode mode);
 std::optional<int> BKE_paint_get_brush_type_from_obmode(const Brush *brush, eObjectMode ob_mode);
 std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush, PaintMode mode);
-Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
+Paint *BKE_paint_get_active(const Main &bmain, Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
+bool BKE_paint_use_unified_size(const Paint *paint);
+bool BKE_paint_use_unified_strength(const Paint *paint);
 bool BKE_paint_use_unified_color(const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
@@ -300,6 +308,11 @@ void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[
 
 /* Stroke related. */
 
+namespace bke::paint {
+bool supports_scene_size(PaintMode paint_mode);
+bool supports_symmetry_tiling(PaintMode paint_mode);
+}  // namespace bke::paint
+
 /* Random values are generated on each new stroke so each stroke
  * gets a different starting point in the perlin noise. */
 float3 seed_hsv_jitter();
@@ -323,8 +336,6 @@ float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
 
 void BKE_paint_blend_write(BlendWriter *writer, Paint *paint);
 void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Paint *paint);
-
-#define SCULPT_FACE_SET_NONE 0
 
 /* Data used for displaying extra visuals while using the Pose brush */
 struct SculptPoseIKChainPreview {
@@ -374,13 +385,7 @@ struct PersistentMultiresData {
 };
 
 struct SculptSession : NonCopyable, NonMovable {
-  /* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
-  struct { /* Special handling for multires meshes */
-    bool active = false;
-    MultiresModifierData *modifier = nullptr;
-    int level = 0;
-  } multires = {};
-
+  /* The current active shapekey for the mesh. Only non-null for Type::Mesh */
   KeyBlock *shapekey_active = nullptr;
 
   /* Edges to adjacent faces. */
@@ -398,6 +403,7 @@ struct SculptSession : NonCopyable, NonMovable {
   /* Undo/redo log for dynamic topology sculpting */
   BMLog *bm_log = nullptr;
 
+  MultiresModifierData *multires_modifier = nullptr;
   /* Limit surface/grids. */
   SubdivCCG *subdiv_ccg = nullptr;
 
@@ -475,35 +481,18 @@ struct SculptSession : NonCopyable, NonMovable {
 
   /* Transform operator */
   float3 pivot_pos = {};
-  float4 pivot_rot = {};
+  float4 pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float3 pivot_scale = {};
 
   float3 init_pivot_pos = {};
-  float4 init_pivot_rot = {};
+  float4 init_pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float3 init_pivot_scale = {};
 
   float3 prev_pivot_pos = {};
-  float4 prev_pivot_rot = {};
+  float4 prev_pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float3 prev_pivot_scale = {};
 
-  struct {
-    struct {
-      /* Keep track of how much each vertex has been painted (non-airbrush only). */
-      float *alpha_weight;
-
-      /* Needed to continuously re-apply over the same weights (#BRUSH_ACCUMULATE disabled).
-       * Lazy initialize as needed (flag is set to 1 to tag it as uninitialized). */
-      Array<MDeformVert> dvert_prev;
-    } wpaint;
-
-    /* TODO: identify sculpt-only fields */
-    // struct { ... } sculpt;
-  } mode = {};
   eObjectMode mode_type;
-
-  /* This flag prevents bke::pbvh::Tree from being freed when creating the vp_handle for
-   * texture paint. */
-  bool building_vp_handle = false;
 
   /**
    * ID data is older than sculpt-mode data.
@@ -522,7 +511,7 @@ struct SculptSession : NonCopyable, NonMovable {
   /**
    * Last used painting canvas key.
    */
-  char *last_paint_canvas_key = nullptr;
+  std::optional<std::string> last_paint_canvas_key = {};
   float3 last_normal;
 
   std::unique_ptr<SculptTopologyIslandCache> topology_island_cache;
@@ -585,7 +574,6 @@ struct SculptSession : NonCopyable, NonMovable {
 
 void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
-void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
 void BKE_sculptsession_free_pbvh(Object &object);
 void BKE_sculptsession_bm_to_me(Object *ob);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
@@ -655,7 +643,7 @@ bool BKE_object_sculpt_use_dyntopo(const Object *object);
  * Create a key that can be used to compare with previous ones to identify changes.
  * The resulting 'string' is owned by the caller.
  */
-char *BKE_paint_canvas_key_get(PaintModeSettings *settings, Object *ob);
+std::string BKE_paint_canvas_key_get(PaintModeSettings *settings, Object *ob);
 
 bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
                                 Object *ob,

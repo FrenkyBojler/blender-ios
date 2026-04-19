@@ -14,6 +14,7 @@
 #include "DNA_screen_types.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -31,6 +32,19 @@ const EnumPropertyItem rna_enum_icon_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem popup_draw_direction_items[] = {
+    {int(ui::PopupAttachDirection::Vertical),
+     "VERTICAL",
+     0,
+     "Vertical",
+     "Draw popup panel above or below the button"},
+    {int(ui::PopupAttachDirection::Horizontal),
+     "HORIZONTAL",
+     0,
+     "Horizontal",
+     "Draw popup panel to the side of the button"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -114,7 +128,8 @@ static void rna_uiItemR(Layout *layout,
   ui::eUI_Item_Flag flag = UI_ITEM_NONE;
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare(
+        "UILayout.prop(): property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
     return;
   }
 
@@ -174,14 +189,17 @@ static void rna_uiItemR_with_popover(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_with_popover(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
   if ((RNA_property_type(prop) != PROP_ENUM) &&
       !ELEM(RNA_property_subtype(prop), PROP_COLOR, PROP_COLOR_GAMMA))
   {
-    RNA_warning(
-        "property is not an enum or color: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_with_popover(): property is not an enum or color: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
   ui::eUI_Item_Flag flag = UI_ITEM_NONE;
@@ -208,11 +226,15 @@ static void rna_uiItemR_with_menu(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_with_menu(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
   if (RNA_property_type(prop) != PROP_ENUM) {
-    RNA_warning("property is not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_with_menu(): property is not an enum: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
   ui::eUI_Item_Flag flag = UI_ITEM_NONE;
@@ -237,7 +259,9 @@ static void rna_uiItemMenuEnumR(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_menu_enum(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -253,16 +277,21 @@ static void rna_uiItemTabsEnumR(Layout *layout,
                                 const char *propname,
                                 PointerRNA *ptr_highlight,
                                 const char *propname_highlight,
-                                bool icon_only)
+                                bool icon_only,
+                                int expand_as)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_tabs_enum(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
   if (RNA_property_type(prop) != PROP_ENUM) {
-    RNA_warning("property is not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_tabs_enum(): property is not an enum: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -271,26 +300,27 @@ static void rna_uiItemTabsEnumR(Layout *layout,
   if (!RNA_pointer_is_null(ptr_highlight)) {
     prop_highlight = RNA_struct_find_property(ptr_highlight, propname_highlight);
     if (!prop_highlight) {
-      RNA_warning("property not found: %s.%s",
-                  RNA_struct_identifier(ptr_highlight->type),
-                  propname_highlight);
+      RNA_warning_bare("UILayout.prop_tabs_enum(): property not found: %s.%s",
+                       RNA_struct_identifier(ptr_highlight->type),
+                       propname_highlight);
       return;
     }
     if (RNA_property_type(prop_highlight) != PROP_BOOLEAN) {
-      RNA_warning("property is not a boolean: %s.%s",
-                  RNA_struct_identifier(ptr_highlight->type),
-                  propname_highlight);
+      RNA_warning_bare("UILayout.prop_tabs_enum(): property is not a boolean: %s.%s",
+                       RNA_struct_identifier(ptr_highlight->type),
+                       propname_highlight);
       return;
     }
     if (!RNA_property_array_check(prop_highlight)) {
-      RNA_warning("property is not an array: %s.%s",
-                  RNA_struct_identifier(ptr_highlight->type),
-                  propname_highlight);
+      RNA_warning_bare("UILayout.prop_tabs_enum(): property is not an array: %s.%s",
+                       RNA_struct_identifier(ptr_highlight->type),
+                       propname_highlight);
       return;
     }
   }
 
-  layout->prop_tabs_enum(C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
+  layout->prop_tabs_enum(
+      C, ptr, prop, ptr_highlight, prop_highlight, icon_only, ui::EnumTabExpand(expand_as));
 }
 
 static void rna_uiItemEnumR_string(Layout *layout,
@@ -305,7 +335,9 @@ static void rna_uiItemEnumR_string(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_enum(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -335,13 +367,16 @@ static void rna_uiItemPointerR(Layout *layout,
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.prop_search(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
   PropertyRNA *searchprop = RNA_struct_find_property(searchptr, searchpropname);
   if (!searchprop) {
-    RNA_warning(
-        "property not found: %s.%s", RNA_struct_identifier(searchptr->type), searchpropname);
+    RNA_warning_bare("UILayout.prop_search(): property not found: %s.%s",
+                     RNA_struct_identifier(searchptr->type),
+                     searchpropname);
     return;
   }
 
@@ -350,9 +385,9 @@ static void rna_uiItemPointerR(Layout *layout,
     StructRNA *collection_item_type = RNA_property_pointer_type(searchptr, searchprop);
     item_searchprop = RNA_struct_type_find_property(collection_item_type, item_searchpropname);
     if (!item_searchprop) {
-      RNA_warning("Collection items search property not found: %s.%s",
-                  RNA_struct_identifier(collection_item_type),
-                  item_searchpropname);
+      RNA_warning_bare("UILayout.prop_search(): Collection items search property not found: %s.%s",
+                       RNA_struct_identifier(collection_item_type),
+                       item_searchpropname);
     }
   }
 
@@ -384,7 +419,8 @@ static PointerRNA rna_uiItemO(Layout *layout,
 
   ot = WM_operatortype_find(opname, false); /* print error next */
   if (!ot || !ot->srna) {
-    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
+    RNA_warning_bare(
+        "UILayout.operator(): %s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
     return PointerRNA_NULL;
   }
 
@@ -425,7 +461,9 @@ static PointerRNA rna_uiItemOMenuHold(Layout *layout,
 {
   wmOperatorType *ot = WM_operatortype_find(opname, false); /* print error next */
   if (!ot || !ot->srna) {
-    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
+    RNA_warning_bare("UILayout.operator_menu_hold(): %s '%s'",
+                     ot ? "operator missing srna" : "unknown operator",
+                     opname);
     return PointerRNA_NULL;
   }
 
@@ -467,7 +505,9 @@ static PointerRNA rna_uiItemMenuEnumO(Layout *layout,
   wmOperatorType *ot = WM_operatortype_find(opname, false); /* print error next */
 
   if (!ot || !ot->srna) {
-    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
+    RNA_warning_bare("UILayout.operator_menu_enum(): %s '%s'",
+                     ot ? "operator missing srna" : "unknown operator",
+                     opname);
     return PointerRNA_NULL;
   }
 
@@ -494,6 +534,25 @@ static void rna_uiItemL(Layout *layout,
   }
 
   layout->label(text.value_or(""), icon);
+}
+
+static void rna_layout_link(Layout *layout,
+                            const char *url,
+                            const char *name,
+                            const char *text_ctxt,
+                            bool translate,
+                            int icon,
+                            int icon_value)
+{
+  /* Get translated name (label). */
+  std::optional<StringRefNull> text = rna_translate_ui_text(
+      name, text_ctxt, nullptr, nullptr, translate);
+
+  if (icon_value && !icon) {
+    icon = icon_value;
+  }
+
+  layout->link(url, text.value_or(""), icon);
 }
 
 static void rna_uiItemM(Layout *layout,
@@ -527,7 +586,8 @@ static void rna_uiItemPopoverPanel(Layout *layout,
                                    const char *text_ctxt,
                                    bool translate,
                                    int icon,
-                                   int icon_value)
+                                   int icon_value,
+                                   int direction = int(ui::PopupAttachDirection::Vertical))
 {
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -537,7 +597,7 @@ static void rna_uiItemPopoverPanel(Layout *layout,
     icon = icon_value;
   }
 
-  layout->popover(C, panel_type, text, icon);
+  layout->popover(C, panel_type, text, icon, ui::PopupAttachDirection(direction));
 }
 
 static void rna_uiItemPopoverPanelFromGroup(Layout *layout,
@@ -600,7 +660,9 @@ static void rna_uiTemplateID(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.template_ID(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -609,6 +671,12 @@ static void rna_uiTemplateID(Layout *layout,
       name, text_ctxt, nullptr, prop, translate);
 
   template_id(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, text);
+}
+
+static void rna_ui_template_ID_session_uid(
+    Layout *layout, bContext *C, PointerRNA *ptr, const char *propname, int idcode)
+{
+  template_ID_session_uid(*layout, C, ptr, propname, idcode);
 }
 
 static void rna_uiTemplateAnyID(Layout *layout,
@@ -622,7 +690,9 @@ static void rna_uiTemplateAnyID(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.template_any_ID(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -663,7 +733,9 @@ static void rna_uiTemplateSearch(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.template_search(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -691,7 +763,9 @@ static void rna_uiTemplateSearchPreview(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.template_search_preview(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -727,19 +801,19 @@ void rna_template_list(Layout *layout,
     flags |= ui::TEMPLATE_LIST_SORT_LOCK;
   }
 
-  ui::template_list(layout,
-                    C,
-                    listtype_name,
-                    list_id,
-                    dataptr,
-                    propname,
-                    active_dataptr,
-                    active_propname,
-                    item_dyntip_propname,
-                    rows,
-                    maxrows,
-                    layout_type,
-                    flags);
+  ui::template_uilist(layout,
+                      C,
+                      listtype_name,
+                      list_id,
+                      dataptr,
+                      propname,
+                      active_dataptr,
+                      active_propname,
+                      item_dyntip_propname,
+                      rows,
+                      maxrows,
+                      layout_type,
+                      flags);
 }
 
 static void rna_template_cache_file(Layout *layout,
@@ -750,7 +824,9 @@ static void rna_template_cache_file(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.template_cache_file(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -779,17 +855,17 @@ static void rna_template_cache_file_time_settings(Layout *layout,
   ui::template_cache_file_time_settings(layout, &fileptr);
 }
 
-static void rna_template_list_flags(Layout *layout,
-                                    bContext *C,
-                                    PointerRNA *ptr,
-                                    const char *propname)
+static void rna_template_uilist_flags(Layout *layout,
+                                      bContext *C,
+                                      PointerRNA *ptr,
+                                      const char *propname)
 {
   PointerRNA fileptr;
   if (!ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
     return;
   }
 
-  ui::template_list_flags(layout, C, &fileptr);
+  ui::template_uilist_flags(layout, C, &fileptr);
 }
 
 static void rna_uiTemplatePathBuilder(Layout *layout,
@@ -803,7 +879,9 @@ static void rna_uiTemplatePathBuilder(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.template_path_builder(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return;
   }
 
@@ -964,8 +1042,9 @@ static const char *rna_ui_get_enum_name(bContext *C,
 
   prop = RNA_struct_find_property(ptr, propname);
   if (!prop || (RNA_property_type(prop) != PROP_ENUM)) {
-    RNA_warning(
-        "Property not found or not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.enum_item_name(): Property not found or not an enum: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return name;
   }
 
@@ -977,7 +1056,7 @@ static const char *rna_ui_get_enum_name(bContext *C,
       name = items[index].name;
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
 
@@ -996,8 +1075,9 @@ static const char *rna_ui_get_enum_description(bContext *C,
 
   prop = RNA_struct_find_property(ptr, propname);
   if (!prop || (RNA_property_type(prop) != PROP_ENUM)) {
-    RNA_warning(
-        "Property not found or not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.enum_item_description(): Property not found or not an enum: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return desc;
   }
 
@@ -1009,7 +1089,7 @@ static const char *rna_ui_get_enum_description(bContext *C,
       desc = items[index].description;
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
 
@@ -1028,8 +1108,9 @@ static int rna_ui_get_enum_icon(bContext *C,
 
   prop = RNA_struct_find_property(ptr, propname);
   if (!prop || (RNA_property_type(prop) != PROP_ENUM)) {
-    RNA_warning(
-        "Property not found or not an enum: %s.%s", RNA_struct_identifier(ptr->type), propname);
+    RNA_warning_bare("UILayout.enum_item_icon(): Property not found or not an enum: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
     return icon;
   }
 
@@ -1041,7 +1122,7 @@ static int rna_ui_get_enum_icon(bContext *C,
       icon = items[index].icon;
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
 
@@ -1085,7 +1166,9 @@ PointerRNA rna_uiTemplatePopupConfirm(Layout *layout,
   }
 
   if (opname[0] ? (!ot || !ot->srna) : false) {
-    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
+    RNA_warning_bare("UILayout.template_popup_confirm(): %s '%s'",
+                     ot ? "operator missing srna" : "unknown operator",
+                     opname);
   }
   else if (!popup_block_template_confirm_is_supported(layout->block())) {
     BKE_reportf(reports, RPT_ERROR, "template_popup_confirm used outside of a popup");
@@ -1493,6 +1576,18 @@ void RNA_api_ui_layout(StructRNA *srna)
       func, "property_highlight", nullptr, 0, "", "Identifier of highlight property in data");
   RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in tabs, no text");
 
+  static const EnumPropertyItem rna_enum_prop_tabs_enum_expand_as[] = {
+      {int(ui::EnumTabExpand::Default), "DEFAULT", 0, "", ""},
+      {int(ui::EnumTabExpand::Row), "ROW", 0, "", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  parm = RNA_def_enum(func,
+                      "expand_as",
+                      rna_enum_prop_tabs_enum_expand_as,
+                      int(ui::EnumTabExpand::Default),
+                      "",
+                      "");
+
   func = RNA_def_function(srna, "prop_enum", "rna_uiItemEnumR_string");
   api_ui_item_rna_common(func);
   parm = RNA_def_string(func, "value", nullptr, 0, "", "Enum property value");
@@ -1588,6 +1683,19 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
 
+  func = RNA_def_function(srna, "link", "rna_layout_link");
+  RNA_def_function_ui_description(func, "Item. Displays a url that can be clicked in the layout.");
+  prop = RNA_def_string(func, "url", nullptr, 0, "", "");
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  prop = RNA_def_string(func, "text", nullptr, 0, "", "Override automatic text of the item");
+  RNA_def_property_clear_flag(prop, PROP_NEVER_NULL);
+  api_ui_item_common_translation(func);
+  prop = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_icon_items);
+  RNA_def_property_ui_text(prop, "Icon", "Override automatic icon of the item");
+  parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
+
   func = RNA_def_function(srna, "menu", "rna_uiItemM");
   parm = RNA_def_string(func, "menu", nullptr, 0, "", "Identifier of the menu");
   api_ui_item_common(func);
@@ -1606,6 +1714,13 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
+  parm = RNA_def_enum(
+      func,
+      "direction",
+      popup_draw_direction_items,
+      0,
+      "Popup Direction",
+      "The direction in which the popup panel is drawn relative to button position");
 
   func = RNA_def_function(srna, "popover_group", "rna_uiItemPopoverPanelFromGroup");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -1698,6 +1813,15 @@ void RNA_api_ui_layout(StructRNA *srna)
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "live_icon", false, "", "Show preview instead of fixed icon");
   api_ui_item_common_text(func);
+
+  func = RNA_def_function(srna, "template_ID_session_uid", "rna_ui_template_ID_session_uid");
+  RNA_def_function_ui_description(func,
+                                  "Template ID search menu button for session_uid Int properties");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  api_ui_item_rna_common(func);
+  parm = RNA_def_enum(func, "id_type", rna_enum_id_type_items, 0, "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
   func = RNA_def_function(srna, "template_ID_preview", "template_id_preview");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -1839,6 +1963,10 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "template_strip_modifiers", "template_strip_modifiers");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Generates the UI layout for the strip modifier stack");
+
+  func = RNA_def_function(srna, "template_collection_importer", "template_collection_importer");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  RNA_def_function_ui_description(func, "Generates the UI layout for the collection importer");
 
   func = RNA_def_function(srna, "template_collection_exporters", "template_collection_exporters");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -2275,7 +2403,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "Show cache files time settings");
   api_ui_item_rna_common(func);
 
-  func = RNA_def_function(srna, "template_cache_file_layers", "rna_template_list_flags");
+  func = RNA_def_function(srna, "template_cache_file_layers", "rna_template_uilist_flags");
   RNA_def_function_ui_description(func, "Show cache files override layers properties");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);

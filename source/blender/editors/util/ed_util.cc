@@ -25,6 +25,7 @@
 #include "BKE_material.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
@@ -66,7 +67,7 @@ void ED_editors_init_for_undo(Main *bmain)
   for (wmWindow &win : wm->windows) {
     Scene *scene = WM_window_get_active_scene(&win);
     ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     if (ob && (ob->mode & OB_MODE_TEXTURE_PAINT)) {
       BKE_texpaint_slots_refresh_object(scene, ob);
@@ -132,7 +133,7 @@ void ED_editors_init(bContext *C)
 
     /* Reset object to Object mode, so that code below can properly re-switch it to its
      * previous mode if possible, re-creating its mode data, etc. */
-    ID *ob_data = static_cast<ID *>(ob.data);
+    ID *ob_data = ob.data;
     ob.mode = OB_MODE_OBJECT;
     DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
 
@@ -159,7 +160,7 @@ void ED_editors_init(bContext *C)
      * modes like Sculpt.
      * Ref. #98225. */
     if (!BKE_collection_has_object_recursive(scene->master_collection, &ob) ||
-        !BKE_scene_has_object(scene, &ob) || (ob.visibility_flag & OB_HIDE_VIEWPORT) != 0)
+        !BKE_scene_has_object(*bmain, scene, &ob) || (ob.visibility_flag & OB_HIDE_VIEWPORT) != 0)
     {
       continue;
     }
@@ -276,11 +277,11 @@ bool ED_editors_flush_edits_for_object_ex(Main *bmain,
     /* Don't allow flushing while in the middle of a stroke (frees data in use).
      * Auto-save prevents this from happening but scripts
      * may cause a flush on saving: #53986. */
-    if (ob->sculpt != nullptr && ob->sculpt->cache == nullptr) {
-      if (check_needs_flush && !ob->sculpt->needs_flush_to_id) {
+    if (ob->runtime->sculpt_session != nullptr && ob->runtime->sculpt_session->cache == nullptr) {
+      if (check_needs_flush && !ob->runtime->sculpt_session->needs_flush_to_id) {
         return false;
       }
-      ob->sculpt->needs_flush_to_id = false;
+      ob->runtime->sculpt_session->needs_flush_to_id = false;
 
       /* flush multires changes (for sculpt) */
       multires_flush_sculpt_updates(ob);
@@ -299,7 +300,7 @@ bool ED_editors_flush_edits_for_object_ex(Main *bmain,
   }
   else if (ob->mode & OB_MODE_EDIT) {
 
-    char *needs_flush_ptr = BKE_object_data_editmode_flush_ptr_get(static_cast<ID *>(ob->data));
+    char *needs_flush_ptr = BKE_object_data_editmode_flush_ptr_get(ob->data);
     if (needs_flush_ptr != nullptr) {
       if (check_needs_flush && (*needs_flush_ptr == 0)) {
         return false;

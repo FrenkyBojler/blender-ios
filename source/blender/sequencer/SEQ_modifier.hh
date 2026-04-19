@@ -8,6 +8,8 @@
  * \ingroup sequencer
  */
 
+#include "BKE_sound_types.hh"
+
 #include "BLI_function_ref.hh"
 
 #include "DNA_sequence_types.h"
@@ -17,7 +19,6 @@ namespace blender {
 struct ARegionType;
 struct BlendDataReader;
 struct BlendWriter;
-struct ImBuf;
 struct Strip;
 struct StripModifierData;
 struct ID;
@@ -55,7 +56,7 @@ struct StripModifierTypeInfo {
   void (*copy_data)(StripModifierData *smd, StripModifierData *target);
 
   /* Apply modifier on an image buffer. */
-  void (*apply)(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask);
+  void (*apply)(ModifierApplyContext &context, StripModifierData *smd, int timeline_frame);
 
   /** Register the panel types for the modifier's UI. */
   void (*panel_register)(ARegionType *region_type);
@@ -65,6 +66,21 @@ struct StripModifierTypeInfo {
 
   /* Callback to write custom strip modifier data. */
   void (*blend_read)(BlendDataReader *reader, StripModifierData *smd);
+};
+
+struct StripModifierDataRuntime {
+  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
+   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
+   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
+
+  /* Reference sound handles (may be used by any sound modifier). */
+  AUD_Sound last_sound_in;
+  AUD_Sound last_sound_out;
+
+  /* Hash to detect change in modifier state. */
+  uint64_t params_hash = 0;
+
+  eStripModifierFlag flag = STRIP_MODIFIER_FLAG_NONE;
 };
 
 void modifiers_init();

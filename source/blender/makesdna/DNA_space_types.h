@@ -45,6 +45,7 @@ struct bGPdata;
 struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
+struct SpaceUserPref_Runtime;
 
 namespace asset_system {
 class AssetRepresentation;
@@ -463,7 +464,8 @@ struct FileAssetSelectParams {
 
   short import_method = 0; /* eFileAssetImportMethod */
   short import_flags = 0;  /* eFileImportFlags */
-  char _pad2[4] = {};
+
+  int asset_flags = 0; /* #eFileSel_AssetParams_Flag */
 };
 
 /**
@@ -578,7 +580,7 @@ struct FileDirEntry {
   /** Optional argument for shortcuts, aliases etc. */
   char *redirection_path = nullptr;
 
-  /** When showing local IDs (FILE_MAIN, FILE_MAIN_ASSET), ID this file represents. Note comment
+  /** When showing local IDs (#FILE_MAIN_ASSET), ID this file represents. Note comment
    * for FileListInternEntry.local_data, the same applies here! */
   ID *id = nullptr;
   /** If this file represents an asset, its asset data is here. Note that we may show assets of
@@ -805,9 +807,10 @@ struct bNodeTreePath {
   struct bNodeTree *nodetree = nullptr;
   /** Base key for nodes in this tree instance. */
   bNodeInstanceKey parent_key;
-  char _pad[4] = {};
   /** V2d center point, so node trees can have different offsets in editors. */
   float view_center[2] = {};
+  /** V2d width. Used to calculate zoom levels for node editors. */
+  float view_width = 0.0f;
 
   char node_name[/*MAX_NAME*/ 64] = "";
   char display_name[/*MAX_NAME*/ 64] = "";
@@ -818,6 +821,8 @@ struct SpaceNodeOverlay {
   int flag = 0;
   /* eSpaceNodeOverlay_preview_shape */
   int preview_shape = 0;
+  float passepartout_alpha = 0;
+  char _pad[4] = {};
 };
 
 struct SpaceNode {
@@ -955,6 +960,7 @@ struct SpaceConsole {
  * \{ */
 
 struct SpaceUserPref {
+  DNA_DEFINE_CXX_METHODS(SpaceUserPref)
   SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
   ListBaseT<ARegion> regionbase = {nullptr, nullptr};
@@ -967,6 +973,7 @@ struct SpaceUserPref {
   char filter_type = 0;
   /** Search term for filtering in the UI. */
   char filter[64] = "";
+  SpaceUserPref_Runtime *runtime = nullptr;
 };
 
 /** \} */
@@ -1160,6 +1167,20 @@ struct SpreadsheetBundlePathElem {
 #endif
 };
 
+typedef struct SpreadsheetBundleTreeViewPath {
+  SpreadsheetBundlePathElem *bundle_path = nullptr;
+  int bundle_path_num = 0;
+
+  /** #SpreadsheetClosureInputOutput. */
+  int8_t closure_input_output = SPREADSHEET_CLOSURE_NONE;
+  char _pad[3] = {};
+} SpreadsheetBundleTreeViewPath;
+
+typedef enum SpreadsheetGeometryItemType {
+  SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN = 0,
+  SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE = 1,
+} SpreadsheetGeometryItemType;
+
 struct SpreadsheetTableIDGeometry {
   SpreadsheetTableID base;
   char _pad0[4] = {};
@@ -1171,14 +1192,8 @@ struct SpreadsheetTableIDGeometry {
   ViewerPath viewer_path;
 
   int viewer_item_identifier = 0;
-
-  int bundle_path_num = 0;
-  SpreadsheetBundlePathElem *bundle_path = nullptr;
-
-  /** #SpreadsheetClosureInputOutput. */
-  int8_t closure_input_output = 0;
-
-  char _pad3[7] = {};
+  char _pad3[4] = {};
+  SpreadsheetBundleTreeViewPath viewer_item_bundle_path;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested
@@ -1192,7 +1207,10 @@ struct SpreadsheetTableIDGeometry {
   uint8_t attribute_domain = 0;
   /** #eSpaceSpreadsheet_ObjectEvalState. */
   uint8_t object_eval_state = 0;
-  char _pad1[5] = {};
+  /** #SpreadsheetGeometryItemType. */
+  uint8_t geometry_item_type = 0;
+  SpreadsheetBundleTreeViewPath geometry_bundle_path = {};
+  char _pad1[4] = {};
   /** Grease Pencil layer index for grease pencil component. */
   int layer_index = 0;
 };
@@ -1274,6 +1292,7 @@ struct SpreadsheetRowFilter {
   float threshold = 0;
   float value_float2[2] = {};
   float value_float3[3] = {};
+  float value_float4[4] = {};
   float value_color[4] = {};
   char _pad1[4] = {};
 };

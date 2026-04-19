@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <vector>
 
 namespace blender::gpu::shader::parser {
 
@@ -38,32 +37,74 @@ struct IndexRange {
            ((other.start < start) && (start < (other.start + other.size)));
   }
 
-  int64_t last()
+  int64_t last() const
   {
     return start + size - 1;
   }
 };
 
-/** Poor man's OffsetIndices. */
-struct OffsetIndices {
-  std::vector<uint32_t> offsets;
+/** Poor man's MutableSpan. */
+template<typename T> struct MutableSpan {
+  T *data_;
+  uint64_t size_;
 
-  IndexRange operator[](const int64_t index) const
+  T &operator[](const int64_t index)
   {
-    return {int64_t(offsets[index]), int64_t(offsets[index + 1] - offsets[index])};
+    return data_[index];
+  }
+  const T &operator[](const int64_t index) const
+  {
+    return data_[index];
   }
 
-  void clear()
+  T *data()
   {
-    offsets.clear();
-  };
+    return data_;
+  }
+
+  uint64_t size() const
+  {
+    return size_;
+  }
+
+  T back() const
+  {
+    return (*this)[size_ - 1];
+  }
+
+  T *begin()
+  {
+    return data_;
+  }
+  T *end()
+  {
+    return data_ + size_;
+  }
+
+  const T *begin() const
+  {
+    return data_;
+  }
+  const T *end() const
+  {
+    return data_ + size_;
+  }
+
+  /**
+   * Set span size to a smaller size, this invokes undefined behavior when n is negative or bigger
+   * than the current span.
+   */
+  void shrink(int64_t new_size)
+  {
+    size_ = new_size;
+  }
 };
 
 /** Return the line number this token is found at. Take into account the #line directives. */
-size_t line_number(const std::string &str, size_t pos);
+size_t line_number(const std::string_view &str, size_t pos);
 /** Return the offset to the start of the line. */
-size_t char_number(const std::string &str, size_t pos);
+size_t char_number(const std::string_view &str, size_t pos);
 /** Returns a string of the line containing the character at the given position. */
-std::string line_str(const std::string &str, size_t pos);
+std::string line_str(const std::string_view &str, size_t pos);
 
 }  // namespace blender::gpu::shader::parser

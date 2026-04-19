@@ -141,10 +141,10 @@ static const char *ui_imageuser_layer_fake_name(RenderResult *rr)
   if (!ibuf) {
     return nullptr;
   }
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     return IFACE_("Composite");
   }
-  if (ibuf->byte_buffer.data) {
+  if (ibuf->byte_data()) {
     return IFACE_("Sequence");
   }
   return nullptr;
@@ -159,7 +159,7 @@ struct ImageUI_Data {
 
 static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
 {
-  ImageUI_Data *rnd_pt_dst = MEM_mallocN<ImageUI_Data>(__func__);
+  ImageUI_Data *rnd_pt_dst = MEM_new_uninitialized<ImageUI_Data>(__func__);
   memcpy(rnd_pt_dst, rnd_pt_src, sizeof(*rnd_pt_src));
   return rnd_pt_dst;
 }
@@ -943,7 +943,7 @@ void uiTemplateImage(ui::Layout *layout,
           void *lock;
           ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 
-          if (ibuf && ibuf->float_buffer.data && (ibuf->foptions.flag & OPENEXR_HALF) == 0) {
+          if (ibuf && ibuf->float_data() && (ibuf->foptions.flag & OPENEXR_HALF) == 0) {
             col.prop(&imaptr, "use_half_precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
           BKE_image_release_ibuf(ima, ibuf, lock);
@@ -1069,8 +1069,12 @@ void uiTemplateImageSettings(ui::Layout *layout,
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
         if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
           PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
-          color_settings.prop(
-              &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+          color_settings.prop_with_menu(&linear_settings_ptr,
+                                        "name",
+                                        UI_ITEM_NONE,
+                                        IFACE_("Color Space"),
+                                        ICON_NONE,
+                                        "UI_MT_color_space_select");
         }
       }
       else {
@@ -1199,7 +1203,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
 
   /* Acquire image buffer. */
   void *lock;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, iuser, &lock);
 
   ui::Layout &col = layout->column(true);
   col.alignment_set(ui::LayoutAlign::Right);
@@ -1214,7 +1218,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
 
     ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_("%d \u00D7 %d, "), ibuf->x, ibuf->y);
 
-    if (ibuf->float_buffer.data) {
+    if (ibuf->float_data() || ibuf->gpu.texture) {
       if (ibuf->channels != 4) {
         ofs += BLI_snprintf_utf8_rlen(
             str + ofs, len - ofs, RPT_("%d float channel(s)"), ibuf->channels);
@@ -1270,7 +1274,7 @@ void uiTemplateImageInfo(ui::Layout *layout, bContext *C, Image *ima, ImageUser 
     }
     else if (ima->source == IMA_SRC_SEQUENCE && ibuf) {
       /* Image sequence frame number + filename */
-      const char *filename = BLI_path_basename(ibuf->filepath);
+      const char *filename = BLI_path_basename(ibuf->filepath.c_str());
       SNPRINTF_UTF8(str, RPT_("Frame %d: %s"), framenr, filename);
     }
     else {
@@ -1308,7 +1312,7 @@ void image_buttons_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = MEM_callocN<PanelType>("spacetype image panel metadata");
+  pt = MEM_new_zeroed<PanelType>("spacetype image panel metadata");
   STRNCPY_UTF8(pt->idname, "IMAGE_PT_metadata");
   STRNCPY_UTF8(pt->label, N_("Metadata"));
   STRNCPY_UTF8(pt->category, "Image");

@@ -17,6 +17,8 @@
 
 #include "NOD_shader.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "GPU_material.hh"
 
 #include "draw_cache.hh"
@@ -37,10 +39,9 @@ LookdevWorld::LookdevWorld()
 
   using namespace bke;
 
-  world->nodetree = node_tree_add_tree_embedded(
-      nullptr, &world->id, "Lookdev World Nodetree", ntreeType_Shader->idname);
-
   bNodeTree &ntree = *world->nodetree;
+  /* Note: We can rename directly safely because #world is not part of any bmain. */
+  BLI_strncpy(ntree.id.name + 2, "Lookdev World Nodetree", MAX_NAME - 2);
 
   bNode &coordinate = *node_add_static_node(nullptr, ntree, SH_NODE_TEX_COORD);
   bNodeSocket &generated_sock = *node_find_socket(coordinate, SOCK_OUT, "Generated");
@@ -409,7 +410,7 @@ void LookdevModule::sync_pass(PassSimple &pass,
   GPUMaterial *gpumat = inst_.shaders.material_shader_get(
       mat, mat->nodetree, MAT_PIPE_FORWARD, MAT_GEOM_MESH, false, inst_.materials.default_surface);
   pass.state_set(state);
-  pass.material_set(*inst_.manager, gpumat);
+  pass.material_set(*inst_.manager, gpumat, false, inst_.anisotropic_filtering);
   pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
   pass.bind_resources(inst_.uniform_data);
   pass.bind_resources(inst_.lights);
@@ -462,7 +463,7 @@ void LookdevModule::draw(View &view)
 
 void LookdevModule::rotate_world()
 {
-  if (!inst_.is_viewport()) {
+  if (!inst_.is_viewport() || !inst_.use_studio_light()) {
     return;
   }
 
@@ -606,10 +607,15 @@ void LookdevModule::rotate_world_probe_data(
 /** \name Parameters
  * \{ */
 
-LookdevParameters::LookdevParameters() = default;
+LookdevParameters::LookdevParameters()
+{
+  working_space = IMB_colormanagement_working_space_get();
+}
 
 LookdevParameters::LookdevParameters(const blender::View3D *v3d)
 {
+  working_space = IMB_colormanagement_working_space_get();
+
   if (v3d == nullptr) {
     return;
   }
@@ -629,9 +635,10 @@ LookdevParameters::LookdevParameters(const blender::View3D *v3d)
 
 bool LookdevParameters::operator==(const LookdevParameters &other) const
 {
-  return hdri == other.hdri && background_opacity == other.background_opacity &&
-         blur == other.blur && intensity == other.intensity &&
-         show_scene_world == other.show_scene_world && camera_space == other.camera_space;
+  return hdri == other.hdri && working_space == other.working_space &&
+         background_opacity == other.background_opacity && blur == other.blur &&
+         intensity == other.intensity && show_scene_world == other.show_scene_world &&
+         camera_space == other.camera_space;
 }
 
 bool LookdevParameters::operator!=(const LookdevParameters &other) const

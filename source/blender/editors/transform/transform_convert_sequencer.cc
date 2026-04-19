@@ -24,7 +24,6 @@
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
 #include "SEQ_edit.hh"
-#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -270,7 +269,7 @@ static void free_transform_custom_data(TransCustomData *custom_data)
 {
   if ((custom_data->data != nullptr) && custom_data->use_free) {
     TransSeq *ts = static_cast<TransSeq *>(custom_data->data);
-    MEM_freeN(ts->tdseq);
+    MEM_delete(ts->tdseq);
     MEM_delete(ts);
     custom_data->data = nullptr;
   }
@@ -341,7 +340,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
   VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
   seq::iterator_set_expand(
-      scene, seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
+      seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
 
   for (Strip *strip : transformed_strips) {
     strip->runtime->flag &= ~(seq::StripRuntimeFlag::ClampedLH | seq::StripRuntimeFlag::ClampedRH);
@@ -410,7 +409,6 @@ static Strip *effect_base_input_get(Strip *effect, SeqInputSide side)
 static void query_time_dependent_strips_strips(TransInfo *t,
                                                VectorSet<Strip *> &time_dependent_strips)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
   ListBaseT<Strip> *seqbase = seqbase_active_get(t);
 
   /* Query dependent strips where used strips do not have handles selected.
@@ -420,7 +418,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
   VectorSet<Strip *> strips_no_handles = query_selected_strips_no_handles(seqbase);
   time_dependent_strips.add_multiple(strips_no_handles);
 
-  seq::iterator_set_expand(scene, seqbase, strips_no_handles, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(seqbase, strips_no_handles, seq::query_strip_effect_chain);
   bool strip_added = true;
 
   while (strip_added) {
@@ -447,7 +445,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
    * With single input effect, it is less likely desirable to move animation. */
 
   VectorSet selected_strips = seq::query_selected_strips(seqbase);
-  seq::iterator_set_expand(scene, seqbase, selected_strips, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(seqbase, selected_strips, seq::query_strip_effect_chain);
   for (Strip *strip : selected_strips) {
     /* Check only 2 input effects. */
     if (strip->input1 == nullptr || strip->input2 == nullptr) {
@@ -480,10 +478,10 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
   VectorSet<Strip *> strips = seq::query_selected_strips(seq::active_seqbase_get(ed));
   for (Strip *strip : strips) {
-    if (!strip->is_effect() || seq::effect_get_num_inputs(strip->type) == 0) {
+    if (!strip->is_effect_with_inputs()) {
       continue;
     }
-    /* If there is an effect strip with no inputs selected, prevent any x-direction movement,
+    /* If there is an effect strip without its inputs selected, prevent any x-direction movement,
      * since these strips are tied to their inputs and can only move up and down. */
     if (!(strip->input1->flag & SEQ_SELECT) &&
         (!strip->input2 || !(strip->input2->flag & SEQ_SELECT)))
@@ -600,9 +598,9 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
   tc->custom.type.data = ts = MEM_new<TransSeq>(__func__);
   tc->custom.type.use_free = true;
-  td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransSeq TransData");
-  td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransSeq TransData2D");
-  ts->tdseq = tdsq = MEM_calloc_arrayN<TransDataSeq>(tc->data_len, "TransSeq TransDataSeq");
+  td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransSeq TransData");
+  td2d = tc->data_2d = MEM_new_array_zeroed<TransData2D>(tc->data_len, "TransSeq TransData2D");
+  ts->tdseq = tdsq = MEM_new_array_zeroed<TransDataSeq>(tc->data_len, "TransSeq TransDataSeq");
 
   /* Custom data to enable edge panning during transformation. */
   view2d_edge_pan_init(t->context,
@@ -770,7 +768,7 @@ static void flushTransSeq(TransInfo *t)
    * will not be updated and we'll get false positives. */
   VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
   seq::iterator_set_expand(
-      scene, seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
+      seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
 
   for (Strip *strip : transformed_strips) {
     /* Test overlap, displays red outline. */

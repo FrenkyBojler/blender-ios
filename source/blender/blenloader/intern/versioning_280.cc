@@ -98,6 +98,8 @@
 
 #include "NOD_shader.h"
 
+#include "ANIM_versioning.hh"
+
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
@@ -312,7 +314,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
   const bool need_default_renderlayer = scene->r.layers.first == nullptr;
 
   for (SceneRenderLayer &srl : scene->r.layers) {
-    ViewLayer *view_layer = BKE_view_layer_add(scene, srl.name, nullptr, VIEWLAYER_ADD_NEW);
+    ViewLayer *view_layer = BKE_view_layer_add(bmain, scene, srl.name, nullptr, VIEWLAYER_ADD_NEW);
 
     if (srl.layflag & SCE_LAY_DISABLE) {
       view_layer->flag &= ~VIEW_LAYER_RENDER;
@@ -362,7 +364,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
       }
     }
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     /* for convenience set the same active object in all the layers */
     if (scene->basact) {
       view_layer->basact = BKE_view_layer_base_find(view_layer, scene->basact->object);
@@ -380,7 +382,8 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
   /* If render layers included overrides, or there are no render layers,
    * we also create a vanilla viewport layer. */
   if (have_override || need_default_renderlayer) {
-    ViewLayer *view_layer = BKE_view_layer_add(scene, "Viewport", nullptr, VIEWLAYER_ADD_NEW);
+    ViewLayer *view_layer = BKE_view_layer_add(
+        bmain, scene, "Viewport", nullptr, VIEWLAYER_ADD_NEW);
 
     /* If we ported all the original render layers,
      * we don't need to make the viewport layer renderable. */
@@ -388,7 +391,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
       view_layer->flag &= ~VIEW_LAYER_RENDER;
     }
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     /* convert active base */
     if (scene->basact) {
       view_layer->basact = BKE_view_layer_base_find(view_layer, scene->basact->object);
@@ -548,7 +551,7 @@ static bool replace_bbone_scale_rnapath(char **p_old_path)
   {
     *p_old_path = BLI_strdupcat(old_path, "x");
 
-    MEM_freeN(old_path);
+    MEM_delete(old_path);
     return true;
   }
 
@@ -621,11 +624,11 @@ static void do_versions_seq_alloc_transform_and_crop(ListBaseT<Strip> *seqbase)
   for (Strip &strip : *seqbase) {
     if (ELEM(strip.type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD) == 0) {
       if (strip.data->transform == nullptr) {
-        strip.data->transform = MEM_new_for_free<StripTransform>("StripTransform");
+        strip.data->transform = MEM_new<StripTransform>("StripTransform");
       }
 
       if (strip.data->crop == nullptr) {
-        strip.data->crop = MEM_new_for_free<StripCrop>("StripCrop");
+        strip.data->crop = MEM_new<StripCrop>("StripCrop");
       }
 
       if (strip.seqbase.first != nullptr) {
@@ -823,7 +826,9 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
                TEX_NODE_CURVE_RGB,
                TEX_NODE_CURVE_TIME))
       {
-        callback(static_cast<CurveMapping *>(node.storage));
+        if (version_node_ensure_storage_or_invalidate(node)) {
+          callback(static_cast<CurveMapping *>(node.storage));
+        }
       }
     }
   }
@@ -1709,7 +1714,7 @@ static void update_mapping_node_fcurve_rna_path_callback(FCurve *fcurve,
   }
 
   if (fcurve->rna_path != old_fcurve_rna_path) {
-    MEM_freeN(old_fcurve_rna_path);
+    MEM_delete(old_fcurve_rna_path);
   }
 }
 
@@ -1820,17 +1825,17 @@ static void update_mapping_node_inputs_and_properties(bNodeTree *ntree)
         need_update = true;
       }
 
-      MEM_freeN(node.storage);
+      MEM_delete(mapping);
       node.storage = nullptr;
 
       char node_name_esc[sizeof(node.name) * 2];
       BLI_str_escape(node_name_esc, node.name, sizeof(node_name_esc));
 
       char *nodePath = BLI_sprintfN("nodes[\"%s\"]", node_name_esc);
-      BKE_fcurves_id_cb(&ntree->id, [&](ID * /*id*/, FCurve *fcu) {
+      animrig::versioning::fcurves_id_cb(&ntree->id, [&](ID * /*id*/, FCurve *fcu) {
         update_mapping_node_fcurve_rna_path_callback(fcu, nodePath, minimumNode, maximumNode);
       });
-      MEM_freeN(nodePath);
+      MEM_delete(nodePath);
     }
   }
 
@@ -1908,7 +1913,7 @@ static void update_voronoi_node_fac_output(bNodeTree *ntree)
   for (bNode &node : ntree->nodes) {
     if (node.type_legacy == SH_NODE_TEX_VORONOI) {
       bNodeSocket *facOutput = static_cast<bNodeSocket *>(BLI_findlink(&node.outputs, 1));
-      STRNCPY_UTF8(facOutput->identifier, "Distance");
+      version_node_socket_identifier_set(*facOutput, "Distance");
       STRNCPY_UTF8(facOutput->name, "Distance");
     }
   }
@@ -2170,13 +2175,15 @@ static void update_wave_node_directions_and_offset(bNodeTree *ntree)
 {
   for (bNode &node : ntree->nodes) {
     if (node.type_legacy == SH_NODE_TEX_WAVE) {
-      NodeTexWave *tex = static_cast<NodeTexWave *>(node.storage);
-      tex->bands_direction = SHD_WAVE_BANDS_DIRECTION_DIAGONAL;
-      tex->rings_direction = SHD_WAVE_RINGS_DIRECTION_SPHERICAL;
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        NodeTexWave *tex = static_cast<NodeTexWave *>(node.storage);
+        tex->bands_direction = SHD_WAVE_BANDS_DIRECTION_DIAGONAL;
+        tex->rings_direction = SHD_WAVE_RINGS_DIRECTION_SPHERICAL;
 
-      if (tex->wave_profile == SHD_WAVE_PROFILE_SIN) {
-        bNodeSocket *sockPhaseOffset = bke::node_find_socket(node, SOCK_IN, "Phase Offset");
-        *version_cycles_node_socket_float_value(sockPhaseOffset) = M_PI_2;
+        if (tex->wave_profile == SHD_WAVE_PROFILE_SIN) {
+          bNodeSocket *sockPhaseOffset = bke::node_find_socket(node, SOCK_IN, "Phase Offset");
+          *version_cycles_node_socket_float_value(sockPhaseOffset) = M_PI_2;
+        }
       }
     }
   }
@@ -2454,7 +2461,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         }
 
         block.totelem = new_count;
-        block.data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
+        block.data = MEM_new_array_zeroed<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
         float (*newptr)[3] = static_cast<float (*)[3]>(block.data);
@@ -2498,7 +2505,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
           }
         }
 
-        MEM_freeN(old_data);
+        MEM_delete_void(old_data);
       }
     }
   }
@@ -2903,12 +2910,12 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
     /* During development of Blender 2.80 the "Object.hide" property was
      * removed, and reintroduced in 5e968a996a53 as "Object.hide_viewport". */
     for (Object &ob : bmain->objects) {
-      BKE_fcurves_id_cb(&ob.id, [&](ID * /*id*/, FCurve *fcu) {
+      animrig::versioning::fcurves_id_cb(&ob.id, [&](ID * /*id*/, FCurve *fcu) {
         if (fcu->rna_path == nullptr || !STREQ(fcu->rna_path, "hide")) {
           return;
         }
 
-        MEM_freeN(fcu->rna_path);
+        MEM_delete(fcu->rna_path);
         fcu->rna_path = BLI_strdupn("hide_viewport", 13);
       });
     }
@@ -3294,7 +3301,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             BKE_screen_remove_unused_scredges(&screen);
             BKE_screen_remove_unused_scrverts(&screen);
 
-            MEM_freeN(area);
+            MEM_delete(area);
           }
         }
         /* AREA_TEMP_INFO is deprecated from now on, it should only be set for info areas
@@ -3734,7 +3741,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       for (Image &ima : bmain->images) {
         if (ima.type == IMA_TYPE_R_RESULT) {
           for (int i = 0; i < 8; i++) {
-            RenderSlot *slot = MEM_new_for_free<RenderSlot>("Image Render Slot Init");
+            RenderSlot *slot = MEM_new<RenderSlot>("Image Render Slot Init");
             SNPRINTF_UTF8(slot->name, "Slot %d", i + 1);
             BLI_addtail(&ima.renderslots, slot);
           }
@@ -3826,7 +3833,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (rbw->shared == nullptr) {
-          rbw->shared = MEM_new_for_free<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          rbw->shared = MEM_new<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
           BKE_rigidbody_world_init_runtime(rbw);
         }
 
@@ -3850,7 +3857,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         if (sb->shared == nullptr) {
-          sb->shared = MEM_new_for_free<SoftBody_Shared>("SoftBody_Shared");
+          sb->shared = MEM_new<SoftBody_Shared>("SoftBody_Shared");
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -5719,7 +5726,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Add primary tile to images. */
     if (!DNA_struct_member_exists(fd->filesdna, "Image", "ListBase", "tiles")) {
       for (Image &ima : bmain->images) {
-        ImageTile *tile = MEM_new_for_free<ImageTile>("Image Tile");
+        ImageTile *tile = MEM_new<ImageTile>("Image Tile");
         tile->tile_number = 1001;
         BLI_addtail(&ima.tiles, tile);
       }
