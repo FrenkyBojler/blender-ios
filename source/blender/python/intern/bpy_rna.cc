@@ -1689,19 +1689,9 @@ static int pyrna_py_to_prop(
             param = 0;
           }
           else {
-            const PyTypeObject *value_type = Py_TYPE(value);
-            if (value_type->tp_as_number && value_type->tp_as_number->nb_bool) {
-              param = (*value_type->tp_as_number->nb_bool)(value);
-              if (param == -1) [[unlikely]] {
-                /* An error has already been raised. */
-                return -1;
-              }
-            }
-            else {
-              param = PyC_Long_AsI32(value);
-              if (UNLIKELY(param & ~1)) { /* Only accept 0/1. */
-                param = -1;               /* Error out below. */
-              }
+            param = PyC_Long_AsI32(value);
+            if (UNLIKELY(param & ~1)) { /* Only accept 0/1. */
+              param = -1;               /* Error out below. */
             }
           }
         }

@@ -1916,10 +1916,6 @@ bool PyC_Bool_CheckCompatible(PyObject *value)
     }
     return false;
   }
-  const PyTypeObject *py_type = Py_TYPE(value);
-  if (py_type->tp_as_number && py_type->tp_as_number->nb_bool) {
-    return true;
-  }
   return false;
 }
 
@@ -1992,20 +1988,10 @@ int PyC_Object_AsBool(PyObject *value)
   }
 
   int result;
-  const PyTypeObject *o_type = Py_TYPE(value);
-  if (o_type->tp_as_number && o_type->tp_as_number->nb_bool) {
-    /* Follow CPython by treating any non-zero return result is true. */
-    if ((result = (*o_type->tp_as_number->nb_bool)(value)) == -1) [[unlikely]] {
-      /* The error has been set. */
-      return -1;
-    }
-  }
-  else {
-    if (((result = PyC_Long_AsI32(value)) == -1) || !ELEM(result, 0, 1)) [[unlikely]] {
-      PyErr_Format(
-          PyExc_ValueError, "expected a bool or int (0/1), got %s", Py_TYPE(value)->tp_name);
-      return -1;
-    }
+  if (((result = PyC_Long_AsI32(value)) == -1) || !ELEM(result, 0, 1)) [[unlikely]] {
+    PyErr_Format(
+        PyExc_ValueError, "expected a bool or int (0/1), got %s", Py_TYPE(value)->tp_name);
+    return -1;
   }
   return result ? true : false;
 }
