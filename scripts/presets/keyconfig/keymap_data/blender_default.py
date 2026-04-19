@@ -2154,6 +2154,7 @@ def km_image(params):
     )
 
     items.extend([
+        op_menu_pie("IMAGE_MT_pie_color_channels", {"type": 'Z', "value": params.pie_value}),
         ("image.view_all", {"type": 'HOME', "value": 'PRESS'}, None),
         ("image.view_all", {"type": 'HOME', "value": 'PRESS', "shift": True},
          {"properties": [("fit_view", True)]}),

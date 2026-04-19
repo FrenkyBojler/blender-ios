@@ -1002,6 +1002,39 @@ class IMAGE_MT_mask_context_menu(Menu):
         draw_mask_context_menu(layout, context)
 
 
+class IMAGE_MT_pie_color_channels(Menu):
+    bl_idname = "IMAGE_MT_pie_color_channels"
+    bl_label = "Color Channels"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+
+        op = pie.operator("wm.context_set_enum", text="Color")
+        op.data_path = "space_data.display_channels"
+        op.value = 'COLOR'
+
+        op = pie.operator("wm.context_set_enum", text="Alpha")
+        op.data_path = "space_data.display_channels"
+        op.value = 'ALPHA'
+
+        op = pie.operator("wm.context_set_enum", text="Color & Alpha")
+        op.data_path = "space_data.display_channels"
+        op.value = 'COLOR_ALPHA'
+
+        op = pie.operator("wm.context_set_enum", text="Green")
+        op.data_path = "space_data.display_channels"
+        op.value = 'GREEN'
+
+        op = pie.operator("wm.context_set_enum", text="Red")
+        op.data_path = "space_data.display_channels"
+        op.value = 'RED'
+
+        op = pie.operator("wm.context_set_enum", text="Blue")
+        op.data_path = "space_data.display_channels"
+        op.value = 'BLUE'
+
+
 # -----------------------------------------------------------------------------
 # Mask (similar code in space_clip.py, keep in sync)
 # note! - panel placement does _not_ fit well with image panels... need to fix.
@@ -1860,6 +1893,7 @@ classes = (
     IMAGE_MT_view_pie,
     IMAGE_HT_tool_header,
     IMAGE_HT_header,
+    IMAGE_MT_pie_color_channels,
     IMAGE_MT_editor_menus,
     IMAGE_PT_active_tool,
     IMAGE_PT_mask,
