@@ -25,4 +25,7 @@ struct ParsedStruct {
 /** Extract structs and their members from a DNA header. */
 bool parse_dna_header(const std::string &filepath, Vector<ParsedStruct> &r_structs);
 
+/** Convert C++ types to plain C types understood by DNA. */
+void substitute_cpp_types(Vector<ParsedStruct> &structs);
+
 }  // namespace blender::dna

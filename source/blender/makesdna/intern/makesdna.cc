@@ -800,6 +800,7 @@ static int make_structDNA(const char *base_directory,
   }
   DEBUG_PRINTF(0, "\tFinished scanning %d headers.\n", header_count);
 
+  dna::substitute_cpp_types(parsed_structs);
   register_parsed_structs(parsed_structs);
 
   if (calculate_struct_sizes(firststruct, file_verify, base_directory)) {
