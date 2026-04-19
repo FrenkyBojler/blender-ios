@@ -2703,12 +2703,6 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 }
 void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
 {
-  static const EnumPropertyItem uv_axis_items[] = {
-      {0, "X", 0, "X", ""},
-      {1, "Y", 0, "Y", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   ot->name = "Copy Mirrored UV Coords";
   ot->description = "Copy mirror UV coordinates based on a mirrored mesh";
   ot->idname = "UV_OT_copy_mirrored_faces";
@@ -2724,7 +2718,8 @@ void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
                OB_POSX,
                "Mesh Axis",
                "Mirror vertices based on mesh axis");
-  RNA_def_enum(ot->srna, "uv_axis", uv_axis_items, 0, "UV Axis", "Axis to mirror UV coordinates");
+  RNA_def_enum(
+      ot->srna, "uv_axis", rna_enum_axis_xy_items, 0, "UV Axis", "Axis to mirror UV coordinates");
   RNA_def_int(ot->srna,
               "precision",
               3,
