@@ -2578,13 +2578,6 @@ double BKE_unit_scalar_get(const void *usys_pt, int index)
   return usys->units[index].scalar;
 }
 
-double BKE_unit_bias_get(const void *usys_pt, int index)
-{
-  const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
-  BLI_assert(uint(index) < uint(usys->length));
-  return usys->units[index].bias;
-}
-
 bool BKE_unit_is_suppressed(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
@@ -2596,8 +2589,11 @@ UnitConverterFn BKE_unit_converter_get(const void *usys_pt,
                                        int index,
                                        UnitConvertDirection direction)
 {
-  const double scalar = BKE_unit_scalar_get(usys_pt, index);
-  const double bias = BKE_unit_bias_get(usys_pt, index);
+  const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
+  BLI_assert(uint(index) < uint(usys->length));
+  const bUnitDef *unit = &usys->units[index];
+  const double scalar = unit->scalar;
+  const double bias = unit->bias;
 
   if (direction == UnitConvertDirection::UNIT_TO_RAW) {
     return [scalar, bias](double value) { return (value + bias) * scalar; };
