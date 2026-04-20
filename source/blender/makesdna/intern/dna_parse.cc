@@ -114,7 +114,7 @@ class TokenStream {
 
   bool consume(TokenKind k)
   {
-    if (kind() == k) {
+    if (this->kind() == k) {
       pos_++;
       return true;
     }
@@ -123,7 +123,7 @@ class TokenStream {
 
   bool consume_keyword(StringRef kw)
   {
-    if (kind() == TOKEN_IDENTIFIER && peek().text == kw) {
+    if (this->kind() == TOKEN_IDENTIFIER && this->peek().text == kw) {
       pos_++;
       return true;
     }
@@ -135,7 +135,7 @@ class TokenStream {
     int64_t n = 0;
 
     while (!expr.is_empty()) {
-      if (kind(n) == TOKEN_END) {
+      if (this->kind(n) == TOKEN_END) {
         return false;
       }
 
@@ -144,7 +144,7 @@ class TokenStream {
         continue;
       }
 
-      const StringRef text = peek(n).text;
+      const StringRef text = this->peek(n).text;
       if (!expr.startswith(text)) {
         return false;
       }
@@ -178,8 +178,8 @@ static bool is_identifier_continuation(char c)
 static TokenStream tokenize_dna_header(StringRef source)
 {
   TokenStream stream;
-  const char *cur = source.data();
-  const char *end = cur + source.size();
+  const char *cur = source.begin();
+  const char *end = source.end();
 
   while (cur < end) {
     const char c = *cur;
@@ -325,7 +325,7 @@ static bool is_valid_member_name(const StringRefNull name, const StringRefNull f
   /* Strip pointer/array decorators: e.g. `*var[3]` → `var`. */
   const uint strip_start = DNA_member_id_offset_start(name.c_str());
   const uint strip_len = DNA_member_id_offset_end(name.c_str() + strip_start);
-  const StringRef name_strip(name.c_str() + strip_start, strip_len);
+  const StringRef name_strip(name.substr(strip_start, strip_len));
 
   /* Enforce '_pad123' naming convention, disallow 'pad123' or 'pad_123',
    * special exception for [a-z] after since there is a 'pad_rot_angle' preference. */
