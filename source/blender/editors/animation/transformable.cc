@@ -33,9 +33,9 @@ static bool should_modify_axis(const int index, const AxisFlag axis_flag)
   return axis_flag & (1 << index);
 }
 
-static Array<float> copy_pointers_to_values(const Span<float *> value)
+static TransformFloats copy_pointers_to_values(const Span<float *> value)
 {
-  Array<float> copy(value.size());
+  TransformFloats copy(value.size());
   for (int i : value.index_range()) {
     copy[i] = *(value[i]);
   }
@@ -93,10 +93,10 @@ static void blend_linear(MutableSpan<float> values,
  * Returns a new array which is the linear interpolation between boths spans. The given spans are
  * expected to have the same size.
  */
-Array<float> property_interpolated(const Span<float> a, const Span<float> b, float factor)
+TransformFloats property_interpolated(const Span<float> a, const Span<float> b, float factor)
 {
   BLI_assert(a.size() == b.size());
-  Array<float> interpolated(a.size());
+  TransformFloats interpolated(a.size());
   for (int i : a.index_range()) {
     interpolated[i] = interpf(b[i], a[i], factor);
   }
@@ -201,20 +201,20 @@ static std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
 }
 
 static void build_rotations_array(
-    Array<Array<float *>> &rotations, float *euler, float *quat, float *axis, float *angle)
+    Array<TransformFloatPtrs> &rotations, float *euler, float *quat, float *axis, float *angle)
 {
   rotations.reinitialize(ROT_IDX_MAX_ENUM);
-  rotations[ROT_IDX_EULER] = Array<float *>(3);
+  rotations[ROT_IDX_EULER] = TransformFloatPtrs(3);
   for (int i : IndexRange(3)) {
     rotations[ROT_IDX_EULER][i] = &euler[i];
   }
 
-  rotations[ROT_IDX_QUATERNION] = Array<float *>(4);
+  rotations[ROT_IDX_QUATERNION] = TransformFloatPtrs(4);
   for (int i : IndexRange(4)) {
     rotations[ROT_IDX_QUATERNION][i] = &quat[i];
   }
 
-  rotations[ROT_IDX_AXIS_ANGLE] = Array<float *>(4);
+  rotations[ROT_IDX_AXIS_ANGLE] = TransformFloatPtrs(4);
   for (int i : IndexRange(3)) {
     rotations[ROT_IDX_AXIS_ANGLE][i + 1] = &axis[i];
   }
@@ -268,14 +268,14 @@ std::string Transformable::rna_path_to_property(const PropertyType prop_type) co
   return fmt::format("{}.{}", rna_path_from_id_, property_name);
 }
 
-Array<float> Transformable::get_property(const PropertyType prop_type) const
+TransformFloats Transformable::get_property(const PropertyType prop_type) const
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
       return location_.as_span();
 
     case PropertyType::ROTATION: {
-      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
       return copy_pointers_to_values(*rotation_array);
     }
@@ -297,7 +297,7 @@ void Transformable::set_property(const PropertyType prop_type,
       break;
 
     case PropertyType::ROTATION: {
-      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
       if (rotation_array->size() > values.size()) {
         /* Trying to set a rotation with different mode. Use `set_rotation` instead. */
@@ -331,7 +331,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       break;
 
     case PropertyType::ROTATION: {
-      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
       if (rotation_array->size() != target.size()) {
         /* This doesn't catch all invalid cases. Differing euler rotation order or quaternion/axis
@@ -364,7 +364,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
 
     case PropertyType::ROTATION: {
       BLI_assert(*rotation_mode_ != ROT_MODE_QUAT);
-      const Array<float *> *rotation_array = get_rotation_array_from_mode(
+      const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
       Rotation rotation;
       /* Assuming the rotation mode. See docstring of function. */
@@ -380,9 +380,10 @@ void Transformable::blend_property_to(const PropertyType prop_type,
   }
 }
 
-const Array<float *> *Transformable::get_rotation_array_from_mode(const eRotationModes mode) const
+const TransformFloatPtrs *Transformable::get_rotation_array_from_mode(
+    const eRotationModes mode) const
 {
-  const Array<float *> *rotations_array = nullptr;
+  const TransformFloatPtrs *rotations_array = nullptr;
   switch (mode) {
     case ROT_MODE_QUAT:
       rotations_array = &rotations_[ROT_IDX_QUATERNION];
@@ -402,7 +403,7 @@ Rotation Transformable::get_rotation() const
 {
   Rotation rotation;
   rotation.mode = eRotationModes(*rotation_mode_);
-  const Array<float *> *rotations_array = get_rotation_array_from_mode(rotation.mode);
+  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(rotation.mode);
   BLI_assert(rotations_array != nullptr);
   rotation.values = copy_pointers_to_values(*rotations_array);
   return rotation;
@@ -411,7 +412,7 @@ Rotation Transformable::get_rotation() const
 void Transformable::set_rotation(const Rotation &rotation)
 {
   const eRotationModes current_mode = eRotationModes(*rotation_mode_);
-  const Array<float *> *rotations_array = get_rotation_array_from_mode(current_mode);
+  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(current_mode);
   BLI_assert(rotations_array != nullptr);
   if (rotation.mode == current_mode) {
     /* Easy case, can just copy the values. */
@@ -444,10 +445,10 @@ void Transformable::blend_rotation_to(const Rotation &target,
   else {
     rot = target.converted_to_mode(current_mode);
   }
-  const Array<float *> *rotations_array = get_rotation_array_from_mode(current_mode);
+  const TransformFloatPtrs *rotations_array = get_rotation_array_from_mode(current_mode);
   BLI_assert(rotations_array != nullptr);
 
-  Array<float> result;
+  TransformFloats result;
   switch (current_mode) {
     case ROT_MODE_QUAT: {
       float4 current_quat;

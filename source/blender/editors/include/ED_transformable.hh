@@ -37,12 +37,18 @@ enum AxisFlag : int8_t {
      from the pose slide code. */
 };
 
+/* By using Array<float, 4> we enforce a stack allocation limit of 4. Since we use at most 4
+ * elements per property, we ensure that the values are always on the stack
+ * for better performance. */
+using TransformFloats = Array<float, 4>;
+using TransformFloatPtrs = Array<float *, 4>;
+
 /**
  * Describes a rotation in a specific mode and can be used to convert into other modes.
  */
 struct Rotation {
   /* The array size differs depending on the rotation mode. */
-  Array<float> values;
+  TransformFloats values;
   eRotationModes mode;
 
   /**
@@ -82,7 +88,7 @@ class Transformable {
    * use an Array of float* because the angle of axisangle is a separate float property. This is in
    * contrast to e.g. `location_` which is always a float array so it can be referenced with a
    * `MutableSpan`. For the order of elements, see `RotationModeIndices` in `transformable.cc`. */
-  Array<Array<float *>> rotations_;
+  Array<TransformFloatPtrs> rotations_;
   /* Points to an enum with the current rotation mode. See `eRotationModes`. */
   short *rotation_mode_;
   MutableSpan<float> scale_;
@@ -91,7 +97,7 @@ class Transformable {
    * Returns the correct array based on the given mode. Asserts that the array is set for the
    * current transformable.
    */
-  const Array<float *> *get_rotation_array_from_mode(eRotationModes mode) const;
+  const TransformFloatPtrs *get_rotation_array_from_mode(eRotationModes mode) const;
 
  public:
   /* There has to be a constructor for every struct supported. */
@@ -147,7 +153,7 @@ class Transformable {
    * is best to use the explicit function for it so a `Rotation` struct is returned which has more
    * features for dealing with different rotation modes.
    */
-  Array<float> get_property(PropertyType prop_type) const;
+  TransformFloats get_property(PropertyType prop_type) const;
   /**
    * Generic way to set the given transform property. It is asserted that the value count matches
    * the current rotation mode. Use `set_rotation` to automatically convert to the correct mode.
@@ -188,7 +194,7 @@ Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float facto
  * Interpolate the values linearly based on `factor` and returns a new Array. Asserts that boths
  * spans are the same length. With the factor at `0` the values will match `a`.
  */
-Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
+TransformFloats property_interpolated(Span<float> a, Span<float> b, float factor);
 
 }  // namespace ed
 }  // namespace blender
