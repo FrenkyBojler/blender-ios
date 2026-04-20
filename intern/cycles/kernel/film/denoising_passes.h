@@ -157,7 +157,8 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
 
   /* Portion deferred to the next bounce. Specularity uses the feature weight, transparent
    * always passes through. */
-  const Spectrum deferred_albedo = specular_albedo * (1.0f - feature_weight) + transparent_albedo;
+  const Spectrum deferred_albedo = specular_albedo * (1.0f - feature_weight_albedo) +
+                                   transparent_albedo;
 
   if (reduce_max(fabs(deferred_albedo)) > 1e-4f) {
     INTEGRATOR_STATE_WRITE(state, path, denoising_feature_throughput) *= deferred_albedo;
