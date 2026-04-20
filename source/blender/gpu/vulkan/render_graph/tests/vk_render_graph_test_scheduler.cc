@@ -825,7 +825,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end
       log[2]);
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
           endl() +
           " - "
           "buffer_barrier(src_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
@@ -835,7 +836,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end
       log[3]);
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
           endl() +
           " - "
           "buffer_barrier(src_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
@@ -861,7 +863,9 @@ TEST_P(VKRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end
   EXPECT_EQ("draw(vertex_count=2, instance_count=1, first_vertex=0, first_instance=0)", log[10]);
   EXPECT_EQ("end_rendering()", log[11]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, "
+      "VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT" +
           endl() +
           " - buffer_barrier(src_access_mask=VK_ACCESS_UNIFORM_READ_BIT, "
@@ -872,7 +876,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end
   EXPECT_EQ("update_buffer(dst_buffer=0x1, dst_offset=0, data_size=16)", log[13]);
   EXPECT_EQ(
       "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT, "
-      "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
+      "dst_stage_mask=VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, "
+      "VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT" +
           endl() +
           " - buffer_barrier(src_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_UNIFORM_READ_BIT, buffer=0x1, offset=0, "

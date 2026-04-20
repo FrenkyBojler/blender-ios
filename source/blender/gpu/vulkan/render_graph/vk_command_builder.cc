@@ -450,17 +450,6 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
                                             VkPipelineStageFlagBits(barrier.src_stage_mask);
 
   VkPipelineStageFlags dst_stage_mask = barrier.dst_stage_mask;
-  /* TODO: this should be done during barrier extraction making within_rendering obsolete. */
-  if (within_rendering) {
-    /* See: VUID - `vkCmdPipelineBarrier` - `srcStageMask` - 09556
-     * If `vkCmdPipelineBarrier` is called within a render pass instance started with
-     * `vkCmdBeginRendering`, this command must only specify frame-buffer-space stages in
-     * `srcStageMask` and `dstStageMask`. */
-    src_stage_mask = dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-                                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-                                      VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                                      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  }
 
   Span<VkBufferMemoryBarrier> buffer_barriers = vk_buffer_memory_barriers_.as_span().slice(
       barrier.buffer_memory_barriers);
@@ -645,10 +634,12 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
      * allowed to update the resource state as it will be reverted by the image tracker. */
     if (image_tracker.contains(resource.image.vk_image)) {
       if (resource_state.image_layout != link.vk_image_layout) {
+        VKResourceBarrierState link_state{link.vk_access_flags, node_stages, link.vk_image_layout};
         image_tracker.update(resource.image.vk_image,
                              link.subimage,
-                             resource_state.image_layout,
-                             link.vk_image_layout,
+                             resource_state,
+                             link_state,
+                             link.vk_image_aspect,
                              r_barrier);
       }
       continue;
@@ -659,14 +650,8 @@ void VKCommandBuilder::add_image_read_barriers(VKRenderGraph &render_graph,
     r_barrier.src_stage_mask |= resource_state.vk_pipeline_stages;
     r_barrier.dst_stage_mask |= node_stages;
 
-    if (is_first_read) {
-      resource_state.vk_access = link.vk_access_flags;
-      resource_state.vk_pipeline_stages = node_stages;
-    }
-    else {
-      resource_state.vk_access |= link.vk_access_flags;
-      resource_state.vk_pipeline_stages |= node_stages;
-    }
+    resource_state.vk_access = link.vk_access_flags;
+    resource_state.vk_pipeline_stages = node_stages;
 
     if (wait_access != VK_ACCESS_NONE || link.vk_image_layout != resource_state.image_layout) {
       add_image_barrier(resource.image.vk_image,
@@ -707,10 +692,12 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
      * allowed to update the resource state as it will be reverted by the image tracker. */
     if (image_tracker.contains(resource.image.vk_image)) {
       if (resource_state.image_layout != link.vk_image_layout) {
+        VKResourceBarrierState link_state{link.vk_access_flags, node_stages, link.vk_image_layout};
         image_tracker.update(resource.image.vk_image,
                              link.subimage,
-                             resource_state.image_layout,
-                             link.vk_image_layout,
+                             resource_state,
+                             link_state,
+                             link.vk_image_aspect,
                              r_barrier);
       }
       continue;
@@ -809,8 +796,9 @@ void VKCommandBuilder::ImageTracker::begin(const VKRenderGraph &render_graph,
 
 void VKCommandBuilder::ImageTracker::update(VkImage vk_image,
                                             const VKSubImageRange &subimage,
-                                            VkImageLayout old_layout,
-                                            VkImageLayout new_layout,
+                                            VKResourceBarrierState &old_resource_state,
+                                            VKResourceBarrierState &new_resource_state,
+                                            VkImageAspectFlags aspect_mask,
                                             Barrier &r_barrier)
 {
   for (const SubImageChange &change : changes) {
@@ -820,7 +808,7 @@ void VKCommandBuilder::ImageTracker::update(VkImage vk_image,
                                          change.subimage.mipmap_level != subimage.mipmap_level)))
     {
       BLI_assert_msg(
-          change.vk_image_layout == new_layout,
+          change.vk_image_layout == new_resource_state.image_layout,
           "We don't support more that one change of the same subimage multiple times during a "
           "rendering scope.");
       /* Early exit as layer is in correct layout. This is a normal case as we expect multiple
@@ -829,21 +817,19 @@ void VKCommandBuilder::ImageTracker::update(VkImage vk_image,
     }
   }
 
-  changes.append({vk_image, new_layout, subimage});
+  changes.append(
+      {vk_image, new_resource_state.image_layout, subimage, new_resource_state, aspect_mask});
 
-  /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
-  r_barrier.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-  r_barrier.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  r_barrier.src_stage_mask |= old_resource_state.vk_pipeline_stages;
+  r_barrier.dst_stage_mask |= new_resource_state.vk_pipeline_stages;
+
   command_builder.add_image_barrier(vk_image,
                                     r_barrier,
-                                    VK_ACCESS_TRANSFER_WRITE_BIT,
-                                    VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
-                                        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-                                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                                        VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-                                    old_layout,
-                                    new_layout,
-                                    VK_IMAGE_ASPECT_COLOR_BIT,
+                                    old_resource_state.vk_access,
+                                    new_resource_state.vk_access,
+                                    old_resource_state.image_layout,
+                                    new_resource_state.image_layout,
+                                    aspect_mask,
                                     subimage);
 }
 
@@ -862,26 +848,27 @@ void VKCommandBuilder::ImageTracker::suspend(Barrier &r_barrier, bool use_local_
   }
 
   command_builder.reset_barriers(r_barrier);
-  /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
-  r_barrier.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-  r_barrier.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+  r_barrier.src_stage_mask = 0;
+  r_barrier.dst_stage_mask = use_local_read ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT :
+                                              VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
   int64_t start_index = command_builder.vk_image_memory_barriers_.size();
   r_barrier.image_memory_barriers = IndexRange::from_begin_size(start_index, 0);
   for (const SubImageChange &change : changes) {
-    command_builder.add_image_barrier(
-        change.vk_image,
-        r_barrier,
-        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
-            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
-            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-        change.vk_image_layout,
-        use_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
-                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        change.subimage);
+    r_barrier.src_stage_mask |= change.resource_state.vk_pipeline_stages;
+
+    command_builder.add_image_barrier(change.vk_image,
+                                      r_barrier,
+                                      change.resource_state.vk_access,
+                                      use_local_read ?
+                                          VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT :
+                                          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                              VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                      change.vk_image_layout,
+                                      use_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                      change.aspect_mask,
+                                      change.subimage);
     r_barrier.image_memory_barriers = r_barrier.image_memory_barriers.with_new_end(
         command_builder.vk_image_memory_barriers_.size());
 
@@ -902,27 +889,28 @@ void VKCommandBuilder::ImageTracker::resume(Barrier &r_barrier, bool use_local_r
   }
 
   command_builder.reset_barriers(r_barrier);
-  /* We should be able to do better. BOTTOM/TOP is really a worst case barrier. */
-  r_barrier.src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-  r_barrier.dst_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+  r_barrier.src_stage_mask = use_local_read ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT :
+                                              VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  r_barrier.dst_stage_mask = 0;
   int64_t start_index = command_builder.vk_image_memory_barriers_.size();
   r_barrier.image_memory_barriers = IndexRange::from_begin_size(start_index, 0);
 
   for (const SubImageChange &change : changes) {
-    command_builder.add_image_barrier(
-        change.vk_image,
-        r_barrier,
-        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
-            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT |
-            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-            VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-        use_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
-                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        change.vk_image_layout,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        change.subimage);
+    r_barrier.dst_stage_mask |= change.resource_state.vk_pipeline_stages;
+
+    command_builder.add_image_barrier(change.vk_image,
+                                      r_barrier,
+                                      use_local_read ?
+                                          VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT :
+                                          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                              VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                      change.resource_state.vk_access,
+                                      use_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                      change.vk_image_layout,
+                                      change.aspect_mask,
+                                      change.subimage);
 #if 0
     std::cout << __func__ << ": transition layout image=" << change.vk_image
               << ", layer=" << change.subimage.layer_base

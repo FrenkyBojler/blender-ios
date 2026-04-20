@@ -33,11 +33,14 @@ struct VKDrawIndexedCreateInfo {
   VKDrawIndexedCreateInfo(const VKResourceAccessInfo &resources) : resources(resources) {}
 };
 
-class VKDrawIndexedNode : public VKNodeInfo<VKNodeType::DRAW_INDEXED,
-                                            VKDrawIndexedCreateInfo,
-                                            VKDrawIndexedData,
-                                            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                                            VKResourceType::IMAGE | VKResourceType::BUFFER> {
+class VKDrawIndexedNode
+    : public VKNodeInfo<VKNodeType::DRAW_INDEXED,
+                        VKDrawIndexedCreateInfo,
+                        VKDrawIndexedData,
+                        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                            VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT,
+                        VKResourceType::IMAGE | VKResourceType::BUFFER> {
  public:
   /**
    * Update the node data with the data inside create_info.

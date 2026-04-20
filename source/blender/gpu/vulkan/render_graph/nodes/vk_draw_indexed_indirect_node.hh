@@ -36,7 +36,10 @@ class VKDrawIndexedIndirectNode
     : public VKNodeInfo<VKNodeType::DRAW_INDEXED_INDIRECT,
                         VKDrawIndexedIndirectCreateInfo,
                         VKDrawIndexedIndirectData,
-                        VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                        VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT |
+                            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                            VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT,
                         VKResourceType::IMAGE | VKResourceType::BUFFER> {
  public:
   /**

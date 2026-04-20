@@ -89,6 +89,8 @@ class VKCommandBuilder {
       VkImage vk_image;
       VkImageLayout vk_image_layout;
       VKSubImageRange subimage;
+      VKResourceBarrierState resource_state;
+      VkImageAspectFlags aspect_mask;
     };
     Vector<SubImageChange> changes;
 
@@ -115,18 +117,9 @@ class VKCommandBuilder {
      */
     void update(VkImage vk_image,
                 const VKSubImageRange &subimage,
-                VkImageLayout old_layout,
-                VkImageLayout new_layout,
-                Barrier &r_barrier);
-    /**
-     * Ensure the layout of a mipmap level.
-     *
-     * - `old_layout` should be the expected layout of the full image.
-     */
-    void update(VkImage vk_image,
-                uint32_t mipmap_level,
-                VkImageLayout old_layout,
-                VkImageLayout new_layout,
+                VKResourceBarrierState &old_resource_state,
+                VKResourceBarrierState &new_resource_state,
+                VkImageAspectFlags aspect_mask,
                 Barrier &r_barrier);
 
     /**
