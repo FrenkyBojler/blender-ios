@@ -58,21 +58,27 @@ ClosurePacking pack_closure(ClosureUndetermined cl)
   /* Some closures require additional packing. */
   switch (cl_packed.mode) {
 #ifdef GBUFFER_HAS_REFLECTION
-#  ifndef MAT_REFLECTION_COLORLESS
     case GBUF_REFLECTION:
+#  ifndef MAT_REFLECTION_COLORLESS
       gbuffer::Reflection::pack_additional(cl_packed, cl);
-      break;
+#  else
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
 #  endif
+      break;
     case GBUF_REFLECTION_COLORLESS:
       gbuffer::ReflectionColorless::pack_additional(cl_packed, cl);
       break;
 #endif
 #ifdef GBUFFER_HAS_REFRACTION
-#  ifndef MAT_REFRACTION_COLORLESS
     case GBUF_REFRACTION:
+#  ifndef MAT_REFRACTION_COLORLESS
       gbuffer::Refraction::pack_additional(cl_packed, cl);
-      break;
+#  else
+      /* Material is colored, but the flag is set to colorless. */
+      assert(false);
 #  endif
+      break;
     case GBUF_REFRACTION_COLORLESS:
       gbuffer::RefractionColorless::pack_additional(cl_packed, cl);
       break;
