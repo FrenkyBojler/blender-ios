@@ -200,15 +200,13 @@ static ImBuf *compute_linear_buffer(ImBuf *image_buffer)
   linear_image_buffer->flags = image_buffer->flags;
 
   /* Assign the float buffer if it exists, as well as its number of channels. */
-  IMB_assign_float_buffer(
-      linear_image_buffer, image_buffer->float_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
+  linear_image_buffer->float_buffer = image_buffer->float_buffer;
   linear_image_buffer->channels = image_buffer->channels;
 
   /* If no float buffer exists, assign it then compute a float buffer from it. This is the main
    * call of this function. */
   if (!linear_image_buffer->float_data()) {
-    IMB_assign_byte_buffer(
-        linear_image_buffer, image_buffer->byte_buffer, IB_DO_NOT_TAKE_OWNERSHIP);
+    linear_image_buffer->byte_buffer = image_buffer->byte_buffer;
     IMB_float_from_byte(linear_image_buffer);
   }
 

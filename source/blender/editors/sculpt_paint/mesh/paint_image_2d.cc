@@ -1250,18 +1250,12 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
       int origy = region->desty - ty * ED_IMAGE_UNDO_TILE_SIZE;
 
       if (tile->canvas->float_data()) {
-        IMB_assign_float_buffer(
-            &tmpbuf,
-            static_cast<float *>(ED_image_paint_tile_find(
-                undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false)),
-            IB_DO_NOT_TAKE_OWNERSHIP);
+        tmpbuf.float_buffer = std::get<ImBufFloatBuffer>(*ED_image_paint_tile_find(
+            undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false));
       }
       else {
-        IMB_assign_byte_buffer(
-            &tmpbuf,
-            static_cast<uchar *>(ED_image_paint_tile_find(
-                undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false)),
-            IB_DO_NOT_TAKE_OWNERSHIP);
+        tmpbuf.byte_buffer = std::get<ImBufByteBuffer>(*ED_image_paint_tile_find(
+            undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false));
       }
 
       IMB_rectblend(tile->canvas,

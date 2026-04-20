@@ -453,7 +453,7 @@ static void colormanage_cache_put(ImBuf *ibuf,
 
   /* buffer itself */
   cache_ibuf = IMB_allocImBuf(ibuf->x, ibuf->y, ibuf->planes, 0);
-  IMB_assign_byte_buffer(cache_ibuf, display_buffer, IB_TAKE_OWNERSHIP);
+  cache_ibuf->assign_byte_data(display_buffer);
 
   /* Store data which is needed to check whether cached buffer
    * could be used for color managed display settings. */
@@ -2639,12 +2639,6 @@ static ImBuf *imbuf_ensure_editable(ImBuf *ibuf, ImBuf *colormanaged_ibuf, bool 
     IMB_metadata_copy(colormanaged_ibuf, ibuf);
     return colormanaged_ibuf;
   }
-
-  /* Render pipeline is constructing image buffer itself,
-   * but it's re-using byte and float buffers from render result make copy of this buffers
-   * here sine this buffers would be transformed to other color space here. */
-  IMB_make_writable_byte_buffer(ibuf);
-  IMB_make_writable_float_buffer(ibuf);
 
   return ibuf;
 }

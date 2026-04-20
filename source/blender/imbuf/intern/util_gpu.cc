@@ -232,9 +232,6 @@ static void *imb_gpu_get_data(ImBuf *ibuf,
     data_rect = (is_float_rect) ? static_cast<void *>(scale_ibuf->float_data_for_write()) :
                                   static_cast<void *>(scale_ibuf->byte_data_for_write());
     *r_freedata = freedata = true;
-    /* Steal the rescaled buffer to avoid double free. */
-    (void)IMB_steal_byte_buffer(scale_ibuf);
-    (void)IMB_steal_float_buffer(scale_ibuf);
     IMB_freeImBuf(scale_ibuf);
   }
 

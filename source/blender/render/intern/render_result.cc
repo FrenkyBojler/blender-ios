@@ -214,7 +214,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
   rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
   rp->ibuf->channels = rp->channels;
   copy_v2_v2_db(rp->ibuf->ppm, rr->ppm);
-  IMB_assign_float_buffer(rp->ibuf, buffer_data, IB_TAKE_OWNERSHIP);
+  rp->ibuf->assign_float_data(buffer_data);
   assign_render_pass_ibuf_colorspace(*rp);
 
   if (STREQ(rp->name, RE_PASSNAME_VECTOR)) {
@@ -442,8 +442,7 @@ void RE_create_render_pass(RenderResult *rr,
 void RE_pass_set_buffer_data(RenderPass *pass, float *data)
 {
   ImBuf *ibuf = RE_RenderPassEnsureImBuf(pass);
-
-  IMB_assign_float_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
+  ibuf->assign_float_data(data);
 }
 
 gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
@@ -1093,8 +1092,8 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
 
   /* if not exists, BKE_imbuf_write makes one */
   if (rv->ibuf) {
-    IMB_assign_byte_buffer(ibuf, rv->ibuf->byte_data_for_write(), IB_DO_NOT_TAKE_OWNERSHIP);
-    IMB_assign_float_buffer(ibuf, rv->ibuf->float_data_for_write(), IB_DO_NOT_TAKE_OWNERSHIP);
+    ibuf->byte_buffer = rv->ibuf->byte_buffer;
+    ibuf->float_buffer = rv->ibuf->float_buffer;
     ibuf->channels = rv->ibuf->channels;
   }
 
@@ -1114,16 +1113,14 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
         (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32))
     {
       if (imf->depth == R_IMF_CHAN_DEPTH_8) {
-        /* Higher depth bits are supported but not needed for current file output. */
-        IMB_assign_float_buffer(ibuf, nullptr, IB_DO_NOT_TAKE_OWNERSHIP);
+        ibuf->float_buffer = {};
       }
       else {
         IMB_float_from_byte(ibuf);
       }
     }
     else {
-      /* ensure no float buffer remained from previous frame */
-      IMB_assign_float_buffer(ibuf, nullptr, IB_DO_NOT_TAKE_OWNERSHIP);
+      ibuf->float_buffer = {};
     }
   }
 
@@ -1150,15 +1147,7 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
   if (ibuf->float_data()) {
     rr->have_combined = true;
 
-    if (!rv_ibuf->float_data()) {
-      float *data = MEM_new_array_uninitialized<float>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                                       "render_seq float");
-      IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
-    }
-
-    memcpy(rv_ibuf->float_data_for_write(),
-           ibuf->float_data(),
-           sizeof(float[4]) * rr->rectx * rr->recty);
+    rv_ibuf->float_buffer = ibuf->float_buffer;
 
     /* TSK! Since sequence render doesn't free the *rr render result, the old rect32
      * can hang around when sequence render has rendered a 32 bits one before */
@@ -1167,13 +1156,7 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
   else if (ibuf->byte_data()) {
     rr->have_combined = true;
 
-    if (!rv_ibuf->byte_data()) {
-      uint8_t *data = MEM_new_array_uninitialized<uint8_t>(
-          4 * size_t(rr->rectx) * size_t(rr->recty), "render_seq byte");
-      IMB_assign_byte_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
-    }
-
-    memcpy(rv_ibuf->byte_data_for_write(), ibuf->byte_data(), sizeof(int) * rr->rectx * rr->recty);
+    rv_ibuf->byte_buffer = ibuf->byte_buffer;
 
     /* Same things as above, old rectf can hang around from previous render. */
     IMB_free_float_pixels(rv_ibuf);
@@ -1187,9 +1170,8 @@ void render_result_rect_fill_zero(RenderResult *rr, const int view_id)
   ImBuf *ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
   if (!ibuf->float_data() && !ibuf->byte_data()) {
-    uint8_t *data = MEM_new_array_zeroed<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                                  "render_seq rect");
-    IMB_assign_byte_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
+    ibuf->assign_byte_data(
+        MEM_new_array_zeroed<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty), __func__));
     return;
   }
 

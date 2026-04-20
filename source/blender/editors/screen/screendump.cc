@@ -117,7 +117,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
 
       /* operator ensures the extension */
       ibuf = IMB_allocImBuf(scd->dumpsx, scd->dumpsy, 24, 0);
-      IMB_assign_byte_buffer(ibuf, scd->dumprect, IB_TAKE_OWNERSHIP);
+      ibuf->assign_byte_data(scd->dumprect);
       scd->dumprect = nullptr;
 
       /* crop to show only single editor */

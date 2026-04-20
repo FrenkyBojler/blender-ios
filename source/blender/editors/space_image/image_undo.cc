@@ -125,11 +125,10 @@ struct PaintTile {
    * For 3D projection painting this only uses a tile & frame number.
    * The scene pointer must be cleared (or temporarily set it as needed, but leave cleared). */
   ImageUser iuser;
-  union {
-    float *fp = nullptr;
-    uint8_t *byte_ptr;
-    void *pt;
-  } rect;
+
+  const void *buffer = nullptr;
+  ImplicitSharingPtr<> buffer_sharing_info;
+
   uint16_t *mask = nullptr;
   bool valid = false;
   bool use_float = false;
@@ -138,9 +137,6 @@ struct PaintTile {
 
 static void ptile_free(PaintTile *ptile)
 {
-  if (ptile->rect.pt) {
-    MEM_delete_void(ptile->rect.pt);
-  }
   if (ptile->mask) {
     MEM_delete(ptile->mask);
   }
@@ -165,14 +161,14 @@ static void ptile_invalidate_map(PaintTileMap *paint_tile_map)
   }
 }
 
-void *ED_image_paint_tile_find(PaintTileMap *paint_tile_map,
-                               Image *image,
-                               ImBuf *ibuf,
-                               ImageUser *iuser,
-                               int x_tile,
-                               int y_tile,
-                               ushort **r_mask,
-                               bool validate)
+std::optional<ImplicitSharingInfoAndData> ED_image_paint_tile_find(PaintTileMap *paint_tile_map,
+                                                                   Image *image,
+                                                                   ImBuf *ibuf,
+                                                                   ImageUser *iuser,
+                                                                   int x_tile,
+                                                                   int y_tile,
+                                                                   ushort **r_mask,
+                                                                   bool validate)
 {
   PaintTileKey key;
   key.ibuf = ibuf;
@@ -182,7 +178,7 @@ void *ED_image_paint_tile_find(PaintTileMap *paint_tile_map,
   key.y_tile = y_tile;
   PaintTile **pptile = paint_tile_map->map.lookup_ptr(key);
   if (pptile == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   PaintTile *ptile = *pptile;
   if (r_mask) {
@@ -196,19 +192,19 @@ void *ED_image_paint_tile_find(PaintTileMap *paint_tile_map,
   if (validate) {
     ptile->valid = true;
   }
-  return ptile->rect.pt;
+  return ImplicitSharingInfoAndData{ptile->buffer_sharing_info.get(), ptile->buffer};
 }
 
-void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
-                               Image *image,
-                               ImBuf *ibuf,
-                               ImageUser *iuser,
-                               int x_tile,
-                               int y_tile,
-                               ushort **r_mask,
-                               bool **r_valid,
-                               bool use_thread_lock,
-                               bool find_prev)
+std::optional<ImplicitSharingInfoAndData> ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
+                                                                   Image *image,
+                                                                   ImBuf *ibuf,
+                                                                   ImageUser *iuser,
+                                                                   int x_tile,
+                                                                   int y_tile,
+                                                                   ushort **r_mask,
+                                                                   bool **r_valid,
+                                                                   bool use_thread_lock,
+                                                                   bool find_prev)
 {
   if (use_thread_lock) {
     BLI_spin_lock(&paint_tiles_lock);
@@ -219,7 +215,7 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
 
   /* in projective painting we keep accounting of tiles, so if we need one pushed, just push! */
   if (find_prev) {
-    void *data = ED_image_paint_tile_find(
+    std::optional<ImplicitSharingInfoAndData> data = ED_image_paint_tile_find(
         paint_tile_map, image, ibuf, iuser, x_tile, y_tile, r_mask, true);
     if (data) {
       if (use_thread_lock) {
@@ -250,9 +246,10 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
   calc_tile_rect(*ibuf, ptile->x_tile, ptile->y_tile, tile_pos, tile_copy_size);
 
   if (ibuf->float_data()) {
-    ptile->rect.pt = MEM_new_array_zeroed<float[4]>(square_i(ED_IMAGE_UNDO_TILE_SIZE),
-                                                    "PaintTile.rect");
-    IMB_copy_rect(ptile->rect.fp,
+    float *data = MEM_new_array_zeroed<float>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE), __func__);
+    ptile->buffer = data;
+    ptile->buffer_sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
+    IMB_copy_rect(data,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->float_data(),
                   int2(ibuf->x, ibuf->y),
@@ -262,9 +259,10 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
                   tile_copy_size);
   }
   else {
-    ptile->rect.pt = MEM_new_array_zeroed<char[4]>(square_i(ED_IMAGE_UNDO_TILE_SIZE),
-                                                   "PaintTile.rect");
-    IMB_copy_rect(ptile->rect.byte_ptr,
+    uchar *data = MEM_new_array_zeroed<uchar>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE), __func__);
+    ptile->buffer = data;
+    ptile->buffer_sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
+    IMB_copy_rect(data,
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->byte_data(),
                   int2(ibuf->x, ibuf->y),
@@ -299,7 +297,7 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
   if (use_thread_lock) {
     BLI_spin_unlock(&paint_tiles_lock);
   }
-  return ptile->rect.pt;
+  return ImplicitSharingInfoAndData{ptile->buffer_sharing_info.get(), ptile->buffer};
 }
 
 static void ptile_restore_runtime_map(PaintTileMap *paint_tile_map)
@@ -357,11 +355,8 @@ static uint32_t index_from_xy(uint32_t tile_x, uint32_t tile_y, const uint32_t t
 }
 
 struct UndoImageTile {
-  union {
-    float *fp;
-    uint8_t *byte_ptr;
-    void *pt;
-  } rect;
+  const void *buffer = nullptr;
+  ImplicitSharingPtr<> buffer_sharing_info;
   int users;
 };
 
@@ -810,8 +805,8 @@ static bool image_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *u
 
         UndoImageTile *utile = MEM_new_zeroed<UndoImageTile>("UndoImageTile");
         utile->users = 1;
-        utile->rect.pt = ptile->rect.pt;
-        ptile->rect.pt = nullptr;
+        utile->buffer = ptile->buffer;
+        utile->buffer_sharing_info = ptile->buffer_sharing_info;
         const uint tile_index = index_from_xy(ptile->x_tile, ptile->y_tile, ubuf_pre->tiles_dims);
 
         BLI_assert(ubuf_pre->tiles[tile_index] == nullptr);

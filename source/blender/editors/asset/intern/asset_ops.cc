@@ -1118,9 +1118,7 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
   }
 
   ImBuf *image_buffer = IMB_allocImBuf(dumprect_size[0], dumprect_size[1], 24, 0);
-  /* Using IB_TAKE_OWNERSHIP because the crop does kind of take ownership already it seems. At
-   * least freeing the memory after would cause a crash if ownership isn't taken. */
-  IMB_assign_byte_buffer(image_buffer, dumprect, IB_TAKE_OWNERSHIP);
+  image_buffer->assign_byte_data(dumprect);
 
   IMB_crop(image_buffer,
            int2(safe_rect.xmin, safe_rect.ymin),

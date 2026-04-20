@@ -620,17 +620,9 @@ static ImBuf *make_grayscale_ibuf_copy(ImBuf *ibuf)
 
   BLI_assert(ELEM(ibuf->channels, 3, 4));
 
-  /* TODO(sergey): Bummer, currently IMB API only allows to create 4 channels
-   * float buffer, so we do it manually here.
-   *
-   * Will generalize it later.
-   */
-  const size_t num_pixels = size_t(grayscale->x) * size_t(grayscale->y);
   grayscale->channels = 1;
-  float *rect_float = MEM_new_array_zeroed<float>(num_pixels, "tracking grayscale image");
-  if (rect_float != nullptr) {
-    IMB_assign_float_buffer(grayscale, rect_float, IB_TAKE_OWNERSHIP);
-
+  IMB_alloc_float_pixels(grayscale, grayscale->channels);
+  if (float *rect_float = grayscale->float_data_for_write()) {
     for (int i = 0; i < grayscale->x * grayscale->y; i++) {
       const float *pixel = ibuf->float_data() + ibuf->channels * i;
 
@@ -652,16 +644,11 @@ static void ibuf_to_float_image(ImBuf *ibuf, libmv_FloatImage *float_image)
 
 static ImBuf *float_image_to_ibuf(libmv_FloatImage *float_image)
 {
-  ImBuf *ibuf = IMB_allocImBuf(float_image->width, float_image->height, 32, 0);
-  size_t num_total_channels = size_t(ibuf->x) * size_t(ibuf->y) * float_image->channels;
-  ibuf->channels = float_image->channels;
-  float *rect_float = MEM_new_array_zeroed<float>(num_total_channels, "tracking grayscale image");
-  if (rect_float != nullptr) {
-    IMB_assign_float_buffer(ibuf, rect_float, IB_TAKE_OWNERSHIP);
-
-    memcpy(rect_float, float_image->buffer, num_total_channels * sizeof(float));
-  }
-  return ibuf;
+  return IMB_allocFromBuffer(nullptr,
+                             float_image->buffer,
+                             float_image->width,
+                             float_image->height,
+                             float_image->channels);
 }
 
 static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,

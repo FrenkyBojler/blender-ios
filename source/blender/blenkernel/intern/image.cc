@@ -1373,7 +1373,8 @@ static bool image_memorypack_imbuf(
 
   ImagePackedFile *imapf;
   const int encoded_size = ibuf->encoded_size;
-  PackedFile *pf = BKE_packedfile_new_from_memory(IMB_steal_encoded_buffer(ibuf), encoded_size);
+  PackedFile *pf = BKE_packedfile_new_from_memory(
+      ibuf->encoded_buffer.data, encoded_size, ibuf->encoded_buffer.sharing_info.get());
 
   imapf = MEM_new<ImagePackedFile>("Image PackedFile");
   STRNCPY(imapf->filepath, filepath);

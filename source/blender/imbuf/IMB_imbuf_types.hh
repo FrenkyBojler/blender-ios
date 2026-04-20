@@ -11,6 +11,8 @@
  * Image buffer types.
  */
 
+#include "BLI_implicit_sharing.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "DNA_vec_types.h" /* for rcti */
 
 #include "IMB_imbuf_enums.h"
@@ -125,6 +127,7 @@ enum eImBufFlags {
   /** Perform no color space conversions when reading, leave the image in the file colorspace. */
   IB_no_colorspace_convert = 1 << 18,
 };
+ENUM_OPERATORS(eImBufFlags);
 
 /** \} */
 
@@ -169,15 +172,15 @@ struct DDSData {
  */
 
 struct ImBufByteBuffer {
-  uint8_t *data = nullptr;
-  ImBufOwnership ownership = IB_DO_NOT_TAKE_OWNERSHIP;
+  const uint8_t *data = nullptr;
+  ImplicitSharingPtr<> sharing_info;
 
   const ColorSpace *colorspace = nullptr;
 };
 
 struct ImBufFloatBuffer {
-  float *data = nullptr;
-  ImBufOwnership ownership = IB_DO_NOT_TAKE_OWNERSHIP;
+  const float *data = nullptr;
+  ImplicitSharingPtr<> sharing_info;
 
   const ColorSpace *colorspace = nullptr;
 };
@@ -308,6 +311,11 @@ struct ImBuf {
 
   const float *float_data() const;
   float *float_data_for_write();
+
+  void assign_byte_data(uint8_t *data);
+  void assign_float_data(float *data);
+  void assign_byte_data(const uint8_t *data, const ImplicitSharingInfo *sharing_info);
+  void assign_float_data(const float *data, const ImplicitSharingInfo *sharing_info);
 };
 
 /**
@@ -388,17 +396,7 @@ inline const uint8_t *ImBuf::byte_data() const
   return this->byte_buffer.data;
 }
 
-inline uint8_t *ImBuf::byte_data_for_write()
-{
-  return this->byte_buffer.data;
-}
-
 inline const float *ImBuf::float_data() const
-{
-  return this->float_buffer.data;
-}
-
-inline float *ImBuf::float_data_for_write()
 {
   return this->float_buffer.data;
 }
