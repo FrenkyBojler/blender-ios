@@ -38,7 +38,7 @@ struct ImageTile;
 struct ImbFormatOptions;
 struct Library;
 struct Main;
-struct MovieCache;
+struct ImBufCache;
 struct Object;
 struct PartialUpdateRegister;
 struct PartialUpdateUser;
@@ -65,7 +65,7 @@ struct ImageRuntime {
    */
   Mutex cache_mutex;
 
-  MovieCache *cache = nullptr;
+  ImBufCache *cache = nullptr;
 
   /* The 2 is for the left/right stereo eyes. */
   gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};

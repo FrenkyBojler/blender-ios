@@ -19,7 +19,7 @@ struct ImageRuntime;
 }  // namespace bke
 
 struct MovieReader;
-struct MovieCache;
+struct ImBufCache;
 struct PackedFile;
 struct RenderResult;
 struct Scene;
