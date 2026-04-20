@@ -36,6 +36,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
+#include "BLI_ustring.hh"
 
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
@@ -52,11 +53,13 @@
 
 #include "DNA_node_types.h"
 
+namespace blender {
+
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
 
-namespace blender::nodes::geo_eval_log {
+namespace nodes::geo_eval_log {
 
 using fn::GField;
 
@@ -72,7 +75,7 @@ struct NodeWarning {
     return get_default_hash(this->type, this->message);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(NodeWarning, type, message)
+  friend bool operator==(const NodeWarning &a, const NodeWarning &b) = default;
 };
 
 enum class NamedAttributeUsage {
@@ -198,7 +201,7 @@ class GridInfoLog : public ValueLog {
 class BundleValueLog : public ValueLog {
  public:
   struct Item {
-    std::string key;
+    UString key;
     std::variant<const bke::bNodeSocketType *, StringRefNull> type;
   };
 
@@ -508,4 +511,6 @@ class GeoNodesLog {
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
 };
 
-}  // namespace blender::nodes::geo_eval_log
+}  // namespace nodes::geo_eval_log
+
+}  // namespace blender

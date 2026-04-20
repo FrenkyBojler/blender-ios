@@ -118,7 +118,7 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
         ma = context.material
         if ma is not None and ma.grease_pencil is not None:
             gpcolor = ma.grease_pencil
-            self.layout.prop(gpcolor, "show_stroke", text="")
+            self.layout.enabled = not gpcolor.lock
 
     def draw(self, context):
         layout = self.layout
@@ -133,6 +133,18 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
             col.prop(gpcolor, "mode")
 
             col.prop(gpcolor, "stroke_style", text="Style")
+
+            if gpcolor.mode in {'DOTS', 'BOX'}:
+                col.prop(gpcolor, "placement_mode")
+                if gpcolor.placement_mode == 'COUNT':
+                    col.prop(gpcolor, "placement_count")
+                    col.separator()
+                elif gpcolor.placement_mode == 'DENSITY':
+                    col.prop(gpcolor, "placement_density")
+                    col.separator()
+                elif gpcolor.placement_mode == 'RADIUS':
+                    col.prop(gpcolor, "placement_radius_spacing")
+                    col.separator()
 
             col.prop(gpcolor, "color", text="Base Color")
             col.prop(gpcolor, "use_stroke_holdout")
@@ -163,7 +175,7 @@ class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
     def draw_header(self, context):
         ma = context.material
         gpcolor = ma.grease_pencil
-        self.layout.prop(gpcolor, "show_fill", text="")
+        self.layout.enabled = not gpcolor.lock
 
     def draw(self, context):
         layout = self.layout

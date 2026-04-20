@@ -8,6 +8,14 @@
 
 #pragma once
 
+#include "BKE_report.hh"
+
+#include "DNA_windowmanager_types.h"
+
+#include "BLI_set.hh"
+
+namespace blender {
+
 struct UndoStack;
 struct wmMsgBus;
 struct wmKeyConfig;
@@ -18,14 +26,9 @@ struct wmGesture;
 struct wmJob;
 struct wmDrag;
 struct wmPaintCursor;
+struct WindowDrawCB;
 
-#include "BKE_report.hh"
-
-#include "DNA_windowmanager_types.h"
-
-#include "BLI_set.hh"
-
-namespace blender::bke {
+namespace bke {
 
 struct wmNotifierHashForQueue {
   uint64_t operator()(const wmNotifier *note) const;
@@ -52,6 +55,18 @@ struct WindowManagerRuntime {
 
   /** Indicates whether interface is locked for user interaction. */
   bool is_interface_locked = false;
+
+  /** Indicates whether modified images should be saved when saving the blend file. */
+  char save_modified_images_when_file_is_saved = true;
+
+  /**
+   * Indicates the main loop (#WM_main()) to stop processing the event queue and move to the next
+   * step. The Remaining events will then be processed during the next iteration of the loop.
+   *
+   * This is used e.g. to avoid handling events immediately after an undo/redo action, when UI has
+   * not yet been updated.
+   */
+  bool break_events_handling = false;
 
   /** Information and error reports. */
   ReportList reports;
@@ -134,6 +149,9 @@ struct WindowRuntime {
   /** Priority handlers, handled first. */
   ListBaseT<wmEventHandler> modalhandlers = {nullptr, nullptr};
 
+  /** Custom drawing callbacks. */
+  ListBaseT<WindowDrawCB> drawcalls = {nullptr, nullptr};
+
   /** Gesture stuff. */
   ListBaseT<wmGesture> gesture = {nullptr, nullptr};
 
@@ -164,7 +182,7 @@ struct WindowRuntime {
   wmEvent *eventstate = nullptr;
 
   /**
-   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * The time when the key is pressed in milliseconds (see #GHOST_IEvent::getTime).
    * Used to detect double-click events.
    */
   uint64_t eventstate_prev_press_time_ms = 0;
@@ -176,4 +194,5 @@ struct WindowRuntime {
   ~WindowRuntime();
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender
