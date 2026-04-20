@@ -26,11 +26,12 @@ namespace blender {
 
 static void project_mark_dirty()
 {
-  if (!G_MAIN->project) {
+  bke::BlenderProject *project = BKE_blender_project_get(G_MAIN);
+  if (project) {
     return;
   }
 
-  G_MAIN->project->is_dirty = true;
+  project->is_dirty = true;
 }
 
 /* For properties that AREN'T saved to disk as part of the project data. */

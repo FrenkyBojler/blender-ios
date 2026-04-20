@@ -356,7 +356,7 @@ void RE_init_threadcount(Render *re);
 
 bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
-                              const std::optional<bke::BlenderProject> &project,
+                              const bke::BlenderProject *project,
                               struct Scene *scene,
                               struct RenderData *rd,
                               struct MovieWriter **movie_writers,

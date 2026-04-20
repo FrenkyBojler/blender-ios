@@ -237,7 +237,8 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   VariableMap variables;
 
   /* General variables. */
-  BKE_add_template_variables_general(variables, ptr->owner_id, CTX_data_main(C)->project);
+  BKE_add_template_variables_general(
+      variables, ptr->owner_id, BKE_blender_project_get(CTX_data_main(C)));
 
   /* Purpose-specific variables. */
   switch (RNA_property_path_template_type(prop)) {
@@ -276,7 +277,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 
 void BKE_add_template_variables_general(bke::path_templates::VariableMap &variables,
                                         const ID *path_owner_id,
-                                        const std::optional<bke::BlenderProject> &project)
+                                        const bke::BlenderProject *project)
 {
   /* Project variables. */
   if (project) {
