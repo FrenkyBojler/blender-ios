@@ -177,19 +177,12 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
 }
 
 #  ifdef WITH_BLENDER_PROJECTS
-static void rna_Main_blender_project_init(struct BlendData *blenddata,
+static void rna_Main_blender_project_init(struct BlendData * /* blenddata */,
                                           ReportList *reports,
                                           const char *name,
                                           const char *project_root)
 {
-  Main *bmain = reinterpret_cast<Main *>(blenddata);
-
-  if (!bmain->is_global_main) {
-    BKE_reportf(reports, RPT_ERROR, "Only the main (global) data can have a project.");
-    return;
-  }
-
-  if (!BKE_blender_project_init(name, project_root, bmain)) {
+  if (!BKE_blender_project_init(name, project_root)) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Failed to initialize project. Ensure that both the name and project_root "
@@ -200,16 +193,10 @@ static void rna_Main_blender_project_init(struct BlendData *blenddata,
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
-static void rna_Main_blender_project_clear(struct BlendData *blenddata, ReportList *reports)
+static void rna_Main_blender_project_clear(struct BlendData * /* blenddata */,
+                                           ReportList * /* reports */)
 {
-  Main *bmain = reinterpret_cast<Main *>(blenddata);
-
-  if (!bmain->is_global_main) {
-    BKE_reportf(reports, RPT_ERROR, "Only the main (global) data can have a project.");
-    return;
-  }
-
-  BKE_blender_project_clear(bmain);
+  BKE_blender_project_clear();
 
   /* Force full redraw of all windows. */
   WM_main_add_notifier(NC_WINDOW, nullptr);

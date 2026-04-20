@@ -12,7 +12,6 @@
 
 #include "BKE_blender_project.hh"
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -237,7 +236,8 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   VariableMap variables;
 
   /* General variables. */
-  BKE_add_template_variables_general(variables, ptr->owner_id, CTX_data_main(C)->project);
+  BKE_add_template_variables_general(
+      variables, ptr->owner_id, BKE_blender_project_get(CTX_data_main(C)));
 
   /* Purpose-specific variables. */
   switch (RNA_property_path_template_type(prop)) {
@@ -276,7 +276,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 
 void BKE_add_template_variables_general(bke::path_templates::VariableMap &variables,
                                         const ID *path_owner_id,
-                                        const std::optional<bke::BlenderProject> &project)
+                                        const bke::BlenderProject *project)
 {
   /* Project variables. */
   if (project) {
@@ -899,11 +899,11 @@ static Vector<Error> eval_template(std::string *r_out_path,
 
       /* Curly brace escapes. */
       case TokenType::LEFT_CURLY_BRACE: {
-        strcpy(replacement_string, "{");
+        ARRAY_SET_ITEMS(replacement_string, '{', '\0');
         break;
       }
       case TokenType::RIGHT_CURLY_BRACE: {
-        strcpy(replacement_string, "}");
+        ARRAY_SET_ITEMS(replacement_string, '}', '\0');
         break;
       }
 

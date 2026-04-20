@@ -110,6 +110,8 @@ class BlenderProject {
 
 }  // namespace bke
 
+bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
+
 /**
  * Initialize a new active Blender Project.
  *
@@ -117,22 +119,12 @@ class BlenderProject {
  * project (if any) will remain as-is and false is returned.  Otherwise the
  * existing project (if any) is cleared, the project is initialized with the
  * given values, and true is returned.
- *
- * WARNING: this should only ever be called with the global Main (a.k.a.
- * `G_MAIN`) passed as `bmain`.  Projects on Mains other than the global one,
- * and more generally more than one simultaneously active project, ARE NOT
- * CURRENTLY SUPPORTED and you are likely to break things if you naively try.
  */
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain);
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
 
 /**
  * Clears and unloads the current active project, if any.
- *
- * WARNING: this should only ever be called with the global Main (a.k.a.
- * `G_MAIN`) passed as `bmain`.  Projects on Mains other than the global one,
- * and more generally more than one simultaneously active project, ARE NOT
- * CURRENTLY SUPPORTED and you are likely to break things if you naively try.
  */
-void BKE_blender_project_clear(Main *bmain);
+void BKE_blender_project_clear();
 
 }  // namespace blender

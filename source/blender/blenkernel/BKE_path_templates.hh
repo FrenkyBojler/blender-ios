@@ -288,13 +288,14 @@ std::optional<bke::path_templates::VariableMap> BKE_build_template_variables_for
  * pass nullptr when that is actually true, not just out of convenience, because
  * it alters the produced variables.
  *
- * \param project: the currently active Blender project, if any.
+ * \param project: a Blender project, if any, to provide project variables. Can
+ * be null, in which case no project-related variables will be added.
  *
  * \see #BKE_path_apply_template()
  */
 void BKE_add_template_variables_general(bke::path_templates::VariableMap &variables,
                                         const ID *path_owner_id,
-                                        const std::optional<bke::BlenderProject> &project);
+                                        const bke::BlenderProject *project);
 
 /**
  * Add the variables that should be available for render output paths.

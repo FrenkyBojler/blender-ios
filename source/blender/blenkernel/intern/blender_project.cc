@@ -95,28 +95,46 @@ void BlenderProject::move_variable(int from_index, int to_index)
 
 }  // namespace bke
 
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path, Main *bmain)
+static std::optional<bke::BlenderProject> &get_project()
 {
-  BLI_assert(bmain->is_global_main);
-  if (!bmain->is_global_main) {
-    return false;
+  static std::optional<bke::BlenderProject> project;
+
+  return project;
+}
+
+bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
+{
+  if (bmain == nullptr) {
+    return nullptr;
   }
 
+  std::optional<bke::BlenderProject> &project = get_project();
+  if (!project.has_value()) {
+    return nullptr;
+  }
+
+  return &*project;
+}
+
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
+{
   if (name.is_empty() || root_path.is_empty()) {
     return false;
   }
 
-  BKE_blender_project_clear(bmain);
+  BKE_blender_project_clear();
 
-  bmain->project = blender::bke::BlenderProject();
+  std::optional<bke::BlenderProject> &project = get_project();
 
-  bmain->project->set_name(name);
-  bmain->project->set_root_path(root_path);
+  project = blender::bke::BlenderProject();
+
+  project->set_name(name);
+  project->set_root_path(root_path);
 
   return true;
 }
 
-void BKE_blender_project_clear(Main *bmain)
+void BKE_blender_project_clear()
 {
   /* At the moment this function is quite anemic, and doesn't really justify
    * being a separate function. However, as future milestones like
@@ -124,16 +142,13 @@ void BKE_blender_project_clear(Main *bmain)
    * one place the code for ensuring those things are properly unloaded when the
    * active project is cleared. */
 
-  BLI_assert(bmain->is_global_main);
-  if (!bmain->is_global_main) {
+  std::optional<bke::BlenderProject> &project = get_project();
+
+  if (project.has_value()) {
     return;
   }
 
-  if (!bmain->project.has_value()) {
-    return;
-  }
-
-  bmain->project = std::nullopt;
+  project = std::nullopt;
 }
 
 }  // namespace blender

@@ -1939,10 +1939,8 @@ void RE_RenderFrame(Render *re,
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
         path_templates::VariableMap template_variables;
-        /* Project should always come from global main, otherwise variables will be
-         * missing/wrong. */
-        BLI_assert(bmain->is_global_main);
-        BKE_add_template_variables_general(template_variables, &scene->id, bmain->project);
+        BKE_add_template_variables_general(
+            template_variables, &scene->id, BKE_blender_project_get(bmain));
         BKE_add_template_variables_for_render_path(template_variables, *scene);
 
         const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
@@ -2056,7 +2054,7 @@ void RE_RenderFreestyleExternal(Render *re)
 
 bool RE_WriteRenderViewsMovie(ReportList *reports,
                               RenderResult *rr,
-                              const std::optional<bke::BlenderProject> &project,
+                              const bke::BlenderProject *project,
                               Scene *scene,
                               RenderData *rd,
                               MovieWriter **movie_writers,
@@ -2176,12 +2174,9 @@ static bool do_write_image_or_movie(Render *re,
 
     /* write movie or image */
     if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-      /* Project should always come from global main, otherwise variables will be
-       * missing/wrong. */
-      BLI_assert(bmain->is_global_main);
       RE_WriteRenderViewsMovie(re->reports,
                                &rres,
-                               bmain->project,
+                               BKE_blender_project_get(bmain),
                                scene,
                                &re->r,
                                re->movie_writers.data(),
@@ -2195,10 +2190,8 @@ static bool do_write_image_or_movie(Render *re,
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
         path_templates::VariableMap template_variables;
-        /* Project should always come from global main, otherwise variables will be
-         * missing/wrong. */
-        BLI_assert(bmain->is_global_main);
-        BKE_add_template_variables_general(template_variables, &scene->id, bmain->project);
+        BKE_add_template_variables_general(
+            template_variables, &scene->id, BKE_blender_project_get(bmain));
         BKE_add_template_variables_for_render_path(template_variables, *scene);
 
         const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
@@ -2364,11 +2357,8 @@ void RE_RenderAnim(Render *re,
     for (int i = 0; i < totvideos; i++) {
       const char *suffix = is_multiview_name ? BKE_scene_multiview_view_id_suffix_get(&re->r, i) :
                                                "";
-      /* Project should always come from global main, otherwise variables will be
-       * missing/wrong. */
-      BLI_assert(bmain->is_global_main);
       MovieWriter *writer = MOV_write_begin(re->pipeline_scene_eval,
-                                            bmain->project,
+                                            BKE_blender_project_get(bmain),
                                             &re->r,
                                             &image_format,
                                             width,
@@ -2441,10 +2431,8 @@ void RE_RenderAnim(Render *re,
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
       path_templates::VariableMap template_variables;
-      /* Project should always come from global main, otherwise variables will be
-       * missing/wrong. */
-      BLI_assert(bmain->is_global_main);
-      BKE_add_template_variables_general(template_variables, &scene->id, bmain->project);
+      BKE_add_template_variables_general(
+          template_variables, &scene->id, BKE_blender_project_get(bmain));
       BKE_add_template_variables_for_render_path(template_variables, *scene);
 
       const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
@@ -2729,25 +2717,10 @@ void RE_layer_load_from_file(
     }
     else {
       if ((ibuf->x - x >= layer->rectx) && (ibuf->y - y >= layer->recty)) {
-        ImBuf *ibuf_clip;
-
         if (ibuf->float_data() == nullptr) {
           IMB_float_from_byte(ibuf);
         }
-
-        ibuf_clip = IMB_allocImBuf(layer->rectx, layer->recty, 32, IB_float_data);
-        if (ibuf_clip) {
-          IMB_rectcpy(ibuf_clip, ibuf, 0, 0, x, y, layer->rectx, layer->recty);
-
-          memcpy(rpass->ibuf->float_data_for_write(),
-                 ibuf_clip->float_data(),
-                 sizeof(float[4]) * layer->rectx * layer->recty);
-          IMB_freeImBuf(ibuf_clip);
-        }
-        else {
-          BKE_reportf(
-              reports, RPT_ERROR, "%s: failed to allocate clip buffer '%s'", __func__, filepath);
-        }
+        IMB_copy_rect(rpass->ibuf, ibuf, int2(x, y), int2(0, 0), int2(layer->rectx, layer->recty));
       }
       else {
         BKE_reportf(reports,

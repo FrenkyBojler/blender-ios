@@ -65,7 +65,7 @@ static void ffmpeg_movie_close(MovieWriter *context);
 static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const Scene *scene,
-                                const std::optional<bke::BlenderProject> &project,
+                                const bke::BlenderProject *project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
@@ -161,30 +161,16 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
     return;
   }
 
-  int max_luminance = 0;
+  /* Get max nits from the view transform. */
+  int max_luminance = IMB_colormanagement_view_max_nits(imf->display_settings.display_device,
+                                                        imf->view_settings.view_transform);
   if (c->color_trc == AVCOL_TRC_ARIB_STD_B67) {
-    /* HLG is always 1000 nits. */
-    max_luminance = 1000;
+    /* HLG is max 1000 nits, and also a good guess if not found. */
+    max_luminance = (max_luminance == 0) ? 1000 : std::min(max_luminance, 1000);
   }
   else if (c->color_trc == AVCOL_TRC_SMPTEST2084) {
-    /* PQ uses heuristic based on view transform name. In the future this could become
-     * a user control, but this solves the common cases. */
-    StringRefNull view_name = imf->view_settings.view_transform;
-    if (view_name.find("HDR 500 nits") != StringRef::not_found) {
-      max_luminance = 500;
-    }
-    else if (view_name.find("HDR 1000 nits") != StringRef::not_found) {
-      max_luminance = 1000;
-    }
-    else if (view_name.find("HDR 2000 nits") != StringRef::not_found) {
-      max_luminance = 2000;
-    }
-    else if (view_name.find("HDR 4000 nits") != StringRef::not_found) {
-      max_luminance = 4000;
-    }
-    else if (view_name.find("HDR 10000 nits") != StringRef::not_found) {
-      max_luminance = 10000;
-    }
+    /* PQ is max 10000 nits. */
+    max_luminance = std::min(max_luminance, 10000);
   }
 
   /* If we don't know anything, don't write metadata. The video player will make some
@@ -1193,7 +1179,7 @@ static void ffmpeg_add_metadata_callback(void *data,
 
 static bool start_ffmpeg_impl(MovieWriter *context,
                               const Scene *scene,
-                              const std::optional<bke::BlenderProject> &project,
+                              const bke::BlenderProject *project,
                               const RenderData *rd,
                               const ImageFormatData *imf,
                               int rectx,
@@ -1490,7 +1476,7 @@ static void flush_delayed_frames(AVCodecContext *c, AVStream *stream, AVFormatCo
 static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
                                 const Scene *scene,
-                                const std::optional<bke::BlenderProject> &project,
+                                const bke::BlenderProject *project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
@@ -1578,7 +1564,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
 
 static void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
                                 const Scene *scene,
-                                const std::optional<bke::BlenderProject> &project,
+                                const bke::BlenderProject *project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
@@ -1588,7 +1574,7 @@ static void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
 }
 
 static MovieWriter *ffmpeg_movie_open(const Scene *scene,
-                                      const std::optional<bke::BlenderProject> &project,
+                                      const bke::BlenderProject *project,
                                       const RenderData *rd,
                                       const ImageFormatData *imf,
                                       int rectx,
@@ -1635,7 +1621,7 @@ static void end_ffmpeg_impl(MovieWriter *context, bool is_autosplit);
 
 static bool ffmpeg_movie_append(MovieWriter *context,
                                 const Scene *scene,
-                                const std::optional<bke::BlenderProject> &project,
+                                const bke::BlenderProject *project,
                                 const RenderData *rd,
                                 const ImageFormatData *imf,
                                 int start_frame,
@@ -1751,7 +1737,7 @@ static void ffmpeg_movie_close(MovieWriter *context)
 #endif /* WITH_FFMPEG */
 
 MovieWriter *MOV_write_begin(const Scene *scene,
-                             const std::optional<bke::BlenderProject> &project,
+                             const bke::BlenderProject *project,
                              const RenderData *rd,
                              const ImageFormatData *imf,
                              int rectx,
@@ -1776,7 +1762,7 @@ MovieWriter *MOV_write_begin(const Scene *scene,
 
 bool MOV_write_append(MovieWriter *writer,
                       const Scene *scene,
-                      const std::optional<bke::BlenderProject> &project,
+                      const bke::BlenderProject *project,
                       const RenderData *rd,
                       const ImageFormatData *imf,
                       int start_frame,
@@ -1812,7 +1798,7 @@ void MOV_write_end(MovieWriter *writer)
 
 void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
                                 const Scene *scene,
-                                const std::optional<bke::BlenderProject> &project,
+                                const bke::BlenderProject *project,
                                 const RenderData *rd,
                                 bool preview,
                                 const char *suffix,
