@@ -6111,7 +6111,7 @@ static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const int winding = RNA_enum_get(op->ptr, "winding");
-  const float sign = winding == int(UVWinding::Positive) ? -1.0f : 1.0f;
+  const float winding_sign = winding == int(UVWinding::Positive) ? -1.0f : 1.0f;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
@@ -6134,7 +6134,7 @@ static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
         continue;
       }
       const float area = BM_face_calc_area_uv_signed(efa, offsets.uv);
-      if (area * sign > 0.0f) {
+      if (area * winding_sign > 0.0f) {
         BM_elem_flag_enable(efa, BM_ELEM_TAG);
         changed = true;
       }
