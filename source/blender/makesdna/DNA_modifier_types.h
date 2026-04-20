@@ -163,6 +163,7 @@ enum ModifierFlag {
    * disabled.
    */
   eModifierFlag_PinLast = (1 << 4),
+  eModifierFlag_Select = (1 << 5),
 };
 
 struct ModifierData {

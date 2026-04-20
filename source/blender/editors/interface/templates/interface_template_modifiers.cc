@@ -46,7 +46,7 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
       if (mti->panel_register == nullptr) {
         continue;
       }
-      if ((md.flag & eModifierFlag_Active) == 0) {
+      if ((md.flag & (eModifierFlag_Active | eModifierFlag_Select)) == 0) {
         continue;
       }
       char panel_idname[MAX_NAME];
@@ -67,7 +67,7 @@ void template_modifiers(Layout * /*layout*/, bContext *C)
       if (mti->panel_register == nullptr) {
         continue;
       }
-      if ((md.flag & eModifierFlag_Active) == 0) {
+      if ((md.flag & (eModifierFlag_Active | eModifierFlag_Select)) == 0) {
         continue;
       }
       /* Move to the next instanced panel corresponding to the next modifier. */

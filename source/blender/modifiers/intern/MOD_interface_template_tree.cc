@@ -159,6 +159,17 @@ class ModifierItem : public ui::AbstractTreeViewItem {
     modifier_row_draw(row, object_, modifier_data_, scene_, index_);
   }
 
+  std::optional<bool> should_be_selected() const override
+  {
+    return modifier_data_->flag & eModifierFlag_Select;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(modifier_data_->flag, select, eModifierFlag_Select);
+  }
+
   std::optional<bool> should_be_active() const override
   {
     return modifier_data_->flag & eModifierFlag_Active;
@@ -225,6 +236,7 @@ void template_tree(ui::Layout *layout, bContext *C)
       *block, "Modifier Tree View", std::make_unique<ModifierTreeView>(*ob, *CTX_data_scene(C)));
   tree_view->set_context_menu_title("Modifier");
   tree_view->set_default_rows(4);
+  tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
