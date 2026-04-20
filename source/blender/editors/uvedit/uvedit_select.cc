@@ -6111,6 +6111,7 @@ static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const int winding = RNA_enum_get(op->ptr, "winding");
+  const float sign = winding == int(UVWinding::Positive) ? -1.0f : 1.0f;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
@@ -6125,6 +6126,7 @@ static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
 
     BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
+    bool changed = false;
     BMFace *efa;
     BMIter iter;
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -6132,21 +6134,24 @@ static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
         continue;
       }
       const float area = BM_face_calc_area_uv_signed(efa, offsets.uv);
-      if (winding == int(UVWinding::Positive) ? (area < 0.0f) : (area > 0.0f)) {
+      if (area * sign > 0.0f) {
         BM_elem_flag_enable(efa, BM_ELEM_TAG);
+        changed = true;
       }
     }
 
-    uv_select_flush_from_tag_face(scene, obedit, true);
+    if (changed) {
+      uv_select_flush_from_tag_face(scene, obedit, true);
 
-    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-      ED_uvedit_select_sync_flush(ts, bm, true);
-    }
-    else {
-      ED_uvedit_selectmode_flush(scene, bm);
-    }
+      if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+        ED_uvedit_select_sync_flush(ts, bm, true);
+      }
+      else {
+        ED_uvedit_selectmode_flush(scene, bm);
+      }
 
-    uv_select_tag_update_for_object(depsgraph, ts, obedit);
+      uv_select_tag_update_for_object(depsgraph, ts, obedit);
+    }
   }
 
   return OPERATOR_FINISHED;
