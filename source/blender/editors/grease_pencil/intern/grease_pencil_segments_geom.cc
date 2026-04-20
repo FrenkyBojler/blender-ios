@@ -767,12 +767,21 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
   return false;
 }
 
-static void cut_caps(bke::CurvesGeometry &dst,
+static void cut_caps(const bke::CurvesGeometry &src,
+                     bke::CurvesGeometry &dst,
                      const Span<Segment> segments,
                      const Span<bool> segment_reversed,
                      const Span<bool> cyclic,
-                     const OffsetIndices<int> segment_offsets)
+                     const OffsetIndices<int> segment_offsets,
+                     const bool keep_caps)
 {
+  const bke::AttributeAccessor src_attributes = src.attributes();
+
+  const VArray<int8_t> src_start_caps = *src_attributes.lookup_or_default<int8_t>(
+      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+  const VArray<int8_t> src_end_caps = *src_attributes.lookup_or_default<int8_t>(
+      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   bke::SpanAttributeWriter dst_start_caps = dst_attributes.lookup_or_add_for_write_span<int8_t>(
@@ -781,32 +790,42 @@ static void cut_caps(bke::CurvesGeometry &dst,
       "end_cap", bke::AttrDomain::Curve);
 
   threading::parallel_for(segment_offsets.index_range(), 4096, [&](const IndexRange curves) {
-    for (const int curve_i : curves) {
+    for (const int dst_curve_i : curves) {
       /* If the curve is cyclic, don't cut it. */
-      if (cyclic[curve_i]) {
+      if (cyclic[dst_curve_i]) {
         continue;
       }
 
-      const IndexRange segment_range = segment_offsets[curve_i];
+      const IndexRange segment_range = segment_offsets[dst_curve_i];
 
       const int segment_index_first = segment_range.first();
       const bool reversed_first = segment_reversed[segment_index_first];
       const Segment &segment_first = segments[segment_index_first];
+      const int src_curve_i_first = segment_first.curve;
       const Side direction_first = reversed_first ? Side::End : Side::Start;
       const int inter_index_first = segment_first.intersection_index[direction_first];
 
       const int segment_index_last = segment_range.last();
       const bool reversed_last = segment_reversed[segment_index_last];
       const Segment &segment_last = segments[segment_index_last];
+      const int src_curve_i_last = segment_last.curve;
       const Side direction_last = reversed_last ? Side::Start : Side::End;
       const int inter_index_last = segment_last.intersection_index[direction_last];
 
-      /* Check if there is a intersection and therefor the curve should be cut. */
-      if (inter_index_first != -1) {
-        dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      /* Check if cap should be copied or cut. */
+      if (inter_index_first == -1 || keep_caps) {
+        dst_start_caps.span[dst_curve_i] = reversed_first ? src_end_caps[src_curve_i_first] :
+                                                            src_start_caps[src_curve_i_first];
       }
-      if (inter_index_last != -1) {
-        dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      else {
+        dst_start_caps.span[dst_curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      }
+      if (inter_index_last == -1 || keep_caps) {
+        dst_end_caps.span[dst_curve_i] = reversed_last ? src_start_caps[src_curve_i_last] :
+                                                         src_end_caps[src_curve_i_last];
+      }
+      else {
+        dst_end_caps.span[dst_curve_i] = GP_STROKE_CAP_TYPE_FLAT;
       }
     }
   });
@@ -1316,9 +1335,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets, corner_type);
 
-  if (!keep_caps) {
-    cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
-  }
+  cut_caps(src, dst, segments, segment_reversed, cyclic, segment_offsets, keep_caps);
 
   return dst;
 }
@@ -1396,9 +1413,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets, corner_type);
 
-  if (!keep_caps) {
-    cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
-  }
+  cut_caps(src, dst, segments, segment_reversed, cyclic, segment_offsets, keep_caps);
 
   return dst;
 }
