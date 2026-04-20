@@ -18,6 +18,7 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
 
@@ -44,9 +45,10 @@ class EraseOperation : public GreasePencilStrokeOperation {
   friend struct EraseOperationExecutor;
 
  private:
-  Brush *eraser_brush_;
+  Brush *eraser_brush_ = nullptr;
   /* Eraser is used by the draw tool temporarily. */
   bool temp_eraser_ = false;
+  Brush *temp_eraser_brush_ = nullptr;
 
   bool keep_caps_ = false;
   float radius_ = 0.0f;
@@ -63,6 +65,9 @@ class EraseOperation : public GreasePencilStrokeOperation {
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
+
+  void toggle_temp_eraser_on(const bContext &C);
+  void toggle_temp_eraser_off(const bContext &C);
 };
 
 struct SegmentCircleIntersection {
@@ -1041,6 +1046,76 @@ struct EraseOperationExecutor {
   }
 };
 
+/** Creates a temporary hard eraser brush. */
+static Brush *create_hard_eraser_brush()
+{
+  Brush *eraser_brush = BKE_id_new_nomain<Brush>("Temp Hard Eraser");
+  eraser_brush->ob_mode = OB_MODE_PAINT_GREASE_PENCIL;
+
+  if (eraser_brush->gpencil_settings == nullptr) {
+    BKE_brush_init_gpencil_settings(eraser_brush);
+  }
+  BrushGpencilSettings *settings = eraser_brush->gpencil_settings;
+  settings->eraser_mode = GP_BRUSH_ERASER_HARD;
+  /* Default size is 60 pixels. */
+  eraser_brush->size = 60;
+
+  return eraser_brush;
+}
+
+void EraseOperation::toggle_temp_eraser_on(const bContext &C)
+{
+  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Main *bmain = CTX_data_main(&C);
+  Scene *scene = CTX_data_scene(&C);
+  Object *object = CTX_data_active_object(&C);
+  GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
+
+  /* Reset the eraser brush and override it. */
+  eraser_brush_ = nullptr;
+
+  std::optional<AssetWeakReference> asset_reference =
+      WM_toolsystem_last_brush_asset_from_brush_type(
+          scene, GPAINT_BRUSH_TYPE_ERASE, PaintMode::GPencil);
+  if (asset_reference) {
+    /* This should only fail in the case where the essential assets are not found. */
+    Brush *brush = reinterpret_cast<Brush *>(
+        bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *asset_reference));
+    if (brush) {
+      eraser_brush_ = brush;
+      radius_ = BKE_brush_radius_get(paint, eraser_brush_);
+    }
+  }
+
+  if (!eraser_brush_) {
+    /* If we can't find an eraser brush asset, create a temporary one. */
+    temp_eraser_brush_ = create_hard_eraser_brush();
+    eraser_brush_ = temp_eraser_brush_;
+    radius_ = BKE_brush_radius_get(paint, eraser_brush_);
+  }
+  BLI_assert(eraser_brush_);
+
+  grease_pencil->runtime->temp_eraser_radius = radius_;
+  grease_pencil->runtime->temp_use_eraser = true;
+}
+
+void EraseOperation::toggle_temp_eraser_off(const bContext &C)
+{
+  Object *object = CTX_data_active_object(&C);
+  GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
+
+  if (temp_eraser_brush_) {
+    /* Free the temporary brush. */
+    BKE_id_free_ex(nullptr, temp_eraser_brush_, LIB_ID_FREE_NO_MAIN, false);
+    temp_eraser_brush_ = nullptr;
+  }
+
+  /* If we're using the draw tool to temporarily erase, then we need to reset the
+   * `temp_use_eraser` flag here. */
+  grease_pencil->runtime->temp_use_eraser = false;
+  grease_pencil->runtime->temp_eraser_radius = 0.0f;
+}
+
 void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*start_sample*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
@@ -1052,23 +1127,7 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
    * eraser brush instead. Find the last used eraser for this. */
   if (temp_eraser_) {
-    Main *bmain = CTX_data_main(&C);
-    Scene *scene = CTX_data_scene(&C);
-    Object *object = CTX_data_active_object(&C);
-    GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
-
-    std::optional<AssetWeakReference> asset_reference =
-        WM_toolsystem_last_brush_asset_from_brush_type(
-            scene, GPAINT_BRUSH_TYPE_ERASE, PaintMode::GPencil);
-    /* This should only fail in the case where the essential assets are not found. */
-    if (asset_reference) {
-      eraser_brush_ = reinterpret_cast<Brush *>(
-          bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *asset_reference));
-      radius_ = BKE_brush_radius_get(paint, eraser_brush_);
-    }
-
-    grease_pencil->runtime->temp_eraser_radius = radius_;
-    grease_pencil->runtime->temp_use_eraser = true;
+    this->toggle_temp_eraser_on(C);
   }
 
   if (eraser_brush_->gpencil_settings == nullptr) {
@@ -1153,12 +1212,6 @@ void EraseOperation::on_stroke_done(const bContext &C)
 {
   Object *object = CTX_data_active_object(&C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
-  if (temp_eraser_) {
-    /* If we're using the draw tool to temporarily erase, then we need to reset the
-     * `temp_use_eraser` flag here. */
-    grease_pencil.runtime->temp_use_eraser = false;
-    grease_pencil.runtime->temp_eraser_radius = 0.0f;
-  }
 
   for (GreasePencilDrawing *drawing_ : affected_drawings_) {
     bke::greasepencil::Drawing &drawing = drawing_->wrap();
@@ -1177,6 +1230,10 @@ void EraseOperation::on_stroke_done(const bContext &C)
   }
 
   affected_drawings_.clear();
+
+  if (temp_eraser_) {
+    this->toggle_temp_eraser_off(C);
+  }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
