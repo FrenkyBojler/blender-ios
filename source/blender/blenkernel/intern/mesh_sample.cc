@@ -11,6 +11,8 @@
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
 
+#include <xxhash.h>
+
 namespace blender::bke::mesh_surface_sample {
 
 template<typename T>
@@ -425,18 +427,11 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    bary_weights);
 }
 
-bool BaryWeightFromPositionFn::equals(const MultiFunction &other) const
+void BaryWeightFromPositionFn::hash(XXH3_state_t &hash_state) const
 {
-  const auto *other_op = dynamic_cast<const BaryWeightFromPositionFn *>(&other);
-  if (!other_op) {
-    return false;
-  }
-  return source_.get_mesh() == other_op->source_.get_mesh();
-}
-
-uint64_t BaryWeightFromPositionFn::hash() const
-{
-  return get_default_hash(int64_t(23987565431), source_.get_mesh());
+  static constexpr int8_t id = 0;
+  XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+  XXH3_64bits_update(&hash_state, source_.get_mesh(), sizeof(source_.get_mesh()));
 }
 
 NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
@@ -474,18 +469,11 @@ void NearestCornerFromPositionFn::call(const IndexMask &mask,
                               nearest_corner);
 }
 
-bool NearestCornerFromPositionFn::equals(const MultiFunction &other) const
+void NearestCornerFromPositionFn::hash(XXH3_state_t &hash_state) const
 {
-  const auto *other_op = dynamic_cast<const NearestCornerFromPositionFn *>(&other);
-  if (!other_op) {
-    return false;
-  }
-  return source_.get_mesh() == other_op->source_.get_mesh();
-}
-
-uint64_t NearestCornerFromPositionFn::hash() const
-{
-  return get_default_hash(int64_t(543876264190), source_.get_mesh());
+  static constexpr int8_t id = 0;
+  XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+  XXH3_64bits_update(&hash_state, source_.get_mesh(), sizeof(source_.get_mesh()));
 }
 
 BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field)

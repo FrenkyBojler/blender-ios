@@ -8,6 +8,8 @@
 #include "FN_field.hh"
 #include "FN_multi_function_registry.hh"
 
+#include <xxhash.h>
+
 namespace blender::fn {
 
 FieldInput::FieldInput(const CPPType &type, std::string debug_name)
@@ -76,112 +78,28 @@ bool operator==(const GField &a, const GField &b)
       a_ref.variant_);
 }
 
-uint64_t GField::hash() const
-{
-  const GField &ref = this->deref_field_ref();
-  return std::visit(
-      [&]<typename T>(const T &v) -> uint64_t {
-        if constexpr (std::is_same_v<T, Input>) {
-          return get_default_hash(v.node);
-        }
-        else if constexpr (std::is_same_v<T, MultiFn>) {
-          return get_default_hash(v.node, v.output_i);
-        }
-        else if constexpr (std::is_same_v<T, FieldRef>) {
-          /* Should not exist due to #deref_field_ref above. */
-          BLI_assert_unreachable();
-          return 0;
-        }
-        else if constexpr (is_constant_value_v<T>) {
-          return v.type->hash_or_fallback(v.value, uint64_t(v.type));
-        }
-      },
-      ref.variant_);
-}
-
-bool FieldEqualityDeep::ensure(const GFieldRef &a, const GFieldRef &b)
-{
-  if (const bool *cached = this->cache.lookup_ptr({a, b})) {
-    return *cached;
-  }
-
-  Set<std::pair<GFieldRef, GFieldRef>, 8> visited;
-  Stack<std::pair<GFieldRef, GFieldRef>, 16> stack;
-  stack.push({a, b});
-  while (!stack.is_empty()) {
-    const auto [curr_a, curr_b] = stack.pop();
-    if (cache.contains({curr_a, curr_b})) {
-      continue;
-    }
-    if (visited.contains({curr_a, curr_b})) {
-      if (curr_a.variant().index() != curr_b.variant().index()) {
-        cache.add_new({curr_a, curr_b}, false);
-      }
-      else if (!std::visit(
-                   [&]<typename T>(const T &v_a) -> bool {
-                     const auto &v_b = std::get<T>(curr_b.variant());
-                     if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-                       if (v_a.type != v_b.type) {
-                         return false;
-                       }
-                       return v_a.type->is_equal_or_false(v_a.value, v_b.value);
-                     }
-                     else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-                       return v_a.node->is_equal_to(*v_b.node);
-                     }
-                     else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-                       if (v_a.output_i != v_b.output_i) {
-                         return false;
-                       }
-                       const Span<GField> a_inputs = v_a.node->inputs();
-                       const Span<GField> b_inputs = v_b.node->inputs();
-                       if (a_inputs.size() != b_inputs.size()) {
-                         return false;
-                       }
-                       if (!v_a.node->multi_function().equals(v_b.node->multi_function())) {
-                         return false;
-                       }
-                       for (const int i : a_inputs.index_range()) {
-                         if (!cache.lookup({a_inputs[i], b_inputs[i]})) {
-                           return false;
-                         }
-                       }
-                       return true;
-                     }
-                   },
-                   curr_a.variant()))
-      {
-        cache.add_new({curr_a, curr_b}, false);
-      }
-      else {
-        cache.add_new({curr_a, curr_b}, true);
-      }
-      continue;
-    }
-    visited.add({curr_a, curr_b});
-    stack.push({curr_a, curr_b});
-    if (const auto *a_multi_fn = std::get_if<GFieldRef::MultiFn>(&curr_a.variant())) {
-      if (const auto *b_multi_fn = std::get_if<GFieldRef::MultiFn>(&curr_b.variant())) {
-        if (a_multi_fn->output_i != b_multi_fn->output_i) {
-          continue;
-        }
-        const Span<GField> a_inputs = a_multi_fn->node->inputs();
-        const Span<GField> b_inputs = b_multi_fn->node->inputs();
-        if (a_inputs.size() != b_inputs.size()) {
-          continue;
-        }
-        if (!a_multi_fn->node->multi_function().equals(b_multi_fn->node->multi_function())) {
-          continue;
-        }
-        for (const int i : a_inputs.index_range()) {
-          stack.push({a_inputs[i], b_inputs[i]});
-        }
-      }
-    }
-  }
-
-  return cache.lookup({a, b});
-}
+// void GField::hash(XXH3_state_t &hash_state) const
+// {
+//   const GField &ref = this->deref_field_ref();
+//   return std::visit(
+//       [&]<typename T>(const T &v) -> uint64_t {
+//         if constexpr (std::is_same_v<T, Input>) {
+//           return get_default_hash(v.node);
+//         }
+//         else if constexpr (std::is_same_v<T, MultiFn>) {
+//           return get_default_hash(v.node, v.output_i);
+//         }
+//         else if constexpr (std::is_same_v<T, FieldRef>) {
+//           /* Should not exist due to #deref_field_ref above. */
+//           BLI_assert_unreachable();
+//           return 0;
+//         }
+//         else if constexpr (is_constant_value_v<T>) {
+//           return v.type->hash_or_fallback(v.value, uint64_t(v.type));
+//         }
+//       },
+//       ref.variant_);
+// }
 
 uint64_t FieldHashDeep::ensure(const GFieldRef &field)
 {
@@ -203,24 +121,29 @@ uint64_t FieldHashDeep::ensure(const GFieldRef &field)
       continue;
     }
     if (visited.contains(current)) {
-      const uint64_t hash = std::visit(
-          [&]<typename T>(const T &v) -> uint64_t {
+      XXH3_state_t *hash_state = XXH3_createState();
+      BLI_SCOPED_DEFER([&]() { XXH3_freeState(hash_state); });
+      XXH3_64bits_reset(hash_state);
+
+      std::visit(
+          [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-              return v.type->hash_or_fallback(v.value, uint64_t(v.type));
+              v.type->hash_or_fallback(v.value, uint64_t(v.type));
             }
             else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-              return v.node->hash();
+              v.node->hash(*hash_state);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-              uint64_t hash = get_default_hash(v.node->multi_function().hash(), v.output_i);
+              v.node->multi_function().hash(*hash_state);
+              XXH3_64bits_update(hash_state, &v.output_i, sizeof(v.output_i));
               for (const GField &input_field : v.node->inputs()) {
-                hash = get_default_hash(hash, cache.lookup(input_field));
+                const uint64_t input_hash = cache.lookup(input_field);
+                XXH3_64bits_update(hash_state, &input_hash, sizeof(input_hash));
               }
-              return hash;
             }
           },
           current.variant());
-      cache.add_new(current, hash);
+      cache.add_new(current, XXH3_64bits_digest(hash_state));
       continue;
     }
     visited.add(current);
@@ -248,6 +171,11 @@ const FieldInputsPtr &FieldInput::field_inputs() const
 FieldInput::~FieldInput() = default;
 
 void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
+
+void FieldInput::hash(XXH3_state_t &hash_state) const
+{
+  XXH3_64bits_update(&hash_state, this, sizeof(this));
+}
 
 void FieldInput::delete_self()
 {

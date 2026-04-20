@@ -132,26 +132,12 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
     });
   }
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const ReverseUVSampleFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (source_.get_mesh() != other_op->source_.get_mesh()) {
-      return false;
-    }
-    fn::FieldEqualityDeep equality_test;
-    if (!equality_test.ensure(src_uv_map_field_, other_op->src_uv_map_field_)) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
-    fn::FieldHashDeep hasher;
-    return get_default_hash(int64_t(9863459873456), source_, hasher.ensure(src_uv_map_field_));
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    XXH3_64bits_update(&hash_state, &source_, sizeof(source_));
+    src_uv_map_field_.hash(hash_state);
   }
 
   void prepare_for_execution() const override

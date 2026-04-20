@@ -296,24 +296,12 @@ class SampleNearestFunction : public mf::MultiFunction {
     }
   }
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const SampleNearestFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (domain_ != other_op->domain_) {
-      return false;
-    }
-    if (src_component_ != other_op->src_component_) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
-    return get_default_hash(int64_t(872347547444), domain_, src_component_);
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    XXH3_64bits_update(&hash_state, &domain_, sizeof(domain_));
+    XXH3_64bits_update(&hash_state, &src_component_, sizeof(src_component_));
   }
 };
 

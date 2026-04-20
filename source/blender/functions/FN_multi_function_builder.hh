@@ -12,6 +12,8 @@
 
 #include "FN_multi_function.hh"
 
+#include <xxhash.h>
+
 namespace blender {
 
 namespace fn::multi_function::build {
@@ -829,7 +831,7 @@ class CustomMF_GenericConstant : public MultiFunction {
   CustomMF_GenericConstant(const CPPType &type, const void *value, bool make_value_copy);
   ~CustomMF_GenericConstant() override;
   void call(const IndexMask &mask, Params params, Context context) const override;
-  uint64_t hash() const override;
+  void hash(XXH3_state_t &hash_state) const override;
   bool equals(const MultiFunction &other) const override;
 };
 
@@ -869,9 +871,12 @@ template<typename T> class CustomMF_Constant : public MultiFunction {
     mask.foreach_index_optimized<int64_t>([&](const int64_t i) { new (&output[i]) T(value_); });
   }
 
-  uint64_t hash() const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    return get_default_hash(value_);
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    static_assert(std::is_trivial_v<T>);
+    XXH3_64bits_update(&hash_state, &value_, sizeof(value_));
   }
 
   bool equals(const MultiFunction &other) const override

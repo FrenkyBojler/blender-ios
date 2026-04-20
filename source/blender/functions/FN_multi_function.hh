@@ -32,10 +32,10 @@
  * 3. Override the `call` function.
  */
 
-#include "BLI_hash.hh"
-
 #include "FN_multi_function_context.hh"
 #include "FN_multi_function_params.hh"
+
+struct XXH3_state_t;
 
 namespace blender {
 
@@ -57,15 +57,8 @@ class MultiFunction : NonCopyable, NonMovable {
   void call_auto(const IndexMask &mask, Params params, Context context) const;
   virtual void call(const IndexMask &mask, Params params, Context context) const = 0;
 
-  virtual uint64_t hash() const
-  {
-    return get_default_hash(this);
-  }
-
-  virtual bool equals(const MultiFunction &other) const
-  {
-    return this == &other;
-  }
+  virtual void hash(XXH3_state_t &hash_state) const;
+  virtual bool equals(const MultiFunction &other) const;
 
   int param_amount() const
   {

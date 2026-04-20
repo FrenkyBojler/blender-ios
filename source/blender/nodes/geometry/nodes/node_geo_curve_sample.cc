@@ -448,29 +448,12 @@ class SampleCurveFunction : public mf::MultiFunction {
     });
   }
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const SampleCurveFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (length_mode_ != other_op->length_mode_) {
-      return false;
-    }
-    if (geometry_set_.get_curves() != other_op->geometry_set_.get_curves()) {
-      return false;
-    }
-    fn::FieldEqualityDeep equality_test;
-    if (!equality_test.ensure(src_field_, other_op->src_field_)) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
-    fn::FieldHashDeep hasher;
-    return get_default_hash(length_mode_, geometry_set_.get_curves(), hasher.ensure(src_field_));
+    XXH3_64bits_update(&hash_state, &length_mode_, sizeof(length_mode_));
+    XXH3_64bits_update(
+        &hash_state, geometry_set_.get_curves(), sizeof(geometry_set_.get_curves()));
+    src_field_.hash(hash_state);
   }
 };
 

@@ -154,8 +154,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 {
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
-  Map<GFieldRef, mf::Variable *, 4, DefaultProbingStrategy, FieldHashDeep, FieldEqualityDeep>
-      variable_by_field;
+  FieldHashDeep deep_hash_cache;
+  Map<uint64_t, mf::Variable *> variable_by_field;
   Map<std::reference_wrapper<const FieldInput>, mf::Variable *> variable_by_field_input;
 
   /* Start by adding the field inputs as parameters to the procedure. */
@@ -179,7 +179,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
     while (!fields_to_check.is_empty()) {
       FieldWithIndex &field_with_index = fields_to_check.peek();
       const GFieldRef &field = field_with_index.field;
-      if (variable_by_field.contains(field)) {
+      const uint64_t field_hash = deep_hash_cache.ensure(field);
+      if (variable_by_field.contains(field_hash)) {
         /* The field has been handled already. */
         fields_to_check.pop();
         continue;
@@ -190,7 +191,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
             if constexpr (std::is_same_v<T, GFieldRef::Input>) {
               /* Field inputs should already be handled above. */
               mf::Variable *variable = variable_by_field_input.lookup(*v.node);
-              variable_by_field.add_new(field, variable);
+              variable_by_field.add_new(field_hash, variable);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
               const FieldOperation &field_multi_fn = *v.node;
@@ -215,11 +216,13 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   const mf::ParamType::InterfaceType interface_type = param_type.interface_type();
                   if (interface_type == mf::ParamType::Input) {
                     const GField &input_field = fn_inputs[param_input_index];
-                    variables[param_index] = variable_by_field.lookup(input_field);
+                    const uint64_t input_hash = deep_hash_cache.ensure(input_field);
+                    variables[param_index] = variable_by_field.lookup(input_hash);
                     param_input_index++;
                   }
                   else if (interface_type == mf::ParamType::Output) {
                     const GFieldRef output_field{field_multi_fn, param_output_index};
+                    const uint64_t output_hash = deep_hash_cache.ensure(output_field);
                     const bool output_is_ignored =
                         field_tree_info.field_users.lookup(output_field).is_empty() &&
                         !output_fields.contains(output_field);
@@ -231,7 +234,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                       /* Create a new variable for used outputs. */
                       mf::Variable &new_variable = procedure.new_variable(param_type.data_type());
                       variables[param_index] = &new_variable;
-                      variable_by_field.add_new(output_field, &new_variable);
+                      variable_by_field.add_new(output_hash, &new_variable);
                     }
                     param_output_index++;
                   }
@@ -247,7 +250,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   procedure.construct_function<mf::CustomMF_GenericConstant>(
                       *v.type, v.value, false);
               mf::Variable &new_variable = *builder.add_call<1>(fn)[0];
-              variable_by_field.add_new(field, &new_variable);
+              variable_by_field.add_new(field_hash, &new_variable);
             }
             else {
               /* Ensure all cases handled. */
@@ -261,7 +264,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   /* Add output parameters to the procedure. */
   Set<mf::Variable *> output_variables;
   for (const GFieldRef &field : output_fields) {
-    mf::Variable *variable = variable_by_field.lookup(field);
+    const uint64_t field_hash = deep_hash_cache.ensure(field);
+    mf::Variable *variable = variable_by_field.lookup(field_hash);
     if (!output_variables.add(variable)) {
       /* One variable can be output at most once. To output the same value twice, we have to make
        * a copy first. */

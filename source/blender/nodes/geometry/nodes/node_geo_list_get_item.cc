@@ -129,21 +129,11 @@ class SampleIndexFunction : public mf::MultiFunction {
     }
   }
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const SampleIndexFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (list_ != other_op->list_) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
-    return get_default_hash(int64_t(876931127865), list_);
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    XXH3_64bits_update(&hash_state, list_.get(), sizeof(list_.get()));
   }
 };
 

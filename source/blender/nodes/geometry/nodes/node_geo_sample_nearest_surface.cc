@@ -158,27 +158,12 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     return hints;
   }
 
-  uint64_t hash() const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    fn::FieldHashDeep hasher;
-    return get_default_hash(
-        int64_t(23478953456), source_.get_mesh(), hasher.ensure(group_id_field_));
-  }
-
-  bool equals(const MultiFunction &other) const override
-  {
-    const auto *other_op = dynamic_cast<const SampleNearestSurfaceFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (source_.get_mesh() != other_op->source_.get_mesh()) {
-      return false;
-    }
-    fn::FieldEqualityDeep equality_test;
-    if (!equality_test.ensure(group_id_field_, other_op->group_id_field_)) {
-      return false;
-    }
-    return true;
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    XXH3_64bits_update(&hash_state, &source_, sizeof(source_));
+    group_id_field_.hash(hash_state);
   }
 
   void prepare_for_execution() const override

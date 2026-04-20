@@ -12,6 +12,8 @@
 
 #include "node_function_util.hh"
 
+#include <xxhash.h>
+
 namespace blender::nodes::node_fn_axes_to_rotation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -126,30 +128,13 @@ class AxesToRotationFunction : public mf::MultiFunction {
     });
   };
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const AxesToRotationFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (primary_axis_ != other_op->primary_axis_) {
-      return false;
-    }
-    if (secondary_axis_ != other_op->secondary_axis_) {
-      return false;
-    }
-    if (tertiary_axis_ != other_op->tertiary_axis_) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
-    return get_default_hash(int64_t(9875347984),
-                            primary_axis_.as_int(),
-                            secondary_axis_.as_int(),
-                            tertiary_axis_.as_int());
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    XXH3_64bits_update(&hash_state, &primary_axis_, sizeof(primary_axis_));
+    XXH3_64bits_update(&hash_state, &secondary_axis_, sizeof(secondary_axis_));
+    XXH3_64bits_update(&hash_state, &tertiary_axis_, sizeof(tertiary_axis_));
   }
 };
 

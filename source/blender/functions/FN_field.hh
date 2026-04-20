@@ -31,6 +31,8 @@
 
 #include "FN_multi_function.hh"
 
+struct XXH3_state_t;
+
 namespace blender::fn {
 
 class GField;
@@ -179,7 +181,7 @@ class GField {
    * expensive though.
    */
   friend bool operator==(const GField &a, const GField &b);
-  uint64_t hash() const;
+  void hash(XXH3_state_t &hash_state) const;
 
   /**
    * Get a typed reference to this field. Not that #Field<T> happens to be identical to #GField on
@@ -224,7 +226,7 @@ template<typename T> class Field {
   bool depends_on_input() const;
   template<typename InputT, typename... Args> static Field from_input(Args &&...args);
   template<typename InputT> const InputT *get_input_if() const;
-  uint64_t hash() const;
+  void hash(XXH3_state_t &hash_state) const;
   static Field from_non_owning_ref(const Field &field);
 };
 
@@ -328,6 +330,7 @@ class FieldInput : public ImplicitSharingMixin {
   const FieldInputsPtr &field_inputs() const;
 
   virtual uint64_t hash() const;
+  virtual void hash(XXH3_state_t &hash_state) const;
   virtual bool is_equal_to(const FieldInput &other) const;
 
   /**
@@ -406,21 +409,6 @@ struct FieldHashDeep {
   {
     std::lock_guard lock(this->mutex);
     return const_cast<FieldHashDeep *>(this)->ensure(field);
-  }
-};
-
-/**
- * Compares the semantic equality of field inputs and operations, rather than memory-address
- * shallow equality of the default implementation.
- */
-struct FieldEqualityDeep {
-  mutable Mutex mutex;
-  Map<std::pair<GFieldRef, GFieldRef>, bool> cache;
-  bool ensure(const GFieldRef &a, const GFieldRef &b);
-  bool operator()(const GFieldRef &a, const GFieldRef &b) const
-  {
-    std::lock_guard lock(this->mutex);
-    return const_cast<FieldEqualityDeep *>(this)->ensure(a, b);
   }
 };
 
@@ -546,9 +534,9 @@ template<typename T> inline bool operator==(const Field<T> &a, const Field<T> &b
   return static_cast<const GField &>(a) == static_cast<const GField &>(b);
 }
 
-template<typename T> inline uint64_t Field<T>::hash() const
+template<typename T> inline void Field<T>::hash(XXH3_state_t &hash_state) const
 {
-  return field_.hash();
+  field_.hash(hash_state);
 }
 
 inline const CPPType &FieldInput::cpp_type() const

@@ -7,9 +7,21 @@
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 
+#include <xxhash.h>
+
 namespace blender::fn::multi_function {
 
 using ExecutionHints = MultiFunction::ExecutionHints;
+
+void MultiFunction::hash(XXH3_state_t &hash_state) const
+{
+  XXH3_64bits_update(&hash_state, this, sizeof(this));
+}
+
+bool MultiFunction::equals(const MultiFunction &other) const
+{
+  return this == &other;
+}
 
 ExecutionHints MultiFunction::execution_hints() const
 {

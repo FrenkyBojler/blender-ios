@@ -7,12 +7,15 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 
+#include "FN_field.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
+
+#include <xxhash.h>
 
 namespace blender::nodes::node_fn_align_rotation_to_vector_cc {
 
@@ -175,23 +178,10 @@ class AlignRotationToVectorFunction : public mf::MultiFunction {
     return hints;
   }
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const AlignRotationToVectorFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (main_axis_mode_ != other_op->main_axis_mode_) {
-      return false;
-    }
-    if (pivot_axis_mode_ != other_op->pivot_axis_mode_) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
+    XXH3_64bits_update(&hash_state, &main_axis_mode_, sizeof(main_axis_mode_));
+    XXH3_64bits_update(&hash_state, &pivot_axis_mode_, sizeof(pivot_axis_mode_));
     return get_default_hash(int64_t(923784566987), main_axis_mode_.as_int(), pivot_axis_mode_);
   }
 };

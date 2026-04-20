@@ -159,8 +159,7 @@ class BaryWeightFromPositionFn : public mf::MultiFunction {
  public:
   BaryWeightFromPositionFn(GeometrySet geometry);
   void call(const IndexMask &mask, mf::Params params, mf::Context context) const override;
-  bool equals(const MultiFunction &other) const override;
-  uint64_t hash() const override;
+  void hash(XXH3_state_t &hash_state) const override;
 };
 
 class NearestCornerFromPositionFn : public mf::MultiFunction {
@@ -172,8 +171,7 @@ class NearestCornerFromPositionFn : public mf::MultiFunction {
  public:
   NearestCornerFromPositionFn(GeometrySet geometry);
   void call(const IndexMask &mask, mf::Params params, mf::Context context) const override;
-  bool equals(const MultiFunction &other) const override;
-  uint64_t hash() const override;
+  void hash(XXH3_state_t &hash) const override;
 };
 
 /**

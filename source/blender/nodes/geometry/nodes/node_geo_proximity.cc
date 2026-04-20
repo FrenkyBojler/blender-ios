@@ -266,28 +266,13 @@ class ProximityFunction : public mf::MultiFunction {
     });
   }
 
-  bool equals(const MultiFunction &other) const override
+  void hash(XXH3_state_t &hash_state) const override
   {
-    const auto *other_op = dynamic_cast<const ProximityFunction *>(&other);
-    if (!other_op) {
-      return false;
-    }
-    if (target_ != other_op->target_) {
-      return false;
-    }
-    if (type_ != other_op->type_) {
-      return false;
-    }
-    fn::FieldEqualityDeep equality_test;
-    if (!equality_test.ensure(group_id_field_, other_op->group_id_field_)) {
-      return false;
-    }
-    return true;
-  }
-
-  uint64_t hash() const override
-  {
-    return get_default_hash(int64_t(58237454573), target_, type_, group_id_field_);
+    static constexpr int8_t id = 0;
+    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
+    XXH3_64bits_update(&hash_state, &target_, sizeof(target_));
+    XXH3_64bits_update(&hash_state, &type_, sizeof(type_));
+    group_id_field_.hash(hash_state);
   }
 };
 
