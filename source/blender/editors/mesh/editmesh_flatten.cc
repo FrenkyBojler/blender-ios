@@ -8,10 +8,14 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+
+#include "BLI_math_matrix.hh"
+#include "BLI_math_vector.h"
 
 #include "BLT_translation.hh"
 
@@ -28,10 +32,16 @@
 
 namespace blender {
 
+enum FlattenMethod {
+  FLATTEN_BEST_FIT = 0,
+  FLATTEN_NORMAL = 1,
+  FLATTEN_VIEW = 2,
+};
+
 static const EnumPropertyItem prop_method_items[] = {
-    {0, "BEST_FIT", 0, "Best Fit", "Calculate a best fitting plane"},
-    {1, "NORMAL", 0, "Normal", "Derive plane from averaging vertex normals"},
-    {2, "VIEW", 0, "View", "Flatten on a plane perpendicular to the viewing angle"},
+    {FLATTEN_BEST_FIT, "BEST_FIT", 0, "Best Fit", "Calculate a best fitting plane"},
+    {FLATTEN_NORMAL, "NORMAL", 0, "Normal", "Derive plane from averaging vertex normals"},
+    {FLATTEN_VIEW, "VIEW", 0, "View", "Flatten on a plane perpendicular to the viewing angle"},
     {0, nullptr},
 };
 
@@ -48,19 +58,29 @@ static wmOperatorStatus edbm_flatten_exec(bContext *C, wmOperator *op)
   bool lock[3];
   RNA_boolean_get_array(op->ptr, "lock", lock);
   bool changed = false;
+  RegionView3D *rv3d = method == FLATTEN_VIEW ? CTX_wm_region_view3d(C) : nullptr;
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    if (!EDBM_op_callf(em,
-                       op,
-                       "flatten geom=%hvef factor=%f method=%i lock_x=%b lock_y=%b lock_z=%b",
-                       BM_ELEM_SELECT,
-                       factor,
-                       method,
-                       lock[0],
-                       lock[1],
-                       lock[2]))
+    float view_normal[3] = {0.0f, 0.0f, 1.0f};
+    if (rv3d) {
+      float3 vn = math::normalize(
+          math::transform_direction(obedit->world_to_object(), float3(rv3d->viewinv[2])));
+      copy_v3_v3(view_normal, vn);
+    }
+
+    if (!EDBM_op_callf(
+            em,
+            op,
+            "flatten geom=%hvef factor=%f method=%i view_normal=%v lock_x=%b lock_y=%b lock_z=%b",
+            BM_ELEM_SELECT,
+            factor,
+            method,
+            view_normal,
+            lock[0],
+            lock[1],
+            lock[2]))
     {
       continue;
     }
@@ -102,8 +122,10 @@ void MESH_OT_flatten(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_float_factor(ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
-  RNA_def_enum(ot->srna, "method", prop_method_items, 0, "Method", "Plane on which vertices are flattened");
+  RNA_def_float_factor(
+      ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
+  RNA_def_enum(
+      ot->srna, "method", prop_method_items, 0, "Method", "Plane on which vertices are flattened");
   RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
 }
 

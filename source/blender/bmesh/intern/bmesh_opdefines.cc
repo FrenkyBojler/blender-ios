@@ -559,6 +559,8 @@ static BMOpDefine bmo_flatten_def = {
         {"factor", BMO_OP_SLOT_FLT},
         /* Plane on which vertices are flattened. */
         {"method", BMO_OP_SLOT_INT},
+        /* View direction in object local space. */
+        {"view_normal", BMO_OP_SLOT_VEC},
         /* Lock X axis editing. */
         {"lock_x", BMO_OP_SLOT_BOOL},
         /* Lock Y axis editing. */
