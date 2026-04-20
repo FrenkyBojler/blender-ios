@@ -119,6 +119,10 @@ class SourceProcessor {
   }
 
  private:
+  Result convert_glsl();
+  Result convert_msl();
+  Result convert_bsl(metadata::Source external_sources_symbols);
+
   /* --- Cleanup --- */
 
   /** Remove single and multi-line comments to avoid this complexity during parsing. */
@@ -223,6 +227,9 @@ class SourceProcessor {
   /* Support for BLI swizzle syntax.
    * Examples `a.xy()` --> `a.xy`. */
   void lower_swizzle_methods(Parser &parser);
+  /* Support for binary literals.
+   * Examples `0b1001` --> `0x9`. */
+  void lower_binary_literals(Parser &parser);
   /* Change printf calls to "recursive" call to implementation functions.
    * This allows to emulate the variadic arguments of printf. */
   void lower_printf(Parser &parser);
@@ -246,6 +253,8 @@ class SourceProcessor {
   void lower_empty_struct(Parser &parser);
   /* Transform `a.fn(b)` into `fn(a, b)`. */
   void lower_method_calls(Parser &parser);
+  /* Transform `auto [a, b] = fn()` into `S _tmp = fn(); a = _tmp.A; b = _tmp.B;`. */
+  void lower_structured_bindings(Parser &parser);
   /* Parse, convert to create infos, and erase declaration. */
   void lower_pipeline_definition(Parser &parser, const std::string &filename);
   /* Remove `[vertex|fragment|compute]` function attribute and add appropriate guards. */

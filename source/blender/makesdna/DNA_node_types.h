@@ -12,7 +12,8 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
-#include "DNA_scene_types.h" /* for #ImageFormatData */
+#include "DNA_scene_types.h"  /* for #ImageFormatData */
+#include "DNA_screen_types.h" /* For #TextboxState. */
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
@@ -290,6 +291,11 @@ enum {
    * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
+  /**
+   * Internal tree for building gpu shaders. This enables context-dependent node declarations for
+   * adding "Weight" input sockets.
+   */
+  NTREE_IS_GPU_SHADER_INTERNAL = 1 << 6,
 };
 
 enum eNodeTreeRuntimeFlag {
@@ -876,8 +882,9 @@ enum {
   SHD_SUBSURFACE_GAUSSIAN = 2,
 #endif
   SHD_SUBSURFACE_BURLEY = 3,
-  SHD_SUBSURFACE_RANDOM_WALK = 4,
+  SHD_SUBSURFACE_RANDOM_WALK_LEGACY = 4,
   SHD_SUBSURFACE_RANDOM_WALK_SKIN = 5,
+  SHD_SUBSURFACE_RANDOM_WALK = 6,
 };
 
 /* blur node */
@@ -1104,6 +1111,20 @@ enum CMPNodeRelativeToPixelReferenceDimension {
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_GREATER = 3,
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_SMALLER = 4,
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_DIAGONAL = 5,
+};
+
+enum CMPNodeStringToImageHorizontalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT = 0,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER = 1,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT = 2,
+};
+
+enum CMPNodeStringToImageVerticalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP = 0,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE = 1,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE = 2,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE = 3,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM = 4,
 };
 
 /* Scattering phase functions */
@@ -1767,16 +1788,16 @@ struct bNodeInstanceKey {
   unsigned int value = 0;
 
 #ifdef __cplusplus
-  inline bool operator==(const bNodeInstanceKey &other) const
+  bool operator==(const bNodeInstanceKey &other) const
   {
     return value == other.value;
   }
-  inline bool operator!=(const bNodeInstanceKey &other) const
+  bool operator!=(const bNodeInstanceKey &other) const
   {
     return !(*this == other);
   }
 
-  inline uint64_t hash() const
+  uint64_t hash() const
   {
     return value;
   }
@@ -3044,6 +3065,7 @@ struct NodeInputString {
   DNA_DEFINE_CXX_METHODS(NodeInputString)
 
   char *string = nullptr;
+  TextboxState textbox_state = {};
 };
 
 struct NodeGeometryExtrudeMesh {
