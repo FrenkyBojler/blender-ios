@@ -1,3 +1,4 @@
 Referenced by pull request #154147, Don't rely on implicit cassert include
 Referenced by issue #156651, GeoNodes: Failed assertion in `build_reference_sets_outside_of_zones()`
 Referenced by issue #156753, GLTF/GLB export ignores light color
+Referenced by issue #157592, Mesh generated from Geometry nodes do not display texture in Solid Mode
