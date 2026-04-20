@@ -1645,7 +1645,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
         std::string title;
         int char_offset1 = BLI_str_utf8_offset_from_index(category_id_draw, category_draw_len, 1);
         if (char_offset1 > 2) {
-          /* A single complex character, symbol, or emoji.*/
+          /* only a single complex character, symbol, or emoji.*/
           title = std::string(category_id_draw, char_offset1);
         }
         else {
@@ -1653,15 +1653,15 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
               category_id_draw, category_draw_len, 2);
           char *space = BLI_strcasestr(category_id_draw, " ");
           if (char_offset2 == 2 && isupper(category_id_draw[1])) {
-            /* First two characters are latin, second is uppercase. */
+            /* First two characters are latin with second uppercase. */
             title = std::string(category_id_draw, char_offset2);
           }
           else if (space && category_draw_len > (space - category_id_draw)) {
-            /* First characters from the first two words. */
+            /* First characters from each of the first two words. */
             title = std::string(category_id_draw, char_offset1) + std::string(space + 1, 1);
           }
           else {
-            /* First two characters. */
+            /* First two characters of a single word. */
             title = std::string(category_id_draw, char_offset2);
           }
         }
@@ -2810,7 +2810,6 @@ int handler_panel_region(bContext *C,
       }
       break;
     }
-
     if (mouse_state == PANEL_MOUSE_INSIDE_LAYOUT_PANEL_HEADER) {
       if (ELEM(event->type, EVT_RETKEY, EVT_PADENTER, LEFTMOUSE)) {
         retval = WM_UI_HANDLER_BREAK;

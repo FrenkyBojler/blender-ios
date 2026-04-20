@@ -1327,7 +1327,6 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
       Button *but = block->buttons_ptrs.last().get();
       but->flag |= BUT_HAS_SEP_CHAR;
     }
-
     layout.separator();
   }
 
