@@ -549,20 +549,20 @@ static void store_segment_map_on_intersections(const Span<Segment> all_segments,
 
     if (segment.has_intersection(Side::Start)) {
       IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
-      if (curve_i == inter_start.curve_i) {
+      if (curve_i == inter_start.curve_i && inter_start.point_i == segment.points[Side::Start]) {
         inter_start.segment_index_i[Side::End] = seg_i;
       }
-      else {
+      if (curve_i == inter_start.curve_j && inter_start.point_j == segment.points[Side::Start]) {
         inter_start.segment_index_j[Side::End] = seg_i;
       }
     }
 
     if (segment.has_intersection(Side::End)) {
       IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
-      if (curve_i == inter_end.curve_i) {
+      if (curve_i == inter_end.curve_i && inter_end.point_i == segment.points[Side::End]) {
         inter_end.segment_index_i[Side::Start] = seg_i;
       }
-      else {
+      if (curve_i == inter_end.curve_j && inter_end.point_j == segment.points[Side::End]) {
         inter_end.segment_index_j[Side::Start] = seg_i;
       }
     }
@@ -713,7 +713,8 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
                                      second.intersection_factor[Side::End];
 
   if ((parameter_first_end == parameter_second_start) ||
-      (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
+      ((first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
+        first.points[Side::End] == second.points[Side::Start]) &&
        first.intersection_index[Side::End] != -1))
   {
     first.points[Side::End] = second.points[Side::End];
@@ -723,7 +724,8 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
     return true;
   }
   if ((parameter_first_start == parameter_second_end) ||
-      (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
+      ((first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
+        first.points[Side::Start] == second.points[Side::End]) &&
        first.intersection_index[Side::Start] != -1))
   {
     first.points[Side::Start] = second.points[Side::Start];
@@ -1222,45 +1224,39 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
       const IntersectionPoint &inter = intersections[inter_i];
 
       Vector<EncodedConnection> existing_indices;
+      Vector<EncodedConnection> indices;
 
       if (inter.segment_index_i[Side::Start] != -1) {
         existing_indices.append(
             encode_index_and_side(inter.segment_index_i[Side::Start], Side::End));
+
+        if (segments_to_keep[inter.segment_index_i[Side::Start]]) {
+          indices.append(encode_index_and_side(inter.segment_index_i[Side::Start], Side::End));
+        }
       }
       if (inter.segment_index_j[Side::Start] != -1) {
         existing_indices.append(
             encode_index_and_side(inter.segment_index_j[Side::Start], Side::End));
+
+        if (segments_to_keep[inter.segment_index_j[Side::Start]]) {
+          indices.append(encode_index_and_side(inter.segment_index_j[Side::Start], Side::End));
+        }
       }
       if (inter.segment_index_i[Side::End] != -1) {
         existing_indices.append(
             encode_index_and_side(inter.segment_index_i[Side::End], Side::Start));
+
+        if (segments_to_keep[inter.segment_index_i[Side::End]]) {
+          indices.append(encode_index_and_side(inter.segment_index_i[Side::End], Side::Start));
+        }
       }
       if (inter.segment_index_j[Side::End] != -1) {
         existing_indices.append(
             encode_index_and_side(inter.segment_index_j[Side::End], Side::Start));
-      }
 
-      Vector<EncodedConnection> indices;
-
-      if (inter.segment_index_i[Side::Start] != -1 &&
-          segments_to_keep[inter.segment_index_i[Side::Start]])
-      {
-        indices.append(encode_index_and_side(inter.segment_index_i[Side::Start], Side::End));
-      }
-      if (inter.segment_index_j[Side::Start] != -1 &&
-          segments_to_keep[inter.segment_index_j[Side::Start]])
-      {
-        indices.append(encode_index_and_side(inter.segment_index_j[Side::Start], Side::End));
-      }
-      if (inter.segment_index_i[Side::End] != -1 &&
-          segments_to_keep[inter.segment_index_i[Side::End]])
-      {
-        indices.append(encode_index_and_side(inter.segment_index_i[Side::End], Side::Start));
-      }
-      if (inter.segment_index_j[Side::End] != -1 &&
-          segments_to_keep[inter.segment_index_j[Side::End]])
-      {
-        indices.append(encode_index_and_side(inter.segment_index_j[Side::End], Side::Start));
+        if (segments_to_keep[inter.segment_index_j[Side::End]]) {
+          indices.append(encode_index_and_side(inter.segment_index_j[Side::End], Side::Start));
+        }
       }
 
       if (indices.size() == 2 && indices.size() != existing_indices.size()) {
