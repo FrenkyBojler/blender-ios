@@ -936,6 +936,34 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
     this->default_input = NODE_DEFAULT_INPUT_VALUE;
   }
 
+  /* Reset unsupported structure_type to auto. */
+  const bool supports_fields = nodes::socket_type_supports_fields(stype->type);
+  const bool supports_grids = nodes::socket_type_supports_grids(stype->type);
+  const bool supports_dynamic = supports_fields || supports_grids;
+  const bool supports_lists = true;
+  switch (this->structure_type) {
+    case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD:
+      if (!supports_fields) {
+        this->structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+      }
+      break;
+    case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID:
+      if (!supports_grids) {
+        this->structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+      }
+      break;
+    case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC:
+      if (!supports_dynamic) {
+        this->structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+      }
+      break;
+    case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST:
+      if (!supports_lists) {
+        this->structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+      }
+      break;
+  }
+
   return true;
 }
 
@@ -1728,7 +1756,7 @@ bNode *create_proxy_converter_node(const eNodeSocketDatatype socket_type,
 
   bNode *proxy_node = bke::node_add_node(&C, dst_tree, "NodeImplicitConversion"_ustr);
   auto &data = *static_cast<NodeImplicitConversion *>(proxy_node->storage);
-  BLI_strncpy(data.type_idname, socket_idname.c_str(), sizeof(data.type_idname));
+  STRNCPY(data.type_idname, socket_idname.c_str());
   BKE_ntree_update_tag_node_property(&dst_tree, proxy_node);
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(&C), dst_tree);
 
