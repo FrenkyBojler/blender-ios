@@ -352,7 +352,7 @@ template<typename T> struct AngleCartesianBase {
 /**
  * A `math::AngleFraction<T>` stores a radian angle as quotient.
  * - Storage : `2 * sizeof(int64_t)`
- * - Range : [-INT64_MAX..INT64_MAX] but angle must be expressed as fraction (be in Q subset).
+ * - Range : [INT64_MIN..INT64_MAX] but angle must be expressed as fraction (be in Q subset).
  * - Fast : Everything not slow.
  * - Slow : `cos()`, `sin()`, `tan()` for angles not optimized.
  *
