@@ -147,10 +147,11 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(eAssetLibraryType l
 
   AssetLibrary *lib = lib_uptr.get();
 
-  lib->load_catalogs();
-
   on_disk_libraries_.add_new({library_type, normalized_root_path}, std::move(lib_uptr));
   CLOG_INFO(&LOG, 2, "get \"%s\" (loaded)", normalized_root_path.c_str());
+
+  lib->load_catalogs();
+
   return lib;
 }
 
