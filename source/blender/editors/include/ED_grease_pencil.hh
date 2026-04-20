@@ -931,7 +931,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         const IndexMask &editable_curves,
                                         const IndexMask &visible_curves,
                                         bool keep_cap,
-                                        bool join_corners);
+                                        std::optional<eGP_CornerType> corner_type);
 
 /**
  * Trim the editable curves from the start and end until intersection or self-intersection.

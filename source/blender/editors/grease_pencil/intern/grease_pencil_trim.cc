@@ -42,7 +42,7 @@ static bool execute_trim_on_drawing(const int layer_index,
                                     const float4x4 &projection,
                                     const Span<int2> mcoords,
                                     const bool keep_caps,
-                                    const bool join_corners,
+                                    const std::optional<eGP_CornerType> corner_type,
                                     bke::greasepencil::Drawing &drawing)
 {
   const bke::CurvesGeometry &src = drawing.strokes();
@@ -74,7 +74,7 @@ static bool execute_trim_on_drawing(const int layer_index,
       editable_strokes,
       visible_strokes,
       keep_caps,
-      join_corners);
+      corner_type);
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(cut_strokes);
@@ -104,6 +104,9 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
   }
   const bool keep_caps = (brush->gpencil_settings->flag & GP_BRUSH_ERASER_KEEP_CAPS) != 0;
   const bool join_corners = (brush->gpencil_settings->flag & GP_BRUSH_TRIM_TOOL_JOIN_CORNER) != 0;
+  const std::optional<eGP_CornerType> corner_type =
+      join_corners ? std::make_optional(eGP_CornerType(brush->gpencil_settings->corner_type)) :
+                     std::nullopt;
   const bool active_layer_only = (brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0;
   std::atomic<bool> changed = false;
 
@@ -132,7 +135,7 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
                                   projection,
                                   mcoords,
                                   keep_caps,
-                                  join_corners,
+                                  corner_type,
                                   info.drawing))
       {
         changed = true;
@@ -161,7 +164,7 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
                                   projection,
                                   mcoords,
                                   keep_caps,
-                                  join_corners,
+                                  corner_type,
                                   info.drawing))
       {
         changed = true;

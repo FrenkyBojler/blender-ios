@@ -1169,7 +1169,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         const IndexMask &editable_curves,
                                         const IndexMask &visible_curves,
                                         const bool keep_caps,
-                                        const bool join_corners)
+                                        std::optional<eGP_CornerType> corner_type)
 {
   if (src.is_empty()) {
     return src;
@@ -1217,7 +1217,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
 
-  if (join_corners) {
+  if (corner_type) {
     for (const int inter_i : intersections.index_range()) {
       const IntersectionPoint &inter = intersections[inter_i];
 
