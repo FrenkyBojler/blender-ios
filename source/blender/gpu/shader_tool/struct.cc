@@ -422,7 +422,7 @@ void SourceProcessor::lower_structured_bindings(Parser &parser)
       /* Check if it is a definition. */
       /* TODO(fclem): Comma declaration. */
       bool is_reference = tok.prev() == Ampersand;
-      if (is_reference ? (tok.next() != '=' || tok.next() != Word) : (tok.prev() != Word)) {
+      if (is_reference ? (tok.next() != '=' || tok.prev(2) != Word) : (tok.prev() != Word)) {
         return;
       }
       Token type_tok = tok.prev(is_reference ? 2 : 1);
