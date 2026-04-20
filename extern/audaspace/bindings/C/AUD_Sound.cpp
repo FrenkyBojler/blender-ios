@@ -174,7 +174,7 @@ AUD_API const char* AUD_Sound_write(AUD_Sound* sound, const char* filename, AUD_
 		DeviceSpecs specs;
 		specs.specs = reader->getSpecs();
 
-		if((rate != RATE_INVALID) && (specs.rate != rate))
+		if((rate != double(RATE_INVALID)) && (specs.rate != rate))
 		{
 			specs.rate = rate;
 			reader = std::make_shared<JOSResampleReader>(reader, rate);
@@ -784,6 +784,7 @@ AUD_API AUD_Sound* AUD_Sound_Binaural(AUD_Sound* sound, AUD_HRTF* hrtfs, AUD_Sou
 		return nullptr;
 	}
 }
+#endif
 
 AUD_API AUD_Sound* AUD_Sound_Echo(AUD_Sound* sound, float delay, float feedback, float mix, bool resetBuffer)
 {
@@ -798,6 +799,7 @@ AUD_API AUD_Sound* AUD_Sound_Echo(AUD_Sound* sound, float delay, float feedback,
 	}
 }
 
+#ifdef WITH_CONVOLUTION
 AUD_API AUD_Sound* AUD_Sound_equalize(AUD_Sound* sound, float *definition, int size, float maxFreqEq, int sizeConversion)
 {
 	assert(sound);
@@ -807,7 +809,6 @@ AUD_API AUD_Sound* AUD_Sound_equalize(AUD_Sound* sound, float *definition, int s
 	AUD_Sound *equalizer=new AUD_Sound(new Equalizer(*sound, buf, size, maxFreqEq, sizeConversion));
 	return equalizer;
 }
-
 #endif
 
 #ifdef WITH_RUBBERBAND

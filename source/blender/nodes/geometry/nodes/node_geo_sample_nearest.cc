@@ -18,7 +18,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender {
+
+namespace nodes {
 
 void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
@@ -50,22 +52,23 @@ void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
   });
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
 
-namespace blender::nodes::node_geo_sample_nearest_cc {
+namespace nodes::node_geo_sample_nearest_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud})
       .description("Mesh or point cloud to find the nearest point on");
-  b.add_input<decl::Vector>("Sample Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_output<decl::Int>("Index").dependent_field({1});
+  b.add_input<decl::Vector>("Sample Position"_ustr)
+      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_output<decl::Int>("Index"_ustr).dependent_field({1});
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -302,7 +305,7 @@ class SampleNearestFunction : public mf::MultiFunction {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry"_ustr);
   const AttrDomain domain = AttrDomain(params.node().custom2);
   if (geometry.has_curves() && !geometry.has_mesh() && !geometry.has_pointcloud()) {
     params.error_message_add(NodeWarningType::Error,
@@ -311,7 +314,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  auto sample_position = params.extract_input<bke::SocketValueVariant>("Sample Position");
+  auto sample_position = params.extract_input<bke::SocketValueVariant>("Sample Position"_ustr);
 
   std::string error_message;
   bke::SocketValueVariant index;
@@ -327,7 +330,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Index", std::move(index));
+  params.set_output("Index"_ustr, std::move(index));
 }
 
 static void node_rna(StructRNA *srna)
@@ -343,7 +346,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleNearest", GEO_NODE_SAMPLE_NEAREST);
   ntype.ui_name = "Sample Nearest";
@@ -356,10 +359,12 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_sample_nearest_cc
+}  // namespace nodes::node_geo_sample_nearest_cc
+
+}  // namespace blender

@@ -24,6 +24,7 @@
 
 #include "DNA_lightprobe_types.h"
 
+#include "DNA_view3d_types.h"
 #include "DRW_render.hh"
 
 #include "eevee_ambient_occlusion.hh"
@@ -82,6 +83,7 @@ class Instance : public DrawEngine {
   friend MotionBlurModule;
 
   /** Debug scopes. */
+  static void *debug_scope_render_frame;
   static void *debug_scope_render_sample;
   static void *debug_scope_irradiance_setup;
   static void *debug_scope_irradiance_sample;
@@ -173,6 +175,8 @@ class Instance : public DrawEngine {
   bool use_curves = true;
   bool use_volumes = true;
 
+  GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
+
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -208,7 +212,7 @@ class Instance : public DrawEngine {
         volume(*this, uniform_data.data.volumes) {};
   ~Instance() {};
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "EEVEE";
   }
@@ -311,6 +315,12 @@ class Instance : public DrawEngine {
     return is_light_bake;
   }
 
+  bool is_custom_matrix() const
+  {
+    return (v3d && v3d->flag & V3D_CUSTOM_MATRIX) ||
+           (draw_ctx && draw_ctx->mode == DRWContext::VIEWPORT_XR);
+  }
+
   bool overlays_enabled() const
   {
     return overlays_enabled_;
@@ -351,7 +361,7 @@ class Instance : public DrawEngine {
     return ob_ref.recalc_flags(depsgraph_last_update_);
   }
 
-  int get_recalc_flags(const ::World &world)
+  int get_recalc_flags(const blender::World &world)
   {
     return world.last_update > depsgraph_last_update_ ? int(ID_RECALC_SHADING) : 0;
   }

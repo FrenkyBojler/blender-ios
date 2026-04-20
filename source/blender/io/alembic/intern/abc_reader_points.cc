@@ -23,9 +23,11 @@
 
 #include <algorithm>
 
+namespace blender {
+
 using namespace Alembic::AbcGeom;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 AbcPointsReader::AbcPointsReader(const Alembic::Abc::IObject &object, ImportSettings &settings)
     : AbcObjectReader(object, settings)
@@ -76,7 +78,7 @@ void AbcPointsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSel
   }
 
   m_object = BKE_object_add_only_object(bmain, OB_POINTCLOUD, m_object_name.c_str());
-  m_object->data = pointcloud;
+  m_object->data = id_cast<ID *>(pointcloud);
 
   if (m_settings->always_add_cache_reader || has_animations(m_schema, m_settings)) {
     addCacheModifier();
@@ -239,15 +241,16 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   MutableSpan<float3> point_positions = pointcloud->positions_for_write();
   read_points_sample(m_schema, sample_sel, point_positions);
 
-  MutableSpan<float> point_radii = pointcloud->radius_for_write();
-
   if (widths) {
+    MutableSpan<float> point_radii = pointcloud->radius_for_write();
     for (const int64_t i : IndexRange(std::min(point_radii.size(), int64_t(widths->size())))) {
       point_radii[i] = (*widths)[i] / 2.0f;
     }
   }
   else {
-    point_radii.fill(0.01f);
+    attribute_accessor.remove("radius");
+    attribute_accessor.add<float>(
+        "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
   }
 
   read_point_arb_geom_params(m_schema, sample_sel, attribute_accessor);
@@ -273,4 +276,5 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   geometry_set.replace_pointcloud(pointcloud);
 }
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender
