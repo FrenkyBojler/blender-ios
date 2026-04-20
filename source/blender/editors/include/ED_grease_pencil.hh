@@ -930,7 +930,8 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         Span<int2> mcoords,
                                         const IndexMask &editable_curves,
                                         const IndexMask &visible_curves,
-                                        bool keep_caps);
+                                        bool keep_cap,
+                                        bool join_corners);
 
 /**
  * Trim the editable curves from the start and end until intersection or self-intersection.

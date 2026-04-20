@@ -42,6 +42,7 @@ static bool execute_trim_on_drawing(const int layer_index,
                                     const float4x4 &projection,
                                     const Span<int2> mcoords,
                                     const bool keep_caps,
+                                    const bool join_corners,
                                     bke::greasepencil::Drawing &drawing)
 {
   const bke::CurvesGeometry &src = drawing.strokes();
@@ -67,7 +68,13 @@ static bool execute_trim_on_drawing(const int layer_index,
 
   /* Apply trim. */
   bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments(
-      src, screen_space_positions, mcoords, editable_strokes, visible_strokes, keep_caps);
+      src,
+      screen_space_positions,
+      mcoords,
+      editable_strokes,
+      visible_strokes,
+      keep_caps,
+      join_corners);
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(cut_strokes);
@@ -96,6 +103,8 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
     BKE_brush_init_gpencil_settings(brush);
   }
   const bool keep_caps = (brush->gpencil_settings->flag & GP_BRUSH_ERASER_KEEP_CAPS) != 0;
+  /* TODO.*/
+  const bool join_corners = true;
   const bool active_layer_only = (brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0;
   std::atomic<bool> changed = false;
 
@@ -124,6 +133,7 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
                                   projection,
                                   mcoords,
                                   keep_caps,
+                                  join_corners,
                                   info.drawing))
       {
         changed = true;
@@ -152,6 +162,7 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
                                   projection,
                                   mcoords,
                                   keep_caps,
+                                  join_corners,
                                   info.drawing))
       {
         changed = true;

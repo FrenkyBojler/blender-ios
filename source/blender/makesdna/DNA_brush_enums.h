@@ -57,6 +57,12 @@ enum eGPDbrush_Flag {
   GP_BRUSH_ACTIVE_LAYER_ONLY = (1 << 20),
   /* Automatically remove fill guides created with fill tool. */
   GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES = (1 << 21),
+  /* TODO. */
+  GP_BRUSH_JOIN_CORNER = ((1 << 22) | (1 << 23)),
+  GP_BRUSH_JOIN_CORNER_NONE = 0,
+  GP_BRUSH_JOIN_CORNER_ROUND = (1 << 22),
+  GP_BRUSH_JOIN_CORNER_BEVEL = (1 << 23),
+  GP_BRUSH_JOIN_CORNER_MITER = ((1 << 22) | (1 << 23)),
 };
 
 enum eGPDbrush_Flag2 {
