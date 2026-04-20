@@ -25,6 +25,7 @@ using SamplingDataBuf = draw::StorageBuffer<SamplingData>;
 class Sampling {
  private:
   Instance &inst_;
+  const Scene *scene_;
 
   /* Number of samples in the first ring of jittered depth of field. */
   static constexpr uint64_t dof_web_density_ = 6;
@@ -66,7 +67,8 @@ class Sampling {
   /**
    * For overwriting pixel jitter sample position.
    */
-  Vector<float> pixel_jitter_sample = {};
+  bool use_custom_pixel_jitter_sample_ = false;
+  float2 custom_pixel_jitter_sample_ = {};
 
   SamplingDataBuf data_ = {"SamplingDataBuf"};
 
@@ -145,6 +147,12 @@ class Sampling {
   uint64_t sample_index() const
   {
     return sample_;
+  }
+
+  /* 0 based current sample. Might not increase sequentially in viewport. */
+  bool use_custom_pixel_jitter_sample() const
+  {
+    return use_custom_pixel_jitter_sample_;
   }
 
   bool use_clamp_direct() const

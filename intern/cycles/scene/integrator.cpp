@@ -157,10 +157,9 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
 
   SOCKET_BOOLEAN(use_pixel_jitter, "Use Pixel Jitter", false);
+  SOCKET_BOOLEAN(use_custom_pixel_jitter_sample, "Use custom pixel jitter sample value", false);
   SOCKET_FLOAT_ARRAY(
-      pixel_jitter_sample,
-      "Pixel jitter sample overwrite value (used if not empty)",
-      array<float>());
+      custom_pixel_jitter_sample, "Custom pixel jitter sample overwrite value", array<float>());
 
   static NodeEnum denoiser_type_enum;
   denoiser_type_enum.insert("none", DENOISER_NONE);
@@ -332,7 +331,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
   /* Randomize the seed every frame when applying pixel jitter. */
   if (use_pixel_jitter) {
-    if (pixel_jitter_sample.size() == 2) {
+    if (use_custom_pixel_jitter_sample) {
       kintegrator->seed = hash_uint2(seed, frame_index);
     }
     else {
@@ -388,9 +387,9 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
   if (use_pixel_jitter) {
-    if (pixel_jitter_sample.size() == 2) {
-      kintegrator->pixel_jitter = make_float2(pixel_jitter_sample[0],
-                                              pixel_jitter_sample[1]);
+    if (use_custom_pixel_jitter_sample) {
+      kintegrator->pixel_jitter = make_float2(custom_pixel_jitter_sample[0],
+                                              custom_pixel_jitter_sample[1]);
       ++frame_index;
     }
     else {

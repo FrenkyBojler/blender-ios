@@ -880,10 +880,14 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
 
     # For setting custom pixel jitter sample sequences.
-    pixel_jitter_sample: FloatVectorProperty(
-        name="Pixel jitter sample overwrite value (used if vector length is 2)",
+    use_custom_pixel_jitter_sample: BoolProperty(
+        name="Use custom pixel jitter sample value",
+        default=False,
+    )
+    custom_pixel_jitter_sample: FloatVectorProperty(
+        name="Custom pixel jitter sample overwrite value",
         size=2,
-        default=[],
+        default=(0.0, 0.0),
     )
 
     seed: IntProperty(

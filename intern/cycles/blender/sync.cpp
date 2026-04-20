@@ -380,21 +380,13 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
 
   integrator->set_use_pixel_jitter(get_boolean(cscene, "use_pixel_jitter"));
 
-  array<float> pixel_jitter_sample;
-  blender::PropertyRNA *pixel_jitter_sample_prop = RNA_struct_find_property(&cscene, "pixel_jitter_sample");
-  if (pixel_jitter_sample_prop) {
-    const int array_length = RNA_property_array_length(&cscene, pixel_jitter_sample_prop);
-    if (array_length == 2) {
-      pixel_jitter_sample.resize(array_length);
-      RNA_property_float_get_array(&cscene, pixel_jitter_sample_prop, pixel_jitter_sample.data());
-    } else if (array_length != 0) {
-      printf("%s: scene.pixel_jitter_sample length is not 0 or 2.\n", __func__);
-    }
-  }
-  else {
-    printf("%s: scene.pixel_jitter_sample not found.\n", __func__);
-  }
-  integrator->set_pixel_jitter_sample(pixel_jitter_sample);
+  integrator->set_use_custom_pixel_jitter_sample(
+      get_boolean(cscene, "use_custom_pixel_jitter_sample"));
+  float2 custom_pixel_jitter_sample = get_float2(cscene, "custom_pixel_jitter_sample");
+  array<float> custom_pixel_jitter_sample_arr(2);
+  custom_pixel_jitter_sample_arr[0] = custom_pixel_jitter_sample[0];
+  custom_pixel_jitter_sample_arr[1] = custom_pixel_jitter_sample[1];
+  integrator->set_custom_pixel_jitter_sample(custom_pixel_jitter_sample_arr);
 
   int seed = get_int(cscene, "seed");
   if (get_boolean(cscene, "use_animated_seed")) {

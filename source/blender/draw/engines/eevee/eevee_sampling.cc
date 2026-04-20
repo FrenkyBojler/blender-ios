@@ -8,7 +8,7 @@
  * Random number generator, contains persistent state and sample count logic.
  */
 
-#include "RNA_access.h"
+#include "RNA_access.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_scene.hh"
@@ -29,6 +29,8 @@ namespace blender::eevee {
 
 void Sampling::init(const Scene *scene)
 {
+  scene_ = scene;
+
   /* Note: Cycles have different option for view layers sample overrides. The current behavior
    * matches the default `Use`, which simply override if non-zero. */
   uint64_t render_sample_count = (inst_.view_layer->samples > 0) ? inst_.view_layer->samples :
@@ -75,26 +77,6 @@ void Sampling::init(const Scene *scene)
   else {
     dof_ring_count_ = 0;
     dof_sample_count_ = 1;
-  }
-
-  /* Options for overwriting pixel jitter sample position. */
-  PointerRNA prop_scene;
-  RNA_id_pointer_create(&scene->id, &prop_scene);
-  blender::PropertyRNA *pixel_jitter_sample_prop = RNA_struct_find_property(&prop_scene,
-                                                                            "pixel_jitter_sample");
-  pixel_jitter_sample = {};
-  if (pixel_jitter_sample_prop) {
-    const int array_length = RNA_property_array_length(&prop_scene, pixel_jitter_sample_prop);
-    if (array_length == 2) {
-      pixel_jitter_sample.resize(array_length);
-      RNA_property_float_get_array(&cscene, pixel_jitter_sample_prop, pixel_jitter_sample.data());
-    }
-    else if (array_length != 0) {
-      printf("%s: scene.pixel_jitter_sample length is not 0 or 2.\n", __func__);
-    }
-  }
-  else {
-    printf("%s: scene.pixel_jitter_sample not found.\n", __func__);
   }
 
   /* Only multiply after to have full the full DoF web pattern for each time steps. */
@@ -155,6 +137,28 @@ void Sampling::end_sync()
 
 void Sampling::step()
 {
+  /* Options for overwriting pixel jitter sample position. */
+  PointerRNA prop_scene = RNA_id_pointer_create(const_cast<ID *>(&scene_->id));
+  blender::PropertyRNA *use_custom_pixel_jitter_sample_prop = RNA_struct_find_property(
+      &prop_scene, "[\"use_custom_pixel_jitter_sample\"]");
+  blender::PropertyRNA *custom_pixel_jitter_sample_prop = RNA_struct_find_property(
+      &prop_scene, "[\"custom_pixel_jitter_sample\"]");
+  if (use_custom_pixel_jitter_sample_prop) {
+    use_custom_pixel_jitter_sample_ = RNA_property_boolean_get(
+        &prop_scene, use_custom_pixel_jitter_sample_prop);
+    if (use_custom_pixel_jitter_sample_ && custom_pixel_jitter_sample_prop) {
+      const int array_length = RNA_property_array_length(&prop_scene,
+                                                         custom_pixel_jitter_sample_prop);
+      if (array_length == 2) {
+        RNA_property_float_get_array(
+            &prop_scene, custom_pixel_jitter_sample_prop, &custom_pixel_jitter_sample_[0]);
+      }
+      else {
+        printf("%s: scene.custom_pixel_jitter_sample length is not 2.\n", __func__);
+      }
+    }
+  }
+
   {
     /* Repeat the sequence for all pixels that are being up-scaled. */
     uint64_t sample_filter = sample_ / square_i(inst_.film.scaling_factor_get());
@@ -163,9 +167,9 @@ void Sampling::step()
     }
     /* TODO(fclem) we could use some persistent states to speedup the computation. */
     double2 r, offset = {0, 0};
-    if (pixel_jitter_sample.size() == 2) {
-      r[0] = pixel_jitter_sample[0];
-      r[1] = pixel_jitter_sample[1];
+    if (use_custom_pixel_jitter_sample_) {
+      r[0] = custom_pixel_jitter_sample_[0];
+      r[1] = custom_pixel_jitter_sample_[1];
       data_.dimensions[SAMPLING_FILTER_U] = fractf(r[0] + 0.5f);
       data_.dimensions[SAMPLING_FILTER_V] = fractf(r[1] + 0.5f);
     }
