@@ -7,6 +7,7 @@
 #include "FN_multi_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid.hh"
@@ -64,17 +65,16 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
                                            const openvdb::CoordBBox &leaf_bbox,
                                            const grid::GetVoxelsFn get_voxels_fn)
 {
+  AlignedBuffer<8192, 8> allocation_buffer;
+  ResourceScope scope(allocation_buffer);
+
   /* Create an index mask for all the active voxels in the leaf. */
-  IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
       IndexRange(grid::LeafNodeMask::SIZE),
-      GrainSize(grid::LeafNodeMask::SIZE),
-      memory,
-      [&](const int64_t i) { return leaf_node_mask.isOn(i); });
+      scope.allocator(),
+      [&](const int64_t i) { return leaf_node_mask.isOn(i); },
+      exec_mode::serial);
 
-  AlignedBuffer<8192, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
@@ -112,7 +112,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
             const Span<openvdb::Coord> voxels = ensure_voxel_coords();
             MutableSpan<bool> values = scope.allocator().allocate_array<bool>(
                 index_mask.min_array_size());
-            index_mask.foreach_index([&](const int64_t i) {
+            index_mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
               const openvdb::Coord &coord = voxels[i];
               values[i] = tree.getValue(coord);
             });
@@ -242,8 +242,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
   const int64_t voxels_num = voxels.size();
   const IndexMask index_mask{voxels_num};
   AlignedBuffer<8192, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
@@ -335,8 +334,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
   const IndexMask index_mask{tiles_num};
 
   AlignedBuffer<8192, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
   mf::ParamsBuilder params{fn, &index_mask};
   mf::ContextBuilder context;
 
@@ -417,8 +415,7 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
                                             MutableSpan<openvdb::GridBase::Ptr> output_grids)
 {
   AlignedBuffer<160, 8> allocation_buffer;
-  ResourceScope scope;
-  scope.allocator().provide_buffer(allocation_buffer);
+  ResourceScope scope(allocation_buffer);
 
   const IndexMask mask(1);
   mf::ParamsBuilder params(fn, &mask);

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "DNA_defs.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
@@ -70,7 +71,7 @@
 
 #include "SEQ_render.hh"
 
-#include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
@@ -82,7 +83,9 @@
 
 #include "render_intern.hh"
 
-namespace path_templates = blender::bke::path_templates;
+namespace blender {
+
+namespace path_templates = bke::path_templates;
 
 static CLG_LogRef LOG = {"render"};
 
@@ -119,13 +122,16 @@ struct OGLRender : public RenderJobBase {
 
   GPUViewport *viewport = nullptr;
 
-  blender::Mutex reports_mutex;
+  Mutex reports_mutex;
   ReportList *reports = nullptr;
 
   int cfrao = 0;
   int nfra = 0;
 
   int totvideos = 0;
+
+  /* For only rendering frames that have a key in animation data. */
+  BLI_bitmap *render_frames = nullptr;
 
   /* quick lookup */
   int view_id = 0;
@@ -134,7 +140,7 @@ struct OGLRender : public RenderJobBase {
   wmWindowManager *wm = nullptr;
   wmWindow *win = nullptr;
 
-  blender::Vector<MovieWriter *> movie_writers;
+  Vector<MovieWriter *> movie_writers;
 
   TaskPool *task_pool = nullptr;
   bool pool_ok = true;
@@ -184,7 +190,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
     rv = static_cast<RenderView *>(rr->views.first);
 
     if (rv == nullptr) {
-      rv = MEM_callocN<RenderView>("new opengl render view");
+      rv = MEM_new<RenderView>("new opengl render view");
       BLI_addtail(&rr->views, rv);
     }
 
@@ -194,7 +200,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
       IMB_freeImBuf(rv_del->ibuf);
 
-      MEM_freeN(rv_del);
+      MEM_delete(rv_del);
     }
   }
   else {
@@ -218,22 +224,22 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
         IMB_freeImBuf(rv_del->ibuf);
 
-        MEM_freeN(rv_del);
+        MEM_delete(rv_del);
       }
     }
 
     /* create all the views that are needed */
-    LISTBASE_FOREACH (SceneRenderView *, srv, &rd->views) {
-      if (BKE_scene_multiview_is_render_view_active(rd, srv) == false) {
+    for (SceneRenderView &srv : rd->views) {
+      if (BKE_scene_multiview_is_render_view_active(rd, &srv) == false) {
         continue;
       }
 
       rv = static_cast<RenderView *>(
-          BLI_findstring(&rr->views, srv->name, offsetof(SceneRenderView, name)));
+          BLI_findstring(&rr->views, srv.name, offsetof(SceneRenderView, name)));
 
       if (rv == nullptr) {
-        rv = MEM_callocN<RenderView>("new opengl render view");
-        STRNCPY_UTF8(rv->name, srv->name);
+        rv = MEM_new<RenderView>("new opengl render view");
+        STRNCPY_UTF8(rv->name, srv.name);
         BLI_addtail(&rr->views, rv);
       }
     }
@@ -245,7 +251,8 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
   /* will only work for non multiview correctly */
   if (v3d) {
-    camera = BKE_camera_multiview_render(oglrender->scene, v3d->camera, "new opengl render view");
+    camera = BKE_camera_multiview_render(
+        *oglrender->bmain, oglrender->scene, v3d->camera, "new opengl render view");
     BKE_render_result_stamp_info(oglrender->scene, camera, rr, false);
   }
   else {
@@ -280,7 +287,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
        * TODO(sergey): In the case of output to float container (EXR)
        * it actually makes sense to keep float buffer instead.
        */
-      if (ibuf_result->float_buffer.data != nullptr) {
+      if (ibuf_result->float_data() != nullptr) {
         IMB_byte_from_float(ibuf_result);
         IMB_free_float_pixels(ibuf_result);
       }
@@ -294,7 +301,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
     if (gpd) {
       int i;
       uchar *gp_rect;
-      uchar *render_rect = ibuf_result->byte_buffer.data;
+      uchar *render_rect = ibuf_result->byte_data_for_write();
 
       DRW_gpu_context_enable();
       GPU_offscreen_bind(oglrender->ofs, true);
@@ -310,8 +317,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       ED_annotation_draw_ex(scene, gpd, sizex, sizey, scene->r.cfra, SPACE_SEQ);
       G.f &= ~G_FLAG_RENDER_VIEWPORT;
 
-      gp_rect = static_cast<uchar *>(
-          MEM_mallocN(sizeof(uchar[4]) * sizex * sizey, "offscreen rect"));
+      gp_rect = MEM_new_array_uninitialized<uchar>(4 * sizex * sizey, "offscreen rect");
       GPU_offscreen_read_color(oglrender->ofs, GPU_DATA_UBYTE, gp_rect);
 
       for (i = 0; i < sizex * sizey * 4; i += 4) {
@@ -320,7 +326,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       GPU_offscreen_unbind(oglrender->ofs, true);
       DRW_gpu_context_disable();
 
-      MEM_freeN(gp_rect);
+      MEM_delete(gp_rect);
     }
   }
   else {
@@ -350,11 +356,13 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
                                                  true,
                                                  oglrender->ofs,
                                                  oglrender->viewport,
+                                                 true,
                                                  err_out);
 
       /* for stamp only */
       if (oglrender->rv3d->persp == RV3D_CAMOB && v3d->camera) {
-        camera = BKE_camera_multiview_render(oglrender->scene, v3d->camera, viewname);
+        camera = BKE_camera_multiview_render(
+            *oglrender->bmain, oglrender->scene, v3d->camera, viewname);
       }
     }
     else {
@@ -391,10 +399,12 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
     IMB_freeImBuf(ibuf_result);
   }
 
-  /* Perform render step between renders to allow
-   * flushing of freed GPUBackend resources. */
   DRW_gpu_context_enable();
-  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+  /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
+   * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
+   * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
+   * one large command buffer. */
+  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
     GPU_flush();
   }
   GPU_render_step(true);
@@ -415,7 +425,7 @@ static void screen_opengl_render_write(OGLRender *oglrender)
   BKE_add_template_variables_for_render_path(template_variables, *scene);
 
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-  const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+  const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
       filepath,
       scene->r.pic,
       relbase,
@@ -471,24 +481,24 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
   if (oglrender->is_sequencer) {
     Scene *scene = oglrender->scene;
 
-    blender::seq::RenderData context;
+    seq::RenderData context;
     SpaceSeq *sseq = oglrender->sseq;
     int chanshown = sseq ? sseq->chanshown : 0;
 
-    blender::seq::render_new_render_data(oglrender->bmain,
-                                         oglrender->depsgraph,
-                                         scene,
-                                         oglrender->sizex,
-                                         oglrender->sizey,
-                                         SEQ_RENDER_SIZE_SCENE,
-                                         false,
-                                         &context);
+    seq::render_new_render_data(oglrender->bmain,
+                                oglrender->depsgraph,
+                                scene,
+                                oglrender->sizex,
+                                oglrender->sizey,
+                                SEQ_RENDER_SIZE_SCENE,
+                                nullptr,
+                                &context);
 
     for (view_id = 0; view_id < oglrender->views_len; view_id++) {
       context.view_id = view_id;
       context.gpu_offscreen = oglrender->ofs;
       context.gpu_viewport = oglrender->viewport;
-      oglrender->seq_data.ibufs_arr[view_id] = blender::seq::render_give_ibuf(
+      oglrender->seq_data.ibufs_arr[view_id] = seq::render_give_ibuf(
           &context, scene->r.cfra, chanshown);
     }
   }
@@ -517,6 +527,183 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
   }
 }
 
+static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const AnimData *adt)
+{
+  if (adt == nullptr || adt->action == nullptr) {
+    return;
+  }
+
+  Scene *scene = oglrender->scene;
+  int frame_start = PSFRA;
+  int frame_end = PEFRA;
+
+  for (const FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
+    if (fcu->driver != nullptr || fcu->fpt != nullptr) {
+      /* Drivers have values for any point in time, so to get "the keyed frames" they are
+       * useless. Same for baked FCurves, they also have keys for every frame, which is not
+       * useful for rendering the keyed subset of the frames. */
+      continue;
+    }
+
+    bool found = false; /* Not interesting, we just want a starting point for the for-loop. */
+    int key_index = BKE_fcurve_bezt_binarysearch_index(
+        fcu->bezt, frame_start, fcu->totvert, &found);
+    for (; key_index < fcu->totvert; key_index++) {
+      BezTriple *bezt = &fcu->bezt[key_index];
+      /* The frame range to render uses integer frame numbers, and the frame
+       * step is also an integer, so we always render on the frame. */
+      int frame_nr = round_fl_to_int(bezt->vec[1][0]);
+
+      /* (frame_nr < frame_start) cannot happen because of the binary search above. */
+      BLI_assert(frame_nr >= frame_start);
+      if (frame_nr > frame_end) {
+        break;
+      }
+      BLI_BITMAP_ENABLE(oglrender->render_frames, frame_nr - frame_start);
+    }
+  }
+}
+
+static void gather_frames_to_render_for_grease_pencil(const OGLRender *oglrender,
+                                                      const bGPdata *gp)
+{
+  if (gp == nullptr) {
+    return;
+  }
+
+  Scene *scene = oglrender->scene;
+  int frame_start = PSFRA;
+  int frame_end = PEFRA;
+
+  for (const bGPDlayer &gp_layer : gp->layers) {
+    for (const bGPDframe &gp_frame : gp_layer.frames) {
+      if (gp_frame.framenum < frame_start || gp_frame.framenum > frame_end) {
+        continue;
+      }
+      BLI_BITMAP_ENABLE(oglrender->render_frames, gp_frame.framenum - frame_start);
+    }
+  }
+}
+
+static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
+{
+  ID **id_p = cb_data->id_pointer;
+  if (*id_p == nullptr) {
+    return IDWALK_RET_NOP;
+  }
+  ID *id = *id_p;
+
+  ID *self_id = cb_data->self_id;
+  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
+  if (cb_flag == IDWALK_CB_LOOPBACK || id == self_id) {
+    /* IDs may end up referencing themselves one way or the other, and those
+     * (the self_id ones) have always already been processed. */
+    return IDWALK_RET_STOP_RECURSION;
+  }
+
+  OGLRender *oglrender = static_cast<OGLRender *>(cb_data->user_data);
+
+  /* Whitelist of datablocks to follow pointers into. */
+  const ID_Type id_type = GS(id->name);
+  switch (id_type) {
+    /* Whitelist: */
+    case ID_ME:        /* Mesh */
+    case ID_CU_LEGACY: /* Curve */
+    case ID_MB:        /* MetaBall */
+    case ID_MA:        /* Material */
+    case ID_TE:        /* Tex (Texture) */
+    case ID_IM:        /* Image */
+    case ID_LT:        /* Lattice */
+    case ID_LA:        /* Light */
+    case ID_CA:        /* Camera */
+    case ID_KE:        /* Key (shape key) */
+    case ID_VF:        /* VFont (Vector Font) */
+    case ID_TXT:       /* Text */
+    case ID_SPK:       /* Speaker */
+    case ID_SO:        /* Sound */
+    case ID_AR:        /* bArmature */
+    case ID_NT:        /* bNodeTree */
+    case ID_PA:        /* ParticleSettings */
+    case ID_MC:        /* MovieClip */
+    case ID_MSK:       /* Mask */
+    case ID_LP:        /* LightProbe */
+    case ID_CV:        /* Curves */
+    case ID_PT:        /* PointCloud */
+    case ID_VO:        /* Volume */
+      break;
+
+      /* Blacklist: */
+    case ID_SCE: /* Scene */
+    case ID_LI:  /* Library */
+    case ID_OB:  /* Object */
+    case ID_WO:  /* World */
+    case ID_SCR: /* Screen */
+    case ID_GR:  /* Group */
+    case ID_AC:  /* bAction */
+    case ID_BR:  /* Brush */
+    case ID_WM:  /* WindowManager */
+    case ID_LS:  /* FreestyleLineStyle */
+    case ID_PAL: /* Palette */
+    case ID_PC:  /* PaintCurve */
+    case ID_CF:  /* CacheFile */
+    case ID_WS:  /* WorkSpace */
+      /* Only follow pointers to specific datablocks, to avoid ending up in
+       * unrelated datablocks and exploding the number of blocks we follow. If the
+       * frames of the animation of certain objects should be taken into account,
+       * they should have been selected by the user. */
+      return IDWALK_RET_STOP_RECURSION;
+
+    /* Special cases: */
+    case ID_GD_LEGACY: /* bGPdata, (Grease Pencil) */
+      /* In addition to regular ID's animdata, GreasePencil uses a specific frame-based animation
+       * system that requires specific handling here. */
+      gather_frames_to_render_for_grease_pencil(oglrender, id_cast<bGPdata *>(id));
+      break;
+    case ID_GP:
+      /* TODO: gather frames. */
+      break;
+  }
+
+  AnimData *adt = BKE_animdata_from_id(id);
+  gather_frames_to_render_for_adt(oglrender, adt);
+
+  return IDWALK_RET_NOP;
+}
+
+/**
+ * Collect the frame numbers for which selected objects have keys in the animation data.
+ * The frames ares stored in #OGLRender.render_frames.
+ *
+ * Note that this follows all pointers to ID blocks, only filtering on ID type,
+ * so it will pick up keys from pointers in custom properties as well.
+ */
+static void gather_frames_to_render(bContext *C, OGLRender *oglrender)
+{
+  Scene *scene = oglrender->scene;
+  int frame_start = PSFRA;
+  int frame_end = PEFRA;
+
+  /* Will be freed in screen_opengl_render_end(). */
+  oglrender->render_frames = BLI_BITMAP_NEW(frame_end - frame_start + 1,
+                                            "OGLRender::render_frames");
+
+  /* The first frame should always be rendered, otherwise there is nothing to write to file. */
+  BLI_BITMAP_ENABLE(oglrender->render_frames, 0);
+
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    ID *id = &ob->id;
+
+    /* Gather the frames from the object animation data. */
+    AnimData *adt = BKE_animdata_from_id(id);
+    gather_frames_to_render_for_adt(oglrender, adt);
+
+    /* Gather the frames from linked data-blocks (materials, shape-keys, etc.). */
+    BKE_library_foreach_ID_link(
+        nullptr, id, gather_frames_to_render_for_id, oglrender, IDWALK_RECURSE);
+  }
+  CTX_DATA_END;
+}
+
 static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 {
   /* new render clears all callbacks */
@@ -537,9 +724,10 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   int sizex, sizey;
   bool is_view_context = RNA_boolean_get(op->ptr, "view_context");
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
+  const bool is_render_keyed_only = RNA_boolean_get(op->ptr, "render_keyed_only");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
   const eImageFormatDepth color_depth = static_cast<eImageFormatDepth>(
-      (is_animation) ? (eImageFormatDepth)scene->r.im_format.depth : R_IMF_CHAN_DEPTH_32);
+      (is_animation) ? eImageFormatDepth(scene->r.im_format.depth) : R_IMF_CHAN_DEPTH_32);
   char err_out[256] = "unknown";
 
   if (G.background) {
@@ -586,7 +774,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   ofs = GPU_offscreen_create(sizex,
                              sizey,
                              true,
-                             blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                             gpu::TextureFormat::SFLOAT_16_16_16_16,
                              GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
                              false,
                              err_out);
@@ -626,8 +814,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->is_sequencer = is_sequencer;
   if (is_sequencer) {
     oglrender->sseq = CTX_wm_space_seq(C);
-    ImBuf **ibufs_arr = static_cast<ImBuf **>(
-        MEM_callocN(sizeof(*ibufs_arr) * oglrender->views_len, __func__));
+    ImBuf **ibufs_arr = MEM_new_array_zeroed<ImBuf *>(oglrender->views_len, __func__);
     oglrender->seq_data.ibufs_arr = ibufs_arr;
   }
 
@@ -643,7 +830,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
     /* MUST be cleared on exit */
     oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
-    ED_view3d_datamask(oglrender->scene,
+    ED_view3d_datamask(*oglrender->bmain,
+                       oglrender->scene,
                        oglrender->view_layer,
                        oglrender->v3d,
                        &oglrender->scene->customdata_mask_modal);
@@ -676,6 +864,10 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->win = win;
 
   if (is_animation) {
+    if (is_render_keyed_only) {
+      gather_frames_to_render(C, oglrender);
+    }
+
     if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
       oglrender->task_pool = BLI_task_pool_create_background_serial(oglrender, TASK_PRIORITY_HIGH);
     }
@@ -719,6 +911,8 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     oglrender->task_pool = nullptr;
   }
 
+  MEM_SAFE_DELETE(oglrender->render_frames);
+
   if (!oglrender->movie_writers.is_empty()) {
     if (BKE_imtype_is_movie(oglrender->scene->r.im_format.imtype)) {
       for (MovieWriter *writer : oglrender->movie_writers) {
@@ -738,7 +932,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     oglrender->viewport = nullptr;
   }
 
-  MEM_SAFE_FREE(oglrender->seq_data.ibufs_arr);
+  MEM_SAFE_DELETE(oglrender->seq_data.ibufs_arr);
 
   oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
 
@@ -776,6 +970,11 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
   Scene *scene = oglrender->scene;
 
+  if (!(scene->r.mode & R_SAVE_OUTPUT)) {
+    BKE_report(op->reports, RPT_ERROR, "Render output disabled in Output properties");
+    return false;
+  }
+
   ImageFormatData image_format;
   BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
 
@@ -790,14 +989,19 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
         &scene->r, &image_format, oglrender->sizex, oglrender->sizey, &width, &height);
     oglrender->movie_writers.reserve(oglrender->totvideos);
 
+    const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
+                                    (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
+
     for (i = 0; i < oglrender->totvideos; i++) {
       Scene *scene_eval = DEG_get_evaluated_scene(oglrender->depsgraph);
-      const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, i);
+      const char *suffix = is_multiview_name ?
+                               BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
+                               "";
       MovieWriter *writer = MOV_write_begin(scene_eval,
                                             &scene->r,
                                             &image_format,
-                                            oglrender->sizex,
-                                            oglrender->sizey,
+                                            width,
+                                            height,
                                             oglrender->reports,
                                             PRVRANGEON != 0,
                                             suffix);
@@ -822,13 +1026,13 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 }
 
 struct WriteTaskData {
-  RenderResult *rr;
+  RenderResult *rr = nullptr;
   Scene tmp_scene;
 };
 
 static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
 {
-  OGLRender *oglrender = (OGLRender *)BLI_task_pool_user_data(pool);
+  OGLRender *oglrender = static_cast<OGLRender *>(BLI_task_pool_user_data(pool));
   Scene *scene = &task_data->tmp_scene;
   RenderResult *rr = task_data->rr;
   const bool is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
@@ -872,7 +1076,7 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
     BKE_add_template_variables_for_render_path(template_variables, *scene);
 
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+    const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
         relbase,
@@ -923,8 +1127,8 @@ static void write_result_func(TaskPool *__restrict pool, void *task_data_v)
   /* Isolate task so that multithreaded image operations don't cause this thread to start
    * writing another frame. If that happens we may reach the MAX_SCHEDULED_FRAMES limit,
    * and cause the render thread and writing threads to deadlock waiting for each other. */
-  WriteTaskData *task_data = (WriteTaskData *)task_data_v;
-  blender::threading::isolate_task([&] { write_result(pool, task_data); });
+  WriteTaskData *task_data = static_cast<WriteTaskData *>(task_data_v);
+  threading::isolate_task([&] { write_result(pool, task_data); });
 }
 
 static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
@@ -934,9 +1138,9 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_callocN<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
   task_data->rr = rr;
-  memcpy(&task_data->tmp_scene, scene, sizeof(task_data->tmp_scene));
+  task_data->tmp_scene = dna::shallow_copy(*scene);
   {
     std::unique_lock lock(oglrender->task_mutex);
     oglrender->num_scheduled_frames++;
@@ -975,7 +1179,7 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
     BKE_add_template_variables_for_render_path(template_variables, *scene);
 
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+    const Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
         relbase,
@@ -1024,8 +1228,12 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
     BKE_scene_camera_switch_update(scene);
   }
 
-  /* render into offscreen buffer */
-  screen_opengl_render_apply(oglrender);
+  if (oglrender->render_frames == nullptr ||
+      BLI_BITMAP_TEST_BOOL(oglrender->render_frames, scene->r.cfra - PSFRA))
+  {
+    /* render into offscreen buffer */
+    screen_opengl_render_apply(oglrender);
+  }
 
   /* save to disk */
   rr = RE_AcquireResultRead(oglrender->re);
@@ -1202,6 +1410,13 @@ static std::string screen_opengl_render_get_description(bContext * /*C*/,
   if (!RNA_boolean_get(ptr, "animation")) {
     return "";
   }
+
+  if (RNA_boolean_get(ptr, "render_keyed_only")) {
+    return TIP_(
+        "Render the viewport for the animation range of this scene, but only render keyframes of "
+        "selected objects");
+  }
+
   return TIP_("Render the viewport for the animation range of this scene");
 }
 
@@ -1230,6 +1445,14 @@ void RENDER_OT_opengl(wmOperatorType *ot)
                          "Render files from the animation range of this scene");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
+  prop = RNA_def_boolean(ot->srna,
+                         "render_keyed_only",
+                         false,
+                         "Render Keyframes Only",
+                         "Render only those frames where selected objects have a key in their "
+                         "animation data. Only used when rendering animation");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
   prop = RNA_def_boolean(
       ot->srna, "sequencer", false, "Sequencer", "Render using the sequencer's OpenGL display");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -1247,3 +1470,5 @@ void RENDER_OT_opengl(wmOperatorType *ot)
                          "Use the current 3D view for rendering, else use scene settings");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
+
+}  // namespace blender
