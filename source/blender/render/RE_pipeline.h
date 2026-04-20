@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "DNA_ID.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"

@@ -9,7 +9,6 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstring>
-#include <optional>
 
 #include "BKE_blender_project.hh"
 #include "DNA_defs.h"

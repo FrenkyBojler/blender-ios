@@ -9,8 +9,6 @@
  * \ingroup imbuf
  */
 
-#include <optional>
-
 namespace blender {
 
 struct ImageFormatData;
