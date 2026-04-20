@@ -253,11 +253,13 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   return distance;
 }
 
-static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
-                                                       const Span<Segment> segments,
-                                                       const Span<bool> segment_reversed,
-                                                       const Span<bool> cyclic,
-                                                       const OffsetIndices<int> segment_offsets)
+static bke::CurvesGeometry create_curves_from_segments(
+    const bke::CurvesGeometry &src,
+    const Span<Segment> segments,
+    const Span<bool> segment_reversed,
+    const Span<bool> cyclic,
+    const OffsetIndices<int> segment_offsets,
+    const std::optional<eGP_CornerType> corner_type)
 {
   struct InterpolatePoint {
     int src_point_1;
@@ -363,6 +365,35 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     });
 
     attribute.dst.finish();
+  }
+
+  if (corner_type) {
+    bke::SpanAttributeWriter<float> miter_angles =
+        dst_attributes.lookup_or_add_for_write_span<float>(
+            "miter_angle",
+            bke::AttrDomain::Point,
+            bke::AttributeInitValue(GP_STROKE_MITER_ANGLE_ROUND));
+
+    for (const int i : point_to_interpolate.index_range()) {
+      const InterpolatePoint &int_point = point_to_interpolate[i];
+
+      if (int_point.factor == 0.0f || int_point.factor == 1.0f) {
+        continue;
+      }
+
+      if (*corner_type == GP_BRUSH_CORNER_TYPE_ROUND) {
+        miter_angles.span[i] = GP_STROKE_MITER_ANGLE_ROUND;
+      }
+      else if (*corner_type == GP_BRUSH_CORNER_TYPE_FLAT) {
+        miter_angles.span[i] = GP_STROKE_MITER_ANGLE_BEVEL;
+      }
+      else if (*corner_type == GP_BRUSH_CORNER_TYPE_SHARP) {
+        /* Prevent the angle from being set to zero, and becoming the `Round` type.*/
+        miter_angles.span[i] = DEG2RADF(1.0f);
+      }
+    }
+
+    miter_angles.finish();
   }
 
   return dst_curves;
@@ -1283,7 +1314,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
   bke::CurvesGeometry dst = create_curves_from_segments(
-      src, segments, segment_reversed, cyclic, segment_offsets);
+      src, segments, segment_reversed, cyclic, segment_offsets, corner_type);
 
   if (!keep_caps) {
     cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
@@ -1296,7 +1327,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             const Span<float2> screen_space_positions,
                                             const IndexMask &editable_curves,
                                             const IndexMask &visible_curves,
-                                            const bool keep_caps)
+                                            const bool keep_caps,
+                                            const std::optional<eGP_CornerType> corner_type)
 {
   if (src.is_empty()) {
     return src;
@@ -1362,7 +1394,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
   bke::CurvesGeometry dst = create_curves_from_segments(
-      src, segments, segment_reversed, cyclic, segment_offsets);
+      src, segments, segment_reversed, cyclic, segment_offsets, corner_type);
 
   if (!keep_caps) {
     cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);

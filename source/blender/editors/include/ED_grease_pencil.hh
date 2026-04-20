@@ -949,7 +949,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             Span<float2> screen_space_positions,
                                             const IndexMask &editable_curves,
                                             const IndexMask &visible_curves,
-                                            bool keep_caps);
+                                            bool keep_caps,
+                                            std::optional<eGP_CornerType> corner_type);
 };  // namespace trim
 
 void merge_layers(const GreasePencil &src_grease_pencil,
