@@ -130,7 +130,7 @@ class ModifierDropTarget : public ui::TreeViewItemDropTarget {
 
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = ed::object::context_active_object(C);
     ModifierData **drag_modifiers = static_cast<ModifierData **>(drag_info.drag_data.poin);
     const int first_drag_index = BLI_findindex(&ob->modifiers, drag_modifiers[0]);
     int drop_index = BLI_findindex(&ob->modifiers, md_);
@@ -251,7 +251,7 @@ void ModifierTreeView::build_tree()
 
 void template_tree(ui::Layout *layout, bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = ed::object::context_active_object(C);
   if (ob == nullptr) {
     return;
   }
