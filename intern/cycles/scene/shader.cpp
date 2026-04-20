@@ -386,6 +386,7 @@ void Shader::tag_update(Scene *scene)
   const AttributeRequestSet prev_global_attributes = global_attributes;
 
   attributes.clear();
+  global_attributes.clear();
   for (ShaderNode *node : graph->nodes) {
     node->attributes(this, &attributes);
     node->global_attributes(this, &global_attributes);

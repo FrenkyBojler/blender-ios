@@ -158,17 +158,11 @@ class OSLCompiler {
 
   void add(ShaderNode *node, const char *name, bool isfilepath = false);
 
-  /* Add a converter between the "main" node OSL implementation and the shader node output socket.
-   *
-   * The converter uses the `converter_name` shader, and its `converter_input_parameter` is
-   * connected to the "main" node's `node_output_parameter`. The shader's output parameter
-   * `shader_output_parameter` is connected to the converter's `converter_output_parameter`. */
-  void add_output_converter(const ShaderNode *node,
-                            string_view converter_name,
-                            string_view node_output_parameter,
-                            string_view converter_input_parameter,
-                            string_view converter_output_parameter,
-                            string_view shader_output_parameter);
+  /* Remap `actual_output_parameter` output parameter of the node to be addressable as
+   * `remapped_output_parameter`. */
+  void remap_output(const ShaderNode *node,
+                    string_view actual_output_parameter,
+                    string_view remapped_output_parameter);
 
   void parameter(ShaderNode *node, const char *name);
 

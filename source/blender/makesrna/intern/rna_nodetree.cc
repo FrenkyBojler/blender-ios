@@ -6264,9 +6264,9 @@ static void rna_def_sh_raycast_sample_attribute_items(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "bNode");
 
   rna_def_node_item_array_new_with_socket_and_name(
-      srna, "NodeGeometryCaptureAttributeItem", "CaptureAttributeItemsAccessor");
+      srna, "NodeRaycastSampleAttributeItem", "RaycastSampleAttributeItemsAccessor");
   rna_def_node_item_array_common_functions(
-      srna, "NodeGeometryCaptureAttributeItem", "CaptureAttributeItemsAccessor");
+      srna, "NodeRaycastSampleAttributeItem", "RaycastSampleAttributeItemsAccessor");
 }
 
 static void def_sh_raycast(BlenderRNA *brna, StructRNA *srna)
