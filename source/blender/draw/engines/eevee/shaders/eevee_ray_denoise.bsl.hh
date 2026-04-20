@@ -556,8 +556,12 @@ void temporal_main([[resource_table]] DenoiseTemporal &srt,
   /* Reflection reprojection. */
   float2 history_variance = srt.variance_history_sample(P_hit);
   /* Blend history with new variance. */
-  float mix_variance_fac = (history_variance.y == 0.0f) ? 0.0f : 0.90f;
-  float out_variance = mix(in_variance, history_variance.x, mix_variance_fac);
+  float mix_variance_fac = (history_variance.y == 0.0f) ? 0.0f : 0.85f;
+  /* Avoid variance exploding. */
+  history_variance.x = clamp(history_variance.x, 0.0f, 100.0f);
+  /* Do the mix in squared space to make high variance dominate. */
+  float out_variance = sqrt(
+      mix(square(in_variance), square(history_variance.x), mix_variance_fac));
   /* This is feedback next frame as variance_history_tx. */
   imageStoreFast(srt.out_variance_img, texel_fullres, float4(out_variance));
 }
@@ -618,14 +622,12 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
 
   bool is_background = (center_depth == 0.0f);
   bool is_smooth = (roughness < 0.05f);
-  bool is_low_variance = (variance < 0.05f);
-  bool is_high_variance = (variance > 0.5f);
+  bool is_low_variance = (variance < 0.1f);
 
   /* Width of the box filter in pixels. */
-  float filter_size_factor = saturate(roughness * 8.0f);
+  float filter_size_factor = saturate(roughness * 8.0f) * saturate(variance * 2.0);
   float filter_size = mix(0.0f, 9.0f, filter_size_factor);
-  uint sample_count = uint(mix(1.0f, 10.0f, filter_size_factor) *
-                           (is_high_variance ? 1.5f : 1.0f));
+  uint sample_count = uint(mix(1.0f, 15.0f, saturate(variance * 2.0)));
 
   if (is_smooth || is_background || is_low_variance) {
     /* Early out cases. */
