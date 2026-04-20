@@ -553,8 +553,12 @@ StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src, c
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
   StripModifierData *mod_new = MEM_dupalloc(mod_src);
-  /* Ensure at most one active modifier at a time. */
-  mod_new->flag &= ~STRIP_MODIFIER_FLAG_ACTIVE;
+
+  /* Make the duplicate active (if the source was), ensuring at most one active modifier at a time.
+   */
+  if (mod_src->flag & STRIP_MODIFIER_FLAG_ACTIVE) {
+    modifier_set_active(&strip_dst, mod_new);
+  }
 
   mod_new->system_properties = nullptr;
   if (mod_src->system_properties) {
