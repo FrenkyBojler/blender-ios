@@ -8315,21 +8315,33 @@ void RaycastNode::compile(OSLCompiler &compiler)
   for (const auto &attribute_output : attribute_outputs_) {
     switch (attribute_output.attribute_output_type) {
       case ATTR_OUTPUT_FLOAT:
-        compiler.remap_output(this,
-                              "float_attributes[" + to_string(float_attr_index) + "]",
-                              attribute_output.socket_id);
+        compiler.parameter("attribute_index", float_attr_index);
+        compiler.add_output_converter(this,
+                                      "node_raycast_attr_float",
+                                      "float_attributes",
+                                      "float_attributes",
+                                      "value",
+                                      attribute_output.socket_id);
         ++float_attr_index;
         break;
       case ATTR_OUTPUT_FLOAT_ALPHA:
-        compiler.remap_output(this,
-                              "alpha_attributes[" + to_string(alpha_attr_index) + "]",
-                              attribute_output.socket_id);
+        compiler.parameter("attribute_index", alpha_attr_index);
+        compiler.add_output_converter(this,
+                                      "node_raycast_attr_float",
+                                      "alpha_attributes",
+                                      "float_attributes",
+                                      "value",
+                                      attribute_output.socket_id);
         ++alpha_attr_index;
         break;
       case ATTR_OUTPUT_FLOAT3:
-        compiler.remap_output(this,
-                              "vector_attributes[" + to_string(vector_attr_index) + "]",
-                              attribute_output.socket_id);
+        compiler.parameter("attribute_index", vector_attr_index);
+        compiler.add_output_converter(this,
+                                      "node_raycast_attr_vector",
+                                      "vector_attributes",
+                                      "vector_attributes",
+                                      "value",
+                                      attribute_output.socket_id);
         ++vector_attr_index;
         break;
     }

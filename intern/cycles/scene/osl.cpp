@@ -1149,13 +1149,22 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
   }
 }
 
-void OSLCompiler::remap_output(const ShaderNode *node,
-                               const string_view actual_output_parameter,
-                               const string_view remapped_output_parameter)
+void OSLCompiler::add_output_converter(const ShaderNode *node,
+                                       string_view converter_name,
+                                       string_view node_output_parameter,
+                                       string_view converter_input_parameter,
+                                       string_view converter_output_parameter,
+                                       string_view shader_output_parameter)
 {
   const string node_id = id(node);
-  remapped_outputs_.insert(pair(LayerParam(node_id, remapped_output_parameter),
-                                LayerParam(node_id, actual_output_parameter)));
+  const string converter_id = node_id + "_" + string(shader_output_parameter);
+
+  ss->Shader(*current_group, get_shader_usage(), converter_name, converter_id);
+  ss->ConnectShaders(
+      *current_group, node_id, node_output_parameter, converter_id, converter_input_parameter);
+
+  remapped_outputs_.insert(pair(LayerParam(node_id, shader_output_parameter),
+                                LayerParam(converter_id, converter_output_parameter)));
 }
 
 static TypeDesc array_typedesc(const TypeDesc typedesc, const int arraylength)
