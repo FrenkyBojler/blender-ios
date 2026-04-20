@@ -676,13 +676,10 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   {
     /* Sometimes mesh component has no vertices but is not null, because mesh modifier evaluation
      * adds an empty mesh. */
-    if (mesh && mesh->verts_num == 0) {
-      mesh = nullptr;
-    }
-
-    auto &mesh_item = parent.add_tree_item<MeshViewItem>(mesh != nullptr);
+    const bool has_mesh = mesh != nullptr && mesh->verts_num > 0;
+    auto &mesh_item = parent.add_tree_item<MeshViewItem>(has_mesh);
     mesh_item.uncollapse_by_default();
-    if (!mesh) {
+    if (!has_mesh) {
       return;
     }
 
