@@ -177,17 +177,19 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
 
   /* Compute filter size and needed sample count */
   float apparent_roughness = closure_apparent_roughness_get(closure);
+  /* Max filter size at 0.25 roughness. */
   float filter_size_factor = saturate(apparent_roughness * 8.0f);
-  uint sample_count = 1u + uint(15.0f * filter_size_factor + 0.5f);
-  /* NOTE: filter_size should never be greater than twice RAYTRACE_GROUP_SIZE. Otherwise, the
+  uint sample_count = 1u + uint(floor(15.0f * filter_size_factor + 0.5f));
+  float filter_radius = 8.0f * sqrt(filter_size_factor);
+  /* NOTE: filter_size should never be greater than RAYTRACE_GROUP_SIZE. Otherwise, the
    * reconstruction can becomes ill defined since we don't know if further tiles are valid. */
-  float filter_size = 12.0f * sqrt(filter_size_factor);
+  float max_filter_radius = float(RAYTRACE_GROUP_SIZE - 1);
+  float min_filter_radius = 0.0f;
   if (srt.raytrace_resolution_scale > 1) {
     /* Filter at least 1 trace pixel to fight the undersampling. */
-    filter_size = max(filter_size, 3.0f);
+    min_filter_radius = 1.5f;
     sample_count = max(sample_count, 5u);
   }
-  filter_size *= 0.5f;
 
   float2 noise = utility_tx_fetch(utility_tx, float2(texel_fullres), UTIL_BLUE_NOISE_LAYER).ba;
   noise += sampling_rng_1D_get(SAMPLING_CLOSURE);
@@ -215,9 +217,22 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   dPdxy[0] *= bias;
   dPdxy[1] *= bias;
 
+  /* Orient filter in reflection direction. */
+  /* Note: Anisotropic BSDFs will likely need to align rotation with their tangent instead and
+   * override the aspect ratio computation. */
+  float2 filter_up = safe_normalize(float2(vs_N.xy));
+  float2x2 filter_rotation = float2x2(filter_up, orthogonal(filter_up));
+  /* Small roughness GGX lobe is quite stretched. Stretch the filter kernel in that direction.
+   * Modulate by quality since this increases variance. */
+  float aspect = 1.0f - 0.5f * saturate(min(apparent_roughness * 12.0f,
+                                            2.0f - apparent_roughness * 5.0f));
+
+  filter_rotation[0] *= clamp(filter_radius, min_filter_radius, max_filter_radius);
+  filter_rotation[1] *= clamp(filter_radius * aspect, min_filter_radius, max_filter_radius);
+
   for (uint i = 0u; i < sample_count; i++) {
     float2 Xi = fract(hammersley_2d(i, sample_count) + float2(noise.x, 0.0f));
-    float2 offset_f = sample_disk(Xi) * filter_size;
+    float2 offset_f = filter_rotation * sample_disk(Xi);
     int2 offset = int2(floor(offset_f + 0.5f));
 
     int2 sample_texel = texel + offset;
