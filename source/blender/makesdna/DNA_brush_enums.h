@@ -57,12 +57,8 @@ enum eGPDbrush_Flag {
   GP_BRUSH_ACTIVE_LAYER_ONLY = (1 << 20),
   /* Automatically remove fill guides created with fill tool. */
   GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES = (1 << 21),
-  /* TODO. */
-  GP_BRUSH_JOIN_CORNER = ((1 << 22) | (1 << 23)),
-  GP_BRUSH_JOIN_CORNER_NONE = 0,
-  GP_BRUSH_JOIN_CORNER_ROUND = (1 << 22),
-  GP_BRUSH_JOIN_CORNER_BEVEL = (1 << 23),
-  GP_BRUSH_JOIN_CORNER_MITER = ((1 << 22) | (1 << 23)),
+  /* Automatically join corners when using the trim tool. */
+  GP_BRUSH_TRIM_TOOL_JOIN_CORNER = (1 << 22),
 };
 
 enum eGPDbrush_Flag2 {
@@ -137,6 +133,13 @@ enum eGP_BrushMode {
   GP_BRUSH_MODE_ACTIVE = 0,
   GP_BRUSH_MODE_MATERIAL = 1,
   GP_BRUSH_MODE_VERTEXCOLOR = 2,
+};
+
+/* BrushGpencilSettings->corner_type */
+enum eGP_CornerType {
+  GP_BRUSH_CORNER_TYPE_ROUND = 0,
+  GP_BRUSH_CORNER_TYPE_FLAT = 1,
+  GP_BRUSH_CORNER_TYPE_SHARP = 2,
 };
 
 /* Brush.curve_preset */

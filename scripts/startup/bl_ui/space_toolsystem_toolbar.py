@@ -2268,6 +2268,8 @@ class _defs_grease_pencil_paint:
             row.use_property_split = False
             row.prop(gp_settings, "use_active_layer_only")
             row.prop(gp_settings, "use_keep_caps_eraser")
+            row.prop(gp_settings, "use_join_corners")
+            row.prop(gp_settings, "corner_type")
 
         return dict(
             idname="builtin.trim",

@@ -103,8 +103,7 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
     BKE_brush_init_gpencil_settings(brush);
   }
   const bool keep_caps = (brush->gpencil_settings->flag & GP_BRUSH_ERASER_KEEP_CAPS) != 0;
-  /* TODO.*/
-  const bool join_corners = true;
+  const bool join_corners = (brush->gpencil_settings->flag & GP_BRUSH_TRIM_TOOL_JOIN_CORNER) != 0;
   const bool active_layer_only = (brush->gpencil_settings->flag & GP_BRUSH_ACTIVE_LAYER_ONLY) != 0;
   std::atomic<bool> changed = false;
 

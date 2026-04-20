@@ -376,6 +376,12 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
     {GP_BRUSH_MODE_VERTEXCOLOR, "VERTEXCOLOR", 0, "Vertex Color", "Use always Vertex Color mode"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static EnumPropertyItem rna_enum_gpencil_brush_corner_type_items[] = {
+    {GP_BRUSH_CORNER_TYPE_ROUND, "ROUND", 0, "Round", "Use round corners"},
+    {GP_BRUSH_CORNER_TYPE_FLAT, "FLAT", 0, "Flat", "Use flat corners"},
+    {GP_BRUSH_CORNER_TYPE_SHARP, "SHARP", 0, "Sharp", "Use sharp corners"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 #endif
 
 }  // namespace blender
@@ -1948,6 +1954,14 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
+  prop = RNA_def_property(srna, "corner_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "corner_type");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_corner_type_items);
+  RNA_def_property_enum_default(prop, GP_BRUSH_CORNER_TYPE_SHARP);
+  RNA_def_property_ui_text(prop, "Corner Type", "Type of corners");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
   prop = RNA_def_property(srna, "use_trim", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_TRIM_STROKE);
   RNA_def_property_boolean_default(prop, false);
@@ -2046,6 +2060,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Auto-Remove Fill Guides",
                            "Automatically remove fill guide strokes after fill operation");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "use_join_corners", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_TRIM_TOOL_JOIN_CORNER);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Join Corner", "Automatically join corners when cut");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 

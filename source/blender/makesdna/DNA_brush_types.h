@@ -135,7 +135,9 @@ struct BrushGpencilSettings {
   float conversion_threshold = 0;
   /* #CurveType Used for converting. */
   int8_t curve_type = 0;
-  char _pad4[3] = {};
+  /* Corner type used for trim tool. */
+  int8_t corner_type = 0;
+  char _pad4[2] = {};
 
   /* optional link of material to replace default in context */
   /** Material. */
