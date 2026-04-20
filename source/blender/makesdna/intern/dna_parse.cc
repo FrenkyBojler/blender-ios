@@ -45,7 +45,7 @@ namespace dna {
 /** \name File I/O
  * \{ */
 
-static bool read_file_data(const std::string &filepath, Vector<char> &data)
+[[nodiscard]] static bool read_file_data(const StringRefNull filepath, Vector<char> &data)
 {
   std::ifstream file(filepath, std::ios::binary | std::ios::ate);
   if (!file) {
@@ -261,7 +261,7 @@ static TokenStream tokenize_dna_header(StringRef source)
   return stream;
 }
 
-/** Strip tokens that we want to ignre for parsing. */
+/** Strip tokens that we want to ignore for parsing. */
 static TokenStream strip_ignored_tokens(TokenStream stream)
 {
   TokenStream stripped_stream;
@@ -300,9 +300,9 @@ static TokenStream strip_ignored_tokens(TokenStream stream)
  * \{ */
 
 /** Validate a struct type name. */
-static bool is_valid_type_name(const std::string &type_name, const std::string &filepath)
+static bool is_valid_type_name(const StringRefNull type_name, const StringRefNull filepath)
 {
-  if (type_name.empty()) {
+  if (type_name.is_empty()) {
     fprintf(stderr,
             "File '%s' contains struct we can't parse \"%s\"\n",
             filepath.c_str(),
@@ -320,7 +320,7 @@ static bool is_valid_type_name(const std::string &type_name, const std::string &
 }
 
 /** Validate a member name. */
-static bool is_valid_member_name(const std::string &name, const std::string &filepath)
+static bool is_valid_member_name(const StringRefNull name, const StringRefNull filepath)
 {
   /* Strip pointer/array decorators: e.g. `*var[3]` → `var`. */
   const uint strip_start = DNA_member_id_offset_start(name.c_str());
@@ -448,7 +448,7 @@ static void append_template_suffix(TokenStream &stream, std::string &out)
  * `(*name)[N][M]` (multi-dimensional array pointer). Both are stored in SDNA
  * as `(*name)()`.
  */
-static bool parse_paren_declaration(TokenStream &stream, std::string &out)
+[[nodiscard]] static bool parse_paren_declaration(TokenStream &stream, std::string &out)
 {
   stream.advance();
   out += '(';
@@ -477,7 +477,7 @@ static bool parse_paren_declaration(TokenStream &stream, std::string &out)
 }
 
 /** Parse one member declaration. */
-static bool parse_member_declaration(TokenStream &stream, std::string &out)
+[[nodiscard]] static bool parse_member_declaration(TokenStream &stream, std::string &out)
 {
   out.clear();
 
@@ -501,9 +501,9 @@ static bool parse_member_declaration(TokenStream &stream, std::string &out)
 }
 
 /** Parse the body of a struct. */
-static bool parse_struct_body(TokenStream &stream,
-                              const std::string &filepath,
-                              ParsedStruct &r_struct)
+[[nodiscard]] static bool parse_struct_body(TokenStream &stream,
+                                            const StringRefNull filepath,
+                                            ParsedStruct &r_struct)
 {
   while (!stream.at_end() && stream.kind() != '}') {
     /* Skip qualifiers. */
@@ -585,15 +585,16 @@ static void skip_struct_body(TokenStream &stream)
   }
 }
 
-bool parse_dna_header(const std::string &filepath, Vector<ParsedStruct> &r_structs)
+bool parse_dna_header(const StringRefNull filepath, Vector<ParsedStruct> &r_structs)
 {
   Vector<char> buffer;
   if (!read_file_data(filepath, buffer)) {
     fprintf(stderr, "Can't read file %s\n", filepath.c_str());
     return false;
   }
-  TokenStream stream = strip_ignored_tokens(
-      tokenize_dna_header(StringRef(buffer.data(), buffer.size())));
+
+  TokenStream stream = tokenize_dna_header(StringRef(buffer.data(), buffer.size()));
+  stream = strip_ignored_tokens(stream);
 
   bool skip_next_struct = false;
 
@@ -703,7 +704,7 @@ static void substitute_vector_or_matrix(ParsedMember &member)
   member.alignment = mapping->alignment;
 
   /* Members like `float (*var)[3][3]` have the `[3][3]` stripped in
-   * #parse_paren_declaration. So also don't add it for `float3x3 *var`,
+   * #parse_paren_declaration. So also don't add it for `float3x3 *var` either,
    * rather keep it as `float` `*var`. */
   if (member.member_name[0] != '*' && member.member_name[0] != '(') {
     member.member_name += '[';
