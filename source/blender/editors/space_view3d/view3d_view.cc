@@ -537,7 +537,8 @@ static std::optional<eV3DSelectObjectFilter> view3d_select_filter_from_mode_lock
     return std::nullopt;
   }
 
-  /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
+  /* NOTE: don't use #BKE_object_pose_armature_get it doesn't check for weight-paint mode
+   * when dealing using the deforming armature (breaking selection outside weight paint mode). */
   const Object *obpose = OBPOSE_FROM_OBACT(obact);
   if (obpose == nullptr) {
     const Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
