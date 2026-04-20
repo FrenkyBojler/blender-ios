@@ -51,16 +51,12 @@ class ModifierTreeView : public ui::AbstractTreeView {
   void build_tree() override;
 };
 
-struct wmDragdataModifier {
-  ModifierData *modifier_data;
-};
-
 class ModifierDragController : public ui::AbstractViewItemDragController {
-  ModifierData *drag_md_;
+  ListBaseT<ModifierData> &modifiers_;
 
  public:
-  ModifierDragController(ModifierTreeView &view, ModifierData *md)
-      : AbstractViewItemDragController(view), drag_md_(md)
+  ModifierDragController(ModifierTreeView &view, ListBaseT<ModifierData> &modifiers)
+      : AbstractViewItemDragController(view), modifiers_(modifiers)
   {
   }
 
@@ -71,9 +67,29 @@ class ModifierDragController : public ui::AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    wmDragdataModifier *drag_data = MEM_new_zeroed<wmDragdataModifier>(__func__);
-    drag_data->modifier_data = drag_md_;
-    return drag_data;
+    int selected_count = 0;
+    for (ModifierData &md : modifiers_) {
+      selected_count += (md.flag & eModifierFlag_Select) != 0;
+    }
+
+    ModifierData **selected_modifiers = MEM_new_array_zeroed<ModifierData *>(selected_count + 1,
+                                                                           "Selected Modifiers");
+
+    selected_count = 0;
+    for (const auto [index, md] : modifiers_.enumerate()) {
+      if (index == 0) {
+        /* Prevent basis shape key from dragging. */
+        continue;
+      }
+
+      if (md.flag & (eModifierFlag_Active | eModifierFlag_Select)) {
+        selected_modifiers[selected_count] = &md;
+        selected_count++;
+      }
+    }
+    BLI_assert_msg(selected_modifiers[selected_count] == nullptr,
+                   "Expected last element to be null (null-delimiter)");
+    return selected_modifiers;
   }
 };
 
@@ -93,9 +109,7 @@ class ModifierDropTarget : public ui::TreeViewItemDropTarget {
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
-    const wmDragdataModifier *drag_data = static_cast<const wmDragdataModifier *>(
-        drag_info.drag_data.poin);
-    const StringRef drag_name = drag_data->modifier_data->name;
+    const StringRef drag_name = "Selected Modifiers";
     const StringRef drop_name = md_->name;
 
     switch (drag_info.drop_location) {
@@ -117,9 +131,10 @@ class ModifierDropTarget : public ui::TreeViewItemDropTarget {
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
     Object *ob = CTX_data_active_object(C);
-    wmDragdataModifier *drag_data = static_cast<wmDragdataModifier *>(drag_info.drag_data.poin);
+    ModifierData **drag_modifiers = static_cast<ModifierData **>(drag_info.drag_data.poin);
+    const int first_drag_index = BLI_findindex(&ob->modifiers, drag_modifiers[0]);
     int drop_index = BLI_findindex(&ob->modifiers, md_);
-    const int drag_index = BLI_findindex(&ob->modifiers, drag_data->modifier_data);
+
     switch (drag_info.drop_location) {
       case ui::DropLocation::Into:
         BLI_assert_unreachable();
@@ -128,14 +143,25 @@ class ModifierDropTarget : public ui::TreeViewItemDropTarget {
         if (drop_index == 0) {
           break;
         }
-        drop_index -= drag_index < drop_index;
+        drop_index -= first_drag_index < drop_index;
         break;
       case ui::DropLocation::After:
-        drop_index -= drag_index > drop_index;
+        drop_index -= first_drag_index > drop_index;
         break;
     }
-    ed::object::modifier_move_to_index(
-        nullptr, RPT_WARNING, ob, drag_data->modifier_data, drop_index, true);
+
+    for (int8_t i = 0; drag_modifiers[i] != nullptr; i++) {
+      const int drag_index = BLI_findindex(&ob->modifiers, drag_modifiers[i]);
+      if (drag_index == -1) {
+        continue;
+      }
+      if (i > 0) {
+        /* Place subsequent items directly after the previously moved item. */
+        drop_index += int(drag_index > drop_index);
+      }
+      ed::object::modifier_move_to_index(
+          nullptr, RPT_WARNING, ob, drag_modifiers[i], drop_index, true);
+    }
     ED_undo_push(C, "Reorder Modifier");
     return true;
   }
@@ -207,7 +233,7 @@ class ModifierItem : public ui::AbstractTreeViewItem {
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<ModifierDragController>(
-        static_cast<ModifierTreeView &>(get_tree_view()), modifier_data_);
+        static_cast<ModifierTreeView &>(get_tree_view()), object_.modifiers);
   }
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
