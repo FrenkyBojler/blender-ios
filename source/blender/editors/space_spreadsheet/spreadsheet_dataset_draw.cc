@@ -651,11 +651,6 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_geometry(const bke::GeometrySet &geometry, ui::TreeViewItemContainer &parent)
   {
     const Mesh *mesh = geometry.get_mesh();
-    /* Sometimes mesh component has no vertices but is not null, because mesh modifier evaluation
-     * adds an empty mesh. */
-    if (mesh && mesh->verts_num == 0) {
-      mesh = nullptr;
-    }
     this->build_tree_for_mesh(mesh, parent);
 
     const Curves *curves = geometry.get_curves();
@@ -679,6 +674,12 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_mesh(const Mesh *mesh, ui::TreeViewItemContainer &parent)
   {
+    /* Sometimes mesh component has no vertices but is not null, because mesh modifier evaluation
+     * adds an empty mesh. */
+    if (mesh && mesh->verts_num == 0) {
+      mesh = nullptr;
+    }
+
     auto &mesh_item = parent.add_tree_item<MeshViewItem>(mesh != nullptr);
     mesh_item.uncollapse_by_default();
     if (!mesh) {
