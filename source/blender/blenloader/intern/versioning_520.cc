@@ -440,19 +440,18 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             enum { MAINB_VECTORSCOPE = 3, MAINB_HISTOGRAM = 4, MAINB_RGBPARADE = 5 };
             switch (sseq->mainb) {
               case MAINB_VECTORSCOPE:
-                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_VECTORSCOPE;
+                sseq->scope = SEQ_DRAW_IMG_VECTORSCOPE;
                 break;
               case MAINB_HISTOGRAM:
-                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_HISTOGRAM;
+                sseq->scope = SEQ_DRAW_IMG_HISTOGRAM;
                 break;
               case MAINB_RGBPARADE:
-                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_RGBPARADE;
+                sseq->scope = SEQ_DRAW_IMG_RGBPARADE;
                 break;
               default:
-                sseq->scope = sseq->scope_order[0] = SEQ_DRAW_IMG_WAVEFORM;
+                sseq->scope = SEQ_DRAW_IMG_WAVEFORM;
                 break;
             }
-            sseq->scope_order_len = 1;
           }
         }
       }

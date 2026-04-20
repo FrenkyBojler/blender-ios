@@ -402,11 +402,9 @@ enum eSpaceSeq_ScopeType {
   SEQ_DRAW_IMG_IMBUF = (1 << 0), /* Deprecated. */
 
   SEQ_DRAW_IMG_WAVEFORM = (1 << 1),
-  SEQ_DRAW_IMG_VECTORSCOPE = (1 << 2),
-  SEQ_DRAW_IMG_HISTOGRAM = (1 << 3),
-  SEQ_DRAW_IMG_RGBPARADE = (1 << 4),
-  /* Note: Increment the size of `SpaceSeq.scope_order[]` in `DNA_space_types.h` when adding a new
-     scope. */
+  SEQ_DRAW_IMG_RGBPARADE = (1 << 2),
+  SEQ_DRAW_IMG_VECTORSCOPE = (1 << 3),
+  SEQ_DRAW_IMG_HISTOGRAM = (1 << 4),
 };
 
 /** #SpaceSeq.draw_flag */

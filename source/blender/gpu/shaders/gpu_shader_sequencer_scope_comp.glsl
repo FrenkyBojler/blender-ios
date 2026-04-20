@@ -9,9 +9,9 @@ COMPUTE_SHADER_CREATE_INFO(gpu_shader_sequencer_scope_raster)
 
 /* Match eSpaceSeq_ScopeType */
 #define SEQ_DRAW_IMG_WAVEFORM (1 << 1)
-#define SEQ_DRAW_IMG_VECTORSCOPE (1 << 2)
-#define SEQ_DRAW_IMG_HISTOGRAM (1 << 3)
-#define SEQ_DRAW_IMG_RGBPARADE (1 << 4)
+#define SEQ_DRAW_IMG_RGBPARADE (1 << 2)
+#define SEQ_DRAW_IMG_VECTORSCOPE (1 << 3)
+#define SEQ_DRAW_IMG_HISTOGRAM (1 << 4)
 
 /* Compute shader that rasterizes scope points into screen-sized
  * raster buffer, with accumulated R,G,B,A values in fixed point.

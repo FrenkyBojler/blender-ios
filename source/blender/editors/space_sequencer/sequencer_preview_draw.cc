@@ -735,7 +735,18 @@ static void sequencer_draw_scopes(Scene *scene,
 
   const rctf preview = preview_get_full_position(region);
 
-  int scopes_count = space_sequencer.scope_order_len;
+  Vector<short> scopes_list;
+  short scope_temp = space_sequencer.scope;
+  short scope_bit = (1 << 1);
+  while (scope_temp) {
+    if (space_sequencer.scope & scope_bit) {
+      scopes_list.append(scope_bit);
+    }
+
+    scope_temp = scope_temp >> 1;
+    scope_bit = scope_bit << 1;
+  }
+  int scopes_count = scopes_list.size();
   BLI_assert(scopes_count > 0);
 
   /* Draw black rectangle over scopes area. */
@@ -825,7 +836,7 @@ static void sequencer_draw_scopes(Scene *scene,
     GPU_texture_bind(input_texture, image_location);
 
     for (int i = 0; i < scopes_count; i++) {
-      short scp = space_sequencer.scope_order[i];
+      short scp = scopes_list[i];
 
       /* Skip CPU scopes. */
       if (ELEM(scp, SEQ_DRAW_IMG_HISTOGRAM)) {
@@ -908,7 +919,7 @@ static void sequencer_draw_scopes(Scene *scene,
   }
 
   for (int i = 0; i < scopes_count; i++) {
-    short scp = space_sequencer.scope_order[i];
+    short scp = scopes_list[i];
     /* Calculate partition for this scope. */
     area.xmin = preview.xmin + i * space_x_per_scope;
     area.xmax = area.xmin + space_x_per_scope;
