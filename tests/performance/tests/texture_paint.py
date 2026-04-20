@@ -7,9 +7,10 @@ import enum
 import pathlib
 
 
-class ObjectType(enum.IntEnum):
+class MeshType(enum.IntEnum):
     CUBE = 0
     MONKEY = 1
+    SUBDIV_3_MONKEY = 2
 
 
 class DataType(enum.IntEnum):
@@ -41,7 +42,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_scene(context: any, object: ObjectType, image_dimension: int, data_type: DataType):
+def prepare_scene(context: any, object: MeshType, image_dimension: int, data_type: DataType):
     """
     Prepare a clean state of the scene suitable for benchmarking
     """
@@ -59,10 +60,14 @@ def prepare_scene(context: any, object: ObjectType, image_dimension: int, data_t
     bpy.ops.object.delete(use_global=False)
     bpy.ops.outliner.orphans_purge()
 
-    if object == ObjectType.MONKEY:
+    if object == MeshType.MONKEY:
         bpy.ops.mesh.primitive_monkey_add(size=2, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
-    elif object == ObjectType.CUBE:
+    elif object == MeshType.CUBE:
         bpy.ops.mesh.primitive_cube_add(size=2, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+    elif object == MeshType.SUBDIV_3_MONKEY:
+        bpy.ops.mesh.primitive_monkey_add(size=2, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+        bpy.ops.object.subdivision_set(level=3, relative=False, ensure_modifier=True)
+        bpy.ops.object.modifier_apply(modifier="Subdivision")
     else:
         raise NotImplementedError
 
@@ -177,7 +182,7 @@ def _run_brush_test(args: dict):
 
 
 class TexturePaintBrushTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, object_type: ObjectType, dimension: int, data_type: DataType):
+    def __init__(self, filepath: pathlib.Path, object_type: MeshType, dimension: int, data_type: DataType):
         self.filepath = filepath
         self.object_type = object_type
         self.dimension = dimension
@@ -207,5 +212,5 @@ def generate(env):
     assert len(filepaths) == 1
 
     brush_tests = [TexturePaintBrushTest(filepaths[0], object_type, dimension, data_type)
-                   for object_type in ObjectType for dimension in DIMENSIONS for data_type in DataType]
+                   for object_type in MeshType for dimension in DIMENSIONS for data_type in DataType]
     return brush_tests
