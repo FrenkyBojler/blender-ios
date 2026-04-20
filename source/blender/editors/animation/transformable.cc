@@ -47,7 +47,7 @@ static void copy_span_into_mutable_span(const Span<float> value,
                                         const AxisFlag axis_flag = AXIS_FLAG_NONE)
 {
   BLI_assert(target.size() == value.size());
-  for (const int i : IndexRange(3)) {
+  for (const int i : value.index_range()) {
     if (!should_modify_axis(i, axis_flag)) {
       continue;
     }
@@ -130,6 +130,7 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
       break;
 
     default:
+      BLI_assert(this->mode <= ROT_MODE_ZYX);
       eulO_to_quat(quat, this->values.data(), this->mode);
       break;
   }
@@ -148,6 +149,7 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
       break;
 
     default:
+      BLI_assert(mode <= ROT_MODE_ZYX);
       converted.values.reinitialize(3);
       quat_to_eulO(converted.values.data(), mode, quat);
       break;
@@ -163,6 +165,7 @@ Rotation identity_rotation(const eRotationModes mode)
     case ROT_MODE_AXISANGLE:
       return {{0, 0, 1, 0}, mode};
     default:
+      BLI_assert(mode <= ROT_MODE_ZYX);
       return {{0, 0, 0}, mode};
   }
 }
@@ -176,13 +179,13 @@ Rotation rotation_interpolated(const Rotation &a, const Rotation &b, const float
   interpolated.values.reinitialize(a.values.size());
   switch (a.mode) {
     case ROT_MODE_QUAT:
-      interp_qt_qtqt(interpolated.values.data(), a.values.data(), b.values.data(), factor);
+      interp_qt_qtqt(interpolated.values.data(), a.values.data(), b_aligned.values.data(), factor);
       break;
 
     default:
       /* Should axis angle use a different interpolation mode? */
       for (int i : interpolated.values.index_range()) {
-        interpolated.values[i] = interpf(b.values[i], a.values[i], factor);
+        interpolated.values[i] = interpf(b_aligned.values[i], a.values[i], factor);
       }
       break;
   }
@@ -296,12 +299,14 @@ void Transformable::set_property(const PropertyType prop_type,
     case PropertyType::ROTATION: {
       const Array<float *> *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
+      if (rotation_array->size() > values.size()) {
+        /* Trying to set a rotation with different mode. Use `set_rotation` instead. */
+        BLI_assert_unreachable();
+        return;
+      }
+      /* Axis flags don't work with quaternion rotations. */
+      BLI_assert(axis_flag == AXIS_FLAG_NONE || eRotationModes(*rotation_mode_) != ROT_MODE_QUAT);
       for (int i : rotation_array->index_range()) {
-        if (i >= values.size()) {
-          /* Trying to set a rotation with different mode. Use `set_rotation` instead. */
-          BLI_assert_unreachable();
-          return;
-        }
         if (!should_modify_axis(i, axis_flag)) {
           continue;
         }
@@ -358,6 +363,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       break;
 
     case PropertyType::ROTATION: {
+      BLI_assert(*rotation_mode_ != ROT_MODE_QUAT);
       const Array<float *> *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
       Rotation rotation;
@@ -385,10 +391,10 @@ const Array<float *> *Transformable::get_rotation_array_from_mode(const eRotatio
       rotations_array = &rotations_[ROT_IDX_AXIS_ANGLE];
       break;
     default:
+      BLI_assert(mode <= ROT_MODE_ZYX);
       rotations_array = &rotations_[ROT_IDX_EULER];
       break;
   }
-  BLI_assert(!rotations_array->is_empty());
   return rotations_array;
 }
 
@@ -465,6 +471,7 @@ void Transformable::blend_rotation_to(const Rotation &target,
       break;
     }
     default: {
+      BLI_assert(current_mode <= ROT_MODE_ZYX);
       result.reinitialize(3);
       for (int i : IndexRange(3)) {
         result[i] = *((*rotations_array)[i]);

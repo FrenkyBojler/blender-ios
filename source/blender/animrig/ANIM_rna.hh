@@ -66,7 +66,7 @@ Vector<RNAPath> get_keyable_id_property_paths(const PointerRNA &ptr);
 /**
  * Returns the given property values as a float array. In case the property is not an array, the
  * array length is 1. Casts non-float values to float.
- * The array length is 0 if the given property type is not supported.
+ * Calling this with unsupported property types is invalid and returns an array of length 0.
  *
  * \note Only PROP_BOOLEAN, PROP_INT and PROP_FLOAT are supported.
  */

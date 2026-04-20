@@ -22,10 +22,6 @@ namespace blender {
 
 struct bPoseChannel;
 struct ID;
-struct PointerRNA;
-struct PropertyRNA;
-class StringRef;
-class StringRefNull;
 
 namespace ed {
 
