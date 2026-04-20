@@ -503,21 +503,10 @@ static void rna_NodeTreeInterfaceSocket_is_panel_toggle_set(PointerRNA *ptr, boo
     }
 
     io_socket.flag &= ~NODE_INTERFACE_SOCKET_PANEL_TOGGLE;
-    /* Move socket below the last output socket ("outputs before inputs" rule). */
-    int one_after_last_output = 0;
-    for (const int item_i : parent->items().index_range()) {
-      if (const auto *socket_item = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(
-              parent->items()[item_i]))
-      {
-        if (socket_item->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          one_after_last_output = item_i + 1;
-        }
-      }
-    }
-    if (one_after_last_output > 0) {
-      parent->move_item(io_socket.item, one_after_last_output);
-      ntree.tree_interface.tag_items_changed();
-    }
+    /* Panel toggles are always the first socket. Unsetting the flag may require reordering of
+     * sockets (inputs after outputs). Reinserting the item makes sure the position is valid. */
+    parent->move_item(io_socket.item, parent->item_position(io_socket.item));
+    ntree.tree_interface.tag_items_changed();
   }
 }
 
