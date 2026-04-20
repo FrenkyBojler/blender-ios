@@ -3983,6 +3983,8 @@ void merge_uvs(BevelState &bs, Vector<Array<float2>> &uv_attributes)
           }
 
           Vector<Vector<CornerInfo>> buckets;
+          const Mesh &mesh = bs.mesh_info.mesh;
+          const Span<int> mesh_corner_verts = mesh.corner_verts();
           for (const CornerInfo &inf : corners) {
             bool found_bucket = false;
             for (Vector<CornerInfo> &bucket : buckets) {
@@ -3994,18 +3996,24 @@ void merge_uvs(BevelState &bs, Vector<Array<float2>> &uv_attributes)
                 found_bucket = true;
               }
               else {
-                int rf1 = bs.newface_repfaces()[inf.nf];
-                int rf2 = bs.newface_repfaces()[binf.nf];
+                const int rf1 = bs.newface_repfaces()[inf.nf];
+                const int rf2 = bs.newface_repfaces()[binf.nf];
                 if (rf1 != -1 && rf2 != -1) {
-                  const int c1 = bke::mesh::face_find_corner_from_vert(
-                      bs.mesh_info.mesh.faces()[rf1], bs.mesh_info.mesh.corner_verts(), mesh_v);
-                  const int c2 = bke::mesh::face_find_corner_from_vert(
-                      bs.mesh_info.mesh.faces()[rf2], bs.mesh_info.mesh.corner_verts(), mesh_v);
-                  if (c1 != -1 && c2 != -1) {
-                    float2 orig_uv1 = bs.uv_map_info(uv_map_index).value(c1);
-                    float2 orig_uv2 = bs.uv_map_info(uv_map_index).value(c2);
-                    if (math::distance_squared(orig_uv1, orig_uv2) < 1e-8f) {
-                      found_bucket = true;
+                  const IndexRange face1 = mesh.faces()[rf1];
+                  const IndexRange face2 = mesh.faces()[rf2];
+                  const bool f1_has_v = mesh_corner_verts.slice(face1).contains(mesh_v);
+                  const bool f2_has_v = mesh_corner_verts.slice(face2).contains(mesh_v);
+                  if (f1_has_v && f2_has_v) {
+                    const int c1 = bke::mesh::face_find_corner_from_vert(
+                        face1, mesh_corner_verts, mesh_v);
+                    const int c2 = bke::mesh::face_find_corner_from_vert(
+                        face2, mesh_corner_verts, mesh_v);
+                    if (c1 != -1 && c2 != -1) {
+                      float2 orig_uv1 = bs.uv_map_info(uv_map_index).value(c1);
+                      float2 orig_uv2 = bs.uv_map_info(uv_map_index).value(c2);
+                      if (math::distance_squared(orig_uv1, orig_uv2) < 1e-8f) {
+                        found_bucket = true;
+                      }
                     }
                   }
                 }
