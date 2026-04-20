@@ -2670,6 +2670,11 @@ int handler_panel_region(bContext *C,
                          ARegion *region,
                          const Button *active_but)
 {
+  /* Handle release of dragged panel in separate handlers. */
+  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+    return WM_UI_HANDLER_CONTINUE;
+  }
+
   /* Scroll-bars can overlap panels now, they have handling priority. */
   if (view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
     return WM_UI_HANDLER_CONTINUE;
@@ -2680,8 +2685,6 @@ int handler_panel_region(bContext *C,
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      WM_tooltip_clear(C, CTX_wm_window(C));
-
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
         const bool already_active = STREQ(pc_dyn->idname,
@@ -2724,7 +2727,7 @@ int handler_panel_region(bContext *C,
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = handle_panel_category_cycling(event, region, active_but);
     }
-    if (event->type == EVT_PADPERIOD && event->val == KM_PRESS) {
+    if (event->type == EVT_PADPERIOD) {
       WM_tooltip_clear(C, CTX_wm_window(C));
       retval = panel_category_show_active_tab(region, event->xy);
     }

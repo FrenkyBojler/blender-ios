@@ -6157,7 +6157,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_UIFLAG2_PANEL_TABS_COMPACT);
   RNA_def_property_ui_text(prop,
                            "Compact Panel Tabs",
-                           "Display panel tabs in a compact size that shows icons if available");
+                           "Display panel tabs in a compact size that shows icons when available");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "viewport_aa", PROP_ENUM, PROP_NONE);
