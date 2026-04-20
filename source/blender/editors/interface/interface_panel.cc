@@ -2640,8 +2640,7 @@ static ARegion *WM_panel_category_tooltip_init(
   if (tab) {
     const int x = region->winrct.xmin + tab->rect.xmin;
     const int y = region->winrct.ymin + tab->rect.ymin;
-    return ui::tooltip_create_from_panel_category(
-        C, TIP_(region->runtime->category_tip_name), x, y);
+    return ui::tooltip_create_from_panel_category(C, TIP_(tab->idname), x, y);
   }
 
   return nullptr;
@@ -2734,7 +2733,6 @@ int handler_panel_region(bContext *C,
     {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
-        region->runtime->category_tip_name = pc_dyn->idname;
         WM_tooltip_timer_init_ex(
             C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init, 0.0f);
       }

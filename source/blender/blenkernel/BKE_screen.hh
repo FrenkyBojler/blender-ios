@@ -534,9 +534,6 @@ struct ARegionRuntime {
   /** Panel category to use between 'layout' and 'draw'. */
   const char *category = nullptr;
 
-  /** Currently-hovered category name for tooltips. */
-  std::string category_tip_name;
-
   /** Maps #ui::Block::name to ui::Block for faster lookups. */
   Map<std::string, ui::Block *> block_name_map;
   ListBaseT<ui::Block> uiblocks = {};
