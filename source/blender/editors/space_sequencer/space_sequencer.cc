@@ -62,16 +62,6 @@ static void sequencer_scopes_tag_refresh(ScrArea *area, const Scene *scene)
   seq::preview_cache_invalidate(const_cast<Scene *>(scene));
 }
 
-static bool sequencer_is_image_preview_view(const char view)
-{
-  return ELEM(view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW);
-}
-
-static bool sequencer_is_scopes_view(const char view)
-{
-  return view == SEQ_VIEW_SCOPES;
-}
-
 SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
 /* ******************** default callbacks for sequencer space ***************** */
