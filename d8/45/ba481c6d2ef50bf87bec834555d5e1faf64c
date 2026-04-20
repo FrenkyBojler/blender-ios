@@ -2,3 +2,4 @@ Referenced by commit 738f4fbc5e3, Revert "Fix T92636: Vector math node link disc
 Referenced by commit 6b4ca781085, Fix T92636: Vector math node link disconnects when loading old file
 Referenced by issue #91826, Inconsistent name separator used for duplicate node sockets names.
 Referenced by pull request #157590, Fix #157536: Crash when loading a file saved in v3.0
+Referenced by commit f09d9b15ddb904368a9a8d1039f7c62770749cba, Fix #157536: Crash when loading a file saved in v3.0
