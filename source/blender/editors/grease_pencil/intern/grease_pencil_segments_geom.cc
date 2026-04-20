@@ -265,6 +265,7 @@ static bke::CurvesGeometry create_curves_from_segments(
     int src_point_1;
     int src_point_2;
     float factor;
+    bool is_src;
   };
 
   Array<int> point_offsets(segment_offsets.size() + 1);
@@ -284,11 +285,11 @@ static bke::CurvesGeometry create_curves_from_segments(
         const float start_factor = segment.intersection_factor[start_side];
         const int2 start_edge = segment.edge(start_side);
 
-        point_to_interpolate.append({start_edge.x, start_edge.y, start_factor});
+        point_to_interpolate.append({start_edge.x, start_edge.y, start_factor, false});
       }
 
       segment.foreach_point(
-          [&](const int index) { point_to_interpolate.append({index, index, 0.0f}); });
+          [&](const int index) { point_to_interpolate.append({index, index, 0.0f, true}); });
 
       if (reversed) {
         point_to_interpolate.as_mutable_span().take_back(segment.points_num()).reverse();
@@ -299,7 +300,7 @@ static bke::CurvesGeometry create_curves_from_segments(
         const float end_factor = segment.intersection_factor[end_side];
         const int2 end_edge = segment.edge(end_side);
 
-        point_to_interpolate.append({end_edge.x, end_edge.y, end_factor});
+        point_to_interpolate.append({end_edge.x, end_edge.y, end_factor, false});
       }
     }
   }
@@ -377,7 +378,7 @@ static bke::CurvesGeometry create_curves_from_segments(
     for (const int i : point_to_interpolate.index_range()) {
       const InterpolatePoint &int_point = point_to_interpolate[i];
 
-      if (int_point.factor == 0.0f || int_point.factor == 1.0f) {
+      if (int_point.is_src) {
         continue;
       }
 
