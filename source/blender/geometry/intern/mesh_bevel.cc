@@ -5985,22 +5985,22 @@ static void set_vertex_mesh_reps(const int bv,
       }
       center_frep = facerep::find_center_face_rep(bv, false, bs);
     }
+    const int nf_start = bs.bevvert_newfaces()[bv][0];
     switch (pat.kind) {
       case MeshKind::Adj: {
-
         if (odd) {
           /* The center face is always face 0 in the pattern. */
-          repfaces[0] = center_frep;
+          repfaces[nf_start] = center_frep;
         }
         for (const int a : IndexRange(pat.num_anchors)) {
           SmallIntArray afaces = pat.faces_for_anchor(a);
           for (const int f : afaces) {
-            repfaces[f] = anchor_face_reps[a];
+            repfaces[nf_start + f] = anchor_face_reps[a];
           }
           if (odd) {
             SmallIntArray clinefaces = pat.faces_for_centerline(a);
             for (const int f : clinefaces) {
-              repfaces[f] = face_rep_tiebreaks[a];
+              repfaces[nf_start + f] = face_rep_tiebreaks[a];
             }
           }
         }
@@ -6009,7 +6009,7 @@ static void set_vertex_mesh_reps(const int bv,
       case MeshKind::TriFan:
       case MeshKind::TerminalPoly: {
         BLI_assert(num_faces == 1);
-        repfaces[0] = center_frep;
+        repfaces[nf_start] = center_frep;
         break;
       }
       default:
