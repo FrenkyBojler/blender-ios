@@ -377,13 +377,8 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
                 continue;
               }
               if (expand_cache.snap) {
-                const Span<int> faces = vert_to_face_map[vert];
-                for (const int face : faces) {
-                  if (expand_cache.snap_enabled_face_sets->contains(face_sets[face])) {
-                    enabled_verts[vert].set(true);
-                    break;
-                  }
-                }
+                enabled_verts[vert].set(face_set::vert_has_any_face_set(
+                    vert_to_face_map, face_sets, vert, *expand_cache.snap_enabled_face_sets));
                 continue;
               }
               enabled_verts[vert].set(

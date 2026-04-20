@@ -298,6 +298,22 @@ bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int 
   return false;
 }
 
+bool vert_has_any_face_set(GroupedSpan<int> vert_to_face_map,
+                           Span<int> face_sets,
+                           int vert,
+                           const Set<int> &allowed_face_sets)
+{
+  if (face_sets.is_empty()) {
+    return allowed_face_sets.contains(face_set_none_id);
+  }
+  for (const int face : vert_to_face_map[vert]) {
+    if (allowed_face_sets.contains(face_sets[face])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool vert_has_unique_face_set(const GroupedSpan<int> vert_to_face_map,
                               const Span<int> face_sets,
                               int vert)
