@@ -16,3 +16,4 @@ Referenced by issue #151909, OSL getmessage("trace", "geom:uv", trace_uv); not f
 Referenced by issue #95848, Cycles shading nodes missing updates when editing muted nodes
 Referenced by issue #156696, Blender 5.x cannot use the Shader Editor nodetree anymore for Freestyle Textures
 Referenced by pull request #157491, Fix #156696: Freestyle Line Style texture nodetree not working
+Referenced by commit 8570ebca7d5207cb931043830134175cab4c68b4, Fix #156696: Freestyle Line Style texture nodetree not working
