@@ -522,42 +522,57 @@ static bool drw_select_loop_pass(eDRWSelectStage stage, void *user_data)
   return continue_pass;
 }
 
+/** When the mode is locked, optionally override the filter (a special case). */
+static std::optional<eV3DSelectObjectFilter> view3d_select_filter_from_mode_lock_override(
+    const View3D *v3d, const Object *obact)
+{
+  /* The caller ensures this only runs when #SCE_OBJECT_MODE_LOCK is set.
+   * Only restrict selection to bones when the user turns on "Lock Object Modes".
+   * If the lock is off, skip this so other objects can still be selected, see #66950 & #125822. */
+
+  if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+    return std::nullopt;
+  }
+  if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) == 0) {
+    return std::nullopt;
+  }
+
+  /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
+  const Object *obpose = OBPOSE_FROM_OBACT(obact);
+  if (obpose == nullptr) {
+    const Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
+    if (obweight) {
+      /* Only use Armature pose selection, when connected armature is in pose mode. */
+      const Object *ob_armature = BKE_modifiers_is_deformed_by_armature(
+          const_cast<Object *>(obweight));
+      if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
+        return VIEW3D_SELECT_FILTER_WPAINT_POSE_MODE_LOCK;
+      }
+    }
+  }
+  if (obpose && obpose->mode == OB_MODE_POSE) {
+    return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE;
+  }
+
+  /* No pose override. */
+  return std::nullopt;
+}
+
 eV3DSelectObjectFilter ED_view3d_select_filter_from_mode(const Scene *scene,
                                                          const View3D *v3d,
                                                          const Object *obact)
 {
   const ToolSettings *ts = scene->toolsettings;
-
-  if (!(ts->object_flag & SCE_OBJECT_MODE_LOCK)) {
-    return VIEW3D_SELECT_FILTER_NOP;
+  if (ts->object_flag & SCE_OBJECT_MODE_LOCK) {
+    if (std::optional<eV3DSelectObjectFilter> filter_override =
+            view3d_select_filter_from_mode_lock_override(v3d, obact))
+    {
+      return *filter_override;
+    }
+    return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK;
   }
 
-  if (!(v3d->flag2 & V3D_HIDE_OVERLAYS) &&
-      /* Only restrict selection to bones when the user turns on "Lock Object Modes".
-       * If the lock is off, skip this so other objects can still be selected.
-       * See #66950 & #125822. */
-      (v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT))
-  {
-    /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
-    const Object *obpose = OBPOSE_FROM_OBACT(obact);
-    if (obpose == nullptr) {
-      const Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
-      if (obweight) {
-        /* Only use Armature pose selection, when connected armature is in pose mode. */
-        const Object *ob_armature = BKE_modifiers_is_deformed_by_armature(
-            const_cast<Object *>(obweight));
-        if (ob_armature && ob_armature->mode == OB_MODE_POSE) {
-          return VIEW3D_SELECT_FILTER_WPAINT_POSE_MODE_LOCK;
-        }
-      }
-    }
-    if (obpose && obpose->mode == OB_MODE_POSE) {
-      /* Any pose mode. */
-      return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE;
-    }
-  }
-
-  return VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK;
+  return VIEW3D_SELECT_FILTER_NOP;
 }
 
 /** Implement #VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK. */
