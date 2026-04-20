@@ -161,6 +161,7 @@ void bmo_flatten_exec(BMesh *bm, BMOperator *op)
         normal = view_direction;
         break;
       default:
+        BLI_assert_unreachable();
         normal = compute_best_fit_normal(group.verts);
         break;
     }
