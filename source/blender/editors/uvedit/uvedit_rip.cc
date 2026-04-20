@@ -890,11 +890,11 @@ static bool uv_rip_object(
   }
 
   if (edge_selected && !changed) {
-    BKE_report(reports, RPT_ERROR, "Rip failed, edge has no connected edges");
+    BKE_report(reports, RPT_ERROR, "Edge must have connected edges");
     return false;
   }
   else if (vert_selected && !changed) {
-    BKE_report(reports, RPT_ERROR, "Rip failed, vertex has no connected vertices");
+    BKE_report(reports, RPT_ERROR, "Vertex must have connected vertices");
     return false;
   }
 
