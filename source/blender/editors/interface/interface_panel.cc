@@ -2620,8 +2620,11 @@ static int handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static ARegion *WM_panel_category_tooltip_init(
-    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
+static ARegion *WM_panel_category_tooltip_init(bContext *C,
+                                               ARegion *region,
+                                               int * /*r_pass*/,
+                                               double * /*pass_delay*/,
+                                               bool * /*r_exit_on_event*/)
 {
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
