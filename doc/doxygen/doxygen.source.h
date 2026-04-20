@@ -66,11 +66,7 @@
  *  \ingroup blender
  */
 
-/** \defgroup cmpnodes Nodes (Compositor)
- *  \ingroup nodes
- */
-
- /** \defgroup funcnodes Nodes (Function)
+/** \defgroup funcnodes Nodes (Function)
  *  \ingroup nodes
  */
 
