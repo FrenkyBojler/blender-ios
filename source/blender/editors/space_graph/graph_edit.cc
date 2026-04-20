@@ -3029,11 +3029,16 @@ static wmOperatorStatus graph_fmodifier_delete_exec(bContext *C, wmOperator *op)
   /* Set notifier that things have changed. */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
-  BKE_reportf(op->reports,
-              RPT_INFO,
-              "Removed %d F-Modifier(s) from %d selected F-Curve(s)",
-              num_fmods_deleted,
-              num_fcurves_affected);
+  if (num_fmods_deleted == 0) {
+    BKE_report(op->reports, RPT_INFO, "No F-Modifiers found to delete");
+  }
+  else {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Removed %d F-Modifier(s) from %d selected F-Curve(s)",
+                num_fmods_deleted,
+                num_fcurves_affected);
+  }
 
   return OPERATOR_FINISHED;
 }
