@@ -170,10 +170,10 @@ class IMAGE_MT_select(Menu):
 
         layout.separator()
 
-        layout.menu("IMAGE_MT_select_trait")
+        layout.menu("IMAGE_MT_select_all_by_trait")
 
 
-class IMAGE_MT_select_trait(Menu):
+class IMAGE_MT_select_all_by_trait(Menu):
     bl_label = "Select All by Trait"
 
     def draw(self, _context):
@@ -1847,7 +1847,7 @@ classes = (
     IMAGE_MT_view,
     IMAGE_MT_view_zoom,
     IMAGE_MT_select,
-    IMAGE_MT_select_trait,
+    IMAGE_MT_select_all_by_trait,
     IMAGE_MT_select_linked,
     IMAGE_MT_image,
     IMAGE_MT_image_transform,
