@@ -77,11 +77,6 @@ class ModifierDragController : public ui::AbstractViewItemDragController {
 
     selected_count = 0;
     for (const auto [index, md] : modifiers_.enumerate()) {
-      if (index == 0) {
-        /* Prevent basis shape key from dragging. */
-        continue;
-      }
-
       if (md.flag & (eModifierFlag_Active | eModifierFlag_Select)) {
         selected_modifiers[selected_count] = &md;
         selected_count++;
