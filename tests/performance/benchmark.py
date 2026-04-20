@@ -236,7 +236,11 @@ def cmd_init(env: api.TestEnvironment, argv: list):
     # Initialize benchmarks folder.
     parser = argparse.ArgumentParser()
     parser.add_argument('--build', default=False, action='store_true')
+    parser.add_argument('--cmake-option', action='append', default=[], help='Additional CMake options to pass during build')
     args = parser.parse_args(argv)
+    # Extend CMake options if provided
+    if args.cmake_option:
+        env.cmake_options.extend(args.cmake_option)
     env.set_log_file(env.base_dir / 'setup.log', clear=False)
     env.init(args.build)
     env.unset_log_file()
@@ -317,7 +321,11 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
     parser.add_argument('config', nargs='?', default=None)
     parser.add_argument('test', nargs='?', default='*')
     parser.add_argument('--count', default=1, type=int, help="Number of runs to perform (default=1)")
+    parser.add_argument('--cmake-option', action='append', default=[], help='Additional CMake options to pass during build')
     args = parser.parse_args(argv)
+    # Extend CMake options if provided
+    if args.cmake_option:
+        env.cmake_options.extend(args.cmake_option)
 
     exit_code = 0
 
