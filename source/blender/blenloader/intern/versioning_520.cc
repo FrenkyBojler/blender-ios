@@ -483,6 +483,15 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       brush.mesh_automasking_settings->cavity_curve_op = nullptr;
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 21)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.gpencil_settings->flag &= GP_BRUSH_TRIM_TOOL_JOIN_CORNER;
+        brush.gpencil_settings->corner_type = GP_BRUSH_CORNER_TYPE_SHARP;
+      }
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
