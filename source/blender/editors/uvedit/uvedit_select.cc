@@ -6098,8 +6098,8 @@ void UV_OT_select_overlap(wmOperatorType *ot)
 }
 
 enum class UVWinding {
-  Positive = 1,
-  Negative = -1,
+  Positive = 0,
+  Negative = 1,
 };
 
 static wmOperatorStatus uv_select_by_winding_exec(bContext *C, wmOperator *op)
