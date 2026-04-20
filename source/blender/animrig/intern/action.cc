@@ -1935,8 +1935,15 @@ FCurve &Channelbag::fcurve_clone(const FCurve &old_fcurve,
 {
   FCurve *new_fcurve = this->fcurve_find({new_path, new_array_index});
   if (new_fcurve) {
-    MEM_delete(new_fcurve->bezt);
-    new_fcurve->bezt = MEM_dupalloc(old_fcurve.bezt);
+    if (new_fcurve->bezt) {
+      MEM_delete(new_fcurve->bezt);
+      new_fcurve->bezt = MEM_dupalloc(old_fcurve.bezt);
+    }
+    else if (new_fcurve->fpt) {
+      MEM_delete(new_fcurve->fpt);
+      new_fcurve->fpt = MEM_dupalloc(old_fcurve.fpt);
+    }
+    new_fcurve->totvert = old_fcurve.totvert;
   }
   else {
     new_fcurve = BKE_fcurve_copy(&old_fcurve);
