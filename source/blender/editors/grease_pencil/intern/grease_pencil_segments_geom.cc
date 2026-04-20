@@ -504,8 +504,6 @@ static void find_intersections_between_curve_and_curves(
             continue;
           }
 
-          r_inters_per_curves[curve_i].append(r_intersections.size());
-          r_inters_per_curves[curve_j].append(r_intersections.size());
           r_inters_per_curves[curve_i].append(std::pair<int, bool>(r_intersections.size(), false));
           r_inters_per_curves[curve_j].append(std::pair<int, bool>(r_intersections.size(), true));
 
