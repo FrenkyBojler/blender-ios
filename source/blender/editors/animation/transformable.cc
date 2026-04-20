@@ -33,16 +33,7 @@ static bool should_modify_axis(const int index, const AxisFlag axis_flag)
   return axis_flag & (1 << index);
 }
 
-static Array<float> array_from_span(const Span<float> value)
-{
-  Array<float> copy(value.size());
-  for (int i : value.index_range()) {
-    copy[i] = value[i];
-  }
-  return copy;
-}
-
-static Array<float> array_from_span(const Span<float *> value)
+static Array<float> copy_pointers_to_values(const Span<float *> value)
 {
   Array<float> copy(value.size());
   for (int i : value.index_range()) {
@@ -240,6 +231,12 @@ Transformable::Transformable(Object &owner_id, bPoseChannel &pchan)
   rna_path_from_id_ = get_pose_bone_rna_path(pchan);
 }
 
+template<> bPoseChannel *Transformable::data<bPoseChannel *>() const
+{
+  BLI_assert(type_ == Type::POSE_BONE);
+  return static_cast<bPoseChannel *>(data_);
+}
+
 StringRefNull Transformable::rna_path() const
 {
   return rna_path_from_id_;
@@ -272,15 +269,15 @@ Array<float> Transformable::get_property(const PropertyType prop_type) const
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
-      return array_from_span(location_);
+      return location_.as_span();
 
     case PropertyType::ROTATION: {
       const Array<float *> *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
-      return array_from_span(*rotation_array);
+      return copy_pointers_to_values(*rotation_array);
     }
     case PropertyType::SCALE:
-      return array_from_span(scale_);
+      return scale_.as_span();
   }
 
   BLI_assert_unreachable();
@@ -340,7 +337,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       Rotation rotation;
       /* Assuming the rotation mode. See docstring of function. */
       rotation.mode = eRotationModes(*rotation_mode_);
-      rotation.values = array_from_span(target);
+      rotation.values = target;
       blend_rotation_to(rotation, factor, axis_flag);
       break;
     }
@@ -401,7 +398,7 @@ Rotation Transformable::get_rotation() const
   rotation.mode = eRotationModes(*rotation_mode_);
   const Array<float *> *rotations_array = get_rotation_array_from_mode(rotation.mode);
   BLI_assert(rotations_array != nullptr);
-  rotation.values = array_from_span(*rotations_array);
+  rotation.values = copy_pointers_to_values(*rotations_array);
   return rotation;
 }
 

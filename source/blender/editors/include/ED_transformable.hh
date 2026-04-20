@@ -12,7 +12,6 @@
 #pragma once
 
 #include "BLI_array.hh"
-#include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
 #include "DNA_action_types.h"
@@ -43,12 +42,6 @@ enum AxisFlag : int8_t {
 };
 
 /**
- * Interpolated the values linearly based on `factor` and returns a new Array. Asserts that boths
- * spans are the same length. With the factor at `0` the values will match `a`.
- */
-Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
-
-/**
  * Describes a rotation in a specific mode and can be used to convert into other modes.
  */
 struct Rotation {
@@ -61,19 +54,6 @@ struct Rotation {
    */
   Rotation converted_to_mode(eRotationModes mode) const;
 };
-
-/**
- * Returns a rotation representing "no rotation" for the given mode.
- */
-Rotation identity_rotation(eRotationModes mode);
-/**
- * Returns a new rotation, interpolated between `a` and `b` based on `factor`. If `factor` is 0
- * the result is `a`.
- * If the rotation mode on `a` and `b` does not match, then `b` is converted into the mode of `a`
- * first. The returned rotation is always in the rotation mode of `a`.
- * Quaternion rotations use spherical interpolation, all other modes use linear.
- */
-Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float factor);
 
 /**
  * Provides a common interface to transform values for multiple structs.
@@ -92,6 +72,7 @@ class Transformable {
  private:
   Type type_;
   ID *owner_id_;
+  /* The struct wrapped by the Transformable. For possible types see `Type`. */
   void *data_;
 
   /* This is the path from the owner ID to the struct that the Transformable represents. Has to be
@@ -101,9 +82,12 @@ class Transformable {
   /* We are assuming here that the ground truth of transforms is store in separate loc rot scale
    * and not in a matrix, thus skew is not supported. */
   MutableSpan<float> location_;
-  /* Rotation can be expressed different modes, which are stored in separate arrays. We have to use
-   * an Array of float* because the angle of axisangle is a separate float property. */
+  /* Rotation can be expressed in different modes, which are stored in separate arrays. We have to
+   * use an Array of float* because the angle of axisangle is a separate float property. This is in
+   * contrast to e.g. `location_` which is always a float array so it can be referenced with a
+   * `MutableSpan`. For the order of elements, see `RotationModeIndices` in `transformable.cc`. */
   Array<Array<float *>> rotations_;
+  /* Points to an enum with the current rotation mode. See `eRotationModes`. */
   short *rotation_mode_;
   MutableSpan<float> scale_;
 
@@ -117,6 +101,7 @@ class Transformable {
   /* There has to be a constructor for every struct supported. */
   /* Constructor for pose bones. */
   Transformable(Object &owner_id, bPoseChannel &pchan);
+  /* TODO (christoph): Add object support. */
 
   Type type() const
   {
@@ -128,10 +113,7 @@ class Transformable {
     return owner_id_;
   }
 
-  void *data() const
-  {
-    return data_;
-  }
+  template<typename T> T data() const;
 
   /* Returns the rna path from the ID to the struct represented by this transformable. If the
    * struct is an ID this is an empty string. */
@@ -140,6 +122,28 @@ class Transformable {
    * Returns a string to the given property type.
    */
   std::string rna_path_to_property(PropertyType prop_type) const;
+
+  /**
+   * Returns a copy of the rotation in the mode the transformable is currently in.
+   */
+  Rotation get_rotation() const;
+  /**
+   * Sets the rotation for the mode the transformable is currently in. If that doesn't match with
+   * the given rotation, the `value` is converted.
+   */
+  void set_rotation(const Rotation &value);
+  /**
+   * Returns the current rotation mode of the transformable.
+   */
+  eRotationModes get_rotation_mode() const;
+
+  /**
+   * Blends the rotation to the given `target`. If the rotation mode of the transformable and that
+   * of the `target` does not match, the `target` is converted. This uses the correct interpolation
+   * math depending on the rotation mode (LERP for euler, SLERP for quaternion). At `factor` 0, the
+   * current rotation remains unchanged.
+   */
+  void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
 
   /**
    * Returns a copy of the property values for the given property type.
@@ -169,28 +173,26 @@ class Transformable {
    * Overloaded function that blends all values of the given property type to the same float.
    */
   void blend_property_to(PropertyType prop_type, float target, float factor, AxisFlag axis_flag);
-
-  /**
-   * Returns a copy of the rotation in the mode the transformable is currently in.
-   */
-  Rotation get_rotation() const;
-  /**
-   * Sets the rotation for the mode the transformable is currently in. If that doesn't match with
-   * the given rotation, the `value` is converted.
-   */
-  void set_rotation(const Rotation &value);
-  /**
-   * Returns the current rotation mode of the transformable.
-   */
-  eRotationModes get_rotation_mode() const;
-
-  /**
-   * Blends the rotation to the given `target`. If the rotation mode of the transformable and that
-   * of the `target` does not match, the `target` is converted. This uses the correct interpolation
-   * math depending on the rotation mode.
-   */
-  void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
 };
+
+/**
+ * Returns a rotation representing "no rotation" for the given mode.
+ */
+Rotation identity_rotation(eRotationModes mode);
+/**
+ * Returns a new rotation, interpolated between `a` and `b` based on `factor`. If `factor` is 0
+ * the result is `a`.
+ * If the rotation mode on `a` and `b` does not match, then `b` is converted into the mode of `a`
+ * first. The returned rotation is always in the rotation mode of `a`.
+ * Quaternion rotations use spherical interpolation, all other modes use linear.
+ */
+Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float factor);
+
+/**
+ * Interpolate the values linearly based on `factor` and returns a new Array. Asserts that boths
+ * spans are the same length. With the factor at `0` the values will match `a`.
+ */
+Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
 
 }  // namespace ed
 }  // namespace blender
