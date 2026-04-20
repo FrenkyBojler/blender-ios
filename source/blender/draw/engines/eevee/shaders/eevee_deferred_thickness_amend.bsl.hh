@@ -9,11 +9,13 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
+#include "infos/eevee_light_infos.hh"
 #include "infos/eevee_shadow_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(draw_view)
 SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 SHADER_LIBRARY_CREATE_INFO(eevee_shadow_data)
+SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 
 #include "draw_view_lib.glsl"
 #include "eevee_gbuffer_lib.glsl"
@@ -90,19 +92,13 @@ struct FromShadowEvalCtx {
 }  // namespace eevee::thickness
 
 namespace eevee {
-template void light::foreach_visible<thickness::FromShadowEvalCtx>(const LightRenderData &,
-                                                                   float2,
-                                                                   float,
-                                                                   thickness::FromShadowEvalCtx);
-}  // namespace eevee
-
-namespace eevee {
 
 struct ThicknessAmend {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo eevee_sampling_data;
   [[legacy_info]] ShaderCreateInfo eevee_shadow_data;
   [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
+  [[legacy_info]] ShaderCreateInfo eevee_light_data;
 
   [[sampler(0)]] usampler2DArray gbuf_header_tx;
   [[image(0, read_write, UNORM_16_16)]] image2DArray gbuf_normal_img;
@@ -123,7 +119,6 @@ void amend_vert([[vertex_id]] const int vert_id,
 /* Early fragment test is needed to discard fragment that do not need this processing. */
 [[fragment]] [[early_fragment_tests]]
 void amend_frag([[resource_table]] ThicknessAmend &srt,
-                [[resource_table]] const LightRenderData &lrd,
                 [[in]] const VertOut &v_out,
                 [[frag_coord]] const float4 frag_co)
 {
@@ -155,7 +150,16 @@ void amend_frag([[resource_table]] ThicknessAmend &srt,
       .pcf_random = pcg4d(float4(frag_co.xyz, sampling_rng_1D_get(SAMPLING_SHADOW_X))).xy,
   };
 
-  light::foreach_visible(lrd, frag_co.xy, vPz, ctx);
+  LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
+    ctx.eval_directional(l_idx, light_buf[l_idx]);
+  }
+  LIGHT_FOREACH_END
+
+  float2 pixel = frag_co.xy;
+  LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, pixel, vPz, l_idx) {
+    ctx.eval_local(l_idx, light_buf[l_idx]);
+  }
+  LIGHT_FOREACH_END
 
   /* The apparent thickness of an object behind its surface considering all shadow maps
    * available. If no shadow-map has a record of the other side of the surface, do not amend
