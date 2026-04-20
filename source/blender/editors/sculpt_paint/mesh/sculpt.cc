@@ -233,7 +233,7 @@ int vert_face_set_max_get(const GroupedSpan<int> vert_to_face_map,
   return face_set;
 }
 
-int vert_face_set_max_get(const SubdivCCG &subdiv_ccg, const Span<int> face_sets, const int grid)
+int vert_face_set_get(const SubdivCCG &subdiv_ccg, const Span<int> face_sets, const int grid)
 {
   const int face = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, grid);
   return face_sets[face];

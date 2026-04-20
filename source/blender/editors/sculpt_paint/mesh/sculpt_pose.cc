@@ -1271,12 +1271,12 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
             is_weighted[to_v_i].set();
 
             if (vert_inside_brush_radius(to_v_position, pose_initial_co, radius, symm)) {
-              const int visited_face_set = face_set::vert_face_set_max_get(
+              const int visited_face_set = face_set::vert_face_set_get(
                   subdiv_ccg, face_sets, to_v.grid_index);
               visited_face_sets.add(visited_face_set);
             }
             else if (symmetry_check) {
-              current_data.face_set = face_set::vert_face_set_max_get(
+              current_data.face_set = face_set::vert_face_set_get(
                   subdiv_ccg, face_sets, to_v.grid_index);
               visited_face_sets.add(current_data.face_set);
             }
@@ -1329,7 +1329,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
 
           BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, to_v, false, neighbors);
           for (const SubdivCCGCoord neighbor : neighbors.coords) {
-            const int next_face_set_candidate = face_set::vert_face_set_max_get(
+            const int next_face_set_candidate = face_set::vert_face_set_get(
                 subdiv_ccg, face_sets, neighbor.grid_index);
 
             /* Check if we can get a valid face set for the next iteration from this neighbor. */

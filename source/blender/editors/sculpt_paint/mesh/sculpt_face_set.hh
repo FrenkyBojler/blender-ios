@@ -28,8 +28,11 @@ struct SubdivCCGCoord;
 namespace ed::sculpt_paint::face_set {
 
 int active_face_set_get(const Object &object);
+
+/* TODO: vert_face_set_max_get should likely be avoided and existing usages cleaned up, since by
+ * definition, a vertex can be associated to more than a single face set. */
 int vert_face_set_max_get(GroupedSpan<int> vert_to_face_map, Span<int> face_sets, int vert);
-int vert_face_set_max_get(const SubdivCCG &subdiv_ccg, Span<int> face_sets, int grid);
+int vert_face_set_get(const SubdivCCG &subdiv_ccg, Span<int> face_sets, int grid);
 int vert_face_set_max_get(int face_set_offset, const BMVert &vert);
 
 Set<int> vert_face_sets_get(GroupedSpan<int> vert_to_face_map, Span<int> face_sets, int vert);
