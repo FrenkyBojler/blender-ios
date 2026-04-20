@@ -1407,6 +1407,10 @@ void OSLCompiler::parameter_color_array(const char *name, const array<float3> &f
 
 void OSLCompiler::parameter_string_array(const char *name, const array<ustring> &a)
 {
+  if (a.empty()) {
+    return;
+  }
+
   TypeDesc type = TypeString;
   type.arraylen = a.size();
   ss->Parameter(*current_group, name, type, a.data());
