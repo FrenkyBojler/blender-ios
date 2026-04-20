@@ -2265,11 +2265,14 @@ class _defs_grease_pencil_paint:
             brush = context.tool_settings.gpencil_paint.brush
             gp_settings = brush.gpencil_settings
             row = layout.row()
-            row.use_property_split = False
             row.prop(gp_settings, "use_active_layer_only")
+            row = layout.row()
             row.prop(gp_settings, "use_keep_caps_eraser")
-            row.prop(gp_settings, "use_join_corners")
-            row.prop(gp_settings, "corner_type")
+            row = layout.row(align=True, heading="Join Corners")
+            row.prop(gp_settings, "use_join_corners", text="")
+            sub = row.row(align=True)
+            sub.active = gp_settings.use_join_corners
+            sub.prop(gp_settings, "corner_type", text="")
 
         return dict(
             idname="builtin.trim",
