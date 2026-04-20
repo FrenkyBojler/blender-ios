@@ -1,2 +1,3 @@
 Referenced by issue #92036, Cycles: `Magic Texture` in Volumetric World Shaders render differently with the CPU and GPU
 Referenced by pull request #157532, Fix: Cycles magic texture differs from OSL and EEVEE
+Referenced by commit 577d93f2834ec3e7fe440bdca7343fa5dac789cd, Fix: Cycles magic texture differs from OSL and EEVEE
