@@ -2638,9 +2638,8 @@ static ARegion *WM_panel_category_tooltip_init(
   }
 
   if (tab) {
-    const int x = tab->rect.xmax + region->winrct.xmin +
-                  int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC);
-    const int y = tab->rect.ymax + region->winrct.ymin + int(4.0f * UI_SCALE_FAC);
+    const int x = region->winrct.xmin + tab->rect.xmin;
+    const int y = region->winrct.ymin + tab->rect.ymin;
     return ui::tooltip_create_from_panel_category(
         C, TIP_(region->runtime->category_tip_name), x, y);
   }
