@@ -111,15 +111,14 @@ MaterialModule::~MaterialModule()
 void MaterialModule::begin_sync()
 {
   float frame = BKE_scene_frame_get(inst_.scene);
-  inst_.uniform_data.data.scene.time_changed = false;
+  
+  bool time_change = assign_if_different(material_time,
+                                      float(material_frame / inst_.scene->frames_per_second()));
+  bool frame_change = assign_if_different(material_frame, frame);
+  material_time_changed = (time_change || frame_change);
 
-  if (frame != inst_.uniform_data.data.scene.frame_last_synced) {
-    inst_.uniform_data.data.scene.frame_last_synced = frame;
-    inst_.uniform_data.data.scene.time_changed = true;
-
-    inst_.uniform_data.data.scene.time = frame / inst_.scene->frames_per_second();
-    inst_.uniform_data.data.scene.frame = frame;
-  }
+  inst_.uniform_data.data.scene.time = material_time;
+  inst_.uniform_data.data.scene.frame = material_frame;
 
   queued_shaders_count = 0;
   queued_textures_count = 0;

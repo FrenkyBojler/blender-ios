@@ -149,7 +149,7 @@ void SyncModule::sync_common(const ObjectHandle &ob_handle,
   float inflate_bounds = 0.0f;
   bool use_scene_time = false;
 
-  bool time_changed = inst_.uniform_data.data.scene.time_changed;
+  bool time_changed = inst_.materials.material_time_changed;
 
   for (const Material *material : materials) {
     has_volume |= material->has_volume;
