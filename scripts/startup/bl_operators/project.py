@@ -492,8 +492,16 @@ class PROJECT_OP_AddVariable(Operator):
 
     def execute(self, context):
         var = bpy.data.project.variables.new()
-        var.name = "Variable"
         var.type = self.variable_type
+        match self.variable_type:
+            case 'INTEGER':
+                var.name = "integer_variable"
+            case 'FLOAT':
+                var.name = "float_variable"
+            case 'STRING':
+                var.name = "string_variable"
+            case 'FILEPATH':
+                var.name = "filepath_variable"
 
         return {'FINISHED'}
 
