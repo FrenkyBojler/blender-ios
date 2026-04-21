@@ -484,8 +484,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  // XXX: Bump subversion.
-  {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 21)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_SHADER) {
         for (bNode &node : node_tree->nodes) {
