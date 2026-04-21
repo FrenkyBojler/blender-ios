@@ -312,7 +312,7 @@ static void rna_BoneCollection_parent_set(PointerRNA *ptr,
 static int rna_BoneCollections_active_index_get(PointerRNA *ptr)
 {
   bArmature *arm = static_cast<bArmature *>(ptr->data);
-  return arm->runtime.active_collection_index;
+  return arm->runtime->active_collection_index;
 }
 
 static void rna_BoneCollections_active_index_set(PointerRNA *ptr, const int bone_collection_index)
@@ -2025,7 +2025,7 @@ static void rna_def_armature_collections(BlenderRNA *brna, PropertyRNA *cprop)
 
   prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "BoneCollection");
-  RNA_def_property_pointer_sdna(prop, nullptr, "runtime.active_collection");
+  RNA_def_property_pointer_sdna(prop, nullptr, "runtime->active_collection");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_pointer_funcs(
@@ -2034,7 +2034,7 @@ static void rna_def_armature_collections(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_update(prop, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 
   prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "runtime.active_collection_index");
+  RNA_def_property_int_sdna(prop, nullptr, "runtime->active_collection_index");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
   RNA_def_property_ui_text(
