@@ -151,13 +151,15 @@ void amend_frag([[resource_table]] ThicknessAmend &srt,
   };
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
-    ctx.eval_directional(l_idx, light_buf[l_idx]);
+    LightData light = light_buf[l_idx];
+    ctx.eval_directional(l_idx, light);
   }
   LIGHT_FOREACH_END
 
   float2 pixel = frag_co.xy;
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, pixel, vPz, l_idx) {
-    ctx.eval_local(l_idx, light_buf[l_idx]);
+    LightData light = light_buf[l_idx];
+    ctx.eval_local(l_idx, light);
   }
   LIGHT_FOREACH_END
 
