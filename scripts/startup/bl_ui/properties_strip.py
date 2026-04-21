@@ -1067,6 +1067,7 @@ class STRIP_PT_adjust_color(StripButtonsPanel, Panel):
         col.prop(strip, "multiply_alpha")
         col.prop(strip, "use_float", text="Convert to Float")
 
+
 class STRIP_PT_notes(StripButtonsPanel, Panel):
     bl_label = "Notes"
     bl_options = {'DEFAULT_CLOSED'}
@@ -1083,6 +1084,7 @@ class STRIP_PT_notes(StripButtonsPanel, Panel):
 
         col = layout.column()
         col.textbox(strip, "notes", textbox_state=strip.notes_textbox_state)
+
 
 class STRIP_PT_custom_props(StripButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
