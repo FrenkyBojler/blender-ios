@@ -96,8 +96,8 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
                                        DENOISING_PASS_NO_NORMAL_PASS_REFLECTIONS) == 0;
   const bool use_albedo_reflections = (kernel_data.film.denoising_pass_flag &
                                        DENOISING_PASS_NO_ALBEDO_PASS_REFLECTIONS) == 0;
-  const float feature_weight_normal = use_normal_reflections ? feature_weight : 1.0;
-  const float feature_weight_albedo = use_albedo_reflections ? feature_weight : 1.0;
+  const float feature_weight_normal = use_normal_reflections ? feature_weight : 1.0f;
+  const float feature_weight_albedo = use_albedo_reflections ? feature_weight : 1.0f;
 
   const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
       state, path, denoising_feature_throughput);
