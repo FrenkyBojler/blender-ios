@@ -757,9 +757,11 @@ class RemoteAssetListingDownloader:
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
-        percentage = downloaded_bytes / content_length_bytes * 100
-        self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
-        # logger.info("File download progress: %.0f%%", percentage)
+        if content_length_bytes > 0:
+            percentage = downloaded_bytes / content_length_bytes * 100
+            self.report({'INFO'}, "File download progress: {:.0f}%".format(percentage))
+        else:
+            self.report({'INFO'}, "File download progress: {} bytes".format(downloaded_bytes))
 
     def download_finished(
         self,

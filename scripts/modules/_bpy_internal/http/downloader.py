@@ -245,17 +245,24 @@ class ConditionalDownloader:
         """
 
         # Determine how many bytes are expected.
+        #
+        # The Content-Length header is not always present: servers that apply
+        # compression (or chunked transfer encoding) on the fly may legitimately
+        # omit it and signal end-of-body by closing the connection. In that case
+        # we stream until EOF and rely on `max_size_bytes` to bound the download.
         content_length_str: str = stream.headers.get("Content-Length") or ""
         try:
             content_length = int(content_length_str, base=10)
+            content_length_known = True
         except ValueError:
-            # TODO: add support for this case.
-            raise ContentLengthUnknownError(http_req_descr) from None
+            content_length = 0
+            content_length_known = False
 
         # Before actually downloading, check that the size is below the limit.
         # During downloading, it's checked that the number of streamed bytes
-        # doesn't get larger than the declared content length.
-        if self.max_size_bytes > 0 and content_length > self.max_size_bytes:
+        # doesn't get larger than the declared content length (or, when that is
+        # unknown, the configured maximum).
+        if content_length_known and self.max_size_bytes > 0 and content_length > self.max_size_bytes:
             raise ContentLengthTooBigError(http_req_descr, self.max_size_bytes, content_length)
 
         # The Content-Length header, obtained above, indicates the number of
@@ -294,8 +301,12 @@ class ConditionalDownloader:
                     http_req_descr, content_length, num_downloaded_bytes
                 )
 
-                if num_downloaded_bytes > content_length:
+                if content_length_known and num_downloaded_bytes > content_length:
                     raise ContentLengthError(http_req_descr, content_length, num_downloaded_bytes)
+                if not content_length_known and self.max_size_bytes > 0 \
+                        and num_downloaded_bytes > self.max_size_bytes:
+                    raise ContentLengthTooBigError(
+                        http_req_descr, self.max_size_bytes, num_downloaded_bytes)
 
             # Download and process chunks until there are no more left.
             while chunk := stream.raw.read(self.chunk_size):
@@ -311,7 +322,7 @@ class ConditionalDownloader:
                 write_and_report(decoder.flush())
                 assert decoder.eof
 
-        if num_downloaded_bytes != content_length:
+        if content_length_known and num_downloaded_bytes != content_length:
             raise ContentLengthError(http_req_descr, content_length, num_downloaded_bytes)
 
         meta = HTTPMetadata(
@@ -706,13 +717,20 @@ class BackgroundDownloader:
 
         Keeps track of internal bookkeeping.
         """
-        self._logger.debug(
-            "Download progress %s: %d of %d: %.0f%%",
-            http_req_descr.url,
-            downloaded_bytes,
-            content_length_bytes,
-            downloaded_bytes / content_length_bytes * 100,
-        )
+        if content_length_bytes > 0:
+            self._logger.debug(
+                "Download progress %s: %d of %d: %.0f%%",
+                http_req_descr.url,
+                downloaded_bytes,
+                content_length_bytes,
+                downloaded_bytes / content_length_bytes * 100,
+            )
+        else:
+            self._logger.debug(
+                "Download progress %s: %d bytes (total size unknown)",
+                http_req_descr.url,
+                downloaded_bytes,
+            )
 
     def download_finished(
         self,
