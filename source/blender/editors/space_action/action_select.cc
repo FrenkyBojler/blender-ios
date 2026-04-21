@@ -2187,22 +2187,27 @@ void ACTION_OT_select_by_type(wmOperatorType *ot)
 {
   ot->name = "Select by Type";
   ot->idname = "ACTION_OT_select_by_type";
-  ot->description = "Select All keyframes of the given type";
+  ot->description = "Select all keyframes of the given type";
 
   ot->exec = select_by_type_exec;
   ot->poll = ED_operator_action_active;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  PropertyRNA *prop = RNA_def_boolean(
-      ot->srna,
-      "extend",
-      true,
-      "Extend Select",
-      "Toggle keyframe selection instead of leaving newly selected keyframes only");
+  PropertyRNA *prop = RNA_def_boolean(ot->srna,
+                                      "extend",
+                                      true,
+                                      "Extend Selection",
+                                      "Keeps the current selection and adds the given type to it. "
+                                      "If disabled, only keys of the type will be selected");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  RNA_def_enum(ot->srna, "type", rna_enum_beztriple_keyframe_type_items, 0, "Type", "");
+  RNA_def_enum(ot->srna,
+               "type",
+               rna_enum_beztriple_keyframe_type_items,
+               0,
+               "Type",
+               "The type of keyframe to select");
 }
 
 /** \} */
