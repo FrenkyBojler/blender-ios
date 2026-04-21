@@ -713,6 +713,14 @@ struct bArmature_Runtime {
   int active_collection_index = 0;
   uint8_t _pad0[4] = {};
   struct BoneCollection *active_collection = nullptr;
+
+  /**
+   * Indexable storage for bones. The bone hierarchy is stored depth-first, so a bone is followed
+   * by its children.
+   *
+   * Used by bPoseChan::bone_get() to obtain a bone pointer by index.
+   */
+  Array<Bone *> bones;
 };
 
 struct SelectedBonesResult {

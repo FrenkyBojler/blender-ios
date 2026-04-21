@@ -398,16 +398,6 @@ struct Bone {
   Bone_Runtime runtime;
 };
 
-
-/**
- * Indexable storage for bones. The bone hierarchy is stored depth-first, so a bone is followed by
- * its children.
- *
- * Used by bPoseChan::bone_get() to obtain a bone pointer by index.
- */
-#ifdef __cplusplus
-  blender::Array<Bone *> bones;
-#endif
 struct bArmature {
 #ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(bArmature)
