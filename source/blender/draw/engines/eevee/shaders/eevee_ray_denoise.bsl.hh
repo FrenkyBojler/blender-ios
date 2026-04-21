@@ -36,6 +36,17 @@ SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
 namespace eevee::raytracing::denoise {
 
+float4 bilinear_weights_from_subpixel_coord(float2 co)
+{
+  /* From top left in clockwise order. */
+  float4 weights;
+  weights.x = (1.0f - co.x) * co.y;
+  weights.y = co.x * co.y;
+  weights.z = co.x * (1.0f - co.y);
+  weights.w = (1.0f - co.x) * (1.0f - co.y);
+  return weights;
+}
+
 struct TileBuffer {
   [[storage(4, read)]] uint (&tiles_coord_buf)[];
 
@@ -78,6 +89,29 @@ struct DenoiseSpatial {
     imageStoreFast(out_variance_img, texel, float4(0.0f));
     imageStoreFast(out_hit_depth_img, texel, float4(0.0f));
   }
+
+  /* Used for bilateral sampling. */
+  float sample_weight_get(float3 center_N, float3 center_P, int2 sample_texel) const
+  {
+    int2 sample_texel_fullres = sample_texel * uniform_buf.raytrace.resolution_scale +
+                                uniform_buf.raytrace.resolution_bias;
+
+    float sample_depth = texelFetch(depth_tx, sample_texel_fullres, 0).r;
+
+    float2 sample_uv = float2(sample_texel_fullres) * uniform_buf.raytrace.full_resolution_inv;
+    float3 sample_N = gbuffer::read_bin(sample_texel_fullres, closure_index).N;
+    float3 sample_P = drw_point_screen_to_world(float3(sample_uv, sample_depth));
+
+    /* TODO(fclem): Scene parameter. 10000.0f is dependent on scene scale. */
+    float depth_weight = filter_planar_weight(center_N, center_P, sample_P, 10000.0f);
+    float normal_weight = filter_angle_weight(center_N, sample_N);
+    /* Some pixels might have no correct weight (depth & normal weights being very small).
+     * To avoid them have invalid energy (because of float precision),
+     * we weight all valid samples by a very small amount. */
+    float epsilon_weight = 1e-4f;
+
+    return max(epsilon_weight, depth_weight * normal_weight);
+  }
 };
 
 void transmission_thickness_amend_closure(ClosureUndetermined &cl, float3 &V, Thickness thickness)
@@ -116,10 +150,58 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
 
   constexpr uint tile_size = RAYTRACE_GROUP_SIZE;
   int2 texel_fullres = int2(local_id.xy + tile_coord * tile_size);
-  int2 texel = (texel_fullres) / srt.raytrace_resolution_scale;
+  int2 texel = (texel_fullres + srt.raytrace_resolution_scale / 2 -
+                uniform_buf.raytrace.resolution_bias) /
+               srt.raytrace_resolution_scale;
 
   if (srt.skip_denoise) {
-    imageStore(srt.out_radiance_img, texel_fullres, imageLoad(srt.ray_radiance_img, texel));
+    if (srt.raytrace_resolution_scale == 1) {
+      /* No need for complicated upsampling. */
+      imageStore(
+          srt.out_radiance_img, texel_fullres, imageLoad(srt.ray_radiance_img, texel_fullres));
+      return;
+    }
+
+    /* Simple bilateral upsampling without any denoising. */
+    float center_depth = texelFetch(srt.depth_tx, texel_fullres, 0).r;
+    float2 center_uv = float2(texel_fullres) * uniform_buf.raytrace.full_resolution_inv;
+    float3 center_N = gbuffer::read_bin(texel_fullres, srt.closure_index).N;
+    float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
+
+    int2 texel_shifted = max(int2(0), texel_fullres - uniform_buf.raytrace.resolution_bias);
+    int2 texel_nearest = texel_shifted / srt.raytrace_resolution_scale;
+    int2 texel_bilinear = texel_shifted % srt.raytrace_resolution_scale;
+    float2 bilinear_co = float2(texel_bilinear) / float(srt.raytrace_resolution_scale);
+    float4 bilinear_weights = bilinear_weights_from_subpixel_coord(bilinear_co);
+
+    float4 bilateral_weights = float4(
+        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(0, 1)),
+        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(1, 1)),
+        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(1, 0)),
+        srt.sample_weight_get(center_N, center_P, texel_nearest + int2(0, 0)));
+
+    float4 ray_pdf_inv = float4(imageLoad(srt.ray_data_img, texel_nearest + int2(0, 1)).w,
+                                imageLoad(srt.ray_data_img, texel_nearest + int2(1, 1)).w,
+                                imageLoad(srt.ray_data_img, texel_nearest + int2(1, 0)).w,
+                                imageLoad(srt.ray_data_img, texel_nearest + int2(0, 0)).w);
+    float4 ray_validity = float4(not(equal(ray_pdf_inv, float4(0.0f))));
+
+    float4 ray_radiance0 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(0, 1));
+    float4 ray_radiance1 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(1, 1));
+    float4 ray_radiance2 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(1, 0));
+    float4 ray_radiance3 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(0, 0));
+
+    float4 weights = ray_validity * bilinear_weights * bilateral_weights;
+
+    float4 radiance;
+    radiance = colorspace::log_from_scene_linear(ray_radiance0) * weights.x;
+    radiance += colorspace::log_from_scene_linear(ray_radiance1) * weights.y;
+    radiance += colorspace::log_from_scene_linear(ray_radiance2) * weights.z;
+    radiance += colorspace::log_from_scene_linear(ray_radiance3) * weights.w;
+    radiance *= safe_rcp(radiance.w);
+    radiance = colorspace::scene_linear_from_log(radiance);
+
+    imageStore(srt.out_radiance_img, texel_fullres, radiance);
     return;
   }
 
@@ -295,17 +377,6 @@ struct LocalStatistics {
   float3 clamp_min;
   float3 clamp_max;
 };
-
-float4 bilinear_weights_from_subpixel_coord(float2 co)
-{
-  /* From top left in clockwise order. */
-  float4 weights;
-  weights.x = (1.0f - co.x) * co.y;
-  weights.y = co.x * co.y;
-  weights.z = co.x * (1.0f - co.y);
-  weights.w = (1.0f - co.x) * (1.0f - co.y);
-  return weights;
-}
 
 struct DenoiseTemporal {
   [[legacy_info]] ShaderCreateInfo eevee_global_ubo;
