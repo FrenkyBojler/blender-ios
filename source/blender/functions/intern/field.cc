@@ -126,6 +126,7 @@ uint64_t FieldHashDeep::ensure(const GFieldRef &field)
           [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Value>) {
               hash_context.add(v.type->hash_or_fallback(v.value, uint64_t(v.value)));
+              hash_context.add(v.type);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
               v.node->hash(hash_context);
