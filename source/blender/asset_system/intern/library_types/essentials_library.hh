@@ -32,9 +32,6 @@ class OnlineEssentialsLibrary : public RemoteAssetLibrary {
       "https://cdn.extensions.blender.org/asset-libraries/essentials/";
 
   std::optional<AssetLibraryReference> library_reference() const override;
-
-  /** Update the default import method based on whether packed data-blocks are supported. */
-  void update_default_import_method();
 };
 
 }  // namespace blender::asset_system

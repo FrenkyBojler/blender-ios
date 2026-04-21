@@ -339,24 +339,6 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
   return on_disk_library;
 }
 
-void AssetLibraryService::essentials_import_method_update() const
-{
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = -1;
-  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
-  /* TODO this shouldn't load the library, only update if already loaded. */
-  EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
-      AS_asset_library_load(nullptr, library_ref));
-  if (library) {
-    library->update_default_import_method();
-  }
-
-  AssetLibraryService *service = AssetLibraryService::get();
-  if (service->online_essentials_library_) {
-    service->online_essentials_library_->update_default_import_method();
-  }
-}
-
 AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
 {
   /* (Re-)load all other asset libraries. */

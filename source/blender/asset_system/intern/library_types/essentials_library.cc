@@ -109,14 +109,6 @@ std::optional<AssetLibraryReference> OnlineEssentialsLibrary::library_reference(
   return library_ref;
 }
 
-void OnlineEssentialsLibrary::update_default_import_method()
-{
-  import_method_ = ASSET_IMPORT_PACK;
-  if (U.experimental.no_data_block_packing) {
-    import_method_ = ASSET_IMPORT_APPEND_REUSE;
-  }
-}
-
 /** \} */
 
 }  // namespace blender::asset_system

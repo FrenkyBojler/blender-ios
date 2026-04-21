@@ -98,8 +98,6 @@ class AssetLibraryService {
    */
   static AssetLibrary *move_runtime_current_file_into_on_disk_library(const Main &bmain);
 
-  void essentials_import_method_update() const;
-
   AssetLibrary *get_asset_library(const Main *bmain,
                                   const AssetLibraryReference &library_reference);
 
