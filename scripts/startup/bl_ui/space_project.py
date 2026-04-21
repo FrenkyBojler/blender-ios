@@ -286,6 +286,7 @@ class PROJECT_PT_variables(Panel):
             list_id="Variables",
             dataptr=project,
             propname="variables",
+            item_dyntip_propname="description",
             active_dataptr=project,
             active_propname="active_variable_index",
         )
