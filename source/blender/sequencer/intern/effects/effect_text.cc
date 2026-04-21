@@ -183,6 +183,7 @@ static void init_text_effect(Strip *strip)
   data->text_font = nullptr;
   data->text_blf_id = -1;
   data->text_size = 60.0f;
+  data->line_height = 2.0f;
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
@@ -998,7 +999,7 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int text_height = (runtime->lines.size() - 1) * runtime->line_height +
+  const int text_height = (runtime->lines.size() - 1) * (runtime->line_height + data->line_height) +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1046,7 +1047,7 @@ TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const in
   TextVarsRuntime *runtime = MEM_new<TextVarsRuntime>(__func__);
 
   runtime->font = font;
-  runtime->line_height = BLF_height_max(font);
+  runtime->line_height = BLF_height_max(font) + data->line_height;
   runtime->font_descender = BLF_descender(font);
   runtime->character_count = BLI_strlen_utf8(data->text_ptr);
 
