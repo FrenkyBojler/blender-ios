@@ -690,7 +690,7 @@ static bool local_view_enter(bContext *C,
   if (!is_selected) {
     return false;
   }
-  
+
   sipo.local_view_bit = free_bit;
   sipo.local_view_visible_region_before = region.v2d.cur;
   if (frame_selected) {
@@ -701,7 +701,7 @@ static bool local_view_enter(bContext *C,
 }
 
 /**
-  * Returns true if exited from the local view.
+ * Returns true if exited from the local view.
  */
 static bool local_view_exit(bContext *C,
                             SpaceGraph &sipo,
