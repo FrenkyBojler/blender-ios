@@ -475,6 +475,9 @@ package_archive: .FORCE
 test: .FORCE
 	@$(PYTHON) ./build_files/utils/make_test.py "$(BUILD_DIR)"
 
+benchmark: .FORCE
+	@$(PYTHON) ./tests/performance/benchmark.py run default
+
 
 # -----------------------------------------------------------------------------
 # Project Files
