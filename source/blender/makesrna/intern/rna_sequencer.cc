@@ -2807,6 +2807,15 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Connected Strips", "Other strips currently connected to this strip");
 
+  prop = RNA_def_property(srna, "notes", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Notes", "");
+  RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "notes_textbox_state", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "TextboxState");
+  RNA_def_property_pointer_sdna(prop, nullptr, "notes_textbox_state");
+
   RNA_api_strip(srna);
 }
 

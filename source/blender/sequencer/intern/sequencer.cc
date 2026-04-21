@@ -25,6 +25,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BKE_duplilist.hh"
@@ -254,6 +255,8 @@ static void seq_strip_free_ex(Scene *scene,
     strip->retiming_keys = nullptr;
     strip->retiming_keys_num = 0;
   }
+
+  MEM_SAFE_DELETE(strip->notes);
 
   MEM_SAFE_DELETE(strip->runtime);
   MEM_delete(strip);
@@ -782,6 +785,10 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
     strip_new->retiming_keys_num = strip->retiming_keys_num;
   }
 
+  if (strip->notes) {
+    strip_new->notes = BLI_strdup(strip->notes);
+  }
+
   return strip_new;
 }
 
@@ -952,6 +959,10 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
     writer->write_struct_array(size, strip->retiming_keys);
   }
 
+  if (strip->notes) {
+    writer->write_string(strip->notes);
+  }
+
   return true;
 }
 
@@ -1070,6 +1081,10 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   if (strip->retiming_keys != nullptr) {
     const int size = retiming_keys_count(strip);
     BLO_read_struct_array(reader, SeqRetimingKey, size, &strip->retiming_keys);
+  }
+
+  if (strip->notes) {
+    BLO_read_string(reader, &strip->notes);
   }
 
   return true;

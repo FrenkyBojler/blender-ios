@@ -1067,6 +1067,22 @@ class STRIP_PT_adjust_color(StripButtonsPanel, Panel):
         col.prop(strip, "multiply_alpha")
         col.prop(strip, "use_float", text="Convert to Float")
 
+class STRIP_PT_notes(StripButtonsPanel, Panel):
+    bl_label = "Notes"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        strip = context.active_strip
+        return strip is not None
+
+    def draw(self, context):
+        layout = self.layout
+
+        strip = context.active_strip
+
+        col = layout.column()
+        col.textbox(strip, "notes", textbox_state=strip.notes_textbox_state)
 
 class STRIP_PT_custom_props(StripButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
@@ -1102,6 +1118,8 @@ classes = (
 
     STRIP_PT_time,
     STRIP_PT_source,
+
+    STRIP_PT_notes,
 
     STRIP_PT_custom_props,
 )

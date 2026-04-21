@@ -450,6 +450,9 @@ struct Strip {
   int retiming_keys_num = 0;
   char _pad6[4] = {};
 
+  char *notes = nullptr;
+  TextboxState notes_textbox_state = {};
+
   seq::StripRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
