@@ -401,9 +401,9 @@ Field<bool> invert_boolean_field(const Field<bool> &field);
  */
 struct FieldHashDeep {
   mutable Mutex mutex;
-  Map<GFieldRef, uint64_t> cache;
-  uint64_t ensure(const GFieldRef &field);
-  uint64_t operator()(const GFieldRef &field) const
+  Map<GFieldRef, Hash128> cache;
+  Hash128 ensure(const GFieldRef &field);
+  Hash128 operator()(const GFieldRef &field) const
   {
     std::lock_guard lock(this->mutex);
     return const_cast<FieldHashDeep *>(this)->ensure(field);

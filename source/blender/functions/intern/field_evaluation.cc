@@ -155,7 +155,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
   FieldHashDeep deep_hash_cache;
-  Map<uint64_t, mf::Variable *> variable_by_field;
+  Map<Hash128, mf::Variable *> variable_by_field;
   Map<std::reference_wrapper<const FieldInput>, mf::Variable *> variable_by_field_input;
 
   /* Start by adding the field inputs as parameters to the procedure. */
@@ -179,7 +179,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
     while (!fields_to_check.is_empty()) {
       FieldWithIndex &field_with_index = fields_to_check.peek();
       const GFieldRef &field = field_with_index.field;
-      const uint64_t field_hash = deep_hash_cache.ensure(field);
+      const Hash128 field_hash = deep_hash_cache.ensure(field);
       if (variable_by_field.contains(field_hash)) {
         /* The field has been handled already. */
         fields_to_check.pop();
@@ -216,13 +216,13 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   const mf::ParamType::InterfaceType interface_type = param_type.interface_type();
                   if (interface_type == mf::ParamType::Input) {
                     const GField &input_field = fn_inputs[param_input_index];
-                    const uint64_t input_hash = deep_hash_cache.ensure(input_field);
+                    const Hash128 input_hash = deep_hash_cache.ensure(input_field);
                     variables[param_index] = variable_by_field.lookup(input_hash);
                     param_input_index++;
                   }
                   else if (interface_type == mf::ParamType::Output) {
                     const GFieldRef output_field{field_multi_fn, param_output_index};
-                    const uint64_t output_hash = deep_hash_cache.ensure(output_field);
+                    const Hash128 output_hash = deep_hash_cache.ensure(output_field);
                     const bool output_is_ignored =
                         field_tree_info.field_users.lookup(output_field).is_empty() &&
                         !output_fields.contains(output_field);
@@ -264,7 +264,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   /* Add output parameters to the procedure. */
   Set<mf::Variable *> output_variables;
   for (const GFieldRef &field : output_fields) {
-    const uint64_t field_hash = deep_hash_cache.ensure(field);
+    const Hash128 field_hash = deep_hash_cache.ensure(field);
     mf::Variable *variable = variable_by_field.lookup(field_hash);
     if (!output_variables.add(variable)) {
       /* One variable can be output at most once. To output the same value twice, we have to make

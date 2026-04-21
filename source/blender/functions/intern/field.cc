@@ -101,9 +101,9 @@ uint64_t GField::hash() const
       ref.variant_);
 }
 
-uint64_t FieldHashDeep::ensure(const GFieldRef &field)
+Hash128 FieldHashDeep::ensure(const GFieldRef &field)
 {
-  if (const uint64_t *cached = cache.lookup_ptr(field)) {
+  if (const Hash128 *cached = cache.lookup_ptr(field)) {
     return *cached;
   }
 
@@ -141,7 +141,11 @@ uint64_t FieldHashDeep::ensure(const GFieldRef &field)
           },
           current.variant());
       const Span bytes = hash_context.hash_bytes.as_span();
-      cache.add_new(current, XXH3_64bits(bytes.data(), bytes.size()));
+      Hash128 hash;
+      const XXH128_hash_t xxhash = XXH3_128bits(bytes.data(), bytes.size());
+      static_assert(sizeof(Hash128) == sizeof(xxhash));
+      memcpy(static_cast<void *>(&hash), &xxhash, sizeof(xxhash));
+      cache.add_new(current, hash);
       continue;
     }
     visited.add(current);

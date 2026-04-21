@@ -37,6 +37,16 @@
 
 namespace blender {
 
+struct Hash128 {
+  uint64_t v1;
+  uint64_t v2;
+  uint64_t hash() const
+  {
+    return v1;
+  }
+  friend bool operator==(const Hash128 &a, const Hash128 &b) = default;
+};
+
 struct HashContext {
   Vector<std::byte, 256> hash_bytes;
   template<typename T> void add(const T &value)
