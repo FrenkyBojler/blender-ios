@@ -705,7 +705,11 @@ void filelist_online_asset_preview_request(const bContext *C, FileDirEntry *entr
   /* Request online preview if needed. */
   if (entry->asset->is_online()) {
     entry->asset->ensure_previewable(*C, CTX_wm_reports(C));
-    entry->preview_icon_id = entry->asset->get_preview()->runtime->icon_id;
+    /* The asset may not have a preview (e.g. remote library entry without a preview URL). Leave
+     * #preview_icon_id as 0 so the draw code falls back to the filetype icon. */
+    if (const PreviewImage *preview = entry->asset->get_preview()) {
+      entry->preview_icon_id = preview->runtime->icon_id;
+    }
   }
 }
 
