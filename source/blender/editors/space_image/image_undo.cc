@@ -313,7 +313,7 @@ static void ptile_restore_runtime_map(PaintTileMap *paint_tile_map)
     if (ibuf->float_data()) {
       IMB_copy_rect(ibuf->float_data_for_write(),
                     int2(ibuf->x, ibuf->y),
-                    ptile->rect.fp,
+                    static_cast<const float *>(ptile->buffer),
                     int2(ED_IMAGE_UNDO_TILE_SIZE),
                     ibuf->channels,
                     int2(0, 0),
@@ -323,7 +323,7 @@ static void ptile_restore_runtime_map(PaintTileMap *paint_tile_map)
     else {
       IMB_copy_rect(ibuf->byte_data_for_write(),
                     int2(ibuf->x, ibuf->y),
-                    ptile->rect.byte_ptr,
+                    static_cast<const uchar *>(ptile->buffer),
                     int2(ED_IMAGE_UNDO_TILE_SIZE),
                     int2(0, 0),
                     tile_pos,
@@ -364,12 +364,16 @@ static UndoImageTile *utile_alloc(bool has_float)
 {
   UndoImageTile *utile = MEM_new_zeroed<UndoImageTile>("ImageUndoTile");
   if (has_float) {
-    utile->rect.fp = MEM_new_array_uninitialized<float>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE),
-                                                        __func__);
+    void *data = MEM_new_array_uninitialized<float>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE),
+                                                    __func__);
+    utile->buffer = data;
+    utile->buffer_sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
   }
   else {
-    utile->rect.byte_ptr = MEM_new_array_uninitialized<uint8_t>(
-        4 * square_i(ED_IMAGE_UNDO_TILE_SIZE), __func__);
+    void *data = MEM_new_array_uninitialized<uint8_t>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE),
+                                                      __func__);
+    utile->buffer = data;
+    utile->buffer_sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data));
   }
   return utile;
 }
@@ -383,7 +387,7 @@ static void utile_init_from_imbuf(UndoImageTile *utile,
   int2 tile_copy_size;
   calc_tile_rect(*ibuf, x_tile, y_tile, tile_pos, tile_copy_size);
   if (ibuf->float_data()) {
-    IMB_copy_rect(utile->rect.fp,
+    IMB_copy_rect(static_cast<float *>(utile->buffer),
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->float_data(),
                   int2(ibuf->x, ibuf->y),
@@ -393,7 +397,7 @@ static void utile_init_from_imbuf(UndoImageTile *utile,
                   tile_copy_size);
   }
   else {
-    IMB_copy_rect(utile->rect.byte_ptr,
+    IMB_copy_rect(static_cast<uchar *>(utile->buffer),
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->byte_data(),
                   int2(ibuf->x, ibuf->y),
@@ -414,7 +418,7 @@ static void utile_restore(const UndoImageTile *utile,
   if (ibuf->float_data()) {
     IMB_copy_rect(ibuf->float_data_for_write(),
                   int2(ibuf->x, ibuf->y),
-                  utile->rect.fp,
+                  static_cast<const float *>(utile->buffer),
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   ibuf->channels,
                   int2(0, 0),
@@ -424,7 +428,7 @@ static void utile_restore(const UndoImageTile *utile,
   else {
     IMB_copy_rect(ibuf->byte_data_for_write(),
                   int2(ibuf->x, ibuf->y),
-                  utile->rect.byte_ptr,
+                  static_cast<const uchar *>(utile->buffer),
                   int2(ED_IMAGE_UNDO_TILE_SIZE),
                   int2(0, 0),
                   tile_pos,
@@ -437,7 +441,7 @@ static void utile_decref(UndoImageTile *utile)
   utile->users -= 1;
   BLI_assert(utile->users >= 0);
   if (utile->users == 0) {
-    MEM_delete_void(utile->rect.pt);
+    MEM_delete_void(utile->buffer);
     MEM_delete(utile);
   }
 }

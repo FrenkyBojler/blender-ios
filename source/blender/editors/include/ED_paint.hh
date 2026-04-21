@@ -9,11 +9,11 @@
 #pragma once
 
 #include "DNA_view3d_enums.h"
+
 #include "IMB_imbuf_types.hh"
 
 #include <cstdint>
 #include <optional>
-#include <variant>
 
 namespace blender {
 
