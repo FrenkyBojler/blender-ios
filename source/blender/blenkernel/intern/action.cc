@@ -12,6 +12,7 @@
 #include <cstring>
 #include <optional>
 
+#include "BLI_assert.h"
 #include "MEM_guardedalloc.h"
 
 /* Allow using deprecated functionality for .blend file I/O. */
@@ -812,10 +813,12 @@ void action_group_colors_sync(bActionGroup *grp)
   }
 }
 
-void action_group_colors_set_from_posebone(bActionGroup *grp, const bPoseChannel *pchan)
+void action_group_colors_set_from_posebone(bActionGroup *grp,
+                                           const bArmature &armature,
+                                           const bPoseChannel *pchan)
 {
   BLI_assert_msg(pchan, "cannot 'set action group colors from posebone' without a posebone");
-  if (!pchan->bone) {
+  if (!pchan->bone_get(armature)) {
     /* pchan->bone is only set after leaving editmode. */
     return;
   }
@@ -841,6 +844,37 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
 }
 
 /* *************** Pose channels *************** */
+
+/* -------------------------------------------------------------------- */
+/** \name bPoseChannel member functions
+ */
+
+const Bone *bPoseChannel::bone_get(const bArmature &armature) const
+{
+  BLI_assert_msg(this->runtime.bone_index >= 0, "bone index should be known");
+  return armature.bone_get_indexed(this->runtime.bone_index);
+}
+
+const Bone *bPoseChannel::bone_get(const Object &owner) const
+{
+  BLI_assert(owner.type == OB_ARMATURE);
+  BLI_assert(GS(owner.data->name) == ID_AR);
+  bArmature *armature = id_cast<bArmature *>(owner.data);
+  return this->bone_get(*armature);
+}
+
+Bone *bPoseChannel::bone_get(bArmature &armature)
+{
+  const bPoseChannel *const_this = this;
+  const Bone *const_bone = const_this->bone_get(armature);
+  return const_cast<Bone *>(const_bone);
+}
+Bone *bPoseChannel::bone_get(Object &owner)
+{
+  const bPoseChannel *const_this = this;
+  const Bone *const_bone = const_this->bone_get(owner);
+  return const_cast<Bone *>(const_bone);
+}
 
 void BKE_pose_channel_session_uid_generate(bPoseChannel *pchan)
 {
@@ -931,7 +965,8 @@ bool BKE_pose_channels_is_valid(const bPose *pose)
 
 bool BKE_pose_is_bonecoll_visible(const bArmature *arm, const bPoseChannel *pchan)
 {
-  return pchan->bone && ANIM_bone_in_visible_collection(arm, pchan->bone);
+  const Bone *bone = pchan->bone_get(*arm);
+  return bone && ANIM_bone_in_visible_collection(arm, bone);
 }
 
 bPoseChannel *BKE_pose_channel_active(Object *ob, const bool check_bonecoll)
@@ -1137,7 +1172,7 @@ static bool pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan, int level)
       }
     }
   }
-  for (Bone &bone : pchan->bone->childbase) {
+  for (Bone &bone : pchan->bone_get(*ob)->childbase) {
     pchan = BKE_pose_channel_find_name(ob->pose, bone.name);
     if (pchan && pose_channel_in_IK_chain(ob, pchan, level + 1)) {
       return true;

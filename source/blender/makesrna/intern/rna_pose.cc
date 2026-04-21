@@ -293,7 +293,7 @@ static PointerRNA rna_PoseChannel_bone_get(PointerRNA *ptr)
   /* Replace the id_data pointer with the Armature ID. */
   tmp_ptr.owner_id = ob->data;
 
-  return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone);
+  return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone_get(*armature));
 }
 
 static bool rna_PoseChannel_has_ik_get(PointerRNA *ptr)
@@ -508,7 +508,7 @@ static int rna_PoseChannel_proxy_editable(const PointerRNA * /*ptr*/, const char
   bArmature *arm = ob->data;
   bPoseChannel *pchan = (bPoseChannel *)ptr->data;
 
-  if (pchan->bone && (pchan->bone->layer & arm->layer_protected)) {
+  if (pchan->bone_get(*armature) && (pchan->bone_get(*armature)->layer & arm->layer_protected)) {
     *r_info = "Can't edit property of a proxy on a protected layer";
     return 0;
   }

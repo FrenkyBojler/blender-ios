@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 
@@ -211,7 +212,7 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
     data->rootbone++;
 
     /* Continue to parent, but only if we're connected to it. */
-    if (pchan->bone->flag & BONE_CONNECTED) {
+    if (pchan->bone_get(*armature)->flag & BONE_CONNECTED) {
       pchan = pchan->parent;
     }
     else {
@@ -338,10 +339,11 @@ struct PoseInitData_Mirror {
 };
 
 static void pose_mirror_info_init(PoseInitData_Mirror *pid,
-                                  bPoseChannel *pchan,
-                                  bPoseChannel *pchan_orig,
+                                  bke::PChanBone pchanbone,
+                                  bke::PChanBoneConst pchanbone_orig,
                                   bool is_mirror_relative)
 {
+  bPoseChannel *pchan = pchanbone.pchan;
   pid->pchan = pchan;
   copy_v3_v3(pid->orig.loc, pchan->loc);
   copy_v3_v3(pid->orig.scale, pchan->scale);
@@ -369,8 +371,8 @@ static void pose_mirror_info_init(PoseInitData_Mirror *pid,
     unit_m4(flip_mtx);
     flip_mtx[0][0] = -1;
 
-    BKE_pchan_to_mat4(pchan_orig, pchan_mtx_mirror);
-    BKE_pchan_to_mat4(pchan, pchan_mtx);
+    BKE_pchan_to_mat4(pchanbone_orig, pchan_mtx_mirror);
+    BKE_pchan_to_mat4(pchanbone, pchan_mtx);
 
     mul_m4_m4m4(pchan_mtx_mirror, pchan_mtx_mirror, flip_mtx);
     mul_m4_m4m4(pchan_mtx_mirror, flip_mtx, pchan_mtx_mirror);
@@ -392,7 +394,7 @@ static void pose_mirror_info_init(PoseInitData_Mirror *pid,
 static void add_pose_transdata(
     TransInfo *t, bPoseChannel *pchan, Object *ob, TransData *td, TransDataExtension *td_ext)
 {
-  Bone *bone = pchan->bone;
+  Bone *bone = pchan->bone_get(*armature);
   float pmat[3][3], omat[3][3];
   float cmat[3][3], tmat[3][3];
 
@@ -491,12 +493,13 @@ static void add_pose_transdata(
 
   /* Exceptional case: rotate the pose bone which also applies transformation
    * when a parentless bone has #BONE_NO_LOCAL_LOCATION []. */
-  if (!ELEM(t->mode, TFM_TRANSLATION, TFM_RESIZE) && (pchan->bone->flag & BONE_NO_LOCAL_LOCATION))
+  if (!ELEM(t->mode, TFM_TRANSLATION, TFM_RESIZE) &&
+      (pchan->bone_get(*armature)->flag & BONE_NO_LOCAL_LOCATION))
   {
     if (pchan->parent) {
-      /* Same as `td->smtx` but without `pchan->bone->bone_mat`. */
+      /* Same as `td->smtx` but without `pchan->bone_get(*armature)->bone_mat`. */
       td->flag |= TD_PBONE_LOCAL_MTX_C;
-      mul_m3_m3m3(td_ext->l_smtx, pchan->bone->bone_mat, td->smtx);
+      mul_m3_m3m3(td_ext->l_smtx, pchan->bone_get(*armature)->bone_mat, td->smtx);
     }
     else {
       td->flag |= TD_PBONE_LOCAL_MTX_P;
@@ -1182,8 +1185,8 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
     }
 
     /* Also do bbone scaling. */
-    pchan->bone->xwidth = pchan_orig->bone->xwidth;
-    pchan->bone->zwidth = pchan_orig->bone->zwidth;
+    pchan->bone_get(*armature)->xwidth = pchan_orig->bone->xwidth;
+    pchan->bone_get(*armature)->zwidth = pchan_orig->bone->zwidth;
 
     /* We assume X-axis flipping for now. */
     pchan->curve_in_x = pchan_orig->curve_in_x * -1;
@@ -1201,7 +1204,7 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
     BKE_pchan_apply_mat4(pchan, pchan_mtx_final, false);
 
     /* Set flag to let auto key-frame know to key-frame the mirrored bone. */
-    pchan->bone->flag |= BONE_TRANSFORM_MIRROR;
+    pchan->bone_get(*armature)->flag |= BONE_TRANSFORM_MIRROR;
 
     /* In this case we can do target-less IK grabbing. */
     if (t->mode == TFM_TRANSLATION) {

@@ -568,7 +568,12 @@ static wmOperatorStatus pose_autoside_names_exec(bContext *C, wmOperator *op)
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     bArmature *arm = id_cast<bArmature *>(ob->data);
     STRNCPY_UTF8(newname, pchan->name);
-    if (bone_autoside_name(newname, 1, axis, pchan->bone->head[axis], pchan->bone->tail[axis])) {
+    if (bone_autoside_name(newname,
+                           1,
+                           axis,
+                           pchan->bone_get(*armature)->head[axis],
+                           pchan->bone_get(*armature)->tail[axis]))
+    {
       ED_armature_bone_rename(bmain, arm, pchan->name, newname);
     }
 

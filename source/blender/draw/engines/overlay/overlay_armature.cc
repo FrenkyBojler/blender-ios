@@ -64,6 +64,7 @@ class UnifiedBonePtr {
     EditBone *eBone_;
     bPoseChannel *pchan_;
   };
+  Bone *bone_;       /* Only set when pchan_ is set. */
   bool is_editbone_; /* Discriminator for the above union. */
 
  public:
@@ -71,7 +72,9 @@ class UnifiedBonePtr {
   ~UnifiedBonePtr() {}
 
   UnifiedBonePtr(EditBone *eBone) : eBone_(eBone), is_editbone_(true) {}
-  UnifiedBonePtr(bPoseChannel *pchan) : pchan_(pchan), is_editbone_(false) {}
+  UnifiedBonePtr(bPoseChannel *pchan, Bone *bone) : pchan_(pchan), bone_(bone), is_editbone_(false)
+  {
+  }
 
   const char *name() const
   {
@@ -106,6 +109,21 @@ class UnifiedBonePtr {
                    "conversion to bPoseChannel* only possible when "
                    "UnifiedBonePtr contains a pose channel");
     return pchan_;
+  }
+
+  const Bone *posebone_bone() const
+  {
+    BLI_assert_msg(!is_editbone_,
+                   "bPoseChannel's armature Bone* only set when "
+                   "UnifiedBonePtr contains a pose channel");
+    return bone_;
+  }
+  Bone *posebone_bone()
+  {
+    BLI_assert_msg(!is_editbone_,
+                   "bPoseChannel's armature Bone* only set when "
+                   "UnifiedBonePtr contains a pose channel");
+    return bone_;
   }
 
   bool is_editbone() const
@@ -939,18 +957,18 @@ static const float *get_bone_hint_color(const Armatures::DrawContext *ctx,
 /** \name Helper Utils
  * \{ */
 
-static void pchan_draw_data_init(bPoseChannel *pchan)
+static void pchan_draw_data_init(bPoseChannel *pchan, Bone &bone)
 {
   if (pchan->draw_data != nullptr) {
-    if (pchan->draw_data->bbone_matrix_len != pchan->bone->segments) {
+    if (pchan->draw_data->bbone_matrix_len != bone.segments) {
       MEM_SAFE_DELETE(pchan->draw_data);
     }
   }
 
   if (pchan->draw_data == nullptr) {
-    pchan->draw_data = static_cast<bPoseChannelDrawData *>(MEM_new_uninitialized(
-        sizeof(*pchan->draw_data) + sizeof(Mat4) * pchan->bone->segments, __func__));
-    pchan->draw_data->bbone_matrix_len = pchan->bone->segments;
+    pchan->draw_data = static_cast<bPoseChannelDrawData *>(
+        MEM_new_uninitialized(sizeof(*pchan->draw_data) + sizeof(Mat4) * bone.segments, __func__));
+    pchan->draw_data->bbone_matrix_len = bone.segments;
   }
 }
 
@@ -967,8 +985,9 @@ static void draw_bone_update_disp_matrix_default(UnifiedBonePtr bone)
    * This would refresh armature without invalidating the draw cache */
   if (bone.is_posebone()) {
     bPoseChannel *pchan = bone.as_posebone();
+    Bone *pchan_bone = bone.posebone_bone();
     bone_mat = pchan->pose_mat;
-    copy_v3_fl(bone_scale, pchan->bone->length);
+    copy_v3_fl(bone_scale, pchan_bone->length);
   }
   else {
     EditBone *eBone = bone.as_editbone();
@@ -1160,11 +1179,12 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
    * This would refresh armature without invalidating the draw cache. */
   if (bone.is_posebone()) {
     bPoseChannel *pchan = bone.as_posebone();
-    length = pchan->bone->length;
-    xwidth = pchan->bone->xwidth;
-    zwidth = pchan->bone->zwidth;
+    const Bone *pchan_bone = bone.posebone_bone();
+    length = pchan_bone->length;
+    xwidth = pchan_bone->xwidth;
+    zwidth = pchan_bone->zwidth;
     bone_mat = pchan->pose_mat;
-    bbone_segments = pchan->bone->segments;
+    bbone_segments = pchan_bone->segments;
   }
   else {
     EditBone *eBone = bone.as_editbone();
@@ -1186,9 +1206,11 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
    * matrix for the box, that we cannot use to draw end points & co. */
   if (bone.is_posebone()) {
     bPoseChannel *pchan = bone.as_posebone();
+
     Mat4 *bbones_mat = reinterpret_cast<Mat4 *>(pchan->draw_data->bbone_matrix);
     if (bbone_segments > 1) {
-      BKE_pchan_bbone_spline_setup(pchan, false, false, bbones_mat);
+      Bone *pchan_bone = bone.posebone_bone();
+      BKE_pchan_bbone_spline_setup(pchan, *pchan_bone, false, false, bbones_mat);
 
       for (int i = bbone_segments; i--; bbones_mat++) {
         mul_m4_m4m4(bbones_mat->mat, bbones_mat->mat, s);
@@ -1234,10 +1256,11 @@ static void draw_axes(const Armatures::DrawContext *ctx,
 
   if (bone.is_posebone() && bone.as_posebone()->custom && !(arm.flag & ARM_NO_CUSTOM)) {
     const bPoseChannel *pchan = bone.as_posebone();
+    const Bone *pchan_bone = bone.posebone_bone();
     /* Special case: Custom bones can have different scale than the bone.
      * Recompute display matrix without the custom scaling applied. (#65640). */
     float axis_mat[4][4];
-    float length = pchan->bone->length;
+    float length = pchan_bone->length;
     copy_m4_m4(axis_mat, pchan->custom_tx ? pchan->custom_tx->pose_mat : pchan->pose_mat);
     const float3 length_vec = {length, length, length};
     rescale_m4(axis_mat, length_vec);
@@ -1521,10 +1544,12 @@ static void bone_draw_envelope(const Armatures::DrawContext *ctx,
   }
   else {
     const bPoseChannel *pchan = bone.as_posebone();
-    rad_tail = &pchan->bone->rad_tail;
-    distance = &pchan->bone->dist;
-    rad_head = (pchan->parent && (boneflag & BONE_CONNECTED)) ? &pchan->parent->bone->rad_tail :
-                                                                &pchan->bone->rad_head;
+    const Bone *pchan_bone = bone.posebone_bone();
+    rad_tail = &pchan_bone->rad_tail;
+    distance = &pchan_bone->dist;
+    rad_head = (pchan->parent && (boneflag & BONE_CONNECTED)) ?
+                   &pchan->parent->bone_get(*ctx->armature)->rad_tail :
+                   &pchan_bone->rad_head;
   }
 
   if ((select_id == -1) && (boneflag & BONE_NO_DEFORM) == 0 &&
@@ -1647,9 +1672,10 @@ static void draw_bone_degrees_of_freedom(const Armatures::DrawContext *ctx,
     mul_m4_m4m4(posetrans, posetrans, tmp);
   }
   /* ... but its own rest-space. */
-  mul_m4_m4m3(posetrans, posetrans, pchan->bone->bone_mat);
+  const Bone *bone = pchan->bone_get(*ctx->armature);
+  mul_m4_m4m3(posetrans, posetrans, bone->bone_mat);
 
-  float scale = pchan->bone->length * pchan->scale[1];
+  float scale = bone->length * pchan->scale[1];
   scale_m4_fl(tmp, scale);
   tmp[1][1] = -tmp[1][1];
   mul_m4_m4m4(posetrans, posetrans, tmp);
@@ -2020,7 +2046,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     draw_locked_weights = true;
 
     for (bPoseChannel *pchan : ListBaseWrapper<bPoseChannel>(ob->pose->chanbase)) {
-      pchan->bone->flag &= ~BONE_DRAW_LOCKED_WEIGHT;
+      pchan->bone_get(arm)->flag &= ~BONE_DRAW_LOCKED_WEIGHT;
     }
 
     const Object *obact_orig = DEG_get_original(draw_ctx->obact);
@@ -2036,7 +2062,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
         continue;
       }
 
-      pchan->bone->flag |= BONE_DRAW_LOCKED_WEIGHT;
+      pchan->bone_get(arm)->flag |= BONE_DRAW_LOCKED_WEIGHT;
     }
   }
 
@@ -2049,7 +2075,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       continue;
     }
 
-    Bone *bone = pchan->bone;
+    Bone *bone = pchan->bone_get(arm);
     const bool draw_dofs = !is_pose_select && ctx->show_relations &&
                            (ctx->draw_mode == ARM_DRAW_MODE_POSE) &&
                            (pchan->flag & POSE_SELECTED) &&
@@ -2057,9 +2083,9 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
                            (pchan->ikflag & (BONE_IK_XLIMIT | BONE_IK_ZLIMIT));
     const int select_id = is_pose_select ? index : uint(-1);
 
-    pchan_draw_data_init(pchan);
+    pchan_draw_data_init(pchan, *bone);
 
-    UnifiedBonePtr bone_ptr = pchan;
+    UnifiedBonePtr bone_ptr(pchan, bone);
     if (!ctx->const_color) {
       set_ctx_bcolor(ctx, bone_ptr);
     }

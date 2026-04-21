@@ -69,12 +69,12 @@ static void gizmo_bbone_offset_get(const wmGizmo * /*gz*/, wmGizmoProperty *gz_p
   BLI_assert(gz_prop->type->array_length == 3);
 
   if (bh->index == 0) {
-    bh->co[1] = pchan->bone->ease1 / BBONE_SCALE_Y;
+    bh->co[1] = pchan->bone_get(*armature)->ease1 / BBONE_SCALE_Y;
     bh->co[0] = pchan->curve_in_x;
     bh->co[2] = pchan->curve_in_z;
   }
   else {
-    bh->co[1] = -pchan->bone->ease2 / BBONE_SCALE_Y;
+    bh->co[1] = -pchan->bone_get(*armature)->ease2 / BBONE_SCALE_Y;
     bh->co[0] = pchan->curve_out_x;
     bh->co[2] = pchan->curve_out_z;
   }
@@ -94,12 +94,12 @@ static void gizmo_bbone_offset_set(const wmGizmo * /*gz*/,
   copy_v3_v3(bh->co, value);
 
   if (bh->index == 0) {
-    pchan->bone->ease1 = max_ff(0.0f, bh->co[1] * BBONE_SCALE_Y);
+    pchan->bone_get(*armature)->ease1 = max_ff(0.0f, bh->co[1] * BBONE_SCALE_Y);
     pchan->curve_in_x = bh->co[0];
     pchan->curve_in_z = bh->co[2];
   }
   else {
-    pchan->bone->ease2 = max_ff(0.0f, -bh->co[1] * BBONE_SCALE_Y);
+    pchan->bone_get(*armature)->ease2 = max_ff(0.0f, -bh->co[1] * BBONE_SCALE_Y);
     pchan->curve_out_x = bh->co[0];
     pchan->curve_out_z = bh->co[2];
   }
@@ -123,7 +123,7 @@ static bool WIDGETGROUP_armature_spline_poll(const bContext *C, wmGizmoGroupType
       const bArmature *arm = id_cast<const bArmature *>(ob->data);
       if (arm->drawtype == ARM_DRAW_TYPE_B_BONE) {
         bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-        if (pchan && pchan->bone->segments > 1) {
+        if (pchan && pchan->bone_get(*armature)->segments > 1) {
           if (BKE_id_is_editable(CTX_data_main(C), &arm->id)) {
             return true;
           }

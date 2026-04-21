@@ -438,7 +438,7 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
       add_relation(bone_done_key, bone_segments_key, "Done -> B-Bone Segments");
       /* B-Bone shape depends on final position of handle bones. */
       bPoseChannel *prev, *next;
-      BKE_pchan_bbone_handles_get(&pchan, &prev, &next);
+      BKE_pchan_bbone_handles_get(*object, &pchan, &prev, &next);
       if (prev) {
         OperationCode opcode = OperationCode::BONE_DONE;
         /* Inheriting parent roll requires access to prev handle's B-Bone properties. */

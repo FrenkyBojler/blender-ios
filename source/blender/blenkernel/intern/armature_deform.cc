@@ -330,10 +330,8 @@ static ArmatureDeformParams get_armature_deform_params(
     for (const auto [i, dg] : (defbase)->enumerate()) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob_arm.pose, dg.name);
       /* Exclude non-deforming bones. */
-      deform_params.pose_channel_by_vertex_group[i] = (pchan &&
-                                                       !(pchan->bone->flag & BONE_NO_DEFORM)) ?
-                                                          pchan :
-                                                          nullptr;
+      deform_params.pose_channel_by_vertex_group[i] =
+          (pchan && !(pchan->bone_get(*armature)->flag & BONE_NO_DEFORM)) ? pchan : nullptr;
     }
   }
 
@@ -408,7 +406,7 @@ static void armature_vert_task_with_mixer(const ArmatureDeformParams &params,
       float weight = dw.weight;
 
       /* Bone option to mix with envelope weight. */
-      const Bone *bone = pchan->bone;
+      const Bone *bone = pchan->bone_get(*armature);
       if (bone && bone->flag & BONE_MULT_VG_ENV) {
         weight *= distfactor_to_bone(co,
                                      float3(bone->arm_head),
@@ -425,7 +423,7 @@ static void armature_vert_task_with_mixer(const ArmatureDeformParams &params,
   /* Use envelope if enabled and no bone deformed the vertex yet. */
   if (!deformed && params.use_envelope) {
     for (const bPoseChannel *pchan : params.pose_channels) {
-      if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
+      if (!(pchan->bone_get(*armature)->flag & BONE_NO_DEFORM)) {
         contrib += dist_bone_deform(*pchan, co, mixer);
       }
     }

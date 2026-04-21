@@ -23,6 +23,7 @@
 
 #include "BLI_enum_flags.hh"
 
+#include <cstdint>
 #include <type_traits>
 
 namespace blender {
@@ -662,6 +663,8 @@ struct bPoseChannel_BBoneSegmentBoundary {
 struct bPoseChannel_Runtime {
   SessionUID session_uid;
 
+  int64_t bone_index = -1;
+
   /* Cached dual quaternion for deformation. */
   struct DualQuat deform_dual_quat;
 
@@ -742,7 +745,7 @@ struct bPoseChannel {
   char _pad0[4] = {};
 
   /** Set on read file or rebuild pose. */
-  struct Bone *bone = nullptr;
+  DNA_DEPRECATED struct Bone *bone = nullptr;
   /** Set on read file or rebuild pose. */
   struct bPoseChannel *parent = nullptr;
   /** Set on read file or rebuild pose, the 'ik' child, for b-bones. */
@@ -831,7 +834,7 @@ struct bPoseChannel {
 
   /**
    * Curved bones settings - these are for animating,
-   * and are applied on top of the copies in pchan->bone
+   * and are applied on top of the copies in pchan->bone_get(*armature)
    */
   float roll1 = 0, roll2 = 0;
   float curve_in_x = 0, curve_in_z = 0;
@@ -844,7 +847,8 @@ struct bPoseChannel {
   float scale_in[3] = {1.0f, 1.0f, 1.0f};
   float scale_out[3] = {1.0f, 1.0f, 1.0f};
 
-  /** B-Bone custom handles; set on read file or rebuild pose based on pchan->bone data. */
+  /** B-Bone custom handles; set on read file or rebuild pose based on pchan->bone_get(*armature)
+   * data. */
   struct bPoseChannel *bbone_prev = nullptr;
   struct bPoseChannel *bbone_next = nullptr;
 
@@ -862,6 +866,13 @@ struct bPoseChannel {
 
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;
+
+#ifdef __cplusplus
+  const Bone *bone_get(const bArmature &armature) const;
+  const Bone *bone_get(const Object &owner) const;
+  Bone *bone_get(bArmature &armature);
+  Bone *bone_get(Object &owner);
+#endif
 };
 
 /* Pose ------------------------------------ */

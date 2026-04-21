@@ -80,9 +80,11 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color);
  * If `pchan->color` is set to a non-default color, that is used. Otherwise the
  * armature bone color is used.
  *
- * Note that if `pchan->bone` is `nullptr`, this function silently does nothing.
+ * Note that if the posechan's armature bone cannot be found, this function silently does nothing.
  */
-void action_group_colors_set_from_posebone(bActionGroup *grp, const bPoseChannel *pchan);
+void action_group_colors_set_from_posebone(bActionGroup *grp,
+                                           const bArmature &armature,
+                                           const bPoseChannel *pchan);
 
 /* Pose API ----------------- */
 

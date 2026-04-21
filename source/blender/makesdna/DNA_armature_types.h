@@ -13,6 +13,7 @@
 #include "DNA_listBase.h"
 #include "DNA_theme_types.h"
 
+#include "BLI_array.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_span.hh"
 
@@ -403,6 +404,16 @@ struct bArmature_Runtime {
   int active_collection_index = 0;
   uint8_t _pad0[4] = {};
   struct BoneCollection *active_collection = nullptr;
+
+/**
+ * Indexable storage for bones. The bone hierarchy is stored depth-first, so a bone is followed by
+ * its children.
+ *
+ * Used by bPoseChan::bone_get() to obtain a bone pointer by index.
+ */
+#ifdef __cplusplus
+  blender::Array<Bone *> bones;
+#endif
 };
 
 struct bArmature {
@@ -415,6 +426,7 @@ struct bArmature {
   ID id;
   struct AnimData *adt = nullptr;
 
+  /** Root bones. Children are listed in Bone::childbase. */
   ListBaseT<Bone> bonebase = {nullptr, nullptr};
 
   /** Use a hash-table for quicker lookups of bones by name. */
@@ -493,6 +505,10 @@ struct bArmature {
   /* Return the span of children of the given bone collection. */
   Span<const BoneCollection *> collection_children(const BoneCollection *parent) const;
   Span<BoneCollection *> collection_children(BoneCollection *parent);
+
+  const Bone *bone_get_indexed(int64_t bone_index) const;
+  Bone *bone_get_indexed(int64_t bone_index);
+
 #endif
 };
 

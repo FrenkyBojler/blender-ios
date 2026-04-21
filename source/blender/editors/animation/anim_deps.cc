@@ -147,8 +147,9 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
       bArmature *arm = id_cast<bArmature *>(ob->data);
 
       if (pchan) {
+        Bone *bone = pchan->bone_get(*arm);
         /* if one matches, sync the selection status */
-        if ((pchan->bone) && (pchan->flag & POSE_SELECTED)) {
+        if (bone && (pchan->flag & POSE_SELECTED)) {
           agrp->flag |= AGRP_SELECTED;
         }
         else {
@@ -156,7 +157,7 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
         }
 
         /* also sync active group status */
-        if ((ob == ac->obact) && (pchan->bone == arm->act_bone)) {
+        if ((ob == ac->obact) && (bone == arm->act_bone)) {
           /* if no previous F-Curve has active flag, then we're the first and only one to get it */
           if (*active_agrp == nullptr) {
             agrp->flag |= AGRP_ACTIVE;
@@ -173,7 +174,7 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
         }
 
         /* sync bone color */
-        action_group_colors_set_from_posebone(agrp, pchan);
+        action_group_colors_set_from_posebone(agrp, *arm, pchan);
       }
     }
   }

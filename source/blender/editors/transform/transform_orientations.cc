@@ -291,14 +291,14 @@ bool gimbal_axis_pose(Object *ob, const bPoseChannel *pchan, float gmat[3][3])
   }
 
   /* Apply bone transformation. */
-  mul_m3_m3m3(tmat, pchan->bone->bone_mat, mat);
+  mul_m3_m3m3(tmat, pchan->bone_get(*armature)->bone_mat, mat);
 
   if (pchan->parent) {
     float parent_mat[3][3];
 
     copy_m3_m4(parent_mat,
-               (pchan->bone->flag & BONE_HINGE) ? pchan->parent->bone->arm_mat :
-                                                  pchan->parent->pose_mat);
+               (pchan->bone_get(*armature)->flag & BONE_HINGE) ? pchan->parent->bone->arm_mat :
+                                                                 pchan->parent->pose_mat);
     mul_m3_m3m3(mat, parent_mat, tmat);
 
     /* Needed if object transformation isn't identity. */

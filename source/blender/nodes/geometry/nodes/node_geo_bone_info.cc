@@ -142,7 +142,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Error, TIP_("Bone not found"));
     return;
   }
-  Bone *bone = pchan->bone;
+  Bone *bone = pchan->bone_get(*armature);
   const float4x4 pose = geometry_transform * float4x4(pchan->pose_mat);
   const float4x4 rest_pose = geometry_transform * float4x4(bone->arm_mat);
 

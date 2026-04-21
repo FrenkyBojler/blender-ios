@@ -154,7 +154,7 @@ static void applyarmature_transfer_properties(EditBone *curbone,
   /* Combine pose and rest values for bendy bone settings,
    * then clear the pchan values (so we don't get a double-up).
    */
-  if (pchan->bone->segments > 1) {
+  if (pchan->bone_get(*armature)->segments > 1) {
     /* Combine rest/pose values. */
     curbone->curve_in_x += pchan_eval->curve_in_x;
     curbone->curve_in_z += pchan_eval->curve_in_z;
@@ -235,9 +235,9 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
   ApplyArmature_ParentState new_pstate{};
   new_pstate.bone = bone;
 
-  if (std::find_if(selected.begin(), selected.end(), [&](const PointerRNA &ptr) {
-        return ptr.data == pchan;
-      }) != selected.end())
+  if (std::find_if(selected.begin(),
+                   selected.end(),
+                   [&](const PointerRNA &ptr) { return ptr.data == pchan; }) != selected.end())
   {
     /* SELECTED BONE: Snap to final pose transform minus un-applied parent effects.
      *

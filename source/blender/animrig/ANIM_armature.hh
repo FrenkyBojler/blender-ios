@@ -30,7 +30,8 @@ inline bool bone_is_visible(const bArmature *armature, const Bone *bone)
 inline bool bone_is_visible(const bArmature *armature, const bPoseChannel *pchan)
 {
   const bool bone_itself_visible = (pchan->drawflag & PCHAN_DRAW_HIDDEN) == 0;
-  return bone_itself_visible && ANIM_bone_in_visible_collection(armature, pchan->bone);
+  return bone_itself_visible &&
+         ANIM_bone_in_visible_collection(armature, pchan->bone_get(*armature));
 }
 
 inline bool bone_is_visible(const bArmature *armature, const EditBone *ebone)
@@ -60,7 +61,8 @@ inline bool bone_is_selected(const bArmature *armature, const EditBone *ebone)
 
 inline bool bone_is_selectable(const bArmature *armature, const bPoseChannel *pchan)
 {
-  return bone_is_visible(armature, pchan) && !(pchan->bone->flag & BONE_UNSELECTABLE);
+  return bone_is_visible(armature, pchan) &&
+         !(pchan->bone_get(*armature)->flag & BONE_UNSELECTABLE);
 }
 
 inline bool bone_is_selectable(const bArmature *armature, const Bone *bone)

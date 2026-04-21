@@ -14,6 +14,7 @@
 
 /* #include "BLI_sys_types.h" */
 
+#include "RNA_types.hh"
 #include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
@@ -55,11 +56,11 @@ static float rna_PoseBone_do_envelope(bPoseChannel *chan, const float vec[3])
 static void rna_PoseBone_bbone_segment_index(
     bPoseChannel *pchan, ReportList *reports, const float pt[3], int *r_index, float *r_blend_next)
 {
-  if (!pchan->bone || pchan->bone->segments <= 1) {
+  if (!pchan->bone_get(*armature) || pchan->bone_get(*armature)->segments <= 1) {
     BKE_reportf(reports, RPT_ERROR, "Bone '%s' is not a B-Bone!", pchan->name);
     return;
   }
-  if (pchan->runtime.bbone_segments != pchan->bone->segments) {
+  if (pchan->runtime.bbone_segments != pchan->bone_get(*armature)->segments) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Bone '%s' has out of date B-Bone segment data - depsgraph update required!",
@@ -73,11 +74,11 @@ static void rna_PoseBone_bbone_segment_index(
 static void rna_PoseBone_bbone_segment_matrix(
     bPoseChannel *pchan, ReportList *reports, float mat_ret[16], int index, bool rest)
 {
-  if (!pchan->bone || pchan->bone->segments <= 1) {
+  if (!pchan->bone_get(*armature) || pchan->bone_get(*armature)->segments <= 1) {
     BKE_reportf(reports, RPT_ERROR, "Bone '%s' is not a B-Bone!", pchan->name);
     return;
   }
-  if (pchan->runtime.bbone_segments != pchan->bone->segments) {
+  if (pchan->runtime.bbone_segments != pchan->bone_get(*armature)->segments) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Bone '%s' has out of date B-Bone segment data - depsgraph update required!",
@@ -98,7 +99,8 @@ static void rna_PoseBone_bbone_segment_matrix(
   }
 }
 
-static void rna_PoseBone_compute_bbone_handles(bPoseChannel *pchan,
+static void rna_PoseBone_compute_bbone_handles(Object *self,
+                                               bPoseChannel *pchan,
                                                ReportList *reports,
                                                float ret_h1[3],
                                                float *ret_roll1,
@@ -108,14 +110,15 @@ static void rna_PoseBone_compute_bbone_handles(bPoseChannel *pchan,
                                                bool ease,
                                                bool offsets)
 {
-  if (!pchan->bone || pchan->bone->segments <= 1) {
+  Bone *bone = pchan->bone_get(*self);
+  if (!bone || bone->segments <= 1) {
     BKE_reportf(reports, RPT_ERROR, "Bone '%s' is not a B-Bone!", pchan->name);
     return;
   }
 
   BBoneSplineParameters params;
 
-  BKE_pchan_bbone_spline_params_get(pchan, rest, &params);
+  BKE_pchan_bbone_spline_params_get({pchan, bone}, armature, rest, &params);
   BKE_pchan_bbone_handles_compute(
       &params, ret_h1, ret_roll1, ret_h2, ret_roll2, ease || offsets, offsets);
 }
@@ -346,7 +349,7 @@ void RNA_api_pose_channel(StructRNA *srna)
   func = RNA_def_function(srna, "compute_bbone_handles", "rna_PoseBone_compute_bbone_handles");
   RNA_def_function_ui_description(
       func, "Retrieve the vectors and rolls coming from B-Bone custom handles");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   parm = RNA_def_property(func, "handle1", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(parm, 3);
   RNA_def_property_ui_text(

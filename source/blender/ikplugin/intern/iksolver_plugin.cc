@@ -274,7 +274,7 @@ static void where_is_ik_bone(bPoseChannel *pchan,
   copy_v3_v3(pchan->pose_head, pchan->pose_mat[3]);
   /* calculate tail */
   copy_v3_v3(vec, pchan->pose_mat[1]);
-  mul_v3_fl(vec, pchan->bone->length);
+  mul_v3_fl(vec, pchan->bone_get(*armature)->length);
   add_v3_v3v3(pchan->pose_tail, pchan->pose_head, vec);
 
   pchan->flag |= POSE_DONE;
@@ -312,7 +312,7 @@ static void execute_posetree(Depsgraph *depsgraph, Scene *scene, Object *ob, Pos
   for (a = 0; a < tree->totchannel; a++) {
     float length;
     pchan = tree->pchan[a];
-    bone = pchan->bone;
+    bone = pchan->bone_get(*armature);
 
     /* set DoF flag */
     flag = 0;
@@ -546,7 +546,7 @@ static void execute_posetree(Depsgraph *depsgraph, Scene *scene, Object *ob, Pos
         float trans[3], length;
 
         IK_GetTranslationChange(iktree[a], trans);
-        length = pchan->bone->length * len_v3(pchan->pose_mat[1]);
+        length = pchan->bone_get(*armature)->length * len_v3(pchan->pose_mat[1]);
 
         ikstretch[a] = (length == 0.0f) ? 1.0f : (trans[1] + length) / length;
       }

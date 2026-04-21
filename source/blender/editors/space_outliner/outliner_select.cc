@@ -585,12 +585,13 @@ static void tree_element_posechannel_activate(bContext *C,
     if (animrig::bone_is_visible(arm, pchan)) {
       animrig::bone_select(pchan);
     }
-    arm->act_bone = pchan->bone;
+    arm->act_bone = pchan->bone_get(*armature);
   }
 
   if (recursive) {
     /* Recursive select/deselect */
-    do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
+    do_outliner_bone_select_recursive(
+        arm, pchan->bone_get(*armature), (pchan->flag & POSE_SELECTED) != 0);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);

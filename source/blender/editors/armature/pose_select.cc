@@ -62,7 +62,7 @@ static void pose_do_bone_select(bPoseChannel *pchan, const int select_mode)
   /* select pchan only if selectable, but deselect works always */
   switch (select_mode) {
     case SEL_SELECT:
-      if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
+      if (!(pchan->bone_get(*armature)->flag & BONE_UNSELECTABLE)) {
         animrig::bone_select(pchan);
       }
       break;
@@ -73,7 +73,7 @@ static void pose_do_bone_select(bPoseChannel *pchan, const int select_mode)
       if (pchan->flag & POSE_SELECTED) {
         animrig::bone_deselect(pchan);
       }
-      else if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
+      else if (!(pchan->bone_get(*armature)->flag & BONE_UNSELECTABLE)) {
         animrig::bone_select(pchan);
       }
       break;
@@ -101,7 +101,7 @@ void ED_pose_bone_select(Object *ob, bPoseChannel *pchan, bool select, bool chan
 
   /* sanity checks */
   /* XXX: actually, we can probably still get away with no object - at most we have no updates */
-  if (ELEM(nullptr, ob, ob->pose, pchan, pchan->bone)) {
+  if (ELEM(nullptr, ob, ob->pose, pchan, pchan->bone_get(*armature))) {
     return;
   }
 
@@ -113,7 +113,7 @@ void ED_pose_bone_select(Object *ob, bPoseChannel *pchan, bool select, bool chan
     if (select) {
       animrig::bone_select(pchan);
       if (change_active) {
-        arm->act_bone = pchan->bone;
+        arm->act_bone = pchan->bone_get(*armature);
       }
     }
     else {
@@ -140,7 +140,9 @@ bool ED_armature_pose_select_pick_bone(const Main &bmain,
   bool changed = false;
 
   if (ob->pose) {
-    if (pchan && pchan->bone && ((pchan->bone->flag & BONE_UNSELECTABLE) == 0)) {
+    if (pchan && pchan->bone_get(*armature) &&
+        ((pchan->bone_get(*armature)->flag & BONE_UNSELECTABLE) == 0))
+    {
       found = true;
     }
   }
@@ -192,7 +194,7 @@ bool ED_armature_pose_select_pick_bone(const Main &bmain,
     switch (params.sel_op) {
       case SEL_OP_ADD: {
         animrig::bone_select(pchan);
-        arm->act_bone = pchan->bone;
+        arm->act_bone = pchan->bone_get(*armature);
         break;
       }
       case SEL_OP_SUB: {
@@ -202,8 +204,8 @@ bool ED_armature_pose_select_pick_bone(const Main &bmain,
       case SEL_OP_XOR: {
         if (pchan->flag & POSE_SELECTED) {
           /* If not active, we make it active. */
-          if (pchan->bone != arm->act_bone) {
-            arm->act_bone = pchan->bone;
+          if (pchan->bone_get(*armature) != arm->act_bone) {
+            arm->act_bone = pchan->bone_get(*armature);
           }
           else {
             animrig::bone_deselect(pchan);
@@ -211,13 +213,13 @@ bool ED_armature_pose_select_pick_bone(const Main &bmain,
         }
         else {
           animrig::bone_select(pchan);
-          arm->act_bone = pchan->bone;
+          arm->act_bone = pchan->bone_get(*armature);
         }
         break;
       }
       case SEL_OP_SET: {
         animrig::bone_select(pchan);
-        arm->act_bone = pchan->bone;
+        arm->act_bone = pchan->bone_get(*armature);
         break;
       }
       case SEL_OP_AND: {
@@ -229,8 +231,8 @@ bool ED_armature_pose_select_pick_bone(const Main &bmain,
     if (ob_act) {
       /* In weight-paint we select the associated vertex group too. */
       if (ob_act->mode & OB_MODE_ALL_WEIGHT_PAINT) {
-        if (pchan->bone && pchan->bone == arm->act_bone) {
-          ed::object::vgroup_select_by_name(ob_act, pchan->bone->name);
+        if (pchan->bone_get(*armature) && pchan->bone_get(*armature) == arm->act_bone) {
+          ed::object::vgroup_select_by_name(ob_act, pchan->bone_get(*armature)->name);
           DEG_id_tag_update(&ob_act->id, ID_RECALC_GEOMETRY);
         }
       }
@@ -877,7 +879,7 @@ static bool pose_select_same_color(bContext *C, const bool extend)
 
   /* Select all visible bones that have the same color. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
-    Bone *bone = pchan->bone;
+    Bone *bone = pchan->bone_get(*armature);
     if ((bone->flag & BONE_UNSELECTABLE) && (pchan->flag & POSE_SELECTED)) {
       /* Skip bones that are unselectable or already selected. */
       continue;
@@ -927,13 +929,14 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
 
   /* Build a set of bone collection names, to allow cross-Armature selection. */
   Set<std::string> collection_names;
-  for (BoneCollectionReference &bcoll_ref : active_pchan->bone->runtime.collections) {
+  for (BoneCollectionReference &bcoll_ref : active_pchan->bone_get(*armature)->runtime.collections)
+  {
     collection_names.add(bcoll_ref.bcoll->name);
   }
 
   /* Select all bones that match any of the collection names. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
-    Bone *bone = pchan->bone;
+    Bone *bone = pchan->bone_get(*armature);
     if ((pchan->flag & POSE_SELECTED) && bone->flag & BONE_UNSELECTABLE) {
       continue;
     }
@@ -1131,7 +1134,7 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
   /* if not extending selection, deselect all selected first */
   if (extend == false) {
     CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones) {
-      if ((pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
+      if ((pchan->bone_get(*armature)->flag & BONE_UNSELECTABLE) == 0) {
         animrig::bone_deselect(pchan);
       }
     }
