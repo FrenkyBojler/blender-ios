@@ -990,8 +990,7 @@ PassMain::Sub *DeferredLayer::material_add(blender::Material *blender_mat, GPUMa
   return material_pass;
 }
 
-gpu::Texture *DeferredLayer::render(View &main_view,
-                                    View &render_view,
+gpu::Texture *DeferredLayer::render(View &render_view,
                                     Framebuffer &prepass_fb,
                                     Framebuffer &combined_fb,
                                     Framebuffer &gbuffer_fb,
@@ -1038,7 +1037,7 @@ gpu::Texture *DeferredLayer::render(View &main_view,
 
   if (use_raytracing_) {
     indirect_result_ = inst_.raytracing.render(
-        rt_buffer, radiance_behind_tx, closure_bits_, main_view, render_view);
+        rt_buffer, radiance_behind_tx, closure_bits_, render_view);
   }
   else if (use_split_radiance_) {
     indirect_result_ = inst_.raytracing.alloc_only(rt_buffer);

@@ -406,8 +406,6 @@ void RayTraceModule::debug_draw(View & /*view*/, gpu::FrameBuffer * /*view_fb*/)
 RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
                                       gpu::Texture *screen_radiance_back_tx,
                                       eClosureBits active_closures,
-                                      /* TODO(fclem): Maybe wrap these two in some other class. */
-                                      View &main_view,
                                       View &render_view)
 {
   using namespace blender::math;
@@ -497,7 +495,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   data_.trace_refraction = screen_radiance_back_tx != nullptr;
 
   for (int i = 0; i < 3; i++) {
-    result.closures[i] = trace(i, (closure_count > i), options, rt_buffer, main_view, render_view);
+    result.closures[i] = trace(i, (closure_count > i), options, rt_buffer, render_view);
   }
 
   if (has_active_closure) {
@@ -550,14 +548,11 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   return result;
 }
 
-RayTraceResultTexture RayTraceModule::trace(
-    int closure_index,
-    bool active_layer,
-    RaytraceEEVEE options,
-    RayTraceBuffer &rt_buffer,
-    /* TODO(fclem): Maybe wrap these two in some other class. */
-    View &main_view,
-    View &render_view)
+RayTraceResultTexture RayTraceModule::trace(int closure_index,
+                                            bool active_layer,
+                                            RaytraceEEVEE options,
+                                            RayTraceBuffer &rt_buffer,
+                                            View &render_view)
 {
   RayTraceBuffer::DenoiseBuffer *denoise_buf = &rt_buffer.closures[closure_index];
 
@@ -680,7 +675,7 @@ RayTraceResultTexture RayTraceModule::trace(
     inst_.manager->submit(denoise_temporal_ps_, render_view);
 
     /* Save view-projection matrix for next reprojection. */
-    denoise_buf->history_persmat = main_view.persmat();
+    denoise_buf->history_persmat = render_view.persmat();
     /* Radiance will be swapped with history in #RayTraceResult::release().
      * Variance is swapped with history after bilateral denoise.
      * It keeps data-flow easier to follow. */

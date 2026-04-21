@@ -405,15 +405,21 @@ struct DenoiseTemporal {
   {
     float2 uv = project_point(uniform_buf.raytrace.denoise_history_persmat, P).xy * 0.5f + 0.5f;
 
-    /* FIXME(fclem): Find why we need this half pixel offset. */
-    float2 texel_co = uv * float2(textureSize(radiance_history_tx, 0).xy) - 0.5f;
-    float4 bilinear_weights = bilinear_weights_from_subpixel_coord(fract(texel_co));
-    int2 texel = int2(floor(texel_co));
+    float2 tex_size = float2(textureSize(radiance_history_tx, 0).xy);
+    float2 texel_co = uv * tex_size - 0.5f;
+    float2 round_co = floor(texel_co);
+    float2 fract_co = texel_co - round_co;
+    float4 bilinear_weights = bilinear_weights_from_subpixel_coord(fract_co);
+    int2 texel = int2(round_co);
 
+    /* Make sure to sample the same quad with textureGather. */
+    float2 safe_uv = (round_co + 0.5f) / tex_size;
     /* Radiance needs to be manually interpolated because any pixel might contain invalid data. */
-    float4x3 gather4 = transpose(float3x4(textureGather(radiance_history_tx, uv, gatherComp0),
-                                          textureGather(radiance_history_tx, uv, gatherComp1),
-                                          textureGather(radiance_history_tx, uv, gatherComp2)));
+    float4x3 gather4 = transpose(
+        float3x4(textureGather(radiance_history_tx, safe_uv, gatherComp0),
+                 textureGather(radiance_history_tx, safe_uv, gatherComp1),
+                 textureGather(radiance_history_tx, safe_uv, gatherComp2)));
+
     float4 history_radiance;
     history_radiance = history_validate(texel + int2(0, 1), bilinear_weights.x, gather4[0]);
     history_radiance += history_validate(texel + int2(1, 1), bilinear_weights.y, gather4[1]);
