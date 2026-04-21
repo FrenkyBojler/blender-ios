@@ -182,6 +182,7 @@ class IMAGE_MT_select_all_by_trait(Menu):
         layout.operator("uv.select_pinned", text="Pinned")
         layout.operator("uv.select_split", text="Split")
         layout.operator("uv.select_overlap", text="Overlap")
+        layout.operator("uv.select_by_winding",)
 
 
 class IMAGE_MT_select_linked(Menu):
