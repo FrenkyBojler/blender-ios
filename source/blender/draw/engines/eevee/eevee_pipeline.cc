@@ -1168,7 +1168,7 @@ PassMain::Sub *DeferredPipeline::material_add(blender::Material *blender_mat, GP
   return opaque_layer_.material_add(blender_mat, gpumat);
 }
 
-void DeferredPipeline::render(View &main_view,
+void DeferredPipeline::render(View & /*main_view*/,
                               View &render_view,
                               Framebuffer &prepass_fb,
                               Framebuffer &combined_fb,
@@ -1180,8 +1180,7 @@ void DeferredPipeline::render(View &main_view,
   gpu::Texture *feedback_tx = nullptr;
 
   GPU_debug_group_begin("Deferred.Opaque");
-  feedback_tx = opaque_layer_.render(main_view,
-                                     render_view,
+  feedback_tx = opaque_layer_.render(render_view,
                                      prepass_fb,
                                      combined_fb,
                                      gbuffer_fb,
@@ -1191,8 +1190,7 @@ void DeferredPipeline::render(View &main_view,
   GPU_debug_group_end();
 
   GPU_debug_group_begin("Deferred.Refract");
-  feedback_tx = refraction_layer_.render(main_view,
-                                         render_view,
+  feedback_tx = refraction_layer_.render(render_view,
                                          prepass_fb,
                                          combined_fb,
                                          gbuffer_fb,
