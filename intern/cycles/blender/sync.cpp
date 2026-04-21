@@ -378,6 +378,8 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   integrator->set_caustics_refractive(get_boolean(cscene, "caustics_refractive"));
   integrator->set_filter_glossy(get_float(cscene, "blur_glossy"));
 
+  integrator->set_use_pixel_jitter(get_boolean(cscene, "use_pixel_jitter"));
+
   int seed = get_int(cscene, "seed");
   if (get_boolean(cscene, "use_animated_seed")) {
     seed = hash_uint2(b_scene->r.cfra, get_int(cscene, "seed"));
@@ -834,7 +836,7 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
     PassMode pass_mode = PassMode::DENOISED;
 
     if (!get_known_pass_type(b_pass, pass_type, pass_mode)) {
-      if (!expected_passes.count(b_pass.name)) {
+      if (!expected_passes.contains(b_pass.name)) {
         LOG_ERROR << "Unknown pass " << b_pass.name;
       }
       continue;

@@ -430,7 +430,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
 
     /* Force workarounds and disable extensions. */
     workarounds.not_aligned_pixel_formats = true;
-    workarounds.no_texture_pool = true;
     extensions.shader_output_layer = false;
     extensions.shader_output_viewport_index = false;
     extensions.fragment_shader_barycentric = false;
@@ -441,6 +440,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.line_rasterization = false;
     extensions.extended_dynamic_state = false;
     GCaps.stencil_export_support = false;
+    GCaps.texture_pool_workaround = true;
 
     device.workarounds_ = workarounds;
     device.extensions_ = extensions;
@@ -448,7 +448,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
   }
 
   if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
-    workarounds.no_texture_pool = true;
+    GCaps.texture_pool_workaround = true;
   }
 
   extensions.shader_output_layer =
@@ -555,7 +555,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 3000))
     {
       extensions.vertex_input_dynamic_state = false;
-      workarounds.no_texture_pool = true;
+      GCaps.texture_pool_workaround = true;
     }
   }
 #endif
@@ -681,7 +681,7 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
-  if (device.workarounds_get().no_texture_pool) {
+  if (GCaps.texture_pool_workaround) {
     CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
     return new TexturePoolImpl();
   }
@@ -762,10 +762,7 @@ void VKBackend::capabilities_init(VKDevice &device)
   GCaps.max_texture_3d_size = min_uu(limits.maxImageDimension3D, INT_MAX);
   GCaps.max_buffer_texture_size = min_uu(limits.maxTexelBufferElements, UINT_MAX);
   GCaps.max_texture_layers = min_uu(limits.maxImageArrayLayers, INT_MAX);
-  GCaps.max_textures = min_uu(limits.maxDescriptorSetSampledImages, INT_MAX);
-  GCaps.max_textures_vert = GCaps.max_textures_geom = GCaps.max_textures_frag = min_uu(
-      limits.maxPerStageDescriptorSampledImages, INT_MAX);
-  GCaps.max_samplers = min_uu(limits.maxSamplerAllocationCount, INT_MAX);
+  GCaps.max_textures = min_uu(limits.maxPerStageDescriptorSampledImages, INT_MAX);
   GCaps.max_images = min_uu(limits.maxPerStageDescriptorStorageImages, INT_MAX);
   for (int i = 0; i < 3; i++) {
     GCaps.max_work_group_count[i] = min_uu(limits.maxComputeWorkGroupCount[i], INT_MAX);

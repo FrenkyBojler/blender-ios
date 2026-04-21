@@ -163,6 +163,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /** Contains RNA types generated for the geometry nodes modifier interface. */
   std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
+  /** Contains RNA types generated for the compositor strip modifier interface. */
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> compositor_nodes_srna_data;
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
@@ -522,16 +524,16 @@ inline const bNode *bNodeTree::node_by_id(const int32_t identifier) const
   return node ? *node : nullptr;
 }
 
-inline Span<bNode *> bNodeTree::nodes_by_type(const StringRefNull type_idname)
+inline Span<bNode *> bNodeTree::nodes_by_type(const UString type_idname)
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
-  return this->runtime->nodes_by_type.lookup(bke::node_type_find(type_idname.c_str()));
+  return this->runtime->nodes_by_type.lookup(bke::node_type_find(type_idname));
 }
 
-inline Span<const bNode *> bNodeTree::nodes_by_type(const StringRefNull type_idname) const
+inline Span<const bNode *> bNodeTree::nodes_by_type(const UString type_idname) const
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
-  return this->runtime->nodes_by_type.lookup(bke::node_type_find(type_idname.c_str()));
+  return this->runtime->nodes_by_type.lookup(bke::node_type_find(type_idname));
 }
 
 inline Span<const bNode *> bNodeTree::toposort_left_to_right() const
@@ -596,12 +598,12 @@ inline const bNode *bNodeTree::group_output_node() const
 
 inline Span<bNode *> bNodeTree::group_input_nodes()
 {
-  return this->nodes_by_type("NodeGroupInput");
+  return this->nodes_by_type("NodeGroupInput"_ustr);
 }
 
 inline Span<const bNode *> bNodeTree::group_input_nodes() const
 {
-  return this->nodes_by_type("NodeGroupInput");
+  return this->nodes_by_type("NodeGroupInput"_ustr);
 }
 
 inline Span<const bNodeSocket *> bNodeTree::all_input_sockets() const
@@ -924,7 +926,7 @@ inline bool bNode::is_undefined() const
   return this->typeinfo == &bke::NodeTypeUndefined;
 }
 
-inline bool bNode::is_type(const StringRef query_idname) const
+inline bool bNode::is_type(const UString query_idname) const
 {
   return this->typeinfo->is_type(query_idname);
 }
