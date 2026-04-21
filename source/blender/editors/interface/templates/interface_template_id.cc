@@ -786,6 +786,7 @@ static void template_ui_make_local(bContext &C, TemplateID &template_ui)
     WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
+
 static void template_ui_override(bContext &C, TemplateID &template_ui)
 {
   PointerRNA idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
@@ -1489,12 +1490,9 @@ static void template_ID_tabs(const bContext *C,
                                                              0.0f,
                                                              sizeof(id->name) - 2,
                                                              ""));
-    button_funcN_set(tab,
-                     template_ID_set_property_exec_fn,
-                     MEM_new<TemplateID>(__func__, template_id),
-                     id,
-                     but_func_argN_free<TemplateID>,
-                     but_func_argN_copy<TemplateID>);
+    button_func_set(tab, [id = id, template_ui = template_id](bContext &C) mutable {
+      template_ID_set_property_exec_fn(&C, &template_ui, id);
+    });
     button_drag_set_id(tab, id);
     tab->custom_data = static_cast<void *>(id);
     tab->menu = mt;
