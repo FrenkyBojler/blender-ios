@@ -1538,12 +1538,12 @@ static void do_version_subsurface_methods(bNode *node)
 {
   if (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING) {
     if (!ELEM(node->custom1, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK_SKIN)) {
-      node->custom1 = SHD_SUBSURFACE_RANDOM_WALK;
+      node->custom1 = SHD_SUBSURFACE_RANDOM_WALK_LEGACY;
     }
   }
   else if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
     if (!ELEM(node->custom2, SHD_SUBSURFACE_BURLEY, SHD_SUBSURFACE_RANDOM_WALK_SKIN)) {
-      node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
+      node->custom2 = SHD_SUBSURFACE_RANDOM_WALK_LEGACY;
     }
   }
 }
@@ -3026,15 +3026,6 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 42)) {
-    /* Use consistent socket identifiers for the math node.
-     * The code to make unique identifiers from the names was inconsistent. */
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_CUSTOM) {
-        version_node_tree_socket_id_delim(ntree);
-      }
-    }
-    FOREACH_NODETREE_END;
-
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
@@ -3086,6 +3077,17 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_MAIN_ID_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 43)) {
+    /* Use consistent socket identifiers for the math node.
+     * The code to make unique identifiers from the names was inconsistent. */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_CUSTOM) {
+        version_node_tree_socket_id_delim(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 301, 4)) {
