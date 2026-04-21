@@ -23,6 +23,10 @@ namespace animrig {
 class BoneColor;
 }
 
+namespace bke {
+struct bArmature_Runtime;
+}
+
 struct AnimData;
 struct BoneCollection;
 struct BoneCollectionMember;
@@ -394,16 +398,6 @@ struct Bone {
   Bone_Runtime runtime;
 };
 
-struct bArmature_Runtime {
-  /**
-   * Index of the active collection, -1 if there is no collection active.
-   *
-   * For UIList support in the user interface. Assigning here does nothing, use
-   * `ANIM_armature_bonecoll_active_set` to set the active bone collection.
-   */
-  int active_collection_index = 0;
-  uint8_t _pad0[4] = {};
-  struct BoneCollection *active_collection = nullptr;
 
 /**
  * Indexable storage for bones. The bone hierarchy is stored depth-first, so a bone is followed by
@@ -414,8 +408,6 @@ struct bArmature_Runtime {
 #ifdef __cplusplus
   blender::Array<Bone *> bones;
 #endif
-};
-
 struct bArmature {
 #ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(bArmature)
@@ -491,7 +483,7 @@ struct bArmature {
   float axes_position = 0;
 
   /** Keep last, for consistency with the position of other DNA runtime structures. */
-  struct bArmature_Runtime runtime;
+  bke::bArmature_Runtime *runtime = nullptr;
 
 #ifdef __cplusplus
   /* Collection array access for convenient for-loop iteration. */
