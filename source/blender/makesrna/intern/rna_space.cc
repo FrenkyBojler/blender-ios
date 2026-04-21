@@ -1860,7 +1860,7 @@ static PointerRNA rna_SpaceView3D_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_View3DOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "overlay");
 }
 
@@ -1873,13 +1873,13 @@ static PointerRNA rna_SpaceImage_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceImageOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "overlay");
 }
 
 static std::optional<std::string> rna_SpaceUVEditor_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "uv_editor");
 }
 
@@ -2681,7 +2681,7 @@ static PointerRNA rna_SpaceSequenceEditor_preview_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceSequencerPreviewOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format(
       "{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "preview_overlay");
 }
@@ -2693,7 +2693,7 @@ static PointerRNA rna_SpaceSequenceEditor_timeline_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceSequencerTimelineOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format(
       "{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "timeline_overlay");
 }
@@ -2705,7 +2705,7 @@ static PointerRNA rna_SpaceSequenceEditor_cache_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceSequencerCacheOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "cache_overlay");
 }
 
@@ -2751,7 +2751,7 @@ static PointerRNA rna_SpaceDopeSheet_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceDopeSheetOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   if (!editor_path) {
     return std::nullopt;
   }
@@ -2771,7 +2771,7 @@ static bool rna_SpaceNode_supports_previews(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceNodeOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "overlay");
 }
 
@@ -3114,7 +3114,7 @@ static PointerRNA rna_SpaceClip_overlay_get(PointerRNA *ptr)
 
 static std::optional<std::string> rna_SpaceClipOverlay_path(const PointerRNA *ptr)
 {
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(ptr);
   return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "overlay");
 }
 
@@ -3127,7 +3127,7 @@ static std::optional<std::string> rna_FileSelectParams_path(const PointerRNA *pt
     return std::nullopt;
   }
 
-  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(&space_ptr);
+  std::optional<std::string> editor_path = BKE_screen_path_to_space(&space_ptr);
   if (!editor_path) {
     return std::nullopt;
   }
@@ -4070,7 +4070,7 @@ static void rna_def_space(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "Space", nullptr);
   RNA_def_struct_sdna(srna, "SpaceLink");
   RNA_def_struct_ui_text(srna, "Space", "Space data for a screen area");
-  RNA_def_struct_path_func(srna, "BKE_screen_path_from_screen_to_space");
+  RNA_def_struct_path_func(srna, "BKE_screen_path_to_space");
   RNA_def_struct_refine_func(srna, "rna_Space_refine");
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);

@@ -1074,14 +1074,10 @@ ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
   return nullptr;
 }
 
-std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr)
+std::optional<std::string> BKE_screen_path_to_space(const PointerRNA *ptr)
 {
-  if (!ELEM(GS(ptr->owner_id->name), ID_SCR, ID_WM)) {
-    BLI_assert_unreachable();
-    return std::nullopt;
-  }
-
   const SpaceLink *link = static_cast<const SpaceLink *>(ptr->data);
+
   switch (GS(ptr->owner_id->name)) {
     case ID_SCR: {
       const bScreen *screen = reinterpret_cast<const bScreen *>(ptr->owner_id);
@@ -1112,10 +1108,11 @@ std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA
       break;
   }
 
+  BLI_assert_unreachable();
   return std::nullopt;
 }
 
-std::optional<std::string> BKE_screen_path_from_screen_to_area(const PointerRNA *ptr)
+std::optional<std::string> BKE_screen_path_to_area(const PointerRNA *ptr)
 {
   if (GS(ptr->owner_id->name) != ID_SCR) {
     BLI_assert_unreachable();
