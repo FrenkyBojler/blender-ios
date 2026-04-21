@@ -459,6 +459,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   /* New EEVEE defaults. */
   scene->eevee.motion_blur_shutter_deprecated = 0.5f;
   scene->eevee.flag &= ~SCE_EEVEE_VOLUME_CUSTOM_RANGE;
+  scene->eevee.clamp_volume_indirect = 0.0f; /* Default from versioning is not 0. */
 
   copy_v3_v3(scene->display.light_direction, float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
@@ -652,9 +653,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       }
     }
 
-    if (app_template &&
-        (STREQ(app_template, "2D_Animation") || STREQ(app_template, "Storyboarding")))
-    {
+    if (app_template && (STR_ELEM(app_template, "2D_Animation", "Storyboarding"))) {
       /* Since !153036, the base colors for stroke & fill were getting versioned to have 0% opacity
        * if the stroke/fill was disabled. This meant that in a new file using the following App
        * Templates, the "Solid Stroke" material wouldn't show anything when trying to draw a fill.

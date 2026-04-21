@@ -22,6 +22,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+#include "DNA_asset_types.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern_run.hh"
@@ -30,6 +31,7 @@
 #include "DNA_space_enums.h"
 #include "DNA_userdef_types.h"
 
+#include "ED_asset.hh"
 #include "ED_fileselect.hh"
 #include "ED_render.hh"
 
@@ -53,7 +55,6 @@ RemoteAssetLibrary::RemoteAssetLibrary(const bUserAssetLibrary &custom_library)
 {
   BLI_assert(custom_library.flag & ASSET_LIBRARY_USE_REMOTE_URL);
 
-  import_method_ = ASSET_IMPORT_APPEND_REUSE;
   may_override_import_method_ = false;
   remote_url_ = custom_library.remote_url;
 }
@@ -77,6 +78,11 @@ std::optional<AssetLibraryReference> RemoteAssetLibrary::library_reference() con
   library_ref.type = ASSET_LIBRARY_CUSTOM;
   library_ref.custom_library_index = index;
   return library_ref;
+}
+
+std::optional<eAssetImportMethod> RemoteAssetLibrary::import_method() const
+{
+  return ASSET_IMPORT_APPEND_REUSE;
 }
 
 std::optional<StringRefNull> RemoteAssetLibrary::remote_url() const
@@ -164,10 +170,11 @@ void RemoteLibraryLoadingStatus::ping_new_preview(const bContext &C,
 
 void RemoteLibraryLoadingStatus::ping_new_assets(const bContext &C, const StringRef url)
 {
-  WM_msg_publish_remote_io(CTX_wm_message_bus(&C), url);
+  wmWindowManager *wm = CTX_wm_manager(&C);
+
+  ed::asset::list::on_remote_assets_downloaded(*wm, url);
 
   /* Redraw drags, they may show some "asset being downloaded" info. */
-  const wmWindowManager *wm = CTX_wm_manager(&C);
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     WM_event_add_mousemove(CTX_wm_window(&C));
   }
@@ -587,7 +594,7 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
      * either the period before the last extension, or the null character at the end of the file
      * name). */
     const char *ext = BLI_path_extension_or_end(preview_url->c_str());
-    BLI_snprintf(thumb_name, sizeof(thumb_name), "%s%s", hexdigest, ext);
+    SNPRINTF(thumb_name, "%s%s", hexdigest, ext);
   }
 
   /* First two letters of the thumbnail name (MD5 hash of the URI) as sub-directory name. */
