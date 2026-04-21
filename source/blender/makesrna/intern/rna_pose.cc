@@ -608,7 +608,8 @@ static bool rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, Pointe
 static void rna_PoseChannel_matrix_basis_get(PointerRNA *ptr, float *values)
 {
   bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
-  BKE_pchan_to_mat4(pchan, reinterpret_cast<float (*)[4]>(values));
+  Object *ob = id_cast<Object *>(ptr->owner_id);
+  BKE_pchan_to_mat4({pchan, pchan->bone_get(*ob)}, reinterpret_cast<float (*)[4]>(values));
 }
 
 static void rna_PoseChannel_matrix_basis_set(PointerRNA *ptr, const float *values)

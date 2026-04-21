@@ -10,6 +10,7 @@
 #include <cstring>
 #include <ctime>
 
+#include "DNA_armature_types.h"
 #include "RNA_define.hh"
 
 /* #include "BLI_sys_types.h" */
@@ -39,9 +40,9 @@
 
 namespace blender {
 
-static float rna_PoseBone_do_envelope(bPoseChannel *chan, const float vec[3])
+static float rna_PoseBone_do_envelope(ID *self, bPoseChannel *chan, const float vec[3])
 {
-  Bone *bone = chan->bone;
+  Bone *bone = chan->bone_get(id_cast<Object &>(*self));
 
   float scale = (bone->flag & BONE_MULT_VG_ENV) == BONE_MULT_VG_ENV ? bone->weight : 1.0f;
 
@@ -53,14 +54,19 @@ static float rna_PoseBone_do_envelope(bPoseChannel *chan, const float vec[3])
                             bone->dist * scale);
 }
 
-static void rna_PoseBone_bbone_segment_index(
-    bPoseChannel *pchan, ReportList *reports, const float pt[3], int *r_index, float *r_blend_next)
+static void rna_PoseBone_bbone_segment_index(ID *self,
+                                             bPoseChannel *pchan,
+                                             ReportList *reports,
+                                             const float pt[3],
+                                             int *r_index,
+                                             float *r_blend_next)
 {
-  if (!pchan->bone_get(*armature) || pchan->bone_get(*armature)->segments <= 1) {
+  Bone *bone = pchan->bone_get(id_cast<Object &>(*self));
+  if (!bone || bone->segments <= 1) {
     BKE_reportf(reports, RPT_ERROR, "Bone '%s' is not a B-Bone!", pchan->name);
     return;
   }
-  if (pchan->runtime.bbone_segments != pchan->bone_get(*armature)->segments) {
+  if (pchan->runtime.bbone_segments != bone->segments) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Bone '%s' has out of date B-Bone segment data - depsgraph update required!",
@@ -68,17 +74,18 @@ static void rna_PoseBone_bbone_segment_index(
     return;
   }
 
-  BKE_pchan_bbone_deform_segment_index(pchan, pt, r_index, r_blend_next);
+  BKE_pchan_bbone_deform_segment_index({pchan, bone}, pt, r_index, r_blend_next);
 }
 
 static void rna_PoseBone_bbone_segment_matrix(
-    bPoseChannel *pchan, ReportList *reports, float mat_ret[16], int index, bool rest)
+    ID *self, bPoseChannel *pchan, ReportList *reports, float mat_ret[16], int index, bool rest)
 {
-  if (!pchan->bone_get(*armature) || pchan->bone_get(*armature)->segments <= 1) {
+  Bone *bone = pchan->bone_get(id_cast<Object &>(*self));
+  if (!bone || bone->segments <= 1) {
     BKE_reportf(reports, RPT_ERROR, "Bone '%s' is not a B-Bone!", pchan->name);
     return;
   }
-  if (pchan->runtime.bbone_segments != pchan->bone_get(*armature)->segments) {
+  if (pchan->runtime.bbone_segments != bone->segments) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Bone '%s' has out of date B-Bone segment data - depsgraph update required!",
@@ -99,7 +106,7 @@ static void rna_PoseBone_bbone_segment_matrix(
   }
 }
 
-static void rna_PoseBone_compute_bbone_handles(Object *self,
+static void rna_PoseBone_compute_bbone_handles(ID *self,
                                                bPoseChannel *pchan,
                                                ReportList *reports,
                                                float ret_h1[3],
@@ -110,7 +117,10 @@ static void rna_PoseBone_compute_bbone_handles(Object *self,
                                                bool ease,
                                                bool offsets)
 {
-  Bone *bone = pchan->bone_get(*self);
+  Object *ob = id_cast<Object *>(self);
+  bArmature &armature = id_cast<bArmature &>(*ob->data);
+
+  Bone *bone = pchan->bone_get(armature);
   if (!bone || bone->segments <= 1) {
     BKE_reportf(reports, RPT_ERROR, "Bone '%s' is not a B-Bone!", pchan->name);
     return;
@@ -291,6 +301,7 @@ void RNA_api_pose_channel(StructRNA *srna)
   FunctionRNA *func;
 
   func = RNA_def_function(srna, "evaluate_envelope", "rna_PoseBone_do_envelope");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Calculate bone envelope at given point");
   parm = RNA_def_float_vector_xyz(func,
                                   "point",
@@ -310,7 +321,7 @@ void RNA_api_pose_channel(StructRNA *srna)
 
   /* B-Bone segment index from point */
   func = RNA_def_function(srna, "bbone_segment_index", "rna_PoseBone_bbone_segment_index");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(
       func, "Retrieve the index and blend factor of the B-Bone segments based on vertex position");
   parm = RNA_def_float_vector_xyz(func,
@@ -336,7 +347,7 @@ void RNA_api_pose_channel(StructRNA *srna)
   func = RNA_def_function(srna, "bbone_segment_matrix", "rna_PoseBone_bbone_segment_matrix");
   RNA_def_function_ui_description(
       func, "Retrieve the matrix of the joint between B-Bone segments if available");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   parm = RNA_def_property(func, "matrix_return", PROP_FLOAT, PROP_MATRIX);
   RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_ui_text(parm, "", "The resulting matrix in bone local space");
