@@ -2905,6 +2905,15 @@ static const EnumPropertyItem *outliner_id_operation_itemf(bContext *C,
     if (!outliner_id_operation_item_poll(C, ptr, prop, it->value)) {
       continue;
     }
+    if (it->value == OUTLINER_IDOP_PACK) {
+      /* Include Pack operation in context menu just for tree elements that repsents image IDs. */
+      const SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+      const TreeElement *te = get_target_element(space_outliner);
+      const TreeStoreElem *tselem = TREESTORE(te);
+      if (tselem && (GS(tselem->id->name) != ID_IM)) {
+        continue;
+      }
+    }
     RNA_enum_item_add(&items, &totitem, it);
   }
   RNA_enum_item_end(&items, &totitem);
