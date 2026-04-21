@@ -169,7 +169,7 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
       rand_siz *= Parameters.random_size;
       rand_siz = 1.0f - rand_siz;
 
-      mat /= rand_siz;
+      mat *= 1.0f / rand_siz;
     }
 
     uv -= 0.5f;
