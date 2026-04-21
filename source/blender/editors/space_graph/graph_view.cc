@@ -661,11 +661,14 @@ static uint16_t find_free_localview_bit(const Main *bmain)
   return 0;
 }
 
+/**
+ * Returns true if entered in local view.
+ */
 static bool local_view_enter(bContext *C,
                              SpaceGraph &sipo,
                              const ARegion &region,
-                             ListBaseT<bAnimListElem> &anim_data,
-                             bool frame_selected)
+                             const ListBaseT<bAnimListElem> &anim_data,
+                             const bool frame_selected)
 {
   bool is_selected = false;
   /* Find a free bit and set local view for graph editor in current context. */
@@ -683,23 +686,28 @@ static bool local_view_enter(bContext *C,
     }
   }
 
-  if (is_selected) {
-    /* Only enter local view when Fcurve is selected. */
-    sipo.local_view_bit = free_bit;
-    sipo.local_view_visible_region_before = region.v2d.cur;
-    if (frame_selected) {
-      graphkeys_viewall(C, false, true, 200);
-    }
+  /* Only enter local view when Fcurve is selected. */
+  if (!is_selected) {
+    return false;
+  }
+  
+  sipo.local_view_bit = free_bit;
+  sipo.local_view_visible_region_before = region.v2d.cur;
+  if (frame_selected) {
+    graphkeys_viewall(C, false, true, 200);
   }
 
-  return is_selected;
+  return true;
 }
 
+/**
+  * Returns true if exited from the local view.
+ */
 static bool local_view_exit(bContext *C,
                             SpaceGraph &sipo,
                             ARegion &region,
-                            ListBaseT<bAnimListElem> &anim_data,
-                            bool frame_selected)
+                            const ListBaseT<bAnimListElem> &anim_data,
+                            const bool frame_selected)
 {
   bool changed = false;
   for (bAnimListElem &ale : anim_data) {
@@ -763,12 +771,13 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
 
 static bool graph_isolate_poll(bContext *C)
 {
-  if (ED_operator_graphedit_active(C)) {
-    const SpaceGraph *sipo = CTX_wm_space_graph(C);
-    /* Operator is not supported yet in driver editor. */
-    return sipo->mode != SIPO_MODE_DRIVERS;
+  if (!ED_operator_graphedit_active(C)) {
+    return false;
   }
-  return false;
+
+  const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  /* Operator is not supported yet in driver editor. */
+  return sipo->mode != SIPO_MODE_DRIVERS;
 }
 
 void GRAPH_OT_isolate(wmOperatorType *ot)
