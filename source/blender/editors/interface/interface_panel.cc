@@ -2745,6 +2745,11 @@ int handler_panel_region(bContext *C,
       else {
         WM_tooltip_clear(C, CTX_wm_window(C));
       }
+    } else if((event->type == RIGHTMOUSE) && panel_categories_find_mouse_over(region, event)) {
+        if (retval == WM_UI_HANDLER_CONTINUE && event->type == RIGHTMOUSE) {
+          retval = WM_UI_HANDLER_BREAK;
+          popup_context_menu_for_panel(C, region, nullptr);
+        }
     }
   }
 
@@ -2819,11 +2824,6 @@ int handler_panel_region(bContext *C,
         handle_layout_panel_header(C, &block, mx, my, event->type);
       }
     }
-  }
-
-  if (retval == WM_UI_HANDLER_CONTINUE && event->type == RIGHTMOUSE) {
-    retval = WM_UI_HANDLER_BREAK;
-    popup_context_menu_for_panel(C, region, nullptr);
   }
 
   return retval;
