@@ -271,20 +271,18 @@ _EVENT_TYPE_MAP_I18N = {}
 _MODIFIER_ALIASES = {}
 _VALUE_ALIASES = {}
 
-_search_tables_initialized = False
-_search_tables_language = ""
+_search_tables_language_init = None
+
 
 def _init_search_tables():
     # Build all search lookup tables once from bl_rna enums + translations
-    global _search_tables_initialized
-    global _search_tables_language
+    global _search_tables_language_init
 
     current_language = bpy.context.preferences.view.language
-    if _search_tables_initialized and _search_tables_language == current_language:
+    if _search_tables_language_init == current_language:
         return
 
-    _search_tables_initialized = True
-    _search_tables_language = current_language
+    _search_tables_language_init = current_language
 
     _EVENT_TYPES.clear()
     _EVENT_TYPE_MAP.clear()
@@ -395,6 +393,7 @@ def _init_search_tables():
             if translated_norm not in _VALUE_ALIASES:
                 _VALUE_ALIASES[translated_norm] = key
     del value_prop, value_enum
+
 
 def draw_filtered(display_keymaps, filter_type, filter_text, layout):
 
