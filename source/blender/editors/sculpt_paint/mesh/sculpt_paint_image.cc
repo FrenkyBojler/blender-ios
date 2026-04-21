@@ -280,7 +280,7 @@ static void blend_colors(MutableSpan<float4> paint_pixels,
 
   /* Apply the blended color to the original image with the brush alpha. */
   IMB_blend_color_float(
-      paint_pixels, scene_linear_pixels, paint_pixels, (IMB_BlendMode)brush.blend);
+      paint_pixels, scene_linear_pixels, paint_pixels, IMB_BlendMode(brush.blend));
 }
 
 #ifdef DEBUG_PIXEL_NODES
