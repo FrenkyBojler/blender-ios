@@ -1972,17 +1972,10 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_stroke(Panel, View3DPanel):
         brush = context.tool_settings.gpencil_paint.brush
         return brush is not None and brush.gpencil_brush_type == 'DRAW'
 
-    def draw(self, context):
-        tool_settings = context.scene.tool_settings
-        gpencil_paint = tool_settings.gpencil_paint
-        brush = gpencil_paint.brush
-        gp_settings = brush.gpencil_settings
-
+    def draw(self, _context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-
-        layout.prop(gp_settings, "use_cyclic_stroke")
 
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing(View3DPanel, Panel):
