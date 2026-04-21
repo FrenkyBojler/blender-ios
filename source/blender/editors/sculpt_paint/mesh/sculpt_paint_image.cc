@@ -261,9 +261,8 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x);
 
-  for (int i = 0; i < pixel_row.num_pixels; i++) {
-    image_pixels[start_offset + i] = scene_linear_pixels[i];
-  }
+  std::copy_n(
+      scene_linear_pixels.begin(), pixel_row.num_pixels, image_pixels.begin() + start_offset);
 }
 
 static void blend_colors(MutableSpan<float4> paint_pixels,
