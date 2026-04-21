@@ -184,11 +184,11 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
       math::Axis::from_int(node.custom1), NodeAlignEulerToVectorPivotAxis(node.custom2));
 }
 
-static int gpu_shader_align_rotation_to_vector(GPUMaterial *mat,
-                                               bNode *node,
-                                               bNodeExecData * /*execdata*/,
-                                               GPUNodeStack *in,
-                                               GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   const math::Axis main_axis_mode = math::Axis::from_int(node->custom1);
   const NodeAlignEulerToVectorPivotAxis pivot_axis_mode = NodeAlignEulerToVectorPivotAxis(
@@ -275,7 +275,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.build_multi_function = node_build_multi_function;
-  ntype.gpu_fn = gpu_shader_align_rotation_to_vector;
+  ntype.gpu_fn = node_gpu_material;
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

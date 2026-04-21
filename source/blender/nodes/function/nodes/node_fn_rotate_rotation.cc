@@ -33,11 +33,11 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
   layout.prop(ptr, "rotation_space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
-static int gpu_shader_rotate_rotation(GPUMaterial *mat,
-                                      bNode *node,
-                                      bNodeExecData * /*execdata*/,
-                                      GPUNodeStack *in,
-                                      GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   const char *name = nullptr;
   switch (RotationSpace(node->custom1)) {
@@ -107,7 +107,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  ntype.gpu_fn = gpu_shader_rotate_rotation;
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 

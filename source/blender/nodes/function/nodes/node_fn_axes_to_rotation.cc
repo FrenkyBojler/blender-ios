@@ -11,6 +11,7 @@
 #include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_axes_to_rotation_cc {
 
@@ -141,11 +142,11 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
       math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2));
 }
 
-static int gpu_shader_axes_to_rotation(GPUMaterial *mat,
-                                       bNode *node,
-                                       bNodeExecData * /*execdata*/,
-                                       GPUNodeStack *in,
-                                       GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   if (node->custom1 == node->custom2) {
     return GPU_stack_link(mat, node, "axes_to_rotation_identity", in, out);
@@ -153,6 +154,8 @@ static int gpu_shader_axes_to_rotation(GPUMaterial *mat,
 
   const float primary = float(node->custom1);
   const float secondary = float(node->custom2);
+  /* Through cancellation this will set the last axis to be the one that's neither the primary
+   * nor secondary axis. */
   const int tertiary_axis = (0 + 1 + 2) - node->custom1 - node->custom2;
   const float tertiary = float(tertiary_axis);
 
@@ -220,7 +223,7 @@ static void node_register()
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.get_extra_info = node_extra_info;
-  ntype.gpu_fn = gpu_shader_axes_to_rotation;
+  ntype.gpu_fn = node_gpu_material;
   node_rna(ntype.rna_ext.srna);
   bke::node_register_type(ntype);
 }

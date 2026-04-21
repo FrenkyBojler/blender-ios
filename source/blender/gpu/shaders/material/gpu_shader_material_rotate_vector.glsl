@@ -7,5 +7,5 @@
 [[node]]
 void rotate_vector(float3 vector, float4 rotation, out float3 result)
 {
-  result = transform_point_by_quaternion(rotation, vector);
+  result = transform_point_by_quaternion(Quaternion{UNPACK4(rotation)}, vector);
 }

@@ -19,11 +19,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Rotation>("Rotation"_ustr);
 };
 
-static int gpu_shader_rotate_vector(GPUMaterial *mat,
-                                    bNode *node,
-                                    bNodeExecData * /*execdata*/,
-                                    GPUNodeStack *in,
-                                    GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "rotate_vector", in, out);
 }
@@ -45,7 +45,7 @@ static void node_register()
   ntype.enum_name_legacy = "ROTATE_VECTOR";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
-  ntype.gpu_fn = gpu_shader_rotate_vector;
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }

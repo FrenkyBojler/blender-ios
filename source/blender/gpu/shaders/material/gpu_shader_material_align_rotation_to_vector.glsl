@@ -52,7 +52,8 @@ void align_rotation_to_vector_auto_pivot(float4 rotation_in,
     return;
   }
 
-  const float3 old_axis = transform_point_by_quaternion(rotation_in, local_main_axis);
+  const Quaternion quat_in = Quaternion{UNPACK4(rotation_in)};
+  const float3 old_axis = transform_point_by_quaternion(quat_in, local_main_axis);
   const float3 new_axis = normalize(input_vector);
 
   float3 rotation_axis = cross(old_axis, new_axis);
@@ -72,7 +73,7 @@ void align_rotation_to_vector_auto_pivot(float4 rotation_in,
   aa.axis = normalize(rotation_axis);
   aa.angle = angle;
 
-  rotation = math_quaternion_multiply(to_axis_angle(aa).as_float4(), rotation_in);
+  rotation = math_quaternion_multiply(to_axis_angle(aa), quat_in).as_float4();
 }
 
 [[node]]
@@ -93,8 +94,9 @@ void align_rotation_to_vector_fixed_pivot(float4 rotation_in,
     return;
   }
 
-  const float3 old_axis = transform_point_by_quaternion(rotation_in, local_main_axis);
-  const float3 pivot_axis = transform_point_by_quaternion(rotation_in, local_pivot_axis);
+  const Quaternion quat_in = Quaternion{UNPACK4(rotation_in)};
+  const float3 old_axis = transform_point_by_quaternion(quat_in, local_main_axis);
+  const float3 pivot_axis = transform_point_by_quaternion(quat_in, local_pivot_axis);
 
   float full_angle = angle_signed_on_axis_v3v3_v3(input_vector, old_axis, pivot_axis);
   if (full_angle > M_PI) {
@@ -108,5 +110,5 @@ void align_rotation_to_vector_fixed_pivot(float4 rotation_in,
   aa.axis = normalize(pivot_axis);
   aa.angle = angle;
 
-  rotation = math_quaternion_multiply(to_axis_angle(aa).as_float4(), rotation_in);
+  rotation = math_quaternion_multiply(to_axis_angle(aa), quat_in).as_float4();
 }

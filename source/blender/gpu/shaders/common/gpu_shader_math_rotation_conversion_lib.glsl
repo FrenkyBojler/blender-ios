@@ -137,6 +137,10 @@ void normalized_to_eul2(float3x3 mat, EulerXYZ &eul1, EulerXYZ &eul2)
 /** \name Quaternion Functions
  * \{ */
 
+/* Forward declaration. Quaternion and Axis Angle sections both have functions
+ * that depend on each other. */
+Quaternion to_axis_angle(AxisAngle axis_angle);
+
 Quaternion to_quaternion(EulerXYZ eul)
 {
   float ti = eul.x * 0.5f;
@@ -195,6 +199,17 @@ Quaternion to_quaternion(float4x4 mat)
 Quaternion to_quaternion(float4x4 mat, const bool normalized)
 {
   return to_quaternion(to_float3x3(mat), normalized);
+}
+
+Quaternion to_quaternion(float3 axis, float angle)
+{
+  if (is_zero(axis)) {
+    return Quaternion::identity();
+  }
+  AxisAngle aa;
+  aa.axis = normalize(axis);
+  aa.angle = angle;
+  return to_axis_angle(aa);
 }
 
 /** \} */

@@ -2,8 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_quaternion_lib.glsl"
+
 [[node]]
 void invert_rotation(float4 rotation, out float4 result)
 {
-  result = float4(rotation.x, -rotation.y, -rotation.z, -rotation.w);
+  result = quaternion_conjugate(Quaternion{UNPACK4(rotation)}).as_float4();
 }

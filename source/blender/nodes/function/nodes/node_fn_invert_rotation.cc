@@ -18,11 +18,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Rotation>("Rotation"_ustr).align_with_previous();
 };
 
-static int gpu_shader_invert_rotation(GPUMaterial *mat,
-                                      bNode *node,
-                                      bNodeExecData * /*execdata*/,
-                                      GPUNodeStack *in,
-                                      GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "invert_rotation", in, out);
 }
@@ -43,7 +43,7 @@ static void node_register()
   ntype.enum_name_legacy = "INVERT_ROTATION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
-  ntype.gpu_fn = gpu_shader_invert_rotation;
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }

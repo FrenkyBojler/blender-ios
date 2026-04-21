@@ -24,25 +24,27 @@ struct Quaternion {
 /** \name Quaternion Math
  * \{ */
 
-float4 math_quaternion_multiply(float4 a, float4 b)
+Quaternion math_quaternion_multiply(Quaternion a, Quaternion b)
 {
-  return float4(a.x * b.x - a.y * b.y - a.z * b.z - a.w * b.w,
-                a.x * b.y + a.y * b.x + a.z * b.w - a.w * b.z,
-                a.x * b.z - a.y * b.w + a.z * b.x + a.w * b.y,
-                a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x);
+  Quaternion result;
+  result.x = a.x * b.x - a.y * b.y - a.z * b.z - a.w * b.w;
+  result.y = a.x * b.y + a.y * b.x + a.z * b.w - a.w * b.z;
+  result.z = a.x * b.z - a.y * b.w + a.z * b.x + a.w * b.y;
+  result.w = a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x;
+  return result;
 }
 
-float3 transform_point_by_quaternion(float4 q, float3 v)
+Quaternion quaternion_conjugate(Quaternion q)
 {
-  const float S_w = -q.y * v.x - q.z * v.y - q.w * v.z;
-  const float S_x = q.x * v.x + q.z * v.z - q.w * v.y;
-  const float S_y = q.x * v.y + q.w * v.x - q.y * v.z;
-  const float S_z = q.x * v.z + q.y * v.y - q.z * v.x;
-  float3 R;
-  R.x = S_w * (-q.y) + S_x * q.x - S_y * q.w + S_z * q.z;
-  R.y = S_w * (-q.z) + S_y * q.x - S_z * q.y + S_x * q.w;
-  R.z = S_w * (-q.w) + S_z * q.x - S_x * q.z + S_y * q.y;
-  return R;
+  return {q.x, -q.y, -q.z, -q.w};
+}
+
+float3 transform_point_by_quaternion(Quaternion q, float3 v)
+{
+  Quaternion v_quat = {0.0f, v.x, v.y, v.z};
+  Quaternion result = math_quaternion_multiply(math_quaternion_multiply(q, v_quat),
+                                               quaternion_conjugate(q));
+  return float3(result.y, result.z, result.w);
 }
 
 /** \} */

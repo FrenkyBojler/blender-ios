@@ -34,11 +34,11 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
-static int gpu_shader_axis_angle_to_rotation(GPUMaterial *mat,
-                                             bNode *node,
-                                             bNodeExecData * /*execdata*/,
-                                             GPUNodeStack *in,
-                                             GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "axis_angle_to_rotation", in, out);
 }
@@ -84,7 +84,7 @@ static void node_register()
   ntype.enum_name_legacy = "AXIS_ANGLE_TO_ROTATION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
-  ntype.gpu_fn = gpu_shader_axis_angle_to_rotation;
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;

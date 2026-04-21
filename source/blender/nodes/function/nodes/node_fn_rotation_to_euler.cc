@@ -19,11 +19,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Euler"_ustr).subtype(PROP_EULER);
 };
 
-static int gpu_shader_rotation_to_euler(GPUMaterial *mat,
-                                        bNode *node,
-                                        bNodeExecData * /*execdata*/,
-                                        GPUNodeStack *in,
-                                        GPUNodeStack *out)
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "rotation_to_euler", in, out);
 }
@@ -70,7 +70,7 @@ static void node_register()
   ntype.enum_name_legacy = "ROTATION_TO_EULER";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
-  ntype.gpu_fn = gpu_shader_rotation_to_euler;
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;
