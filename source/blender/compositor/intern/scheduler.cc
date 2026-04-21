@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "BLI_index_range.hh"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
@@ -253,6 +254,10 @@ static bool is_index_switch_node_input_needed(const bNode &node,
   const bNodeSocket *index_input = node.input_by_identifier("Index"_ustr);
   if (!index_input->is_logically_linked()) {
     const int index = index_input->default_value_typed<bNodeSocketValueInt>()->value;
+    if (!IndexRange(storage.items_num).contains(index)) {
+      return false;
+    }
+
     const std::string identifier = nodes::IndexSwitchItemsAccessor::socket_identifier_for_item(
         storage.items[index]);
     return input.identifier == identifier;
@@ -269,6 +274,10 @@ static bool is_index_switch_node_input_needed(const bNode &node,
 
   const int index = node_group_operation.get_input(index_linked_output->identifier)
                         .get_single_value_default<int>();
+  if (!IndexRange(storage.items_num).contains(index)) {
+    return false;
+  }
+
   const std::string identifier = nodes::IndexSwitchItemsAccessor::socket_identifier_for_item(
       storage.items[index]);
   return input.identifier == identifier;
