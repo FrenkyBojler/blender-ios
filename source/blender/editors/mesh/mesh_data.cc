@@ -447,8 +447,8 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
 }
 
 enum class UvTextureMoveDirection {
-  Up = -1,
-  Down = 1,
+  Up = 1,
+  Down = 0,
 };
 
 static bool uv_texture_move_poll(bContext *C)

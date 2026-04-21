@@ -37,11 +37,6 @@
 
 namespace blender::ed::mesh::uvmap {
 
-static int uv_uid_from_name(const Mesh &mesh, StringRefNull uv_name)
-{
-  return mesh.uv_map_names().index_of_try(uv_name);
-}
-
 static std::optional<std::string> uv_name_from_uid(const VectorSet<StringRefNull> &uv_names,
                                                    int uv_uid)
 {
@@ -63,15 +58,18 @@ class UVMapTreeView : public ui::AbstractTreeView {
 
   void build_tree() override;
 };
+struct UVMap {
+    Mesh &mesh;
+    int uid;
+  };
 
 class UVMapDragController : public ui::AbstractViewItemDragController {
  private:
-  Mesh &mesh_;
-  std::string drag_uv_name_;
-
+  UVMap drag_uv_;
+  
  public:
-  UVMapDragController(UVMapTreeView &view, Mesh &mesh, StringRefNull drag_uv_name)
-      : AbstractViewItemDragController(view), mesh_(mesh), drag_uv_name_(drag_uv_name)
+  UVMapDragController(UVMapTreeView &view, Mesh &mesh, int drag_uv_uid)
+      : AbstractViewItemDragController(view), drag_uv_{mesh, drag_uv_uid}
   {
   }
 
@@ -87,17 +85,17 @@ class UVMapDragController : public ui::AbstractViewItemDragController {
       if (!item.is_selected()) {
         return;
       }
-      std::optional<std::string> debug_name = item.debug_name();
-      if (!debug_name) {
+      const std::string name(item.get_rename_string());
+      if (name.empty()) {
         return;
       }
-      const int uv_uid = uv_uid_from_name(mesh_, *debug_name);
+      const int uv_uid = drag_uv_.mesh.uv_map_names().index_of_try(name.c_str());
       if (uv_uid != -1) {
         selected_uv_uids.append(uv_uid);
       }
     });
 
-    const int drag_uv_uid = uv_uid_from_name(mesh_, drag_uv_name_);
+    const int drag_uv_uid = drag_uv_.uid;
     bool has_drag_uv_uid = false;
     for (const int uid : selected_uv_uids) {
       if (uid == drag_uv_uid) {
@@ -113,15 +111,15 @@ class UVMapDragController : public ui::AbstractViewItemDragController {
       return nullptr;
     }
 
-    int *selected_uids = MEM_new_array_zeroed<int>(selected_uv_uids.size() + 2,
-                                                   "Selected UV Map UIDs");
-    selected_uids[0] = int(mesh_.id.session_uid);
+    int *selected_uv_maps = MEM_new_array_zeroed<int>(selected_uv_uids.size() + 2,
+                                                      "Selected UV Maps");
+    selected_uv_maps[0] = int(drag_uv_.mesh.id.session_uid);
     for (const int i : selected_uv_uids.index_range()) {
-      selected_uids[i + 1] = selected_uv_uids[i];
+      selected_uv_maps[i + 1] = selected_uv_uids[i];
     }
-    selected_uids[selected_uv_uids.size() + 1] = -1;
+    selected_uv_maps[selected_uv_uids.size() + 1] = -1;
 
-    return selected_uids;
+    return selected_uv_maps;
   }
 };
 
@@ -145,12 +143,12 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
-    const int *drag_uids = static_cast<const int *>(drag.poin);
-    if (drag_uids == nullptr || drag_uids[1] == -1) {
+    const int *drag_uv_maps = static_cast<const int *>(drag.poin);
+    if (drag_uv_maps == nullptr || drag_uv_maps[1] == -1) {
       return false;
     }
 
-    return drag_uids[0] == int(mesh_.id.session_uid);
+    return drag_uv_maps[0] == int(mesh_.id.session_uid);
   }
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
@@ -176,8 +174,8 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
 
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
-    const int *drag_uids = static_cast<const int *>(drag_info.drag_data.poin);
-    if (drag_uids == nullptr || drag_uids[1] == -1 || drag_uids[0] != int(mesh_.id.session_uid)) {
+    const int *drag_uv_maps = static_cast<const int *>(drag_info.drag_data.poin);
+    if (drag_uv_maps == nullptr || drag_uv_maps[1] == -1 || drag_uv_maps[0] != int(mesh_.id.session_uid)) {
       return false;
     }
 
@@ -187,9 +185,9 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
 
     const VectorSet<StringRefNull> initial_uv_names = mesh_.uv_map_names();
     Vector<std::string> drag_uv_names;
-    for (int i = 1; drag_uids[i] != -1; i++) {
+    for (int i = 1; drag_uv_maps[i] != -1; i++) {
       const std::optional<std::string> drag_uv_name = uv_name_from_uid(initial_uv_names,
-                                                                       drag_uids[i]);
+                                                                       drag_uv_maps[i]);
       if (drag_uv_name) {
         drag_uv_names.append(*drag_uv_name);
       }
@@ -199,9 +197,7 @@ class UVMapDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
-    const std::string &first_drag_name = drag_uv_names.first();
-
-    const int from_index = initial_uv_names.index_of_try(first_drag_name);
+    const int from_index = initial_uv_names.index_of_try(drag_uv_names.first());
     const int drop_index = initial_uv_names.index_of_try(drop_uv_name_);
     if (from_index == -1 || drop_index == -1) {
       return false;
@@ -354,15 +350,10 @@ class UVMapItem : public ui::AbstractTreeViewItem {
     return uv_name_;
   }
 
-  std::optional<std::string> debug_name() const override
-  {
-    return uv_name_;
-  }
-
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<UVMapDragController>(
-        static_cast<UVMapTreeView &>(get_tree_view()), mesh_, uv_name_);
+        static_cast<UVMapTreeView &>(get_tree_view()), mesh_, mesh_.uv_map_names().index_of_try(uv_name_));
   }
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
