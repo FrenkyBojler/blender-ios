@@ -105,12 +105,15 @@ set(SRC
   GEO_volume_grid_resample.hh
 
   xpbd/GEO_xpbd_constraint_align_rotations.hh
-  xpbd/GEO_xpbd_constraint_collision_plane.hh
+  xpbd/GEO_xpbd_constraint_collision_edge.hh
+  xpbd/GEO_xpbd_constraint_collision_face.hh
   xpbd/GEO_xpbd_constraint_coloring.hh
   xpbd/GEO_xpbd_constraint_damping_angular.hh
   xpbd/GEO_xpbd_constraint_damping_linear.hh
   xpbd/GEO_xpbd_constraint_distance.hh
-  xpbd/GEO_xpbd_constraint_friction.hh
+  xpbd/GEO_xpbd_constraint_friction_edge.hh
+  xpbd/GEO_xpbd_constraint_friction_face.hh
+  xpbd/GEO_xpbd_constraint_math.hh
   xpbd/GEO_xpbd_constraint_pin_position.hh
   xpbd/GEO_xpbd_constraint_pin_rotation.hh
   xpbd/GEO_xpbd_constraint_rod_bend_twist.hh

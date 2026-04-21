@@ -16,6 +16,7 @@ class ConstraintSetParams {
  public:
   float delta_time;
   float compliance_term_factor;
+  float dynamic_friction_factor;
 
   ConstraintSetParams(Span<GeometryRef> geometry_refs, float delta_time);
 
@@ -57,7 +58,8 @@ inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs,
                                                 const float delta_time)
     : geometry_refs_(geometry_refs),
       delta_time(delta_time),
-      compliance_term_factor(math::safe_rcp(delta_time * delta_time))
+      compliance_term_factor(math::safe_rcp(delta_time * delta_time)),
+      dynamic_friction_factor(math::safe_rcp(delta_time))
 {
 }
 

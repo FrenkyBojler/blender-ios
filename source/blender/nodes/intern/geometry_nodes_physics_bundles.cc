@@ -62,9 +62,11 @@ const FlatBundleTypePtr &ColliderBundle::get_bundle_type()
     FlatBundleTypeBuilder b(ColliderBundle::name);
     add_filter(b);
     b.add<decl::Geometry>("geometry"_ustr);
+    b.add<decl::Float>("margin"_ustr).min(0.0f);
     b.add<decl::Float>("friction"_ustr).min(0.0f);
     b.add<decl::Float>("compliance"_ustr).min(0.0f);
     b.add<decl::Bool>("deforming"_ustr).default_value(false);
+    b.add<decl::Bool>("use_edge_contacts"_ustr).default_value(false);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;

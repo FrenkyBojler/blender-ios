@@ -12,6 +12,7 @@
 #include "BKE_mesh_sample.hh"
 #include "BKE_pointcloud.hh"
 
+#include "BLI_math_geom.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_stack.hh"
 #include "BLI_virtual_array_range_spans.hh"
@@ -19,11 +20,13 @@
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
-#include "GEO_xpbd_constraint_collision_plane.hh"
+#include "GEO_xpbd_constraint_collision_edge.hh"
+#include "GEO_xpbd_constraint_collision_face.hh"
 #include "GEO_xpbd_constraint_damping_angular.hh"
 #include "GEO_xpbd_constraint_damping_linear.hh"
 #include "GEO_xpbd_constraint_distance.hh"
-#include "GEO_xpbd_constraint_friction.hh"
+#include "GEO_xpbd_constraint_friction_edge.hh"
+#include "GEO_xpbd_constraint_friction_face.hh"
 #include "GEO_xpbd_constraint_pin_position.hh"
 #include "GEO_xpbd_constraint_pin_rotation.hh"
 #include "GEO_xpbd_constraint_rod_bend_twist.hh"
@@ -248,6 +251,7 @@ struct InfinitePlaneCollider {
   float3 end_normal;
   float3 begin_position;
   float3 begin_normal;
+  float margin;
   float friction;
 };
 struct InfinitePlaneColliderUsage {
@@ -258,6 +262,7 @@ struct InfinitePlaneColliderUsage {
 struct StaticMeshInfo {
   const Mesh *mesh;
   bke::BVHTreeFromMesh corner_tris_bvh;
+  bke::BVHTreeFromMesh edges_bvh;
 };
 
 struct DeformingMeshInfo {
@@ -267,7 +272,8 @@ struct DeformingMeshInfo {
    * This contains one bvh tree per substep. A future optimization could be to not build
    * independent BVH trees for each mesh because the are usually very similar.
    */
-  Vector<bke::BVHTreeFromMesh> substep_bvh_trees;
+  Vector<bke::BVHTreeFromMesh> substep_corner_tris_bvh_trees;
+  Vector<bke::BVHTreeFromMesh> substep_edges_bvh_trees;
 };
 
 struct MeshCollider {
@@ -276,8 +282,10 @@ struct MeshCollider {
   std::variant<StaticMeshInfo, DeformingMeshInfo> mesh;
   float4x4 begin_transform;
   float4x4 end_transform;
+  float margin;
   float friction;
   float compliance;
+  bool use_edge_contacts;
 };
 struct MeshColliderUsage {
   /** Index of corresponding #MeshCollider. */
@@ -426,36 +434,77 @@ struct MeshContactId {
   friend bool operator==(const MeshContactId &a, const MeshContactId &b) = default;
 };
 
-struct ExternalPlaneContacts {
+struct ExternalFaceContacts {
   Map<MeshContactId, int> mesh_contact_indices;
   Map<InfinitePlaneContactId, int> infinite_plane_contact_indices;
 
   Vector<int> points;
-  Vector<float3> positions_on_plane;
+  Vector<float> point_radii;
+  Vector<float3> positions_on_face;
   /* The movement of the collider in the current substep. */
   Vector<float3> collider_motion;
   Vector<float3> collider_velocities;
-  Vector<float3> separating_axes;
+  Vector<float3> face_normals;
+  Vector<float> face_margins;
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
   Vector<float> compliance_terms;
 
   Vector<bool> active_states;
   Vector<float> lambdas_normal;
-  Vector<float> lambdas;
+  Vector<float> lambdas_friction;
 
-  void init_or_preserve_state(const ExternalPlaneContacts &prev_contacts,
+  void init_or_preserve_state(const ExternalFaceContacts &prev_contacts,
                               const std::optional<int> &prev_i)
   {
     if (prev_i) {
       this->active_states.append(prev_contacts.active_states[*prev_i]);
       this->lambdas_normal.append(prev_contacts.lambdas_normal[*prev_i]);
-      this->lambdas.append(prev_contacts.lambdas[*prev_i]);
+      this->lambdas_friction.append(prev_contacts.lambdas_friction[*prev_i]);
     }
     else {
       this->active_states.append(false);
       this->lambdas_normal.append(0.0f);
-      this->lambdas.append(0.0f);
+      this->lambdas_friction.append(0.0f);
+    }
+  }
+};
+
+struct ExternalEdgeContacts {
+  Map<MeshContactId, int> mesh_contact_indices;
+
+  Vector<int2> point_pairs;
+  Vector<float2> point_radii;
+  Vector<float3> positions_on_edge;
+  /* The movement of the collider in the current substep. */
+  Vector<float3> collider_motion;
+  Vector<float3> collider_velocities;
+  Vector<float3> edge_directions;
+  Vector<float3> edge_normals;
+  Vector<float> edge_margins;
+  Vector<float> static_frictions;
+  Vector<float> dynamic_frictions;
+  Vector<float> compliance_terms;
+
+  Vector<bool> active_states;
+  Vector<float> point_mix_factors;
+  Vector<float> lambdas_normal;
+  Vector<float> lambdas_friction;
+
+  void init_or_preserve_state(const ExternalEdgeContacts &prev_contacts,
+                              const std::optional<int> &prev_i)
+  {
+    if (prev_i) {
+      this->active_states.append(prev_contacts.active_states[*prev_i]);
+      this->point_mix_factors.append(prev_contacts.point_mix_factors[*prev_i]);
+      this->lambdas_normal.append(prev_contacts.lambdas_normal[*prev_i]);
+      this->lambdas_friction.append(prev_contacts.lambdas_friction[*prev_i]);
+    }
+    else {
+      this->active_states.append(false);
+      this->point_mix_factors.append(0.0f);
+      this->lambdas_normal.append(0.0f);
+      this->lambdas_friction.append(0.0f);
     }
   }
 };
@@ -467,7 +516,8 @@ struct ChunkData {
   Vector<PinPositionConstraintChunkUsage> pin_position_constraints;
   Vector<PinRotationConstraintChunkUsage> pin_rotation_constraints;
 
-  ExternalPlaneContacts external_plane_contacts;
+  ExternalFaceContacts external_face_contacts;
+  ExternalEdgeContacts external_edge_contacts;
 };
 
 struct ConstraintsInfo {
@@ -734,6 +784,7 @@ class XpbdSolverStep {
       /* Retrieve collision plane in world space. */
       const std::optional<float3> position_wo = bundle.lookup<float3>("position"_ustr);
       const std::optional<float3> normal_wo = bundle.lookup<float3>("normal"_ustr);
+      const float margin = bundle.lookup<float>("margin"_ustr).value_or(0.0f);
       const float friction = bundle.lookup<float>("friction"_ustr).value_or(0.0f);
       if (!position_wo || !normal_wo) {
         continue;
@@ -765,6 +816,7 @@ class XpbdSolverStep {
            math::normalize(normal_sim),
            prev_position_sim,
            math::normalize(prev_normal_sim),
+           margin,
            friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
@@ -778,8 +830,8 @@ class XpbdSolverStep {
                                                  const float max_distance,
                                                  const int solver_refs_i,
                                                  const SubstepInterval &substep,
-                                                 const ExternalPlaneContacts &prev_contacts,
-                                                 ExternalPlaneContacts &r_contacts)
+                                                 const ExternalFaceContacts &prev_contacts,
+                                                 ExternalFaceContacts &r_contacts)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
@@ -797,16 +849,18 @@ class XpbdSolverStep {
         const float radius = math::interpolate(
             geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.interpolate_end);
 
-        const float distance = math::dot(position - collider_position, collider_normal) - radius;
-        if (distance >= max_distance) {
+        const float distance = math::dot(position - collider_position, collider_normal);
+        if (distance >= max_distance + radius) {
           continue;
         }
 
         const int contact_i = r_contacts.points.append_and_get_index(point_i);
-        r_contacts.positions_on_plane.append(position - collider_normal * distance);
+        r_contacts.point_radii.append(radius);
+        r_contacts.positions_on_face.append(position - collider_normal * distance);
         /* Static plane does not move. */
         r_contacts.collider_motion.append(float3(0.0f));
-        r_contacts.separating_axes.append(collider_normal);
+        r_contacts.face_normals.append(collider_normal);
+        r_contacts.face_margins.append(collider.margin);
         const float static_friction = this->compute_contact_friction(
             geo_data.static_frictions[point_i], collider.friction);
         const float dynamic_friction = this->compute_contact_friction(
@@ -834,9 +888,11 @@ class XpbdSolverStep {
       const Bundle &bundle = **bundle_ptr;
       const Bundle *previous_bundle = this->get_previous_bundle(bundle);
       const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry"_ustr);
+      const float margin = bundle.lookup<float>("margin"_ustr).value_or(0.0f);
       const float friction = bundle.lookup<float>("friction"_ustr).value_or(0.0f);
       const float compliance = bundle.lookup<float>("compliance"_ustr).value_or(0.0f);
       const bool deforming = bundle.lookup<bool>("deforming"_ustr).value_or(false);
+      const bool use_edge_contacts = bundle.lookup<bool>("use_edge_contacts"_ustr).value_or(false);
       const bke::GeometrySet *prev_geometry = previous_bundle ?
                                                   previous_bundle->lookup_ptr<bke::GeometrySet>(
                                                       "geometry"_ustr) :
@@ -856,9 +912,11 @@ class XpbdSolverStep {
                                          world_to_simulation_,
                                          *geometry,
                                          prev_geometry,
+                                         margin,
                                          friction,
                                          compliance,
                                          deforming,
+                                         use_edge_contacts,
                                          affected_data,
                                          instance_id_stack);
     }
@@ -868,8 +926,10 @@ class XpbdSolverStep {
                                        const float max_distance,
                                        const int solver_refs_i,
                                        const SubstepInterval &substep,
-                                       const ExternalPlaneContacts &prev_contacts,
-                                       ExternalPlaneContacts &r_contacts)
+                                       const ExternalFaceContacts &prev_face_contacts,
+                                       const ExternalEdgeContacts &prev_edge_contacts,
+                                       ExternalFaceContacts &r_face_contacts,
+                                       ExternalEdgeContacts &r_edge_contacts)
   {
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
@@ -880,70 +940,114 @@ class XpbdSolverStep {
       const float4x4 &prev_mesh_to_local = math::interpolate(
           collider.begin_transform, collider.end_transform, substep.interpolate_begin);
       const float4x4 local_to_mesh = math::invert(mesh_to_local);
-      /* Only uniform scaling is correctly handled here. For non-uniform scaling, just the max
-       * scale along one axis is used. */
-      const float3 mesh_to_local_radius_scale = math::abs(math::to_scale(local_to_mesh));
-      const float local_to_mesh_radius_factor = std::max({mesh_to_local_radius_scale.x,
-                                                          mesh_to_local_radius_scale.y,
-                                                          mesh_to_local_radius_scale.z});
 
-      if (const auto *static_mesh = std::get_if<StaticMeshInfo>(&collider.mesh)) {
-        this->gather_contacts__mesh_collider__static(chunk_i,
-                                                     max_distance,
-                                                     solver_refs_i,
-                                                     substep,
-                                                     collider,
-                                                     collider_usage,
-                                                     *static_mesh,
-                                                     mesh_to_local,
-                                                     prev_mesh_to_local,
-                                                     local_to_mesh,
-                                                     local_to_mesh_radius_factor,
-                                                     prev_contacts,
-                                                     r_contacts);
+      if (std::holds_alternative<StaticMeshInfo>(collider.mesh)) {
+        this->gather_contacts__mesh_collider<false>(chunk_i,
+                                                    max_distance,
+                                                    solver_refs_i,
+                                                    substep,
+                                                    collider,
+                                                    collider_usage,
+                                                    mesh_to_local,
+                                                    prev_mesh_to_local,
+                                                    local_to_mesh,
+                                                    prev_face_contacts,
+                                                    prev_edge_contacts,
+                                                    r_face_contacts,
+                                                    r_edge_contacts);
       }
-      else if (const auto *deforming_mesh = std::get_if<DeformingMeshInfo>(&collider.mesh)) {
-        this->gather_contacts__mesh_collider__deforming(chunk_i,
-                                                        max_distance,
-                                                        solver_refs_i,
-                                                        substep,
-                                                        collider,
-                                                        collider_usage,
-                                                        *deforming_mesh,
-                                                        mesh_to_local,
-                                                        prev_mesh_to_local,
-                                                        local_to_mesh,
-                                                        local_to_mesh_radius_factor,
-                                                        prev_contacts,
-                                                        r_contacts);
+      else if (std::holds_alternative<DeformingMeshInfo>(collider.mesh)) {
+        this->gather_contacts__mesh_collider<true>(chunk_i,
+                                                   max_distance,
+                                                   solver_refs_i,
+                                                   substep,
+                                                   collider,
+                                                   collider_usage,
+                                                   mesh_to_local,
+                                                   prev_mesh_to_local,
+                                                   local_to_mesh,
+                                                   prev_face_contacts,
+                                                   prev_edge_contacts,
+                                                   r_face_contacts,
+                                                   r_edge_contacts);
       }
     }
   }
 
-  void gather_contacts__mesh_collider__static(const int chunk_i,
-                                              const float max_distance,
-                                              const int solver_refs_i,
-                                              const SubstepInterval &substep,
-                                              const MeshCollider &collider,
-                                              const MeshColliderUsage &collider_usage,
-                                              const StaticMeshInfo &static_mesh,
-                                              const float4x4 &mesh_to_local,
-                                              const float4x4 &prev_mesh_to_local,
-                                              const float4x4 &local_to_mesh,
-                                              const float local_to_mesh_radius_factor,
-                                              const ExternalPlaneContacts &prev_contacts,
-                                              ExternalPlaneContacts &r_contacts)
+  /* XXX THIS IS A PLACEHOLDER!!
+   * Edge collision is currently only supported for chunked execution, which does not work for
+   * general mesh edges.Curve ranges are the only information available for edge pairs at this
+   * point. */
+  template<typename Fn>
+  void foreach_edge_point_pair(const GeometryData &geo_data, const GeometryDataChunk &chunk, Fn fn)
   {
-    const Mesh &mesh = *static_mesh.mesh;
-    const Span<float3> vert_positions = mesh.vert_positions();
-    const Span<int> corner_verts = mesh.corner_verts();
-    const Span<int3> corner_tris = mesh.corner_tris();
+    if (geo_data.curves) {
+      const OffsetIndices points_by_curve = geo_data.curves->points_by_curve();
+      if (!chunk.curves_range) {
+        return;
+      }
+      for (const int curve : *chunk.curves_range) {
+        for (const int point0 : points_by_curve[curve].drop_back(1)) {
+          const int geo_contact_id = point0;
+          fn(geo_contact_id, point0, point0 + 1);
+        }
+      }
+    }
+  }
 
-    const bke::BVHTreeFromMesh &bvh = static_mesh.corner_tris_bvh;
+  template<bool is_deforming>
+  void gather_contacts__mesh_collider(const int chunk_i,
+                                      const float max_distance,
+                                      const int solver_refs_i,
+                                      const SubstepInterval &substep,
+                                      const MeshCollider &collider,
+                                      const MeshColliderUsage &collider_usage,
+                                      const float4x4 &mesh_to_local,
+                                      const float4x4 &prev_mesh_to_local,
+                                      const float4x4 &local_to_mesh,
+                                      const ExternalFaceContacts &prev_face_contacts,
+                                      const ExternalEdgeContacts &prev_edge_contacts,
+                                      ExternalFaceContacts &r_face_contacts,
+                                      ExternalEdgeContacts &r_edge_contacts)
+  {
+    const Mesh *mesh;
+    const bke::BVHTreeFromMesh *corner_tris_bvh;
+    const bke::BVHTreeFromMesh *edges_bvh;
+    Span<float3> prev_vert_positions;
+    if constexpr (is_deforming) {
+      BLI_assert(std::holds_alternative<DeformingMeshInfo>(collider.mesh));
+      const auto &deforming_mesh = std::get<DeformingMeshInfo>(collider.mesh);
+      mesh = deforming_mesh.substep_meshes[substep.current_i + 1];
+      corner_tris_bvh = &deforming_mesh.substep_corner_tris_bvh_trees[substep.current_i];
+      edges_bvh = &deforming_mesh.substep_edges_bvh_trees[substep.current_i];
+      prev_vert_positions = deforming_mesh.substep_meshes[substep.current_i]->vert_positions();
+    }
+    else {
+      BLI_assert(std::holds_alternative<StaticMeshInfo>(collider.mesh));
+      const auto &static_mesh = std::get<StaticMeshInfo>(collider.mesh);
+      mesh = static_mesh.mesh;
+      corner_tris_bvh = &static_mesh.corner_tris_bvh;
+      edges_bvh = &static_mesh.edges_bvh;
+    }
+    const Span<float3> vert_positions = mesh->vert_positions();
+    const Span<int2> edge_verts = mesh->edges();
+    const Span<float3> vert_normals = mesh->vert_normals();
+    const Span<int> corner_verts = mesh->corner_verts();
+    const Span<int3> corner_tris = mesh->corner_tris();
+
     const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
     const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
     const Span<float3> positions =
         geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
+
+    /* Only uniform scaling is correctly handled here. For non-uniform scaling, just the max
+     * scale along one axis is used. */
+    const float3 mesh_to_local_radius_scale = math::abs(math::to_scale(local_to_mesh));
+    const float local_to_mesh_radius_factor = std::max({mesh_to_local_radius_scale.x,
+                                                        mesh_to_local_radius_scale.y,
+                                                        mesh_to_local_radius_scale.z});
+    const float mesh_to_local_radius_factor = math::safe_rcp(local_to_mesh_radius_factor);
+    const float margin_local = mesh_to_local_radius_factor * collider.margin;
 
     for (const int point_i : chunk.points_range) {
       if (geo_data.is_hard_pinned[point_i]) {
@@ -954,114 +1058,157 @@ class XpbdSolverStep {
       const float radius_local = math::interpolate(
           geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.interpolate_end);
       const float radius_mesh = local_to_mesh_radius_factor * radius_local;
-      const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
-          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance + radius_mesh);
+      const std::optional<ClosestMeshFaceContact> contact = this->get_closest_mesh_face_contact(
+          pos_mesh,
+          *corner_tris_bvh,
+          corner_tris,
+          corner_verts,
+          vert_positions,
+          max_distance + radius_mesh);
       if (!contact) {
         continue;
       }
-      const float static_friction = this->compute_contact_friction(
-          geo_data.static_frictions[point_i], collider.friction);
-      const float dynamic_friction = this->compute_contact_friction(
-          geo_data.dynamic_frictions[point_i], collider.friction);
+
       const float3 contact_pos_local = math::transform_point(mesh_to_local, contact->nearest_pos);
+      float3 prev_contact_pos_mesh;
+      if constexpr (is_deforming) {
+        const int3 &tri = corner_tris[contact->tri_i];
+        prev_contact_pos_mesh = bke::attribute_math::mix3(
+            contact->bary_coords,
+            prev_vert_positions[corner_verts[tri[0]]],
+            prev_vert_positions[corner_verts[tri[1]]],
+            prev_vert_positions[corner_verts[tri[2]]]);
+      }
+      else {
+        prev_contact_pos_mesh = contact->nearest_pos;
+      }
       const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
-                                                                  contact->nearest_pos);
+                                                                  prev_contact_pos_mesh);
+
       /* Separating axis to move self out of penetration. */
       const float3 collision_axis = contact->is_inside ? contact_pos_local - pos_local :
                                                          pos_local - contact_pos_local;
       const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
                                                     math::transpose(float3x3(local_to_mesh)) *
-                                                        contact->nearest_pos :
+                                                        contact->face_nor :
                                                     collision_axis);
-      const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local + radius_local * valid_axis);
-      r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-      r_contacts.separating_axes.append(valid_axis);
-      r_contacts.static_frictions.append(static_friction);
-      r_contacts.dynamic_frictions.append(dynamic_friction);
-      r_contacts.compliance_terms.append(
-          std::max(0.0f, substep_compliance_factor_ * collider.compliance));
 
-      const MeshContactId contact_id{collider_usage.constraint_i, point_i};
-      r_contacts.mesh_contact_indices.add(contact_id, contact_i);
-      r_contacts.init_or_preserve_state(prev_contacts,
-                                        prev_contacts.mesh_contact_indices.lookup_try(contact_id));
-    }
-  }
-
-  void gather_contacts__mesh_collider__deforming(const int chunk_i,
-                                                 const float max_distance,
-                                                 const int solver_refs_i,
-                                                 const SubstepInterval &substep,
-                                                 const MeshCollider &collider,
-                                                 const MeshColliderUsage &collider_usage,
-                                                 const DeformingMeshInfo &deforming_mesh,
-                                                 const float4x4 &mesh_to_local,
-                                                 const float4x4 &prev_mesh_to_local,
-                                                 const float4x4 &local_to_mesh,
-                                                 const float local_to_mesh_radius_factor,
-                                                 const ExternalPlaneContacts &prev_contacts,
-                                                 ExternalPlaneContacts &r_contacts)
-  {
-    const bke::BVHTreeFromMesh &bvh = deforming_mesh.substep_bvh_trees[substep.current_i];
-    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
-    const Span<float3> positions =
-        geometries_.solver_refs[solver_refs_i][chunk.data_key_i].positions;
-
-    const Mesh &mesh = *deforming_mesh.substep_meshes[substep.current_i + 1];
-    const Span<int3> corner_tris = mesh.corner_tris();
-    const Span<int> corner_verts = mesh.corner_verts();
-    const Span<float3> vert_positions = mesh.vert_positions();
-    const Span<float3> prev_vert_positions =
-        deforming_mesh.substep_meshes[substep.current_i]->vert_positions();
-
-    for (const int point_i : chunk.points_range) {
-      if (geo_data.is_hard_pinned[point_i]) {
-        continue;
-      }
-      const float3 &pos_local = positions[point_i];
-      const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
-      const float radius_local = math::interpolate(
-          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.interpolate_end);
-      const float radius_mesh = local_to_mesh_radius_factor * radius_local;
-      const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
-          pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance + radius_mesh);
-      if (!contact) {
-        continue;
-      }
       const float static_friction = this->compute_contact_friction(
           geo_data.static_frictions[point_i], collider.friction);
       const float dynamic_friction = this->compute_contact_friction(
           geo_data.dynamic_frictions[point_i], collider.friction);
-      const float3 contact_pos_local = math::transform_point(mesh_to_local, contact->nearest_pos);
-      const int3 &tri = corner_tris[contact->tri_i];
-      const float3 prev_contact_pos_mesh = bke::attribute_math::mix3(
-          contact->bary_coords,
-          prev_vert_positions[corner_verts[tri[0]]],
-          prev_vert_positions[corner_verts[tri[1]]],
-          prev_vert_positions[corner_verts[tri[2]]]);
-      const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
-                                                                  prev_contact_pos_mesh);
-      const float3 collision_axis = contact->is_inside ? contact_pos_local - pos_local :
-                                                         pos_local - contact_pos_local;
-      const float3 valid_axis = math::normalize(math::is_zero(collision_axis, 1e-6f) ?
-                                                    math::transpose(float3x3(local_to_mesh)) *
-                                                        contact->nearest_pos :
-                                                    collision_axis);
-      const int contact_i = r_contacts.points.append_and_get_index(point_i);
-      r_contacts.positions_on_plane.append(contact_pos_local + radius_local * valid_axis);
-      r_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
-      r_contacts.separating_axes.append(valid_axis);
-      r_contacts.static_frictions.append(static_friction);
-      r_contacts.dynamic_frictions.append(dynamic_friction);
-      r_contacts.compliance_terms.append(
+
+      const int contact_i = r_face_contacts.points.append_and_get_index(point_i);
+      r_face_contacts.point_radii.append(radius_local);
+      r_face_contacts.positions_on_face.append(contact_pos_local);
+      r_face_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
+      r_face_contacts.face_normals.append(valid_axis);
+      r_face_contacts.face_margins.append(margin_local);
+      r_face_contacts.static_frictions.append(static_friction);
+      r_face_contacts.dynamic_frictions.append(dynamic_friction);
+      r_face_contacts.compliance_terms.append(
           std::max(0.0f, substep_compliance_factor_ * collider.compliance));
 
       const MeshContactId contact_id{collider_usage.constraint_i, point_i};
-      r_contacts.mesh_contact_indices.add(contact_id, contact_i);
-      r_contacts.init_or_preserve_state(prev_contacts,
-                                        prev_contacts.mesh_contact_indices.lookup_try(contact_id));
+      r_face_contacts.mesh_contact_indices.add(contact_id, contact_i);
+      r_face_contacts.init_or_preserve_state(
+          prev_face_contacts, prev_face_contacts.mesh_contact_indices.lookup_try(contact_id));
+    }
+
+    if (collider.use_edge_contacts) {
+      foreach_edge_point_pair(
+          geo_data, chunk, [&](const int geo_contact_id, const int point0, const int point1) {
+            if (geo_data.is_hard_pinned[point0] && geo_data.is_hard_pinned[point1]) {
+              return;
+            }
+            const float3 &pos_local0 = positions[point0];
+            const float3 &pos_local1 = positions[point1];
+            const float3 pos_mesh0 = math::transform_point(local_to_mesh, pos_local0);
+            const float3 pos_mesh1 = math::transform_point(local_to_mesh, pos_local1);
+            const float radius_local0 = math::interpolate(
+                geo_data.prev_radii[point0], geo_data.radii[point0], substep.interpolate_end);
+            const float radius_local1 = math::interpolate(
+                geo_data.prev_radii[point1], geo_data.radii[point1], substep.interpolate_end);
+            /* Use max radius for collision detection. */
+            const float max_radius_mesh = local_to_mesh_radius_factor *
+                                          std::max(radius_local0, radius_local1);
+            const std::optional<ClosestMeshEdgeContact> contact =
+                this->get_closest_mesh_edge_contact(pos_mesh0,
+                                                    pos_mesh1,
+                                                    *edges_bvh,
+                                                    edge_verts,
+                                                    vert_positions,
+                                                    max_distance + max_radius_mesh);
+            if (!contact) {
+              return;
+            }
+
+            /* Add a contact for each face adjacent to the closest edge. */
+            const int2 &edge = edge_verts[contact->edge_i];
+
+            const float3 contact_pos_local = math::transform_point(mesh_to_local,
+                                                                   contact->nearest_pos);
+            float3 prev_contact_pos_mesh;
+            if constexpr (is_deforming) {
+              prev_contact_pos_mesh = bke::attribute_math::mix2(contact->edge_factor,
+                                                                prev_vert_positions[edge[0]],
+                                                                prev_vert_positions[edge[1]]);
+            }
+            else {
+              prev_contact_pos_mesh = contact->nearest_pos;
+            }
+            const float3 prev_contact_pos_local = math::transform_point(prev_mesh_to_local,
+                                                                        prev_contact_pos_mesh);
+
+            const float3 edge_direction_mesh = math::normalize(vert_positions[edge[1]] -
+                                                               vert_positions[edge[0]]);
+            const float3 edge_direction_local = math::transform_direction(mesh_to_local,
+                                                                          edge_direction_mesh);
+            /* Contact with the closest edge is active if the segment intersects with the
+             * half-plane defined by the edge normal. A segment intersecting with any of the
+             * adjacent faces would need to be moved along a tangent of the respective face to
+             * resolve the collision, but since in combination with point-face collisions it is
+             * sufficient to define a single edge normal, as long as the half-plane it defines is
+             * inside both of the half-planes of the adjacent faces, i.e. between the two normal
+             * directions. */
+            const float3 edge_normal_mesh = math::normalize(math::cross(
+                math::cross(edge_direction_mesh,
+                            math::interpolate(vert_normals[edge[0]], vert_normals[edge[1]], 0.5f)),
+                edge_direction_mesh));
+            const float3 edge_normal_local = math::transform_direction(mesh_to_local,
+                                                                       edge_normal_mesh);
+
+            /* Use geometric average as edge friction coefficient. */
+            const float static_friction = math::sqrt(
+                math::square(this->compute_contact_friction(geo_data.static_frictions[point0],
+                                                            collider.friction)) +
+                math::square(this->compute_contact_friction(geo_data.static_frictions[point1],
+                                                            collider.friction)));
+            const float dynamic_friction = math::sqrt(
+                math::square(this->compute_contact_friction(geo_data.dynamic_frictions[point0],
+                                                            collider.friction)) +
+                math::square(this->compute_contact_friction(geo_data.dynamic_frictions[point1],
+                                                            collider.friction)));
+
+            const int contact_i = r_edge_contacts.point_pairs.append_and_get_index(
+                {point0, point1});
+            r_edge_contacts.point_radii.append({radius_local0, radius_local1});
+            r_edge_contacts.positions_on_edge.append(contact_pos_local);
+            r_edge_contacts.collider_motion.append(contact_pos_local - prev_contact_pos_local);
+            r_edge_contacts.edge_directions.append(edge_direction_local);
+            r_edge_contacts.edge_normals.append(edge_normal_local);
+            r_edge_contacts.edge_margins.append(margin_local);
+            r_edge_contacts.static_frictions.append(static_friction);
+            r_edge_contacts.dynamic_frictions.append(dynamic_friction);
+            r_edge_contacts.compliance_terms.append(
+                std::max(0.0f, substep_compliance_factor_ * collider.compliance));
+
+            const MeshContactId contact_id{collider_usage.constraint_i, geo_contact_id};
+            r_edge_contacts.mesh_contact_indices.add(contact_id, contact_i);
+            r_edge_contacts.init_or_preserve_state(
+                prev_edge_contacts,
+                prev_edge_contacts.mesh_contact_indices.lookup_try(contact_id));
+          });
     }
   }
 
@@ -1078,16 +1225,24 @@ class XpbdSolverStep {
     }
   }
 
-  struct ClosestMeshContact {
+  struct ClosestMeshFaceContact {
     /** The nearest position exactly on the mesh surface. */
     float3 nearest_pos;
+    float3 face_nor;
     float3 bary_coords;
     /** This does not take the radius into account. */
     bool is_inside;
     int tri_i;
   };
 
-  std::optional<ClosestMeshContact> get_closest_mesh_contact(
+  struct ClosestMeshEdgeContact {
+    /** The nearest position exactly on the mesh edge. */
+    float3 nearest_pos;
+    float edge_factor;
+    int edge_i;
+  };
+
+  std::optional<ClosestMeshFaceContact> get_closest_mesh_face_contact(
       const float3 &sample_pos,
       const bke::BVHTreeFromMesh &corner_tris_bvh,
       const Span<int3> corner_tris,
@@ -1109,6 +1264,7 @@ class XpbdSolverStep {
     const int tri_i = nearest.index;
     const int3 &tri = corner_tris[tri_i];
     const float3 &contact_pos = float3(nearest.co);
+    const float3 &contact_nor = float3(nearest.no);
     const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
         vert_positions, corner_verts, tri, contact_pos);
     const float3 direction_to_mesh = contact_pos - sample_pos;
@@ -1119,9 +1275,67 @@ class XpbdSolverStep {
           sample_pos, corner_tris_bvh, direction_to_mesh);
     }
     else {
-      is_inside = math::dot(direction_to_mesh, float3(nearest.no)) > 0.0f;
+      is_inside = math::dot(direction_to_mesh, contact_nor) > 0.0f;
     }
-    return ClosestMeshContact{contact_pos, bary_coords, is_inside, tri_i};
+    return ClosestMeshFaceContact{contact_pos, contact_nor, bary_coords, is_inside, tri_i};
+  }
+
+  std::optional<ClosestMeshEdgeContact> get_closest_mesh_edge_contact(
+      const float3 &sample_pos0,
+      const float3 &sample_pos1,
+      const bke::BVHTreeFromMesh &edges_bvh,
+      const Span<int2> edges,
+      const Span<float3> vert_positions,
+      const float max_distance) const
+  {
+    struct UserData {
+      Span<int2> edges;
+      Span<float3> vert_positions;
+      float3 sample_pos0;
+      float3 sample_pos1;
+    };
+
+    const auto closest_edge_cb =
+        [](void *user_data, int index, const BVHTreeRay * /*ray*/, BVHTreeRayHit *hit) {
+          const auto &data = *static_cast<const UserData *>(user_data);
+
+          const int2 &edge = data.edges[index];
+          const float3 &v0 = data.vert_positions[edge[0]];
+          const float3 &v1 = data.vert_positions[edge[1]];
+
+          float3 closest_on_ray, closest_on_edge;
+          isect_seg_seg_v3(
+              data.sample_pos0, data.sample_pos1, v0, v1, closest_on_ray, closest_on_edge);
+          const float dist_squared = math::distance_squared(closest_on_ray, closest_on_edge);
+          if (dist_squared <= math::square(hit->dist)) {
+            hit->dist = math::sqrt(dist_squared);
+            hit->index = index;
+            copy_v3_v3(hit->co, closest_on_edge);
+          }
+        };
+
+    float ray_len;
+    const float3 ray_dir = math::normalize_and_get_length(sample_pos1 - sample_pos0, ray_len);
+
+    UserData user_data = {edges, vert_positions, sample_pos0, sample_pos1};
+    /* Needs to be initialized. */
+    BVHTreeRayHit hit;
+    hit.index = -1;
+    hit.dist = ray_len;
+    BLI_bvhtree_ray_cast_ex(
+        edges_bvh.tree, sample_pos0, ray_dir, max_distance, &hit, closest_edge_cb, &user_data, 0);
+    if (hit.index == -1) {
+      return std::nullopt;
+    }
+
+    const int edge_i = hit.index;
+    const int2 &edge = edges[edge_i];
+    const float3 &contact_pos = float3(hit.co);
+    const float3 v0 = vert_positions[edge[0]];
+    const float3 v1 = vert_positions[edge[1]];
+    const float edge_factor = math::sqrt(math::safe_divide(math::distance_squared(contact_pos, v0),
+                                                           math::distance_squared(v1, v0)));
+    return ClosestMeshEdgeContact{contact_pos, edge_factor, edge_i};
   }
 
   bool is_bary_coord_close_to_edge(const float3 &bary_coords) const
@@ -1168,9 +1382,11 @@ class XpbdSolverStep {
                                     const float4x4 &prev_transform,
                                     const GeometrySet &collider_geo,
                                     const GeometrySet *prev_collider_geo,
+                                    const float margin,
                                     const float friction,
                                     const float compliance,
                                     const bool deforming,
+                                    const bool use_edge_contacts,
                                     const Span<int> affected_data,
                                     Vector<int> &instance_id_stack)
   {
@@ -1179,8 +1395,10 @@ class XpbdSolverStep {
         MeshCollider mesh_collider;
         mesh_collider.path = path;
         mesh_collider.instance_ids = instance_id_stack;
+        mesh_collider.margin = margin;
         mesh_collider.friction = friction;
         mesh_collider.compliance = compliance;
+        mesh_collider.use_edge_contacts = use_edge_contacts;
         mesh_collider.begin_transform = prev_transform;
         mesh_collider.end_transform = transform;
         const Mesh *prev_mesh = prev_collider_geo ? prev_collider_geo->get_mesh() : nullptr;
@@ -1243,9 +1461,11 @@ class XpbdSolverStep {
                                            prev_transform * prev_instance_transform,
                                            reference_geo,
                                            prev_instance_item ? &prev_reference_geo : nullptr,
+                                           margin,
                                            friction,
                                            compliance,
                                            deforming,
+                                           use_edge_contacts,
                                            affected_data,
                                            instance_id_stack);
       }
@@ -1257,15 +1477,16 @@ class XpbdSolverStep {
                                                                           const bool deforming)
   {
     if (!deforming || !prev_mesh) {
-      return StaticMeshInfo{&mesh, mesh.bvh_corner_tris()};
+      return StaticMeshInfo{&mesh, mesh.bvh_corner_tris(), mesh.bvh_edges()};
     }
     if (mesh.verts_num != prev_mesh->verts_num) {
-      return StaticMeshInfo{&mesh, mesh.bvh_corner_tris()};
+      return StaticMeshInfo{&mesh, mesh.bvh_corner_tris(), mesh.bvh_edges()};
     }
     const int verts_num = mesh.verts_num;
     DeformingMeshInfo result;
     result.substep_meshes.resize(substeps_ + 1);
-    result.substep_bvh_trees.resize(substeps_);
+    result.substep_corner_tris_bvh_trees.resize(substeps_);
+    result.substep_edges_bvh_trees.resize(substeps_);
 
     const Span<float3> begin_positions = prev_mesh->vert_positions();
     const Span<float3> end_positions = mesh.vert_positions();
@@ -1300,7 +1521,8 @@ class XpbdSolverStep {
             result.substep_meshes[mesh_i] = substep_mesh;
             if (mesh_i > 0) {
               /* The bvh tree is not needed for the first substep. */
-              result.substep_bvh_trees[mesh_i - 1] = substep_mesh->bvh_corner_tris();
+              result.substep_corner_tris_bvh_trees[mesh_i - 1] = substep_mesh->bvh_corner_tris();
+              result.substep_edges_bvh_trees[mesh_i - 1] = substep_mesh->bvh_edges();
             }
           }
         });
@@ -2306,19 +2528,31 @@ class XpbdSolverStep {
   {
     const float max_distance = this->get_max_search_distance(sub_delta_time_);
     ChunkData &chunk_data = chunks_data_[chunk_i];
-    const ExternalPlaneContacts &prev_contacts = chunk_data.external_plane_contacts;
-    ExternalPlaneContacts new_contacts;
+    const ExternalFaceContacts &prev_face_contacts = chunk_data.external_face_contacts;
+    const ExternalEdgeContacts &prev_edge_contacts = chunk_data.external_edge_contacts;
+    ExternalFaceContacts new_face_contacts;
+    ExternalEdgeContacts new_edge_contacts;
     this->gather_contacts__infinite_plane_colliders(
-        chunk_i, max_distance, solver_refs_i, substep, prev_contacts, new_contacts);
-    this->gather_contacts__mesh_colliders(
-        chunk_i, max_distance, solver_refs_i, substep, prev_contacts, new_contacts);
+        chunk_i, max_distance, solver_refs_i, substep, prev_face_contacts, new_face_contacts);
+    this->gather_contacts__mesh_colliders(chunk_i,
+                                          max_distance,
+                                          solver_refs_i,
+                                          substep,
+                                          prev_face_contacts,
+                                          prev_edge_contacts,
+                                          new_face_contacts,
+                                          new_edge_contacts);
 
-    const int contacts_num = new_contacts.points.size();
-    for (const int i : IndexRange(contacts_num)) {
-      new_contacts.collider_velocities.append(
-          math::safe_divide(new_contacts.collider_motion[i], sub_delta_time_));
+    for (const int i : IndexRange(new_face_contacts.points.size())) {
+      new_face_contacts.collider_velocities.append(
+          math::safe_divide(new_face_contacts.collider_motion[i], sub_delta_time_));
     }
-    chunk_data.external_plane_contacts = std::move(new_contacts);
+    for (const int i : IndexRange(new_edge_contacts.point_pairs.size())) {
+      new_edge_contacts.collider_velocities.append(
+          math::safe_divide(new_edge_contacts.collider_motion[i], sub_delta_time_));
+    }
+    chunk_data.external_face_contacts = std::move(new_face_contacts);
+    chunk_data.external_edge_contacts = std::move(new_edge_contacts);
   }
 
   void simulate__reset_forces()
@@ -2336,8 +2570,8 @@ class XpbdSolverStep {
   void simulate__reset_forces__chunk(const int chunk_i)
   {
     ChunkData &chunk_data = chunks_data_[chunk_i];
-    chunk_data.external_plane_contacts.lambdas.fill(0.0f);
-    chunk_data.external_plane_contacts.lambdas_normal.fill(0.0f);
+    chunk_data.external_face_contacts.lambdas_normal.fill(0.0f);
+    chunk_data.external_face_contacts.lambdas_friction.fill(0.0f);
     for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
       constraint->reset_forces();
     }
@@ -2381,19 +2615,39 @@ class XpbdSolverStep {
       constraint->solve_sequential_all(solve_params, updater);
     }
 
-    if (!chunk_data.external_plane_contacts.points.is_empty()) {
-      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
-      xpbd::CollisionPlaneConstraintSet plane_collision_constraint(chunk.data_key_i,
-                                                                   contacts.points,
-                                                                   contacts.positions_on_plane,
-                                                                   contacts.collider_motion,
-                                                                   contacts.separating_axes,
-                                                                   contacts.compliance_terms,
-                                                                   contacts.static_frictions,
-                                                                   contacts.dynamic_frictions,
-                                                                   contacts.active_states,
-                                                                   contacts.lambdas_normal);
-      plane_collision_constraint.solve_sequential_all(solve_params, updater);
+    if (!chunk_data.external_face_contacts.points.is_empty()) {
+      ExternalFaceContacts &contacts = chunk_data.external_face_contacts;
+      xpbd::CollisionFaceConstraintSet constraint(chunk.data_key_i,
+                                                  contacts.points,
+                                                  contacts.point_radii,
+                                                  contacts.positions_on_face,
+                                                  contacts.collider_motion,
+                                                  contacts.face_normals,
+                                                  contacts.face_margins,
+                                                  contacts.compliance_terms,
+                                                  contacts.static_frictions,
+                                                  contacts.dynamic_frictions,
+                                                  contacts.active_states,
+                                                  contacts.lambdas_normal);
+      constraint.solve_sequential_all(solve_params, updater);
+    }
+    if (!chunk_data.external_edge_contacts.point_pairs.is_empty()) {
+      ExternalEdgeContacts &contacts = chunk_data.external_edge_contacts;
+      xpbd::CollisionEdgeConstraintSet constraint(chunk.data_key_i,
+                                                  contacts.point_pairs,
+                                                  contacts.point_radii,
+                                                  contacts.positions_on_edge,
+                                                  contacts.collider_motion,
+                                                  contacts.edge_directions,
+                                                  contacts.edge_normals,
+                                                  contacts.edge_margins,
+                                                  contacts.compliance_terms,
+                                                  contacts.static_frictions,
+                                                  contacts.dynamic_frictions,
+                                                  contacts.active_states,
+                                                  contacts.point_mix_factors,
+                                                  contacts.lambdas_normal);
+      constraint.solve_sequential_all(solve_params, updater);
     }
   }
 
@@ -2441,16 +2695,28 @@ class XpbdSolverStep {
       constraint->solve_sequential(params, velocity_updater);
     }
 
-    if (!chunk_data.external_plane_contacts.points.is_empty()) {
-      ExternalPlaneContacts &contacts = chunk_data.external_plane_contacts;
-      xpbd::FrictionConstraintSet friction_constraint(chunk.data_key_i,
-                                                      contacts.points,
-                                                      contacts.separating_axes,
-                                                      contacts.collider_velocities,
-                                                      contacts.dynamic_frictions,
-                                                      contacts.lambdas_normal,
-                                                      contacts.lambdas);
-      friction_constraint.solve_sequential(params, velocity_updater);
+    if (!chunk_data.external_face_contacts.points.is_empty()) {
+      ExternalFaceContacts &contacts = chunk_data.external_face_contacts;
+      xpbd::FrictionFaceConstraintSet constraint(chunk.data_key_i,
+                                                 contacts.points,
+                                                 contacts.face_normals,
+                                                 contacts.collider_velocities,
+                                                 contacts.dynamic_frictions,
+                                                 contacts.lambdas_normal,
+                                                 contacts.lambdas_friction);
+      constraint.solve_sequential(params, velocity_updater);
+    }
+    if (!chunk_data.external_edge_contacts.point_pairs.is_empty()) {
+      ExternalEdgeContacts &contacts = chunk_data.external_edge_contacts;
+      xpbd::FrictionEdgeConstraintSet constraint(chunk.data_key_i,
+                                                 contacts.point_pairs,
+                                                 contacts.edge_normals,
+                                                 contacts.collider_velocities,
+                                                 contacts.dynamic_frictions,
+                                                 contacts.lambdas_normal,
+                                                 contacts.point_mix_factors,
+                                                 contacts.lambdas_friction);
+      constraint.solve_sequential(params, velocity_updater);
     }
   }
 
@@ -2654,12 +2920,182 @@ class XpbdSolverStep {
     }
   }
 
+  PointCloud *write_back__plane_contacts(const IndexRange mesh_colliders_range,
+                                         const IndexRange infinite_plane_colliders_range,
+                                         const OffsetIndices<int> points_by_chunk)
+  {
+    PointCloud *pointcloud = BKE_pointcloud_new_nomain(points_by_chunk.total_size());
+    MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+    bke::SpanAttributeWriter<int> geometries_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("geometry", AttrDomain::Point);
+    bke::SpanAttributeWriter<int> colliders_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("collider", AttrDomain::Point);
+    bke::SpanAttributeWriter<int> geometry_points0_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("geometry_point0", AttrDomain::Point);
+    MutableSpan<float3> positions = pointcloud->positions_for_write();
+    bke::SpanAttributeWriter<float3> collider_velocities_writer =
+        attributes.lookup_or_add_for_write_only_span<float3>("collider_velocity",
+                                                             AttrDomain::Point);
+    bke::SpanAttributeWriter<float3> normals_writer =
+        attributes.lookup_or_add_for_write_only_span<float3>("normal", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> static_frictions_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("static_friction", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> dynamic_frictions_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("dynamic_friction", AttrDomain::Point);
+    bke::SpanAttributeWriter<bool> active_states_writer =
+        attributes.lookup_or_add_for_write_only_span<bool>("active", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> lambdas_normal_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("lambda_normal", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> lambdas_friction_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("lambda_friction", AttrDomain::Point);
+
+    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+      const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+      const ChunkData &chunk_data = chunks_data_[chunk_i];
+      const ExternalFaceContacts &contacts = chunk_data.external_face_contacts;
+
+      const IndexRange points = points_by_chunk[chunk_i];
+      if (points.is_empty()) {
+        /* Avoids checking the filter a second time. */
+        return;
+      }
+
+      /* Store collider indices and affected geometry point indices that map a contact to the
+       * simulated geometry. */
+      MutableSpan<int> geometries = geometries_writer.span.slice(points);
+      MutableSpan<int> colliders = colliders_writer.span.slice(points);
+      MutableSpan<int> geometry_points0 = geometry_points0_writer.span.slice(points);
+
+      geometries.fill(chunk.data_key_i);
+      for (const auto &item : contacts.mesh_contact_indices.items()) {
+        colliders[item.value] = mesh_colliders_range[item.key.mesh_collider_i];
+        geometry_points0[item.value] = contacts.points[item.value];
+      }
+      for (const auto &item : contacts.infinite_plane_contact_indices.items()) {
+        colliders[item.value] = infinite_plane_colliders_range[item.key.infinite_plane_collider_i];
+        geometry_points0[item.value] = contacts.points[item.value];
+      }
+
+      array_utils::copy(contacts.positions_on_face.as_span(), positions.slice(points));
+      array_utils::copy(contacts.collider_velocities.as_span(),
+                        collider_velocities_writer.span.slice(points));
+      array_utils::copy(contacts.face_normals.as_span(), normals_writer.span.slice(points));
+      array_utils::copy(contacts.static_frictions.as_span(),
+                        static_frictions_writer.span.slice(points));
+      array_utils::copy(contacts.dynamic_frictions.as_span(),
+                        dynamic_frictions_writer.span.slice(points));
+      array_utils::copy(contacts.active_states.as_span(), active_states_writer.span.slice(points));
+      array_utils::copy(contacts.lambdas_normal.as_span(),
+                        lambdas_normal_writer.span.slice(points));
+      array_utils::copy(contacts.lambdas_friction.as_span(),
+                        lambdas_friction_writer.span.slice(points));
+    });
+    pointcloud->tag_positions_changed();
+    geometries_writer.finish();
+    colliders_writer.finish();
+    geometry_points0_writer.finish();
+    collider_velocities_writer.finish();
+    normals_writer.finish();
+    static_frictions_writer.finish();
+    dynamic_frictions_writer.finish();
+    active_states_writer.finish();
+    lambdas_normal_writer.finish();
+    lambdas_friction_writer.finish();
+
+    return pointcloud;
+  }
+
+  PointCloud *write_back__edge_contacts(const IndexRange mesh_colliders_range,
+                                        const OffsetIndices<int> points_by_chunk)
+  {
+    PointCloud *pointcloud = BKE_pointcloud_new_nomain(points_by_chunk.total_size());
+    MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+    bke::SpanAttributeWriter<int> geometries_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("geometry", AttrDomain::Point);
+    bke::SpanAttributeWriter<int> colliders_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("collider", AttrDomain::Point);
+    bke::SpanAttributeWriter<int> geometry_points0_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("geometry_point0", AttrDomain::Point);
+    bke::SpanAttributeWriter<int> geometry_points1_writer =
+        attributes.lookup_or_add_for_write_only_span<int>("geometry_point1", AttrDomain::Point);
+    MutableSpan<float3> positions = pointcloud->positions_for_write();
+    bke::SpanAttributeWriter<float3> collider_velocities_writer =
+        attributes.lookup_or_add_for_write_only_span<float3>("collider_velocity",
+                                                             AttrDomain::Point);
+    bke::SpanAttributeWriter<float3> normals_writer =
+        attributes.lookup_or_add_for_write_only_span<float3>("normal", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> static_frictions_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("static_friction", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> dynamic_frictions_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("dynamic_friction", AttrDomain::Point);
+    bke::SpanAttributeWriter<bool> active_states_writer =
+        attributes.lookup_or_add_for_write_only_span<bool>("active", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> lambdas_normal_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("lambda_normal", AttrDomain::Point);
+    bke::SpanAttributeWriter<float> lambdas_friction_writer =
+        attributes.lookup_or_add_for_write_only_span<float>("lambda_friction", AttrDomain::Point);
+
+    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+      const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+      const ChunkData &chunk_data = chunks_data_[chunk_i];
+      const ExternalEdgeContacts &contacts = chunk_data.external_edge_contacts;
+
+      const IndexRange points = points_by_chunk[chunk_i];
+      if (points.is_empty()) {
+        /* Avoids checking the filter a second time. */
+        return;
+      }
+
+      /* Store collider indices and affected geometry point indices that map a contact to the
+       * simulated geometry. */
+      MutableSpan<int> geometries = geometries_writer.span.slice(points);
+      MutableSpan<int> colliders = colliders_writer.span.slice(points);
+      MutableSpan<int> geometry_points0 = geometry_points0_writer.span.slice(points);
+      MutableSpan<int> geometry_points1 = geometry_points1_writer.span.slice(points);
+      geometries.fill(chunk.data_key_i);
+      for (const auto &item : contacts.mesh_contact_indices.items()) {
+        colliders[item.value] = mesh_colliders_range[item.key.mesh_collider_i];
+        geometry_points0[item.value] = contacts.point_pairs[item.value][0];
+        geometry_points1[item.value] = contacts.point_pairs[item.value][1];
+      }
+
+      array_utils::copy(contacts.positions_on_edge.as_span(), positions.slice(points));
+      array_utils::copy(contacts.collider_velocities.as_span(),
+                        collider_velocities_writer.span.slice(points));
+      array_utils::copy(contacts.edge_normals.as_span(), normals_writer.span.slice(points));
+      array_utils::copy(contacts.static_frictions.as_span(),
+                        static_frictions_writer.span.slice(points));
+      array_utils::copy(contacts.dynamic_frictions.as_span(),
+                        dynamic_frictions_writer.span.slice(points));
+      array_utils::copy(contacts.active_states.as_span(), active_states_writer.span.slice(points));
+      array_utils::copy(contacts.lambdas_normal.as_span(),
+                        lambdas_normal_writer.span.slice(points));
+      array_utils::copy(contacts.lambdas_friction.as_span(),
+                        lambdas_friction_writer.span.slice(points));
+    });
+    pointcloud->tag_positions_changed();
+    geometries_writer.finish();
+    colliders_writer.finish();
+    geometry_points0_writer.finish();
+    geometry_points1_writer.finish();
+    collider_velocities_writer.finish();
+    normals_writer.finish();
+    static_frictions_writer.finish();
+    dynamic_frictions_writer.finish();
+    active_states_writer.finish();
+    lambdas_normal_writer.finish();
+    lambdas_friction_writer.finish();
+
+    return pointcloud;
+  }
+
   void write_back__contacts()
   {
     for (CollisionContacts &contacts : this->constraints_.collision_contacts) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(contacts.path);
       const std::string plane_points_path = Bundle::combine_path(
           {contacts.path, "plane_contacts"});
+      const std::string edge_points_path = Bundle::combine_path({contacts.path, "edge_contacts"});
       const std::string collider_map_path = Bundle::combine_path({contacts.path, "collider_map"});
 
       /* Collider paths are combined in a single array, these are offsets for collider indices. */
@@ -2682,111 +3118,38 @@ class XpbdSolverStep {
       }
 
       Array<int> plane_contacts_offsets(geometries_.chunks.size() + 1);
+      Array<int> edge_contacts_offsets(geometries_.chunks.size() + 1);
       this->parallel_for_each_chunk(16, [&](const int chunk_i) {
         const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
         const ChunkData &chunk_data = chunks_data_[chunk_i];
 
         if (!effector_applies_to_geometry(contacts.path, bundle, chunk.data_key_i)) {
           plane_contacts_offsets[chunk_i] = 0;
+          edge_contacts_offsets[chunk_i] = 0;
           return;
         }
 
-        plane_contacts_offsets[chunk_i] = chunk_data.external_plane_contacts.points.size();
+        plane_contacts_offsets[chunk_i] = chunk_data.external_face_contacts.points.size();
+        edge_contacts_offsets[chunk_i] = chunk_data.external_edge_contacts.point_pairs.size();
       });
       const OffsetIndices plane_contacts_by_chunk = offset_indices::accumulate_counts_to_offsets(
           plane_contacts_offsets);
-      if (plane_contacts_by_chunk.total_size() == 0) {
-        world_.add_path_override(plane_points_path, GeometrySet{});
-        continue;
+      const OffsetIndices edge_contacts_by_chunk = offset_indices::accumulate_counts_to_offsets(
+          edge_contacts_offsets);
+
+      GeometrySet plane_contacts_geometry;
+      GeometrySet edge_contacts_geometry;
+      if (plane_contacts_by_chunk.total_size() > 0) {
+        plane_contacts_geometry.replace_pointcloud(write_back__plane_contacts(
+            mesh_colliders_range, infinite_plane_colliders_range, plane_contacts_by_chunk));
+      }
+      if (edge_contacts_by_chunk.total_size() > 0) {
+        edge_contacts_geometry.replace_pointcloud(
+            write_back__edge_contacts(mesh_colliders_range, edge_contacts_by_chunk));
       }
 
-      PointCloud *plane_points = BKE_pointcloud_new_nomain(plane_contacts_by_chunk.total_size());
-      MutableAttributeAccessor attributes = plane_points->attributes_for_write();
-      bke::SpanAttributeWriter<int> geometries_writer =
-          attributes.lookup_or_add_for_write_only_span<int>("geometry", AttrDomain::Point);
-      bke::SpanAttributeWriter<int> colliders_writer =
-          attributes.lookup_or_add_for_write_only_span<int>("collider", AttrDomain::Point);
-      bke::SpanAttributeWriter<int> geometry_points_writer =
-          attributes.lookup_or_add_for_write_only_span<int>("geometry_point", AttrDomain::Point);
-      MutableSpan<float3> positions = plane_points->positions_for_write();
-      bke::SpanAttributeWriter<float3> collider_velocities_writer =
-          attributes.lookup_or_add_for_write_only_span<float3>("collider_velocity",
-                                                               AttrDomain::Point);
-      bke::SpanAttributeWriter<float3> separating_axis_writer =
-          attributes.lookup_or_add_for_write_only_span<float3>("separating_axis",
-                                                               AttrDomain::Point);
-      bke::SpanAttributeWriter<float> static_frictions_writer =
-          attributes.lookup_or_add_for_write_only_span<float>("static_friction",
-                                                              AttrDomain::Point);
-      bke::SpanAttributeWriter<float> dynamic_frictions_writer =
-          attributes.lookup_or_add_for_write_only_span<float>("dynamic_friction",
-                                                              AttrDomain::Point);
-      bke::SpanAttributeWriter<bool> active_states_writer =
-          attributes.lookup_or_add_for_write_only_span<bool>("active", AttrDomain::Point);
-      bke::SpanAttributeWriter<float> lambdas_normal_writer =
-          attributes.lookup_or_add_for_write_only_span<float>("lambda_normal", AttrDomain::Point);
-      bke::SpanAttributeWriter<float> lambdas_writer =
-          attributes.lookup_or_add_for_write_only_span<float>("lambda_friction",
-                                                              AttrDomain::Point);
-
-      this->parallel_for_each_chunk(16, [&](const int chunk_i) {
-        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        const ChunkData &chunk_data = chunks_data_[chunk_i];
-
-        const IndexRange plane_contacts = plane_contacts_by_chunk[chunk_i];
-        if (plane_contacts.is_empty()) {
-          /* Avoids checking the filter a second time. */
-          return;
-        }
-
-        /* Store collider indices and affected geometry point indices that map a contact to the
-         * simulated geometry. */
-        MutableSpan<int> geometries = geometries_writer.span.slice(plane_contacts);
-        MutableSpan<int> colliders = colliders_writer.span.slice(plane_contacts);
-        MutableSpan<int> geometry_points = geometry_points_writer.span.slice(plane_contacts);
-        geometries.fill(chunk.data_key_i);
-        for (const auto &item : chunk_data.external_plane_contacts.mesh_contact_indices.items()) {
-          colliders[item.value] = mesh_colliders_range[item.key.mesh_collider_i];
-          geometry_points[item.value] = item.key.point_i;
-        }
-        for (const auto &item :
-             chunk_data.external_plane_contacts.infinite_plane_contact_indices.items())
-        {
-          colliders[item.value] =
-              infinite_plane_colliders_range[item.key.infinite_plane_collider_i];
-          geometry_points[item.value] = item.key.point_i;
-        }
-
-        array_utils::copy(chunk_data.external_plane_contacts.positions_on_plane.as_span(),
-                          positions.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.collider_velocities.as_span(),
-                          collider_velocities_writer.span.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.separating_axes.as_span(),
-                          separating_axis_writer.span.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.static_frictions.as_span(),
-                          static_frictions_writer.span.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.dynamic_frictions.as_span(),
-                          dynamic_frictions_writer.span.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.active_states.as_span(),
-                          active_states_writer.span.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.lambdas_normal.as_span(),
-                          lambdas_normal_writer.span.slice(plane_contacts));
-        array_utils::copy(chunk_data.external_plane_contacts.lambdas.as_span(),
-                          lambdas_writer.span.slice(plane_contacts));
-      });
-      plane_points->tag_positions_changed();
-      geometries_writer.finish();
-      colliders_writer.finish();
-      geometry_points_writer.finish();
-      collider_velocities_writer.finish();
-      separating_axis_writer.finish();
-      static_frictions_writer.finish();
-      dynamic_frictions_writer.finish();
-      active_states_writer.finish();
-      lambdas_normal_writer.finish();
-      lambdas_writer.finish();
-
-      world_.add_path_override(plane_points_path, GeometrySet::from_pointcloud(plane_points));
+      world_.add_path_override(plane_points_path, std::move(plane_contacts_geometry));
+      world_.add_path_override(edge_points_path, std::move(edge_contacts_geometry));
       /* TODO Currently have to create an explicit BundleItemSocketValue to store a list with
        * add_path_override. It relies on socket_type_info_by_static_type, which only supports
        * fields and single values currently, but not lists. */

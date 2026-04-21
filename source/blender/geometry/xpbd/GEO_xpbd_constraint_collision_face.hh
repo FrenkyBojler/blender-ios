@@ -12,13 +12,15 @@ namespace blender::xpbd {
 /* Constraint implementation for static and dynamic friction is based on
  * "Detailed Rigid Body Simulation with Extended Position Based Dynamics",
  * Mueller, Macklin, et al., 2020 */
-class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlaneConstraintSet> {
+class CollisionFaceConstraintSet : public TemplatedConstraintSet<CollisionFaceConstraintSet> {
  private:
   int geo_i_;
   Span<int> points_;
-  Span<float3> contact_points_on_plane_;
+  Span<float> point_radii_;
+  Span<float3> contact_points_on_face_;
   Span<float3> contact_points_motion_;
-  Span<float3> separating_axes_;
+  Span<float3> face_normals_;
+  Span<float> face_margins_;
   Span<float> compliance_terms_;
   Span<float> static_frictions_;
   Span<float> dynamic_frictions_;
@@ -28,22 +30,26 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
  public:
   static constexpr StringRefNull debug_name = "Collision Plane";
 
-  CollisionPlaneConstraintSet(const int geo_i,
-                              const Span<int> points,
-                              const Span<float3> contact_points_on_plane,
-                              const Span<float3> contact_points_motion,
-                              const Span<float3> separating_axes,
-                              const Span<float> compliance_terms,
-                              const Span<float> static_frictions,
-                              const Span<float> dynamic_frictions,
-                              MutableSpan<bool> active_states,
-                              MutableSpan<float> lambdas_normal)
-      : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
+  CollisionFaceConstraintSet(const int geo_i,
+                             const Span<int> points,
+                             const Span<float> point_radii,
+                             const Span<float3> contact_points_on_face,
+                             const Span<float3> contact_points_motion,
+                             const Span<float3> face_normals,
+                             const Span<float> face_margins,
+                             const Span<float> compliance_terms,
+                             const Span<float> static_frictions,
+                             const Span<float> dynamic_frictions,
+                             MutableSpan<bool> active_states,
+                             MutableSpan<float> lambdas_normal)
+      : TemplatedConstraintSet<CollisionFaceConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
-        contact_points_on_plane_(contact_points_on_plane),
+        point_radii_(point_radii),
+        contact_points_on_face_(contact_points_on_face),
         contact_points_motion_(contact_points_motion),
-        separating_axes_(separating_axes),
+        face_normals_(face_normals),
+        face_margins_(face_margins),
         compliance_terms_(compliance_terms),
         static_frictions_(static_frictions),
         dynamic_frictions_(dynamic_frictions),
@@ -64,21 +70,24 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
                     const int constraint_i) const
   {
     const int point_i = points_[constraint_i];
+    const float radius = point_radii_[constraint_i];
     const float3 &pos = params.position(geo_i_, point_i);
-    const float3 &plane_pos = contact_points_on_plane_[constraint_i];
-    const float3 &axis = separating_axes_[constraint_i];
+    const float3 &face_pos = contact_points_on_face_[constraint_i];
+    const float3 &face_nor = face_normals_[constraint_i];
+    const float margin = face_margins_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
     const float inv_m = params.inv_mass(geo_i_, point_i);
+    bool &is_active = active_states_[constraint_i];
 
     if (inv_m <= 0.0f) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
+      is_active = false;
       return;
     }
 
-    const float3 diff = pos - plane_pos;
-    const float normal_distance = math::dot(diff, axis);
-    const bool is_active = normal_distance < 0.0f;
-    active_states_[constraint_i] = is_active;
+    const float3 diff = pos - face_pos;
+    const float normal_distance = math::dot(diff, face_nor) - margin - radius;
+    is_active = normal_distance < 0.0f;
     if (!is_active) {
       return;
     }
@@ -86,17 +95,15 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     /* Positional correction for penetration. */
     float3 offset = float3(0.0f);
     float &lambda_normal = lambdas_normal_[constraint_i];
-    if (normal_distance < 0.0f) {
-      const float delta_lambda_normal = -normal_distance / (inv_m + compliance_term);
-      offset += delta_lambda_normal * inv_m * axis;
-      lambda_normal += delta_lambda_normal;
-    }
+    const float delta_lambda_normal = -normal_distance / (inv_m + compliance_term);
+    offset += delta_lambda_normal * inv_m * face_nor;
+    lambda_normal += delta_lambda_normal;
 
     /* Apply static friction as a direct positional update. */
     const float3 &prev_pos = params.prev_position(geo_i_, point_i);
     const float3 &collider_velocity = contact_points_motion_[constraint_i];
     const float3 velocity = (pos - prev_pos) - collider_velocity;
-    const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
+    const float3 velocity_tangent = velocity - math::dot(velocity, face_nor) * face_nor;
     const float lambda_tangent_sq = math::length_squared(velocity_tangent /
                                                          (inv_m + compliance_term));
     const bool is_static = lambda_tangent_sq <
