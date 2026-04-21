@@ -132,7 +132,7 @@ struct CurvesTransformData {
 /* `transform_convert.cc` */
 
 /**
- * Change the chain-length of auto-IK.
+ * Toggle stretch or change chain-length of auto-IK.
  */
 void transform_autoik_update(TransInfo *t, short mode);
 int special_transform_moving(TransInfo *t);

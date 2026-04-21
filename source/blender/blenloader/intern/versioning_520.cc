@@ -483,6 +483,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       brush.mesh_automasking_settings->cavity_curve_op = nullptr;
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 20)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.toolsettings->autoik_flags |= AUTOIK_USE_STRETCH;
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

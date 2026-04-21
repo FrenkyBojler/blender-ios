@@ -253,6 +253,12 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
           str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_("Auto IK Length: %d"), chainlen);
       ofs += BLI_strncpy_utf8_rlen(str + ofs, "   ", UI_MAX_DRAW_STR - ofs);
     }
+
+    bool use_stretch = ((t->settings->autoik_flags & AUTOIK_USE_STRETCH) != 0);
+    const char *str_stretch_status = use_stretch ? IFACE_("Enabled") : IFACE_("Disabled");
+    ofs += BLI_snprintf_utf8_rlen(
+        str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_("Stretch: %s"), str_stretch_status);
+    ofs += BLI_strncpy_utf8_rlen(str + ofs, "   ", UI_MAX_DRAW_STR - ofs);
   }
 
   if (t->con.mode & CON_APPLY) {

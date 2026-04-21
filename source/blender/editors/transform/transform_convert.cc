@@ -301,8 +301,8 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 /** \name Pose Mode (Auto-IK)
  * \{ */
 
-/** Adjust pose-channel's auto-ik chainlen. */
-static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
+/** Adjust pose-channel's auto-ik chainlen or toggle stretch. */
+static bool pchan_autoik_adjust(bPoseChannel *pchan, const short chainlen, const char autoik_flags)
 {
   bool changed = false;
 
@@ -330,6 +330,14 @@ static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
           data->rootbone = chainlen;
         }
         changed |= (data->rootbone != old_rootbone);
+
+        const bool use_stretch_new = ((autoik_flags & AUTOIK_USE_STRETCH) != 0);
+        const bool use_stretch_old = ((data->flag & CONSTRAINT_IK_STRETCH) != 0);
+        data->flag &= ~CONSTRAINT_IK_STRETCH;
+        if (use_stretch_new) {
+          data->flag |= CONSTRAINT_IK_STRETCH;
+        }
+        changed |= (use_stretch_new && use_stretch_old);
       }
     }
   }
@@ -342,8 +350,9 @@ void transform_autoik_update(TransInfo *t, short mode)
   Main *bmain = CTX_data_main(t->context);
 
   short *chainlen = &t->settings->autoik_chainlen;
+  char *autoik_flags = &t->settings->autoik_flags;
 
-  /* `mode` determines what change to apply to `chainlen`. */
+  /* `mode` determines what change to apply. */
   if (mode == 1) {
     /* `mode==1` is from WHEELMOUSEDOWN: increases len. */
     (*chainlen)++;
@@ -358,6 +367,10 @@ void transform_autoik_update(TransInfo *t, short mode)
       return;
     }
   }
+  else if (mode == 2) {
+    /* `mode==2` is from T: toggles stretch. */
+    *autoik_flags ^= AUTOIK_USE_STRETCH;
+  }
 
   /* Apply to all pose-channels. */
   bool changed = false;
@@ -370,7 +383,7 @@ void transform_autoik_update(TransInfo *t, short mode)
     }
 
     for (bPoseChannel &pchan : tc->poseobj->pose->chanbase) {
-      changed |= pchan_autoik_adjust(&pchan, *chainlen);
+      changed |= pchan_autoik_adjust(&pchan, *chainlen, *autoik_flags);
     }
   }
 

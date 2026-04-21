@@ -2087,6 +2087,11 @@ enum {
   UV_STICKY_VERT = 2,
 };
 
+/** #ToolSettings::autoik_flags */
+enum eAutoik_Flags {
+  AUTOIK_USE_STRETCH = (1 << 0),
+};
+
 /** #ToolSettings::gpencil_flags */
 enum eGPencil_Flags {
   /** Enables multi-frame editing. */
@@ -2227,6 +2232,7 @@ struct ToolSettings {
   /* Auto-IK. */
   /** Runtime only. */
   short autoik_chainlen = 0;
+  char autoik_flags = AUTOIK_USE_STRETCH;
 
   /* Grease Pencil. */
   /** Flags/options for how the tool works. */
@@ -2240,6 +2246,7 @@ struct ToolSettings {
   /* Annotations. */
   /** Stroke placement settings - 3D View. */
   char annotate_v3d_align = GP_PROJECT_VIEWSPACE | GP_PROJECT_CURSOR;
+  char _pad1[3] = {};
   /** Default stroke thickness for annotation strokes. */
   short annotate_thickness = 3;
 
@@ -2250,7 +2257,7 @@ struct ToolSettings {
   char gpencil_selectmode_edit = 0;
   /** Stroke selection mode for Sculpt. */
   char gpencil_selectmode_sculpt = 0;
-  char _pad0[6] = {};
+  char _pad0[2] = {};
 
   /** Grease Pencil Sculpt. */
   struct GP_Sculpt_Settings gp_sculpt;

@@ -684,7 +684,8 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       break;
     }
     case TFM_MODAL_AUTOIK_LEN_INC:
-    case TFM_MODAL_AUTOIK_LEN_DEC: {
+    case TFM_MODAL_AUTOIK_LEN_DEC:
+    case TFM_MODAL_AUTOIK_STRETCH_TOGGLE: {
       if ((t->flag & T_AUTOIK) == 0) {
         return false;
       }
@@ -835,6 +836,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
       {TFM_MODAL_NODE_FRAME, "NODE_FRAME", 0, "Attach/Detach Frame", ""},
       {TFM_MODAL_STRIP_CLAMP, "STRIP_CLAMP_TOGGLE", 0, "Clamp Strips", ""},
+      {TFM_MODAL_AUTOIK_STRETCH_TOGGLE, "AUTOIK_STRETCH_TOGGLE", 0, "Toggle Auto IK Stretch", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1270,6 +1272,12 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_AUTOIK_LEN_DEC:
         if (t->flag & T_AUTOIK) {
           transform_autoik_update(t, -1);
+          t->redraw |= TREDRAW_HARD;
+        }
+        break;
+      case TFM_MODAL_AUTOIK_STRETCH_TOGGLE:
+        if (t->flag & T_AUTOIK) {
+          transform_autoik_update(t, 2);
           t->redraw |= TREDRAW_HARD;
         }
         break;
