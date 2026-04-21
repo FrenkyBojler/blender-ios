@@ -764,25 +764,26 @@ static void template_ui_make_local(bContext &C, TemplateID &template_ui)
 
   const char *undo_push_label = nullptr;
 
-  if (id) {
-    Main *bmain = CTX_data_main(&C);
-    if (CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT) {
-      template_id_liboverride_hierarchy_make(&C, bmain, &template_ui, &idptr, &undo_push_label);
-    }
-    else {
-      if (BKE_lib_id_make_local(bmain, id, LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR)) {
-        BKE_id_newptr_and_tag_clear(id);
+  if (!id) {
+    return;
+  }
+  Main *bmain = CTX_data_main(&C);
+  if (CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT) {
+    template_id_liboverride_hierarchy_make(&C, bmain, &template_ui, &idptr, &undo_push_label);
+  }
+  else {
+    if (BKE_lib_id_make_local(bmain, id, LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR)) {
+      BKE_id_newptr_and_tag_clear(id);
 
-        /* Reassign to get proper updates/notifiers. */
-        idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
-      }
+      /* Reassign to get proper updates/notifiers. */
+      idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
     }
-    if (undo_push_label) {
-      RNA_property_pointer_set(&template_ui.ptr, template_ui.prop, idptr, nullptr);
-      RNA_property_update(&C, &template_ui.ptr, template_ui.prop);
-      ED_undo_push(&C, undo_push_label);
-      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
-    }
+  }
+  if (undo_push_label) {
+    RNA_property_pointer_set(&template_ui.ptr, template_ui.prop, idptr, nullptr);
+    RNA_property_update(&C, &template_ui.ptr, template_ui.prop);
+    ED_undo_push(&C, undo_push_label);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
 static void template_ui_override(bContext &C, TemplateID &template_ui)
@@ -792,21 +793,22 @@ static void template_ui_override(bContext &C, TemplateID &template_ui)
 
   const char *undo_push_label;
 
-  if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
-    Main *bmain = CTX_data_main(&C);
-    if (CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT) {
-      template_id_liboverride_hierarchy_make(&C, bmain, &template_ui, &idptr, &undo_push_label);
-    }
-    else {
-      BKE_lib_override_library_make_local(bmain, id);
-      /* Reassign to get proper updates/notifiers. */
-      idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
-      RNA_property_pointer_set(&template_ui.ptr, template_ui.prop, idptr, nullptr);
-      RNA_property_update(&C, &template_ui.ptr, template_ui.prop);
+  if (!(id && ID_IS_OVERRIDE_LIBRARY(id))) {
+    return;
+  }
+  Main *bmain = CTX_data_main(&C);
+  if (CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT) {
+    template_id_liboverride_hierarchy_make(&C, bmain, &template_ui, &idptr, &undo_push_label);
+  }
+  else {
+    BKE_lib_override_library_make_local(bmain, id);
+    /* Reassign to get proper updates/notifiers. */
+    idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
+    RNA_property_pointer_set(&template_ui.ptr, template_ui.prop, idptr, nullptr);
+    RNA_property_update(&C, &template_ui.ptr, template_ui.prop);
 
-      ED_undo_push(&C, CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local"));
-      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
-    }
+    ED_undo_push(&C, CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local"));
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
 
@@ -816,27 +818,28 @@ static void template_ui_alone(bContext &C, TemplateID &template_ui)
   ID *id = static_cast<ID *>(idptr.data);
 
   if (id) {
-    const bool do_scene_obj = ((GS(id->name) == ID_OB) &&
-                               (template_ui.ptr.type == RNA_LayerObjects));
-
-    /* make copy */
-    if (do_scene_obj) {
-      Main *bmain = CTX_data_main(&C);
-      Scene *scene = CTX_data_scene(&C);
-      ed::object::object_single_user_make(bmain, scene, id_cast<Object *>(id));
-      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
-      DEG_relations_tag_update(bmain);
-    }
-    else {
-      Main *bmain = CTX_data_main(&C);
-      id_single_user(&C, id, &template_ui.ptr, template_ui.prop);
-      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
-      DEG_relations_tag_update(bmain);
-    }
-    BKE_main_ensure_invariants(*CTX_data_main(&C));
-    ED_undo_push(&C, CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Single User"));
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+    return;
   }
+  const bool do_scene_obj = ((GS(id->name) == ID_OB) &&
+                             (template_ui.ptr.type == RNA_LayerObjects));
+
+  /* make copy */
+  if (do_scene_obj) {
+    Main *bmain = CTX_data_main(&C);
+    Scene *scene = CTX_data_scene(&C);
+    ed::object::object_single_user_make(bmain, scene, id_cast<Object *>(id));
+    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+    DEG_relations_tag_update(bmain);
+  }
+  else {
+    Main *bmain = CTX_data_main(&C);
+    id_single_user(&C, id, &template_ui.ptr, template_ui.prop);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+    DEG_relations_tag_update(bmain);
+  }
+  BKE_main_ensure_invariants(*CTX_data_main(&C));
+  ED_undo_push(&C, CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Single User"));
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 }
 
 static StringRef template_id_browse_tip(const StructRNA *type)
