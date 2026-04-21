@@ -23,6 +23,7 @@
 #include "BKE_node_runtime.hh"
 
 #include "ED_node.hh"
+#include "ED_undo.hh"
 
 #include "UI_view2d.hh"
 
@@ -375,6 +376,20 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   const TransCustomDataNode &customdata = *static_cast<TransCustomDataNode *>(t->custom.type.data);
 
   const bool canceled = (t->state == TRANS_CANCEL);
+
+  /* When cancelling a detach+move macro (Alt+Click drag), the first sub-operator
+   * (NODE_OT_links_detach) has already destroyed the links. Undo to restore
+   * the tree to its pre-macro state with all links intact.
+   * After ED_undo_pop, all bNode/bNodeTree pointers are invalid (memfile undo
+   * replaces the entire Main database), so we must return immediately.
+   * postTrans() which runs after this only frees TransData arrays without
+   * dereferencing bNode pointers, so this is safe. */
+  if (canceled && t->op->prev != nullptr &&
+      STREQ(t->op->prev->type->idname, "NODE_OT_links_detach"))
+  {
+    ED_undo_pop(C);
+    return;
+  }
 
   if (canceled) {
     for (auto &&[node, parent] : customdata.old_parent_by_detached_node.items()) {

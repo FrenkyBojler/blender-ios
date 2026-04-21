@@ -958,6 +958,7 @@ struct TransInfo {
   ViewLayer *view_layer;
   ToolSettings *settings;
   wmTimer *animtimer;
+  wmOperator *op;
   /** Needed so we can perform a look up for header text. */
   wmKeyMap *keymap;
   /** Assign from the operator, or can be NULL. */
