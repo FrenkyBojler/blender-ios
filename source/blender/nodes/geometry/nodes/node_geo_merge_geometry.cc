@@ -77,27 +77,39 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   const IndexMask unselected = selection.complement(IndexRange(domain_size), memory);
 
   r_roots.reinitialize(domain_size);
-#ifndef NDEBUG
+  /* TODO: Explicitly create groups of indices in merge code and skip unit groups from future
+   * processing... */
   r_roots.as_mutable_span().fill(-1);
-#endif
 
-  unselected.foreach_index_optimized<int>([&](const int index) { r_roots[index] = index; },
-                                          exec_mode::parallel);
   if (group_id_to_root.size() == 1) {
     BLI_assert(group_id_to_root.lookup(group_id[selection.first()]) == selection.first());
     index_mask::masked_fill<int>(r_roots.as_mutable_span(), selection.first(), selection);
   }
   else {
+    Array<bool> is_unit_group(domain_size, true);
     selection.foreach_index_optimized<int>(
         [&](const int index) {
-          r_roots[index] = group_id_to_root.lookup(group_id_span->operator[](index));
+          const int group_root = group_id_to_root.lookup(group_id_span->operator[](index));
+          if (group_root != index) {
+            is_unit_group[group_root] = false;
+          }
+        },
+        exec_mode::parallel);
+
+    selection.foreach_index_optimized<int>(
+        [&](const int index) {
+          const int group_root = group_id_to_root.lookup(group_id_span->operator[](index));
+          if (is_unit_group[group_root]) {
+            BLI_assert(group_root == index);
+            BLI_assert(r_roots[index] == -1);
+            return;
+          }
+          r_roots[index] = group_root;
         },
         exec_mode::parallel);
   }
 
-  BLI_assert(!r_roots.as_span().contains(-1));
-
-  return domain_size - (group_id_to_root.size()) - unselected.size();
+  return selection.size() - group_id_to_root.size();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
