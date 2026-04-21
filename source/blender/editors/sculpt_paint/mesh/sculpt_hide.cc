@@ -56,22 +56,22 @@ Span<int> node_visible_shared_verts(const bke::pbvh::MeshNode &node,
   return indices;
 }
 
-std::pair<Span<int>, Span<int>> node_visible_all_verts(const bke::pbvh::MeshNode &node,
-                                                       const Span<bool> hide_vert,
-                                                       Vector<int> &indices)
+Span<int> node_visible_all_verts(const bke::pbvh::MeshNode &node,
+                                 const Span<bool> hide_vert,
+                                 Vector<int> &indices,
+                                 int &visible_unique_verts_num)
 {
   if (BKE_pbvh_node_fully_hidden_get(node)) {
-    return {{}, {}};
+    return {};
   }
   const Span<int> verts = node.all_verts();
   const int unique_verts_num = node.verts().size();
   if (hide_vert.is_empty()) {
-    return {verts.slice(0, unique_verts_num),
-            verts.slice(unique_verts_num, verts.size() - unique_verts_num)};
+    visible_unique_verts_num = unique_verts_num;
+    return verts;
   }
   indices.resize(verts.size());
   int write_i = 0;
-  int visible_unique_verts_num = 0;
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
     if (!hide_vert[vert]) {
@@ -82,11 +82,7 @@ std::pair<Span<int>, Span<int>> node_visible_all_verts(const bke::pbvh::MeshNode
     }
   }
   indices.resize(write_i);
-  return {
-      indices.as_span().slice(0, visible_unique_verts_num),
-      visible_unique_verts_num == write_i ?
-          Span<int>() :
-          indices.as_span().slice(visible_unique_verts_num, write_i - visible_unique_verts_num)};
+  return indices;
 }
 
 bool vert_all_faces_visible_get(const Span<bool> hide_poly,
