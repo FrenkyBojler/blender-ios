@@ -666,7 +666,7 @@ class DOPESHEET_MT_key(Menu):
         layout.operator_menu_enum("action.mirror", "type", text="Mirror")
 
         layout.separator()
-        layout.operator("action.frame_jump")
+        layout.operator("action.frame_jump", text="Jump to Selected")
 
         layout.separator()
         layout.operator("action.keyframe_insert")
