@@ -11,6 +11,7 @@
 #include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
+#include <iostream>
 
 #include "eevee_raytrace.hh"
 
@@ -20,6 +21,43 @@ namespace blender::eevee {
 /** \name Raytracing
  *
  * \{ */
+
+/**
+ * From Fabian Giesen's article:
+ * https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/
+ */
+static uint compact_bits(uint x)
+{
+  x &= 0x55555555;
+  x = (x ^ (x >> 1)) & 0x33333333;
+  x = (x ^ (x >> 2)) & 0x0f0f0f0f;
+  x = (x ^ (x >> 4)) & 0x00ff00ff;
+  x = (x ^ (x >> 8)) & 0x0000ffff;
+  return x;
+}
+
+static uint2 morton2d_to_coordinate(uint code)
+{
+  return uint2(compact_bits(code >> 0), compact_bits(code >> 1));
+}
+
+/* Return a pseudo random sequence visiting all pixels in a tile before wrapping.
+ * `tile_size` needs to be a power of 2. */
+static uint2 random_in_tile(uint sample_id, uint tile_size)
+{
+  if (tile_size == 1) {
+    return uint2(0);
+  }
+
+  uint hash = sample_id;
+  hash = hash ^ (hash >> 16);
+  hash *= 0x85ebca6b;
+  hash = hash ^ (hash >> 13);
+  hash *= 0xc2b2ae35;
+  hash = hash ^ (hash >> 16);
+
+  return morton2d_to_coordinate(hash % square(tile_size));
+}
 
 void RayTraceModule::init()
 {
@@ -470,14 +508,14 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   /* Data for the radiance setup. */
   data_.resolution_scale = resolution_scale;
-  data_.resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) * resolution_scale);
+  data_.resolution_bias = int2(random_in_tile(inst_.sampling.sample_index(), resolution_scale));
   data_.history_persmat = rt_buffer.history_persmat;
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);
 
   data_.fast_gi_resolution_scale = fast_gi_resolution_scale;
-  data_.fast_gi_resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) *
-                                       fast_gi_resolution_scale);
+  data_.fast_gi_resolution_bias = int2(
+      random_in_tile(inst_.sampling.sample_index(), fast_gi_resolution_scale));
   /* TODO(fclem): Eventually all uniform data is setup here. */
 
   inst_.uniform_data.push_update();
@@ -594,7 +632,7 @@ RayTraceResultTexture RayTraceModule::trace(int closure_index,
   data_.roughness_mask_bias = data_.roughness_mask_scale * roughness_mask_start;
 
   data_.resolution_scale = resolution_scale;
-  data_.resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) * resolution_scale);
+  data_.resolution_bias = int2(random_in_tile(inst_.sampling.sample_index(), resolution_scale));
   data_.denoise_history_persmat = denoise_buf->history_persmat;
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);
