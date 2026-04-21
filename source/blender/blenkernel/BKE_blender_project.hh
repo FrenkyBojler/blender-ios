@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "BLI_string_ref.hh"
 
 namespace blender {

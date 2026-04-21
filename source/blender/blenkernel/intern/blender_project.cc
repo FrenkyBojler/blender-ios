@@ -6,8 +6,6 @@
  * \ingroup bke
  */
 
-#include "DNA_userdef_types.h"
-
 #include "BKE_blender_project.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
