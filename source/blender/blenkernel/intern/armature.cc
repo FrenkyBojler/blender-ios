@@ -3366,7 +3366,7 @@ bool BoneCollection::is_expanded() const
  */
 static void rebuild_bone_array(bArmature &armature)
 {
-  bArmature_Runtime &runtime = armature.runtime;
+  bke::bArmature_Runtime &runtime = *armature.runtime;
   const int num_bones = BKE_armature_bonelist_count(&armature.bonebase);
   runtime.bones.reinitialize(num_bones);
 
@@ -3379,14 +3379,14 @@ static void rebuild_bone_array(bArmature &armature)
 
 const Bone *bArmature::bone_get_indexed(const int64_t bone_index) const
 {
-  if (this->runtime.bones.is_empty()) {
+  if (this->runtime->bones.is_empty()) {
     /* const_cast: allow the function to write to the runtime data. */
     rebuild_bone_array(const_cast<bArmature &>(*this));
   }
 
   BLI_assert(bone_index >= 0);
-  BLI_assert(bone_index < this->runtime.bones.size());
-  return this->runtime.bones[bone_index];
+  BLI_assert(bone_index < this->runtime->bones.size());
+  return this->runtime->bones[bone_index];
 }
 
 Bone *bArmature::bone_get_indexed(const int64_t bone_index)
