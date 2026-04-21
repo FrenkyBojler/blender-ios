@@ -131,7 +131,8 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(material_);
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id, material_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

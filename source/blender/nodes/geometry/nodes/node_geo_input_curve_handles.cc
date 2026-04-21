@@ -85,7 +85,9 @@ class HandlePositionFieldInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const final
   {
-    return get_default_hash(relative_, left_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id, field_hash.ensure(relative_), left_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

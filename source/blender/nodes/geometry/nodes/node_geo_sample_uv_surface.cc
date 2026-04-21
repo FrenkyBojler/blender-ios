@@ -132,12 +132,13 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
     });
   }
 
-  void hash(XXH3_state_t &hash_state) const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, &source_, sizeof(source_));
-    src_uv_map_field_.hash(hash_state);
+    hash.add(&id);
+    hash.add(source_.get_mesh());
+    fn::FieldHashDeep field_hash;
+    hash.add(field_hash.ensure(src_uv_map_field_));
   }
 
   void prepare_for_execution() const override

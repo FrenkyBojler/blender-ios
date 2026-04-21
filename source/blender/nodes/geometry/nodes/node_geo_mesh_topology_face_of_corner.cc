@@ -38,7 +38,8 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 2348712958475728;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -68,7 +69,8 @@ class CornerIndexInFaceInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 97837176448;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

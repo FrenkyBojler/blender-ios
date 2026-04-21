@@ -314,6 +314,7 @@ class AttributeFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   uint64_t hash() const override;
+  void hash(HashContext &hash) const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 
@@ -360,6 +361,7 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
+  void hash(HashContext &hash) const override;
   uint64_t hash() const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;

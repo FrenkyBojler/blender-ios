@@ -97,7 +97,8 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(use_radius_, return_max_);
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id, use_radius_, return_max_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

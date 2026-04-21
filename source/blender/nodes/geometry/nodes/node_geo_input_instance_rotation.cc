@@ -33,7 +33,8 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
 
   uint64_t hash() const override
   {
-    return 22374372;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

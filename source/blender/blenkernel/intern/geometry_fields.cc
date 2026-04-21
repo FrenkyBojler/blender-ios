@@ -458,6 +458,12 @@ std::string AttributeFieldInput::socket_inspection_name() const
   return fmt::format(fmt::runtime(TIP_("\"{}\" attribute from geometry")), name_);
 }
 
+void AttributeFieldInput::hash(HashContext &hash) const
+{
+  hash.hash_bytes.extend(Span(name_.data(), name_.size()).cast<std::byte>());
+  hash.add(type_);
+}
+
 uint64_t AttributeFieldInput::hash() const
 {
   return get_default_hash(name_, type_);
@@ -518,8 +524,8 @@ std::string IDAttributeFieldInput::socket_inspection_name() const
 
 uint64_t IDAttributeFieldInput::hash() const
 {
-  /* All random ID attribute inputs are the same within the same evaluation context. */
-  return 92386459827;
+  static constexpr int8_t id = 0;
+  return get_default_hash(&id);
 }
 
 bool IDAttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
@@ -568,9 +574,16 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
   return VArray<bool>::from_func(mask.min_array_size(), layer_is_selected);
 }
 
+void NamedLayerSelectionFieldInput::hash(HashContext &hash) const
+{
+  hash.hash_bytes.extend(Span(layer_name_.data(), layer_name_.size()).cast<std::byte>());
+  hash.add(type_);
+}
+
 uint64_t NamedLayerSelectionFieldInput::hash() const
 {
-  return get_default_hash(layer_name_, type_);
+  static constexpr int8_t id = 0;
+  return get_default_hash(&id, layer_name_, type_);
 }
 
 bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldInput &other) const
@@ -795,7 +808,8 @@ std::string NormalFieldInput::socket_inspection_name() const
 
 uint64_t NormalFieldInput::hash() const
 {
-  return get_default_hash(2980541, legacy_corner_normals_, true_normals_);
+  static constexpr int8_t id = 0;
+  return get_default_hash(&id, legacy_corner_normals_, true_normals_);
 }
 
 bool NormalFieldInput::is_equal_to(const fn::FieldInput &other) const

@@ -87,8 +87,8 @@ class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 823543774;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -125,8 +125,8 @@ class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 236235463634;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

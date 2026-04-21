@@ -16,8 +16,6 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include <xxhash.h>
-
 namespace blender {
 
 namespace nodes::node_shader_tex_noise_cc {
@@ -450,13 +448,13 @@ class NoiseFunction : public mf::MultiFunction {
     return hints;
   }
 
-  void hash(XXH3_state_t &hash_state) const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, &dimensions_, sizeof(dimensions_));
-    XXH3_64bits_update(&hash_state, &type_, sizeof(type_));
-    XXH3_64bits_update(&hash_state, &normalize_, sizeof(normalize_));
+    hash.add(&id);
+    hash.add(dimensions_);
+    hash.add(type_);
+    hash.add(normalize_);
   }
 };
 

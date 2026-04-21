@@ -429,7 +429,10 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(iterations_, weight_field_, value_field_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(
+        &id, field_hash.ensure(weight_field_), field_hash.ensure(value_field_), iterations_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

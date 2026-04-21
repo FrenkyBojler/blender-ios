@@ -39,9 +39,9 @@ void CustomMF_GenericConstant::call(const IndexMask &mask,
   type_.fill_construct_indices(value_, output.data(), mask);
 }
 
-uint64_t CustomMF_GenericConstant::hash() const
+void CustomMF_GenericConstant::hash(HashContext &hash) const
 {
-  return type_.hash_or_fallback(value_, uintptr_t(this));
+  hash.add(type_.hash_or_fallback(value_, uintptr_t(this)));
 }
 
 bool CustomMF_GenericConstant::equals(const MultiFunction &other) const

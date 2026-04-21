@@ -91,7 +91,6 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
   PRIVATE bf::extern::fast_float
-  PRIVATE bf::extern::xxhash
 )
 
 add_node_discovery(

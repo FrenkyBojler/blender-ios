@@ -212,7 +212,9 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(method_, uv_field_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id, method_, field_hash.ensure(uv_field_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

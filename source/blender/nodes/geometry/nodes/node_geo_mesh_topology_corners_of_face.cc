@@ -121,7 +121,12 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 6927982716657;
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id,
+                            field_hash.ensure(face_index_),
+                            field_hash.ensure(sort_index_),
+                            field_hash.ensure(sort_weight_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -157,7 +162,8 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 8345908765432698;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

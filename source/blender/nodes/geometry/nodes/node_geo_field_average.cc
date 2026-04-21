@@ -248,7 +248,13 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(input_, group_index_, source_domain_, operation_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id,
+                            field_hash.ensure(input_),
+                            field_hash.ensure(group_index_),
+                            source_domain_,
+                            operation_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

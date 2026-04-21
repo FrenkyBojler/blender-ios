@@ -252,6 +252,16 @@ class ProximityFunction : public mf::MultiFunction {
     return hints;
   }
 
+  void hash(HashContext &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(target_.get_mesh());
+    hash.add(type_);
+    fn::FieldHashDeep field_hash;
+    hash.add(field_hash.ensure(group_id_field_));
+  }
+
   void prepare_for_execution() const override
   {
     mutex_.ensure([&]() {
@@ -264,15 +274,6 @@ class ProximityFunction : public mf::MultiFunction {
         this->init_for_mesh(mesh, group_id_field_);
       }
     });
-  }
-
-  void hash(XXH3_state_t &hash_state) const override
-  {
-    static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, &target_, sizeof(target_));
-    XXH3_64bits_update(&hash_state, &type_, sizeof(type_));
-    group_id_field_.hash(hash_state);
   }
 };
 

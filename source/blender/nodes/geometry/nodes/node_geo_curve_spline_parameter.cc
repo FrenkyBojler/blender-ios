@@ -199,7 +199,8 @@ class CurveParameterFieldInput final : public bke::CurvesFieldInput {
 
   uint64_t hash() const override
   {
-    return 29837456298;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -233,7 +234,8 @@ class CurveLengthParameterFieldInput final : public bke::CurvesFieldInput {
 
   uint64_t hash() const override
   {
-    return 345634563454;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -266,7 +268,8 @@ class IndexOnSplineFieldInput final : public bke::CurvesFieldInput {
 
   uint64_t hash() const final
   {
-    return 4536246522;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

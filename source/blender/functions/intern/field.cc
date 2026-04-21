@@ -78,28 +78,28 @@ bool operator==(const GField &a, const GField &b)
       a_ref.variant_);
 }
 
-// void GField::hash(XXH3_state_t &hash_state) const
-// {
-//   const GField &ref = this->deref_field_ref();
-//   return std::visit(
-//       [&]<typename T>(const T &v) -> uint64_t {
-//         if constexpr (std::is_same_v<T, Input>) {
-//           return get_default_hash(v.node);
-//         }
-//         else if constexpr (std::is_same_v<T, MultiFn>) {
-//           return get_default_hash(v.node, v.output_i);
-//         }
-//         else if constexpr (std::is_same_v<T, FieldRef>) {
-//           /* Should not exist due to #deref_field_ref above. */
-//           BLI_assert_unreachable();
-//           return 0;
-//         }
-//         else if constexpr (is_constant_value_v<T>) {
-//           return v.type->hash_or_fallback(v.value, uint64_t(v.type));
-//         }
-//       },
-//       ref.variant_);
-// }
+uint64_t GField::hash() const
+{
+  const GField &ref = this->deref_field_ref();
+  return std::visit(
+      [&]<typename T>(const T &v) -> uint64_t {
+        if constexpr (std::is_same_v<T, Input>) {
+          return get_default_hash(v.node);
+        }
+        else if constexpr (std::is_same_v<T, MultiFn>) {
+          return get_default_hash(v.node, v.output_i);
+        }
+        else if constexpr (std::is_same_v<T, FieldRef>) {
+          /* Should not exist due to #deref_field_ref above. */
+          BLI_assert_unreachable();
+          return 0;
+        }
+        else if constexpr (is_constant_value_v<T>) {
+          return v.type->hash_or_fallback(v.value, uint64_t(v.type));
+        }
+      },
+      ref.variant_);
+}
 
 uint64_t FieldHashDeep::ensure(const GFieldRef &field)
 {
@@ -121,29 +121,26 @@ uint64_t FieldHashDeep::ensure(const GFieldRef &field)
       continue;
     }
     if (visited.contains(current)) {
-      XXH3_state_t *hash_state = XXH3_createState();
-      BLI_SCOPED_DEFER([&]() { XXH3_freeState(hash_state); });
-      XXH3_64bits_reset(hash_state);
-
+      HashContext hash_context;
       std::visit(
           [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-              v.type->hash_or_fallback(v.value, uint64_t(v.type));
+              hash_context.add(v.type->hash_or_fallback(v.value, uint64_t(v.value)));
             }
             else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-              v.node->hash(*hash_state);
+              v.node->hash(hash_context);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-              v.node->multi_function().hash(*hash_state);
-              XXH3_64bits_update(hash_state, &v.output_i, sizeof(v.output_i));
+              v.node->multi_function().hash(hash_context);
+              hash_context.add(v.output_i);
               for (const GField &input_field : v.node->inputs()) {
-                const uint64_t input_hash = cache.lookup(input_field);
-                XXH3_64bits_update(hash_state, &input_hash, sizeof(input_hash));
+                hash_context.add(cache.lookup(input_field));
               }
             }
           },
           current.variant());
-      cache.add_new(current, XXH3_64bits_digest(hash_state));
+      const Span bytes = hash_context.hash_bytes.as_span();
+      cache.add_new(current, XXH3_64bits(bytes.data(), bytes.size()));
       continue;
     }
     visited.add(current);
@@ -172,9 +169,9 @@ FieldInput::~FieldInput() = default;
 
 void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
 
-void FieldInput::hash(XXH3_state_t &hash_state) const
+void FieldInput::hash(HashContext &hash) const
 {
-  XXH3_64bits_update(&hash_state, this, sizeof(this));
+  hash.add(this->hash());
 }
 
 void FieldInput::delete_self()
@@ -472,8 +469,8 @@ GVArray IndexFieldInput::get_varray_for_context(const fn::FieldContext & /*conte
 
 uint64_t IndexFieldInput::hash() const
 {
-  /* Some random constant hash. */
-  return 128736487678;
+  static constexpr int8_t id = 0;
+  return get_default_hash(id);
 }
 
 bool IndexFieldInput::is_equal_to(const fn::FieldInput &other) const

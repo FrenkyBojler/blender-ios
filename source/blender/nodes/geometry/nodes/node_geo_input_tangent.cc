@@ -103,8 +103,8 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 91827364589;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

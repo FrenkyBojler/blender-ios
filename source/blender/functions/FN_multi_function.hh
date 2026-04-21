@@ -35,9 +35,16 @@
 #include "FN_multi_function_context.hh"
 #include "FN_multi_function_params.hh"
 
-struct XXH3_state_t;
-
 namespace blender {
+
+struct HashContext {
+  Vector<std::byte, 256> hash_bytes;
+  template<typename T> void add(const T &value)
+  {
+    static_assert(std::is_trivial_v<T>);
+    hash_bytes.extend(reinterpret_cast<const std::byte *>(&value), sizeof(T));
+  }
+};
 
 namespace fn::multi_function {
 
@@ -57,7 +64,7 @@ class MultiFunction : NonCopyable, NonMovable {
   void call_auto(const IndexMask &mask, Params params, Context context) const;
   virtual void call(const IndexMask &mask, Params params, Context context) const = 0;
 
-  virtual void hash(XXH3_state_t &hash_state) const;
+  virtual void hash(HashContext &hash) const;
   virtual bool equals(const MultiFunction &other) const;
 
   int param_amount() const

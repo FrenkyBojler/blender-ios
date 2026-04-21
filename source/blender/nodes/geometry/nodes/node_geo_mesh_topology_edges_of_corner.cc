@@ -40,7 +40,8 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 1892753404495;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -78,7 +79,8 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 987298345762465;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

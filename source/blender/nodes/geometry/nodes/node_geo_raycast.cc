@@ -228,11 +228,11 @@ class RaycastFunction : public mf::MultiFunction {
                     params.uninitialized_single_output_if_required<float>(6, "Distance"));
   }
 
-  void hash(XXH3_state_t &hash_state) const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, target_.get_mesh(), sizeof(target_.get_mesh()));
+    hash.add(&id);
+    hash.add(target_.get_mesh());
   }
 };
 

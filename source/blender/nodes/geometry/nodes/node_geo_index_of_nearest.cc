@@ -141,7 +141,10 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const final
   {
-    return get_default_hash(positions_field_, group_field_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(
+        &id, field_hash.ensure(positions_field_), field_hash.ensure(group_field_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -208,7 +211,9 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const final
   {
-    return get_default_hash(39847876, group_field_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id, field_hash.ensure(group_field_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

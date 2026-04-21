@@ -74,7 +74,9 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return non_boundary_edge_field_.hash();
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id, field_hash.ensure(non_boundary_edge_field_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

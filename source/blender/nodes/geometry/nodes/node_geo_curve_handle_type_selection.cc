@@ -99,7 +99,8 @@ class HandleTypeFieldInput final : public bke::CurvesFieldInput {
 
   uint64_t hash() const final
   {
-    return get_default_hash(int(mode_), int(type_));
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id, mode_, type_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

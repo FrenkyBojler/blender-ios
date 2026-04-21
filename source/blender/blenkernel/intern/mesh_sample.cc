@@ -427,11 +427,11 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    bary_weights);
 }
 
-void BaryWeightFromPositionFn::hash(XXH3_state_t &hash_state) const
+void BaryWeightFromPositionFn::hash(HashContext &hash) const
 {
   static constexpr int8_t id = 0;
-  XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-  XXH3_64bits_update(&hash_state, source_.get_mesh(), sizeof(source_.get_mesh()));
+  hash.add(&id);
+  hash.add(source_.get_mesh());
 }
 
 NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
@@ -469,11 +469,11 @@ void NearestCornerFromPositionFn::call(const IndexMask &mask,
                               nearest_corner);
 }
 
-void NearestCornerFromPositionFn::hash(XXH3_state_t &hash_state) const
+void NearestCornerFromPositionFn::hash(HashContext &hash) const
 {
   static constexpr int8_t id = 0;
-  XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-  XXH3_64bits_update(&hash_state, source_.get_mesh(), sizeof(source_.get_mesh()));
+  hash.add(&id);
+  hash.add(source_.get_mesh());
 }
 
 BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field)
@@ -508,6 +508,15 @@ void BaryWeightSampleFn::call(const IndexMask &mask,
     }
   });
   dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
+}
+
+void BaryWeightSampleFn::hash(HashContext &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(source_.get_mesh());
+  fn::FieldHashDeep field_hash;
+  hash.add(field_hash.ensure(src_field_));
 }
 
 void BaryWeightSampleFn::prepare_for_execution() const

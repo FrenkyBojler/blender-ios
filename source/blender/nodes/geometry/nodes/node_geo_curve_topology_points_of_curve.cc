@@ -147,7 +147,8 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const override
   {
-    return 26978695677882;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -184,7 +185,8 @@ class CurvePointCountInput final : public bke::CurvesFieldInput {
 
   uint64_t hash() const final
   {
-    return 903847569873762;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

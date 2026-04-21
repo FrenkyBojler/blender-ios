@@ -12,8 +12,6 @@
 
 #include "node_function_util.hh"
 
-#include <xxhash.h>
-
 namespace blender::nodes::node_fn_axes_to_rotation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -128,13 +126,13 @@ class AxesToRotationFunction : public mf::MultiFunction {
     });
   };
 
-  void hash(XXH3_state_t &hash_state) const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, &primary_axis_, sizeof(primary_axis_));
-    XXH3_64bits_update(&hash_state, &secondary_axis_, sizeof(secondary_axis_));
-    XXH3_64bits_update(&hash_state, &tertiary_axis_, sizeof(tertiary_axis_));
+    hash.add(&id);
+    hash.add(primary_axis_);
+    hash.add(secondary_axis_);
+    hash.add(tertiary_axis_);
   }
 };
 

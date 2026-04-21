@@ -83,8 +83,8 @@ class AngleFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 32426725235;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -181,8 +181,8 @@ class SignedAngleFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 68465416863;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

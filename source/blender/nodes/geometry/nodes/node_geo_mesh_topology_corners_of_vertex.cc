@@ -127,7 +127,8 @@ class CornersOfVertInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 3541871368173645;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -163,7 +164,8 @@ class CornersOfVertCountInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const final
   {
-    return 253098745374645;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

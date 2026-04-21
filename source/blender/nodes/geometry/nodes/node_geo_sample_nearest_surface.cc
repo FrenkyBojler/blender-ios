@@ -110,6 +110,40 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
+  void prepare_for_execution() const override
+  {
+    mutex_.ensure([&]() {
+      const Mesh &mesh = *source_.get_mesh();
+
+      /* Compute group ids on mesh. */
+      bke::MeshFieldContext field_context{mesh, bke::AttrDomain::Face};
+      FieldEvaluator field_evaluator{field_context, mesh.faces_num};
+      field_evaluator.add(group_id_field_);
+      field_evaluator.evaluate();
+      const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
+
+      /* Compute index masks for groups. */
+      IndexMaskMemory memory;
+      const Vector<IndexMask> group_masks = IndexMask::from_group_ids(
+          group_ids, memory, group_indices_);
+      const int groups_num = group_masks.size();
+
+      /* Construct BVH tree for each group. */
+      bvh_trees_.reinitialize(groups_num);
+      threading::parallel_for(
+          IndexRange(groups_num),
+          512,
+          [&](const IndexRange range) {
+            for (const int group_i : range) {
+              const IndexMask &group_mask = group_masks[group_i];
+              bvh_trees_[group_i] = bke::bvhtree_from_mesh_tris_init(mesh, group_mask);
+            }
+          },
+          threading::individual_task_sizes(
+              [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
+    });
+  }
+
   ~SampleNearestSurfaceFunction() override = default;
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
@@ -158,46 +192,13 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     return hints;
   }
 
-  void hash(XXH3_state_t &hash_state) const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, &source_, sizeof(source_));
-    group_id_field_.hash(hash_state);
-  }
-
-  void prepare_for_execution() const override
-  {
-    mutex_.ensure([&]() {
-      const Mesh &mesh = *source_.get_mesh();
-
-      /* Compute group ids on mesh. */
-      bke::MeshFieldContext field_context{mesh, bke::AttrDomain::Face};
-      FieldEvaluator field_evaluator{field_context, mesh.faces_num};
-      field_evaluator.add(group_id_field_);
-      field_evaluator.evaluate();
-      const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
-
-      /* Compute index masks for groups. */
-      IndexMaskMemory memory;
-      const Vector<IndexMask> group_masks = IndexMask::from_group_ids(
-          group_ids, memory, group_indices_);
-      const int groups_num = group_masks.size();
-
-      /* Construct BVH tree for each group. */
-      bvh_trees_.reinitialize(groups_num);
-      threading::parallel_for(
-          IndexRange(groups_num),
-          512,
-          [&](const IndexRange range) {
-            for (const int group_i : range) {
-              const IndexMask &group_mask = group_masks[group_i];
-              bvh_trees_[group_i] = bke::bvhtree_from_mesh_tris_init(mesh, group_mask);
-            }
-          },
-          threading::individual_task_sizes(
-              [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
-    });
+    hash.add(&id);
+    hash.add(source_.get_mesh());
+    fn::FieldHashDeep field_hash;
+    hash.add(field_hash.ensure(group_id_field_));
   }
 };
 

@@ -129,11 +129,11 @@ class SampleIndexFunction : public mf::MultiFunction {
     }
   }
 
-  void hash(XXH3_state_t &hash_state) const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    XXH3_64bits_update(&hash_state, &id, sizeof(&id));
-    XXH3_64bits_update(&hash_state, list_.get(), sizeof(list_.get()));
+    hash.add(&id);
+    hash.add(list_.get());
   }
 };
 

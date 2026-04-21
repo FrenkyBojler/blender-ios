@@ -31,8 +31,6 @@
 
 #include "FN_multi_function.hh"
 
-struct XXH3_state_t;
-
 namespace blender::fn {
 
 class GField;
@@ -181,7 +179,7 @@ class GField {
    * expensive though.
    */
   friend bool operator==(const GField &a, const GField &b);
-  void hash(XXH3_state_t &hash_state) const;
+  uint64_t hash() const;
 
   /**
    * Get a typed reference to this field. Not that #Field<T> happens to be identical to #GField on
@@ -226,7 +224,7 @@ template<typename T> class Field {
   bool depends_on_input() const;
   template<typename InputT, typename... Args> static Field from_input(Args &&...args);
   template<typename InputT> const InputT *get_input_if() const;
-  void hash(XXH3_state_t &hash_state) const;
+  uint64_t hash() const;
   static Field from_non_owning_ref(const Field &field);
 };
 
@@ -330,7 +328,7 @@ class FieldInput : public ImplicitSharingMixin {
   const FieldInputsPtr &field_inputs() const;
 
   virtual uint64_t hash() const;
-  virtual void hash(XXH3_state_t &hash_state) const;
+  virtual void hash(HashContext &hash) const;
   virtual bool is_equal_to(const FieldInput &other) const;
 
   /**
@@ -534,9 +532,9 @@ template<typename T> inline bool operator==(const Field<T> &a, const Field<T> &b
   return static_cast<const GField &>(a) == static_cast<const GField &>(b);
 }
 
-template<typename T> inline void Field<T>::hash(XXH3_state_t &hash_state) const
+template<typename T> inline uint64_t Field<T>::hash() const
 {
-  field_.hash(hash_state);
+  return field_.hash();
 }
 
 inline const CPPType &FieldInput::cpp_type() const

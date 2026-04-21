@@ -143,7 +143,9 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(end_selection_, cost_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id, field_hash.ensure(end_selection_), field_hash.ensure(cost_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -225,7 +227,9 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash(end_selection_, cost_);
+    static constexpr int8_t id = 0;
+    fn::FieldHashDeep field_hash;
+    return get_default_hash(&id, field_hash.ensure(end_selection_), field_hash.ensure(cost_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

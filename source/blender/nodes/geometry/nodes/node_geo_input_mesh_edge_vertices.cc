@@ -59,7 +59,8 @@ class EdgeVertsInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return vertex_ == VertNumber::V1 ? 23847562893465 : 92384598734567;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id, vertex_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -116,7 +117,8 @@ class EdgePositionFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return vertex_ == VertNumber::V1 ? 987456978362 : 374587679866;
+    static constexpr int8_t id = 0;
+    return get_default_hash(&id, vertex_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
