@@ -27,7 +27,7 @@ namespace blender {
 static void project_mark_dirty()
 {
   BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *project) {
-    if (project) {
+    if (project == nullptr) {
       return;
     }
 
