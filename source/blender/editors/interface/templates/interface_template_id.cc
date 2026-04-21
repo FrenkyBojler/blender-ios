@@ -326,20 +326,29 @@ void context_active_but_prop_get_templateID(const bContext *C,
 
   *r_ptr = {};
   *r_prop = nullptr;
-  if (!but) {
+  if (!but || !but->context) {
     return;
   }
   const PointerRNA *ptr = CTX_store_ptr_lookup(but->context, "template_id_ptr");
   std::optional<StringRefNull> prop_name = CTX_store_string_lookup(but->context,
                                                                    "template_id_prop");
+
   if (!ptr || !prop_name) {
     return;
   }
+
   PointerRNA ptr_copy = *ptr;
   PropertyRNA *prop = RNA_struct_find_property(&ptr_copy, prop_name->c_str());
-  if (!prop) {
+
+  if (!prop || RNA_property_type(prop) != PROP_POINTER) {
     return;
   }
+
+  PointerRNA id_ptr = RNA_property_pointer_get_never_create(&ptr_copy, prop);
+  if (!RNA_struct_is_ID(id_ptr.type)) {
+    return;
+  }
+
   *r_ptr = std::move(ptr_copy);
   *r_prop = prop;
 }
@@ -1404,7 +1413,7 @@ static void template_ID(const bContext *C,
             0,
             TIP_("Unlink data-block "
                  "(Shift + Click to set users to zero, data will then not be saved)"));
-        button_func_set(but, [id, template_ui = template_ui](bContext &C) mutable {
+        button_func_set(but, [template_ui = template_ui](bContext &C) mutable {
           template_ui_delete(C, template_ui);
         });
 
