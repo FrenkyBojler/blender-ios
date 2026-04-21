@@ -133,8 +133,6 @@ class Scene : public NodeOwner {
   /* Optional name. Is used for logging and reporting. */
   string name;
 
-  int frame_last_synced = 0;
-
   /* Maps from Light group names to their pass ID. */
   map<ustring, int> lightgroups;
 

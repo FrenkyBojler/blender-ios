@@ -296,6 +296,8 @@ class BlenderSync {
    * If this flag is false then the data is considered to be up-to-date and will not be
    * synchronized at all. */
   bool has_updates_ = true;
+
+  float frame_last_synced = 0;
 };
 
 CCL_NAMESPACE_END

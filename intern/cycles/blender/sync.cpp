@@ -303,12 +303,12 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
 {
   /* For auto refresh images. */
   ImageManager *image_manager = scene->image_manager.get();
-  const int frame = b_scene->r.cfra;
-  const bool frame_update = scene->frame_last_synced != frame;
+  const float frame = b_scene->r.cfra + b_scene->r.subframe;
+  const bool frame_update = frame_last_synced != frame;
   const bool auto_refresh_update = image_manager->set_animation_frame_update(frame);
 
   if (frame_update) {
-    scene->frame_last_synced = frame;
+    frame_last_synced = frame;
     has_updates_ = true;
   }
 
