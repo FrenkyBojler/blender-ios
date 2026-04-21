@@ -73,9 +73,6 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
     return std::nullopt;
   }
 
-  IndexMaskMemory memory;
-  const IndexMask unselected = selection.complement(IndexRange(domain_size), memory);
-
   r_roots.reinitialize(domain_size);
   /* TODO: Explicitly create groups of indices in merge code and skip unit groups from future
    * processing... */
