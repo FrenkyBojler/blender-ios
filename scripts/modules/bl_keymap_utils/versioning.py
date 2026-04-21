@@ -333,7 +333,7 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
     if keyconfig_version < (5, 1, 11):
         rename_keymap({"Grease Pencil Paint Mode": "Grease Pencil Draw Mode"})
 
-    if keyconfig_version < (5, 2, 19):
+    if keyconfig_version < (5, 2, 21):
         for _km_name, _km_parms, km_items_data in keyconfig_data:
             for (item_op, _item_event, item_prop) in km_items_data["items"]:
                 if item_op in (

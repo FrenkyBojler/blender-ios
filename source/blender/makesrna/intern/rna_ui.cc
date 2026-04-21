@@ -1933,6 +1933,17 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "", "The category (tab) in which the panel will be displayed, when applicable");
 
+  prop = RNA_def_property(srna, "bl_icon", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "type->icon");
+  RNA_def_property_enum_items(prop, rna_enum_icon_items);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop, "Icon", "Icon override for the panel category tab");
+
+  prop = RNA_def_property(srna, "bl_icon_value", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "type->icon");
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop, "Icon Value", "Icon value override for the panel category tab");
+
   prop = RNA_def_property(srna, "bl_owner_id", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "type->owner_id");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
@@ -2586,6 +2597,17 @@ static void rna_def_layout_panel_state(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Is Open", "");
 }
 
+static void rna_def_ui_textbox_state(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "TextboxState", nullptr);
+  RNA_def_struct_sdna(srna, "TextboxState");
+  PropertyRNA *prop;
+  prop = RNA_def_property(srna, "visible_lines", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  prop = RNA_def_property(srna, "scroll", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
 void RNA_def_ui(BlenderRNA *brna)
 {
   rna_def_ui_layout(brna);
@@ -2596,6 +2618,7 @@ void RNA_def_ui(BlenderRNA *brna)
   rna_def_asset_shelf(brna);
   rna_def_file_handler(brna);
   rna_def_layout_panel_state(brna);
+  rna_def_ui_textbox_state(brna);
 }
 
 }  // namespace blender

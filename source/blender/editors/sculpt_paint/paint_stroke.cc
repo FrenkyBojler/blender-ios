@@ -884,13 +884,13 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   if (this->brush->mtex.tex && this->brush->mtex.tex->type == TEX_IMAGE &&
       this->brush->mtex.tex->ima)
   {
-    ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
+    ImBuf *tex_ibuf = BKE_image_acquire_ibuf(
         this->brush->mtex.tex->ima, &this->brush->mtex.tex->iuser, nullptr);
     if (tex_ibuf && tex_ibuf->float_data() == nullptr) {
       paint_runtime->do_linear_conversion = true;
       paint_runtime->colorspace = tex_ibuf->byte_buffer.colorspace;
     }
-    BKE_image_pool_release_ibuf(this->brush->mtex.tex->ima, tex_ibuf, nullptr);
+    BKE_image_release_ibuf(this->brush->mtex.tex->ima, tex_ibuf, nullptr);
   }
 
   if (stroke_mode_ == BrushStrokeMode::Invert) {
@@ -949,7 +949,7 @@ void PaintStroke::done(bContext *C, const bool is_cancel)
     this->redraw(true);
   }
 
-  this->done(is_cancel);
+  this->done(is_cancel, stroke_started_);
 
   if (RegionView3D *rv3d = CTX_wm_region_view3d(C)) {
     rv3d->rflag &= ~RV3D_PAINTING;
