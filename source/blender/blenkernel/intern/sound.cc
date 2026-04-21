@@ -1480,8 +1480,9 @@ char **BKE_sound_get_device_names()
 
     for (int i = 0; i < v_names.size(); i++) {
       std::string name = v_names[i];
-      names[i] = (char *)malloc(sizeof(char) * (name.length() + 1));
-      strcpy(names[i], name.c_str());
+      const size_t name_size = sizeof(char) * (name.length() + 1);
+      names[i] = (char *)malloc(name_size);
+      memcpy(names[i], name.c_str(), name_size);
     }
     names[v_names.size()] = nullptr;
     audio_device_names = names;
@@ -1660,7 +1661,7 @@ AUD_Handle bke::sound_device_play(AUD_Device device, AUD_Sound sound)
   return nullptr;
 }
 
-bool bke::sound_device_read(AUD_Device device, unsigned char *buffer, int length)
+bool bke::sound_device_read(AUD_Device device, uchar *buffer, int length)
 {
   BLI_assert(buffer);
   auto read_device = std::dynamic_pointer_cast<aud::ReadDevice>(device);
@@ -1781,14 +1782,14 @@ float *bke::sound_read_file_buffer(const char *filename,
 }
 
 bool bke::sound_mixdown(AUD_Sequence sequence,
-                        unsigned int start,
-                        unsigned int length,
-                        unsigned int buffersize,
+                        uint start,
+                        uint length,
+                        uint buffersize,
                         const char *filename,
                         const aud::DeviceSpecs &specs,
                         aud::Container format,
                         aud::Codec codec,
-                        unsigned int bitrate,
+                        uint bitrate,
                         bool split_channels,
                         std::string &r_error,
                         bool (*progress_callback)(float, void *),
