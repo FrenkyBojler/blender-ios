@@ -417,6 +417,7 @@ set(SRC
   BKE_icons.hh
   BKE_id_hash.hh
   BKE_idprop.hh
+  BKE_idprop_hash.hh
   BKE_idtype.hh
   BKE_image.hh
   BKE_image_format.hh
@@ -574,7 +575,9 @@ set(LIB
   PRIVATE bf::gpu
   bf_ikplugin
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::imbuf::movie
+  PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc

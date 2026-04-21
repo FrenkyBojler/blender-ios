@@ -445,7 +445,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   /* Compute the scene time based on the scene strip. */
   const float frame_index = seq::give_frame_index(
                                 sequencer_scene, scene_strip, sequencer_scene->r.cfra) +
-                            active_scene->r.sfra;
+                            active_scene->r.sfra + scene_strip->anim_startofs;
   if (active_scene->r.flag & SCER_SHOW_SUBFRAME) {
     active_scene->r.cfra = int(frame_index);
     active_scene->r.subframe = frame_index - int(frame_index);
@@ -467,6 +467,41 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   DEG_id_tag_update(&active_scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, nullptr);
+}
+
+void sync_vse_camera_for_view3d(const WorkSpace *workspace, const Scene *active_scene, View3D *v3d)
+{
+  /* Parameters must not be nullptr. */
+  BLI_assert(workspace != nullptr);
+  BLI_assert(active_scene != nullptr);
+  BLI_assert(v3d != nullptr);
+
+  /* Check if VSE sync mode is enabled. */
+  if (!workspace->sequencer_scene) {
+    return;
+  }
+  if ((workspace->flags & WORKSPACE_SYNC_SCENE_TIME) == 0) {
+    return;
+  }
+
+  const Scene *sequencer_scene = workspace->sequencer_scene;
+  const Strip *scene_strip = get_scene_strip_for_time_sync(sequencer_scene);
+  if (!scene_strip || !scene_strip->scene) {
+    return;
+  }
+
+  if (active_scene != scene_strip->scene) {
+    return;
+  }
+
+  /* Determine which camera to use. */
+  const Object *camera = scene_strip->scene_camera ? scene_strip->scene_camera :
+                                                     scene_strip->scene->camera;
+
+  /* Sync camera for this specific View3D. */
+  if (camera && v3d->camera != camera) {
+    v3d->camera = const_cast<Object *>(camera);
+  }
 }
 
 /** \} */
@@ -2181,10 +2216,10 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
           (strip->left_handle() > rect_frames[0]))
       {
         if (ignore_connections) {
-          seq::query_strip_effect_chain(scene, strip, &ed->seqbase, to_offset);
+          seq::query_strip_effect_chain(strip, &ed->seqbase, to_offset);
         }
         else {
-          seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, to_offset);
+          seq::query_strip_connected_and_effect_chain(strip, &ed->seqbase, to_offset);
         }
       }
     }
@@ -2839,7 +2874,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   VectorSet<Strip *> strips_to_move;
   strips_to_move.add_multiple(selected);
   seq::iterator_set_expand(
-      scene, active_seqbase, strips_to_move, seq::query_strip_connected_and_effect_chain);
+      active_seqbase, strips_to_move, seq::query_strip_connected_and_effect_chain);
 
   for (Strip *strip : strips_to_move) {
     seq::relations_invalidate_cache(scene, strip);
