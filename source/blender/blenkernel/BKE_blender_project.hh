@@ -70,6 +70,17 @@ class BlenderProject {
 
 }  // namespace bke
 
+/**
+ * Fetches the current active Blender Project, if any.
+ *
+ * \param bmain: The `Main` to return the active project for. At the moment,
+ * there is just one global project. However, some temporary `Main`s should be
+ * treated as not ever being in a project, in which case this will return
+ * nullptr.
+ *
+ * \returns Either the current active project, or nullptr if there is no active
+ * project or if the passed bmain is considered projectless.
+ */
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
 
 /**
