@@ -6113,7 +6113,8 @@ static wmOperatorStatus uv_select_overlap_exec(bContext *C, wmOperator *op)
   if (!RNA_property_is_set(op->ptr, prop_mode)) {
     ToolSettings *ts = CTX_data_tool_settings(C);
     const bool use_select_linked = ED_uvedit_select_island_check(ts);
-    RNA_property_enum_set(op->ptr, prop_mode, use_select_linked ? UV_SELECT_OVERLAP_ISLAND : UV_SELECT_OVERLAP_FACE);
+    RNA_property_enum_set(
+        op->ptr, prop_mode, use_select_linked ? UV_SELECT_OVERLAP_ISLAND : UV_SELECT_OVERLAP_FACE);
   }
 
   bool extend = RNA_boolean_get(op->ptr, "extend");
