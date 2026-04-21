@@ -135,6 +135,28 @@ void Camera::sync()
     data.viewinv = inst_.drw_view->viewinv();
     data.winmat = inst_.drw_view->winmat();
 
+    if (film_offset != int2(0) || film_extent != display_extent) {
+      float2 uv_min = float2(film_offset) / float2(display_extent);
+      float2 uv_max = float2(film_offset + film_extent) / float2(display_extent);
+
+      float2 ndc_min = uv_min * 2.0 - 1.0;
+      float2 ndc_max = uv_max * 2.0 - 1.0;
+
+      float2 ndc_size = ndc_max - ndc_min;
+      float2 ndc_center = (ndc_min + ndc_max) * 0.5f;
+
+      float2 scale = 2.0f / ndc_size;
+      float2 offset = -ndc_center * scale;
+
+      float4x4 crop_matrix = float4x4::identity();
+      crop_matrix[0][0] = scale.x;
+      crop_matrix[1][1] = scale.y;
+      crop_matrix[3][0] = offset.x;
+      crop_matrix[3][1] = offset.y;
+
+      data.winmat = crop_matrix * data.winmat;
+    }
+
     if (overscan_ != 0.0f) {
       float2 overscan_scale = float2(film_extent + film_overscan * 2) / float2(film_extent);
       float4x4 overscan_matrix = float4x4::identity();
