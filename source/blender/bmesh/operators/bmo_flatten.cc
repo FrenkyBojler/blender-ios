@@ -19,8 +19,10 @@
 
 namespace blender {
 
+static constexpr float FLATTEN_EPSILON = 1e-6f;
+
 /**
- * Methods for determining the orientation of flattening the plane
+ * Methods for determining the orientation of flattening the plane.
  */
 enum FlattenMethod {
   FLATTEN_BEST_FIT = 0,
@@ -91,6 +93,7 @@ static float3 compute_centroid(Span<BMVert *> verts)
 
 /**
  * Computes a best-fit plane normal using Newell's method.
+ * Falls back to Newell's method on vertex positions for faceless meshes.
  */
 static float3 compute_best_fit_normal(Span<BMVert *> verts)
 {
@@ -110,6 +113,19 @@ static float3 compute_best_fit_normal(Span<BMVert *> verts)
       }
     }
   }
+
+  if (math::length(normal) > FLATTEN_EPSILON) {
+    return math::normalize(normal);
+  }
+
+  normal = float3(0.0f);
+  for (const int i : verts.index_range().drop_back(1)) {
+    add_newell_cross_v3_v3v3(normal, verts[i]->co, verts[i + 1]->co);
+  }
+  /* Newell's method requires a closed loop. */
+  if (verts.size() >= 2) {
+    add_newell_cross_v3_v3v3(normal, verts[verts.size() - 1]->co, verts[0]->co);
+  }
   return math::normalize(normal);
 }
 
@@ -120,7 +136,7 @@ static float3 compute_average_vertex_normal(Span<BMVert *> verts)
     normal += float3(v->no);
   }
   float length = math::length(normal);
-  if (length > 1e-8f) {
+  if (length > FLATTEN_EPSILON) {
     return normal / length;
   }
   return float3(0.0f, 0.0f, 1.0f);
