@@ -365,7 +365,7 @@ enum class IMBScaleFilter {
  * Return true if \a ibuf is modified.
  */
 bool IMB_scale(ImBuf *ibuf, int2 new_size, IMBScaleFilter filter, bool threaded = true);
-bool IMB_scale(
+inline bool IMB_scale(
     ImBuf *ibuf, unsigned int newx, unsigned int newy, IMBScaleFilter filter, bool threaded = true)
 {
   return IMB_scale(ibuf, int2(newx, newy), filter, threaded);
@@ -376,10 +376,17 @@ bool IMB_scale(
  * Metadata of input image (if any) is copied into the result image.
  */
 ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
-                          unsigned int newx,
-                          unsigned int newy,
+                          int2 new_size,
                           IMBScaleFilter filter,
                           bool threaded = true);
+inline ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
+                                 unsigned int newx,
+                                 unsigned int newy,
+                                 IMBScaleFilter filter,
+                                 bool threaded = true)
+{
+  return IMB_scale_into_new(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Test if color-space conversions of pixels in buffer need to take into account alpha.

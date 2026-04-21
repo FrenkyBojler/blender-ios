@@ -7,13 +7,13 @@
  * \ingroup imbuf
  */
 
+#include "BLI_math_interp.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_interp.hh"
 #include "IMB_filter.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -395,12 +395,12 @@ static void scale_nearest_func(const BufferT *src_buffer,
 }
 
 template<typename BufferT>
-static void scale_bilinear_func(const BufferT *src_buffer,
-                                const int2 src_size,
-                                const int channels,
-                                BufferT *dst_buffer,
-                                const int2 dst_size,
-                                bool threaded)
+static void scale_bilinear(const BufferT *src_buffer,
+                           const int2 src_size,
+                           const int channels,
+                           BufferT *dst_buffer,
+                           const int2 dst_size,
+                           bool threaded)
 {
   const int newx = dst_size.x;
   const int newy = dst_size.y;
@@ -416,7 +416,7 @@ static void scale_bilinear_func(const BufferT *src_buffer,
         float u = (float(x) + 0.5f) * factor_x - 0.5f;
         int64_t offset = int64_t(y) * newx + x;
         if constexpr (std::is_same_v<BufferT, uchar>) {
-          *reinterpret_cast<uchar4 *>(dst_buffer + offset) = math::interpolate_bilinear_byte(
+          *reinterpret_cast<uchar4 *>(dst_buffer + offset * 4) = math::interpolate_bilinear_byte(
               src_buffer, src_size.x, src_size.y, u, v);
         }
         else {
@@ -449,7 +449,8 @@ bool IMB_scale(ImBuf *ibuf, const int2 new_size, IMBScaleFilter filter, bool thr
         ibuf->assign_float_data(dst);
       }
       if (const uchar *src = ibuf->byte_data()) {
-        uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(new_size.x) * new_size.y, __func__);
+        uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(new_size.x) * new_size.y * 4,
+                                                        __func__);
         scale_nearest_func(src, src_size, 4, dst, new_size, threaded);
         ibuf->assign_byte_data(dst);
       }
@@ -459,12 +460,13 @@ bool IMB_scale(ImBuf *ibuf, const int2 new_size, IMBScaleFilter filter, bool thr
       if (const float *src = ibuf->float_data()) {
         float *dst = MEM_new_array_uninitialized<float>(
             size_t(ibuf->channels) * new_size.x * new_size.y, __func__);
-        scale_bilinear_func(src, src_size, ibuf->channels, dst, new_size, threaded);
+        scale_bilinear(src, src_size, ibuf->channels, dst, new_size, threaded);
         ibuf->assign_float_data(dst);
       }
       if (const uchar *src = ibuf->byte_data()) {
-        uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(new_size.x) * new_size.y, __func__);
-        scale_bilinear_func(src, src_size, 4, dst, new_size, threaded);
+        uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(new_size.x) * new_size.y * 4,
+                                                        __func__);
+        scale_bilinear(src, src_size, 4, dst, new_size, threaded);
         ibuf->assign_byte_data(dst);
       }
       break;
@@ -477,14 +479,16 @@ bool IMB_scale(ImBuf *ibuf, const int2 new_size, IMBScaleFilter filter, bool thr
         ibuf->assign_float_data(dst);
       }
       if (const uchar *src = ibuf->byte_data()) {
-        uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(new_size.x) * new_size.y, __func__);
+        uchar *dst = MEM_new_array_uninitialized<uchar>(size_t(new_size.x) * new_size.y * 4,
+                                                        __func__);
         imb_scale_box(src, src_size, 4, dst, new_size, threaded);
         ibuf->assign_byte_data(dst);
       }
-
       break;
     }
   }
+  ibuf->x = new_size.x;
+  ibuf->y = new_size.y;
   return true;
 }
 
@@ -493,7 +497,8 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
                           IMBScaleFilter filter,
                           bool threaded)
 {
-  BLI_assert_msg(newx > 0 && newy > 0, "Images must be at least 1 on both dimensions!");
+  BLI_assert_msg(new_size.x > 0 && new_size.y > 0,
+                 "Images must be at least 1 on both dimensions!");
   if (ibuf == nullptr) {
     return nullptr;
   }
@@ -536,10 +541,10 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
     }
     case IMBScaleFilter::Bilinear: {
       if (const float *src = ibuf->float_data()) {
-        scale_bilinear_func(src, src_size, ibuf->channels, dst_float, new_size, threaded);
+        scale_bilinear(src, src_size, ibuf->channels, dst_float, new_size, threaded);
       }
       if (const uchar *src = ibuf->byte_data()) {
-        scale_bilinear_func(src, src_size, 4, dst_byte, new_size, threaded);
+        scale_bilinear(src, src_size, 4, dst_byte, new_size, threaded);
       }
       break;
     }
@@ -550,11 +555,9 @@ ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
       if (const uchar *src = ibuf->byte_data()) {
         imb_scale_box(src, src_size, 4, dst_byte, new_size, threaded);
       }
-
       break;
     }
   }
-
   return dst;
 }
 
