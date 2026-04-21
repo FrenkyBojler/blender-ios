@@ -6,6 +6,9 @@
  * \ingroup bke
  */
 
+#include <mutex>
+#include <shared_mutex>
+
 #include "BKE_blender_project.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -53,6 +56,13 @@ static std::optional<bke::BlenderProject> &get_project()
   return project;
 }
 
+static std::shared_mutex &get_project_mutex()
+{
+  static std::shared_mutex project_mutex;
+
+  return project_mutex;
+}
+
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
 {
   if (bmain == nullptr) {
@@ -67,6 +77,24 @@ bke::BlenderProject *BKE_blender_project_get(const Main *bmain)
   return &*project;
 }
 
+void BKE_with_blender_project(const Main *bmain,
+                              std::function<void(const bke::BlenderProject *)> lambda)
+{
+  std::shared_lock<std::shared_mutex> lock(get_project_mutex());
+  const bke::BlenderProject *project = BKE_blender_project_get(bmain);
+
+  lambda(project);
+}
+
+void BKE_with_blender_project_write(const Main *bmain,
+                                    std::function<void(bke::BlenderProject *)> lambda)
+{
+  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
+  bke::BlenderProject *project = BKE_blender_project_get(bmain);
+
+  lambda(project);
+}
+
 bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
 {
   if (name.is_empty() || root_path.is_empty()) {
@@ -75,6 +103,7 @@ bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_p
 
   BKE_blender_project_clear();
 
+  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
   std::optional<bke::BlenderProject> &project = get_project();
 
   project = blender::bke::BlenderProject();
@@ -93,6 +122,7 @@ void BKE_blender_project_clear()
    * one place the code for ensuring those things are properly unloaded when the
    * active project is cleared. */
 
+  std::unique_lock<std::shared_mutex> lock(get_project_mutex());
   std::optional<bke::BlenderProject> &project = get_project();
 
   if (project.has_value()) {
