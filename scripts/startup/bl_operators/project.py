@@ -476,6 +476,16 @@ class PROJECT_OP_AddVariable(Operator):
     bl_idname = "project.add_variable"
     bl_label = "Add Variable"
 
+    variable_type: bpy.props.EnumProperty(
+        default='STRING',
+        items=[
+            ('INTEGER', "Integer Variable", ""),
+            ('FLOAT', "Float Variable", ""),
+            ('STRING', "String Variable", ""),
+            ('FILEPATH', "Filepath Variable", ""),
+        ],
+    )
+
     @classmethod
     def poll(cls, context):
         return bpy.data.project is not None
@@ -483,6 +493,7 @@ class PROJECT_OP_AddVariable(Operator):
     def execute(self, context):
         var = bpy.data.project.variables.new()
         var.name = "Variable"
+        var.type = self.variable_type
 
         return {'FINISHED'}
 

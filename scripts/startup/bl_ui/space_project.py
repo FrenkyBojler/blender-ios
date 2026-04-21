@@ -75,6 +75,19 @@ class PROJECT_MT_save_load(Menu):
         layout.operator("project.save_project", text="Save Project")
 
 
+class PROJECT_MT_add_variable(Menu):
+    bl_label = "Add Variable"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("project.add_variable", text="Integer", icon='NONE').variable_type = 'INTEGER'
+        layout.operator("project.add_variable", text="Float", icon='NONE').variable_type = 'FLOAT'
+        layout.separator()
+        layout.operator("project.add_variable", text="String", icon='NONE').variable_type = 'STRING'
+        layout.operator("project.add_variable", text="Filepath", icon='NONE').variable_type = 'FILEPATH'
+
+
 # -------------------------------------------------------------
 # Execution area (shown when header is hidden).
 
@@ -277,7 +290,7 @@ class PROJECT_PT_variables(Panel):
             active_propname="active_variable_index",
         )
         col = row.column(align=True)
-        col.operator("project.add_variable", text="", icon='ADD')
+        col.menu("PROJECT_MT_add_variable", text="", icon='ADD')
         col.operator("project.remove_variable", text="", icon='REMOVE')
         col.operator("project.move_variable", text="", icon='TRIA_UP').direction = 'UP'
         col.operator("project.move_variable", text="", icon='TRIA_DOWN').direction = 'DOWN'
@@ -319,6 +332,7 @@ if bpy.context.preferences.experimental.use_blender_projects:
         PROJECT_MT_editor_menus,
         PROJECT_MT_view,
         PROJECT_MT_save_load,
+        PROJECT_MT_add_variable,
         PROJECT_PT_navigation_bar,
         PROJECT_PT_save_project,
         PROJECT_PT_main_unset,
