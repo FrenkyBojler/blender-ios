@@ -41,7 +41,7 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
     return 2348712958475728;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     return dynamic_cast<const CornerFaceIndexInput *>(&other) != nullptr;
   }
@@ -71,7 +71,7 @@ class CornerIndexInFaceInput final : public bke::MeshFieldInput {
     return 97837176448;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const final
+  bool is_equal_to(const fn::FieldInput &other) const final
   {
     return dynamic_cast<const CornerIndexInFaceInput *>(&other) != nullptr;
   }
@@ -86,25 +86,24 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const Field<int> corner_index = params.extract_input<Field<int>>("Corner Index"_ustr);
   if (params.output_is_required("Face Index"_ustr)) {
-    params.set_output("Face Index"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          corner_index,
-                          Field<int>(std::make_shared<CornerFaceIndexInput>()),
-                          AttrDomain::Corner)));
+    params.set_output(
+        "Face Index"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            corner_index, Field<int>::from_input<CornerFaceIndexInput>(), AttrDomain::Corner));
   }
   if (params.output_is_required("Index in Face"_ustr)) {
-    params.set_output("Index in Face"_ustr,
-                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
-                          corner_index,
-                          Field<int>(std::make_shared<CornerIndexInFaceInput>()),
-                          AttrDomain::Corner)));
+    params.set_output(
+        "Index in Face"_ustr,
+        Field<int>::from_input<bke::EvaluateAtIndexInput>(
+            corner_index, Field<int>::from_input<CornerIndexInFaceInput>(), AttrDomain::Corner));
   }
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeFaceOfCorner", GEO_NODE_MESH_TOPOLOGY_FACE_OF_CORNER);
+  geo_node_type_base(
+      &ntype, "GeometryNodeFaceOfCorner"_ustr, GEO_NODE_MESH_TOPOLOGY_FACE_OF_CORNER);
   ntype.ui_name = "Face of Corner";
   ntype.ui_description = "Retrieve the face each face corner is part of";
   ntype.enum_name_legacy = "FACE_OF_CORNER";
