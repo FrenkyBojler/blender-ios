@@ -155,32 +155,27 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
 
   float noise_x = float(i) * Parameters.random_noise_scale;
 
-  if (Parameters.random_rotation > 0.0f) {
-    float rand = noise_level_2(noise_x + 69637.532f);
-    rand -= 0.5f;
-    rand *= 2.0f;
-    rand *= M_PI;
+  if (Parameters.random_rotation > 0.0f || Parameters.random_size > 0.0f) {
+    float rand_rot = noise_level_2(noise_x + 69637.532f);
+    rand_rot -= 0.5f;
+    rand_rot *= 2.0f;
+    rand_rot *= M_PI;
+    rand_rot *= Parameters.random_rotation;
 
-    rand *= Parameters.random_rotation;
+    float2x2 mat = calculate_rotation_matrix(float2(cos(rand_rot), sin(rand_rot)));
+
+    if (Parameters.random_size > 0.0f) {
+      float rand_siz = noise_level_2(noise_x + 18559.853f);
+      rand_siz *= Parameters.random_size;
+      rand_siz = 1.0f - rand_siz;
+
+      mat /= rand_siz;
+    }
 
     uv -= 0.5f;
-    float2x2 mat = calculate_rotation_matrix(float2(cos(rand), sin(rand)));
     uv = mat * uv;
     dx = mat * dx;
     dy = mat * dy;
-    uv += 0.5f;
-  }
-
-  if (Parameters.random_size > 0.0f) {
-    float rand = noise_level_2(noise_x + 18559.853f);
-
-    rand *= Parameters.random_size;
-    rand = 1.0f - rand;
-
-    uv -= 0.5f;
-    uv /= rand;
-    dx /= rand;
-    dy /= rand;
     uv += 0.5f;
   }
 
