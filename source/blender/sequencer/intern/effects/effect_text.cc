@@ -933,7 +933,7 @@ static void apply_word_wrapping(const TextVars *data,
     if (character.do_wrap) {
       runtime->lines.append(LineInfo());
       cur_pixel_pos.x = 0;
-      cur_pixel_pos.y -= runtime->line_height+ data->line_height;
+      cur_pixel_pos.y -= runtime->line_height + data->line_height;
     }
   }
 }
@@ -999,7 +999,8 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
   BLF_bounds_max(runtime->font, &glyph_bounds_max);
-  const int text_height = (runtime->lines.size() - 1) * (runtime->line_height + data->line_height)  +
+  const int text_height = (runtime->lines.size() - 1) *
+                              (runtime->line_height + data->line_height) +
                           math::ceil(BLI_rctf_size_y(&glyph_bounds_max));
 
   int width_max = text_box_width_get(runtime->lines);
@@ -1014,8 +1015,8 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
 
   runtime->text_boundbox.xmin = anchor.x + image_center.x;
   runtime->text_boundbox.xmax = anchor.x + image_center.x + width_max;
-  runtime->text_boundbox.ymin = anchor.y + image_center.y - (text_height+ data->line_height);
-  runtime->text_boundbox.ymax = runtime->text_boundbox.ymin + (text_height+ data->line_height);
+  runtime->text_boundbox.ymin = anchor.y + image_center.y - (text_height + data->line_height);
+  runtime->text_boundbox.ymax = runtime->text_boundbox.ymin + (text_height + data->line_height);
 }
 
 static void apply_text_alignment(const TextVars *data,
@@ -1026,8 +1027,8 @@ static void apply_text_alignment(const TextVars *data,
   const int box_height = runtime->lines.size() * (runtime->line_height + data->line_height);
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
-  const float2 line_height_offset{0.0f,
-                                  float(-(runtime->line_height+ data->line_height) - BLF_descender(runtime->font))};
+  const float2 line_height_offset{
+      0.0f, float(-(runtime->line_height + data->line_height) - BLF_descender(runtime->font))};
   const float2 anchor_offset = anchor_offset_get(data, box_width, box_height);
 
   for (LineInfo &line : runtime->lines) {
