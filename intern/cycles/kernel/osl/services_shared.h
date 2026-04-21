@@ -1232,4 +1232,21 @@ ccl_device_inline bool osl_shared_get_camera_attribute(KernelGlobals kg,
   return false;
 }
 
+/* Scene Attributes */
+
+ccl_device_inline bool osl_shared_get_scene_attribute(KernelGlobals kg,
+                                                       DeviceString name,
+                                                       const TypeDesc type,
+                                                       bool derivatives,
+                                                       ccl_private void *val)
+{
+  if (name == DeviceStrings::u_scene_time) {
+    return set_attribute(kernel_data.scene_time.time, type, derivatives, val);
+  }
+  if (name == DeviceStrings::u_scene_frame) {
+    return set_attribute(kernel_data.scene_time.frame, type, derivatives, val);
+  }
+  return false;
+}
+
 CCL_NAMESPACE_END
