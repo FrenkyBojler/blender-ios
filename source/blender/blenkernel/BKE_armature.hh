@@ -711,8 +711,7 @@ struct bArmature_Runtime {
    * `ANIM_armature_bonecoll_active_set` to set the active bone collection.
    */
   int active_collection_index = 0;
-  uint8_t _pad0[4] = {};
-  struct BoneCollection *active_collection = nullptr;
+  BoneCollection *active_collection = nullptr;
 
   /**
    * Indexable storage for bones. The bone hierarchy is stored depth-first, so a bone is followed
