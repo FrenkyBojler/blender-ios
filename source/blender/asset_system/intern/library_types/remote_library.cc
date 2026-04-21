@@ -29,6 +29,7 @@
 #  include "BPY_extern_run.hh"
 #endif
 
+#include "DNA_asset_types.h"
 #include "DNA_space_enums.h"
 #include "DNA_userdef_types.h"
 
@@ -67,8 +68,12 @@ RemoteAssetLibrary::RemoteAssetLibrary(eAssetLibraryType library_type,
                                        StringRef root_path)
     : AssetLibrary(library_type, is_read_only, name, root_path), remote_url_(remote_url)
 {
-  import_method_ = ASSET_IMPORT_APPEND_REUSE;
   may_override_import_method_ = false;
+}
+
+std::optional<eAssetImportMethod> RemoteAssetLibrary::import_method() const
+{
+  return ASSET_IMPORT_APPEND_REUSE;
 }
 
 std::optional<StringRefNull> RemoteAssetLibrary::remote_url() const
@@ -678,7 +683,7 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
      * either the period before the last extension, or the null character at the end of the file
      * name). */
     const char *ext = BLI_path_extension_or_end(preview_url->c_str());
-    BLI_snprintf(thumb_name, sizeof(thumb_name), "%s%s", hexdigest, ext);
+    SNPRINTF(thumb_name, "%s%s", hexdigest, ext);
   }
 
   /* First two letters of the thumbnail name (MD5 hash of the URI) as sub-directory name. */
