@@ -23,6 +23,7 @@ from modules.test_helpers import set_view3d_context_override, generate_stroke, g
 
 args = None
 
+
 @enum.unique
 class DataType(enum.Enum):
     BYTE = 0
@@ -89,7 +90,6 @@ class MeshBrushTests(unittest.TestCase):
                 self._initialize(data_type)
                 self._activate_brush("Paint Hard")
                 self._check_paint_stroke()
-
 
 
 def main():
