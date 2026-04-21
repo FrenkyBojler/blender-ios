@@ -2747,10 +2747,9 @@ int handler_panel_region(bContext *C,
       }
     }
     else if ((event->type == RIGHTMOUSE) && panel_categories_find_mouse_over(region, event)) {
-      if (retval == WM_UI_HANDLER_CONTINUE) {
-        retval = WM_UI_HANDLER_BREAK;
-        popup_context_menu_for_panel(C, region, nullptr);
-      }
+      BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
+      retval = WM_UI_HANDLER_BREAK;
+      popup_context_menu_for_panel(C, region, nullptr);
     }
   }
 
