@@ -169,7 +169,7 @@ class IMAGE_MT_select(Menu):
         layout.menu("IMAGE_MT_select_linked")
 
         layout.separator()
-
+        layout.operator("uv.select_split")
         layout.menu("IMAGE_MT_select_all_by_trait")
 
 
@@ -180,9 +180,8 @@ class IMAGE_MT_select_all_by_trait(Menu):
         layout = self.layout
         layout.operator("uv.select_tile", text="Tile")
         layout.operator("uv.select_pinned", text="Pinned")
-        layout.operator("uv.select_split", text="Split")
         layout.operator("uv.select_overlap", text="Overlap")
-        layout.operator("uv.select_by_winding",)
+        layout.operator("uv.select_by_winding", text="Winding")
 
 
 class IMAGE_MT_select_linked(Menu):
