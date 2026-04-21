@@ -149,7 +149,7 @@ class Sampling {
     return sample_;
   }
 
-  /* 0 based current sample. Might not increase sequentially in viewport. */
+  /* Returns true if a custom pixel jitter sample position is set. */
   bool use_custom_pixel_jitter_sample() const
   {
     return use_custom_pixel_jitter_sample_;
