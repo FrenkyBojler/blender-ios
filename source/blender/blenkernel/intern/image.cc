@@ -1513,6 +1513,9 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
 void BKE_image_packfile_ensure(
     Main *bmain, Image *image, ReportList *reports, const char *data, const int data_len)
 {
+  if (ID_IS_LINKED(image) || ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
+    return;
+  }
   const bool is_packed = BKE_image_has_packedfile(image);
   const bool is_dirty = BKE_image_is_dirty(image);
 

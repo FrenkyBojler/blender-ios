@@ -1662,7 +1662,7 @@ static void id_select_linked_fn(bContext *C,
 }
 
 static void image_pack_fn(bContext *C,
-                          ReportList * /*reports*/,
+                          ReportList *reports,
                           Scene * /*scene*/,
                           TreeElement * /*te*/,
                           TreeStoreElem * /*tsep*/,
@@ -1673,15 +1673,7 @@ static void image_pack_fn(bContext *C,
   if (GS(id->name) == ID_IM) {
     Main *bmain = CTX_data_main(C);
     Image *image = reinterpret_cast<Image *>(id);
-    if (ID_IS_LINKED(id) || ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
-      return;
-    }
-    if (BKE_image_is_dirty(image)) {
-      BKE_image_memorypack(image);
-    }
-    else {
-      BKE_image_packfiles(nullptr, image, ID_BLEND_PATH(bmain, &image->id));
-    }
+    BKE_image_packfile_ensure(bmain, image, reports, nullptr, 0);
     WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, nullptr);
   }
 }
