@@ -35,15 +35,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_default_layout();
 
-  b.add_input<decl::Vector>("Position"_ustr).hide_value();
-  b.add_input<decl::Vector>("Direction"_ustr).hide_value();
-  b.add_input<decl::Float>("Length"_ustr).default_value(1.0);
-
   b.add_output<decl::Float>("Is Hit"_ustr);
   b.add_output<decl::Float>("Self Hit"_ustr);
   b.add_output<decl::Float>("Hit Distance"_ustr);
   b.add_output<decl::Vector>("Hit Position"_ustr);
   b.add_output<decl::Vector>("Hit Normal"_ustr);
+
+  b.add_input<decl::Vector>("Position"_ustr).hide_value();
+  b.add_input<decl::Vector>("Direction"_ustr).hide_value();
+  b.add_input<decl::Float>("Length"_ustr).default_value(1.0);
 
   auto &panel = b.add_panel("Attribute"_ustr).default_closed(true);
   if (node != nullptr) {
