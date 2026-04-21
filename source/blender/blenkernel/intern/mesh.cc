@@ -598,10 +598,11 @@ void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
   if (!mesh::is_uv_map({domain, data_type})) {
     return;
   }
-  if (!mesh.default_uv_map_name().is_empty()) {
+  if (mesh.active_uv_map_name().is_empty()) {
+    mesh.uv_maps_active_set(name);
+    mesh.uv_maps_default_set(name);
     return;
   }
-  mesh.uv_maps_default_set(name);
 }
 
 void mesh_ensure_required_data_layers(Mesh &mesh)
