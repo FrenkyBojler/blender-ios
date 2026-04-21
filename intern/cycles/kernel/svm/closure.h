@@ -576,6 +576,10 @@ ccl_device
       uint fuzz_color_offset;
       uint fuzz_roughness_offset;
 
+      uint thin_film_weight_offset;
+      uint thin_film_thickness_offset;
+      uint thin_film_ior_offset;
+
       uint emission_luminance_offset;
       uint emission_color_offset;
 
@@ -586,6 +590,7 @@ ccl_device
       uint geometry_coat_tangent_offset;
       uint dummy_0_offset;
       uint dummy_1_offset;
+      uint dummy_2_offset;
       // Atm we do not have more parameters
       // const uint4 data_node2 = read_node(kg, &offset);
 
@@ -637,8 +642,10 @@ ccl_device
       svm_unpack_node_uchar4(data_node3.y,
                              &geometry_coat_normal_offset,
                              &geometry_coat_tangent_offset,
-                             &dummy_0_offset,
-                             &dummy_1_offset);
+                             &thin_film_weight_offset,
+                             &thin_film_thickness_offset);
+      svm_unpack_node_uchar4(
+          data_node3.z, &thin_film_ior_offset, &dummy_0_offset, &dummy_1_offset, &dummy_2_offset);
 
       const float base_weight = saturatef(param1);
       const float3 base_color = saturate(
@@ -704,8 +711,12 @@ ccl_device
 
       float3 modulated_base_darkening_factor = one_float3();
 
-      const float thinfilm_thickness = 0.f;
-      const float thinfilm_ior = 0.f;
+      const float thin_film_weight = saturatef(
+          stack_load_float_default(stack, thin_film_weight_offset, 0.f));
+      float thin_film_thickness = stack_load_float_default(
+          stack, thin_film_thickness_offset, 0.5f);
+      thin_film_thickness *= 1000.f;
+      const float thin_film_ior = stack_load_float_default(stack, thin_film_ior_offset, 1.4f);
 
       // coat roughening
       float coated_specular_roughness = specular_roughness;
@@ -950,8 +961,8 @@ ccl_device
 #else
               const Spectrum f82 = min(specular_color * specular_weight, one_spectrum());
 #endif
-              fresnel->thin_film.thickness = thinfilm_thickness;
-              fresnel->thin_film.ior = thinfilm_ior;
+              fresnel->thin_film.thickness = thin_film_thickness;
+              fresnel->thin_film.ior = thin_film_ior;
 
               /* setup bsdf */
               sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
@@ -985,8 +996,8 @@ ccl_device
 
             fresnel->reflection_tint = specular_color;
             fresnel->transmission_tint = transmission_color;
-            fresnel->thin_film.thickness = thinfilm_thickness;
-            fresnel->thin_film.ior = thinfilm_ior;
+            fresnel->thin_film.thickness = thin_film_thickness;
+            fresnel->thin_film.ior = thin_film_ior;
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
@@ -1018,8 +1029,8 @@ ccl_device
 
             fresnel->reflection_tint = specular_color;
             fresnel->transmission_tint = zero_spectrum();
-            fresnel->thin_film.thickness = thinfilm_thickness;
-            fresnel->thin_film.ior = thinfilm_ior;
+            fresnel->thin_film.thickness = thin_film_thickness;
+            fresnel->thin_film.ior = thin_film_ior;
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
@@ -1055,8 +1066,8 @@ ccl_device
 
             fresnel->reflection_tint = specular_color;
             fresnel->transmission_tint = zero_spectrum();
-            fresnel->thin_film.thickness = thinfilm_thickness;
-            fresnel->thin_film.ior = thinfilm_ior;
+            fresnel->thin_film.thickness = thin_film_thickness;
+            fresnel->thin_film.ior = thin_film_ior;
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
@@ -1092,8 +1103,8 @@ ccl_device
 
             fresnel->reflection_tint = zero_float3();
             fresnel->transmission_tint = transmission_color;
-            fresnel->thin_film.thickness = thinfilm_thickness;
-            fresnel->thin_film.ior = thinfilm_ior;
+            fresnel->thin_film.thickness = thin_film_thickness;
+            fresnel->thin_film.ior = thin_film_ior;
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
