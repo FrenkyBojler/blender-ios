@@ -4415,8 +4415,8 @@ static int do_but_textedit_select(
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &but->rect);
 
-      rect.ymax -= textbox_text_pad() / block->aspect;
-      rect.ymin += textbox_text_pad() / block->aspect;
+      rect.ymax -= textbox_vertical_padding() / block->aspect;
+      rect.ymin += textbox_vertical_padding() / block->aspect;
 
       if (BLI_rctf_isect_y(&rect, event->xy[1])) {
         break;
@@ -5285,10 +5285,9 @@ static int do_but_TEXTBOX(bContext *C,
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &textbox->rect);
 
-      /* Try activate text-box scrollbar. */
       rctf scroll_rect = rect;
       scroll_rect.xmin = rect.xmax - button_text_padding(textbox);
-      scroll_rect.ymin += (textbox_grip_height() + textbox_text_pad()) / block->aspect;
+      scroll_rect.ymin += textbox_grip_height() / block->aspect;
 
       rctf grip_rect = rect;
       grip_rect.xmin = grip_rect.xmax - button_text_padding(textbox);
@@ -5326,9 +5325,6 @@ static int do_but_TEXTBOX(bContext *C,
       }
 
       /* Try activate text-box grip button. */
-      rctf grip_rect = rect;
-      grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
-
       if (BLI_rctf_isect_pt(&grip_rect, UNPACK2(event->xy))) {
         WM_cursor_modal_set(win, WM_CURSOR_NS_SCROLL);
         button_activate_state(C, textbox, BUTTON_STATE_TEXTBOX_RESIZING);
@@ -9514,10 +9510,6 @@ static void button_activate_init(bContext *C,
   if (but->type == ButtonType::Grip) {
     const bool horizontal = (BLI_rctf_size_x(&but->rect) < BLI_rctf_size_y(&but->rect));
     WM_cursor_modal_set(data->window, horizontal ? WM_CURSOR_X_MOVE : WM_CURSOR_Y_MOVE);
-  }
-  /* Tex-box buttons allows to select text activation, show text edit cursor when hovering. */
-  if (but->type == ButtonType::TextBox) {
-    WM_cursor_modal_set(data->window, WM_CURSOR_TEXT_EDIT);
   }
   else if (but->type == ButtonType::Num) {
     numedit_set_active(but);

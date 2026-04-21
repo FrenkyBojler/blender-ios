@@ -2036,8 +2036,8 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   rect.xmax = std::max<int>(rect.xmin, rect.xmax - text_padding - scrollbar_pad);
 
-  rect.ymax -= textbox_text_pad() / but->block->aspect;
-  rect.ymin += textbox_text_pad() / but->block->aspect;
+  rect.ymax -= textbox_vertical_padding() / but->block->aspect;
+  rect.ymin += textbox_vertical_padding() / but->block->aspect;
 
   BLI_assert(but->type == ButtonType::TextBox);
 

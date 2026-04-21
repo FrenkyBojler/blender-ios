@@ -53,8 +53,8 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox);
 
 float textbox_grip_height();
 
-/* Top/Bottom padding for text in a textbox. */
-float textbox_text_pad();
+/* Top/Bottom padding for text in a text-box. */
+float textbox_vertical_padding();
 
 TextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname);
 

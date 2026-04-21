@@ -2792,7 +2792,7 @@ void Layout::textbox_with_state(PointerRNA *ptr,
                                0,
                                w,
                                line_heigth * textbox_state->visible_lines +
-                                   textbox_text_pad() * 2.0f,
+                                   textbox_vertical_padding() * 2.0f,
                                ptr,
                                prop,
                                0,
