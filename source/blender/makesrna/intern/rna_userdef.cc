@@ -386,6 +386,7 @@ static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerR
   }
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_TRANSLATION_UPDATE_POST);
+  WM_main_add_notifier(NC_UI, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
