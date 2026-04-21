@@ -1,2 +1,3 @@
 Referenced by issue #157626, No menu pops up when right-clicking on the 3D viewport or on any parameter or property.
 Referenced by issue #157627, Right mouse drag keybindings no longer work in the node editors
+Referenced by pull request #157632, Fix #157626: Context menu doesn't work in panels
