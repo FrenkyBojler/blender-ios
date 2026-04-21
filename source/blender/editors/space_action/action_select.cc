@@ -2169,10 +2169,10 @@ static wmOperatorStatus select_by_type_exec(bContext *C, wmOperator *op)
     for (int i = 0; i < fcurve->totvert; i++) {
       BezTriple &key = fcurve->bezt[i];
       if (BEZKEYTYPE(&key) == key_type) {
-        key.f2 |= SELECT;
+        BEZT_SEL_ALL(&key);
       }
       else if (!extend) {
-        key.f2 *= ~SELECT;
+        BEZT_DESEL_ALL(&key);
       }
     }
   }
