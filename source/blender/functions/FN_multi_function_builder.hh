@@ -874,6 +874,7 @@ template<typename T> class CustomMF_Constant : public MultiFunction {
     static constexpr int8_t id = 0;
     hash.add(&id);
     hash.add(CPPType::get<T>().hash_or_fallback(&value_, uintptr_t(this)));
+    hash.add(&CPPType::get<T>());
   }
 
   bool equals(const MultiFunction &other) const override
