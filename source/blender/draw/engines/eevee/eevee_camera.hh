@@ -175,8 +175,6 @@ class Camera {
 
  private:
   void update_bounds();
-
-  CameraParams v3d_camera_params_get() const;
 };
 
 /** \} */
