@@ -309,6 +309,9 @@ template<typename T>
   BLI_assert(is_unit_scale(b));
 
   /* Quaternion slerp for arbitrary interpolation factors. */
+  if (math::dot(a, b) < 0.0f) {
+    return a * math::pow(-math::invert_normalized(a) * b, t);
+  }
   return a * math::pow(math::invert_normalized(a) * b, t);
 }
 
