@@ -88,20 +88,6 @@ TYPEDEF_SOURCE("eevee_shadow_shared.hh")
 COMPUTE_SOURCE("eevee_shadow_tilemap_rendermap_comp.glsl")
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_shadow_tilemap_amend)
-DO_STATIC_COMPILATION()
-LOCAL_GROUP_SIZE(SHADOW_TILEMAP_RES, SHADOW_TILEMAP_RES)
-IMAGE(0, UINT_32, read_write, uimage2D, tilemaps_img)
-STORAGE_BUF(LIGHT_CULL_BUF_SLOT, read, LightCullingData, light_cull_buf)
-STORAGE_BUF(LIGHT_BUF_SLOT, read_write, LightData, light_buf[])
-/* The call bind_resources(lights) also uses LIGHT_ZBIN_BUF_SLOT and LIGHT_TILE_BUF_SLOT. */
-STORAGE_BUF(4, read, ShadowTileMapData, tilemaps_buf[])
-TYPEDEF_SOURCE("eevee_defines.hh")
-TYPEDEF_SOURCE("eevee_shadow_shared.hh")
-ADDITIONAL_INFO(draw_view)
-COMPUTE_SOURCE("eevee_shadow_tilemap_amend_comp.glsl")
-GPU_SHADER_CREATE_END()
-
 /* AtomicMin clear implementation. */
 GPU_SHADER_CREATE_INFO(eevee_shadow_page_clear)
 DO_STATIC_COMPILATION()
