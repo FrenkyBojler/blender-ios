@@ -731,9 +731,6 @@ void scan([[work_group_id]] const uint3 group_id,
 
   /* Avoid tracing the outside border if dispatch is too big. */
   int2 extent = textureSize(gbuf_header_tx, 0).xy;
-  if (any(greaterThanEqual(texel * uniform_buf.raytrace.fast_gi_resolution_scale, extent))) {
-    return;
-  }
 
   /* Avoid loading texels outside texture range.
    * This can happen even after the check above in non-power-of-2 textures. */
