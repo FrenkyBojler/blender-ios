@@ -185,9 +185,9 @@ static void draw_input_socket(CustomSocketDrawParams &params)
     params.draw_standard(params.layout);
     return;
   }
-  const eval_log::ContextualNodeTreeLogs geo_tree_logs =
+  const eval_log::ContextualNodeTreeLogs tree_logs =
       eval_log::NodesEvalLog::get_contextual_tree_logs(*snode);
-  eval_log::NodeTreeLog *tree_log = geo_tree_logs.get_main_tree_log(params.node);
+  eval_log::NodeTreeLog *tree_log = tree_logs.get_main_tree_log(params.node);
   if (!tree_log) {
     params.draw_standard(params.layout);
     return;

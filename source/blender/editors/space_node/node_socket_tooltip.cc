@@ -186,12 +186,12 @@ class SocketTooltipBuilder {
   void build_tooltip_value()
   {
     SpaceNode *snode = CTX_wm_space_node(&C_);
-    eval_log::ContextualNodeTreeLogs geo_tree_logs;
+    eval_log::ContextualNodeTreeLogs tree_logs;
     if (snode) {
-      geo_tree_logs = eval_log::NodesEvalLog::get_contextual_tree_logs(*snode);
+      tree_logs = eval_log::NodesEvalLog::get_contextual_tree_logs(*snode);
     }
-    eval_log::NodeTreeLog *geo_tree_log = geo_tree_logs.get_main_tree_log(socket_);
-    if (geo_tree_log && this->build_tooltip_value_from_geometry_nodes_log(*geo_tree_log)) {
+    eval_log::NodeTreeLog *tree_log = tree_logs.get_main_tree_log(socket_);
+    if (tree_log && this->build_tooltip_value_from_tree_log(*tree_log)) {
       return;
     }
     const bool always_show_value = tree_.type == NTREE_GEOMETRY;
@@ -251,17 +251,16 @@ class SocketTooltipBuilder {
     this->build_tooltip_value_generic({cpp_type, socket_value});
   }
 
-  [[nodiscard]] bool build_tooltip_value_from_geometry_nodes_log(
-      eval_log::NodeTreeLog &geo_tree_log)
+  [[nodiscard]] bool build_tooltip_value_from_tree_log(eval_log::NodeTreeLog &tree_log)
   {
     if (socket_.typeinfo->base_cpp_type == nullptr) {
       return false;
     }
-    geo_tree_log.ensure_socket_values();
+    tree_log.ensure_socket_values();
     if (socket_.is_multi_input()) {
-      return this->build_tooltip_last_value_multi_input(geo_tree_log);
+      return this->build_tooltip_last_value_multi_input(tree_log);
     }
-    eval_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(socket_);
+    eval_log::ValueLog *value_log = tree_log.find_socket_value_log(socket_);
     if (!value_log) {
       return false;
     }
@@ -270,7 +269,7 @@ class SocketTooltipBuilder {
     return true;
   }
 
-  bool build_tooltip_last_value_multi_input(eval_log::NodeTreeLog &geo_tree_log)
+  bool build_tooltip_last_value_multi_input(eval_log::NodeTreeLog &tree_log)
   {
     const Span<const bNodeLink *> connected_links = socket_.directly_linked_links();
 
@@ -285,7 +284,7 @@ class SocketTooltipBuilder {
         continue;
       }
       const bNodeSocket &from_socket = *link.fromsock;
-      eval_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket);
+      eval_log::ValueLog *value_log = tree_log.find_socket_value_log(from_socket);
       value_logs.append({i, value_log});
       if (value_log) {
         all_value_logs_missing = false;
