@@ -165,9 +165,6 @@ class AttributeStorage : public blender::AttributeStorage {
   bool remove(StringRef name);
   bool remove(const Set<StringRef> &names);
 
-  /** Move an existing attribute to a new index in the storage order. */
-  bool move(StringRef name, int new_index);
-
   /**
    * Add an attribute with the given name, which must not already be used by an existing attribute
    * or this will invoke undefined behavior.

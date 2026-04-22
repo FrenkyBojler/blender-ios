@@ -315,43 +315,6 @@ bool AttributeStorage::remove(const Set<StringRef> &names)
   return this->runtime->attributes.size() != start_size;
 }
 
-bool AttributeStorage::move(const StringRef name, const int new_index)
-{
-  const int old_index = this->runtime->attributes.index_of_try_as(name);
-  if (old_index == -1) {
-    return false;
-  }
-
-  const int size = this->runtime->attributes.size();
-  if (new_index < 0 || new_index >= size) {
-    return false;
-  }
-  if (old_index == new_index) {
-    return true;
-  }
-
-  Vector<std::unique_ptr<Attribute>> old_vector = this->runtime->attributes.extract_vector();
-  std::unique_ptr<Attribute> moved = std::move(old_vector[old_index]);
-
-  if (old_index < new_index) {
-    for (int i = old_index; i < new_index; i++) {
-      old_vector[i] = std::move(old_vector[i + 1]);
-    }
-  }
-  else {
-    for (int i = old_index; i > new_index; i--) {
-      old_vector[i] = std::move(old_vector[i - 1]);
-    }
-  }
-  old_vector[new_index] = std::move(moved);
-
-  this->runtime->attributes.reserve(old_vector.size());
-  for (std::unique_ptr<Attribute> &attribute : old_vector) {
-    this->runtime->attributes.add_new(std::move(attribute));
-  }
-  return true;
-}
-
 std::string AttributeStorage::unique_name_calc(const StringRef name) const
 {
   const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
