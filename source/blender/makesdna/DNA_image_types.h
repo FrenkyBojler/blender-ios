@@ -18,8 +18,8 @@ namespace bke {
 struct ImageRuntime;
 }  // namespace bke
 
-struct MovieReader;
 struct ImBufCache;
+struct MovieReader;
 struct PackedFile;
 struct RenderResult;
 struct Scene;
