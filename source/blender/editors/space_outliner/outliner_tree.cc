@@ -452,8 +452,9 @@ static bool treesort_alpha(const tTreeSort &x1, const tTreeSort &x2)
   return comp < 0;
 }
 
-/* If both items are objects in the same parent collection, sort by
- * their CollectionObject.sort_index. Otherwise fall back to natural name order. */
+/* Sort object entries in a parent collection by `CollectionObject.sort_index`,
+ * using natural-name order only as a tie-breaker. Non-object entries are not
+ * ordered here and keep their existing relative order. */
 static bool treesort_custom(const tTreeSort &x1, const tTreeSort &x2)
 {
   /* Only sort objects that are in a collection. */
