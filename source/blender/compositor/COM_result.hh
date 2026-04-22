@@ -302,21 +302,6 @@ class Result {
    * is expect to be allocated and have the same type and precision as this result. */
   void share_data(const Result &source);
 
-  /* Steal the allocated data from the given source result and assign it to this result, then
-   * remove any references to the data from the source result. It is assumed that:
-   *
-   *   - Both results are of the same type.
-   *   - This result is not allocated but the source result is allocated.
-   *
-   * This is most useful in multi-step compositor operations where some steps can be optional, in
-   * that case, intermediate results can be temporary results that can eventually be stolen by the
-   * actual output of the operation. See the uses of the method for a practical example of use. */
-  void steal_data(Result &source);
-
-  /* Similar to the Result variant of steal_data, but steals from a raw data buffer. The buffer is
-   * assumed to be allocated using Blender's guarded allocator. */
-  void steal_data(void *data, const Domain &domain);
-
   /* Set up the result to wrap an external GPU texture that is not allocated nor managed by the
    * result. The is_external_ member will be set to true, the domain will be set to have the same
    * size as the texture, and the texture will be set to the given texture. See the is_external_
@@ -326,9 +311,6 @@ class Result {
 
   /* Identical to GPU variant of wrap_external but wraps a CPU buffer instead. */
   void wrap_external(void *data, int2 size);
-
-  /* Identical to GPU variant of wrap_external but wraps whatever the given result has instead. */
-  void wrap_external(const Result &result);
 
   /* Sets the transformation of the domain of the result to the given transformation. */
   void set_transformation(const float3x3 &transformation);

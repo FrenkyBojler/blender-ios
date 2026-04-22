@@ -579,9 +579,10 @@ Result Result::download_to_cpu() const
   BLI_assert(this->is_allocated());
 
   Result result = Result(*context_, this->type(), this->precision());
+  result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
+
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-  void *data = GPU_texture_read(*this, this->get_gpu_data_format(), 0);
-  result.steal_data(data, this->domain());
+  GPU_texture_read(*this, this->get_gpu_data_format(), 0, result.cpu_data().data());
 
   return result;
 }
@@ -635,30 +636,6 @@ void Result::share_data(const Result &source)
   (*data_reference_count_)++;
 }
 
-void Result::steal_data(Result &source)
-{
-  BLI_assert(type_ == source.type_);
-  BLI_assert(!this->is_allocated() && source.is_allocated());
-
-  /* Overwrite everything except reference counts. */
-  const int reference_count = reference_count_;
-  *this = source;
-  reference_count_ = reference_count;
-
-  source = Result(*context_, type_, precision_);
-}
-
-void Result::steal_data(void *data, const Domain &domain)
-{
-  BLI_assert(!this->is_allocated());
-
-  const int64_t array_size = int64_t(domain.data_size.x) * int64_t(domain.data_size.y);
-  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
-  storage_type_ = ResultStorageType::CPU;
-  domain_ = domain;
-  data_reference_count_ = new int(1);
-}
-
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
  * result. */
 [[maybe_unused]] static bool is_compatible_texture(const gpu::Texture *texture,
@@ -707,20 +684,6 @@ void Result::wrap_external(void *data, int2 size)
   is_external_ = true;
   domain_ = Domain(size);
   data_reference_count_ = new int(1);
-}
-
-void Result::wrap_external(const Result &result)
-{
-  BLI_assert(type_ == result.type());
-  BLI_assert(precision_ == result.precision());
-  BLI_assert(!this->is_allocated());
-
-  /* Steal the data of the given result and mark it as wrapping external data, but create a
-   * temporary copy of the result first, since steal_data will reset it. */
-  Result result_copy = result;
-  this->steal_data(result_copy);
-  is_external_ = true;
-  (*data_reference_count_)++;
 }
 
 void Result::set_transformation(const float3x3 &transformation)
