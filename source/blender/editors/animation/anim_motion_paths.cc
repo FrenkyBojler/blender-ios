@@ -418,6 +418,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   }
 
   const int cfra = scene->r.cfra;
+  /* The frame range to calculate. Inclusive/Exclusive. */
   Bounds<int> frame_range = {INT_MAX, INT_MIN};
   switch (range) {
     case ANIMVIZ_CALC_RANGE_CURRENT_FRAME:
