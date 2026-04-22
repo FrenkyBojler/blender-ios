@@ -1088,7 +1088,7 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
     /* Don't use paint cursor when overlapping with the size circle. */
     const int brush_size = BKE_brush_size_get(pcontext.paint, pcontext.brush);
     const bool small = brush_size < 28 && brush_size > 12;
-    WM_cursor_set(pcontext.win, small ? WM_CURSOR_DOT : WM_CURSOR_PAINT);
+    WM_cursor_set(pcontext.win, small ? WM_CURSOR_DOT : U.sculpt_cursor);
   }
 }
 

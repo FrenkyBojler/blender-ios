@@ -465,7 +465,7 @@ void MESH_OT_bisect(wmOperatorType *ot)
   /* Without higher precision, the default value displays as zero. */
   RNA_def_property_ui_range(prop, 0.0, 10.0, 0.01, 5);
 
-  WM_operator_properties_gesture_straightline(ot, WM_CURSOR_EDIT);
+  WM_operator_properties_gesture_straightline(ot, U.precision_cursor);
 
 #ifdef USE_GIZMO
   WM_gizmogrouptype_append(MESH_GGT_bisect);

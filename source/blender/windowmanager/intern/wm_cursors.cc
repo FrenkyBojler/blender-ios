@@ -76,6 +76,10 @@ struct BCursor {
    * By default cursors are "light", allow dark themes to invert.
    */
   bool can_invert;
+  /**
+   * By default cursors are right-handed, allow some to reverse.
+   */
+  bool can_flip;
 };
 
 /**
@@ -169,20 +173,39 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(wmCursorType curs)
 static int wm_cursor_size(const wmWindow *win)
 {
   /* Keep for testing. */
-  if (false) {
+  if (U.mouse_cursor_size == USER_CURSOR_SIZE_AUTO) {
     /* Scaling with UI scale can be useful for magnified captures. */
     return std::lround(21.0f * UI_SCALE_FAC);
   }
 
   if (OS_MAC) {
     /* MacOS always scales up this type of cursor for high-dpi displays. */
+    if (U.mouse_cursor_size == USER_CURSOR_SIZE_1_5) {
+      return 32;
+    }
+    else if (U.mouse_cursor_size == USER_CURSOR_SIZE_2_0) {
+      return 42;
+    }
+    else if (U.mouse_cursor_size == USER_CURSOR_SIZE_3_0) {
+      return 63;
+    }
     return 21;
   }
 
   /* The DPI as a scale without the UI scale preference. */
   const float system_scale = WM_window_dpi_get_scale(win);
+  const float default_size = float(WM_cursor_preferred_logical_size()) * system_scale;
 
-  return std::lround(WM_cursor_preferred_logical_size() * system_scale);
+  if (U.mouse_cursor_size == USER_CURSOR_SIZE_1_5) {
+    return std::lround(default_size * 1.5f);
+  }
+  else if (U.mouse_cursor_size == USER_CURSOR_SIZE_2_0) {
+    return std::lround(default_size * 2.0f);
+  }
+  else if (U.mouse_cursor_size == USER_CURSOR_SIZE_3_0) {
+    return std::lround(default_size * 3.0f);
+  }
+  return std::lround(default_size);
 }
 
 /**
@@ -209,6 +232,20 @@ static void cursor_bitmap_rgba_flip_y(uint8_t *buffer, const size_t size[2])
   }
 
   MEM_delete(line);
+}
+
+/**
+ * Flip an RGBA byte buffer horizontally in-place.
+ */
+static void cursor_bitmap_rgba_flip_x(uint32_t *buffer, const int size[2])
+{
+  for (int i = 0; i < size[1]; ++i) {
+    for (int j = 0; j < size[0] / 2; ++j) {
+      uint32_t temp = buffer[(i * size[0]) + j];
+      buffer[(i * size[0]) + j] = buffer[(i * size[0]) + (size[0] - 1 - j)];
+      buffer[(i * size[0]) + (size[0] - 1 - j)] = temp;
+    }
+  }
 }
 
 /**
@@ -359,8 +396,14 @@ static bool window_set_custom_cursor_pixmap(wmWindow *win, const BCursor &cursor
     return false;
   }
 
+  if (U.uiflag2 & USER_CURSOR_FLIP && cursor.can_flip) {
+    cursor_bitmap_rgba_flip_x((uint32_t *)bitmap_rgba, bitmap_size);
+  }
+
+  const bool flipped = cursor.can_flip && (U.uiflag2 & USER_CURSOR_FLIP);
   const int hot_spot[2] = {
-      int(cursor.hotspot[0] * (bitmap_size[0] - 1)),
+      flipped ? int((1.0f - cursor.hotspot[0]) * (bitmap_size[0] - 1)) :
+                int(cursor.hotspot[0] * (bitmap_size[0] - 1)),
       int(cursor.hotspot[1] * (bitmap_size[1] - 1)),
   };
 
@@ -393,10 +436,13 @@ static bool window_set_custom_cursor(wmWindow *win, const BCursor &cursor)
   return window_set_custom_cursor_pixmap(win, cursor);
 }
 
-void WM_cursor_set(wmWindow *win, int curs)
+void WM_cursor_set(wmWindow *win, int curs, bool force)
 {
   /* Option to not use any OS-supplied cursors is needed for testing. */
-  const bool use_only_custom_cursors = false;
+  const bool use_only_custom_cursors = !(U.mouse_cursor_size == USER_CURSOR_SIZE_DEFAULT ||
+                                         (U.mouse_cursor_size == USER_CURSOR_SIZE_AUTO &&
+                                          UI_SCALE_FAC == 1.0f)) ||
+                                       (U.uiflag2 & USER_CURSOR_FLIP);
 
   if (G.background) {
     return;
@@ -426,7 +472,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   ghost_window->setCursorVisibility(true);
 
-  if (win->cursor == curs) {
+  if (win->cursor == curs && !force) {
     return; /* Cursor is already set. */
   }
 
@@ -973,38 +1019,40 @@ void WM_cursor_progress(wmWindow *win, float progress_factor)
 static void wm_add_cursor(wmCursorType cursor,
                           const char *svg_source,
                           const float2 &hotspot,
-                          bool can_invert = false)
+                          bool can_invert = false,
+                          bool can_flip = false)
 {
   g_cursors[cursor].svg_source = svg_source;
   g_cursors[cursor].hotspot = hotspot;
   g_cursors[cursor].can_invert = can_invert;
+  g_cursors[cursor].can_flip = can_flip;
 }
 #endif /* !WITH_HEADLESS */
 
 void wm_init_cursor_data()
 {
 #ifndef WITH_HEADLESS
-  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
-  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
-  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
-  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true, true);
+  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true, true);
+  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true, true);
+  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true, true);
   wm_add_cursor(WM_CURSOR_TEXT_EDIT, datatoc_cursor_text_edit_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_WAIT, datatoc_cursor_wait_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_STOP, datatoc_cursor_stop_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_EDIT, datatoc_cursor_crosshair_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_HAND, datatoc_cursor_hand_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_HAND_CLOSED, datatoc_cursor_hand_closed_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_HAND_POINT, datatoc_cursor_hand_point_svg, {0.5f, 0.5f});
+  wm_add_cursor(WM_CURSOR_HAND, datatoc_cursor_hand_svg, {0.5f, 0.5f}, false, true);
+  wm_add_cursor(WM_CURSOR_HAND_CLOSED, datatoc_cursor_hand_closed_svg, {0.5f, 0.5f}, false, true);
+  wm_add_cursor(WM_CURSOR_HAND_POINT, datatoc_cursor_hand_point_svg, {0.5f, 0.5f}, false, true);
   wm_add_cursor(WM_CURSOR_CROSS, datatoc_cursor_crosshair_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_PAINT, datatoc_cursor_paint_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_DOT, datatoc_cursor_dot_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_CROSSC, datatoc_cursor_crossc_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_KNIFE, datatoc_cursor_knife_svg, {0.0f, 1.0f});
-  wm_add_cursor(WM_CURSOR_BLADE, datatoc_cursor_blade_svg, {0.0f, 0.375f});
-  wm_add_cursor(WM_CURSOR_VERTEX_LOOP, datatoc_cursor_vertex_loop_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_PAINT_BRUSH, datatoc_cursor_pencil_svg, {0.0f, 1.0f});
-  wm_add_cursor(WM_CURSOR_ERASER, datatoc_cursor_eraser_svg, {0.0f, 1.0f});
-  wm_add_cursor(WM_CURSOR_EYEDROPPER, datatoc_cursor_eyedropper_svg, {0.0f, 1.0f});
+  wm_add_cursor(WM_CURSOR_KNIFE, datatoc_cursor_knife_svg, {0.0f, 1.0f}, false, true);
+  wm_add_cursor(WM_CURSOR_BLADE, datatoc_cursor_blade_svg, {0.0f, 0.375f}, false, true);
+  wm_add_cursor(WM_CURSOR_VERTEX_LOOP, datatoc_cursor_vertex_loop_svg, {0.0f, 0.0f}, false, true);
+  wm_add_cursor(WM_CURSOR_PAINT_BRUSH, datatoc_cursor_pencil_svg, {0.0f, 1.0f}, false, true);
+  wm_add_cursor(WM_CURSOR_ERASER, datatoc_cursor_eraser_svg, {0.0f, 1.0f}, false, true);
+  wm_add_cursor(WM_CURSOR_EYEDROPPER, datatoc_cursor_eyedropper_svg, {0.0f, 1.0f}, false, true);
   wm_add_cursor(WM_CURSOR_SWAP_AREA, datatoc_cursor_swap_area_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_X_MOVE, datatoc_cursor_x_move_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_EW_ARROW, datatoc_cursor_x_move_svg, {0.5f, 0.5f});
@@ -1019,10 +1067,10 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_NSEW_SCROLL, datatoc_cursor_nsew_scroll_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_EW_SCROLL, datatoc_cursor_ew_scroll_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_NS_SCROLL, datatoc_cursor_ns_scroll_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_ZOOM_IN, datatoc_cursor_zoom_in_svg, {0.32f, 0.32f});
-  wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, {0.32f, 0.32f});
-  wm_add_cursor(WM_CURSOR_MUTE, datatoc_cursor_mute_svg, {0.59f, 0.59f});
-  wm_add_cursor(WM_CURSOR_PICK_AREA, datatoc_cursor_pick_area_svg, {0.5f, 0.5f});
+  wm_add_cursor(WM_CURSOR_ZOOM_IN, datatoc_cursor_zoom_in_svg, {0.32f, 0.32f}, false, true);
+  wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, {0.32f, 0.32f}, false, true);
+  wm_add_cursor(WM_CURSOR_MUTE, datatoc_cursor_mute_svg, {0.59f, 0.59f}, false, true);
+  wm_add_cursor(WM_CURSOR_PICK_AREA, datatoc_cursor_pick_area_svg, {0.5f, 0.5f}, false, true);
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, {0.5f, 0.5f});

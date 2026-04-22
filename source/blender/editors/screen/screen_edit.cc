@@ -1030,7 +1030,7 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
 
   if (area) {
     if (az->type == AZONE_AREA) {
-      WM_cursor_set(win, WM_CURSOR_EDIT);
+      WM_cursor_set(win, U.precision_cursor);
     }
     else if (az->type == AZONE_REGION_SCROLL) {
       WM_cursor_set(win, WM_CURSOR_DEFAULT);

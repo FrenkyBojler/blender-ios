@@ -540,7 +540,7 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */
 
-void WM_cursor_set(wmWindow *win, int curs);
+void WM_cursor_set(wmWindow *win, int curs, bool force = false);
 bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *region);
 /**
  * Check the cursor isn't set elsewhere.

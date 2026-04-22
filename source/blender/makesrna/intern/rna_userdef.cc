@@ -342,6 +342,20 @@ static void rna_userdef_gpu_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   USERDEF_TAG_DIRTY;
 }
 
+static void rna_userdef_cursor_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+  if (wm) {
+    for (wmWindow *win = static_cast<wmWindow *>(wm->windows.first); win;
+         win = static_cast<wmWindow *>(win->next))
+    {
+      WM_cursor_set(win, win->cursor, true);
+    }
+  }
+
+  USERDEF_TAG_DIRTY;
+}
+
 static void rna_userdef_gpu_and_text_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_userdef_gpu_update(bmain, scene, ptr);
@@ -4932,6 +4946,19 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem mouse_cursor_sizes[] = {
+      {USER_CURSOR_SIZE_DEFAULT, "DEFAULT", 0, "Default Size", "A single default mouse size."},
+      {USER_CURSOR_SIZE_AUTO,
+       "AUTO",
+       0,
+       "Auto Size",
+       "Increase the mouse cursor size with UI Scale"},
+      {USER_CURSOR_SIZE_1_5, "1.5X", 0, "1.5X Size", "Mouse cursor 1.5X larger than default"},
+      {USER_CURSOR_SIZE_2_0, "2.0X", 0, "2.0X Size", "Mouse cursor 2X larger than default"},
+      {USER_CURSOR_SIZE_3_0, "3.0X", 0, "3.0X Size", "Mouse cursor 3X larger than default"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem color_picker_types[] = {
       {USER_CP_CIRCLE_HSV,
        "CIRCLE_HSV",
@@ -5525,6 +5552,56 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Reduce Motion", "Avoid animations and other motion effects in the interface");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "mouse_cursor_size", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, mouse_cursor_sizes);
+  RNA_def_property_ui_text(prop, "Mouse Cursor Size", "Size of Mouse Cursors");
+  RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
+
+  prop = RNA_def_property(srna, "mouse_cursor_flip", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_CURSOR_FLIP);
+  RNA_def_property_ui_text(prop, "Left-handed", "Flip right-biased mouse cursors");
+  RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
+
+  static const EnumPropertyItem paint_cursors[] = {
+      {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint", "Paint cross cursor"},
+      {WM_CURSOR_EDIT, "CROSSHAIR", 0, "Crosshair", "Crosshair cursor"},
+      {WM_CURSOR_PAINT_BRUSH, "PAINT_BRUSH", 0, "Pen", "Pen cursor"},
+      {WM_CURSOR_DOT, "DOT", 0, "Dot", "Dot cursor"},
+      {WM_CURSOR_DEFAULT, "DEFAULT", 0, "Pointer", "Pointer cursor"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "paint_cursor", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, paint_cursors);
+  RNA_def_property_ui_text(prop, "Paint Cursor", "Cursor used while painting.");
+  RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
+
+  static const EnumPropertyItem sculpt_cursors[] = {
+      {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint", "Paint cross cursor"},
+      {WM_CURSOR_EDIT, "CROSSHAIR", 0, "Crosshair", "Crosshair cursor"},
+      {WM_CURSOR_PAINT_BRUSH, "PAINT_BRUSH", 0, "Pen", "Pen cursor"},
+      {WM_CURSOR_DOT, "DOT", 0, "Dot", "Dot cursor"},
+      {WM_CURSOR_DEFAULT, "DEFAULT", 0, "Pointer", "Pointer cursor"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "sculpt_cursor", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, sculpt_cursors);
+  RNA_def_property_ui_text(prop, "Sculpting Cursor", "Cursor used while sculpting.");
+  RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
+
+  static const EnumPropertyItem precision_cursors[] = {
+      {WM_CURSOR_EDIT, "EDIT", 0, "Edit", "Edit cursor"},
+      {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint", "Paint cross cursor"},
+      {WM_CURSOR_DEFAULT, "DEFAULT", 0, "Pointer", "Pointer cursor"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "precision_cursor", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, precision_cursors);
+  RNA_def_property_ui_text(prop, "Edit Cursor", "Cursor used while editing.");
+  RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
 }
 
 static void rna_def_userdef_edit(BlenderRNA *brna)
