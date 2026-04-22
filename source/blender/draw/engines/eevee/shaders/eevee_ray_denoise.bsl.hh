@@ -313,7 +313,11 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   filter_rotation[1] *= clamp(filter_radius * aspect, min_filter_radius, max_filter_radius);
 
   for (uint i = 0u; i < sample_count; i++) {
-    float2 Xi = fract(hammersley_2d(i, sample_count) + float2(noise.x, 0.0f));
+    float2 Xi = hammersley_2d(i, sample_count);
+    /* Only randomize rotation (Y component of the noise). We want to always sample the center
+     * pixel. Scaling the noise instead of rotating preserve cache locality. */
+    Xi.y *= 1.0f - (noise.x / float(sample_count));
+
     float2 offset_f = filter_rotation * sample_disk(Xi);
     int2 offset = int2(floor(offset_f + 0.5f));
 
