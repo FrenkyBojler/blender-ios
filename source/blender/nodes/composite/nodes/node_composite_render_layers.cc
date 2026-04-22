@@ -311,7 +311,7 @@ class RenderLayerOperation : public NodeOperation {
       Result pass = this->context().get_pass(scene, view_layer, output->identifier);
       result.set_type(pass.type());
       result.set_precision(pass.precision());
-      result.steal_data(pass);
+      result.share_data(pass);
       pass.release();
     }
   }
@@ -336,7 +336,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
+  cmp_node_type_base(&ntype, "CompositorNodeRLayers"_ustr, CMP_NODE_R_LAYERS);
   ntype.ui_name = "Render Layers";
   ntype.ui_description = "Input render passes from a scene render";
   ntype.enum_name_legacy = "R_LAYERS";
