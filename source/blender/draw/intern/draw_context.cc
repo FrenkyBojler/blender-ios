@@ -763,6 +763,32 @@ struct InstancesKey {
   }
 };
 
+/**
+ * \return True if `ob` generates duplis (instances).
+ * Doesn't check whether the duplis are visible.
+ */
+static bool is_object_instancer(const Object &ob)
+{
+  return (ob.transflag & OB_DUPLI) || (ob.runtime->geometry_set_eval != nullptr);
+}
+
+/**
+ * Iterate over every object visible in the viewport and call `draw_object_cb` for each.
+ *
+ * \param should_draw_object_cb: Called to decide whether a scene object should be drawn.
+ * When it returns true, `draw_object_cb` is called for that object.
+ *
+ * - Called on potential instancers whose own draw is skipped (e.g. invisible-self instancers),
+ *   so the callback can record per-instancer state - e.g.
+ *   a filter decision that its duplis will consume when they are visited.
+ * - The callback is also called per dupli,
+ *   on a temporary Object with #BASE_FROM_DUPLI set on `base_flag`.
+ *
+ * \param draw_object_cb: Called once per object to draw. The visit order is guaranteed:
+ * an instancing object is visited immediately before its own duplis, and all duplis of
+ * that object follow in a single uninterrupted run (no other object mixed in between).
+ * Callers can rely on this to reuse work done for the instancer while drawing its duplis.
+ */
 static void foreach_obref_in_scene(DRWContext &draw_ctx,
                                    FunctionRef<bool(Object &)> should_draw_object_cb,
                                    FunctionRef<void(ObjectRef &)> draw_object_cb)
@@ -791,14 +817,21 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
-    int visibility = BKE_object_visibility(ob, eval_mode);
-    bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
+    const int visibility = BKE_object_visibility(ob, eval_mode);
+    const bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
+    const bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) && is_object_instancer(*ob);
 
-    if (ob_visible && should_draw_object_cb(*ob)) {
-      /* NOTE: object_duplilist_preview is still handled by DEG_OBJECT_ITER,
-       * dupli_parent and dupli_object_current won't be null for these. */
-      ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
-      draw_object_cb(ob_ref);
+    /* Call the predicate when the object is visible, or when it may spawn duplis.
+     * Instancers need a predicate call even while invisible so their duplis get the right
+     * filter result. Fully hidden non-instancers are skipped. */
+    if (ob_visible || instances_visible) {
+      const bool predicate_ok = should_draw_object_cb(*ob);
+      if (predicate_ok && ob_visible) {
+        /* NOTE: `object_duplilist_preview` is still handled by #DEG_OBJECT_ITER,
+         * `dupli_parent` and `dupli_object_current` won't be null for these. */
+        ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
+        draw_object_cb(ob_ref);
+      }
     }
 
     bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
@@ -807,10 +840,6 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
        * care of everything. (See #146194, #146211) */
       continue;
     }
-
-    bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
-                             ((ob->transflag & OB_DUPLI) ||
-                              ob->runtime->geometry_set_eval != nullptr);
 
     if (!instances_visible) {
       continue;
@@ -1996,9 +2025,23 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       const bool use_pose_exception = (draw_ctx.object_pose != nullptr);
 
       const int object_type_exclude_select = v3d->object_type_exclude_select;
+      /* Reset on each new top-level object,
+       * reused by its duplis (which always follow their instancer). */
       bool filter_exclude = false;
 
       auto should_draw_object = [&](Object &ob) {
+        const bool is_dupli = (ob.base_flag & BASE_FROM_DUPLI) != 0;
+        const bool is_instancer = !is_dupli && is_object_instancer(ob);
+
+        if (!is_dupli) {
+          filter_exclude = false;
+          /* Run the filter now for instancers so their duplis see a fresh result, even if
+           * the instancer itself gets skipped by the visibility or selectable checks below. */
+          if (object_filter_fn != nullptr && is_instancer) {
+            filter_exclude = (object_filter_fn(&ob, object_filter_user_data) == false);
+          }
+        }
+
         if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
           return false;
         }
@@ -2015,10 +2058,12 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
 
         if ((object_type_exclude_select & (1 << ob.type)) == 0) {
           if (object_filter_fn != nullptr) {
-            if (ob.base_flag & BASE_FROM_DUPLI) {
-              /* pass (use previous filter_exclude value) */
+            if (is_dupli) {
+              /* Reuse the `filter_exclude` value set when this dupli's instancer was visited.
+               * The iterator walks an instancer immediately before its own
+               * duplis, so the value is fresh - not stale from an earlier iteration. */
             }
-            else {
+            else if (!is_instancer) {
               filter_exclude = (object_filter_fn(&ob, object_filter_user_data) == false);
             }
             if (filter_exclude) {
