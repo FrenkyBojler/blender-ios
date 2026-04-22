@@ -42,6 +42,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
+#include "BKE_workspace.hh"
 
 #include "ED_asset_shelf.hh"
 #include "ED_geometry.hh"
@@ -50,6 +51,7 @@
 #include "ED_outliner.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
+#include "ED_sequencer.hh"
 #include "ED_space_api.hh"
 #include "ED_transform.hh"
 #include "ED_undo.hh"
@@ -612,6 +614,10 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_LAYER:
           if (wmn->reference) {
             BKE_screen_view3d_sync(v3d, static_cast<Scene *>(wmn->reference));
+            WorkSpace *workspace = BKE_workspace_active_get(window->workspace_hook);
+            if (workspace && scene) {
+              blender::ed::vse::sync_vse_camera_for_view3d(workspace, scene, v3d);
+            }
           }
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(gzmap);
@@ -1022,7 +1028,6 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
           ED_region_tag_redraw(region);
           break;
         case ND_SPACE_ASSET_PARAMS:
-          ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
       }
@@ -1032,12 +1037,10 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
         case ND_ASSET_CATALOGS:
         case ND_ASSET_LIST:
         case ND_ASSET_LIST_READING:
-          ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
         default:
           if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
-            ed::geometry::clear_operator_asset_trees();
             ED_region_tag_redraw(region);
           }
       }
@@ -1045,7 +1048,6 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
     case NC_NODE:
       switch (wmn->data) {
         case ND_NODE_ASSET_DATA:
-          ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
       }
