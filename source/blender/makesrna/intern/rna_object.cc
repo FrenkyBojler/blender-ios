@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "DNA_action_types.h"
@@ -269,6 +270,16 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
     {OB_NEGX, "NEG_X", 0, "-X", ""},
     {OB_NEGY, "NEG_Y", 0, "-Y", ""},
     {OB_NEGZ, "NEG_Z", 0, "-Z", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
+    {OB_POSX, "POS_X", 0, "-X to +X", ""},
+    {OB_POSY, "POS_Y", 0, "-Y to +Y", ""},
+    {OB_POSZ, "POS_Z", 0, "-Z to +Z", ""},
+    {OB_NEGX, "NEG_X", 0, "+X to -X", ""},
+    {OB_NEGY, "NEG_Y", 0, "+Y to -Y", ""},
+    {OB_NEGZ, "NEG_Z", 0, "+Z to -Z", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1888,7 +1899,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
     *reinterpret_cast<std::array<float3, 8> *>(values) = bounds::corners(*bounds);
   }
   else {
-    copy_vn_fl(values, 8 * 3, 0.0f);
+    std::fill_n(values, 8 * 3, 0.0f);
   }
 }
 

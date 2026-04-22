@@ -11,7 +11,7 @@
  */
 
 #include "draw_model_lib.glsl"
-#include "eevee_colorspace_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_light_eval_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_nodetree_closures_lib.glsl"
@@ -95,7 +95,8 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   LightProbeSample samp = lightprobe_load(gl_FragCoord.xy, g_data.P, g_data.Ng, V);
 
   float clamp_indirect_sh = uniform_buf.clamp.surface_indirect;
-  samp.volume_irradiance = spherical_harmonics_clamp(samp.volume_irradiance, clamp_indirect_sh);
+  samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
+                                                             clamp_indirect_sh);
 
   /* Combine all radiance. */
   float3 radiance_direct = float3(0.0f);
@@ -122,8 +123,8 @@ void forward_lighting_eval(Thickness thickness, float3 &radiance, float3 &transm
   float clamp_direct = uniform_buf.clamp.surface_direct;
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
 
-  radiance_direct = colorspace_brightness_clamp_max(radiance_direct, clamp_direct);
-  radiance_indirect = colorspace_brightness_clamp_max(radiance_indirect, clamp_indirect);
+  radiance_direct = colorspace::brightness_clamp_max(radiance_direct, clamp_direct);
+  radiance_indirect = colorspace::brightness_clamp_max(radiance_indirect, clamp_indirect);
 
   radiance_direct *= uniform_buf.clamp.direct_scale;
   radiance_indirect *= uniform_buf.clamp.indirect_scale;

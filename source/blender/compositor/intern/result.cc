@@ -579,9 +579,10 @@ Result Result::download_to_cpu() const
   BLI_assert(this->is_allocated());
 
   Result result = Result(*context_, this->type(), this->precision());
+  result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
+
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-  void *data = GPU_texture_read(*this, this->get_gpu_data_format(), 0);
-  result.steal_data(data, this->domain());
+  GPU_texture_read(*this, this->get_gpu_data_format(), 0, result.cpu_data().data());
 
   return result;
 }
@@ -632,35 +633,7 @@ void Result::share_data(const Result &source)
   *this = source;
   reference_count_ = reference_count;
 
-  /* External data is intrinsically shared, and data_reference_count_ is nullptr in this case since
-   * it is not needed. */
-  if (!is_external_) {
-    (*data_reference_count_)++;
-  }
-}
-
-void Result::steal_data(Result &source)
-{
-  BLI_assert(type_ == source.type_);
-  BLI_assert(!this->is_allocated() && source.is_allocated());
-
-  /* Overwrite everything except reference counts. */
-  const int reference_count = reference_count_;
-  *this = source;
-  reference_count_ = reference_count;
-
-  source = Result(*context_, type_, precision_);
-}
-
-void Result::steal_data(void *data, const Domain &domain)
-{
-  BLI_assert(!this->is_allocated());
-
-  const int64_t array_size = int64_t(domain.data_size.x) * int64_t(domain.data_size.y);
-  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
-  storage_type_ = ResultStorageType::CPU;
-  domain_ = domain;
-  data_reference_count_ = new int(1);
+  (*data_reference_count_)++;
 }
 
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
@@ -698,6 +671,7 @@ void Result::wrap_external(gpu::Texture *texture)
   is_external_ = true;
   is_single_value_ = false;
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
+  data_reference_count_ = new int(1);
 }
 
 void Result::wrap_external(void *data, int2 size)
@@ -709,19 +683,7 @@ void Result::wrap_external(void *data, int2 size)
   storage_type_ = ResultStorageType::CPU;
   is_external_ = true;
   domain_ = Domain(size);
-}
-
-void Result::wrap_external(const Result &result)
-{
-  BLI_assert(type_ == result.type());
-  BLI_assert(precision_ == result.precision());
-  BLI_assert(!this->is_allocated());
-
-  /* Steal the data of the given result and mark it as wrapping external data, but create a
-   * temporary copy of the result first, since steal_data will reset it. */
-  Result result_copy = result;
-  this->steal_data(result_copy);
-  is_external_ = true;
+  data_reference_count_ = new int(1);
 }
 
 void Result::set_transformation(const float3x3 &transformation)
@@ -773,13 +735,6 @@ void Result::release()
 
 void Result::free()
 {
-  /* The data in the result are not owned by the result, so we only free the derived resources. */
-  if (is_external_) {
-    delete derived_resources_;
-    derived_resources_ = nullptr;
-    return;
-  }
-
   if (!this->is_allocated()) {
     return;
   }
@@ -805,6 +760,24 @@ void Result::free()
     return;
   }
 
+  delete data_reference_count_;
+  data_reference_count_ = nullptr;
+
+  delete derived_resources_;
+  derived_resources_ = nullptr;
+
+  if (is_external_) {
+    switch (storage_type_) {
+      case ResultStorageType::GPU:
+        gpu_texture_ = nullptr;
+        break;
+      case ResultStorageType::CPU:
+        cpu_data_ = GMutableSpan();
+        break;
+    }
+    return;
+  }
+
   switch (storage_type_) {
     case ResultStorageType::GPU:
       if (is_from_pool_) {
@@ -816,16 +789,11 @@ void Result::free()
       gpu_texture_ = nullptr;
       break;
     case ResultStorageType::CPU:
+      this->cpu_data().type().destruct_n(this->cpu_data().data(), this->cpu_data().size());
       MEM_delete_void(this->cpu_data().data());
       cpu_data_ = GMutableSpan();
       break;
   }
-
-  delete data_reference_count_;
-  data_reference_count_ = nullptr;
-
-  delete derived_resources_;
-  derived_resources_ = nullptr;
 }
 
 bool Result::should_compute()

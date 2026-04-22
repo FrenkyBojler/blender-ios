@@ -152,6 +152,7 @@ set(SRC
   intern/time.cc
   intern/timecode.cc
   intern/timeit.cc
+  intern/ustring.cc
   intern/uuid.cc
   intern/vector.cc
   intern/virtual_array.cc
@@ -197,6 +198,7 @@ set(SRC
   BLI_cache_mutex.hh
   BLI_color.hh
   BLI_color_mix.hh
+  BLI_color_types.hh
   BLI_colorspace.hh
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
@@ -322,6 +324,7 @@ set(SRC
   BLI_math_vector.h
   BLI_math_vector.hh
   BLI_math_vector_mpq_types.hh
+  BLI_math_vector_swizzle.hh
   BLI_math_vector_types.hh
   BLI_math_vector_unroll.hh
   BLI_memarena.h
@@ -501,8 +504,8 @@ add_library(bf::blenlib ALIAS bf_blenlib)
 
 if(WITH_GTESTS)
   set(TEST_SRC
-    tests/BLI_any_test.cc
     tests/BLI_any_derived_test.cc
+    tests/BLI_any_test.cc
     tests/BLI_array_state_test.cc
     tests/BLI_array_store_test.cc
     tests/BLI_array_test.cc

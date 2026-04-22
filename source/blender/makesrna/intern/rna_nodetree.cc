@@ -623,6 +623,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "BKE_cryptomatte.hh"
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
+#  include "BKE_layer.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_main_invariants.hh"
@@ -863,7 +864,7 @@ static void rna_Node_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNode *node = ptr->data_as<bNode>();
   const bke::bNodeType *ntype = node->typeinfo;
-  StringRef(ntype->idname).copy_unsafe(value);
+  ntype->idname.ref().copy_unsafe(value);
 }
 
 static int rna_Node_bl_idname_length(PointerRNA *ptr)
@@ -877,7 +878,7 @@ static void rna_Node_bl_idname_set(PointerRNA *ptr, const char *value)
 {
   bNode *node = ptr->data_as<bNode>();
   bke::bNodeType *ntype = node->typeinfo;
-  ntype->idname = value;
+  ntype->idname = UString(value);
 }
 
 static void rna_Node_bl_label_get(PointerRNA *ptr, char *value)
@@ -1110,7 +1111,7 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
   }
 
   /* check if we have registered this tree type before, and remove it */
-  nt = bke::node_tree_type_find(dummy_nt.idname);
+  nt = bke::node_tree_type_find(dummy_nt.idname.ref());
   if (nt) {
     BKE_reportf(reports,
                 RPT_INFO,
@@ -1256,9 +1257,9 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
   }
 
   /* If the given idname is an alias, translate it to the proper idname. */
-  type = bke::node_type_find_alias(type);
+  type = bke::node_type_find_alias(UString(type)).ref();
 
-  ntype = bke::node_type_find(type);
+  ntype = bke::node_type_find(UString(type));
   if (!ntype) {
     BKE_reportf(reports, RPT_ERROR, "Node type %s undefined", type.c_str());
     return nullptr;
@@ -1285,7 +1286,7 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
     }
   }
 
-  node = bke::node_add_node(C, *ntree, type);
+  node = bke::node_add_node(C, *ntree, UString(type));
   BLI_assert(node && node->typeinfo);
 
   if (ntree->type == NTREE_TEXTURE) {
@@ -1383,8 +1384,8 @@ static void node_viewer_set_shortcut_fn(bNode *node, bNodeTree &ntree, int value
 {
   /* Avoid having two nodes with the same shortcut. */
   for (bNode *other_node : ntree.all_nodes()) {
-    if ((other_node->is_type("CompositorNodeViewer") ||
-         other_node->is_type("GeometryNodeViewer")) &&
+    if ((other_node->is_type("CompositorNodeViewer"_ustr) ||
+         other_node->is_type("GeometryNodeViewer"_ustr)) &&
         other_node->custom1 == value)
     {
       other_node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
@@ -1546,7 +1547,7 @@ static void rna_NodeTree_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNodeTree *node = ptr->data_as<bNodeTree>();
   const bke::bNodeTreeType *ntype = node->typeinfo;
-  StringRef(ntype->idname).copy_unsafe(value);
+  ntype->idname.ref().copy_unsafe(value);
 }
 
 static int rna_NodeTree_bl_idname_length(PointerRNA *ptr)
@@ -1560,7 +1561,7 @@ static void rna_NodeTree_bl_idname_set(PointerRNA *ptr, const char *value)
 {
   bNodeTree *node = ptr->data_as<bNodeTree>();
   bke::bNodeTreeType *ntype = node->typeinfo;
-  ntype->idname = value;
+  ntype->idname = UString(value);
 }
 
 static void rna_NodeTree_bl_label_get(PointerRNA *ptr, char *value)
@@ -3219,7 +3220,7 @@ static void rna_Node_scene_set(PointerRNA *ptr, PointerRNA value, ReportList * /
   id_us_plus(node->id);
 }
 
-static void rna_Node_image_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Node_image_layer_view_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   bNode *node = ptr->data_as<bNode>();
   Image *ima = reinterpret_cast<Image *>(node->id);
@@ -3621,6 +3622,7 @@ static void rna_NodeCryptomatte_matte_set(PointerRNA *ptr, const char *value)
 
 static void rna_NodeCryptomatte_update_add(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
+  BKE_main_view_layers_synced_ensure(bmain);
   ntreeCompositCryptomatteSyncFromAdd(ptr->data_as<bNode>());
   rna_Node_update(bmain, scene, ptr);
 }
@@ -4476,6 +4478,12 @@ static const EnumPropertyItem node_subsurface_method_items[] = {
      "Random Walk (Skin)",
      "Volumetric approximation to physically based volume scattering, with scattering radius "
      "automatically adjusted to match color textures. Designed for skin shading."},
+    {SHD_SUBSURFACE_RANDOM_WALK_LEGACY,
+     "RANDOM_WALK_LEGACY",
+     0,
+     "Random Walk (Legacy)",
+     "Volumetric approximation to physically based volume scattering, using the scattering radius "
+     "as specified"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem prop_image_extension[] = {
@@ -5076,7 +5084,12 @@ static void def_fn_input_string(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "string", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "String", "");
+  RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "textbox_state", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "TextboxState");
+  RNA_def_property_pointer_sdna(prop, nullptr, "textbox_state");
 }
 
 /* -- Shader Nodes ---------------------------------------------------------- */
@@ -6537,7 +6550,7 @@ static void def_node_image_user(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Node_image_layer_itemf");
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   RNA_def_property_ui_text(prop, "Layer", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_image_layer_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_image_layer_view_update");
 
   prop = RNA_def_property(srna, "has_layers", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_Node_image_has_layers_get", nullptr);
@@ -6550,7 +6563,7 @@ static void def_node_image_user(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Node_image_view_itemf");
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   RNA_def_property_ui_text(prop, "View", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_image_layer_view_update");
 
   prop = RNA_def_property(srna, "has_views", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_Node_image_has_views_get", nullptr);
@@ -10171,6 +10184,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeAlphaOver");
   define("CompositorNode", "CompositorNodeAntiAliasing");
   define("CompositorNode", "CompositorNodeBilateralblur");
+  define("CompositorNode", "CompositorNodeBlankImage");
   define("CompositorNode", "CompositorNodeBlur");
   define("CompositorNode", "CompositorNodeBokehBlur");
   define("CompositorNode", "CompositorNodeBokehImage");
@@ -10244,6 +10258,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
   define("CompositorNode", "CompositorNodeSequencerStripInfo");
+  define("CompositorNode", "CompositorNodeStringToImage");
   define("CompositorNode", "CompositorNodeSwitch");
   define("CompositorNode", "CompositorNodeSwitchView");
   define("CompositorNode", "CompositorNodeTime", def_time);
@@ -10510,6 +10525,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeRaycast");
   define("GeometryNode", "GeometryNodeRealizeInstances");
   define("GeometryNode", "GeometryNodeRemoveAttribute");
+  define("GeometryNode", "GeometryNodeRenameAttribute");
   define("GeometryNode", "GeometryNodeRepeatInput", def_geo_repeat_input);
   define("GeometryNode", "GeometryNodeRepeatOutput", def_geo_repeat_output);
   define("GeometryNode", "GeometryNodeReplaceMaterial");

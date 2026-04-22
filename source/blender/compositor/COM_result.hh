@@ -151,8 +151,7 @@ class Result {
    * member stores the number of results that share the data. This is heap allocated and have the
    * same lifetime as allocated data, that's because this reference count is shared by all results
    * that share the same data. Unlike the result's reference count, the data is freed if the count
-   * becomes 1, that is, data is no longer shared with some other result. This is nullptr if the
-   * data is external. */
+   * becomes 1, that is, data is no longer shared with some other result. */
   int *data_reference_count_ = nullptr;
   /* If the result is a single value, this member stores the value of the result, the value of
    * which will be identical to that stored in the data_ member. The active variant member depends
@@ -303,21 +302,6 @@ class Result {
    * is expect to be allocated and have the same type and precision as this result. */
   void share_data(const Result &source);
 
-  /* Steal the allocated data from the given source result and assign it to this result, then
-   * remove any references to the data from the source result. It is assumed that:
-   *
-   *   - Both results are of the same type.
-   *   - This result is not allocated but the source result is allocated.
-   *
-   * This is most useful in multi-step compositor operations where some steps can be optional, in
-   * that case, intermediate results can be temporary results that can eventually be stolen by the
-   * actual output of the operation. See the uses of the method for a practical example of use. */
-  void steal_data(Result &source);
-
-  /* Similar to the Result variant of steal_data, but steals from a raw data buffer. The buffer is
-   * assumed to be allocated using Blender's guarded allocator. */
-  void steal_data(void *data, const Domain &domain);
-
   /* Set up the result to wrap an external GPU texture that is not allocated nor managed by the
    * result. The is_external_ member will be set to true, the domain will be set to have the same
    * size as the texture, and the texture will be set to the given texture. See the is_external_
@@ -327,9 +311,6 @@ class Result {
 
   /* Identical to GPU variant of wrap_external but wraps a CPU buffer instead. */
   void wrap_external(void *data, int2 size);
-
-  /* Identical to GPU variant of wrap_external but wraps whatever the given result has instead. */
-  void wrap_external(const Result &result);
 
   /* Sets the transformation of the domain of the result to the given transformation. */
   void set_transformation(const float3x3 &transformation);
@@ -740,10 +721,10 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
         break;
       case Interpolation::Anisotropic:
         BLI_assert(type_ == ResultType::Color);
-        const float2 x_gradient = jacobian.has_value() ? jacobian.value()[0] / float(size.x) :
-                                                         float2(1.0f / math::square(size.x));
-        const float2 y_gradient = jacobian.has_value() ? jacobian.value()[1] / float(size.y) :
-                                                         float2(1.0f / math::square(size.y));
+        const float2 x_gradient = jacobian.has_value() ? jacobian.value()[0] :
+                                                         float2(1.0f / size.x, 0.0f);
+        const float2 y_gradient = jacobian.has_value() ? jacobian.value()[1] :
+                                                         float2(0.0f, 1.0f / size.y);
         EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
         BLI_ewa_filter(size.x,
                        size.y,
