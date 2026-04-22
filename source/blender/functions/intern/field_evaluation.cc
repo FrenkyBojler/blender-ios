@@ -222,7 +222,6 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   }
                   else if (interface_type == mf::ParamType::Output) {
                     const GFieldRef output_field{field_multi_fn, param_output_index};
-                    const Hash128 output_hash = deep_hash_cache.ensure(output_field);
                     const bool output_is_ignored =
                         field_tree_info.field_users.lookup(output_field).is_empty() &&
                         !output_fields.contains(output_field);
@@ -234,6 +233,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                       /* Create a new variable for used outputs. */
                       mf::Variable &new_variable = procedure.new_variable(param_type.data_type());
                       variables[param_index] = &new_variable;
+                      const Hash128 output_hash = deep_hash_cache.ensure(output_field);
                       variable_by_field.add_new(output_hash, &new_variable);
                     }
                     param_output_index++;

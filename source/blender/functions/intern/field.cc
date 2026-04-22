@@ -475,7 +475,7 @@ GVArray IndexFieldInput::get_varray_for_context(const fn::FieldContext & /*conte
 uint64_t IndexFieldInput::hash() const
 {
   static constexpr int8_t id = 0;
-  return get_default_hash(id);
+  return get_default_hash(&id);
 }
 
 bool IndexFieldInput::is_equal_to(const fn::FieldInput &other) const

@@ -11,8 +11,6 @@
 #include "BLI_math_geom.h"
 #include "BLI_rand.hh"
 
-#include <xxhash.h>
-
 namespace blender::bke::mesh_surface_sample {
 
 template<typename T>
