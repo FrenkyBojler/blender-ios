@@ -1290,7 +1290,14 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               MutableSpan<MPathTarget *> targets,
                               eAnimvizCalcRange range,
                               bool restore);
-
+struct wmWindowManager;
+struct wmWindow;
+void animviz_calc_motionpaths_async(Main *bmain,
+                                    wmWindowManager *wm,
+                                    wmWindow *window,
+                                    Scene *scene,
+                                    ViewLayer *view_layer,
+                                    Span<MPathTarget *> targets);
 /**
  * Update motion path computation range (in `ob.avs` or `armature.avs`) from user choice in
  * `ob.avs.path_range` or `arm.avs.path_range`, depending on active user mode.

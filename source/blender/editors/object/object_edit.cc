@@ -1363,8 +1363,8 @@ void motion_paths_recalc(bContext *C,
     free_depsgraph = true;
   }
 
-  animviz_calc_motionpaths(
-      depsgraph, bmain, scene, targets, object_path_convert_range(range), true);
+  animviz_calc_motionpaths_async(
+      bmain, CTX_wm_manager(C), CTX_wm_window(C), scene, view_layer, targets);
   animviz_free_motionpath_targets(targets);
 
   if (range != OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {

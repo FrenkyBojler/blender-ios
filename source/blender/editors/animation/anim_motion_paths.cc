@@ -8,7 +8,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <chrono>
 #include <cstdlib>
+#include <thread>
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
@@ -25,6 +27,9 @@
 #include "BKE_anim_data.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
+#include "BKE_wm_runtime.hh"
+
+#include "WM_api.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -561,6 +566,153 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     GPU_BATCH_DISCARD_SAFE(mpath->batch_line);
     GPU_BATCH_DISCARD_SAFE(mpath->batch_points);
   }
+}
+
+using TargetEvalResult = Array<float3>;
+
+struct MotionPathEvalData {
+  Depsgraph *depsgraph;
+  Bounds<int> frame_range;
+  Array<TargetEvalResult> results;
+  Array<bool> evaluated_frames;
+
+  /* Main thread data. Do not modify during eval. */
+  Array<MPathTarget> targets;
+  Scene *scene;
+};
+
+static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
+{
+  MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
+  BLI_assert(eval_data->targets.size() == eval_data->results.size());
+  BLI_assert(!eval_data->frame_range.is_empty());
+
+  for (int frame = eval_data->frame_range.min; frame < eval_data->frame_range.max; frame++) {
+    if (worker_status->stop) {
+      return;
+    }
+    const int frame_index = frame - eval_data->frame_range.min;
+    DEG_evaluate_on_framechange(eval_data->depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
+    for (const int target_index : eval_data->targets.index_range()) {
+      MPathTarget *target = &eval_data->targets[target_index];
+      TargetEvalResult &result = eval_data->results[target_index];
+      Object *ob_eval = DEG_get_evaluated(eval_data->depsgraph, target->ob);
+      if (!ob_eval) {
+        BLI_assert_unreachable();
+        continue;
+      }
+      /* If the pose bone pointer is provided, we assume the object should be ignored. */
+      if (target->pchan) {
+        bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, target->pchan->name);
+        if (!pchan_eval) {
+          continue;
+        }
+
+        if (target->mpath->flag & MOTIONPATH_FLAG_BHEAD) {
+          copy_v3_v3(result[frame_index], pchan_eval->pose_head);
+        }
+        else {
+          copy_v3_v3(result[frame_index], pchan_eval->pose_tail);
+        }
+
+        mul_m4_v3(ob_eval->object_to_world().ptr(), result[frame_index]);
+      }
+      else {
+        copy_v3_v3(result[frame_index], ob_eval->object_to_world().location());
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    eval_data->evaluated_frames[frame_index] = true;
+    worker_status->progress = float(frame - eval_data->frame_range.min) /
+                              eval_data->frame_range.size();
+    worker_status->do_update = true;
+  }
+}
+
+static void flush_to_motion_path(MotionPathEvalData &eval_data)
+{
+  for (const int target_index : eval_data.targets.index_range()) {
+    MPathTarget *target = &eval_data.targets[target_index];
+    TargetEvalResult &result = eval_data.results[target_index];
+    for (const int frame_index : result.index_range()) {
+      if (!eval_data.evaluated_frames[frame_index]) {
+        continue;
+      }
+      copy_v3_v3(target->mpath->points[frame_index].co, result[frame_index]);
+    }
+    DEG_id_tag_update(&target->ob->id, ID_RECALC_SYNC_TO_EVAL);
+  }
+}
+
+static void update_job(void *job_data)
+{
+  MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
+  flush_to_motion_path(*eval_data);
+  DEG_id_tag_update(&eval_data->scene->id, ID_RECALC_ALL);
+  WM_main_add_notifier(NC_SCENE | ND_FRAME, eval_data->scene);
+}
+
+static void finish_job(void *job_data)
+{
+  MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
+  flush_to_motion_path(*eval_data);
+  DEG_id_tag_update(&eval_data->scene->id, ID_RECALC_ALL);
+  WM_main_add_notifier(NC_SCENE | ND_FRAME, eval_data->scene);
+}
+
+static void free_job_data(void *job_data)
+{
+  MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
+  DEG_graph_free(eval_data->depsgraph);
+  MEM_delete(eval_data);
+}
+
+/**
+ * Runs the depsgraph evaluation in a separate thread that syncs back to the main thread in regular
+ * intervals. Makes the Motion Path evaluation non-blocking.
+ */
+void animviz_calc_motionpaths_async(Main *bmain,
+                                    wmWindowManager *wm,
+                                    wmWindow *window,
+                                    Scene *scene,
+                                    ViewLayer *view_layer,
+                                    Span<MPathTarget *> targets)
+{
+  /* In case the motion paths are set to be recalculated before they finished their
+   * previous run. */
+  if (WM_jobs_has_running_type(wm, WM_JOB_TYPE_MOTION_PATH_EVAL)) {
+    WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+  }
+
+  const Bounds<int> frame_range = motionpath_get_global_framerange(targets);
+  if (frame_range.is_empty() || targets.size() == 0) {
+    return;
+  }
+
+  wmJob *wm_job = WM_jobs_get(wm,
+                              window,
+                              scene,
+                              "Evaluate Motion Path Frame",
+                              WM_JOB_PROGRESS,
+                              WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+  MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(__func__);
+  job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
+  job_data->frame_range = frame_range;
+  job_data->results.reinitialize(targets.size());
+  job_data->targets.reinitialize(targets.size());
+  job_data->evaluated_frames.reinitialize(frame_range.size());
+  job_data->evaluated_frames.fill(false);
+  for (const int target_index : targets.index_range()) {
+    job_data->results[target_index].reinitialize(frame_range.size());
+    job_data->targets[target_index] = *targets[target_index];
+  }
+  job_data->scene = scene;
+
+  WM_jobs_customdata_set(wm_job, job_data, free_job_data);
+  WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, 0);
+  WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
+  WM_jobs_start(wm, wm_job);
 }
 
 }  // namespace blender
