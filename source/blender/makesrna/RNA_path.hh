@@ -17,7 +17,9 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
+#include "BLI_ustring.hh"
 #include "DNA_listBase.h"
 
 #include "RNA_types.hh"
@@ -69,6 +71,32 @@ struct RNAPath {
   std::optional<int> index = std::nullopt;
 
   int64_t hash() const;
+};
+
+class RNAPathParsed {
+ public:
+  struct Member {
+    UString identifier;
+
+    bool operator==(const Member &other) const = default;
+  };
+  struct LookupIndex {
+    int64_t index;
+
+    bool operator==(const LookupIndex &other) const = default;
+  };
+  struct LookupKey {
+    UString key;
+
+    bool operator==(const LookupKey &other) const = default;
+  };
+
+  using Item = std::variant<Member, LookupIndex, LookupKey>;
+  Vector<Item> items;
+
+  RNAPathParsed() = default;
+
+  static std::optional<RNAPathParsed> from_string(StringRefNull path);
 };
 
 /**

@@ -355,6 +355,53 @@ static bool rna_path_parse_array_index(const char **path,
   return true;
 }
 
+std::optional<RNAPathParsed> RNAPathParsed::from_string(const StringRefNull path)
+{
+  if (path.is_empty()) {
+    return std::nullopt;
+  }
+  /* Work directly in optional to avoid having to move it later when it is returned. */
+  std::optional<RNAPathParsed> parsed;
+  parsed.emplace();
+  const char *current = path.c_str();
+  while (*current) {
+    const char c = *current;
+    if (c == '[') {
+      char buffer[256];
+      bool quoted;
+      char *token = rna_path_token_in_brackets(&current, buffer, sizeof(buffer), &quoted);
+      if (!token) {
+        return std::nullopt;
+      }
+      if (quoted) {
+        parsed->items.append(LookupKey(UString(token)));
+      }
+      else {
+        const int64_t index = atoi(token);
+        if (index == 0 && (token[0] != '0' || token[1] != '\0')) {
+          return std::nullopt;
+        }
+        parsed->items.append(LookupIndex(index));
+      }
+      if (buffer != token) {
+        MEM_delete(token);
+      }
+    }
+    else {
+      char buffer[256];
+      char *token = rna_path_token(&current, buffer, sizeof(buffer));
+      if (!token) {
+        return std::nullopt;
+      }
+      parsed->items.append(Member(UString(token)));
+      if (buffer != token) {
+        MEM_delete(token);
+      }
+    }
+  }
+  return parsed;
+}
+
 /**
  * Generic rna path parser.
  *
