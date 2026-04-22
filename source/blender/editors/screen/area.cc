@@ -3713,7 +3713,7 @@ static void side_panel_draw_search_block(const bContext *C, ARegion *region)
                                               ICON_VIEWZOOM,
                                               0,
                                               0,
-                                              w,
+                                              std::max<int>(w, 0),
                                               UI_UNIT_Y,
                                               &ptr,
                                               RNA_struct_find_property(&ptr, "search_filter"),
