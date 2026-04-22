@@ -18,7 +18,6 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
-#include "BLI_struct_equality_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -69,7 +68,7 @@ struct DiffOptions {
       return get_default_hash(this->type_name, this->member_identifier);
     }
 
-    BLI_STRUCT_EQUALITY_OPERATORS_2(MemberName, type_name, member_identifier)
+    bool operator==(const MemberName &other) const = default;
   };
 
   Set<MemberName> members_to_ignore_set;
@@ -1647,7 +1646,7 @@ struct IdKey {
     return get_default_hash(this->name, this->type_name);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(IdKey, name, type_name)
+  bool operator==(const IdKey &other) const = default;
 };
 
 static AllIdDiffLines write_diff_ids(const DiffOptions &options,

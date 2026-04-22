@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_filereader.h"
+#include "BLI_map.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_struct_equality_utils.hh"
 
 #include "BLO_core_blend_header.hh"
 
@@ -49,7 +49,7 @@ struct MemType {
     return mem_type;
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_3(MemType, sdna_base_type, cpp_base_type, pointer_level)
+  bool operator==(const MemType &other) const = default;
 };
 
 struct BlendBlock {
