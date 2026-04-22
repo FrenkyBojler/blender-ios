@@ -183,7 +183,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
           replace_bezt_keyframe_ypos(&fcu->bezt[i], bezt);
           /* Overwrite 'generated' keyframe type with the new keyframe type. */
           if (BEZKEYTYPE(&fcu->bezt[i]) == BEZT_KEYTYPE_GENERATED) {
-            fcu->bezt[i].hide = bezt->hide;
+            BEZKEYTYPE_LVALUE(&fcu->bezt[i]) = BEZKEYTYPE(bezt);
           }
         }
 
