@@ -401,6 +401,47 @@ bool BKE_animsys_rna_path_resolve(
   return true;
 }
 
+bool BKE_animsys_rna_path_resolve(
+    PointerRNA *ptr, /* typically 'fcu->rna_path', 'fcu->array_index' */
+    const ParsedRNAPathRef rna_path,
+    const int array_index,
+    PathResolvedRNA *r_result)
+{
+  if (!RNA_path_resolve_property(ptr, rna_path, &r_result->ptr, &r_result->prop)) {
+    /* failed to get path */
+    /* XXX don't tag as failed yet though, as there are some legit situations (Action Constraint)
+     * where some channels will not exist, but shouldn't lock up Action */
+    if (G.debug & G_DEBUG) {
+      CLOG_WARN(&LOG_ANIM_FCURVE,
+                "Invalid path. ID = '%s',  '%s[%d]'",
+                (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
+                rna_path::to_string(rna_path).c_str(),
+                array_index);
+    }
+    return false;
+  }
+
+  if (ptr->owner_id != nullptr && !RNA_property_animateable(&r_result->ptr, r_result->prop)) {
+    return false;
+  }
+
+  int array_len = RNA_property_array_length(&r_result->ptr, r_result->prop);
+  if (array_len && array_index >= array_len) {
+    if (G.debug & G_DEBUG) {
+      CLOG_WARN(&LOG_ANIM_FCURVE,
+                "Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
+                (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
+                rna_path::to_string(rna_path).c_str(),
+                array_index,
+                array_len - 1);
+    }
+    return false;
+  }
+
+  r_result->prop_index = array_len ? array_index : -1;
+  return true;
+}
+
 /* less than 1.0 evaluates to false, use epsilon to avoid float error */
 #define ANIMSYS_FLOAT_AS_BOOL(value) ((value) > (1.0f - FLT_EPSILON))
 

@@ -34,6 +34,7 @@ class PropIdentifier {
    * This string is typically owned by the FCurve that animates the property.
    */
   StringRefNull rna_path;
+  std::optional<ParsedRNAPath<>> rna_path_parsed;
   int array_index;
 
   PropIdentifier() = default;
@@ -41,6 +42,7 @@ class PropIdentifier {
   PropIdentifier(const StringRefNull rna_path, const int array_index)
       : rna_path(rna_path), array_index(array_index)
   {
+    rna_path_parsed = ParsedRNAPath<>::from_string(rna_path);
   }
 
   bool operator==(const PropIdentifier &other) const

@@ -629,6 +629,165 @@ static bool rna_path_parse(const PointerRNA *ptr,
   return true;
 }
 
+static bool rna_path_parse2(const PointerRNA *ptr,
+                            const ParsedRNAPathRef path_ref,
+                            PointerRNA *r_ptr,
+                            PropertyRNA **r_prop,
+                            int *r_index,
+                            PointerRNA *r_item_ptr,
+                            ListBaseT<PropertyElemRNA> *r_elements,
+                            const bool eval_pointer)
+{
+  std::string path_str = rna_path::to_string(path_ref);
+  const char *path = path_str.c_str();
+
+  BLI_assert(r_item_ptr == nullptr || !eval_pointer);
+  PropertyRNA *prop;
+  PointerRNA curptr, nextptr;
+  PropertyElemRNA *prop_elem = nullptr;
+  int index = -1;
+  char fixedbuf[256];
+  int type;
+  const bool do_item_ptr = r_item_ptr != nullptr && !eval_pointer;
+
+  if (do_item_ptr) {
+    nextptr.invalidate();
+  }
+
+  prop = nullptr;
+  curptr = *ptr;
+
+  if (path == nullptr || *path == '\0') {
+    return false;
+  }
+
+  while (*path) {
+    if (do_item_ptr) {
+      nextptr.invalidate();
+    }
+
+    const bool use_id_prop = (*path == '[');
+    /* Custom property lookup: e.g. `C.object["someprop"]`. */
+
+    if (!curptr.data) {
+      return false;
+    }
+
+    /* look up property name in current struct */
+    bool quoted = false;
+    char *token = use_id_prop ?
+                      rna_path_token_in_brackets(&path, fixedbuf, sizeof(fixedbuf), &quoted) :
+                      rna_path_token(&path, fixedbuf, sizeof(fixedbuf));
+    if (!token) {
+      return false;
+    }
+
+    prop = nullptr;
+    if (use_id_prop) { /* look up property name in current struct */
+      IDProperty *group = RNA_struct_idprops(&curptr, false);
+      if (group && quoted) {
+        prop = reinterpret_cast<PropertyRNA *>(IDP_GetPropertyFromGroup(group, token));
+      }
+    }
+    else {
+      prop = RNA_struct_find_property(&curptr, token);
+    }
+
+    if (token != fixedbuf) {
+      MEM_delete(token);
+    }
+
+    if (!prop) {
+      return false;
+    }
+
+    if (r_elements) {
+      prop_elem = MEM_new<PropertyElemRNA>(__func__);
+      prop_elem->ptr = curptr;
+      prop_elem->prop = prop;
+      prop_elem->index = -1; /* index will be added later, if needed. */
+      BLI_addtail(r_elements, prop_elem);
+    }
+
+    type = RNA_property_type(prop);
+
+    /* now look up the value of this property if it is a pointer or
+     * collection, otherwise return the property rna so that the
+     * caller can read the value of the property itself */
+    switch (type) {
+      case PROP_POINTER: {
+        /* resolve pointer if further path elements follow
+         * or explicitly requested
+         */
+        if (do_item_ptr || eval_pointer || *path != '\0') {
+          nextptr = RNA_property_pointer_get(&curptr, prop);
+        }
+
+        if (eval_pointer || *path != '\0') {
+          curptr = nextptr;
+          prop = nullptr; /* now we have a PointerRNA, the prop is our parent so forget it */
+          index = -1;
+        }
+        break;
+      }
+      case PROP_COLLECTION: {
+        /* Resolve pointer if further path elements follow.
+         * Note that if path is empty, rna_path_parse_collection_key will do nothing anyway,
+         * so do_item_ptr is of no use in that case.
+         */
+        if (*path) {
+          if (!rna_path_parse_collection_key(&path, &curptr, prop, &nextptr)) {
+            return false;
+          }
+
+          if (eval_pointer || *path != '\0') {
+            curptr = nextptr;
+            prop = nullptr; /* now we have a PointerRNA, the prop is our parent so forget it */
+            index = -1;
+          }
+        }
+        break;
+      }
+      default:
+        if (r_index || prop_elem) {
+          if (!rna_path_parse_array_index(&path, &curptr, prop, &index)) {
+            return false;
+          }
+
+          if (prop_elem) {
+            prop_elem->index = index;
+          }
+        }
+        break;
+    }
+  }
+
+  if (r_ptr) {
+    *r_ptr = curptr;
+  }
+  if (r_prop) {
+    *r_prop = prop;
+  }
+  if (r_index) {
+    *r_index = index;
+  }
+  if (r_item_ptr && do_item_ptr) {
+    *r_item_ptr = nextptr;
+  }
+
+  if (prop_elem &&
+      (prop_elem->ptr.data != curptr.data || prop_elem->prop != prop || prop_elem->index != index))
+  {
+    prop_elem = MEM_new<PropertyElemRNA>(__func__);
+    prop_elem->ptr = curptr;
+    prop_elem->prop = prop;
+    prop_elem->index = index;
+    BLI_addtail(r_elements, prop_elem);
+  }
+
+  return true;
+}
+
 bool RNA_path_resolve(const PointerRNA *ptr,
                       const char *path,
                       PointerRNA *r_ptr,
@@ -663,6 +822,18 @@ bool RNA_path_resolve_property(const PointerRNA *ptr,
                                PropertyRNA **r_prop)
 {
   if (!rna_path_parse(ptr, path, r_ptr, r_prop, nullptr, nullptr, nullptr, false)) {
+    return false;
+  }
+
+  return r_ptr->data != nullptr && *r_prop != nullptr;
+}
+
+bool RNA_path_resolve_property(const PointerRNA *ptr,
+                               ParsedRNAPathRef path,
+                               PointerRNA *r_ptr,
+                               PropertyRNA **r_prop)
+{
+  if (!rna_path_parse2(ptr, path, r_ptr, r_prop, nullptr, nullptr, nullptr, false)) {
     return false;
   }
 

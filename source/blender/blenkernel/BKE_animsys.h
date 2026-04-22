@@ -14,6 +14,8 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
+#include "RNA_path.hh"
+
 #include <string>
 
 namespace blender {
@@ -307,6 +309,10 @@ enum eAnimData_Recalc {
 
 bool BKE_animsys_rna_path_resolve(struct PointerRNA *ptr,
                                   const char *rna_path,
+                                  int array_index,
+                                  struct PathResolvedRNA *r_result);
+bool BKE_animsys_rna_path_resolve(struct PointerRNA *ptr,
+                                  ParsedRNAPathRef rna_path,
                                   int array_index,
                                   struct PathResolvedRNA *r_result);
 bool BKE_animsys_read_from_rna_path(struct PathResolvedRNA *anim_rna, float *r_value);

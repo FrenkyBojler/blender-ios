@@ -130,7 +130,7 @@ static void animsys_construct_orig_pointer_rna(const PointerRNA *ptr, PointerRNA
 
 /* Copy of the same-named function in anim_sys.cc. */
 static void animsys_write_orig_anim_rna(PointerRNA *ptr,
-                                        const char *rna_path,
+                                        const ParsedRNAPathRef rna_path,
                                         const int array_index,
                                         const float value)
 {
@@ -203,6 +203,10 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
 {
   for (const auto &channel_result : evaluation_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
+    if (!prop_ident.rna_path_parsed) {
+      continue;
+    }
+
     const AnimatedProperty &anim_prop = channel_result.value;
     const float animated_value = anim_prop.value;
     PathResolvedRNA anim_rna = anim_prop.prop_rna;
@@ -213,7 +217,7 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
       /* Convert the StringRef to a `const char *`, as the rest of the RNA path handling code in
        * BKE still uses `char *` instead of `StringRef`. */
       animsys_write_orig_anim_rna(
-          &animated_id_ptr, prop_ident.rna_path.c_str(), prop_ident.array_index, animated_value);
+          &animated_id_ptr, *prop_ident.rna_path_parsed, prop_ident.array_index, animated_value);
     }
   }
 }

@@ -93,7 +93,10 @@ struct LookupKey {
 using Item = std::variant<Member, LookupIndex, LookupKey>;
 
 std::string to_string(const Span<Item> &items);
+
 }  // namespace rna_path
+
+using ParsedRNAPathRef = Span<rna_path::Item>;
 
 template<int64_t N = 4> class ParsedRNAPath {
  public:
@@ -104,9 +107,12 @@ template<int64_t N = 4> class ParsedRNAPath {
   static std::optional<ParsedRNAPath> from_string(StringRefNull path);
 
   std::string to_string() const;
-};
 
-using ParsedRNAPathRef = Span<rna_path::Item>;
+  operator ParsedRNAPathRef() const
+  {
+    return this->items;
+  }
+};
 
 /**
  * NOTE: equality is defined in a specific way here to reflect the semantic
@@ -190,6 +196,10 @@ bool RNA_path_resolve_full_maybe_null(const PointerRNA *ptr,
  */
 bool RNA_path_resolve_property(const PointerRNA *ptr,
                                const char *path,
+                               PointerRNA *r_ptr,
+                               PropertyRNA **r_prop);
+bool RNA_path_resolve_property(const PointerRNA *ptr,
+                               ParsedRNAPathRef path,
                                PointerRNA *r_ptr,
                                PropertyRNA **r_prop);
 
