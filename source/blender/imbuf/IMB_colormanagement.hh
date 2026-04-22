@@ -14,6 +14,7 @@
 #include "BLI_vector.hh"
 
 #include <optional>
+#include <variant>
 
 #define BCM_CONFIG_FILE "config.ocio"
 
@@ -36,6 +37,7 @@ class CPUProcessor;
 class ColorSpace;
 class Config;
 class Display;
+struct ScopeInfo;
 }  // namespace ocio
 
 using ColorManagedConfig = ocio::Config;
@@ -56,6 +58,8 @@ enum ColorManagedDisplaySpace {
   DISPLAY_SPACE_VIDEO_OUTPUT,
   /** Convert to display space for inspecting color values as text in the UI. */
   DISPLAY_SPACE_COLOR_INSPECTION,
+  /** Convert to space suitable for plotting scopes. */
+  DISPLAY_SPACE_SCOPE,
 };
 
 enum class ColorManagedFileOutput { Image, Video };
@@ -83,6 +87,7 @@ const char *IMB_colormanagement_get_byte_colorspace(const ImBuf *ibuf);
 const char *IMB_colormanagement_space_from_filepath_rules(const char *filepath);
 
 const ColorSpace *IMB_colormanagement_space_get_named(const char *name);
+const ColorSpace *IMB_colormanagement_space_get_named(StringRefNull name);
 bool IMB_colormanagement_space_is_data(const ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_scene_linear(const ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_srgb(const ColorSpace *colorspace);
@@ -306,12 +311,6 @@ void IMB_colormanagement_pixel_to_display_space_v4(
     const ColorManagedDisplaySettings *display_settings,
     ColorManagedDisplaySpace display_space = DISPLAY_SPACE_DRAW);
 
-void IMB_colormanagement_imbuf_make_display_space(
-    ImBuf *ibuf,
-    const ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings,
-    ColorManagedDisplaySpace display_space = DISPLAY_SPACE_DRAW);
-
 /**
  * Prepare image buffer to be saved on disk, applying color management if needed
  * color management would be applied if image is saving as render result and if
@@ -388,6 +387,13 @@ bool IMB_colormanagement_display_is_hdr(const ColorManagedDisplaySettings *displ
 bool IMB_colormanagement_display_is_wide_gamut(const ColorManagedDisplaySettings *display_settings,
                                                const char *view_name);
 bool IMB_colormanagement_display_support_emulation(
+    const ColorManagedDisplaySettings *display_settings, const char *view_name);
+
+/** Max luminance of the view transform, or 0 if no maximum found. */
+int IMB_colormanagement_view_max_nits(const char *display_name, const char *view_name);
+
+/** Get scope display info for waveform/parade/vector-scope. */
+ocio::ScopeInfo IMB_colormanagement_get_scope_info(
     const ColorManagedDisplaySettings *display_settings, const char *view_name);
 
 /** \} */
@@ -512,24 +518,32 @@ void IMB_partial_display_buffer_update_delayed(
 /* -------------------------------------------------------------------- */
 /** \name Pixel Processor Functions
  * \{ */
-
 class ColormanageProcessor : NonCopyable {
-  std::shared_ptr<const ocio::CPUProcessor> cpu_processor_ = nullptr;
+  using ProcessorType =
+      std::variant<std::shared_ptr<const ocio::CPUProcessor>, const ocio::CPUProcessor *>;
+
+  ProcessorType cpu_processor_ = nullptr;
   CurveMapping *curve_mapping_ = nullptr;
   bool is_data_result_ = false;
 
  public:
+  ColormanageProcessor() = default;
   ColormanageProcessor(ColormanageProcessor &&other) noexcept;
   ~ColormanageProcessor();
   ColormanageProcessor &operator=(ColormanageProcessor &&other) noexcept;
 
   static ColormanageProcessor colorspace_processor_new(StringRefNull from_colorspace,
                                                        StringRefNull to_colorspace);
+  static ColormanageProcessor colorspace_processor_from_scene_linear_new(
+      const ColorSpace &to_colorspace);
+  static ColormanageProcessor colorspace_processor_to_scene_linear_new(
+      const ColorSpace &from_colorspace);
   static ColormanageProcessor display_processor_new(
       const ColorManagedViewSettings *view_settings,
       const ColorManagedDisplaySettings *display_settings,
       ColorManagedDisplaySpace display_space = DISPLAY_SPACE_DRAW,
-      bool inverse = false);
+      bool inverse = false,
+      const char *from_colorspace = nullptr);
   static std::optional<ColormanageProcessor> display_processor_for_imbuf(
       const ImBuf *ibuf,
       const ColorManagedViewSettings *view_settings,
@@ -546,13 +560,14 @@ class ColormanageProcessor : NonCopyable {
   void apply_byte(unsigned char *buffer, int width, int height, int channels) const;
 
  private:
-  ColormanageProcessor() = default;
+  const ocio::CPUProcessor *get_cpu_processor() const
+  {
+    if (std::holds_alternative<std::shared_ptr<const ocio::CPUProcessor>>(cpu_processor_)) {
+      return std::get<std::shared_ptr<const ocio::CPUProcessor>>(cpu_processor_).get();
+    }
+    return std::get<const ocio::CPUProcessor *>(cpu_processor_);
+  }
 };
-
-bool IMB_colormanagement_display_processor_needed(
-    const ImBuf *ibuf,
-    const ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings);
 
 /** \} */
 
@@ -589,7 +604,8 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
     const ColorSpace *from_colorspace,
     float dither,
     bool predivide,
-    bool do_overlay_merge);
+    bool do_overlay_merge,
+    ColorManagedDisplaySpace display_space = DISPLAY_SPACE_DRAW);
 /**
  * Same as setup_glsl_draw, but color management settings are guessing from a given context.
  */
