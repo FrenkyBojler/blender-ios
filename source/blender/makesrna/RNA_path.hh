@@ -73,33 +73,40 @@ struct RNAPath {
   int64_t hash() const;
 };
 
-class RNAPathParsed {
+namespace rna_path {
+struct Member {
+  UString identifier;
+
+  bool operator==(const Member &other) const = default;
+};
+struct LookupIndex {
+  int64_t index;
+
+  bool operator==(const LookupIndex &other) const = default;
+};
+struct LookupKey {
+  UString key;
+
+  bool operator==(const LookupKey &other) const = default;
+};
+
+using Item = std::variant<Member, LookupIndex, LookupKey>;
+
+std::string to_string(const Span<Item> &items);
+}  // namespace rna_path
+
+template<int64_t N = 4> class ParsedRNAPath {
  public:
-  struct Member {
-    UString identifier;
+  Vector<rna_path::Item, N> items;
 
-    bool operator==(const Member &other) const = default;
-  };
-  struct LookupIndex {
-    int64_t index;
+  ParsedRNAPath() = default;
 
-    bool operator==(const LookupIndex &other) const = default;
-  };
-  struct LookupKey {
-    UString key;
-
-    bool operator==(const LookupKey &other) const = default;
-  };
-
-  using Item = std::variant<Member, LookupIndex, LookupKey>;
-  Vector<Item> items;
-
-  RNAPathParsed() = default;
-
-  static std::optional<RNAPathParsed> from_string(StringRefNull path);
+  static std::optional<ParsedRNAPath> from_string(StringRefNull path);
 
   std::string to_string() const;
 };
+
+using ParsedRNAPathRef = Span<rna_path::Item>;
 
 /**
  * NOTE: equality is defined in a specific way here to reflect the semantic

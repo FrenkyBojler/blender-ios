@@ -355,13 +355,14 @@ static bool rna_path_parse_array_index(const char **path,
   return true;
 }
 
-std::optional<RNAPathParsed> RNAPathParsed::from_string(const StringRefNull path)
+template<int64_t N>
+std::optional<ParsedRNAPath<N>> ParsedRNAPath<N>::from_string(const StringRefNull path)
 {
   if (path.is_empty()) {
     return std::nullopt;
   }
   /* Work directly in optional to avoid having to move it later when it is returned. */
-  std::optional<RNAPathParsed> parsed;
+  std::optional<ParsedRNAPath<N>> parsed;
   parsed.emplace();
   const char *current = path.c_str();
   while (*current) {
@@ -374,14 +375,14 @@ std::optional<RNAPathParsed> RNAPathParsed::from_string(const StringRefNull path
         return std::nullopt;
       }
       if (quoted) {
-        parsed->items.append(LookupKey(UString(token)));
+        parsed->items.append(rna_path::LookupKey(UString(token)));
       }
       else {
         const int64_t index = atoi(token);
         if (index == 0 && (token[0] != '0' || token[1] != '\0')) {
           return std::nullopt;
         }
-        parsed->items.append(LookupIndex(index));
+        parsed->items.append(rna_path::LookupIndex(index));
       }
       if (buffer != token) {
         MEM_delete(token);
@@ -393,7 +394,7 @@ std::optional<RNAPathParsed> RNAPathParsed::from_string(const StringRefNull path
       if (!token) {
         return std::nullopt;
       }
-      parsed->items.append(Member(UString(token)));
+      parsed->items.append(rna_path::Member(UString(token)));
       if (buffer != token) {
         MEM_delete(token);
       }
@@ -402,7 +403,9 @@ std::optional<RNAPathParsed> RNAPathParsed::from_string(const StringRefNull path
   return parsed;
 }
 
-std::string RNAPathParsed::to_string() const
+namespace rna_path {
+
+std::string to_string(const Span<Item> &items)
 {
   std::string result;
   for (const auto &item : items) {
@@ -438,6 +441,15 @@ std::string RNAPathParsed::to_string() const
   }
   return result;
 }
+
+};  // namespace rna_path
+
+template<int64_t N> std::string ParsedRNAPath<N>::to_string() const
+{
+  return rna_path::to_string(this->items);
+}
+
+template class ParsedRNAPath<4>;
 
 /**
  * Generic rna path parser.
