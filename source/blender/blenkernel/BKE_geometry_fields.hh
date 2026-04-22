@@ -313,7 +313,6 @@ class AttributeFieldInput : public GeometryFieldInput {
 
   std::string socket_inspection_name() const override;
 
-  uint64_t hash() const override;
   void hash(HashContext &hash) const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
@@ -346,6 +345,7 @@ class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
+  void hash(HashContext &hash) const override;
 };
 
 class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
@@ -362,7 +362,6 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
   void hash(HashContext &hash) const override;
-  uint64_t hash() const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 };
@@ -376,7 +375,7 @@ class IDAttributeFieldInput : public GeometryFieldInput {
 
   std::string socket_inspection_name() const override;
 
-  uint64_t hash() const override;
+  void hash(HashContext &hash) const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
 
   /** Cached  field to avoid allocating a new one every time. */
@@ -408,7 +407,7 @@ class NormalFieldInput : public GeometryFieldInput {
 
   std::string socket_inspection_name() const override;
 
-  uint64_t hash() const override;
+  void hash(HashContext &hash) const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
 
   /** Cached normal field to avoid allocating a new one every time. */
@@ -421,7 +420,7 @@ class CurveLengthFieldInput final : public CurvesFieldInput {
   GVArray get_varray_for_context(const CurvesGeometry &curves,
                                  AttrDomain domain,
                                  const IndexMask &mask) const final;
-  uint64_t hash() const override;
+  void hash(HashContext &hash) const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry &curves) const final;
 };
@@ -439,7 +438,7 @@ class EvaluateAtIndexInput final : public bke::GeometryFieldInput {
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
-
+  void hash(HashContext &hash) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent & /*component*/) const final
   {
     return value_field_domain_;
@@ -453,15 +452,16 @@ class SampleIndexFunction : public mf::MultiFunction {
 
   mf::Signature signature_;
 
-  std::optional<bke::GeometryFieldContext> geometry_context_;
-  std::unique_ptr<fn::FieldEvaluator> evaluator_;
-  const GVArray *src_data_ = nullptr;
+  mutable CacheMutex mutex_;
+  mutable std::optional<bke::GeometryFieldContext> geometry_context_;
+  mutable std::unique_ptr<fn::FieldEvaluator> evaluator_;
+  mutable const GVArray *src_data_ = nullptr;
 
  public:
   SampleIndexFunction(GeometrySet geometry, fn::GField src_field, AttrDomain domain);
-  void evaluate_field();
-
+  void prepare_for_execution() const override;
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override;
+  void hash(HashContext &hash) const override;
 
   static const GeometryComponent *find_source_component(const GeometrySet &geometry,
                                                         AttrDomain domain);
@@ -477,6 +477,7 @@ class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask & /*mask*/) const final;
+  void hash(HashContext &hash) const override;
   void foreach_recursive_field(FunctionRef<void(const fn::GField &)> fn) const override;
 
   std::optional<AttrDomain> preferred_domain(

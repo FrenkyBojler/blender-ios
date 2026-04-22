@@ -79,11 +79,13 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     fn(offset_);
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
-    return get_default_hash(&id, field_hash.ensure(corner_index_), field_hash.ensure(offset_));
+    hash.add(&id);
+    hash.add(field_hash.ensure(corner_index_));
+    hash.add(field_hash.ensure(offset_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

@@ -42,6 +42,13 @@ class ClampWrapperFunction : public mf::MultiFunction {
       CLAMP(value, 0.0f, 1.0f);
     });
   }
+
+  void hash(HashContext &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    fn_.hash(hash);
+  }
 };
 
 void node_math_build_multi_function(NodeMultiFunctionBuilder &builder)

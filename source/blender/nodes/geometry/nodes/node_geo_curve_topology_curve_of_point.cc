@@ -36,10 +36,10 @@ class CurveOfPointInput final : public bke::CurvesFieldInput {
     return VArray<int>::from_container(curves.point_to_curve_map());
   }
 
-  uint64_t hash() const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -74,10 +74,10 @@ class PointIndexInCurveInput final : public bke::CurvesFieldInput {
         });
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

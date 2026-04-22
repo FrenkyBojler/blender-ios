@@ -246,15 +246,15 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
     fn(group_index_);
   }
 
-  uint64_t hash() const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
-    return get_default_hash(&id,
-                            field_hash.ensure(input_),
-                            field_hash.ensure(group_index_),
-                            source_domain_,
-                            operation_);
+    hash.add(&id);
+    hash.add(field_hash.ensure(input_));
+    hash.add(field_hash.ensure(group_index_));
+    hash.add(source_domain_);
+    hash.add(operation_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

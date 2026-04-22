@@ -450,6 +450,13 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
   return VArray<bool>::from_single(exists, domain_size);
 }
 
+void AttributeExistsFieldInput::hash(HashContext &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.hash_bytes.extend(Span(name_.data(), name_.size()).cast<std::byte>());
+}
+
 std::string AttributeFieldInput::socket_inspection_name() const
 {
   if (socket_inspection_name_) {
@@ -462,11 +469,6 @@ void AttributeFieldInput::hash(HashContext &hash) const
 {
   hash.hash_bytes.extend(Span(name_.data(), name_.size()).cast<std::byte>());
   hash.add(type_);
-}
-
-uint64_t AttributeFieldInput::hash() const
-{
-  return get_default_hash(name_, type_);
 }
 
 bool AttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
@@ -522,10 +524,10 @@ std::string IDAttributeFieldInput::socket_inspection_name() const
   return TIP_("ID / Index");
 }
 
-uint64_t IDAttributeFieldInput::hash() const
+void IDAttributeFieldInput::hash(HashContext &hash) const
 {
   static constexpr int8_t id = 0;
-  return get_default_hash(&id);
+  hash.add(&id);
 }
 
 bool IDAttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
@@ -578,12 +580,6 @@ void NamedLayerSelectionFieldInput::hash(HashContext &hash) const
 {
   hash.hash_bytes.extend(Span(layer_name_.data(), layer_name_.size()).cast<std::byte>());
   hash.add(type_);
-}
-
-uint64_t NamedLayerSelectionFieldInput::hash() const
-{
-  static constexpr int8_t id = 0;
-  return get_default_hash(&id, layer_name_, type_);
 }
 
 bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldInput &other) const
@@ -640,6 +636,17 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   return GVArray::from_garray(std::move(dst_array));
 }
 
+void EvaluateAtIndexInput::hash(HashContext &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(type_);
+  fn::FieldHashDeep field_hash;
+  hash.add(field_hash.ensure(index_field_));
+  hash.add(field_hash.ensure(value_field_));
+  hash.add(value_field_domain_);
+}
+
 static bool component_is_available(const GeometrySet &geometry,
                                    const GeometryComponent::Type type,
                                    const AttrDomain domain)
@@ -682,22 +689,22 @@ SampleIndexFunction::SampleIndexFunction(GeometrySet geometry,
   builder.single_input<int>("Index");
   builder.single_output("Value", src_field_.cpp_type());
   this->set_signature(&signature_);
-
-  this->evaluate_field();
 }
 
-void SampleIndexFunction::evaluate_field()
+void SampleIndexFunction::prepare_for_execution() const
 {
-  const GeometryComponent *component = find_source_component(src_geometry_, domain_);
-  if (component == nullptr) {
-    return;
-  }
-  const int domain_num = component->attribute_domain_size(domain_);
-  geometry_context_.emplace(GeometryFieldContext(*component, domain_));
-  evaluator_ = std::make_unique<fn::FieldEvaluator>(*geometry_context_, domain_num);
-  evaluator_->add(src_field_);
-  evaluator_->evaluate();
-  src_data_ = &evaluator_->get_evaluated(0);
+  mutex_.ensure([&]() {
+    const GeometryComponent *component = find_source_component(src_geometry_, domain_);
+    if (component == nullptr) {
+      return;
+    }
+    const int domain_num = component->attribute_domain_size(domain_);
+    geometry_context_.emplace(GeometryFieldContext(*component, domain_));
+    evaluator_ = std::make_unique<fn::FieldEvaluator>(*geometry_context_, domain_num);
+    evaluator_->add(src_field_);
+    evaluator_->evaluate();
+    src_data_ = &evaluator_->get_evaluated(0);
+  });
 }
 
 void SampleIndexFunction::call(const IndexMask &mask,
@@ -718,6 +725,16 @@ void SampleIndexFunction::call(const IndexMask &mask,
       mask, indices, src_data_->index_range(), memory);
   bke::attribute_math::gather(*src_data_, indices, valid_mask, dst);
   dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
+}
+
+void SampleIndexFunction::hash(HashContext &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(find_source_component(src_geometry_, domain_));
+  hash.add(domain_);
+  fn::FieldHashDeep field_hash;
+  hash.add(field_hash.ensure(src_field_));
 }
 
 EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)
@@ -769,6 +786,15 @@ GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldCo
   return attributes.adapt_domain(GVArray::from_garray(std::move(values)), src_domain_, dst_domain);
 }
 
+void EvaluateOnDomainInput::hash(HashContext &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  fn::FieldHashDeep field_hash;
+  hash.add(field_hash.ensure(src_field_));
+  hash.add(src_domain_);
+}
+
 void EvaluateOnDomainInput::foreach_recursive_field(FunctionRef<void(const fn::GField &)> fn) const
 {
   fn(src_field_);
@@ -806,10 +832,12 @@ std::string NormalFieldInput::socket_inspection_name() const
   return true_normals_ ? TIP_("True Normal") : TIP_("Normal");
 }
 
-uint64_t NormalFieldInput::hash() const
+void NormalFieldInput::hash(HashContext &hash) const
 {
   static constexpr int8_t id = 0;
-  return get_default_hash(&id, legacy_corner_normals_, true_normals_);
+  hash.add(&id);
+  hash.add(legacy_corner_normals_);
+  hash.add(true_normals_);
 }
 
 bool NormalFieldInput::is_equal_to(const fn::FieldInput &other) const

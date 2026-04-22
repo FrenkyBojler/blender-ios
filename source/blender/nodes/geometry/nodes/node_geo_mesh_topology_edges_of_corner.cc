@@ -38,10 +38,10 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
     return VArray<int>::from_span(mesh.corner_edges());
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -77,10 +77,10 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
         });
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

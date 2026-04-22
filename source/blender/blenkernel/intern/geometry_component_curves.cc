@@ -283,10 +283,10 @@ GVArray CurveLengthFieldInput::get_varray_for_context(const CurvesGeometry &curv
   return construct_curve_length_gvarray(curves, domain);
 }
 
-uint64_t CurveLengthFieldInput::hash() const
+void CurveLengthFieldInput::hash(HashContext &hash) const
 {
-  /* Some random constant hash. */
-  return 3549623580;
+  static constexpr int8_t id = 0;
+  hash.add(&id);
 }
 
 bool CurveLengthFieldInput::is_equal_to(const fn::FieldInput &other) const

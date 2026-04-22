@@ -36,10 +36,10 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
     return VArray<int>::from_span(mesh.corner_to_face_map());
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -67,10 +67,10 @@ class CornerIndexInFaceInput final : public bke::MeshFieldInput {
     });
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

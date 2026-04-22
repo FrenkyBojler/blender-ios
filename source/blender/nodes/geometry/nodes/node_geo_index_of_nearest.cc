@@ -139,12 +139,13 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     fn(group_field_);
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
-    return get_default_hash(
-        &id, field_hash.ensure(positions_field_), field_hash.ensure(group_field_));
+    hash.add(&id);
+    hash.add(field_hash.ensure(positions_field_));
+    hash.add(field_hash.ensure(group_field_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final
@@ -209,11 +210,12 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     fn(group_field_);
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
-    return get_default_hash(&id, field_hash.ensure(group_field_));
+    hash.add(&id);
+    hash.add(field_hash.ensure(group_field_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

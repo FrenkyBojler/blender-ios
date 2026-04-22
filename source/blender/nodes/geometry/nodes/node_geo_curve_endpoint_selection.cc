@@ -87,11 +87,13 @@ class EndpointFieldInput final : public bke::GeometryFieldInput {
     fn(end_size_);
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
-    return get_default_hash(&id, field_hash.ensure(start_size_), field_hash.ensure(end_size_));
+    hash.add(&id);
+    hash.add(field_hash.ensure(start_size_));
+    hash.add(field_hash.ensure(end_size_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

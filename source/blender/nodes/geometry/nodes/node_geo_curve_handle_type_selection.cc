@@ -97,10 +97,12 @@ class HandleTypeFieldInput final : public bke::CurvesFieldInput {
     return VArray<bool>::from_container(std::move(selection));
   }
 
-  uint64_t hash() const final
+  void hash(HashContext &hash) const final
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id, mode_, type_);
+    hash.add(&id);
+    hash.add(type_);
+    hash.add(mode_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const final

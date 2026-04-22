@@ -170,13 +170,20 @@ const FieldInputsPtr &FieldInput::field_inputs() const
   return field_inputs_;
 }
 
+uint64_t FieldInput::hash() const
+{
+  HashContext hash_context;
+  this->hash(hash_context);
+  return get_default_hash(hash_context.hash_bytes);
+}
+
 FieldInput::~FieldInput() = default;
 
 void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
 
 void FieldInput::hash(HashContext &hash) const
 {
-  hash.add(this->hash());
+  hash.add(this);
 }
 
 void FieldInput::delete_self()
@@ -472,10 +479,10 @@ GVArray IndexFieldInput::get_varray_for_context(const fn::FieldContext & /*conte
   return get_index_varray(mask);
 }
 
-uint64_t IndexFieldInput::hash() const
+void IndexFieldInput::hash(HashContext &hash) const
 {
   static constexpr int8_t id = 0;
-  return get_default_hash(&id);
+  hash.add(&id);
 }
 
 bool IndexFieldInput::is_equal_to(const fn::FieldInput &other) const

@@ -94,12 +94,13 @@ class PathToEdgeSelectionFieldInput final : public bke::MeshFieldInput {
     fn(next_vertex_);
   }
 
-  uint64_t hash() const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
-    return get_default_hash(
-        &id, field_hash.ensure(start_vertices_), field_hash.ensure(next_vertex_));
+    hash.add(&id);
+    hash.add(field_hash.ensure(start_vertices_));
+    hash.add(field_hash.ensure(next_vertex_));
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

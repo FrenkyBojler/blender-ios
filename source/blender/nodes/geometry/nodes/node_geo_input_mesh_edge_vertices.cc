@@ -57,10 +57,11 @@ class EdgeVertsInput final : public bke::MeshFieldInput {
     return construct_edge_verts_gvarray(mesh, vertex_, domain);
   }
 
-  uint64_t hash() const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id, vertex_);
+    hash.add(&id);
+    hash.add(vertex_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
@@ -115,10 +116,11 @@ class EdgePositionFieldInput final : public bke::MeshFieldInput {
     return construct_edge_positions_gvarray(mesh, vertex_, domain);
   }
 
-  uint64_t hash() const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id, vertex_);
+    hash.add(&id);
+    hash.add(vertex_);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override

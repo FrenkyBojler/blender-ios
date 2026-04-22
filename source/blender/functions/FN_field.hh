@@ -327,7 +327,7 @@ class FieldInput : public ImplicitSharingMixin {
 
   const FieldInputsPtr &field_inputs() const;
 
-  virtual uint64_t hash() const;
+  uint64_t hash() const;
   virtual void hash(HashContext &hash) const;
   virtual bool is_equal_to(const FieldInput &other) const;
 
@@ -400,13 +400,11 @@ Field<bool> invert_boolean_field(const Field<bool> &field);
  * struct caches the hashes of intermediate fields.
  */
 struct FieldHashDeep {
-  mutable Mutex mutex;
   Map<GFieldRef, Hash128> cache;
   Hash128 ensure(const GFieldRef &field);
-  Hash128 operator()(const GFieldRef &field) const
+  Hash128 lookup(const GFieldRef &field) const
   {
-    std::lock_guard lock(this->mutex);
-    return const_cast<FieldHashDeep *>(this)->ensure(field);
+    return this->cache.lookup(field);
   }
 };
 
@@ -420,7 +418,7 @@ class IndexFieldInput final : public FieldInput {
                                  const IndexMask &mask,
                                  ResourceScope &scope) const final;
 
-  uint64_t hash() const override;
+  void hash(HashContext &hash) const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
 
   /** Cached index field to avoid allocating a new one every time. */
@@ -540,11 +538,6 @@ template<typename T> inline uint64_t Field<T>::hash() const
 inline const CPPType &FieldInput::cpp_type() const
 {
   return *this->type_;
-}
-
-inline uint64_t FieldInput::hash() const
-{
-  return get_default_hash(this);
 }
 
 inline bool FieldInput::is_equal_to(const FieldInput &other) const

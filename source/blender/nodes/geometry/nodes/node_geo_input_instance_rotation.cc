@@ -31,10 +31,10 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
         [transforms](const int i) { return math::to_quaternion(math::normalize(transforms[i])); });
   }
 
-  uint64_t hash() const override
+  void hash(HashContext &hash) const override
   {
     static constexpr int8_t id = 0;
-    return get_default_hash(&id);
+    hash.add(&id);
   }
 
   bool is_equal_to(const fn::FieldInput &other) const override
