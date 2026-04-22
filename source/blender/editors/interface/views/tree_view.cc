@@ -919,9 +919,10 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       tree_view.scroll_value_ = std::make_unique<int>(0);
     }
 
+    Button *but = nullptr;
     if (visible_row_count && (tot_items > *visible_row_count)) {
       row.column(false);
-      Button *but = uiDefButI(block,
+      but = uiDefButI(block,
                               ButtonType::Scroll,
                               "",
                               0,
@@ -941,7 +942,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     /* Bottom */
     Layout &bottom = col.row(false);
     block_emboss_set(block, EmbossType::None);
-    Button *but = uiDefIconButBitC(block,
+    but = uiDefIconButBitC(block,
                                    ButtonType::IconToggleN,
                                    1,
                                    ICON_DISCLOSURE_TRI_DOWN,
@@ -972,7 +973,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     if (*tree_view.show_display_options_) {
       Layout &filter_layout = col.row(true);
       block_emboss_set(block, EmbossType::Emboss);
-      Button *but = uiDefBut(block,
+      but = uiDefBut(block,
                              ButtonType::Text,
                              "",
                              0,
