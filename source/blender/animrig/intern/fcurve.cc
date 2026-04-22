@@ -176,14 +176,15 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
     if (replace) {
       /* `i` may in rare cases exceed array bounds. */
       if ((i >= 0) && (i < fcu->totvert)) {
-        /* Allow 'generated' keyframes to be overwritten too. */
-        if (flag & INSERTKEY_OVERWRITE_FULL)
-          || (BEZKEYTYPE(&fcu->bezt[i]) == BEZT_KEYTYPE_GENERATED)
-          {
-            fcu->bezt[i] = *bezt;
-          }
+        if (flag & INSERTKEY_OVERWRITE_FULL) {
+          fcu->bezt[i] = *bezt;
+        }
         else {
           replace_bezt_keyframe_ypos(&fcu->bezt[i], bezt);
+          /* Overwrite 'generated' keyframe type with the new keyframe type. */
+          if (BEZKEYTYPE(&fcu->bezt[i]) == BEZT_KEYTYPE_GENERATED) {
+            fcu->bezt[i].hide = bezt->hide;
+          }
         }
 
         if (flag & INSERTKEY_CYCLE_AWARE) {
