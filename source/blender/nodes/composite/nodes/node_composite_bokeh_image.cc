@@ -73,7 +73,7 @@ class BokehImageOperation : public NodeOperation {
         this->get_color_shift());
 
     Result &output = this->get_result("Image");
-    output.wrap_external(bokeh_kernel);
+    output.share_data(bokeh_kernel);
   }
 
   Domain compute_domain() override
@@ -118,7 +118,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeBokehImage", CMP_NODE_BOKEHIMAGE);
+  cmp_node_type_base(&ntype, "CompositorNodeBokehImage"_ustr, CMP_NODE_BOKEHIMAGE);
   ntype.ui_name = "Bokeh Image";
   ntype.ui_description = "Generate image with bokeh shape for use with the Bokeh Blur filter node";
   ntype.enum_name_legacy = "BOKEHIMAGE";
