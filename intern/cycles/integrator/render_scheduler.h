@@ -106,10 +106,6 @@ class RenderScheduler {
 
   void set_denoiser_params(const DenoiseParams &params);
   bool is_denoiser_gpu_used() const;
-  DenoiseParams get_denoiser_params() const
-  {
-    return denoiser_params_;
-  }
 
   void set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling);
   bool is_adaptive_sampling_used() const;

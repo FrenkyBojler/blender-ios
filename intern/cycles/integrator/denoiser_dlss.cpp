@@ -142,6 +142,7 @@ void DLSSDenoiser::CUDATexture::init(Device *device, int width, int height, int 
   tex_desc.addressMode[0] = CU_TR_ADDRESS_MODE_CLAMP;
   tex_desc.addressMode[1] = CU_TR_ADDRESS_MODE_CLAMP;
   tex_desc.addressMode[2] = CU_TR_ADDRESS_MODE_CLAMP;
+  tex_desc.flags = CU_TRSF_NORMALIZED_COORDINATES;
 
   CUDA_RESOURCE_DESC res_desc = {};
   res_desc.resType = CU_RESOURCE_TYPE_ARRAY;

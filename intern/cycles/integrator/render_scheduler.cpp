@@ -897,7 +897,8 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * more than N samples. */
   const int num_samples_pot = round_num_samples_to_power_of_2(num_samples_per_update);
 
-  const int max_num_samples_to_render = sample_offset_ + get_num_samples() - path_trace_start_sample;
+  const int max_num_samples_to_render = sample_offset_ + get_num_samples() -
+                                        path_trace_start_sample;
 
   int num_samples_to_render = min(num_samples_pot, max_num_samples_to_render);
 
@@ -1054,6 +1055,10 @@ bool RenderScheduler::work_need_denoise(bool &delayed, bool &ready_to_display)
   }
 
   /* Viewport render. */
+
+  if (denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS) {
+    return true;
+  }
 
   /* Navigation might render multiple samples at a lower resolution. Those are not to be counted as
    * final samples. */
@@ -1234,6 +1239,10 @@ bool RenderScheduler::is_denoise_active_during_update() const
 {
   if (!denoiser_params_.use) {
     return false;
+  }
+
+  if (denoiser_params_.type == DENOISER_DLSS) {
+    return true;
   }
 
   if (denoiser_params_.start_sample > 1) {
