@@ -2181,6 +2181,14 @@ void block_end_ex(const bContext *C,
   update_flexible_spacing(region, block);
 
   block->endblock = true;
+  if (Vector<std::function<void(const bContext &C)>> *callbacks =
+          region->runtime->post_block_layout_callbacks.lookup_ptr_as(block->name))
+  {
+    for (std::function<void(const bContext &C)> &callback : *callbacks) {
+      callback(*C);
+    }
+  }
+  region->runtime->post_block_layout_callbacks.remove_as(block->name);
 }
 
 void block_end(const bContext *C, Block *block)

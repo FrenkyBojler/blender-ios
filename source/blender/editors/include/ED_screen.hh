@@ -78,10 +78,17 @@ void ED_region_tag_redraw_partial(ARegion *region, const rcti *rct, bool rebuild
 void ED_region_tag_redraw_cursor(ARegion *region);
 void ED_region_tag_redraw_no_rebuild(ARegion *region);
 void ED_region_tag_refresh_ui(ARegion *region);
+/**
+ * Attempt to activate an button referencing an RNA property in the \a region, it may redraw the
+ * region so it can try one more time.
+ * \param block_name: targets a block in the \a region, if \a block_name is not set it will test
+ * any block in the \a region.
+ */
 void ED_region_activate_rna_prop(bContext *C,
                                  ARegion *region,
                                  const void *data,
-                                 StringRefNull prop_name);
+                                 StringRefNull prop_name,
+                                 std::optional<std::string> block_name = std::nullopt);
 /**
  * Tag editor overlays to be redrawn. If in doubt about which parts need to be redrawn (partial
  * clipping rectangle set), redraw everything.

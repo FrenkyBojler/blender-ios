@@ -2102,10 +2102,18 @@ void button_tooltip_refresh(bContext *C, Button *but);
  */
 void button_tooltip_timer_remove(bContext *C, Button *but);
 
+/**
+ * Attempt to activate an button referencing an RNA property in the \a region.
+ * \param block_name: targets a block in the \a region, if \a block_name is not set it will test
+ * any block in the \a region.
+ * \returns `true` if the button gets activated.
+ */
 bool textbutton_activate_rna(const bContext *C,
                              ARegion *region,
                              const void *rna_poin_data,
-                             const char *rna_prop_id);
+                             const char *rna_prop_id,
+                             std::optional<StringRefNull> block_name = std::nullopt);
+
 bool textbutton_activate_but(const bContext *C, Button *actbut);
 
 /**

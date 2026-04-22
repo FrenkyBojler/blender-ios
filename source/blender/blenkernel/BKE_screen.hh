@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -509,11 +510,6 @@ enum class ARegionQuadviewIndex : uint8_t {
   TopRight = 4,
 };
 
-struct ActivateRNAPropButton {
-  const void *data;
-  std::string prop_name;
-};
-
 struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
@@ -554,11 +550,10 @@ struct ARegionRuntime {
   /** Blend in/out. */
   wmTimer *regiontimer = nullptr;
 
-  /**
-   * Activates a RNA button after region redraw, used when the RNA button was not available from
-   * the previous region state.
-   */
-  std::optional<ActivateRNAPropButton> activate_rna_prop;
+  /** For calling after building a named block. */
+  Map<std::string, Vector<std::function<void(const bContext &C)>>> post_block_layout_callbacks;
+  /** For calling after building all blocks in a region. */
+  Vector<std::function<void(const bContext &C)>> post_blocks_layout_callbacks;
 
   wmDrawBuffer *draw_buffer = nullptr;
 

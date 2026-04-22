@@ -3474,7 +3474,8 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  ED_region_activate_rna_prop(C, region_channels, ac.ads, "filter_text");
+  ED_region_activate_rna_prop(
+      C, region_channels, ac.ads, "filter_text", "ED_time_scrub_channel_search_draw");
 
   return OPERATOR_FINISHED;
 }
