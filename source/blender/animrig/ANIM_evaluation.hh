@@ -34,6 +34,7 @@ class PropIdentifier {
    * This string is typically owned by the FCurve that animates the property.
    */
   StringRefNull rna_path;
+  /** Ideally this would be cached right next to the rna-path (e.g. on the FCurve). */
   std::optional<ParsedRNAPath<>> rna_path_parsed;
   int array_index;
 

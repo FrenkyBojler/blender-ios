@@ -203,17 +203,13 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
 {
   for (const auto &channel_result : evaluation_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
-    if (!prop_ident.rna_path_parsed) {
-      continue;
-    }
-
     const AnimatedProperty &anim_prop = channel_result.value;
     const float animated_value = anim_prop.value;
     PathResolvedRNA anim_rna = anim_prop.prop_rna;
 
     BKE_animsys_write_to_rna_path(&anim_rna, animated_value);
 
-    if (flush_to_original) {
+    if (flush_to_original && prop_ident.rna_path_parsed) {
       /* Convert the StringRef to a `const char *`, as the rest of the RNA path handling code in
        * BKE still uses `char *` instead of `StringRef`. */
       animsys_write_orig_anim_rna(

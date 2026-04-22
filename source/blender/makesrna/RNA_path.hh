@@ -20,6 +20,7 @@
 #include <variant>
 
 #include "BLI_ustring.hh"
+
 #include "DNA_listBase.h"
 
 #include "RNA_types.hh"
@@ -74,6 +75,7 @@ struct RNAPath {
 };
 
 namespace rna_path {
+
 struct Member {
   UString identifier;
 
