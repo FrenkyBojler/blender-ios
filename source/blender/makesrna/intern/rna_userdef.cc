@@ -5577,20 +5577,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Paint Cursor", "Cursor used while painting.");
   RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
 
-  static const EnumPropertyItem sculpt_cursors[] = {
-      {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint", "Paint cross cursor"},
-      {WM_CURSOR_EDIT, "CROSSHAIR", 0, "Crosshair", "Crosshair cursor"},
-      {WM_CURSOR_PAINT_BRUSH, "PAINT_BRUSH", 0, "Pen", "Pen cursor"},
-      {WM_CURSOR_DOT, "DOT", 0, "Dot", "Dot cursor"},
-      {WM_CURSOR_DEFAULT, "DEFAULT", 0, "Pointer", "Pointer cursor"},
-      {0, NULL, 0, NULL, NULL},
-  };
-
-  prop = RNA_def_property(srna, "sculpt_cursor", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, sculpt_cursors);
-  RNA_def_property_ui_text(prop, "Sculpting Cursor", "Cursor used while sculpting.");
-  RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
-
   static const EnumPropertyItem precision_cursors[] = {
       {WM_CURSOR_EDIT, "EDIT", 0, "Edit", "Edit cursor"},
       {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint", "Paint cross cursor"},

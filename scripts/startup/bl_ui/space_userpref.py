@@ -307,7 +307,6 @@ class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Pane
         col.prop(view, "mouse_cursor_flip")
         col.prop(view, "precision_cursor")
         col.prop(view, "paint_cursor")
-        col.prop(view, "sculpt_cursor")
 
 
 class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):

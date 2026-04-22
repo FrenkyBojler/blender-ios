@@ -946,9 +946,8 @@ struct UserDef {
 
   char paint_cursor = 12;     //  WM_CURSOR_PAINT;
   char precision_cursor = 5;  // WM_CURSOR_EDIT;
-  char sculpt_cursor = 12;    // WM_CURSOR_PAINT;
 
-  char _pad8[2] = {};
+  char _pad8[3] = {};
 
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */

@@ -1771,9 +1771,6 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (userdef->precision_cursor == 0) {
     userdef->precision_cursor = WM_CURSOR_EDIT;
   }
-  if (userdef->sculpt_cursor == 0) {
-    userdef->sculpt_cursor = WM_CURSOR_PAINT;
-  }
 
   if (!USER_VERSION_ATLEAST(502, 13)) {
     userdef->geometry_nodes_stack_limit = 100;
