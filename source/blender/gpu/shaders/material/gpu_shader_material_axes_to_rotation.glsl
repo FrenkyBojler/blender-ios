@@ -4,17 +4,7 @@
 
 #include "gpu_shader_math_rotation_conversion_lib.glsl"
 #include "gpu_shader_math_vector_compare_lib.glsl"
-
-float3 get_orthogonal_of_non_zero_vector(float3 v)
-{
-  if (v.x != -v.y) {
-    return float3(-v.y, v.x, 0.0f);
-  }
-  if (v.x != -v.z) {
-    return float3(-v.z, 0.0f, v.x);
-  }
-  return float3(0.0f, -v.z, v.y);
-}
+#include "gpu_shader_math_vector_lib.glsl"
 
 [[node]]
 void axes_to_rotation(float3 primary_in,
@@ -35,19 +25,19 @@ void axes_to_rotation(float3 primary_in,
   if (primary_is_non_zero && secondary_is_non_zero) {
     tertiary = cross(primary, secondary);
     if (is_zero(tertiary)) {
-      tertiary = get_orthogonal_of_non_zero_vector(primary);
+      tertiary = orthogonal(primary);
     }
     tertiary = normalize(tertiary);
     secondary = cross(tertiary, primary);
   }
   else if (primary_is_non_zero) {
-    secondary = get_orthogonal_of_non_zero_vector(primary);
+    secondary = orthogonal(primary);
     secondary = normalize(secondary);
     tertiary = cross(primary, secondary);
   }
   else if (secondary_is_non_zero) {
     secondary = normalize(secondary);
-    primary = get_orthogonal_of_non_zero_vector(secondary);
+    primary = orthogonal(secondary);
     primary = normalize(primary);
     tertiary = cross(primary, secondary);
   }

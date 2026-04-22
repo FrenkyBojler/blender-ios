@@ -41,9 +41,9 @@ Quaternion quaternion_conjugate(Quaternion q)
 
 float3 transform_point_by_quaternion(Quaternion q, float3 v)
 {
-  Quaternion v_quat = {0.0f, v.x, v.y, v.z};
-  Quaternion result = math_quaternion_multiply(math_quaternion_multiply(q, v_quat),
-                                               quaternion_conjugate(q));
+  const Quaternion v_quat = {0.0f, v.x, v.y, v.z};
+  const Quaternion result = math_quaternion_multiply(math_quaternion_multiply(q, v_quat),
+                                                     quaternion_conjugate(q));
   return float3(result.y, result.z, result.w);
 }
 
