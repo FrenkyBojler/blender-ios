@@ -5,3 +5,4 @@ Referenced by issue #155963, Odd entries in the Keymap dropdown
 Referenced by issue #156381, Crash when Axes to Rotation node has equal axes input
 Referenced by issue #157333, Stroke mode set to both, with transpaerent fill, strokes draw on closed
 Referenced by issue #157340, Compositor: variable size blur difference between CPU & GPU at some specific values
+Referenced by issue #157704, Blender crashes when attempting to edit a mesh that has a Geometry Nodes modifier.
