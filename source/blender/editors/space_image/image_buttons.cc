@@ -829,9 +829,10 @@ void uiTemplateImage(ui::Layout *layout,
 
   /* Filepath */
   const bool is_packed = BKE_image_has_packedfile(ima);
-  const bool no_filepath = is_packed && !BKE_image_has_filepath(ima);
+  const bool no_filepath = !BKE_image_has_filepath(ima);
 
-  if (!ELEM(ima->source, IMA_SRC_GENERATED, IMA_SRC_TILED) && !no_filepath) {
+  if (!(ima->source == IMA_SRC_GENERATED || (ima->source == IMA_SRC_TILED && no_filepath)))
+  {
     layout->separator();
 
     ui::Layout &row = layout->row(true);
