@@ -1014,7 +1014,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
           break;
       }
 
-
       but = uiDefIconBut(block,
                          ButtonType::IconToggle,
                          icon,
