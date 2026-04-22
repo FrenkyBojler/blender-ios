@@ -5278,7 +5278,8 @@ static int do_but_TEXTBOX(bContext *C,
           ED_region_tag_redraw(data->region);
           return WM_UI_HANDLER_BREAK;
         }
-        return WM_UI_HANDLER_CONTINUE;
+        return data->state == BUTTON_STATE_HIGHLIGHT ? WM_UI_HANDLER_CONTINUE :
+                                                       WM_UI_HANDLER_BREAK;
       }
       if (!(event->val == KM_PRESS && event->type == LEFTMOUSE)) {
         break;
