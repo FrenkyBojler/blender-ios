@@ -710,7 +710,7 @@ enum AttributeElement {
                                          ATTR_ELEMENT_IS_MOTION,
 };
 
-enum AttributeStandard {
+enum AttributeStandard : int {
   ATTR_STD_NONE = 0,
   ATTR_STD_VERTEX_NORMAL,
   ATTR_STD_CORNER_NORMAL,
@@ -749,7 +749,7 @@ enum AttributeStandard {
   ATTR_STD_SHADOW_TRANSPARENCY,
   ATTR_STD_NUM,
 
-  ATTR_STD_NOT_FOUND = ~0
+  ATTR_STD_NOT_FOUND = -0x7fffffff
 };
 
 enum AttributeFlag {
