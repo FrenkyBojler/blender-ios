@@ -309,11 +309,10 @@ static Bounds<int> motionpath_calculate_update_range(MPathTarget *mpt,
                                                      const Span<FCurve *> fcurves,
                                                      const int current_frame)
 {
-  Bounds<int> frame_range = {INT_MAX, INT_MIN};
   /* If the current frame is outside of the configured motion path range we ignore update of this
    * motion path by using invalid frame range where start frame is above the end frame. */
   if (current_frame < mpt->mpath->start_frame || current_frame > mpt->mpath->end_frame) {
-    return;
+    return {INT_MAX, INT_MIN};
   }
 
   /* Similar to the case when there is only a single keyframe: need to update en entire range to
@@ -322,6 +321,7 @@ static Bounds<int> motionpath_calculate_update_range(MPathTarget *mpt,
     return {mpt->mpath->start_frame, mpt->mpath->end_frame};
   }
 
+  Bounds<int> frame_range = {INT_MAX, INT_MIN};
   /* NOTE: Iterate over individual f-curves, and check their keyframes individually and pick a
    * widest range from them. This is because it's possible to have more narrow keyframe on a
    * channel which wasn't edited.
