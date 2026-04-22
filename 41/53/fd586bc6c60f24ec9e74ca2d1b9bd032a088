@@ -2,3 +2,4 @@ Referenced by issue #152876, Model with formerly custom normals causes Blender t
 Referenced by issue #156177, Regression, Modeling: When edge loop terminates in a triangle, the yellow line can loop to the start sometimes
 Referenced by issue #156361, Crash on load svg to grease pencil
 Referenced by issue #156525, VSE: Strip isolated preview is missing in 5.1
+Referenced by issue #157694, "Import SVG as Grease Pencil" not working correctly in 5.1 (file that worked in 5.0)
