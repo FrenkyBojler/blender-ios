@@ -880,10 +880,8 @@ int RenderScheduler::get_num_samples_to_path_trace() const
   /* Always start full resolution render  with a single sample. Gives more instant feedback to
    * artists, and allows to gather information for a subsequent path tracing works. Do it in the
    * headless mode as well, to give some estimate of how long samples are taking. */
-  if (state_.num_rendered_samples == 0) {
-    if (!(denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS)) {
-      return 1;
-    }
+  if (state_.num_rendered_samples == 0 && state_.last_display_update_sample == -1) {
+    return 1;
   }
 
   const int num_samples_per_update = calculate_num_samples_per_update();
@@ -970,7 +968,9 @@ int RenderScheduler::get_num_samples_to_path_trace() const
                                 min(num_samples_to_occupy, max_num_samples_to_render));
   }
 
-  if (limit_samples_per_update_) {
+  if (limit_samples_per_update_ &&
+      !(denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS))
+  {
     num_samples_to_render = min(limit_samples_per_update_, num_samples_to_render);
   }
 
@@ -1056,7 +1056,7 @@ bool RenderScheduler::work_need_denoise(bool &delayed, bool &ready_to_display)
 
   /* Viewport render. */
 
-  if (denoiser_params_.use && denoiser_params_.type == DENOISER_DLSS) {
+  if (denoiser_params_.type == DENOISER_DLSS) {
     return true;
   }
 
@@ -1068,7 +1068,7 @@ bool RenderScheduler::work_need_denoise(bool &delayed, bool &ready_to_display)
 
   /* Immediately denoise when we reach the start sample or last sample. */
   if (num_samples_finished == denoiser_params_.start_sample ||
-      num_samples_finished == get_num_samples())
+      num_samples_finished == num_samples_)
   {
     return true;
   }
@@ -1239,10 +1239,6 @@ bool RenderScheduler::is_denoise_active_during_update() const
 {
   if (!denoiser_params_.use) {
     return false;
-  }
-
-  if (denoiser_params_.type == DENOISER_DLSS) {
-    return true;
   }
 
   if (denoiser_params_.start_sample > 1) {
