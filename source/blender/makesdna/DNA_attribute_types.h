@@ -36,6 +36,7 @@ enum class AttrType : int16_t {
   ColorFloat = 10,
   Quaternion = 11,
   String = 12,
+  Float4 = 13,
 };
 
 using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;
