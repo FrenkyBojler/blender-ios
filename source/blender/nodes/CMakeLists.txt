@@ -83,7 +83,6 @@ set(SRC
   intern/geometry_nodes_gizmos.cc
   intern/geometry_nodes_lazy_function.cc
   intern/geometry_nodes_list.cc
-  intern/geometry_nodes_log.cc
   intern/geometry_nodes_repeat_zone.cc
   intern/geometry_nodes_srna.cc
   intern/geometry_nodes_warning.cc
@@ -95,6 +94,7 @@ set(SRC
   intern/node_declaration.cc
   intern/node_exec.cc
   intern/node_geometry_exec.cc
+  intern/node_log.cc
   intern/node_multi_function.cc
   intern/node_register.cc
   intern/node_rna_define.cc
@@ -136,7 +136,6 @@ set(SRC
   NOD_geometry_nodes_lazy_function.hh
   NOD_geometry_nodes_list.hh
   NOD_geometry_nodes_list_fwd.hh
-  NOD_geometry_nodes_log.hh
   NOD_geometry_nodes_srna.hh
   NOD_geometry_nodes_values.hh
   NOD_geometry_nodes_warning.hh
@@ -150,6 +149,7 @@ set(SRC
   NOD_node_declaration.hh
   NOD_node_extra_info.hh
   NOD_node_in_compute_context.hh
+  NOD_nodes_log.hh
   NOD_nodes_srna.hh
   NOD_partial_eval.hh
   NOD_register.hh
