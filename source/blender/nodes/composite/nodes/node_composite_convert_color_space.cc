@@ -105,6 +105,8 @@ class ConvertColorSpaceOperation : public NodeOperation {
       return;
     }
 
+    GPU_shader_uniform_1b(shader, "premultiply_output", false);
+
     input_image.bind_as_texture(shader, ocio_shader.input_sampler_name());
 
     const Domain domain = compute_domain();
@@ -186,7 +188,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeConvertColorSpace", CMP_NODE_CONVERT_COLOR_SPACE);
+  cmp_node_type_base(&ntype, "CompositorNodeConvertColorSpace"_ustr, CMP_NODE_CONVERT_COLOR_SPACE);
   ntype.ui_name = "Convert Colorspace";
   ntype.ui_description = "Convert between color spaces";
   ntype.enum_name_legacy = "CONVERT_COLORSPACE";

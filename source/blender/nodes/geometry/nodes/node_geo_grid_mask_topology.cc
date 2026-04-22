@@ -104,7 +104,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGridMaskTopology");
+  geo_node_type_base(&ntype, "GeometryNodeGridMaskTopology"_ustr);
   ntype.ui_name = "Grid Mask Topology";
   ntype.ui_description = "Deactivate voxels of a boolean grid based on value";
   ntype.nclass = NODE_CLASS_GEOMETRY;

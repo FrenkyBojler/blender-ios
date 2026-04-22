@@ -151,7 +151,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.other_socket());
     if (moment_type) {
       params.add_item(IFACE_("Grid"), [moment_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridMoment");
+        bNode &node = params.add_node("GeometryNodeSampleGridMoment"_ustr);
         node.custom1 = int(*moment_type);
         params.update_and_connect_available_socket(node, "Grid"_ustr);
       });
@@ -159,7 +159,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
       params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridMoment");
+        bNode &node = params.add_node("GeometryNodeSampleGridMoment"_ustr);
         params.update_and_connect_available_socket(node, "Position"_ustr);
       });
     }
@@ -169,7 +169,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
             params.other_socket()))
     {
       params.add_item(IFACE_("Moment"), [moment_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridMoment");
+        bNode &node = params.add_node("GeometryNodeSampleGridMoment"_ustr);
         node.custom1 = int(*moment_type);
         params.update_and_connect_available_socket(node, "Moment"_ustr);
       });
@@ -350,7 +350,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleGridMoment");
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridMoment"_ustr);
   ntype.ui_name = "Sample Grid Moment";
   ntype.ui_description =
       "Retrieve the first or second moment of values from the specified volume grid";

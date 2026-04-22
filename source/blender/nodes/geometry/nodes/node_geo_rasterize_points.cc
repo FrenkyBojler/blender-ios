@@ -356,7 +356,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeRasterizePoints", GEO_NODE_RASTERIZE_POINTS);
+  geo_node_type_base(&ntype, "GeometryNodeRasterizePoints"_ustr, GEO_NODE_RASTERIZE_POINTS);
   ntype.ui_name = "Rasterize Points";
   ntype.ui_description = "Create volume grids from points with a weighted sum";
   ntype.nclass = NODE_CLASS_GEOMETRY;

@@ -114,7 +114,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   if (params.in_out() == SOCK_IN) {
     if (gradient_type_from_data_type(*node_type)) {
       params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
+        bNode &node = params.add_node("GeometryNodeSampleGridGradient"_ustr);
         node.custom1 = *node_type;
         params.update_and_connect_available_socket(node, "Grid"_ustr);
       });
@@ -122,7 +122,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
       params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
+        bNode &node = params.add_node("GeometryNodeSampleGridGradient"_ustr);
         params.update_and_connect_available_socket(node, "Position"_ustr);
       });
     }
@@ -132,7 +132,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
             *node_type))
     {
       params.add_item(IFACE_("Gradient"), [data_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
+        bNode &node = params.add_node("GeometryNodeSampleGridGradient"_ustr);
         node.custom1 = *data_type;
         params.update_and_connect_available_socket(node, "Gradient"_ustr);
       });
@@ -316,7 +316,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleGridGradient");
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridGradient"_ustr);
   ntype.ui_name = "Sample Grid Gradient";
   ntype.ui_description = "Retrieve the gradient of values from the specified volume grid";
   ntype.nclass = NODE_CLASS_GEOMETRY;

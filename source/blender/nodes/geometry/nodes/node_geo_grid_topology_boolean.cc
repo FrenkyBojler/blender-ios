@@ -210,7 +210,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGridTopologyBoolean");
+  geo_node_type_base(&ntype, "GeometryNodeGridTopologyBoolean"_ustr);
   ntype.ui_name = "Grid Topology Boolean";
   ntype.ui_description = "Combine the topology of multiple grids";
   ntype.nclass = NODE_CLASS_GEOMETRY;
