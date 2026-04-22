@@ -81,8 +81,7 @@ void ED_region_tag_refresh_ui(ARegion *region);
 /**
  * Attempt to activate an button referencing an RNA property in the \a region, it may redraw the
  * region so it can try one more time.
- * \param block_name: targets a block in the \a region, if \a block_name is not set it will test
- * any block in the \a region.
+ * \param block_name: name of the block to lookup the text button in.
  */
 void ED_region_activate_rna_prop(bContext *C,
                                  ARegion *region,
