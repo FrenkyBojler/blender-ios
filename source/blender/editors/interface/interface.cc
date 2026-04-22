@@ -1828,7 +1828,7 @@ PointerRNA *button_extra_operator_icon_opptr_get(const ButtonExtraOpIcon *extra_
   return extra_icon->optype_params->opptr;
 }
 
-static bool but_icon_extra_is_visible_text_clear(Button *but)
+static bool but_icon_extra_is_visible_text_clear(const Button *but)
 {
   BLI_assert(but->type == ButtonType::Text);
   return ((but->flag & BUT_VALUE_CLEAR) && but->drawstr[0]);
