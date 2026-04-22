@@ -150,9 +150,12 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
 
   constexpr uint tile_size = RAYTRACE_GROUP_SIZE;
   int2 texel_fullres = int2(local_id.xy + tile_coord * tile_size);
-  int2 texel = (texel_fullres + srt.raytrace_resolution_scale / 2 -
-                uniform_buf.raytrace.resolution_bias) /
-               srt.raytrace_resolution_scale;
+
+  /* Tracing resolution texel. */
+  int2 texel_shifted = max(int2(0), texel_fullres - uniform_buf.raytrace.resolution_bias);
+  int2 texel_nearest = texel_shifted / srt.raytrace_resolution_scale;
+  int2 texel_bilinear = texel_shifted % srt.raytrace_resolution_scale;
+  float2 bilinear_co = float2(texel_bilinear) / float(srt.raytrace_resolution_scale);
 
   if (srt.skip_denoise) {
     if (srt.raytrace_resolution_scale == 1) {
@@ -168,10 +171,6 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     float3 center_N = gbuffer::read_bin(texel_fullres, srt.closure_index).N;
     float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
 
-    int2 texel_shifted = max(int2(0), texel_fullres - uniform_buf.raytrace.resolution_bias);
-    int2 texel_nearest = texel_shifted / srt.raytrace_resolution_scale;
-    int2 texel_bilinear = texel_shifted % srt.raytrace_resolution_scale;
-    float2 bilinear_co = float2(texel_bilinear) / float(srt.raytrace_resolution_scale);
     float4 bilinear_weights = bilinear_weights_from_subpixel_coord(bilinear_co);
 
     float4 bilateral_weights = float4(
@@ -245,7 +244,22 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     return;
   }
 
-  float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
+  float2 noise = utility_tx_fetch(utility_tx, float2(texel_fullres), UTIL_BLUE_NOISE_LAYER).ba;
+  noise = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
+
+  int2 center_sample_texel = texel_nearest;
+  if (srt.raytrace_resolution_scale != 1) {
+    /* Jitter sample position to recover bilinear interpolation. */
+    center_sample_texel += int2(greaterThan(bilinear_co, noise));
+  }
+  /* Denoise using the tracing pixel context (view vector and position) instead of the full
+   * resolution pixel. This allows to have perfect weighting for the center sample of the denoising
+   * kernel. If the center sample is always valid (yielding a nearest interpolation upsampling for
+   * mirror reflection), we can then use the above jittering to recover the bilinear filtering at
+   * lower tracing resolution. */
+  float2 uv = (float2(center_sample_texel) + 0.5f) * uniform_buf.raytrace.full_resolution_inv *
+              float(srt.raytrace_resolution_scale);
+
   float depth = reverse_z::read(texelFetch(srt.depth_tx, texel_fullres, 0).r);
   float3 vs_P = drw_point_screen_to_view(float3(uv, depth));
   float scene_z = vs_P.z;
@@ -272,9 +286,6 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     min_filter_radius = 1.5f;
     sample_count = max(sample_count, 5u);
   }
-
-  float2 noise = utility_tx_fetch(utility_tx, float2(texel_fullres), UTIL_BLUE_NOISE_LAYER).ba;
-  noise += sampling_rng_1D_get(SAMPLING_CLOSURE);
 
   float3 rgb_moment = float3(0.0f);
   float3 radiance_accum = float3(0.0f);
@@ -321,7 +332,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     float2 offset_f = filter_rotation * sample_disk(Xi);
     int2 offset = int2(floor(offset_f + 0.5f));
 
-    int2 sample_texel = texel + offset;
+    int2 sample_texel = center_sample_texel + offset;
 
     float4 ray_data = imageLoad(srt.ray_data_img, sample_texel);
     float ray_time = imageLoad(srt.ray_time_img, sample_texel).r;
