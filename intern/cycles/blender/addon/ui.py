@@ -286,7 +286,7 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
 
         if effective_preview_denoiser == 'DLSS':
             if has_dlss_gpu_devices(context):
-                col.prop(cscene, "preview_denoising_dlss_quality", text="Mode")
+                col.prop(cscene, "preview_denoising_upscale_quality", text="Upscale Mode")
             else:
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % "7.5",
                           icon='INFO', translate=False)

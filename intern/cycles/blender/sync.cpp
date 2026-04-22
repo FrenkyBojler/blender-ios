@@ -1178,7 +1178,7 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
       denoising.start_sample = 0;
 
       switch ((DenoiserDLSSQuality)get_enum(cscene,
-                                            "preview_denoising_dlss_quality",
+                                            "preview_denoising_upscale_quality",
                                             DENOISER_DLSS_MODE_NUM,
                                             DENOISER_DLSS_MODE_BALANCED))
       {

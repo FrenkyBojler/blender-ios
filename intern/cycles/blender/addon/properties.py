@@ -340,9 +340,9 @@ enum_denoising_quality = (
      "High performance",
      3),
 )
-enum_denoising_dlss_quality = (
-    ('DLAA',
-     "DLAA",
+enum_denoising_upscale_quality = (
+    ('NONE',
+     "None",
      "Highest quality without upscaling",
      0),
     ('QUALITY',
@@ -499,10 +499,10 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
         default=True,
     )
-    preview_denoising_dlss_quality: EnumProperty(
-        name="DLSS Mode",
+    preview_denoising_upscale_quality: EnumProperty(
+        name="Viewport Denoising Upscale Quality",
         description="Overall quality when using DLSS",
-        items=enum_denoising_dlss_quality,
+        items=enum_denoising_upscale_quality,
         default='QUALITY',
     )
 
