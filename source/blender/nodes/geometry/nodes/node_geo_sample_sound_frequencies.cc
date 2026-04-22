@@ -339,7 +339,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeSampleSoundFrequencies");
+  geo_node_type_base(&ntype, "GeometryNodeSampleSoundFrequencies"_ustr);
   ntype.ui_name = "Sample Sound Frequencies";
   ntype.ui_description =
       "Retrieve the amplitude from a sound data-block of a frequency range at a given time";
