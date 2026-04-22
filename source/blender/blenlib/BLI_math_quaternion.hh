@@ -305,13 +305,8 @@ template<typename T>
                                                    const QuaternionBase<T> &b,
                                                    T t)
 {
-  using Vec4T = VecBase<T, 4>;
   BLI_assert(is_unit_scale(a));
   BLI_assert(is_unit_scale(b));
-  if (IN_RANGE(t, 0.0, 1.0)) {
-    VecBase<T, 2> w = interpolate_dot_slerp(t, dot(a, b));
-    return QuaternionBase<T>(w[0] * Vec4T(a) + w[1] * Vec4T(b));
-  }
 
   /* Quaternion slerp for arbitrary interpolation factors. */
   return a * math::pow(math::invert_normalized(a) * b, t);
