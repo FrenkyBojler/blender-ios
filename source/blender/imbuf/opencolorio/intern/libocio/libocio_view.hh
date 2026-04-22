@@ -8,6 +8,7 @@
 
 #include "BLI_string_ref.hh"
 
+#include "OCIO_scope.hh"
 #include "OCIO_view.hh"
 
 #include "libocio_colorspace.hh"
