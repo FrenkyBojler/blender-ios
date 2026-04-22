@@ -87,10 +87,10 @@ enum eUserPref_PrefFlag {
 /** #UserDef.Mouse_cursor_size */
 enum eUserpref_Mouse_Cursor_Size {
   USER_CURSOR_SIZE_DEFAULT = 0, /* Single default size. */
-  USER_CURSOR_SIZE_AUTO,        /* Increase with UI Scale. */
+  USER_CURSOR_SIZE_SCALE,       /* Increase with UI Scale. */
   USER_CURSOR_SIZE_1_5,         /* 1.5X size. */
-  USER_CURSOR_SIZE_2_0,         /* 2X size. */
-  USER_CURSOR_SIZE_3_0,         /* 3X size. */
+  USER_CURSOR_SIZE_2_0,         /* 2.0X size. */
+  USER_CURSOR_SIZE_3_0,         /* 3.0X size. */
 };
 
 /* Helper macro for checking frame clamping */

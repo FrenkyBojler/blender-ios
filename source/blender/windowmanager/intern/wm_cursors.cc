@@ -172,22 +172,20 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(wmCursorType curs)
  */
 static int wm_cursor_size(const wmWindow *win)
 {
-  /* Keep for testing. */
-  if (U.mouse_cursor_size == USER_CURSOR_SIZE_AUTO) {
-    /* Scaling with UI scale can be useful for magnified captures. */
-    return std::lround(21.0f * UI_SCALE_FAC);
+  if (U.mouse_cursor_size == USER_CURSOR_SIZE_SCALE) {
+    return std::lround(21.0f * U.ui_scale);
   }
 
   if (OS_MAC) {
     /* MacOS always scales up this type of cursor for high-dpi displays. */
     if (U.mouse_cursor_size == USER_CURSOR_SIZE_1_5) {
-      return 32;
+      return std::lround(21.0f * 1.5f);
     }
     else if (U.mouse_cursor_size == USER_CURSOR_SIZE_2_0) {
-      return 42;
+      return std::lround(21.0f * 2.0f);
     }
     else if (U.mouse_cursor_size == USER_CURSOR_SIZE_3_0) {
-      return 63;
+      return std::lround(21.0f * 3.0f);
     }
     return 21;
   }
@@ -440,7 +438,7 @@ void WM_cursor_set(wmWindow *win, int curs, bool force)
 {
   /* Option to not use any OS-supplied cursors is needed for testing. */
   const bool use_only_custom_cursors = !(U.mouse_cursor_size == USER_CURSOR_SIZE_DEFAULT ||
-                                         (U.mouse_cursor_size == USER_CURSOR_SIZE_AUTO &&
+                                         (U.mouse_cursor_size == USER_CURSOR_SIZE_SCALE &&
                                           UI_SCALE_FAC == 1.0f)) ||
                                        (U.uiflag2 & USER_CURSOR_FLIP);
 
