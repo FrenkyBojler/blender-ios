@@ -157,14 +157,14 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
   Map<Hash128, mf::Variable *> variable_by_field;
-  Map<std::reference_wrapper<const FieldInput>, mf::Variable *> variable_by_field_input;
 
   /* Start by adding the field inputs as parameters to the procedure. */
   for (const GFieldRef &input_field : field_tree_info.deduplicated_field_inputs) {
+    const Hash128 input_hash = field_tree_info.deep_hashes.lookup(input_field);
     const FieldInput &field_input = *std::get<GFieldRef::Input>(input_field.variant()).node;
     mf::Variable &variable = builder.add_input_parameter(
         mf::DataType::ForSingle(field_input.cpp_type()), field_input.debug_name());
-    variable_by_field_input.add_new(field_input, &variable);
+    variable_by_field.add_new(input_hash, &variable);
   }
 
   /* Utility struct that is used to do proper depth first search traversal of the tree below. */
@@ -191,9 +191,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
       std::visit(
           [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-              /* Field inputs should already be handled above. */
-              mf::Variable *variable = variable_by_field_input.lookup(*v.node);
-              variable_by_field.add_new(field_hash, variable);
+              /* Variables for inputs are added above. */
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
               const FieldOperation &field_multi_fn = *v.node;
