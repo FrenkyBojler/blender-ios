@@ -19,6 +19,9 @@ namespace nodes::node_shader_bsdf_principled_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  const bNodeTree *ntree = b.tree_or_null();
+  const bool is_gpu_internal = ntree && (ntree->flag & NTREE_IS_GPU_SHADER_INTERNAL);
+
   /**
    * Define static socket numbers to avoid string based lookups for GPU material creation as these
    * could run on animated materials.
@@ -71,7 +74,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_ALPHA_ID 4
   b.add_input<decl::Vector>("Normal"_ustr).hide_value();
 #define SOCK_NORMAL_ID 5
-  b.add_input<decl::Float>("Weight"_ustr).available(false);
+  b.add_input<decl::Float>("Weight"_ustr).available(is_gpu_internal);
 #define SOCK_WEIGHT_ID 6
 
   /* Panel for Diffuse settings. */
@@ -127,15 +130,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_SUBSURFACE_IOR_ID 11
   sss.add_input<decl::Float>("Subsurface Anisotropy"_ustr)
       .default_value(0.0f)
-      .min(0.0f)
+      .min(-1.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .short_label("Anisotropy")
       .description(
           "Directionality of volume scattering within the subsurface medium. "
-          "Zero scatters uniformly in all directions, with higher values "
-          "scattering more strongly forward. For example, skin has been measured "
-          "to have an anisotropy of 0.8")
+          "Zero scatters uniformly in all directions, positive values scatter more in the forward "
+          "direction, and negative values scatter more backwards. "
+          "For example, skin has been measured to have an anisotropy of 0.8")
       .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK; });
 #define SOCK_SUBSURFACE_ANISOTROPY_ID 12
 
@@ -168,6 +171,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
+      .short_label("Anisotropy")
       .description(
           "Amount of anisotropy for specular reflection. "
           "Higher values give elongated highlights along the tangent direction");
@@ -377,7 +381,11 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
     flag |= GPU_MATFLAG_REFRACTION_MAYBE_COLORED;
   }
   if (use_coat && in[SOCK_COAT_TINT_ID].might_be_tinted()) {
+    /* Coat tints lower layers. */
     flag |= GPU_MATFLAG_REFLECTION_MAYBE_COLORED;
+    if (use_refract) {
+      flag |= GPU_MATFLAG_REFRACTION_MAYBE_COLORED;
+    }
   }
 
   GPU_material_flag_set(mat, flag);
@@ -743,7 +751,7 @@ void register_node_type_sh_bsdf_principled()
 
   static bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeBsdfPrincipled", SH_NODE_BSDF_PRINCIPLED);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfPrincipled"_ustr, SH_NODE_BSDF_PRINCIPLED);
   ntype.ui_name = "Principled BSDF";
   ntype.ui_description =
       "Physically-based, easy-to-use shader for rendering surface materials, based on the OpenPBR "
