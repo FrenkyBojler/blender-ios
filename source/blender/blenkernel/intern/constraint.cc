@@ -5569,7 +5569,7 @@ static void value_attribute_to_matrix(float r_matrix[4][4],
       copy_v3_v3(r_matrix[3], *value.get<float3>());
       return;
     case CON_ATTRIBUTE_QUATERNION:
-      quat_to_mat4(r_matrix, *value.get<float4>());
+      quat_to_mat4(r_matrix, float4(*value.get<math::Quaternion>()));
       return;
     case CON_ATTRIBUTE_4X4MATRIX:
       copy_m4_m4(r_matrix, value.get<float4x4>()->ptr());
