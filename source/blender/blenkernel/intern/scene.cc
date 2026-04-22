@@ -1063,7 +1063,7 @@ static void scene_blend_write_compositor_forward_compat(Scene &scene,
   bNodeSocket *composite_input = nullptr;
   bke::bNodeType ntype;
   for (bNode &node : temp_nodetree_copy->nodes.items_mutable()) {
-    if (node.is_type("NodeGroupOutput") && (node.flag & NODE_DO_OUTPUT)) {
+    if (node.is_type("NodeGroupOutput"_ustr) && (node.flag & NODE_DO_OUTPUT)) {
       composite_node = &version_node_add_unknown(*temp_nodetree_copy,
                                                  ntype,
                                                  "CompositorNodeComposite",
@@ -1407,8 +1407,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
                                     sce->toolsettings->sculpt->automasking_cavity_curve_op);
         BKE_curvemapping_init(sce->toolsettings->sculpt->automasking_cavity_curve_op);
       }
-
-      BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
     }
 
     /* Relink grease pencil interpolation curves. */
@@ -1650,6 +1648,22 @@ IDTypeInfo IDType_ID_SCE = {
 double Scene::frames_per_second() const
 {
   return double(this->r.frs_sec) / double(this->r.frs_sec_base);
+}
+
+int Scene::playback_start() const
+{
+  if (this->r.flag & SCER_PRV_RANGE) {
+    return this->r.psfra;
+  }
+  return this->r.sfra;
+}
+
+int Scene::playback_end() const
+{
+  if (this->r.flag & SCER_PRV_RANGE) {
+    return this->r.pefra;
+  }
+  return this->r.efra;
 }
 
 /** \} */
@@ -2517,7 +2531,7 @@ void BKE_scene_frame_set(Scene *scene, float frame)
   scene->r.cfra = int(intpart);
 }
 
-int2 BKE_scene_get_playback_range(const Scene *scene)
+ScenePlaybackRange BKE_scene_get_playback_range(const Scene *scene)
 {
   if (scene->r.flag & SCER_PRV_RANGE) {
     return {scene->r.psfra, scene->r.pefra};
@@ -2527,21 +2541,21 @@ int2 BKE_scene_get_playback_range(const Scene *scene)
 
 void BKE_scene_frame_clamp_for_playback(Scene *scene, const bool is_playing_forward)
 {
-  const int2 range = BKE_scene_get_playback_range(scene);
+  const ScenePlaybackRange range = BKE_scene_get_playback_range(scene);
   /* To avoid a flicker to the last frame, reset the current frame to the start of the playback
    * range relative to the playback direction. */
   if (is_playing_forward) {
-    if (scene->r.cfra > range[1]) {
-      scene->r.cfra = range[0];
+    if (scene->r.cfra > range.end_frame) {
+      scene->r.cfra = range.start_frame;
     }
   }
   else {
-    if (scene->r.cfra < range[0]) {
-      scene->r.cfra = range[1];
+    if (scene->r.cfra < range.start_frame) {
+      scene->r.cfra = range.end_frame;
     }
   }
   if (!(scene->r.flag & SCER_ALLOW_PREROLL)) {
-    scene->r.cfra = clamp_i(scene->r.cfra, range[0], range[1]);
+    scene->r.cfra = clamp_i(scene->r.cfra, range.start_frame, range.end_frame);
   }
 }
 
@@ -2713,6 +2727,8 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
   if (run_callbacks) {
     BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_DEPSGRAPH_UPDATE_PRE);
   }
+
+  BKE_scene_view_layers_synced_ensure(*bmain, scene);
 
   for (int pass = 0; pass < 2; pass++) {
     /* (Re-)build dependency graph if needed. */
