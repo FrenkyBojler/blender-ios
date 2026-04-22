@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Direction"_ustr).hide_value();
   b.add_input<decl::Float>("Length"_ustr).default_value(1.0);
 
-  auto &panel = b.add_panel("Attribute"_ustr).default_closed(true);
+  auto &panel = b.add_panel("Attributes"_ustr).default_closed(true);
   if (node != nullptr) {
     const NodeShaderRaycast &storage = node_storage(*node);
     for (const NodeRaycastSampleAttributeItem &item :
