@@ -266,8 +266,8 @@ static void draw_current_frame(const Scene *scene,
 
   if (clamp_frame_text) {
     region_x = math::clamp(region_x,
-                            scrub_region_rect->xmin + dimensions.text_width / 2.0f,
-                            scrub_region_rect->xmax - dimensions.text_width / 2.0f);
+                           scrub_region_rect->xmin + dimensions.text_width / 2.0f,
+                           scrub_region_rect->xmax - dimensions.text_width / 2.0f);
   }
 
   float fg_color[4];
@@ -306,7 +306,8 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
     draw_playhead_ghost(ctime, scene, v2d, &scrub_region_rect, display_seconds, display_stalk);
   }
 
-  draw_current_frame(scene, display_seconds, v2d, &scrub_region_rect, display_stalk, clamp_frame_text);
+  draw_current_frame(
+      scene, display_seconds, v2d, &scrub_region_rect, display_stalk, clamp_frame_text);
   GPU_matrix_pop_projection();
 }
 
