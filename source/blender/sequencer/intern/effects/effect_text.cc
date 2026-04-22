@@ -981,13 +981,13 @@ static float2 anchor_offset_get(const TextVars *data, int width_max, int text_he
   }
   switch (data->anchor_y) {
     case SEQ_TEXT_ANCHOR_Y_TOP:
-      anchor_offset.y = data->line_height;
+      anchor_offset.y = 0;
       break;
     case SEQ_TEXT_ANCHOR_Y_CENTER:
       anchor_offset.y = (text_height + data->line_height) / 2.0f;
       break;
     case SEQ_TEXT_ANCHOR_Y_BOTTOM:
-      anchor_offset.y = text_height;
+      anchor_offset.y = text_height+data->line_height;
       break;
   }
 
