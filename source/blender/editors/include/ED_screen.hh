@@ -88,7 +88,7 @@ void ED_region_activate_rna_prop(bContext *C,
                                  ARegion *region,
                                  const void *data,
                                  StringRefNull prop_name,
-                                 std::optional<std::string> block_name = std::nullopt);
+                                 std::string block_name);
 /**
  * Tag editor overlays to be redrawn. If in doubt about which parts need to be redrawn (partial
  * clipping rectangle set), redraw everything.

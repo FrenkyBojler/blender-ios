@@ -640,31 +640,21 @@ void ED_region_activate_rna_prop(bContext *C,
                                  ARegion *region,
                                  const void *data,
                                  StringRefNull prop_name,
-                                 std::optional<std::string> block_name)
+                                 std::string block_name)
 {
   /* Try first to open the button, otherwise try after region redraw. */
   if (!(region->runtime->do_draw & (RGN_DRAW | RGN_DRAWING)) &&
-          ui::textbutton_activate_rna(C, region, data, prop_name.data()),
-      block_name)
+      ui::textbutton_activate_rna(C, region, data, prop_name.data(), block_name))
   {
     return;
   }
-  if (block_name) {
-    region->runtime->post_block_layout_callbacks
-        .lookup_or_add_cb_as(*block_name,
-                             []() { return Vector<std::function<void(const bContext &C)>>{}; })
-        .append([data, prop_name = std::string(prop_name), block_name](const bContext &C) {
-          ARegion *region = CTX_wm_region(&C);
-          ui::textbutton_activate_rna(&C, region, data, prop_name.c_str(), block_name);
-        });
-  }
-  else {
-    region->runtime->post_blocks_layout_callbacks.append(
-        [data, prop_name = std::string(prop_name)](const bContext &C) {
-          ARegion *region = CTX_wm_region(&C);
-          ui::textbutton_activate_rna(&C, region, data, prop_name.c_str());
-        });
-  }
+  region->runtime->post_block_layout_callbacks
+      .lookup_or_add_cb_as(block_name,
+                           []() { return Vector<std::function<void(const bContext &C)>>{}; })
+      .append([data, prop_name = std::string(prop_name), block_name](const bContext &C) {
+        ARegion *region = CTX_wm_region(&C);
+        ui::textbutton_activate_rna(&C, region, data, prop_name.c_str(), block_name);
+      });
 
   if (region->flag & RGN_FLAG_HIDDEN) {
     ED_region_toggle_hidden(const_cast<bContext *>(C), region);
@@ -3518,12 +3508,6 @@ void ED_region_panels_layout_ex(const bContext *C,
   if (use_categories) {
     region->runtime->category = category;
   }
-  for (std::function<void(const bContext &C)> &callback :
-       region->runtime->post_blocks_layout_callbacks)
-  {
-    callback(*C);
-  }
-  region->runtime->post_blocks_layout_callbacks.clear();
 }
 
 void ED_region_draw_overflow_indication(const ScrArea *area,
@@ -3967,12 +3951,6 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     break;
   }
 
-  for (std::function<void(const bContext &C)> &callback :
-       region->runtime->post_blocks_layout_callbacks)
-  {
-    callback(*C);
-  }
-  region->runtime->post_blocks_layout_callbacks.clear();
   if (!region_layout_based) {
     maxco += offset;
   }

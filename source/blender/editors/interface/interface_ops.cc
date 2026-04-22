@@ -2511,8 +2511,8 @@ static wmOperatorStatus uilist_start_filter_invoke(bContext *C,
   if (uilist_unhide_filter_options(list)) {
     ED_region_tag_redraw(region);
   }
-
-  ED_region_activate_rna_prop(C, region, list, "filter_name");
+  ui::Button *but = listbox_find_mouse_over(region, event);
+  ED_region_activate_rna_prop(C, region, list, "filter_name", but->block->name);
 
   return OPERATOR_FINISHED;
 }
