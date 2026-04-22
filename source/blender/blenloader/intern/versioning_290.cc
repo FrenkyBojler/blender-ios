@@ -1378,7 +1378,8 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
         for (SpaceLink &sl : area.spacedata) {
           switch (sl.spacetype) {
             case SPACE_IMAGE: {
-              break;
+              SpaceImage *sima = reinterpret_cast<SpaceImage *>(&sl);
+              sima->flag &= ~SI_SHOW_BEVEL_WEIGHT;
             }
           }
         }
