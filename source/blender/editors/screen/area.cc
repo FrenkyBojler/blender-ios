@@ -108,6 +108,12 @@ void ED_region_do_listen(wmRegionListenerParams *params)
     case NC_WINDOW:
       ED_region_tag_redraw(region);
       break;
+    case NC_UI:
+      if (notifier->data == ND_UI_FONT) {
+        ui::invalidate_text_wrap_cache(*region);
+        ED_region_tag_redraw(region);
+      }
+      break;
   }
 
   if (region->runtime->type && region->runtime->type->listener) {
@@ -3272,7 +3278,7 @@ static const char *region_panels_collect_categories(ARegion *region,
     PanelType *pt = static_cast<PanelType *>(pt_link->link);
     if (pt->category[0]) {
       if (!ui::panel_category_find(region, pt->category)) {
-        ui::panel_category_add(region, pt->category);
+        ui::panel_category_add(region, pt->category, pt->icon);
       }
     }
   }
