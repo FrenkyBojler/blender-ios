@@ -307,6 +307,7 @@ struct Panel {
 struct PanelCategoryDyn {
   struct PanelCategoryDyn *next = nullptr, *prev = nullptr;
   char idname[64] = "";
+  int icon = 0;
   rcti rect = {};
 };
 
@@ -443,6 +444,7 @@ struct uiList { /* some list UI data need to be saved in file */
 
 enum uiViewStateFlag {
   UI_VIEW_SHOW_FILTER_OPTIONS = (1 << 0),
+  UI_VIEW_SORT_ALPHA = (1 << 1),
 };
 
 /** See #uiViewStateLink. */
@@ -459,8 +461,8 @@ struct uiViewState {
    */
   int scroll_offset = 0;
   uint16_t flag = 0; /* #uiViewStateFlag */
-  char _pad[6] = {};
-
+  char _pad[5] = {};
+  uint8_t invert_sort_type = 0;
   char search_string[/*UI_MAX_NAME_STR*/ 256] = "";
 };
 
@@ -503,6 +505,27 @@ struct uiPreview {
 
   /** #ID.session_uid of the ID this preview is made for. Unset on file read. */
   unsigned int id_session_uid = 0;
+};
+
+/**
+ * State storage for text-boxes (#ui::ButtonTextBox).
+ */
+struct TextboxState {
+  int visible_lines = 0;
+  int scroll = 0;
+};
+
+/**
+ * Persistent storage for text-boxes (#ui::ButtonTextBox) in a region. The state is matched to the
+ * textbox buttons using the RNA struct identifier + property name.
+ *
+ * The actual state is stored in #uiTextboxState, so textbox buttons can manage this conveniently
+ * without having to care about the idname and listbase pointers themselves.
+ */
+struct uiTextboxStateLink {
+  struct uiTextboxStateLink *next = nullptr, *prev = nullptr;
+  char *idname = nullptr;
+  TextboxState state = {};
 };
 
 enum GlobalAreaFlag {
@@ -806,6 +829,11 @@ struct ARegion {
    * loading files remembers the view state.
    */
   ListBaseT<uiViewStateLink> view_states = {nullptr, nullptr};
+  /**
+   * Permanent state storage of #ui::ButtonTextBox instances, so hiding regions with textbox
+   * buttons or loading files remembers the textbox state.
+   */
+  ListBaseT<uiTextboxStateLink> textbox_states = {nullptr, nullptr};
 
   /** XXX 2.50, need spacedata equivalent? */
   void *regiondata = nullptr;

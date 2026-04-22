@@ -15,6 +15,7 @@
 
 #include "BKE_colortools.hh"
 
+#include "GPU_context.hh"
 #include "GPU_immediate.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -136,7 +137,8 @@ bool GPUDisplayShader::matches(const GPUDisplayParameters &display_parameters) c
           this->look == display_parameters.look && this->use_curve_mapping == use_curve_mapping &&
           this->use_hdr_buffer == display_parameters.use_hdr_buffer &&
           this->use_hdr_display == display_parameters.use_hdr_display &&
-          this->use_display_emulation == display_parameters.use_display_emulation);
+          this->use_display_emulation == display_parameters.use_display_emulation &&
+          this->use_scope_space == display_parameters.use_scope_space);
 }
 
 bool GPUDisplayShader::initialize_common()
@@ -415,6 +417,7 @@ bool GPUShaderBinder::display_bind(const GPUDisplayParameters &display_parameter
     display_shader->use_hdr_buffer = display_parameters.use_hdr_buffer;
     display_shader->use_hdr_display = display_parameters.use_hdr_display;
     display_shader->use_display_emulation = display_parameters.use_display_emulation;
+    display_shader->use_scope_space = display_parameters.use_scope_space;
     display_shader->is_valid = false;
 
     if (display_parameters.curve_mapping) {
@@ -492,9 +495,9 @@ bool GPUShaderBinder::create_gpu_shader(
   info.define("texture3D", "texture");
 
   /* Work around unsupported in keyword in Metal GLSL emulation. */
-#if OS_MAC
-  info.define("in", "");
-#endif
+  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    info.define("in", "");
+  }
 
   info.typedef_source("ocio_shader_shared.hh");
   info.sampler(internal::TextureSlot::IMAGE, ImageType::Float2D, "image_texture");

@@ -2949,9 +2949,11 @@ static void do_version_alpha_over_remove_premultiply(bNodeTree *node_tree)
 
   for (bNode &node : node_tree->nodes) {
     if (node.type_legacy == CMP_NODE_ALPHAOVER) {
-      NodeTwoFloats *storage = static_cast<NodeTwoFloats *>(node.storage);
-      MEM_delete(storage);
-      node.storage = nullptr;
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        NodeTwoFloats *storage = static_cast<NodeTwoFloats *>(node.storage);
+        MEM_delete(storage);
+        node.storage = nullptr;
+      }
     }
   }
 }
@@ -3044,6 +3046,9 @@ static void do_version_scale_node_remove_translate(bNodeTree *node_tree)
     if (link.fromnode->type_legacy != CMP_NODE_SCALE) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(*link.fromnode)) {
+      continue;
+    }
 
     if (link.fromnode->custom1 != CMP_NODE_SCALE_RENDER_SIZE) {
       continue;
@@ -3114,6 +3119,9 @@ static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
     if (!ELEM(link.tonode->type_legacy, CMP_NODE_BLUR, CMP_NODE_DEFOCUS)) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(*link.tonode)) {
+      continue;
+    }
 
     if (link.tonode->type_legacy == CMP_NODE_BLUR &&
         !bool(static_cast<NodeBlurData *>(link.tonode->storage)->gamma))
@@ -3150,6 +3158,9 @@ static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
 
   for (bNodeLink &link : node_tree->links.items_reversed_mutable()) {
     if (!ELEM(link.fromnode->type_legacy, CMP_NODE_BLUR, CMP_NODE_DEFOCUS)) {
+      continue;
+    }
+    if (!version_node_ensure_storage_or_invalidate(*link.fromnode)) {
       continue;
     }
 
@@ -3199,6 +3210,9 @@ static void version_escape_curly_braces_in_compositor_file_output_nodes(bNodeTre
     if (!STREQ(node.idname, "CompositorNodeOutputFile")) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     NodeCompositorFileOutput *node_data = static_cast<NodeCompositorFileOutput *>(node.storage);
     version_escape_curly_braces(node_data->directory, FILE_MAX);
@@ -3217,6 +3231,9 @@ static void do_version_translate_node_remove_relative(bNodeTree *node_tree)
 {
   for (bNode &node : node_tree->nodes) {
     if (!STREQ(node.idname, "CompositorNodeTranslate")) {
+      continue;
+    }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
       continue;
     }
 
@@ -3259,7 +3276,7 @@ static void do_version_translate_node_remove_relative(bNodeTree *node_tree)
     /* Add a Relative To Pixel node, assign it the input of the X translation and connect it to the
      * X translation input. */
     bNode *x_relative_to_pixel_node = bke::node_add_node(
-        nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+        nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
     x_relative_to_pixel_node->parent = node.parent;
     x_relative_to_pixel_node->location[0] = node.location[0] - node.width - 20.0f;
     x_relative_to_pixel_node->location[1] = node.location[1];
@@ -3297,7 +3314,7 @@ static void do_version_translate_node_remove_relative(bNodeTree *node_tree)
     /* Add a Relative To Pixel node, assign it the input of the Y translation and connect it to the
      * Y translation input. */
     bNode *y_relative_to_pixel_node = bke::node_add_node(
-        nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+        nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
     y_relative_to_pixel_node->parent = node.parent;
     y_relative_to_pixel_node->location[0] = node.location[0] - node.width - 20.0f;
     y_relative_to_pixel_node->location[1] = node.location[1] - 20.0f;
@@ -3393,7 +3410,7 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
   }
 
   bNode *x_relative_to_pixel_node = bke::node_add_node(
-      nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+      nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
   x_relative_to_pixel_node->parent = node->parent;
   x_relative_to_pixel_node->location[0] = node->location[0] - node->width - 20.0f;
   x_relative_to_pixel_node->location[1] = node->location[1];
@@ -3418,7 +3435,7 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
                         *x_image_input);
 
   bNode *y_relative_to_pixel_node = bke::node_add_node(
-      nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+      nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
   y_relative_to_pixel_node->parent = node->parent;
   y_relative_to_pixel_node->location[0] = node->location[0] - node->width - 20.0f;
   y_relative_to_pixel_node->location[1] = node->location[1] - 10;
@@ -3443,7 +3460,7 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
                         *y_image_input);
 
   bNode *width_relative_to_pixel_node = bke::node_add_node(
-      nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+      nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
   width_relative_to_pixel_node->parent = node->parent;
   width_relative_to_pixel_node->location[0] = node->location[0] - node->width - 20.0f;
   width_relative_to_pixel_node->location[1] = node->location[1] - 20;
@@ -3471,7 +3488,7 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
                         *width_image_input);
 
   bNode *height_relative_to_pixel_node = bke::node_add_node(
-      nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+      nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
   height_relative_to_pixel_node->parent = node->parent;
   height_relative_to_pixel_node->location[0] = node->location[0] - node->width - 20.0f;
   height_relative_to_pixel_node->location[1] = node->location[1] - 30;
@@ -3725,7 +3742,7 @@ static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
     }
 
     bNode *image_coordinates_node = bke::node_add_node(
-        nullptr, *node_tree, "CompositorNodeImageCoordinates");
+        nullptr, *node_tree, "CompositorNodeImageCoordinates"_ustr);
     image_coordinates_node->parent = node.parent;
     image_coordinates_node->location[0] = node.location[0];
     image_coordinates_node->location[1] = node.location[1] - node.height - 10.0f;
@@ -3777,6 +3794,9 @@ static void do_version_vector_sockets_dimensions(bNodeTree *node_tree)
     bNodeTreeInterfaceSocket &interface_socket =
         bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
     bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(interface_socket.socket_type);
+    if (!base_typeinfo) {
+      return true;
+    }
 
     if (base_typeinfo->type == SOCK_VECTOR) {
       bke::node_interface::get_socket_data_as<bNodeSocketValueVector>(interface_socket)
@@ -3845,7 +3865,7 @@ static void do_version_blur_node_options_to_inputs(bNodeTree *node_tree, bNode *
   }
 
   if (size_link) {
-    bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
+    bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath"_ustr);
     multiply_node->parent = node->parent;
     multiply_node->location[0] = node->location[0] - node->width - 40.0f;
     multiply_node->location[1] = node->location[1];
@@ -3881,7 +3901,7 @@ static void do_version_blur_node_options_to_inputs(bNodeTree *node_tree, bNode *
   }
 
   bNode *relative_to_pixel_node = bke::node_add_node(
-      nullptr, *node_tree, "CompositorNodeRelativeToPixel");
+      nullptr, *node_tree, "CompositorNodeRelativeToPixel"_ustr);
   relative_to_pixel_node->parent = node->parent;
   relative_to_pixel_node->location[0] = node->location[0] - node->width - 20.0f;
   relative_to_pixel_node->location[1] = node->location[1];

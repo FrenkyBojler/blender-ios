@@ -126,6 +126,50 @@ static void adjust_for_hdr_image_file(const LibOCIOConfig &config,
   group->appendTransform(to_display_linear);
 }
 
+static void display_as_scope_space(const LibOCIOConfig &config,
+                                   OCIO_NAMESPACE::GroupTransformRcPtr &group,
+                                   StringRefNull display_name,
+                                   StringRefNull view_name)
+{
+  /* Convert display-encoded values to a normalized space for scopes,
+   * going from display space to display interchange to scope space. */
+  const LibOCIODisplay *display = static_cast<const LibOCIODisplay *>(
+      config.get_display_by_name(display_name));
+  const LibOCIOView *view = (display) ? static_cast<const LibOCIOView *>(
+                                            display->get_view_by_name(view_name)) :
+                                        nullptr;
+  if (view == nullptr) {
+    CLOG_WARN(&LOG,
+              "Unable to find display '%s' and view '%s', scope space not applied",
+              display_name.c_str(),
+              view_name.c_str());
+    return;
+  }
+
+  const LibOCIOColorSpace *display_colorspace = static_cast<const LibOCIOColorSpace *>(
+      view->display_colorspace());
+  if (display_colorspace == nullptr ||
+      !(display_colorspace->is_display_referred() || display_colorspace->is_data()))
+  {
+    CLOG_DEBUG(&LOG,
+               "No display colorspace for view '%s', scope space normalization not applied",
+               view_name.c_str());
+    return;
+  }
+
+  const LibOCIOColorSpace *lin_cie_xyz_d65 = static_cast<const LibOCIOColorSpace *>(
+      config.get_color_space(OCIO_NAMESPACE::ROLE_INTERCHANGE_DISPLAY));
+
+  if (lin_cie_xyz_d65 == nullptr) {
+    CLOG_DEBUG(&LOG,
+               "Failed to find %s colorspace, scope space normalization not applied",
+               OCIO_NAMESPACE::ROLE_INTERCHANGE_DISPLAY);
+    return;
+  }
+
+  view->append_scope_space_transforms(group, lin_cie_xyz_d65->name());
+}
+
 static void display_as_extended_srgb(const LibOCIOConfig &config,
                                      OCIO_NAMESPACE::GroupTransformRcPtr &group,
                                      StringRefNull display_name,
@@ -341,12 +385,29 @@ OCIO_NAMESPACE::TransformRcPtr create_ocio_display_transform(
     if (look_output != nullptr && look_output[0] != 0) {
       OCIO_NAMESPACE::LookTransformRcPtr lt = OCIO_NAMESPACE::LookTransform::Create();
       lt->setSrc(from_colorspace.c_str());
-      lt->setDst(look_output);
+
+      /* For raw view transform, transform to look colorspace is a no-op since it's data.
+       * But OpenColorIO only takes that into account in one direction, and still applies
+       * a conversion in the other direction. Work around that by ensuring it is skipped
+       * entirely. */
+      const char *view_colorspace_name = ocio_config->getDisplayViewColorSpaceName(display.c_str(),
+                                                                                   view.c_str());
+      OCIO_NAMESPACE::ConstColorSpaceRcPtr view_colorspace = (view_colorspace_name) ?
+                                                                 ocio_config->getColorSpace(
+                                                                     view_colorspace_name) :
+                                                                 nullptr;
+
+      if (view_colorspace && view_colorspace->isData()) {
+        lt->setDst(from_colorspace.c_str());
+      }
+      else {
+        lt->setDst(look_output);
+        /* Make further transforms aware of the color space change. */
+        from_colorspace = look_output;
+      }
+
       lt->setLooks(look.c_str());
       group->appendTransform(lt);
-
-      /* Make further transforms aware of the color space change. */
-      from_colorspace = look_output;
     }
     else {
       /* For empty looks, no output color space is returned. */
@@ -459,6 +520,9 @@ OCIO_NAMESPACE::ConstProcessorRcPtr create_ocio_display_processor(
                                display_parameters.display,
                                display_parameters.view,
                                display_parameters.use_hdr_buffer);
+    }
+    else if (display_parameters.use_scope_space) {
+      display_as_scope_space(config, group, display_parameters.display, display_parameters.view);
     }
   }
   else {

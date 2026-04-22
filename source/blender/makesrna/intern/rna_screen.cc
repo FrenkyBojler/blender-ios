@@ -172,7 +172,7 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
       CTX_wm_area_set(C, area);
       CTX_wm_region_set(C, nullptr);
 
-      ED_area_newspace(C, area, area->butspacetype, true);
+      ED_area_newspace(C, area, area->butspacetype, false);
       ED_area_tag_redraw(area);
 
       /* Unset so that rna_Area_type_get uses spacetype instead. */
@@ -459,6 +459,7 @@ static void rna_def_area(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "Area", nullptr);
   RNA_def_struct_ui_text(srna, "Area", "Area in a subdivided screen, containing an editor");
+  RNA_def_struct_path_func(srna, "BKE_screen_path_from_screen_to_area");
   RNA_def_struct_sdna(srna, "ScrArea");
 
   prop = RNA_def_property(srna, "spaces", PROP_COLLECTION, PROP_NONE);

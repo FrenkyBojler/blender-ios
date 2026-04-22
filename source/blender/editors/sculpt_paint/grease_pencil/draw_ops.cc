@@ -22,7 +22,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_bounds.hh"
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.hh"
@@ -91,7 +91,7 @@ struct GreasePencilPaintStroke final : public PaintStroke {
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
   void redraw(bool final) override;
   bool test_cancel() override;
-  void done(bool is_cancel) override;
+  void done(bool is_cancel, bool stroke_started) override;
 };
 
 bool GreasePencilPaintStroke::get_location(float out[3],
@@ -229,7 +229,7 @@ bool GreasePencilPaintStroke::test_cancel()
   return false;
 }
 
-void GreasePencilPaintStroke::done(bool /*is_cancel*/)
+void GreasePencilPaintStroke::done(bool /*is_cancel*/, bool /*stroke_started*/)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       mode_data_.get());
@@ -325,7 +325,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
 static void grease_pencil_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
@@ -434,7 +434,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
 static void grease_pencil_sculpt_paint_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_sculpt_paint(wmOperatorType *ot)
@@ -532,7 +532,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_modal(bContext *C,
 static void grease_pencil_weight_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_weight_brush_stroke(wmOperatorType *ot)
@@ -641,7 +641,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext *C,
 static void grease_pencil_vertex_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_vertex_brush_stroke(wmOperatorType *ot)
@@ -1366,7 +1366,7 @@ static bke::CurvesGeometry simplify_fixed(bke::CurvesGeometry &curves, const int
 
   IndexMaskMemory memory;
   IndexMask points_to_keep = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(2048), memory, [&](const int64_t i) {
+      curves.points_range(), memory, [&](const int64_t i) {
         const int curve_i = point_to_curve_map[i];
         const IndexRange points = points_by_curve[curve_i];
         if (points.size() <= 2) {
@@ -1448,6 +1448,12 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     if (fill_curves.is_empty()) {
       continue;
     }
+
+    /* Combine the strokes into a single fill with the same fill ID. */
+    bke::SpanAttributeWriter<int> fill_ids =
+        fill_curves.attributes_for_write().lookup_or_add_for_write_span<int>(
+            "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
+    fill_ids.finish();
 
     smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
@@ -1548,6 +1554,9 @@ static bool grease_pencil_fill_init(bContext &C, wmOperator &op)
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(&bmain, &ob, &brush);
   const int material_index = BKE_object_material_index_get(&ob, material);
+  if (material->gp_style->fill_rgba[3] == 0.0f) {
+    BKE_report(op.reports, RPT_WARNING, "Fill is fully transparent");
+  }
 
   const bool invert = RNA_boolean_get(op.ptr, "invert");
   const bool precision = RNA_boolean_get(op.ptr, "precision");
@@ -1675,12 +1684,12 @@ static wmOperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
       break;
 
     case int(FillToolModalKey::ExtensionLengthen):
-      op_data.extension_length = std::max(op_data.extension_length - extension_delta, 0.0f);
+      op_data.extension_length = op_data.extension_length + extension_delta;
       grease_pencil_update_extend(*C, op_data);
       break;
 
     case int(FillToolModalKey::ExtensionShorten):
-      op_data.extension_length = std::min(op_data.extension_length + extension_delta, 10.0f);
+      op_data.extension_length = std::max(op_data.extension_length - extension_delta, 0.0f);
       grease_pencil_update_extend(*C, op_data);
       break;
 
@@ -1760,7 +1769,7 @@ static wmOperatorStatus grease_pencil_fill_modal(bContext *C, wmOperator *op, co
         const float current_dist = math::distance(mouse_pos, op_data.fill_mouse_pos);
 
         float delta = (current_dist - initial_dist) * pixel_size * 0.5f;
-        op_data.extension_length = std::clamp(op_data.extension_length + delta, 0.0f, 10.0f);
+        op_data.extension_length = std::max(op_data.extension_length + delta, 0.0f);
 
         /* Update cursor line and extend lines. */
         WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
@@ -1947,7 +1956,7 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
 
       IndexMaskMemory &memory = memories[drawing_i];
       const IndexMask curve_selection = IndexMask::from_predicate(
-          curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
+          curves.curves_range(), memory, [&](const int64_t index) {
             /* For a single point curve, its screen_space_curve_bounds Bounds will be empty (by
              * definition), so intersecting will fail. Check if the single point is in the bounds
              * instead. */
@@ -1965,12 +1974,14 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
       }
 
       Array<bool> points_to_remove(curves.points_num(), false);
-      curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i) {
-        for (const int point : points_by_curve[curve_i]) {
-          points_to_remove[point] = is_point_inside_lasso(lasso,
-                                                          int2(screen_space_positions[point]));
-        }
-      });
+      curve_selection.foreach_index(
+          [&](const int64_t curve_i) {
+            for (const int point : points_by_curve[curve_i]) {
+              points_to_remove[point] = is_point_inside_lasso(lasso,
+                                                              int2(screen_space_positions[point]));
+            }
+          },
+          exec_mode::grain_size(512));
       points_to_remove_per_drawing[drawing_i] = IndexMask::from_bools(points_to_remove, memory);
     }
   });
@@ -2046,7 +2057,7 @@ static wmOperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op
 
       IndexMaskMemory &memory = memories[drawing_i];
       points_to_remove_per_drawing[drawing_i] = IndexMask::from_predicate(
-          curves.points_range(), GrainSize(4096), memory, [&](const int64_t index) {
+          curves.points_range(), memory, [&](const int64_t index) {
             return is_point_inside_bounds(box_bounds, int2(screen_space_positions[index]));
           });
     }
