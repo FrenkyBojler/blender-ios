@@ -402,6 +402,43 @@ std::optional<RNAPathParsed> RNAPathParsed::from_string(const StringRefNull path
   return parsed;
 }
 
+std::string RNAPathParsed::to_string() const
+{
+  std::string result;
+  for (const auto &item : items) {
+    if (const Member *member = std::get_if<Member>(&item)) {
+      if (!result.empty()) {
+        result.append(".");
+      }
+      result.append(member->identifier.c_str());
+    }
+    else if (const LookupIndex *lookup_index = std::get_if<LookupIndex>(&item)) {
+      result.append("[");
+      result.append(std::to_string(lookup_index->index));
+      result.append("]");
+    }
+    else if (const LookupKey *lookup_key = std::get_if<LookupKey>(&item)) {
+      result.append("[\"");
+      for (const char c : lookup_key->key.ref()) {
+        if (c == '\\') {
+          result.append("\\\\");
+        }
+        else if (c == '"') {
+          result.append("\\\"");
+        }
+        else {
+          result.append(1, c);
+        }
+      }
+      result.append("\"]");
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+  }
+  return result;
+}
+
 /**
  * Generic rna path parser.
  *

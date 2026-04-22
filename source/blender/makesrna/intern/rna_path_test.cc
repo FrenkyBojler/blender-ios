@@ -31,40 +31,45 @@ static void expect_lookup_key_item(const RNAPathParsed::Item &item, const String
 
 TEST(parse_rna_path, empty)
 {
-  const std::optional<RNAPathParsed> parsed = RNAPathParsed::from_string("");
-  EXPECT_FALSE(parsed.has_value());
+  const std::optional<RNAPathParsed> path = RNAPathParsed::from_string("");
+  EXPECT_FALSE(path.has_value());
 }
 
 TEST(parse_rna_path, just_member)
 {
-  const std::optional<RNAPathParsed> parsed = RNAPathParsed::from_string("foo");
-  EXPECT_EQ(parsed->items.size(), 1);
-  expect_member_item(parsed->items[0], "foo");
+  const std::optional<RNAPathParsed> path = RNAPathParsed::from_string("foo");
+  EXPECT_EQ(path->to_string(), "foo");
+  EXPECT_EQ(path->items.size(), 1);
+  expect_member_item(path->items[0], "foo");
 }
 
 TEST(parse_rna_path, just_index)
 {
-  const std::optional<RNAPathParsed> parsed = RNAPathParsed::from_string("[42]");
-  EXPECT_EQ(parsed->items.size(), 1);
-  expect_lookup_index_item(parsed->items[0], 42);
+  const std::optional<RNAPathParsed> path = RNAPathParsed::from_string("[42]");
+  EXPECT_EQ(path->to_string(), "[42]");
+  EXPECT_EQ(path->items.size(), 1);
+  expect_lookup_index_item(path->items[0], 42);
 }
 
 TEST(parse_rna_path, just_key)
 {
-  const std::optional<RNAPathParsed> parsed = RNAPathParsed::from_string("[\"foo\"]");
-  EXPECT_EQ(parsed->items.size(), 1);
-  expect_lookup_key_item(parsed->items[0], "foo");
+  const std::optional<RNAPathParsed> path = RNAPathParsed::from_string("[\"foo\"]");
+  EXPECT_EQ(path->to_string(), "[\"foo\"]");
+  EXPECT_EQ(path->items.size(), 1);
+  expect_lookup_key_item(path->items[0], "foo");
 }
 
 TEST(parse_rna_path, multi)
 {
-  const std::optional<RNAPathParsed> parsed = RNAPathParsed::from_string(
-      "foo[42].bar[\"b\\\"az\"]");
-  EXPECT_EQ(parsed->items.size(), 4);
-  expect_member_item(parsed->items[0], "foo");
-  expect_lookup_index_item(parsed->items[1], 42);
-  expect_member_item(parsed->items[2], "bar");
-  expect_lookup_key_item(parsed->items[3], "b\"az");
+  const std::optional<RNAPathParsed> path = RNAPathParsed::from_string(
+      "foo[42].bar.bar2[\"b\\\"az\"]");
+  EXPECT_EQ(path->to_string(), "foo[42].bar.bar2[\"b\\\"az\"]");
+  EXPECT_EQ(path->items.size(), 5);
+  expect_member_item(path->items[0], "foo");
+  expect_lookup_index_item(path->items[1], 42);
+  expect_member_item(path->items[2], "bar");
+  expect_member_item(path->items[3], "bar2");
+  expect_lookup_key_item(path->items[4], "b\"az");
 }
 
 }  // namespace blender::tests

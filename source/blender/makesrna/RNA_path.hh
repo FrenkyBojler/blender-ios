@@ -97,6 +97,8 @@ class RNAPathParsed {
   RNAPathParsed() = default;
 
   static std::optional<RNAPathParsed> from_string(StringRefNull path);
+
+  std::string to_string() const;
 };
 
 /**
