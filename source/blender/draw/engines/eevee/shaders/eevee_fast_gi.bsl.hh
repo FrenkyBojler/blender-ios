@@ -569,17 +569,19 @@ void setup([[global_invocation_id]] const uint3 global_id,
   /* Load Gbuffer. */
   const gbuffer::Layers gbuf = gbuffer::read_layers(texel_fullres);
 
-  /* Export normal. */
-  float3 N = gbuf.surface_N();
-  /* Background has invalid data. */
-  /* FIXME: This is zero for opaque layer when we are processing the refraction layer. */
-  if (is_zero(N)) {
-    /* Avoid NaN. But should be fixed in any case. */
-    N = float3(1.0f, 0.0f, 0.0f);
-  }
-  float3 vN = drw_normal_world_to_view(N);
   /* Tag processed pixel in the normal buffer for denoising speed. */
   bool is_processed = !gbuf.header.is_empty();
+
+  /* Export normal. */
+  /* FIXME: This is zero for opaque layer when we are processing the refraction layer.
+   * This is because the GBuffer header was cleared in between the layers. The refraction layer
+   * currently have incorrect fast GI comming from opaque layer. */
+  float3 vN = drw_normal_world_to_view(gbuf.surface_N());
+
+  if (!is_processed) {
+    vN = float3(0.0f, 0.0f, 1.0f);
+  }
+
   /* Compress as the format is unsigned. */
   float3 vN_unit = vN * 0.5f + 0.5f;
   imageStoreFast(srt.out_normal_mip0, texel, float4(vN_unit, float(is_processed)));
