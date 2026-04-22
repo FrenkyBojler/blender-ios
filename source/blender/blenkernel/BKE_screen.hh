@@ -552,6 +552,8 @@ struct ARegionRuntime {
 
   /** For calling after building a named block. */
   Map<std::string, Vector<std::function<void(const bContext &C)>>> post_block_layout_callbacks;
+  /** For calling after drawing regions. */
+  Vector<std::function<void(const bContext &C)>> post_draw_callbacks;
 
   wmDrawBuffer *draw_buffer = nullptr;
 

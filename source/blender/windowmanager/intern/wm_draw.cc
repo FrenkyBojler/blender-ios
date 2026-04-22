@@ -1052,7 +1052,10 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
     region.runtime->do_draw = 0;
 
     region.runtime->post_block_layout_callbacks.clear();
-
+    for (std::function<void(const bContext &C)> &callback : region.runtime->post_draw_callbacks) {
+      callback(*C);
+    }
+    region.runtime->post_draw_callbacks.clear();
     CTX_wm_region_set(C, nullptr);
   }
 
