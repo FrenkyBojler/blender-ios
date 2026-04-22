@@ -30,10 +30,10 @@
 
 #include "MOD_nodes.hh"
 #include "NOD_caller_ui.hh"
+#include "NOD_eval_log.hh"
 #include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_caller_ui.hh"
 #include "NOD_geometry_nodes_srna.hh"
-#include "NOD_nodes_log.hh"
 #include "NOD_socket_usage_inference.hh"
 
 #include "RNA_access.hh"

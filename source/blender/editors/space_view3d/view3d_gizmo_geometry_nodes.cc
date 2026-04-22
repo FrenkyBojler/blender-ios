@@ -34,8 +34,8 @@
 
 #include "MOD_nodes.hh"
 
+#include "NOD_eval_log.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
-#include "NOD_nodes_log.hh"
 
 #include "UI_resources.hh"
 

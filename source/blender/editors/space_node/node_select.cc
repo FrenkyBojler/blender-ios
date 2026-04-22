@@ -63,7 +63,7 @@
 
 #include "BLT_translation.hh"
 
-#include "NOD_nodes_log.hh"
+#include "NOD_eval_log.hh"
 
 #include "node_intern.hh" /* own include */
 

@@ -8,7 +8,7 @@
 
 #include "BLI_compute_context.hh"
 
-#include "NOD_nodes_log.hh"
+#include "NOD_eval_log.hh"
 
 namespace blender {
 

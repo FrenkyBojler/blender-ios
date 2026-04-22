@@ -74,6 +74,7 @@ set(SRC
   intern/compositor_nodes_caller_ui.cc
   intern/compositor_nodes_srna.cc
   intern/dependencies.cc
+  intern/eval_log.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -94,7 +95,6 @@ set(SRC
   intern/node_declaration.cc
   intern/node_exec.cc
   intern/node_geometry_exec.cc
-  intern/node_log.cc
   intern/node_multi_function.cc
   intern/node_register.cc
   intern/node_rna_define.cc
@@ -120,6 +120,7 @@ set(SRC
   NOD_compositor_nodes_srna.hh
   NOD_defaults.hh
   NOD_dependencies.hh
+  NOD_eval_log.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh
@@ -149,7 +150,6 @@ set(SRC
   NOD_node_declaration.hh
   NOD_node_extra_info.hh
   NOD_node_in_compute_context.hh
-  NOD_nodes_log.hh
   NOD_nodes_srna.hh
   NOD_partial_eval.hh
   NOD_register.hh

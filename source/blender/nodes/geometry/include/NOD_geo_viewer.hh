@@ -6,7 +6,7 @@
 
 #include "DNA_node_types.h"
 
-#include "NOD_nodes_log.hh"
+#include "NOD_eval_log.hh"
 #include "NOD_socket_items.hh"
 
 namespace blender::nodes {

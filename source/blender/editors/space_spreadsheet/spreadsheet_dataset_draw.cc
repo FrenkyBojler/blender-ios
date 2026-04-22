@@ -34,9 +34,9 @@
 #include "ED_outliner.hh"
 #include "ED_spreadsheet.hh"
 
+#include "NOD_eval_log.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
-#include "NOD_nodes_log.hh"
 
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_dataset_draw.hh"

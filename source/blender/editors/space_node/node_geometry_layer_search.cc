@@ -28,7 +28,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "NOD_nodes_log.hh"
+#include "NOD_eval_log.hh"
 #include "NOD_socket.hh"
 
 #include "node_intern.hh"

@@ -25,9 +25,9 @@
 #include "FN_lazy_function_graph.hh"
 #include "FN_lazy_function_graph_executor.hh"
 
+#include "NOD_eval_log.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_nested_node_id.hh"
-#include "NOD_nodes_log.hh"
 
 #include "BLI_compute_context.hh"
 #include "BLI_math_quaternion_types.hh"

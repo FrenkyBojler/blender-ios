@@ -61,7 +61,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "NOD_nodes_log.hh"
+#include "NOD_eval_log.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"

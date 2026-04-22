@@ -20,9 +20,9 @@
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 
+#include "NOD_eval_log.hh"
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
-#include "NOD_nodes_log.hh"
 #include "NOD_socket.hh"
 
 #include "ED_node.hh"

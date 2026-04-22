@@ -93,10 +93,10 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
+#include "NOD_eval_log.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_extra_info.hh"
-#include "NOD_nodes_log.hh"
 #include "NOD_sync_sockets.hh"
 #include "NOD_trace_values.hh"
 

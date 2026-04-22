@@ -37,7 +37,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "NOD_nodes_log.hh"
+#include "NOD_eval_log.hh"
 
 namespace blender {
 
