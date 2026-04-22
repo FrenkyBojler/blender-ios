@@ -15,3 +15,4 @@ Referenced by pull request #156706, VSE: Expose compositor node group inputs to 
 Referenced by pull request #157286, Nodes: Add versioning for interface socket indentifier sanitization
 Referenced by commit 0d8debaa747dbfb7652f63beb90a7c3281d08d4b, Nodes: Add versioning for interface socket indentifier sanitization
 Referenced by issue #157539, Crash when opening .blend file
+Referenced by issue #157706, Font socket linked to group input no longer leads to Font dropdown in GN modifier panel.
