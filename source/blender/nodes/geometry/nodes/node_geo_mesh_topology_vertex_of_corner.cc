@@ -39,11 +39,6 @@ class CornerVertFieldInput final : public bke::MeshFieldInput {
     hash.add(&id);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornerVertFieldInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
     return AttrDomain::Corner;

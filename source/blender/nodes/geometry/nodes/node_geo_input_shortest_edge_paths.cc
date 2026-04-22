@@ -150,16 +150,6 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
     hash.add(field_hash.ensure(cost_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const ShortestEdgePathsNextVertFieldInput *other_field =
-            dynamic_cast<const ShortestEdgePathsNextVertFieldInput *>(&other))
-    {
-      return other_field->end_selection_ == end_selection_ && other_field->cost_ == cost_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Point;
@@ -234,16 +224,6 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
     hash.add(&id);
     hash.add(field_hash.ensure(end_selection_));
     hash.add(field_hash.ensure(cost_));
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const ShortestEdgePathsCostFieldInput *other_field =
-            dynamic_cast<const ShortestEdgePathsCostFieldInput *>(&other))
-    {
-      return other_field->end_selection_ == end_selection_ && other_field->cost_ == cost_;
-    }
-    return false;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

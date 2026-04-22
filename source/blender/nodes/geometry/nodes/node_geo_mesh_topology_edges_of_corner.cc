@@ -44,11 +44,6 @@ class CornerNextEdgeFieldInput final : public bke::MeshFieldInput {
     hash.add(&id);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornerNextEdgeFieldInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
     return AttrDomain::Corner;
@@ -81,11 +76,6 @@ class CornerPreviousEdgeFieldInput final : public bke::MeshFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornerPreviousEdgeFieldInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final

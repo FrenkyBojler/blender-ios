@@ -471,14 +471,6 @@ void AttributeFieldInput::hash(HashContext &hash) const
   hash.add(type_);
 }
 
-bool AttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
-{
-  if (const AttributeFieldInput *other_typed = dynamic_cast<const AttributeFieldInput *>(&other)) {
-    return name_ == other_typed->name_ && type_ == other_typed->type_;
-  }
-  return false;
-}
-
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
@@ -530,12 +522,6 @@ void IDAttributeFieldInput::hash(HashContext &hash) const
   hash.add(&id);
 }
 
-bool IDAttributeFieldInput::is_equal_to(const fn::FieldInput &other) const
-{
-  /* All random ID attribute inputs are the same within the same evaluation context. */
-  return dynamic_cast<const IDAttributeFieldInput *>(&other) != nullptr;
-}
-
 const fn::Field<int> &IDAttributeFieldInput::get_field()
 {
   static const fn::Field<int> field = fn::Field<int>::from_input<IDAttributeFieldInput>();
@@ -580,16 +566,6 @@ void NamedLayerSelectionFieldInput::hash(HashContext &hash) const
 {
   hash.hash_bytes.extend(Span(layer_name_.data(), layer_name_.size()).cast<std::byte>());
   hash.add(type_);
-}
-
-bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldInput &other) const
-{
-  if (const NamedLayerSelectionFieldInput *other_named_layer =
-          dynamic_cast<const NamedLayerSelectionFieldInput *>(&other))
-  {
-    return layer_name_ == other_named_layer->layer_name_;
-  }
-  return false;
 }
 
 std::optional<AttrDomain> NamedLayerSelectionFieldInput::preferred_domain(
@@ -838,15 +814,6 @@ void NormalFieldInput::hash(HashContext &hash) const
   hash.add(&id);
   hash.add(legacy_corner_normals_);
   hash.add(true_normals_);
-}
-
-bool NormalFieldInput::is_equal_to(const fn::FieldInput &other) const
-{
-  if (const NormalFieldInput *other_typed = dynamic_cast<const NormalFieldInput *>(&other)) {
-    return legacy_corner_normals_ == other_typed->legacy_corner_normals_ &&
-           true_normals_ == other_typed->true_normals_;
-  }
-  return false;
 }
 
 const fn::Field<float3> &NormalFieldInput::get_field()

@@ -155,15 +155,6 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
     hash.add(field_hash.ensure(sort_weight_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const auto *typed = dynamic_cast<const PointsOfCurveInput *>(&other)) {
-      return typed->curve_index_ == curve_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const GeometryComponent & /*component*/) const final
   {
     return AttrDomain::Curve;
@@ -191,11 +182,6 @@ class CurvePointCountInput final : public bke::CurvesFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CurvePointCountInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final

@@ -102,14 +102,6 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     hash.add(use_radius_);
     hash.add(return_max_);
   }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const auto *other_field = dynamic_cast<const InstanceBoundsField *>(&other)) {
-      return use_radius_ == other_field->use_radius_ && return_max_ == other_field->return_max_;
-    }
-    return false;
-  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)

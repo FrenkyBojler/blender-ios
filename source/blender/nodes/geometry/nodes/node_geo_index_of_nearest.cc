@@ -148,15 +148,6 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     hash.add(field_hash.ensure(group_field_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const auto *other_field = dynamic_cast<const IndexOfNearestFieldInput *>(&other)) {
-      return positions_field_ == other_field->positions_field_ &&
-             group_field_ == other_field->group_field_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final
   {
     return bke::try_detect_field_domain(component, positions_field_);
@@ -216,14 +207,6 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     fn::FieldHashDeep field_hash;
     hash.add(&id);
     hash.add(field_hash.ensure(group_field_));
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const auto *other_field = dynamic_cast<const HasNeighborFieldInput *>(&other)) {
-      return group_field_ == other_field->group_field_;
-    }
-    return false;
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final

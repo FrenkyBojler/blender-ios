@@ -329,7 +329,6 @@ class FieldInput : public ImplicitSharingMixin {
 
   uint64_t hash() const;
   virtual void hash(HashContext &hash) const;
-  virtual bool is_equal_to(const FieldInput &other) const;
 
   /**
    * If this #FieldInput depends on other fields, this function should be overridden.
@@ -419,7 +418,6 @@ class IndexFieldInput final : public FieldInput {
                                  ResourceScope &scope) const final;
 
   void hash(HashContext &hash) const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
 
   /** Cached index field to avoid allocating a new one every time. */
   static const Field<int> &get_field();
@@ -540,11 +538,6 @@ inline const CPPType &FieldInput::cpp_type() const
   return *this->type_;
 }
 
-inline bool FieldInput::is_equal_to(const FieldInput &other) const
-{
-  return this == &other;
-}
-
 inline const FieldInputsPtr &FieldOperation::field_inputs() const
 {
   return field_inputs_;
@@ -659,7 +652,7 @@ inline const CPPType &GFieldRef::cpp_type() const
 
 inline bool operator==(const FieldInput &a, const FieldInput &b)
 {
-  return a.is_equal_to(b);
+  return &a == &b;
 }
 
 inline const mf::MultiFunction &FieldOperation::multi_function() const

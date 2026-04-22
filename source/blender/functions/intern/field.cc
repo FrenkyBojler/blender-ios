@@ -485,11 +485,6 @@ void IndexFieldInput::hash(HashContext &hash) const
   hash.add(&id);
 }
 
-bool IndexFieldInput::is_equal_to(const fn::FieldInput &other) const
-{
-  return dynamic_cast<const IndexFieldInput *>(&other) != nullptr;
-}
-
 const Field<int> &IndexFieldInput::get_field()
 {
   static const Field<int> field = Field<int>::from_input<IndexFieldInput>();

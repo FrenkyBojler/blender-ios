@@ -40,11 +40,6 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
     hash.add(&id);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const EdgeNeighborCountFieldInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Edge;

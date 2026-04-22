@@ -96,16 +96,6 @@ class EndpointFieldInput final : public bke::GeometryFieldInput {
     hash.add(field_hash.ensure(end_size_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const EndpointFieldInput *other_endpoint = dynamic_cast<const EndpointFieldInput *>(
-            &other))
-    {
-      return start_size_ == other_endpoint->start_size_ && end_size_ == other_endpoint->end_size_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const GeometryComponent & /*component*/) const final
   {
     return AttrDomain::Point;

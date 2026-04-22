@@ -88,11 +88,6 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
     hash.add(field_hash.ensure(threshold_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const PlanarFieldInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Face;

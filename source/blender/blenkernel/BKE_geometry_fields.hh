@@ -314,7 +314,6 @@ class AttributeFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   void hash(HashContext &hash) const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 
   template<typename T, FixedString FStr> static const fn::Field<T> &get_field()
@@ -362,7 +361,6 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
   void hash(HashContext &hash) const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 };
 
@@ -376,7 +374,6 @@ class IDAttributeFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   void hash(HashContext &hash) const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
 
   /** Cached  field to avoid allocating a new one every time. */
   static const fn::Field<int> &get_field();
@@ -408,7 +405,6 @@ class NormalFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   void hash(HashContext &hash) const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
 
   /** Cached normal field to avoid allocating a new one every time. */
   static const fn::Field<float3> &get_field();
@@ -421,7 +417,6 @@ class CurveLengthFieldInput final : public CurvesFieldInput {
                                  AttrDomain domain,
                                  const IndexMask &mask) const final;
   void hash(HashContext &hash) const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry &curves) const final;
 };
 

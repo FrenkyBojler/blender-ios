@@ -258,16 +258,6 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
     hash.add(operation_);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const FieldVarianceInput *other_field = dynamic_cast<const FieldVarianceInput *>(&other)) {
-      return input_ == other_field->input_ && group_index_ == other_field->group_index_ &&
-             source_domain_ == other_field->source_domain_ &&
-             operation_ == other_field->operation_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(
       const GeometryComponent & /*component*/) const override
   {

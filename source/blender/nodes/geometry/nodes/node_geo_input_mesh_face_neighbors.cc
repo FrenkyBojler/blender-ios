@@ -91,11 +91,6 @@ class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
     hash.add(&id);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const FaceNeighborCountFieldInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Face;
@@ -127,11 +122,6 @@ class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const FaceVertexCountFieldInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

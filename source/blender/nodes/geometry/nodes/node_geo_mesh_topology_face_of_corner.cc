@@ -41,11 +41,6 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
     static constexpr int8_t id = 0;
     hash.add(&id);
   }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornerFaceIndexInput *>(&other) != nullptr;
-  }
 };
 
 class CornerIndexInFaceInput final : public bke::MeshFieldInput {
@@ -71,11 +66,6 @@ class CornerIndexInFaceInput final : public bke::MeshFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornerIndexInFaceInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final

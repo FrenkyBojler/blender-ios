@@ -33,11 +33,6 @@ class InstanceScaleFieldInput final : public bke::InstancesFieldInput {
     static constexpr int8_t id = 0;
     hash.add(&id);
   }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const InstanceScaleFieldInput *>(&other) != nullptr;
-  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)

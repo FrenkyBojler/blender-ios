@@ -289,11 +289,6 @@ void CurveLengthFieldInput::hash(HashContext &hash) const
   hash.add(&id);
 }
 
-bool CurveLengthFieldInput::is_equal_to(const fn::FieldInput &other) const
-{
-  return dynamic_cast<const CurveLengthFieldInput *>(&other) != nullptr;
-}
-
 std::optional<AttrDomain> CurveLengthFieldInput::preferred_domain(
     const CurvesGeometry & /*curves*/) const
 {

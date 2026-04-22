@@ -201,14 +201,6 @@ class TangentFieldInput final : public bke::MeshFieldInput {
     fn(uv_field_);
   }
 
-  bool is_equal_to(const FieldInput &other) const override
-  {
-    if (const TangentFieldInput *other_endpoint = dynamic_cast<const TangentFieldInput *>(&other))
-    {
-      return method_ == other_endpoint->method_ && uv_field_ == other_endpoint->uv_field_;
-    }
-    return false;
-  }
 
   void hash(HashContext &hash) const override
   {

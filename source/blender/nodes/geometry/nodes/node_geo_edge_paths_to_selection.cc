@@ -103,17 +103,6 @@ class PathToEdgeSelectionFieldInput final : public bke::MeshFieldInput {
     hash.add(field_hash.ensure(next_vertex_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const PathToEdgeSelectionFieldInput *other_field =
-            dynamic_cast<const PathToEdgeSelectionFieldInput *>(&other))
-    {
-      return other_field->start_vertices_ == start_vertices_ &&
-             other_field->next_vertex_ == next_vertex_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Edge;

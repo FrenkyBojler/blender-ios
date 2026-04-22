@@ -88,16 +88,6 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     hash.add(field_hash.ensure(offset_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const OffsetCornerInFaceFieldInput *other_field =
-            dynamic_cast<const OffsetCornerInFaceFieldInput *>(&other))
-    {
-      return other_field->corner_index_ == corner_index_ && other_field->offset_ == offset_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
     return AttrDomain::Corner;

@@ -202,11 +202,6 @@ class CurveParameterFieldInput final : public bke::CurvesFieldInput {
     static constexpr int8_t id = 0;
     hash.add(&id);
   }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const CurveParameterFieldInput *>(&other) != nullptr;
-  }
 };
 
 class CurveLengthParameterFieldInput final : public bke::CurvesFieldInput {
@@ -237,11 +232,6 @@ class CurveLengthParameterFieldInput final : public bke::CurvesFieldInput {
     static constexpr int8_t id = 0;
     hash.add(&id);
   }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const CurveLengthParameterFieldInput *>(&other) != nullptr;
-  }
 };
 
 class IndexOnSplineFieldInput final : public bke::CurvesFieldInput {
@@ -270,11 +260,6 @@ class IndexOnSplineFieldInput final : public bke::CurvesFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const IndexOnSplineFieldInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final

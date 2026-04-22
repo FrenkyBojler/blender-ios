@@ -107,11 +107,6 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
     hash.add(&id);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const TangentFieldInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
     return AttrDomain::Point;

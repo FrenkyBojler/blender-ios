@@ -129,15 +129,6 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     hash.add(field_hash.ensure(sort_weight_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const auto *typed = dynamic_cast<const CornersOfFaceInput *>(&other)) {
-      return typed->face_index_ == face_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
     return AttrDomain::Face;
@@ -164,11 +155,6 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const CornersOfFaceCountInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final

@@ -437,17 +437,6 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
     hash.add(iterations_);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const BlurAttributeFieldInput *other_blur = dynamic_cast<const BlurAttributeFieldInput *>(
-            &other))
-    {
-      return weight_field_ == other_blur->weight_field_ &&
-             value_field_ == other_blur->value_field_ && iterations_ == other_blur->iterations_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override
   {
     const std::optional<AttrDomain> domain = bke::try_detect_field_domain(component, value_field_);

@@ -143,15 +143,6 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
     hash.add(field_hash.ensure(sort_weight_));
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const auto *typed = dynamic_cast<const EdgesOfVertInput *>(&other)) {
-      return typed->vert_index_ == vert_index_ && typed->sort_index_ == sort_index_ &&
-             typed->sort_weight_ == sort_weight_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
     return AttrDomain::Point;
@@ -178,11 +169,6 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const EdgesOfVertCountInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final

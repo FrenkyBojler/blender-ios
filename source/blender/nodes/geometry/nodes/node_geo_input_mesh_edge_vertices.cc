@@ -64,14 +64,6 @@ class EdgeVertsInput final : public bke::MeshFieldInput {
     hash.add(vertex_);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const EdgeVertsInput *other_field = dynamic_cast<const EdgeVertsInput *>(&other)) {
-      return vertex_ == other_field->vertex_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
     return AttrDomain::Edge;
@@ -121,16 +113,6 @@ class EdgePositionFieldInput final : public bke::MeshFieldInput {
     static constexpr int8_t id = 0;
     hash.add(&id);
     hash.add(vertex_);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const EdgePositionFieldInput *other_field = dynamic_cast<const EdgePositionFieldInput *>(
-            &other))
-    {
-      return vertex_ == other_field->vertex_;
-    }
-    return false;
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

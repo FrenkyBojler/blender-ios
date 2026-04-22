@@ -42,11 +42,6 @@ class CurveOfPointInput final : public bke::CurvesFieldInput {
     hash.add(&id);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const CurveOfPointInput *>(&other) != nullptr;
-  }
-
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
     return AttrDomain::Point;
@@ -78,11 +73,6 @@ class PointIndexInCurveInput final : public bke::CurvesFieldInput {
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    return dynamic_cast<const PointIndexInCurveInput *>(&other) != nullptr;
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const override

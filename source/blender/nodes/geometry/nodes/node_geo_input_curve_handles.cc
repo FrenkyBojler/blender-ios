@@ -92,16 +92,6 @@ class HandlePositionFieldInput final : public bke::GeometryFieldInput {
     hash.add(left_);
   }
 
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const HandlePositionFieldInput *other_handle =
-            dynamic_cast<const HandlePositionFieldInput *>(&other))
-    {
-      return relative_ == other_handle->relative_ && left_ == other_handle->left_;
-    }
-    return false;
-  }
-
   std::optional<AttrDomain> preferred_domain(
       const bke::GeometryComponent & /*component*/) const final
   {
