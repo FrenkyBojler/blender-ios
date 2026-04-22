@@ -1828,10 +1828,17 @@ static void text_clip_cursor(const uiFontStyle *fstyle, Button *but, const rcti 
 
   but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, INT_MAX);
 
-  if (but->strwidth > okwidth) {
-    const int editstr_len = strlen(but->editstr);
-    int len = editstr_len;
+  const int editstr_len = strlen(but->editstr);
+  int len = editstr_len;
 
+  /* shift text right to fill available space */
+  while (but->strwidth < okwidth && but->ofs > 0) {
+    text_clip_give_prev_off(but, but->editstr);
+    but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, len - but->ofs);
+  }
+
+  /* shift text left until caret is visible */
+  if (but->strwidth > okwidth) {
     while (but->strwidth > okwidth) {
       float width;
 
