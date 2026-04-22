@@ -65,7 +65,7 @@ class CompositorContext : public compositor::Context {
     return needed_outputs;
   }
 
-  void create_result_from_input(compositor::Result &result, const ImBuf &input) const;
+  void create_result_from_input(compositor::Result &result, ImBuf &input);
   void write_output(const compositor::Result &result, ImBuf &image);
   void write_outputs(const bNodeTree &node_group,
                      compositor::NodeGroupOperation &node_group_operation,
@@ -73,7 +73,5 @@ class CompositorContext : public compositor::Context {
   void set_output_refcount(const bNodeTree &node_group,
                            compositor::NodeGroupOperation &node_group_operation);
 };
-
-bool is_linear_float_buffer(const ImBuf *image_buffer);
 
 }  // namespace blender::seq

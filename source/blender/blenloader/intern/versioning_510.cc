@@ -80,6 +80,8 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   }
 
   bNode &separate_node = version_node_add_empty(node_tree, "CompositorNodeSeparateColor");
+  /* Preserve the muted state on the new node so restoring all nodes later behaves the same way. */
+  SET_FLAG_FROM_TEST(separate_node.flag, node.flag & NODE_MUTED, NODE_MUTED);
   separate_node.parent = node.parent;
   separate_node.location[0] = node.location[0] - 10.0f;
   separate_node.location[1] = node.location[1];
@@ -100,6 +102,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   }
 
   bNode &set_alpha_node = version_node_add_empty(node_tree, "CompositorNodeSetAlpha");
+  SET_FLAG_FROM_TEST(set_alpha_node.flag, node.flag & NODE_MUTED, NODE_MUTED);
   set_alpha_node.parent = node.parent;
   set_alpha_node.location[0] = node.location[0] - 10.0f;
   set_alpha_node.location[1] = node.location[1];
@@ -755,7 +758,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
               const char *new_pass_name = legacy_pass_name_to_new_name(socket.name);
               STRNCPY(socket.name, new_pass_name);
               const char *new_pass_identifier = legacy_pass_name_to_new_name(socket.identifier);
-              STRNCPY(socket.identifier, new_pass_identifier);
+              version_node_socket_identifier_set(socket, new_pass_identifier);
             }
           }
         }

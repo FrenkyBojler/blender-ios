@@ -284,8 +284,8 @@ static void rna_NodeTreeInterfaceSocket_init_socket_custom(
 
   ParameterList list;
   RNA_parameter_list_create(&list, &ptr, func);
-  RNA_parameter_set_lookup(&list, "node", node);
-  RNA_parameter_set_lookup(&list, "socket", socket);
+  RNA_parameter_set_lookup(&list, "node", &node);
+  RNA_parameter_set_lookup(&list, "socket", &socket);
   RNA_parameter_set_lookup(&list, "data_path", &data_path);
   typeinfo->ext_interface.call(nullptr, &ptr, func, &list);
 
@@ -318,8 +318,8 @@ static void rna_NodeTreeInterfaceSocket_from_socket_custom(
 
   ParameterList list;
   RNA_parameter_list_create(&list, &ptr, func);
-  RNA_parameter_set_lookup(&list, "node", node);
-  RNA_parameter_set_lookup(&list, "socket", socket);
+  RNA_parameter_set_lookup(&list, "node", &node);
+  RNA_parameter_set_lookup(&list, "socket", &socket);
   typeinfo->ext_interface.call(nullptr, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -354,7 +354,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
   else {
     /* Create a new node socket type. */
     st = MEM_new<bke::bNodeSocketType>(__func__);
-    st->idname = dummy_socket.socket_type;
+    st->idname = UString(dummy_socket.socket_type);
 
     bke::node_register_socket_type(*st);
   }
@@ -419,7 +419,7 @@ static void rna_NodeTreeInterfaceSocket_socket_type_set(PointerRNA *ptr, int val
 
   if (typeinfo) {
     bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
-    socket->set_socket_type(typeinfo->idname);
+    socket->set_socket_type(typeinfo->idname.ref());
   }
 }
 
@@ -472,6 +472,42 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_socket_type_itemf(
 
   return rna_node_socket_type_itemf(
       ntree->typeinfo, rna_NodeTreeInterfaceSocket_socket_type_poll, r_free);
+}
+
+static void rna_NodeTreeInterfaceSocket_is_panel_toggle_set(PointerRNA *ptr, bool value)
+{
+  bNodeTree &ntree = *blender::id_cast<bNodeTree *>(ptr->owner_id);
+  bNodeTreeInterfaceSocket &io_socket = *static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  const bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(io_socket.socket_type);
+  BLI_assert(base_typeinfo);
+  bNodeTreeInterfacePanel *parent = ntree.tree_interface.find_item_parent(io_socket.item);
+  BLI_assert(parent);
+
+  if (value) {
+    if (base_typeinfo->type != SOCK_BOOLEAN) {
+      return;
+    }
+    if (io_socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) {
+      return;
+    }
+
+    io_socket.flag |= NODE_INTERFACE_SOCKET_PANEL_TOGGLE;
+    /* Panel toggle item must always be at the first position. */
+    parent->move_item(io_socket.item, 0);
+    ntree.tree_interface.tag_items_changed();
+  }
+  else {
+    BLI_assert(base_typeinfo->type == SOCK_BOOLEAN);
+    if (!(io_socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE)) {
+      return;
+    }
+
+    io_socket.flag &= ~NODE_INTERFACE_SOCKET_PANEL_TOGGLE;
+    /* Panel toggles are always the first socket. Unsetting the flag may require reordering of
+     * sockets (inputs after outputs). Reinserting the item makes sure the position is valid. */
+    parent->move_item(io_socket.item, parent->item_position(io_socket.item));
+    ntree.tree_interface.tag_items_changed();
+  }
 }
 
 /**
@@ -667,7 +703,7 @@ static bNodeTreeInterfaceSocket *rna_NodeTreeInterfaceItems_new_socket(
       return nullptr;
     }
   }
-  const StringRef socket_type = typeinfo->idname;
+  const StringRef socket_type = typeinfo->idname.ref();
   NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(in_out);
   bNodeTreeInterfaceSocket *socket = interface->add_socket(
       name, description, socket_type, flag, parent);
@@ -865,6 +901,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocketFloat_subtype_itemf(
                                    PROP_WAVELENGTH,
                                    PROP_COLOR_TEMPERATURE,
                                    PROP_FREQUENCY,
+                                   PROP_PIXEL,
                                    PROP_NONE},
                                   r_free);
 }
@@ -892,7 +929,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocketInt_subtype_itemf(bCon
                                                                             PropertyRNA * /*prop*/,
                                                                             bool *r_free)
 {
-  return rna_subtype_filter_itemf({PROP_PERCENTAGE, PROP_FACTOR, PROP_NONE}, r_free);
+  return rna_subtype_filter_itemf({PROP_PERCENTAGE, PROP_FACTOR, PROP_PIXEL, PROP_NONE}, r_free);
 }
 
 void rna_NodeTreeInterfaceSocketInt_default_value_range(
@@ -924,8 +961,16 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocketVector_subtype_itemf(
                                    PROP_ACCELERATION,
                                    PROP_EULER,
                                    PROP_XYZ,
+                                   PROP_PIXEL,
                                    PROP_NONE},
                                   r_free);
+}
+
+static const EnumPropertyItem *rna_NodeTreeInterfaceSocketIntVector_subtype_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  return rna_subtype_filter_itemf(
+      {PROP_UNSIGNED, PROP_FACTOR, PROP_PERCENTAGE, PROP_PIXEL, PROP_NONE}, r_free);
 }
 
 void rna_NodeTreeInterfaceSocketVector_default_value_range(
@@ -940,6 +985,24 @@ void rna_NodeTreeInterfaceSocketVector_default_value_range(
 
   *min = -FLT_MAX;
   *max = FLT_MAX;
+  *softmin = dval->min;
+  *softmax = dval->max;
+}
+
+void rna_NodeTreeInterfaceSocketIntVector_default_value_range(
+    PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  bNodeSocketValueIntVector *dval = static_cast<bNodeSocketValueIntVector *>(socket->socket_data);
+  bke::bNodeSocketType *socket_typeinfo = bke::node_socket_type_find(socket->socket_type);
+  int subtype = socket_typeinfo ? socket_typeinfo->subtype : PROP_NONE;
+
+  if (dval->max < dval->min) {
+    dval->max = dval->min;
+  }
+
+  *min = (subtype == PROP_UNSIGNED ? 0 : INT_MIN);
+  *max = INT_MAX;
   *softmin = dval->min;
   *softmax = dval->max;
 }
@@ -1066,6 +1129,19 @@ const EnumPropertyItem *RNA_node_tree_interface_socket_menu_itemf(bContext * /*C
     return rna_enum_dummy_NULL_items;
   }
   return RNA_node_enum_definition_itemf(*data->enum_items, r_free);
+}
+
+int RNA_node_tree_interface_socket_menu_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  const bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  if (!socket) {
+    return 0;
+  }
+  const bNodeSocketValueMenu *data = static_cast<bNodeSocketValueMenu *>(socket->socket_data);
+  if (!data->enum_items || data->enum_items->items.is_empty()) {
+    return 0;
+  }
+  return data->enum_items->items.first().identifier;
 }
 
 }  // namespace blender
@@ -1200,6 +1276,7 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "is_panel_toggle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_NodeTreeInterfaceSocket_is_panel_toggle_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop,
                            "Is Panel Toggle",

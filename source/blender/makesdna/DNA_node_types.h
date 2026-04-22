@@ -12,11 +12,13 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
-#include "DNA_scene_types.h" /* for #ImageFormatData */
+#include "DNA_scene_types.h"  /* for #ImageFormatData */
+#include "DNA_screen_types.h" /* For #TextboxState. */
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
 #include "BLI_enum_flags.hh"
+#include "BLI_ustring.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
 #include "BLI_vector.hh"
@@ -107,6 +109,7 @@ enum eNodeSocketDatatype {
   SOCK_TEXT_ID = 21,
   SOCK_MASK = 22,
   SOCK_SOUND = 23,
+  SOCK_INT_VECTOR = 24,
 };
 
 /** Socket shape. */
@@ -288,6 +291,11 @@ enum {
    * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
+  /**
+   * Internal tree for building gpu shaders. This enables context-dependent node declarations for
+   * adding "Weight" input sockets.
+   */
+  NTREE_IS_GPU_SHADER_INTERNAL = 1 << 6,
 };
 
 enum eNodeTreeRuntimeFlag {
@@ -874,8 +882,9 @@ enum {
   SHD_SUBSURFACE_GAUSSIAN = 2,
 #endif
   SHD_SUBSURFACE_BURLEY = 3,
-  SHD_SUBSURFACE_RANDOM_WALK = 4,
+  SHD_SUBSURFACE_RANDOM_WALK_LEGACY = 4,
   SHD_SUBSURFACE_RANDOM_WALK_SKIN = 5,
+  SHD_SUBSURFACE_RANDOM_WALK = 6,
 };
 
 /* blur node */
@@ -1102,6 +1111,20 @@ enum CMPNodeRelativeToPixelReferenceDimension {
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_GREATER = 3,
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_SMALLER = 4,
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_DIAGONAL = 5,
+};
+
+enum CMPNodeStringToImageHorizontalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT = 0,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER = 1,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT = 2,
+};
+
+enum CMPNodeStringToImageVerticalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP = 0,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE = 1,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE = 2,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE = 3,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM = 4,
 };
 
 /* Scattering phase functions */
@@ -1461,6 +1484,9 @@ struct bNodeSocket {
   bke::bNodeSocketRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
+  /** The cached #UString that matches the socket identifier. */
+  UString identifier_ustr() const;
+
   /**
    * Whether the socket is hidden in a way that the user can control.
    *
@@ -1708,7 +1734,7 @@ struct bNode {
    * to catch typos earlier. One can compare with `bNodeType::idname` directly if the idname might
    * not be registered.
    */
-  bool is_type(StringRef query_idname) const;
+  bool is_type(UString query_idname) const;
 
   const nodes::NodeDeclaration *declaration() const;
   /** A span containing all internal links when the node is muted. */
@@ -1737,10 +1763,10 @@ struct bNode {
   bNodeSocket &output_socket(int index);
   const bNodeSocket &output_socket(int index) const;
   /** Lookup socket of this node by its identifier. */
-  const bNodeSocket *input_by_identifier(StringRef identifier) const;
-  const bNodeSocket *output_by_identifier(StringRef identifier) const;
-  bNodeSocket *input_by_identifier(StringRef identifier);
-  bNodeSocket *output_by_identifier(StringRef identifier);
+  const bNodeSocket *input_by_identifier(UString identifier) const;
+  const bNodeSocket *output_by_identifier(UString identifier) const;
+  bNodeSocket *input_by_identifier(UString identifier);
+  bNodeSocket *output_by_identifier(UString identifier);
   /** Lookup socket by its declaration. */
   const bNodeSocket &socket_by_decl(const nodes::SocketDeclaration &decl) const;
   bNodeSocket &socket_by_decl(const nodes::SocketDeclaration &decl);
@@ -1762,16 +1788,16 @@ struct bNodeInstanceKey {
   unsigned int value = 0;
 
 #ifdef __cplusplus
-  inline bool operator==(const bNodeInstanceKey &other) const
+  bool operator==(const bNodeInstanceKey &other) const
   {
     return value == other.value;
   }
-  inline bool operator!=(const bNodeInstanceKey &other) const
+  bool operator!=(const bNodeInstanceKey &other) const
   {
     return !(*this == other);
   }
 
-  inline uint64_t hash() const
+  uint64_t hash() const
   {
     return value;
   }
@@ -1867,6 +1893,10 @@ struct bNodeTree {
   struct bGPdata *gpd = nullptr;
   /** Node tree stores its own offset for consistent editor view. */
   float view_center[2] = {};
+  /** Width of the current view. Used to store and set zoom level. */
+  float view_width = 0.0f;
+
+  char _pad[4];
 
   ListBaseT<bNode> nodes;
   ListBaseT<bNodeLink> links;
@@ -1970,8 +2000,8 @@ struct bNodeTree {
   Span<bNodeSocket *> all_sockets();
   Span<const bNodeSocket *> all_sockets() const;
   /** Efficient lookup of all nodes with a specific type. */
-  Span<bNode *> nodes_by_type(StringRefNull type_idname);
-  Span<const bNode *> nodes_by_type(StringRefNull type_idname) const;
+  Span<bNode *> nodes_by_type(UString type_idname);
+  Span<const bNode *> nodes_by_type(UString type_idname) const;
   /** Frame nodes without any parents. */
   Span<bNode *> root_frames() const;
   /** A span containing all links in the node tree. */
@@ -2056,6 +2086,16 @@ struct bNodeSocketValueVector {
   float value[4] = {};
   float min = 0, max = 0;
   /* The number of dimensions of the vector. Can be 2, 3, or 4. */
+  int dimensions = 0;
+};
+
+struct bNodeSocketValueIntVector {
+  /** RNA subtype. */
+  int subtype = 0;
+  /* Only some of the values might be used depending on the dimensions. */
+  int value[3] = {};
+  int min = 0, max = 0;
+  /* The number of dimensions of the vector. Can be 2 or 3. */
   int dimensions = 0;
 };
 
@@ -3008,6 +3048,13 @@ struct NodeInputVector {
   int dimensions = 3;
 };
 
+struct NodeInputIntVector {
+  DNA_DEFINE_CXX_METHODS(NodeInputIntVector)
+
+  int vector[3] = {};
+  int dimensions = 3;
+};
+
 struct NodeInputColor {
   DNA_DEFINE_CXX_METHODS(NodeInputColor)
 
@@ -3018,6 +3065,7 @@ struct NodeInputString {
   DNA_DEFINE_CXX_METHODS(NodeInputString)
 
   char *string = nullptr;
+  TextboxState textbox_state = {};
 };
 
 struct NodeGeometryExtrudeMesh {
