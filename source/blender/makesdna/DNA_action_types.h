@@ -596,7 +596,7 @@ struct bMotionPath {
   gpu::VertBuf *points_vbo = nullptr;
   gpu::Batch *batch_line = nullptr;
   gpu::Batch *batch_points = nullptr;
-  void *_pad = nullptr;
+  struct MotionPathRuntime *runtime = nullptr;
 };
 
 /* Visualization General --------------------------- */

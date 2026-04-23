@@ -26,6 +26,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_anim_visualization.h"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 #include "BKE_wm_runtime.hh"
@@ -599,7 +600,10 @@ struct MotionPathEvalData {
   Array<MPathTarget> targets;
   Scene *scene;
 
-  MotionPathEvalData(const Span<MPathTarget *> targets, Scene *scene, Bounds<int> frame_range)
+  MotionPathEvalData(const Span<MPathTarget *> targets,
+                     wmWindowManager *wm,
+                     Scene *scene,
+                     Bounds<int> frame_range)
       : evaluation_center(scene->r.cfra), frame_range(frame_range), scene(scene)
   {
     evaluated_frames.reinitialize(frame_range.size());
@@ -613,6 +617,7 @@ struct MotionPathEvalData {
     for (const int target_index : targets.index_range()) {
       results[target_index] = {frame_range.size()};
       this->targets[target_index] = *targets[target_index];
+      this->targets[target_index].mpath->runtime->register_async_job(wm, scene);
     }
   }
 };
@@ -743,6 +748,9 @@ static void finish_job(void *job_data)
 static void free_job_data(void *job_data)
 {
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
+  for (MPathTarget &target : eval_data->targets) {
+    target.mpath->runtime->deregister_async_job();
+  }
   DEG_graph_free(eval_data->depsgraph);
   MEM_delete(eval_data);
 }
@@ -761,13 +769,6 @@ static bool targets_match_job_data(const Span<MPathTarget *> targets,
     }
   }
   return true;
-}
-
-/* Stops the thread calculating the motion path and stops the main thread until it has
- * stopped.  */
-static void animviz_stop_job(wmWindowManager *wm, Scene *scene)
-{
-  WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
 }
 
 void animviz_calc_motionpaths_async(Main *bmain,
@@ -798,7 +799,9 @@ void animviz_calc_motionpaths_async(Main *bmain,
     else {
       /* If something about the job data has changed we have to wait for the thread to stop and
        * rebuild it from scratch. */
-      animviz_stop_job(wm, scene);
+      for (MPathTarget &target : job_data->targets) {
+        animviz_stop_motionpath_job(target.mpath);
+      }
     }
   }
 
@@ -808,7 +811,7 @@ void animviz_calc_motionpaths_async(Main *bmain,
   }
 
   MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(
-      __func__, targets, scene, frame_range);
+      __func__, targets, wm, scene, frame_range);
   job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
 
   WM_jobs_customdata_set(wm_job, job_data, free_job_data);

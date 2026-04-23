@@ -19,6 +19,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "WM_api.hh"
+
 namespace blender {
 
 /* ******************************************************************** */
@@ -67,12 +69,38 @@ void animviz_free_motionpath_cache(bMotionPath *mpath)
   mpath->length = 0;
 }
 
+void MotionPathRuntime::register_async_job(wmWindowManager *wm, Scene *job_owner)
+{
+  this->wm = wm;
+  this->job_owner = job_owner;
+}
+
+void MotionPathRuntime::deregister_async_job()
+{
+  this->wm = nullptr;
+  this->job_owner = nullptr;
+}
+
+void animviz_stop_motionpath_job(bMotionPath *motion_path)
+{
+  if (!motion_path->runtime->wm) {
+    /* No running job. */
+    return;
+  }
+  WM_jobs_kill_type(
+      motion_path->runtime->wm, motion_path->runtime->job_owner, WM_JOB_TYPE_MOTION_PATH_EVAL);
+  motion_path->runtime->deregister_async_job();
+}
+
 void animviz_free_motionpath(bMotionPath *mpath)
 {
   /* sanity check */
   if (mpath == nullptr) {
     return;
   }
+
+  animviz_stop_motionpath_job(mpath);
+  MEM_delete(mpath->runtime);
 
   /* free the cache first */
   animviz_free_motionpath_cache(mpath);
@@ -98,6 +126,7 @@ bMotionPath *animviz_copy_motionpath(const bMotionPath *mpath_src)
   mpath_dst->points_vbo = nullptr;
   mpath_dst->batch_line = nullptr;
   mpath_dst->batch_points = nullptr;
+  mpath_dst->runtime = MEM_new<MotionPathRuntime>(__func__);
 
   return mpath_dst;
 }
@@ -169,6 +198,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
   }
   else {
     mpath = MEM_new<bMotionPath>("bMotionPath");
+    mpath->runtime = MEM_new<MotionPathRuntime>(__func__);
     *dst = mpath;
   }
 
@@ -219,11 +249,16 @@ void animviz_motionpath_blend_write(BlendWriter *writer, bMotionPath *mpath)
     return;
   }
 
+  MotionPathRuntime *runtime_backup = mpath->runtime;
+  mpath->runtime = nullptr;
+
   /* firstly, just write the motionpath struct */
   writer->write_struct(mpath);
 
   /* now write the array of data */
   writer->write_struct_array(mpath->length, mpath->points);
+
+  mpath->runtime = runtime_backup;
 }
 
 void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mpath)
@@ -239,6 +274,8 @@ void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mp
   mpath->points_vbo = nullptr;
   mpath->batch_line = nullptr;
   mpath->batch_points = nullptr;
+
+  mpath->runtime = MEM_new<MotionPathRuntime>(__func__);
 }
 
 }  // namespace blender
