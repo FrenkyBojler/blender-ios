@@ -155,6 +155,7 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
   }
 
   Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
+  Array<std::optional<ParsedRNAPath<>>> parsed_rna_paths(fcurves.size());
   /* Stores true for FCurves that have been evaluated. Not using BitVector because writing to it
    * from threads will introduce race conditions.*/
   Array<bool> valid(fcurves.size(), false);
@@ -167,11 +168,15 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
       if (!is_fcurve_evaluatable(fcu)) {
         continue;
       }
+      parsed_rna_paths[i] = ParsedRNAPath<>::from_string(fcu->rna_path);
+      if (!parsed_rna_paths[i]) {
+        continue;
+      }
       /* Resolve the RNA path to skip unresolvable properties. It's faster to do that in a thread
        * and store the result for later. */
       PathResolvedRNA &anim_rna = resolved_rna[i];
       if (!BKE_animsys_rna_path_resolve(
-              &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
+              &animated_id_ptr, *parsed_rna_paths[i], fcu->array_index, &anim_rna))
       {
         continue;
       }
@@ -188,10 +193,11 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
     if (!valid[i]) {
       continue;
     }
-    FCurve *fcu = fcurves[i];
-    PathResolvedRNA &anim_rna = resolved_rna[i];
     /* This part is not threadsafe. */
-    evaluation_result.store(fcu->rna_path, fcu->array_index, results[i], anim_rna);
+    evaluation_result.store(std::move(*parsed_rna_paths[i]),
+                            fcurves[i]->array_index,
+                            results[i],
+                            std::move(resolved_rna[i]));
   }
 
   return evaluation_result;
@@ -209,11 +215,11 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
 
     BKE_animsys_write_to_rna_path(&anim_rna, animated_value);
 
-    if (flush_to_original && prop_ident.rna_path_parsed) {
+    if (flush_to_original) {
       /* Convert the StringRef to a `const char *`, as the rest of the RNA path handling code in
        * BKE still uses `char *` instead of `StringRef`. */
       animsys_write_orig_anim_rna(
-          &animated_id_ptr, *prop_ident.rna_path_parsed, prop_ident.array_index, animated_value);
+          &animated_id_ptr, *prop_ident.rna_path, prop_ident.array_index, animated_value);
     }
   }
 }
@@ -254,7 +260,7 @@ void blend_layer_results(EvaluationResult &final_result,
 
     if (!last_prop) {
       /* Nothing to blend with, so just take (influence * value). */
-      final_result.store(prop_ident.rna_path,
+      final_result.store(*prop_ident.rna_path,
                          prop_ident.array_index,
                          anim_prop.value * current_layer.influence,
                          anim_prop.prop_rna);

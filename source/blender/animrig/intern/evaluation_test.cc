@@ -306,8 +306,8 @@ TEST(AnimationEvaluationResultTest, prop_identifier_hashing)
       << "This test requires different addresses for the RNA path strings";
 
   PathResolvedRNA fake_resolved_rna;
-  result.store(rna_path_1, 0, 1.0f, fake_resolved_rna);
-  result.store(rna_path_2, 0, 2.0f, fake_resolved_rna);
+  result.store(*ParsedRNAPath<>::from_string(rna_path_1), 0, 1.0f, fake_resolved_rna);
+  result.store(*ParsedRNAPath<>::from_string(rna_path_2), 0, 2.0f, fake_resolved_rna);
   EXPECT_EQ(1, result.get_map().size())
       << "Storing a result for the same property twice should just overwrite the previous value";
 

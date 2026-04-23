@@ -16,48 +16,39 @@
 
 namespace blender::animrig {
 
-/* Identifies the property that an evaluated animation value is for.
- *
- * This could be replaced with either `FCurveIdentifier` or `RNAPath`.  However,
- * `FCurveIdentifier` is semantically meant to represent an fcurve itself rather
- * than the property an fcurve might be for, and moreover not all animation will
- * necessarily come from fcurves in the future anyway.  `RNAPath` would be more
- * semantically appropriate, but it stores a full copy of the string component
- * of the path, and here we want to be lighter than that and use a string
- * reference.
+/**
+ * Identifies the property that an evaluated animation value is for.
  */
 class PropIdentifier {
  public:
   /**
-   * Reference to the RNA path of the property.
-   *
-   * This string is typically owned by the FCurve that animates the property.
+   * The pre-parsed RNA path of the property.'
+   * Ideally this would be cached right next to the rna-path it's created from (e.g. on the
+   * FCurve).
    */
-  StringRefNull rna_path;
-  /** Ideally this would be cached right next to the rna-path (e.g. on the FCurve). */
-  std::optional<ParsedRNAPath<>> rna_path_parsed;
+  std::optional<ParsedRNAPath<>> rna_path;
   int array_index;
 
   PropIdentifier() = default;
 
-  PropIdentifier(const StringRefNull rna_path, const int array_index)
-      : rna_path(rna_path), array_index(array_index)
+  PropIdentifier(std::optional<ParsedRNAPath<>> rna_path, const int array_index)
+      : rna_path(std::move(rna_path)), array_index(array_index)
   {
-    rna_path_parsed = ParsedRNAPath<>::from_string(rna_path);
+  }
+  PropIdentifier(StringRefNull rna_path, const int array_index)
+      : rna_path(ParsedRNAPath<>::from_string(rna_path)), array_index(array_index)
+  {
   }
 
-  bool operator==(const PropIdentifier &other) const
+  friend bool operator==(const PropIdentifier &a, const PropIdentifier &b)
   {
-    return rna_path == other.rna_path && array_index == other.array_index;
-  }
-  bool operator!=(const PropIdentifier &other) const
-  {
-    return !(*this == other);
+    return a.array_index == b.array_index &&
+           ParsedRNAPathRef(*a.rna_path) == ParsedRNAPathRef(*b.rna_path);
   }
 
   uint64_t hash() const
   {
-    return get_default_hash(rna_path, array_index);
+    return get_default_hash(this->array_index, ParsedRNAPathRef(*this->rna_path));
   }
 };
 
@@ -69,8 +60,8 @@ class AnimatedProperty {
   float value;
   PathResolvedRNA prop_rna;
 
-  AnimatedProperty(const float value, const PathResolvedRNA &prop_rna)
-      : value(value), prop_rna(prop_rna)
+  AnimatedProperty(const float value, PathResolvedRNA &&prop_rna)
+      : value(value), prop_rna(std::move(prop_rna))
   {
   }
 };
@@ -111,14 +102,13 @@ class EvaluationResult {
     result_.reserve(size);
   };
 
-  void store(const StringRefNull rna_path,
+  void store(ParsedRNAPath<> rna_path,
              const int array_index,
              const float value,
-             const PathResolvedRNA &prop_rna)
+             PathResolvedRNA prop_rna)
   {
-    PropIdentifier key(rna_path, array_index);
-    AnimatedProperty anim_prop(value, prop_rna);
-    result_.add_overwrite(key, anim_prop);
+    result_.add_overwrite(PropIdentifier(std::move(rna_path), array_index),
+                          AnimatedProperty(value, std::move(prop_rna)));
   }
 
   AnimatedProperty value(const StringRefNull rna_path, const int array_index) const

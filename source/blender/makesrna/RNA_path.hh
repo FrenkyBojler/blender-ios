@@ -98,6 +98,26 @@ std::string to_string(const Span<Item> &items);
 
 }  // namespace rna_path
 
+template<> struct DefaultHash<rna_path::Item> {
+  uint64_t operator()(const rna_path::Item &value) const
+  {
+    return get_default_hash(value.index(),
+                            std::visit(
+                                []<typename T>(const T &value) -> uint64_t {
+                                  if constexpr (std::is_same_v<T, rna_path::Member>) {
+                                    return get_default_hash(value.identifier);
+                                  }
+                                  else if constexpr (std::is_same_v<T, rna_path::LookupIndex>) {
+                                    return get_default_hash(value.index);
+                                  }
+                                  else if constexpr (std::is_same_v<T, rna_path::LookupKey>) {
+                                    return get_default_hash(value.key);
+                                  }
+                                },
+                                value));
+  }
+};
+
 using ParsedRNAPathRef = Span<rna_path::Item>;
 
 template<int64_t N = 4> class ParsedRNAPath {
