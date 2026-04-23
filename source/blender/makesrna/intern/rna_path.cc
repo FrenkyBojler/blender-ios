@@ -190,172 +190,6 @@ static char *rna_path_token_in_brackets(const char **path,
   return buf;
 }
 
-/**
- * \return true when the key in the path is correctly parsed and found in the collection
- * or when the path is empty.
- */
-static bool rna_path_parse_collection_key(const char **path,
-                                          PointerRNA *ptr,
-                                          PropertyRNA *prop,
-                                          PointerRNA *r_nextptr)
-{
-  char fixedbuf[256];
-  int intkey;
-
-  *r_nextptr = *ptr;
-
-  /* end of path, ok */
-  if (!(**path)) {
-    return true;
-  }
-
-  bool found = false;
-  if (**path == '[') {
-    bool quoted;
-    char *token;
-
-    /* resolve the lookup with [] brackets */
-    token = rna_path_token_in_brackets(path, fixedbuf, sizeof(fixedbuf), &quoted);
-
-    if (!token) {
-      return false;
-    }
-
-    /* check for "" to see if it is a string */
-    if (quoted) {
-      if (RNA_property_collection_lookup_string(ptr, prop, token, r_nextptr)) {
-        found = true;
-      }
-      else {
-        r_nextptr->data = nullptr;
-      }
-    }
-    else {
-      /* otherwise do int lookup */
-      intkey = atoi(token);
-      if (intkey == 0 && (token[0] != '0' || token[1] != '\0')) {
-        return false; /* we can be sure the fixedbuf was used in this case */
-      }
-      if (RNA_property_collection_lookup_int(ptr, prop, intkey, r_nextptr)) {
-        found = true;
-      }
-      else {
-        r_nextptr->data = nullptr;
-      }
-    }
-
-    if (token != fixedbuf) {
-      MEM_delete(token);
-    }
-  }
-  else {
-    if (RNA_property_collection_type_get(ptr, prop, r_nextptr)) {
-      found = true;
-    }
-    else {
-      /* ensure we quit on invalid values */
-      r_nextptr->data = nullptr;
-    }
-  }
-
-  return found;
-}
-
-static bool rna_path_parse_array_index(const char **path,
-                                       PointerRNA *ptr,
-                                       PropertyRNA *prop,
-                                       int *r_index)
-{
-  char fixedbuf[256];
-  int index_arr[RNA_MAX_ARRAY_DIMENSION] = {0};
-  int len[RNA_MAX_ARRAY_DIMENSION];
-  const int dim = RNA_property_array_dimension(ptr, prop, len);
-  int i;
-
-  *r_index = -1;
-
-  /* end of path, ok */
-  if (!(**path)) {
-    return true;
-  }
-
-  for (i = 0; i < dim; i++) {
-    int temp_index = -1;
-    char *token;
-
-    /* multi index resolve */
-    if (**path == '[') {
-      bool quoted;
-      token = rna_path_token_in_brackets(path, fixedbuf, sizeof(fixedbuf), &quoted);
-
-      if (token == nullptr) {
-        /* invalid syntax blah[] */
-        return false;
-      }
-      /* check for "" to see if it is a string */
-      if (quoted) {
-        temp_index = RNA_property_array_item_index(prop, *token);
-      }
-      else {
-        /* otherwise do int lookup */
-        temp_index = atoi(token);
-
-        if (temp_index == 0 && (token[0] != '0' || token[1] != '\0')) {
-          if (token != fixedbuf) {
-            MEM_delete(token);
-          }
-
-          return false;
-        }
-      }
-    }
-    else if (dim == 1) {
-      /* location.x || scale.X, single dimension arrays only */
-      token = rna_path_token(path, fixedbuf, sizeof(fixedbuf));
-      if (token == nullptr) {
-        /* invalid syntax blah. */
-        return false;
-      }
-      temp_index = RNA_property_array_item_index(prop, *token);
-    }
-    else {
-      /* just to avoid uninitialized pointer use */
-      token = fixedbuf;
-    }
-
-    if (token != fixedbuf) {
-      MEM_delete(token);
-    }
-
-    /* out of range */
-    if (temp_index < 0 || temp_index >= len[i]) {
-      return false;
-    }
-
-    index_arr[i] = temp_index;
-    /* end multi index resolve */
-  }
-
-  /* arrays always contain numbers so further values are not valid */
-  if (**path) {
-    return false;
-  }
-
-  /* flatten index over all dimensions */
-  {
-    int totdim = 1;
-    int flat_index = 0;
-
-    for (i = dim - 1; i >= 0; i--) {
-      flat_index += index_arr[i] * totdim;
-      totdim *= len[i];
-    }
-
-    *r_index = flat_index;
-  }
-  return true;
-}
-
 template<int64_t N>
 std::optional<ParsedRNAPath<N>> ParsedRNAPath<N>::from_string(const StringRefNull path)
 {
@@ -475,7 +309,7 @@ template class ParsedRNAPath<4>;
  * \return \a true on success, \a false if the path is somehow invalid.
  */
 static bool rna_path_parse(const PointerRNA *ptr,
-                           const char *path,
+                           const ParsedRNAPathRef path,
                            PointerRNA *r_ptr,
                            PropertyRNA **r_prop,
                            int *r_index,
@@ -487,8 +321,6 @@ static bool rna_path_parse(const PointerRNA *ptr,
   PropertyRNA *prop;
   PointerRNA curptr, nextptr;
   int index = -1;
-  char fixedbuf[256];
-  int type;
   const bool do_item_ptr = r_item_ptr != nullptr && !eval_pointer;
 
   if (do_item_ptr) {
@@ -498,44 +330,35 @@ static bool rna_path_parse(const PointerRNA *ptr,
   prop = nullptr;
   curptr = *ptr;
 
-  if (path == nullptr || *path == '\0') {
+  if (path.is_empty()) {
     return false;
   }
 
-  while (*path) {
+  const rna_path::Item *item_iter = path.begin();
+  while (item_iter != path.end()) {
     if (do_item_ptr) {
       nextptr.invalidate();
     }
-
-    const bool use_id_prop = (*path == '[');
-    /* Custom property lookup: e.g. `C.object["someprop"]`. */
 
     if (!curptr.data) {
       return false;
     }
 
     /* look up property name in current struct */
-    bool quoted = false;
-    char *token = use_id_prop ?
-                      rna_path_token_in_brackets(&path, fixedbuf, sizeof(fixedbuf), &quoted) :
-                      rna_path_token(&path, fixedbuf, sizeof(fixedbuf));
-    if (!token) {
-      return false;
-    }
-
     prop = nullptr;
-    if (use_id_prop) { /* look up property name in current struct */
+    if (const auto *member = std::get_if<rna_path::Member>(item_iter)) {
+      prop = RNA_struct_find_property(&curptr, member->identifier.c_str());
+    }
+    else if (const auto *lookup_key = std::get_if<rna_path::LookupKey>(item_iter)) {
       IDProperty *group = RNA_struct_idprops(&curptr, false);
-      if (group && quoted) {
-        prop = reinterpret_cast<PropertyRNA *>(IDP_GetPropertyFromGroup(group, token));
+      if (group) {
+        prop = reinterpret_cast<PropertyRNA *>(
+            IDP_GetPropertyFromGroup(group, lookup_key->key.c_str()));
       }
     }
     else {
-      prop = RNA_struct_find_property(&curptr, token);
-    }
-
-    if (token != fixedbuf) {
-      MEM_delete(token);
+      /* LookupIndex is never a valid property identifier. */
+      return false;
     }
 
     if (!prop) {
@@ -551,21 +374,21 @@ static bool rna_path_parse(const PointerRNA *ptr,
       });
     }
 
-    type = RNA_property_type(prop);
+    item_iter++;
 
     /* now look up the value of this property if it is a pointer or
      * collection, otherwise return the property rna so that the
      * caller can read the value of the property itself */
-    switch (type) {
+    switch (RNA_property_type(prop)) {
       case PROP_POINTER: {
         /* resolve pointer if further path elements follow
          * or explicitly requested
          */
-        if (do_item_ptr || eval_pointer || *path != '\0') {
+        if (do_item_ptr || eval_pointer || item_iter != path.end()) {
           nextptr = RNA_property_pointer_get(&curptr, prop);
         }
 
-        if (eval_pointer || *path != '\0') {
+        if (eval_pointer || item_iter != path.end()) {
           curptr = nextptr;
           prop = nullptr; /* now we have a PointerRNA, the prop is our parent so forget it */
           index = -1;
@@ -573,16 +396,33 @@ static bool rna_path_parse(const PointerRNA *ptr,
         break;
       }
       case PROP_COLLECTION: {
-        /* Resolve pointer if further path elements follow.
-         * Note that if path is empty, rna_path_parse_collection_key will do nothing anyway,
-         * so do_item_ptr is of no use in that case.
-         */
-        if (*path) {
-          if (!rna_path_parse_collection_key(&path, &curptr, prop, &nextptr)) {
-            return false;
+        /* Resolve pointer if further path elements follow. */
+        if (item_iter != path.end()) {
+          if (const auto *lookup_key = std::get_if<rna_path::LookupKey>(item_iter)) {
+            if (!RNA_property_collection_lookup_string(
+                    &curptr, prop, lookup_key->key.c_str(), &nextptr))
+            {
+              return false;
+            }
+            item_iter++;
+          }
+          else if (const auto *lookup_index = std::get_if<rna_path::LookupIndex>(item_iter)) {
+            if (!RNA_property_collection_lookup_int(
+                    &curptr, prop, int(lookup_index->index), &nextptr))
+            {
+              return false;
+            }
+            item_iter++;
+          }
+          else {
+            /* Member follows collection: resolve to collection's type pointer.
+             * Don't consume the Member; leave it for the next outer iteration. */
+            if (!RNA_property_collection_type_get(&curptr, prop, &nextptr)) {
+              return false;
+            }
           }
 
-          if (eval_pointer || *path != '\0') {
+          if (eval_pointer || item_iter != path.end()) {
             curptr = nextptr;
             prop = nullptr; /* now we have a PointerRNA, the prop is our parent so forget it */
             index = -1;
@@ -592,9 +432,59 @@ static bool rna_path_parse(const PointerRNA *ptr,
       }
       default:
         if (r_index || r_elements) {
-          if (!rna_path_parse_array_index(&path, &curptr, prop, &index)) {
+          if (item_iter == path.end()) {
+            /* A potential array index is not specified. */
+            break;
+          }
+
+          int array_indices[RNA_MAX_ARRAY_DIMENSION] = {0};
+          int dimension_size[RNA_MAX_ARRAY_DIMENSION];
+          const int dim = RNA_property_array_dimension(&curptr, prop, dimension_size);
+          for (const int d : IndexRange(dim)) {
+            if (item_iter == path.end()) {
+              /* Fewer items than dimensions. */
+              return false;
+            }
+
+            if (const auto *lookup_index = std::get_if<rna_path::LookupIndex>(item_iter)) {
+              array_indices[d] = int(lookup_index->index);
+            }
+            else if (const auto *lookup_key = std::get_if<rna_path::LookupKey>(item_iter)) {
+              /* ["x"] quoted-bracket style. */
+              array_indices[d] = RNA_property_array_item_index(prop, lookup_key->key[0]);
+            }
+            else if (dim == 1) {
+              /* .x/.y/.x single letter collection property access. */
+              const auto *member = std::get_if<rna_path::Member>(item_iter);
+              if (!member) {
+                return false;
+              }
+              array_indices[d] = RNA_property_array_item_index(prop, member->identifier[0]);
+            }
+            else {
+              /* Multi-dimensional arrays cannot use a single letter #rna_path::Member. */
+              return false;
+            }
+
+            if (array_indices[d] >= dimension_size[d]) {
+              return false;
+            }
+            item_iter++;
+          }
+
+          /* Besides pointer and collections (handled above), indices are always the path end. */
+          if (item_iter != path.end()) {
             return false;
           }
+
+          /* Flatten index over all dimensions. */
+          int dim_total = 1;
+          int flat_index = 0;
+          for (int d = dim - 1; d >= 0; d--) {
+            flat_index += array_indices[d] * dim_total;
+            dim_total *= dimension_size[d];
+          }
+          index = flat_index;
 
           if (r_elements) {
             r_elements->last().index = index;
@@ -631,48 +521,16 @@ static bool rna_path_parse(const PointerRNA *ptr,
   return true;
 }
 
-static bool rna_path_parse2(const PointerRNA *ptr,
-                            const ParsedRNAPathRef path_ref,
-                            PointerRNA *r_ptr,
-                            PropertyRNA **r_prop,
-                            int *r_index,
-                            PointerRNA *r_item_ptr,
-                            Vector<PropertyElemRNA> *r_elements,
-                            const bool eval_pointer)
-{
-  std::string path_str = rna_path::to_string(path_ref);
-
-  // PointerRNA ptr_iter = *ptr;
-  // PropertyRNA *prop_iter = nullptr;
-  // for (const rna_path::Item &item : path_ref) {
-  //   if (const auto *member = std::get_if<rna_path::Member>(&item)) {
-  //     prop_iter = RNA_struct_find_property(&ptr_iter, member->identifier.c_str());
-  //   }
-  //   else if (const auto *lookup_key = std::get_if<rna_path::LookupKey>(&item)) {
-  //     if (IDProperty *group = RNA_struct_idprops(&ptr_iter, false)) {
-  //       IDProperty *idprop = IDP_GetPropertyFromGroup(group, lookup_key->key.c_str());
-  //       prop_iter = reinterpret_cast<PropertyRNA *>(idprop);
-  //     }
-  //     else {
-  //       prop_iter = nullptr;
-  //     }
-  //   }
-
-  //   if (!prop_iter) {
-  //     return false;
-  //   }
-  // }
-  /* This function should be rewritten to make use of the already parsed path.*/
-  return rna_path_parse(
-      ptr, path_str.c_str(), r_ptr, r_prop, r_index, r_item_ptr, r_elements, eval_pointer);
-}
-
 bool RNA_path_resolve(const PointerRNA *ptr,
                       const char *path,
                       PointerRNA *r_ptr,
                       PropertyRNA **r_prop)
 {
-  if (!rna_path_parse(ptr, path, r_ptr, r_prop, nullptr, nullptr, nullptr, true)) {
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  if (!rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, nullptr, nullptr, nullptr, true)) {
     return false;
   }
 
@@ -682,7 +540,11 @@ bool RNA_path_resolve(const PointerRNA *ptr,
 bool RNA_path_resolve_full(
     const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
-  if (!rna_path_parse(ptr, path, r_ptr, r_prop, r_index, nullptr, nullptr, true)) {
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  if (!rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, r_index, nullptr, nullptr, true)) {
     return false;
   }
 
@@ -692,7 +554,11 @@ bool RNA_path_resolve_full(
 bool RNA_path_resolve_full_maybe_null(
     const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
-  return rna_path_parse(ptr, path, r_ptr, r_prop, r_index, nullptr, nullptr, true);
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  return rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, r_index, nullptr, nullptr, true);
 }
 
 bool RNA_path_resolve_property(const PointerRNA *ptr,
@@ -700,7 +566,11 @@ bool RNA_path_resolve_property(const PointerRNA *ptr,
                                PointerRNA *r_ptr,
                                PropertyRNA **r_prop)
 {
-  if (!rna_path_parse(ptr, path, r_ptr, r_prop, nullptr, nullptr, nullptr, false)) {
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  if (!rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, nullptr, nullptr, nullptr, false)) {
     return false;
   }
 
@@ -712,7 +582,7 @@ bool RNA_path_resolve_property(const PointerRNA *ptr,
                                PointerRNA *r_ptr,
                                PropertyRNA **r_prop)
 {
-  if (!rna_path_parse2(ptr, path, r_ptr, r_prop, nullptr, nullptr, nullptr, false)) {
+  if (!rna_path_parse(ptr, path, r_ptr, r_prop, nullptr, nullptr, nullptr, false)) {
     return false;
   }
 
@@ -722,7 +592,11 @@ bool RNA_path_resolve_property(const PointerRNA *ptr,
 bool RNA_path_resolve_property_full(
     const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
-  if (!rna_path_parse(ptr, path, r_ptr, r_prop, r_index, nullptr, nullptr, false)) {
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  if (!rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, r_index, nullptr, nullptr, false)) {
     return false;
   }
 
@@ -735,7 +609,11 @@ bool RNA_path_resolve_property_and_item_pointer(const PointerRNA *ptr,
                                                 PropertyRNA **r_prop,
                                                 PointerRNA *r_item_ptr)
 {
-  if (!rna_path_parse(ptr, path, r_ptr, r_prop, nullptr, r_item_ptr, nullptr, false)) {
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  if (!rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, nullptr, r_item_ptr, nullptr, false)) {
     return false;
   }
 
@@ -749,7 +627,11 @@ bool RNA_path_resolve_property_and_item_pointer_full(const PointerRNA *ptr,
                                                      int *r_index,
                                                      PointerRNA *r_item_ptr)
 {
-  if (!rna_path_parse(ptr, path, r_ptr, r_prop, r_index, r_item_ptr, nullptr, false)) {
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  if (!rna_path_parse(ptr, *parsed_path, r_ptr, r_prop, r_index, r_item_ptr, nullptr, false)) {
     return false;
   }
 
@@ -759,7 +641,11 @@ bool RNA_path_resolve_elements(PointerRNA *ptr,
                                const char *path,
                                Vector<PropertyElemRNA> *r_elements)
 {
-  return rna_path_parse(ptr, path, nullptr, nullptr, nullptr, nullptr, r_elements, false);
+  const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
+  if (!parsed_path) {
+    return false;
+  }
+  return rna_path_parse(ptr, *parsed_path, nullptr, nullptr, nullptr, nullptr, r_elements, false);
 }
 
 char *RNA_path_append(const char *path,
