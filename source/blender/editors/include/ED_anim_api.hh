@@ -40,6 +40,8 @@ struct ViewLayer;
 struct rctf;
 struct bContext;
 struct wmKeyConfig;
+struct wmWindowManager;
+struct wmWindow;
 
 struct Object;
 struct Scene;
@@ -1290,8 +1292,11 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               MutableSpan<MPathTarget *> targets,
                               eAnimvizCalcRange range,
                               bool restore);
-struct wmWindowManager;
-struct wmWindow;
+
+/**
+ * Runs the depsgraph evaluation in a separate thread that syncs back to the main thread in regular
+ * intervals. Makes the Motion Path evaluation non-blocking.
+ */
 void animviz_calc_motionpaths_async(Main *bmain,
                                     wmWindowManager *wm,
                                     wmWindow *window,

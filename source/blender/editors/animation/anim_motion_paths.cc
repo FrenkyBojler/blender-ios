@@ -576,10 +576,10 @@ struct MotionPathEvalData {
    * frames that are important for the user. */
   int evaluation_center;
   Bounds<int> frame_range;
-  Array<TargetEvalResult> results;
   Array<bool> evaluated_frames;
-  /* Can be set from the main thread to tell this thread to start over. Is used because we cannot
-   * just stop the depsgraph evaluation. */
+  Array<TargetEvalResult> results;
+  /* Can be set from the main thread to tell the evaluating thread to start over. Is used because
+   * we cannot just stop the depsgraph evaluation. */
   bool restart;
 
   /* Main thread data. Do not modify during eval. */
@@ -587,34 +587,36 @@ struct MotionPathEvalData {
   Scene *scene;
 };
 
+/* This is the function that runs in a thread. */
 static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
 {
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   BLI_assert(eval_data->targets.size() == eval_data->results.size());
   BLI_assert(!eval_data->frame_range.is_empty());
+  BLI_assert(eval_data->frame_range.contains(eval_data->evaluation_center));
 
 restart:
   eval_data->evaluated_frames.fill(false);
   eval_data->restart = false;
 
   int left_bound = eval_data->evaluation_center;
-  int right_bound = eval_data->evaluation_center;
-  bool tick_tock = false;
+  int right_bound = eval_data->evaluation_center + 1;
+  bool left_right = true;
 
   while (left_bound >= eval_data->frame_range.min || right_bound < eval_data->frame_range.max) {
-    int frame = 0;
-    if (tick_tock) {
+    int frame;
+    if (left_right) {
       frame = left_bound;
       left_bound--;
       if (right_bound < eval_data->frame_range.max) {
-        tick_tock = false;
+        left_right = !left_right;
       }
     }
     else {
       frame = right_bound;
       right_bound++;
       if (left_bound >= eval_data->frame_range.min) {
-        tick_tock = true;
+        left_right = !left_right;
       }
     }
     const int frame_index = frame - eval_data->frame_range.min;
@@ -654,7 +656,7 @@ restart:
       else {
         copy_v3_v3(result[frame_index], ob_eval->object_to_world().location());
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     eval_data->evaluated_frames[frame_index] = true;
     worker_status->progress = float(frame - eval_data->frame_range.min) /
@@ -701,10 +703,32 @@ static void free_job_data(void *job_data)
   MEM_delete(eval_data);
 }
 
-/**
- * Runs the depsgraph evaluation in a separate thread that syncs back to the main thread in regular
- * intervals. Makes the Motion Path evaluation non-blocking.
- */
+static bool targets_match_job_data(const Span<MPathTarget *> targets,
+                                   const MotionPathEvalData &job_data)
+{
+  if (targets.size() != job_data.targets.size()) {
+    return false;
+  }
+  for (const int target_index : targets.index_range()) {
+    const MPathTarget *target = targets[target_index];
+    const MPathTarget &job_data_target = job_data.targets[target_index];
+    if (target->ob != job_data_target.ob || target->pchan != job_data_target.pchan) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* Stops the thread calculating the motion path and stops the main thread until it has
+ * stopped.  */
+static void animviz_stop_job(wmWindowManager *wm, Scene *scene)
+{
+  WM_jobs_stop_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+  while (WM_jobs_has_running_type(wm, WM_JOB_TYPE_MOTION_PATH_EVAL)) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+}
+
 void animviz_calc_motionpaths_async(Main *bmain,
                                     wmWindowManager *wm,
                                     wmWindow *window,
@@ -712,26 +736,33 @@ void animviz_calc_motionpaths_async(Main *bmain,
                                     ViewLayer *view_layer,
                                     Span<MPathTarget *> targets)
 {
-  /* In case the motion paths are set to be recalculated before they finished their
-   * previous run. */
-
-  const Bounds<int> frame_range = motionpath_get_global_framerange(targets);
-  if (frame_range.is_empty() || targets.size() == 0) {
-    return;
-  }
-
   wmJob *wm_job = WM_jobs_get(wm,
                               window,
                               scene,
                               "Evaluate Motion Path Frame",
-                              WM_JOB_PROGRESS,
+                              eWM_JobFlag(0),
                               WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+  /* In case the motion paths are set to be recalculated before they finished their
+   * previous run. */
   if (WM_jobs_is_running(wm_job)) {
     MotionPathEvalData *job_data = static_cast<MotionPathEvalData *>(
         WM_jobs_customdata_get(wm_job));
-    /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
-     * to restart the work with the same data. */
-    job_data->restart = true;
+    if (targets_match_job_data(targets, *job_data)) {
+      /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
+       * to restart the work with the same data. */
+      job_data->restart = true;
+      return;
+    }
+    else {
+      /* If something about the job data has changed we have to wait for the thread to stop and
+       * rebuild it from scratch. */
+      animviz_stop_job(wm, scene);
+    }
+  }
+
+  const Bounds<int> frame_range = motionpath_get_global_framerange(targets);
+  if (frame_range.is_empty() || targets.size() == 0) {
     return;
   }
 
