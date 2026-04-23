@@ -637,7 +637,7 @@ static bool rna_path_parse2(const PointerRNA *ptr,
                             PropertyRNA **r_prop,
                             int *r_index,
                             PointerRNA *r_item_ptr,
-                            ListBaseT<PropertyElemRNA> *r_elements,
+                            Vector<PropertyElemRNA> *r_elements,
                             const bool eval_pointer)
 {
   std::string path_str = rna_path::to_string(path_ref);
