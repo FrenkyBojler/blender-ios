@@ -463,7 +463,7 @@ CPPType::CPPType(TypeTag<T> /*type*/,
 
 /** Register a #CPPType created with #CPPType::get<T>(). */
 #define BLI_CPP_TYPE_REGISTER(TYPE_NAME, FLAGS) \
-  new (cpp_type_impl<TYPE_NAME>.ptr()) \
+  new (detail::cpp_type_impl<TYPE_NAME>.ptr()) \
       CPPType(TypeTag<TYPE_NAME>(), TypeForValue<CPPTypeFlags, FLAGS>(), STRINGIFY(TYPE_NAME))
 
 }  // namespace blender
