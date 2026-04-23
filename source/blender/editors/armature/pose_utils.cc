@@ -370,10 +370,10 @@ void slide_subjects_reset(ListBaseT<SlideSubject> *slide_subjects)
 
     /* just copy all the values over regardless of whether they changed or not */
     transformable->set_property(
-        ed::Transformable::PropertyType::LOCATION, slide_subject.old_loc, ed::AXIS_FLAG_NONE);
+        ed::Transformable::PropertyType::LOCATION, slide_subject.old_loc, ed::AXIS_MUTABLE_ALL);
     transformable->set_rotation(slide_subject.old_rot);
     transformable->set_property(
-        ed::Transformable::PropertyType::SCALE, slide_subject.old_scale, ed::AXIS_FLAG_NONE);
+        ed::Transformable::PropertyType::SCALE, slide_subject.old_scale, ed::AXIS_MUTABLE_ALL);
 
     for (PropertySnapshot &extra_prop : slide_subject.additional_properties) {
       animrig::rna_property_set_as_float(

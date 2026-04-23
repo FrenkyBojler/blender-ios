@@ -28,11 +28,11 @@ namespace ed {
 /**
  * Used to limit the modification of properties to certain axes.
  */
-enum AxisFlag : int8_t {
-  AXIS_FLAG_NONE = 0,
-  AXIS_FLAG_X = 1 << 0,
-  AXIS_FLAG_Y = 1 << 1,
-  AXIS_FLAG_Z = 1 << 2,
+enum AxisMutable : int8_t {
+  AXIS_MUTABLE_X = 1 << 0,
+  AXIS_MUTABLE_Y = 1 << 1,
+  AXIS_MUTABLE_Z = 1 << 2,
+  AXIS_MUTABLE_ALL = 0,
   /* There is currently no support for a W axis. This was already the case when porting this enum
      from the pose slide code. */
 };
@@ -145,7 +145,7 @@ class Transformable {
    * math depending on the rotation mode (LERP for euler, SLERP for quaternion). At `factor` 0, the
    * current rotation remains unchanged.
    */
-  void blend_rotation_to(const Rotation &target, float factor, AxisFlag axis_flag);
+  void blend_rotation_to(const Rotation &target, float factor, AxisMutable axis_flag);
 
   /**
    * Returns a copy of the property values for the given property type.
@@ -158,7 +158,7 @@ class Transformable {
    * Generic way to set the given transform property. It is asserted that the value count matches
    * the current rotation mode. Use `set_rotation` to automatically convert to the correct mode.
    */
-  void set_property(PropertyType prop_type, Span<float> values, AxisFlag axis_flag);
+  void set_property(PropertyType prop_type, Span<float> values, AxisMutable axis_flag);
   /**
    * Do a linear blend of the property values towards the given `target`. It is asserted that the
    * given span size equals the property size. When setting the rotation property, it is the
@@ -170,11 +170,14 @@ class Transformable {
   void blend_property_to(PropertyType prop_type,
                          Span<float> target,
                          float factor,
-                         AxisFlag axis_flag);
+                         AxisMutable axis_flag);
   /**
    * Overloaded function that blends all values of the given property type to the same float.
    */
-  void blend_property_to(PropertyType prop_type, float target, float factor, AxisFlag axis_flag);
+  void blend_property_to(PropertyType prop_type,
+                         float target,
+                         float factor,
+                         AxisMutable axis_flag);
 };
 
 /**

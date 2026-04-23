@@ -25,9 +25,9 @@ namespace blender::ed {
  * Returns true if the given property index matches the axis flag.
  * Always returns true if no flag is set.
  */
-static bool should_modify_axis(const int index, const AxisFlag axis_flag)
+static bool should_modify_axis(const int index, const AxisMutable axis_flag)
 {
-  if (axis_flag == AXIS_FLAG_NONE) {
+  if (axis_flag == AXIS_MUTABLE_ALL) {
     return true;
   }
   return axis_flag & (1 << index);
@@ -44,7 +44,7 @@ static TransformFloats copy_pointers_to_values(const Span<float *> value)
 
 static void copy_span_into_mutable_span(const Span<float> value,
                                         MutableSpan<float> target,
-                                        const AxisFlag axis_flag = AXIS_FLAG_NONE)
+                                        const AxisMutable axis_flag = AXIS_MUTABLE_ALL)
 {
   BLI_assert(target.size() == value.size());
   for (const int i : value.index_range()) {
@@ -61,7 +61,7 @@ static void copy_span_into_mutable_span(const Span<float> value,
 static void blend_linear(MutableSpan<float> values,
                          const float target,
                          const float factor,
-                         const AxisFlag axis_flag)
+                         const AxisMutable axis_flag)
 {
   for (int i : values.index_range()) {
     if (!should_modify_axis(i, axis_flag)) {
@@ -78,7 +78,7 @@ static void blend_linear(MutableSpan<float> values,
 static void blend_linear(MutableSpan<float> values,
                          const Span<float> target,
                          const float factor,
-                         const AxisFlag axis_flag)
+                         const AxisMutable axis_flag)
 {
   BLI_assert(values.size() == target.size());
   for (int i : values.index_range()) {
@@ -289,7 +289,7 @@ TransformFloats Transformable::get_property(const PropertyType prop_type) const
 
 void Transformable::set_property(const PropertyType prop_type,
                                  const Span<float> values,
-                                 const AxisFlag axis_flag)
+                                 const AxisMutable axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -305,7 +305,8 @@ void Transformable::set_property(const PropertyType prop_type,
         return;
       }
       /* Axis flags don't work with quaternion rotations. */
-      BLI_assert(axis_flag == AXIS_FLAG_NONE || eRotationModes(*rotation_mode_) != ROT_MODE_QUAT);
+      BLI_assert(axis_flag == AXIS_MUTABLE_ALL ||
+                 eRotationModes(*rotation_mode_) != ROT_MODE_QUAT);
       for (int i : rotation_array->index_range()) {
         if (!should_modify_axis(i, axis_flag)) {
           continue;
@@ -323,7 +324,7 @@ void Transformable::set_property(const PropertyType prop_type,
 void Transformable::blend_property_to(const PropertyType prop_type,
                                       const Span<float> target,
                                       const float factor,
-                                      const AxisFlag axis_flag)
+                                      const AxisMutable axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -355,7 +356,7 @@ void Transformable::blend_property_to(const PropertyType prop_type,
 void Transformable::blend_property_to(const PropertyType prop_type,
                                       const float target,
                                       const float factor,
-                                      const AxisFlag axis_flag)
+                                      const AxisMutable axis_flag)
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
@@ -435,7 +436,7 @@ eRotationModes Transformable::get_rotation_mode() const
 
 void Transformable::blend_rotation_to(const Rotation &target,
                                       const float factor,
-                                      const AxisFlag axis_flag)
+                                      const AxisMutable axis_flag)
 {
   const eRotationModes current_mode = eRotationModes(*rotation_mode_);
   Rotation rot;
