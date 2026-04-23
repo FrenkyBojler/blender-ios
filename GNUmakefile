@@ -152,6 +152,9 @@ Documentation Targets
      Set the environment variable BLENDER_DOC_OFFLINE=1
      to prevent download data at build time.
 
+     Set the environment variable BLENDER_DOC_SPHINX=0
+     to only generate RST files (skip the sphinx HTML build).
+
    * doc_doxy:
      Generate doxygen C/C++ docs.
    * doc_dna:
@@ -331,11 +334,7 @@ else
 	ifneq ("$(wildcard $(DEPS_BUILD_DIR)/build.ninja)","")
 		DEPS_BUILD_COMMAND:=ninja
 	else
-		ifeq ($(OS), Darwin)
-			DEPS_BUILD_COMMAND:=make -s
-		else
-			DEPS_BUILD_COMMAND:="$(BLENDER_DIR)/build_files/build_environment/linux/make_deps_wrapper.sh" -s
-		endif
+		DEPS_BUILD_COMMAND:="$(BLENDER_DIR)/build_files/build_environment/linux/make_deps_wrapper.sh" -s
 	endif
 endif
 
@@ -633,8 +632,10 @@ doc_py: .FORCE
 	$(BLENDER_BIN) \
 	    --background --factory-startup \
 	    --python doc/python_api/sphinx_doc_gen.py
+ifneq ($(BLENDER_DOC_SPHINX), 0)
 	@sphinx-build -b html -j $(NPROCS) doc/python_api/sphinx-in doc/python_api/sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/python_api/sphinx-out/index.html'"
+endif
 
 doc_doxy: .FORCE
 	@cd doc/doxygen; doxygen Doxyfile

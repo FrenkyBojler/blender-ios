@@ -2,8 +2,14 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# Functions and classes have to be added here to show up in the python documentation.
 __all__ = (
     "AutoKeying",
+
+    "action_get_channelbag_for_slot",
+    "action_get_first_suitable_slot",
+    "action_ensure_channelbag_for_slot",
+    "animdata_get_channelbag_for_assigned_slot",
 
     "bake_action",
     "bake_action_objects",
@@ -16,7 +22,7 @@ __all__ = (
 
 import contextlib
 from dataclasses import dataclass
-from typing import Iterable, Optional, Union, Iterator
+from typing import Iterable
 from collections.abc import (
     Mapping,
     Sequence,
@@ -24,8 +30,8 @@ from collections.abc import (
 
 import bpy
 from bpy.types import (
-    Context, Action, ActionSlot, ActionChannelbag,
-    Object, PoseBone, KeyingSet,
+    Action, ActionSlot, ActionChannelbag,
+    PoseBone,
 )
 
 from rna_prop_ui import (
@@ -136,8 +142,8 @@ def action_ensure_channelbag_for_slot(action: Action, slot: ActionSlot) -> Actio
     return strip.channelbag(slot, ensure=True)
 
 
-def animdata_get_channelbag_for_assigned_slot(anim_data) -> ActionChannelbag:
-    """Return the channelbag used in the given anim_data or None if there is no Action
+def animdata_get_channelbag_for_assigned_slot(anim_data: bpy.types.AnimData | None) -> ActionChannelbag | None:
+    """Return the first channelbag used in the given *anim_data* or None if there is no Action
     + Slot combination defined."""
     if not anim_data:
         return None

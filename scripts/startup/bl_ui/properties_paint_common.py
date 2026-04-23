@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Menu, Panel
+from bpy.types import (
+    Menu,
+)
 from bpy.app.translations import (
     contexts as i18n_contexts,
     pgettext_iface as iface_,
@@ -161,23 +163,14 @@ class BrushAssetShelf:
         )
 
 
-class VIEW3D_PT_brush_asset_shelf_filter(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'HEADER'
-    bl_label = "Filter"
-    bl_parent_id = "ASSETSHELF_PT_display"
+def brush_asset_shelf_filter_draw(panel, context):
+    if context.asset_shelf.bl_idname != BrushAssetShelf.get_shelf_name_from_context(context):
+        return
 
-    @classmethod
-    def poll(cls, context):
-        if context.asset_shelf is None:
-            return False
-        return context.asset_shelf.bl_idname == BrushAssetShelf.get_shelf_name_from_context(context)
+    layout = panel.layout
+    prefs = context.preferences
 
-    def draw(self, context):
-        layout = self.layout
-        prefs = context.preferences
-
-        layout.prop(prefs.view, "use_filter_brushes_by_tool", text="By Active Tool")
+    layout.prop(prefs.view, "use_filter_brushes_by_tool", text="By Active Tool")
 
 
 class UnifiedPaintPanel:
@@ -964,6 +957,12 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "use_grab_active_vertex")
             layout.prop(brush, "use_grab_silhouette")
 
+        elif sculpt_brush_type == 'SCENE_PROJECT':
+            layout.separator()
+            layout.prop(brush, "project_ray_direction_type")
+            layout.prop(brush, "minimum_distance")
+            layout.prop(brush, "use_bidirectional")
+
         elif sculpt_brush_type == 'PAINT':
             row = layout.row(align=True)
             row.prop(brush, "flow")
@@ -1316,80 +1315,81 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         use_frontface = True
 
         col = layout.column(heading="Auto-Masking", align=True)
+        automasking = brush.mesh_automasking_settings
 
-        col.prop(brush, "use_automasking_topology", text="Topology")
-        col.prop(brush, "use_automasking_face_sets", text="Face Sets")
+        col.prop(automasking, "use_automasking_topology", text="Topology")
+        col.prop(automasking, "use_automasking_face_sets", text="Face Sets")
 
         layout.separator()
 
         col = layout.column(align=True)
         row = col.row()
-        row.prop(brush, "use_automasking_boundary_edges", text="Mesh Boundary")
+        row.prop(automasking, "use_automasking_boundary_edges", text="Mesh Boundary")
 
-        if brush.use_automasking_boundary_edges:
+        if automasking.use_automasking_boundary_edges:
             props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
             props.settings_source = 'BRUSH'
             props.boundary_mode = 'MESH'
 
         row = col.row()
-        row.prop(brush, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
+        row.prop(automasking, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
 
-        if brush.use_automasking_boundary_face_sets:
+        if automasking.use_automasking_boundary_face_sets:
             props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
             props.settings_source = 'BRUSH'
             props.boundary_mode = 'FACE_SETS'
 
-        if brush.use_automasking_boundary_edges or brush.use_automasking_boundary_face_sets:
+        if automasking.use_automasking_boundary_edges or automasking.use_automasking_boundary_face_sets:
             col = layout.column()
             col.use_property_split = False
             split = col.split(factor=0.4)
             col = split.column()
-            split.prop(brush, "automasking_boundary_edges_propagation_steps")
+            split.prop(automasking, "boundary_edges_propagation_steps")
 
         layout.separator()
 
         col = layout.column(align=True)
         row = col.row()
-        row.prop(brush, "use_automasking_cavity", text="Cavity")
+        row.prop(automasking, "use_automasking_cavity", text="Cavity")
 
-        is_cavity_active = brush.use_automasking_cavity or brush.use_automasking_cavity_inverted
+        is_cavity_active = automasking.use_automasking_cavity or automasking.use_automasking_cavity_inverted
 
         if is_cavity_active:
             props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
             props.settings_source = 'BRUSH'
 
-        col.prop(brush, "use_automasking_cavity_inverted", text="Cavity (inverted)")
+        col.prop(automasking, "use_automasking_cavity_inverted", text="Cavity (inverted)")
 
         if is_cavity_active:
             col = layout.column(align=True)
-            col.prop(brush, "automasking_cavity_factor", text="Factor")
-            col.prop(brush, "automasking_cavity_blur_steps", text="Blur")
+            col.prop(automasking, "cavity_factor", text="Factor")
+            col.prop(automasking, "cavity_blur_steps", text="Blur")
 
             col = layout.column()
-            col.prop(brush, "use_automasking_custom_cavity_curve", text="Custom Curve")
+            col.prop(automasking, "use_automasking_custom_cavity_curve", text="Custom Curve")
 
-            if brush.use_automasking_custom_cavity_curve:
-                col.template_curve_mapping(brush, "automasking_cavity_curve", brush=True)
+            if automasking.use_automasking_custom_cavity_curve:
+                col.template_curve_mapping(automasking, "cavity_curve", brush=True)
 
         layout.separator()
 
         col = layout.column(align=True)
-        col.prop(brush, "use_automasking_view_normal", text="View Normal")
+        col.prop(automasking, "use_automasking_view_normal", text="View Normal")
 
-        if brush.use_automasking_view_normal:
-            col.prop(brush, "use_automasking_view_occlusion", text="Occlusion")
+        if automasking.use_automasking_view_normal:
+            col.prop(automasking, "use_automasking_view_occlusion", text="Occlusion")
             subcol = col.column(align=True)
-            subcol.active = not brush.use_automasking_view_occlusion
-            subcol.prop(brush, "automasking_view_normal_limit", text="Limit")
-            subcol.prop(brush, "automasking_view_normal_falloff", text="Falloff")
+            subcol.active = not automasking.use_automasking_view_occlusion
+            subcol.prop(automasking, "view_normal_limit", text="Limit")
+            subcol.prop(automasking, "view_normal_falloff", text="Falloff")
 
         col = layout.column()
-        col.prop(brush, "use_automasking_start_normal", text="Area Normal")
+        col.prop(automasking, "use_automasking_start_normal", text="Area Normal")
 
-        if brush.use_automasking_start_normal:
+        if automasking.use_automasking_start_normal:
             col = layout.column(align=True)
-            col.prop(brush, "automasking_start_normal_limit", text="Limit")
-            col.prop(brush, "automasking_start_normal_falloff", text="Falloff")
+            col.prop(automasking, "start_normal_limit", text="Limit")
+            col.prop(automasking, "start_normal_falloff", text="Falloff")
 
         layout.separator()
 
@@ -1767,7 +1767,9 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     if is_primitive_tool:
         row = layout.row(align=True)
         if context.region.type == 'TOOL_HEADER':
-            row.prop(brush.gpencil_settings, "stroke_type", expand=True)
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'BOTH', text="", icon='GP_DRAW_BOTH')
         else:
             row.prop(brush.gpencil_settings, "stroke_type")
 
@@ -1796,7 +1798,9 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     elif grease_pencil_brush_type == 'DRAW':
         row = layout.row(align=True)
         if compact:
-            row.prop(brush.gpencil_settings, "stroke_type", expand=True)
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'BOTH', text="", icon='GP_DRAW_BOTH')
         else:
             row.prop(brush.gpencil_settings, "stroke_type")
 
@@ -1828,7 +1832,14 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         if gp_settings.eraser_mode in {'HARD', 'SOFT'}:
             layout.prop(gp_settings, "use_keep_caps_eraser")
     elif grease_pencil_brush_type == 'TINT':
-        layout.prop(gp_settings, "vertex_mode", text="Mode")
+        if context.region.type == 'TOOL_HEADER':
+            row = layout.row(align=True)
+            row.prop_enum(gp_settings, "vertex_mode", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(gp_settings, "vertex_mode", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(gp_settings, "vertex_mode", 'BOTH', text="", icon='GP_DRAW_BOTH')
+        else:
+            layout.prop(gp_settings, "vertex_mode", text="Stroke Mode")
+
         layout.popover("VIEW3D_PT_tools_brush_falloff")
         layout.prop(gp_settings, "use_active_layer_only")
 
@@ -1874,6 +1885,10 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
 
 
 def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact=False):
+    if brush.gpencil_vertex_brush_type == 'DRAW':
+        layout.prop(brush, "blend", text="Blend")
+        layout.separator()
+
     UnifiedPaintPanel.prop_unified(
         layout,
         context,
@@ -1900,14 +1915,27 @@ def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact
 
     gp_settings = brush.gpencil_settings
     if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
-        row = layout.row(align=True)
-        row.prop(gp_settings, "vertex_mode", text="Mode")
+        if context.region.type == 'TOOL_HEADER':
+            row = layout.row(align=True)
+            row.prop_enum(gp_settings, "vertex_mode", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(gp_settings, "vertex_mode", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(gp_settings, "vertex_mode", 'BOTH', text="", icon='GP_DRAW_BOTH')
+        else:
+            layout.prop(gp_settings, "vertex_mode", text="Stroke Mode")
 
 
 classes = (
-    VIEW3D_PT_brush_asset_shelf_filter,
     VIEW3D_MT_tools_projectpaint_clone,
 )
+
+
+def register():
+    bpy.types.ASSETSHELF_PT_filter.append(brush_asset_shelf_filter_draw)
+
+
+def unregister():
+    bpy.types.ASSETSHELF_PT_filter.remove(brush_asset_shelf_filter_draw)
+
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class

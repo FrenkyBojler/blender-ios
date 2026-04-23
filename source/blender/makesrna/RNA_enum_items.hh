@@ -79,9 +79,7 @@ DEF_ENUM(rna_enum_stereo3d_display_items)
 DEF_ENUM(rna_enum_stereo3d_anaglyph_type_items)
 DEF_ENUM(rna_enum_stereo3d_interlace_type_items)
 
-#ifdef WITH_IMAGE_OPENEXR
 DEF_ENUM(rna_enum_exr_codec_items)
-#endif
 DEF_ENUM(rna_enum_color_sets_items)
 
 DEF_ENUM(rna_enum_beztriple_keyframe_type_items)
@@ -111,7 +109,7 @@ DEF_ENUM(rna_enum_operator_type_flag_items)
 DEF_ENUM(rna_enum_operator_return_items)
 DEF_ENUM(rna_enum_operator_property_tag_items)
 
-DEF_ENUM(rna_enum_brush_automasking_flag_items)
+DEF_ENUM(rna_enum_shared_automasking_flag_items)
 DEF_ENUM(rna_enum_brush_sculpt_brush_type_items)
 DEF_ENUM(rna_enum_brush_vertex_brush_type_items)
 DEF_ENUM(rna_enum_brush_weight_brush_type_items)
@@ -151,6 +149,7 @@ DEF_ENUM(rna_enum_rigidbody_object_shape_items)
 DEF_ENUM(rna_enum_rigidbody_constraint_type_items)
 
 DEF_ENUM(rna_enum_object_axis_items)
+DEF_ENUM(rna_enum_object_axis_flip_items)
 
 DEF_ENUM(rna_enum_bake_pass_type_items)
 DEF_ENUM(rna_enum_bake_pass_filter_type_items)

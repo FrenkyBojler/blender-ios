@@ -1274,15 +1274,26 @@ static char *rna_def_property_set_func(
 
           if (dp->dnaarraylength == 1) {
             if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+              /* Cast to avoid issues when the field is an enum type. */
               fprintf(f,
-                      "        if (%svalues[i]) { data->%s |= (",
+                      "        if (%svalues[i]) { data->%s = "
+                      "std::remove_reference_t<decltype(data->%s)>"
+                      "(uint64_t(data->%s) | (",
                       (dp->booleannegative) ? "!" : "",
+                      dp->dnaname,
+                      dp->dnaname,
                       dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, " << i); }\n");
-              fprintf(f, "        else { data->%s &= ~(", dp->dnaname);
+              fprintf(f, " << i)); }\n");
+              fprintf(f,
+                      "        else { data->%s = "
+                      "std::remove_reference_t<decltype(data->%s)>"
+                      "(uint64_t(data->%s) & ~uint64_t(",
+                      dp->dnaname,
+                      dp->dnaname,
+                      dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, " << i); }\n");
+              fprintf(f, " << i)); }\n");
             }
             else {
               fprintf(
@@ -1292,15 +1303,26 @@ static char *rna_def_property_set_func(
           }
           else {
             if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+              /* Cast to avoid issues when the field is an enum type. */
               fprintf(f,
-                      "        if (%svalues[i]) { data->%s[i] |= ",
+                      "        if (%svalues[i]) { data->%s[i] = "
+                      "std::remove_reference_t<decltype(data->%s[i])>"
+                      "(uint64_t(data->%s[i]) | ",
                       (dp->booleannegative) ? "!" : "",
+                      dp->dnaname,
+                      dp->dnaname,
                       dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, "; }\n");
-              fprintf(f, "        else { data->%s[i] &= ~", dp->dnaname);
+              fprintf(f, "); }\n");
+              fprintf(f,
+                      "        else { data->%s[i] = "
+                      "std::remove_reference_t<decltype(data->%s[i])>"
+                      "(uint64_t(data->%s[i]) & ~uint64_t(",
+                      dp->dnaname,
+                      dp->dnaname,
+                      dp->dnaname);
               rna_int_print(f, dp->booleanbit);
-              fprintf(f, "; }\n");
+              fprintf(f, ")); }\n");
             }
             else if (rna_color_quantize(prop, dp)) {
               fprintf(
@@ -1369,39 +1391,56 @@ static char *rna_def_property_set_func(
         else {
           rna_print_data_get(f, dp);
           if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+            /* Cast to avoid issues when the field is an enum type. */
             fprintf(f,
-                    "    if (%svalue) { data->%s |= ",
+                    "    if (%svalue) { data->%s = "
+                    "std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) | ",
                     (dp->booleannegative) ? "!" : "",
+                    dp->dnaname,
+                    dp->dnaname,
                     dp->dnaname);
             rna_int_print(f, dp->booleanbit);
-            fprintf(f, "; }\n");
-            fprintf(f, "    else { data->%s &= ~", dp->dnaname);
+            fprintf(f, "); }\n");
+            fprintf(f,
+                    "    else { data->%s = "
+                    "std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) & ~uint64_t(",
+                    dp->dnaname,
+                    dp->dnaname,
+                    dp->dnaname);
             rna_int_print(f, dp->booleanbit);
-            fprintf(f, "; }\n");
+            fprintf(f, ")); }\n");
           }
           else if (prop->type == PROP_ENUM && dp->enumbitflags) {
-            fprintf(f, "    data->%s &= ~", dp->dnaname);
+            /* Cast to avoid issues when the field is an enum type. */
+            fprintf(f,
+                    "    data->%s = std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) & ~uint64_t(",
+                    dp->dnaname,
+                    dp->dnaname,
+                    dp->dnaname);
             rna_int_print(f, rna_enum_bitmask(prop));
-            fprintf(f, ";\n");
-            fprintf(f, "    data->%s |= value;\n", dp->dnaname);
+            fprintf(f, "));\n");
+            fprintf(f,
+                    "    data->%s = std::remove_reference_t<decltype(data->%s)>"
+                    "(uint64_t(data->%s) | uint64_t(value));\n",
+                    dp->dnaname,
+                    dp->dnaname,
+                    dp->dnaname);
           }
           else {
+            /* Cast to avoid issues when the field is an enum type.
+             * If #rna_clamp_value() adds an expression like `std::clamp(...)`
+             * (instead of an `lvalue`), #decltype() yields a reference,
+             * so that has to be removed. */
             rna_clamp_value_range(f, prop);
-            /* C++ may require casting to an enum type. */
-            fprintf(f, "#ifdef __cplusplus\n");
             fprintf(f,
-                    /* If #rna_clamp_value() adds an expression like `std::clamp(...)`
-                     * (instead of an `lvalue`), #decltype() yields a reference,
-                     * so that has to be removed. */
                     "    data->%s = %s(std::remove_reference_t<decltype(data->%s)>)",
                     dp->dnaname,
                     (dp->booleannegative) ? "!" : "",
                     dp->dnaname);
             rna_clamp_value(f, prop, 0);
-            fprintf(f, "#else\n");
-            fprintf(f, "    data->%s = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
-            rna_clamp_value(f, prop, 0);
-            fprintf(f, "#endif\n");
           }
         }
 
@@ -1585,12 +1624,8 @@ static char *rna_def_property_begin_func(
   return func;
 }
 
-static char *rna_def_property_lookup_int_func(FILE *f,
-                                              StructRNA *srna,
-                                              PropertyRNA *prop,
-                                              PropertyDefRNA *dp,
-                                              const char *manualfunc,
-                                              const char *nextfunc)
+static char *rna_def_property_lookup_int_func(
+    FILE *f, StructRNA *srna, PropertyRNA *prop, const char *manualfunc, const char *nextfunc)
 {
   /* note on indices, this is for external functions and ignores skipped values.
    * so the index can only be checked against the length when there is no 'skip' function. */
@@ -1601,10 +1636,6 @@ static char *rna_def_property_lookup_int_func(FILE *f,
   }
 
   if (!manualfunc) {
-    if (!dp->dnastructname || !dp->dnaname) {
-      return nullptr;
-    }
-
     /* only supported in case of standard next functions */
     if (STREQ(nextfunc, "rna_iterator_array_next")) {
     }
@@ -1679,46 +1710,6 @@ static char *rna_def_property_lookup_int_func(FILE *f,
   fprintf(f, "    %s_%s_end(&iter);\n\n", srna->identifier, rna_safe_id(prop->identifier));
 
   fprintf(f, "    return found;\n");
-
-#if 0
-  rna_print_data_get(f, dp);
-  item_type = (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType";
-
-  if (dp->dnalengthname || dp->dnalengthfixed) {
-    if (dp->dnalengthname) {
-      fprintf(f,
-              "\n    rna_array_lookup_int(ptr, RNA_%s, data->%s, sizeof(data->%s[0]), data->%s, "
-              "index);\n",
-              item_type,
-              dp->dnaname,
-              dp->dnaname,
-              dp->dnalengthname);
-    }
-    else {
-      fprintf(
-          f,
-          "\n    rna_array_lookup_int(ptr, RNA_%s, data->%s, sizeof(data->%s[0]), %d, index);\n",
-          item_type,
-          dp->dnaname,
-          dp->dnaname,
-          dp->dnalengthfixed);
-    }
-  }
-  else {
-    if (dp->dnapointerlevel == 0) {
-      fprintf(f,
-              "\n    return rna_listbase_lookup_int(ptr, RNA_%s, &data->%s, index);\n",
-              item_type,
-              dp->dnaname);
-    }
-    else {
-      fprintf(f,
-              "\n    return rna_listbase_lookup_int(ptr, RNA_%s, data->%s, index);\n",
-              item_type,
-              dp->dnaname);
-    }
-  }
-#endif
 
   fprintf(f, "}\n\n");
 
@@ -2205,7 +2196,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
           f, srna, prop, dp, reinterpret_cast<const char *>(cprop->end)));
       cprop->lookupint = reinterpret_cast<PropCollectionLookupIntFunc>(
           rna_def_property_lookup_int_func(
-              f, srna, prop, dp, reinterpret_cast<const char *>(cprop->lookupint), nextfunc));
+              f, srna, prop, reinterpret_cast<const char *>(cprop->lookupint), nextfunc));
       cprop->lookupstring = reinterpret_cast<PropCollectionLookupStringFunc>(
           rna_def_property_lookup_string_func(
               f, srna, prop, dp, reinterpret_cast<const char *>(cprop->lookupstring), item_type));

@@ -536,6 +536,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
     def get_node_sockets(node):
         if node.bl_idname in {"NodeCombineBundle", "NodeSeparateBundle"}:
             return node.bundle_items
+        return None
 
     def transfer_node_sockets(self, old_node, new_node):
         old_items = self.get_node_sockets(old_node)
@@ -719,7 +720,7 @@ class ZoneOperator:
         if input_node_type is None:
             input_node_type = cls.input_node_type
 
-        return cls._zone_tooltips.get(input_node_type, None)
+        return tip_(cls._zone_tooltips.get(input_node_type, None))
 
 
 class NodeAddZoneOperator(ZoneOperator, NodeAddOperator):
@@ -821,12 +822,13 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
         if node.bl_idname.startswith("GeometryNodeSimulation"):
             return output_node.state_items
-        elif node.bl_idname.startswith("GeometryNodeRepeat"):
+        if node.bl_idname.startswith("GeometryNodeRepeat"):
             return output_node.repeat_items
-        elif node.bl_idname == "NodeClosureInput":
+        if node.bl_idname == "NodeClosureInput":
             return output_node.input_items
-        elif node.bl_idname == "NodeClosureOutput":
+        if node.bl_idname == "NodeClosureOutput":
             return output_node.output_items
+        return None
 
     def transfer_zone_sockets(self, old_node, new_node):
         old_children = self.get_child_items(old_node)
@@ -1155,8 +1157,11 @@ class NODE_OT_interface_item_new_panel_toggle(Operator):
         active_panel = interface.active
 
         item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
-        item.is_panel_toggle = True
+
+        # Set is_panel_toggle after moving into parent
         interface.move_to_parent(item, active_panel, 0)
+        item.is_panel_toggle = True
+
         return {'FINISHED'}
 
 
@@ -1272,8 +1277,6 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         # Use the same name as the panel in the UI for clarity.
         active_item.name = parent_panel.name
 
-        # Move the socket to the first position.
-        interface.move_to_parent(active_item, parent_panel, 0)
         # Make the panel active.
         interface.active = parent_panel
 

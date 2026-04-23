@@ -242,7 +242,7 @@ static void volume_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_id_blend_write(writer, &volume->id);
 
   /* direct data */
-  BLO_write_pointer_array(writer, volume->totcol, volume->mat);
+  writer->write_pointer_array(volume->totcol, volume->mat);
 
   BKE_packedfile_blend_write(writer, volume->packedfile);
 }
@@ -633,7 +633,7 @@ bool BKE_volume_is_y_up(const Volume *volume)
     if (!creator) {
       creator = grids.metadata->getMetadata<openvdb::StringMetadata>("Creator");
     }
-    return (creator && creator->str().rfind("Houdini", 0) == 0);
+    return (creator && creator->str().starts_with("Houdini"));
   }
 #else
   UNUSED_VARS(volume);

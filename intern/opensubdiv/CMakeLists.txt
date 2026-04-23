@@ -26,11 +26,11 @@ set(LIB
 )
 
 if(WITH_OPENSUBDIV)
-  macro(OPENSUBDIV_DEFINE_COMPONENT component)
+  function(OPENSUBDIV_DEFINE_COMPONENT component)
     if(${${component}})
       add_definitions(-D${component})
     endif()
-  endmacro()
+  endfunction()
 
   list(APPEND SRC
     # Base.
@@ -75,10 +75,6 @@ if(WITH_OPENSUBDIV)
     bf::dependencies::epoxy
   )
 
-  if(WIN32)
-    add_definitions(-DNOMINMAX)
-  endif()
-
   if(WITH_METAL_BACKEND)
     add_definitions(-DWITH_METAL_BACKEND)
   endif()
@@ -118,6 +114,7 @@ if(WITH_OPENSUBDIV)
   foreach(GLSL_FILE ${GLSL_SRC})
     get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
     string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+    string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
     string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
     string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
     string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
