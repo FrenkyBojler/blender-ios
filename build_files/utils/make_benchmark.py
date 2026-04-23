@@ -20,10 +20,13 @@ import sys
 
 from make_utils import call
 
+
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("build_directory")
     return parser.parse_args()
+
+
 def main() -> int:
     args = parse_arguments()
 
@@ -46,6 +49,7 @@ def main() -> int:
 
     run_command = ["./tests/performance/benchmark.py", "run", "default"]
     return call(run_command)
+
 
 if __name__ == "__main__":
     sys.exit(main())
