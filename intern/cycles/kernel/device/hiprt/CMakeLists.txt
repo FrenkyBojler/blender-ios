@@ -30,16 +30,30 @@ set(SRC_KERNEL_DEVICE_HIPRT_SDK_HEADERS
 set(SRC_KERNEL_DEVICE_HIPRT_SDK
   hiprt/impl/Aabb.h
   hiprt/impl/BvhNode.h
-  hiprt/impl/Geometry.h
   hiprt/impl/hiprt_device_impl.h
   hiprt/impl/hiprt_kernels_bitcode.h
   hiprt/impl/Instance.h
   hiprt/impl/QrDecomposition.h
   hiprt/impl/Quaternion.h
-  hiprt/impl/Scene.h
   hiprt/impl/Transform.h
   hiprt/impl/Triangle.h
 )
+
+if(DEFINED HIPRT_VERSION)
+  math(EXPR HIPRT_VERSION_INT "${HIPRT_VERSION}")
+  if(${HIPRT_VERSION_INT} GREATER_EQUAL 3000)
+    set(APPEND SRC_KERNEL_DEVICE_HIPRT_SDK
+      hiprt/impl/BvhConfig.h
+      hiprt/impl/Header.h
+      hiprt/impl/Obb.h
+    )
+  else()
+    set(APPEND SRC_KERNEL_DEVICE_HIPRT_SDK
+      hiprt/impl/Geometry.h
+      hiprt/impl/Scene.h
+    )
+  endif()
+endif()
 
 set(LIB
 
