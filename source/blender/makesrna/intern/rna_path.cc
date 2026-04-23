@@ -639,6 +639,27 @@ static bool rna_path_parse2(const PointerRNA *ptr,
                             const bool eval_pointer)
 {
   std::string path_str = rna_path::to_string(path_ref);
+
+  // PointerRNA ptr_iter = *ptr;
+  // PropertyRNA *prop_iter = nullptr;
+  // for (const rna_path::Item &item : path_ref) {
+  //   if (const auto *member = std::get_if<rna_path::Member>(&item)) {
+  //     prop_iter = RNA_struct_find_property(&ptr_iter, member->identifier.c_str());
+  //   }
+  //   else if (const auto *lookup_key = std::get_if<rna_path::LookupKey>(&item)) {
+  //     if (IDProperty *group = RNA_struct_idprops(&ptr_iter, false)) {
+  //       IDProperty *idprop = IDP_GetPropertyFromGroup(group, lookup_key->key.c_str());
+  //       prop_iter = reinterpret_cast<PropertyRNA *>(idprop);
+  //     }
+  //     else {
+  //       prop_iter = nullptr;
+  //     }
+  //   }
+
+  //   if (!prop_iter) {
+  //     return false;
+  //   }
+  // }
   /* This function should be rewritten to make use of the already parsed path.*/
   return rna_path_parse(
       ptr, path_str.c_str(), r_ptr, r_prop, r_index, r_item_ptr, r_elements, eval_pointer);
