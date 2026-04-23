@@ -230,6 +230,15 @@ static int rna_iterator_bone_collections_roots_length(PointerRNA *ptr)
   return arm->collection_root_count;
 }
 
+static PointerRNA rna_BoneCollections_active_get(PointerRNA *ptr)
+{
+  bArmature *arm = static_cast<bArmature *>(ptr->data);
+  BoneCollection *bcoll = arm->runtime->active_collection;
+  /* Work around an issue in the RNA code generator. Or my (Sybren) understanding of it. In any
+   * case, without this hand-written getter, the generated getter will actually use &bcoll instead
+   * of bcoll, resulting in the wrong pointer value. */
+  return RNA_pointer_create_with_parent(*ptr, RNA_BoneCollection, bcoll);
+}
 static void rna_BoneCollections_active_set(PointerRNA *ptr,
                                            PointerRNA value,
                                            struct ReportList * /*reports*/)
@@ -2029,7 +2038,7 @@ static void rna_def_armature_collections(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_pointer_funcs(
-      prop, nullptr, "rna_BoneCollections_active_set", nullptr, nullptr);
+      prop, "rna_BoneCollections_active_get", "rna_BoneCollections_active_set", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Active Collection", "Armature's active bone collection");
   RNA_def_property_update(prop, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 
