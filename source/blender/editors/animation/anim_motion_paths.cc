@@ -572,6 +572,9 @@ using TargetEvalResult = Array<float3>;
 
 struct MotionPathEvalData {
   Depsgraph *depsgraph;
+  /* Defines a frame from which to start evaluating the motion path. This is to first evaluate the
+   * frames that are important for the user. */
+  int evaluation_center;
   Bounds<int> frame_range;
   Array<TargetEvalResult> results;
   Array<bool> evaluated_frames;
@@ -594,7 +597,26 @@ restart:
   eval_data->evaluated_frames.fill(false);
   eval_data->restart = false;
 
-  for (int frame = eval_data->frame_range.min; frame < eval_data->frame_range.max; frame++) {
+  int left_bound = eval_data->evaluation_center;
+  int right_bound = eval_data->evaluation_center;
+  bool tick_tock = false;
+
+  while (left_bound >= eval_data->frame_range.min || right_bound < eval_data->frame_range.max) {
+    int frame = 0;
+    if (tick_tock) {
+      frame = left_bound;
+      left_bound--;
+      if (right_bound < eval_data->frame_range.max) {
+        tick_tock = false;
+      }
+    }
+    else {
+      frame = right_bound;
+      right_bound++;
+      if (left_bound >= eval_data->frame_range.min) {
+        tick_tock = true;
+      }
+    }
     const int frame_index = frame - eval_data->frame_range.min;
     DEG_evaluate_on_framechange(eval_data->depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
     for (const int target_index : eval_data->targets.index_range()) {
@@ -716,6 +738,7 @@ void animviz_calc_motionpaths_async(Main *bmain,
   MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(__func__);
   job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
   job_data->frame_range = frame_range;
+  job_data->evaluation_center = scene->r.cfra;
   job_data->results.reinitialize(targets.size());
   job_data->targets.reinitialize(targets.size());
   job_data->evaluated_frames.reinitialize(frame_range.size());
