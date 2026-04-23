@@ -2316,7 +2316,6 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
     WM_autosave_write(wm, bmain);
     return true;
   }
-  CLOG_INFO(&LOG, "Unable to autosave, will attempt later");
   /* Can't auto-save with MemFile right now, try again later. */
   return false;
 }
@@ -2333,7 +2332,6 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 
   char filepath[FILE_MAX];
   wm_autosave_location(filepath);
-  CLOG_INFO(&LOG, "Creating autosave at '%s'", filepath);
   /* Save as regular blend file with recovery information and always compress them, see: !132685.
    */
   const int fileflags = G.fileflags | G_FILE_RECOVER_WRITE | G_FILE_COMPRESS;
