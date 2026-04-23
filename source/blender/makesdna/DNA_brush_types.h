@@ -136,6 +136,9 @@ struct BrushGpencilSettings {
   /* #CurveType Used for converting. */
   int8_t curve_type = 0;
   char _pad4[3] = {};
+  /* Fill Tool gap detection factor. */
+  float fill_gap_factor = 0;
+  char _pad5[4] = {};
 
   /* optional link of material to replace default in context */
   /** Material. */

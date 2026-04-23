@@ -1460,6 +1460,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       const GroupedSpan<float2> fill_points = GroupedSpan<float2>(
           OffsetIndices<int>(fill_point_offset), fill_point_data);
 
+      const float gap_factor = brush.gpencil_settings->fill_gap_factor;
+
       op_fill_curves = delaunay_fill_strokes(view_context,
                                              scene,
                                              layer,
@@ -1467,6 +1469,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                              info.sources,
                                              op_data.invert,
                                              alpha_threshold,
+                                             gap_factor,
                                              fill_points);
 
       if (!op_fill_curves) {

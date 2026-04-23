@@ -1600,6 +1600,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     const Span<DrawingInfo> src_drawings,
     const bool invert,
     const std::optional<float> alpha_threshold,
+    const float gap_factor,
     const GroupedSpan<float2> &fill_points)
 {
   ARegion &region = *view_context.region;
@@ -1693,81 +1694,98 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
 
   Vector<float2> pos_hint = {fill_points[0].first()};
 
-  /* TODO. Expose to the user. */
-  const float joinning_factor = 0.4f;
-
   int hint_index = 0;
   int first_tri_index = get_tri_for_point(pos_hint[hint_index]);
 
-  /* Check if the user clicked outside of the bounding box. */
-  if (first_tri_index == NULL_INDEX) {
-    if (invert) {
-      /* Get the first triangle that is touching the bounding box. */
-      auto get_first_boundery_tri = [&]() {
-        for (const int tri_index : result.face.index_range()) {
-          for (const int j : IndexRange(3)) {
-            const int next_tri = tri_adjacency[tri_index][j];
+  /* Get the first triangle that is touching the bounding box. */
+  auto get_first_boundery_tri = [&]() {
+    for (const int tri_index : result.face.index_range()) {
+      for (const int j : IndexRange(3)) {
+        const int next_tri = tri_adjacency[tri_index][j];
 
-            if (next_tri == NULL_INDEX) {
-              return tri_index;
-            }
-          }
+        if (next_tri == NULL_INDEX) {
+          return tri_index;
         }
-        BLI_assert_unreachable();
-        return NULL_INDEX;
-      };
-      first_tri_index = get_first_boundery_tri();
-    }
-    else {
-      return std::nullopt;
-    }
-  }
-
-  add_weights_for_tri(tri_adjacency.as_span(),
-                      tri_edges.as_span(),
-                      edge_weights.as_span(),
-                      tri_max_weight.as_span(),
-                      is_source_edge.as_span(),
-                      first_tri_index,
-                      hint_index,
-                      tri_hint_index.as_mutable_span(),
-                      tri_weights.as_mutable_span());
-
-  Set<int> not_full_tris;
-  for (const int tri_index : result.face.index_range()) {
-    if (tri_weights[tri_index] < tri_max_weight[tri_index] * joinning_factor) {
-      not_full_tris.add_new(tri_index);
-    }
-  }
-
-  auto get_next_max_tri_index = [&]() {
-    if (not_full_tris.is_empty()) {
-      return NULL_INDEX;
-    }
-
-    int max_not_weight_tri_index = NULL_INDEX;
-    float max_not_weight_tri_weight = 0.0f;
-
-    for (const int tri_index : not_full_tris) {
-      const float tri_weight = tri_weights[tri_index];
-      if (max_not_weight_tri_weight < tri_weight) {
-        max_not_weight_tri_index = tri_index;
-        max_not_weight_tri_weight = tri_weight;
       }
     }
-    return max_not_weight_tri_index;
+    BLI_assert_unreachable();
+    return NULL_INDEX;
   };
 
-  int hint_tri_index = get_next_max_tri_index();
-  hint_index++;
+  /* Check if the user clicked outside of the bounding box. */
+  if (first_tri_index == NULL_INDEX) {
+    if (!invert) {
+      return std::nullopt;
+    }
+    first_tri_index = get_first_boundery_tri();
+  }
 
-  while (hint_tri_index != NULL_INDEX) {
-    const Vector<int> &tri = result.face[hint_tri_index];
-    const double2 &vert0 = result.vert[tri[0]];
-    const double2 &vert1 = result.vert[tri[1]];
-    const double2 &vert2 = result.vert[tri[2]];
-    pos_hint.append(float2((vert0 + vert1 + vert2) / 3.0f));
+  if (gap_factor > 0.0f) {
+    add_weights_for_tri(tri_adjacency.as_span(),
+                        tri_edges.as_span(),
+                        edge_weights.as_span(),
+                        tri_max_weight.as_span(),
+                        is_source_edge.as_span(),
+                        first_tri_index,
+                        hint_index,
+                        tri_hint_index.as_mutable_span(),
+                        tri_weights.as_mutable_span());
 
+    Set<int> not_full_tris;
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_weights[tri_index] < tri_max_weight[tri_index] * gap_factor) {
+        not_full_tris.add_new(tri_index);
+      }
+    }
+
+    auto get_next_max_tri_index = [&]() {
+      if (not_full_tris.is_empty()) {
+        return NULL_INDEX;
+      }
+
+      int max_not_weight_tri_index = NULL_INDEX;
+      float max_not_weight_tri_weight = 0.0f;
+
+      for (const int tri_index : not_full_tris) {
+        const float tri_weight = tri_weights[tri_index];
+        if (max_not_weight_tri_weight < tri_weight) {
+          max_not_weight_tri_index = tri_index;
+          max_not_weight_tri_weight = tri_weight;
+        }
+      }
+      return max_not_weight_tri_index;
+    };
+
+    int hint_tri_index = get_next_max_tri_index();
+    hint_index++;
+
+    while (hint_tri_index != NULL_INDEX) {
+      const Vector<int> &tri = result.face[hint_tri_index];
+      const double2 &vert0 = result.vert[tri[0]];
+      const double2 &vert1 = result.vert[tri[1]];
+      const double2 &vert2 = result.vert[tri[2]];
+      pos_hint.append(float2((vert0 + vert1 + vert2) / 3.0f));
+
+      add_weights_for_tri(tri_adjacency.as_span(),
+                          tri_edges.as_span(),
+                          edge_weights.as_span(),
+                          tri_max_weight.as_span(),
+                          is_source_edge.as_span(),
+                          hint_tri_index,
+                          hint_index,
+                          tri_hint_index.as_mutable_span(),
+                          tri_weights.as_mutable_span());
+
+      hint_tri_index = get_next_max_tri_index();
+      hint_index++;
+
+      not_full_tris.remove_if([&](const int tri_index) {
+        return tri_weights[tri_index] >= tri_max_weight[tri_index] * gap_factor;
+      });
+    }
+  }
+  else {
+    int hint_tri_index = get_first_boundery_tri();
     add_weights_for_tri(tri_adjacency.as_span(),
                         tri_edges.as_span(),
                         edge_weights.as_span(),
@@ -1778,12 +1796,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
                         tri_hint_index.as_mutable_span(),
                         tri_weights.as_mutable_span());
 
-    hint_tri_index = get_next_max_tri_index();
     hint_index++;
-
-    not_full_tris.remove_if([&](const int tri_index) {
-      return tri_weights[tri_index] >= tri_max_weight[tri_index] * joinning_factor;
-    });
   }
 
   Array<bool> tri_to_fill(result.face.size(), false);
