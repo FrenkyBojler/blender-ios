@@ -29,7 +29,6 @@ class TreeElementStrip : public AbstractTreeElement {
   void expand(SpaceOutliner & /*soops*/) const override;
 
   Strip &get_strip() const;
-  StripType get_strip_type() const;
   std::optional<BIFIconID> get_icon() const override;
 };
 

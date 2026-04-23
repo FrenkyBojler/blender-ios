@@ -53,11 +53,6 @@ Strip &TreeElementStrip::get_strip() const
   return strip_;
 }
 
-StripType TreeElementStrip::get_strip_type() const
-{
-  return StripType(strip_.type);
-}
-
 std::optional<BIFIconID> TreeElementStrip::get_icon() const
 {
   switch (strip_.type) {
