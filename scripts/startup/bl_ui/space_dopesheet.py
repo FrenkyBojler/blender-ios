@@ -909,7 +909,7 @@ class DOPESHEET_MT_channel_context_menu(Menu):
 
         if is_graph_editor:
             layout.operator_menu_enum("graph.fmodifier_add", "type", text="Add F-Curve Modifier").only_active = False
-            layout.operator("graph.fmodifier_delete", text="Delete F-Curve Modifier(s)").only_active = False
+            layout.operator("graph.fmodifier_delete", text="Delete F-Curve Modifier(s)")
             layout.separator()
             layout.operator("graph.hide", text="Hide Selected Curves").unselected = False
             layout.operator("graph.hide", text="Hide Unselected Curves").unselected = True
