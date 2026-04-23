@@ -878,26 +878,16 @@ void restoreTransObjects(TransInfo *t)
 
     if (tc->data_ext) {
       for (int i = 0; i < tc->data_len; i++) {
-        if (tc->data[i].flag & TD_NO_EXT) {
+        td = &tc->data[i];
+        if (td->flag & TD_NO_EXT) {
           continue;
         }
 
         TransDataExtension *td_ext = &tc->data_ext[i];
-        if (td_ext->rot) {
-          copy_v3_v3(td_ext->rot, td_ext->irot);
-        }
-        if (td_ext->rotAngle) {
-          *td_ext->rotAngle = td_ext->irotAngle;
-        }
-        if (td_ext->rotAxis) {
-          copy_v3_v3(td_ext->rotAxis, td_ext->irotAxis);
-        }
+        transform_data_ext_rotate_restore(td, td_ext);
         /* XXX, `drotAngle` & `drotAxis` not used yet. */
         if (td_ext->scale) {
           copy_v3_v3(td_ext->scale, td_ext->iscale);
-        }
-        if (td_ext->quat) {
-          copy_qt_qt(td_ext->quat, td_ext->iquat);
         }
       }
     }
@@ -1403,6 +1393,25 @@ void calculatePropRatio(TransInfo *t)
         td->factor = 1.0;
       }
     }
+  }
+}
+
+void transform_data_ext_rotate_restore(TransData *td, TransDataExtension *td_ext)
+{
+  BLI_assert((td->flag & TD_NO_EXT) == 0);
+  UNUSED_VARS_NDEBUG(td);
+
+  if (td_ext->rot) {
+    copy_v3_v3(td_ext->rot, td_ext->irot);
+  }
+  if (td_ext->rotAngle) {
+    *td_ext->rotAngle = td_ext->irotAngle;
+  }
+  if (td_ext->rotAxis) {
+    copy_v3_v3(td_ext->rotAxis, td_ext->irotAxis);
+  }
+  if (td_ext->quat) {
+    copy_qt_qt(td_ext->quat, td_ext->iquat);
   }
 }
 
