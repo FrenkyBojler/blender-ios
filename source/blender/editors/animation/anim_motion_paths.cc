@@ -587,6 +587,39 @@ struct MotionPathEvalData {
   Scene *scene;
 };
 
+/* Runs on the evaluation thread. Fills the correct TargetEvalResult with data on `frame_index`.*/
+static void job_write_evaluated_transform_values(MotionPathEvalData &eval_data,
+                                                 const int target_index,
+                                                 const int frame_index)
+{
+  MPathTarget *target = &eval_data.targets[target_index];
+  TargetEvalResult &result = eval_data.results[target_index];
+  Object *ob_eval = DEG_get_evaluated(eval_data.depsgraph, target->ob);
+  if (!ob_eval) {
+    BLI_assert_unreachable();
+    return;
+  }
+  /* If the pose bone pointer is provided, we assume the object should be ignored. */
+  if (target->pchan) {
+    bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, target->pchan->name);
+    if (!pchan_eval) {
+      return;
+    }
+
+    if (target->mpath->flag & MOTIONPATH_FLAG_BHEAD) {
+      copy_v3_v3(result[frame_index], pchan_eval->pose_head);
+    }
+    else {
+      copy_v3_v3(result[frame_index], pchan_eval->pose_tail);
+    }
+
+    mul_m4_v3(ob_eval->object_to_world().ptr(), result[frame_index]);
+  }
+  else {
+    copy_v3_v3(result[frame_index], ob_eval->object_to_world().location());
+  }
+}
+
 /* This is the function that runs in a thread. */
 static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
 {
@@ -631,32 +664,7 @@ restart:
          * loops and run some code. */
         goto restart;
       }
-      MPathTarget *target = &eval_data->targets[target_index];
-      TargetEvalResult &result = eval_data->results[target_index];
-      Object *ob_eval = DEG_get_evaluated(eval_data->depsgraph, target->ob);
-      if (!ob_eval) {
-        BLI_assert_unreachable();
-        continue;
-      }
-      /* If the pose bone pointer is provided, we assume the object should be ignored. */
-      if (target->pchan) {
-        bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, target->pchan->name);
-        if (!pchan_eval) {
-          continue;
-        }
-
-        if (target->mpath->flag & MOTIONPATH_FLAG_BHEAD) {
-          copy_v3_v3(result[frame_index], pchan_eval->pose_head);
-        }
-        else {
-          copy_v3_v3(result[frame_index], pchan_eval->pose_tail);
-        }
-
-        mul_m4_v3(ob_eval->object_to_world().ptr(), result[frame_index]);
-      }
-      else {
-        copy_v3_v3(result[frame_index], ob_eval->object_to_world().location());
-      }
+      job_write_evaluated_transform_values(*eval_data, target_index, frame_index);
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     eval_data->evaluated_frames[frame_index] = true;
