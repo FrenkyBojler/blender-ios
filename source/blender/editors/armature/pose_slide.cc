@@ -176,7 +176,7 @@ static const EnumPropertyItem prop_channels_types[] = {
 
 /* Property enum for ePoseSlide_AxisLock */
 static const EnumPropertyItem prop_axis_lock_types[] = {
-    {0, "FREE", 0, "Free", "All axes are affected"},
+    {ed::AXIS_MUTABLE_ALL, "FREE", 0, "Free", "All axes are affected"},
     {ed::AXIS_MUTABLE_X, "X", 0, "X", "Only X-axis transforms are affected"},
     {ed::AXIS_MUTABLE_Y, "Y", 0, "Y", "Only Y-axis transforms are affected"},
     {ed::AXIS_MUTABLE_Z, "Z", 0, "Z", "Only Z-axis transforms are affected"},
@@ -760,7 +760,8 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
     status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_X, ICON_EVENT_X);
     status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Y, ICON_EVENT_Y);
     status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Z, ICON_EVENT_Z);
-    status.item(pso->axis_mutability == 0 ? IFACE_("Axis Constraint") : IFACE_("Axis Only"),
+    status.item(pso->axis_mutability == ed::AXIS_MUTABLE_ALL ? IFACE_("Axis Constraint") :
+                                                               IFACE_("Axis Only"),
                 ICON_NONE);
   }
 
