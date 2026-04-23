@@ -121,6 +121,7 @@ static CLG_LogRef LOG = {"image"};
 
 static void image_init(Image *ima, short source, short type);
 static void image_free_packedfiles(Image *ima);
+static void image_free_autosave_packedfiles(Image *ima);
 static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
                                    const ListBaseT<ImagePackedFile> *lb_src);
 
@@ -159,7 +160,11 @@ static void image_copy_data(Main * /*bmain*/,
   BKE_color_managed_colorspace_settings_copy(&image_dst->colorspace_settings,
                                              &image_src->colorspace_settings);
 
+  BLI_assert_msg(BLI_listbase_count(&image_src->packedfiles) == 0 ||
+                     BLI_listbase_count(&image_src->autosave_packedfiles) == 0,
+                 "An image should never have both autosaved and actual packedfiles");
   copy_image_packedfiles(&image_dst->packedfiles, &image_src->packedfiles);
+  copy_image_packedfiles(&image_dst->autosave_packedfiles, &image_src->autosave_packedfiles);
 
   image_dst->stereo3d_format = static_cast<Stereo3dFormat *>(
       MEM_dupalloc(image_src->stereo3d_format));
@@ -193,6 +198,7 @@ static void image_free_data(ID *id)
   BKE_image_free_buffers(image);
 
   image_free_packedfiles(image);
+  image_free_autosave_packedfiles(image);
 
   for (RenderSlot &slot : image->renderslots) {
     if (slot.render) {
@@ -340,6 +346,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     /* Do not store packed files in case this is a library override ID. */
     if (ID_IS_OVERRIDE_LIBRARY(ima)) {
       BLI_listbase_clear(&ima->packedfiles);
+      BLI_listbase_clear(&ima->autosave_packedfiles);
     }
     else {
       /* Some trickery to keep forward compatibility of packed images. */
@@ -354,7 +361,14 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   writer->write_id_struct(id_address, ima);
   BKE_id_blend_write(writer, &ima->id);
 
+  BLI_assert_msg(BLI_listbase_count(&ima->packedfiles) == 0 ||
+                     BLI_listbase_count(&ima->autosave_packedfiles) == 0,
+                 "An image should never have both autosaved and actual packedfiles");
   for (ImagePackedFile &imapf : ima->packedfiles) {
+    writer->write_struct(&imapf);
+    BKE_packedfile_blend_write(writer, imapf.packedfile);
+  }
+  for (ImagePackedFile &imapf : ima->autosave_packedfiles) {
     writer->write_struct(&imapf);
     BKE_packedfile_blend_write(writer, imapf.packedfile);
   }
@@ -401,12 +415,31 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
     BKE_packedfile_blend_read(reader, &ima->packedfile, ima->filepath);
   }
 
+  BLO_read_struct_list(reader, ImagePackedFile, &ima->autosave_packedfiles);
+  if (ima->autosave_packedfiles.first) {
+    for (ImagePackedFile &imapf : ima->autosave_packedfiles.items_mutable()) {
+      BKE_packedfile_blend_read(reader, &imapf.packedfile, imapf.filepath);
+      /* TODO: ImBuf handling... */
+      if (!imapf.packedfile) {
+        BLI_remlink(&ima->autosave_packedfiles, &imapf);
+        MEM_delete(&imapf);
+      }
+    }
+  }
+
+
+  BLI_assert_msg(BLI_listbase_count(&ima->packedfiles) == 0 ||
+                     BLI_listbase_count(&ima->autosave_packedfiles) == 0,
+                 "An image should never have both autosaved and actual packedfiles");
+
   BLI_listbase_clear(&ima->anims);
   BLO_read_struct(reader, PreviewImage, &ima->preview);
   BKE_previewimg_blend_read(reader, ima->preview);
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
 
   ima->runtime = MEM_new<bke::ImageRuntime>(__func__);
+
+  BKE_image_cache_from_autosave(ima);
 }
 
 static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
@@ -576,6 +609,24 @@ static void image_free_packedfiles(Image *ima)
 void BKE_image_free_packedfiles(Image *ima)
 {
   image_free_packedfiles(ima);
+}
+
+static void image_free_autosave_packedfiles(Image *ima)
+{
+  while (ima->autosave_packedfiles.last) {
+    ImagePackedFile *imapf = static_cast<ImagePackedFile *>(ima->autosave_packedfiles.last);
+    if (imapf->packedfile) {
+      BKE_packedfile_free(imapf->packedfile);
+    }
+    BLI_remlink(&ima->autosave_packedfiles, imapf);
+    MEM_delete(imapf);
+  }
+}
+
+void BKE_image_clear_autosave(Image *ima)
+{
+  image_free_autosave_packedfiles(ima);
+  ima->flag &= ~IMA_AUTOSAVE_TEMPPACK;
 }
 
 void BKE_image_free_views(Image *image)
@@ -1449,6 +1500,95 @@ bool BKE_image_memorypack(Image *ima)
     for (ImageTile &tile : ima->tiles) {
       tile.gen_flag &= ~IMA_GEN_TILE;
     }
+    BKE_image_clear_autosave(ima);
+  }
+
+  return ok;
+}
+
+/** Pack image buffer to memory as PNG or EXR. */
+static bool image_memorypack_imbuf_for_autosave(
+    Image *ima, ImBuf *ibuf, int view, int tile_number, const char *filepath)
+{
+  ibuf->ftype = ibuf->float_data() ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
+
+  IMB_save_image(ibuf, filepath, IB_byte_data | IB_mem);
+
+  if (ibuf->encoded_buffer.data == nullptr) {
+    CLOG_STR_ERROR(&LOG, "memory save for pack error");
+    image_free_autosave_packedfiles(ima);
+    return false;
+  }
+
+  ImagePackedFile *imapf;
+  const int encoded_size = ibuf->encoded_size;
+  PackedFile *pf = BKE_packedfile_new_from_memory(IMB_steal_encoded_buffer(ibuf), encoded_size);
+
+  imapf = MEM_new<ImagePackedFile>("Image PackedFile");
+  STRNCPY(imapf->filepath, filepath);
+  imapf->packedfile = pf;
+  imapf->view = view;
+  imapf->tile_number = tile_number;
+  BLI_addtail(&ima->autosave_packedfiles, imapf);
+
+  /* We should not clear the dirty flag when autosaving */
+
+  return true;
+}
+
+bool BKE_image_autosave_memorypack(Image *ima)
+{
+  BLI_assert(BLI_listbase_count(&ima->packedfiles) == 0);
+
+  bool ok = true;
+
+  image_free_autosave_packedfiles(ima);
+
+  const int tot_viewfiles = image_num_viewfiles(ima);
+  const bool is_tiled = (ima->source == IMA_SRC_TILED);
+  const bool is_multiview = BKE_image_is_multiview(ima);
+
+  ImageUser iuser{};
+  BKE_imageuser_default(&iuser);
+  char tiled_filepath[FILE_MAX];
+
+  for (int view = 0; view < tot_viewfiles; view++) {
+    for (ImageTile &tile : ima->tiles) {
+      int index = (is_multiview || is_tiled) ? view : IMA_NO_INDEX;
+      int entry = is_tiled ? tile.tile_number : 0;
+      ImBuf *ibuf = image_get_cached_ibuf_for_index_entry(ima, index, entry, nullptr);
+      if (!ibuf) {
+        ok = false;
+        break;
+      }
+
+      const char *filepath = ibuf->filepath.c_str();
+      if (is_tiled) {
+        iuser.tile = tile.tile_number;
+        BKE_image_user_file_path(&iuser, ima, tiled_filepath);
+        filepath = tiled_filepath;
+      }
+      else if (is_multiview) {
+        ImageView *iv = static_cast<ImageView *>(BLI_findlink(&ima->views, view));
+        /* if the image was a R_IMF_VIEWS_STEREO_3D we force _L, _R suffices */
+        if (ima->views_format == R_IMF_VIEWS_STEREO_3D) {
+          const char *suffix[2] = {STEREO_LEFT_SUFFIX, STEREO_RIGHT_SUFFIX};
+          BLI_path_suffix(iv->filepath, FILE_MAX, suffix[view], "");
+        }
+        filepath = iv->filepath;
+      }
+
+      ok = ok && image_memorypack_imbuf_for_autosave(ima, ibuf, view, tile.tile_number, filepath);
+      IMB_freeImBuf(ibuf);
+    }
+  }
+
+  if (is_multiview) {
+    ima->views_format = R_IMF_VIEWS_INDIVIDUAL;
+  }
+
+  if (ok) {
+    ima->flag |= IMA_AUTOSAVE_TEMPPACK;
   }
 
   return ok;
@@ -1481,6 +1621,8 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath)
       }
     }
   }
+
+  BKE_image_clear_autosave(ima);
 }
 
 void BKE_image_packfiles_from_mem(ReportList *reports,
@@ -1507,6 +1649,8 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
     /* The image should not be marked as "generated" since image data was provided. */
     ImageTile *base_tile = BKE_image_get_tile(ima, 0);
     base_tile->gen_flag &= ~IMA_GEN_TILE;
+
+    BKE_image_clear_autosave(ima);
   }
 }
 
@@ -4247,6 +4391,8 @@ static ImBuf *load_image_single(Image *ima,
         imapf->tile_number = tile_number;
         imapf->packedfile = BKE_packedfile_new(
             nullptr, filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
+
+        BKE_image_clear_autosave(ima);
       }
     }
   }
@@ -4327,6 +4473,28 @@ static ImBuf *image_load_image_file(
 
   return ibuf;
 }
+
+void BKE_image_cache_from_autosave(Image *ima) {
+  if (!(ima->flag & IMA_AUTOSAVE_TEMPPACK)) {
+    return;
+  }
+
+  printf("Populating imbuf cache from autosave data for %s\n", ima->id.name);
+  const int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
+  for (ImagePackedFile &imapf : ima->autosave_packedfiles) {
+    if (imapf.packedfile) {
+      ImBuf *ibuf = IMB_load_image_from_memory(
+          static_cast<uchar *>(const_cast<void *>(imapf.packedfile->data)),
+          imapf.packedfile->size,
+          flag,
+          "<packed data>",
+          nullptr,
+          ima->colorspace_settings.name);
+      imagecache_put(ima, 0, ibuf);
+    }
+  }
+}
+
 
 static ImBuf *image_get_ibuf_multilayer(Image *ima, ImageUser *iuser)
 {

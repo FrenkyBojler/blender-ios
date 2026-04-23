@@ -92,6 +92,12 @@ struct ImageRuntime {
 };
 
 }  // namespace bke
+/**
+ * Clear the autosave information
+ *
+ * Should be handled anytime the packed images would be written to
+ */
+void BKE_image_clear_autosave(Image *image);
 
 void BKE_image_free_packedfiles(Image *image);
 void BKE_image_free_views(Image *image);
@@ -427,6 +433,9 @@ void BKE_image_free_old_gputextures(Main *bmain);
 bool BKE_image_memorypack(Image *ima);
 void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath);
 void BKE_image_packfiles_from_mem(ReportList *reports, Image *ima, char *data, size_t data_len);
+
+void BKE_image_cache_from_autosave(Image *ima);
+bool BKE_image_autosave_memorypack(Image *ima);
 
 /**
  * High-level pack function.

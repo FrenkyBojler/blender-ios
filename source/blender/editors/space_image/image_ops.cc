@@ -2564,9 +2564,16 @@ void ED_image_internal_autosave_flush(const Main *bmain)
     bool is_format_writable;
 
     if (image_should_be_saved(ima, &is_format_writable)) {
-      if (BKE_image_has_packedfile(ima) || image_should_pack_during_save_all(ima)) {
+      if (BKE_image_has_packedfile(ima))
+      {
+        printf("Autosaving image: %s\n", ima->id.name);
         BKE_image_memorypack(ima);
-        CLOG_INFO(&LOG, "Packing %s for autosave", ima->id.name);
+      }
+      else if (image_should_pack_during_save_all(ima) ||
+          (is_format_writable && image_has_valid_path(ima)))
+      {
+        printf("Temporarily packing (%s) for autosave\n", ima->id.name);
+        BKE_image_autosave_memorypack(ima);
       }
     }
   }
