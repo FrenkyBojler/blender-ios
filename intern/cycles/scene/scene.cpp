@@ -16,7 +16,6 @@
 #include "scene/film.h"
 #include "scene/hair.h"
 #include "scene/integrator.h"
-#include "scene/scene_attributes.h"
 #include "scene/light.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
@@ -25,6 +24,7 @@
 #include "scene/pointcloud.h"
 #include "scene/procedural.h"
 #include "scene/scene.h"
+#include "scene/scene_attributes.h"
 #include "scene/shader.h"
 #include "scene/svm.h"
 #include "scene/tables.h"
@@ -182,7 +182,6 @@ void Scene::device_update(Device *device_, Progress &progress)
   const bool print_stats = need_data_update();
   bool kernels_reloaded = false;
 
-
   while (true) {
     if (update_stats) {
       update_stats->clear();
@@ -267,6 +266,13 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   progress.set_status("Updating Background");
   background->device_update(device, &dscene, this);
+
+  if (progress.get_cancel() || device->have_error()) {
+    return;
+  }
+
+  progress.set_status("Updating Scene Attribute");
+  scene_attribute->device_update(device, &dscene, this);
 
   if (progress.get_cancel() || device->have_error()) {
     return;
@@ -365,13 +371,6 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   progress.set_status("Updating Integrator");
   integrator->device_update(device, &dscene, this);
-
-  if (progress.get_cancel() || device->have_error()) {
-    return;
-  }
-
-  progress.set_status("Updating Scene Attribute");
-  scene_attribute->device_update(device, &dscene, this);
 
   if (progress.get_cancel() || device->have_error()) {
     return;
