@@ -30,13 +30,13 @@ static const LocalePatterns *get_locale_patterns(const StringRef locale_iso)
   static constexpr std::array<LocalePatterns, 9> patterns = {{
       {"", "{d:02} {b} {Y}", "{H:02}:{M:02}"},         /* default */
       {"en_US", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},   /* English (US) */
-      {"ar_EG", "{d:02} {b} {Y}", "{I}:{M} {p}"},      /* Arabic (Egypt) */
+      {"ar_EG", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},   /* Arabic (Egypt) */
       {"zh_HANS", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Simplified) */
       {"zh_HANT", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Traditional) */
       {"hu_HU", "{Y}. {b} {d:02}", "{H:02}:{M:02}"},   /* Hungarian */
       {"ja_JP", "{Y}年{m}月{d}日", "{H:02}:{M:02}"},   /* Japanese */
       {"ko_KR", "{Y}년 {m}월 {d}일", "{H:02}:{M:02}"}, /* Korean */
-      {"ur", "{d:02} {b} {Y}", "{I}:{M} {p}"},         /* Urdu */
+      {"ur", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},      /* Urdu */
   }};
 
   for (const LocalePatterns &pattern : patterns) {
