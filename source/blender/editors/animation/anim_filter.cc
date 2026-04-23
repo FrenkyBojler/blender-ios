@@ -1034,7 +1034,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
       pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
 
       /* check whether to continue or skip */
-      if (pchan && pchan->bone_get(*armature)) {
+      if (pchan && pchan->bone_get(*ob)) {
         /* If only visible channels,
          * skip if bone not visible unless user wants channels from hidden data too. */
         if (skip_hidden) {

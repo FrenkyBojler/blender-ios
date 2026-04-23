@@ -860,6 +860,10 @@ const Bone *bPoseChannel::bone_get(const Object &owner) const
   BLI_assert(owner.type == OB_ARMATURE);
   BLI_assert(GS(owner.data->name) == ID_AR);
   bArmature *armature = id_cast<bArmature *>(owner.data);
+
+  /* TODO: check that the Object's pose bone index generation counter is the same as the
+   * Armature's. */
+
   return this->bone_get(*armature);
 }
 

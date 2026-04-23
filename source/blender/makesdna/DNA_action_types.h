@@ -868,10 +868,11 @@ struct bPoseChannel {
   struct bPoseChannel_Runtime runtime;
 
 #ifdef __cplusplus
-  const Bone *bone_get(const bArmature &armature) const;
   const Bone *bone_get(const Object &owner) const;
-  Bone *bone_get(bArmature &armature);
   Bone *bone_get(Object &owner);
+
+  const Bone *bone_get(const bArmature &armature) const;
+  Bone *bone_get(bArmature &armature);
 #endif
 };
 
