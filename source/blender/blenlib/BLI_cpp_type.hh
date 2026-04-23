@@ -452,7 +452,8 @@ inline bool operator!=(const CPPType &a, const CPPType &b)
 
 template<typename T> inline const CPPType &CPPType::get()
 {
-  /* Store the #CPPType locally to avoid making the function call in most cases. */
+  /* This is similar to what is done in `UString operator""_ustr()` to improve performance and
+   * reduce code size compared to a standard static variable. */
   static std::atomic<const CPPType *> static_type{nullptr};
   const CPPType *type = static_type.load(std::memory_order_relaxed);
   if (type == nullptr) [[unlikely]] {
