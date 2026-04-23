@@ -760,8 +760,8 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
     status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_X, ICON_EVENT_X);
     status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Y, ICON_EVENT_Y);
     status.item_bool("", pso->axis_mutability & ed::AXIS_MUTABLE_Z, ICON_EVENT_Z);
-    status.item(pso->axis_mutability == ed::AXIS_MUTABLE_ALL ? IFACE_("Axis Constraint") :
-                                                               IFACE_("Axis Only"),
+    status.item(pso->axis_mutability == ed::AXIS_MUTABLE_ALL ? IFACE_("All Axes") :
+                                                               IFACE_("Single Axis"),
                 ICON_NONE);
   }
 
