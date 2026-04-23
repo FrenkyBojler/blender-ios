@@ -3210,6 +3210,8 @@ static void interp_adj(AdjVerts &adjverts,
 
 namespace facerep {
 
+static bool cfr_debug = false; //DEBUG!!
+
 static int choose_face_rep(Span<int> faces, const BevelState &bs)
 {
   /* The tie breaking values are, in order:
@@ -3220,6 +3222,9 @@ static int choose_face_rep(Span<int> faces, const BevelState &bs)
    *  + y component of face center
    * We want the face that has the lexicographically lowest value of these.
    */
+  if (cfr_debug) { //DEBUG!!
+    print_span(faces, "faces");
+  }
   if (faces.size() == 1) {
     return faces[0];
   }
@@ -3246,10 +3251,19 @@ static int choose_face_rep(Span<int> faces, const BevelState &bs)
     values[i][value_index++] = center[1];
     BLI_assert(value_index == value_len);
   }
+  if (cfr_debug) {
+    fmt::println("values\n");
+    for (const int i : IndexRange(numf)) {
+      print_span(values[i].as_span(), std::to_string(i).c_str());
+    }
+  }
   auto *it = std::ranges::min_element(values, [](const ValueVec &a, const ValueVec &b) {
     return std::ranges::lexicographical_compare(a, b);
   });
   if (it != values.end()) {
+    if (cfr_debug) {
+      fmt::println("min element is position {}", std::distance(values.begin(), it));
+    }
     return faces[std::distance(values.begin(), it)];
   }
   return faces[0];
@@ -3397,8 +3411,7 @@ static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
  * a representative face, using choose_rep_face.
  * We want to choose from among the faces that would be
  * chosen for a single-segment edge polygon between two successive
- * anchor verts.
- * But if \a for_interp is true, we also want to make sure it will
+ * anchor verts. We also want to make sure it will
  * make an acceptable polygon in UV space if we interpolate here.
  *
  * The single beveled edge is a special case,
@@ -3408,10 +3421,19 @@ static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
  * If there are uv maps, then don't include faces that would result
  * in zero-area UV polygons if chosen as the rep.
  */
-static int find_center_face_rep(const int bv, const bool for_interp, const BevelState &bs)
+static int find_center_face_rep(const int bv, const BevelState &bs)
 {
   int any_face = -1;
-  bool consider_all_faces = for_interp && bs.bevvert_beveled_edges_num(bv) == 1;
+  bool dbg = bv == 5; //DEBUG!!
+  if (dbg) { //DEBUG!!
+    fmt::println("find_center_face_rep, bv={}", bv);
+  }
+  bool consider_all_faces = bs.bevvert_beveled_edges_num(bv) == 1 ||
+                            (bs.params.affect_type == BevelAffect::Vertices &&
+                             (bs.params.segments % 2) == 1);
+  if (dbg) {
+    fmt::println("consider_all_faces = {}", consider_all_faces);
+  }
   Span<int> bes = bs.bevvert_bevedges()[bv];
   const int edge_count = bes.size();
   VectorSet<int, 20> fchoices;
@@ -3425,16 +3447,27 @@ static int find_center_face_rep(const int bv, const bool for_interp, const Bevel
       continue;
     }
     const int f = choose_face_rep({f1, f2}, bs);
+    if (dbg) {
+      fmt::println("choose_face_rep({},{}) -> {}", f1, f2, f);
+    }
     if (any_face == -1) {
       any_face = f;
     }
-    if (for_interp && bs.uvmaps_num > 0 && is_bad_uv_poly(bv, f, bs)) {
+    if (bs.uvmaps_num > 0 && is_bad_uv_poly(bv, f, bs)) {
+      if (dbg) {
+        fmt::println("  bad_uv_poly, so not adding {}", f);
+      }
       continue;
     }
     fchoices.add(f);
   }
   if (fchoices.size() == 0) {
     return any_face;
+  }
+  if (dbg) {
+    cfr_debug = true;
+    fmt::println("choose_face_rep gives {}", choose_face_rep(fchoices.as_span(), bs));
+    cfr_debug = false;
   }
   return choose_face_rep(fchoices.as_span(), bs);
 }
@@ -3790,7 +3823,7 @@ static void calculate_adj_face_uvs(const int f,
     /* Center ngon case. */
     if (any_wide_gap) {
       SmallIntArray center_face_interps(pat.num_anchors,
-                                        facerep::find_center_face_rep(bv, true, bs));
+                                        facerep::find_center_face_rep(bv, bs));
       create_ngon_uvs(newface, center_face_interps, true, uv_map_index, uv_attributes, bs);
     }
     else {
@@ -3932,7 +3965,7 @@ static void calculate_face_mesh_uvs(const int bevface,
   create_ngon_uvs(newface, freps.as_span(), true, uv_map_index, uv_attributes, bs);
 }
 
-void merge_uvs(BevelState &bs, Vector<Array<float2>> &uv_attributes)
+static void merge_uvs(BevelState &bs, Vector<Array<float2>> &uv_attributes)
 {
   if (bs.uvmaps_num == 0) {
     return;
@@ -5983,7 +6016,7 @@ static void set_vertex_mesh_reps(const int bv,
         face_rep_tiebreaks[a] = facerep::choose_face_rep(
             {anchor_face_reps[a], anchor_face_reps[anext]}, bs);
       }
-      center_frep = facerep::find_center_face_rep(bv, false, bs);
+      center_frep = facerep::find_center_face_rep(bv, bs);
     }
     const int nf_start = bs.bevvert_newfaces()[bv][0];
     switch (pat.kind) {

@@ -1240,6 +1240,7 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
   }
 }
 
+static bool cfr_debug = false; //DEBUG!!
 /**
  * Use a tie-breaking rule to choose a representative face when
  * there are number of choices, `face[0]`, `face[1]`, ..., `face[nfaces]`.
@@ -1255,6 +1256,9 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
 static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
 {
 #define VEC_VALUE_LEN 6
+  if (cfr_debug) {
+    printf("choose_rep_face, nfaces=%d\n", nfaces);
+  }
   float (*value_vecs)[VEC_VALUE_LEN] = nullptr;
   int num_viable = 0;
 
@@ -5087,6 +5091,11 @@ static bool is_bad_uv_poly(BevVert *bv, BMFace *frep)
  */
 static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
 {
+#define BMI(e) BM_elem_index_get(e)
+  bool dbg = BMI(bv->v) == 5; //DEBUG!!
+  if (dbg) {
+    printf("frep_for_center_poly, bv->v=%d\n", BMI(bv->v));
+  }
   int fcount = 0;
   BMFace *any_bmf = nullptr;
   bool consider_all_faces = bv->selcount == 1 || bp->affect_vertices_odd;
@@ -5102,6 +5111,9 @@ static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
     BMFace *bmf2 = bv->edges[i].fnext;
     BMFace *ftwo[2] = {bmf1, bmf2};
     BMFace *bmf = choose_rep_face(bp, ftwo, 2);
+    if (dbg) {
+      printf("choose_rep_face(%d,%d) -> %d\n", BMI(bmf1), BMI(bmf2), BMI(bmf));
+    }
     if (bmf != nullptr) {
       if (any_bmf == nullptr) {
         any_bmf = bmf;
@@ -5116,6 +5128,9 @@ static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
       if (!already_there) {
         if (bp->math_layer_info.has_math_layers) {
           if (is_bad_uv_poly(bv, bmf)) {
+            if (dbg) {
+              printf("  bad_uv_poly, so not adding %d\n", BMI(bmf));
+            }
             continue;
           }
         }
@@ -5125,6 +5140,11 @@ static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
   }
   if (fcount == 0) {
     return any_bmf;
+  }
+  if (dbg) {
+    cfr_debug = true;
+    printf("choose_rep_face give %d\n", BMI(choose_rep_face(bp, fchoices, fcount)));
+    cfr_debug = false;
   }
   return choose_rep_face(bp, fchoices, fcount);
 }
