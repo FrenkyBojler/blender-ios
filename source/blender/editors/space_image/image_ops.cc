@@ -2565,13 +2565,11 @@ void ED_image_internal_autosave_flush(const Main *bmain)
 
     if (image_should_be_saved(ima, &is_format_writable)) {
       if (BKE_image_has_packedfile(ima)) {
-        printf("Autosaving image: %s\n", ima->id.name);
         BKE_image_memorypack(ima);
       }
       else if (image_should_pack_during_save_all(ima) ||
                (is_format_writable && image_has_valid_path(ima)))
       {
-        printf("Temporarily packing (%s) for autosave\n", ima->id.name);
         BKE_image_autosave_memorypack(ima);
       }
     }
@@ -2620,6 +2618,8 @@ static wmOperatorStatus image_reload_exec(bContext *C, wmOperator * /*op*/)
   if (!ima) {
     return OPERATOR_CANCELLED;
   }
+
+  BKE_image_clear_autosave(ima);
 
   /* XXX BKE_packedfile_unpack_image frees image buffers */
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
