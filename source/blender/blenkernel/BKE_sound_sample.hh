@@ -15,9 +15,9 @@
 namespace blender::bke {
 
 /**
- * It allows efficiently sampling an arbitrary frequency range at an arbitrary point in time. This
- * is achieved by caching the result of the fourier transform for various windows and interpolating
- * between the cached values.
+ * This class allows efficiently sampling an arbitrary frequency range at an arbitrary point in
+ * time. This is achieved by caching the result of the fourier transform for various windows and
+ * interpolating between the cached values.
  *
  * Used by the Sample Sound node in Geometry Nodes.
  */
