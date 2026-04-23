@@ -75,35 +75,33 @@ static blender::Vector<hb_feature_t> blf_font_otf_features_default()
 {
   blender::Vector<hb_feature_t> features;
 
-  blf_font_otf_feature_set(features, HB_TAG('k', 'e', 'r', 'n'), 1); /* Kerning. */
-  blf_font_otf_feature_set(features, HB_TAG('l', 'o', 'c', 'l'), 1); /* Localized Forms. */
-  blf_font_otf_feature_set(features, HB_TAG('l', 'i', 'g', 'a'), 1); /* Standard Ligatures. */
-  blf_font_otf_feature_set(features, HB_TAG('c', 'a', 's', 'e'), 1); /* Case Sensitive Forms. */
-  blf_font_otf_feature_set(features, HB_TAG('t', 'n', 'u', 'm'), 1); /* Tabular Numbers. */
-  blf_font_otf_feature_set(features, HB_TAG('h', 'l', 'i', 'g'), 0); /* Historical Ligatures. */
-  blf_font_otf_feature_set(features, HB_TAG('s', 'a', 'l', 't'), 0); /* Stylistic Alternates. */
+  blf_font_otf_feature_set(features, BLF_OTF_KERN, 1); /* Kerning. */
+  blf_font_otf_feature_set(features, BLF_OTF_LOCL, 1); /* Localized Forms. */
+  blf_font_otf_feature_set(features, BLF_OTF_LIGA, 1); /* Standard Ligatures. */
+  blf_font_otf_feature_set(features, BLF_OTF_CASE, 1); /* Case Sensitive Forms. */
+  blf_font_otf_feature_set(features, BLF_OTF_TNUM, 1); /* Tabular Numbers. */
+  blf_font_otf_feature_set(features, BLF_OTF_HLIG, 0); /* Historical Ligatures. */
+  blf_font_otf_feature_set(features, BLF_OTF_SALT, 0); /* Stylistic Alternates. */
+  blf_font_otf_feature_set(features, BLF_OTF_CLIG, 0); /* Contextual Ligatures. */
 
   /* Discretionary Ligatures. */
-  blf_font_otf_feature_set(features,
-                           HB_TAG('d', 'l', 'i', 'g'),
-                           U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
+  blf_font_otf_feature_set(
+      features, BLF_OTF_DLIG, U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
 
   /* Contextual Alternates. */
-  blf_font_otf_feature_set(features,
-                           HB_TAG('c', 'a', 'l', 't'),
-                           U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
+  blf_font_otf_feature_set(
+      features, BLF_OTF_CALT, U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
   /* Slashed Zero. */
   blf_font_otf_feature_set(
-      features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
+      features, BLF_OTF_ZERO, U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
 
   /* Inter Open Digits. */
   blf_font_otf_feature_set(
-      features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
+      features, BLF_OTF_SS01, U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
 
   /* Inter Disambiguation w/o zero. */
-  blf_font_otf_feature_set(features,
-                           HB_TAG('s', 's', '0', '4'),
-                           U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
+  blf_font_otf_feature_set(
+      features, BLF_OTF_SS04, U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
 
   return features;
 }

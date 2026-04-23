@@ -54,11 +54,54 @@ using ColorSpace = ocio::ColorSpace;
 #define MAKE_DVAR_TAG(a, b, c, d) \
   ((uint32_t(a) << 24u) | (uint32_t(b) << 16u) | (uint32_t(c) << 8u) | (uint32_t(d)))
 
+/* OpenType Variation Axes. */
 #define BLF_VARIATION_AXIS_WEIGHT MAKE_DVAR_TAG('w', 'g', 'h', 't')  /* `wght` weight axis. */
 #define BLF_VARIATION_AXIS_SLANT MAKE_DVAR_TAG('s', 'l', 'n', 't')   /* `slnt` slant axis. */
 #define BLF_VARIATION_AXIS_WIDTH MAKE_DVAR_TAG('w', 'd', 't', 'h')   /* `wdth` width axis. */
 #define BLF_VARIATION_AXIS_SPACING MAKE_DVAR_TAG('s', 'p', 'a', 'c') /* `spac` spacing axis. */
 #define BLF_VARIATION_AXIS_OPTSIZE MAKE_DVAR_TAG('o', 'p', 's', 'z') /* `opsz` optical size. */
+
+/* OpenType Features - Ligatures and Substitution. */
+#define BLF_OTF_LIGA MAKE_DVAR_TAG('l', 'i', 'g', 'a') /* Standard Ligatures. */
+#define BLF_OTF_DLIG MAKE_DVAR_TAG('d', 'l', 'i', 'g') /* Discretionary Ligatures. */
+#define BLF_OTF_CLIG MAKE_DVAR_TAG('c', 'l', 'i', 'g') /* Contextual Ligatures. */
+#define BLF_OTF_HLIG MAKE_DVAR_TAG('h', 'l', 'i', 'g') /* Historical Ligatures. */
+#define BLF_OTF_LOCL MAKE_DVAR_TAG('l', 'o', 'c', 'l') /* Localized Forms. */
+#define BLF_OTF_SMCP MAKE_DVAR_TAG('s', 'm', 'c', 'p') /* Small Capitals from Lowercase. */
+#define BLF_OTF_S2SC MAKE_DVAR_TAG('s', '2', 's', 'c') /* Small Capitals from Uppercase. */
+#define BLF_OTF_SUBS MAKE_DVAR_TAG('s', 'u', 'b', 's') /* Set characters below the baseline. */
+#define BLF_OTF_SUPS MAKE_DVAR_TAG('s', 'u', 'p', 's') /* Set characters above the baseline. */
+#define BLF_OTF_ORDN MAKE_DVAR_TAG('o', 'r', 'd', 'n') /* Superscripted letters for ordinals. */
+
+/* OpenType Features - Numerals and Figures. */
+#define BLF_OTF_LNUM MAKE_DVAR_TAG('l', 'n', 'u', 'm') /* Lining Figures. */
+#define BLF_OTF_ONUM MAKE_DVAR_TAG('o', 'n', 'u', 'm') /* Oldstyle Figures. */
+#define BLF_OTF_PNUM MAKE_DVAR_TAG('p', 'n', 'u', 'm') /* Proportional Figures. */
+#define BLF_OTF_TNUM MAKE_DVAR_TAG('t', 'n', 'u', 'm') /* Tabular Numbers. */
+#define BLF_OTF_FRAC MAKE_DVAR_TAG('f', 'r', 'a', 'c') /* Automatic Fractions. */
+
+/* OpenType Features - Alternates and Styling. */
+#define BLF_OTF_SALT MAKE_DVAR_TAG('s', 'a', 'l', 't') /* Stylistic Alternates. */
+#define BLF_OTF_SS01 MAKE_DVAR_TAG('s', 's', '0', '1') /* Stylistic Set 1. Inter Open Digits. */
+#define BLF_OTF_SS02 MAKE_DVAR_TAG('s', 's', '0', '2') /* Stylistic Set 2. Inter Disam w/o 0. */
+#define BLF_OTF_SS03 MAKE_DVAR_TAG('s', 's', '0', '3') /* Stylistic Set 3. Inter Round Quotes. */
+#define BLF_OTF_SS04 MAKE_DVAR_TAG('s', 's', '0', '4') /* Stylistic Set 4. Inter Disambiguate. */
+#define BLF_OTF_SS05 MAKE_DVAR_TAG('s', 's', '0', '5') /* Stylistic Set 5. Inter Circled. */
+#define BLF_OTF_SS06 MAKE_DVAR_TAG('s', 's', '0', '6') /* Stylistic Set 6. Inter Square char. */
+#define BLF_OTF_SS07 MAKE_DVAR_TAG('s', 's', '0', '7') /* Stylistic Set 7. Inter Square punc. */
+#define BLF_OTF_SS08 MAKE_DVAR_TAG('s', 's', '0', '8') /* Stylistic Set 8. Inter Square quote. */
+#define BLF_OTF_SS09 MAKE_DVAR_TAG('s', 's', '0', '9') /* Stylistic Set 9. */
+#define BLF_OTF_ZERO MAKE_DVAR_TAG('z', 'e', 'r', 'o') /* Slashed Zero. */
+#define BLF_OTF_SWSH MAKE_DVAR_TAG('s', 'w', 's', 'h') /* Swash. */
+#define BLF_OTF_CALT MAKE_DVAR_TAG('c', 'a', 'l', 't') /* Contextual Alternates. */
+#define BLF_OTF_HIST MAKE_DVAR_TAG('h', 'i', 's', 't') /* Historical Forms. */
+
+/* OpenType Features - Positioning and Spacing. */
+#define BLF_OTF_KERN MAKE_DVAR_TAG('k', 'e', 'r', 'n') /* Kerning. */
+#define BLF_OTF_CASE MAKE_DVAR_TAG('c', 'a', 's', 'e') /* Case Sensitive Forms. */
+#define BLF_OTF_VERT MAKE_DVAR_TAG('v', 'e', 'r', 't') /* Vertical Forms. */
+#define BLF_OTF_MARK MAKE_DVAR_TAG('m', 'a', 'r', 'k') /* Mark Positioning. */
+#define BLF_OTF_MKMK MAKE_DVAR_TAG('m', 'k', 'm', 'k') /* Mark-to-Mark Positioning. */
 
 /* -------------------------------------------------------------------- */
 /** \name Sub-Pixel Offset & Utilities
@@ -108,8 +151,11 @@ inline ft_pix ft_pix_from_float(float v)
 
 #define BLF_BATCH_DRAW_LEN_MAX 128 /* in glyph */
 
-/** A value in the kerning cache that indicates it is not yet set. */
-#define KERNING_ENTRY_UNSET INT_MAX
+/* -------------------------------------------------------------------- */
+/* ShapingCache: LFU cache for shaped strings
+ */
+
+#define BLF_SHAPING_CACHE_SIZE 256
 
 struct CachedGlyph {
   uint32_t glyph_id = 0;
@@ -126,12 +172,6 @@ struct CachedString {
   ft_pix height = 0;
   uint32_t freq = 0; /* Use-count for LFU eviction. */
 };
-
-/* -------------------------------------------------------------------- */
-/* ShapingCache: LFU cache for shaped strings
- */
-
-#define BLF_SHAPING_CACHE_SIZE 256
 
 struct ShapingCache {
   ShapingCache()
@@ -189,6 +229,10 @@ struct ShapingCache {
     data.add_new(key, std::move(value));
   }
 };
+
+/* -------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------- */
 
 struct ShapedGlyph {
   FontBLF *font = nullptr;
