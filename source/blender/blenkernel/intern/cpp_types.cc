@@ -53,6 +53,9 @@ BLI_VECTOR_CPP_TYPE_MAKE(bke::SocketValueVariant);
 BLI_CPP_TYPE_MAKE(nodes::GeoNodesMultiInput<bke::SocketValueVariant>, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(nodes::BundleItemValue, CPPTypeFlags::None);
 
+BLI_CPP_TYPE_MAKE(fn::GField, CPPTypeFlags::None);
+BLI_CPP_TYPE_MAKE(fn::Field<int>, CPPTypeFlags::None);
+
 void BKE_cpp_types_init()
 {
   register_cpp_types();
@@ -84,6 +87,9 @@ void BKE_cpp_types_init()
   BLI_VECTOR_CPP_TYPE_REGISTER(bke::SocketValueVariant);
   BLI_CPP_TYPE_REGISTER(nodes::GeoNodesMultiInput<bke::SocketValueVariant>);
   BLI_CPP_TYPE_REGISTER(nodes::BundleItemValue);
+
+  BLI_CPP_TYPE_REGISTER(fn::GField);
+  BLI_CPP_TYPE_REGISTER(fn::Field<int>);
 }
 
 }  // namespace blender
