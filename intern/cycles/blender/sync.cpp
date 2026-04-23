@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "BKE_appdir.hh"
+#include "BKE_scene.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -303,7 +304,7 @@ void BlenderSync::sync_data(blender::RenderData &b_render,
 {
   /* For auto refresh images. */
   ImageManager *image_manager = scene->image_manager.get();
-  const float frame = b_scene->r.cfra + b_scene->r.subframe;
+  const float frame = BKE_scene_frame_get(b_scene);
   const bool frame_update = frame_last_synced != frame;
   const bool auto_refresh_update = image_manager->set_animation_frame_update(frame);
 
@@ -576,8 +577,8 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
 
 void BlenderSync::sync_scene_attributes()
 {
-  float frame = b_scene->r.cfra + b_scene->r.subframe;
-  float time = frame / b_scene->r.frs_sec;
+  float frame = BKE_scene_frame_get(b_scene);
+  float time = BKE_scene_frame_to_ctime(b_scene, frame);
 
   SceneAttributes *scene_attribute = scene->scene_attribute;
 
