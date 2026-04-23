@@ -2598,176 +2598,22 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
 
 TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 {
-  TreeElementIcon data = {nullptr};
+  TreeElementIcon data = {nullptr, nullptr, ICON_DOT};
 
   if (tselem->type != TSE_SOME_ID) {
     switch (tselem->type) {
-      case TSE_ACTION_SLOT:
-        data.icon = ICON_ACTION_SLOT;
-        break;
-      case TSE_ANIM_DATA:
-        data.icon = ICON_ANIM_DATA; /* XXX */
-        break;
-      case TSE_NLA:
-        data.icon = ICON_NLA;
-        break;
-      case TSE_NLA_TRACK:
-        data.icon = ICON_NLA; /* XXX */
-        break;
-      case TSE_NLA_ACTION:
-        data.icon = ICON_ACTION;
-        break;
-      case TSE_DRIVER_BASE:
-        data.icon = ICON_DRIVER;
-        break;
-      case TSE_DEFGROUP_BASE:
-        data.icon = ICON_GROUP_VERTEX;
-        break;
-      case TSE_DEFGROUP:
-        data.icon = ICON_GROUP_VERTEX;
-        break;
-      case TSE_BONE:
-      case TSE_EBONE:
-        data.icon = ICON_BONE_DATA;
-        break;
+      case TSE_CONSTRAINT:
       case TSE_CONSTRAINT_BASE:
-        data.icon = ICON_CONSTRAINT;
-        data.drag_id = tselem->id;
-        break;
       case TSE_MODIFIER_BASE:
-        data.icon = ICON_MODIFIER_DATA;
+      case TSE_MODIFIER:
+      case TSE_RNA_STRUCT:
+      case TSE_GPENCIL_EFFECT_BASE:
+      case TSE_GPENCIL_EFFECT:
         data.drag_id = tselem->id;
         break;
       case TSE_LIBRARY_OVERRIDE_BASE: {
         TreeElementOverridesBase *base_te = tree_element_cast<TreeElementOverridesBase>(te);
         data.icon = tree_element_get_icon_from_id(&base_te->id);
-        break;
-      }
-      case TSE_LIBRARY_OVERRIDE:
-        data.icon = ICON_LIBRARY_DATA_OVERRIDE;
-        break;
-      case TSE_LINKED_OB:
-        data.icon = ICON_OBJECT_DATA;
-        break;
-      case TSE_LINKED_PSYS:
-        data.icon = ICON_PARTICLES;
-        break;
-      case TSE_MODIFIER: {
-        Object *ob = id_cast<Object *>(tselem->id);
-        data.drag_id = tselem->id;
-
-        ModifierData *md = static_cast<ModifierData *>(BLI_findlink(&ob->modifiers, tselem->nr));
-        if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type)))
-        {
-          data.icon = modifier_type->icon;
-        }
-        else {
-          data.icon = ICON_DOT;
-        }
-        break;
-      }
-      case TSE_LINKED_NODE_TREE:
-        data.icon = ICON_NODETREE;
-        break;
-      case TSE_POSE_BASE:
-        data.icon = ICON_ARMATURE_DATA;
-        break;
-      case TSE_POSE_CHANNEL:
-        data.icon = ICON_BONE_DATA;
-        break;
-      case TSE_R_LAYER_BASE:
-        data.icon = ICON_RENDERLAYERS;
-        break;
-      case TSE_SCENE_OBJECTS_BASE:
-        data.icon = ICON_OUTLINER_OB_GROUP_INSTANCE;
-        break;
-      case TSE_R_LAYER:
-        data.icon = ICON_RENDER_RESULT;
-        break;
-      case TSE_BONE_COLLECTION_BASE:
-      case TSE_BONE_COLLECTION:
-        data.icon = ICON_GROUP_BONE;
-        break;
-      case TSE_STRIP: {
-        const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
-        switch (te_strip->get_strip_type()) {
-          case STRIP_TYPE_SCENE:
-            data.icon = ICON_SCENE_DATA;
-            break;
-          case STRIP_TYPE_MOVIECLIP:
-            data.icon = ICON_TRACKER;
-            break;
-          case STRIP_TYPE_MASK:
-            data.icon = ICON_MOD_MASK;
-            break;
-          case STRIP_TYPE_MOVIE:
-            data.icon = ICON_FILE_MOVIE;
-            break;
-          case STRIP_TYPE_SOUND:
-            data.icon = ICON_SOUND;
-            break;
-          case STRIP_TYPE_IMAGE:
-            data.icon = ICON_FILE_IMAGE;
-            break;
-          case STRIP_TYPE_COLOR:
-          case STRIP_TYPE_ADJUSTMENT:
-            data.icon = ICON_COLOR;
-            break;
-          case STRIP_TYPE_TEXT:
-            data.icon = ICON_FONT_DATA;
-            break;
-          case STRIP_TYPE_ADD:
-          case STRIP_TYPE_SUB:
-          case STRIP_TYPE_MUL:
-          case STRIP_TYPE_ALPHAOVER:
-          case STRIP_TYPE_ALPHAUNDER:
-          case STRIP_TYPE_COLORMIX:
-          case STRIP_TYPE_MULTICAM:
-          case STRIP_TYPE_SPEED:
-          case STRIP_TYPE_GLOW:
-          case STRIP_TYPE_GAUSSIAN_BLUR:
-            data.icon = ICON_SHADERFX;
-            break;
-          case STRIP_TYPE_CROSS:
-          case STRIP_TYPE_GAMCROSS:
-          case STRIP_TYPE_WIPE:
-          case STRIP_TYPE_COMPOSITOR:
-            data.icon = ICON_ARROW_LEFTRIGHT;
-            break;
-          case STRIP_TYPE_META:
-            data.icon = ICON_SEQ_STRIP_META;
-            break;
-          default:
-            data.icon = ICON_DOT;
-            break;
-        }
-        break;
-      }
-      case TSE_STRIP_DATA:
-        data.icon = ICON_LIBRARY_DATA_DIRECT;
-        break;
-      case TSE_STRIP_DUP:
-        data.icon = ICON_SEQ_STRIP_DUPLICATE;
-        break;
-      case TSE_RNA_STRUCT: {
-        const TreeElementRNAStruct *te_rna_struct = tree_element_cast<TreeElementRNAStruct>(te);
-        const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
-
-        if (RNA_struct_is_ID(ptr.type)) {
-          ID *id = static_cast<ID *>(ptr.data);
-          data.drag_id = id;
-          if (id && GS(id->name) == ID_LI &&
-              id_cast<Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE)
-          {
-            data.icon = ICON_PACKAGE;
-          }
-          else {
-            data.icon = RNA_struct_ui_icon(ptr.type);
-          }
-        }
-        else {
-          data.icon = RNA_struct_ui_icon(ptr.type);
-        }
         break;
       }
       case TSE_LAYER_COLLECTION:
@@ -2782,33 +2628,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.icon = ICON_OUTLINER_COLLECTION;
         break;
       }
-      case TSE_GP_LAYER: {
-        data.icon = ICON_OUTLINER_DATA_GP_LAYER;
-        break;
-      }
-      case TSE_GREASE_PENCIL_NODE: {
-        bke::greasepencil::TreeNode &node =
-            tree_element_cast<TreeElementGreasePencilNode>(te)->node();
-        if (node.is_layer()) {
-          data.icon = ICON_OUTLINER_DATA_GP_LAYER;
-        }
-        else if (node.is_group()) {
-          const bke::greasepencil::LayerGroup &group = node.as_group();
-
-          data.icon = ICON_GREASEPENCIL_LAYER_GROUP;
-          if (group.color_tag != LAYERGROUP_COLOR_NONE) {
-            data.icon = ICON_LAYERGROUP_COLOR_01 + group.color_tag;
-          }
-        }
-        break;
-      }
-      case TSE_GPENCIL_EFFECT_BASE:
-      case TSE_GPENCIL_EFFECT:
-        data.drag_id = tselem->id;
-        data.icon = ICON_SHADERFX;
-        break;
       default:
-        data.icon = ICON_DOT;
         break;
     }
   }
