@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <thread>
@@ -588,11 +589,11 @@ struct MotionPathEvalData {
    * frames that are important for the user. */
   int evaluation_center;
   Bounds<int> frame_range;
-  Array<bool> evaluated_frames;
+  Array<std::atomic<bool>> evaluated_frames;
   Array<TargetEvalResult> results;
   /* Can be set from the main thread to tell the evaluating thread to start over. Is used because
    * we cannot just stop the depsgraph evaluation. */
-  bool restart;
+  std::atomic<bool> restart;
 
   /* Main thread data. Do not modify during eval. */
   Array<MPathTarget> targets;
@@ -602,7 +603,10 @@ struct MotionPathEvalData {
       : evaluation_center(scene->r.cfra), frame_range(frame_range), scene(scene)
   {
     evaluated_frames.reinitialize(frame_range.size());
-    evaluated_frames.fill(false);
+    for (const int i : evaluated_frames.index_range()) {
+      evaluated_frames[i].store(false);
+    }
+    restart.store(false);
 
     results.reinitialize(targets.size());
     this->targets.reinitialize(targets.size());
@@ -656,8 +660,10 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   BLI_assert(!DEG_is_active(eval_data->depsgraph));
 
 restart:
-  eval_data->evaluated_frames.fill(false);
-  eval_data->restart = false;
+  for (const int i : eval_data->evaluated_frames.index_range()) {
+    eval_data->evaluated_frames[i].store(false);
+  }
+  eval_data->restart.store(false);
 
   int left_bound = eval_data->evaluation_center;
   int right_bound = eval_data->evaluation_center + 1;
@@ -685,7 +691,7 @@ restart:
       if (worker_status->stop) {
         return;
       }
-      if (eval_data->restart) {
+      if (eval_data->restart.load()) {
         /* I think this is a valid use case for goto. Seems to me the simplest way to break both
          * loops and run some code. */
         goto restart;
@@ -693,7 +699,7 @@ restart:
       job_write_evaluated_transform_values(*eval_data, target_index, frame_index);
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    eval_data->evaluated_frames[frame_index] = true;
+    eval_data->evaluated_frames[frame_index].store(true);
     worker_status->progress = float(frame - eval_data->frame_range.min) /
                               eval_data->frame_range.size();
     worker_status->do_update = true;
@@ -706,7 +712,7 @@ static void flush_to_motion_path(MotionPathEvalData &eval_data)
     MPathTarget *target = &eval_data.targets[target_index];
     TargetEvalResult &result = eval_data.results[target_index];
     for (const int frame_index : result.points.index_range()) {
-      if (!eval_data.evaluated_frames[frame_index]) {
+      if (!eval_data.evaluated_frames[frame_index].load()) {
         continue;
       }
       copy_v3_v3(target->mpath->points[frame_index].co, result.points[frame_index]);
@@ -789,7 +795,7 @@ void animviz_calc_motionpaths_async(Main *bmain,
     if (targets_match_job_data(targets, *job_data)) {
       /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
        * to restart the work with the same data. */
-      job_data->restart = true;
+      job_data->restart.store(true);
       return;
     }
     else {
