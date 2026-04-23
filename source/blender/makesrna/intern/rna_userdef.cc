@@ -20,6 +20,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "BLT_date_string.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_studiolight.h"
@@ -5477,6 +5478,84 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "Translate New Names",
                            "Translate the names of new data-blocks (objects, materials...)");
   RNA_def_property_update(prop, 0, "rna_userdef_translation_update");
+
+  static const EnumPropertyItem rna_enum_date_format_items[] = {
+      {int(date_string::DateFormat::Default),
+       "DEFAULT",
+       0,
+       "Default",
+       "Default date formating based on output language"},
+      {int(date_string::DateFormat::LE_Slash),
+       "LE_SLASH",
+       0,
+       "dd/mm/yyyy",
+       "Date format: dd/mm/yyyy, eg: 27/02/2019"},
+      {int(date_string::DateFormat::LE_Dot),
+       "LE_DOT",
+       0,
+       "dd.mm.yyyy",
+       "Date format: dd.mm.yyyy, eg: 27.02.2019"},
+      {int(date_string::DateFormat::LE_Dash),
+       "LE_DASH",
+       0,
+       "dd-mm-yyyy",
+       "Date format: dd-mm-yyyy, eg: 27-02-2019"},
+      {int(date_string::DateFormat::ME_Slash),
+       "ME_SLASH",
+       0,
+       "mm/dd/yyyy",
+       "Date format: mm/dd/yyyy, eg: 02/27/2019"},
+      {int(date_string::DateFormat::BE_Slash),
+       "BE_SLASH",
+       0,
+       "yyyy/mm/dd",
+       "Date format: yyyy/mm/dd, eg: 2019/02/27"},
+      {int(date_string::DateFormat::BE_Dot),
+       "BE_DOT",
+       0,
+       "yyyy.mm.dd",
+       "Date format: yyyy.mm.dd, eg: 2019.02.27"},
+      {int(date_string::DateFormat::BE_Dash),
+       "BE_DASH",
+       0,
+       "yyyy-mm-dd",
+       "Date format: yyyy-mm-dd, eg: 2019-02-27"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "date_format", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_date_format_items);
+  RNA_def_property_ui_text(prop, "Date Format", "Format for displaying date strings");
+  RNA_def_property_update(prop, 0, "rna_userdef_language_update");
+
+  static const EnumPropertyItem rna_enum_time_format_items[] = {
+      {int(date_string::TimeFormat::Default),
+       "DEFAULT",
+       0,
+       "Default",
+       "Default time formatting based on output language"},
+      {int(date_string::TimeFormat::H24_Colon),
+       "H24_COLON",
+       0,
+       "24-Hour (Colon)",
+       "Time format: 24-hour clock with colon, eg: 14:30"},
+      {int(date_string::TimeFormat::H24_Dot),
+       "H24_DOT",
+       0,
+       "24-Hour (Dot)",
+       "Time format: 24-hour clock with dot, eg: 14.30"},
+      {int(date_string::TimeFormat::H12_Colon),
+       "H12_COLON",
+       0,
+       "12-Hour",
+       "Time format: 12-hour clock, eg: 02:30 PM"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "time_format", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_time_format_items);
+  RNA_def_property_ui_text(prop, "Time Format", "Format for displaying time strings");
+  RNA_def_property_update(prop, 0, "rna_userdef_language_update");
 
   /* Status-bar. */
 

@@ -930,7 +930,14 @@ struct UserDef {
   /** #eUserpref_UI_Flag2. */
   char uiflag2 = USER_REGION_OVERLAP | USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   char gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION;
-  char _pad8[6] = {};
+
+  /* date_string::DateFormat */
+  char date_format = 0;
+  /* date_string::TimeFormat */
+  char time_format = 0;
+
+  char _pad8[4] = {};
+
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */
   char app_flag = 0;

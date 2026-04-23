@@ -18,12 +18,36 @@
 
 namespace blender::date_string {
 
-std::string date(const std::tm *date_time, const StringRef locale_iso = {});
+enum class DateFormat : uint8_t {
+  Default = 0, /* Convention based on output language. */
+  LE_Slash,    /* dd/mm/yyyy */
+  LE_Dot,      /* dd.mm.yyyy */
+  LE_Dash,     /* dd-mm-yyyy */
+  ME_Slash,    /* mm/dd/yyyy */
+  BE_Slash,    /* yyyy/mm/dd */
+  BE_Dot,      /* yyyy.mm.dd */
+  BE_Dash,     /* yyyy-mm-dd */
+};
 
-std::string time(const std::tm *date_time, const StringRef locale_iso = {});
+enum class TimeFormat : uint8_t {
+  Default = 0, /* Convention based on output language. */
+  H24_Colon,   /* 23:59 */
+  H24_Dot,     /* 23.59 */
+  H12_Colon,   /* 8:59 PM */
+};
+
+std::string date(const std::tm *date_time,
+                 const StringRef locale_iso = {},
+                 DateFormat format = DateFormat::Default);
+
+std::string time(const std::tm *date_time,
+                 const StringRef locale_iso = {},
+                 TimeFormat format = TimeFormat::Default);
 
 std::string datetime(const std::tm *date_time,
                      const StringRef locale_iso = {},
+                     DateFormat date_format = DateFormat::Default,
+                     TimeFormat time_format = TimeFormat::Default,
                      const std::tm *now = nullptr,
                      const StringRef today = {},
                      const StringRef yesterday = {});

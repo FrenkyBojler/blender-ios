@@ -82,20 +82,64 @@ static std::string format_with_pattern(const std::tm *tm, std::string pattern)
 
 /* Public functions. */
 
-std::string time(const std::tm *date_time, const StringRef locale_iso)
+std::string time(const std::tm *date_time, const StringRef locale_iso, TimeFormat format)
 {
-  const LocalePatterns *pattern = get_locale_patterns(locale_iso);
-  return format_with_pattern(date_time, pattern->time);
+  StringRef time_format_str;
+
+  if (format == TimeFormat::Default) {
+    const LocalePatterns *pattern = get_locale_patterns(locale_iso);
+    time_format_str = pattern->time;
+  }
+  else if (format == TimeFormat::H24_Colon) {
+    time_format_str = "{H:02}:{M:02}";
+  }
+  else if (format == TimeFormat::H24_Dot) {
+    time_format_str = "{H:02}.{M:02}";
+  }
+  else if (format == TimeFormat::H12_Colon) {
+    time_format_str = "{I}:{M:02} {p}";
+  }
+
+  return format_with_pattern(date_time, time_format_str);
 }
 
-std::string date(const std::tm *date_time, const StringRef locale_iso)
+std::string date(const std::tm *date_time, const StringRef locale_iso, DateFormat format)
 {
-  const LocalePatterns *pattern = get_locale_patterns(locale_iso);
-  return format_with_pattern(date_time, pattern->date);
+  StringRef date_format_str;
+
+  if (format == DateFormat::Default) {
+    const LocalePatterns *pattern = get_locale_patterns(locale_iso);
+    date_format_str = pattern->date;
+  }
+  else if (format == DateFormat::LE_Slash) {
+    date_format_str = "{d:02}/{m:02}/{Y}";
+  }
+  else if (format == DateFormat::LE_Dot) {
+    date_format_str = "{d:02}.{m:02}.{Y}";
+  }
+  else if (format == DateFormat::LE_Dash) {
+    date_format_str = "{d:02}-{m:02}-{Y}";
+  }
+  else if (format == DateFormat::ME_Slash) {
+    date_format_str = "{m:02}/{d:02}/{Y}";
+  }
+  else if (format == DateFormat::BE_Slash) {
+    date_format_str = "{Y}/{m:02}/{d:02}";
+  }
+  else if (format == DateFormat::BE_Dot) {
+    date_format_str = "{Y}.{m:02}.{d:02}";
+  }
+  else if (format == DateFormat::BE_Dash) {
+    date_format_str = "{Y}-{m:02}-{d:02}";
+  }
+
+  return format_with_pattern(date_time, date_format_str);
 }
 
 std::string datetime(const std::tm *datetime,
                      const StringRef locale_iso,
+                     DateFormat date_format,
+                     TimeFormat time_format,
                      const std::tm *now,
                      const StringRef today,
                      const StringRef yesterday)
@@ -111,7 +155,7 @@ std::string datetime(const std::tm *datetime,
                     datetime->tm_year == yesterday_tm.tm_year);
   }
 
-  const std::string time_s = time(datetime, locale_iso);
+  const std::string time_s = time(datetime, locale_iso, time_format);
 
   if (is_today) {
     return std::string(today) + " " + time_s;
@@ -120,7 +164,7 @@ std::string datetime(const std::tm *datetime,
     return std::string(yesterday) + " " + time_s;
   }
   else {
-    const std::string date_s = date(datetime, locale_iso);
+    const std::string date_s = date(datetime, locale_iso, date_format);
     return date_s + " " + time_s;
   }
 }

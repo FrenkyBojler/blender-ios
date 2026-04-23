@@ -995,8 +995,12 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
   if (file_attribute_column_type_enabled(params, COLUMN_DATETIME, layout)) {
     const char *lang = BLT_lang_get();
     constexpr tm test = {59, 59, 3, 30, 8, 199, 6, 365, 0}; /* September 30, 2099 03:59:59 */
-    std::string modified_s = compact ? date_string::date(&test, lang) :
-                                       date_string::datetime(&test, lang);
+    std::string modified_s = compact ?
+                                 date_string::date(&test, lang) :
+                                 date_string::datetime(&test,
+                                                       lang,
+                                                       date_string::DateFormat(U.date_format),
+                                                       date_string::TimeFormat(U.time_format));
     int width = file_string_width(modified_s.c_str());
     columns[COLUMN_DATETIME].width = width + pad + (0.5f * UI_UNIT_X);
   }
