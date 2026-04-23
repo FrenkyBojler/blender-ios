@@ -74,7 +74,7 @@ body:
             The steps should be based on the default startup file or a **simple** .blend file.
       placeholder: |
                - Open the Video Editing template.
-               - Add a video, press `Ctrl + R` to enable retiming keys.
+               - Add a video and press `Ctrl + R` to enable retiming keys.
                - Select a key then press G or LMB drag to slide it.
                - Blender crashes.
     validations:
