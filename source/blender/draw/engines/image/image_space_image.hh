@@ -112,7 +112,7 @@ class SpaceImageAccessor : public AbstractSpaceAccessor {
   {
     /* The offsets are stored with zooming, so retrieve original offsets by multiplying the zoom.
      * Furthermore, take the negatives since we want the offset of the image, not the space. */
-    return -float2(sima->xof, sima->yof) * sima->zoom;
+    return -((float2(sima->xof, sima->yof) * sima->zoom) - (sima->zoom * 0.5f));
   }
 };
 
