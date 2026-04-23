@@ -32,6 +32,7 @@ class TreeElementConstraint final : public AbstractTreeElement {
 
  public:
   TreeElementConstraint(TreeElement &legacy_te, Object &object, bConstraint &con);
+  std::optional<BIFIconID> get_icon() const override;
 };
 
 }  // namespace ed::outliner
