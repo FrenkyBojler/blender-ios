@@ -18,6 +18,7 @@
 #include "BKE_appdir.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
+#include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
@@ -79,6 +80,7 @@ class LibQueryTest : public ::testing::Test {
   {
     CLG_init();
     BKE_idtype_init();
+    BKE_cpp_types_init();
     RNA_init();
     bke::node_system_init();
     BKE_appdir_init();
