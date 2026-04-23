@@ -2797,7 +2797,7 @@ static wmOperatorStatus outliner_pack_data_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   int count = 0;
-  printf("Packing selected data-blocks...\n");
+
   tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
     TreeStoreElem *tselem = TREESTORE(te);
     if (tselem->flag & TSE_SELECTED) {
