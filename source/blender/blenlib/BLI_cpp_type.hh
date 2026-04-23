@@ -217,7 +217,7 @@ class CPPType : NonCopyable, NonMovable {
   /**
    * Get the `CPPType` that corresponds to a specific static type.
    * This only works for types that actually implement the template specialization using
-   * `BLI_CPP_TYPE_MAKE`.
+   * `BLI_CPP_TYPE_REGISTER`.
    */
   template<typename T> static const CPPType &get();
 

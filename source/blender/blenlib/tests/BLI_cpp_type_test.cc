@@ -80,8 +80,6 @@ struct TestType {
 
 }  // namespace tests
 
-BLI_CPP_TYPE_MAKE(tests::TestType, CPPTypeFlags::BasicType)
-
 namespace tests {
 
 class CPPTypeTest : public testing::Test {
@@ -93,7 +91,7 @@ class CPPTypeTest : public testing::Test {
   static void SetUpTestSuite()
   {
     register_cpp_types();
-    BLI_CPP_TYPE_REGISTER(tests::TestType);
+    BLI_CPP_TYPE_REGISTER(tests::TestType, CPPTypeFlags::BasicType);
   }
 };
 
