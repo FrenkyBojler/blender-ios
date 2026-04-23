@@ -1105,6 +1105,14 @@ static void template_ID(const bContext *C,
   }
 
   if (flag & UI_ID_BROWSE) {
+    /* XXX Special case for "node_tree" in Node Editors, disable the search menu, but keep the New
+     * button. */
+    bool space_editable = true;
+    const char *disabled_hint;
+    if (!ed::space_node::space_can_assign_nodetree(C, &disabled_hint)) {
+      space_editable = false;
+    }
+
     template_add_button_search_menu(C,
                                     layout,
                                     block,
@@ -1113,8 +1121,9 @@ static void template_ID(const bContext *C,
                                     id_search_menu,
                                     MEM_new<TemplateID>(__func__, template_ui),
                                     TIP_(template_id_browse_tip(type)),
+                                    disabled_hint,
                                     use_previews,
-                                    editable,
+                                    editable && space_editable,
                                     live_icon,
                                     but_func_argN_free<TemplateID>,
                                     but_func_argN_copy<TemplateID>);

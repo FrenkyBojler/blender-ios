@@ -118,6 +118,10 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
                                                 const NodesModifierData &nmd);
 
 /**
+ * XXX.
+ */
+bool space_can_assign_nodetree(const bContext *C, const char **r_disabled_hint);
+/**
  * Get the compute context for the active context that the user is currently looking at in that
  * node tree.
  */

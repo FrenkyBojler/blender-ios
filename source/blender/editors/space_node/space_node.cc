@@ -50,6 +50,10 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
+#include "SEQ_modifier.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
+
 #include "UI_view2d.hh"
 
 #include "DEG_depsgraph.hh"
@@ -334,6 +338,62 @@ std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(
   }
   found.id = nested_node_ref->id;
   return found;
+}
+
+bool space_can_assign_nodetree(const bContext *C, const char **r_disabled_hint)
+{
+  const SpaceNode *snode = CTX_wm_space_node(C);
+
+  if (snode == nullptr) {
+    return true;
+  }
+
+  switch (snode->node_tree_sub_type) {
+    case SNODE_GEOMETRY_MODIFIER: {
+      const Object *object = snode->id ? reinterpret_cast<Object *>(snode->id) :
+                                         CTX_data_active_object(C);
+      if (object == nullptr) {
+        *r_disabled_hint = "Cannot get object.";
+        return false;
+      }
+      for (const ModifierData &md : object->modifiers) {
+        if ((md.type == eModifierType_Nodes) && (md.flag & eModifierFlag_Active)) {
+          return true;
+        }
+      }
+      *r_disabled_hint = "Cannot get active Geometry Nodes modifier.";
+      return false;
+    } break;
+    case SNODE_COMPOSITOR_SEQUENCER: {
+      Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+      if (!sequencer_scene) {
+        *r_disabled_hint = "Cannot get Sequencer Scene.";
+        return false;
+      }
+      Strip *strip = seq::select_active_get(sequencer_scene);
+      if (!strip) {
+        *r_disabled_hint = "Cannot get active Strip.";
+        return false;
+      }
+      if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+        return true;
+      }
+      else {
+        StripModifierData *smd = seq::modifier_get_active(strip);
+        if (smd && smd->type == eSeqModifierType_Compositor) {
+          return true;
+        }
+      }
+
+      *r_disabled_hint = "Cannot get active Compositor modifier or Compositor strip.";
+      return false;
+    } break;
+    default:
+      return true;
+      break;
+  }
+
+  return true;
 }
 
 std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode)

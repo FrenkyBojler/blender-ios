@@ -15,6 +15,8 @@
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
+#include "BLT_translation.hh"
+
 #include "RNA_access.hh"
 
 #include "UI_interface_layout.hh"
@@ -62,6 +64,7 @@ void template_add_button_search_menu(const bContext *C,
                                      BlockCreateFunc block_func,
                                      void *block_argN,
                                      const std::optional<StringRef> tip,
+                                     const std::optional<StringRef> disabled_info,
                                      const bool use_previews,
                                      const bool editable,
                                      const bool live_icon,
@@ -147,7 +150,7 @@ void template_add_button_search_menu(const bContext *C,
     button_drawflag_enable(but, BUT_ICON_LEFT);
 
     if ((idfrom && !ID_IS_EDITABLE(idfrom)) || !editable) {
-      button_flag_enable(but, BUT_DISABLED);
+      button_disable(but, N_(disabled_info.value_or("").data()));
     }
   }
 }
