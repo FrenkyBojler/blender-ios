@@ -31,10 +31,24 @@ using SocketValueVariantAny = Any<SocketValueVariantTypeInfo, 32, 16>;
 struct SocketValueVariantTypeInfo {
   Kind kind;
   const CPPType &type;
-  void (*convert_to)(const CPPType &type, SocketValueVariantAny &value);
-  bool (*is_type)(const CPPType &type, const SocketValueVariantAny &value);
+  void (*convert_to)(const CPPType &dst_type, SocketValueVariantAny &value);
+  bool (*is_interpretable_as)(const CPPType &dst_type, const SocketValueVariantAny &value);
 
-  template<typename T> static SocketValueVariantTypeInfo get();
+  template<typename T> static SocketValueVariantTypeInfo get()
+  {
+    return SocketValueVariantTypeInfo{
+        .kind = Kind::None,
+        .type = CPPType::get<T>(),
+        .convert_to = convert_to_fn<T>,
+        .is_interpretable_as = is_interpretable_as_fn<T>,
+    };
+  }
+
+  template<typename T>
+  static void convert_to_fn(const CPPType &dst_type, SocketValueVariantAny &value);
+
+  template<typename T>
+  static bool is_interpretable_as_fn(const CPPType &dst_type, const SocketValueVariantAny &value);
 };
 
 template<typename T>
@@ -158,8 +172,14 @@ template<typename T> inline const T *SocketValueVariant2::get_if() const
   if (info.type == requested_type) {
     return &value_.get<T>();
   }
-  if (info.is_type(requested_type, *this)) {
-    return &value_.get<T>();
+  if (info.is_interpretable_as(requested_type, value_)) {
+    if constexpr (detail::has_generic_type<T>) {
+      using GenericT = T::generic_type;
+      return reinterpret_cast<const T *>(&value_.get<GenericT>());
+    }
+    else {
+      return &value_.get<T>();
+    }
   }
   return nullptr;
 }
@@ -178,7 +198,7 @@ inline const void *SocketValueVariant2::get_if(const CPPType &type) const
   if (info.type == type) {
     return value_.get();
   }
-  if (info.is_type(type, value_)) {
+  if (info.is_interpretable_as(type, value_)) {
     return value_.get();
   }
   return nullptr;

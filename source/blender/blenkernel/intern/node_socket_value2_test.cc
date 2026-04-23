@@ -8,10 +8,16 @@
 
 namespace blender::bke::tests {
 
-TEST(socket_value_variant2, Test)
+TEST(socket_value_variant2, SimpleInt)
 {
   SocketValueVariant2 s;
-  s.ensure_type<int>();
+  {
+    int &x = s.ensure_type<int>();
+    x = 5;
+  }
+  const int *x = s.get_if<int>();
+  EXPECT_NE(x, nullptr);
+  EXPECT_EQ(*x, 5);
 }
 
 }  // namespace blender::bke::tests
