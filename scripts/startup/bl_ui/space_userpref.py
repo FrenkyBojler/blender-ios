@@ -289,8 +289,8 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_reports", text="Reports")
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
-        col.prop(view, "date_format")
-        col.prop(view, "time_format")
+        layout.prop(view, "date_format")
+        layout.prop(view, "time_format")
 
 
 class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Panel):
