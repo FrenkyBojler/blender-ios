@@ -565,14 +565,12 @@ void BKE_main_merge(Main *bmain_dst,
 
   /* Collect all non-Library IDs from the source Main. Library IDs are dropped: the destination
    * already has the authoritative external_library representing this import source. */
-  ID *id_iter_src;
-  FOREACH_MAIN_ID_BEGIN (bmain_src, id_iter_src) {
-    if (GS(id_iter_src->name) == ID_LI) {
+  for (ID &id_iter : MainAllIDsIterator(*bmain_src)) {
+    if (GS(id_iter.name) == ID_LI) {
       continue;
     }
-    ids_to_move.append(id_iter_src);
+    ids_to_move.append(&id_iter);
   }
-  FOREACH_MAIN_ID_END;
 
   reports.num_merged_ids = int(ids_to_move.size());
 
@@ -587,9 +585,6 @@ void BKE_main_merge(Main *bmain_dst,
     BLI_assert((id->tag & ID_TAG_NO_MAIN) != 0);
     BKE_libblock_management_main_add(bmain_dst, id);
   }
-
-  /* TODO: Is this still needed? */
-  BKE_main_namemap_clear(*bmain_dst);
 
   BLI_assert(BKE_main_namemap_validate(*bmain_dst));
 

@@ -796,9 +796,9 @@ static Library *add_external_library(Main &bmain, Library &reference_library)
   id_us_ensure_real(&external_library->id);
 
   external_library->archive_parent_library = &reference_library;
-  constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_EXTERNAL;
-  /* TODO: Check if both archive and external flags need to be set? */
-  external_library->flag = (reference_library.flag & copy_flag) | (LIBRARY_FLAG_IS_EXTERNAL);
+  constexpr uint16_t copy_flag = ~(LIBRARY_FLAG_IS_ARCHIVE | LIBRARY_FLAG_IS_EXTERNAL);
+  external_library->flag = (reference_library.flag & copy_flag) |
+                           (LIBRARY_FLAG_IS_ARCHIVE | LIBRARY_FLAG_IS_EXTERNAL);
   BKE_library_filepath_set(&bmain, external_library, reference_library.filepath);
 
   external_library->runtime->parent = reference_library.runtime->parent;
@@ -814,8 +814,10 @@ static Library *add_external_library(Main &bmain, Library &reference_library)
   return external_library;
 }
 
-Library *bke::library::ensure_external_library(
-    Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new)
+Library *bke::library::ensure_external_library(Main &bmain,
+                                               ID &id,
+                                               Library &reference_library,
+                                               bool &is_new)
 {
   BLI_assert(ID_IS_LINKED(&id));
   BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) == 0);
@@ -827,7 +829,6 @@ Library *bke::library::ensure_external_library(
     BLI_assert(lib_iter->archive_parent_library == &reference_library);
     /* Check if current archive library already contains an ID of same type and name. */
     if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id.name), BKE_id_name(id))) {
-      UNUSED_VARS_NDEBUG(id_deep_hash);
       continue;
     }
     archive_library = lib_iter;
