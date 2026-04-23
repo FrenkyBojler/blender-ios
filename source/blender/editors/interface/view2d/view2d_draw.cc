@@ -421,11 +421,14 @@ static void frame_to_time_string(
   if (U.timecode_style == USER_TIMECODE_MINIMAL && step >= scene->frames_per_second()) {
     brevity_level = 1;
   }
+  const float frame_offset = (U.uiflag2 & USER_UIFLAG2_OFFSET_TIMECODE_SECONDS) ?
+                                 frame - scene->r.sfra + 1 :
+                                 frame;
 
   BLI_timecode_string_from_time(r_str,
                                 str_maxncpy,
                                 brevity_level,
-                                frame / float(scene->frames_per_second()),
+                                frame_offset / float(scene->frames_per_second()),
                                 scene->frames_per_second(),
                                 U.timecode_style);
 }
