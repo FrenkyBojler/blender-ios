@@ -146,11 +146,11 @@ Rotation Rotation::converted_to_mode(const eRotationModes mode) const
       break;
 
     default:
-        /* TODO (christoph): pass in a reference rotation for the conversion to euler. */
-        BLI_assert(mode <= ROT_MODE_ZYX);
-        converted.values.reinitialize(3);
-        quat_to_eulO(converted.values.data(), mode, quat);
-        break;
+      /* TODO (christoph): pass in a reference rotation for the conversion to euler. */
+      BLI_assert(mode <= ROT_MODE_ZYX);
+      converted.values.reinitialize(3);
+      quat_to_eulO(converted.values.data(), mode, quat);
+      break;
   }
   return converted;
 }
