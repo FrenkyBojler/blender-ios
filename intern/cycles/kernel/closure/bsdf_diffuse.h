@@ -62,7 +62,7 @@ ccl_device int bsdf_diffuse_sample(const ccl_private ShaderClosure *sc,
   // distribution over the hemisphere
   sample_cos_hemisphere(N, rand, wo, pdf);
 
-  if (dot(Ng, *wo) > 0.0f) {
+  if (dot(N, *wo) > 0.0f) {
     *eval = make_spectrum(*pdf);
   }
   else {

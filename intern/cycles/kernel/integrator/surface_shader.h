@@ -1294,6 +1294,8 @@ ccl_device void surface_shader_eval(KernelGlobals kg,
     }
 #endif
   }
+
+  sd->Ng = sd->N;
 }
 
 CCL_NAMESPACE_END

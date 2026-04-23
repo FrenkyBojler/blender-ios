@@ -399,6 +399,7 @@ ccl_device float3 ensure_valid_specular_reflection(const float3 Ng, const float3
 ccl_device float3 maybe_ensure_valid_specular_reflection(ccl_private ShaderData *sd,
                                                          const float3 N)
 {
+  return N;
   if ((sd->flag & SD_USE_BUMP_MAP_CORRECTION) == 0) {
     return N;
   }

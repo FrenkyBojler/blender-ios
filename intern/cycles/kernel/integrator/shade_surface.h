@@ -363,6 +363,7 @@ ccl_device
 
   const bool is_transmission = dot(ls.D, sd->N) < 0.0f;
 
+#if 0
   if (ls.prim != PRIM_NONE && ls.prim == sd->prim && ls.object == sd->object) {
     /* Skip self intersection if light direction lies in the same hemisphere as the geometric
      * normal. */
@@ -370,6 +371,7 @@ ccl_device
       return SHADER_EVAL_EMPTY;
     }
   }
+#endif
 
 #ifdef __MNEE__
   /* On a caustic caster, a caustic light's contribution is delivered to receivers by

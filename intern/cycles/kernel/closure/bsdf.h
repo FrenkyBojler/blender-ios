@@ -88,6 +88,8 @@ ccl_device_inline float bump_shadowing_term(const ccl_private ShaderData *sd,
                                             const float3 I,
                                             const bool is_eval)
 {
+  return 1.0f;  // XXX
+
   if (isequal(sc->N, sd->N)) {
     return 1.0f;
   }
@@ -177,7 +179,7 @@ ccl_device_inline int bsdf_sample(KernelGlobals kg,
   *eval = zero_spectrum();
   *pdf = 0.f;
   int label = LABEL_NONE;
-  const float3 Ng = (sd->type & PRIMITIVE_CURVE) ? sc->N : sd->Ng;
+  const float3 Ng = (sd->type & PRIMITIVE_CURVE) ? sc->N : sd->N;
   const float2 rand_xy = make_float2(rand);
 
   switch (sc->type) {
@@ -557,7 +559,6 @@ ccl_device_inline
   if (bump_shadowing == 0.0f) {
     return zero_spectrum();
   }
-
   switch (sc->type) {
     case CLOSURE_BSDF_DIFFUSE_ID:
       eval = bsdf_diffuse_eval(sc, sd->wi, wo, pdf);

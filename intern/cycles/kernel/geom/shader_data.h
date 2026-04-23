@@ -113,7 +113,7 @@ ccl_device_inline
   sd->flag = kernel_data_fetch(shaders, (sd->shader & SHADER_MASK)).flags;
 
   /* backfacing test */
-  const bool backfacing = (dot(sd->Ng, sd->wi) < 0.0f);
+  const bool backfacing = (dot(sd->N, sd->wi) < 0.0f);
 
   if (backfacing) {
     sd->flag |= SD_BACKFACING;
