@@ -757,6 +757,10 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           break;
         case ND_RENDER_RESULT:
           break;
+        case ND_NODES:
+          /* For the compositor strip modifier interface. */
+          buttons_area_redraw(area, BCONTEXT_STRIP_MODIFIER);
+          break;
         case ND_SEQUENCER:
           ED_area_tag_redraw(area);
           break;
@@ -812,6 +816,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           buttons_area_redraw(area, BCONTEXT_TOOL);
           break;
         case ND_DRAW_ANIMVIZ:
+          buttons_area_redraw(area, BCONTEXT_BONE);
           buttons_area_redraw(area, BCONTEXT_OBJECT);
           break;
         default:

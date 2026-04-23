@@ -1497,7 +1497,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Nodes) {
           NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-          IDProperty *nmd_properties = nmd->settings.properties;
+          IDProperty *nmd_properties = nmd->settings_legacy.properties;
 
           BLI_assert(nmd_properties->type == IDP_GROUP);
           for (IDProperty &nmd_socket_idprop : nmd_properties->data.group) {
@@ -1535,12 +1535,14 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
         if (scene.nodetree) {
           for (bNode &node : scene.nodetree->nodes) {
             if (node.type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY) {
-              NodeCryptomatte *storage = static_cast<NodeCryptomatte *>(node.storage);
-              char *matte_id = storage->matte_id;
-              if ((matte_id == nullptr) || (storage->matte_id[0] == '\0')) {
-                continue;
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeCryptomatte *storage = static_cast<NodeCryptomatte *>(node.storage);
+                char *matte_id = storage->matte_id;
+                if ((matte_id == nullptr) || (storage->matte_id[0] == '\0')) {
+                  continue;
+                }
+                BKE_cryptomatte_matte_id_to_entries(storage, storage->matte_id);
               }
-              BKE_cryptomatte_matte_id_to_entries(storage, storage->matte_id);
             }
           }
         }
@@ -1723,8 +1725,10 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_SHADER) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == SH_NODE_TEX_SKY && node.storage) {
-            NodeTexSky *tex = static_cast<NodeTexSky *>(node.storage);
-            tex->altitude *= 1000.0f;
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeTexSky *tex = static_cast<NodeTexSky *>(node.storage);
+              tex->altitude *= 1000.0f;
+            }
           }
         }
       }

@@ -83,7 +83,8 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
                                 SEQ_TIMELINE_SHOW_STRIP_DURATION | SEQ_TIMELINE_SHOW_GRID |
                                 SEQ_TIMELINE_SHOW_FCURVES | SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG |
                                 SEQ_TIMELINE_SHOW_STRIP_RETIMING | SEQ_TIMELINE_WAVEFORMS_HALF |
-                                SEQ_TIMELINE_SHOW_THUMBNAILS;
+                                SEQ_TIMELINE_STRIP_END_THUMBNAILS;
+
   sseq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
   sseq->draw_flag |= SEQ_DRAW_TRANSFORM_PREVIEW;
 
@@ -285,6 +286,9 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
         case ND_FRAME:
         case ND_SEQUENCER:
           sequencer_scopes_tag_refresh(area, params->scene);
+          break;
+        case ND_SEQUENCER_PREFETCH:
+          ED_area_tag_redraw(area);
           break;
       }
       break;
@@ -552,6 +556,7 @@ static void sequencer_main_region_listener(const wmRegionListenerParams *params)
         case ND_MARKERS:
         case ND_RENDER_OPTIONS: /* For FPS and FPS Base. */
         case ND_SEQUENCER:
+        case ND_SEQUENCER_PREFETCH:
         case ND_RENDER_RESULT:
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
@@ -761,6 +766,12 @@ static void sequencer_footer_region_listener(const wmRegionListenerParams *param
   }
 }
 
+static bool sequencer_footer_region_poll(const RegionPollParams *params)
+{
+  const Scene *scene = CTX_data_sequencer_scene(params->context);
+  return scene != nullptr;
+}
+
 /* *********************** toolbar region ************************ */
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
@@ -839,7 +850,7 @@ static void sequencer_preview_region_layout(const bContext *C, ARegion *region)
 
   if (sseq->flag & SEQ_ZOOM_TO_FIT) {
     View2D *v2d = &region->v2d;
-    v2d->cur = v2d->tot;
+    v2d->cur = SEQ_view_frame_fit(sseq, region, v2d->tot);
   }
 }
 
@@ -952,6 +963,7 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
         case ND_FRAME:
         case ND_MARKERS:
         case ND_SEQUENCER:
+        case ND_SEQUENCER_PREFETCH:
         case ND_RENDER_OPTIONS:
         case ND_DRAW_RENDER_VIEWPORT:
           ED_region_tag_redraw(region);
@@ -1025,6 +1037,7 @@ static void sequencer_buttons_region_listener(const wmRegionListenerParams *para
       switch (wmn->data) {
         case ND_FRAME:
         case ND_SEQUENCER:
+        case ND_SEQUENCER_PREFETCH:
           ED_region_tag_redraw(region);
           break;
       }
@@ -1232,6 +1245,7 @@ void ED_spacetype_sequencer()
   art->init = sequencer_header_region_init;
   art->draw = sequencer_header_region_draw;
   art->listener = sequencer_footer_region_listener;
+  art->poll = sequencer_footer_region_poll;
   BLI_addhead(&st->regiontypes, art);
 
   /* HUD. */

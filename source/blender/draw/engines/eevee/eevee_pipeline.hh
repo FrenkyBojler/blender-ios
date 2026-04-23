@@ -139,6 +139,24 @@ class ShadowPipeline {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Prepass
+ *
+ * Helper class for handling prepasses in Forward and Deferred pipelines.
+ * \{ */
+
+class Prepass : public PassMain {
+  PassMain::Sub *prepass_subpasses[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+      {{nullptr}}};
+
+ public:
+  Prepass(const char *name) : PassMain(name) {};
+  void setup_subpasses(DRWState common_state);
+  PassMain::Sub *add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Forward Pass
  *
  * Handles alpha blended surfaces and NPR materials (using Closure to RGBA).
@@ -148,15 +166,18 @@ class ForwardPipeline {
  private:
   Instance &inst_;
 
-  PassMain prepass_ps_ = {"Prepass"};
-  PassMain::Sub *prepass_single_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_single_sided_moving_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
+  Prepass prepass_ps_ = {"Prepass"};
 
   PassMain opaque_ps_ = {"Shading"};
-  PassMain::Sub *opaque_single_sided_ps_ = nullptr;
-  PassMain::Sub *opaque_double_sided_ps_ = nullptr;
+  PassMain::Sub *opaque_subpasses_[2 /*Raycast*/][2 /*Double-Sided*/] = {{nullptr}};
+
+  PassMain::Sub *get_opaque_subpass(blender::Material *blender_mat, GPUMaterial *gpumat)
+  {
+    const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
+    const bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
+
+    return opaque_subpasses_[has_raycast][double_sided];
+  }
 
   PassSortable transparent_ps_ = {"Forward.Transparent"};
   float3 camera_forward_;
@@ -192,14 +213,16 @@ class ForwardPipeline {
   PassMain::Sub *prepass_opaque_add(blender::Material *blender_mat,
                                     GPUMaterial *gpumat,
                                     bool has_motion);
-  PassMain::Sub *material_opaque_add(blender::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *material_opaque_add(const Object *ob,
+                                     blender::Material *blender_mat,
+                                     GPUMaterial *gpumat);
 
-  PassMain::Sub *prepass_transparent_add(const Object *ob,
-                                         blender::Material *blender_mat,
-                                         GPUMaterial *gpumat);
-  PassMain::Sub *material_transparent_add(const Object *ob,
-                                          blender::Material *blender_mat,
-                                          GPUMaterial *gpumat);
+  void transparent_add(const Object *ob,
+                       const float3 &ob_location,
+                       blender::Material *blender_mat,
+                       GPUMaterial *gpumat,
+                       PassMain::Sub *&r_prepass_subpass,
+                       PassMain::Sub *&r_material_subpass);
 
   bool use_colored_transparency() const;
 
@@ -218,19 +241,20 @@ class ForwardPipeline {
  * \{ */
 
 struct DeferredLayerBase {
-  PassMain prepass_ps_ = {"Prepass"};
-  PassMain::Sub *prepass_single_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_single_sided_moving_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
+  Prepass prepass_ps_ = {"Prepass"};
 
   PassMain gbuffer_ps_ = {"Shading"};
-  /* Shaders that use the ClosureToRGBA node needs to be rendered first.
-   * Consider they hybrid forward and deferred. */
-  PassMain::Sub *gbuffer_single_sided_hybrid_ps_ = nullptr;
-  PassMain::Sub *gbuffer_double_sided_hybrid_ps_ = nullptr;
-  PassMain::Sub *gbuffer_single_sided_ps_ = nullptr;
-  PassMain::Sub *gbuffer_double_sided_ps_ = nullptr;
+  PassMain::Sub *gbuffer_subpasses_[2 /*Hybrid*/][2 /*Raycast*/][2 /*Double-Sided*/] = {
+      {{nullptr}}};
+
+  PassMain::Sub *get_gbuffer_subpass(blender::Material *blender_mat, GPUMaterial *gpumat)
+  {
+    const bool has_shader_to_rgba = GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA);
+    const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
+    const bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
+
+    return gbuffer_subpasses_[has_shader_to_rgba][has_raycast][double_sided];
+  }
 
   gpu::Texture *radiance_behind_tx_ = nullptr;
 
@@ -467,7 +491,7 @@ struct VolumeObjectBounds {
   /* Combined bounds in Z. Allow tighter integration bounds. */
   std::optional<Bounds<float>> z_range;
 
-  VolumeObjectBounds(const Camera &camera, Object *ob);
+  VolumeObjectBounds(const Camera &camera, const ObjectHandle &ob_handle, int instance_index);
 };
 
 /**
@@ -533,11 +557,7 @@ class VolumePipeline {
   void sync();
   void render(View &view, Texture &occupancy_tx);
 
-  /**
-   * Returns correct volume layer for a given object and add the object to the layer.
-   * Returns nullptr if the object is not visible at all.
-   */
-  VolumeLayer *register_and_get_layer(Object *ob);
+  VolumeLayer *register_and_get_layer(const VolumeObjectBounds &object_bounds);
 
   std::optional<Bounds<float>> object_integration_range() const;
 
@@ -651,6 +671,7 @@ class PlanarProbePipeline : DeferredLayerBase {
 
   void render(View &view,
               gpu::Texture *depth_layer_tx,
+              Framebuffer &prepass_fb,
               Framebuffer &gbuffer,
               Framebuffer &combined_fb,
               int2 extent);
@@ -693,7 +714,7 @@ class UtilityTexture : public Texture {
 
   static constexpr int lut_size = UTIL_TEX_SIZE;
   static constexpr int lut_size_sqr = lut_size * lut_size;
-  static constexpr int layer_count = UTIL_BTDF_LAYER + UTIL_BTDF_LAYER_COUNT;
+  static constexpr int layer_count = UTIL_BSDF_LAYER + UTIL_BSDF_LAYER_COUNT;
 
  public:
   UtilityTexture()
@@ -727,7 +748,7 @@ class UtilityTexture : public Texture {
       memcpy(layer.data, lut::ltc_mat_ggx, sizeof(layer));
     }
     {
-      Layer &layer = data[UTIL_BSDF_LAYER];
+      Layer &layer = data[UTIL_BRDF_LAYER];
       for (auto x : IndexRange(lut_size)) {
         for (auto y : IndexRange(lut_size)) {
           layer.data[y][x][0] = lut::brdf_ggx[y][x][0];
@@ -739,7 +760,7 @@ class UtilityTexture : public Texture {
     }
     {
       for (auto layer_id : IndexRange(16)) {
-        Layer &layer = data[UTIL_BTDF_LAYER + layer_id];
+        Layer &layer = data[UTIL_BSDF_LAYER + layer_id];
         for (auto x : IndexRange(lut_size)) {
           for (auto y : IndexRange(lut_size)) {
             layer.data[y][x][0] = lut::bsdf_ggx[layer_id][y][x][0];
@@ -780,6 +801,8 @@ class PipelineModule {
   UtilityTexture utility_tx;
   PipelineInfoData &data;
 
+  bool has_raycast = false;
+
   PipelineModule(Instance &inst, PipelineInfoData &data)
       : background(inst),
         world(inst),
@@ -803,6 +826,8 @@ class PipelineModule {
     shadow.sync();
     volume.sync();
     capture.sync();
+
+    has_raycast = false;
   }
 
   void end_sync()
@@ -813,12 +838,16 @@ class PipelineModule {
     forward.end_sync();
   }
 
-  PassMain::Sub *material_add(Object * /*ob*/ /* TODO remove. */,
+  PassMain::Sub *material_add(Object *ob,
                               blender::Material *blender_mat,
                               GPUMaterial *gpumat,
                               eMaterialPipeline pipeline_type,
                               eMaterialProbe probe_capture)
   {
+    if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+      has_raycast = true;
+    }
+
     if (probe_capture == MAT_PROBE_REFLECTION) {
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_DEFERRED:
@@ -859,7 +888,7 @@ class PipelineModule {
       case MAT_PIPE_DEFERRED:
         return deferred.material_add(blender_mat, gpumat);
       case MAT_PIPE_FORWARD:
-        return forward.material_opaque_add(blender_mat, gpumat);
+        return forward.material_opaque_add(ob, blender_mat, gpumat);
       case MAT_PIPE_SHADOW:
         return shadow.surface_material_add(blender_mat, gpumat);
       case MAT_PIPE_CAPTURE:

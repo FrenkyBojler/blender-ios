@@ -510,6 +510,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 
   rcti mask;
   ui::view2d_mask_from_win(&region->v2d, &mask);
+  mask.xmin += sspreadsheet->runtime->left_column_width;
   mask.ymax -= sspreadsheet->runtime->top_row_height;
   ED_region_draw_overflow_indication(CTX_wm_area(C), region, &mask);
 
@@ -741,10 +742,10 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
 
   for (SpreadsheetRowFilter &row_filter : sspreadsheet->row_filters) {
     writer->write_struct(&row_filter);
-    BLO_write_string(writer, row_filter.value_string);
+    writer->write_string(row_filter.value_string);
   }
 
-  BLO_write_pointer_array(writer, sspreadsheet->num_tables, sspreadsheet->tables);
+  writer->write_pointer_array(sspreadsheet->num_tables, sspreadsheet->tables);
   for (const int i : IndexRange(sspreadsheet->num_tables)) {
     spreadsheet_table_blend_write(writer, sspreadsheet->tables[i]);
   }

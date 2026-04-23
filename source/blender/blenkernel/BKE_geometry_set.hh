@@ -154,14 +154,14 @@ struct GeometrySet {
   std::array<GeometryComponentPtr, GEO_COMPONENT_TYPE_ENUM_SIZE> components_;
   nodes::BundlePtr bundle_;
 
- public:
   /**
    * A user defined name for this geometry. It is not expected to be unique. Its main
    * purpose is help debugging instance trees. It may eventually also be used when exporting
    * instance trees or when creating separate objects from them.
    */
-  std::string name;
+  std::string name_;
 
+ public:
   /**
    * The methods are defaulted here so that they are not instantiated in every translation unit.
    */
@@ -268,12 +268,6 @@ struct GeometrySet {
     void add(const StringRef name, const AttributeDomainAndType &kind);
   };
 
-  void gather_attributes_for_propagation(Span<GeometryComponent::Type> component_types,
-                                         GeometryComponent::Type dst_component_type,
-                                         bool include_instances,
-                                         const AttributeFilter &attribute_filter,
-                                         GatheredAttributes &r_attributes) const;
-
   Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
                                                          bool ignore_empty) const;
 
@@ -301,6 +295,7 @@ struct GeometrySet {
   /**
    * Create a new geometry set that only contains the given instances.
    */
+  static GeometrySet from_instances(std::unique_ptr<Instances> instances);
   static GeometrySet from_instances(
       Instances *instances, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
   /**
@@ -457,17 +452,20 @@ struct GeometrySet {
   void copy_bundle_from(const GeometrySet &other);
   void merge_bundle_from(const GeometrySet &other);
 
+  void set_name(std::string name);
+  StringRefNull name() const;
+
   friend bool operator==(const GeometrySet &a, const GeometrySet &b)
   {
     /* This compares only the component pointers, not the actual geometry data. */
-    return Span(a.components_) == Span(b.components_) && a.name == b.name &&
+    return Span(a.components_) == Span(b.components_) && a.name_ == b.name_ &&
            a.bundle_ == b.bundle_;
   }
 
   uint64_t hash() const
   {
     /* This should have the same data that's also taken into account in #operator==. */
-    return get_default_hash(Span(components_), this->name, this->bundle_.get());
+    return get_default_hash(Span(components_), name_, bundle_.get());
   }
 
   void count_memory(MemoryCounter &memory) const;
