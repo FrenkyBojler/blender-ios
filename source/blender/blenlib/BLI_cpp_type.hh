@@ -220,6 +220,7 @@ class CPPType : NonCopyable, NonMovable {
    * `BLI_CPP_TYPE_MAKE`.
    */
   template<typename T> static const CPPType &get();
+  template<typename T> static const CPPType **get_ptr();
   template<typename T> static const CPPType &get_impl();
 
   /**
@@ -452,15 +453,18 @@ inline bool operator!=(const CPPType &a, const CPPType &b)
 
 template<typename T> inline const CPPType &CPPType::get()
 {
-  /* This is similar to what is done in `UString operator""_ustr()` to improve performance and
-   * reduce code size compared to a standard static variable. */
-  static std::atomic<const CPPType *> static_type{nullptr};
-  const CPPType *type = static_type.load(std::memory_order_relaxed);
-  if (type == nullptr) [[unlikely]] {
-    type = &CPPType::get_impl<std::decay_t<T>>();
-    static_type.store(type, std::memory_order_relaxed);
-  }
+  const CPPType *type = *CPPType::get_ptr<std::decay_t<T>>();
+  /* Should have been initialized by #BLI_CPP_TYPE_REGISTER. */
+  BLI_assert(type != nullptr);
   return *type;
+}
+
+template<typename T> inline const CPPType **CPPType::get_ptr()
+{
+  static_assert(std::is_same_v<T, std::decay_t<T>>);
+  /* This will be initialized by #BLI_CPP_TYPE_REGISTER. */
+  static const CPPType *type = nullptr;
+  return &type;
 }
 
 inline StringRefNull CPPType::name() const

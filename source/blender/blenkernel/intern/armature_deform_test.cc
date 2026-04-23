@@ -9,6 +9,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
@@ -768,6 +769,7 @@ class ArmatureDeformTest : public ArmatureDeformTestBase, public testing::Test {
   static void SetUpTestSuite()
   {
     CLG_init();
+    BKE_cpp_types_init();
     BKE_idtype_init();
   }
 

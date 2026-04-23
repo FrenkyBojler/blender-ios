@@ -471,6 +471,7 @@ CPPType::CPPType(TypeTag<T> /*type*/,
   }
 
 /** Register a #CPPType created with #BLI_CPP_TYPE_MAKE. */
-#define BLI_CPP_TYPE_REGISTER(TYPE_NAME) CPPType::get<TYPE_NAME>()
+#define BLI_CPP_TYPE_REGISTER(TYPE_NAME) \
+  *CPPType::get_ptr<TYPE_NAME>() = &CPPType::get_impl<TYPE_NAME>()
 
 }  // namespace blender

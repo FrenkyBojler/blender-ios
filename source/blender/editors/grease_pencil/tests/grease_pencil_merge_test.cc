@@ -5,6 +5,7 @@
 #include "testing/testing.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
@@ -25,6 +26,7 @@ struct GreasePencilIDTestContext {
 
   GreasePencilIDTestContext()
   {
+    BKE_cpp_types_init();
     BKE_idtype_init();
     this->bmain = BKE_main_new();
     this->grease_pencil = BKE_id_new<GreasePencil>(this->bmain, "GP");

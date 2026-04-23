@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "mesh_brush_common.hh"
 
+#include "BKE_cpp_types.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 
@@ -28,6 +29,7 @@ class MeshTests : public testing::Test {
   static void SetUpTestSuite()
   {
     CLG_init();
+    BKE_cpp_types_init();
     BKE_idtype_init();
   }
 
