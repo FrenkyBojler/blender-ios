@@ -12,6 +12,8 @@
 
 #include "BLI_string_ref.hh"
 
+#include "CLG_log.h"
+
 #include "DNA_asset_types.h"
 #include "DNA_userdef_types.h"
 
@@ -23,6 +25,8 @@
 #include "essentials_library.hh"
 
 namespace blender::asset_system {
+
+static CLG_LogRef LOG = {"asset.library.essentials"};
 
 EssentialsAssetLibrary::EssentialsAssetLibrary()
     : OnDiskAssetLibrary(ASSET_LIBRARY_ESSENTIALS,
@@ -46,6 +50,51 @@ std::optional<eAssetImportMethod> EssentialsAssetLibrary::import_method() const
     return ASSET_IMPORT_APPEND_REUSE;
   }
   return ASSET_IMPORT_PACK;
+}
+
+void EssentialsAssetLibrary::refresh_catalogs()
+{
+  /* Start with empty catalog storage. Don't do this directly in #this.catalog_service to avoid
+   * race conditions. Rather build into a new service and replace the current one when done. */
+  std::unique_ptr<AssetCatalogService> new_catalog_service = std::make_unique<AssetCatalogService>(
+      AssetCatalogService::read_only_tag());
+
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+
+  const auto load_catalogs_fn = [&](const AssetLibrary *library) {
+    const bool is_online_lib = library->remote_url().has_value();
+    if (is_online_lib && skip_remote_libraries) {
+      return;
+    }
+
+    library->catalog_service().reload_catalogs();
+
+    new_catalog_service->add_from_existing(
+        library->catalog_service(),
+        /*on_duplicate_items=*/[](const AssetCatalog &existing,
+                                  const AssetCatalog &to_be_ignored) {
+          if (existing.path == to_be_ignored.path) {
+            CLOG_DEBUG(&LOG,
+                       "multiple definitions of catalog %s (path: %s), ignoring duplicate",
+                       existing.catalog_id.str().c_str(),
+                       existing.path.c_str());
+          }
+          else {
+            CLOG_ERROR(&LOG,
+                       "multiple definitions of catalog %s with differing paths (%s vs. %s), "
+                       "ignoring second one",
+                       existing.catalog_id.str().c_str(),
+                       existing.path.c_str(),
+                       to_be_ignored.path.c_str());
+          }
+        });
+  };
+
+  load_catalogs_fn(this);
+  load_catalogs_fn(AS_asset_library_load(nullptr, online_essentials_library_reference()));
+
+  std::lock_guard lock{catalog_service_mutex_};
+  catalog_service_ = std::move(new_catalog_service);
 }
 
 StringRefNull essentials_directory_path()

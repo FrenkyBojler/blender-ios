@@ -79,6 +79,10 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
                   job_params->remote_library_requests.lookup_ptr(*remote_url))
           {
             remote_asset_library_load(job_params, **request, stop, do_update, &progress_this);
+            /* A new catalog file might have been put in place by the download that was picked up
+             * by the remote library. Make sure it propagates to the "All" library. */
+            asset_system::all_library_tag_catalogs_dirty();
+            asset_system::all_library_reload_catalogs_if_dirty();
           }
           /* When online assets or online access are disabled, there will be no requests. In that
            * case, just list the assets that are downloaded already. */

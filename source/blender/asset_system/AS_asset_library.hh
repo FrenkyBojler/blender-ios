@@ -9,6 +9,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <optional>
 
 #include "AS_asset_catalog.hh"
@@ -89,7 +90,7 @@ class AssetLibrary {
    * within the catalog service may still happen without the mutex being locked. They should be
    * protected separately. */
   std::unique_ptr<AssetCatalogService> catalog_service_;
-  Mutex catalog_service_mutex_;
+  std::recursive_mutex catalog_service_mutex_;
 
   /** Assets owned by this library may be imported with a different method than set in
    * #import_method_ above, it's just a default. */
@@ -251,6 +252,8 @@ AssetLibraryReference all_library_reference();
 AssetLibraryReference current_file_library_reference();
 AssetLibraryReference essentials_library_reference();
 AssetLibraryReference online_essentials_library_reference();
+
+void all_library_tag_catalogs_dirty();
 void all_library_reload_catalogs_if_dirty();
 
 /**

@@ -279,6 +279,9 @@ void AssetLibrary::load_or_reload_catalogs()
   /* The catalog service was created before without being associated with a definition file. */
   if (catalog_service_->get_catalog_definition_file() == nullptr) {
     catalog_service_->load_from_disk();
+    if (library_type() == ASSET_LIBRARY_ESSENTIALS) {
+      this->refresh_catalogs();
+    }
   }
   else {
     this->refresh_catalogs();
@@ -523,6 +526,12 @@ AssetLibraryReference online_essentials_library_reference()
   library_ref.custom_library_index = -1;
   library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;
   return library_ref;
+}
+
+void all_library_tag_catalogs_dirty()
+{
+  AssetLibraryService *service = AssetLibraryService::get();
+  service->tag_all_library_catalogs_dirty();
 }
 
 void all_library_reload_catalogs_if_dirty()
