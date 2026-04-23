@@ -57,9 +57,9 @@ body:
             Please provide a short description of the issue, including images or videos when neccesary.
             Please include both the expected and actual results.
       placeholder: |
-            Blender crashes when I...
+            Blender crashes when sliding retiming key.
 
-            Expected result: Blender does not crash.
+            Expected result: Blender transforms the retiming keys.
             Actual result: Blender crashes.
     validations:
       required: true
@@ -73,8 +73,10 @@ body:
             Please provide clear written steps to reproduce the issue.
             The steps should be based on the default startup file or a **simple** .blend file.
       placeholder: |
-               1. In the 3D viewport, add a sphere.
-               2. ...
+               - Open the Video Editing template.
+               - Add a video, press `Ctrl + R` to enable retiming keys.
+               - Select a key then press G or LMB drag to slide it.
+               - Blender crashes.
     validations:
       required: true
 
