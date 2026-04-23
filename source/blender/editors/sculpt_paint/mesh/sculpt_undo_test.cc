@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_cpp_types.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 
@@ -24,6 +25,7 @@ class SculptUndoTest : public testing::Test {
   static void SetUpTestSuite()
   {
     CLG_init();
+    BKE_cpp_types_init();
     BKE_idtype_init();
   }
 

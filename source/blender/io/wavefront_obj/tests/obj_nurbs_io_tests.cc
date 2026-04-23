@@ -5,6 +5,7 @@
 #include "BLI_string.h"
 
 #include "BKE_appdir.hh"
+#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_compare.hh"
 #include "BKE_idtype.hh"
@@ -43,6 +44,7 @@ class OBJCurvesTest : public testing::Test {
   {
     /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
     CLG_init();
+    BKE_cpp_types_init();
 
     /* Might not be necessary but... */
     BKE_idtype_init();

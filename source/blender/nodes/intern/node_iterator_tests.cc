@@ -12,6 +12,7 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
+#include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
@@ -35,6 +36,7 @@ class NodeTest : public ::testing::Test {
   static void SetUpTestSuite()
   {
     CLG_init();
+    BKE_cpp_types_init();
     BKE_idtype_init();
     RNA_init();
     bke::node_system_init();

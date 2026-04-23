@@ -4,6 +4,7 @@
 
 #include "BLI_array_utils.hh"
 
+#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_idtype.hh"
@@ -29,6 +30,7 @@ class RealizeInstancesTest : public testing::Test {
   static void SetUpTestSuite()
   {
     CLG_init();
+    BKE_cpp_types_init();
     BKE_idtype_init();
   }
 
