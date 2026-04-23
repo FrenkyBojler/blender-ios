@@ -1661,23 +1661,6 @@ static void id_select_linked_fn(bContext *C,
   object::select_linked_by_id(C, id);
 }
 
-static void image_pack_fn(bContext *C,
-                          ReportList *reports,
-                          Scene * /*scene*/,
-                          TreeElement * /*te*/,
-                          TreeStoreElem * /*tsep*/,
-                          TreeStoreElem *tselem)
-{
-  ID *id = tselem->id;
-
-  if (GS(id->name) == ID_IM) {
-    Main *bmain = CTX_data_main(C);
-    Image *image = reinterpret_cast<Image *>(id);
-    BKE_image_packfile_ensure(bmain, image, reports, nullptr, 0);
-    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, nullptr);
-  }
-}
-
 static void singleuser_action_fn(bContext *C,
                                  ReportList * /*reports*/,
                                  Scene * /*scene*/,
@@ -2809,6 +2792,46 @@ void OUTLINER_OT_delete(wmOperatorType *ot)
 
 /** \} */
 
+static wmOperatorStatus outliner_pack_data_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  int count = 0;
+  printf("Packing selected data-blocks...\n");
+  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+    TreeStoreElem *tselem = TREESTORE(te);
+    if (tselem->flag & TSE_SELECTED) {
+      if (tselem->type == TSE_SOME_ID && GS(tselem->id->name) == ID_IM) {
+        Image *image = reinterpret_cast<Image *>(tselem->id);
+        count += BKE_image_packfile_ensure(bmain, image, op->reports, nullptr, 0);
+      }
+    }
+  });
+
+  if (count > 0) {
+    BKE_reportf(op->reports, RPT_INFO, "Packed %d images into the .blend file", count);
+    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, nullptr);
+    return OPERATOR_FINISHED;
+  }
+
+  return OPERATOR_CANCELLED;
+}
+
+void OUTLINER_OT_pack_data(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Pack ID Data";
+  ot->idname = "OUTLINER_OT_pack_data";
+  ot->description = "Pack selected ID data like images into the .blend file";
+
+  /* callbacks */
+  ot->exec = outliner_pack_data_exec;
+  ot->poll = ED_operator_outliner_active;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name ID-Data Menu Operator
  * \{ */
@@ -3089,8 +3112,8 @@ static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
       break;
     case OUTLINER_IDOP_PACK:
       if (idlevel == ID_IM) {
-        outliner_do_libdata_operation(C, op->reports, scene, space_outliner, image_pack_fn);
-        ED_undo_push(C, "Pack Image");
+        WM_operator_name_call(
+          C, "OUTLINER_OT_pack_data", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
       }
     default:
       /* Invalid - unhandled. */

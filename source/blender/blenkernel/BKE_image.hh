@@ -434,7 +434,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports, Image *ima, char *data, s
  * Packs image data, handling dirty state and raw data input.
  * Does nothing if image is already packed and not dirty (unless data is provided).
  */
-void BKE_image_packfile_ensure(
+bool BKE_image_packfile_ensure(
     Main *bmain, Image *image, ReportList *reports, const char *data, int data_len);
 
 /**

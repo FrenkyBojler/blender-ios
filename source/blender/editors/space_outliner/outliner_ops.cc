@@ -35,6 +35,7 @@ void outliner_operatortypes()
   WM_operatortype_append(OUTLINER_OT_liboverride_troubleshoot_operation);
   WM_operatortype_append(OUTLINER_OT_id_operation);
   WM_operatortype_append(OUTLINER_OT_id_delete);
+  WM_operatortype_append(OUTLINER_OT_pack_data);
   WM_operatortype_append(OUTLINER_OT_id_remap);
   WM_operatortype_append(OUTLINER_OT_id_linked_relocate);
   WM_operatortype_append(OUTLINER_OT_id_copy);

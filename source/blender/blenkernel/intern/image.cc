@@ -1510,16 +1510,16 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
   }
 }
 
-void BKE_image_packfile_ensure(
+bool BKE_image_packfile_ensure(
     Main *bmain, Image *image, ReportList *reports, const char *data, const int data_len)
 {
   if (ID_IS_LINKED(image)) {
-    BKE_report(reports, RPT_ERROR, "Cannot pack linked images");
-    return;
+    BKE_reportf(reports, RPT_ERROR, "Cannot pack linked image '%s'", image->id.name + 2);
+    return false;
   }
   if (ELEM(image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
     BKE_report(reports, RPT_ERROR, "Cannot pack render result or viewer node images");
-    return;
+    return false;
   }
   const bool is_packed = BKE_image_has_packedfile(image);
   const bool is_dirty = BKE_image_is_dirty(image);
@@ -1532,7 +1532,8 @@ void BKE_image_packfile_ensure(
      *
      * See #152638.
      */
-    return;
+    BKE_report(reports, RPT_INFO, "Image is already packed");
+    return false;
   }
 
   BKE_image_free_packedfiles(image);
@@ -1549,7 +1550,8 @@ void BKE_image_packfile_ensure(
   else {
     BKE_image_packfiles(reports, image, ID_BLEND_PATH(bmain, &image->id));
   }
-  BKE_reportf(reports, RPT_INFO, "%s image packed succeessfully", image->id.name + 2);
+
+  return true;
 }
 
 void BKE_image_tag_time(Image *ima)
