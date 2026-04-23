@@ -112,8 +112,7 @@ void MaterialModule::begin_sync()
 {
   float frame = BKE_scene_frame_get(inst_.scene);
 
-  bool time_change = assign_if_different(material_time,
-                                         BKE_scene_frame_to_ctime(inst_.scene, material_frame));
+  bool time_change = assign_if_different(material_time, inst_.scene->r.frs_sec_base * frame / inst_.scene->r.frs_sec);
   bool frame_change = assign_if_different(material_frame, frame);
   material_time_changed = (time_change || frame_change);
 

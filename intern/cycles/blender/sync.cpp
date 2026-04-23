@@ -578,7 +578,7 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
 void BlenderSync::sync_scene_attributes()
 {
   float frame = BKE_scene_frame_get(b_scene);
-  float time = BKE_scene_frame_to_ctime(b_scene, frame);
+  float time = b_scene->r.frs_sec_base * frame / b_scene->r.frs_sec;
 
   SceneAttributes *scene_attribute = scene->scene_attribute;
 
