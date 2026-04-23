@@ -154,7 +154,7 @@ ccl_device_forceinline bool bvh_shadow_all_anyhit_filter(
 #endif
 
   if constexpr ((perform_intersection_tests & ISECT_TEST_SELF_SHADOW) != 0) {
-    if (intersection_skip_self_shadow(ray_self, isect.object, isect.prim)) {
+    if (intersection_skip_self_shadow(kg, ray_self, isect.object, isect.prim)) {
       return true;
     }
   }

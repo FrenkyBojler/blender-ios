@@ -148,7 +148,7 @@ ccl_device_inline bool kernel_embree_is_self_intersection(const KernelGlobals kg
     prim = kernel_data_fetch(curve_segments, prim).prim;
   }
 
-  return intersection_skip_self_shadow(ray->self, object, prim);
+  return intersection_skip_self_shadow(kg, ray->self, object, prim);
 }
 
 ccl_device_inline void kernel_embree_convert_hit(KernelGlobals kg,

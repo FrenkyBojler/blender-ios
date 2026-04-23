@@ -339,11 +339,13 @@ inline TReturnType metalrt_visibility_test(
   }
 #  endif
 
-  if (payload.self_object == object && payload.self_prim == prim) {
+  MetalKernelContext context(launch_params_metal);
+  if (context.intersection_skip_self_shadow(nullptr, payload.self, object, prim)) {
     result.accept = false;
     result.continue_search = true;
     return result;
   }
+
   result.accept = true;
   result.continue_search = true;
   return result;
@@ -401,7 +403,7 @@ inline TReturnType metalrt_visibility_test_shadow(
   }
 #  endif
 
-  if (context.intersection_skip_self_shadow(payload.self, object, prim)) {
+  if (context.intersection_skip_self_shadow(nullptr, payload.self, object, prim)) {
     result.accept = false;
     result.continue_search = true;
     return result;
@@ -433,8 +435,9 @@ __intersection__tri(constant KernelParamsMetal &launch_params_metal [[buffer(1)]
     return result;
   }
 
-  result.accept = (payload.self_object != object ||
-                   payload.self_prim != (primitive_id + primitive_id_offset));
+  MetalKernelContext context(launch_params_metal);
+  result.accept = !context.intersection_skip_self_shadow(nullptr, payload.self, object, primitive_id + primitive_id_offset);
+
   return result;
 }
 

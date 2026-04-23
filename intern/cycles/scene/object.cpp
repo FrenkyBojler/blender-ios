@@ -110,6 +110,8 @@ NODE_DEFINE(Object)
   SOCKET_UINT(blocker_shadow_set, "Shadow Set Index", 0);
   SOCKET_UINT64(shadow_set_membership, "Shadow Set Membership", LIGHT_LINK_MASK_ALL);
 
+  SOCKET_BOOLEAN(exclude_self_shadows, "Exclude Self Shadows", false);
+
   return type;
 }
 
@@ -738,6 +740,9 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   /* Object flag. */
   if (ob->use_holdout) {
     flag |= SD_OBJECT_HOLDOUT_MASK;
+  }
+  if (ob->exclude_self_shadows) {
+    flag |= SD_OBJECT_EXCLUDE_SELF_SHADOWS;
   }
   state->object_flag[ob->index] = flag;
 

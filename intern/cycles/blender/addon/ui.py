@@ -2550,6 +2550,19 @@ def draw_pause(self, context):
             layout.prop(cscene, "preview_pause", icon='PLAY' if cscene.preview_pause else 'PAUSE', text="")
 
 
+def draw_self_shadow(self, context):
+    layout = self.layout
+
+    layout.use_property_split = True
+    layout.use_property_decorate = False
+
+    if context.engine == "CYCLES":
+        object = context.object
+        cobject = object.cycles
+
+        layout.prop(cobject, "exclude_self_shadows")
+
+
 def get_panels():
     exclude_panels = {
         'DATA_PT_camera_dof',
@@ -2687,6 +2700,7 @@ def register():
 
     bpy.types.RENDER_PT_context.append(draw_device)
     bpy.types.VIEW3D_HT_header.append(draw_pause)
+    bpy.types.OBJECT_PT_shadow_linking.append(draw_self_shadow)
 
     for panel in get_panels():
         panel.COMPAT_ENGINES.add('CYCLES')

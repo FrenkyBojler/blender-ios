@@ -248,10 +248,21 @@ ccl_device_inline bool intersection_skip_self(const ccl_ray_data RaySelfPrimitiv
   return (self.prim == prim) && (self.object == object);
 }
 
-ccl_device_inline bool intersection_skip_self_shadow(const ccl_ray_data RaySelfPrimitives &self,
+ccl_device_inline bool intersection_skip_self_shadow(KernelGlobals kg,
+                                                     const ccl_ray_data RaySelfPrimitives &self,
                                                      const int object,
                                                      const int prim)
 {
+#ifdef __SHADOW_LINKING__
+  // if (kernel_data.kernel_features & KERNEL_FEATURE_SELF_SHADOWS)  // XXX
+  if (self.object != OBJECT_NONE) {
+    const uint object_flags = kernel_data_fetch(object_flag, self.object);
+    if ((object_flags & SD_OBJECT_EXCLUDE_SELF_SHADOWS) && self.object == object) {
+      return true;
+    }
+  }
+#endif
+
   return ((self.prim == prim) && (self.object == object)) ||
          ((self.light_prim == prim) && (self.light_object == object));
 }

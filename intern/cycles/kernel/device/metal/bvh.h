@@ -18,8 +18,7 @@ CCL_NAMESPACE_BEGIN
  */
 
 struct MetalRTIntersectionPayload {
-  int self_prim;
-  int self_object;
+  RaySelfPrimitives self;
   uint visibility;
 };
 
@@ -183,8 +182,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
   typename metalrt_intersector_type::result_type intersection;
 
   MetalRTIntersectionPayload payload;
-  payload.self_prim = ray->self.prim;
-  payload.self_object = ray->self.object;
+  payload.self = ray->self;
   payload.visibility = visibility;
 
   uint ray_mask = visibility & 0xFF;

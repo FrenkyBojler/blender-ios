@@ -80,7 +80,7 @@ ccl_device_inline bool curve_custom_intersect(const hiprtRay &ray,
   }
 #endif
 
-  if (intersection_skip_self_shadow(payload->ray_self, object, segment.prim)) {
+  if (intersection_skip_self_shadow(kg, payload->ray_self, object, segment.prim)) {
     return false;
   }
 
@@ -117,7 +117,7 @@ ccl_device_inline bool motion_triangle_custom_intersect(const hiprtRay &ray,
 
   const int prim = hit.primID + prim_offset;
 
-  if (intersection_skip_self_shadow(payload->ray_self, object, prim)) {
+  if (intersection_skip_self_shadow(kg, payload->ray_self, object, prim)) {
     return false;
   }
 
@@ -238,7 +238,7 @@ ccl_device_inline bool point_custom_intersect(const hiprtRay &ray,
   }
 #  endif
 
-  if (intersection_skip_self_shadow(payload->ray_self, object, prim)) {
+  if (intersection_skip_self_shadow(kg, payload->ray_self, object, prim)) {
     return false;
   }
 
@@ -288,7 +288,7 @@ ccl_device_inline bool closest_intersection_filter(const hiprtRay &ray,
   }
 #endif
 
-  if (intersection_skip_self_shadow(payload->ray_self, object_id, prim)) {
+  if (intersection_skip_self_shadow(kg, payload->ray_self, object_id, prim)) {
     return true; /* Ignore hit - continue traversal. */
   }
 

@@ -1478,6 +1478,12 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
         default=False,
     )
 
+    exclude_self_shadows: BoolProperty(
+        name="Exclude Self Shadows",
+        description="Object does not cast shadows onto itself",
+        default=False,
+    )
+
     @classmethod
     def register(cls):
         bpy.types.Object.cycles = PointerProperty(

@@ -254,7 +254,7 @@ extern "C" __global__ void __anyhit__kernel_optix_visibility_test()
     }
 #endif
 
-    if (intersection_skip_self_shadow(ray->self, object, prim)) {
+    if (intersection_skip_self_shadow(nullptr, ray->self, object, prim)) {
       return optixIgnoreIntersection();
     }
     else {

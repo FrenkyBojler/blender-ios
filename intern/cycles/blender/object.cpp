@@ -361,6 +361,8 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
     object->set_receiver_light_set(BlenderLightLink::get_receiver_light_set(b_parent, b_ob));
     object->set_shadow_set_membership(BlenderLightLink::get_shadow_set_membership(b_parent, b_ob));
     object->set_blocker_shadow_set(BlenderLightLink::get_blocker_shadow_set(b_parent, b_ob));
+
+    object->set_exclude_self_shadows(get_boolean(cobject, "exclude_self_shadows"));
   }
 
   sync_object_motion_init(*b_parent, b_ob, object);
