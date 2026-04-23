@@ -145,13 +145,18 @@ class ShadowPipeline {
  * \{ */
 
 class Prepass : public PassMain {
-  PassMain::Sub *prepass_subpasses[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
-      {{nullptr}}};
+  PassMain::Sub *prepass_subpasses_[2 /*raycast target*/][2 /*double sided*/][2 /*moving*/]
+                                   [2 /*write id*/] = {{{{nullptr}}}};
 
  public:
   Prepass(const char *name) : PassMain(name) {};
-  void setup_subpasses(DRWState common_state);
-  PassMain::Sub *add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
+  void setup_subpasses(DRWState common_state,
+                       gpu::Texture **fb_depth_tx = nullptr,
+                       gpu::Texture **raycast_depth_tx = nullptr);
+  PassMain::Sub *add(blender::Material *blender_mat,
+                     GPUMaterial *gpumat,
+                     bool has_motion,
+                     bool is_raycast_target = true);
 };
 
 /** \} */

@@ -281,39 +281,58 @@ void ShadowPipeline::render(View &view)
  * Helper class for handling prepasses in Forward and Deferred pipelines.
  * \{ */
 
-void Prepass::setup_subpasses(DRWState common_state)
+void Prepass::setup_subpasses(DRWState common_state,
+                              gpu::Texture **fb_depth_tx,
+                              gpu::Texture **raycast_depth_tx)
 {
   /* We can't know at this point if the normal target is enabled, so we always enable color write.
    * The write will be optimized out if the attachment is empty. */
   common_state |= DRW_STATE_WRITE_COLOR;
 
-  static constexpr const char *subpass_names[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
-      {{"SingleSided.Static.NoID", "SingleSided.Static.ID"},
-       {"SingleSided.Moving.NoID", "SingleSided.Moving.ID"}},
-      {{"DoubleSided.Static.NoID", "DoubleSided.Static.ID"},
-       {"DoubleSided.Moving.NoID", "DoubleSided.Moving.ID"}}};
+  static constexpr const char
+      *subpass_names[2 /*raycast target*/][2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+          {{{"NoRaycast.SingleSided.Static.NoID", "NoRaycast.SingleSided.Static.ID"},
+            {"NoRaycast.SingleSided.Moving.NoID", "NoRaycast.SingleSided.Moving.ID"}},
+           {{"NoRaycast.DoubleSided.Static.NoID", "NoRaycast.DoubleSided.Static.ID"},
+            {"NoRaycast.DoubleSided.Moving.NoID", "NoRaycast.DoubleSided.Moving.ID"}}},
+          {{{"SingleSided.Static.NoID", "SingleSided.Static.ID"},
+            {"SingleSided.Moving.NoID", "SingleSided.Moving.ID"}},
+           {{"DoubleSided.Static.NoID", "DoubleSided.Static.ID"},
+            {"DoubleSided.Moving.NoID", "DoubleSided.Moving.ID"}}}};
 
-  for (bool double_sided : {false, true}) {
-    for (bool moving : {false, true}) {
-      for (bool write_id : {false, true}) {
-        PassMain::Sub *&subpass = prepass_subpasses[double_sided][moving][write_id];
-        subpass = &this->sub(subpass_names[double_sided][moving][write_id]);
-        subpass->state_set(common_state |
-                           (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
-        subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
-                                    {GPU_ATTACHMENT_WRITE, /* normal */
-                                     write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
-                                     moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+  for (bool raycast_target : {true, false}) { /* Render Raycast targets first. */
+    for (bool double_sided : {false, true}) {
+      for (bool moving : {false, true}) {
+        for (bool write_id : {false, true}) {
+          PassMain::Sub *&subpass =
+              prepass_subpasses_[raycast_target][double_sided][moving][write_id];
+          subpass = &this->sub(subpass_names[raycast_target][double_sided][moving][write_id]);
+          subpass->state_set(common_state |
+                             (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
+          subpass->subpass_transition(
+              GPU_ATTACHMENT_WRITE,
+              {raycast_target ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE, /* normal */
+               write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
+               moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+        }
       }
     }
   }
+
+  if (fb_depth_tx && raycast_depth_tx) {
+    /* Copy framebuffer depth to the raycast depth copy on the first NoRaycast pass. */
+    prepass_subpasses_[false][false][false][false]->texture_copy(fb_depth_tx, raycast_depth_tx);
+  }
 }
 
-PassMain::Sub *Prepass::add(blender::Material *blender_mat, GPUMaterial *gpumat, bool has_motion)
+PassMain::Sub *Prepass::add(blender::Material *blender_mat,
+                            GPUMaterial *gpumat,
+                            bool has_motion,
+                            bool is_raycast_target)
 {
   bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
-  bool write_id = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
-  PassMain::Sub *pass = prepass_subpasses[double_sided][has_motion][write_id];
+  bool write_id = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST) && is_raycast_target;
+  PassMain::Sub *pass = prepass_subpasses_[is_raycast_target][double_sided][has_motion][write_id];
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
