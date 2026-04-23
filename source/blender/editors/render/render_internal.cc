@@ -757,7 +757,7 @@ static void image_rect_update(void *rjv, RenderResult *rr, rcti *renrect)
      * this case GLSL doesn't have original float buffer to
      * operate with.
      */
-    if (ibuf->channels == 1 || ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL) {
+    if (ibuf->channels == 1) {
       image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, &tile_rect, offset_x, offset_y, viewname);
     }
     ImageTile *image_tile = BKE_image_get_tile(ima, 0);

@@ -432,9 +432,6 @@ void ED_draw_imbuf_clipping(ImBuf *ibuf,
   /* Single channel images could not be transformed using GLSL yet */
   force_fallback |= ibuf->channels == 1;
 
-  /* If user decided not to use GLSL, fallback to glaDrawPixelsAuto */
-  force_fallback |= (ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL);
-
   /* Try to draw buffer using GLSL display transform */
   if (force_fallback == false) {
     int ok;
@@ -611,20 +608,6 @@ void ED_draw_imbuf_ctx(
     const bContext *C, ImBuf *ibuf, float x, float y, bool use_filter, float zoom_x, float zoom_y)
 {
   ED_draw_imbuf_ctx_clipping(C, ibuf, x, y, use_filter, 0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
-}
-
-int ED_draw_imbuf_method(const ImBuf *ibuf)
-{
-  if (U.image_draw_method == IMAGE_DRAW_METHOD_AUTO) {
-    /* Use faster GLSL when CPU to GPU transfer is unlikely to be a bottleneck,
-     * otherwise do color management on CPU side. */
-    const size_t threshold = sizeof(float[4]) * 2048 * 2048;
-    const size_t data_size = (ibuf->float_data()) ? sizeof(float) : sizeof(uchar);
-    const size_t size = size_t(ibuf->x) * size_t(ibuf->y) * size_t(ibuf->channels) * data_size;
-
-    return (size > threshold) ? IMAGE_DRAW_METHOD_2DTEXTURE : IMAGE_DRAW_METHOD_GLSL;
-  }
-  return U.image_draw_method;
 }
 
 void immDrawBorderCorners(uint pos, const rcti *border, float zoomx, float zoomy)

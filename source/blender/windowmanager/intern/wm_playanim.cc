@@ -602,7 +602,6 @@ static const void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   const void *display_buffer;
   bool force_fallback = false;
   *r_glsl_used = false;
-  force_fallback |= (ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL);
   force_fallback |= (ibuf->dither != 0.0f);
 
   /* Default. */
