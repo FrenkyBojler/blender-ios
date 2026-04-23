@@ -3113,7 +3113,7 @@ static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
     case OUTLINER_IDOP_PACK:
       if (idlevel == ID_IM) {
         WM_operator_name_call(
-          C, "OUTLINER_OT_pack_data", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+            C, "OUTLINER_OT_pack_data", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
       }
     default:
       /* Invalid - unhandled. */
