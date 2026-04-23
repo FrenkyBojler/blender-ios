@@ -71,37 +71,39 @@ static void blf_font_otf_feature_set(blender::Vector<hb_feature_t> &features,
   features.append({tag, value, HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
 }
 
-static blender::Vector<hb_feature_t> blf_font_otf_features_default()
+FeatureSet blf_font_otf_features_base()
 {
-  blender::Vector<hb_feature_t> features;
+  static FeatureSet features = {
+      {BLF_OTF_KERN, 1}, /* Kerning. */
+      {BLF_OTF_LOCL, 1}, /* Localized Forms. */
+      {BLF_OTF_LIGA, 1}, /* Standard Ligatures. */
+      {BLF_OTF_CASE, 1}, /* Case Sensitive Forms. */
+      {BLF_OTF_TNUM, 1}, /* Tabular Numbers. */
+      {BLF_OTF_HLIG, 0}, /* Historical Ligatures. */
+      {BLF_OTF_SALT, 0}, /* Stylistic Alternates. */
+      {BLF_OTF_CLIG, 0}, /* Contextual Ligatures. */
+  };
+  return features;
+}
 
-  blf_font_otf_feature_set(features, BLF_OTF_KERN, 1); /* Kerning. */
-  blf_font_otf_feature_set(features, BLF_OTF_LOCL, 1); /* Localized Forms. */
-  blf_font_otf_feature_set(features, BLF_OTF_LIGA, 1); /* Standard Ligatures. */
-  blf_font_otf_feature_set(features, BLF_OTF_CASE, 1); /* Case Sensitive Forms. */
-  blf_font_otf_feature_set(features, BLF_OTF_TNUM, 1); /* Tabular Numbers. */
-  blf_font_otf_feature_set(features, BLF_OTF_HLIG, 0); /* Historical Ligatures. */
-  blf_font_otf_feature_set(features, BLF_OTF_SALT, 0); /* Stylistic Alternates. */
-  blf_font_otf_feature_set(features, BLF_OTF_CLIG, 0); /* Contextual Ligatures. */
-
-  /* Discretionary Ligatures. */
-  blf_font_otf_feature_set(
-      features, BLF_OTF_DLIG, U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
-
-  /* Contextual Alternates. */
-  blf_font_otf_feature_set(
-      features, BLF_OTF_CALT, U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
-  /* Slashed Zero. */
-  blf_font_otf_feature_set(
-      features, BLF_OTF_ZERO, U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
-
-  /* Inter Open Digits. */
-  blf_font_otf_feature_set(
-      features, BLF_OTF_SS01, U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
-
-  /* Inter Disambiguation w/o zero. */
-  blf_font_otf_feature_set(
-      features, BLF_OTF_SS04, U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
+FeatureSet blf_font_otf_features_default()
+{
+  FeatureSet features = blf_font_otf_features_base();
+  if (U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI) {
+    features.append({BLF_OTF_DLIG, 1});
+  }
+  if (U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI) {
+    features.append({BLF_OTF_CALT, 1});
+  }
+  if (U.text_render & USER_TEXT_SLASHED_ZERO_UI) {
+    features.append({BLF_OTF_ZERO, 1});
+  }
+  if (U.text_render & USER_TEXT_OPEN_DIGITS_INTER) {
+    features.append({BLF_OTF_SS01, 1});
+  }
+  if (U.text_render & USER_TEXT_DISAMBIGUATION_INTER) {
+    features.append({BLF_OTF_SS04, 1});
+  }
 
   return features;
 }
@@ -127,7 +129,7 @@ ShapingData::ShapingData(FontBLF *font,
                          GlyphCacheBLF *gc,
                          const char *str,
                          size_t len,
-                         blender::Vector<hb_feature_t> *features)
+                         std::optional<FeatureSet> features)
 {
   if (!str || !str[0] || !len) {
     return;
@@ -207,11 +209,11 @@ ShapingData::ShapingData(FontBLF *font,
 
     hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-    blender::Vector<hb_feature_t> otf_features = blf_font_otf_features_default();
-    if (features) {
-      for (const hb_feature_t &feature : *features) {
-        blf_font_otf_feature_set(otf_features, feature.tag, feature.value);
-      }
+    blender::Vector<hb_feature_t> otf_features;
+    for (otf_feature &feature :
+         (features.has_value()) ? features.value() : blf_font_otf_features_default())
+    {
+      blf_font_otf_feature_set(otf_features, feature.tag, feature.value);
     }
 
     /* Variable font axes. */

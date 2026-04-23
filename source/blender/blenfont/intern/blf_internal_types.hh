@@ -231,6 +231,18 @@ struct ShapingCache {
 };
 
 /* -------------------------------------------------------------------- */
+/* OpenType Feature Set
+ */
+
+struct otf_feature {
+  uint32_t tag;
+  uint32_t value;
+};
+
+typedef blender::Vector<otf_feature> FeatureSet;
+
+FeatureSet blf_font_otf_features_base();
+FeatureSet blf_font_otf_features_default();
 
 /* -------------------------------------------------------------------- */
 
@@ -255,7 +267,7 @@ struct ShapingData {
               GlyphCacheBLF *gc,
               const char *str,
               size_t len,
-              blender::Vector<hb_feature_t> *features = nullptr);
+              std::optional<FeatureSet> features = std::nullopt);
   bool load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
   void legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
 

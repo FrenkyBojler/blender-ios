@@ -631,7 +631,7 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
   ft_pix pen_y_basis = ft_pix_from_int(font->pos[1]) + pen_y;
   FontBufInfoBLF *buf_info = &font->buf_info;
 
-  ShapingData text(font, gc, str, str_len);
+  ShapingData text(font, gc, str, str_len, blf_font_otf_features_base());
   for (const ShapedGlyph &glyph : text.glyphs) {
     blf_glyph_draw_buffer(
         buf_info, glyph.g, pos_x + glyph.bounds.xmin, pen_y_basis + glyph.bounds.ymin);
