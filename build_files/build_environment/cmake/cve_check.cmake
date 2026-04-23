@@ -58,7 +58,7 @@ add_custom_target(cve_check_txt
     sbom:${CMAKE_CURRENT_BINARY_DIR}/sbom.json
     -o table
     --sort-by package
-    --file grype_results.txt
+    --file ${CMAKE_CURRENT_BINARY_DIR}/grype_results.txt
     --config ${CMAKE_SOURCE_DIR}/cmake/grype.yaml
   SOURCES ${CMAKE_CURRENT_BINARY_DIR}/sbom.json
 )
