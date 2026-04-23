@@ -454,7 +454,9 @@ inline bool operator!=(const CPPType &a, const CPPType &b)
 template<typename T> inline const CPPType &CPPType::get()
 {
   const CPPType &type = cpp_type_impl<std::decay_t<T>>.ref();
-  /* Should have been initialized by #BLI_CPP_TYPE_REGISTER. */
+  /* Should have been initialized by #BLI_CPP_TYPE_REGISTER.
+   * When this is hit in test code, make sure the test calls `register_cpp_types` (for blenlib
+   * tests) or `BKE_cpp_types_init` (for general tests). */
   BLI_assert(type.size > 0);
   return type;
 }
