@@ -23,6 +23,57 @@
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
 
+/* Estimates the thickness of an occluder pixel along a screen ray. */
+struct ScreenThicknessEstimator {
+  float prev2_z_slope;
+  float prev_z_slope;
+  float prev_z;
+  float prev_t;
+
+  static ScreenThicknessEstimator init(float start_z)
+  {
+    ScreenThicknessEstimator estimator;
+    estimator.prev2_z_slope = 0.0f;
+    estimator.prev_z_slope = 0.0f;
+    estimator.prev_t = 0.0f;
+    estimator.prev_z = start_z;
+    return estimator;
+  }
+
+  float thickness(float sample_z, float sample_t)
+  {
+    float delta_t = sample_t - prev_t;
+    /* Delta is negative if getting closer to the camera. */
+    float delta_z = min(0.0f, sample_z - prev_z);
+    /* Treat this sample as a segment between the previous sample and this one.
+     * Avoid loosing the surface when ray is parallel to the view plane. */
+    float result = delta_z;
+    /* TODO(fclem): Explain this wizardry. */
+    if (delta_z < prev_z_slope * delta_t * 2.0f || delta_z < prev2_z_slope * delta_t * 2.0f) {
+      result = 0.0f; /* Disconnect from previous sample. */
+    }
+
+    /* Minimum thickness of 1 pixel. TODO(fclem): Correct value. */
+    result = max(result, 1e-5f);
+
+    prev2_z_slope = prev_z_slope;
+    prev_z_slope = delta_z / delta_t;
+    prev_t = sample_t;
+    prev_z = sample_z;
+    return abs(result);
+  }
+
+  bool intersect(float sample_z, float sample_t, float ray_z, float prev_ray_z)
+  {
+    float sample_thickness = thickness(sample_z, sample_t);
+    /* Make sure the sample is at least as thick as the ray step. */
+    sample_thickness = max(sample_thickness, abs(ray_z - prev_ray_z)) * 1.2f;
+    float sample_min = sample_z;
+    float sample_max = sample_z + sample_thickness;
+    return ray_z >= sample_min && ray_z <= sample_max;
+  }
+};
+
 /* Inputs expected to be in view-space. */
 void raytrace_clip_ray_to_near_plane(Ray &ray)
 {
@@ -96,6 +147,9 @@ ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 
   float lod_fac = saturate(sqrt_fast(roughness) * 2.0f - 0.4f);
 
+  ScreenThicknessEstimator thickness_estimator = ScreenThicknessEstimator::init(depth_sample);
+  float prev_ray_z = ssray.origin.z;
+
   /* Cross at least one pixel. */
   float t = 1.001f, time = 1.001f;
   bool hit = false;
@@ -114,10 +168,8 @@ ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
     depth_sample = textureLod(hiz_tx, ss_p.xy * hiz_data.uv_scale, floor(lod)).r;
 
     delta = depth_sample - ss_p.z;
-    /* Check if the ray is below the surface ... */
-    hit = (delta < 0.0f);
-    /* ... and above it with the added thickness. */
-    hit = hit && (delta > ss_p.z - ss_p.w || abs(delta) < abs(ssray.direction.z * stride * 2.0f));
+    hit = thickness_estimator.intersect(depth_sample, time, ss_p.z, prev_ray_z);
+    prev_ray_z = ss_p.z;
   }
   /* Discard back-face hits. */
   hit = hit && !(discard_backface && prev_delta < 0.0f);
