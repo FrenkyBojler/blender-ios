@@ -568,7 +568,19 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   }
 }
 
-using TargetEvalResult = Array<float3>;
+/* Buffer owned by the thread which it writes to. */
+struct TargetEvalResult {
+  Array<float3> points;
+  /* Flags for the point indicating key data. This won't work with subframes. Since we only work
+   * with data on full frames here we don't have a spot to save subframe data. */
+  Array<eMotionPathVert_Flag> flags;
+  TargetEvalResult(){};
+  TargetEvalResult(const int size)
+  {
+    points.reinitialize(size);
+    flags.reinitialize(size);
+  }
+};
 
 struct MotionPathEvalData {
   Depsgraph *depsgraph;
@@ -585,6 +597,20 @@ struct MotionPathEvalData {
   /* Main thread data. Do not modify during eval. */
   Array<MPathTarget> targets;
   Scene *scene;
+
+  MotionPathEvalData(const Span<MPathTarget *> targets, Scene *scene, Bounds<int> frame_range)
+      : evaluation_center(scene->r.cfra), frame_range(frame_range), scene(scene)
+  {
+    evaluated_frames.reinitialize(frame_range.size());
+    evaluated_frames.fill(false);
+
+    results.reinitialize(targets.size());
+    this->targets.reinitialize(targets.size());
+    for (const int target_index : targets.index_range()) {
+      results[target_index] = {frame_range.size()};
+      this->targets[target_index] = *targets[target_index];
+    }
+  }
 };
 
 /* Runs on the evaluation thread. Fills the correct TargetEvalResult with data on `frame_index`.*/
@@ -607,16 +633,16 @@ static void job_write_evaluated_transform_values(MotionPathEvalData &eval_data,
     }
 
     if (target->mpath->flag & MOTIONPATH_FLAG_BHEAD) {
-      copy_v3_v3(result[frame_index], pchan_eval->pose_head);
+      copy_v3_v3(result.points[frame_index], pchan_eval->pose_head);
     }
     else {
-      copy_v3_v3(result[frame_index], pchan_eval->pose_tail);
+      copy_v3_v3(result.points[frame_index], pchan_eval->pose_tail);
     }
 
-    mul_m4_v3(ob_eval->object_to_world().ptr(), result[frame_index]);
+    mul_m4_v3(ob_eval->object_to_world().ptr(), result.points[frame_index]);
   }
   else {
-    copy_v3_v3(result[frame_index], ob_eval->object_to_world().location());
+    copy_v3_v3(result.points[frame_index], ob_eval->object_to_world().location());
   }
 }
 
@@ -679,11 +705,11 @@ static void flush_to_motion_path(MotionPathEvalData &eval_data)
   for (const int target_index : eval_data.targets.index_range()) {
     MPathTarget *target = &eval_data.targets[target_index];
     TargetEvalResult &result = eval_data.results[target_index];
-    for (const int frame_index : result.index_range()) {
+    for (const int frame_index : result.points.index_range()) {
       if (!eval_data.evaluated_frames[frame_index]) {
         continue;
       }
-      copy_v3_v3(target->mpath->points[frame_index].co, result[frame_index]);
+      copy_v3_v3(target->mpath->points[frame_index].co, result.points[frame_index]);
     }
     DEG_id_tag_update(&target->ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, target->ob);
@@ -700,6 +726,12 @@ static void finish_job(void *job_data)
 {
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   flush_to_motion_path(*eval_data);
+  for (MPathTarget &target : eval_data->targets) {
+    /* Get pointer to animviz settings for each target. */
+    bAnimVizSettings *avs = animviz_target_settings_get(&target);
+    /* Clear the flag requesting recalculation of targets. */
+    avs->recalc &= ~ANIMVIZ_RECALC_PATHS;
+  }
 }
 
 static void free_job_data(void *job_data)
@@ -772,19 +804,9 @@ void animviz_calc_motionpaths_async(Main *bmain,
     return;
   }
 
-  MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(__func__);
+  MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(
+      __func__, targets, scene, frame_range);
   job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
-  job_data->frame_range = frame_range;
-  job_data->evaluation_center = scene->r.cfra;
-  job_data->results.reinitialize(targets.size());
-  job_data->targets.reinitialize(targets.size());
-  job_data->evaluated_frames.reinitialize(frame_range.size());
-  job_data->evaluated_frames.fill(false);
-  for (const int target_index : targets.index_range()) {
-    job_data->results[target_index].reinitialize(frame_range.size());
-    job_data->targets[target_index] = *targets[target_index];
-  }
-  job_data->scene = scene;
 
   WM_jobs_customdata_set(wm_job, job_data, free_job_data);
   WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
