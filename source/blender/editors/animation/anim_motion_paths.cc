@@ -767,10 +767,7 @@ static bool targets_match_job_data(const Span<MPathTarget *> targets,
  * stopped.  */
 static void animviz_stop_job(wmWindowManager *wm, Scene *scene)
 {
-  WM_jobs_stop_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
-  while (WM_jobs_has_running_type(wm, WM_JOB_TYPE_MOTION_PATH_EVAL)) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
+  WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
 }
 
 void animviz_calc_motionpaths_async(Main *bmain,
