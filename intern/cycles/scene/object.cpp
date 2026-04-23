@@ -645,7 +645,7 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   kobject.dupli_generated[2] = ob->dupli_generated[2];
   kobject.dupli_uv[0] = ob->dupli_uv[0];
   kobject.dupli_uv[1] = ob->dupli_uv[1];
-  kobject.num_geom_steps = (geom->get_motion_steps() - 1) / 2;
+  kobject.num_geom_steps = geom->get_motion_steps();
   kobject.num_tfm_steps = ob->motion.size();
   kobject.numverts = object_num_motion_verts(geom);
   kobject.numprims = (geom->is_mesh() || geom->is_volume()) ?
@@ -1197,7 +1197,7 @@ string ObjectManager::get_cryptomatte_objects(Scene *scene)
 
   unordered_set<ustring> objects;
   for (Object *object : scene->objects) {
-    if (objects.count(object->name)) {
+    if (objects.contains(object->name)) {
       continue;
     }
     objects.insert(object->name);
@@ -1213,7 +1213,7 @@ string ObjectManager::get_cryptomatte_assets(Scene *scene)
   string manifest = "{";
   unordered_set<ustring> assets;
   for (Object *ob : scene->objects) {
-    if (assets.count(ob->asset_name)) {
+    if (assets.contains(ob->asset_name)) {
       continue;
     }
     assets.insert(ob->asset_name);
