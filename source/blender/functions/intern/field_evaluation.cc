@@ -35,8 +35,8 @@ struct FieldTreeInfo {
    * The same field input may exist in the field tree as separate nodes due to the way
    * the tree is constructed. This set contains every different input only once.
    */
-  VectorSet<Hash128> deduplicated_field_input_hashes;
-  Vector<GFieldRef> deduplicated_field_inputs;
+  VectorSet<Hash128> deduplicated_input_hashes;
+  Vector<GFieldRef> deduplicated_inputs;
 };
 
 /**
@@ -62,8 +62,8 @@ static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
     std::visit(
         [&]<typename T>(const T &v) {
           if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-            if (field_tree_info.deduplicated_field_input_hashes.add(hash)) {
-              field_tree_info.deduplicated_field_inputs.append(field);
+            if (field_tree_info.deduplicated_input_hashes.add(hash)) {
+              field_tree_info.deduplicated_inputs.append(field);
             }
           }
           else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
@@ -121,12 +121,12 @@ static Set<GFieldRef> find_varying_fields(const FieldTreeInfo &field_tree_info,
   /* The varying fields are the ones that depend on inputs that are not constant. Therefore we
    * start the tree search at the non-constant input fields and traverse through all fields that
    * depend on them. */
-  for (const int input_i : field_tree_info.deduplicated_field_inputs.index_range()) {
+  for (const int input_i : field_tree_info.deduplicated_inputs.index_range()) {
     const GVArray &varray = field_context_inputs[input_i];
     if (varray.is_single()) {
       continue;
     }
-    const GFieldRef &field = field_tree_info.deduplicated_field_inputs[input_i];
+    const GFieldRef &field = field_tree_info.deduplicated_inputs[input_i];
     const Span<GFieldRef> users = field_tree_info.field_users.lookup(field);
     for (const GFieldRef &field : users) {
       if (found_fields.add(field)) {
@@ -159,7 +159,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   Map<Hash128, mf::Variable *> variable_by_field;
 
   /* Start by adding the field inputs as parameters to the procedure. */
-  for (const GFieldRef &input_field : field_tree_info.deduplicated_field_inputs) {
+  for (const GFieldRef &input_field : field_tree_info.deduplicated_inputs) {
     const Hash128 input_hash = field_tree_info.deep_hashes.lookup(input_field);
     const FieldInput &field_input = *std::get<GFieldRef::Input>(input_field.variant()).node;
     mf::Variable &variable = builder.add_input_parameter(
@@ -329,7 +329,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
 
   /* Get inputs that will be passed into the field when evaluated. */
   Vector<GVArray> field_context_inputs = get_field_context_inputs(
-      scope, mask, context, field_tree_info.deduplicated_field_inputs);
+      scope, mask, context, field_tree_info.deduplicated_inputs);
 
   /* Finish fields that don't need any processing directly. */
   for (const int out_index : fields_to_evaluate.index_range()) {
@@ -339,8 +339,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
         [&]<typename T>(const T &v) {
           if constexpr (std::is_same_v<T, GFieldRef::Input>) {
             const Hash128 input_hash = field_tree_info.deep_hashes.lookup(field);
-            const int input_i = field_tree_info.deduplicated_field_input_hashes.index_of(
-                input_hash);
+            const int input_i = field_tree_info.deduplicated_input_hashes.index_of(input_hash);
             const GVArray &varray = field_context_inputs[input_i];
             varrays[out_index] = varray;
           }
