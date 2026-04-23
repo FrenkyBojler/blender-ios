@@ -27,9 +27,6 @@ namespace blender::ed {
  */
 static bool should_modify_axis(const int index, const AxisMutable axis_flag)
 {
-  if (axis_flag == AXIS_MUTABLE_ALL) {
-    return true;
-  }
   return axis_flag & (1 << index);
 }
 
