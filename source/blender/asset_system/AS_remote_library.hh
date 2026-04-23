@@ -52,6 +52,7 @@ struct OnlineAssetFile {
    * Relative to the library root.
    */
   std::string path;
+  std::optional<int64_t> size_in_bytes;
   /** The URL the asset should be downloaded from. */
   URLWithHash url;
 };
