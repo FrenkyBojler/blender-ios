@@ -575,6 +575,9 @@ struct MotionPathEvalData {
   Bounds<int> frame_range;
   Array<TargetEvalResult> results;
   Array<bool> evaluated_frames;
+  /* Can be set from the main thread to tell this thread to start over. Is used because we cannot
+   * just stop the depsgraph evaluation. */
+  bool restart;
 
   /* Main thread data. Do not modify during eval. */
   Array<MPathTarget> targets;
@@ -587,13 +590,22 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   BLI_assert(eval_data->targets.size() == eval_data->results.size());
   BLI_assert(!eval_data->frame_range.is_empty());
 
+restart:
+  eval_data->evaluated_frames.fill(false);
+  eval_data->restart = false;
+
   for (int frame = eval_data->frame_range.min; frame < eval_data->frame_range.max; frame++) {
-    if (worker_status->stop) {
-      return;
-    }
     const int frame_index = frame - eval_data->frame_range.min;
     DEG_evaluate_on_framechange(eval_data->depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
     for (const int target_index : eval_data->targets.index_range()) {
+      if (worker_status->stop) {
+        return;
+      }
+      if (eval_data->restart) {
+        /* I think this is a valid use case for goto. Seems to me the simplest way to break both
+         * loops and run some code. */
+        goto restart;
+      }
       MPathTarget *target = &eval_data->targets[target_index];
       TargetEvalResult &result = eval_data->results[target_index];
       Object *ob_eval = DEG_get_evaluated(eval_data->depsgraph, target->ob);
@@ -680,9 +692,6 @@ void animviz_calc_motionpaths_async(Main *bmain,
 {
   /* In case the motion paths are set to be recalculated before they finished their
    * previous run. */
-  if (WM_jobs_has_running_type(wm, WM_JOB_TYPE_MOTION_PATH_EVAL)) {
-    WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
-  }
 
   const Bounds<int> frame_range = motionpath_get_global_framerange(targets);
   if (frame_range.is_empty() || targets.size() == 0) {
@@ -695,6 +704,14 @@ void animviz_calc_motionpaths_async(Main *bmain,
                               "Evaluate Motion Path Frame",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_MOTION_PATH_EVAL);
+  if (WM_jobs_is_running(wm_job)) {
+    MotionPathEvalData *job_data = static_cast<MotionPathEvalData *>(
+        WM_jobs_customdata_get(wm_job));
+    /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
+     * to restart the work with the same data. */
+    job_data->restart = true;
+    return;
+  }
 
   MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(__func__);
   job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
