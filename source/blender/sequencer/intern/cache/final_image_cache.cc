@@ -79,9 +79,17 @@ static FinalImageCache *query_final_image_cache(const Scene *scene)
   return scene->ed->runtime->final_image_cache;
 }
 
-ImBuf *final_image_cache_get(
-    Scene *scene, float timeline_frame, int view_id, int display_channel, int2 image_size)
+ImBuf *final_image_cache_get(Scene *scene,
+                             float timeline_frame,
+                             int view_id,
+                             int display_channel,
+                             int2 image_size,
+                             bool is_render)
 {
+  if (is_render) {
+    return nullptr;
+  }
+
   const FinalImageCache::Key key = {
       int(math::round(timeline_frame)), view_id, display_channel, image_size};
 
@@ -106,11 +114,13 @@ void final_image_cache_put(Scene *scene,
                            int view_id,
                            int display_channel,
                            int2 image_size,
+                           bool is_render,
                            ImBuf *image)
 {
-  if (G.is_rendering) {
+  if (is_render) {
     return;
   }
+
   const FinalImageCache::Key key = {
       int(math::round(timeline_frame)), view_id, display_channel, image_size};
 

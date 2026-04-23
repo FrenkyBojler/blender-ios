@@ -761,8 +761,12 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
             target_frame = std::floor(target_frame);
           }
 
-          intra_frame_cache_set_cur_frame(
-              context->scene, target_frame, context->view_id, context->rectx, context->recty);
+          intra_frame_cache_set_cur_frame(context->scene,
+                                          target_frame,
+                                          context->view_id,
+                                          context->rectx,
+                                          context->recty,
+                                          context->render != nullptr);
           ibuf[i] = seq_render_strip(context, state, input[0], target_frame);
         }
         else { /* Other effects. */
@@ -1614,8 +1618,12 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
       BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, frame_index);
     }
 
-    intra_frame_cache_set_cur_frame(
-        context->scene, frame_index, context->view_id, context->rectx, context->recty);
+    intra_frame_cache_set_cur_frame(context->scene,
+                                    frame_index,
+                                    context->view_id,
+                                    context->rectx,
+                                    context->recty,
+                                    context->render != nullptr);
     ibuf = seq_render_strip_stack(context,
                                   state,
                                   channels,
@@ -1707,10 +1715,11 @@ ImBuf *seq_render_strip(const RenderData *context,
                         Strip *strip,
                         float timeline_frame)
 {
+  const bool is_final_render = context->render != nullptr;
   bool use_preprocess = false;
   bool is_proxy_image = false;
 
-  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
+  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip, is_final_render);
   if (ibuf != nullptr) {
     return ibuf;
   }
@@ -1728,7 +1737,7 @@ ImBuf *seq_render_strip(const RenderData *context,
     use_preprocess = seq_input_have_to_preprocess(strip);
     ibuf = seq_render_preprocess_ibuf(
         context, state, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
-    intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
+    intra_frame_cache_put_preprocessed(context->scene, strip, is_final_render, ibuf);
   }
 
   if (ibuf == nullptr) {
@@ -1833,7 +1842,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
   for (i = strips.size() - 1; i >= 0; i--) {
     Strip *strip = strips[i];
 
-    out = intra_frame_cache_get_composite(context->scene, strip);
+    out = intra_frame_cache_get_composite(context->scene, strip, context->render != nullptr);
     if (out) {
       break;
     }
@@ -1902,7 +1911,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
               context, state, strip, timeline_frame, ibuf1, ibuf2);
           IMB_metadata_copy(out, ibuf2);
 
-          intra_frame_cache_put_composite(context->scene, strip, out);
+          intra_frame_cache_put_composite(context->scene, strip, context->render != nullptr, out);
 
           IMB_freeImBuf(ibuf1);
           IMB_freeImBuf(ibuf2);
@@ -1934,7 +1943,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
       IMB_freeImBuf(ibuf2);
     }
 
-    intra_frame_cache_put_composite(context->scene, strip, out);
+    intra_frame_cache_put_composite(context->scene, strip, context->render != nullptr, out);
   }
 
   return out;
@@ -1964,14 +1973,22 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     channels = ed->current_channels();
   }
 
-  intra_frame_cache_set_cur_frame(
-      scene, timeline_frame, context->view_id, context->rectx, context->recty);
+  intra_frame_cache_set_cur_frame(scene,
+                                  timeline_frame,
+                                  context->view_id,
+                                  context->rectx,
+                                  context->recty,
+                                  context->render != nullptr);
 
   Scene *orig_scene = prefetch_get_original_scene(context);
   ImBuf *out = nullptr;
   if (!context->skip_cache) {
-    out = final_image_cache_get(
-        orig_scene, timeline_frame, context->view_id, chanshown, {context->rectx, context->recty});
+    out = final_image_cache_get(orig_scene,
+                                timeline_frame,
+                                context->view_id,
+                                chanshown,
+                                {context->rectx, context->recty},
+                                context->render != nullptr);
   }
 
   Vector<Strip *> strips = query_rendered_strips_sorted(
@@ -1996,6 +2013,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
                             context->view_id,
                             chanshown,
                             {context->rectx, context->recty},
+                            context->render != nullptr,
                             out);
     }
   }
@@ -2020,8 +2038,12 @@ ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, 
 {
   SeqRenderState state;
 
-  intra_frame_cache_set_cur_frame(
-      context->scene, timeline_frame, context->view_id, context->rectx, context->recty);
+  intra_frame_cache_set_cur_frame(context->scene,
+                                  timeline_frame,
+                                  context->view_id,
+                                  context->rectx,
+                                  context->recty,
+                                  context->render != nullptr);
   ImBuf *ibuf = seq_render_strip(context, &state, strip, timeline_frame);
   return ibuf;
 }

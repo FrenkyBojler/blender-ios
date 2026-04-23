@@ -27,10 +27,16 @@ struct Scene;
 
 namespace seq {
 
-ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip);
-ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip);
-void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf *image);
-void intra_frame_cache_put_composite(Scene *scene, const Strip *strip, ImBuf *image);
+ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip, bool is_render);
+ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip, bool is_render);
+void intra_frame_cache_put_preprocessed(Scene *scene,
+                                        const Strip *strip,
+                                        bool is_render,
+                                        ImBuf *image);
+void intra_frame_cache_put_composite(Scene *scene,
+                                     const Strip *strip,
+                                     bool is_render,
+                                     ImBuf *image);
 
 void intra_frame_cache_destroy(Scene *scene);
 
@@ -38,7 +44,7 @@ void intra_frame_cache_invalidate(Scene *scene, const Strip *strip);
 void intra_frame_cache_invalidate(Scene *scene);
 
 void intra_frame_cache_set_cur_frame(
-    Scene *scene, float frame, int view_id, int width, int height);
+    Scene *scene, float frame, int view_id, int width, int height, bool is_render);
 
 }  // namespace seq
 }  // namespace blender

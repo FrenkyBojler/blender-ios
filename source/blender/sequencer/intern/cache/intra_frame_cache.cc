@@ -120,8 +120,11 @@ void StripImageMap::clear()
   this->map_.clear();
 }
 
-ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip)
+ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip, bool is_render)
 {
+  if (is_render) {
+    return nullptr;
+  }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (strip == nullptr || cache == nullptr) {
     return nullptr;
@@ -129,8 +132,11 @@ ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip)
   return cache->preprocessed.get(strip);
 }
 
-ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip)
+ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip, bool is_render)
 {
+  if (is_render) {
+    return nullptr;
+  }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (strip == nullptr || cache == nullptr) {
     return nullptr;
@@ -138,12 +144,14 @@ ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip)
   return cache->composite.get(strip);
 }
 
-void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf *image)
+void intra_frame_cache_put_preprocessed(Scene *scene,
+                                        const Strip *strip,
+                                        bool is_render,
+                                        ImBuf *image)
 {
-  if (G.is_rendering) {
-    return;
-  }
-  if (scene == nullptr || scene->ed == nullptr || strip == nullptr || image == nullptr) {
+  if (is_render || scene == nullptr || scene->ed == nullptr || strip == nullptr ||
+      image == nullptr)
+  {
     return;
   }
   IntraFrameCache *&cache = scene->ed->runtime->intra_frame_cache;
@@ -153,12 +161,14 @@ void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf 
   cache->preprocessed.put(strip, image);
 }
 
-void intra_frame_cache_put_composite(Scene *scene, const Strip *strip, ImBuf *image)
+void intra_frame_cache_put_composite(Scene *scene,
+                                     const Strip *strip,
+                                     bool is_render,
+                                     ImBuf *image)
 {
-  if (G.is_rendering) {
-    return;
-  }
-  if (scene == nullptr || scene->ed == nullptr || strip == nullptr || image == nullptr) {
+  if (is_render || scene == nullptr || scene->ed == nullptr || strip == nullptr ||
+      image == nullptr)
+  {
     return;
   }
   IntraFrameCache *&cache = scene->ed->runtime->intra_frame_cache;
@@ -176,9 +186,10 @@ void intra_frame_cache_destroy(Scene *scene)
   }
 }
 
-void intra_frame_cache_set_cur_frame(Scene *scene, float frame, int view_id, int width, int height)
+void intra_frame_cache_set_cur_frame(
+    Scene *scene, float frame, int view_id, int width, int height, bool is_render)
 {
-  if (G.is_rendering) {
+  if (is_render) {
     return;
   }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
