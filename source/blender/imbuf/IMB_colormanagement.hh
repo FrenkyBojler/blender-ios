@@ -346,11 +346,6 @@ const uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
                                         const ColorManagedViewSettings *view_settings,
                                         const ColorManagedDisplaySettings *display_settings,
                                         void **cache_handle);
-/**
- * Same as #IMB_display_buffer_acquire but gets view and display settings from context.
- */
-const uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle);
-
 void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
                                         float *linear_buffer,
                                         int width,

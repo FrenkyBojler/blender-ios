@@ -2918,16 +2918,6 @@ const uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   return display_buffer;
 }
 
-const uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle)
-{
-  ColorManagedViewSettings *view_settings;
-  ColorManagedDisplaySettings *display_settings;
-
-  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
-
-  return IMB_display_buffer_acquire(ibuf, view_settings, display_settings, cache_handle);
-}
-
 void IMB_display_buffer_transform_apply(uchar *display_buffer,
                                         float *linear_buffer,
                                         int width,
