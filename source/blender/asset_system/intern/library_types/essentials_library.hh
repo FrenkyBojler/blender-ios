@@ -17,6 +17,7 @@ class EssentialsAssetLibrary : public OnDiskAssetLibrary {
   EssentialsAssetLibrary();
 
   std::optional<AssetLibraryReference> library_reference() const override;
+  std::optional<eAssetImportMethod> import_method() const override;
 };
 
 }  // namespace blender::asset_system

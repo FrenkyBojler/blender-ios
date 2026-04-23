@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_film_info.hh"
+#include "infos/eevee_film_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_film_frag)
 
@@ -37,5 +37,5 @@ void main()
 
   gl_FragDepth = drw_depth_view_to_screen(-out_depth);
 
-  gl_FragDepth = film_display_depth_amend(texel_film, gl_FragDepth);
+  gl_FragDepth = film_display_depth_amend(gl_FragDepth);
 }

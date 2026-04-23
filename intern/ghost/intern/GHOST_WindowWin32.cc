@@ -133,8 +133,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
     const char *title = "Blender - Unsupported Graphics Card Configuration";
     const char *text = "";
 #if defined(WIN32)
-    if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
-        strstr(BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
+    if (strncmp(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
+        strstr(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
     {
       text =
           "A driver with support for OpenGL 4.3 or higher is required.\n\n"
@@ -218,6 +218,9 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
 
   /* Initialize Direct Manipulation. */
   direct_manipulation_helper_ = GHOST_DirectManipulationHelper::create(h_wnd_, getDPIHint());
+
+  /* Initialize HDR info. */
+  updateHDRInfo();
 }
 
 void GHOST_WindowWin32::updateDirectManipulation()
@@ -321,11 +324,15 @@ void GHOST_WindowWin32::adjustWindowRectForClosestMonitor(LPRECT win_rect,
   GetMonitorInfo(hmonitor, &monitor);
 
   /* Constrain requested size and position to fit within this monitor. */
-  LONG width = min(monitor.rcWork.right - monitor.rcWork.left, win_rect->right - win_rect->left);
-  LONG height = min(monitor.rcWork.bottom - monitor.rcWork.top, win_rect->bottom - win_rect->top);
-  win_rect->left = min(max(monitor.rcWork.left, win_rect->left), monitor.rcWork.right - width);
+  LONG width = std::min(monitor.rcWork.right - monitor.rcWork.left,
+                        win_rect->right - win_rect->left);
+  LONG height = std::min(monitor.rcWork.bottom - monitor.rcWork.top,
+                         win_rect->bottom - win_rect->top);
+  win_rect->left = std::min(std::max(monitor.rcWork.left, win_rect->left),
+                            monitor.rcWork.right - width);
   win_rect->right = win_rect->left + width;
-  win_rect->top = min(max(monitor.rcWork.top, win_rect->top), monitor.rcWork.bottom - height);
+  win_rect->top = std::min(std::max(monitor.rcWork.top, win_rect->top),
+                           monitor.rcWork.bottom - height);
   win_rect->bottom = win_rect->top + height;
 
   /* With Windows 10 and newer we can adjust for chrome that differs with DPI and scale. */
@@ -347,7 +354,7 @@ void GHOST_WindowWin32::adjustWindowRectForClosestMonitor(LPRECT win_rect,
   }
 
   /* But never allow a top position that can hide part of the title bar. */
-  win_rect->top = max(monitor.rcWork.top, win_rect->top);
+  win_rect->top = std::max(monitor.rcWork.top, win_rect->top);
 }
 
 bool GHOST_WindowWin32::getValid() const
@@ -619,7 +626,7 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       GHOST_Context *context = new GHOST_ContextVK(
-          want_context_params_, h_wnd_, 1, 2, preferred_device_);
+          want_context_params_, h_wnd_, 1, 2, preferred_device_, &hdr_info_);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -949,7 +956,7 @@ void GHOST_WindowWin32::loadWintab(bool enable)
 {
   if (!wintab_) {
     WINTAB_PRINTF("Loading Wintab for window %p\n", h_wnd_);
-    if (wintab_ = GHOST_Wintab::loadWintab(h_wnd_)) {
+    if ((wintab_ = GHOST_Wintab::loadWintab(h_wnd_))) {
       if (enable) {
         wintab_->enable();
 
@@ -1034,7 +1041,7 @@ void GHOST_WindowWin32::updateDPI()
 
 uint16_t GHOST_WindowWin32::getDPIHint()
 {
-  if (user32_) {
+  if (user32_ && system_->native_pixel_) {
     GHOST_WIN32_GetDpiForWindow fpGetDpiForWindow = (GHOST_WIN32_GetDpiForWindow)::GetProcAddress(
         user32_, "GetDpiForWindow");
 
@@ -1085,10 +1092,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
       cols++;
     }
 
-    if (custom_cursor_) {
-      DestroyCursor(custom_cursor_);
-      custom_cursor_ = nullptr;
-    }
+    HCURSOR previous_cursor = custom_cursor_;
 
     memset(&andData, 0xFF, sizeof(andData));
     memset(&xorData, 0, sizeof(xorData));
@@ -1115,6 +1119,10 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
 
     if (::GetForegroundWindow() == h_wnd_) {
       loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+    }
+
+    if (previous_cursor) {
+      DestroyCursor(previous_cursor);
     }
 
     return GHOST_kSuccess;
@@ -1165,6 +1173,8 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
   icon_info.hbmMask = empty_mask;
   icon_info.hbmColor = bmp;
 
+  HCURSOR previous_cursor = custom_cursor_;
+
   custom_cursor_ = CreateIconIndirect(&icon_info);
   DeleteObject(bmp);
   DeleteObject(empty_mask);
@@ -1175,6 +1185,10 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
 
   if (::GetForegroundWindow() == h_wnd_) {
     loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+  }
+
+  if (previous_cursor) {
+    DestroyCursor(previous_cursor);
   }
 
   return GHOST_kSuccess;
@@ -1260,5 +1274,93 @@ void GHOST_WindowWin32::unregisterWindowAppUserModelProperties()
     pstore->SetValue(PKEY_AppUserModel_RelaunchCommand, value);
     pstore->SetValue(PKEY_AppUserModel_RelaunchDisplayNameResource, value);
     pstore->Release();
+  }
+}
+
+/* We call this from a few window event changes, but actually none of them immediately
+ * respond to SDR white level changes in the system. That requires using the WinRT API,
+ * which we don't do so far. */
+void GHOST_WindowWin32::updateHDRInfo()
+{
+  /* Get monitor from window. */
+  HMONITOR hmonitor = ::MonitorFromWindow(h_wnd_, MONITOR_DEFAULTTONEAREST);
+  if (!hmonitor) {
+    return;
+  }
+
+  MONITORINFOEXW monitor_info = {};
+  monitor_info.cbSize = sizeof(MONITORINFOEXW);
+  if (!::GetMonitorInfoW(hmonitor, &monitor_info)) {
+    return;
+  }
+
+  /* Get active display paths and modes. */
+  UINT32 path_count = 0;
+  UINT32 mode_count = 0;
+  if (::GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count, &mode_count) !=
+      ERROR_SUCCESS)
+  {
+    return;
+  }
+
+  std::vector<DISPLAYCONFIG_PATH_INFO> paths(path_count);
+  std::vector<DISPLAYCONFIG_MODE_INFO> modes(mode_count);
+  if (::QueryDisplayConfig(
+          QDC_ONLY_ACTIVE_PATHS, &path_count, paths.data(), &mode_count, modes.data(), nullptr) !=
+      ERROR_SUCCESS)
+  {
+    return;
+  }
+
+  GHOST_WindowHDRInfo info = GHOST_WINDOW_HDR_INFO_NONE;
+
+  /* Find the display path matching the monitor. */
+  for (const DISPLAYCONFIG_PATH_INFO &path : paths) {
+    DISPLAYCONFIG_SOURCE_DEVICE_NAME device_name = {};
+    device_name.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+    device_name.header.size = sizeof(device_name);
+    device_name.header.adapterId = path.sourceInfo.adapterId;
+    device_name.header.id = path.sourceInfo.id;
+
+    if (::DisplayConfigGetDeviceInfo(&device_name.header) != ERROR_SUCCESS) {
+      continue;
+    }
+    if (wcscmp(monitor_info.szDevice, device_name.viewGdiDeviceName) != 0) {
+      continue;
+    }
+
+    /* Query HDR status. */
+    DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color_info = {};
+    color_info.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+    color_info.header.size = sizeof(color_info);
+    color_info.header.adapterId = path.targetInfo.adapterId;
+    color_info.header.id = path.targetInfo.id;
+
+    if (::DisplayConfigGetDeviceInfo(&color_info.header) == ERROR_SUCCESS) {
+      /* This particular combination indicates HDR mode is enabled. This is undocumented but
+       * used by WinRT. When wideColorEnforced is true we are in SDR mode with advanced color. */
+      info.wide_gamut_enabled = color_info.advancedColorSupported &&
+                                color_info.advancedColorEnabled;
+      info.hdr_enabled = info.wide_gamut_enabled && !color_info.wideColorEnforced;
+    }
+
+    if (info.hdr_enabled) {
+      /* Query SDR white level. */
+      DISPLAYCONFIG_SDR_WHITE_LEVEL white_level = {};
+      white_level.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
+      white_level.header.size = sizeof(white_level);
+      white_level.header.adapterId = path.targetInfo.adapterId;
+      white_level.header.id = path.targetInfo.id;
+
+      if (::DisplayConfigGetDeviceInfo(&white_level.header) == ERROR_SUCCESS) {
+        if (white_level.SDRWhiteLevel > 0) {
+          /* Windows assumes 1.0 = 80 nits, so multiply by that to get the absolute
+           * value in nits if we need it in the future. */
+          info.sdr_white_level = static_cast<float>(white_level.SDRWhiteLevel) / 1000.0f;
+        }
+      }
+    }
+
+    hdr_info_ = info;
   }
 }

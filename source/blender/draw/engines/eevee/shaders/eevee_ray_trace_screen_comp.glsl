@@ -6,20 +6,20 @@
  * Use screen space tracing against depth buffer to find intersection with the scene.
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_trace_screen)
 
 #include "eevee_bxdf_sampling_lib.glsl"
 #include "eevee_closure_lib.glsl"
-#include "eevee_colorspace_lib.glsl"
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_colorspace_lib.bsl.hh"
+#include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_ray_trace_screen_lib.glsl"
-#include "eevee_ray_types_lib.glsl"
-#include "eevee_reverse_z_lib.glsl"
+#include "eevee_ray_types_lib.bsl.hh"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_spherical_harmonics_lib.glsl"
+#include "eevee_spherical_harmonics.bsl.hh"
 
 void main()
 {
@@ -51,15 +51,8 @@ void main()
   int2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
                        uniform_buf.raytrace.resolution_bias;
 
-  uint gbuf_header = texelFetch(gbuf_header_tx, int3(texel_fullres, 0), 0).r;
-  ClosureType closure_type = gbuffer_closure_type_get_by_bin(gbuf_header, closure_index);
-
-  bool is_reflection = true;
-  if ((closure_type == CLOSURE_BSDF_TRANSLUCENT_ID) ||
-      (closure_type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID))
-  {
-    is_reflection = false;
-  }
+  gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
+  ClosureType closure_type = gbuffer::mode_to_closure_type(gbuf_header.bin_type(closure_index));
 
   float depth = reverse_z::read(texelFetch(depth_tx, texel_fullres, 0).r);
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
@@ -72,20 +65,18 @@ void main()
 
   /* Only closure 0 can be a transmission closure. */
   if (closure_index == 0) {
-    float thickness = gbuffer_read_thickness(gbuf_header, gbuf_normal_tx, texel_fullres);
-    if (thickness != 0.0f) {
-      ClosureUndetermined cl = gbuffer_read_bin(
-          gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
+    const Thickness thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
+    if (thickness.value() != 0.0f) {
+      ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
       ray = raytrace_thickness_ray_amend(ray, cl, V, thickness);
     }
   }
 
   float3 radiance = float3(0.0f);
   float noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_W);
-  float rand_trace = interlieved_gradient_noise(float2(texel), 5.0f, noise_offset);
+  float rand_trace = interleaved_gradient_noise(float2(texel), 5.0f, noise_offset);
 
-  ClosureUndetermined cl = gbuffer_read_bin(
-      gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
+  ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
   float roughness = closure_apparent_roughness_get(cl);
 
   /* Transform the ray into view-space. */
@@ -101,7 +92,7 @@ void main()
    * We could split the shader but that would mean to dispatch some area twice for the same closure
    * index. Another idea is to put both HiZ buffer int he same texture and dynamically access one
    * or the other. But that might also impact performance. */
-  if (is_reflection) {
+  if (!closure_has_transmission(closure_type)) {
     hit = raytrace_screen(uniform_buf.raytrace,
                           uniform_buf.hiz,
                           hiz_front_tx,
@@ -141,17 +132,18 @@ void main()
      * direction over many rays. */
     float3 Ng = ray.direction;
     /* Fall back to nearest light-probe. */
-    LightProbeSample samp = lightprobe_load(ray.origin, Ng, V);
+    LightProbeSample samp = lightprobe_load(float2(texel), ray.origin, Ng, V);
     /* Clamp SH to have parity with forward evaluation. */
     float clamp_indirect = uniform_buf.clamp.surface_indirect;
-    samp.volume_irradiance = spherical_harmonics_clamp(samp.volume_irradiance, clamp_indirect);
+    samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
+                                                               clamp_indirect);
 
     radiance = lightprobe_eval_direction(samp, ray.origin, ray.direction, ray_pdf_inv);
     /* Set point really far for correct reprojection of background. */
     hit.time = 10000.0f;
   }
 
-  radiance = colorspace_brightness_clamp_max(radiance, uniform_buf.clamp.surface_indirect);
+  radiance = colorspace::brightness_clamp_max(radiance, uniform_buf.clamp.surface_indirect);
 
   imageStoreFast(ray_time_img, texel, float4(hit.time));
   imageStoreFast(ray_radiance_img, texel, float4(radiance, 0.0f));

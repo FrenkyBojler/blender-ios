@@ -17,9 +17,9 @@
 
 #include "eevee_camera.hh"
 #include "eevee_material.hh"
-#include "eevee_shader.hh"
-#include "eevee_shader_shared.hh"
+#include "eevee_shadow_shared.hh"
 #include "eevee_sync.hh"
+#include "eevee_uniform_shared.hh"
 
 namespace blender::eevee {
 
@@ -58,6 +58,15 @@ enum class ShadowTechnique {
   TILE_COPY = 1,
 };
 
+using ShadowStatisticsBuf = draw::StorageBuffer<ShadowStatistics>;
+using ShadowPagesInfoDataBuf = draw::StorageBuffer<ShadowPagesInfoData>;
+using ShadowPageHeapBuf = draw::StorageVectorBuffer<uint, SHADOW_MAX_PAGE>;
+using ShadowPageCacheBuf = draw::StorageArrayBuffer<uint2, SHADOW_MAX_PAGE, true>;
+using ShadowTileMapDataBuf = draw::StorageVectorBuffer<ShadowTileMapData, SHADOW_MAX_TILEMAP>;
+using ShadowTileMapClipBuf = draw::StorageArrayBuffer<ShadowTileMapClip, SHADOW_MAX_TILEMAP, true>;
+using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_MAX_TILE, true>;
+using ShadowRenderViewBuf = draw::StorageArrayBuffer<ShadowRenderView, SHADOW_VIEW_MAX, true>;
+
 /* -------------------------------------------------------------------- */
 /** \name Tile-Map
  *
@@ -76,10 +85,10 @@ struct ShadowTileMap : public ShadowTileMapData {
   /** Cube face index. */
   eCubeFace cubeface = Z_NEG;
   /** Cached, used for detecting updates. */
-  float4x4 object_mat;
+  float4x4 object_mat = float4x4::identity();
 
  public:
-  ShadowTileMap(int tiles_index_)
+  ShadowTileMap(int tiles_index_) : ShadowTileMapData{}
   {
     tiles_index = tiles_index_;
     /* For now just the same index. */
@@ -169,7 +178,7 @@ struct ShadowTileMapPool {
 
 /* Can be either a shadow caster or a shadow receiver. */
 struct ShadowObject {
-  ResourceHandleRange resource_handle = {};
+  ResourceHandle resource_handle;
   bool used = true;
 };
 
@@ -180,6 +189,9 @@ struct ShadowObject {
  *
  * Manages shadow atlas and shadow region data.
  * \{ */
+
+class ShadowPunctual;
+class ShadowDirectional;
 
 class ShadowModule {
   friend ShadowPunctual;
@@ -225,12 +237,15 @@ class ShadowModule {
 
   PassSimple caster_update_ps_ = {"CasterUpdate"};
   PassSimple jittered_transparent_caster_update_ps_ = {"TransparentCasterUpdate"};
+  PassSimple update_propagate_ps_ = {"CasterUpdatePropagate"};
   /** List of Resource IDs (to get bounds) for tagging passes. */
   StorageVectorBuffer<uint, 128> past_casters_updated_ = {"PastCastersUpdated"};
   StorageVectorBuffer<uint, 128> curr_casters_updated_ = {"CurrCastersUpdated"};
   StorageVectorBuffer<uint, 128> jittered_transparent_casters_ = {"JitteredTransparentCasters"};
   /** List of Resource IDs (to get bounds) for getting minimum clip-maps bounds. */
   StorageVectorBuffer<uint, 128> curr_casters_ = {"CurrCasters"};
+  /** Empty framebuffer to rasterize bounding boxes for update tagging. */
+  Framebuffer update_tag_fb_ = {"update_tag_fb"};
 
   /** Indirect arguments for page clearing. */
   DispatchIndirectBuf clear_dispatch_buf_ = {"clear_dispatch_buf"};
@@ -295,10 +310,10 @@ class ShadowModule {
 
    protected:
     /** Special culling pass to take shadow linking into consideration. */
-    virtual void compute_visibility(ObjectBoundsBuf &bounds,
-                                    ObjectInfosBuf &infos,
-                                    uint resource_len,
-                                    bool debug_freeze) override;
+    void compute_visibility(ObjectBoundsBuf &bounds,
+                            ObjectInfosBuf &infos,
+                            uint resource_len,
+                            bool debug_freeze) override;
   };
 
   /** Multi-View containing a maximum of 64 view to be rendered with the shadow pipeline. */
@@ -349,9 +364,7 @@ class ShadowModule {
 
   void begin_sync();
   /** Register a shadow caster or receiver. */
-  void sync_object(const Object *ob,
-                   const ObjectHandle &handle,
-                   const ResourceHandleRange &resource_handle,
+  void sync_object(const ObjectHandle &ob_handle,
                    bool is_alpha_blend,
                    bool has_transparent_shadows);
   void end_sync();
@@ -366,7 +379,7 @@ class ShadowModule {
   void set_view(View &view, int2 extent);
 
   void debug_end_sync();
-  void debug_draw(View &view, GPUFrameBuffer *view_fb);
+  void debug_draw(View &view, gpu::FrameBuffer *view_fb);
 
   template<typename PassType> void bind_resources(PassType &pass)
   {
@@ -421,9 +434,9 @@ class ShadowPunctual : public NonCopyable, NonMovable {
   Vector<ShadowTileMap *> tilemaps_;
 
  public:
-  ShadowPunctual(ShadowModule &module) : shadows_(module){};
+  ShadowPunctual(ShadowModule &module) : shadows_(module) {};
   ShadowPunctual(ShadowPunctual &&other)
-      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)){};
+      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)) {};
 
   ~ShadowPunctual()
   {
@@ -450,9 +463,9 @@ class ShadowDirectional : public NonCopyable, NonMovable {
   IndexRange levels_range = IndexRange(0);
 
  public:
-  ShadowDirectional(ShadowModule &module) : shadows_(module){};
+  ShadowDirectional(ShadowModule &module) : shadows_(module) {};
   ShadowDirectional(ShadowDirectional &&other)
-      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)){};
+      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)) {};
 
   ~ShadowDirectional()
   {

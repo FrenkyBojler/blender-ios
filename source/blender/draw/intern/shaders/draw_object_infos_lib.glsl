@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "draw_object_infos_info.hh"
+#include "draw_object_infos_infos.hh"
 
 #include "draw_model_lib.glsl"
 
@@ -38,7 +38,7 @@ float3 drw_object_orco(float3 lP)
   return info.orco_add + lP * info.orco_mul;
 }
 
-float4 drw_object_attribute(const uint attr_hash)
+float4 drw_object_attribute([[maybe_unused]] const uint attr_hash)
 {
 #if defined(OBATTR_LIB)
   ObjectInfos infos = drw_object_infos();

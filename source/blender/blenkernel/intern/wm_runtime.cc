@@ -7,12 +7,15 @@
  */
 
 #include "BKE_report.hh"
+#include "BKE_undo_system.hh"
 #include "BKE_wm_runtime.hh"
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 
 #include "WM_api.hh"
+
+#include "WM_message.hh"
 
 namespace blender::bke {
 
@@ -26,9 +29,6 @@ WindowManagerRuntime::~WindowManagerRuntime()
   BKE_reports_free(&this->reports);
 
   BLI_freelistN(&this->notifier_queue);
-  if (this->notifier_queue_set) {
-    BLI_gset_free(this->notifier_queue_set, nullptr);
-  }
 
   while (wmOperator *op = static_cast<wmOperator *>(BLI_pophead(&this->operators))) {
     WM_operator_free(op);
@@ -41,7 +41,7 @@ WindowManagerRuntime::~WindowManagerRuntime()
    * and in this case it's necessary to free them on exit, see: #109953. */
   while (wmTimer *timer = static_cast<wmTimer *>(BLI_pophead(&this->timers))) {
     WM_event_timer_free_data(timer);
-    MEM_freeN(timer);
+    MEM_delete(timer);
   }
 
   while (wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(BLI_pophead(&this->keyconfigs))) {
@@ -49,6 +49,14 @@ WindowManagerRuntime::~WindowManagerRuntime()
   }
 
   WM_drag_free_list(&this->drags);
+
+  if (this->undo_stack) {
+    BKE_undosys_stack_destroy(this->undo_stack);
+  }
+
+  if (this->message_bus != nullptr) {
+    WM_msgbus_destroy(this->message_bus);
+  }
 }
 
 WindowRuntime::~WindowRuntime()

@@ -7,7 +7,7 @@
  * irradiance cache from each spherical probe location except for the world probe.
  */
 
-#include "infos/eevee_lightprobe_sphere_info.hh"
+#include "infos/eevee_lightprobe_sphere_infos.hh"
 
 #ifdef GLSL_CPP_STUBS
 #  define SPHERE_PROBE_SELECT
@@ -25,7 +25,7 @@ void main()
     return;
   }
 
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   if (idx == lightprobe_sphere_count - 1) {
     sh = lightprobe_volume_world();
   }
@@ -35,7 +35,7 @@ void main()
   }
 
   float clamp_indirect_sh = uniform_buf.clamp.surface_indirect;
-  sh = spherical_harmonics_clamp(sh, clamp_indirect_sh);
+  sh = spherical_harmonics::clamp_energy(sh, clamp_indirect_sh);
 
   lightprobe_sphere_buf[idx].low_freq_light = lightprobe_spheres_extract_low_freq(sh);
 }

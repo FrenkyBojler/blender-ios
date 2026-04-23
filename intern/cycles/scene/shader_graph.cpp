@@ -33,7 +33,7 @@ bool check_node_inputs_traversed(const ShaderNode *node, const ShaderNodeSet &do
 {
   for (const ShaderInput *in : node->inputs) {
     if (in->link) {
-      if (done.find(in->link->parent) == done.end()) {
+      if (!done.contains(in->link->parent)) {
         return false;
       }
     }
@@ -404,7 +404,7 @@ void ShaderGraph::find_dependencies(ShaderNodeSet &dependencies, ShaderInput *in
   /* find all nodes that this input depends on directly and indirectly */
   ShaderNode *node = (input->link) ? input->link->parent : nullptr;
 
-  if (node != nullptr && dependencies.find(node) == dependencies.end()) {
+  if (node != nullptr && !dependencies.contains(node)) {
     for (ShaderInput *in : node->inputs) {
       find_dependencies(dependencies, in);
     }
@@ -556,7 +556,7 @@ void ShaderGraph::constant_fold(Scene *scene)
        * when possible. Do it before disconnect.
        */
       for (ShaderInput *input : output->links) {
-        if (scheduled.find(input->parent) != scheduled.end()) {
+        if (scheduled.contains(input->parent)) {
           /* Node might not be optimized yet but scheduled already
            * by other dependencies. No need to re-schedule it.
            */
@@ -629,7 +629,7 @@ void ShaderGraph::deduplicate_nodes()
     for (ShaderOutput *output : node->outputs) {
       for (ShaderInput *input : output->links) {
         has_output_links = true;
-        if (scheduled.find(input->parent) != scheduled.end()) {
+        if (scheduled.contains(input->parent)) {
           /* Node might not be optimized yet but scheduled already
            * by other dependencies. No need to re-schedule it.
            */
@@ -667,7 +667,7 @@ void ShaderGraph::deduplicate_nodes()
   }
 
   if (num_deduplicated > 0) {
-    LOG_DEBUG << "Deduplicated " << num_deduplicated << " nodes.";
+    LOG_TRACE << "Deduplicated " << num_deduplicated << " nodes.";
   }
 }
 
@@ -713,7 +713,7 @@ void ShaderGraph::optimize_volume_output()
         continue;
       }
       ShaderNode *input_node = input->link->parent;
-      if (scheduled.find({input_node, nonlinear}) != scheduled.end()) {
+      if (scheduled.contains({input_node, nonlinear})) {
         continue;
       }
       traverse_queue.emplace(input_node, nonlinear);
@@ -721,19 +721,19 @@ void ShaderGraph::optimize_volume_output()
     }
   }
 
-  if (LOG_IS_ON(LOG_LEVEL_DEBUG)) {
+  if (LOG_IS_ON(LOG_LEVEL_TRACE)) {
     for (ShaderNode *node : nodes) {
       if (node->type == AttributeNode::get_node_type() &&
           static_cast<AttributeNode *>(node)->stochastic_sample)
       {
-        LOG_DEBUG << "Volume attribute node " << node->name << " uses stochastic sampling";
+        LOG_TRACE << "Volume attribute node " << node->name << " uses stochastic sampling";
       }
     }
   }
 
   if (!has_valid_volume) {
     /* We can remove the entire volume shader. */
-    LOG_DEBUG << "Disconnect meaningless volume output.";
+    LOG_TRACE << "Disconnect meaningless volume output.";
     disconnect(volume_in->link);
   }
 }

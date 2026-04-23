@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include "usd_colorspace_utils.hh"
+
 #include "BLI_color.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_math_quaternion_types.hh"
@@ -11,8 +13,6 @@
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
-
-#include "DNA_customdata_types.h"
 
 #include <pxr/base/gf/quatf.h>
 #include <pxr/base/gf/vec2f.h>
@@ -29,11 +29,13 @@
 #include <optional>
 #include <type_traits>
 
+namespace blender {
+
 namespace usdtokens {
 inline const pxr::TfToken displayColor("displayColor", pxr::TfToken::Immortal);
 }
 
-namespace blender::io::usd {
+namespace io::usd {
 
 namespace detail {
 
@@ -72,12 +74,12 @@ template<> inline pxr::GfVec4f convert_value(const ColorGeometry4f value)
 }
 template<> inline pxr::GfVec3f convert_value(const ColorGeometry4b value)
 {
-  ColorGeometry4f color4f = value.decode();
+  ColorGeometry4f color4f = color::decode(value);
   return pxr::GfVec3f(color4f.r, color4f.g, color4f.b);
 }
 template<> inline pxr::GfVec4f convert_value(const ColorGeometry4b value)
 {
-  ColorGeometry4f color4f = value.decode();
+  ColorGeometry4f color4f = color::decode(value);
   return pxr::GfVec4f(color4f.r, color4f.g, color4f.b, color4f.a);
 }
 template<> inline pxr::GfQuatf convert_value(const math::Quaternion value)
@@ -208,11 +210,27 @@ pxr::VtArray<T> get_primvar_array(const pxr::UsdGeomPrimvar &primvar, const pxr:
   return primvar_val.Cast<pxr::VtArray<T>>().template UncheckedGet<pxr::VtArray<T>>();
 }
 
+inline void set_single_value(bke::MutableAttributeAccessor attributes,
+                             const StringRef attr_name,
+                             const bke::AttrDomain domain,
+                             const bke::AttrType data_type,
+                             const bke::AttributeInit &value)
+{
+  if (!attributes.contains(attr_name)) {
+    attributes.add(attr_name, domain, data_type, value);
+  }
+  else {
+    attributes.assign_data(attr_name, value);
+  }
+}
+
 template<typename USDT, typename BlenderT>
 void copy_primvar_to_blender_buffer(const pxr::UsdGeomPrimvar &primvar,
                                     const pxr::UsdTimeCode time,
+                                    const bke::AttrType data_type,
+                                    const bke::AttrDomain domain,
                                     const OffsetIndices<int> faces,
-                                    MutableSpan<BlenderT> attribute)
+                                    bke::MutableAttributeAccessor attributes)
 {
   const pxr::VtArray<USDT> usd_data = get_primvar_array<USDT>(primvar, time);
   if (usd_data.empty()) {
@@ -221,13 +239,27 @@ void copy_primvar_to_blender_buffer(const pxr::UsdGeomPrimvar &primvar,
 
   constexpr bool is_same = std::is_same_v<USDT, BlenderT>;
   constexpr bool is_compatible = detail::is_layout_compatible<USDT, BlenderT>::value;
+  constexpr bool is_color = std::is_same_v<BlenderT, ColorGeometry4f>;
 
   const pxr::TfToken pv_interp = primvar.GetInterpolation();
+  const pxr::TfToken pv_name = pxr::UsdGeomPrimvar::StripPrimvarsName(primvar.GetPrimvarName());
+  const StringRef attr_name = pv_name.GetText();
+
+  /* Map constant interpolation to single-value attributes. */
   if (pv_interp == pxr::UsdGeomTokens->constant) {
-    /* For situations where there's only a single item, flood fill the object. */
-    attribute.fill(detail::convert_value<USDT, BlenderT>(usd_data[0]));
+    BlenderT value = detail::convert_value<USDT, BlenderT>(usd_data[0]);
+    if constexpr (is_color) {
+      colorspace_attr_to_scene_linear(primvar.GetAttr(), value);
+    }
+    set_single_value(attributes, attr_name, domain, data_type, bke::AttributeInitValue(value));
+    return;
   }
-  else if (pv_interp == pxr::UsdGeomTokens->faceVarying) {
+
+  bke::SpanAttributeWriter<BlenderT> attribute_writer =
+      attributes.lookup_or_add_for_write_span<BlenderT>(pv_name.GetText(), domain);
+  MutableSpan<BlenderT> attribute = attribute_writer.span;
+
+  if (pv_interp == pxr::UsdGeomTokens->faceVarying) {
     if (!faces.is_empty()) {
       /* Reverse the index order. */
       for (const int i : faces.index_range()) {
@@ -264,6 +296,12 @@ void copy_primvar_to_blender_buffer(const pxr::UsdGeomPrimvar &primvar,
       }
     }
   }
+
+  if constexpr (is_color) {
+    colorspace_attr_to_scene_linear(primvar.GetAttr(), attribute);
+  }
+
+  attribute_writer.finish();
 }
 
 void copy_primvar_to_blender_attribute(const pxr::UsdGeomPrimvar &primvar,
@@ -273,4 +311,5 @@ void copy_primvar_to_blender_attribute(const pxr::UsdGeomPrimvar &primvar,
                                        const OffsetIndices<int> face_indices,
                                        bke::MutableAttributeAccessor attributes);
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

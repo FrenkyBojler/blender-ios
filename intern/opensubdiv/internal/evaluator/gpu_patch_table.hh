@@ -18,11 +18,11 @@ using OpenSubdiv::Osd::PatchArrayVector;
 namespace blender::opensubdiv {
 
 // TODO: use Blenlib NonCopyable.
-class GPUPatchTable : private NonCopyable<GPUPatchTable> {
+class GPUPatchTable : private OpenSubdiv::Osd::NonCopyable<GPUPatchTable> {
  public:
   ~GPUPatchTable();
 
-  static GPUPatchTable *Create(PatchTable const *farPatchTable, void *deviceContext = NULL);
+  static GPUPatchTable *Create(PatchTable const *farPatchTable, void *deviceContext = nullptr);
 
   /// Returns the patch arrays for vertex index buffer data
   PatchArrayVector const &GetPatchArrays() const

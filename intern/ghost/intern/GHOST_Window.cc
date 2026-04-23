@@ -14,6 +14,8 @@
 
 #include "GHOST_ContextNone.hh"
 
+#include "GHOST_utildefines.hh"
+
 #include <cassert>
 
 GHOST_Window::GHOST_Window(uint32_t width,
@@ -102,9 +104,13 @@ GHOST_IContext *GHOST_Window::getDrawingContext()
   return context_;
 }
 
-GHOST_TSuccess GHOST_Window::swapBuffers()
+GHOST_TSuccess GHOST_Window::swapBufferAcquire()
 {
-  return context_->swapBuffers();
+  return context_->swapBufferAcquire();
+}
+GHOST_TSuccess GHOST_Window::swapBufferRelease()
+{
+  return context_->swapBufferRelease();
 }
 
 GHOST_TSuccess GHOST_Window::setSwapInterval(int interval)
@@ -193,7 +199,7 @@ GHOST_TSuccess GHOST_Window::setCursorGrab(GHOST_TGrabCursorMode mode,
 
 GHOST_TSuccess GHOST_Window::getCursorGrabBounds(GHOST_Rect &bounds) const
 {
-  if (!(cursor_grab_ == GHOST_kGrabWrap || cursor_grab_ == GHOST_kGrabHide)) {
+  if (!ELEM(cursor_grab_, GHOST_kGrabWrap, GHOST_kGrabHide)) {
     return GHOST_kFailure;
   }
   bounds = cursor_grab_bounds_;

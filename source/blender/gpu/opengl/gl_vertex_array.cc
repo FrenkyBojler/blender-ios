@@ -48,7 +48,7 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
     }
 
     /* This is in fact an offset in memory. */
-    const GLvoid *pointer = (const GLubyte *)intptr_t(offset + v_first * stride);
+    const GLvoid *pointer = reinterpret_cast<const GLubyte *>(intptr_t(offset + v_first * stride));
     const GLenum type = to_gl(a->type.comp_type());
 
     for (uint n_idx = 0; n_idx < a->name_len; n_idx++) {
@@ -81,8 +81,7 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
 
 void GLVertArray::update_bindings(const GLuint vao,
                                   const Batch *batch_, /* Should be GLBatch. */
-                                  const ShaderInterface *interface,
-                                  const int base_instance)
+                                  const ShaderInterface *interface)
 {
   const GLBatch *batch = static_cast<const GLBatch *>(batch_);
   uint16_t attr_mask = interface->enabled_attr_mask_;
@@ -95,14 +94,6 @@ void GLVertArray::update_bindings(const GLuint vao,
     if (vbo) {
       vbo->bind();
       attr_mask &= ~vbo_bind(interface, &vbo->format, 0, vbo->vertex_len, false);
-    }
-  }
-
-  for (int v = GPU_BATCH_INST_VBO_MAX_LEN - 1; v > -1; v--) {
-    GLVertBuf *vbo = batch->inst_(v);
-    if (vbo) {
-      vbo->bind();
-      attr_mask &= ~vbo_bind(interface, &vbo->format, base_instance, vbo->vertex_len, true);
     }
   }
 

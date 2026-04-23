@@ -18,8 +18,7 @@
 #include "gl_index_buffer.hh"
 #include "gl_vertex_buffer.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class GLContext;
 class GLShaderInterface;
@@ -108,13 +107,8 @@ class GLBatch : public Batch {
   {
     return static_cast<GLVertBuf *>(verts[index]);
   }
-  GLVertBuf *inst_(const int index) const
-  {
-    return static_cast<GLVertBuf *>(inst[index]);
-  }
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GLBatch");
 };
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

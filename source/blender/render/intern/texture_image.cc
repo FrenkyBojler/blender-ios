@@ -35,6 +35,8 @@
 
 #include "texture_common.h"
 
+namespace blender {
+
 static void boxsample(ImBuf *ibuf,
                       float minx,
                       float miny,
@@ -47,27 +49,27 @@ static void boxsample(ImBuf *ibuf,
 /* *********** IMAGEWRAPPING ****************** */
 
 /* x and y have to be checked for image size */
-static void ibuf_get_color(float col[4], ImBuf *ibuf, int x, int y)
+static void ibuf_get_color(float col[4], const ImBuf *ibuf, int x, int y)
 {
   const int64_t ofs = int64_t(y) * ibuf->x + x;
 
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     if (ibuf->channels == 4) {
-      const float *fp = ibuf->float_buffer.data + 4 * ofs;
+      const float *fp = ibuf->float_data() + 4 * ofs;
       copy_v4_v4(col, fp);
     }
     else if (ibuf->channels == 3) {
-      const float *fp = ibuf->float_buffer.data + 3 * ofs;
+      const float *fp = ibuf->float_data() + 3 * ofs;
       copy_v3_v3(col, fp);
       col[3] = 1.0f;
     }
     else {
-      const float *fp = ibuf->float_buffer.data + ofs;
+      const float *fp = ibuf->float_data() + ofs;
       col[0] = col[1] = col[2] = col[3] = *fp;
     }
   }
   else {
-    const uchar *rect = ibuf->byte_buffer.data + 4 * ofs;
+    const uchar *rect = ibuf->byte_data() + 4 * ofs;
 
     col[0] = float(rect[0]) * (1.0f / 255.0f);
     col[1] = float(rect[1]) * (1.0f / 255.0f);
@@ -127,8 +129,7 @@ int imagewrap(Tex *tex,
 
   ima->flag |= IMA_USED_FOR_RENDER;
 
-  if (ibuf == nullptr || (ibuf->byte_buffer.data == nullptr && ibuf->float_buffer.data == nullptr))
-  {
+  if (ibuf == nullptr || (ibuf->byte_data() == nullptr && ibuf->float_data() == nullptr)) {
     BKE_image_pool_release_ibuf(ima, ibuf, pool);
     return retval;
   }
@@ -641,7 +642,7 @@ static void boxsample(ImBuf *ibuf,
 /* from here, some functions only used for the new filtering */
 
 /* anisotropic filters, data struct used instead of long line of (possibly unused) func args */
-struct afdata_t {
+struct AFData {
   float dxt[2], dyt[2];
   int intpol, extflag;
 };
@@ -685,7 +686,7 @@ static int ibuf_get_color_clip(float col[4], ImBuf *ibuf, int x, int y, int extf
       x = std::max(x, 0); /* TXF alpha: clip = 1; } */
       if (x >= ibuf->x) {
         x = ibuf->x - 1;
-      }                   /* TXF alpha: clip = 1; } */
+      } /* TXF alpha: clip = 1; } */
       y = std::max(y, 0); /* TXF alpha: clip = 1; } */
       if (y >= ibuf->y) {
         y = ibuf->y - 1;
@@ -693,8 +694,8 @@ static int ibuf_get_color_clip(float col[4], ImBuf *ibuf, int x, int y, int extf
     }
   }
 
-  if (ibuf->float_buffer.data) {
-    const float *fp = ibuf->float_buffer.data + (x + int64_t(y) * ibuf->x) * ibuf->channels;
+  if (ibuf->float_data()) {
+    const float *fp = ibuf->float_data() + (x + int64_t(y) * ibuf->x) * ibuf->channels;
     if (ibuf->channels == 1) {
       col[0] = col[1] = col[2] = col[3] = *fp;
     }
@@ -706,7 +707,7 @@ static int ibuf_get_color_clip(float col[4], ImBuf *ibuf, int x, int y, int extf
     }
   }
   else {
-    const uchar *rect = ibuf->byte_buffer.data + 4 * (x + int64_t(y) * ibuf->x);
+    const uchar *rect = ibuf->byte_data() + 4 * (x + int64_t(y) * ibuf->x);
     float inv_alpha_fac = (1.0f / 255.0f) * rect[3] * (1.0f / 255.0f);
     col[0] = rect[0] * inv_alpha_fac;
     col[1] = rect[1] * inv_alpha_fac;
@@ -718,16 +719,16 @@ static int ibuf_get_color_clip(float col[4], ImBuf *ibuf, int x, int y, int extf
 
 struct ReadEWAData {
   ImBuf *ibuf;
-  const afdata_t *AFD;
+  const AFData *AFD;
 };
 
 static void ewa_read_pixel_cb(void *userdata, int x, int y, float result[4])
 {
-  ReadEWAData *data = (ReadEWAData *)userdata;
+  ReadEWAData *data = static_cast<ReadEWAData *>(userdata);
   ibuf_get_color_clip(result, data->ibuf, x, y, data->AFD->extflag);
 }
 
-static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, const afdata_t *AFD)
+static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, const AFData *AFD)
 {
   ReadEWAData data;
   const float uv[2] = {fx, fy};
@@ -770,7 +771,7 @@ void image_sample(
 void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float result[4])
 {
   TexResult texres = {0};
-  afdata_t AFD;
+  AFData AFD;
 
   AFD.dxt[0] = dx;
   AFD.dxt[1] = dx;
@@ -786,3 +787,5 @@ void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float resu
 
   copy_v4_v4(result, texres.trgba);
 }
+
+}  // namespace blender

@@ -10,7 +10,7 @@
 #pragma once
 
 #include "GHOST_IContext.hh"
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 #include <cstdlib> /* For `nullptr`. */
 
@@ -38,13 +38,16 @@ class GHOST_Context : public GHOST_IContext {
   /**
    * Returns the thread's currently active drawing context.
    */
-  static inline GHOST_Context *getActiveDrawingContext()
+  static GHOST_Context *getActiveDrawingContext()
   {
     return active_context_;
   }
 
+  /** \copydoc #GHOST_IContext::swapBuffersAcquire */
+  GHOST_TSuccess swapBufferAcquire() override = 0;
+
   /** \copydoc #GHOST_IContext::swapBuffers */
-  GHOST_TSuccess swapBuffers() override = 0;
+  GHOST_TSuccess swapBufferRelease() override = 0;
 
   /** \copydoc #GHOST_IContext::activateDrawingContext */
   GHOST_TSuccess activateDrawingContext() override = 0;
@@ -155,8 +158,8 @@ class GHOST_Context : public GHOST_IContext {
 
   /** \copydoc #GHOST_IContext::setVulkanSwapBuffersCallbacks */
   virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
-      std::function<void(const GHOST_VulkanSwapChainData *)> /*swap_buffers_pre_callback*/,
-      std::function<void(void)> /*swap_buffers_post_callback*/,
+      std::function<void(const GHOST_VulkanSwapChainData *, bool)> /*swap_buffer_draw_callback*/,
+      std::function<void(void)> /*swap_buffer_acquired_callback*/,
       std::function<void(GHOST_VulkanOpenXRData *)> /*openxr_acquire_framebuffer_image_callback*/,
       std::function<void(GHOST_VulkanOpenXRData *)> /*openxr_release_framebuffer_image_callback*/)
       override
