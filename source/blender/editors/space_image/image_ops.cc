@@ -6,8 +6,6 @@
  * \ingroup spimage
  */
 
-#include "CLG_log.h"
-
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -91,8 +89,6 @@
 #include "RE_engine.h"
 
 #include "image_intern.hh"
-
-static CLG_LogRef LOG = {"image"};
 
 namespace blender {
 
