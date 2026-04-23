@@ -5281,7 +5281,6 @@ static int do_but_TEXTBOX(bContext *C,
         return data->state == BUTTON_STATE_HIGHLIGHT ? WM_UI_HANDLER_CONTINUE :
                                                        WM_UI_HANDLER_BREAK;
       }
-
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &textbox->rect);
 
@@ -5292,6 +5291,7 @@ static int do_but_TEXTBOX(bContext *C,
       rctf grip_rect = rect;
       grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
 
+      /* Update mouse cursor on mouse move. */
       if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
         if (BLI_rctf_isect_pt(&scroll_rect, UNPACK2(event->xy))) {
           if (textbox->last_total_lines > textbox->visible_lines()) {
