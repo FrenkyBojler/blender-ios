@@ -37,7 +37,7 @@ class TreeElementPoseChannel final : public AbstractTreeElement {
 
  public:
   TreeElementPoseChannel(TreeElement &legacy_te, Object &object, bPoseChannel &pchan);
-  
+
   std::optional<BIFIconID> get_icon() const override
   {
     return ICON_BONE_DATA;

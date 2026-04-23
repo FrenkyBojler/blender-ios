@@ -38,7 +38,8 @@ class TreeElementDeformGroup final : public AbstractTreeElement {
  public:
   TreeElementDeformGroup(TreeElement &legacy_te, Object &object, bDeformGroup &defgroup);
 
-  std::optional<BIFIconID> get_icon() const override {
+  std::optional<BIFIconID> get_icon() const override
+  {
     return ICON_GROUP_VERTEX;
   }
 };

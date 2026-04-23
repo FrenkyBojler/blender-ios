@@ -24,7 +24,8 @@ class TreeElementDriverBase final : public AbstractTreeElement {
 
   void expand(SpaceOutliner &space_outliner) const override;
 
-  std::optional<BIFIconID> get_icon() const override {
+  std::optional<BIFIconID> get_icon() const override
+  {
     return ICON_DRIVER;
   }
 };

@@ -145,9 +145,9 @@ std::optional<BIFIconID> TreeElementModifier::get_icon() const
 {
   Object *ob = reinterpret_cast<Object *>(legacy_te_.store_elem->id);
 
-  ModifierData *md = static_cast<ModifierData *>(BLI_findlink(&ob->modifiers, legacy_te_.store_elem->nr));
-  if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type)))
-  {
+  ModifierData *md = static_cast<ModifierData *>(
+      BLI_findlink(&ob->modifiers, legacy_te_.store_elem->nr));
+  if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type))) {
     return modifier_type->icon;
   }
   else {

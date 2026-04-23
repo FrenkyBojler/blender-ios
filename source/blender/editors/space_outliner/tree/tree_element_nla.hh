@@ -53,7 +53,7 @@ class TreeElementNLAAction final : public AbstractTreeElement {
   std::optional<BIFIconID> get_icon() const override
   {
     return ICON_ACTION;
-  }  
+  }
 };
 
 }  // namespace ed::outliner

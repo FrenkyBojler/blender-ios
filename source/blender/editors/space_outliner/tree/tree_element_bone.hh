@@ -25,7 +25,7 @@ class TreeElementBone final : public AbstractTreeElement {
  public:
   TreeElementBone(TreeElement &legacy_te, ID &armature_id, Bone &bone);
 
-  std::optional<BIFIconID> get_icon() const override 
+  std::optional<BIFIconID> get_icon() const override
   {
     return ICON_BONE_DATA;
   }
