@@ -72,6 +72,8 @@
  *    pointers to virtual member functions.
  */
 
+#include <atomic>
+
 #include "BLI_dynamic_stack_buffer.hh"  // IWYU pragma: keep
 #include "BLI_enum_flags.hh"
 #include "BLI_hash.hh"
@@ -451,8 +453,13 @@ inline bool operator!=(const CPPType &a, const CPPType &b)
 template<typename T> inline const CPPType &CPPType::get()
 {
   /* Store the #CPPType locally to avoid making the function call in most cases. */
-  static const CPPType &type = CPPType::get_impl<std::decay_t<T>>();
-  return type;
+  static std::atomic<const CPPType *> static_type{nullptr};
+  const CPPType *type = static_type.load(std::memory_order_relaxed);
+  if (type == nullptr) [[unlikely]] {
+    type = &CPPType::get_impl<std::decay_t<T>>();
+    static_type.store(type, std::memory_order_relaxed);
+  }
+  return *type;
 }
 
 inline StringRefNull CPPType::name() const
