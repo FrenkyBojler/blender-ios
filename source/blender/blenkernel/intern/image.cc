@@ -245,7 +245,12 @@ static void image_foreach_cache(ID *id,
   constexpr size_t runtime_base_id = size_t(1) << 32u;
 
   key.identifier = runtime_base_id + offsetof(bke::ImageRuntime, cache);
-  function_callback(id, &key, reinterpret_cast<void **>(&image->runtime->cache), 0, user_data);
+  /* TODO: is this the right mechanism? */
+  function_callback(id,
+                    &key,
+                    reinterpret_cast<void **>(&image->runtime->cache),
+                    IDTYPE_CACHE_CB_FLAGS_PERSISTENT,
+                    user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
     constexpr size_t base_offset = offsetof(bke::ImageRuntime, gputexture);
@@ -419,14 +424,12 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   if (ima->autosave_packedfiles.first) {
     for (ImagePackedFile &imapf : ima->autosave_packedfiles.items_mutable()) {
       BKE_packedfile_blend_read(reader, &imapf.packedfile, imapf.filepath);
-      /* TODO: ImBuf handling... */
       if (!imapf.packedfile) {
         BLI_remlink(&ima->autosave_packedfiles, &imapf);
         MEM_delete(&imapf);
       }
     }
   }
-
 
   BLI_assert_msg(BLI_listbase_count(&ima->packedfiles) == 0 ||
                      BLI_listbase_count(&ima->autosave_packedfiles) == 0,
@@ -439,7 +442,7 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
 
   ima->runtime = MEM_new<bke::ImageRuntime>(__func__);
 
-  BKE_image_cache_from_autosave(ima);
+  BKE_image_populate_cache_from_autosave(ima);
 }
 
 static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
@@ -4474,15 +4477,45 @@ static ImBuf *image_load_image_file(
   return ibuf;
 }
 
-void BKE_image_cache_from_autosave(Image *ima) {
+static int image_get_multiview_index(Image *ima, ImageUser *iuser)
+{
+  const bool is_multilayer = BKE_image_is_multilayer(ima);
+  const bool is_backdrop = (ima->source == IMA_SRC_VIEWER) && (ima->type == IMA_TYPE_COMPOSITE) &&
+                           (iuser == nullptr);
+  int index = BKE_image_has_multiple_ibufs(ima) ? 0 : IMA_NO_INDEX;
+
+  if (is_multilayer) {
+    return iuser ? iuser->multi_index : index;
+  }
+  if (is_backdrop) {
+    if (BKE_image_is_stereo(ima)) {
+      /* Backdrop hack / workaround (since there is no `iuser`). */
+      return ima->eye;
+    }
+  }
+  else if (BKE_image_is_multiview(ima)) {
+    return iuser ? iuser->multi_index : index;
+  }
+
+  return index;
+}
+
+void BKE_image_populate_cache_from_autosave(Image *ima)
+{
   if (!(ima->flag & IMA_AUTOSAVE_TEMPPACK)) {
     return;
   }
 
-  printf("Populating imbuf cache from autosave data for %s\n", ima->id.name);
+  std::scoped_lock lock(ima->runtime->cache_mutex);
+
+  const bool tiled = ima->source == IMA_SRC_TILED;
+  const int index = image_get_multiview_index(ima, nullptr);
+
   const int flag = IB_byte_data | IB_multilayer | IB_metadata | imbuf_alpha_flags_for_image(ima);
   for (ImagePackedFile &imapf : ima->autosave_packedfiles) {
     if (imapf.packedfile) {
+      const int entry = tiled ? imapf.tile_number : 0;
+
       ImBuf *ibuf = IMB_load_image_from_memory(
           static_cast<uchar *>(const_cast<void *>(imapf.packedfile->data)),
           imapf.packedfile->size,
@@ -4490,11 +4523,12 @@ void BKE_image_cache_from_autosave(Image *ima) {
           "<packed data>",
           nullptr,
           ima->colorspace_settings.name);
-      imagecache_put(ima, 0, ibuf);
+      ibuf->userflags |= IB_BITMAPDIRTY;
+      image_assign_ibuf(ima, ibuf, index, entry);
+      IMB_freeImBuf(ibuf);
     }
   }
 }
-
 
 static ImBuf *image_get_ibuf_multilayer(Image *ima, ImageUser *iuser)
 {
@@ -4658,29 +4692,6 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
   }
 
   return pass_ibuf;
-}
-
-static int image_get_multiview_index(Image *ima, ImageUser *iuser)
-{
-  const bool is_multilayer = BKE_image_is_multilayer(ima);
-  const bool is_backdrop = (ima->source == IMA_SRC_VIEWER) && (ima->type == IMA_TYPE_COMPOSITE) &&
-                           (iuser == nullptr);
-  int index = BKE_image_has_multiple_ibufs(ima) ? 0 : IMA_NO_INDEX;
-
-  if (is_multilayer) {
-    return iuser ? iuser->multi_index : index;
-  }
-  if (is_backdrop) {
-    if (BKE_image_is_stereo(ima)) {
-      /* Backdrop hack / workaround (since there is no `iuser`). */
-      return ima->eye;
-    }
-  }
-  else if (BKE_image_is_multiview(ima)) {
-    return iuser ? iuser->multi_index : index;
-  }
-
-  return index;
 }
 
 static void image_get_entry_and_index(Image *ima, ImageUser *iuser, int *r_entry, int *r_index)

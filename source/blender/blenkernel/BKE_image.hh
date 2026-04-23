@@ -434,7 +434,7 @@ bool BKE_image_memorypack(Image *ima);
 void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath);
 void BKE_image_packfiles_from_mem(ReportList *reports, Image *ima, char *data, size_t data_len);
 
-void BKE_image_cache_from_autosave(Image *ima);
+void BKE_image_populate_cache_from_autosave(Image *ima);
 bool BKE_image_autosave_memorypack(Image *ima);
 
 /**
