@@ -634,6 +634,7 @@ static void job_write_evaluated_transform_values(MotionPathEvalData &eval_data,
     BLI_assert_unreachable();
     return;
   }
+  float3 point;
   /* If the pose bone pointer is provided, we assume the object should be ignored. */
   if (target->pchan) {
     bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, target->pchan->name);
@@ -642,17 +643,18 @@ static void job_write_evaluated_transform_values(MotionPathEvalData &eval_data,
     }
 
     if (target->mpath->flag & MOTIONPATH_FLAG_BHEAD) {
-      copy_v3_v3(result.points[frame_index], pchan_eval->pose_head);
+      copy_v3_v3(point, pchan_eval->pose_head);
     }
     else {
-      copy_v3_v3(result.points[frame_index], pchan_eval->pose_tail);
+      copy_v3_v3(point, pchan_eval->pose_tail);
     }
 
-    mul_m4_v3(ob_eval->object_to_world().ptr(), result.points[frame_index]);
+    mul_m4_v3(ob_eval->object_to_world().ptr(), point);
   }
   else {
-    copy_v3_v3(result.points[frame_index], ob_eval->object_to_world().location());
+    copy_v3_v3(point, ob_eval->object_to_world().location());
   }
+  result.points[frame_index] = point;
 }
 
 /* This is the function that runs in a thread. */
