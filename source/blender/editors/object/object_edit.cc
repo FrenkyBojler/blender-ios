@@ -1348,41 +1348,9 @@ void motion_paths_recalc(bContext *C,
     animviz_build_motionpath_targets(ob, targets);
   }
 
-  Depsgraph *depsgraph;
-  bool free_depsgraph = false;
-  /* For a single frame update it's faster to re-use existing dependency graph and avoid overhead
-   * of building all the relations and so on for a temporary one. */
-  if (range == OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
-    /* NOTE: Dependency graph will be evaluated at all the frames, but we first need to access some
-     * nested pointers, like animation data. */
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    free_depsgraph = false;
-  }
-  else {
-    depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
-    free_depsgraph = true;
-  }
-
   animviz_calc_motionpaths_async(
       bmain, CTX_wm_manager(C), CTX_wm_window(C), scene, view_layer, targets);
   animviz_free_motionpath_targets(targets);
-
-  if (range != OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
-    /* Tag objects for copy-on-eval - so paths will draw/redraw
-     * For currently frame only we update evaluated object directly. */
-    for (LinkData &link : *ld_objects) {
-      Object *ob = static_cast<Object *>(link.data);
-
-      if (has_object_motion_paths(ob) || has_pose_motion_paths(ob)) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-      }
-    }
-  }
-
-  /* Free temporary depsgraph. */
-  if (free_depsgraph) {
-    DEG_graph_free(depsgraph);
-  }
 }
 
 /* show popup to determine settings */

@@ -1303,6 +1303,7 @@ void animviz_calc_motionpaths_async(Main *bmain,
                                     Scene *scene,
                                     ViewLayer *view_layer,
                                     Span<MPathTarget *> targets);
+
 /**
  * Update motion path computation range (in `ob.avs` or `armature.avs`) from user choice in
  * `ob.avs.path_range` or `arm.avs.path_range`, depending on active user mode.
