@@ -181,7 +181,10 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
         }
         else {
           replace_bezt_keyframe_ypos(&fcu->bezt[i], bezt);
-          /* Overwrite 'generated' keyframe type with the new keyframe type. */
+          /* Overwrite 'generated' keyframe type with the new type. Once a user updates the key it
+           * is no longer considered "generated". This also applies when the function is
+           * called from Python, however the desired keyframe type may be set to "generated" when
+           * called. */
           if (BEZKEYTYPE(&fcu->bezt[i]) == BEZT_KEYTYPE_GENERATED) {
             BEZKEYTYPE_LVALUE(&fcu->bezt[i]) = BEZKEYTYPE(bezt);
           }
