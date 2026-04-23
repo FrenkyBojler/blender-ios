@@ -474,21 +474,6 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_socket_type_itemf(
       ntree->typeinfo, rna_NodeTreeInterfaceSocket_socket_type_poll, r_free);
 }
 
-static bool rna_NodeTreeInterfaceSocket_is_panel_toggle_get(PointerRNA *ptr)
-{
-  bNodeTree &ntree = *blender::id_cast<bNodeTree *>(ptr->owner_id);
-  bNodeTreeInterfaceSocket &io_socket = *static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
-  const bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(io_socket.socket_type);
-  BLI_assert(base_typeinfo);
-  bNodeTreeInterfacePanel *parent = ntree.tree_interface.find_item_parent(io_socket.item);
-
-  /* Ignore flag for non-boolean and root sockets. */
-  if (base_typeinfo->type != SOCK_BOOLEAN || !parent) {
-    return false;
-  }
-  return (io_socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) != 0;
-}
-
 static void rna_NodeTreeInterfaceSocket_is_panel_toggle_set(PointerRNA *ptr, bool value)
 {
   bNodeTree &ntree = *blender::id_cast<bNodeTree *>(ptr->owner_id);
@@ -1294,7 +1279,8 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "is_panel_toggle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs(prop, "rna_NodeTreeInterfaceSocket_is_panel_toggle_get", "rna_NodeTreeInterfaceSocket_is_panel_toggle_set");
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_NodeTreeInterfaceSocket_is_panel_toggle_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop,
                            "Is Panel Toggle",
