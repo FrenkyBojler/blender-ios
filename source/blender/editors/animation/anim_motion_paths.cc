@@ -801,9 +801,13 @@ void animviz_calc_motionpaths_async(Main *bmain,
     else {
       /* If something about the job data has changed we have to wait for the thread to stop and
        * rebuild it from scratch. */
-      for (MPathTarget &target : job_data->targets) {
-        animviz_stop_motionpath_job(target.mpath);
-      }
+      WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+      wm_job = WM_jobs_get(wm,
+                           window,
+                           scene,
+                           "Evaluate Motion Path Frame",
+                           eWM_JobFlag(0),
+                           WM_JOB_TYPE_MOTION_PATH_EVAL);
     }
   }
 
