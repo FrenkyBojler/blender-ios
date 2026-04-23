@@ -594,6 +594,7 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   BLI_assert(eval_data->targets.size() == eval_data->results.size());
   BLI_assert(!eval_data->frame_range.is_empty());
   BLI_assert(eval_data->frame_range.contains(eval_data->evaluation_center));
+  BLI_assert(!DEG_is_active(eval_data->depsgraph));
 
 restart:
   eval_data->evaluated_frames.fill(false);
@@ -676,7 +677,8 @@ static void flush_to_motion_path(MotionPathEvalData &eval_data)
       }
       copy_v3_v3(target->mpath->points[frame_index].co, result[frame_index]);
     }
-    DEG_id_tag_update(&target->ob->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(&target->ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
+    WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, target->ob);
   }
 }
 
@@ -684,16 +686,12 @@ static void update_job(void *job_data)
 {
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   flush_to_motion_path(*eval_data);
-  DEG_id_tag_update(&eval_data->scene->id, ID_RECALC_ALL);
-  WM_main_add_notifier(NC_SCENE | ND_FRAME, eval_data->scene);
 }
 
 static void finish_job(void *job_data)
 {
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   flush_to_motion_path(*eval_data);
-  DEG_id_tag_update(&eval_data->scene->id, ID_RECALC_ALL);
-  WM_main_add_notifier(NC_SCENE | ND_FRAME, eval_data->scene);
 }
 
 static void free_job_data(void *job_data)
@@ -781,7 +779,6 @@ void animviz_calc_motionpaths_async(Main *bmain,
   job_data->scene = scene;
 
   WM_jobs_customdata_set(wm_job, job_data, free_job_data);
-  WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, 0);
   WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
   WM_jobs_start(wm, wm_job);
 }
