@@ -195,7 +195,7 @@ struct Button : NonMovable {
 
   ButtonType type = ButtonType(0);
   ButPointerType pointype = ButPointerType::None;
-  bool bit = 0;
+  bool bit = false;
   /* 0-31 bit index. */
   char bitnr = 0;
 
@@ -365,6 +365,28 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+struct TextWrapCache {
+  int wrap_width = 0;
+  float aspect = 0.0f;
+  std::string text;
+  Vector<StringRef> wrapped_lines;
+};
+
+/** Derived struct for #ButtonType::TextBox */
+struct ButtonTextBox : public Button {
+
+  /** Total number of wrapped lines in the last text-box redraw/event handling. */
+  int last_total_lines = 0;
+
+  TextboxState *state;
+
+  /** Wrap cache from last redraw/event handling. */
+  std::unique_ptr<TextWrapCache> wrap_cache;
+  void line_scroll_set(int line_scroll);
+  int line_scroll() const;
+  int visible_lines() const;
+};
+
 /** Derived struct for #ButtonType::But */
 struct ButtonPush : public Button {
   bool draw_as_link = false;
@@ -453,6 +475,8 @@ struct ButtonSeparatorLine : public Button {
 /** Derived struct for #ButtonType::Label. */
 struct ButtonLabel : public Button {
   float alpha_factor = 1.0f;
+  /** When the button draws an icon, also draw a mono-colored border for it. */
+  bool draw_icon_border = false;
 };
 
 /** Derived struct for #ButtonType::Scroll. */
@@ -1214,11 +1238,13 @@ void draw_but_HISTOGRAM(ARegion *region,
                         Button *but,
                         const uiWidgetColors *wcol,
                         const rcti *recti);
-void draw_but_WAVEFORM(ARegion *region,
+void draw_but_WAVEFORM(const bContext *C,
+                       ARegion *region,
                        Button *but,
                        const uiWidgetColors *wcol,
                        const rcti *recti);
-void draw_but_VECTORSCOPE(ARegion *region,
+void draw_but_VECTORSCOPE(const bContext *C,
+                          ARegion *region,
                           Button *but,
                           const uiWidgetColors *wcol,
                           const rcti *recti);
@@ -1309,6 +1335,8 @@ bool button_rna_equals_ex(const Button *but,
                           int index);
 Button *button_find_old(Block *block_old, const Button *but_new);
 Button *button_find_new(Block *block_new, const Button *but_old);
+/** Scaled text padding within the but widget box. */
+int button_text_padding(const Button *but);
 
 #ifdef WITH_INPUT_IME
 void button_ime_reposition(Button *but, int x, int y, bool complete);

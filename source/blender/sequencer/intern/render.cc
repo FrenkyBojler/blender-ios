@@ -242,7 +242,7 @@ StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *st
   const int y = context->recty;
   const float2 offset{x * 0.5f, y * 0.5f};
 
-  Array<float2> quad = image_transform_final_quad_get(scene, strip);
+  Array<float2> quad = image_transform_quad_get(scene, strip);
   const float scale = get_render_scale_factor(*context);
   return StripScreenQuad{float2(quad[0] * scale + offset),
                          float2(quad[1] * scale + offset),
@@ -637,8 +637,8 @@ static ImBuf *input_preprocess(const RenderData *context,
                                                   context->recty,
                                                   image_scale_factor,
                                                   preview_scale_factor);
-    ModifierApplyContext mod_context(*context, *state, *strip, matrix, ibuf);
-    modifier_apply_stack(mod_context, timeline_frame);
+    ModifierApplyContext mod_context(*context, *state, *strip, matrix, timeline_frame, ibuf);
+    modifier_apply_stack(mod_context);
     modifier_translation = mod_context.result_translation;
   }
 
