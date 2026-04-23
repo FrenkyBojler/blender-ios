@@ -220,8 +220,6 @@ class CPPType : NonCopyable, NonMovable {
    * `BLI_CPP_TYPE_MAKE`.
    */
   template<typename T> static const CPPType &get();
-  template<typename T> static const CPPType **get_ptr();
-  template<typename T> static const CPPType &get_impl();
 
   /**
    * Returns the name of the type for debugging purposes. This name should not be used as
@@ -424,6 +422,8 @@ class CPPType : NonCopyable, NonMovable {
   }
 };
 
+template<typename T> inline TypedBuffer<CPPType> cpp_type_impl{};
+
 /**
  * Initialize and register basic cpp types.
  */
@@ -435,7 +435,7 @@ void register_cpp_types();
   void *variable_name = stack_buffer_for_##variable_name.buffer();
 
 /* Give a compile error instead of a link error when type information is missing. */
-template<> const CPPType &CPPType::get_impl<void>() = delete;
+template<> const CPPType &CPPType::get<void>() = delete;
 
 /**
  * Two types only compare equal when their pointer is equal. No two instances of CPPType for the
@@ -453,18 +453,10 @@ inline bool operator!=(const CPPType &a, const CPPType &b)
 
 template<typename T> inline const CPPType &CPPType::get()
 {
-  const CPPType *type = *CPPType::get_ptr<std::decay_t<T>>();
+  const CPPType &type = cpp_type_impl<std::decay_t<T>>.ref();
   /* Should have been initialized by #BLI_CPP_TYPE_REGISTER. */
-  BLI_assert(type != nullptr);
-  return *type;
-}
-
-template<typename T> inline const CPPType **CPPType::get_ptr()
-{
-  static_assert(std::is_same_v<T, std::decay_t<T>>);
-  /* This will be initialized by #BLI_CPP_TYPE_REGISTER. */
-  static const CPPType *type = nullptr;
-  return &type;
+  BLI_assert(type.size > 0);
+  return type;
 }
 
 inline StringRefNull CPPType::name() const

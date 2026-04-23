@@ -461,17 +461,9 @@ CPPType::CPPType(TypeTag<T> /*type*/,
   this->is_move_assignable = move_assign_ != nullptr;
 }
 
-/** Create a new #CPPType that can be accessed through `CPPType::get<T>()`. */
-#define BLI_CPP_TYPE_MAKE(TYPE_NAME, FLAGS) \
-  template<> const CPPType &CPPType::get_impl<TYPE_NAME>() \
-  { \
-    static CPPType type{ \
-        TypeTag<TYPE_NAME>(), TypeForValue<CPPTypeFlags, FLAGS>(), STRINGIFY(TYPE_NAME)}; \
-    return type; \
-  }
-
-/** Register a #CPPType created with #BLI_CPP_TYPE_MAKE. */
-#define BLI_CPP_TYPE_REGISTER(TYPE_NAME) \
-  *CPPType::get_ptr<TYPE_NAME>() = &CPPType::get_impl<TYPE_NAME>()
+/** Register a #CPPType created with #CPPType::get<T>(). */
+#define BLI_CPP_TYPE_REGISTER(TYPE_NAME, FLAGS) \
+  new (cpp_type_impl<TYPE_NAME>.ptr()) \
+      CPPType(TypeTag<TYPE_NAME>(), TypeForValue<CPPTypeFlags, FLAGS>(), STRINGIFY(TYPE_NAME))
 
 }  // namespace blender
