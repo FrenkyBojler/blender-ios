@@ -103,6 +103,10 @@ class SocketValueVariant2 {
  private:
   template<typename T> T &init_default();
   void *init_default(const CPPType &type);
+
+ public:
+  template<typename T> static T &init_default(detail::SocketValueVariantAny &value);
+  static void *init_default(const CPPType &type, detail::SocketValueVariantAny &value);
 };
 
 template<typename T>
@@ -145,6 +149,7 @@ template<typename T> inline T &SocketValueVariant2::ensure_type()
       return value_.get<T>();
     }
     info.convert_to(requested_type, value_);
+    BLI_assert(value_.extra_info().is_interpretable_as(requested_type, value_));
     return value_.get<T>();
   }
 }
@@ -229,10 +234,12 @@ inline GMutablePointer SocketValueVariant2::get()
 
 template<typename T> inline T &SocketValueVariant2::init_default()
 {
-  using StorageT = to_storage_type<T>;
-  if constexpr (std::is_same_v<T, StorageT>) {
-    return value_.emplace<T>();
-  }
+  return SocketValueVariant2::init_default<T>(value_);
+}
+
+inline void *SocketValueVariant2::init_default(const CPPType &type)
+{
+  return SocketValueVariant2::init_default(type, value_);
 }
 
 }  // namespace blender::bke
