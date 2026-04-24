@@ -27,18 +27,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   brush.generic
   brush.gpencil_draw.erase
   brush.gpencil_draw.fill
-  brush.paint_texture.clone
-  brush.paint_texture.soften
-  brush.paint_texture.smear
-  brush.paint_texture.fill
-  brush.paint_texture.mask
-  brush.paint_vertex.average
-  brush.paint_vertex.blur
-  brush.paint_vertex.replace
-  brush.paint_vertex.smear
-  brush.paint_weight.average
-  brush.paint_weight.blur
-  brush.paint_weight.smear
   brush.particle.add
   brush.particle.comb
   brush.particle.cut
@@ -46,13 +34,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   brush.particle.puff
   brush.particle.smooth
   brush.particle.weight
-  brush.sculpt.displacement_eraser
-  brush.sculpt.displacement_smear
-  brush.sculpt.draw_face_sets
-  brush.sculpt.mask
   brush.sculpt
-  brush.sculpt.paint
-  brush.sculpt.simplify
   brush.uv_sculpt.grab
   brush.uv_sculpt.pinch
   brush.uv_sculpt.relax
@@ -66,9 +48,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.curve.pen
   ops.curve.radius
   ops.curve.vertex_random
-  ops.curves.sculpt_add
-  ops.curves.sculpt_delete
-  ops.curves.sculpt_density
   ops.generic.cursor
   ops.generic.select
   ops.generic.select_box
@@ -82,7 +61,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.gpencil.edit_bend
   ops.gpencil.edit_mirror
   ops.gpencil.edit_shear
-  ops.gpencil.edit_to_sphere
   ops.gpencil.extrude_move
   ops.gpencil.primitive_arc
   ops.gpencil.primitive_box
@@ -91,12 +69,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.gpencil.primitive_line
   ops.gpencil.primitive_polyline
   ops.gpencil.radius
-  ops.gpencil.sculpt_average
-  ops.gpencil.sculpt_blur
-  ops.gpencil.sculpt_clone
-  ops.gpencil.sculpt_smear
-  ops.gpencil.stroke_trim
-  ops.gpencil.transform_fill
+  ops.gpencil.stroke_cutter
   ops.mesh.bevel
   ops.mesh.bisect
   ops.mesh.dupli_extrude_cursor
@@ -112,9 +85,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.mesh.primitive_cone_add_gizmo
   ops.mesh.primitive_cube_add_gizmo
   ops.mesh.primitive_cylinder_add_gizmo
-  ops.mesh.primitive_grid_add_gizmo
   ops.mesh.primitive_sphere_add_gizmo
-  ops.mesh.primitive_torus_add_gizmo
   ops.mesh.rip
   ops.mesh.rip_edge
   ops.mesh.spin
@@ -123,7 +94,6 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   ops.node.links_cut
   ops.node.links_mute
   ops.paint.eyedropper_add
-  ops.paint.vertex_color_fill
   ops.paint.weight_fill
   ops.paint.weight_gradient
   ops.paint.weight_sample
