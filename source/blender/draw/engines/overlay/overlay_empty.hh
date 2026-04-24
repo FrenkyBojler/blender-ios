@@ -125,7 +125,9 @@ class Empties : Overlay {
       image_sync(ob_ref, select_id, manager, res, state, call_buffers_.image_buf);
       return;
     }
-    if (ob_ref.object->runtime && !ob_ref.object->runtime->geometry_set_eval->is_empty()) {
+    if (ob_ref.object->runtime && ob_ref.object->runtime->geometry_set_eval &&
+        !ob_ref.object->runtime->geometry_set_eval->is_empty())
+    {
       return;
     }
     object_sync(select_id,
