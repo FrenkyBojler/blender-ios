@@ -244,13 +244,13 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     if (path->npts == 0) {
       continue;
     }
-    const bool closed = bool(path->closed);
+    const IndexRange points = points_by_curve[curve_index];
+
+    const bool closed = bool(path->closed) || (points.size() * 3 - 2 != path->npts);
     cyclic[curve_index] = closed;
 
     /* 2D vectors in triplets: [control point, left handle, right handle]. */
     const Span<float2> svg_path_data = Span<float>(path->pts, 2 * path->npts).cast<float2>();
-
-    const IndexRange points = points_by_curve[curve_index];
     const ColorGeometry4f point_color = convert_svg_color(shape.stroke);
 
     /* Handle first point separately. */
