@@ -341,23 +341,25 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
 
   /* To continue scroll during drag when mouse is slightly outside the view, find the view with
    * extra padding (UI_UNIT_Y). */
-  if (AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y)) {
+  if (AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y * 2)) {
     /* If we are above a tree, but not hovering any specific element, dropping something should
      * insert it after the last item. */
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
       /* Find the last item which we want to drop below. */
-      AbstractTreeViewItem *last_item = nullptr;
+      AbstractTreeViewItem *border_item = nullptr;
       tree_view->foreach_root_item([&](AbstractTreeViewItem &item) {
         if (!item.is_interactive()) {
           return;
         }
-        last_item = &item;
-      });
-      if (last_item) {
-        std::optional<rctf> rct = last_item->get_win_rect(*region);
-        if (rct && xy[1] < rct->ymin) {
-          return last_item->create_item_drop_target();
+        std::optional<rctf> rct = item.get_win_rect(*region);
+        if (rct.has_value()) {
+          if ((!border_item && (xy[1] > rct->ymax)) || (xy[1] < rct->ymin)) {
+            border_item = &item;
+          }
         }
+      });
+      if (border_item) {
+        return border_item->create_item_drop_target();
       }
     }
   }
