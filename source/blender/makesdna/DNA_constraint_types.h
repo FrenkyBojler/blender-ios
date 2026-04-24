@@ -146,10 +146,10 @@ enum eBConstraint_Flags {
 #endif
   /* Constraint is disabled because it is considered invalid. `is_valid` in RNA. */
   CONSTRAINT_DISABLE = (1 << 2),
-  #ifdef DNA_DEPRECATED_ALLOW
+#ifdef DNA_DEPRECATED_ALLOW
   /* to indicate which Ipo should be shown, maybe for 3d access later too */
   CONSTRAINT_ACTIVE = (1 << 4),
-  #endif
+#endif
   /* to indicate that the owner's space should only be changed into ownspace, but not out of it */
   CONSTRAINT_SPACEONCE = (1 << 6),
   /* influence ipo is on constraint itself, not in action channel */
