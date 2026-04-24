@@ -361,21 +361,6 @@ static void rna_Itasc_update_rebuild(Main *bmain, Scene *scene, PointerRNA *ptr)
   rna_Itasc_update(bmain, scene, ptr);
 }
 
-static PointerRNA rna_PoseChannel_active_constraint_get(PointerRNA *ptr)
-{
-  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
-  bConstraint *con = BKE_constraints_active_get(&pchan->constraints);
-  return RNA_pointer_create_with_parent(*ptr, RNA_Constraint, con);
-}
-
-static void rna_PoseChannel_active_constraint_set(PointerRNA *ptr,
-                                                  PointerRNA value,
-                                                  ReportList * /*reports*/)
-{
-  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
-  BKE_constraints_active_set(&pchan->constraints, static_cast<bConstraint *>(value.data));
-}
-
 static bConstraint *rna_PoseChannel_constraints_new(ID *id,
                                                     bPoseChannel *pchan,
                                                     Main *main,
@@ -408,9 +393,6 @@ static void rna_PoseChannel_constraints_remove(
 
   ed::object::constraint_update(bmain, ob);
   DEG_relations_tag_update(bmain);
-
-  /* XXX(@ideasman42): is this really needed? */
-  BKE_constraints_active_set(&pchan->constraints, nullptr);
 
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, id);
 
@@ -766,17 +748,6 @@ static void rna_def_pose_channel_constraints(BlenderRNA *brna, PropertyRNA *cpro
   srna = RNA_def_struct(brna, "PoseBoneConstraints", nullptr);
   RNA_def_struct_sdna(srna, "bPoseChannel");
   RNA_def_struct_ui_text(srna, "PoseBone Constraints", "Collection of pose bone constraints");
-
-  /* Collection active property */
-  prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "Constraint");
-  RNA_def_property_pointer_funcs(prop,
-                                 "rna_PoseChannel_active_constraint_get",
-                                 "rna_PoseChannel_active_constraint_set",
-                                 nullptr,
-                                 nullptr);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Active Constraint", "Active PoseChannel constraint");
 
   /* Constraint collection */
   func = RNA_def_function(srna, "new", "rna_PoseChannel_constraints_new");

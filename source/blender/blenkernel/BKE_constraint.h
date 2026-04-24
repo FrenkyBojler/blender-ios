@@ -210,15 +210,6 @@ void BKE_constraint_free_data_ex(struct bConstraint *con, bool do_id_user);
 bool BKE_constraint_target_uses_bbone(struct bConstraint *con, struct bConstraintTarget *ct);
 
 /* Constraint API function prototypes */
-
-/**
- * Finds the 'active' constraint in a constraint stack.
- */
-struct bConstraint *BKE_constraints_active_get(ListBaseT<bConstraint> *list);
-/**
- * Set the given constraint as the active one (clearing all the others).
- */
-void BKE_constraints_active_set(ListBaseT<bConstraint> *list, struct bConstraint *con);
 struct bConstraint *BKE_constraints_find_name(ListBaseT<bConstraint> *list, const char *name);
 
 /**

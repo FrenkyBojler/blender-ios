@@ -1567,21 +1567,6 @@ static PointerRNA rna_Object_collision_get(PointerRNA *ptr)
   return RNA_pointer_create_with_parent(*ptr, RNA_CollisionSettings, ob->pd);
 }
 
-static PointerRNA rna_Object_active_constraint_get(PointerRNA *ptr)
-{
-  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  bConstraint *con = BKE_constraints_active_get(&ob->constraints);
-  return RNA_pointer_create_with_parent(*ptr, RNA_Constraint, con);
-}
-
-static void rna_Object_active_constraint_set(PointerRNA *ptr,
-                                             PointerRNA value,
-                                             ReportList * /*reports*/)
-{
-  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_constraints_active_set(&ob->constraints, static_cast<bConstraint *>(value.data));
-}
-
 static bConstraint *rna_Object_constraints_new(Object *object, Main *bmain, int type)
 {
   bConstraint *new_con = BKE_constraint_add_for_object(object, nullptr, type);
@@ -1614,7 +1599,6 @@ static void rna_Object_constraints_remove(Object *object,
   con_ptr->invalidate();
 
   ed::object::constraint_update(bmain, object);
-  ed::object::constraint_active_set(object, nullptr);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, object);
 }
 
@@ -1623,7 +1607,6 @@ static void rna_Object_constraints_clear(Object *object, Main *bmain)
   BKE_constraints_free(&object->constraints);
 
   ed::object::constraint_update(bmain, object);
-  ed::object::constraint_active_set(object, nullptr);
 
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, object);
 }
@@ -2450,17 +2433,6 @@ static void rna_def_object_constraints(BlenderRNA *brna, PropertyRNA *cprop)
   srna = RNA_def_struct(brna, "ObjectConstraints", nullptr);
   RNA_def_struct_sdna(srna, "Object");
   RNA_def_struct_ui_text(srna, "Object Constraints", "Collection of object constraints");
-
-  /* Collection active property */
-  prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "Constraint");
-  RNA_def_property_pointer_funcs(prop,
-                                 "rna_Object_active_constraint_get",
-                                 "rna_Object_active_constraint_set",
-                                 nullptr,
-                                 nullptr);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Active Constraint", "Active Object constraint");
 
   /* Constraint collection */
   func = RNA_def_function(srna, "new", "rna_Object_constraints_new");

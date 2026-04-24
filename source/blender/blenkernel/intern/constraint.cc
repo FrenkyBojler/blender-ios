@@ -6177,9 +6177,6 @@ static void add_new_constraint_to_list(Object *ob, bPoseChannel *pchan, bConstra
      */
     BLI_addtail(list, con);
     BKE_constraint_unique_name(con, list);
-
-    /* make this constraint the active one */
-    BKE_constraints_active_set(list, con);
   }
 }
 
@@ -6386,37 +6383,6 @@ void BKE_constraints_copy(ListBaseT<bConstraint> *dst,
 bConstraint *BKE_constraints_find_name(ListBaseT<bConstraint> *list, const char *name)
 {
   return static_cast<bConstraint *>(BLI_findstring(list, name, offsetof(bConstraint, name)));
-}
-
-bConstraint *BKE_constraints_active_get(ListBaseT<bConstraint> *list)
-{
-
-  /* search for the first constraint with the 'active' flag set */
-  if (list) {
-    for (bConstraint &con : *list) {
-      if (con.flag & CONSTRAINT_ACTIVE) {
-        return &con;
-      }
-    }
-  }
-
-  /* no active constraint found */
-  return nullptr;
-}
-
-void BKE_constraints_active_set(ListBaseT<bConstraint> *list, bConstraint *con)
-{
-
-  if (list) {
-    for (bConstraint &con_iter : *list) {
-      if (&con_iter == con) {
-        con_iter.flag |= CONSTRAINT_ACTIVE;
-      }
-      else {
-        con_iter.flag &= ~CONSTRAINT_ACTIVE;
-      }
-    }
-  }
 }
 
 static bConstraint *constraint_list_find_from_target(ListBaseT<bConstraint> *constraints,

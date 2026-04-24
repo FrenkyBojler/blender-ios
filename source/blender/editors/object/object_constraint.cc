@@ -149,11 +149,6 @@ ListBaseT<bConstraint> *constraint_list_from_constraint(Object *ob,
   return nullptr;
 }
 
-bConstraint *constraint_active_get(Object *ob)
-{
-  return BKE_constraints_active_get(constraint_active_list(ob));
-}
-
 /** \} */
 
 /* ------------------------------------------------------------------- */
@@ -1282,19 +1277,6 @@ void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
 /* ------------------------------------------------------------------- */
 /** \name Constraint Management Utilities
  * \{ */
-
-void constraint_active_set(Object *ob, bConstraint *con)
-{
-  ListBaseT<bConstraint> *lb = constraint_list_from_constraint(ob, con, nullptr);
-
-  /* lets be nice and escape if its active already */
-  /* NOTE: this assumes that the stack doesn't have other active ones set... */
-  if ((lb && con) && (con->flag & CONSTRAINT_ACTIVE)) {
-    return;
-  }
-
-  BKE_constraints_active_set(lb, con);
-}
 
 void constraint_update(Main *bmain, Object *ob)
 {

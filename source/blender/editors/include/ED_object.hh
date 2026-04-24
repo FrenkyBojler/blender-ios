@@ -420,14 +420,9 @@ ListBaseT<bConstraint> *pose_constraint_list(const bContext *C);
 ListBaseT<bConstraint> *constraint_list_from_constraint(Object *ob,
                                                         bConstraint *con,
                                                         bPoseChannel **r_pchan);
-/**
- * Single constraint.
- */
-bConstraint *constraint_active_get(Object *ob);
 
 void object_test_constraints(Main *bmain, Object *ob);
 
-void constraint_active_set(Object *ob, bConstraint *con);
 void constraint_update(Main *bmain, Object *ob);
 void constraint_dependency_update(Main *bmain, Object *ob);
 

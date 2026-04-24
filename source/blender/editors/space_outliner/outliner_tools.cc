@@ -2298,9 +2298,6 @@ static void constraint_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/
     }
 
     if (BKE_constraint_remove_ex(lb, ob, constraint)) {
-      /* there's no active constraint now, so make sure this is the case */
-      BKE_constraints_active_set(&ob->constraints, nullptr);
-
       /* Needed to set the flags on pose-bones correctly. */
       object::constraint_update(bmain, ob);
 

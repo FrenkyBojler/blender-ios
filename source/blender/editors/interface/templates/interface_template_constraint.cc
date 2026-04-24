@@ -33,12 +33,6 @@
 
 namespace blender::ui {
 
-static void constraint_active_func(bContext * /*C*/, void *ob_v, void *con_v)
-{
-  ed::object::constraint_active_set(static_cast<Object *>(ob_v),
-                                    static_cast<bConstraint *>(con_v));
-}
-
 static void constraint_ops_extra_draw(bContext *C, Layout *layout, void *con_v)
 {
   PointerRNA op_ptr;
@@ -101,9 +95,7 @@ static void constraint_ops_extra_draw(bContext *C, Layout *layout, void *con_v)
 
 static void draw_constraint_header(Layout &layout, Object *ob, bConstraint *con)
 {
-  /* unless button has its own callback, it adds this callback to button */
   Block *block = layout.block();
-  block_func_set(block, constraint_active_func, ob, con);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Constraint, con);
 

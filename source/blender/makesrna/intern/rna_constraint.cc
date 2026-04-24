@@ -3869,11 +3869,6 @@ void RNA_def_constraint(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", CONSTRAINT_DISABLE);
   RNA_def_property_ui_text(prop, "Valid", "Constraint has valid settings and can be evaluated");
 
-  /* TODO: setting this to true must ensure that all others in stack are turned off too... */
-  prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CONSTRAINT_ACTIVE);
-  RNA_def_property_ui_text(prop, "Active", "Constraint is the one being edited");
-
   /* values */
   prop = RNA_def_property(srna, "influence", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "enforce");
