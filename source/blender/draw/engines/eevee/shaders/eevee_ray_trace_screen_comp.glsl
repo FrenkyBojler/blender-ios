@@ -98,7 +98,6 @@ void main()
                           hiz_front_tx,
                           rand_trace,
                           roughness,
-                          true,  /* discard_backface */
                           false, /* allow_self_intersection */
                           ray_view);
 
@@ -109,6 +108,15 @@ void main()
       float3 history_ss_hit_P = history_ndc_hit_P * 0.5f + 0.5f;
       /* Fetch radiance at hit-point. */
       radiance = textureLod(radiance_front_tx, history_ss_hit_P.xy, 0.0f).rgb;
+
+      if (hit.hit_backface) {
+        if (true /* TODO add option */) {
+          radiance = float3(0.0f);
+        }
+        else {
+          hit.valid = false;
+        }
+      }
     }
   }
   else if (trace_refraction) {
@@ -117,8 +125,7 @@ void main()
                           hiz_back_tx,
                           rand_trace,
                           roughness,
-                          false, /* discard_backface */
-                          true,  /* allow_self_intersection */
+                          true, /* allow_self_intersection */
                           ray_view);
 
     if (hit.valid) {
