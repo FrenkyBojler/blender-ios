@@ -14,6 +14,7 @@
 #  include <harfbuzz/hb.h>
 #endif
 
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
@@ -43,17 +44,20 @@ void ShapingData::legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *st
   std::u32string str32(char_count + 1, 0);
   BLI_str_utf8_as_utf32(str32.data(), str, char_count + 1);
   size_t offset = 0;
-
   for (size_t i = 0; i < char_count; i++) {
-    char32_t codepoint = str32[i];
+    const char32_t codepoint = str32[i];
     GlyphBLF *g = blf_glyph_ensure(font, gc, codepoint);
-    g = blf_glyph_ensure_subpixel(font, gc, g, this->width);
+    g = blf_glyph_ensure_subpixel(font, gc, g, this->bounds.xmax);
     if (g) {
-      rcti bounds = {
-          this->width, this->width + g->box_xmax - g->box_xmin, 0, g->box_ymax - g->box_ymin};
+      rcti bounds = {this->bounds.xmax,
+                     this->bounds.xmax + g->box_xmax - g->box_xmin,
+                     0,
+                     g->box_ymax - g->box_ymin};
       this->glyphs.append({font, gc, g, bounds, offset});
-      this->width += g->advance_x;
-      this->height = std::max(this->height, g->box_ymax - g->box_ymin);
+      this->bounds.xmin = std::min(this->bounds.xmin, bounds.xmin);
+      this->bounds.xmax += g->advance_x;
+      this->bounds.ymin = std::min(this->bounds.ymin, g->box_ymin);
+      this->bounds.ymax = std::max(this->bounds.ymax, g->box_ymax);
       offset += size_t(BLI_str_utf8_from_unicode_len(codepoint));
     }
   }
@@ -110,8 +114,8 @@ bool ShapingData::load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *
     GlyphBLF *g = blf_glyph_ensure(font, gc, glyph.charcode, glyph.glyph_id, glyph.subpixel);
     this->glyphs.append({font, gc, g, glyph.bounds, glyph.index_utf8});
   }
-  this->width = cached->width;
-  this->height = cached->height;
+
+  this->bounds = cached->bounds;
 
   return true;
 }
@@ -254,8 +258,6 @@ ShapingData::ShapingData(FontBLF *font,
       segment_font->flags |= BLF_MONOSPACED;
     }
 
-    ft_pix pen_x = this->width; /* Continue from previous segment. */
-    int max_height = this->height;
     int cwidth = std::max(gc->fixed_width, 1);
     uint glyph_count;
     hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
@@ -287,7 +289,7 @@ ShapingData::ShapingData(FontBLF *font,
 
       if (UNLIKELY(g == nullptr)) {
         /* Still advance pen for missing glyphs using HarfBuzz-provided advance. */
-        pen_x += advance;
+        this->bounds.xmax += advance;
         glyph_str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
         continue;
       }
@@ -297,10 +299,10 @@ ShapingData::ShapingData(FontBLF *font,
         g->box_xmax = g->box_xmin + advance;
       }
 
-      g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, pen_x);
+      g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, this->bounds.xmax);
 
-      rcti bounds = {pen_x + glyph_pos[i].x_offset,
-                     pen_x + g->box_xmax + glyph_pos[i].x_offset,
+      rcti bounds = {this->bounds.xmax + glyph_pos[i].x_offset,
+                     this->bounds.xmax + g->box_xmax + glyph_pos[i].x_offset,
                      glyph_pos[i].y_offset,
                      g->box_ymax + glyph_pos[i].y_offset};
 
@@ -309,12 +311,10 @@ ShapingData::ShapingData(FontBLF *font,
       // for RTL (maybe):
       // this->glyphs.append({segment_font, segment_gc, g, bounds, glyph_str8_offset});
 
-      pen_x += advance;
-      max_height = std::max(g->box_ymax - g->box_ymin, max_height);
+      this->bounds.xmax += advance;
+      this->bounds.ymin = std::min(this->bounds.ymin, g->box_ymin);
+      this->bounds.ymax = std::max(this->bounds.ymax, g->box_ymax);
     }
-
-    this->width = pen_x; /* Update total width. */
-    this->height = max_height;
 
     if (set_mono) {
       segment_font->flags &= ~BLF_MONOSPACED;
@@ -333,8 +333,7 @@ ShapingData::ShapingData(FontBLF *font,
   {
     CachedString cache_string;
     cache_string.str_len = len;
-    cache_string.width = this->width;
-    cache_string.height = this->height;
+    cache_string.bounds = this->bounds;
     cache_string.glyphs = Array<CachedGlyph>(glyph_count, NoInitialization());
     for (int i = 0; i < glyph_count; i++) {
       cache_string.glyphs[i] = {this->glyphs[i].g->idx,
@@ -357,7 +356,7 @@ void ShapingData::draw(const ft_pix pen_y, ResultBLF *r_info)
 
   if (r_info) {
     r_info->lines = 1;
-    r_info->width = ft_pix_to_int(this->width);
+    r_info->width = ft_pix_to_int(BLI_rcti_size_x(&this->bounds));
   }
 }
 
@@ -379,7 +378,7 @@ int ShapingData::draw_mono(const int tab_columns)
 size_t ShapingData::width_to_strlen(const int width, int *r_width) const
 {
   size_t len = this->glyphs.last().index_utf8;
-  int w = ft_pix_to_int(this->width);
+  int w = ft_pix_to_int(BLI_rcti_size_x(&this->bounds));
 
   for (const ShapedGlyph &glyph : this->glyphs) {
     if (glyph.bounds.xmax > ft_pix_from_int(width)) {
@@ -399,12 +398,12 @@ size_t ShapingData::width_to_strlen(const int width, int *r_width) const
 size_t ShapingData::width_to_rstrlen(const int width, int *r_width) const
 {
   size_t len = this->glyphs.last().index_utf8;
-  int w = ft_pix_to_int(this->width);
+  int w = ft_pix_to_int(BLI_rcti_size_x(&this->bounds));
 
   for (const ShapedGlyph &glyph : this->glyphs) {
-    if (glyph.bounds.xmin > (this->width - ft_pix_from_int(width))) {
+    if (glyph.bounds.xmin > (BLI_rcti_size_x(&this->bounds) - ft_pix_from_int(width))) {
       len = glyph.index_utf8;
-      w = ft_pix_to_int(this->width - glyph.bounds.xmin);
+      w = ft_pix_to_int(BLI_rcti_size_x(&this->bounds) - glyph.bounds.xmin);
       break;
     }
   }
@@ -418,10 +417,10 @@ size_t ShapingData::width_to_rstrlen(const int width, int *r_width) const
 
 void ShapingData::boundbox(ft_pix pen_y, rcti *r_box, ResultBLF *r_info) const
 {
-  r_box->xmin = 0;
-  r_box->xmax = ft_pix_to_int(this->width);
+  r_box->xmin = ft_pix_to_int(this->bounds.xmin);
+  r_box->xmax = ft_pix_to_int(this->bounds.xmax);
   r_box->ymin = ft_pix_to_int(pen_y);
-  r_box->ymax = ft_pix_to_int(pen_y + this->height);
+  r_box->ymax = ft_pix_to_int(this->bounds.ymax);
   if (r_info) {
     r_info->lines = 1;
     r_info->width = r_box->xmax;

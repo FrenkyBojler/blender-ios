@@ -639,7 +639,7 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
 
   if (r_info) {
     r_info->lines = 1;
-    r_info->width = ft_pix_to_int(text.width);
+    r_info->width = ft_pix_to_int(BLI_rcti_size_x(&text.bounds));
   }
 }
 
@@ -921,7 +921,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
   }
   else {
     /* Fallback: position at end of text */
-    cursor = text.width + half_width;
+    cursor = BLI_rcti_size_x(&text.bounds) + half_width;
   }
 
   return ft_pix_to_int(cursor);
