@@ -117,12 +117,17 @@ bool validSnap(const TransInfo *t)
              (SNAP_MULTI_POINTS | SNAP_SOURCE_FOUND);
 }
 
-/* Restore object rotations that may have been modified by face project with align rotation
+/** True when face project snapping should align rotation. */
+static bool transform_snap_face_project_use_rotate(const TransInfo *t)
+{
+  return (t->tsnap.flag & SCE_SNAP_ROTATE) && (t->options & CTX_OBJECT);
+}
+
+/** Restore object rotations that may have been modified by face project with align rotation
  * to target. */
 static void transform_snap_face_project_rotation_restore(TransInfo *t)
 {
-  if (!((t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) && (t->tsnap.flag & SCE_SNAP_ROTATE) &&
-        (t->options & CTX_OBJECT)))
+  if (!(t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) || !transform_snap_face_project_use_rotate(t))
   {
     return;
   }
@@ -466,7 +471,7 @@ static bool applyFaceProject(TransInfo *t,
 
   add_v3_v3(td->loc, tvec);
 
-  if ((t->tsnap.flag & SCE_SNAP_ROTATE) && (t->options & CTX_OBJECT)) {
+  if (transform_snap_face_project_use_rotate(t)) {
     /* Handle alignment as well. */
     const float *original_normal;
     float mat[3][3];
