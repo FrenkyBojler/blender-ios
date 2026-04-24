@@ -476,7 +476,7 @@ bool Scene::need_data_update()
           light_manager->need_update() || lookup_tables->need_update() ||
           integrator->is_modified() || shader_manager->need_update() ||
           particle_system_manager->need_update() || bake_manager->need_update() ||
-          film->is_modified() || procedural_manager->need_update());
+          film->is_modified() || procedural_manager->need_update() || scene_attribute->is_modified());
 }
 
 bool Scene::need_reset(const bool check_camera)
