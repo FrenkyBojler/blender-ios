@@ -30,9 +30,13 @@ enum eMaterialPipeline {
   /* Standard depth-only pass for the deferred pipeline. */
   MAT_PIPE_PREPASS_DEFERRED,
   MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+  MAT_PIPE_PREPASS_DEFERRED_RAYCAST,
+  MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST,
   /* Standard depth-only pass for the forward pipeline (opaque only). */
   MAT_PIPE_PREPASS_FORWARD,
   MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+  MAT_PIPE_PREPASS_FORWARD_RAYCAST,
+  MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST,
   /* Per object prepass to handle the transparency overlap option. */
   MAT_PIPE_PREPASS_OVERLAP,
   /* Depth pre-pass specifically for planar reflection probes. */

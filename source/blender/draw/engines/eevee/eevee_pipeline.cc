@@ -281,9 +281,7 @@ void ShadowPipeline::render(View &view)
  * Helper class for handling prepasses in Forward and Deferred pipelines.
  * \{ */
 
-void Prepass::setup_subpasses(DRWState common_state,
-                              gpu::Texture **fb_depth_tx,
-                              gpu::Texture **raycast_depth_tx)
+void Prepass::setup_subpasses(DRWState common_state)
 {
   /* We can't know at this point if the normal target is enabled, so we always enable color write.
    * The write will be optimized out if the attachment is empty. */
@@ -319,10 +317,9 @@ void Prepass::setup_subpasses(DRWState common_state,
     }
   }
 
-  if (fb_depth_tx && raycast_depth_tx) {
-    /* Copy framebuffer depth to the raycast depth copy on the first NoRaycast pass. */
-    prepass_subpasses_[false][false][false][false]->texture_copy(fb_depth_tx, raycast_depth_tx);
-  }
+  /* Copy framebuffer depth to the raycast depth copy on the first NoRaycast pass.
+   * Will be skipped if they are not set. */
+  prepass_subpasses_[false][false][false][false]->texture_copy(&fb_depth_tx_, &raycast_depth_tx_);
 }
 
 PassMain::Sub *Prepass::add(blender::Material *blender_mat,
@@ -396,6 +393,7 @@ void ForwardPipeline::sync()
         pass = &opaque_ps_.sub(subpass_names[raycast][double_sided]);
         pass->state_set(double_sided ? state : (state | DRW_STATE_CULL_BACK));
         if (raycast) {
+          pass->bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
           pass->bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
           pass->bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
         }
@@ -446,7 +444,8 @@ void ForwardPipeline::end_sync()
 
 PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_mat,
                                                    GPUMaterial *gpumat,
-                                                   bool has_motion)
+                                                   bool has_motion,
+                                                   bool is_raycast_target)
 {
   BLI_assert_msg(GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) == false,
                  "Forward Transparent should be registered directly without calling "
@@ -457,7 +456,7 @@ PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_ma
    * is no mix shader (could do better constant folding but that's expensive). */
 
   has_opaque_ = true;
-  return prepass_ps_.add(blender_mat, gpumat, has_motion);
+  return prepass_ps_.add(blender_mat, gpumat, has_motion, is_raycast_target);
 }
 
 PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
@@ -518,6 +517,7 @@ void ForwardPipeline::transparent_add(const Object *ob,
       pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     }
     if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+      pass->bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
       pass->bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
       pass->bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
     }
@@ -534,6 +534,7 @@ void ForwardPipeline::transparent_add(const Object *ob,
       pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     }
     if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+      pass->bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
       pass->bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
       pass->bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
     }
@@ -576,6 +577,7 @@ bool ForwardPipeline::use_colored_transparency() const
 
 void ForwardPipeline::render(View &view,
                              gpu::Texture *depth_tx,
+                             gpu::Texture *raycast_depth_copy_tx,
                              Framebuffer &prepass_fb,
                              Framebuffer &transparent_fb,
                              Framebuffer &combined_fb,
@@ -592,6 +594,7 @@ void ForwardPipeline::render(View &view,
   GPU_debug_group_begin("Forward.Opaque");
 
   prepass_fb.bind();
+  prepass_ps_.set_depth_textures(depth_tx, raycast_depth_copy_tx);
   inst_.manager->submit(prepass_ps_, view);
 
   inst_.hiz_buffer.set_dirty();
@@ -707,6 +710,7 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
           pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
         }
         if (raycast) {
+          pass->bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst.render_buffers.raycast_depth_tx);
           pass->bind_texture(OBJECT_ID_TEX_SLOT, &inst.render_buffers.object_id_tx);
           pass->bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst.render_buffers.prepass_normal_tx);
         }
@@ -978,9 +982,10 @@ void DeferredLayer::end_sync(bool is_first_pass,
 
 PassMain::Sub *DeferredLayer::prepass_add(blender::Material *blender_mat,
                                           GPUMaterial *gpumat,
-                                          bool has_motion)
+                                          bool has_motion,
+                                          bool is_raycast_target)
 {
-  return prepass_ps_.add(blender_mat, gpumat, has_motion);
+  return prepass_ps_.add(blender_mat, gpumat, has_motion, is_raycast_target);
 }
 
 PassMain::Sub *DeferredLayer::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
@@ -1011,6 +1016,8 @@ PassMain::Sub *DeferredLayer::material_add(blender::Material *blender_mat, GPUMa
 
 gpu::Texture *DeferredLayer::render(View &main_view,
                                     View &render_view,
+                                    gpu::Texture *depth_tx,
+                                    gpu::Texture *raycast_depth_copy_tx,
                                     Framebuffer &prepass_fb,
                                     Framebuffer &combined_fb,
                                     Framebuffer &gbuffer_fb,
@@ -1036,6 +1043,7 @@ gpu::Texture *DeferredLayer::render(View &main_view,
   }
 
   GPU_framebuffer_bind(prepass_fb);
+  prepass_ps_.set_depth_textures(depth_tx, raycast_depth_copy_tx);
   inst_.manager->submit(prepass_ps_, render_view);
 
   inst_.hiz_buffer.swap_layer();
@@ -1172,12 +1180,13 @@ void DeferredPipeline::debug_draw(draw::View &view, gpu::FrameBuffer *combined_f
 
 PassMain::Sub *DeferredPipeline::prepass_add(blender::Material *blender_mat,
                                              GPUMaterial *gpumat,
-                                             bool has_motion)
+                                             bool has_motion,
+                                             bool is_raycast_target)
 {
   if (blender_mat->blend_flag & MA_BL_SS_REFRACTION) {
-    return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion);
+    return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion, is_raycast_target);
   }
-  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
+  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion, is_raycast_target);
 }
 
 PassMain::Sub *DeferredPipeline::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
@@ -1190,6 +1199,8 @@ PassMain::Sub *DeferredPipeline::material_add(blender::Material *blender_mat, GP
 
 void DeferredPipeline::render(View &main_view,
                               View &render_view,
+                              gpu::Texture *depth_tx,
+                              gpu::Texture *raycast_depth_copy_tx,
                               Framebuffer &prepass_fb,
                               Framebuffer &combined_fb,
                               Framebuffer &gbuffer_fb,
@@ -1202,6 +1213,8 @@ void DeferredPipeline::render(View &main_view,
   GPU_debug_group_begin("Deferred.Opaque");
   feedback_tx = opaque_layer_.render(main_view,
                                      render_view,
+                                     depth_tx,
+                                     raycast_depth_copy_tx,
                                      prepass_fb,
                                      combined_fb,
                                      gbuffer_fb,
@@ -1213,6 +1226,8 @@ void DeferredPipeline::render(View &main_view,
   GPU_debug_group_begin("Deferred.Refract");
   feedback_tx = refraction_layer_.render(main_view,
                                          render_view,
+                                         depth_tx,
+                                         raycast_depth_copy_tx,
                                          prepass_fb,
                                          combined_fb,
                                          gbuffer_fb,
@@ -1493,7 +1508,7 @@ void DeferredProbePipeline::end_sync()
 PassMain::Sub *DeferredProbePipeline::prepass_add(blender::Material *blender_mat,
                                                   GPUMaterial *gpumat)
 {
-  return opaque_layer_.prepass_ps_.add(blender_mat, gpumat, false);
+  return opaque_layer_.prepass_ps_.add(blender_mat, gpumat, false, false);
 }
 
 PassMain::Sub *DeferredProbePipeline::material_add(blender::Material *blender_mat,
@@ -1514,6 +1529,8 @@ PassMain::Sub *DeferredProbePipeline::material_add(blender::Material *blender_ma
 }
 
 void DeferredProbePipeline::render(View &view,
+                                   gpu::Texture *depth_tx,
+                                   gpu::Texture *raycast_depth_copy_tx,
                                    Framebuffer &prepass_fb,
                                    Framebuffer &combined_fb,
                                    Framebuffer &gbuffer_fb,
@@ -1524,6 +1541,7 @@ void DeferredProbePipeline::render(View &view,
   opaque_layer_.radiance_behind_tx_ = dummy_black;
 
   GPU_framebuffer_bind(prepass_fb);
+  opaque_layer_.prepass_ps_.set_depth_textures(depth_tx, raycast_depth_copy_tx);
   inst_.manager->submit(opaque_layer_.prepass_ps_, view);
 
   inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
@@ -1595,7 +1613,7 @@ void PlanarProbePipeline::end_sync()
 PassMain::Sub *PlanarProbePipeline::prepass_add(blender::Material *blender_mat,
                                                 GPUMaterial *gpumat)
 {
-  return prepass_ps_.add(blender_mat, gpumat, false);
+  return prepass_ps_.add(blender_mat, gpumat, false, false);
 }
 
 PassMain::Sub *PlanarProbePipeline::material_add(blender::Material *blender_mat,

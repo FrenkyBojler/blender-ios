@@ -304,6 +304,7 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
 {
   Object *ob = ob_handle.object;
   bool hide_on_camera = ob->visibility_flag & OB_HIDE_CAMERA;
+  bool hide_on_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
 
   if (geometry_type == MAT_GEOM_VOLUME) {
     MaterialKey material_key(
@@ -325,11 +326,17 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
   eMaterialPipeline surface_pipe, prepass_pipe;
   if (use_forward_pipeline) {
     surface_pipe = MAT_PIPE_FORWARD;
-    prepass_pipe = has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY : MAT_PIPE_PREPASS_FORWARD;
+    prepass_pipe = hide_on_raycast ? (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY :
+                                                   MAT_PIPE_PREPASS_FORWARD) :
+                                     (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST :
+                                                   MAT_PIPE_PREPASS_FORWARD_RAYCAST);
   }
   else {
     surface_pipe = MAT_PIPE_DEFERRED;
-    prepass_pipe = has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY : MAT_PIPE_PREPASS_DEFERRED;
+    prepass_pipe = hide_on_raycast ? (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY :
+                                                   MAT_PIPE_PREPASS_DEFERRED) :
+                                     (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST :
+                                                   MAT_PIPE_PREPASS_DEFERRED_RAYCAST);
   }
 
   MaterialKey material_key(blender_mat, geometry_type, surface_pipe, ob->visibility_flag);
