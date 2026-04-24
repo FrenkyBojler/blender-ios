@@ -139,7 +139,7 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     fn(group_field_);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
@@ -201,7 +201,7 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     fn(group_field_);
   }
 
-  void hash(HashContext &hash) const final
+  void hash_unique(UniqueHashBytes &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;

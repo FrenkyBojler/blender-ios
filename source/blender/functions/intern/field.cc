@@ -101,9 +101,9 @@ uint64_t GField::hash() const
       ref.variant_);
 }
 
-Hash128 FieldHashDeep::ensure(const GFieldRef &field)
+UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
 {
-  if (const Hash128 *cached = cache.lookup_ptr(field)) {
+  if (const UniqueHash *cached = cache.lookup_ptr(field)) {
     return *cached;
   }
 
@@ -121,7 +121,7 @@ Hash128 FieldHashDeep::ensure(const GFieldRef &field)
       continue;
     }
     if (visited.contains(current)) {
-      HashContext hash_context;
+      UniqueHashBytes hash_context;
       std::visit(
           [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Value>) {
@@ -129,10 +129,10 @@ Hash128 FieldHashDeep::ensure(const GFieldRef &field)
               hash_context.add(v.type);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-              v.node->hash(hash_context);
+              v.node->hash_unique(hash_context);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-              v.node->multi_function().hash(hash_context);
+              v.node->multi_function().hash_unique(hash_context);
               hash_context.add(v.output_i);
               for (const GField &input_field : v.node->inputs()) {
                 hash_context.add(cache.lookup(input_field));
@@ -140,10 +140,10 @@ Hash128 FieldHashDeep::ensure(const GFieldRef &field)
             }
           },
           current.variant());
-      const Span bytes = hash_context.hash_bytes.as_span();
-      Hash128 hash;
+      const Span bytes = hash_context.data.as_span();
+      UniqueHash hash;
       const XXH128_hash_t xxhash = XXH3_128bits(bytes.data(), bytes.size());
-      static_assert(sizeof(Hash128) == sizeof(xxhash));
+      static_assert(sizeof(UniqueHash) == sizeof(xxhash));
       memcpy(static_cast<void *>(&hash), &xxhash, sizeof(xxhash));
       cache.add_new(current, hash);
       continue;
@@ -172,16 +172,16 @@ const FieldInputsPtr &FieldInput::field_inputs() const
 
 uint64_t FieldInput::hash() const
 {
-  HashContext hash_context;
-  this->hash(hash_context);
-  return get_default_hash(hash_context.hash_bytes);
+  UniqueHashBytes hash_context;
+  this->hash_unique(hash_context);
+  return get_default_hash(hash_context.data);
 }
 
 FieldInput::~FieldInput() = default;
 
 void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
 
-void FieldInput::hash(HashContext &hash) const
+void FieldInput::hash_unique(UniqueHashBytes &hash) const
 {
   hash.add(this);
 }
@@ -479,7 +479,7 @@ GVArray IndexFieldInput::get_varray_for_context(const fn::FieldContext & /*conte
   return get_index_varray(mask);
 }
 
-void IndexFieldInput::hash(HashContext &hash) const
+void IndexFieldInput::hash_unique(UniqueHashBytes &hash) const
 {
   static constexpr int8_t id = 0;
   hash.add(&id);

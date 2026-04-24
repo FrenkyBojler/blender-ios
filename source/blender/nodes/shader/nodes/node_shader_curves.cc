@@ -115,7 +115,7 @@ class CurveVecFunction : public mf::MultiFunction {
     });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -291,7 +291,7 @@ class CurveRGBFunction : public mf::MultiFunction {
     });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -437,7 +437,7 @@ class CurveFloatFunction : public mf::MultiFunction {
     });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

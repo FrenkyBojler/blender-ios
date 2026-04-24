@@ -425,7 +425,7 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    bary_weights);
 }
 
-void BaryWeightFromPositionFn::hash(HashContext &hash) const
+void BaryWeightFromPositionFn::hash_unique(UniqueHashBytes &hash) const
 {
   static constexpr int8_t id = 0;
   hash.add(&id);
@@ -467,7 +467,7 @@ void NearestCornerFromPositionFn::call(const IndexMask &mask,
                               nearest_corner);
 }
 
-void NearestCornerFromPositionFn::hash(HashContext &hash) const
+void NearestCornerFromPositionFn::hash_unique(UniqueHashBytes &hash) const
 {
   static constexpr int8_t id = 0;
   hash.add(&id);
@@ -508,7 +508,7 @@ void BaryWeightSampleFn::call(const IndexMask &mask,
   dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
 }
 
-void BaryWeightSampleFn::hash(HashContext &hash) const
+void BaryWeightSampleFn::hash_unique(UniqueHashBytes &hash) const
 {
   static constexpr int8_t id = 0;
   hash.add(&id);

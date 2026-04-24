@@ -87,7 +87,7 @@ class EndpointFieldInput final : public bke::GeometryFieldInput {
     fn(end_size_);
   }
 
-  void hash(HashContext &hash) const final
+  void hash_unique(UniqueHashBytes &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;

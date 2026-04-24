@@ -11,7 +11,7 @@ namespace blender::fn::multi_function {
 
 using ExecutionHints = MultiFunction::ExecutionHints;
 
-void MultiFunction::hash(HashContext &hash) const
+void MultiFunction::hash_unique(UniqueHashBytes &hash) const
 {
   hash.add(this);
 }

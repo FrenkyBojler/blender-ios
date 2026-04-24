@@ -85,7 +85,7 @@ class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
     return construct_neighbor_count_varray(mesh, domain);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -118,7 +118,7 @@ class FaceVertexCountFieldInput final : public bke::MeshFieldInput {
     return construct_vertex_count_varray(mesh, domain);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

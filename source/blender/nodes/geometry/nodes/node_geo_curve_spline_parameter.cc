@@ -197,7 +197,7 @@ class CurveParameterFieldInput final : public bke::CurvesFieldInput {
     }
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -227,7 +227,7 @@ class CurveLengthParameterFieldInput final : public bke::CurvesFieldInput {
     }
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -256,7 +256,7 @@ class IndexOnSplineFieldInput final : public bke::CurvesFieldInput {
     return VArray<int>::from_container(std::move(result));
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

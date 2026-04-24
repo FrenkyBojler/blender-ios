@@ -31,7 +31,7 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
         [transforms](const int i) { return math::to_quaternion(math::normalize(transforms[i])); });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

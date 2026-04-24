@@ -829,7 +829,7 @@ class CustomMF_GenericConstant : public MultiFunction {
   CustomMF_GenericConstant(const CPPType &type, const void *value, bool make_value_copy);
   ~CustomMF_GenericConstant() override;
   void call(const IndexMask &mask, Params params, Context context) const override;
-  void hash(HashContext &hash) const override;
+  void hash_unique(UniqueHashBytes &hash) const override;
   bool equals(const MultiFunction &other) const override;
 };
 
@@ -869,7 +869,7 @@ template<typename T> class CustomMF_Constant : public MultiFunction {
     mask.foreach_index_optimized<int64_t>([&](const int64_t i) { new (&output[i]) T(value_); });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

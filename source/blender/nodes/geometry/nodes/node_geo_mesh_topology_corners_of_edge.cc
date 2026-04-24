@@ -126,7 +126,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(corner_of_edge));
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -165,7 +165,7 @@ class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(counts));
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

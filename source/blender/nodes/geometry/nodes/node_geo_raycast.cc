@@ -228,7 +228,7 @@ class RaycastFunction : public mf::MultiFunction {
                     params.uninitialized_single_output_if_required<float>(6, "Distance"));
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

@@ -35,7 +35,7 @@ struct FieldTreeInfo {
    * The same field input may exist in the field tree as separate nodes due to the way
    * the tree is constructed. This set contains every different input only once.
    */
-  VectorSet<Hash128> deduplicated_input_hashes;
+  VectorSet<UniqueHash> deduplicated_input_hashes;
   Vector<GFieldRef> deduplicated_inputs;
 };
 
@@ -58,7 +58,7 @@ static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
   while (!fields_to_check.is_empty()) {
     const GFieldRef &field = fields_to_check.pop();
     const GFieldRef::Variant &field_variant = field.variant();
-    const Hash128 hash = field_tree_info.deep_hashes.ensure(field);
+    const UniqueHash hash = field_tree_info.deep_hashes.ensure(field);
     std::visit(
         [&]<typename T>(const T &v) {
           if constexpr (std::is_same_v<T, GFieldRef::Input>) {
@@ -156,11 +156,11 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 {
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
-  Map<Hash128, mf::Variable *> variable_by_field;
+  Map<UniqueHash, mf::Variable *> variable_by_field;
 
   /* Start by adding the field inputs as parameters to the procedure. */
   for (const GFieldRef &input_field : field_tree_info.deduplicated_inputs) {
-    const Hash128 input_hash = field_tree_info.deep_hashes.lookup(input_field);
+    const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(input_field);
     const FieldInput &field_input = *std::get<GFieldRef::Input>(input_field.variant()).node;
     mf::Variable &variable = builder.add_input_parameter(
         mf::DataType::ForSingle(field_input.cpp_type()), field_input.debug_name());
@@ -181,7 +181,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
     while (!fields_to_check.is_empty()) {
       FieldWithIndex &field_with_index = fields_to_check.peek();
       const GFieldRef &field = field_with_index.field;
-      const Hash128 field_hash = field_tree_info.deep_hashes.lookup(field);
+      const UniqueHash field_hash = field_tree_info.deep_hashes.lookup(field);
       if (variable_by_field.contains(field_hash)) {
         /* The field has been handled already. */
         fields_to_check.pop();
@@ -216,7 +216,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                   const mf::ParamType::InterfaceType interface_type = param_type.interface_type();
                   if (interface_type == mf::ParamType::Input) {
                     const GField &input_field = fn_inputs[param_input_index];
-                    const Hash128 input_hash = field_tree_info.deep_hashes.lookup(input_field);
+                    const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(input_field);
                     variables[param_index] = variable_by_field.lookup(input_hash);
                     param_input_index++;
                   }
@@ -233,7 +233,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
                       /* Create a new variable for used outputs. */
                       mf::Variable &new_variable = procedure.new_variable(param_type.data_type());
                       variables[param_index] = &new_variable;
-                      const Hash128 output_hash = field_tree_info.deep_hashes.lookup(output_field);
+                      const UniqueHash output_hash = field_tree_info.deep_hashes.lookup(
+                          output_field);
                       variable_by_field.add_new(output_hash, &new_variable);
                     }
                     param_output_index++;
@@ -264,7 +265,7 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   /* Add output parameters to the procedure. */
   Set<mf::Variable *> output_variables;
   for (const GFieldRef &field : output_fields) {
-    const Hash128 field_hash = field_tree_info.deep_hashes.lookup(field);
+    const UniqueHash field_hash = field_tree_info.deep_hashes.lookup(field);
     mf::Variable *variable = variable_by_field.lookup(field_hash);
     if (!output_variables.add(variable)) {
       /* One variable can be output at most once. To output the same value twice, we have to make
@@ -338,7 +339,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
     std::visit(
         [&]<typename T>(const T &v) {
           if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-            const Hash128 input_hash = field_tree_info.deep_hashes.lookup(field);
+            const UniqueHash input_hash = field_tree_info.deep_hashes.lookup(field);
             const int input_i = field_tree_info.deduplicated_input_hashes.index_of(input_hash);
             const GVArray &varray = field_context_inputs[input_i];
             varrays[out_index] = varray;

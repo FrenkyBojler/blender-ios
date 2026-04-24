@@ -101,7 +101,7 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
     return construct_curve_tangent_gvarray(curves, domain);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

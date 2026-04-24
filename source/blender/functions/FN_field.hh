@@ -328,7 +328,7 @@ class FieldInput : public ImplicitSharingMixin {
   const FieldInputsPtr &field_inputs() const;
 
   uint64_t hash() const;
-  virtual void hash(HashContext &hash) const;
+  virtual void hash_unique(UniqueHashBytes &hash) const;
 
   /**
    * If this #FieldInput depends on other fields, this function should be overridden.
@@ -399,9 +399,9 @@ Field<bool> invert_boolean_field(const Field<bool> &field);
  * struct caches the hashes of intermediate fields.
  */
 struct FieldHashDeep {
-  Map<GFieldRef, Hash128> cache;
-  Hash128 ensure(const GFieldRef &field);
-  Hash128 lookup(const GFieldRef &field) const
+  Map<GFieldRef, UniqueHash> cache;
+  UniqueHash ensure(const GFieldRef &field);
+  UniqueHash lookup(const GFieldRef &field) const
   {
     return this->cache.lookup(field);
   }
@@ -417,7 +417,7 @@ class IndexFieldInput final : public FieldInput {
                                  const IndexMask &mask,
                                  ResourceScope &scope) const final;
 
-  void hash(HashContext &hash) const override;
+  void hash_unique(UniqueHashBytes &hash) const override;
 
   /** Cached index field to avoid allocating a new one every time. */
   static const Field<int> &get_field();

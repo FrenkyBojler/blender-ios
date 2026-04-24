@@ -246,7 +246,7 @@ class FieldAverageInput final : public bke::GeometryFieldInput {
     fn(group_index_);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;

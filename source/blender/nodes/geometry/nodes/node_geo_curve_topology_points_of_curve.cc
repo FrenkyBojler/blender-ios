@@ -145,7 +145,7 @@ class PointsOfCurveInput final : public bke::GeometryFieldInput {
     fn(sort_weight_);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -178,7 +178,7 @@ class CurvePointCountInput final : public bke::CurvesFieldInput {
     });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

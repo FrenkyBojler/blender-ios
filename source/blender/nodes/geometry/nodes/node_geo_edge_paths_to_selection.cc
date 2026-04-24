@@ -94,7 +94,7 @@ class PathToEdgeSelectionFieldInput final : public bke::MeshFieldInput {
     fn(next_vertex_);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;

@@ -32,29 +32,11 @@
  * 3. Override the `call` function.
  */
 
+#include "BLI_unique_hash.hh"
 #include "FN_multi_function_context.hh"
 #include "FN_multi_function_params.hh"
 
 namespace blender {
-
-struct Hash128 {
-  uint64_t v1;
-  uint64_t v2;
-  uint64_t hash() const
-  {
-    return v1;
-  }
-  friend bool operator==(const Hash128 &a, const Hash128 &b) = default;
-};
-
-struct HashContext {
-  Vector<std::byte, 256> hash_bytes;
-  template<typename T> void add(const T &value)
-  {
-    static_assert(std::is_trivial_v<T>);
-    hash_bytes.extend(reinterpret_cast<const std::byte *>(&value), sizeof(T));
-  }
-};
 
 namespace fn::multi_function {
 
@@ -74,7 +56,7 @@ class MultiFunction : NonCopyable, NonMovable {
   void call_auto(const IndexMask &mask, Params params, Context context) const;
   virtual void call(const IndexMask &mask, Params params, Context context) const = 0;
 
-  virtual void hash(HashContext &hash) const;
+  virtual void hash_unique(UniqueHashBytes &hash) const;
   virtual bool equals(const MultiFunction &other) const;
 
   int param_amount() const

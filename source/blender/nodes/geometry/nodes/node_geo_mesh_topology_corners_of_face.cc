@@ -119,7 +119,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     fn(sort_weight_);
   }
 
-  void hash(HashContext &hash) const final
+  void hash_unique(UniqueHashBytes &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
@@ -151,7 +151,7 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
                                   [faces](const int64_t i) { return faces[i].size(); });
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

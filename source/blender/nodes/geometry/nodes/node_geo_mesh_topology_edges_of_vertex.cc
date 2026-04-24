@@ -133,7 +133,7 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
     fn(sort_weight_);
   }
 
-  void hash(HashContext &hash) const final
+  void hash_unique(UniqueHashBytes &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;
@@ -165,7 +165,7 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(counts));
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

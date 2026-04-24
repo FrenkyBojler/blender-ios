@@ -83,7 +83,7 @@ class HandlePositionFieldInput final : public bke::GeometryFieldInput {
     fn(relative_);
   }
 
-  void hash(HashContext &hash) const final
+  void hash_unique(UniqueHashBytes &hash) const final
   {
     static constexpr int8_t id = 0;
     fn::FieldHashDeep field_hash;

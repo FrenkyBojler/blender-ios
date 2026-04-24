@@ -39,7 +39,7 @@ void CustomMF_GenericConstant::call(const IndexMask &mask,
   type_.fill_construct_indices(value_, output.data(), mask);
 }
 
-void CustomMF_GenericConstant::hash(HashContext &hash) const
+void CustomMF_GenericConstant::hash_unique(UniqueHashBytes &hash) const
 {
   hash.add(type_.hash_or_fallback(value_, uintptr_t(this)));
   hash.add(&type_);

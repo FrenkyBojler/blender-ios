@@ -34,7 +34,7 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
         VArray<int>::from_container(std::move(counts)), AttrDomain::Edge, domain);
   }
 
-  void hash(HashContext &hash) const override
+  void hash_unique(UniqueHashBytes &hash) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
