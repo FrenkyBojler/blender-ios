@@ -33,6 +33,10 @@ struct UniqueHash {
  */
 struct UniqueHashBytes {
   Vector<std::byte, 256> data;
+  /**
+   * Add bytes representing a value to the hash. Note that this doesn't account for types with non-
+   * unique object representations (i.e. float -0 and +0, or padding bytes).
+   */
   template<typename T> void add(const T &value)
   {
     static_assert(std::is_trivially_copyable_v<T>);
