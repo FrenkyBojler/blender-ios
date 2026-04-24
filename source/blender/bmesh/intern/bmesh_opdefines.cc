@@ -707,6 +707,38 @@ static BMOpDefine bmo_create_vert_def = {
     /*type_flag*/ (BMO_OPTYPE_FLAG_NOP),
 };
 
+static BMOpDefine bmo_curve_def = {
+    /*opname*/ "curve",
+    /*slot_types_in*/
+    {
+        /* Input geometry. */
+        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
+        /* Influence factor: spans from 0.0 to 1.0. */
+        {"factor", BMO_OP_SLOT_FLT},
+        /* Restrictions on how the vertices can be moved. */
+        {"restriction", BMO_OP_SLOT_INT},
+        /* Limit the tool to work within the boundaries of the selected vertices. */
+        {"boundaries", BMO_OP_SLOT_BOOL},
+        /* Distribute vertices at constant distances along the curve. */
+        {"regular", BMO_OP_SLOT_BOOL},
+        /* Lock X axis editing. */
+        {"lock_x", BMO_OP_SLOT_BOOL},
+        /* Lock Y axis editing. */
+        {"lock_y", BMO_OP_SLOT_BOOL},
+        /* Lock Z axis editing. */
+        {"lock_z", BMO_OP_SLOT_BOOL},
+        /* Algorithm used for interpolation. */
+        {"interpolation", BMO_OP_SLOT_INT},
+        {{'\0'}},
+    },
+    /*slot_types_out*/
+    {{{'\0'}}},
+    /*init*/ nullptr,
+    /*exec*/ bmo_curve_exec,
+    /*type_flag*/
+    (BMO_OPTYPE_FLAG_NORMALS_CALC),
+};
+
 /*
  * Join Triangles.
  *
@@ -2856,6 +2888,7 @@ const BMOpDefine *bmo_opdefines[] = {
     &bmo_create_monkey_def,
     &bmo_create_uvsphere_def,
     &bmo_create_vert_def,
+    &bmo_curve_def,
     &bmo_delete_def,
     &bmo_dissolve_edges_def,
     &bmo_dissolve_faces_def,
