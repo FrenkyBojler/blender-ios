@@ -1,2 +1,2 @@
 Referenced by issue #93757, When linking a blend file into another one selecting a collection, it also imports objects from other collections
-Referenced by pull request #157348, Fix #157300: Curve objects (bevel/taper/textoncurve) are not refcounted
+Referenced by pull request #157348, WIP: Fix #157300: Curve objects (bevel/taper/textoncurve) are not refcounted
