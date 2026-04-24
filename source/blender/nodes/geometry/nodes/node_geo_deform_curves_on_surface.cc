@@ -28,8 +28,6 @@ using bke::CurvesGeometry;
 using bke::attribute_math::mix3;
 using geometry::ReverseUVSampler;
 
-NODE_STORAGE_FUNCS(NodeGeometryCurveTrim)
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -56,12 +54,22 @@ static void deform_curves(const CurvesGeometry &curves,
 {
   /* Find attachment points on old and new mesh. */
   const int curves_num = curves.curves_num();
+  const bool same_sampler = (&reverse_uv_sampler_old == &reverse_uv_sampler_new);
   Array<ReverseUVSampler::Result> surface_samples_old(curves_num);
-  Array<ReverseUVSampler::Result> surface_samples_new(curves_num);
+  /* When both samplers are the same object (same-topology meshes), skip the second allocation
+   * and sampling pass entirely and reuse the old results for the new mesh too. */
+  Array<ReverseUVSampler::Result> surface_samples_new_storage(same_sampler ? 0 : curves_num);
   threading::parallel_invoke(
-      1024 < curves_num,
+      1024 < curves_num && !same_sampler,
       [&]() { reverse_uv_sampler_old.sample_many(curve_attachment_uvs, surface_samples_old); },
-      [&]() { reverse_uv_sampler_new.sample_many(curve_attachment_uvs, surface_samples_new); });
+      [&]() {
+        if (!same_sampler) {
+          reverse_uv_sampler_new.sample_many(curve_attachment_uvs, surface_samples_new_storage);
+        }
+      });
+  const Span<ReverseUVSampler::Result> surface_samples_new = same_sampler ?
+                                                                 surface_samples_old :
+                                                                 surface_samples_new_storage;
 
   const float4x4 curves_to_surface = math::invert(surface_to_curves);
 
@@ -204,6 +212,26 @@ static void deform_curves(const CurvesGeometry &curves,
   });
 }
 
+template<typename T> static bool arrays_equal(const Span<T> a, const Span<T> b)
+{
+  if (a.size() != b.size()) {
+    return false;
+  }
+  std::atomic<bool> different = false;
+  threading::parallel_for(IndexRange(a.size()), 1024, [&](const IndexRange range) {
+    if (different) {
+      return;
+    }
+    for (const int i : range) {
+      if (a[i] != b[i]) {
+        different = true;
+        return;
+      }
+    }
+  });
+  return !different;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet curves_geometry = params.extract_input<GeometrySet>("Curves"_ustr);
@@ -314,10 +342,20 @@ static void node_geo_exec(GeoNodeExecParams params)
     uv_bounds = *bounds::min_max(surface_uv_coords);
   }
 
+  /* Skip building a second sampler when both meshes share the same corner topology and UV map.
+   * This is the common case: armature/shape-key deformation leaves topology unchanged. */
+  const bool same_mesh = arrays_equal<int3>(corner_tris_orig, corner_tris_eval) &&
+                         arrays_equal<float2>(uv_map_orig, uv_map_eval);
+
   ReverseUVSampler reverse_uv_sampler_orig(
       uv_map_orig, corner_tris_orig, uv_bounds, surface_uv_coords.size());
-  ReverseUVSampler reverse_uv_sampler_eval(
-      uv_map_eval, corner_tris_eval, uv_bounds, surface_uv_coords.size());
+  std::optional<ReverseUVSampler> reverse_uv_sampler_eval_opt;
+  if (!same_mesh) {
+    reverse_uv_sampler_eval_opt.emplace(
+        uv_map_eval, corner_tris_eval, uv_bounds, surface_uv_coords.size());
+  }
+  const ReverseUVSampler &reverse_uv_sampler_eval = same_mesh ? reverse_uv_sampler_orig :
+                                                                 *reverse_uv_sampler_eval_opt;
 
   /* Retrieve face corner normals from each mesh. It's necessary to use face corner normals
    * because face normals or vertex normals may lose information (custom normals, auto smooth) in
