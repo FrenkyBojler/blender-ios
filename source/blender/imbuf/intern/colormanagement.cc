@@ -4494,7 +4494,8 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
     float dither,
     bool predivide,
     bool do_overlay_merge,
-    ColorManagedDisplaySpace display_space)
+    ColorManagedDisplaySpace display_space,
+    float opacity)
 {
   ColorManagedViewSettings untonemapped_view_settings;
   const ColorManagedViewSettings *applied_view_settings;
@@ -4543,6 +4544,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
                                                  get_display_emulation(*display_settings) :
                                                  false;
   display_parameters.use_scope_space = (display_space == DISPLAY_SPACE_SCOPE);
+  display_parameters.opacity = opacity;
 
   /* Bind shader. Internally GPU shaders are created and cached on demand. */
   global_gpu_state.gpu_shader_bound = g_config()->get_gpu_shader_binder().display_bind(

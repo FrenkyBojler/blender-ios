@@ -600,7 +600,8 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
     float dither,
     bool predivide,
     bool do_overlay_merge,
-    ColorManagedDisplaySpace display_space = DISPLAY_SPACE_DRAW);
+    ColorManagedDisplaySpace display_space = DISPLAY_SPACE_DRAW,
+    float opacity = 1.0f);
 /**
  * Same as setup_glsl_draw, but color management settings are guessing from a given context.
  */
