@@ -117,8 +117,30 @@ bool validSnap(const TransInfo *t)
              (SNAP_MULTI_POINTS | SNAP_SOURCE_FOUND);
 }
 
+/* Restore object rotations that may have been modified by face project with align rotation
+ * to target. */
+static void transform_snap_face_project_rotation_restore(TransInfo *t)
+{
+  if (!((t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) && (t->tsnap.flag & SCE_SNAP_ROTATE) &&
+        (t->options & CTX_OBJECT)))
+  {
+    return;
+  }
+  FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+    for (const int i : IndexRange(tc->data_len)) {
+      TransData *td = &tc->data[i];
+      if (td->flag & TD_SKIP) {
+        continue;
+      }
+      transform_data_ext_rotate_restore(td, &tc->data_ext[i]);
+    }
+  }
+}
+
 void transform_snap_flag_from_modifiers_set(TransInfo *t)
 {
+  const bool was_active = transform_snap_is_active(t);
+
   if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA)) {
     /* Those space-types define their own invert behavior instead of toggling it on/off. */
     return;
@@ -145,6 +167,10 @@ void transform_snap_flag_from_modifiers_set(TransInfo *t)
                      (((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP) ||
                       ((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP_INVERT)),
                      SCE_SNAP);
+
+  if (was_active && !transform_snap_is_active(t)) {
+    transform_snap_face_project_rotation_restore(t);
+  }
 }
 
 bool transform_snap_is_active(const TransInfo *t)
@@ -520,19 +546,6 @@ bool transform_snap_project_individual_is_active(const TransInfo *t)
 void transform_snap_project_individual_apply(TransInfo *t)
 {
   if (!transform_snap_project_individual_is_active(t)) {
-    if ((t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) && (t->tsnap.flag & SCE_SNAP_ROTATE) &&
-        (t->options & CTX_OBJECT))
-    {
-      FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        for (const int i : IndexRange(tc->data_len)) {
-          TransData *td = &tc->data[i];
-          if (td->flag & TD_SKIP) {
-            continue;
-          }
-          transform_data_ext_rotate_restore(td, &tc->data_ext[i]);
-        }
-      }
-    }
     return;
   }
 
