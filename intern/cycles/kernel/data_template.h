@@ -77,6 +77,7 @@ KERNEL_STRUCT_MEMBER(film, int, is_rec709)
 KERNEL_STRUCT_MEMBER(film, float, exposure)
 /* Passed used. */
 KERNEL_STRUCT_MEMBER(film, int, pass_flag)
+KERNEL_STRUCT_MEMBER(film, int, denoising_pass_flag)
 KERNEL_STRUCT_MEMBER(film, int, light_pass_flag)
 /* Pass offsets. */
 KERNEL_STRUCT_MEMBER(film, int, pass_stride)

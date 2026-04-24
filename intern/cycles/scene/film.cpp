@@ -156,6 +156,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->exposure = exposure;
   kfilm->pass_alpha_threshold = pass_alpha_threshold;
   kfilm->pass_flag = 0;
+  kfilm->denoising_pass_flag = 0;
 
   kfilm->use_approximate_shadow_catcher = get_use_approximate_shadow_catcher();
 
@@ -251,6 +252,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
     }
     else if (pass->get_type() <= PASS_CATEGORY_DATA_END) {
       kfilm->pass_flag |= pass_flag;
+    }
+    else if (pass->get_type() <= PASS_CATEGORY_DENOISING_END) {
+      kfilm->denoising_pass_flag |= pass_flag;
     }
     else {
       assert(pass->get_type() <= PASS_CATEGORY_BAKE_END);
