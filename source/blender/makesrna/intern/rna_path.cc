@@ -240,7 +240,7 @@ std::optional<ParsedRNAPath<N>> ParsedRNAPath<N>::from_string(const StringRefNul
 
 namespace rna_path {
 
-std::string to_string(const Span<Item> &items)
+std::string to_string(const Span<Item> items)
 {
   std::string result;
   for (const auto &item : items) {

@@ -76,16 +76,24 @@ struct RNAPath {
 
 namespace rna_path {
 
+/** Access a property of an RNA type, like "object.location". */
 struct Member {
   UString identifier;
 
   bool operator==(const Member &other) const = default;
 };
+
+/**
+ * Access an element in a collection property, like "data.points[10]", or an element from a
+ * property like "location[1]".
+ */
 struct LookupIndex {
   int64_t index;
 
   bool operator==(const LookupIndex &other) const = default;
 };
+
+/** Quoted access with brackets, like "object["my_custom_property"]". */
 struct LookupKey {
   UString key;
 
@@ -94,9 +102,12 @@ struct LookupKey {
 
 using Item = std::variant<Member, LookupIndex, LookupKey>;
 
-std::string to_string(const Span<Item> &items);
+/** Convert a parsed path back to a string representation. */
+std::string to_string(Span<Item> items);
 
 }  // namespace rna_path
+
+using ParsedRNAPathRef = Span<rna_path::Item>;
 
 template<> struct DefaultHash<rna_path::Item> {
   uint64_t operator()(const rna_path::Item &value) const
@@ -118,8 +129,11 @@ template<> struct DefaultHash<rna_path::Item> {
   }
 };
 
-using ParsedRNAPathRef = Span<rna_path::Item>;
-
+/**
+ * Storage for a parsed path, using a variable inline buffer to avoid allocations. This class helps
+ * to amortize the cost of string parsing across multiple uses of the RNA path. If this is just
+ * stored on the stack, a larger inline buffer can make more sense.
+ */
 template<int64_t N = 4> class ParsedRNAPath {
  public:
   Vector<rna_path::Item, N> items;
