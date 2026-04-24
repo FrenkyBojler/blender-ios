@@ -2803,7 +2803,8 @@ static wmOperatorStatus outliner_pack_data_exec(bContext *C, wmOperator *op)
     if (tselem->flag & TSE_SELECTED) {
       if (tselem->type == TSE_SOME_ID && GS(tselem->id->name) == ID_IM) {
         Image *image = reinterpret_cast<Image *>(tselem->id);
-        count += BKE_image_packfile_ensure(bmain, image, op->reports, nullptr, 0);
+        BKE_image_packfile_ensure(bmain, image, op->reports, nullptr, 0);
+        count += BKE_image_has_packedfile(image);
       }
     }
   });
