@@ -805,7 +805,7 @@ bool is_object_instancer(const Object &ob)
 }  // namespace
 
 /**
- * Iterate the scene, invoking `draw_object_cb` for each object (and each dupli) that
+ * Iterate the scene, invoking `draw_object_cb` for objects and duplis that
  * `should_draw_object_cb` accepts.
  *
  * \param draw_ctx: The active draw context; supplies depsgraph, evaluation mode, and
@@ -828,11 +828,8 @@ bool is_object_instancer(const Object &ob)
  *   with `has_duplis = false`. On this path the return value controls only whether the
  *   dupli is drawn; #SkipRecursive has no extra effect.
  *
- * \param draw_object_cb: Called once per object to draw.
- * The visit order is guaranteed: a parent object is visited immediately before its own duplis,
- * and all duplis of that parent follow in a single uninterrupted run (no other object mixed in
- * between). Callers can rely on this to reuse work done for the parent while drawing its duplis;
- * a dupli is recognized by the #BASE_FROM_DUPLI flag on `ob.base_flag`.
+ * \param draw_object_cb: Callback that draws object (populate the engine to prepare for drawing),
+ * it must only run once per instance.
  */
 static void foreach_obref_in_scene(
     DRWContext &draw_ctx,
