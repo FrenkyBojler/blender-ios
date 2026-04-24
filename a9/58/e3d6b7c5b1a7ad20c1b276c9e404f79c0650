@@ -26,3 +26,4 @@ Referenced by commit c5898cb87adc08b41c7eb146034e8df2172900b2, Fix #155986: Cras
 Referenced by issue #156406, Blender 5.1 Bake Node Doesn't keep textures between sessions
 Referenced by issue #157592, Regression: Mesh generated from Geometry nodes do not display texture in Solid Mode
 Referenced by pull request #157695, #157592: GeoNodes mesh primitive UVs not displaying in Solid Mode
+Referenced by commit 14981c74c43fcf8abe3a7867001d348f6c629309, #157592: GeoNodes mesh primitive UVs not displaying in Solid Mode
