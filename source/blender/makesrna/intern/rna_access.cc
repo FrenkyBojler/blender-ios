@@ -4416,9 +4416,8 @@ TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA
 
 bool RNA_property_string_textbox_flag(PropertyRNA *prop)
 {
-  return ((prop->flag & PROP_IDPROPERTY) ||
-          (prop->magic != RNA_MAGIC) && RNA_property_type(prop) == PROP_STRING) &&
-         (prop->flag & PROP_ID_USE_TEXTBOX);
+  return ((prop->flag & PROP_IDPROPERTY) || (prop->magic != RNA_MAGIC)) &&
+         (RNA_property_type(prop) == PROP_STRING) && (prop->flag & PROP_ID_USE_TEXTBOX);
 }
 
 static int property_enum_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
