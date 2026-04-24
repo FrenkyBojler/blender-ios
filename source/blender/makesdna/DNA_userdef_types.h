@@ -1196,11 +1196,12 @@ struct UserDef {
   short pie_initial_timeout = 0;
   short pie_animation_timeout = 6;
   short pie_menu_confirm = 0;
-  float pie_menu_confirm_timeout = 0.02;
+  short pie_menu_confirm_timeout = 2;
   /** Pie menu radius. */
   short pie_menu_radius = 100;
   /** Pie menu distance from center before a direction is set. */
   short pie_menu_threshold = 12;
+  char _pad2[2] = {};
 
   int sequencer_editor_flag = USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT; /* eUserpref_SeqEditorFlags */
 

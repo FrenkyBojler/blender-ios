@@ -1770,7 +1770,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(502, 22)) {
-    userdef->pie_menu_confirm_timeout = 0.02f;
+    userdef->pie_menu_confirm_timeout = 2;
   }
 
   /**
