@@ -454,9 +454,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->cryptomatte_depth = cryptomatte_depth;
 
   /* denoiser pass parameters */
-  kfilm->denoising_pass_flag = 0;
+  kfilm->denoising_pass_options_flag = 0;
   if (denoising_pass_follow_reflections) {
-    kfilm->denoising_pass_flag |= DENOISING_PASS_FOLLOW_REFLECTIONS;
+    kfilm->denoising_pass_options_flag |= DENOISING_PASS_FOLLOW_REFLECTIONS;
   }
 
   clear_modified();

@@ -90,7 +90,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
 
   /* The options below control whether to defer features to the next bounce for individual passes.
    */
-  const bool use_reflections = (kernel_data.film.denoising_pass_flag &
+  const bool use_reflections = (kernel_data.film.denoising_pass_options_flag &
                                 DENOISING_PASS_FOLLOW_REFLECTIONS) != 0;
   if (!use_reflections) {
     feature_weight = 1.0f;
