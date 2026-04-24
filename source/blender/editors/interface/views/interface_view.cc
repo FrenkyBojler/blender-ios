@@ -341,7 +341,7 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
 
   /* To continue scroll during drag when mouse is slightly outside the view, find the view with
    * extra padding (UI_UNIT_Y). */
-  if (AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y * 2)) {
+  if (AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y)) {
     /* If we are above a tree, but not hovering any specific element, dropping something should
      * insert it after the last item. */
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
