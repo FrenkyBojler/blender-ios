@@ -1930,8 +1930,8 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
 
 void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   const int start_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.psfra : scene->r.sfra;
   const int end_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.pefra : scene->r.efra;
