@@ -10,12 +10,14 @@
 
 #include "BKE_effect.h"
 #include "BKE_fcurve.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_unit.hh"
 
 #include "RNA_define.hh"
+#include "RNA_types.hh"
 
 #include "CLG_log.h"
 #include "testing/testing.h"
@@ -43,7 +45,18 @@ class AnimDrawTest : public testing::Test {
   {
     this->bmain = BKE_main_new();
     this->object = BKE_id_new<Object>(this->bmain, "OBTestObject");
-    this->object->pd = BKE_partdeflect_new(0);
+    this->object->id.properties = bke::idprop::create_group("IDPropertyGroup").release();
+
+    IDProperty *time_prop = bke::idprop::create("time", 1.0f).release();
+    IDP_ui_data_ensure(time_prop)->rna_subtype = PROP_TIME;
+    IDProperty *temp_prop = bke::idprop::create("temp", 1.0f).release();
+    IDP_ui_data_ensure(temp_prop)->rna_subtype = PROP_TEMPERATURE;
+    IDProperty *mass_prop = bke::idprop::create("mass", 1.0f).release();
+    IDP_ui_data_ensure(mass_prop)->rna_subtype = PROP_MASS;
+
+    IDP_AddToGroup(object->id.properties, time_prop);
+    IDP_AddToGroup(object->id.properties, temp_prop);
+    IDP_AddToGroup(object->id.properties, mass_prop);
   }
 
   void TearDown() override
@@ -125,7 +138,7 @@ TEST_F(AnimDrawTest, anim_unit_mapping_get_factor_not_normalizing)
   }
 
   { /* Mass */
-    BKE_fcurve_rnapath_set(*fcurve, "modifiers[\"Softbody\"].settings.mass");
+    BKE_fcurve_rnapath_set(*fcurve, "[\"mass\"]");
     const auto test_unit_scalar = [&](int unit_system,
                                       int unit_idx,
                                       float expected_scalar,
@@ -163,7 +176,7 @@ TEST_F(AnimDrawTest, anim_unit_mapping_get_factor_not_normalizing)
   }
 
   { /* Time */
-    BKE_fcurve_rnapath_set(*fcurve, "modifiers[\"Softbody\"].point_cache.frame_start");
+    BKE_fcurve_rnapath_set(*fcurve, "[\"time\"]");
     const auto test_unit_scalar = [&](int unit_idx,
                                       float expected_scalar,
                                       float expected_restore_scalar) {
