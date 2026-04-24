@@ -11,6 +11,7 @@
 #include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
+#include <iostream>
 
 #include "eevee_raytrace.hh"
 
@@ -480,6 +481,25 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   data_.fast_gi_resolution_scale = fast_gi_resolution_scale;
   data_.fast_gi_resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) *
                                        fast_gi_resolution_scale);
+
+  /* See #RayTraceData::ndc_thickness_at(). */
+  data_.thickness_constant = -(2.0f * render_view.far_clip() * render_view.near_clip()) /
+                             (render_view.far_clip() - render_view.near_clip());
+  auto corners = render_view.frustum_corners_get();
+
+  float avg_pixel_radius_far = length(
+      float2(distance(corners[1], corners[5]), distance(corners[1], corners[6])) / float2(extent));
+  if (render_view.is_persp()) {
+    /* Perspective pixels increase footprint with the distance. */
+    data_.thickness_scale = avg_pixel_radius_far / render_view.far_clip();
+    data_.thickness_bias = data_.thickness;
+  }
+  else {
+    /* Orthographic pixels have fixed footprint. */
+    data_.thickness_scale = 0.0f;
+    data_.thickness_bias = avg_pixel_radius_far + data_.thickness;
+  }
+
   /* TODO(fclem): Eventually all uniform data is setup here. */
 
   inst_.uniform_data.push_update();

@@ -28,8 +28,8 @@ struct [[host_shared]] RayTraceData {
   /** Scale and bias to go from ray-trace resolution to input resolution. */
   int2 resolution_bias;
   int resolution_scale;
-  /** View space thickness the objects. */
-  float thickness;
+  /** Closure being ray-traced. */
+  int closure_index;
   /** Scale and bias to go from fast GI resolution to input resolution. */
   int2 fast_gi_resolution_bias;
   int fast_gi_resolution_scale;
@@ -42,11 +42,20 @@ struct [[host_shared]] RayTraceData {
   bool32_t skip_denoise;
   /** If set to false will bypass tracing for refractive closures. */
   bool32_t trace_refraction;
-  /** Closure being ray-traced. */
-  int closure_index;
-  int _pad0;
-  int _pad1;
-  int _pad2;
+  /** View space thickness the objects. */
+  float thickness;
+  float thickness_constant;
+  float thickness_scale;
+  float thickness_bias;
+
+  /* Return the NDC Z thickness of a pixel in at a given view space Z depth. */
+  float ndc_pixel_thicknes_at(float vs_z)
+  {
+    float vs_thickness = vs_z * thickness_scale + thickness_bias;
+    /* NDC offset from view space offset.
+     * From http://terathon.com/gdc07_lengyel.pdf (slide 24) */
+    return thickness_constant * (vs_thickness / (vs_z * (vs_z + vs_thickness)));
+  }
 };
 
 struct [[host_shared]] AOData {
