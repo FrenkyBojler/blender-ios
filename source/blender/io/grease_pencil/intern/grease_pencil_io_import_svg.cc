@@ -246,6 +246,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     }
     const IndexRange points = points_by_curve[curve_index];
 
+    /* Close the curve if any points have been removed. */
     const bool closed = bool(path->closed) || (points.size() * 3 - 2 != path->npts);
     cyclic[curve_index] = closed;
 
