@@ -42,6 +42,7 @@ void ShapingData::legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *st
   size_t char_count = BLI_strnlen_utf8(str, len);
   std::u32string str32(char_count + 1, 0);
   BLI_str_utf8_as_utf32(str32.data(), str, char_count + 1);
+  size_t offset = 0;
 
   for (size_t i = 0; i < char_count; i++) {
     char32_t codepoint = str32[i];
@@ -50,9 +51,10 @@ void ShapingData::legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *st
     if (g) {
       rcti bounds = {
           this->width, this->width + g->box_xmax - g->box_xmin, 0, g->box_ymax - g->box_ymin};
-      this->glyphs.append({font, gc, g, bounds, size_t(BLI_str_utf8_from_unicode_len(codepoint))});
+      this->glyphs.append({font, gc, g, bounds, offset});
       this->width += g->advance_x;
       this->height = std::max(this->height, g->box_ymax - g->box_ymin);
+      offset += size_t(BLI_str_utf8_from_unicode_len(codepoint));
     }
   }
 }
