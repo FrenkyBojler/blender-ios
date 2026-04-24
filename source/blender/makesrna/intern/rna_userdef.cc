@@ -5242,6 +5242,13 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "Confirm Threshold",
                            "Distance threshold after which selection is made (zero to disable)");
 
+  prop = RNA_def_property(srna, "pie_menu_confirm_timeout", PROP_FLOAT, PROP_TIME_ABSOLUTE);
+  RNA_def_property_ui_range(prop, 0, 1, 0.01, 1);
+  RNA_def_property_ui_text(prop,
+                           "Confirm Timeout",
+                           "Duration cursor must be motionless past Confirm Threshold before "
+                           "selection is confirmed");
+
   prop = RNA_def_property(srna, "use_save_prompt", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_SAVE_PROMPT);
   RNA_def_property_ui_text(

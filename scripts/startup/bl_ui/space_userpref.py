@@ -408,6 +408,9 @@ class USERPREF_PT_interface_menus_pie(InterfacePanel, CenterAlignMixIn, Panel):
         flow.prop(view, "pie_menu_radius")
         flow.prop(view, "pie_menu_threshold")
         flow.prop(view, "pie_menu_confirm")
+        col = flow.column()
+        col.prop(view, "pie_menu_confirm_timeout")
+        col.active = view.pie_menu_confirm > 0
 
 
 # -----------------------------------------------------------------------------

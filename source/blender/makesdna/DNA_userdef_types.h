@@ -1196,6 +1196,7 @@ struct UserDef {
   short pie_initial_timeout = 0;
   short pie_animation_timeout = 6;
   short pie_menu_confirm = 0;
+  float pie_menu_confirm_timeout = 0.02;
   /** Pie menu radius. */
   short pie_menu_radius = 100;
   /** Pie menu distance from center before a direction is set. */
@@ -1212,7 +1213,7 @@ struct UserDef {
       USER_TEMP_SPACE_DISPLAY_WINDOW; /* eUserpref_TempSpaceDisplayType */
   char preferences_display_type =
       USER_TEMP_SPACE_DISPLAY_WINDOW; /* eUserpref_TempSpaceDisplayType */
-  char _pad18[7] = {};
+  char _pad18[3] = {};
 
   short sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC; /* eUserpref_SeqProxySetup */
   short _pad1 = {};

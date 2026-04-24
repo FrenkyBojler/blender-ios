@@ -12254,9 +12254,12 @@ static int pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *menu
       if (block->pie_data->flags & PIE_GESTURE_END_WAIT) {
         float len_sq = 10;
 
-        len_sq = len_squared_v2v2(event_xy, block->pie_data->last_pos);
-        copy_v2_v2(block->pie_data->last_pos, event_xy);
-        block->pie_data->duration_gesture = duration;
+        /* use a time threshold to ensure we leave time to the mouse to move */
+	      if (duration - block->pie_data->duration_gesture >= U.pie_menu_confirm_timeout) {
+          len_sq = len_squared_v2v2(event_xy, block->pie_data->last_pos);
+          copy_v2_v2(block->pie_data->last_pos, event_xy);
+          block->pie_data->duration_gesture = duration;
+        }
 
         if (len_sq < 1.0f) {
           Button *but = region_find_active_but(menu->region);
