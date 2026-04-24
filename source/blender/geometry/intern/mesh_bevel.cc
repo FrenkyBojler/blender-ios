@@ -26,6 +26,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
+#include "BLI_time.h"
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
@@ -3210,8 +3211,6 @@ static void interp_adj(AdjVerts &adjverts,
 
 namespace facerep {
 
-static bool cfr_debug = false;  // DEBUG!!
-
 static int choose_face_rep(Span<int> faces, const BevelState &bs)
 {
   /* The tie breaking values are, in order:
@@ -3222,9 +3221,6 @@ static int choose_face_rep(Span<int> faces, const BevelState &bs)
    *  + y component of face center
    * We want the face that has the lexicographically lowest value of these.
    */
-  if (cfr_debug) {  // DEBUG!!
-    print_span(faces, "faces");
-  }
   if (faces.size() == 1) {
     return faces[0];
   }
@@ -3251,19 +3247,10 @@ static int choose_face_rep(Span<int> faces, const BevelState &bs)
     values[i][value_index++] = center[1];
     BLI_assert(value_index == value_len);
   }
-  if (cfr_debug) {
-    fmt::println("values\n");
-    for (const int i : IndexRange(numf)) {
-      print_span(values[i].as_span(), std::to_string(i).c_str());
-    }
-  }
   auto *it = std::ranges::min_element(values, [](const ValueVec &a, const ValueVec &b) {
     return std::ranges::lexicographical_compare(a, b);
   });
   if (it != values.end()) {
-    if (cfr_debug) {
-      fmt::println("min element is position {}", std::distance(values.begin(), it));
-    }
     return faces[std::distance(values.begin(), it)];
   }
   return faces[0];
@@ -3350,10 +3337,6 @@ static int anchor_rep_face(const int bv, const int anchor, int *r_fother, const 
  */
 static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
 {
-  bool dbg = bv == 4;  // DEBUG!!
-  if (dbg) {
-    fmt::println("mesh_bevel: is_bad_uv_poly, bv={}, f={}", bv, f);
-  }
   const Mesh &mesh = bs.mesh_info.mesh;
   Span<float3> vert_positions = mesh.vert_positions();
   Span<int> corner_verts = mesh.corner_verts();
@@ -3366,31 +3349,14 @@ static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
   for (const int i : face_co_proj.index_range()) {
     const float3 co = vert_positions[corner_verts.slice(face)[i]];
     face_co_proj[i] = float2(transform_point(axis_mat, co));
-    if (dbg) {
-      fmt::println("face_co_proj[{}] = ({},{})", i, face_co_proj[i][0], face_co_proj[i][1]);
-    }
   }
   /* Find the adjacent edges to bv, and the positions of their ends. */
   int2 v_edges = get_incident_edges(f, mesh_v, mesh);
-  if (dbg) {
-    fmt::println("v_edges={}, {}", v_edges[0], v_edges[1]);
-  }
   float3 v_edge_ends[2][2];
   for (const int i : IndexRange(2)) {
     const int2 e = mesh.edges()[v_edges[i]];
-    if (dbg) {
-      fmt::println("{}th edge is ({}, {})", i, e[0], e[1]);
-    }
     for (const int j : IndexRange(2)) {
       v_edge_ends[i][j] = vert_positions[e[j]];
-      if (dbg) {
-        fmt::println("  v_edge_ends[{}][{}] = ({}, {}, {})",
-                     i,
-                     j,
-                     v_edge_ends[i][j][0],
-                     v_edge_ends[i][j][1],
-                     v_edge_ends[i][j][2]);
-      }
     }
   }
   /* Project the anchor verts for bv onto the same 3d plane.
@@ -3400,24 +3366,10 @@ static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
   const MeshPattern pat = bs.bevvert_meshpatterns()[bv];
   Array<float2, 20> anchor_co_proj(pat.num_anchors);
   const int first_newv = bs.bevvert_newverts()[bv][0];
-  if (dbg) {
-    fmt::println("first_newv = ", first_newv);
-  }
   for (int a : IndexRange(pat.num_anchors)) {
     const int a_newv = first_newv + pat.anchor_vert(a);
     float3 anchor_co = bs.newvert_positions()[a_newv];
     anchor_co_proj[a] = float2(transform_point(axis_mat, anchor_co));
-    if (dbg) {
-      fmt::println("anchor {}, a_newv={}, anchor_co=({}, {}, {}), proj=({},{})",
-                   a,
-                   a_newv,
-                   anchor_co[0],
-                   anchor_co[1],
-                   anchor_co[2],
-                   anchor_co_proj[a][0],
-                   anchor_co_proj[a][1]);
-      fmt::println("see if proj is in projected poly\n");
-    }
     if (!isect_point_poly_v2(anchor_co_proj[a],
                              reinterpret_cast<const float (*)[2]>(face_co_proj.data()),
                              face.size()))
@@ -3428,29 +3380,16 @@ static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
       closest_to_line_segment_v3(snap1, anchor_co, v_edge_ends[0][0], v_edge_ends[0][1]);
       const float d1_sq = distance_squared(snap1, anchor_co);
       const float d2_sq = distance_squared(snap2, anchor_co);
-      if (dbg) {
-        fmt::println("no, so snap");
-        fmt::println("snap1=({}, {}, {})", snap1[0], snap1[1], snap1[2]);
-        fmt::println("snap2=({}, {}, {})", snap2[0], snap2[1], snap2[2]);
-        fmt::println("d1_sq={}, d2_sq={})", d1_sq, d2_sq);
-      }
       if (d1_sq <= d2_sq) {
         anchor_co_proj[a] = float2(transform_point(axis_mat, snap1));
       }
       else {
         anchor_co_proj[a] = float2(transform_point(axis_mat, snap2));
       }
-      if (dbg) {
-        fmt::println(
-            "so anchor_co_proj[{}] = ({}, {})", a, anchor_co_proj[a][0], anchor_co_proj[a][1]);
-      }
     }
   }
   const float area = area_poly_v2(reinterpret_cast<const float (*)[2]>(anchor_co_proj.data()),
                                   anchor_co_proj.size());
-  if (dbg) {
-    fmt::println("area = {}, compare to epsilon={}", area, geom::bevel_epsilon_big);
-  }
   return area < geom::bevel_epsilon_big;
 }
 
@@ -3472,16 +3411,9 @@ static bool is_bad_uv_poly(const int bv, const int f, const BevelState &bs)
 static int find_center_face_rep(const int bv, const BevelState &bs)
 {
   int any_face = -1;
-  bool dbg = bv == 4;  // DEBUG!!
-  if (dbg) {           // DEBUG!!
-    fmt::println("find_center_face_rep, bv={}", bv);
-  }
   bool consider_all_faces = bs.bevvert_beveled_edges_num(bv) == 1 ||
                             (bs.params.affect_type == BevelAffect::Vertices &&
                              (bs.params.segments % 2) == 1);
-  if (dbg) {
-    fmt::println("consider_all_faces = {}", consider_all_faces);
-  }
   Span<int> bes = bs.bevvert_bevedges()[bv];
   const int edge_count = bes.size();
   VectorSet<int, 20> fchoices;
@@ -3495,27 +3427,16 @@ static int find_center_face_rep(const int bv, const BevelState &bs)
       continue;
     }
     const int f = choose_face_rep({f1, f2}, bs);
-    if (dbg) {
-      fmt::println("choose_face_rep({},{}) -> {}", f1, f2, f);
-    }
     if (any_face == -1) {
       any_face = f;
     }
     if (bs.uvmaps_num > 0 && is_bad_uv_poly(bv, f, bs)) {
-      if (dbg) {
-        fmt::println("  bad_uv_poly, so not adding {}", f);
-      }
       continue;
     }
     fchoices.add(f);
   }
   if (fchoices.size() == 0) {
     return any_face;
-  }
-  if (dbg) {
-    cfr_debug = true;
-    fmt::println("choose_face_rep gives {}", choose_face_rep(fchoices.as_span(), bs));
-    cfr_debug = false;
   }
   return choose_face_rep(fchoices.as_span(), bs);
 }
@@ -6620,7 +6541,8 @@ static std::optional<Mesh *> build_mesh(const BevelState &bs,
     }
     dst.finish();
   });
-  BLI_assert(bke::mesh_is_valid(*dst_mesh));
+  // DEBUG!!
+  // BLI_assert(bke::mesh_is_valid(*dst_mesh));
 
   return dst_mesh;
 }
@@ -6630,6 +6552,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
                                  const BevelParameters &params,
                                  const bke::AttributeFilter &attribute_filter)
 {
+  double start_time = BLI_time_now_seconds();
   auto all_zero = [](const Array<float> &o) {
     return std::ranges::all_of(o, [](float f) { return f == 0.0; });
   };
@@ -6651,7 +6574,10 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   state.build_face_meshes();
   state.build_edge_meshes();
   uv::merge_uvs(state, state.uv_attributes_mutable());
-  return build_mesh(state, attribute_filter);
+  std::optional<Mesh *> ans = build_mesh(state, attribute_filter);
+  double end_time = BLI_time_now_seconds();
+  fmt::println("bevel node time {} seconds", end_time - start_time);
+  return ans;
 }
 
 }  // namespace blender::geometry

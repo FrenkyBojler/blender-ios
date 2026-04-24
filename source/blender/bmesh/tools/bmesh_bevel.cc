@@ -187,8 +187,8 @@ struct ProfileSpacing {
  * when there is an odd number of segments.
  *
  * The face_compent field of the following will only be set if there are an odd
- * number of segments. The it uses BMFace indices to index into it, so wil#define BMI(e)
- * BM_elem_index_get(e)l only be valid as long BMFaces are not added or deleted in the BMesh.
+ * number of segments. The it uses BMFace indices to index into it, so will
+ * only be valid as long BMFaces are not added or deleted in the BMesh.
  * "Connected Component" here means connected in UV space:
  * i.e., one face is directly connected to another if they share an edge and
  * all of Loop UV custom layers are contiguous across that edge.
@@ -428,7 +428,6 @@ struct BevelParams {
 
 /* Only for debugging, this file shouldn't be in blender repository. */
 // #include "bevdebug.c"
-#define BMI(e) BM_elem_index_get(e)
 
 /* Use the unused _BM_ELEM_TAG_ALT flag to flag the 'long' loops (parallel to beveled edge)
  * of edge-polygons. */
@@ -1241,7 +1240,6 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
   }
 }
 
-static bool cfr_debug = false;  // DEBUG!!
 /**
  * Use a tie-breaking rule to choose a representative face when
  * there are number of choices, `face[0]`, `face[1]`, ..., `face[nfaces]`.
@@ -1257,9 +1255,6 @@ static bool cfr_debug = false;  // DEBUG!!
 static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
 {
 #define VEC_VALUE_LEN 6
-  if (cfr_debug) {
-    printf("choose_rep_face, nfaces=%d\n", nfaces);
-  }
   float (*value_vecs)[VEC_VALUE_LEN] = nullptr;
   int num_viable = 0;
 
@@ -4989,12 +4984,8 @@ static int find_face_internal_boundverts(const BevVert *bv,
                                          const BMFace *f,
                                          BoundVert *(r_internal[3]))
 {
-  bool dbg = BMI(bv->v) == 4;
   if (f == nullptr) {
     return 0;
-  }
-  if (dbg) {
-    printf("find_internal_boundverts, bv=%d, f=%d\n", BMI(bv->v), BMI(f));
   }
   int n_internal = 0;
   VMesh *vm = bv->vmesh;
@@ -5004,17 +4995,7 @@ static int find_face_internal_boundverts(const BevVert *bv,
     /* Possible speedup: do the matrix projection done by the following
      * once, outside the loop, or even better, cache it if ever done
      * in the course of Bevel. */
-    if (dbg) {
-      printf("boundvert %d, test (%f,%f,%f) inside f\n",
-             v->index,
-             v->nv.co[0],
-             v->nv.co[1],
-             v->nv.co[2]);
-    }
     if (BM_face_point_inside_test(f, v->nv.co)) {
-      if (dbg) {
-        printf("inside, so r_internal[%d] = boundvert %d\n", n_internal, v->index);
-      }
       r_internal[n_internal++] = v;
       if (n_internal == 3) {
         break;
@@ -5037,19 +5018,12 @@ static int find_face_internal_boundverts(const BevVert *bv,
  */
 static float projected_boundary_area(BevVert *bv, BMFace *f)
 {
-  bool dbg = BMI(bv->v) == 4;
-  if (dbg) {
-    printf("bmesh_bevel: projected_boundary_area, bv=%d, f=%d\n", BMI(bv->v), BMI(f));
-  }
   BMEdge *e1, *e2;
   VMesh *vm = bv->vmesh;
   float (*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, f->no);
   get_incident_edges(f, bv->v, &e1, &e2);
-  if (dbg) {
-    printf("incident edges e1=%d, e2=%d\n", BMI(e1), BMI(e2));
-  }
   BLI_assert(e1 != nullptr && e2 != nullptr);
   BLI_assert(vm != nullptr);
   BoundVert *v = vm->boundstart;
@@ -5058,52 +5032,25 @@ static float projected_boundary_area(BevVert *bv, BMFace *f)
   find_face_internal_boundverts(bv, f, unsnapped);
   do {
     float *co = v->nv.v->co;
-    if (dbg) {
-      printf("handle boundvert v=%d, co=(%f,%f,%f)\n", v->index, co[0], co[1], co[2]);
-    }
     if (ELEM(v, unsnapped[0], unsnapped[1], unsnapped[2])) {
       mul_v2_m3v3(proj_co[i], axis_mat, co);
-      if (dbg) {
-        printf("v is internal (unsnapped) so proj_co[%d] = (%f,%f)\n",
-               i,
-               proj_co[i][0],
-               proj_co[i][1]);
-      }
     }
     else {
       float snap1[3], snap2[3];
       closest_to_line_segment_v3(snap1, co, e1->v1->co, e1->v2->co);
       closest_to_line_segment_v3(snap2, co, e2->v1->co, e2->v2->co);
-      if (dbg) {
-        printf("v need snapping, snap1=(%f,%f,%f), snap2=(%f,%f,%f)\n",
-               snap1[0],
-               snap1[1],
-               snap1[2],
-               snap2[0],
-               snap2[1],
-               snap2[2]);
-      }
       float d1_sq = len_squared_v3v3(snap1, co);
       float d2_sq = len_squared_v3v3(snap2, co);
-      if (dbg) {
-        printf("d1_sq=%f, d2_s1=%f\n", d1_sq, d2_sq);
-      }
       if (d1_sq <= d2_sq) {
         mul_v2_m3v3(proj_co[i], axis_mat, snap1);
       }
       else {
         mul_v2_m3v3(proj_co[i], axis_mat, snap2);
       }
-      if (dbg) {
-        printf("so proj_co[%d] = (%f,%f)\n", i, proj_co[i][0], proj_co[i][1]);
-      }
     }
     ++i;
   } while ((v = v->next) != vm->boundstart);
   float area = area_poly_v2(proj_co, vm->count);
-  if (dbg) {
-    printf("area = %f, compare to epsilon=%f", area, BEVEL_EPSILON_BIG);
-  }
   return area;
 }
 
@@ -5140,10 +5087,6 @@ static bool is_bad_uv_poly(BevVert *bv, BMFace *frep)
  */
 static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
 {
-  bool dbg = BMI(bv->v) == 4;  // DEBUG!!
-  if (dbg) {
-    printf("frep_for_center_poly, bv->v=%d\n", BMI(bv->v));
-  }
   int fcount = 0;
   BMFace *any_bmf = nullptr;
   bool consider_all_faces = bv->selcount == 1 || bp->affect_vertices_odd;
@@ -5159,9 +5102,6 @@ static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
     BMFace *bmf2 = bv->edges[i].fnext;
     BMFace *ftwo[2] = {bmf1, bmf2};
     BMFace *bmf = choose_rep_face(bp, ftwo, 2);
-    if (dbg) {
-      printf("choose_rep_face(%d,%d) -> %d\n", BMI(bmf1), BMI(bmf2), BMI(bmf));
-    }
     if (bmf != nullptr) {
       if (any_bmf == nullptr) {
         any_bmf = bmf;
@@ -5176,9 +5116,6 @@ static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
       if (!already_there) {
         if (bp->math_layer_info.has_math_layers) {
           if (is_bad_uv_poly(bv, bmf)) {
-            if (dbg) {
-              printf("  bad_uv_poly, so not adding %d\n", BMI(bmf));
-            }
             continue;
           }
         }
@@ -5188,11 +5125,6 @@ static BMFace *frep_for_center_poly(BevelParams *bp, BevVert *bv)
   }
   if (fcount == 0) {
     return any_bmf;
-  }
-  if (dbg) {
-    cfr_debug = true;
-    printf("choose_rep_face give %d\n", BMI(choose_rep_face(bp, fchoices, fcount)));
-    cfr_debug = false;
   }
   return choose_rep_face(bp, fchoices, fcount);
 }
