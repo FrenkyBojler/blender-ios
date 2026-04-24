@@ -35,7 +35,7 @@ struct ScreenThicknessEstimator {
   static ScreenThicknessEstimator init(float start_z)
   {
     ScreenThicknessEstimator estimator;
-    estimator.prev_ss_z_slope = float2(-1.0f);
+    estimator.prev_ss_z_slope = float2(0.0f);
     estimator.prev_ss_z = start_z;
     estimator.prev_t = 0.0f;
     return estimator;
