@@ -267,7 +267,7 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
-if (WITH_GPU_BACKEND_TESTS)
+if(WITH_GPU_BACKEND_TESTS)
   if(WITH_OPENGL_BACKEND)
     add_blender_test(
       script_pyapi_gpu_opengl
@@ -371,6 +371,35 @@ add_blender_test(
 add_blender_test(
   script_pyapi_annotations
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
+)
+
+add_blender_test(
+  script_pyapi_blf_buffer
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+  --
+  --mode=BUFFER
+)
+
+# TODO: investigate if this can be supported, as the GPU can be used for rendering.
+# Requires `gpu.init()`, not available for the build-bots for the default environment.
+if(FALSE)
+  add_blender_test(
+    script_pyapi_blf_gpu
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+    --
+    --mode=GPU
+  )
+endif()
+
+add_blender_test(
+  script_pyapi_blf_vfont
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+  --
+  --mode=VFONT
+  # Use Workbench render instead of simple GPU rasterization.
+  # Most build-bots systems fail with `gpu.init()` otherwise this could be avoided.
+  # Ideally it could be removed eventually as it's slower.
+  --use-vfont-render
 )
 
 # ------------------------------------------------------------------------------
@@ -536,6 +565,11 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     object_api
     --python ${TEST_PYTHON_DIR}/bl_object.py
+  )
+
+  add_blender_test(
+    node_tools
+    --python ${TEST_PYTHON_DIR}/bl_node_tool.py
   )
 endif()
 
@@ -874,14 +908,14 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   if(WITH_FREESTYLE)
     list(APPEND render_tests render_layer)
     list(APPEND workbench_tests render_layer)
-    endif()
-    
-    if(WITH_MOD_FLUID)
+  endif()
+
+  if(WITH_MOD_FLUID)
     list(APPEND render_tests motion_blur reports volume)
     list(APPEND workbench_tests volume)
-    endif()
-    
-    if(WITH_OPENVDB AND WITH_MOD_FLUID)
+  endif()
+
+  if(WITH_OPENVDB AND WITH_MOD_FLUID)
     # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
     list(APPEND workbench_tests openvdb)
@@ -1387,9 +1421,6 @@ if(TEST_SRC_DIR_EXISTS AND TEST_OPENIMAGEIO_TOOL_EXISTS)
   if(WITH_IMAGE_CINEON)
     set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} CINEON")
   endif()
-  if(WITH_IMAGE_OPENEXR)
-    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENEXR")
-  endif()
   if(WITH_IMAGE_OPENJPEG)
     set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENJPEG")
   endif()
@@ -1577,6 +1608,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_weight_paint_brushes
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/weight_paint_brushes_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/mesh_paint"
+  )
+
+  add_blender_test(
+    bl_texture_paint_brushes
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/texture_paint_brushes_test.py
     --
     --testdir "${TEST_SRC_DIR}/mesh_paint"
   )
