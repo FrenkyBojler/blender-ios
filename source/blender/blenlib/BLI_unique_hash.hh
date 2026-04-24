@@ -35,9 +35,18 @@ struct UniqueHashBytes {
   Vector<std::byte, 256> data;
   template<typename T> void add(const T &value)
   {
-    static_assert(std::is_trivial_v<T>);
+    static_assert(std::is_trivially_copyable_v<T>);
     data.extend(reinterpret_cast<const std::byte *>(&value), sizeof(T));
   }
 };
+
+template<typename T> void hash_unique_default(const T &value, UniqueHashBytes &hash);
+
+template<typename T>
+inline void hash_unique_default(const T &value, UniqueHashBytes &hash)
+  requires(std::is_trivially_copyable_v<T>)
+{
+  hash.add(value);
+}
 
 }  // namespace blender

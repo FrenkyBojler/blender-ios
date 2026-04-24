@@ -125,7 +125,7 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
       std::visit(
           [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-              hash_context.add(v.type->hash_or_fallback(v.value, uint64_t(v.value)));
+              v.type->hash_unique(v.value, hash_context);
               hash_context.add(v.type);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::Input>) {

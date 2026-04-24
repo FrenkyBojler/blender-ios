@@ -41,7 +41,7 @@ void CustomMF_GenericConstant::call(const IndexMask &mask,
 
 void CustomMF_GenericConstant::hash_unique(UniqueHashBytes &hash) const
 {
-  hash.add(type_.hash_or_fallback(value_, uintptr_t(this)));
+  type_.hash_unique(value_, hash);
   hash.add(&type_);
 }
 
