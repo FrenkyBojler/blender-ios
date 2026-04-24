@@ -74,14 +74,14 @@ static void blf_font_otf_feature_set(blender::Vector<hb_feature_t> &features,
 FeatureSet blf_font_otf_features_base()
 {
   static FeatureSet features = {
-      {BLF_OTF_KERN, 1}, /* Kerning. */
-      {BLF_OTF_LOCL, 1}, /* Localized Forms. */
-      {BLF_OTF_LIGA, 1}, /* Standard Ligatures. */
-      {BLF_OTF_CASE, 1}, /* Case Sensitive Forms. */
-      {BLF_OTF_TNUM, 1}, /* Tabular Numbers. */
-      {BLF_OTF_HLIG, 0}, /* Historical Ligatures. */
-      {BLF_OTF_SALT, 0}, /* Stylistic Alternates. */
-      {BLF_OTF_CLIG, 0}, /* Contextual Ligatures. */
+      {BLF_OTF_KERN, true},  /* Kerning. */
+      {BLF_OTF_LOCL, true},  /* Localized Forms. */
+      {BLF_OTF_LIGA, true},  /* Standard Ligatures. */
+      {BLF_OTF_CASE, true},  /* Case Sensitive Forms. */
+      {BLF_OTF_TNUM, true},  /* Tabular Numbers. */
+      {BLF_OTF_HLIG, false}, /* Historical Ligatures. */
+      {BLF_OTF_SALT, false}, /* Stylistic Alternates. */
+      {BLF_OTF_CLIG, false}, /* Contextual Ligatures. */
   };
   return features;
 }
@@ -89,22 +89,11 @@ FeatureSet blf_font_otf_features_base()
 FeatureSet blf_font_otf_features_default()
 {
   FeatureSet features = blf_font_otf_features_base();
-  if (U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI) {
-    features.append({BLF_OTF_DLIG, 1});
-  }
-  if (U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI) {
-    features.append({BLF_OTF_CALT, 1});
-  }
-  if (U.text_render & USER_TEXT_SLASHED_ZERO_UI) {
-    features.append({BLF_OTF_ZERO, 1});
-  }
-  if (U.text_render & USER_TEXT_OPEN_DIGITS_INTER) {
-    features.append({BLF_OTF_SS01, 1});
-  }
-  if (U.text_render & USER_TEXT_DISAMBIGUATION_INTER) {
-    features.append({BLF_OTF_SS04, 1});
-  }
-
+  features.append({BLF_OTF_DLIG, (U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI) != 0});
+  features.append({BLF_OTF_CALT, (U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI) != 0});
+  features.append({BLF_OTF_ZERO, (U.text_render & USER_TEXT_SLASHED_ZERO_UI) != 0});
+  features.append({BLF_OTF_SS01, (U.text_render & USER_TEXT_OPEN_DIGITS_INTER) != 0});
+  features.append({BLF_OTF_SS04, (U.text_render & USER_TEXT_DISAMBIGUATION_INTER) != 0});
   return features;
 }
 
