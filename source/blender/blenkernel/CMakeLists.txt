@@ -504,6 +504,7 @@ set(SRC
   BKE_shrinkwrap.hh
   BKE_softbody.h
   BKE_sound.hh
+  BKE_sound_sample.hh
   BKE_sound_types.hh
   BKE_speaker.hh
   BKE_studiolight.h
@@ -624,10 +625,6 @@ if(WITH_BULLET)
     bf_intern_rigidbody
     PRIVATE bf::dependencies::optional::bullet
   )
-endif()
-
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
