@@ -48,6 +48,7 @@ static void deform_curves(const CurvesGeometry &curves,
                           const Span<float3> corner_normals_new,
                           const Span<float3> rest_positions,
                           const float4x4 &surface_to_curves,
+                          const Span<float3> r_orig_positions,
                           MutableSpan<float3> r_positions,
                           MutableSpan<float3x3> r_rotations,
                           std::atomic<int> &r_invalid_uv_count)
@@ -84,16 +85,36 @@ static void deform_curves(const CurvesGeometry &curves,
   const OffsetIndices points_by_curve = curves.points_by_curve();
 
   threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange range) {
+    /* Track the root position of the last successfully deformed curve in this chunk so that
+     * invalid curves can be collapsed near a valid neighbour rather than left in mid-air. */
+    int last_known_good_point = -1;
+
     for (const int curve_i : range) {
       const ReverseUVSampler::Result &surface_sample_old = surface_samples_old[curve_i];
-      if (surface_sample_old.type != ReverseUVSampler::ResultType::Ok) {
+      const ReverseUVSampler::Result &surface_sample_new = surface_samples_new[curve_i];
+
+      const bool invalid = (surface_sample_old.type != ReverseUVSampler::ResultType::Ok) ||
+                           (surface_sample_new.type != ReverseUVSampler::ResultType::Ok);
+
+      const IndexRange points = points_by_curve[curve_i];
+
+      if (invalid) {
         r_invalid_uv_count++;
+        /* Collapse all points of the invalid curve to a single position so it becomes
+         * invisible in strand/strip mode instead of hanging at its rest-pose location. */
+        if (!points.is_empty()) {
+          const float3 collapse_pos = (last_known_good_point >= 0) ?
+                                          r_positions[last_known_good_point] :
+                                          r_orig_positions[points[0]];
+          for (const int point_i : points) {
+            r_positions[point_i] = collapse_pos;
+          }
+        }
         continue;
       }
-      const ReverseUVSampler::Result &surface_sample_new = surface_samples_new[curve_i];
-      if (surface_sample_new.type != ReverseUVSampler::ResultType::Ok) {
-        r_invalid_uv_count++;
-        continue;
+
+      if (!points.is_empty()) {
+        last_known_good_point = points[0];
       }
 
       const int3 &tri_old = surface_corner_tris_old[surface_sample_old.tri_index];
@@ -196,9 +217,8 @@ static void deform_curves(const CurvesGeometry &curves,
       const float4x4 curve_transform = surface_to_curves * surface_transform * curves_to_surface;
 
       /* Actually transform all points. */
-      const IndexRange points = points_by_curve[curve_i];
       for (const int point_i : points) {
-        const float3 old_point_pos = r_positions[point_i];
+        const float3 old_point_pos = r_orig_positions[point_i];
         const float3 new_point_pos = math::transform_point(curve_transform, old_point_pos);
         r_positions[point_i] = new_point_pos;
       }
@@ -382,6 +402,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     edit_hint_rotations = *edit_hints->deform_mats;
   }
 
+  MutableSpan<float3> curve_positions = curves.positions_for_write();
+
   if (edit_hint_positions.is_empty()) {
     deform_curves(curves,
                   *surface_mesh_orig,
@@ -393,7 +415,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   corner_normals_eval,
                   rest_positions,
                   transforms.surface_to_curves,
-                  curves.positions_for_write(),
+                  curve_positions,
+                  curve_positions,
                   edit_hint_rotations,
                   invalid_uv_count);
   }
@@ -409,7 +432,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                   corner_normals_eval,
                   rest_positions,
                   transforms.surface_to_curves,
-                  curves.positions_for_write(),
+                  curve_positions,
+                  curve_positions,
                   {},
                   invalid_uv_count);
     /* Then also deform edit curve information for use in sculpt mode. */
@@ -427,6 +451,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                     corner_normals_eval,
                     rest_positions,
                     transforms.surface_to_curves,
+                    edit_hint_positions,
                     edit_hint_positions,
                     edit_hint_rotations,
                     invalid_uv_count);
