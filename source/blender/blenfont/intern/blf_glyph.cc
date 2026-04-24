@@ -1485,7 +1485,7 @@ static void blf_glyph_calc_rect_test(const GlyphBLF *g, const int x, const int y
    * width used by BLF_width. This allows that the text slightly
    * overlaps the clipping border to achieve better alignment. */
   r_rect->xmin = x + abs(g->pos[0]) + 1;
-  r_rect->xmax = x + std::min(ft_pix_to_int(g->advance_x), g->dims[0]);
+  r_rect->xmax = x + std::min(ft_pix_to_int(g->advance_x) - 1, g->dims[0]);
   r_rect->ymin = y;
   r_rect->ymax = r_rect->ymin - g->dims[1];
 }
