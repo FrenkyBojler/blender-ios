@@ -101,7 +101,7 @@ std::string to_string(const Span<Item> &items);
 template<> struct DefaultHash<rna_path::Item> {
   uint64_t operator()(const rna_path::Item &value) const
   {
-    return get_default_hash(value.index(),
+    return get_default_hash(uint64_t(value.index()),
                             std::visit(
                                 []<typename T>(const T &value) -> uint64_t {
                                   if constexpr (std::is_same_v<T, rna_path::Member>) {
