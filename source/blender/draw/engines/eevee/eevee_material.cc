@@ -339,7 +339,7 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
                                                    MAT_PIPE_PREPASS_DEFERRED_RAYCAST);
   }
 
-  MaterialKey material_key(blender_mat, geometry_type, surface_pipe, ob->visibility_flag);
+  MaterialKey material_key(blender_mat, geometry_type, prepass_pipe, ob->visibility_flag);
 
   Material &mat = material_map_.lookup_or_add_cb(material_key, [&]() {
     Material mat;
