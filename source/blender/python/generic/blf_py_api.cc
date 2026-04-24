@@ -535,6 +535,7 @@ static PyObject *py_blf_bind_imbuf_enter(BPyBLFImBufContext *self)
              ibuf->byte_data_for_write(),
              ibuf->x,
              ibuf->y,
+             4,
              ibuf->byte_buffer.colorspace);
   self->buffer_state = buffer_state;
 
@@ -798,6 +799,7 @@ PyObject *BPyInit_blf()
   PyModule_AddIntConstant(submodule, "SHADOW", BLF_SHADOW);
   PyModule_AddIntConstant(submodule, "WORD_WRAP", BLF_WORD_WRAP);
   PyModule_AddIntConstant(submodule, "MONOCHROME", BLF_MONOCHROME);
+  PyModule_AddIntConstant(submodule, "NO_FALLBACK", BLF_NO_FALLBACK);
 
   return submodule;
 }

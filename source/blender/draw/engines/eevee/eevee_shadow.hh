@@ -178,7 +178,7 @@ struct ShadowTileMapPool {
 
 /* Can be either a shadow caster or a shadow receiver. */
 struct ShadowObject {
-  ResourceHandleRange resource_handle = {};
+  ResourceHandle resource_handle;
   bool used = true;
 };
 
@@ -245,7 +245,7 @@ class ShadowModule {
   /** List of Resource IDs (to get bounds) for getting minimum clip-maps bounds. */
   StorageVectorBuffer<uint, 128> curr_casters_ = {"CurrCasters"};
   /** Empty framebuffer to rasterize bounding boxes for update tagging. */
-  Framebuffer update_tag_fb_ = {"shadow_write_framebuffer"};
+  Framebuffer update_tag_fb_ = {"update_tag_fb"};
 
   /** Indirect arguments for page clearing. */
   DispatchIndirectBuf clear_dispatch_buf_ = {"clear_dispatch_buf"};
@@ -310,10 +310,10 @@ class ShadowModule {
 
    protected:
     /** Special culling pass to take shadow linking into consideration. */
-    virtual void compute_visibility(ObjectBoundsBuf &bounds,
-                                    ObjectInfosBuf &infos,
-                                    uint resource_len,
-                                    bool debug_freeze) override;
+    void compute_visibility(ObjectBoundsBuf &bounds,
+                            ObjectInfosBuf &infos,
+                            uint resource_len,
+                            bool debug_freeze) override;
   };
 
   /** Multi-View containing a maximum of 64 view to be rendered with the shadow pipeline. */
@@ -364,9 +364,7 @@ class ShadowModule {
 
   void begin_sync();
   /** Register a shadow caster or receiver. */
-  void sync_object(const Object *ob,
-                   const ObjectHandle &handle,
-                   const ResourceHandleRange &resource_handle,
+  void sync_object(const ObjectHandle &ob_handle,
                    bool is_alpha_blend,
                    bool has_transparent_shadows);
   void end_sync();
