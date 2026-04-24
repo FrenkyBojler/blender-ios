@@ -73,7 +73,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     sum_nonspecular_weight += closure_weight * diffuse_weight;
   }
 
-  /* Fraction of non-transparent closures, for smoothpass_flag blending at transparent surfaces. */
+  /* Fraction of non-transparent closures, for smooth blending at transparent surfaces. */
   const float transparent_weight = average(transparent_albedo);
   const float total_weight = sum_weight + transparent_weight;
 
