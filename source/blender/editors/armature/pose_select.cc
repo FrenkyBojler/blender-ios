@@ -46,6 +46,9 @@
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
 #include "ANIM_armature.hh"
 #include "ANIM_bonecolor.hh"
 #include "ANIM_keyingsets.hh"
@@ -994,10 +997,14 @@ static void deselect_pose_bones(const Set<bPoseChannel *> &pose_bones)
   }
 }
 
-/* Selects children of currently selected bones in all objects in pose mode. If `all` is true, a
- * bone will be selected if any bone in it's parent hierarchy is selected. If false, only bones
- * whose direct parent is selected are changed. */
-static bool pose_select_children(bContext *C, const bool all, const bool extend)
+/* Selects children of the initially selected bones in all armature objects in pose mode.
+ * Clears selection first unless `extend` is true.
+ * `all` selects all descendants; otherwise only selects direct children.
+ * 'only_connected' will limit the selection to the connected children. */
+static bool pose_select_children(bContext *C,
+                                 const bool all,
+                                 const bool extend,
+                                 const bool only_connected)
 {
   const Main *bmain = CTX_data_main(C);
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
@@ -1018,14 +1025,19 @@ static bool pose_select_children(bContext *C, const bool all, const bool extend)
       }
       if (all) {
         if (pose_bone_is_below_one_of(pchan, selected_pose_bones)) {
-          pose_do_bone_select(&pchan, SEL_SELECT);
-          changed_any_selection = true;
+          /* TODO: edit this so it only selects contiguous chains. */
+          if (!only_connected || ((pchan.bone->flag & BONE_CONNECTED) != 0)) {
+            pose_do_bone_select(&pchan, SEL_SELECT);
+            changed_any_selection = true;
+          }
         }
       }
       else {
         if (selected_pose_bones.contains(pchan.parent)) {
-          pose_do_bone_select(&pchan, SEL_SELECT);
-          changed_any_selection = true;
+          if ((!only_connected) || ((pchan.bone->flag & BONE_CONNECTED) != 0)) {
+            pose_do_bone_select(&pchan, SEL_SELECT);
+            changed_any_selection = true;
+          }
         }
       }
     }
@@ -1189,6 +1201,7 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   const SelectRelatedMode mode = SelectRelatedMode(RNA_enum_get(op->ptr, "type"));
   const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool only_connected = RNA_boolean_get(op->ptr, "only_connected");
   bool changed = false;
 
   /* sanity check */
@@ -1211,11 +1224,11 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
       break;
 
     case SelectRelatedMode::CHILDREN:
-      changed = pose_select_children(C, true, extend);
+      changed = pose_select_children(C, true, extend, only_connected);
       break;
 
     case SelectRelatedMode::IMMEDIATE_CHILDREN:
-      changed = pose_select_children(C, false, extend);
+      changed = pose_select_children(C, false, extend, only_connected);
       break;
 
     case SelectRelatedMode::PARENT:
@@ -1238,6 +1251,21 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
+}
+
+static void pose_select_grouped_ui(bContext * /*C*/, wmOperator *op)
+{
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+
+  layout.prop(op->ptr, "extend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  const int type = RNA_enum_get(op->ptr, "type");
+  if (type == int(SelectRelatedMode::CHILDREN) ||
+      type == int(SelectRelatedMode::IMMEDIATE_CHILDREN))
+  {
+    layout.prop(op->ptr, "only_connected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  layout.prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void POSE_OT_select_grouped(wmOperatorType *ot)
@@ -1285,6 +1313,7 @@ void POSE_OT_select_grouped(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_select_grouped_exec;
+  ot->ui = pose_select_grouped_ui;
   ot->poll = ED_operator_posemode; /* TODO: expand to support edit mode as well. */
 
   /* flags */
@@ -1296,6 +1325,11 @@ void POSE_OT_select_grouped(wmOperatorType *ot)
                   false,
                   "Extend",
                   "Extend selection instead of deselecting everything first");
+  RNA_def_boolean(ot->srna,
+                  "only_connected",
+                  false,
+                  "Only Connected",
+                  "Only select if there is a 'connected' child/parent relationship");
   ot->prop = RNA_def_enum(ot->srna, "type", prop_select_grouped_types, 0, "Type", "");
 }
 
