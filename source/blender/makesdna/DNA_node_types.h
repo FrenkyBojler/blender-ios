@@ -2110,6 +2110,7 @@ struct bNodeSocketValueString {
   char use_textbox = false;
   char _pad[3] = {};
   char value[/*FILE_MAX*/ 1024] = "";
+  TextboxState textbox_state;
 };
 
 struct bNodeSocketValueObject {

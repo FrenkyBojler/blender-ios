@@ -1324,7 +1324,8 @@ static void std_node_socket_draw(
         const bool use_textbox =
             static_cast<const nodes::decl::String *>(socket_decl)->use_textbox;
         if (use_textbox) {
-          layout->textbox(C, ptr, "default_value");
+          layout->textbox_with_state(
+              ptr, "default_value", RNA_pointer_get(ptr, "textbox_state").data_as<TextboxState>());
         }
         else if (optional_label) {
           layout->prop(ptr,
