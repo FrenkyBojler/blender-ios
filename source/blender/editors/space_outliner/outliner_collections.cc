@@ -311,7 +311,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
       TreeElement *te = static_cast<TreeElement *>(link.data);
       TreeStoreElem *tselem = TREESTORE(te);
       Object *ob = id_cast<Object *>(tselem->id);
-      BKE_collection_object_move(bmain, scene, collection, find_parent_collection(C, te), ob);
+      BKE_collection_object_move(bmain, scene, new_collection, find_parent_collection(C, te), ob);
     }
 
     BLI_freelistN(&selected.selected_array);
