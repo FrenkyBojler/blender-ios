@@ -53,9 +53,9 @@
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_api.hh"
+#include "ED_time_scrub_ui.hh"
 #include "ED_util.hh"
 #include "ED_view3d.hh"
-#include "ED_time_scrub_ui.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
