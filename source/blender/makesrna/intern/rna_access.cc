@@ -4382,7 +4382,6 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
 TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA *prop)
 {
   BLI_assert(RNA_property_string_textbox_flag(prop));
-  BLI_assert(prop->flag & PROP_IDPROPERTY || (prop->magic != RNA_MAGIC));
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
@@ -4417,7 +4416,9 @@ TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA
 
 bool RNA_property_string_textbox_flag(PropertyRNA *prop)
 {
-  return (RNA_property_type(prop) == PROP_STRING) && (prop->flag & PROP_ID_USE_TEXTBOX);
+  return ((prop->flag & PROP_IDPROPERTY) ||
+          (prop->magic != RNA_MAGIC) && RNA_property_type(prop) == PROP_STRING) &&
+         (prop->flag & PROP_ID_USE_TEXTBOX);
 }
 
 static int property_enum_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)

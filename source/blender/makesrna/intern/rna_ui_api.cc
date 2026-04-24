@@ -121,6 +121,10 @@ static void rna_uiItemTextBox(Layout *layout,
                               bool translate)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+  if (!prop) {
+    return;
+  }
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
     RNA_warning_bare("UILayout.textbox(): property not found: %s.%s",
@@ -137,6 +141,10 @@ static void rna_uiItemTextBox(Layout *layout,
 
   if (state_ptr && !RNA_pointer_is_null(state_ptr)) {
     layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>(), placeholder_opt);
+    return;
+  }
+  if (RNA_property_string_textbox_flag(prop)) {
+    layout->textbox_with_state(ptr, propname, RNA_property_string_get_textbox_state(ptr, prop));
   }
   else {
     layout->textbox(C, ptr, propname, placeholder_opt);
