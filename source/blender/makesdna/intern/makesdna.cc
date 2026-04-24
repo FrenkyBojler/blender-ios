@@ -271,7 +271,7 @@ static int add_type(const StringRefNull type_name_input, const int size)
 
 /**
  * Add a member to the members table. The name is expected to already be in canonical
- * form (function pointers rewritten as `(*name)()`, `(*name)(void)`, and name validaty
+ * form (function pointers rewritten as `(*name)()`, `(*name)(void)`, and name validate
  * already checked by the parser).
  */
 static int add_member(const StringRefNull member_name)
@@ -423,7 +423,7 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
 
           /* Write size verification to file. */
           {
-            /* Normally 'alloca' would be used here, however we can't in a loop.
+            /* Normally `alloca` would be used here, however we can't in a loop.
              * Use an over-sized buffer instead. */
             char name_static[1024];
             BLI_assert(sizeof(name_static) > namelen);
@@ -579,7 +579,7 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
 
           /* Sanity check 2: alignment should always be equal or smaller than the maximum
            * alignment we support. 8 bytes for built-in types (e.g. `int64_t`, `double`),
-           * up to 16 bytes for C++ overaligned types like `float4x4`. */
+           * up to 16 bytes for C++ over-aligned types like `float4x4`. */
           BLI_assert(max_align_32 <= 16);
           BLI_assert(max_align_64 <= 16);
 
@@ -813,18 +813,21 @@ static int make_structDNA(const char *base_directory,
   DEBUG_PRINTF(0, "\tStart of header scan:\n");
   int header_count = 0;
   Vector<dna::ParsedStruct> parsed_structs;
+  Vector<dna::ParsedEnum> parsed_enums;
   for (int i = 0; *(includefiles[i]) != '\0'; i++) {
     header_count++;
 
     const std::string path = std::string(base_directory) + includefiles[i];
     DEBUG_PRINTF(0, "\t|-- Converting %s\n", path.c_str());
-    if (!dna::parse_dna_header(path, parsed_structs)) {
+    if (!dna::parse_dna_header(path, parsed_structs, parsed_enums)) {
       return 1;
     }
   }
   DEBUG_PRINTF(0, "\tFinished scanning %d headers.\n", header_count);
 
-  dna::substitute_cpp_types(parsed_structs);
+  if (!dna::substitute_cpp_types(parsed_structs, parsed_enums)) {
+    return 1;
+  }
   register_parsed_structs(parsed_structs);
 
   if (calculate_struct_sizes(firststruct, file_verify, base_directory)) {
