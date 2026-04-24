@@ -64,6 +64,7 @@ KERNEL_STRUCT_MEMBER(path, PackedSpectrum, pass_diffuse_weight, KERNEL_FEATURE_L
 KERNEL_STRUCT_MEMBER(path, PackedSpectrum, pass_glossy_weight, KERNEL_FEATURE_LIGHT_PASSES)
 /* Denoising. */
 KERNEL_STRUCT_MEMBER(path, PackedSpectrum, denoising_feature_throughput, KERNEL_FEATURE_DENOISING)
+KERNEL_STRUCT_MEMBER(path, float, denoising_depth_last, KERNEL_FEATURE_DENOISING)
 /* Shader sorting. */
 /* TODO: compress as uint16? or leave out entirely and recompute key in sorting code? */
 KERNEL_STRUCT_MEMBER(path, uint32_t, shader_sort_key, KERNEL_FEATURE_PATH_TRACING)

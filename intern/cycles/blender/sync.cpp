@@ -620,14 +620,8 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   }
 
   /* Denoising passes. */
-  film->set_denoising_pass_no_depth_reflections(
-      get_boolean(crl, "denoising_pass_no_depth_reflections"));
-  film->set_denoising_pass_no_normal_reflections(
-      get_boolean(crl, "denoising_pass_no_normal_reflections"));
-  film->set_denoising_pass_no_albedo_reflections(
-      get_boolean(crl, "denoising_pass_no_albedo_reflections"));
-  film->set_denoising_pass_use_camera_z_depth(
-      get_boolean(crl, "denoising_pass_use_camera_z_depth"));
+  film->set_denoising_pass_follow_reflections(
+      get_boolean(crl, "denoising_pass_follow_reflections"));
 }
 
 /* Render Layer */

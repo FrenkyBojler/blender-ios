@@ -1546,28 +1546,10 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         default=False,
         update=update_render_passes,
     )
-    denoising_pass_no_depth_reflections: BoolProperty(
-        name="Disable Denoising Depth Pass Reflections",
-        description="Disable denoising depth pass reflections",
-        default=False,
-        update=update_render_passes,
-    )
-    denoising_pass_no_normal_reflections: BoolProperty(
-        name="Disable Denoising Normal Pass Reflections",
-        description="Disable denoising normal pass reflections",
-        default=False,
-        update=update_render_passes,
-    )
-    denoising_pass_no_albedo_reflections: BoolProperty(
-        name="Disable Denoising Albedo Pass Reflections",
-        description="Disable denoising albedo pass reflections",
-        default=False,
-        update=update_render_passes,
-    )
-    denoising_pass_use_camera_z_depth: BoolProperty(
-        name="Denoising Pass Use Camera Z Depth",
-        description="Store the camera z depth as the denoising pass depth",
-        default=False,
+    denoising_pass_follow_reflections: BoolProperty(
+        name="Denoising Pass Reflections",
+        description="Follow reflections for denoising passes",
+        default=True,
         update=update_render_passes,
     )
 

@@ -97,6 +97,7 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
   if (kernel_data.kernel_features & KERNEL_FEATURE_DENOISING) {
     INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_DENOISING_FEATURES;
     INTEGRATOR_STATE_WRITE(state, path, denoising_feature_throughput) = one_spectrum();
+    INTEGRATOR_STATE_WRITE(state, path, denoising_depth_last) = 0.0f;
   }
 #endif
 
