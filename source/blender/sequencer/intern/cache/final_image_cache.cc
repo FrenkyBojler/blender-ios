@@ -13,7 +13,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BKE_global.hh"
 #include "BKE_scene.hh"
 
 #include "IMB_imbuf.hh"

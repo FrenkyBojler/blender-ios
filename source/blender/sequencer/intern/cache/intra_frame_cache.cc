@@ -8,8 +8,6 @@
 
 #include "BLI_map.hh"
 
-#include "BKE_global.hh"
-
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
