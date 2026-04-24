@@ -72,6 +72,7 @@ void OSLRenderServices::register_closures(OSL::ShadingSystem *ss)
       #lower, OSL_CLOSURE_##Upper##_ID, osl_closure_##lower##_params(), nullptr, nullptr);
 
 #include "closures_template.h"
+
   ss->register_closure(
       "layer", OSL_CLOSURE_LAYER_ID, osl_closure_layer_params(), nullptr, nullptr);
 }
@@ -135,7 +136,7 @@ void osl_eval_nodes_surface(const ThreadKernelGlobalsCPU *kg,
       /* set state as if undisplaced */
       if (sd->flag & SD_HAS_DISPLACEMENT) {
         const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_POSITION_UNDISPLACED);
-        kernel_assert(desc.offset != ATTR_STD_NOT_FOUND);
+        kernel_assert(is_attribute_found(desc));
 
         dual3 P = primitive_surface_attribute<dual3>(kg, sd, desc);
         object_position_transform(kg, sd, &P);
@@ -374,6 +375,7 @@ void osl_eval_nodes<SHADER_TYPE_DISPLACEMENT, IntegratorBakeState>(
 /* Camera */
 
 packed_float3 osl_eval_camera(const ThreadKernelGlobalsCPU *kg,
+                              ccl_private ShaderData *sd,
                               const packed_float3 sensor,
                               const packed_float3 dSdx,
                               const packed_float3 dSdy,
@@ -385,12 +387,12 @@ packed_float3 osl_eval_camera(const ThreadKernelGlobalsCPU *kg,
                               packed_float3 &dDdx,
                               packed_float3 &dDdy)
 {
-  if (!kg->osl.globals->camera_state) {
+  if (!kg || !kg->osl.globals->camera_state) {
     return zero_spectrum();
   }
 
   /* Setup shader globals from the sensor position. */
-  cameradata_to_shaderglobals(sensor, dSdx, dSdy, rand_lens, &kg->osl.shader_globals);
+  cameradata_to_shaderglobals(sd, sensor, dSdx, dSdy, rand_lens, &kg->osl.shader_globals);
 
   /* Clear trace data. */
   kg->osl.tracedata.init = false;

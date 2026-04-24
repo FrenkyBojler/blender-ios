@@ -493,7 +493,7 @@ bool Film::update_lightgroups(Scene *scene)
   for (const Pass *pass : scene->passes) {
     const ustring lightgroup = pass->get_lightgroup();
     if (!lightgroup.empty()) {
-      if (!lightgroups.count(lightgroup)) {
+      if (!lightgroups.contains(lightgroup)) {
         lightgroups[lightgroup] = i++;
       }
     }
@@ -544,22 +544,23 @@ void Film::update_passes(Scene *scene)
   /* Create passes needed for denoising. */
   const bool use_denoise = integrator->get_use_denoise();
   if (use_denoise) {
-    if (integrator->get_use_denoise_pass_albedo()) {
+    const DenoiserPassMask denoiser_passes = integrator->get_denoiser_passes();
+    if (denoiser_passes & DENOISER_PASS_ALBEDO) {
       add_auto_pass(scene, PASS_DENOISING_ALBEDO);
     }
-    if (integrator->get_use_denoise_pass_specular_albedo()) {
+    if (denoiser_passes & DENOISER_PASS_SPECULAR_ALBEDO) {
       add_auto_pass(scene, PASS_DENOISING_SPECULAR_ALBEDO);
     }
-    if (integrator->get_use_denoise_pass_normal()) {
+    if (denoiser_passes & DENOISER_PASS_NORMAL) {
       add_auto_pass(scene, PASS_DENOISING_NORMAL);
     }
-    if (integrator->get_use_denoise_pass_roughness()) {
+    if (denoiser_passes & DENOISER_PASS_ROUGHNESS) {
       add_auto_pass(scene, PASS_DENOISING_ROUGHNESS);
     }
-    if (integrator->get_use_denoise_pass_depth()) {
+    if (denoiser_passes & DENOISER_PASS_DEPTH) {
       add_auto_pass(scene, PASS_DENOISING_DEPTH);
     }
-    if (integrator->get_use_denoise_pass_motion()) {
+    if (denoiser_passes & DENOISER_PASS_MOTION) {
       add_auto_pass(scene, PASS_MOTION);
     }
   }

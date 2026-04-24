@@ -220,6 +220,7 @@ static bool bake_strokes(Object *ob,
       lmd->intersection_mask,
       lmd->radius,
       lmd->opacity,
+      lmd->fill_strokes,
       lmd->shadow_selection,
       lmd->silhouette_selection,
       lmd->source_vertex_group,
@@ -251,7 +252,7 @@ static bool bake_single_target(LineartBakeJob *bj, Object *ob, int frame)
     }
   }
 
-  ed::greasepencil::LineartLimitInfo info;
+  ed::greasepencil::LineartLimitInfo info = {0};
   ed::greasepencil::get_lineart_modifier_limits(*ob, info);
 
   LineartCache *lc = nullptr;

@@ -858,6 +858,11 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
             label = iface_("Threads") if system.shader_compilation_method == 'THREAD' else iface_("Subprocesses")
             col.prop(system, "gpu_shader_workers", text=label, translate=False)
 
+        layout.separator()
+
+        col = layout.column()
+        col.prop(system, "geometry_nodes_stack_limit")
+
 
 class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Video Sequencer"
@@ -1652,6 +1657,7 @@ class USERPREF_PT_file_paths_render(FilePathsPanel, Panel):
         paths = context.preferences.filepaths
 
         col = self.layout.column()
+        col.prop(paths, "texture_cache_directory", text="Texture Cache")
         col.prop(paths, "render_output_directory", text="Render Output")
         col.prop(paths, "render_cache_directory", text="Render Cache")
 
@@ -1804,6 +1810,8 @@ class USERPREF_PT_saveload_blend(SaveLoadPanel, CenterAlignMixIn, Panel):
 
         col = layout.column(heading="Save")
         col.prop(view, "use_save_prompt")
+
+        layout.prop(paths, "save_modified_images")
 
         col = layout.column()
         col.prop(paths, "save_version")
@@ -2799,7 +2807,11 @@ class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
         if active_library.use_remote_url:
             use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
             if use_remote_libraries:
-                layout.prop(active_library, "remote_url")
+                row = layout.row()
+                row.alert = active_library.remote_url == ""
+                row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
+
+            layout.prop(active_library, "import_method", text="Import Method")
         else:
             layout.prop(active_library, "path")
             layout.prop(active_library, "import_method", text="Import Method")
@@ -2814,6 +2826,11 @@ class USERPREF_UL_asset_libraries(UIList):
         icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
         row = layout.row(align=True)
         row.prop(asset_library, "name", text="", icon=icon, emboss=False)
+
+        if asset_library.enabled:
+            if asset_library.use_remote_url and asset_library.remote_url == "":
+                row.label(text="", icon='ERROR')
+
         row.prop(asset_library, "enabled", text="", emboss=False,
                  icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
 

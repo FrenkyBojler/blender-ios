@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'b1f67602e773')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
-"PO-Revision-Date: 2025-09-04 22:59+0000\n"
+"POT-Creation-Date: 2026-04-13 10:20+0000\n"
+"PO-Revision-Date: 2026-04-13 10:12+0000\n"
 "Last-Translator: Dominic Iastrebschi <domjotebit@gmail.com>\n"
 "Language-Team: Romanian <https://translate.blender.org/projects/blender-ui/ui/ro/>\n"
 "Language: ro\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2;\n"
-"X-Generator: Weblate 5.12.1"
+"X-Generator: Weblate 5.16.2"
 
 
 msgid "Shader AOV"
@@ -1784,6 +1784,10 @@ msgid "Saturation"
 msgstr "Saturație"
 
 
+msgid "Both"
+msgstr "Ambele"
+
+
 msgid "Object Path"
 msgstr "Calea Obiectului"
 
@@ -2132,16 +2136,20 @@ msgid "Sampling"
 msgstr "Eșantionare"
 
 
-msgid "Light"
-msgstr "Lumină"
-
-
 msgid "UV"
 msgstr "UV"
 
 
+msgid "Light"
+msgstr "Lumină"
+
+
 msgid "Add Image"
 msgstr "Adăugare Imagine"
+
+
+msgid "Layout"
+msgstr "Aspect"
 
 
 msgid "Apply"
@@ -2150,10 +2158,6 @@ msgstr "Aplicare"
 
 msgid "Convert"
 msgstr "Convertire"
-
-
-msgid "Layout"
-msgstr "Aspect"
 
 
 msgid "Tracking"
@@ -2356,6 +2360,10 @@ msgid "Delete"
 msgstr "Ștergere"
 
 
+msgid "Handles"
+msgstr "Mânere"
+
+
 msgid "Lamp"
 msgstr "Lampă"
 
@@ -2366,10 +2374,6 @@ msgstr "Proprietăți Personalizate"
 
 msgid "Open"
 msgstr "Deschidere"
-
-
-msgid "Both"
-msgstr "Ambele"
 
 
 msgctxt "Operator"
