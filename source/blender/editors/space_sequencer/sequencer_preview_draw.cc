@@ -55,6 +55,7 @@
 #include "ED_space_api.hh"
 #include "ED_util.hh"
 #include "ED_view3d.hh"
+#include "ED_time_scrub_ui.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
@@ -1925,6 +1926,22 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   IMB_freeImBuf(reference_ibuf);
 
   preview_draw_end(C);
+}
+
+void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+  const int start_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.psfra : scene->r.sfra;
+  const int end_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.pefra : scene->r.efra;
+
+  region->v2d.cur.xmin = start_frame;
+  region->v2d.cur.xmax = std::max(end_frame, start_frame + 1);
+
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
+  ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), false, true);
 }
 
 }  // namespace blender::ed::vse

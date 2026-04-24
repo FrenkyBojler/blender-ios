@@ -125,7 +125,7 @@ static bool change_frame_poll(bContext *C)
       /* Check the region type so tools (which are shared between preview/strip view)
        * don't conflict with actions which can have the same key bound (2D cursor for example). */
       const ARegion *region = CTX_wm_region(C);
-      if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW_SCRUBBING)) {
+      if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PLAYBACK_SCRUBBING)) {
         return true;
       }
     }
@@ -618,7 +618,7 @@ static float frame_from_event(bContext *C, const wmEvent *event)
 
   /* respect preview range restrictions (if only allowed to move around within that range) */
   if ((scene->r.flag & SCER_LOCK_FRAME_SELECTION) ||
-      (region->regiontype == RGN_TYPE_PREVIEW_SCRUBBING))
+      (region->regiontype == RGN_TYPE_PLAYBACK_SCRUBBING))
   {
     const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
     CLAMP(frame, playback_range.start_frame, playback_range.end_frame);

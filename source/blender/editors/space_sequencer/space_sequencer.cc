@@ -113,7 +113,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   /* Scrubbing */
   region = BKE_area_region_new();
   BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
-  region->regiontype = RGN_TYPE_PREVIEW_SCRUBBING;
+  region->regiontype = RGN_TYPE_PLAYBACK_SCRUBBING;
   region->alignment = RGN_ALIGN_BOTTOM | RGN_CHILD_OF_PREV | RGN_ALIGN_HIDE_WITH_PREV;
 
   /* Buttons/list view. */
@@ -1127,7 +1127,7 @@ static void sequencer_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   writer->write_struct_cast<SpaceSeq>(sl);
 }
 
-static bool scrubbing_region_poll(const RegionPollParams *params)
+static bool sequencer_scrubbing_region_poll(const RegionPollParams *params)
 {
   const Scene *scene = CTX_data_sequencer_scene(params->context);
   if (scene == nullptr) {
@@ -1138,7 +1138,7 @@ static bool scrubbing_region_poll(const RegionPollParams *params)
   return sseq->flag & SEQ_SHOW_SCRUBBING_REGION;
 }
 
-static void scrubbing_region_init(wmWindowManager * /* wm */, ARegion *region)
+static void sequencer_scrubbing_region_init(wmWindowManager * /* wm */, ARegion *region)
 {
   view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
   region->v2d.keepzoom = (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y);
@@ -1156,6 +1156,7 @@ static void sequencer_scrubbing_region_listener(const wmRegionListenerParams *pa
         case ND_FRAME:
         case ND_SEQUENCER:
         case ND_RENDER_OPTIONS:
+        case ND_FRAME_RANGE:
           ED_region_tag_redraw(region);
           break;
       }
@@ -1295,15 +1296,15 @@ void ED_spacetype_sequencer()
   art->poll = sequencer_footer_region_poll;
   BLI_addhead(&st->regiontypes, art);
 
-  /* regions: Preview Scrubbing */
+  /* Preview Scrubbing */
   art = MEM_new_zeroed<ARegionType>("spacetype sequencer region");
-  art->regionid = RGN_TYPE_PREVIEW_SCRUBBING;
+  art->regionid = RGN_TYPE_PLAYBACK_SCRUBBING;
   art->prefsizey = 0.9f * HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES |
                     ED_KEYMAP_ANIMATION;
-  art->init = scrubbing_region_init;
-  art->poll = scrubbing_region_poll;
-  art->draw = seq_scrubbing_draw;
+  art->init = sequencer_scrubbing_region_init;
+  art->poll = sequencer_scrubbing_region_poll;
+  art->draw = sequencer_scrubbing_region_draw;
   art->listener = sequencer_scrubbing_region_listener;
   BLI_addhead(&st->regiontypes, art);
 
