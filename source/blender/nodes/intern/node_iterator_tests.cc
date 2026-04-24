@@ -92,12 +92,12 @@ class TestData {
 
 TEST_F(NodeTest, tree_iterator_empty)
 {
-  // TestData context;
+  TestData context;
 
-  // IteratorResult iter_result = this->get_node_trees(context.bmain);
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
 
-  // EXPECT_EQ(iter_result.node_trees.size(), 0);
-  // EXPECT_EQ(iter_result.ids.size(), 0);
+  EXPECT_EQ(iter_result.node_trees.size(), 0);
+  EXPECT_EQ(iter_result.ids.size(), 0);
 }
 
 TEST_F(NodeTest, tree_iterator_1_mat)
