@@ -2,3 +2,4 @@ Referenced by pull request #153539, Fix #153517: Paint/Sculpt crashes with Strok
 Referenced by commit be4280c5a32c28f1e9afb827eb37cd73064d369a, Fix #153517: Paint/Sculpt crashes with Stroke Method "Curve"
 Referenced by pull request #154368, Fix: potential use-after-free in sculpt brush stroke operator
 Referenced by pull request #157776, Fix #157766: 'Line' paint stroke angle constraint broken
+Referenced by commit cc3c07e240c4cac58976e33a4abf129bcb9d5069, Fix #157766: 'Line' paint stroke angle constraint broken
