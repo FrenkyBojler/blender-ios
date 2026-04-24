@@ -35,7 +35,7 @@ void invalidate_text_wrap_cache(const ARegion &region)
 
 void textbox_add_scroll(ButtonTextBox *textbox, int step)
 {
-  textbox->last_total_lines = textbox_wrap_lines(textbox).size();
+  textbox_wrap_lines(textbox);
   textbox->line_scroll_set(textbox->line_scroll() + step);
 }
 
@@ -221,23 +221,19 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
   {
     text = textbox->editstr;
   }
-  constexpr int textbox_min_string_size_for_wrap_cache = sizeof(std::string);
-  if (text.size() >= textbox_min_string_size_for_wrap_cache) {
-    if (!textbox->wrap_cache) {
-      textbox->wrap_cache = std::make_unique<TextWrapCache>();
-    }
-    TextWrapCache &cache = *textbox->wrap_cache;
-    if (cache.aspect == aspect && cache.wrap_width == width && text == cache.text) {
-      return cache.wrapped_lines;
-    }
-    cache.text = text;
-    text = cache.text;
-    cache.wrap_width = width;
-    cache.aspect = aspect;
+  if (!textbox->wrap_cache) {
+    textbox->wrap_cache = std::make_unique<TextWrapCache>();
   }
-  else {
-    textbox->wrap_cache.reset();
+  TextWrapCache &cache = *textbox->wrap_cache;
+  if (cache.aspect == aspect && cache.wrap_width == width && text == cache.text) {
+    textbox->last_total_lines = cache.wrapped_lines.size();
+    return cache.wrapped_lines;
   }
+  cache.text = text;
+  text = cache.text;
+  cache.wrap_width = width;
+  cache.aspect = aspect;
+
   fontscale(&fstyle.points, aspect);
   fontstyle_set(&fstyle);
   Vector<StringRef> lines = BLF_string_wrap(
@@ -259,9 +255,44 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
     }
   }
 
-  if (textbox->wrap_cache) {
-    textbox->wrap_cache->wrapped_lines = lines;
+  cache.wrapped_lines = lines;
+
+  return lines;
+}
+
+Vector<StringRef> textbox_wrap_placeholder(ButtonTextBox *textbox)
+{
+  BLI_assert(textbox->placeholder);
+  uiFontStyle fstyle = style_get()->widget;
+  const float aspect = textbox->block->aspect;
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&textbox->rect) -
+                                            2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f),
+                                  0) /
+                    aspect;
+  StringRef cache_text = textbox->placeholder;
+
+  if (!textbox->placeholder_wrap_cache) {
+    textbox->placeholder_wrap_cache = std::make_unique<TextWrapCache>();
   }
+  TextWrapCache &cache = *textbox->placeholder_wrap_cache;
+  if (cache.aspect == aspect && cache.wrap_width == width && cache_text == cache.text) {
+    return cache.wrapped_lines;
+  }
+  cache.text = cache_text;
+  cache_text = cache.text;
+  cache.wrap_width = width;
+  cache.aspect = aspect;
+
+  fontscale(&fstyle.points, aspect);
+  fontstyle_set(&fstyle);
+
+  Vector<StringRef> lines = BLF_string_wrap(
+      fstyle.uifont_id, cache_text, width, BLFWrapMode::HardLimit | BLFWrapMode::Typographical);
+  /* Ensure at least an empty line. */
+  if (lines.is_empty()) {
+    lines.append(StringRef(cache_text.end(), cache_text.end()));
+  }
+  textbox->placeholder_wrap_cache->wrapped_lines = lines;
 
   return lines;
 }
