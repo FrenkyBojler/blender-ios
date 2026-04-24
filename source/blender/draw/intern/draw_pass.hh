@@ -820,6 +820,8 @@ template<class T> void PassBase<T>::submit(command::RecordingState &state) const
       case command::Type::StencilSet:
         commands_[header.index].stencil_set.execute();
         break;
+      case command::Type::TextureCopy:
+        commands_[header.index].texture_copy.execute();
     }
   }
 
