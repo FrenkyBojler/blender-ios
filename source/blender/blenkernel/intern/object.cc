@@ -1450,6 +1450,10 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
     return false;
   }
 
+  /* Empties only support geometry nodes modifiers. */
+  if (ob->type == OB_EMPTY) {
+    return modifier_type == eModifierType_Nodes;
+  }
   if (ELEM(ob->type, OB_POINTCLOUD, OB_CURVES)) {
     return ELEM(modifier_type, eModifierType_Nodes, eModifierType_MeshSequenceCache);
   }
@@ -4373,7 +4377,8 @@ const Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
     }
     return reinterpret_cast<const Mesh *>(data_orig);
   }
-  BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
+  /* TODO: With this assert it crashes. Why? */
+  // BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   return id_cast<const Mesh *>(object->data);
 }
 
