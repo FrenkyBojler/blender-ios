@@ -55,8 +55,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(rna_enum_proportional_falloff_curve_only_items)
       .optional_label()
       .usage_by_menu("Type", CMP_NODE_DILATE_ERODE_DISTANCE_FEATHER)
-      .translation_context(BLT_I18NCONTEXT_ID_CURVE_LEGACY)
-      .description("Defines the falloff curve used to control the transition at the edges");
+      .translation_context(BLT_I18NCONTEXT_ID_CURVE_LEGACY);
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
 
