@@ -24,8 +24,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_threads.h"
-
 #include "GPU_context.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -210,7 +208,6 @@ void IMB_freeImBuf(ImBuf *ibuf)
     IMB_free_all_data(ibuf);
     IMB_free_gpu_textures(ibuf);
     IMB_metadata_free(ibuf->metadata);
-    colormanage_cache_free(ibuf);
     imb_free_dds_buffer(ibuf->dds_data);
     MEM_delete(ibuf);
   }
@@ -651,9 +648,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
 
   /* for now don't duplicate metadata */
   tbuf.metadata = nullptr;
-
-  tbuf.display_buffer_flags = nullptr;
-  tbuf.colormanage_cache = nullptr;
 
   /* GPU textures can not be easily copied, as it is not guaranteed that this function is called
    * from within an active GPU context. */

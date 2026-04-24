@@ -339,13 +339,6 @@ void IMB_colormanagement_display_settings_from_ctx(
     ColorManagedViewSettings **r_view_settings,
     ColorManagedDisplaySettings **r_display_settings);
 
-/**
- * Acquire display buffer for given image buffer using specified view and display settings.
- */
-const uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
-                                        const ColorManagedViewSettings *view_settings,
-                                        const ColorManagedDisplaySettings *display_settings,
-                                        void **cache_handle);
 void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
                                         float *linear_buffer,
                                         int width,
@@ -354,8 +347,6 @@ void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
                                         const ColorManagedViewSettings *view_settings,
                                         const ColorManagedDisplaySettings *display_settings,
                                         bool predivide);
-
-void IMB_display_buffer_release(void *cache_handle);
 
 /** \} */
 
@@ -471,42 +462,6 @@ void IMB_colormanagement_look_items_add(EnumPropertyItem **items,
                                         int *totitem,
                                         const char *view_name);
 void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *totitem);
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Tile-based Buffer Management
- * \{ */
-
-void IMB_partial_display_buffer_update(ImBuf *ibuf,
-                                       const float *linear_buffer,
-                                       const unsigned char *byte_buffer,
-                                       int stride,
-                                       int offset_x,
-                                       int offset_y,
-                                       const ColorManagedViewSettings *view_settings,
-                                       const ColorManagedDisplaySettings *display_settings,
-                                       int xmin,
-                                       int ymin,
-                                       int xmax,
-                                       int ymax);
-
-void IMB_partial_display_buffer_update_threaded(
-    ImBuf *ibuf,
-    const float *linear_buffer,
-    const unsigned char *byte_buffer,
-    int stride,
-    int offset_x,
-    int offset_y,
-    const ColorManagedViewSettings *view_settings,
-    const ColorManagedDisplaySettings *display_settings,
-    int xmin,
-    int ymin,
-    int xmax,
-    int ymax);
-
-void IMB_partial_display_buffer_update_delayed(
-    ImBuf *ibuf, int xmin, int ymin, int xmax, int ymax);
 
 /** \} */
 
