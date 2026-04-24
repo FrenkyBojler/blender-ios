@@ -21,7 +21,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputInstanceReference");
+  geo_node_type_base(&ntype, "GeometryNodeInputInstanceReference"_ustr);
   ntype.ui_name = "Instance Reference";
   ntype.ui_description = "Output the reference index of the instance";
   ntype.nclass = NODE_CLASS_INPUT;
