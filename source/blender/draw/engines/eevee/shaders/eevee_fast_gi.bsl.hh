@@ -236,8 +236,6 @@ ResultT eval(sampler2D hiz_tx,
     vN_angle += (noise.z - 0.5f) * (M_PI / 32.0f) * angle_bias;
 
     SphericalHarmonicL1<float4> sh_slice = {};
-    /* The 4th component contains visibility. Set visibility to 1 for the upper hemisphere. */
-    sh_slice.encode_signal_sample(vN, float4(0.0f, 0.0f, 0.0f, 1.0f));
 
     /* For both sides of the view vector. */
     for (int side = 0; side < 2; side++) {
@@ -314,7 +312,7 @@ ResultT eval(sampler2D hiz_tx,
         float weight_bitmask = bitmask_to_visibility_uniform(sample_bitmask & ~slice_bitmask);
 
         radiance *= facing_weight * weight_bitmask;
-        sh_slice.encode_signal_sample(vL_front, float4(radiance, -weight_bitmask));
+        sh_slice.encode_signal_sample(vL_front, float4(radiance, weight_bitmask));
 
         slice_bitmask |= sample_bitmask;
       }
@@ -854,25 +852,16 @@ void resolve([[work_group_id]] const uint3 group_id,
     float3 L = ray.dominant_direction;
 
     /* Evaluate lighting from fast GI scan. */
-    float4 radiance_with_visibility = accum_sh.evaluate_lambert(L);
-    float3 radiance = radiance_with_visibility.xyz;
-    /* Evaluate occlusion from fast GI scan. */
-    /* The energy amount from the visibility factor is supposed to be a pure lambertian visibility
-     * (which integrate to PI over the hemisphere). However, the tracing step weight the incoming
-     * radiance by 4 PI (and with it the visibility). So the expected computation should be
-     * `accum_sh.evaluate(L).w / 4.0f`. But in order to save some complexity, we approximate using
-     * the `evaluate_lambert` version even if not completely correct (max 3% errors). */
-    float distant_radiance_visibility = saturate(radiance_with_visibility.w / 3.0f);
+    float4 radiance_with_occlusion = accum_sh.evaluate_lambert(L);
+    float3 radiance = radiance_with_occlusion.xyz;
 
-    if (closure_has_transmission(cl.type)) {
-      /* We only recorded visibility and radiance for the upper hemisphere.
-       * Discard result for transmission closures. */
-      distant_radiance_visibility = 1.0f;
-      radiance = float3(0.0);
-    }
+    float occlusion = radiance_with_occlusion.w;
+    occlusion *= 0.5f;
+
+    float visibility = saturate(1.0f - occlusion);
 
     /* Apply missing distant lighting. */
-    radiance += distant_radiance_visibility * samp.volume_irradiance.evaluate_lambert(L).rgb;
+    radiance += visibility * samp.volume_irradiance.evaluate_lambert(L).rgb;
 
     uchar layer_index = bin_indices[i];
 
