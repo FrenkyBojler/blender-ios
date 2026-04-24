@@ -328,25 +328,18 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
                                            bool allocate_result,
                                            const ImageFormatData *image_format);
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Public Display Buffers Interfaces
- * \{ */
-
 void IMB_colormanagement_display_settings_from_ctx(
     const bContext *C,
     ColorManagedViewSettings **r_view_settings,
     ColorManagedDisplaySettings **r_display_settings);
 
-void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
-                                        float *linear_buffer,
-                                        int width,
-                                        int height,
-                                        int channels,
-                                        const ColorManagedViewSettings *view_settings,
-                                        const ColorManagedDisplaySettings *display_settings,
-                                        bool predivide);
+void IMB_colormanagement_scene_linear_to_display_buffer(
+    uint8_t *display_buffer,
+    const float *linear_buffer,
+    int width,
+    int height,
+    const ColorManagedViewSettings *view_settings,
+    const ColorManagedDisplaySettings *display_settings);
 
 /** \} */
 

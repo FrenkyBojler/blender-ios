@@ -1221,9 +1221,9 @@ static void draw_plane_marker_image(Scene *scene,
                                                        DISPLAY_SPACE_DRAW,
                                                        plane_track->image_opacity))
     {
-      const void *texture_data;
-      gpu::TextureFormat texture_format;
-      eGPUDataFormat data_format;
+      const void *texture_data = nullptr;
+      gpu::TextureFormat texture_format = gpu::TextureFormat::Invalid;
+      eGPUDataFormat data_format = GPU_DATA_FLOAT;
       if (ibuf->float_data()) {
         data_format = GPU_DATA_FLOAT;
         if (ibuf->channels == 4) {

@@ -2452,34 +2452,23 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
   return colormanaged_ibuf;
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Public Display Buffers Interfaces
- * \{ */
-
-void IMB_display_buffer_transform_apply(uchar *display_buffer,
-                                        float *linear_buffer,
-                                        int width,
-                                        int height,
-                                        int channels,
-                                        const ColorManagedViewSettings *view_settings,
-                                        const ColorManagedDisplaySettings *display_settings,
-                                        bool predivide)
+void IMB_colormanagement_scene_linear_to_display_buffer(
+    uint8_t *display_buffer,
+    const float *linear_buffer,
+    int width,
+    int height,
+    const ColorManagedViewSettings *view_settings,
+    const ColorManagedDisplaySettings *display_settings)
 {
-  float *buffer;
-  ColormanageProcessor cm_processor = ColormanageProcessor::display_processor_new(
-      view_settings, display_settings);
-
-  buffer = MEM_new_array_uninitialized<float>(size_t(channels) * size_t(width) * size_t(height),
-                                              "display transform temp buffer");
-  memcpy(buffer, linear_buffer, size_t(channels) * width * height * sizeof(float));
-
-  cm_processor.apply(buffer, width, height, channels, predivide);
-
+  ColormanageProcessor processor = ColormanageProcessor::display_processor_new(view_settings,
+                                                                               display_settings);
+  float *buffer = MEM_new_array_uninitialized<float>(size_t(4) * width * height,
+                                                     "display transform temp buffer");
+  memcpy(buffer, linear_buffer, sizeof(float) * 4 * width * height);
+  processor.apply(buffer, width, height, 4, true);
   IMB_buffer_byte_from_float(display_buffer,
                              buffer,
-                             channels,
+                             4,
                              0.0f,
                              IB_PROFILE_SRGB,
                              IB_PROFILE_SRGB,
@@ -2488,7 +2477,6 @@ void IMB_display_buffer_transform_apply(uchar *display_buffer,
                              height,
                              width,
                              width);
-
   MEM_delete(buffer);
 }
 
