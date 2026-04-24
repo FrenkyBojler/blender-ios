@@ -2,3 +2,4 @@ Referenced by issue #156097, Crash during texture painting while all UV maps are
 Referenced by issue #157592, Regression: Mesh generated from Geometry nodes do not display texture in Solid Mode
 Referenced by pull request #157662, Fix #157592: GeoNodes mesh primitive UVs not displaying in Solid Mode
 Referenced by pull request #157695, #157592: GeoNodes mesh primitive UVs not displaying in Solid Mode
+Referenced by commit 14981c74c43fcf8abe3a7867001d348f6c629309, #157592: GeoNodes mesh primitive UVs not displaying in Solid Mode
