@@ -157,6 +157,8 @@ void interpolate_gradient_3d(ValueT (&data)[N][N][N],
     vgx[dx] = kernel_fn(gy, uvw.y());
     gvx[dx] = derivative_fn(vy, uvw.y());
   }
+  const openvdb::math::Mat3 matrix =
+      transform.baseMap()->getAffineMap()->getMat4().getMat3().inverse();
   if constexpr (std::is_same_v<GradientT, openvdb::Mat3s>) {
     /* Gradient of vectors is constructed by outer product with the weights gradient:
      *
@@ -165,15 +167,15 @@ void interpolate_gradient_3d(ValueT (&data)[N][N][N],
      *
      * The matrix constructor takes row vectors by default, use column vectors instead.
      */
-    result = transform.baseMap()->getAffineMap()->getConstJacobianInv() *
-             GradientT(derivative_fn(vvx, uvw.x()),
-                       kernel_fn(gvx, uvw.x()),
-                       kernel_fn(vgx, uvw.x()),
-                       /*rows=*/false);
+    result = matrix * GradientT(derivative_fn(vvx, uvw.x()),
+                                kernel_fn(gvx, uvw.x()),
+                                kernel_fn(vgx, uvw.x()),
+                                /*rows=*/false);
   }
   else {
-    result = transform.baseMap()->applyInverseJacobian(
-        GradientT(derivative_fn(vvx, uvw.x()), kernel_fn(gvx, uvw.x()), kernel_fn(vgx, uvw.x())));
+    result = matrix * GradientT(derivative_fn(vvx, uvw.x()),
+                                kernel_fn(gvx, uvw.x()),
+                                kernel_fn(vgx, uvw.x()));
   }
 }
 

@@ -539,6 +539,8 @@ struct DivergenceTransfer : public KernelTransferBase<AttributeT, GridValueT> {
                        const openvdb::Index point_index_end,
                        const openvdb::CoordBBox &target_bounds)
   {
+    const openvdb::math::AffineMap::ConstPtr affine_map =
+        this->targetTransform().baseMap()->getAffineMap();
     this->add_points_to_voxels(
         ijk,
         IndexRange::from_begin_end(point_index_begin, point_index_end),
@@ -549,7 +551,7 @@ struct DivergenceTransfer : public KernelTransferBase<AttributeT, GridValueT> {
               this->kernel_type(), kernel_distance);
           const openvdb::Vec3s vdb_weight_gradient = openvdb::Vec3s(
               weight_gradient.x, weight_gradient.y, weight_gradient.z);
-          const openvdb::Vec3s scaled_weight_gradient = this->targetTransform().worldToIndex(
+          const openvdb::Vec3s scaled_weight_gradient = affine_map->applyInverseJacobian(
               vdb_weight_gradient);
           if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
             return source_value.col(0).getVec3() * scaled_weight_gradient.x() +
@@ -608,6 +610,8 @@ struct GradientTransfer : public KernelTransferBase<AttributeT, GridValueT> {
                        const openvdb::Index point_index_end,
                        const openvdb::CoordBBox &target_bounds)
   {
+    const openvdb::math::AffineMap::ConstPtr affine_map =
+        this->targetTransform().baseMap()->getAffineMap();
     this->add_points_to_voxels(
         ijk,
         IndexRange::from_begin_end(point_index_begin, point_index_end),
@@ -618,7 +622,7 @@ struct GradientTransfer : public KernelTransferBase<AttributeT, GridValueT> {
               this->kernel_type(), kernel_distance);
           const openvdb::Vec3s vdb_weight_gradient = openvdb::Vec3s(
               weight_gradient.x, weight_gradient.y, weight_gradient.z);
-          const openvdb::Vec3s scaled_weight_gradient = this->targetTransform().worldToIndex(
+          const openvdb::Vec3s scaled_weight_gradient = affine_map->applyInverseJacobian(
               vdb_weight_gradient);
           return GridValueType{source_value * scaled_weight_gradient.x(),
                                source_value * scaled_weight_gradient.y(),
