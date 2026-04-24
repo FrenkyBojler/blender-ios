@@ -4393,10 +4393,13 @@ TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA
   }
 
   BLI_assert(idprop->type == IDP_STRING);
-  if (!idprop->textbox_state) {
-    idprop->textbox_state = MEM_new<TextboxState>(__func__);
+
+  IDPropertyUIDataString *ui_data_string = reinterpret_cast<IDPropertyUIDataString *>(
+      IDP_ui_data_ensure(idprop));
+  if (!ui_data_string->textbox_state) {
+    ui_data_string->textbox_state = MEM_new<TextboxState>(__func__);
   }
-  return idprop->textbox_state;
+  return ui_data_string->textbox_state;
 }
 
 bool RNA_property_string_textbox_flag(PropertyRNA *prop)

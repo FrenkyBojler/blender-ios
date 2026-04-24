@@ -275,6 +275,9 @@ IDPropertyUIData *IDP_ui_data_copy(const IDProperty *prop)
           prop->ui_data);
       IDPropertyUIDataString *dst = reinterpret_cast<IDPropertyUIDataString *>(dst_ui_data);
       dst->default_value = MEM_dupalloc(src->default_value);
+      if (src->textbox_state) {
+        dst->textbox_state = MEM_new<TextboxState>(__func__, *src->textbox_state);
+      }
       break;
     }
     case IDP_UI_DATA_TYPE_ID: {
@@ -331,9 +334,6 @@ static IDProperty *idp_generic_copy(const IDProperty *prop, const int /*flag*/)
 
   if (prop->ui_data != nullptr) {
     newp->ui_data = IDP_ui_data_copy(prop);
-  }
-  if (prop->textbox_state != nullptr) {
-    newp->textbox_state = MEM_new<TextboxState>(__func__, *prop->textbox_state);
   }
 
   return newp;
@@ -1246,6 +1246,7 @@ static void ui_data_free(IDPropertyUIData *ui_data, const eIDPropertyUIDataType 
     case IDP_UI_DATA_TYPE_STRING: {
       IDPropertyUIDataString *ui_data_string = reinterpret_cast<IDPropertyUIDataString *>(ui_data);
       MEM_SAFE_DELETE(ui_data_string->default_value);
+      MEM_SAFE_DELETE(ui_data_string->textbox_state);
       break;
     }
     case IDP_UI_DATA_TYPE_ID: {
@@ -1313,7 +1314,6 @@ void IDP_FreePropertyContent_ex(IDProperty *prop, const bool do_id_user)
   if (prop->ui_data != nullptr) {
     IDP_ui_data_free(prop);
   }
-  MEM_SAFE_DELETE(prop->textbox_state);
 }
 
 void IDP_FreePropertyContent(IDProperty *prop)
@@ -1395,6 +1395,9 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
     case IDP_UI_DATA_TYPE_STRING: {
       IDPropertyUIDataString *ui_data_string = reinterpret_cast<IDPropertyUIDataString *>(ui_data);
       writer->write_string(ui_data_string->default_value);
+      if (ui_data_string->textbox_state) {
+        writer->write_struct(ui_data_string->textbox_state);
+      }
       writer->write_struct_cast<IDPropertyUIDataString>(ui_data);
       break;
     }
@@ -1536,9 +1539,6 @@ void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer)
   if (prop->ui_data != nullptr) {
     write_ui_data(prop, writer);
   }
-  if (prop->textbox_state != nullptr) {
-    writer->write_struct(prop->textbox_state);
-  }
 }
 
 void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
@@ -1561,6 +1561,9 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
         IDPropertyUIDataString *ui_data_string = reinterpret_cast<IDPropertyUIDataString *>(
             prop->ui_data);
         BLO_read_string(reader, &ui_data_string->default_value);
+        if (ui_data_string->textbox_state) {
+          BLO_read_struct(reader, TextboxState, &ui_data_string->textbox_state);
+        }
       }
       break;
     }
@@ -1763,9 +1766,6 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
 
   if (prop->ui_data != nullptr) {
     read_ui_data(prop, reader);
-  }
-  if (prop->textbox_state != nullptr) {
-    BLO_read_struct(reader, TextboxState, &prop->textbox_state);
   }
 }
 

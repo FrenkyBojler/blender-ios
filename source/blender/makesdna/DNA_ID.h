@@ -113,6 +113,7 @@ struct IDPropertyUIDataFloat {
 struct IDPropertyUIDataString {
   IDPropertyUIData base;
   char *default_value = nullptr;
+  TextboxState *textbox_state = nullptr;
 };
 
 /** For #IDP_UI_DATA_TYPE_ID. */
@@ -170,7 +171,6 @@ struct IDProperty {
   int totallen = 0;
 
   IDPropertyUIData *ui_data = nullptr;
-  TextboxState *textbox_state = nullptr;
 };
 
 #define MAX_IDPROP_NAME 64
