@@ -824,12 +824,13 @@ bool is_object_instancer(const Object &ob)
  * - Once per top-level scene object,
  *   but only when the object is either self-visible or has duplis to process;
  *   fully hidden non-instancers are short-circuited without a call.
- * - Once per dupli, on a temporary #Object with #BASE_FROM_DUPLI set on `base_flag`,
- *   with `has_duplis = false`. On this path the return value controls only whether the
- *   dupli is drawn; #SkipRecursive has no extra effect.
+ * - Once per dupli (or for a group of duplis with the same `InstancesKey`) on a temporary #Object
+ *   with #BASE_FROM_DUPLI set on `base_flag`, with `has_duplis = false`. On this path the return
+ *   value controls only whether the dupli is drawn; #SkipRecursive has no extra effect.
  *
- * \param draw_object_cb: Callback that draws object (populate the engine to prepare for drawing),
- * it must only run once per instance.
+ * \param draw_object_cb: Callback to sync an `ObjectRef` (populate the engines to prepare for
+ * drawing). A single `ObjectRef` can point to multiple compatible (same `InstancesKey`) `Object`
+ * instances.
  */
 static void foreach_obref_in_scene(
     DRWContext &draw_ctx,
@@ -2022,7 +2023,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       (ts->object_flag & SCE_OBJECT_MODE_LOCK))
   {
     if (!(v3d->flag2 & V3D_HIDE_OVERLAYS)) {
-      /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
+      /* NOTE: don't use #BKE_object_pose_armature_get it doesn't check for weight-paint mode when
+       * dealing using the deforming armature (breaking selection outside weight paint mode). */
       Object *obpose = OBPOSE_FROM_OBACT(obact);
       if (obpose == nullptr) {
         Object *obweight = OBWEIGHTPAINT_FROM_OBACT(obact);
