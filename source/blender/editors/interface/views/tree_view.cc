@@ -11,7 +11,6 @@
 
 #include "BKE_context.hh"
 
-#include "BLI_fnmatch.h"
 #include "BLT_translation.hh"
 
 #include "GPU_immediate.hh"
@@ -653,8 +652,7 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 
 bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
-  const StringRef name = this->get_rename_string();
-  return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) ==
+  return AbstractViewItem::should_be_filtered_visible(filter_string) !=
          *this->get_tree_view().invert_search_filter_;
 }
 
