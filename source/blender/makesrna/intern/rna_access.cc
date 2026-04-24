@@ -19,6 +19,7 @@
 #include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_dynstr.h"
@@ -4376,6 +4377,31 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
     return std::nullopt;
   }
   return sprop->path_filter(C, ptr, rna_prop);
+}
+
+TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA *prop)
+{
+  BLI_assert(RNA_property_string_textbox_flag(prop));
+
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+
+  IDProperty *idprop = prop_rna_or_id.idprop;
+
+  if (!idprop) {
+    return nullptr;
+  }
+
+  BLI_assert(idprop->type == IDP_STRING);
+  if (!idprop->textbox_state) {
+    idprop->textbox_state = MEM_new<TextboxState>(__func__);
+  }
+  return idprop->textbox_state;
+}
+
+bool RNA_property_string_textbox_flag(PropertyRNA *prop)
+{
+  return (RNA_property_type(prop) == PROP_STRING) && (prop->flag & PROP_ID_USE_TEXTBOX);
 }
 
 static int property_enum_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)

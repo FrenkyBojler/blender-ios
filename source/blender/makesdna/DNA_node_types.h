@@ -2107,7 +2107,8 @@ struct bNodeSocketValueRGBA {
 
 struct bNodeSocketValueString {
   int subtype = 0;
-  char _pad[4] = {};
+  char use_textbox = false;
+  char _pad[3] = {};
   char value[/*FILE_MAX*/ 1024] = "";
 };
 

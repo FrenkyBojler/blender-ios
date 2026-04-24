@@ -186,6 +186,9 @@ static constexpr auto PROP_PATH_SUPPORTS_TEMPLATES_DESCR =
     "value of the referenced variable in place of the template expression";
 static constexpr auto PROP_ENUM_FLAG_DESCR = "";
 
+static constexpr auto PROP_ID_USE_TEXTBOX_DESCR =
+    "This property is exposed in layouts using text-box widgets with persistent text-box state "
+    "storage";
 const EnumPropertyItem rna_enum_property_flag_items[] = {
     /* NOTE: This is used only in the `bpy.props` module to define runtime RNA properties.
      * The value of this 'READ_ONLY' enum item is logically inverted compared to the
@@ -226,6 +229,7 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
      0,
      "Variable expression support",
      PROP_PATH_SUPPORTS_TEMPLATES_DESCR},
+    {PROP_ID_USE_TEXTBOX, "USE_TEXTBOX", 0, "Use Text-Box Buttons", PROP_ID_USE_TEXTBOX_DESCR},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

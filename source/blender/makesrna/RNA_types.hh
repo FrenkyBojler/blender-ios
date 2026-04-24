@@ -489,6 +489,9 @@ enum PropertyFlag {
 
   /** Use full geometry depsgraph evaluation when this property changes. */
   PROP_FORCE_GEOMETRY_EVAL = (1 << 3),
+
+  PROP_ID_USE_TEXTBOX = (1 << 13),
+
 };
 ENUM_OPERATORS(PropertyFlag)
 

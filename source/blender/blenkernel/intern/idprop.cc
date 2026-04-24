@@ -27,6 +27,8 @@
 #include "BKE_idprop_hash.hh"
 #include "BKE_lib_id.hh"
 
+#include "DNA_screen_types.h"
+
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -329,6 +331,9 @@ static IDProperty *idp_generic_copy(const IDProperty *prop, const int /*flag*/)
 
   if (prop->ui_data != nullptr) {
     newp->ui_data = IDP_ui_data_copy(prop);
+  }
+  if (prop->textbox_state != nullptr) {
+    newp->textbox_state = MEM_new<TextboxState>(__func__, *prop->textbox_state);
   }
 
   return newp;
@@ -1308,6 +1313,7 @@ void IDP_FreePropertyContent_ex(IDProperty *prop, const bool do_id_user)
   if (prop->ui_data != nullptr) {
     IDP_ui_data_free(prop);
   }
+  MEM_SAFE_DELETE(prop->textbox_state);
 }
 
 void IDP_FreePropertyContent(IDProperty *prop)
@@ -1529,6 +1535,9 @@ void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer)
   }
   if (prop->ui_data != nullptr) {
     write_ui_data(prop, writer);
+  }
+  if (prop->textbox_state != nullptr) {
+    writer->write_struct(prop->textbox_state);
   }
 }
 
@@ -1754,6 +1763,9 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
 
   if (prop->ui_data != nullptr) {
     read_ui_data(prop, reader);
+  }
+  if (prop->textbox_state != nullptr) {
+    BLO_read_struct(reader, TextboxState, &prop->textbox_state);
   }
 }
 

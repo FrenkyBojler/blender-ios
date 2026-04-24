@@ -40,6 +40,7 @@ struct ID;
 struct Library;
 struct PackedFile;
 struct UniqueName_Map;
+struct TextboxState;
 
 struct IDPropertyUIData {
   /** Tool-tip / property description pointer. Owned by the #IDProperty. */
@@ -169,6 +170,7 @@ struct IDProperty {
   int totallen = 0;
 
   IDPropertyUIData *ui_data = nullptr;
+  TextboxState *textbox_state = nullptr;
 };
 
 #define MAX_IDPROP_NAME 64

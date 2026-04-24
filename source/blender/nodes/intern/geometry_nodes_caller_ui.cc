@@ -615,13 +615,22 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
         add_attribute_search_or_value_buttons(ctx, row, socket, socket_props_ptr, name);
       }
       else {
-        row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
+        PropertyRNA *prop_value = RNA_struct_find_property(socket_props_ptr, "value");
+        if (RNA_property_string_textbox_flag(prop_value)) {
+          row.textbox_with_state(
+              socket_props_ptr,
+              "value",
+              RNA_property_string_get_textbox_state(socket_props_ptr, prop_value));
+        }
+        else {
+          row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
+        }
       }
       break;
     }
   }
   if (!nodes::input_has_attribute_toggle(*ctx.tree, input_index)) {
-    row.label("", ICON_BLANK1);
+    // row.label("", ICON_BLANK1);
   }
 }
 

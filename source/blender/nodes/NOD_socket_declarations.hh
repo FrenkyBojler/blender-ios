@@ -251,6 +251,7 @@ class String : public SocketDeclaration {
   std::string default_value;
   PropertySubType subtype = PROP_NONE;
   std::optional<std::string> path_filter;
+  bool use_textbox = false;
 
   friend StringBuilder;
 
@@ -265,6 +266,7 @@ class String : public SocketDeclaration {
 class StringBuilder : public SocketDeclarationBuilder<String> {
  public:
   StringBuilder &default_value(const std::string value);
+  StringBuilder &use_textbox(const bool value);
   StringBuilder &subtype(PropertySubType subtype);
   StringBuilder &path_filter(std::optional<std::string> filter);
   StringBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
@@ -739,6 +741,12 @@ inline ColorBuilder &ColorBuilder::default_value(const ColorGeometry4f value)
 inline StringBuilder &StringBuilder::default_value(std::string value)
 {
   decl_->default_value = std::move(value);
+  return *this;
+}
+
+inline StringBuilder &StringBuilder::use_textbox(bool value)
+{
+  decl_->use_textbox = value;
   return *this;
 }
 

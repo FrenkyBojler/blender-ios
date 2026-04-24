@@ -1321,7 +1321,12 @@ static void std_node_socket_draw(
         }
       }
       else {
-        if (optional_label) {
+        const bool use_textbox =
+            static_cast<const nodes::decl::String *>(socket_decl)->use_textbox;
+        if (use_textbox) {
+          layout->textbox(C, ptr, "default_value");
+        }
+        else if (optional_label) {
           layout->prop(ptr,
                        RNA_struct_find_property(ptr, "default_value"),
                        -1,
@@ -1536,6 +1541,7 @@ static void std_node_socket_interface_draw(ID *id,
     case SOCK_STRING: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
       col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
+      col->prop(&ptr, "use_textbox", DEFAULT_FLAGS, IFACE_("Use Text-Box Widget"), ICON_NONE);
       break;
     }
     case SOCK_BOOLEAN:
