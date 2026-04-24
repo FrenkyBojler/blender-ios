@@ -300,7 +300,7 @@ TEST(AnimationEvaluationResultTest, prop_identifier_hashing)
 
   /* Test storing the same result twice, with different memory locations of the RNA paths. This
    * tests that the mapping uses the actual string, and not just pointer comparison. */
-  const char *rna_path_1 = "pose.bones['Root'].location";
+  const char *rna_path_1 = "pose.bones[\"Root\"].location";
   const std::string rna_path_2(rna_path_1);
   ASSERT_NE(rna_path_1, rna_path_2.c_str())
       << "This test requires different addresses for the RNA path strings";

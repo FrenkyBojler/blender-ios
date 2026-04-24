@@ -526,6 +526,9 @@ bool RNA_path_resolve(const PointerRNA *ptr,
                       PointerRNA *r_ptr,
                       PropertyRNA **r_prop)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -540,6 +543,9 @@ bool RNA_path_resolve(const PointerRNA *ptr,
 bool RNA_path_resolve_full(
     const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -554,6 +560,9 @@ bool RNA_path_resolve_full(
 bool RNA_path_resolve_full_maybe_null(
     const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -566,6 +575,9 @@ bool RNA_path_resolve_property(const PointerRNA *ptr,
                                PointerRNA *r_ptr,
                                PropertyRNA **r_prop)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -592,6 +604,9 @@ bool RNA_path_resolve_property(const PointerRNA *ptr,
 bool RNA_path_resolve_property_full(
     const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -609,6 +624,9 @@ bool RNA_path_resolve_property_and_item_pointer(const PointerRNA *ptr,
                                                 PropertyRNA **r_prop,
                                                 PointerRNA *r_item_ptr)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -627,6 +645,9 @@ bool RNA_path_resolve_property_and_item_pointer_full(const PointerRNA *ptr,
                                                      int *r_index,
                                                      PointerRNA *r_item_ptr)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
@@ -641,6 +662,9 @@ bool RNA_path_resolve_elements(PointerRNA *ptr,
                                const char *path,
                                Vector<PropertyElemRNA> *r_elements)
 {
+  if (!path) {
+    return false;
+  }
   const std::optional<ParsedRNAPath<>> parsed_path = ParsedRNAPath<>::from_string(path);
   if (!parsed_path) {
     return false;
