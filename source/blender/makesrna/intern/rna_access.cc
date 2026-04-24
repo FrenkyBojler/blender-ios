@@ -4382,11 +4382,24 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
 TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA *prop)
 {
   BLI_assert(RNA_property_string_textbox_flag(prop));
+  BLI_assert(prop->flag & PROP_IDPROPERTY || (prop->magic != RNA_MAGIC));
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
 
   IDProperty *idprop = prop_rna_or_id.idprop;
+
+  if (!idprop) {
+    if (prop->flag & PROP_EDITABLE) {
+      if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+        /* Usually this is allocated once a string value is set, however text-box state is also
+         * stored in the #IDP_STRING property data storage too, so we need its storage now. */
+        idprop = IDP_NewStringMaxSize(
+            nullptr, 0, RNA_property_identifier(prop), IDP_FLAG_STATIC_TYPE);
+        IDP_AddToGroup(group, idprop);
+      }
+    }
+  }
 
   if (!idprop) {
     return nullptr;
