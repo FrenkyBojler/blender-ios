@@ -24,8 +24,6 @@ class OBJImportTest : public bke::BlenderGTestBase {};
 
 TEST_F(OBJImportTest, BufferRefillTest)
 {
-  CLG_init();
-
   OBJImportParams params;
   /* nurbs_cyclic.obj file has quite long lines, good to test read buffer refill. */
   std::string obj_path = tests::flags_test_asset_dir() + SEP_STR "io_tests" SEP_STR "obj" SEP_STR +
@@ -45,8 +43,6 @@ TEST_F(OBJImportTest, BufferRefillTest)
   EXPECT_EQ(28, global_vertices.vertices.size());
   EXPECT_EQ(31, all_geometries[0]->nurbs_element_.curv_indices.size());
   EXPECT_EQ(35, all_geometries[0]->nurbs_element_.parm.size());
-
-  CLG_exit();
 }
 
 }  // namespace blender::io::obj
