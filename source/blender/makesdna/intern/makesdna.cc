@@ -271,7 +271,7 @@ static int add_type(const StringRefNull type_name_input, const int size)
 
 /**
  * Add a member to the members table. The name is expected to already be in canonical
- * form (function pointers rewritten as `(*name)()`, `(*name)(void)`, and name validate
+ * form (function pointers rewritten as `(*name)()`, `(*name)(void)`, and name validity
  * already checked by the parser).
  */
 static int add_member(const StringRefNull member_name)
