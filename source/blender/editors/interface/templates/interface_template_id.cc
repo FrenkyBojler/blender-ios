@@ -52,9 +52,9 @@ enum {
   UI_ID_BROWSE = 1 << 1,
   UI_ID_ADD_NEW = 1 << 2,
   UI_ID_OPEN = 1 << 3,
-  UI_ID_DELETE = 1 << 5,
-  UI_ID_PIN = 1 << 9,
-  UI_ID_PREVIEWS = 1 << 10,
+  UI_ID_DELETE = 1 << 4,
+  UI_ID_PIN = 1 << 6,
+  UI_ID_PREVIEWS = 1 << 7,
   UI_ID_FULL = UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_DELETE,
 };
 
