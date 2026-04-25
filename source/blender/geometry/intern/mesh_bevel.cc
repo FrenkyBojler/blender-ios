@@ -421,6 +421,10 @@ struct BevelState {
   /* Input selection. */
   IndexMask selection;
 
+  /* Bevel affected vertices mask and its memory. */
+  index_mask::IndexMaskMemory memory;
+  IndexMask bevel_affected_vertices;
+
   /* The encapsulated extendable mesh. */
   ExtendableMesh emesh;
 
@@ -461,6 +465,19 @@ struct BevelState {
 BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection)
     : params(params), selection(selection), emesh(mesh)
 {
+  if (params.affect_type == BevelAffect::Vertices) {
+    bevel_affected_vertices = selection;
+  }
+  else {
+    Array<bool> is_affected(mesh.verts_num, false);
+    selection.foreach_index([&](const int e) {
+      const int2 edge_verts = mesh.edges()[e];
+      is_affected[edge_verts[0]] = true;
+      is_affected[edge_verts[1]] = true;
+    });
+    bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
+  }
+
   affect_vertices_odd = false;
   pro_super_r = -std::numbers::ln2_v<float> / logf(sqrtf(params.shape));
   loop_slide = false;
