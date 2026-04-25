@@ -46,11 +46,7 @@ static float3 compute_average_face_normal(Span<BMFace *> faces)
   for (BMFace *f : faces) {
     normal += float3(f->no) * BM_face_calc_area(f);
   }
-  const float length = math::length(normal);
-  if (length > FLATTEN_EPSILON) {
-    return normal / length;
-  }
-  return float3(0.0f, 0.0f, 1.0f);
+  return (normalize_v3(normal) != 0.0f) ? normal : float3(0.0f, 0.0f, 1.0f);
 }
 
 static Vector<BMVert *> collect_verts_from_faces(Span<BMFace *> faces)
