@@ -84,6 +84,11 @@ enum class MeshKind {
   CUTOFF,
 };
 
+enum class VMeshMethod {
+  BEVEL_VMESH_ADJ,
+  BEVEL_VMESH_CUTOFF,
+};
+
 struct NewVert {
   int v;
   float3 co;
@@ -457,9 +462,10 @@ struct BevelState {
   /* Other data that might be needed depending on what attributes we are transferring. */
   int mat_nr;
   int face_strength_mode;
-  int vmesh_method;
+  VMeshMethod vmesh_method;
 
   BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection);
+  void initialize_profile_data();
 };
 
 BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection)
@@ -479,7 +485,6 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   }
 
   affect_vertices_odd = false;
-  pro_super_r = -std::numbers::ln2_v<float> / logf(sqrtf(params.shape));
   loop_slide = false;
   limit_offset = false;
   offset_adjust = false;
@@ -488,7 +493,402 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
   harden_normals = false;
   mat_nr = -1;
   face_strength_mode = 0;
-  vmesh_method = 0;
+  vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
+  if (vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
+    /* ignoring miters */
+    this->params.miter.fill(false);
+  }
+}
+
+namespace profile {
+
+constexpr float PRO_SQUARE_R = 1e4f;
+constexpr float PRO_CIRCLE_R = 2.0f;
+constexpr float PRO_LINE_R = 1.0f;
+constexpr float PRO_SQUARE_IN_R = 0.0f;
+
+/**
+ * Get the coordinate on the superellipse (x^r + y^r = 1), at parameter value x
+ * (or, if !rbig, mirrored (y=x)-line).
+ * rbig should be true if r > 1.0 and false if <= 1.0.
+ * Assume r > 0.0.
+ */
+static double superellipse_co(double x, float r, bool rbig)
+{
+  BLI_assert(r > 0.0f);
+  double dr = r;
+  if (rbig) {
+    return math::pow((1.0 - math::pow(x, dr)), (1.0 / dr));
+  }
+  return 1.0 - math::pow((1.0 - math::pow(1.0 - x, dr)), (1.0 / dr));
+}
+
+/* Find xnew > x0 so that distance((x0,y0), (xnew, ynew)) = dtarget.
+ * False position Illinois method used because the function is somewhat linear
+ * -> linear interpolation converges fast.
+ * Assumes that the gradient is always between 1 and -1 for x in [x0, x0+dtarget]. */
+static double find_superellipse_chord_endpoint(double x0, double dtarget, float r, bool rbig)
+{
+  double y0 = superellipse_co(x0, r, rbig);
+  const double tol = 1e-13;
+  const int maxiter = 10;
+
+  double xmin = x0 + std::numbers::sqrt2 / 2.0 * dtarget;
+  xmin = std::min(xmin, 1.0);
+  double xmax = x0 + dtarget;
+  xmax = std::min(xmax, 1.0);
+  double ymin = superellipse_co(xmin, r, rbig);
+  double ymax = superellipse_co(xmax, r, rbig);
+
+  double dmaxerr = math::sqrt(math::pow((xmax - x0), 2.0) + math::pow((ymax - y0), 2.0)) - dtarget;
+  double dminerr = math::sqrt(math::pow((xmin - x0), 2.0) + math::pow((ymin - y0), 2.0)) - dtarget;
+
+  double xnew = xmax - dmaxerr * (xmax - xmin) / (dmaxerr - dminerr);
+  bool lastupdated_upper = true;
+
+  for (int iter = 0; iter < maxiter; iter++) {
+    double ynew = superellipse_co(xnew, r, rbig);
+    double dnewerr = math::sqrt(math::pow((xnew - x0), 2.0) + math::pow((ynew - y0), 2.0)) -
+                     dtarget;
+    if (abs(dnewerr) < tol) {
+      break;
+    }
+    if (dnewerr < 0) {
+      xmin = xnew;
+      ymin = ynew;
+      dminerr = dnewerr;
+      if (!lastupdated_upper) {
+        xnew = (dmaxerr / 2 * xmin - dminerr * xmax) / (dmaxerr / 2 - dminerr);
+      }
+      else {
+        xnew = xmax - dmaxerr * (xmax - xmin) / (dmaxerr - dminerr);
+      }
+      lastupdated_upper = false;
+    }
+    else {
+      xmax = xnew;
+      ymax = ynew;
+      dmaxerr = dnewerr;
+      if (lastupdated_upper) {
+        xnew = (dmaxerr * xmin - dminerr / 2 * xmax) / (dmaxerr - dminerr / 2);
+      }
+      else {
+        xnew = xmax - dmaxerr * (xmax - xmin) / (dmaxerr - dminerr);
+      }
+      lastupdated_upper = true;
+    }
+  }
+  return xnew;
+}
+
+/**
+ * This search procedure to find equidistant points (x,y) in the first
+ * superellipse quadrant works for every superellipse exponent but is more
+ * expensive than known solutions for special cases.
+ * Call the point on superellipse that intersects x=y line mx.
+ * For r>=1 use only the range x in [0,mx] and mirror the rest along x=y line,
+ * for r<1 use only x in [mx,1]. Points are initially spaced and iteratively
+ * repositioned to have the same distance.
+ */
+static void find_even_superellipse_chords_general(int seg,
+                                                  float r,
+                                                  MutableSpan<double> xvals,
+                                                  MutableSpan<double> yvals)
+{
+  const int smoothitermax = 10;
+  const double error_tol = 1e-7;
+  int imax = (seg + 1) / 2 - 1;
+
+  bool seg_odd = seg % 2;
+
+  bool rbig;
+  double mx;
+  if (r > 1.0f) {
+    rbig = true;
+    mx = math::pow(0.5, 1.0 / r);
+  }
+  else {
+    rbig = false;
+    mx = 1 - math::pow(0.5, 1.0 / r);
+  }
+
+  for (int i = 0; i <= imax; i++) {
+    xvals[i] = i * mx / seg * 2;
+    yvals[i] = superellipse_co(xvals[i], r, rbig);
+  }
+  yvals[0] = 1;
+
+  for (int iter = 0; iter < smoothitermax; iter++) {
+    double sum = 0.0;
+    double dmin = 2.0;
+    double dmax = 0.0;
+    for (int i = 0; i < imax; i++) {
+      double d = math::sqrt(math::pow((xvals[i + 1] - xvals[i]), 2.0) +
+                            math::pow((yvals[i + 1] - yvals[i]), 2.0));
+      sum += d;
+      dmax = std::max(d, dmax);
+      dmin = std::min(d, dmin);
+    }
+    double davg;
+    if (seg_odd) {
+      sum += std::numbers::sqrt2 / 2 * (yvals[imax] - xvals[imax]);
+      davg = sum / (imax + 0.5);
+    }
+    else {
+      sum += math::sqrt(math::pow((xvals[imax] - mx), 2.0) + math::pow((yvals[imax] - mx), 2.0));
+      davg = sum / (imax + 1.0);
+    }
+    bool precision_reached = true;
+    if (dmax - davg > error_tol) {
+      precision_reached = false;
+    }
+    if (dmin - davg < error_tol) {
+      precision_reached = false;
+    }
+    if (precision_reached) {
+      break;
+    }
+
+    for (int i = 1; i <= imax; i++) {
+      xvals[i] = find_superellipse_chord_endpoint(xvals[i - 1], davg, r, rbig);
+      yvals[i] = superellipse_co(xvals[i], r, rbig);
+    }
+  }
+
+  if (!seg_odd) {
+    xvals[imax + 1] = mx;
+    yvals[imax + 1] = mx;
+  }
+  for (int i = imax + 1; i <= seg; i++) {
+    yvals[i] = xvals[seg - i];
+    xvals[i] = yvals[seg - i];
+  }
+
+  if (!rbig) {
+    for (int i = 0; i <= seg; i++) {
+      double temp = xvals[i];
+      xvals[i] = 1.0 - yvals[i];
+      yvals[i] = 1.0 - temp;
+    }
+  }
+}
+
+/**
+ * Find equidistant points `(x0,y0), (x1,y1)... (xn,yn)` on the superellipse
+ * function in the first quadrant. For special profiles (linear, arc,
+ * rectangle) the point can be calculated easily, for any other profile a more
+ * expensive search procedure must be used because there is no known closed
+ * form for equidistant parametrization.
+ * `xvals` and `yvals` should be size `n+1`.
+ */
+static void find_even_superellipse_chords(int n,
+                                          float r,
+                                          MutableSpan<double> xvals,
+                                          MutableSpan<double> yvals)
+{
+  bool seg_odd = n % 2;
+  int n2 = n / 2;
+
+  if (r == PRO_LINE_R) {
+    for (int i = 0; i <= n; i++) {
+      xvals[i] = double(i) / n;
+      yvals[i] = 1.0 - double(i) / n;
+    }
+    return;
+  }
+  if (r == PRO_CIRCLE_R) {
+    double temp = M_PI_2 / n;
+    for (int i = 0; i <= n; i++) {
+      xvals[i] = math::sin(i * temp);
+      yvals[i] = math::cos(i * temp);
+    }
+    return;
+  }
+  if (r == PRO_SQUARE_IN_R) {
+    if (!seg_odd) {
+      for (int i = 0; i <= n2; i++) {
+        xvals[i] = 0.0;
+        yvals[i] = 1.0 - double(i) / n2;
+        xvals[n - i] = yvals[i];
+        yvals[n - i] = xvals[i];
+      }
+    }
+    else {
+      double temp = 1.0 / (n2 + std::numbers::sqrt2 / 2.0);
+      for (int i = 0; i <= n2; i++) {
+        xvals[i] = 0.0;
+        yvals[i] = 1.0 - double(i) * temp;
+        xvals[n - i] = yvals[i];
+        yvals[n - i] = xvals[i];
+      }
+    }
+    return;
+  }
+  if (r == PRO_SQUARE_R) {
+    if (!seg_odd) {
+      for (int i = 0; i <= n2; i++) {
+        xvals[i] = double(i) / n2;
+        yvals[i] = 1.0;
+        xvals[n - i] = yvals[i];
+        yvals[n - i] = xvals[i];
+      }
+    }
+    else {
+      double temp = 1.0 / (n2 + std::numbers::sqrt2 / 2.0);
+      for (int i = 0; i <= n2; i++) {
+        xvals[i] = double(i) * temp;
+        yvals[i] = 1.0;
+        xvals[n - i] = yvals[i];
+        yvals[n - i] = xvals[i];
+      }
+    }
+    return;
+  }
+  find_even_superellipse_chords_general(n, r, xvals, yvals);
+}
+
+/**
+ * Find the profile's "fullness," which is the fraction of the space it takes up way from the
+ * boundvert's centroid to the original vertex for a non-custom profile, or in the case of a
+ * custom profile, the average "height" of the profile points along its centerline.
+ */
+static float find_profile_fullness(BevelState *bs)
+{
+  int nseg = bs->params.segments;
+  constexpr int circle_fullness_segs = 11;
+  static const float circle_fullness[circle_fullness_segs] = {
+      0.0f,
+      0.559f,
+      0.642f,
+      0.551f,
+      0.646f,
+      0.624f,
+      0.646f,
+      0.619f,
+      0.647f,
+      0.639f,
+      0.647f,
+  };
+
+  float fullness;
+  if (bs->params.custom_profile) {
+    fullness = 0.0f;
+    for (int i = 0; i < nseg; i++) {
+      fullness += float(bs->pro_spacing.xvals[i] + bs->pro_spacing.yvals[i]) / (2.0f * nseg);
+    }
+  }
+  else {
+    if (bs->pro_super_r == PRO_LINE_R) {
+      fullness = 0.0f;
+    }
+    else if (bs->pro_super_r == PRO_CIRCLE_R && nseg > 0 && nseg <= circle_fullness_segs) {
+      fullness = circle_fullness[nseg - 1];
+    }
+    else {
+      if (nseg % 2 == 0) {
+        fullness = 2.4506f * bs->params.shape - 0.00000300f * nseg - 0.6266f;
+      }
+      else {
+        fullness = 2.3635f * bs->params.shape + 0.000152f * nseg - 0.6060f;
+      }
+    }
+  }
+  return fullness;
+}
+
+/**
+ * Fills the ProfileSpacing struct with the 2D coordinates for the profile's vertices.
+ * The superellipse used for multi-segment profiles does not have a closed-form way
+ * to generate evenly spaced points along an arc. We use an expensive search procedure
+ * to find the parameter values that lead to bp->seg even chords.
+ * We also want spacing for a number of segments that is a power of 2 >= bp->seg (but at least 4).
+ * Use doubles because otherwise we cannot come close to float precision for final results.
+ *
+ * \param pro_spacing: The struct to fill. Changes depending on whether there needs
+ * to be a separate miter profile.
+ */
+static void set_profile_spacing(BevelState *bs, ProfileSpacing *pro_spacing, bool custom)
+{
+  int segments = bs->params.segments;
+
+  if (segments <= 1) {
+    pro_spacing->seg_2 = 0;
+    return;
+  }
+
+  int seg_2 = std::max(power_of_2_max_i(bs->params.segments), 4);
+  bs->pro_spacing.seg_2 = seg_2;
+
+  /* Sample the seg_2 segments used during vertex mesh subdivision. */
+  pro_spacing->xvals_2 = Array<double>(seg_2 + 1);
+  pro_spacing->yvals_2 = Array<double>(seg_2 + 1);
+  if (seg_2 != segments) {
+    if (custom) {
+      /* Make sure the curve profile widget's sample table is full of the seg_2 samples. */
+      BKE_curveprofile_init(bs->params.custom_profile, short(seg_2));
+      for (const int i : IndexRange(seg_2 + 1)) {
+        pro_spacing->xvals_2[i] = double(bs->params.custom_profile->segments[i].y);
+        pro_spacing->yvals_2[i] = double(bs->params.custom_profile->segments[i].x);
+      }
+    }
+    else {
+      find_even_superellipse_chords(
+          seg_2, bs->pro_super_r, pro_spacing->xvals_2, pro_spacing->yvals_2);
+    }
+  }
+
+  /* Sample the input number of segments. */
+  pro_spacing->xvals = Array<double>(segments + 1);
+  pro_spacing->yvals = Array<double>(segments + 1);
+  if (custom) {
+    /* Make sure the curve profile's sample table is full. */
+    if (bs->params.custom_profile->segments_len != segments ||
+        !bs->params.custom_profile->segments)
+    {
+      BKE_curveprofile_init(bs->params.custom_profile, short(segments));
+    }
+    for (const int i : IndexRange(segments + 1)) {
+      pro_spacing->xvals[i] = double(bs->params.custom_profile->segments[i].y);
+      pro_spacing->yvals[i] = double(bs->params.custom_profile->segments[i].x);
+    }
+  }
+  else {
+    find_even_superellipse_chords(
+        segments, bs->pro_super_r, pro_spacing->xvals, pro_spacing->yvals);
+  }
+
+  if (seg_2 == segments) {
+    std::copy(pro_spacing->xvals.begin(), pro_spacing->xvals.end(), pro_spacing->xvals_2.begin());
+    std::copy(pro_spacing->yvals.begin(), pro_spacing->yvals.end(), pro_spacing->yvals_2.begin());
+  }
+}
+
+}  // namespace profile
+
+void BevelState::initialize_profile_data()
+{
+  const float psr = -std::numbers::ln2_v<float> /
+                    std::log(math::sqrt(this->params.shape > 0 ? this->params.shape : 1e-20f));
+  this->pro_super_r = psr;
+
+  if (this->params.shape >= 0.950f) {
+    this->pro_super_r = profile::PRO_SQUARE_R;
+  }
+  else if (abs(psr - profile::PRO_CIRCLE_R) < 1e-4f) {
+    this->pro_super_r = profile::PRO_CIRCLE_R;
+  }
+  else if (abs(psr - profile::PRO_LINE_R) < 1e-4f) {
+    this->pro_super_r = profile::PRO_LINE_R;
+  }
+  else if (abs(psr) < 1e-4f) {
+    this->pro_super_r = profile::PRO_SQUARE_IN_R;
+  }
+
+  profile::set_profile_spacing(this, &this->pro_spacing, this->params.custom_profile != nullptr);
+
+  if (this->params.segments > 1) {
+    this->pro_spacing.fullness = profile::find_profile_fullness(this);
+  }
 }
 
 std::optional<Mesh *> mesh_bevel(
@@ -497,7 +897,17 @@ std::optional<Mesh *> mesh_bevel(
     const BevelParameters &params,
     const bke::AttributeFilter & /*attribute_filter*/)  // TODO: implement this
 {
+  auto all_non_positive = [](const Array<float> &o) {
+    return std::ranges::all_of(o, [](float f) { return f <= 0.0f; });
+  };
+  if (all_non_positive(params.offsets[0]) && all_non_positive(params.offsets[1]) &&
+      all_non_positive(params.offsets[2]) && all_non_positive(params.offsets[3]))
+  {
+    return std::nullopt;
+  }
+
   BevelState state(src_mesh, params, selection);
+  state.initialize_profile_data();
 
   return std::nullopt;
 }
