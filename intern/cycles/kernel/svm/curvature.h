@@ -102,6 +102,7 @@ ccl_device float3 svm_curvature(
     ConstIntegratorState state,
     ccl_private ShaderData *sd,
     const float radius,
+    const float bias,
     const int num_samples,
     const int flags)
 {
@@ -122,6 +123,10 @@ ccl_device float3 svm_curvature(
   /* TODO: support ray-tracing in shadow shader evaluation? */
   RNGState rng_state;
   path_state_rng_load(state, &rng_state);
+
+  /* Exponent for the bias calculation. */
+  const float bias_clamped = clamp(bias, 1e-6f, 1.0f);
+  const float exponent = (1.0f - bias_clamped) / bias_clamped;
 
   float sum_convexity = 0.0f;
   float sum_concavity = 0.0f;
@@ -158,7 +163,7 @@ ccl_device float3 svm_curvature(
         const float dist_factor = dist_proj / radius;
 
         if (dist_factor <= 1.0f) {
-          const float falloff = 1.0f - dist_factor;
+          const float falloff = powf(1.0f - dist_factor, exponent);
           *pass->sum_angles += angle * falloff * weight;
           *pass->sum_weights += weight;
         }
@@ -198,11 +203,12 @@ ccl_device_noinline
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
     float radius = stack_load(stack, node.radius);
+    float bias = stack_load(stack, node.bias);
 
 #  ifdef __KERNEL_OPTIX__
-    result = optixDirectCall<float3>(2, kg, state, sd, radius, node.samples, node.flags);
+    result = optixDirectCall<float3>(2, kg, state, sd, radius, bias, node.samples, node.flags);
 #  else
-    result = svm_curvature(kg, state, sd, radius, node.samples, node.flags);
+    result = svm_curvature(kg, state, sd, radius, bias, node.samples, node.flags);
 #  endif
   }
 

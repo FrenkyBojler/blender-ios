@@ -8010,6 +8010,8 @@ NODE_DEFINE(CurvatureNode)
 
   SOCKET_IN_FLOAT(radius, "Radius", 0.01f);
 
+  SOCKET_IN_FLOAT(bias, "Bias", 0.5f);
+
   SOCKET_BOOLEAN(only_local, "Only Local", false);
 
   SOCKET_OUT_FLOAT(curvature, "Curvature");
@@ -8033,6 +8035,7 @@ void CurvatureNode::compile(SVMCompiler &compiler)
                     NODE_CURVATURE,
                     SVMNodeCurvature{
                         .radius = compiler.input_float("Radius"),
+                        .bias = compiler.input_float("Bias"),
                         .flags = uint8_t(flags),
                         .samples = uint8_t(samples),
                         .out_curvature_offset = compiler.output("Curvature"),

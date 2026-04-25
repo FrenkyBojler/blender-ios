@@ -5,6 +5,7 @@
 [[node]]
 void node_curvature(float radius,
                     const float sample_count,
+                    float bias,
                     float &result_curvature,
                     float &result_convexity,
                     float &result_concavity,

@@ -1248,6 +1248,7 @@ static_assert(sizeof(SVMNodeRaycast) % sizeof(uint) == 0);
 /* NODE_CURVATURE */
 struct SVMNodeCurvature {
   SVMInputFloat radius;
+  SVMInputFloat bias;
   uint8_t flags;
   uint8_t samples;
   SVMStackOffset out_curvature_offset;

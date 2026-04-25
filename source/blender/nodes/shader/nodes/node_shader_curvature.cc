@@ -39,6 +39,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1000.0f)
       .description("Radius for sampling nearby surfaces");
+  b.add_input<decl::Float>("Bias"_ustr)
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Adjust sample weight falloff by distance from the center to the given radius. "
+          "Approaching 0.0 means samples near the center are weighted more heavily. "
+          "0.5 means sample weight falls off linearly with distance. "
+          "1.0 means samples from all distances are  weighted equally");
 }
 
 static void node_shader_buts_curvature(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

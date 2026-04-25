@@ -6,6 +6,7 @@
 
 shader node_curvature(int samples = 16,
                       float Radius = 0.01,
+                      float Bias = 0.5,
                       int only_local = 0,
                       output float Curvature = 0.5,
                       output float Convexity = 0.0,
@@ -13,7 +14,7 @@ shader node_curvature(int samples = 16,
                       output color Both = color(0.0, 0.0, 0.0))
 {
   /* Abuse texture call with special @curvature token. */
-  vector result = (color)texture("@curvature", samples, Radius, 0, only_local, 0, 0);
+  vector result = (color)texture("@curvature", samples, Radius, Bias, only_local, 0, 0);
 
   Curvature = result[0];
   Convexity = result[1];
