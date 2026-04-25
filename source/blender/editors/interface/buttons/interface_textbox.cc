@@ -29,6 +29,7 @@ void invalidate_text_wrap_cache(const ARegion &region)
       }
       ButtonTextBox &textbox = static_cast<ButtonTextBox &>(button);
       textbox.wrap_cache.reset();
+      textbox.placeholder_wrap_cache.reset();
     }
   }
 }
