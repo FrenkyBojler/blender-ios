@@ -111,27 +111,28 @@ struct Profile {
 struct BoundVert;
 
 struct EdgeHalf {
-  EdgeHalf *next, *prev;
+  EdgeHalf *next = nullptr;
+  EdgeHalf *prev = nullptr;
 
-  int e;
-  int fprev;
-  int fnext;
+  int e = -1;
+  int fprev = -1;
+  int fnext = -1;
 
-  BoundVert *leftv;
-  BoundVert *rightv;
+  BoundVert *leftv = nullptr;
+  BoundVert *rightv = nullptr;
 
-  int profile_index;
-  int seg;
+  int profile_index = 0;
+  int seg = 0;
 
-  float offset_l;
-  float offset_r;
-  float offset_l_spec;
-  float offset_r_spec;
+  float offset_l = 0.0f;
+  float offset_r = 0.0f;
+  float offset_l_spec = 0.0f;
+  float offset_r_spec = 0.0f;
 
-  bool is_bev;
-  bool is_rev;
-  bool is_seam;
-  bool visited_rpo;
+  bool is_bev = false;
+  bool is_rev = false;
+  bool is_seam = false;
+  bool visited_rpo = false;
 };
 
 struct BoundVert {
@@ -178,13 +179,12 @@ struct BevVert {
   bool any_seam;
   bool visited;
 
-  EdgeHalf *edges;
+  Array<EdgeHalf> edges;
 
   Array<int> wire_edges;
 
   std::unique_ptr<VMesh> vmesh;
 
-  Vector<std::unique_ptr<EdgeHalf>> owned_edges;
   Vector<std::unique_ptr<BoundVert>> owned_bound_verts;
 };
 
@@ -614,6 +614,244 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh, int seg)
 
 }  // namespace uv
 
+namespace construct {
+
+/* Assume e1 and e2 both share some vert. Do they share a face?
+ * If they share a face then there is some corner around e1 that is in a face
+ * where the next or previous edge in the face must be e2. */
+static bool edges_face_connected_at_vert(const ExtendableMesh &emesh, const int e1, const int e2)
+{
+  const GroupedSpan<int> edge_faces = emesh.edge_faces();
+  const Span<int> e1_faces = edge_faces[e1];
+  const Span<int> e2_faces = edge_faces[e2];
+  for (const int f1 : e1_faces) {
+    if (e2_faces.contains(f1)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/* Return 1 if a and b are in CCW order on the normal side of f,
+ * and -1 if they are reversed, and 0 if there is no shared face f. */
+static int bev_ccw_test(const ExtendableMesh &emesh, const int a, const int b, const int f)
+{
+  if (f == -1) {
+    return 0;
+  }
+  const IndexRange corners = emesh.face_corners(f);
+  int ca = -1;
+  int cb = -1;
+  for (const int c : corners) {
+    if (emesh.corner_edge(c) == a) {
+      ca = c - corners.start();
+    }
+    if (emesh.corner_edge(c) == b) {
+      cb = c - corners.start();
+    }
+  }
+  if (ca == -1 || cb == -1) {
+    return 0;
+  }
+  return ((cb + 1) % corners.size() == ca) ? 1 : -1;
+}
+
+/* See if we have usual case for bevel edge order:
+ * there is an ordering such that all the faces are between
+ * successive edges and form a manifold "cap" at bv.
+ * If this is the case, set bv->edges to such an order
+ * and return true; else unmark any partial path and return false.
+ * Assume the first edge is already in bv->edges[0].e.
+ *
+ * Add edges to bv->edges in order that keeps adjacent edges sharing
+ * a unique face, if possible. */
+static bool fast_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv)
+{
+  int ntot = bv->edgecount;
+
+  EdgeHalf *eh = &bv->edges[0];
+  int e = eh->e;
+  if (emesh.edge_faces()[e].is_empty()) {
+    return false;
+  }
+
+  for (int i = 1; i < ntot; i++) {
+    int num_shared_face = 0;
+    int first_suc = -1;
+    for (const int e2 : emesh.vert_edges()[bv->v]) {
+      bool used = false;
+      for (int k = 0; k < i; k++) {
+        if (bv->edges[k].e == e2) {
+          used = true;
+          break;
+        }
+      }
+      if (used || bv->wire_edges.as_span().contains(e2)) {
+        continue;
+      }
+
+      for (const int f : emesh.edge_faces()[e2]) {
+        if (emesh.edge_faces()[e].contains(f)) {
+          num_shared_face++;
+          if (first_suc == -1) {
+            first_suc = e2;
+          }
+        }
+      }
+      if (num_shared_face >= 3) {
+        break;
+      }
+    }
+    if (num_shared_face == 1 || (i == 1 && num_shared_face == 2)) {
+      eh = &bv->edges[i];
+      eh->e = e = first_suc;
+    }
+    else {
+      for (int k = 1; k < i; k++) {
+        bv->edges[k].e = -1;
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+/* Do a depth first search to try to find a path that orders the rest of the edges
+ * (after i) around a vertex bv, such that successive edges share a face.
+ * Also prefer paths where the last edge shares a face with the first edge (bv->edges[0].e),
+ * but will accept a path that doesn't close if it is the longest one found.
+ * This is needed to handle cases where there are multiple faces between edges, or "shells"
+ * of "internal faces" at a vertex -- i.e., faces that bridge between the edges that naturally
+ * form a manifold cap around bv. It is rare to have more than one of these, so unlikely
+ * that the exponential time case will be hit in practice.
+ * Returns the new index i' where bv->edges[i'] ends the best path found.
+ * The path will be recorded in bv->edges and used edges will be marked.
+ */
+static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int i)
+{
+  Vector<int, 4> sucs;
+  Vector<int, 16> save_path;
+
+  int e = bv->edges[i].e;
+
+  for (const int e2 : emesh.vert_edges()[bv->v]) {
+    bool used = false;
+    for (int k = 0; k <= i; k++) {
+      if (bv->edges[k].e == e2) {
+        used = true;
+        break;
+      }
+    }
+    if (!used && !bv->wire_edges.as_span().contains(e2)) {
+      if (edges_face_connected_at_vert(emesh, e, e2)) {
+        sucs.append(e2);
+      }
+    }
+  }
+
+  const int nsucs = sucs.size();
+
+  int bestj = i;
+  int j = i;
+  for (int sucindex = 0; sucindex < nsucs; sucindex++) {
+    int nexte = sucs[sucindex];
+    bv->edges[j + 1].e = nexte;
+    int tryj = bevel_edge_order_extend(emesh, bv, j + 1);
+    if (tryj > bestj ||
+        (tryj == bestj && edges_face_connected_at_vert(emesh, bv->edges[tryj].e, bv->edges[0].e)))
+    {
+      bestj = tryj;
+      save_path.clear();
+      for (int k = j + 1; k <= bestj; k++) {
+        save_path.append(bv->edges[k].e);
+      }
+    }
+    for (int k = j + 1; k <= tryj; k++) {
+      bv->edges[k].e = -1;
+    }
+  }
+
+  if (bestj > j) {
+    for (int k = j + 1; k <= bestj; k++) {
+      bv->edges[k].e = save_path[k - (j + 1)];
+    }
+  }
+  return bestj;
+}
+
+/* Fill in bv->edges with a good ordering of non-wire edges around bv->v.
+ * Use only edges where wire_edges is not set (if edge beveling, others are wire).
+ * first_e is a good edge to start with. */
+static void find_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, int first_e)
+{
+  int ntot = bv->edgecount;
+  for (int i = 0;;) {
+    bv->edges[i].e = first_e;
+    if (i == 0 && fast_bevel_edge_order(emesh, bv)) {
+      break;
+    }
+    i = bevel_edge_order_extend(emesh, bv, i);
+    i++;
+    if (i >= bv->edgecount) {
+      break;
+    }
+    first_e = -1;
+    for (const int e : emesh.vert_edges()[bv->v]) {
+      bool used = false;
+      for (int k = 0; k < i; k++) {
+        if (bv->edges[k].e == e) {
+          used = true;
+          break;
+        }
+      }
+      if (used || bv->wire_edges.as_span().contains(e)) {
+        continue;
+      }
+      if (first_e == -1) {
+        first_e = e;
+      }
+      if (emesh.edge_faces()[e].size() == 1) {
+        first_e = e;
+        break;
+      }
+    }
+  }
+  for (int i = 0; i < ntot; i++) {
+    EdgeHalf *eh = &bv->edges[i];
+    EdgeHalf *eh2 = (i == bv->edgecount - 1) ? &bv->edges[0] : &bv->edges[i + 1];
+    int e = eh->e;
+    int e2 = eh2->e;
+    if (eh->fnext != -1 || eh2->fprev != -1) {
+      continue;
+    }
+    int bestf = -1;
+    for (const int f : emesh.edge_faces()[e]) {
+      if (emesh.edge_faces()[e2].contains(f)) {
+        const IndexRange corners = emesh.face_corners(f);
+        for (const int c : corners) {
+          if (emesh.corner_vert(c) == bv->v) {
+            bestf = f;
+            break;
+          }
+        }
+      }
+    }
+    if (bestf != -1) {
+      eh->fnext = eh2->fprev = bestf;
+    }
+  }
+}
+
+}  // namespace construct
+
+struct BevelState;
+
+namespace construct {
+
+static void bevel_vert_construct(BevelState &state, int v);
+
+}  // namespace construct
+
 struct BevelState {
   /* Input parameters. */
   BevelParameters params;
@@ -629,7 +867,8 @@ struct BevelState {
   ExtendableMesh emesh;
 
   /* Memory Ownership. */
-  Map<int, std::unique_ptr<BevVert>> vert_hash;
+  Vector<BevVert> bev_verts;
+  Map<int, BevVert *> vert_hash;
 
   std::optional<Map<int, FKind>> face_hash;
 
@@ -661,6 +900,7 @@ struct BevelState {
 
   BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection);
   void initialize_profile_data();
+  void uv_init();
 };
 
 BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection)
@@ -1086,6 +1326,161 @@ void BevelState::initialize_profile_data()
   }
 }
 
+void BevelState::uv_init()
+{
+  face_hash.emplace();
+
+  uv_layer_info.init(emesh.mesh);
+  uv_layer_info.find_components(emesh, params.segments);
+
+  uv_vert_maps.clear();
+  uv_vert_maps.resize(uv_layer_info.maps.size());
+}
+
+namespace construct {
+
+/* Construction around the vertex. */
+static void bevel_vert_construct(BevelState &state, int v)
+{
+  int nsel = 0;
+  int tot_edges = 0;
+  int tot_wire = 0;
+  int first_e = -1;
+
+  const ExtendableMesh &emesh = state.emesh;
+
+  /* Gather input selected edges.
+   * Only bevel selected edges that have exactly two incident faces.
+   * Want edges to be ordered so that they share faces.
+   * There may be one or more chains of shared faces broken by
+   * gaps where there are no faces.
+   * Want to ignore wire edges completely for edge beveling.
+   * TODO: make following work when more than one gap. */
+
+  for (const int e : emesh.vert_edges()[v]) {
+    int face_count = emesh.edge_faces()[e].size();
+
+    bool is_selected = (state.params.affect_type != BevelAffect::Vertices &&
+                        state.selection.contains(e));
+    if (is_selected) {
+      BLI_assert(face_count == 2);
+      nsel++;
+      if (first_e == -1) {
+        first_e = e;
+      }
+    }
+    if (face_count == 1) {
+      first_e = e;
+    }
+    if (face_count > 0 || state.params.affect_type == BevelAffect::Vertices) {
+      tot_edges++;
+    }
+    if (face_count == 0) {
+      tot_wire++;
+    }
+  }
+
+  if (first_e == -1 && !emesh.vert_edges()[v].is_empty()) {
+    first_e = emesh.vert_edges()[v].first();
+  }
+
+  if ((nsel == 0 && state.params.affect_type != BevelAffect::Vertices) ||
+      (tot_edges < 2 && state.params.affect_type == BevelAffect::Vertices))
+  {
+    return;
+  }
+
+  state.bev_verts.append({});
+  BevVert *bv = &state.bev_verts.last();
+  bv->v = v;
+  bv->edgecount = tot_edges;
+  bv->selcount = nsel;
+  bv->wirecount = tot_wire;
+  bv->offset = 1.0f;  // TODO: handle vertex group or bevel weights
+
+  bv->edges = Array<EdgeHalf>(tot_edges);
+
+  if (tot_wire > 0) {
+    bv->wire_edges = Array<int>(tot_wire);
+    int i = 0;
+    for (const int e : emesh.vert_edges()[v]) {
+      if (emesh.edge_faces()[e].is_empty()) {
+        bv->wire_edges[i++] = e;
+      }
+    }
+  }
+
+  bv->vmesh = std::make_unique<VMesh>();
+  bv->vmesh->seg = state.params.segments;
+
+  find_bevel_edge_order(emesh, bv, first_e);
+
+  for (int i = 0; i < tot_edges; i++) {
+    EdgeHalf *eh = &bv->edges[i];
+    int e = eh->e;
+    bool is_selected = (state.params.affect_type != BevelAffect::Vertices &&
+                        state.selection.contains(e));
+    if (is_selected) {
+      eh->is_bev = true;
+      eh->seg = state.params.segments;
+    }
+    else {
+      eh->is_bev = false;
+      eh->seg = 0;
+    }
+
+    const int2 edge_verts = emesh.edge_verts(e);
+    eh->is_rev = (edge_verts[1] == v);
+    eh->leftv = eh->rightv = nullptr;
+    eh->profile_index = 0;
+  }
+
+  if (tot_edges > 1) {
+    int ccw_test_sum = 0;
+    for (int i = 0; i < tot_edges; i++) {
+      ccw_test_sum += bev_ccw_test(
+          emesh, bv->edges[i].e, bv->edges[(i + 1) % tot_edges].e, bv->edges[i].fnext);
+    }
+    if (ccw_test_sum < 0) {
+      for (int i = 0; i <= (tot_edges / 2) - 1; i++) {
+        std::swap(bv->edges[i], bv->edges[tot_edges - i - 1]);
+        std::swap(bv->edges[i].fprev, bv->edges[i].fnext);
+        std::swap(bv->edges[tot_edges - i - 1].fprev, bv->edges[tot_edges - i - 1].fnext);
+      }
+      if (tot_edges % 2 == 1) {
+        int i = tot_edges / 2;
+        std::swap(bv->edges[i].fprev, bv->edges[i].fnext);
+      }
+    }
+  }
+
+  for (int i = 0; i < tot_edges; i++) {
+    EdgeHalf *eh = &bv->edges[i];
+    eh->next = &bv->edges[(i + 1) % tot_edges];
+    eh->prev = &bv->edges[(i + tot_edges - 1) % tot_edges];
+
+    if (eh->is_bev) {
+      const float offset_src_l = state.params.offsets[0][eh->e];
+      const float offset_src_r = state.params.offsets[1][eh->e];
+      const float offset_dst_l = state.params.offsets[2][eh->e];
+      const float offset_dst_r = state.params.offsets[3][eh->e];
+
+      eh->offset_l_spec = (offset_src_l + offset_dst_l) * 0.5f;
+      eh->offset_r_spec = (offset_src_r + offset_dst_r) * 0.5f;
+      eh->offset_l = eh->offset_l_spec;
+      eh->offset_r = eh->offset_r_spec;
+    }
+    else {
+      eh->offset_l = eh->offset_l_spec = 0.0f;
+      eh->offset_r = eh->offset_r_spec = 0.0f;
+    }
+  }
+
+  state.vert_hash.add_new(v, bv);
+}
+
+}  // namespace construct
+
 std::optional<Mesh *> mesh_bevel(
     const Mesh &src_mesh,
     const IndexMask &selection,
@@ -1103,14 +1498,13 @@ std::optional<Mesh *> mesh_bevel(
 
   BevelState state(src_mesh, params, selection);
   state.initialize_profile_data();
+  state.uv_init();
 
-  state.face_hash.emplace();
-
-  state.uv_layer_info.init(src_mesh);
-  state.uv_layer_info.find_components(state.emesh, params.segments);
-
-  state.uv_vert_maps.clear();
-  state.uv_vert_maps.resize(state.uv_layer_info.maps.size());
+  state.bev_verts.reserve(state.bevel_affected_vertices.size());
+  state.bevel_affected_vertices.foreach_index([&](const int v) {
+    construct::bevel_vert_construct(state, v);
+    // TODO: build_boundary and determine_uv_vert_connectivity
+  });
 
   return std::nullopt;
 }
