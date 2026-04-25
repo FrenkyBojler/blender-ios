@@ -342,17 +342,17 @@ def __gather_extensions(bmat, emissive_factor, export_settings):
         uvmap_infos.update(uvmap_info)
         udim_infos.update(udim_info)
 
-    # KHR_materials_dispersion
-    dispersion_extension = export_dispersion(bmat, extensions, export_settings)
-    if dispersion_extension:
-        extensions["KHR_materials_dispersion"] = dispersion_extension
-
     # KHR_materials_iridescence
     iridescence_extension, uvmap_info, udim_info = export_iridescence(bmat, export_settings)
     if iridescence_extension:
         extensions["KHR_materials_iridescence"] = iridescence_extension
         uvmap_infos.update(uvmap_info)
         udim_infos.update(udim_info)
+
+    # KHR_materials_dispersion
+    dispersion_extension = export_dispersion(bmat, extensions, export_settings)
+    if dispersion_extension:
+        extensions["KHR_materials_dispersion"] = dispersion_extension
 
     # KHR_materials_ior
     # Keep this extension at the end, because we export it only if some others are exported

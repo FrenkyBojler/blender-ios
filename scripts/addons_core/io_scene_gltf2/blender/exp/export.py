@@ -83,12 +83,12 @@ def __export(export_settings):
     # Volume is a special case where we need to export only if transmission is used
     __check_volume(json, export_settings)
 
-    # Dispersion is a special case where we need to export only if volume is used
-    __check_dispersion(json, export_settings)
-
     # Iridescence is a special case where we we have multiple fields that can make the extension
     # not exported (factor, thickness)
     __check_iridescence(json, export_settings)
+
+    # Dispersion is a special case where we need to export only if volume is used
+    __check_dispersion(json, export_settings)
 
     __manage_extension_declaration(json, export_settings)
 
