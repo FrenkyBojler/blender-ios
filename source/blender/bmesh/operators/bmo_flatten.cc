@@ -44,7 +44,7 @@ static float3 compute_average_face_normal(Span<BMFace *> faces)
 {
   float3 normal(0.0f);
   for (BMFace *f : faces) {
-    normal += float3(f->no);
+    normal += float3(f->no) * BM_face_calc_area(f);
   }
   const float length = math::length(normal);
   if (length > FLATTEN_EPSILON) {
