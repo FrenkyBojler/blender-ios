@@ -6,8 +6,8 @@
  * \ingroup edtransform
  */
 
-#include "BKE_object.hh"
 #include "BKE_lattice.hh"
+#include "BKE_object.hh"
 
 #include "ED_transform_snap_object_context.hh"
 
@@ -15,4 +15,4 @@
 
 namespace blender::ed::transform {
 eSnapMode snapLattice(SnapObjectContext *sctx, const Object *ob_eval, const float4x4 &obmat) {}
-} // namespace blender::ed::transform
+}  // namespace blender::ed::transform
