@@ -244,7 +244,7 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static void region_draw_azone_tab_arrow(AZone *az)
+static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *az)
 {
   GPU_blend(GPU_BLEND_ALPHA);
 
@@ -264,14 +264,17 @@ static void region_draw_azone_tab_arrow(AZone *az)
       break;
   }
 
+  float color[4];
+  ui::theme::get_color_4fv(TH_REGION_TOGGLE, color);
+  /* Workaround for different color spaces between normal areas and the ones using GPUViewports. */
+  float alpha = WM_region_use_viewport(area, region) ? 1.0f : 0.6f;
+  color[3] *= alpha;
   rctf rect{};
   /* Hit size is a bit larger than visible background. */
   rect.xmin = float(az->x1) + U.pixelsize;
   rect.xmax = float(az->x2) - U.pixelsize;
   rect.ymin = float(az->y1) + U.pixelsize;
   rect.ymax = float(az->y2) - U.pixelsize;
-  float color[4];
-  ui::theme::get_color_4fv(TH_REGION_TOGGLE, color);
   ui::draw_roundbox_aa(&rect, true, 4.0f, color);
 
   draw_azone_arrow(float(az->x1), float(az->y1), float(az->x2), float(az->y2), az->edge);
@@ -307,7 +310,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
         if (az.region && !(az.region->flag & RGN_FLAG_POLL_FAILED)) {
           /* only display tab or icons when the region is hidden */
           if (az.region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
-            region_draw_azone_tab_arrow(&az);
+            region_draw_azone_tab_arrow(area, region, &az);
           }
         }
       }
