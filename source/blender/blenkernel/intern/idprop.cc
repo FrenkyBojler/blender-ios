@@ -27,9 +27,9 @@
 #include "BKE_idprop_hash.hh"
 #include "BKE_lib_id.hh"
 
-#include "DNA_screen_types.h"
-
 #include "CLG_log.h"
+
+#include "DNA_screen_types.h"
 
 #include "MEM_guardedalloc.h"
 

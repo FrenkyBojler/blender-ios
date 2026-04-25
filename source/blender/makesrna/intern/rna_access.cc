@@ -4393,8 +4393,10 @@ TextboxState *RNA_property_string_get_textbox_state(PointerRNA *ptr, PropertyRNA
       if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
         /* Usually this is allocated once a string value is set, however text-box state is also
          * stored in the #IDP_STRING property data storage too, so we need its storage now. */
-        idprop = IDP_NewStringMaxSize(
-            nullptr, 0, RNA_property_identifier(prop), IDP_FLAG_STATIC_TYPE);
+        idprop = IDP_NewStringMaxSize(nullptr,
+                                      0,
+                                      RNA_property_identifier(prop),
+                                      eIDPropertyFlag(IDP_FLAG_STATIC_TYPE | IDP_FLAG_GHOST));
         IDP_AddToGroup(group, idprop);
       }
     }
