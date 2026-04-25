@@ -2,3 +2,4 @@ Referenced by issue #141156, 3D Stereoscopic mode does not take covergence plane
 Referenced by issue #157029, Blender (5.1.0-5.2.0) crashes on launch / freezes system when using Vulkan backend
 Referenced by issue #157233, Geometry Nodes: Crash when enabling "Input Attribute Toggle" on string socket
 Referenced by issue #157474, Blender crash when using undo while editing pose
+Referenced by issue #157813, EEVEE: Blender crashes when disabling Camera Ray Visibility on an object that uses Volume material
