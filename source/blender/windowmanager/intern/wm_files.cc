@@ -2419,6 +2419,21 @@ void wm_autosave_delete()
   }
 }
 
+static wmOperatorStatus wm_save_autosave_exec(bContext *C, wmOperator * /*op*/)
+{
+  WM_autosave_write(CTX_wm_manager(C), CTX_data_main(C));
+  return OPERATOR_FINISHED;
+}
+
+void WM_OT_save_autosave(wmOperatorType *ot)
+{
+  ot->name = "Save Autosave";
+  ot->idname = "WM_OT_save_autosave";
+  ot->description = "Create an autosave in the temp directory for the current file";
+
+  ot->exec = wm_save_autosave_exec;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
