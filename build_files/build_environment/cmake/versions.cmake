@@ -1144,17 +1144,6 @@ set(DPCPP_SPIRV_HEADERS_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Headers)
 set(DPCPP_SPIRV_HEADERS_LICENSE SPDX:MIT-Khronos-old)
 set(DPCPP_SPIRV_HEADERS_COPYRIGHT "Copyright (c) 2015-2024 The Khronos Group Inc.")
 
-# Source sycl/cmake/modules/FetchUnifiedRuntime.cmake (repo)
-# Source sycl/cmake/modules/UnifiedRuntimeTag.cmake (commit/version)
-set(UNIFIED_RUNTIME_VERSION d03f19a88e42cb98be9604ff24b61190d1e48727)
-set(UNIFIED_RUNTIME_URI https://github.com/oneapi-src/unified-runtime/archive/${UNIFIED_RUNTIME_VERSION}.tar.gz)
-set(UNIFIED_RUNTIME_HASH 761f57339bbaa104749426f7157f5f45fbc5ef3c9fce5b56bf495f34602c26e1)
-set(UNIFIED_RUNTIME_HASH_TYPE SHA256)
-set(UNIFIED_RUNTIME_FILE unified-runtime-${UNIFIED_RUNTIME_VERSION}.tar.gz)
-set(UNIFIED_RUNTIME_HOMEPAGE https://github.com/oneapi-src/unified-runtime)
-set(UNIFIED_RUNTIME_LICENSE SPDX:Apache-2.0 WITH LLVM-exception)
-set(UNIFIED_RUNTIME_COPYRIGHT "Copyright (C) 2019-2025 Intel Corporation")
-
 # Source unified-runtime/source/common/CMakeLists.txt
 set(UNIFIED_MEMORY_FRAMEWORK_VERSION v1.0.0-rc2)
 set(UNIFIED_MEMORY_FRAMEWORK_URI https://github.com/oneapi-src/unified-memory-framework/archive/${UNIFIED_MEMORY_FRAMEWORK_VERSION}.tar.gz)
