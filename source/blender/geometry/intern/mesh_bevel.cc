@@ -419,6 +419,201 @@ bool ExtendableMesh::is_corner_killed(const int c) const
   return c < mesh.corners_num ? kill_corners_[c] : false;
 }
 
+namespace uv {
+
+class UVLayerInfo {
+ public:
+  bool has_math_layers = false;
+  Array<int> face_component;
+
+  struct Map {
+    std::string name;
+    Array<float2> values;
+  };
+  Vector<Map> maps;
+
+  void init(const Mesh &mesh);
+
+  /**
+   * Determine connected components of faces, where faces in the same
+   * component have contiguous UV coordinates across shared edges for ALL UV maps.
+   */
+  void find_components(const ExtendableMesh &emesh, int seg);
+
+ private:
+  bool contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const;
+};
+
+void UVLayerInfo::init(const Mesh &mesh)
+{
+  has_math_layers = false;
+  const bke::AttributeAccessor attrs = mesh.attributes();
+  attrs.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::Float2) {
+      bke::AttributeReader<float2> uv_reader = iter.get<float2>();
+      if (uv_reader) {
+        Map map;
+        map.name = iter.name;
+        map.values = Array<float2>(mesh.corners_num);
+        uv_reader.varray.materialize(map.values.as_mutable_span());
+        this->maps.append(std::move(map));
+        this->has_math_layers = true;
+      }
+    }
+  });
+}
+
+bool UVLayerInfo::contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const
+{
+  if (!has_math_layers) {
+    return true;
+  }
+
+  const int2 edge_verts = mesh.edges()[e];
+  const int v1 = edge_verts[0];
+  const int v2 = edge_verts[1];
+
+  Span<int> corner_verts = mesh.corner_verts();
+  IndexRange f1_corners = mesh.faces()[f1];
+  IndexRange f2_corners = mesh.faces()[f2];
+
+  int c1_v1 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v1);
+  int c1_v2 = bke::mesh::face_find_corner_from_vert(f1_corners, corner_verts, v2);
+  int c2_v1 = bke::mesh::face_find_corner_from_vert(f2_corners, corner_verts, v1);
+  int c2_v2 = bke::mesh::face_find_corner_from_vert(f2_corners, corner_verts, v2);
+
+  if (c1_v1 == -1 || c1_v2 == -1 || c2_v1 == -1 || c2_v2 == -1) {
+    return false;
+  }
+
+  for (const Map &map : maps) {
+    if (map.values[c1_v1] != map.values[c2_v1]) {
+      return false;
+    }
+    if (map.values[c1_v2] != map.values[c2_v2]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void UVLayerInfo::find_components(const ExtendableMesh &emesh, int seg)
+{
+  if (!has_math_layers || (seg % 2) == 0) {
+    return;
+  }
+
+  const Mesh &mesh = emesh.mesh;
+  const int totface = mesh.faces_num;
+  face_component = Array<int>(totface, -1);
+  if (totface == 0) {
+    return;
+  }
+
+  GroupedSpan<int> edge_faces = emesh.edge_faces();
+
+  Array<bool> in_stack(totface, false);
+  Vector<int> stack;
+  stack.reserve(totface);
+
+  int current_component = -1;
+  for (int f = 0; f < totface; f++) {
+    if (face_component[f] == -1 && !in_stack[f]) {
+      current_component++;
+      stack.append(f);
+      in_stack[f] = true;
+
+      while (!stack.is_empty()) {
+        int f_curr = stack.pop_last();
+        in_stack[f_curr] = false;
+
+        if (face_component[f_curr] != -1) {
+          continue;
+        }
+        face_component[f_curr] = current_component;
+
+        /* Find neighbors via edges. */
+        const Span<int> f_edges = mesh.corner_edges().slice(mesh.faces()[f_curr]);
+        for (const int e_index : f_edges) {
+          const Span<int> adj_faces = edge_faces[e_index];
+          for (const int f_other : adj_faces) {
+            if (f_other != f_curr) {
+              if (face_component[f_other] != -1 || in_stack[f_other]) {
+                continue;
+              }
+              if (contig_ldata_across_edge(mesh, e_index, f_curr, f_other)) {
+                stack.append(f_other);
+                in_stack[f_other] = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* We can usually get more pleasing result if components 0 and 1
+   * are the topmost and bottom-most (in z-coordinate) components,
+   * so adjust component indices to make that so. */
+  if (current_component <= 0) {
+    return; /* Only one component, so no need to do this. */
+  }
+
+  float top_face_z = -1e30f;
+  int top_face_component = -1;
+  float bot_face_z = 1e30f;
+  int bot_face_component = -1;
+
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<float3> positions = mesh.vert_positions();
+
+  for (int f = 0; f < totface; f++) {
+    float min_z = 1e30f;
+    float max_z = -1e30f;
+    for (const int corner : mesh.faces()[f]) {
+      const float fz = positions[corner_verts[corner]].z;
+      min_z = std::min(min_z, fz);
+      max_z = std::max(max_z, fz);
+    }
+    const float fz = (min_z + max_z) * 0.5f;
+
+    if (fz > top_face_z) {
+      top_face_z = fz;
+      top_face_component = face_component[f];
+    }
+    if (fz < bot_face_z) {
+      bot_face_z = fz;
+      bot_face_component = face_component[f];
+    }
+  }
+
+  auto swap_face_components = [&](int c1, int c2) {
+    if (c1 == c2) {
+      return;
+    }
+    for (int &c : face_component) {
+      if (c == c1) {
+        c = c2;
+      }
+      else if (c == c2) {
+        c = c1;
+      }
+    }
+  };
+
+  swap_face_components(face_component[0], top_face_component);
+  if (bot_face_component != top_face_component) {
+    if (bot_face_component == 0) {
+      /* It was swapped with old top_face_component. */
+      bot_face_component = top_face_component;
+    }
+    swap_face_components(face_component[1], bot_face_component);
+  }
+}
+
+}  // namespace uv
+
 struct BevelState {
   /* Input parameters. */
   BevelParameters params;
@@ -444,7 +639,7 @@ struct BevelState {
 
   ProfileSpacing pro_spacing;
   ProfileSpacing pro_spacing_miter;
-  UVLayerInfo uv_layer_info;
+  uv::UVLayerInfo uv_layer_info;
 
   /* Additional State mimicking bmesh_bevel that isn't fully contained in BevelParameters. */
   bool affect_vertices_odd;
@@ -908,6 +1103,14 @@ std::optional<Mesh *> mesh_bevel(
 
   BevelState state(src_mesh, params, selection);
   state.initialize_profile_data();
+
+  state.face_hash.emplace();
+
+  state.uv_layer_info.init(src_mesh);
+  state.uv_layer_info.find_components(state.emesh, params.segments);
+
+  state.uv_vert_maps.clear();
+  state.uv_vert_maps.resize(state.uv_layer_info.maps.size());
 
   return std::nullopt;
 }
