@@ -2685,16 +2685,6 @@ int handler_panel_region(bContext *C,
 
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
-    if (event->type == MOUSEMOVE && event->val == KM_NOTHING) {
-      PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
-      if (pc_dyn) {
-        WM_tooltip_timer_init_ex(
-            C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init, UI_TOOLTIP_DELAY);
-      }
-      else {
-        WM_tooltip_clear(C, CTX_wm_window(C));
-      }
-    }
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
@@ -2749,6 +2739,16 @@ int handler_panel_region(bContext *C,
       if (pc_dyn) {
         WM_tooltip_timer_init_ex(
             C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init, 0.0f);
+      }
+      else {
+        WM_tooltip_clear(C, CTX_wm_window(C));
+      }
+    }
+    else if (event->type == MOUSEMOVE && event->val == KM_NOTHING) {
+      PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
+      if (pc_dyn) {
+        WM_tooltip_timer_init_ex(
+            C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init, UI_TOOLTIP_DELAY);
       }
       else {
         WM_tooltip_clear(C, CTX_wm_window(C));
