@@ -235,7 +235,7 @@ static GlyphBLF *blf_glyph_cache_add_glyph(GlyphCacheBLF *gc,
   std::unique_ptr<GlyphBLF> g = std::make_unique<GlyphBLF>();
   g->c = charcode;
   g->idx = glyph_index;
-  g->advance_x = ft_pix(glyph->advance.x);
+  g->advance_x = ft_pix((glyph->linearHoriAdvance + 512) >> 10);
   g->subpixel = subpixel;
 
   FT_BBox bbox;
@@ -1485,7 +1485,7 @@ static void blf_glyph_calc_rect_test(const GlyphBLF *g, const int x, const int y
    * width used by BLF_width. This allows that the text slightly
    * overlaps the clipping border to achieve better alignment. */
   r_rect->xmin = x + abs(g->pos[0]) + 1;
-  r_rect->xmax = x + std::min(ft_pix_to_int(g->advance_x) - 1, g->dims[0]);
+  r_rect->xmax = x + std::min(ft_pix_to_int(g->advance_x), g->dims[0]);
   r_rect->ymin = y;
   r_rect->ymax = r_rect->ymin - g->dims[1];
 }

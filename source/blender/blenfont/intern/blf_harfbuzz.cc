@@ -216,7 +216,7 @@ ShapingData::ShapingData(FontBLF *font,
     variations[0].tag = HB_OT_TAG_VAR_AXIS_WEIGHT;
     variations[0].value = segment_font->char_weight;
     variations[1].tag = HB_OT_TAG_VAR_AXIS_WIDTH;
-    variations[1].value = segment_font->char_weight;
+    variations[1].value = segment_font->char_width;
     variations[2].tag = HB_OT_TAG_VAR_AXIS_SLANT;
     variations[2].value = segment_font->char_slant;
     hb_font_set_variations(segment_font->hb_font, variations, 3);
