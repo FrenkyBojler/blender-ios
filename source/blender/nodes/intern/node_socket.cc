@@ -1816,9 +1816,6 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    if (data->subtype != PROP_FILEPATH && data->use_textbox) {
-      RNA_def_property_flag(prop, PROP_ID_USE_TEXTBOX);
-    }
     make_common_value_props(srna, socket, r_generated);
   };
   socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,

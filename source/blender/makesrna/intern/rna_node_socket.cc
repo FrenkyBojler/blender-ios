@@ -1695,12 +1695,6 @@ static void rna_def_node_socket_interface_string(BlenderRNA *brna,
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
-  prop = RNA_def_property(srna, "use_textbox", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop, "Use Text-Box Widget", "Input value is exposed through a text-box widget");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
-
   RNA_def_struct_sdna_from(srna, "bNodeTreeInterfaceSocket", nullptr);
 
   rna_def_node_tree_interface_socket_builtin(srna);

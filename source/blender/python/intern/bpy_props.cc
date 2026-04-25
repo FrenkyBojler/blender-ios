@@ -5027,6 +5027,14 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
   if (bpy_prop_callback_check(search_fn, "search", 3) == -1) {
     return nullptr;
   }
+  if (subtype_enum.value == PROP_MULTILINE && set_fn) {
+    PyErr_Format(PyExc_TypeError,
+                 "%s.%s: multi-line string properties are not supported with custom defined "
+                 "\"set\" storage",
+                 srna->identifier,
+                 id_data.value);
+    return nullptr;
+  }
 
   if (id_data.prop_free_handle != nullptr) {
     RNA_def_property_free_identifier_deferred_finish(srna, id_data.prop_free_handle);

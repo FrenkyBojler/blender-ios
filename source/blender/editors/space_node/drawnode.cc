@@ -1322,7 +1322,7 @@ static void std_node_socket_draw(
       }
       else {
         auto str_decl = static_cast<const nodes::decl::String *>(socket_decl);
-        if (str_decl->subtype != PROP_FILEPATH && str_decl->use_textbox) {
+        if (str_decl->subtype == PROP_MULTILINE) {
           layout->textbox_with_state(
               ptr, "default_value", RNA_pointer_get(ptr, "textbox_state").data_as<TextboxState>());
         }
@@ -1541,9 +1541,6 @@ static void std_node_socket_interface_draw(ID *id,
     case SOCK_STRING: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
       col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
-      if (typeinfo->subtype != PROP_FILEPATH) {
-        col->prop(&ptr, "use_textbox", DEFAULT_FLAGS, IFACE_("Use Text-Box Widget"), ICON_NONE);
-      }
       break;
     }
     case SOCK_BOOLEAN:

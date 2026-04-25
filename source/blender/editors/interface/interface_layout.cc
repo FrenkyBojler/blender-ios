@@ -1196,6 +1196,11 @@ static Button *item_with_label(Layout *layout,
                   h,
                   std::nullopt);
   }
+  else if (RNA_property_string_is_multiline(prop)) {
+    sub->row(true).textbox_with_state(
+        ptr, RNA_property_identifier(prop), RNA_property_string_get_textbox_state(ptr, prop));
+    but = block->buttons_ptrs.last().get();
+  }
   else if (flag & ITEM_R_EVENT) {
     but = uiDefButR_prop(block,
                          ButtonType::KeyEvent,

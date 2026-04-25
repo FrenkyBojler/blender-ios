@@ -500,6 +500,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       name = name.substr(prefix_size + 1);
     }
   }
+  bool add_blank_spacer = true;
 
   switch (type) {
     case SOCK_OBJECT: {
@@ -616,21 +617,14 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       }
       else {
         PropertyRNA *prop_value = RNA_struct_find_property(socket_props_ptr, "value");
-        if (RNA_property_string_textbox_flag(prop_value)) {
-          row.textbox_with_state(
-              socket_props_ptr,
-              "value",
-              RNA_property_string_get_textbox_state(socket_props_ptr, prop_value));
-        }
-        else {
-          row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
-        }
+        add_blank_spacer = !(prop_value && RNA_property_string_is_multiline(prop_value));
+        row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
       }
       break;
     }
   }
-  if (!nodes::input_has_attribute_toggle(*ctx.tree, input_index)) {
-    // row.label("", ICON_BLANK1);
+  if (!nodes::input_has_attribute_toggle(*ctx.tree, input_index) && add_blank_spacer) {
+    row.label("", ICON_BLANK1);
   }
 }
 

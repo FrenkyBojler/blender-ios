@@ -1160,6 +1160,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
 #ifndef RNA_RUNTIME
   PropertyDefRNA *dprop = nullptr;
   {
+
     const char *error = nullptr;
 
     if (!RNA_validate_identifier(identifier, true, &error)) {
@@ -1168,6 +1169,13 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
       DefRNA.error = true;
     }
 
+    if (subtype == PROP_MULTILINE) {
+      CLOG_ERROR(&LOG,
+                 "multi-line string properties can be defined only at runtime \"%s.%s\"",
+                 CONTAINER_RNA_ID(cont),
+                 identifier);
+      DefRNA.error = true;
+    }
     ContainerDefRNA *dcont = rna_find_container_def(cont);
 
     /* TODO: detect super-type collisions. */
