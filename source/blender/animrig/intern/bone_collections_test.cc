@@ -9,6 +9,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_global.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -22,7 +23,9 @@
 
 namespace blender::animrig::tests {
 
-TEST(ANIM_bone_collections, bonecoll_new_free)
+class AnimBoneCollectionTest : public bke::BlenderGTestBase {};
+
+TEST_F(AnimBoneCollectionTest, bonecoll_new_free)
 {
   BoneCollection *bcoll = ANIM_bonecoll_new("some name");
   EXPECT_NE(nullptr, bcoll);
@@ -34,7 +37,7 @@ TEST(ANIM_bone_collections, bonecoll_new_free)
   ANIM_bonecoll_free(bcoll);
 }
 
-TEST(ANIM_bone_collections, bonecoll_default_name)
+TEST_F(AnimBoneCollectionTest, bonecoll_default_name)
 {
   {
     BoneCollection *bcoll = ANIM_bonecoll_new("");

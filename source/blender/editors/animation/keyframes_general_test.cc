@@ -12,7 +12,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_fcurve.hh"
-#include "BKE_gtest_setup.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"

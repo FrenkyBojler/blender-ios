@@ -8,17 +8,21 @@
 
 #include "BLI_string.h"
 
+#include "BKE_gtest_base.hh"
+
 #include "CLG_log.h"
 
 #include "obj_import_file_reader.hh"
 
 namespace blender::io::obj {
 
+class OBJImportTest : public bke::BlenderGTestBase {};
+
 /* Extensive tests for OBJ importing are in `io_obj_import_test.py`.
  * The tests here are only for testing OBJ reader buffer refill behavior,
  * by using a very small buffer size on purpose. */
 
-TEST(obj_import, BufferRefillTest)
+TEST_F(OBJImportTest, BufferRefillTest)
 {
   CLG_init();
 
