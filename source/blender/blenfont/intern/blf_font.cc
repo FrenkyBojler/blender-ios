@@ -1479,9 +1479,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       do_draw = true;
       clip_bytes = 1;
     }
-    else if (UNLIKELY((mode == BLFWrapMode::Minimal) && codepoint != ' ' &&
-                      (g_prev ? g_prev->c == ' ' : false)))
-    {
+    else if (UNLIKELY(codepoint != ' ' && (g_prev ? g_prev->c == ' ' : false))) {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
       clip_bytes = 1;
