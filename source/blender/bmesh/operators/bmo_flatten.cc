@@ -135,8 +135,8 @@ void bmo_flatten_exec(BMesh *bm, BMOperator *op)
         projected.z = co.z;
       }
 
-      float3 final_pos = math::interpolate(co, projected, factor);
-      copy_v3_v3(v->co, final_pos);
+      float3 co_final = math::interpolate(co, projected, factor);
+      copy_v3_v3(v->co, co_final);
     }
   }
   MEM_delete(group_index);
