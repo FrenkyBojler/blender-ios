@@ -614,6 +614,591 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh, int seg)
 
 }  // namespace uv
 
+namespace geom {
+
+constexpr float BEVEL_EPSILON_D = 1e-6f;
+constexpr float BEVEL_EPSILON_SQ = 1e-12f;
+constexpr float BEVEL_EPSILON_BIG = 1e-4f;
+constexpr float BEVEL_EPSILON_ANG = DEG2RADF(2.0f);
+constexpr float BEVEL_SMALL_ANG = DEG2RADF(10.0f);
+const float BEVEL_SMALL_ANG_DOT = (1.0f - std::cos(BEVEL_SMALL_ANG));
+const float BEVEL_EPSILON_ANG_DOT = (1.0f - std::cos(BEVEL_EPSILON_ANG));
+
+static int edge_other_vert(const ExtendableMesh &emesh, int e, int v) {
+  int2 verts = emesh.edge_verts(e);
+  return verts[0] == v ? verts[1] : verts[0];
+}
+
+/* Calculate coordinates of a point a distance d from v on e and return it in r_slideco. */
+static void slide_dist(const ExtendableMesh &emesh, int e, int v, float d, float r_slideco[3])
+{
+  float3 v_co = emesh.vert_position(v);
+  float3 other_co = emesh.vert_position(geom::edge_other_vert(emesh, e, v));
+  float3 dir = other_co - v_co;
+  float len = math::length(dir);
+  dir /= len;
+
+  if (d > len) {
+    d = len - 50.0f * BEVEL_EPSILON_D;
+  }
+  float3 res = v_co + dir * d;
+  copy_v3_v3(r_slideco, res);
+}
+
+static bool is_outside_edge(const ExtendableMesh &emesh, EdgeHalf *eh, const float co[3], int *ret_closer_v)
+{
+  // Actually, BMesh's is_outside_edge uses e->v1 and e->v2.
+  int v1 = emesh.edge_verts(eh->e)[0];
+  int v2 = emesh.edge_verts(eh->e)[1];
+  float3 l1 = emesh.vert_position(v1);
+  float3 u_dir = emesh.vert_position(v2) - l1;
+  float3 h = float3(co[0], co[1], co[2]) - l1;
+  float lenu = math::length(u_dir);
+  u_dir /= lenu;
+  float lambda = math::dot(u_dir, h);
+  if (lambda <= -BEVEL_EPSILON_BIG * lenu) {
+    *ret_closer_v = v1;
+    return true;
+  }
+  if (lambda >= (1.0f + BEVEL_EPSILON_BIG) * lenu) {
+    *ret_closer_v = v2;
+    return true;
+  }
+  return false;
+}
+
+static bool point_between_edges(const ExtendableMesh &emesh,
+                                const float co[3], int v, int f, EdgeHalf *e1, EdgeHalf *e2)
+{
+  int v1 = geom::edge_other_vert(emesh, e1->e, v);
+  int v2 = geom::edge_other_vert(emesh, e2->e, v);
+  float3 dir1 = emesh.vert_position(v) - emesh.vert_position(v1);
+  float3 dir2 = emesh.vert_position(v) - emesh.vert_position(v2);
+  float3 dirco = emesh.vert_position(v) - float3(co[0], co[1], co[2]);
+  dir1 = math::normalize(dir1);
+  dir2 = math::normalize(dir2);
+  dirco = math::normalize(dirco);
+  float ang11 = angle_normalized_v3v3(dir1, dir2);
+  float ang1co = angle_normalized_v3v3(dir1, dirco);
+  float3 no;
+  no = math::cross(dir1, dir2);
+  if (math::dot(no, emesh.mesh.face_normals()[f]) < 0.0f) {
+    ang11 = float(M_PI * 2.0) - ang11;
+  }
+  no = math::cross(dir1, dirco);
+  if (math::dot(no, emesh.mesh.face_normals()[f]) < 0.0f) {
+    ang1co = float(M_PI * 2.0) - ang1co;
+  }
+  return (ang11 - ang1co > -BEVEL_EPSILON_ANG);
+}
+
+/* Is the angle swept from e1 to e2, CCW when viewed from the normal side of f,
+ * not a reflex angle or a straight angle? Assume e1 and e2 share a vert. */
+static bool edge_edge_angle_less_than_180(const ExtendableMesh &emesh, const int e1, const int e2, const int f)
+{
+  BLI_assert(f != -1);
+  int v = -1, v1 = -1, v2 = -1;
+  const int2 ev1 = emesh.edge_verts(e1);
+  const int2 ev2 = emesh.edge_verts(e2);
+  if (ev1[0] == ev2[0]) {
+    v = ev1[0]; v1 = ev1[1]; v2 = ev2[1];
+  }
+  else if (ev1[0] == ev2[1]) {
+    v = ev1[0]; v1 = ev1[1]; v2 = ev2[0];
+  }
+  else if (ev1[1] == ev2[0]) {
+    v = ev1[1]; v1 = ev1[0]; v2 = ev2[1];
+  }
+  else if (ev1[1] == ev2[1]) {
+    v = ev1[1]; v1 = ev1[0]; v2 = ev2[0];
+  }
+  if (v == -1) {
+    return false;
+  }
+  float3 dir1 = emesh.vert_position(v1) - emesh.vert_position(v);
+  float3 dir2 = emesh.vert_position(v2) - emesh.vert_position(v);
+  float3 cross = math::cross(dir1, dir2);
+  return math::dot(cross, emesh.mesh.face_normals()[f]) > 0.0f;
+}
+
+static int get_edge_starting_at(const ExtendableMesh &emesh, int f, int vert) {
+  const IndexRange corners = emesh.face_corners(f);
+  for (int c : corners) {
+    if (emesh.corner_vert(c) == vert) {
+      return emesh.corner_edge(c);
+    }
+  }
+  return -1;
+}
+
+static int get_edge_ending_at(const ExtendableMesh &emesh, int f, int vert) {
+  const IndexRange corners = emesh.face_corners(f);
+  for (int i = 0; i < corners.size(); i++) {
+    int c = corners[i];
+    int next_c = corners.start() + (i + 1) % corners.size();
+    if (emesh.corner_vert(next_c) == vert) {
+      return emesh.corner_edge(c);
+    }
+  }
+  return -1;
+}
+
+static void offset_meet(const ExtendableMesh &emesh,
+                        EdgeHalf *e1,
+                        EdgeHalf *e2,
+                        int v,
+                        int f,
+                        bool edges_between,
+                        float meetco[3],
+                        const EdgeHalf *e_in_plane)
+{
+  float3 v_co = emesh.vert_position(v);
+  float3 dir1 = emesh.vert_position(geom::edge_other_vert(emesh, e1->e, v)) - v_co;
+  float3 dir2 = emesh.vert_position(geom::edge_other_vert(emesh, e2->e, v)) - v_co;
+
+  float3 dir1n = float3(0.0f);
+  float3 dir2p = float3(0.0f);
+  if (edges_between) {
+    EdgeHalf *e1next = e1->next;
+    EdgeHalf *e2prev = e2->prev;
+    dir1n = emesh.vert_position(geom::edge_other_vert(emesh, e1next->e, v)) - v_co;
+    dir2p = emesh.vert_position(geom::edge_other_vert(emesh, e2prev->e, v)) - v_co;
+  }
+
+  float ang = angle_v3v3(dir1, dir2);
+  float3 norm_perp1;
+  if (ang < BEVEL_EPSILON_ANG) {
+    float3 norm_v = float3(0.0f);
+    if (f != -1) {
+      norm_v = emesh.mesh.face_normals()[f];
+    }
+    else {
+      int fcount = 0;
+      for (EdgeHalf *eloop = e1; eloop != e2; eloop = eloop->next) {
+        if (eloop->fnext != -1) {
+          norm_v += emesh.mesh.face_normals()[eloop->fnext];
+          fcount++;
+        }
+      }
+      if (fcount == 0) {
+        norm_v = emesh.mesh.vert_normals()[v];
+      }
+      else {
+        norm_v /= float(fcount);
+      }
+    }
+    float3 dir_sum = dir1 + dir2;
+    norm_perp1 = math::normalize(math::cross(dir_sum, norm_v));
+    float d = math::max(e1->offset_r, e2->offset_l);
+    d = d / math::cos(ang / 2.0f);
+    float3 off1a = v_co + norm_perp1 * d;
+    copy_v3_v3(meetco, off1a);
+  }
+  else if (math::abs(ang - float(M_PI)) < BEVEL_EPSILON_ANG) {
+    float d = math::max(e1->offset_r, e2->offset_l);
+    slide_dist(emesh, e2->e, v, d, meetco);
+  }
+  else {
+    float3 norm_v1, norm_v2;
+    if (f != -1 && ang < BEVEL_SMALL_ANG) {
+      norm_v1 = norm_v2 = emesh.mesh.face_normals()[f];
+    }
+    else if (!edges_between) {
+      norm_v1 = math::normalize(math::cross(dir2, dir1));
+      if (math::dot(norm_v1, f != -1 ? emesh.mesh.face_normals()[f] : emesh.mesh.vert_normals()[v]) < 0.0f) {
+        norm_v1 = -norm_v1;
+      }
+      norm_v2 = norm_v1;
+    }
+    else {
+      norm_v1 = math::normalize(math::cross(dir1n, dir1));
+      int f_curr = e1->fnext;
+      if (math::dot(norm_v1, f_curr != -1 ? emesh.mesh.face_normals()[f_curr] : emesh.mesh.vert_normals()[v]) < 0.0f) {
+        norm_v1 = -norm_v1;
+      }
+      norm_v2 = math::normalize(math::cross(dir2, dir2p));
+      f_curr = e2->fprev;
+      if (math::dot(norm_v2, f_curr != -1 ? emesh.mesh.face_normals()[f_curr] : emesh.mesh.vert_normals()[v]) < 0.0f) {
+        norm_v2 = -norm_v2;
+      }
+    }
+
+    float3 norm_perp2;
+    norm_perp1 = math::normalize(math::cross(dir1, norm_v1));
+    norm_perp2 = math::normalize(math::cross(dir2, norm_v2));
+
+    float off1a[3], off1b[3], off2a[3], off2b[3];
+    copy_v3_v3(off1a, v_co + norm_perp1 * e1->offset_r);
+    copy_v3_v3(off1b, float3(off1a[0], off1a[1], off1a[2]) + dir1);
+    copy_v3_v3(off2a, v_co + norm_perp2 * e2->offset_l);
+    copy_v3_v3(off2b, float3(off2a[0], off2a[1], off2a[2]) + dir2);
+
+    float isect2[3];
+    int isect_kind = isect_line_line_v3(off1a, off1b, off2a, off2b, meetco, isect2);
+    if (isect_kind == 0) {
+      copy_v3_v3(meetco, off1a);
+    }
+    else {
+      int closer_v;
+      if (e1->offset_r == 0.0f && is_outside_edge(emesh, e1, meetco, &closer_v)) {
+        copy_v3_v3(meetco, emesh.vert_position(closer_v));
+      }
+      if (e2->offset_l == 0.0f && is_outside_edge(emesh, e2, meetco, &closer_v)) {
+        copy_v3_v3(meetco, emesh.vert_position(closer_v));
+      }
+      if (edges_between && e1->offset_r > 0.0f && e2->offset_l > 0.0f) {
+        if (isect_kind == 2) {
+          mid_v3_v3v3(meetco, meetco, isect2);
+        }
+        for (EdgeHalf *e_loop = e1; e_loop != e2; e_loop = e_loop->next) {
+          int fnext = e_loop->fnext;
+          if (fnext == -1) {
+            continue;
+          }
+          float plane[4];
+          float3 no = emesh.mesh.face_normals()[fnext];
+          plane_from_point_normal_v3(plane, v_co, no);
+          float dropco[3];
+          closest_to_plane_normalized_v3(dropco, plane, meetco);
+          if (e_in_plane) {
+            float ang = angle_v3v3(no, emesh.mesh.face_normals()[e_in_plane->fnext]);
+            if ((math::abs(ang) < BEVEL_SMALL_ANG) || (math::abs(ang - float(M_PI)) < BEVEL_SMALL_ANG)) {
+              continue;
+            }
+          }
+          if (point_between_edges(emesh, dropco, v, fnext, e_loop, e_loop->next)) {
+            copy_v3_v3(meetco, dropco);
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+static bool offset_meet_edge(const ExtendableMesh &emesh,
+                             EdgeHalf *e1, EdgeHalf *e2, int v, float meetco[3], float *r_angle)
+{
+  float3 v_co = emesh.vert_position(v);
+  float3 dir1 = emesh.vert_position(geom::edge_other_vert(emesh, e1->e, v)) - v_co;
+  float3 dir2 = emesh.vert_position(geom::edge_other_vert(emesh, e2->e, v)) - v_co;
+  dir1 = math::normalize(dir1);
+  dir2 = math::normalize(dir2);
+
+  float ang = angle_normalized_v3v3(dir1, dir2);
+  if (math::abs(ang) < BEVEL_EPSILON_ANG) {
+    if (r_angle) {
+      *r_angle = 0.0f;
+    }
+    return false;
+  }
+  float3 fno = math::cross(dir1, dir2);
+  if (math::dot(fno, emesh.mesh.vert_normals()[v]) < 0.0f) {
+    ang = 2.0f * float(M_PI) - ang;
+    if (r_angle) {
+      *r_angle = ang;
+    }
+    return false;
+  }
+  if (r_angle) {
+    *r_angle = ang;
+  }
+
+  if (math::abs(ang - float(M_PI)) < BEVEL_EPSILON_ANG) {
+    return false;
+  }
+
+  float sinang = math::sin(ang);
+
+  float3 meet_res = v_co;
+  if (e1->offset_r == 0.0f) {
+    meet_res += dir1 * (e2->offset_l / sinang);
+  }
+  else {
+    meet_res += dir2 * (e1->offset_r / sinang);
+  }
+  copy_v3_v3(meetco, meet_res);
+  return true;
+}
+
+static bool good_offset_on_edge_between(const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid, int v)
+{
+  float ang;
+  float meet[3];
+
+  return offset_meet_edge(emesh, e1, emid, v, meet, &ang) && offset_meet_edge(emesh, emid, e2, v, meet, &ang);
+}
+
+static bool offset_on_edge_between(const ExtendableMesh &emesh,
+                                   EdgeHalf *e1,
+                                   EdgeHalf *e2,
+                                   EdgeHalf *emid,
+                                   int v,
+                                   float meetco[3],
+                                   float *r_sinratio)
+{
+  bool retval = false;
+
+  BLI_assert(e1->is_bev && e2->is_bev && !emid->is_bev);
+
+  float ang1, ang2;
+  float meet1[3], meet2[3];
+  bool ok1 = offset_meet_edge(emesh, e1, emid, v, meet1, &ang1);
+  bool ok2 = offset_meet_edge(emesh, emid, e2, v, meet2, &ang2);
+  if (ok1 && ok2) {
+    mid_v3_v3v3(meetco, meet1, meet2);
+    if (r_sinratio) {
+      *r_sinratio = (ang1 == 0.0f) ? 1.0f : math::sin(ang2) / math::sin(ang1);
+    }
+    retval = true;
+  }
+  else if (ok1 && !ok2) {
+    copy_v3_v3(meetco, meet1);
+  }
+  else if (!ok1 && ok2) {
+    copy_v3_v3(meetco, meet2);
+  }
+  else {
+    slide_dist(emesh, emid->e, v, e1->offset_r, meetco);
+  }
+
+  return retval;
+}
+
+} // namespace geom
+
+/* -------------------------------------------------------------------- */
+/** \name Debug printing utilities
+ * \{ */
+
+namespace debug {
+
+/* Prints a Span of a printable type, 10 items per line.
+ * Each line is prefixed with the starting index in brackets.
+ * A label line is printed before the span. */
+template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const char *label)
+{
+  if (span.size() == 0) {
+    return;
+  }
+  fmt::print("{}:", label);
+  for (const int i : span.index_range()) {
+    if (i % 10 == 0) {
+      fmt::print("\n[{}] ", i);
+    }
+    fmt::print("{} ", span[i]);
+  }
+  fmt::println("");
+}
+
+/* Prints a single float3 as "(x,y,z)" with no trailing newline. */
+[[maybe_unused]] static void print_float3(const float3 &v)
+{
+  fmt::print("({},{},{})", v[0], v[1], v[2]);
+}
+
+/* Prints a Span<float3>, 10 items per line, preceded by a label. */
+[[maybe_unused]] static void print_float3_span(Span<float3> span, const char *label)
+{
+  if (span.size() == 0) {
+    return;
+  }
+  fmt::print("{}:", label);
+  for (const int i : span.index_range()) {
+    if (i % 10 == 0) {
+      fmt::print("\n[{}] ", i);
+    }
+    print_float3(span[i]);
+    fmt::print(" ");
+  }
+  fmt::println("");
+}
+
+/* Prints a single int2 pair as "(a,b)" with no trailing newline. */
+[[maybe_unused]] static void print_int2(const int2 pair)
+{
+  fmt::print("({},{})", pair[0], pair[1]);
+}
+
+/* Prints a Span<int2>, 10 items per line, preceded by a label. */
+[[maybe_unused]] static void print_int2_span(Span<int2> span, const char *label)
+{
+  if (span.size() == 0) {
+    return;
+  }
+  fmt::print("{}:", label);
+  for (const int i : span.index_range()) {
+    if (i % 10 == 0) {
+      fmt::print("\n[{}] ", i);
+    }
+    print_int2(span[i]);
+    fmt::print(" ");
+  }
+  fmt::println("");
+}
+
+/* Prints a single IndexRange as "[first..last]" or "[]" if empty, with no trailing newline. */
+[[maybe_unused]] static void print_indexrange(const IndexRange &range)
+{
+  if (range.size() == 0) {
+    fmt::print("[]");
+  }
+  else {
+    fmt::print("[{}..{}]", range.first(), range.last());
+  }
+}
+
+/* Prints a GroupedSpan<int>, one group per line, preceded by a label. */
+[[maybe_unused]] static void print_groupedspan(const GroupedSpan<int> &groupedspan,
+                                               const char *label)
+{
+  if (groupedspan.size() == 0) {
+    return;
+  }
+  fmt::println("{}:", label);
+  for (const int i : groupedspan.index_range()) {
+    fmt::print("[{}] ", i);
+    for (int v : groupedspan[i]) {
+      fmt::print("{} ", v);
+    }
+    fmt::println("");
+  }
+}
+
+/* Returns a human-readable name for a #MeshKind value. */
+[[maybe_unused]] static const char *mesh_kind_name(MeshKind kind)
+{
+  switch (kind) {
+    case MeshKind::NONE:
+      return "NONE";
+    case MeshKind::POLY:
+      return "POLY";
+    case MeshKind::ADJ:
+      return "ADJ";
+    case MeshKind::TRI_FAN:
+      return "TRI_FAN";
+    case MeshKind::CUTOFF:
+      return "CUTOFF";
+    default:
+      return "?";
+  }
+}
+
+/* Prints a single #Profile's key parameters. */
+[[maybe_unused]] static void dump_profile(const Profile &prof)
+{
+  fmt::print("  Profile: super_r={} height={} special_params={}\n",
+             prof.super_r,
+             prof.height,
+             prof.special_params);
+  fmt::print("    start=");
+  print_float3(prof.start);
+  fmt::print(" middle=");
+  print_float3(prof.middle);
+  fmt::print(" end=");
+  print_float3(prof.end);
+  fmt::println("");
+  fmt::print("    plane_no=");
+  print_float3(prof.plane_no);
+  fmt::print(" plane_co=");
+  print_float3(prof.plane_co);
+  fmt::print(" proj_dir=");
+  print_float3(prof.proj_dir);
+  fmt::println("");
+  if (!prof.prof_co.is_empty()) {
+    print_float3_span(prof.prof_co, "    prof_co");
+  }
+}
+
+/* Prints a single #EdgeHalf's fields. */
+[[maybe_unused]] static void dump_edge_half(const EdgeHalf &eh, const int index)
+{
+  fmt::println("  EdgeHalf[{}]: e={} fprev={} fnext={}", index, eh.e, eh.fprev, eh.fnext);
+  fmt::println("    offset_l={} offset_r={} offset_l_spec={} offset_r_spec={}",
+               eh.offset_l,
+               eh.offset_r,
+               eh.offset_l_spec,
+               eh.offset_r_spec);
+  fmt::println("    is_bev={} is_rev={} is_seam={} visited_rpo={}",
+               eh.is_bev,
+               eh.is_rev,
+               eh.is_seam,
+               eh.visited_rpo);
+  fmt::println("    leftv={} rightv={}",
+               eh.leftv ? eh.leftv->index : -1,
+               eh.rightv ? eh.rightv->index : -1);
+}
+
+/* Prints a single #BoundVert's fields. */
+[[maybe_unused]] static void dump_bound_vert(const BoundVert &bndv)
+{
+  fmt::print("  BoundVert[{}]: co=", bndv.index);
+  print_float3(bndv.nv.co);
+  fmt::println("");
+  fmt::println("    efirst={} elast={} eon={} ebev={}",
+               bndv.efirst ? bndv.efirst->e : -1,
+               bndv.elast ? bndv.elast->e : -1,
+               bndv.eon ? bndv.eon->e : -1,
+               bndv.ebev ? bndv.ebev->e : -1);
+  fmt::println("    sinratio={} any_seam={} visited={}", bndv.sinratio, bndv.any_seam, bndv.visited);
+  fmt::println("    is_arc_start={} is_patch_start={} is_profile_start={}",
+               bndv.is_arc_start,
+               bndv.is_patch_start,
+               bndv.is_profile_start);
+  fmt::println("    seam_len={} sharp_len={}", bndv.seam_len, bndv.sharp_len);
+  dump_profile(bndv.profile);
+}
+
+/* Prints a #VMesh and all its #BoundVert chain. */
+[[maybe_unused]] static void dump_vmesh(const VMesh &vm)
+{
+  fmt::println("  VMesh: count={} seg={} mesh_kind={}", vm.count, vm.seg, mesh_kind_name(vm.mesh_kind));
+  if (vm.boundstart == nullptr) {
+    fmt::println("  (no boundverts)");
+    return;
+  }
+  /* Walk the circular linked list. */
+  const BoundVert *bndv = vm.boundstart;
+  do {
+    dump_bound_vert(*bndv);
+    bndv = bndv->next;
+  } while (bndv != vm.boundstart);
+}
+
+/* Dumps a full #BevVert, including its #EdgeHalf array, wire edges, and #VMesh. */
+[[maybe_unused]] static void dump_bev_vert(const BevVert &bv)
+{
+  fmt::println("BevVert: v={} edgecount={} selcount={} wirecount={}",
+               bv.v,
+               bv.edgecount,
+               bv.selcount,
+               bv.wirecount);
+  fmt::println("  offset={} any_seam={} visited={}", bv.offset, bv.any_seam, bv.visited);
+
+  /* Print the EdgeHalf array. */
+  fmt::println("  edges ({}):", bv.edges.size());
+  for (const int i : bv.edges.index_range()) {
+    dump_edge_half(bv.edges[i], i);
+  }
+
+  /* Print wire edges. */
+  if (!bv.wire_edges.is_empty()) {
+    print_span<int>(bv.wire_edges, "  wire_edges");
+  }
+
+  /* Print the VMesh if present. */
+  if (bv.vmesh) {
+    dump_vmesh(*bv.vmesh);
+  }
+  else {
+    fmt::println("  (no vmesh)");
+  }
+}
+
+} // namespace debug
+
+/** \} */
+
 namespace construct {
 
 /* Assume e1 and e2 both share some vert. Do they share a face?
@@ -782,6 +1367,396 @@ static int bevel_edge_order_extend(const ExtendableMesh &emesh, BevVert *bv, int
 /* Fill in bv->edges with a good ordering of non-wire edges around bv->v.
  * Use only edges where wire_edges is not set (if edge beveling, others are wire).
  * first_e is a good edge to start with. */
+static BoundVert *add_new_bound_vert(BevVert *bv, const float co[3])
+{
+  auto new_bv = std::make_unique<BoundVert>();
+  BoundVert *v = new_bv.get();
+  bv->owned_bound_verts.append(std::move(new_bv));
+  copy_v3_v3(v->nv.co, co);
+  if (!bv->vmesh) {
+    bv->vmesh = std::make_unique<VMesh>();
+    bv->vmesh->count = 0;
+    bv->vmesh->boundstart = nullptr;
+    bv->vmesh->mesh_kind = MeshKind::NONE;
+  }
+  VMesh *vm = bv->vmesh.get();
+  if (vm->boundstart == nullptr) {
+    vm->boundstart = v;
+    v->next = v->prev = v;
+  }
+  else {
+    v->prev = vm->boundstart->prev;
+    v->next = vm->boundstart;
+    v->prev->next = v;
+    vm->boundstart->prev = v;
+  }
+  v->index = vm->count++;
+  return v;
+}
+
+static void adjust_bound_vert(BoundVert *bndv, const float co[3])
+{
+  copy_v3_v3(bndv->nv.co, co);
+}
+
+static void set_bound_vert_seams(BevVert *bv, bool mark_seam, bool mark_sharp)
+{
+  // TODO: implement set_bound_vert_seams
+}
+
+static void offset_in_plane(const ExtendableMesh &emesh, EdgeHalf *e, const float3 *plane_no, bool left, float r_co[3])
+{
+  int v = e->is_rev ? emesh.edge_verts(e->e)[1] : emesh.edge_verts(e->e)[0];
+  float3 v_co = emesh.vert_position(v);
+  float3 other_co = emesh.vert_position(geom::edge_other_vert(emesh, e->e, v));
+  float3 dir = math::normalize(other_co - v_co);
+  float3 no;
+  if (plane_no) {
+    no = *plane_no;
+  }
+  else {
+    no = float3(0.0f);
+    if (math::abs(dir[0]) < math::abs(dir[1])) {
+      no[0] = 1.0f;
+    }
+    else {
+      no[1] = 1.0f;
+    }
+  }
+
+  float3 fdir;
+  if (left) {
+    fdir = math::normalize(math::cross(dir, no));
+  }
+  else {
+    fdir = math::normalize(math::cross(no, dir));
+  }
+  float3 res = v_co + fdir * (left ? e->offset_l : e->offset_r);
+  copy_v3_v3(r_co, res);
+}
+
+static void build_boundary_vertex_only(const ExtendableMesh &emesh, const BevelParameters &params, BevVert *bv, bool construct)
+{
+  BLI_assert(params.affect_type == BevelAffect::Vertices);
+
+  EdgeHalf *efirst = &bv->edges[0];
+  EdgeHalf *e = efirst;
+  do {
+    float co[3];
+    geom::slide_dist(emesh, e->e, bv->v, e->offset_l, co);
+    if (construct) {
+      BoundVert *v = add_new_bound_vert(bv, co);
+      v->efirst = v->elast = e;
+      e->leftv = e->rightv = v;
+    }
+    else {
+      adjust_bound_vert(e->leftv, co);
+    }
+  } while ((e = e->next) != efirst);
+
+  if (construct) {
+    // set_bound_vert_seams(bv, ...);
+    VMesh *vm = bv->vmesh.get();
+    if (vm->count == 2) {
+      vm->mesh_kind = MeshKind::NONE;
+    }
+    else if (params.segments == 1) {
+      vm->mesh_kind = MeshKind::POLY;
+    }
+    else {
+      vm->mesh_kind = MeshKind::ADJ;
+    }
+  }
+}
+
+static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
+                                         const BevelParameters &params,
+                                         BevVert *bv,
+                                         EdgeHalf *efirst,
+                                         const bool construct)
+{
+  EdgeHalf *e = efirst;
+  float co[3];
+  if (bv->edgecount == 2) {
+    const float3 *no = e->fprev != -1 ? &emesh.mesh.face_normals()[e->fprev] : (e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : nullptr);
+    offset_in_plane(emesh, e, no, true, co);
+    if (construct) {
+      BoundVert *bndv = add_new_bound_vert(bv, co);
+      bndv->efirst = bndv->elast = bndv->ebev = e;
+      e->leftv = bndv;
+    }
+    else {
+      adjust_bound_vert(e->leftv, co);
+    }
+    no = e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : (e->fprev != -1 ? &emesh.mesh.face_normals()[e->fprev] : nullptr);
+    offset_in_plane(emesh, e, no, false, co);
+    if (construct) {
+      BoundVert *bndv = add_new_bound_vert(bv, co);
+      bndv->efirst = bndv->elast = e;
+      e->rightv = bndv;
+    }
+    else {
+      adjust_bound_vert(e->rightv, co);
+    }
+    geom::slide_dist(emesh, e->next->e, bv->v, e->offset_l, co);
+    if (construct) {
+      BoundVert *bndv = add_new_bound_vert(bv, co);
+      bndv->efirst = bndv->elast = e->next;
+      e->next->leftv = e->next->rightv = bndv;
+      // set_bound_vert_seams(bv, ...);
+    }
+    else {
+      adjust_bound_vert(e->next->leftv, co);
+    }
+  }
+  else {
+    geom::offset_meet(emesh, e->prev, e, bv->v, e->fprev, false, co, nullptr);
+    if (construct) {
+      BoundVert *bndv = add_new_bound_vert(bv, co);
+      bndv->efirst = e->prev;
+      bndv->elast = bndv->ebev = e;
+      e->leftv = bndv;
+      e->prev->leftv = e->prev->rightv = bndv;
+    }
+    else {
+      adjust_bound_vert(e->leftv, co);
+    }
+    e = e->next;
+    geom::offset_meet(emesh, e->prev, e, bv->v, e->fprev, false, co, nullptr);
+    if (construct) {
+      BoundVert *bndv = add_new_bound_vert(bv, co);
+      bndv->efirst = e->prev;
+      bndv->elast = e;
+      e->leftv = e->rightv = bndv;
+      e->prev->rightv = bndv;
+    }
+    else {
+      adjust_bound_vert(e->leftv, co);
+    }
+    float d = efirst->offset_l_spec;
+    if (params.custom_profile != nullptr || params.shape < 0.25f) {
+      d *= math::sqrt(2.0f);
+    }
+    for (e = e->next; e->next != efirst; e = e->next) {
+      geom::slide_dist(emesh, e->e, bv->v, d, co);
+      if (construct) {
+        BoundVert *bndv = add_new_bound_vert(bv, co);
+        bndv->efirst = bndv->elast = e;
+        e->leftv = e->rightv = bndv;
+      }
+      else {
+        adjust_bound_vert(e->leftv, co);
+      }
+    }
+  }
+}
+
+static EdgeHalf *next_bev(BevVert *bv, EdgeHalf *efirst)
+{
+  if (efirst == nullptr) {
+    efirst = &bv->edges[0];
+  }
+  EdgeHalf *e = efirst;
+  do {
+    if (e->is_bev) {
+      return e;
+    }
+  } while ((e = e->next) != efirst);
+  return nullptr;
+}
+
+static bool eh_on_plane(const ExtendableMesh &emesh, EdgeHalf *e)
+{
+  if (e->fprev == -1 || e->fnext == -1) {
+    return false;
+  }
+  return angle_v3v3(emesh.mesh.face_normals()[e->fprev], emesh.mesh.face_normals()[e->fnext]) < geom::BEVEL_SMALL_ANG;
+}
+
+enum AngleKind {
+  ANGLE_SMALLER,
+  ANGLE_STRAIGHT,
+  ANGLE_LARGER
+};
+
+static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, int v)
+{
+  int v1 = geom::edge_other_vert(emesh, e1->e, v);
+  int v2 = geom::edge_other_vert(emesh, e2->e, v);
+  float3 dir1 = emesh.vert_position(v) - emesh.vert_position(v1);
+  float3 dir2 = emesh.vert_position(v) - emesh.vert_position(v2);
+  dir1 = math::normalize(dir1);
+  dir2 = math::normalize(dir2);
+
+  if (math::abs(math::dot(dir1, dir2)) > geom::BEVEL_EPSILON_ANG_DOT) {
+    return ANGLE_STRAIGHT;
+  }
+
+  float3 cross = math::normalize(math::cross(dir1, dir2));
+  float3 no;
+  if (e1->fnext != -1) {
+    no = emesh.mesh.face_normals()[e1->fnext];
+  }
+  else if (e2->fprev != -1) {
+    no = emesh.mesh.face_normals()[e2->fprev];
+  }
+  else {
+    no = emesh.mesh.vert_normals()[v];
+  }
+
+  if (math::dot(cross, no) < 0.0f) {
+    return ANGLE_LARGER;
+  }
+  return ANGLE_SMALLER;
+}
+
+static void build_boundary(const ExtendableMesh &emesh, const BevelParameters &params, BevVert *bv, bool construct)
+{
+  if (bv->edgecount <= 1) {
+    return;
+  }
+
+  if (params.affect_type == BevelAffect::Vertices) {
+    build_boundary_vertex_only(emesh, params, bv, construct);
+    return;
+  }
+
+  VMesh *vm = bv->vmesh.get();
+
+  EdgeHalf *efirst = next_bev(bv, nullptr);
+  BLI_assert(efirst->is_bev);
+
+  if (bv->selcount == 1) {
+    build_boundary_terminal_edge(emesh, params, bv, efirst, construct);
+    return;
+  }
+
+  int miter_outer = (bv->selcount >= 3) ? 0 /*bp->miter_outer*/ : 0 /*BEVEL_MITER_SHARP*/;
+  int miter_inner = 0 /*bp->miter_inner*/;
+
+  EdgeHalf *emiter = nullptr;
+  EdgeHalf *e = efirst;
+  EdgeHalf *e2;
+  do {
+    BLI_assert(e->is_bev);
+    EdgeHalf *eon = nullptr;
+    int in_plane = 0;
+    int not_in_plane = 0;
+    EdgeHalf *enip = nullptr;
+    EdgeHalf *eip = nullptr;
+    for (e2 = e->next; !e2->is_bev; e2 = e2->next) {
+      if (eh_on_plane(emesh, e2)) {
+        in_plane++;
+        eip = e2;
+      }
+      else {
+        not_in_plane++;
+        enip = e2;
+      }
+    }
+
+    float r, co[3];
+    if (in_plane == 0 && not_in_plane == 0) {
+      geom::offset_meet(emesh, e, e2, bv->v, e->fnext, false, co, nullptr);
+    }
+    else if (not_in_plane > 0) {
+      if (/*bp->loop_slide &&*/ not_in_plane == 1 && geom::good_offset_on_edge_between(emesh, e, e2, enip, bv->v)) {
+        if (geom::offset_on_edge_between(emesh, e, e2, enip, bv->v, co, &r)) {
+          eon = enip;
+        }
+      }
+      else {
+        geom::offset_meet(emesh, e, e2, bv->v, -1, true, co, eip);
+      }
+    }
+    else {
+      if (/*bp->loop_slide &&*/ in_plane == 1 && geom::good_offset_on_edge_between(emesh, e, e2, eip, bv->v)) {
+        if (geom::offset_on_edge_between(emesh, e, e2, eip, bv->v, co, &r)) {
+          eon = eip;
+        }
+      }
+      else {
+        geom::offset_meet(emesh, e, e2, bv->v, e->fnext, false, co, nullptr);
+      }
+    }
+
+    if (construct) {
+      BoundVert *v = add_new_bound_vert(bv, co);
+      v->efirst = e;
+      v->elast = e2;
+      v->ebev = e2;
+      v->eon = eon;
+      if (eon) {
+        v->sinratio = r;
+      }
+      e->rightv = v;
+      e2->leftv = v;
+      for (EdgeHalf *e3 = e->next; e3 != e2; e3 = e3->next) {
+        e3->leftv = e3->rightv = v;
+      }
+      AngleKind ang_kind = edges_angle_kind(emesh, e, e2, bv->v);
+
+      if ((miter_outer != 0 && !emiter && ang_kind == ANGLE_LARGER) ||
+          (miter_inner != 0 && ang_kind == ANGLE_SMALLER))
+      {
+        if (ang_kind == ANGLE_LARGER) {
+          emiter = e;
+        }
+        BoundVert *v1 = v;
+        v1->ebev = nullptr;
+        BoundVert *v2 = nullptr;
+        if (ang_kind == ANGLE_LARGER && miter_outer == 1 /*BEVEL_MITER_PATCH*/) {
+          v2 = add_new_bound_vert(bv, co);
+        }
+        (void)v2; // TODO: properly use v2 when mitering is fully supported
+        BoundVert *v3 = add_new_bound_vert(bv, co);
+        v3->ebev = e2;
+        v3->efirst = nullptr;
+        v3->elast = e2;
+        v3->eon = eon;
+        e2->leftv = v3;
+        if (eon) {
+          v3->sinratio = r;
+          v1->sinratio = r;
+        }
+        if (ang_kind == ANGLE_LARGER) {
+          v1->is_patch_start = (miter_outer == 1 /*BEVEL_MITER_PATCH*/);
+          v1->is_arc_start = (miter_outer == 2 /*BEVEL_MITER_ARC*/);
+          v1->is_profile_start = false;
+        }
+        else {
+          v1->is_arc_start = (miter_inner == 2 /*BEVEL_MITER_ARC*/);
+        }
+      }
+    }
+    else {
+      adjust_bound_vert(e->rightv, co);
+    }
+  } while ((e = e2) != efirst);
+
+  if (construct) {
+    if (vm->count == 2 && bv->edgecount == 3) {
+      vm->mesh_kind = MeshKind::NONE;
+    }
+    else if (vm->count == 3) {
+      bool use_tri_fan = true;
+      if (params.custom_profile) {
+        BoundVert *bndv = efirst->leftv;
+        float profile_plane[4];
+        plane_from_point_normal_v3(profile_plane, bndv->profile.plane_co, bndv->profile.plane_no);
+        bndv = efirst->rightv->next;
+        if (dist_squared_to_plane_v3(bndv->nv.co, profile_plane) < geom::BEVEL_EPSILON_BIG) {
+          use_tri_fan = false;
+        }
+      }
+      vm->mesh_kind = (use_tri_fan) ? MeshKind::TRI_FAN : MeshKind::POLY;
+    }
+    else {
+      vm->mesh_kind = MeshKind::POLY;
+    }
+  }
+}
+
 static void find_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, int first_e)
 {
   int ntot = bv->edgecount;
@@ -1503,7 +2478,9 @@ std::optional<Mesh *> mesh_bevel(
   state.bev_verts.reserve(state.bevel_affected_vertices.size());
   state.bevel_affected_vertices.foreach_index([&](const int v) {
     construct::bevel_vert_construct(state, v);
-    // TODO: build_boundary and determine_uv_vert_connectivity
+    BevVert *bv = state.vert_hash.lookup(v);
+    construct::build_boundary(state.emesh, state.params, bv, true);
+    // TODO: determine_uv_vert_connectivity
   });
 
   return std::nullopt;
