@@ -74,6 +74,7 @@ static ImBuf *do_adjustment(const RenderData *context,
 
   state->strips_rendering_seqbase.add(strip);
   ImBuf *out = do_adjustment_impl(context, state, strip, timeline_frame);
+  state->strips_rendering_seqbase.remove(strip);
   return out;
 }
 

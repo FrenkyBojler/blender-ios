@@ -51,6 +51,7 @@ static ImBuf *do_multicam(const RenderData *context,
   state->strips_rendering_seqbase.add(strip);
   out = seq_render_give_ibuf_seqbase(
       context, state, timeline_frame, strip->multicam_source, channels, seqbasep);
+  state->strips_rendering_seqbase.remove(strip);
 
   return out;
 }
