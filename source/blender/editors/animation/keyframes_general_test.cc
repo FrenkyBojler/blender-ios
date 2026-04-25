@@ -523,8 +523,6 @@ TEST_F(keyframes_paste, pastebuf_match_path_property)
   ID *arm_ob_id;
 
   { /* Set up an armature, to test matching on property names. */
-    BKE_idtype_init();
-
     bArmature *armature = BKE_armature_add(bmain, "Armature");
     for (const auto &bone_name : {"hand.L", "hand.R", "middle"}) {
       Bone *bone = MEM_new<Bone>(__func__);

@@ -22,8 +22,6 @@ class LibIdRemapperTest : public BlenderGTestBase {};
 
 TEST_F(LibIdRemapperTest, unavailable)
 {
-  BKE_idtype_init();
-
   ID id1;
   ID *idp = &id1;
 
@@ -34,8 +32,6 @@ TEST_F(LibIdRemapperTest, unavailable)
 
 TEST_F(LibIdRemapperTest, not_mappable)
 {
-  BKE_idtype_init();
-
   ID *idp = nullptr;
 
   IDRemapper remapper;
@@ -45,8 +41,6 @@ TEST_F(LibIdRemapperTest, not_mappable)
 
 TEST_F(LibIdRemapperTest, mapped)
 {
-  BKE_idtype_init();
-
   ID id1;
   ID id2;
   ID *idp = &id1;
@@ -62,8 +56,6 @@ TEST_F(LibIdRemapperTest, mapped)
 
 TEST_F(LibIdRemapperTest, unassigned)
 {
-  BKE_idtype_init();
-
   ID id1;
   ID *idp = &id1;
   STRNCPY(id1.name, "OB2");
@@ -77,8 +69,6 @@ TEST_F(LibIdRemapperTest, unassigned)
 
 TEST_F(LibIdRemapperTest, unassign_when_mapped_to_self)
 {
-  BKE_idtype_init();
-
   ID id_self;
   ID id1;
   ID id2;

@@ -52,7 +52,7 @@ TEST_F(AnimBoneCollectionTest, bonecoll_default_name)
   }
 }
 
-class ArmatureBoneCollections : public testing::Test {
+class ArmatureBoneCollections : public bke::BlenderGTestBase {
  protected:
   bArmature arm = {};
   Bone bone1 = {}, bone2 = {}, bone3 = {};
@@ -81,7 +81,6 @@ class ArmatureBoneCollections : public testing::Test {
      * the armature. */
     BLI_listbase_clear(&arm.bonebase);
 
-    BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
 
     BKE_main_free(bmain);
@@ -1293,7 +1292,7 @@ TEST_F(ArmatureBoneCollections, internal__bonecolls_rotate_block)
   EXPECT_EQ(0, arm.collection_array[5]->child_index);
 }
 
-class ArmatureBoneCollectionsTestList : public testing::Test {
+class ArmatureBoneCollectionsTestList : public bke::BlenderGTestBase {
  protected:
   bArmature arm = {};
 
@@ -1323,7 +1322,6 @@ class ArmatureBoneCollectionsTestList : public testing::Test {
 
   void TearDown() override
   {
-    BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
   }
 
