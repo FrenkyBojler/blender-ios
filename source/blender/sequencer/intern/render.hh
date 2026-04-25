@@ -26,10 +26,11 @@ struct Strip;
 
 namespace seq {
 
-/* Mutable state while rendering one sequencer frame. */
+/* Recursion protection while rendering a single sequencer frame.
+ * If the same scene or strip is seen, recursion stops. */
 struct SeqRenderState {
-  LinkNode *scene_parents = nullptr;
-  Set<Strip *> strips_rendering_seqbase;
+  LinkNode *scenes_in_progress = nullptr;
+  Set<Strip *> strips_in_progress;
 };
 
 /* Strip corner coordinates in screen pixel space. Note that they might not be

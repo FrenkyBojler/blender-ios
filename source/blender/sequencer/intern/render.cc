@@ -1655,11 +1655,11 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
   }
   else if (strip->type == STRIP_TYPE_SCENE) {
     /* Recursive check. */
-    if (BLI_linklist_index(state->scene_parents, strip->scene) == -1) {
+    if (BLI_linklist_index(state->scenes_in_progress, strip->scene) == -1) {
       LinkNode scene_parent{};
-      scene_parent.next = state->scene_parents;
+      scene_parent.next = state->scenes_in_progress;
       scene_parent.link = context->scene;
-      state->scene_parents = &scene_parent;
+      state->scenes_in_progress = &scene_parent;
       /* End check. */
 
       if (strip->flag & SEQ_SCENE_STRIPS) {
@@ -1679,7 +1679,7 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
       }
 
       /* Step back in the recursive check list. */
-      state->scene_parents = state->scene_parents->next;
+      state->scenes_in_progress = state->scenes_in_progress->next;
     }
   }
   else if (strip->is_effect()) {
