@@ -365,6 +365,7 @@ class NodeSwapOperator(NodeOperator):
     @staticmethod
     def transfer_links(tree, old_node, new_node, is_input):
         both_math_nodes = (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes)
+        is_reroute = old_node.bl_idname == "NodeReroute"
 
         if is_input:
             if both_math_nodes:
@@ -379,6 +380,20 @@ class NodeSwapOperator(NodeOperator):
                             tree.links.new(link.from_socket, new_socket)
                         except IndexError:
                             pass
+            elif is_reroute:
+                # Transfer reroute input to the first compatible socket.
+                input = old_node.inputs[0]
+                for link in input.links[:]:
+                    new_socket = None
+                    for s in new_node.inputs:
+                        if s.hide or not s.enabled:
+                            continue
+                        if s.type == input.type or cast_value(input, s) is not None:
+                            new_socket = s
+                            break
+
+                    if new_socket:
+                        tree.links.new(link.from_socket, new_socket)
             else:
                 for input in old_node.inputs:
                     links = sorted(input.links, key=lambda link: link.multi_input_sort_id)
@@ -407,7 +422,24 @@ class NodeSwapOperator(NodeOperator):
                             new_link = tree.links.new(new_socket, link.to_socket)
                         except IndexError:
                             pass
+            elif is_reroute:
+                # Transfer reroute outputs to the first compatible socket.
+                output = old_node.outputs[0]
+                for link in output.links[:]:
+                    # Find first available compatible socket.
+                    new_socket = None
+                    for s in new_node.outputs:
+                        if s.hide or not s.enabled:
+                            continue
+                        if s.type == output.type:
+                            new_socket = s
+                            break
 
+                    if new_socket:
+                        is_multi_input = link.to_socket.is_multi_input
+                        new_link = tree.links.new(new_socket, link.to_socket)
+                        if is_multi_input:
+                            new_link.swap_multi_input_sort_id(link)
             else:
                 for output in old_node.outputs:
                     for link in output.links[:]:
