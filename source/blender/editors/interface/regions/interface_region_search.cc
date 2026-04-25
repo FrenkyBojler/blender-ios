@@ -88,6 +88,10 @@ struct uiSearchboxData {
   /** Use the #UI_SEP_CHAR char for splitting shortcuts (good for operators, bad for data). */
   bool use_shortcut_sep;
   int prv_rows, prv_cols;
+
+  /** Set to false once the mouse has moved since the last reset. */
+  bool ignore_mouse_select;
+
   /**
    * Show the active icon and text after the last instance of this string.
    * Used so we can show leading text to menu items less prominently (not related to 'use_sep').
@@ -444,10 +448,13 @@ bool searchbox_event(
       }
       break;
     case MOUSEMOVE: {
-      /* Ignore the mouse event, in case the search popup is created underneath the cursor.
-       * We always want the first result to be selected by default. See: #144168 */
-      if (event->xy[0] == event->prev_xy[0] && event->xy[1] == event->prev_xy[1]) {
-        searchbox_select(C, region, but, 0);
+      if (data->ignore_mouse_select
+          && (event->xy[0] != event->prev_xy[0] || event->xy[1] != event->prev_xy[1]))
+      {
+        data->ignore_mouse_select = false;
+      }
+
+      if (data->ignore_mouse_select) {
         handled = true;
         break;
       }
@@ -529,6 +536,9 @@ void searchbox_update(bContext *C, ARegion *region, Button *but, const bool rese
     data->items.offset_i = data->items.offset = 0;
     data->active = -1;
 
+    /* Ignore mouse position until moved, so the first item is always selected when typing. */
+    data->ignore_mouse_select = true;
+
     /* On init, find and center active item. */
     const bool is_first_search = !but->changed;
     if (is_first_search && search_but->items_update_fn && search_but->item_active) {
@@ -586,22 +596,29 @@ void searchbox_update(bContext *C, ARegion *region, Button *but, const bool rese
 
   /* Nothing active, check at mouse location. */
   if (data->active == -1) {
-    wmWindow *win = CTX_wm_window(C);
-    if (win && win->runtime && win->runtime->eventstate) {
-      const int cursor_x = win->runtime->eventstate->xy[0];
-      const int cursor_y = win->runtime->eventstate->xy[1];
-      if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
-        rcti rect;
-        for (int a = 0; a < data->items.totitem; a++) {
-          searchbox_butrect(&rect, data, a);
-          if (BLI_rcti_isect_pt(
-                  &rect, cursor_x - region->winrct.xmin, cursor_y - region->winrct.ymin))
-          {
-            data->active = a;
-            break;
+    if (!data->ignore_mouse_select) {
+      wmWindow *win = CTX_wm_window(C);
+      if (win && win->runtime && win->runtime->eventstate) {
+        const int cursor_x = win->runtime->eventstate->xy[0];
+        const int cursor_y = win->runtime->eventstate->xy[1];
+        if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
+          rcti rect;
+          for (int a = 0; a < data->items.totitem; a++) {
+            searchbox_butrect(&rect, data, a);
+            if (BLI_rcti_isect_pt(
+                    &rect, cursor_x - region->winrct.xmin, cursor_y - region->winrct.ymin))
+            {
+              data->active = a;
+              break;
+            }
           }
         }
       }
+    }
+
+    /* If ignoring the mouse or there's no item under the mouse, default to first item. */
+    if (data->active == -1 && data->items.totitem > 0) {
+      data->active = 0;
     }
   }
 
@@ -1034,6 +1051,9 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
     data->use_shortcut_sep = true;
   }
   data->sep_string = but->item_sep_string;
+
+  /* Ignore mouse position until moved, so the first item is always selected when typing. */
+  data->ignore_mouse_select = true;
 
   /* Adds sub-window. */
   ED_region_floating_init(region);
