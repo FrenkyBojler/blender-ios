@@ -614,6 +614,89 @@ void UVLayerInfo::find_components(const ExtendableMesh &emesh, int seg)
 
 }  // namespace uv
 
+struct BevelState {
+  /* Input parameters. */
+  BevelParameters params;
+
+  /* Input selection. */
+  IndexMask selection;
+
+  /* Bevel affected vertices mask and its memory. */
+  index_mask::IndexMaskMemory memory;
+  IndexMask bevel_affected_vertices;
+
+  /* The encapsulated extendable mesh. */
+  ExtendableMesh emesh;
+
+  /* Memory Ownership. */
+  Vector<BevVert> bev_verts;
+  Map<int, BevVert *> vert_hash;
+
+  std::optional<Map<int, FKind>> face_hash;
+
+  Map<int, std::unique_ptr<UVFace>> uv_face_hash;
+
+  Vector<UVVertMap> uv_vert_maps;
+
+  ProfileSpacing pro_spacing;
+  ProfileSpacing pro_spacing_miter;
+  uv::UVLayerInfo uv_layer_info;
+
+  /* Additional State mimicking bmesh_bevel that isn't fully contained in BevelParameters. */
+  bool affect_vertices_odd;
+  float pro_super_r;
+
+  /* Feature flags and parameters that the node version might use or we keep to mimic bmesh_bevel.
+   */
+  bool loop_slide;
+  bool limit_offset;
+  bool offset_adjust;
+  bool mark_seam;
+  bool mark_sharp;
+  bool harden_normals;
+
+  /* Other data that might be needed depending on what attributes we are transferring. */
+  int mat_nr;
+  int face_strength_mode;
+  VMeshMethod vmesh_method;
+
+  BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection);
+  void initialize_profile_data();
+  void uv_init();
+};
+
+BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection)
+    : params(params), selection(selection), emesh(mesh)
+{
+  if (params.affect_type == BevelAffect::Vertices) {
+    bevel_affected_vertices = selection;
+  }
+  else {
+    Array<bool> is_affected(mesh.verts_num, false);
+    selection.foreach_index([&](const int e) {
+      const int2 edge_verts = mesh.edges()[e];
+      is_affected[edge_verts[0]] = true;
+      is_affected[edge_verts[1]] = true;
+    });
+    bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
+  }
+
+  affect_vertices_odd = false;
+  loop_slide = false;
+  limit_offset = false;
+  offset_adjust = false;
+  mark_seam = false;
+  mark_sharp = false;
+  harden_normals = false;
+  mat_nr = -1;
+  face_strength_mode = 0;
+  vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
+  if (vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
+    /* ignoring miters */
+    this->params.miter.fill(false);
+  }
+}
+
 namespace geom {
 
 constexpr float BEVEL_EPSILON_D = 1e-6f;
@@ -1434,9 +1517,95 @@ static void adjust_bound_vert(BoundVert *bndv, const float co[3])
   copy_v3_v3(bndv->nv.co, co);
 }
 
+/* If a beveled edge has a seam (check_seam == true) or a sharp (check_sharp == true),
+ * then we may need to correct for discontinuities in those edge flags after beveling.
+ * The code will automatically make the outer edges of a multi-segment beveled edge have
+ * the same flags. So beveled edges next to each other will not lead to discontinuities.
+ * But if there are beveled edges that do NOT have a seam (or sharp), then we need to mark
+ * all the edge segments of such beveled edges with seam (or sharp) until we hit the next
+ * beveled edge that has such a mark. This routine sets, for each rightv of a beveled edge
+ * that has seam (or sharp), how many edges follow without the corresponding property.
+ * The count is put in the seam_len field for seams and the sharp_len field for sharps.
+ *
+ * TODO: This approach doesn't work for terminal edges or miters. */
+static void check_edge_data_seam_sharp_edges(BevVert *bv, bool check_seam, bool /*check_sharp*/)
+{
+  /* Returns true when the edge half lacks the flag being checked.
+   * For seams: the edge is NOT a seam.
+   * For sharps: EdgeHalf has no is_sharp field yet, so no edge is ever treated as sharp. */
+  auto hasnot = [&](const EdgeHalf *e) -> bool {
+    if (check_seam) {
+      return !e->is_seam;
+    }
+    /* check_sharp: no is_sharp field exists yet; treat all edges as not-sharp. */
+    return false;
+  };
+
+  EdgeHalf *e = &bv->edges[0];
+  EdgeHalf *efirst = &bv->edges[0];
+
+  /* Get to first edge with the seam or sharp property. */
+  while (hasnot(e)) {
+    e = e->next;
+    if (e == efirst) {
+      break;
+    }
+  }
+
+  /* If no such edge found, return. */
+  if (hasnot(e)) {
+    return;
+  }
+
+  /* Set efirst to this first encountered edge. */
+  efirst = e;
+
+  do {
+    int flag_count = 0;
+    EdgeHalf *ne = e->next;
+
+    while (hasnot(ne) && ne != efirst) {
+      if (ne->is_bev) {
+        flag_count++;
+      }
+      ne = ne->next;
+    }
+    if (ne == e || (ne == efirst && hasnot(efirst))) {
+      break;
+    }
+    /* Set seam_len / sharp_len of starting edge's rightv. */
+    if (check_seam) {
+      e->rightv->seam_len = flag_count;
+    }
+    else {
+      e->rightv->sharp_len = flag_count;
+    }
+    e = ne;
+  } while (e != efirst);
+}
+
+/* Sets the #any_seam property for a #BevVert and all its #BoundVert's. */
 static void set_bound_vert_seams(BevVert *bv, bool mark_seam, bool mark_sharp)
 {
-  // TODO: implement set_bound_vert_seams
+  bv->any_seam = false;
+  BoundVert *v = bv->vmesh->boundstart;
+  do {
+    v->any_seam = false;
+    for (EdgeHalf *e = v->efirst; e; e = e->next) {
+      v->any_seam |= e->is_seam;
+      if (e == v->elast) {
+        break;
+      }
+    }
+    bv->any_seam |= v->any_seam;
+  } while ((v = v->next) != bv->vmesh->boundstart);
+
+  if (mark_seam) {
+    check_edge_data_seam_sharp_edges(bv, true, false);
+  }
+  if (mark_sharp) {
+    check_edge_data_seam_sharp_edges(bv, false, true);
+  }
 }
 
 static void offset_in_plane(
@@ -1472,11 +1641,11 @@ static void offset_in_plane(
 }
 
 static void build_boundary_vertex_only(const ExtendableMesh &emesh,
-                                       const BevelParameters &params,
+                                       const BevelState &state,
                                        BevVert *bv,
                                        bool construct)
 {
-  BLI_assert(params.affect_type == BevelAffect::Vertices);
+  BLI_assert(state.params.affect_type == BevelAffect::Vertices);
 
   EdgeHalf *efirst = &bv->edges[0];
   EdgeHalf *e = efirst;
@@ -1494,12 +1663,12 @@ static void build_boundary_vertex_only(const ExtendableMesh &emesh,
   } while ((e = e->next) != efirst);
 
   if (construct) {
-    // set_bound_vert_seams(bv, ...);
+    set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
     VMesh *vm = bv->vmesh.get();
     if (vm->count == 2) {
       vm->mesh_kind = MeshKind::NONE;
     }
-    else if (params.segments == 1) {
+    else if (state.params.segments == 1) {
       vm->mesh_kind = MeshKind::POLY;
     }
     else {
@@ -1509,7 +1678,7 @@ static void build_boundary_vertex_only(const ExtendableMesh &emesh,
 }
 
 static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
-                                         const BevelParameters &params,
+                                         const BevelState &state,
                                          BevVert *bv,
                                          EdgeHalf *efirst,
                                          const bool construct)
@@ -1545,7 +1714,7 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
       BoundVert *bndv = add_new_bound_vert(bv, co);
       bndv->efirst = bndv->elast = e->next;
       e->next->leftv = e->next->rightv = bndv;
-      // set_bound_vert_seams(bv, ...);
+      set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
     }
     else {
       adjust_bound_vert(e->next->leftv, co);
@@ -1576,7 +1745,7 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
       adjust_bound_vert(e->leftv, co);
     }
     float d = efirst->offset_l_spec;
-    if (params.custom_profile != nullptr || params.shape < 0.25f) {
+    if (state.params.custom_profile != nullptr || state.params.shape < 0.25f) {
       d *= math::sqrt(2.0f);
     }
     for (e = e->next; e->next != efirst; e = e->next) {
@@ -1593,17 +1762,19 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
   }
 }
 
-static EdgeHalf *next_bev(BevVert *bv, EdgeHalf *efirst)
+/* Return the next EdgeHalf after from_e that is beveled.
+ * If from_e is nullptr, find the first beveled edge. */
+static EdgeHalf *next_bev(BevVert *bv, EdgeHalf *from_e)
 {
-  if (efirst == nullptr) {
-    efirst = &bv->edges[0];
+  if (from_e == nullptr) {
+    from_e = &bv->edges.last();
   }
-  EdgeHalf *e = efirst;
+  EdgeHalf *e = from_e;
   do {
     if (e->is_bev) {
       return e;
     }
-  } while ((e = e->next) != efirst);
+  } while ((e = e->next) != from_e);
   return nullptr;
 }
 
@@ -1650,7 +1821,7 @@ static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, Edg
 }
 
 static void build_boundary(const ExtendableMesh &emesh,
-                           const BevelParameters &params,
+                           const BevelState &state,
                            BevVert *bv,
                            bool construct)
 {
@@ -1658,8 +1829,8 @@ static void build_boundary(const ExtendableMesh &emesh,
     return;
   }
 
-  if (params.affect_type == BevelAffect::Vertices) {
-    build_boundary_vertex_only(emesh, params, bv, construct);
+  if (state.params.affect_type == BevelAffect::Vertices) {
+    build_boundary_vertex_only(emesh, state, bv, construct);
     return;
   }
 
@@ -1669,7 +1840,7 @@ static void build_boundary(const ExtendableMesh &emesh,
   BLI_assert(efirst->is_bev);
 
   if (bv->selcount == 1) {
-    build_boundary_terminal_edge(emesh, params, bv, efirst, construct);
+    build_boundary_terminal_edge(emesh, state, bv, efirst, construct);
     return;
   }
 
@@ -1781,24 +1952,23 @@ static void build_boundary(const ExtendableMesh &emesh,
   } while ((e = e2) != efirst);
 
   if (construct) {
-    if (vm->count == 2 && bv->edgecount == 3) {
+    set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
+
+    if (vm->count == 2) {
       vm->mesh_kind = MeshKind::NONE;
     }
-    else if (vm->count == 3) {
-      bool use_tri_fan = true;
-      if (params.custom_profile) {
-        BoundVert *bndv = efirst->leftv;
-        float profile_plane[4];
-        plane_from_point_normal_v3(profile_plane, bndv->profile.plane_co, bndv->profile.plane_no);
-        bndv = efirst->rightv->next;
-        if (dist_squared_to_plane_v3(bndv->nv.co, profile_plane) < geom::BEVEL_EPSILON_BIG) {
-          use_tri_fan = false;
-        }
-      }
-      vm->mesh_kind = (use_tri_fan) ? MeshKind::TRI_FAN : MeshKind::POLY;
+    else if (efirst->seg == 1) {
+      vm->mesh_kind = MeshKind::POLY;
     }
     else {
-      vm->mesh_kind = MeshKind::POLY;
+      switch (state.vmesh_method) {
+        case VMeshMethod::BEVEL_VMESH_ADJ:
+          vm->mesh_kind = MeshKind::ADJ;
+          break;
+        case VMeshMethod::BEVEL_VMESH_CUTOFF:
+          vm->mesh_kind = MeshKind::CUTOFF;
+          break;
+      }
     }
   }
 }
@@ -1864,97 +2034,6 @@ static void find_bevel_edge_order(const ExtendableMesh &emesh, BevVert *bv, int 
 }
 
 }  // namespace construct
-
-struct BevelState;
-
-namespace construct {
-
-static void bevel_vert_construct(BevelState &state, int v);
-
-}  // namespace construct
-
-struct BevelState {
-  /* Input parameters. */
-  BevelParameters params;
-
-  /* Input selection. */
-  IndexMask selection;
-
-  /* Bevel affected vertices mask and its memory. */
-  index_mask::IndexMaskMemory memory;
-  IndexMask bevel_affected_vertices;
-
-  /* The encapsulated extendable mesh. */
-  ExtendableMesh emesh;
-
-  /* Memory Ownership. */
-  Vector<BevVert> bev_verts;
-  Map<int, BevVert *> vert_hash;
-
-  std::optional<Map<int, FKind>> face_hash;
-
-  Map<int, std::unique_ptr<UVFace>> uv_face_hash;
-
-  Vector<UVVertMap> uv_vert_maps;
-
-  ProfileSpacing pro_spacing;
-  ProfileSpacing pro_spacing_miter;
-  uv::UVLayerInfo uv_layer_info;
-
-  /* Additional State mimicking bmesh_bevel that isn't fully contained in BevelParameters. */
-  bool affect_vertices_odd;
-  float pro_super_r;
-
-  /* Feature flags and parameters that the node version might use or we keep to mimic bmesh_bevel.
-   */
-  bool loop_slide;
-  bool limit_offset;
-  bool offset_adjust;
-  bool mark_seam;
-  bool mark_sharp;
-  bool harden_normals;
-
-  /* Other data that might be needed depending on what attributes we are transferring. */
-  int mat_nr;
-  int face_strength_mode;
-  VMeshMethod vmesh_method;
-
-  BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection);
-  void initialize_profile_data();
-  void uv_init();
-};
-
-BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection)
-    : params(params), selection(selection), emesh(mesh)
-{
-  if (params.affect_type == BevelAffect::Vertices) {
-    bevel_affected_vertices = selection;
-  }
-  else {
-    Array<bool> is_affected(mesh.verts_num, false);
-    selection.foreach_index([&](const int e) {
-      const int2 edge_verts = mesh.edges()[e];
-      is_affected[edge_verts[0]] = true;
-      is_affected[edge_verts[1]] = true;
-    });
-    bevel_affected_vertices = IndexMask::from_bools(is_affected, memory);
-  }
-
-  affect_vertices_odd = false;
-  loop_slide = false;
-  limit_offset = false;
-  offset_adjust = false;
-  mark_seam = false;
-  mark_sharp = false;
-  harden_normals = false;
-  mat_nr = -1;
-  face_strength_mode = 0;
-  vmesh_method = VMeshMethod::BEVEL_VMESH_ADJ;
-  if (vmesh_method == VMeshMethod::BEVEL_VMESH_CUTOFF) {
-    /* ignoring miters */
-    this->params.miter.fill(false);
-  }
-}
 
 namespace profile {
 
@@ -2525,7 +2604,7 @@ std::optional<Mesh *> mesh_bevel(
   state.bevel_affected_vertices.foreach_index([&](const int v) {
     construct::bevel_vert_construct(state, v);
     BevVert *bv = state.vert_hash.lookup(v);
-    construct::build_boundary(state.emesh, state.params, bv, true);
+    construct::build_boundary(state.emesh, state, bv, true);
     if (v == 0) {
       fmt::println("\nMESH code dump bv for vert 0");
       debug::dump_bev_vert(*bv);
