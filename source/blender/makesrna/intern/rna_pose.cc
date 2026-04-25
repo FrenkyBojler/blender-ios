@@ -96,8 +96,6 @@ namespace blender {
 
 static void rna_Pose_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX when to use this? */
-
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
 }
@@ -120,7 +118,6 @@ static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRN
 
 static void rna_Pose_IK_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX: when to use this? */
   Object *ob = id_cast<Object *>(ptr->owner_id);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -1260,7 +1257,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
    * overlay_shader_shared.hh */
   RNA_def_property_range(prop, 1.0f, 16.0f);
-  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 2);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "color", PROP_POINTER, PROP_NONE);

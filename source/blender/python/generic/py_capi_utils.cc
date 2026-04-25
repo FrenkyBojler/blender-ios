@@ -17,6 +17,8 @@
 
 #include "BLI_utildefines.h" /* for bool */
 
+#include "DNA_vec_types.h" /* for rcti */
+
 #include "py_capi_utils.hh"
 
 #include "python_utildefines.hh"
@@ -37,7 +39,6 @@ namespace blender {
 /** \name Fast Python to C Array Conversion for Primitive Types
  * \{ */
 
-/* array utility function */
 int PyC_AsArray_FAST(void *array,
                      const size_t array_item_size,
                      PyObject *value_fast,
@@ -299,7 +300,6 @@ int PyC_AsArray_Multi(void *array,
  * \note See #PyC_Tuple_Pack_* macros that take multiple arguments.
  * \{ */
 
-/* array utility function */
 PyObject *PyC_Tuple_PackArray_F32(const float *array, uint len)
 {
   PyObject *tuple = PyTuple_New(len);
@@ -603,6 +603,30 @@ int PyC_ParseOptionalBool(PyObject *o, void *p)
     return 0;
   }
   *value_p = value ? true : false;
+  return 1;
+}
+
+int PyC_ParseRectI(PyObject *o, void *p)
+{
+  rcti *rect = static_cast<rcti *>(p);
+  if (!PyArg_ParseTuple(o, "(ii)(ii)", &rect->xmin, &rect->ymin, &rect->xmax, &rect->ymax)) {
+    return 0;
+  }
+  return 1;
+}
+
+int PyC_ParseOptionalRectI(PyObject *o, void *p)
+{
+  std::optional<rcti> *value_p = static_cast<std::optional<rcti> *>(p);
+  if (o == Py_None) {
+    value_p->reset();
+    return 1;
+  }
+  rcti rect;
+  if (!PyC_ParseRectI(o, &rect)) {
+    return 0;
+  }
+  *value_p = rect;
   return 1;
 }
 
@@ -944,6 +968,32 @@ void PyC_Err_PrintWithFunc(PyObject *py_func)
  * \{ */
 
 /**
+ * Get exit code `sys.exit(..)` was called with, see #pyc_exception_buffer_handle_system_exit.
+ */
+static std::optional<int> g_system_exit_code;
+std::optional<int> PyC_ExceptionSystemExitCode()
+{
+  return g_system_exit_code;
+}
+
+bool PyC_Err_CaptureSystemExitCode()
+{
+  if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
+    return false;
+  }
+
+  /* Get exit code and put back exception. */
+  PyObject *exc_obj = PyErr_GetRaisedException();
+  PyObject *code_obj = ((PySystemExitObject *)exc_obj)->code;
+  g_system_exit_code = 0;
+  if (code_obj && code_obj != Py_None) {
+    g_system_exit_code = PyLong_Check(code_obj) ? int(PyLong_AsLong(code_obj)) : 1;
+  }
+  PyErr_SetRaisedException(exc_obj);
+  return true;
+}
+
+/**
  * When a script calls `sys.exit(..)` it is expected that Blender quits,
  * internally this raises as `SystemExit` exception which this function detects.
  *
@@ -961,10 +1011,10 @@ void PyC_Err_PrintWithFunc(PyObject *py_func)
  */
 static void pyc_exception_buffer_handle_system_exit()
 {
-  if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
+  if (!PyC_Err_CaptureSystemExitCode()) {
     return;
   }
-/* Inspecting, follow Python's logic in #_Py_HandleSystemExit & treat as a regular exception. */
+  /* Inspecting, follow Python's logic in #_Py_HandleSystemExit & treat as a regular exception. */
 #  if 0 /* FIXME: */
   if (_Py_GetConfig()->inspect) {
     return;
@@ -1606,7 +1656,7 @@ static PyObject *pyc_run_string_as_py_object(const char *imports[],
 
   if (imports_star) {
     for (int i = 0; imports_star[i]; i++) {
-      PyObject *mod = PyImport_ImportModule("math");
+      PyObject *mod = PyImport_ImportModule(imports_star[i]);
       if (mod) {
         /* Don't overwrite existing values (override=0). */
         PyDict_Merge(py_dict, PyModule_GetDict(mod), 0);
@@ -1761,7 +1811,7 @@ bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
       }
       else {
         char *val_alloc = MEM_new_array_uninitialized<char>(size_t(val_len) + 1, __func__);
-        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
+        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
         *r_value = val_alloc;
         *r_value_size = val_len;
         ok = true;
@@ -2053,6 +2103,24 @@ bool PyC_StructFmt_type_is_bool(char format)
     default:
       return false;
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Dict Utilities
+ * \{ */
+
+bool PyC_Dict_CheckKeysAreStrings(PyObject *dict)
+{
+  PyObject *key;
+  Py_ssize_t pos = 0;
+  while (PyDict_Next(dict, &pos, &key, nullptr)) {
+    if (!PyUnicode_Check(key)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** \} */
