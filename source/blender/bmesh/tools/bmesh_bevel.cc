@@ -426,8 +426,184 @@ struct BevelParams {
 
 // #pragma GCC diagnostic ignored "-Wpadded"
 
-/* Only for debugging, this file shouldn't be in blender repository. */
-// #include "bevdebug.c"
+/* -------------------------------------------------------------------- */
+/** \name Debug printing utilities
+ * \{ */
+
+#define BEVEL_DEBUG
+#ifdef BEVEL_DEBUG
+
+namespace debug {
+
+/* Prints a float3 array as "(x,y,z)" with no trailing newline. */
+[[maybe_unused]] static void print_float3(const float v[3])
+{
+  fmt::print("({},{},{})", v[0], v[1], v[2]);
+}
+
+/* Returns the index of a #BMVert, or -1 if null. */
+[[maybe_unused]] static int vi(const BMVert *v)
+{
+  return v ? BM_elem_index_get(v) : -1;
+}
+
+/* Returns the index of a #BMEdge, or -1 if null. */
+[[maybe_unused]] static int ei(const BMEdge *e)
+{
+  return e ? BM_elem_index_get(e) : -1;
+}
+
+/* Returns the index of a #BMFace, or -1 if null. */
+[[maybe_unused]] static int fi(const BMFace *f)
+{
+  return f ? BM_elem_index_get(f) : -1;
+}
+
+/* Returns a human-readable name for a #MeshKind value. */
+[[maybe_unused]] static const char *mesh_kind_name(MeshKind kind)
+{
+  switch (kind) {
+    case M_NONE:
+      return "NONE";
+    case M_POLY:
+      return "POLY";
+    case M_ADJ:
+      return "ADJ";
+    case M_TRI_FAN:
+      return "TRI_FAN";
+    case M_CUTOFF:
+      return "CUTOFF";
+    default:
+      return "?";
+  }
+}
+
+/* Prints a single #Profile's key parameters. */
+[[maybe_unused]] static void dump_profile(const Profile &prof)
+{
+  fmt::print("  Profile: super_r={} height={} special_params={}\n",
+             prof.super_r,
+             prof.height,
+             prof.special_params);
+  fmt::print("    start=");
+  print_float3(prof.start);
+  fmt::print(" middle=");
+  print_float3(prof.middle);
+  fmt::print(" end=");
+  print_float3(prof.end);
+  fmt::println("");
+  fmt::print("    plane_no=");
+  print_float3(prof.plane_no);
+  fmt::print(" plane_co=");
+  print_float3(prof.plane_co);
+  fmt::print(" proj_dir=");
+  print_float3(prof.proj_dir);
+  fmt::println("");
+}
+
+/* Prints a single #EdgeHalf's fields.
+ * BMesh elements are identified by their index (retrieved with #BM_elem_index_get). */
+[[maybe_unused]] static void dump_edge_half(const EdgeHalf &eh, const int index)
+{
+  fmt::println(
+      "  EdgeHalf[{}]: e={} fprev={} fnext={}", index, ei(eh.e), fi(eh.fprev), fi(eh.fnext));
+  fmt::println("    offset_l={} offset_r={} offset_l_spec={} offset_r_spec={}",
+               eh.offset_l,
+               eh.offset_r,
+               eh.offset_l_spec,
+               eh.offset_r_spec);
+  fmt::println("    is_bev={} is_rev={} is_seam={} visited_rpo={}",
+               eh.is_bev,
+               eh.is_rev,
+               eh.is_seam,
+               eh.visited_rpo);
+  fmt::println("    leftv={} rightv={}",
+               eh.leftv ? eh.leftv->index : -1,
+               eh.rightv ? eh.rightv->index : -1);
+}
+
+/* Prints a single #BoundVert's fields.
+ * BMesh elements are identified by their index (retrieved with #BM_elem_index_get). */
+[[maybe_unused]] static void dump_bound_vert(const BoundVert &bndv)
+{
+  fmt::print("  BoundVert[{}]: co=", bndv.index);
+  print_float3(bndv.nv.co);
+  fmt::println("");
+  fmt::println("    efirst={} elast={} eon={} ebev={}",
+               bndv.efirst ? ei(bndv.efirst->e) : -1,
+               bndv.elast ? ei(bndv.elast->e) : -1,
+               bndv.eon ? ei(bndv.eon->e) : -1,
+               bndv.ebev ? ei(bndv.ebev->e) : -1);
+  fmt::println(
+      "    sinratio={} any_seam={} visited={}", bndv.sinratio, bndv.any_seam, bndv.visited);
+  fmt::println("    is_arc_start={} is_patch_start={} is_profile_start={}",
+               bndv.is_arc_start,
+               bndv.is_patch_start,
+               bndv.is_profile_start);
+  fmt::println("    seam_len={} sharp_len={}", bndv.seam_len, bndv.sharp_len);
+  dump_profile(bndv.profile);
+}
+
+/* Prints a #VMesh and all its #BoundVert chain. */
+[[maybe_unused]] static void dump_vmesh(const VMesh &vm)
+{
+  fmt::println(
+      "  VMesh: count={} seg={} mesh_kind={}", vm.count, vm.seg, mesh_kind_name(vm.mesh_kind));
+  if (vm.boundstart == nullptr) {
+    fmt::println("  (no boundverts)");
+    return;
+  }
+  /* Walk the circular linked list. */
+  const BoundVert *bndv = vm.boundstart;
+  do {
+    dump_bound_vert(*bndv);
+    bndv = bndv->next;
+  } while (bndv != vm.boundstart);
+}
+
+/* Dumps a full #BevVert, including its #EdgeHalf array, wire edges, and #VMesh.
+ * BMesh elements are identified by their index (retrieved with #BM_elem_index_get). */
+[[maybe_unused]] static void dump_bev_vert(const BevVert &bv)
+{
+  fmt::println("BevVert: v={} edgecount={} selcount={} wirecount={}",
+               vi(bv.v),
+               bv.edgecount,
+               bv.selcount,
+               bv.wirecount);
+  fmt::println("  offset={} any_seam={} visited={}", bv.offset, bv.any_seam, bv.visited);
+
+  /* Print the EdgeHalf array. */
+  fmt::println("  edges ({}):", bv.edgecount);
+  for (int i = 0; i < bv.edgecount; i++) {
+    dump_edge_half(bv.edges[i], i);
+  }
+
+  /* Print wire edges. */
+  if (bv.wirecount > 0) {
+    fmt::print("  wire_edges:");
+    for (int i = 0; i < bv.wirecount; i++) {
+      if (i % 10 == 0) {
+        fmt::print("\n[{}] ", i);
+      }
+      fmt::print("{} ", ei(bv.wire_edges[i]));
+    }
+    fmt::println("");
+  }
+
+  /* Print the VMesh if present. */
+  if (bv.vmesh) {
+    dump_vmesh(*bv.vmesh);
+  }
+  else {
+    fmt::println("  (no vmesh)");
+  }
+}
+
+} /* namespace debug */
+
+#endif /* BEVEL_DEBUG */
+
+/** \} */
 
 /* Use the unused _BM_ELEM_TAG_ALT flag to flag the 'long' loops (parallel to beveled edge)
  * of edge-polygons. */
@@ -1255,7 +1431,7 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
 static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
 {
 #define VEC_VALUE_LEN 6
-  float (*value_vecs)[VEC_VALUE_LEN] = nullptr;
+  float(*value_vecs)[VEC_VALUE_LEN] = nullptr;
   int num_viable = 0;
 
   value_vecs = BLI_array_alloca(value_vecs, nfaces);
@@ -5020,7 +5196,7 @@ static float projected_boundary_area(BevVert *bv, BMFace *f)
 {
   BMEdge *e1, *e2;
   VMesh *vm = bv->vmesh;
-  float (*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
+  float(*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, f->no);
   get_incident_edges(f, bv->v, &e1, &e2);
@@ -8026,6 +8202,11 @@ void BM_mesh_bevel(BMesh *bm,
       bv = bevel_vert_construct(bm, &bp, v);
       if (!limit_offset && bv) {
         build_boundary(&bp, bv, true);
+        // DEBUG!!
+        if (debug::vi(v) == 0) {
+          fmt::println("\nBMESH code dump bv for vert 0");
+          debug::dump_bev_vert(*bv);
+        }
         determine_uv_vert_connectivity(&bp, bm, v);
       }
     }

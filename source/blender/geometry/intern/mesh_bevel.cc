@@ -624,7 +624,8 @@ constexpr float BEVEL_SMALL_ANG = DEG2RADF(10.0f);
 const float BEVEL_SMALL_ANG_DOT = (1.0f - std::cos(BEVEL_SMALL_ANG));
 const float BEVEL_EPSILON_ANG_DOT = (1.0f - std::cos(BEVEL_EPSILON_ANG));
 
-static int edge_other_vert(const ExtendableMesh &emesh, int e, int v) {
+static int edge_other_vert(const ExtendableMesh &emesh, int e, int v)
+{
   int2 verts = emesh.edge_verts(e);
   return verts[0] == v ? verts[1] : verts[0];
 }
@@ -645,7 +646,10 @@ static void slide_dist(const ExtendableMesh &emesh, int e, int v, float d, float
   copy_v3_v3(r_slideco, res);
 }
 
-static bool is_outside_edge(const ExtendableMesh &emesh, EdgeHalf *eh, const float co[3], int *ret_closer_v)
+static bool is_outside_edge(const ExtendableMesh &emesh,
+                            EdgeHalf *eh,
+                            const float co[3],
+                            int *ret_closer_v)
 {
   // Actually, BMesh's is_outside_edge uses e->v1 and e->v2.
   int v1 = emesh.edge_verts(eh->e)[0];
@@ -667,8 +671,8 @@ static bool is_outside_edge(const ExtendableMesh &emesh, EdgeHalf *eh, const flo
   return false;
 }
 
-static bool point_between_edges(const ExtendableMesh &emesh,
-                                const float co[3], int v, int f, EdgeHalf *e1, EdgeHalf *e2)
+static bool point_between_edges(
+    const ExtendableMesh &emesh, const float co[3], int v, int f, EdgeHalf *e1, EdgeHalf *e2)
 {
   int v1 = geom::edge_other_vert(emesh, e1->e, v);
   int v2 = geom::edge_other_vert(emesh, e2->e, v);
@@ -694,23 +698,34 @@ static bool point_between_edges(const ExtendableMesh &emesh,
 
 /* Is the angle swept from e1 to e2, CCW when viewed from the normal side of f,
  * not a reflex angle or a straight angle? Assume e1 and e2 share a vert. */
-static bool edge_edge_angle_less_than_180(const ExtendableMesh &emesh, const int e1, const int e2, const int f)
+static bool edge_edge_angle_less_than_180(const ExtendableMesh &emesh,
+                                          const int e1,
+                                          const int e2,
+                                          const int f)
 {
   BLI_assert(f != -1);
   int v = -1, v1 = -1, v2 = -1;
   const int2 ev1 = emesh.edge_verts(e1);
   const int2 ev2 = emesh.edge_verts(e2);
   if (ev1[0] == ev2[0]) {
-    v = ev1[0]; v1 = ev1[1]; v2 = ev2[1];
+    v = ev1[0];
+    v1 = ev1[1];
+    v2 = ev2[1];
   }
   else if (ev1[0] == ev2[1]) {
-    v = ev1[0]; v1 = ev1[1]; v2 = ev2[0];
+    v = ev1[0];
+    v1 = ev1[1];
+    v2 = ev2[0];
   }
   else if (ev1[1] == ev2[0]) {
-    v = ev1[1]; v1 = ev1[0]; v2 = ev2[1];
+    v = ev1[1];
+    v1 = ev1[0];
+    v2 = ev2[1];
   }
   else if (ev1[1] == ev2[1]) {
-    v = ev1[1]; v1 = ev1[0]; v2 = ev2[0];
+    v = ev1[1];
+    v1 = ev1[0];
+    v2 = ev2[0];
   }
   if (v == -1) {
     return false;
@@ -721,7 +736,8 @@ static bool edge_edge_angle_less_than_180(const ExtendableMesh &emesh, const int
   return math::dot(cross, emesh.mesh.face_normals()[f]) > 0.0f;
 }
 
-static int get_edge_starting_at(const ExtendableMesh &emesh, int f, int vert) {
+static int get_edge_starting_at(const ExtendableMesh &emesh, int f, int vert)
+{
   const IndexRange corners = emesh.face_corners(f);
   for (int c : corners) {
     if (emesh.corner_vert(c) == vert) {
@@ -731,7 +747,8 @@ static int get_edge_starting_at(const ExtendableMesh &emesh, int f, int vert) {
   return -1;
 }
 
-static int get_edge_ending_at(const ExtendableMesh &emesh, int f, int vert) {
+static int get_edge_ending_at(const ExtendableMesh &emesh, int f, int vert)
+{
   const IndexRange corners = emesh.face_corners(f);
   for (int i = 0; i < corners.size(); i++) {
     int c = corners[i];
@@ -805,7 +822,9 @@ static void offset_meet(const ExtendableMesh &emesh,
     }
     else if (!edges_between) {
       norm_v1 = math::normalize(math::cross(dir2, dir1));
-      if (math::dot(norm_v1, f != -1 ? emesh.mesh.face_normals()[f] : emesh.mesh.vert_normals()[v]) < 0.0f) {
+      if (math::dot(norm_v1,
+                    f != -1 ? emesh.mesh.face_normals()[f] : emesh.mesh.vert_normals()[v]) < 0.0f)
+      {
         norm_v1 = -norm_v1;
       }
       norm_v2 = norm_v1;
@@ -813,12 +832,18 @@ static void offset_meet(const ExtendableMesh &emesh,
     else {
       norm_v1 = math::normalize(math::cross(dir1n, dir1));
       int f_curr = e1->fnext;
-      if (math::dot(norm_v1, f_curr != -1 ? emesh.mesh.face_normals()[f_curr] : emesh.mesh.vert_normals()[v]) < 0.0f) {
+      if (math::dot(norm_v1,
+                    f_curr != -1 ? emesh.mesh.face_normals()[f_curr] :
+                                   emesh.mesh.vert_normals()[v]) < 0.0f)
+      {
         norm_v1 = -norm_v1;
       }
       norm_v2 = math::normalize(math::cross(dir2, dir2p));
       f_curr = e2->fprev;
-      if (math::dot(norm_v2, f_curr != -1 ? emesh.mesh.face_normals()[f_curr] : emesh.mesh.vert_normals()[v]) < 0.0f) {
+      if (math::dot(norm_v2,
+                    f_curr != -1 ? emesh.mesh.face_normals()[f_curr] :
+                                   emesh.mesh.vert_normals()[v]) < 0.0f)
+      {
         norm_v2 = -norm_v2;
       }
     }
@@ -862,7 +887,9 @@ static void offset_meet(const ExtendableMesh &emesh,
           closest_to_plane_normalized_v3(dropco, plane, meetco);
           if (e_in_plane) {
             float ang = angle_v3v3(no, emesh.mesh.face_normals()[e_in_plane->fnext]);
-            if ((math::abs(ang) < BEVEL_SMALL_ANG) || (math::abs(ang - float(M_PI)) < BEVEL_SMALL_ANG)) {
+            if ((math::abs(ang) < BEVEL_SMALL_ANG) ||
+                (math::abs(ang - float(M_PI)) < BEVEL_SMALL_ANG))
+            {
               continue;
             }
           }
@@ -877,7 +904,11 @@ static void offset_meet(const ExtendableMesh &emesh,
 }
 
 static bool offset_meet_edge(const ExtendableMesh &emesh,
-                             EdgeHalf *e1, EdgeHalf *e2, int v, float meetco[3], float *r_angle)
+                             EdgeHalf *e1,
+                             EdgeHalf *e2,
+                             int v,
+                             float meetco[3],
+                             float *r_angle)
 {
   float3 v_co = emesh.vert_position(v);
   float3 dir1 = emesh.vert_position(geom::edge_other_vert(emesh, e1->e, v)) - v_co;
@@ -921,12 +952,14 @@ static bool offset_meet_edge(const ExtendableMesh &emesh,
   return true;
 }
 
-static bool good_offset_on_edge_between(const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid, int v)
+static bool good_offset_on_edge_between(
+    const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid, int v)
 {
   float ang;
   float meet[3];
 
-  return offset_meet_edge(emesh, e1, emid, v, meet, &ang) && offset_meet_edge(emesh, emid, e2, v, meet, &ang);
+  return offset_meet_edge(emesh, e1, emid, v, meet, &ang) &&
+         offset_meet_edge(emesh, emid, e2, v, meet, &ang);
 }
 
 static bool offset_on_edge_between(const ExtendableMesh &emesh,
@@ -965,7 +998,7 @@ static bool offset_on_edge_between(const ExtendableMesh &emesh,
   return retval;
 }
 
-} // namespace geom
+}  // namespace geom
 
 /* -------------------------------------------------------------------- */
 /** \name Debug printing utilities
@@ -1140,7 +1173,8 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
                bndv.elast ? bndv.elast->e : -1,
                bndv.eon ? bndv.eon->e : -1,
                bndv.ebev ? bndv.ebev->e : -1);
-  fmt::println("    sinratio={} any_seam={} visited={}", bndv.sinratio, bndv.any_seam, bndv.visited);
+  fmt::println(
+      "    sinratio={} any_seam={} visited={}", bndv.sinratio, bndv.any_seam, bndv.visited);
   fmt::println("    is_arc_start={} is_patch_start={} is_profile_start={}",
                bndv.is_arc_start,
                bndv.is_patch_start,
@@ -1152,7 +1186,8 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
 /* Prints a #VMesh and all its #BoundVert chain. */
 [[maybe_unused]] static void dump_vmesh(const VMesh &vm)
 {
-  fmt::println("  VMesh: count={} seg={} mesh_kind={}", vm.count, vm.seg, mesh_kind_name(vm.mesh_kind));
+  fmt::println(
+      "  VMesh: count={} seg={} mesh_kind={}", vm.count, vm.seg, mesh_kind_name(vm.mesh_kind));
   if (vm.boundstart == nullptr) {
     fmt::println("  (no boundverts)");
     return;
@@ -1195,7 +1230,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   }
 }
 
-} // namespace debug
+}  // namespace debug
 
 /** \} */
 
@@ -1404,7 +1439,8 @@ static void set_bound_vert_seams(BevVert *bv, bool mark_seam, bool mark_sharp)
   // TODO: implement set_bound_vert_seams
 }
 
-static void offset_in_plane(const ExtendableMesh &emesh, EdgeHalf *e, const float3 *plane_no, bool left, float r_co[3])
+static void offset_in_plane(
+    const ExtendableMesh &emesh, EdgeHalf *e, const float3 *plane_no, bool left, float r_co[3])
 {
   int v = e->is_rev ? emesh.edge_verts(e->e)[1] : emesh.edge_verts(e->e)[0];
   float3 v_co = emesh.vert_position(v);
@@ -1435,7 +1471,10 @@ static void offset_in_plane(const ExtendableMesh &emesh, EdgeHalf *e, const floa
   copy_v3_v3(r_co, res);
 }
 
-static void build_boundary_vertex_only(const ExtendableMesh &emesh, const BevelParameters &params, BevVert *bv, bool construct)
+static void build_boundary_vertex_only(const ExtendableMesh &emesh,
+                                       const BevelParameters &params,
+                                       BevVert *bv,
+                                       bool construct)
 {
   BLI_assert(params.affect_type == BevelAffect::Vertices);
 
@@ -1478,7 +1517,9 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
   EdgeHalf *e = efirst;
   float co[3];
   if (bv->edgecount == 2) {
-    const float3 *no = e->fprev != -1 ? &emesh.mesh.face_normals()[e->fprev] : (e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : nullptr);
+    const float3 *no = e->fprev != -1 ?
+                           &emesh.mesh.face_normals()[e->fprev] :
+                           (e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : nullptr);
     offset_in_plane(emesh, e, no, true, co);
     if (construct) {
       BoundVert *bndv = add_new_bound_vert(bv, co);
@@ -1488,7 +1529,8 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
     else {
       adjust_bound_vert(e->leftv, co);
     }
-    no = e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : (e->fprev != -1 ? &emesh.mesh.face_normals()[e->fprev] : nullptr);
+    no = e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] :
+                          (e->fprev != -1 ? &emesh.mesh.face_normals()[e->fprev] : nullptr);
     offset_in_plane(emesh, e, no, false, co);
     if (construct) {
       BoundVert *bndv = add_new_bound_vert(bv, co);
@@ -1570,14 +1612,11 @@ static bool eh_on_plane(const ExtendableMesh &emesh, EdgeHalf *e)
   if (e->fprev == -1 || e->fnext == -1) {
     return false;
   }
-  return angle_v3v3(emesh.mesh.face_normals()[e->fprev], emesh.mesh.face_normals()[e->fnext]) < geom::BEVEL_SMALL_ANG;
+  return angle_v3v3(emesh.mesh.face_normals()[e->fprev], emesh.mesh.face_normals()[e->fnext]) <
+         geom::BEVEL_SMALL_ANG;
 }
 
-enum AngleKind {
-  ANGLE_SMALLER,
-  ANGLE_STRAIGHT,
-  ANGLE_LARGER
-};
+enum AngleKind { ANGLE_SMALLER, ANGLE_STRAIGHT, ANGLE_LARGER };
 
 static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, int v)
 {
@@ -1610,7 +1649,10 @@ static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, Edg
   return ANGLE_SMALLER;
 }
 
-static void build_boundary(const ExtendableMesh &emesh, const BevelParameters &params, BevVert *bv, bool construct)
+static void build_boundary(const ExtendableMesh &emesh,
+                           const BevelParameters &params,
+                           BevVert *bv,
+                           bool construct)
 {
   if (bv->edgecount <= 1) {
     return;
@@ -1660,7 +1702,9 @@ static void build_boundary(const ExtendableMesh &emesh, const BevelParameters &p
       geom::offset_meet(emesh, e, e2, bv->v, e->fnext, false, co, nullptr);
     }
     else if (not_in_plane > 0) {
-      if (/*bp->loop_slide &&*/ not_in_plane == 1 && geom::good_offset_on_edge_between(emesh, e, e2, enip, bv->v)) {
+      if (/*bp->loop_slide &&*/ not_in_plane == 1 &&
+          geom::good_offset_on_edge_between(emesh, e, e2, enip, bv->v))
+      {
         if (geom::offset_on_edge_between(emesh, e, e2, enip, bv->v, co, &r)) {
           eon = enip;
         }
@@ -1670,7 +1714,9 @@ static void build_boundary(const ExtendableMesh &emesh, const BevelParameters &p
       }
     }
     else {
-      if (/*bp->loop_slide &&*/ in_plane == 1 && geom::good_offset_on_edge_between(emesh, e, e2, eip, bv->v)) {
+      if (/*bp->loop_slide &&*/ in_plane == 1 &&
+          geom::good_offset_on_edge_between(emesh, e, e2, eip, bv->v))
+      {
         if (geom::offset_on_edge_between(emesh, e, e2, eip, bv->v, co, &r)) {
           eon = eip;
         }
@@ -1708,7 +1754,7 @@ static void build_boundary(const ExtendableMesh &emesh, const BevelParameters &p
         if (ang_kind == ANGLE_LARGER && miter_outer == 1 /*BEVEL_MITER_PATCH*/) {
           v2 = add_new_bound_vert(bv, co);
         }
-        (void)v2; // TODO: properly use v2 when mitering is fully supported
+        (void)v2;  // TODO: properly use v2 when mitering is fully supported
         BoundVert *v3 = add_new_bound_vert(bv, co);
         v3->ebev = e2;
         v3->efirst = nullptr;
@@ -2480,6 +2526,11 @@ std::optional<Mesh *> mesh_bevel(
     construct::bevel_vert_construct(state, v);
     BevVert *bv = state.vert_hash.lookup(v);
     construct::build_boundary(state.emesh, state.params, bv, true);
+    if (v == 0) {
+      fmt::println("\nMESH code dump bv for vert 0");
+      debug::dump_bev_vert(*bv);
+    }
+
     // TODO: determine_uv_vert_connectivity
   });
 
