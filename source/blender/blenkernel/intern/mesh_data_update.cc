@@ -278,8 +278,6 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
 {
   const Mesh &mesh_input = *id_cast<const Mesh *>(ob.data);
 
-  BLI_assert((mesh_input.id.tag & ID_TAG_COPIED_ON_EVAL_FINAL_RESULT) == 0);
-
   GeometrySet geometry_set = GeometrySet::from_mesh(const_cast<Mesh *>(&mesh_input),
                                                     GeometryOwnershipType::ReadOnly);
 
