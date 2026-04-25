@@ -424,8 +424,8 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
     ScopedModifierTimer modifier_timer{*md};
 
     /* Add orco mesh as layer if needed by this modifier. */
-    if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
-      if (mesh_orco && mti->required_data_mask) {
+    if (mesh_orco && mti->required_data_mask) {
+      if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
         CustomData_MeshMasks mask = {0};
         mti->required_data_mask(md, &mask);
         if (mask.vmask & CD_MASK_ORCO) {
@@ -442,41 +442,47 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
       }
     }
     else {
+      bool check_for_needs_mapping = false;
+      if (have_non_onlydeform_modifiers_applied == false) {
+        check_for_needs_mapping = true;
+      }
       have_non_onlydeform_modifiers_applied = true;
 
       /* determine which data layers are needed by following modifiers */
       CustomData_MeshMasks nextmask = md_datamask->next ? md_datamask->next->mask : final_datamask;
 
       if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
-        /* Initialize original indices the first time we evaluate a
-         * constructive modifier. Modifiers will then do mapping mostly
-         * automatic by copying them through CustomData_copy_data along
-         * with other data.
-         *
-         * These are created when either requested by evaluation, or if
-         * following modifiers requested them. */
-        if (need_mapping ||
-            ((nextmask.vmask | nextmask.emask | nextmask.pmask) & CD_MASK_ORIGINDEX))
-        {
-          /* calc */
-          CustomData_add_layer(&mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->verts_num);
-          CustomData_add_layer(&mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->edges_num);
-          CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num);
+        if (check_for_needs_mapping) {
+          /* Initialize original indices the first time we evaluate a
+           * constructive modifier. Modifiers will then do mapping mostly
+           * automatic by copying them through CustomData_copy_data along
+           * with other data.
+           *
+           * These are created when either requested by evaluation, or if
+           * following modifiers requested them. */
+          if (need_mapping ||
+              ((nextmask.vmask | nextmask.emask | nextmask.pmask) & CD_MASK_ORIGINDEX))
+          {
+            /* calc */
+            CustomData_add_layer(&mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->verts_num);
+            CustomData_add_layer(&mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->edges_num);
+            CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, mesh->faces_num);
 
-          /* Not worth parallelizing this,
-           * gives less than 0.1% overall speedup in best of best cases... */
-          range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
-                         &mesh->vert_data, CD_ORIGINDEX, mesh->verts_num)),
-                     mesh->verts_num,
-                     0);
-          range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
-                         &mesh->edge_data, CD_ORIGINDEX, mesh->edges_num)),
-                     mesh->edges_num,
-                     0);
-          range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
-                         &mesh->face_data, CD_ORIGINDEX, mesh->faces_num)),
-                     mesh->faces_num,
-                     0);
+            /* Not worth parallelizing this,
+             * gives less than 0.1% overall speedup in best of best cases... */
+            range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
+                           &mesh->vert_data, CD_ORIGINDEX, mesh->verts_num)),
+                       mesh->verts_num,
+                       0);
+            range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
+                           &mesh->edge_data, CD_ORIGINDEX, mesh->edges_num)),
+                       mesh->edges_num,
+                       0);
+            range_vn_i(static_cast<int *>(CustomData_get_layer_for_write(
+                           &mesh->face_data, CD_ORIGINDEX, mesh->faces_num)),
+                       mesh->faces_num,
+                       0);
+          }
         }
 
         /* set the Mesh to only copy needed data */
@@ -528,14 +534,17 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         mesh_set_only_copy(mesh_orco, &temp_cddata_masks);
 
         ASSERT_IS_VALID_MESH_INPUT(mesh_orco);
-        Mesh *mesh_orco_new = BKE_modifier_modify_mesh(md, &mectx_orco, mesh_orco);
-        ASSERT_IS_VALID_MESH_OUTPUT(mesh_orco_new);
-        if (mesh_orco_new) {
-          if (mesh_orco != mesh_orco_new) {
+        Mesh *mesh_next = BKE_modifier_modify_mesh(md, &mectx_orco, mesh_orco);
+        ASSERT_IS_VALID_MESH_OUTPUT(mesh_next);
+
+        if (mesh_next) {
+          /* if the modifier returned a new mesh, release the old one */
+          if (mesh_orco != mesh_next) {
             BLI_assert(mesh_orco != &mesh_input);
             BKE_id_free(nullptr, mesh_orco);
           }
-          mesh_orco = mesh_orco_new;
+
+          mesh_orco = mesh_next;
         }
       }
 
@@ -552,14 +561,17 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         mesh_set_only_copy(mesh_orco_cloth, &nextmask);
 
         ASSERT_IS_VALID_MESH_INPUT(mesh_orco_cloth);
-        Mesh *mesh_orco_cloth_new = BKE_modifier_modify_mesh(md, &mectx_orco, mesh_orco_cloth);
-        ASSERT_IS_VALID_MESH_OUTPUT(mesh_orco_cloth_new);
-        if (mesh_orco_cloth_new) {
-          if (mesh_orco_cloth != mesh_orco_cloth_new) {
+        Mesh *mesh_next = BKE_modifier_modify_mesh(md, &mectx_orco, mesh_orco_cloth);
+        ASSERT_IS_VALID_MESH_OUTPUT(mesh_next);
+
+        if (mesh_next) {
+          /* if the modifier returned a new mesh, release the old one */
+          if (mesh_orco_cloth != mesh_next) {
             BLI_assert(mesh_orco != &mesh_input);
             BKE_id_free(nullptr, mesh_orco_cloth);
           }
-          mesh_orco_cloth = mesh_orco_cloth_new;
+
+          mesh_orco_cloth = mesh_next;
         }
       }
 
@@ -584,17 +596,18 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
 
   /* Add orco coordinates to final and deformed mesh if requested. */
   if (final_datamask.vmask & CD_MASK_ORCO) {
+    /* No need in ORCO layer if the mesh was not deformed or modified: undeformed mesh in this case
+     * matches input mesh. */
     if (geometry_set.get_mesh() != &mesh_input) {
-      /* No need in ORCO layer if the mesh was not deformed or modified: undeformed mesh in this
-       * case matches input mesh. */
       add_orco_mesh(ob, nullptr, *geometry_set.get_mesh_for_write(), mesh_orco, CD_ORCO);
     }
+
     if (geometry_set.has<GeometryComponentEditData>()) {
       auto &component = geometry_set.get_component_for_write<GeometryComponentEditData>();
       if (component.mesh_edit_hints_ && component.mesh_edit_hints_->mesh_deform) {
-        MeshComponent &mesh_component = static_cast<MeshComponent &>(
+        auto &mesh_deform = static_cast<MeshComponent &>(
             component.mesh_edit_hints_->mesh_deform.ensure_mutable_inplace());
-        add_orco_mesh(ob, nullptr, *mesh_component.get_for_write(), nullptr, CD_ORCO);
+        add_orco_mesh(ob, nullptr, *mesh_deform.get_for_write(), nullptr, CD_ORCO);
       }
     }
   }
@@ -819,9 +832,10 @@ static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
 
   /* Add orco coordinates to final and deformed mesh if requested. */
   if (final_datamask.vmask & CD_MASK_ORCO) {
+    /* FIXME(@ideasman42): avoid the need to convert to mesh data just to add an orco layer. */
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
-      /* FIXME(@ideasman42): avoid the need to convert to mesh data just to add an orco layer. */
       BKE_mesh_wrapper_ensure_mdata(mesh);
+
       add_orco_mesh(ob, &em_input, *mesh, mesh_orco, CD_ORCO);
     }
   }
