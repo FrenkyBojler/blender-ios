@@ -605,6 +605,12 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                         socket.hide = True
 
             new_node.location_absolute = old_node.location_absolute
+            if old_node.bl_idname == "NodeReroute":
+                # The `new_node.dimensions` have not been computed yet, but `new_node.width` should be correct.
+                # Instead of centering the node vertically, we use an offset that makes it appear vertically
+                # centered if it were collapsed. Besides, `new_node.height` is not yet computed at this point.
+                new_node.location_absolute.x -= new_node.width / 2
+                new_node.location_absolute.y += 10
             new_node.select = True
 
             zone_pair = self.get_zone_pair(tree, old_node)
