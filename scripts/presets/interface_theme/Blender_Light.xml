@@ -416,6 +416,13 @@
             >
           </ThemeRegionsSidebars>
         </sidebars>
+        <toggle>
+          <ThemeRegionsToggle
+            back="#0d0d0d99"
+            icon="#cccccc66"
+          >
+          </ThemeRegionsToggle>
+        </toggle>
       </ThemeRegions>
     </regions>
     <common>

@@ -1014,6 +1014,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeRegionsChannels",
         "ThemeRegionsScrubbing",
         "ThemeRegionsSidebars",
+        "ThemeRegionsToggle",
         "ThemeSequenceEditor",
         "ThemeSpaceGeneric",
         "ThemeSpaceGradient",

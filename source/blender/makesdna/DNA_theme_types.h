@@ -133,11 +133,17 @@ typedef struct ThemeRegionsSidebars {
   unsigned char tab_back[4];
 } ThemeRegionsSidebars;
 
+typedef struct ThemeRegionsToggle {
+  unsigned char back[4];
+  unsigned char icon[4];
+} ThemeRegionsToggle;
+
 typedef struct ThemeRegions {
   ThemeRegionsAssetShelf asset_shelf;
   ThemeRegionsChannels channels;
   ThemeRegionsScrubbing scrubbing;
   ThemeRegionsSidebars sidebars;
+  ThemeRegionsToggle toggle;
 } ThemeRegions;
 
 typedef struct ThemeCommonAnim {

@@ -289,6 +289,13 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->header_text_hi;
           break;
 
+        case TH_REGION_TOGGLE:
+          cp = btheme->regions.toggle.back;
+          break;
+        case TH_REGION_TOGGLE_TEXT:
+          cp = btheme->regions.toggle.icon;
+          break;
+
         case TH_PANEL_HEADER:
           cp = btheme->tui.panel_header;
           break;
