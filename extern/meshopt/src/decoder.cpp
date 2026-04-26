@@ -9,23 +9,23 @@
 #define LOG_PREFIX "meshoptimizer | "
 
 API(uint32_t)
-decodeVertexBuffer(float *out, size_t n, size_t stride, const unsigned char *data, size_t size){
+decodeVertexBuffer(float *out, size_t index_count, size_t index_size, const unsigned char *data, size_t size){
 
-    return meshopt_decodeVertexBuffer(out, n, stride, data, size);
-
-}
-
-API(uint32_t)
-decodeIndexBuffer(unsigned int *out, size_t n, const unsigned char *data, size_t size){
-
-    return meshopt_decodeIndexBuffer(out, n, data, size);
+    return meshopt_decodeVertexBuffer(out, index_count, index_size, data, size);
 
 }
 
 API(uint32_t)
-decodeIndexSequence(unsigned int *out, size_t n, const unsigned char *data, size_t size){
+decodeIndexBuffer(unsigned int *out, size_t index_count, size_t index_size, const unsigned char *data, size_t size){
 
-    return meshopt_decodeIndexSequence(out, n, data, size);
+    return meshopt_decodeIndexBuffer(out, index_count, index_size, data, size);
+
+}
+
+API(uint32_t)
+decodeIndexSequence(unsigned int *out, size_t index_count, size_t index_size, const unsigned char *data, size_t size){
+
+    return meshopt_decodeIndexSequence(out, index_count, index_size, data, size);
 
 }
 
