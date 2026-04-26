@@ -4826,7 +4826,7 @@ std::optional<CursorGeometryInfo> cursor_geometry_info_update(Depsgraph &depsgra
   /* Option to return the face normal directly for performance o accuracy reasons. */
   if (!use_sampled_normal) {
     out.normal = srd.face_normal;
-    return std::make_optional(out);
+    return srd.hit ? std::make_optional(out) : std::nullopt;
   }
 
   /* Sampled normal calculation. */
