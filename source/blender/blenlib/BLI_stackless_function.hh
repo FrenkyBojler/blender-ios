@@ -58,7 +58,7 @@ template<typename T> struct generator {
     h_.destroy();
   }
 
-  T operator *() &&
+  T operator*() &&
   {
     return std::move(h_.promise().value);
   }
@@ -121,8 +121,9 @@ inline auto stackless(const auto &func)
   using T = typename std::invoke_result<decltype(func)>::type;
   if constexpr (std::is_same_v<T, void>) {
     return ([&]() -> detail::generator_void { co_return func(); }());
-  } else {
-    return *([&]() -> detail::generator<T> { co_return func(); }());    
+  }
+  else {
+    return *([&]() -> detail::generator<T> { co_return func(); }());
   }
 }
 
