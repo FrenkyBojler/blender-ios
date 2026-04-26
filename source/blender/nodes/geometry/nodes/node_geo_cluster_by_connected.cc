@@ -66,8 +66,8 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
 
     DisjointSet<int> vertex_cluster(mesh.verts_num);
 
-    Array<float3> vert_cluster_centre(mesh.verts_num);
-    array_utils::copy(position, vert_cluster_centre.as_mutable_span());
+    Array<float3> vert_cluster_center(mesh.verts_num);
+    array_utils::copy(position, vert_cluster_center.as_mutable_span());
     Array<int> vert_cluster_size(mesh.verts_num, 1);
 
     selection.foreach_index([&](const int edge_i) {
@@ -79,8 +79,8 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
         return;
       }
 
-      const float3 vert_a_cluster = vert_cluster_centre[edge_clusters[0]];
-      const float3 vert_b_cluster = vert_cluster_centre[edge_clusters[1]];
+      const float3 vert_a_cluster = vert_cluster_center[edge_clusters[0]];
+      const float3 vert_b_cluster = vert_cluster_center[edge_clusters[1]];
 
       const float distance = math::distance(vert_a_cluster, vert_b_cluster);
 
@@ -98,7 +98,7 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
                                                           vert_cluster_size[edge_clusters[1]] /
                                                               float(new_cluster_size));
 
-      vert_cluster_centre[new_cluster_root] = new_cluster_center;
+      vert_cluster_center[new_cluster_root] = new_cluster_center;
       vert_cluster_size[new_cluster_root] = new_cluster_size;
     });
 
