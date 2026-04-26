@@ -156,7 +156,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputClusterByConnected"_ustr);
+  geo_node_type_base(&ntype, "GeometryNodeClusterByConnected"_ustr);
   ntype.ui_name = "Cluster by Connected";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
