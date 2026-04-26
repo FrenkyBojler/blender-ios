@@ -197,6 +197,8 @@ class ExtendableMesh {
   float3 vert_position(const int v) const;
   int2 edge_verts(const int e) const;
   IndexRange face_corners(const int f) const;
+  float3 face_normal(const int f) const;
+  float3 face_center(const int f) const;
   int corner_vert(const int c) const;
   int corner_edge(const int c) const;
 
@@ -315,6 +317,24 @@ IndexRange ExtendableMesh::face_corners(const int f) const
   return IndexRange(mesh.corners_num + start, size);
 }
 
+float3 ExtendableMesh::face_normal(const int f) const
+{
+  /* Only valid for original mesh faces; new faces are not used in tri_corner_test. */
+  BLI_assert(f < mesh.faces_num);
+  return mesh.face_normals()[f];
+}
+
+float3 ExtendableMesh::face_center(const int f) const
+{
+  /* Average the corner vertex positions. */
+  const IndexRange corners = face_corners(f);
+  float3 center(0.0f);
+  for (const int c : corners) {
+    center += vert_position(corner_vert(c));
+  }
+  return center / float(corners.size());
+}
+
 int ExtendableMesh::corner_vert(const int c) const
 {
   if (c < mesh.corners_num) {
@@ -367,7 +387,6 @@ int ExtendableMesh::face_create(Span<int> verts)
     new_corner_edges_.append(e);
   }
 
-  new_face_offsets_.append(new_corner_verts_.size());
   return face_index;
 }
 
@@ -440,7 +459,7 @@ class UVLayerInfo {
    */
   void find_components(const ExtendableMesh &emesh, int seg);
 
- private:
+  /** Returns true when UV data is contiguous across edge `e` between faces `f1` and `f2`. */
   bool contig_ldata_across_edge(const Mesh &mesh, int e, int f1, int f2) const;
 };
 
@@ -853,7 +872,10 @@ static void offset_meet(const ExtendableMesh &emesh,
                         const EdgeHalf *e_in_plane)
 {
   float3 v_co = emesh.vert_position(v);
-  float3 dir1 = emesh.vert_position(geom::edge_other_vert(emesh, e1->e, v)) - v_co;
+  /* `dir1` points from e1's far end toward `v`; `dir2` points from `v` away along e2.
+   * This asymmetry matches the BMesh convention and ensures that `cross(dir1, norm_v1)`
+   * gives a perpendicular that points into the face (i.e. toward the bevel offset). */
+  float3 dir1 = v_co - emesh.vert_position(geom::edge_other_vert(emesh, e1->e, v));
   float3 dir2 = emesh.vert_position(geom::edge_other_vert(emesh, e2->e, v)) - v_co;
 
   float3 dir1n = float3(0.0f);
@@ -862,7 +884,7 @@ static void offset_meet(const ExtendableMesh &emesh,
     EdgeHalf *e1next = e1->next;
     EdgeHalf *e2prev = e2->prev;
     dir1n = emesh.vert_position(geom::edge_other_vert(emesh, e1next->e, v)) - v_co;
-    dir2p = emesh.vert_position(geom::edge_other_vert(emesh, e2prev->e, v)) - v_co;
+    dir2p = v_co - emesh.vert_position(geom::edge_other_vert(emesh, e2prev->e, v));
   }
 
   float ang = angle_v3v3(dir1, dir2);
@@ -1081,6 +1103,193 @@ static bool offset_on_edge_between(const ExtendableMesh &emesh,
   return retval;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name VMesh grid helpers
+ * \{ */
+
+/**
+ * Return a pointer to the #NewVert at grid position (i, j, k) in `vm`.
+ * The grid layout is `mesh[i * nj * nk + j * nk + k]`
+ * where `nj = seg/2 + 1` and `nk = seg + 1`.
+ */
+static NewVert *mesh_vert(VMesh *vm, int i, int j, int k)
+{
+  const int nk = vm->seg + 1;
+  const int nj = vm->seg / 2 + 1;
+  return &vm->mesh[i * nj * nk + j * nk + k];
+}
+
+/**
+ * Return the canonical representative for vmesh position (i, j, k).
+ * Due to the rotational symmetry of the vmesh grid, many positions are
+ * equivalent; this function maps any (i, j, k) to the one canonical
+ * representative in the stored range.
+ */
+static NewVert *mesh_vert_canon(VMesh *vm, int i, int j, int k)
+{
+  const int n = vm->count;
+  const int ns = vm->seg;
+  const int ns2 = ns / 2;
+  const int odd = ns % 2;
+  BLI_assert(0 <= i && i <= n && 0 <= j && j <= ns && 0 <= k && k <= ns);
+
+  if (!odd && j == ns2 && k == ns2) {
+    return mesh_vert(vm, 0, j, k);
+  }
+  if (j <= ns2 - 1 + odd && k <= ns2) {
+    return mesh_vert(vm, i, j, k);
+  }
+  if (k <= ns2) {
+    return mesh_vert(vm, (i + n - 1) % n, k, ns - j);
+  }
+  return mesh_vert(vm, (i + 1) % n, ns - k, j);
+}
+
+/* Returns true when (i, j, k) is the canonical representative of its equivalence class. */
+static bool is_canon(const VMesh *vm, int i, int j, int k)
+{
+  const int ns2 = vm->seg / 2;
+  if (vm->seg % 2 == 1) {
+    return (j <= ns2 && k <= ns2);
+  }
+  return ((j < ns2 && k <= ns2) || (j == ns2 && k == ns2 && i == 0));
+}
+
+/* Copies coordinates and vertex indices from canonical grid positions to all equivalent ones. */
+static void vmesh_copy_equiv_verts(VMesh *vm)
+{
+  const int n = vm->count;
+  const int ns = vm->seg;
+  const int ns2 = ns / 2;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j <= ns2; j++) {
+      for (int k = 0; k <= ns; k++) {
+        if (is_canon(vm, i, j, k)) {
+          continue;
+        }
+        NewVert *v1 = mesh_vert(vm, i, j, k);
+        NewVert *v0 = mesh_vert_canon(vm, i, j, k);
+        v1->co = v0->co;
+        v1->v = v0->v;
+      }
+    }
+  }
+}
+
+/* Computes the centroid of the center polygon into `r_cent`. */
+static void vmesh_center(VMesh *vm, float r_cent[3])
+{
+  const int n = vm->count;
+  const int ns2 = vm->seg / 2;
+  if (vm->seg % 2) {
+    zero_v3(r_cent);
+    for (int i = 0; i < n; i++) {
+      add_v3_v3(r_cent, mesh_vert(vm, i, ns2, ns2)->co);
+    }
+    mul_v3_fl(r_cent, 1.0f / float(n));
+  }
+  else {
+    copy_v3_v3(r_cent, mesh_vert(vm, 0, ns2, ns2)->co);
+  }
+}
+
+/* Sets co to the average of four NewVert positions. */
+static void avg4(
+    float co[3], const NewVert *v0, const NewVert *v1, const NewVert *v2, const NewVert *v3)
+{
+  add_v3_v3v3(co, v0->co, v1->co);
+  add_v3_v3(co, v2->co);
+  add_v3_v3(co, v3->co);
+  mul_v3_fl(co, 0.25f);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Profile geometry helpers
+ * \{ */
+
+/** Returns true when `d1` and `d2` are parallel or anti-parallel. */
+static bool nearly_parallel(const float d1[3], const float d2[3])
+{
+  const float ang = angle_v3v3(d1, d2);
+  return (fabsf(ang) < BEVEL_EPSILON_ANG) || (fabsf(ang - float(M_PI)) < BEVEL_EPSILON_ANG);
+}
+
+/**
+ * Builds a 4x4 matrix that maps the unit square to the triangle `(va, vmid, vb)`.
+ * Returns false when the three points are collinear or degenerate.
+ */
+static bool make_unit_square_map(const float va[3],
+                                 const float vmid[3],
+                                 const float vb[3],
+                                 float r_mat[4][4])
+{
+  float va_vmid[3], vb_vmid[3];
+  sub_v3_v3v3(va_vmid, vmid, va);
+  sub_v3_v3v3(vb_vmid, vmid, vb);
+
+  if (is_zero_v3(va_vmid) || is_zero_v3(vb_vmid)) {
+    return false;
+  }
+  if (fabsf(angle_v3v3(va_vmid, vb_vmid) - float(M_PI)) <= BEVEL_EPSILON_ANG) {
+    return false;
+  }
+
+  float vo[3], vd[3], vddir[3];
+  sub_v3_v3v3(vo, va, vb_vmid);
+  cross_v3_v3v3(vddir, vb_vmid, va_vmid);
+  normalize_v3(vddir);
+  add_v3_v3v3(vd, vo, vddir);
+
+  sub_v3_v3v3(&r_mat[0][0], vmid, va);
+  r_mat[0][3] = 0.0f;
+  sub_v3_v3v3(&r_mat[1][0], vmid, vb);
+  r_mat[1][3] = 0.0f;
+  add_v3_v3v3(&r_mat[2][0], vmid, vd);
+  sub_v3_v3(&r_mat[2][0], va);
+  sub_v3_v3(&r_mat[2][0], vb);
+  r_mat[2][3] = 0.0f;
+  add_v3_v3v3(&r_mat[3][0], va, vb);
+  sub_v3_v3(&r_mat[3][0], vmid);
+  r_mat[3][3] = 1.0f;
+
+  return true;
+}
+
+/**
+ * Returns the Sabin-modified Catmull-Clark gamma value for an n-sided corner.
+ * This controls the smoothness of the center vertex during subdivision.
+ */
+static float sabin_gamma(int n)
+{
+  if (n < 3) {
+    return 0.0f;
+  }
+  if (n == 3) {
+    return 0.065247584f;
+  }
+  if (n == 4) {
+    return 0.25f;
+  }
+  if (n == 5) {
+    return 0.401983447f;
+  }
+  if (n == 6) {
+    return 0.523423277f;
+  }
+  const double k = cos(M_PI / double(n));
+  const double k2 = k * k;
+  const double k4 = k2 * k2;
+  const double k6 = k4 * k2;
+  const double y = pow(M_SQRT3 * sqrt(64.0 * k6 - 144.0 * k4 + 135.0 * k2 - 27.0) + 9.0 * k,
+                       1.0 / 3.0);
+  const double x = 0.480749856769136 * y - (0.231120424783545 * (12.0 * k2 - 9.0)) / y;
+  return float((k * x + 2.0 * k2 - 1.0) / (x * x * (k * x + 1.0)));
+}
+
+/** \} */
+
 }  // namespace geom
 
 /* -------------------------------------------------------------------- */
@@ -1266,7 +1475,7 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   dump_profile(bndv.profile);
 }
 
-/* Prints a #VMesh and all its #BoundVert chain. */
+/* Prints a #VMesh and all its #BoundVert chain, plus the full #NewVert grid. */
 [[maybe_unused]] static void dump_vmesh(const VMesh &vm)
 {
   fmt::println(
@@ -1275,12 +1484,32 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
     fmt::println("  (no boundverts)");
     return;
   }
-  /* Walk the circular linked list. */
+  /* Walk the circular linked list of BoundVerts. */
   const BoundVert *bndv = vm.boundstart;
   do {
     dump_bound_vert(*bndv);
     bndv = bndv->next;
   } while (bndv != vm.boundstart);
+
+  /* Print the NewVert grid if it has been allocated. */
+  if (!vm.mesh.is_empty()) {
+    const int n = vm.count;
+    const int ns = vm.seg;
+    const int ns2 = ns / 2;
+    /* Non-const pointer needed by mesh_vert (accessor is not const-qualified). */
+    VMesh *vmp = const_cast<VMesh *>(&vm);
+    fmt::println("  NewVerts (i, j, k) for 0<=i<{} 0<=j<={} 0<=k<{}:", n, ns2, ns);
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j <= ns2; j++) {
+        fmt::print("    ({},{}): ", i, j);
+        for (int k = 0; k < ns; k++) {
+          const NewVert *nv = geom::mesh_vert(vmp, i, j, k);
+          fmt::print("({},({:.3f},{:.3f},{:.3f})) ", nv->v, nv->co[0], nv->co[1], nv->co[2]);
+        }
+        fmt::println("");
+      }
+    }
+  }
 }
 
 /* Dumps a full #BevVert, including its #EdgeHalf array, wire edges, and #VMesh. */
@@ -1509,6 +1738,11 @@ static BoundVert *add_new_bound_vert(BevVert *bv, const float co[3])
     vm->boundstart->prev = v;
   }
   v->index = vm->count++;
+  /* Set the same defaults that the BMesh path uses in #add_new_bound_vert.
+   * `sinratio` of 1.0 means no angular correction; `profile.super_r` of 1.0
+   * is the PRO_LINE_R value (straight-line profile). */
+  v->sinratio = 1.0f;
+  v->profile.super_r = 1.0f;
   return v;
 }
 
@@ -2398,6 +2632,282 @@ static void set_profile_spacing(BevelState *bs, ProfileSpacing *pro_spacing, boo
   }
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Profile parameter setup and evaluation
+ * \{ */
+
+/**
+ * Sets `profile.start/middle/end/plane_co/plane_no/proj_dir/super_r` for a #BoundVert.
+ * Ported from BMesh's #set_profile_params; edge access uses #ExtendableMesh instead of BMesh.
+ */
+static void set_profile_params(const BevelState &state, const BevVert *bv, BoundVert *bndv)
+{
+  bool do_linear_interp = true;
+  const EdgeHalf *e = bndv->ebev;
+  Profile &pro = bndv->profile;
+  const ExtendableMesh &emesh = state.emesh;
+
+  float start[3], end[3];
+  copy_v3_v3(start, bndv->nv.co);
+  copy_v3_v3(end, bndv->next->nv.co);
+
+  if (e) {
+    do_linear_interp = false;
+    pro.super_r = state.pro_super_r;
+    /* Projection direction is along the beveled edge. */
+    const int2 everts = emesh.edge_verts(e->e);
+    sub_v3_v3v3(pro.proj_dir, emesh.vert_position(everts[0]), emesh.vert_position(everts[1]));
+    if (e->is_rev) {
+      negate_v3(pro.proj_dir);
+    }
+    normalize_v3(pro.proj_dir);
+
+    /* Middle = closest point on the edge line to the segment start-end. */
+    float otherco[3];
+    if (!isect_line_line_v3(emesh.vert_position(everts[0]),
+                            emesh.vert_position(everts[1]),
+                            start,
+                            end,
+                            pro.middle,
+                            otherco))
+    {
+      copy_v3_v3(pro.middle, emesh.vert_position(everts[0]));
+    }
+
+    copy_v3_v3(pro.start, start);
+    copy_v3_v3(pro.end, end);
+
+    float d1[3], d2[3];
+    sub_v3_v3v3(d1, pro.middle, start);
+    sub_v3_v3v3(d2, pro.middle, end);
+    normalize_v3(d1);
+    normalize_v3(d2);
+    cross_v3_v3v3(pro.plane_no, d1, d2);
+    normalize_v3(pro.plane_no);
+
+    if (geom::nearly_parallel(d1, d2)) {
+      /* Start, middle, end are collinear. */
+      const float3 v_co = emesh.vert_position(bv->v);
+      copy_v3_v3(pro.middle, v_co);
+
+      if (e->prev->is_bev && e->next->is_bev && bv->selcount >= 3) {
+        float d3[3], d4[3], co3[3], co4[3], meetco[3], isect2[3];
+        const int2 eprev_verts = emesh.edge_verts(e->prev->e);
+        const int2 enext_verts = emesh.edge_verts(e->next->e);
+        sub_v3_v3v3(d3, emesh.vert_position(eprev_verts[0]), emesh.vert_position(eprev_verts[1]));
+        sub_v3_v3v3(d4, emesh.vert_position(enext_verts[0]), emesh.vert_position(enext_verts[1]));
+        normalize_v3(d3);
+        normalize_v3(d4);
+        if (geom::nearly_parallel(d3, d4)) {
+          mid_v3_v3v3(pro.middle, start, end);
+          do_linear_interp = true;
+        }
+        else {
+          add_v3_v3v3(co3, start, d3);
+          add_v3_v3v3(co4, end, d4);
+          if (isect_line_line_v3(start, co3, end, co4, meetco, isect2) != 0) {
+            copy_v3_v3(pro.middle, meetco);
+          }
+          else {
+            mid_v3_v3v3(pro.middle, start, end);
+            do_linear_interp = true;
+          }
+        }
+      }
+      copy_v3_v3(pro.end, end);
+      sub_v3_v3v3(d1, pro.middle, start);
+      normalize_v3(d1);
+      sub_v3_v3v3(d2, pro.middle, end);
+      normalize_v3(d2);
+      cross_v3_v3v3(pro.plane_no, d1, d2);
+      normalize_v3(pro.plane_no);
+      if (geom::nearly_parallel(d1, d2)) {
+        do_linear_interp = true;
+      }
+      else {
+        copy_v3_v3(pro.plane_co, v_co);
+        copy_v3_v3(pro.proj_dir, pro.plane_no);
+      }
+    }
+    copy_v3_v3(pro.plane_co, start);
+  }
+  else if (bndv->is_arc_start) {
+    copy_v3_v3(pro.start, start);
+    copy_v3_v3(pro.end, end);
+    pro.super_r = PRO_CIRCLE_R;
+    zero_v3(pro.plane_co);
+    zero_v3(pro.plane_no);
+    zero_v3(pro.proj_dir);
+    do_linear_interp = false;
+  }
+  else if (state.params.affect_type == BevelAffect::Vertices) {
+    copy_v3_v3(pro.start, start);
+    copy_v3_v3(pro.middle, emesh.vert_position(bv->v));
+    copy_v3_v3(pro.end, end);
+    pro.super_r = state.pro_super_r;
+    zero_v3(pro.plane_co);
+    zero_v3(pro.plane_no);
+    zero_v3(pro.proj_dir);
+    do_linear_interp = false;
+  }
+
+  if (do_linear_interp) {
+    pro.super_r = PRO_LINE_R;
+    copy_v3_v3(pro.start, start);
+    copy_v3_v3(pro.end, end);
+    mid_v3_v3v3(pro.middle, start, end);
+    zero_v3(pro.plane_co);
+    zero_v3(pro.plane_no);
+    zero_v3(pro.proj_dir);
+  }
+}
+
+/**
+ * Fills `r_prof_co` with 3D positions for each segment point of the profile,
+ * mapped from the 2D superellipse using the `map` matrix and projected along `proj_dir`.
+ */
+static void calculate_profile_segments(const Profile &pro,
+                                       const float map[4][4],
+                                       const bool use_map,
+                                       const bool reversed,
+                                       const int ns,
+                                       const double *xvals,
+                                       const double *yvals,
+                                       MutableSpan<float3> r_prof_co)
+{
+  for (int k = 0; k <= ns; k++) {
+    float co[3];
+    if (k == 0) {
+      copy_v3_v3(co, pro.start);
+    }
+    else if (k == ns) {
+      copy_v3_v3(co, pro.end);
+    }
+    else {
+      if (use_map) {
+        const float p[3] = {
+            reversed ? float(yvals[ns - k]) : float(xvals[k]),
+            reversed ? float(xvals[ns - k]) : float(yvals[k]),
+            0.0f,
+        };
+        mul_v3_m4v3(co, map, p);
+      }
+      else {
+        interp_v3_v3v3(co, pro.start, pro.end, float(k) / float(ns));
+      }
+    }
+    /* Project onto the profile plane along proj_dir. */
+    if (!is_zero_v3(pro.proj_dir)) {
+      float co2[3];
+      add_v3_v3v3(co2, co, pro.proj_dir);
+      if (!isect_line_plane_v3(r_prof_co[k], co, co2, pro.plane_co, pro.plane_no)) {
+        copy_v3_v3(r_prof_co[k], co);
+      }
+    }
+    else {
+      copy_v3_v3(r_prof_co[k], co);
+    }
+  }
+}
+
+/**
+ * Computes the `prof_co` (and optionally `prof_co_2`) arrays for `bndv->profile`,
+ * applying the superellipse 2D-to-3D mapping and projection.
+ * No-op when `params.segments == 1`.
+ */
+static void calculate_profile(BevelState &state, BoundVert *bndv, bool reversed, bool /*miter*/)
+{
+  Profile &pro = bndv->profile;
+  /* TODO: handle custom profile (BEVEL_PROFILE_CUSTOM). */
+  const ProfileSpacing &pro_spacing = state.pro_spacing;
+
+  if (state.params.segments <= 1) {
+    return;
+  }
+
+  const bool need_2 = (state.params.segments != pro_spacing.seg_2);
+
+  if (pro.prof_co.is_empty()) {
+    pro.prof_co = Array<float3>(state.params.segments + 1);
+    if (need_2) {
+      pro.prof_co_2 = Array<float3>(pro_spacing.seg_2 + 1);
+    }
+    else {
+      /* prof_co_2 points to the same data. */
+      pro.prof_co_2 = pro.prof_co;
+    }
+  }
+
+  bool use_map;
+  float map[4][4];
+  if (pro.super_r == PRO_LINE_R) {
+    use_map = false;
+  }
+  else {
+    use_map = geom::make_unit_square_map(pro.start, pro.middle, pro.end, map);
+  }
+
+  calculate_profile_segments(pro,
+                             map,
+                             use_map,
+                             reversed,
+                             state.params.segments,
+                             pro_spacing.xvals.data(),
+                             pro_spacing.yvals.data(),
+                             pro.prof_co.as_mutable_span());
+  if (need_2) {
+    calculate_profile_segments(pro,
+                               map,
+                               use_map,
+                               reversed,
+                               pro_spacing.seg_2,
+                               pro_spacing.xvals_2.data(),
+                               pro_spacing.yvals_2.data(),
+                               pro.prof_co_2.as_mutable_span());
+  }
+}
+
+/**
+ * Returns the 3D coordinate of profile point `i` out of `nseg` for `pro`.
+ * When `nseg == params.segments`, indexes into `prof_co`;
+ * otherwise uses the higher-resolution `prof_co_2` with sub-sampling.
+ */
+static void get_profile_point(
+    const BevelState &state, const Profile *pro, int i, int nseg, float r_co[3])
+{
+  if (state.params.segments == 1) {
+    copy_v3_v3(r_co, i == 0 ? pro->start : pro->end);
+    return;
+  }
+  if (nseg == state.params.segments) {
+    BLI_assert(!pro->prof_co.is_empty());
+    copy_v3_v3(r_co, pro->prof_co[i]);
+  }
+  else {
+    BLI_assert(is_power_of_2_i(nseg) && nseg <= state.pro_spacing.seg_2);
+    const int subsample_spacing = state.pro_spacing.seg_2 / nseg;
+    copy_v3_v3(r_co, pro->prof_co_2[i * subsample_spacing]);
+  }
+}
+
+/**
+ * Sets profile parameters for all #BoundVert entries of `vm` and computes
+ * their profile coordinate arrays. This is the last step before vertex creation.
+ */
+static void calculate_vm_profiles(BevelState &state, BevVert *bv, VMesh *vm)
+{
+  BoundVert *bndv = vm->boundstart;
+  do {
+    if (!bndv->profile.special_params) {
+      set_profile_params(state, bv, bndv);
+    }
+    /* TODO: handle miter/reversed flags for BEVEL_PROFILE_CUSTOM. */
+    calculate_profile(state, bndv, false, false);
+  } while ((bndv = bndv->next) != vm->boundstart);
+}
+
+/** \} */
+
 }  // namespace profile
 
 void BevelState::initialize_profile_data()
@@ -2438,6 +2948,1078 @@ void BevelState::uv_init()
 }
 
 namespace construct {
+
+/* Forward declaration -- defined in the ADJ vmesh subdivision section below. */
+static VMesh adj_vmesh(BevelState &state, BevVert *bv);
+
+/* -------------------------------------------------------------------- */
+/** \name VMesh face builders
+ * \{ */
+
+/**
+ * Creates the center polygon (or ngon) face for `bv` from the first boundary vertex of each
+ * arc (and intermediate arc verts for multi-segment bevels). Returns the new face index,
+ * or -1 when degenerate (fewer than 3 verts).
+ * UV interpolation is a TODO; faces are created with no attribute data for now.
+ */
+static int bevel_build_poly(BevelState &state, BevVert *bv)
+{
+  VMesh *vm = bv->vmesh.get();
+  const int ns = vm->seg;
+
+  Vector<int, 32> verts;
+  BoundVert *bndv = vm->boundstart;
+  do {
+    verts.append(geom::mesh_vert(vm, bndv->index, 0, 0)->v);
+    if (bndv->ebev && ns > 1) {
+      for (int k = 1; k < ns; k++) {
+        verts.append(geom::mesh_vert(vm, bndv->index, 0, k)->v);
+      }
+    }
+  } while ((bndv = bndv->next) != vm->boundstart);
+
+  if (verts.size() < 3) {
+    return -1;
+  }
+  return state.emesh.face_create(verts.as_span());
+}
+
+/**
+ * Builds a triangle-fan for `bv` (M_TRI_FAN) by first creating a center ngon with
+ * #bevel_build_poly, then splitting it into triangles radiating from the first vertex.
+ */
+static void bevel_build_trifan(BevelState &state, BevVert *bv)
+{
+  /* For M_TRI_FAN the ngon must already have vertices; just split it into tris. */
+  VMesh *vm = bv->vmesh.get();
+  const int ns = vm->seg;
+  BLI_assert(ns == 1 || bv->selcount == 1);
+
+  /* Collect all verts as for poly but build triangles directly. */
+  Vector<int, 32> ring;
+  BoundVert *bndv = vm->boundstart;
+  do {
+    ring.append(geom::mesh_vert(vm, bndv->index, 0, 0)->v);
+    if (bndv->ebev && ns > 1) {
+      for (int k = 1; k < ns; k++) {
+        ring.append(geom::mesh_vert(vm, bndv->index, 0, k)->v);
+      }
+    }
+  } while ((bndv = bndv->next) != vm->boundstart);
+
+  if (ring.size() < 3) {
+    return;
+  }
+
+  const int v_fan = ring[0];
+  for (int i = 1; i + 1 < int(ring.size()); i++) {
+    const int tri[3] = {v_fan, ring[i], ring[i + 1]};
+    state.emesh.face_create(Span<int>(tri, 3));
+  }
+}
+
+/**
+ * M_NONE with two boundary verts and vertex bevel: places intermediate profile
+ * verts and, if the original vertex had no adjacent faces, creates the connecting edges.
+ */
+static void bevel_vert_two_edges(BevelState &state, BevVert *bv)
+{
+  VMesh *vm = bv->vmesh.get();
+  BLI_assert(vm->count == 2 && state.params.affect_type == BevelAffect::Vertices);
+
+  const int ns = vm->seg;
+  const int v1 = geom::mesh_vert(vm, 0, 0, 0)->v;
+  const int v2 = geom::mesh_vert(vm, 1, 0, 0)->v;
+
+  if (ns > 1) {
+    /* Set up a linear profile from v1 to v2 through the original vert. */
+    BoundVert *bndv0 = vm->boundstart;
+    Profile &pro = bndv0->profile;
+    pro.super_r = state.pro_super_r;
+    copy_v3_v3(pro.start, geom::mesh_vert(vm, 0, 0, 0)->co);
+    copy_v3_v3(pro.end, geom::mesh_vert(vm, 1, 0, 0)->co);
+    copy_v3_v3(pro.middle, state.emesh.vert_position(bv->v));
+    zero_v3(pro.plane_co);
+    zero_v3(pro.plane_no);
+    zero_v3(pro.proj_dir);
+    profile::calculate_profile(state, bndv0, false, false);
+
+    for (int k = 1; k < ns; k++) {
+      float co[3];
+      profile::get_profile_point(state, &pro, k, ns, co);
+      const int nv = state.emesh.vert_create(float3(co));
+      geom::mesh_vert(vm, 0, 0, k)->co = float3(co);
+      geom::mesh_vert(vm, 0, 0, k)->v = nv;
+    }
+    copy_v3_v3(geom::mesh_vert(vm, 0, 0, ns)->co, geom::mesh_vert(vm, 1, 0, 0)->co);
+    geom::mesh_vert(vm, 0, 0, ns)->v = v2;
+
+    /* Mirror to the second BoundVert arc (reversed). */
+    for (int k = 1; k < ns; k++) {
+      geom::mesh_vert(vm, 1, 0, ns - k)->co = geom::mesh_vert(vm, 0, 0, k)->co;
+      geom::mesh_vert(vm, 1, 0, ns - k)->v = geom::mesh_vert(vm, 0, 0, k)->v;
+    }
+  }
+
+  /* Create edges between successive arc verts if the original vertex had no faces. */
+  for (int k = 0; k < ns; k++) {
+    const int va = geom::mesh_vert(vm, 0, 0, k)->v;
+    const int vb = geom::mesh_vert(vm, 0, 0, k + 1)->v;
+    if (va >= 0 && vb >= 0) {
+      state.emesh.edge_create(va, vb);
+    }
+  }
+  (void)v1;
+}
+
+/**
+ * Builds the ADJ (grid-fill) face mesh for `bv` (M_ADJ).
+ * Vertex coordinates must already be set in `vm->mesh`; this function creates the
+ * quad faces (and center ngon for odd segment counts).
+ * UV and seam snapping is left as TODO.
+ */
+static void bevel_build_rings(BevelState &state, BevVert *bv)
+{
+  VMesh *vm = bv->vmesh.get();
+  const int n_bndv = vm->count;
+  const int ns = vm->seg;
+  const int ns2 = ns / 2;
+  const int odd = ns % 2;
+  BLI_assert(n_bndv >= 3 && ns > 1);
+
+  BoundVert *bndv = vm->boundstart;
+  do {
+    const int i = bndv->index;
+    const int inext = bndv->next->index;
+
+    for (int j = 0; j < ns2; j++) {
+      for (int k = 0; k < ns2 + odd; k++) {
+        /* Quad with lower-left corner at (i, j, k). */
+        const int va = geom::mesh_vert(vm, i, j, k)->v;
+        const int vb = geom::mesh_vert(vm, i, j, k + 1)->v;
+        const int vc = geom::mesh_vert(vm, i, j + 1, k + 1)->v;
+        const int vd = geom::mesh_vert(vm, i, j + 1, k)->v;
+        if (va < 0 || vb < 0 || vc < 0 || vd < 0) {
+          continue;
+        }
+        const int quad[4] = {va, vb, vc, vd};
+        state.emesh.face_create(Span<int>(quad, 4));
+      }
+    }
+    (void)inext;
+  } while ((bndv = bndv->next) != vm->boundstart);
+
+  /* Center ngon for odd segment count. */
+  if (odd) {
+    Vector<int, 16> center_verts;
+    bndv = vm->boundstart;
+    do {
+      center_verts.append(geom::mesh_vert(vm, bndv->index, ns2, ns2)->v);
+    } while ((bndv = bndv->next) != vm->boundstart);
+    if (center_verts.size() >= 3) {
+      state.emesh.face_create(center_verts.as_span());
+    }
+  }
+}
+
+/**
+ * Main vmesh builder for a single bevelled vertex.
+ * Allocates the #NewVert grid, creates boundary vertices in #ExtendableMesh,
+ * computes profile coordinates, then dispatches to the appropriate per-kind builder.
+ */
+static void build_vmesh(BevelState &state, BevVert *bv)
+{
+  VMesh *vm = bv->vmesh.get();
+  const int n = vm->count;
+  const int ns = vm->seg;
+  const int ns2 = ns / 2;
+
+  /* Allocate the grid. */
+  vm->mesh = Array<NewVert>(n * (ns2 + 1) * (ns + 1), NewVert{-1, float3(0.0f)});
+
+  /* Detect the weld case: exactly two beveled edges welding together. */
+  const bool weld = (bv->selcount == 2) && (vm->count == 2);
+  BoundVert *weld1 = nullptr;
+  BoundVert *weld2 = nullptr;
+
+  /* Create mesh vertices for each BoundVert's (i, 0, 0) position. */
+  BoundVert *bndv = vm->boundstart;
+  do {
+    const int i = bndv->index;
+    copy_v3_v3(geom::mesh_vert(vm, i, 0, 0)->co, bndv->nv.co);
+    geom::mesh_vert(vm, i, 0, 0)->v = state.emesh.vert_create(float3(bndv->nv.co));
+    bndv->nv.v = geom::mesh_vert(vm, i, 0, 0)->v;
+
+    if (weld && bndv->ebev) {
+      if (!weld1) {
+        weld1 = bndv;
+      }
+      else {
+        weld2 = bndv;
+      }
+    }
+  } while ((bndv = bndv->next) != vm->boundstart);
+
+  /* Calculate profiles for non-ADJ kinds; ADJ computes its own via adj_vmesh. */
+  profile::calculate_vm_profiles(state, bv, vm);
+
+  /* Fill boundary arc verts (j=0, k=1..ns-1) for non-ADJ. */
+  bndv = vm->boundstart;
+  do {
+    const int i = bndv->index;
+    /* Last arc vert shares with the next BoundVert's first. */
+    copy_v3_v3(geom::mesh_vert(vm, i, 0, ns)->co, bndv->next->nv.co);
+    geom::mesh_vert(vm, i, 0, ns)->v = bndv->next->nv.v;
+
+    if (vm->mesh_kind != MeshKind::ADJ) {
+      for (int k = 1; k < ns; k++) {
+        if (bndv->ebev) {
+          float co[3];
+          profile::get_profile_point(state, &bndv->profile, k, ns, co);
+          copy_v3_v3(geom::mesh_vert(vm, i, 0, k)->co, co);
+          if (!weld) {
+            geom::mesh_vert(vm, i, 0, k)->v = state.emesh.vert_create(float3(co));
+          }
+        }
+        else if (n == 2 && !bndv->ebev) {
+          /* Non-beveled side of a weld: mirror from the other BoundVert. */
+          geom::mesh_vert(vm, i, 0, k)->co = geom::mesh_vert(vm, 1 - i, 0, ns - k)->co;
+          geom::mesh_vert(vm, i, 0, k)->v = geom::mesh_vert(vm, 1 - i, 0, ns - k)->v;
+        }
+      }
+    }
+  } while ((bndv = bndv->next) != vm->boundstart);
+
+  /* Weld case: build a blended profile between the two weld BoundVerts. */
+  if (weld) {
+    vm->mesh_kind = MeshKind::NONE;
+    for (int k = 1; k < ns; k++) {
+      const float3 &v_w1 = geom::mesh_vert(vm, weld1->index, 0, k)->co;
+      const float3 &v_w2 = geom::mesh_vert(vm, weld2->index, 0, ns - k)->co;
+      float3 co;
+      /* TODO: handle BEVEL_PROFILE_CUSTOM weld blending. */
+      if (weld1->profile.super_r == profile::PRO_LINE_R &&
+          weld2->profile.super_r != profile::PRO_LINE_R)
+      {
+        co = v_w2;
+      }
+      else if (weld2->profile.super_r == profile::PRO_LINE_R &&
+               weld1->profile.super_r != profile::PRO_LINE_R)
+      {
+        co = v_w1;
+      }
+      else {
+        co = (v_w1 + v_w2) * 0.5f;
+      }
+      const int nv = state.emesh.vert_create(co);
+      geom::mesh_vert(vm, weld1->index, 0, k)->co = co;
+      geom::mesh_vert(vm, weld1->index, 0, k)->v = nv;
+    }
+    for (int k = 1; k < ns; k++) {
+      geom::mesh_vert(vm, weld2->index, 0, ns - k)->co =
+          geom::mesh_vert(vm, weld1->index, 0, k)->co;
+      geom::mesh_vert(vm, weld2->index, 0, ns - k)->v = geom::mesh_vert(vm, weld1->index, 0, k)->v;
+    }
+  }
+
+  /* Check for pipe test for ADJ (3- or 4-boundary, seg > 1). */
+  /* TODO: pipe_adj_vmesh, tri_corner_adj_vmesh, square_out_adj_vmesh special cases. */
+
+  switch (vm->mesh_kind) {
+    case MeshKind::NONE:
+      if (n == 2 && state.params.affect_type == BevelAffect::Vertices) {
+        bevel_vert_two_edges(state, bv);
+      }
+      break;
+    case MeshKind::POLY:
+      bevel_build_poly(state, bv);
+      break;
+    case MeshKind::TRI_FAN:
+      bevel_build_trifan(state, bv);
+      break;
+    case MeshKind::ADJ: {
+      /* Compute the ADJ interior coordinates via cubic subdivision. */
+      VMesh vm_adj = adj_vmesh(state, bv);
+      /* Copy final positions into vm->mesh and create ExtendableMesh verts. */
+      for (int i = 0; i < n; i++) {
+        for (int j = 0; j <= ns2; j++) {
+          for (int k = 0; k <= ns; k++) {
+            if (j == 0 && (k == 0 || k == ns)) {
+              continue; /* Boundary corners already created. */
+            }
+            if (!geom::is_canon(vm, i, j, k)) {
+              continue;
+            }
+            const float3 co = geom::mesh_vert(&vm_adj, i, j, k)->co;
+            const int nv = state.emesh.vert_create(co);
+            geom::mesh_vert(vm, i, j, k)->co = co;
+            geom::mesh_vert(vm, i, j, k)->v = nv;
+          }
+        }
+      }
+      geom::vmesh_copy_equiv_verts(vm);
+      bevel_build_rings(state, bv);
+      break;
+    }
+    case MeshKind::CUTOFF:
+      /* TODO: implement M_CUTOFF. */
+      break;
+  }
+}
+
+/** \} */
+
+/**
+ * For each UV map, group the corners of vertex `v` into buckets of corners whose UV
+ * coordinates coincide (within #STD_UV_CONNECT_LIMIT). Store the result in
+ * `state.uv_vert_maps[i][v]`, one entry per UV layer.
+ *
+ * This is the Mesh equivalent of the BMesh #determine_uv_vert_connectivity function.
+ * Corners play the role of BMesh loops; #uv::UVLayerInfo::maps supplies the UV values.
+ */
+static void determine_uv_vert_connectivity(BevelState &state, int v)
+{
+  const int num_uv_layers = int(state.uv_layer_info.maps.size());
+  BLI_assert(int(state.uv_vert_maps.size()) == num_uv_layers);
+
+  for (int i = 0; i < num_uv_layers; i++) {
+    const Span<float2> uv_vals = state.uv_layer_info.maps[i].values.as_span();
+    Vector<UVVertBucket> uv_vert_buckets;
+
+    for (const int c : state.emesh.vert_corners()[v]) {
+      const float2 &luv = uv_vals[c];
+      bool is_overlap_found = false;
+      for (UVVertBucket &bucket : uv_vert_buckets) {
+        for (const int c2 : bucket) {
+          if (compare_v2v2(luv, uv_vals[c2], STD_UV_CONNECT_LIMIT)) {
+            bucket.add(c);
+            is_overlap_found = true;
+            break;
+          }
+        }
+        if (is_overlap_found) {
+          break;
+        }
+      }
+      if (!is_overlap_found) {
+        uv_vert_buckets.append(UVVertBucket{c});
+      }
+    }
+
+    BLI_assert(state.uv_vert_maps[i].contains(v) == false);
+    state.uv_vert_maps[i].add_new(v, uv_vert_buckets);
+  }
+}
+
+/* -------------------------------------------------------------------- */
+/** \name ADJ vmesh subdivision helpers
+ * \{ */
+
+/* Allocates a VMesh with a zeroed NewVert grid of size count*(seg/2+1)*(seg+1). */
+static VMesh new_adj_vmesh(int count, int seg, BoundVert *bounds)
+{
+  VMesh vm;
+  vm.count = count;
+  vm.seg = seg;
+  vm.boundstart = bounds;
+  vm.mesh = Array<NewVert>(count * (seg / 2 + 1) * (seg + 1), NewVert{-1, float3(0.0f)});
+  vm.mesh_kind = MeshKind::ADJ;
+  return vm;
+}
+
+/* Fills frac[0..ns] with cumulative arc-length fractions along ring 0 of vmesh row i. */
+static void fill_vmesh_fracs(VMesh *vm, Array<float> &frac, int i)
+{
+  const int ns = vm->seg;
+  frac[0] = 0.0f;
+  float total = 0.0f;
+  for (int k = 0; k < ns; k++) {
+    total += math::distance(geom::mesh_vert(vm, i, 0, k)->co,
+                            geom::mesh_vert(vm, i, 0, k + 1)->co);
+    frac[k + 1] = total;
+  }
+  if (total > 0.0f) {
+    for (int k = 1; k <= ns; k++) {
+      frac[k] /= total;
+    }
+  }
+  else {
+    frac[ns] = 1.0f;
+  }
+}
+
+/* Fills frac[0..ns] with cumulative arc-length fractions along bndv's profile. */
+static void fill_profile_fracs(const BevelState &state,
+                               BoundVert *bndv,
+                               Array<float> &frac,
+                               int ns)
+{
+  float co[3], nextco[3];
+  frac[0] = 0.0f;
+  float total = 0.0f;
+  copy_v3_v3(co, bndv->nv.co);
+  for (int k = 0; k < ns; k++) {
+    profile::get_profile_point(state, &bndv->profile, k + 1, ns, nextco);
+    total += len_v3v3(co, nextco);
+    frac[k + 1] = total;
+    copy_v3_v3(co, nextco);
+  }
+  if (total > 0.0f) {
+    for (int k = 1; k <= ns; k++) {
+      frac[k] /= total;
+    }
+  }
+  else {
+    frac[ns] = 1.0f;
+  }
+}
+
+/* Returns index i such that frac[i] <= f <= frac[i+1], and sets r_rest to the remainder. */
+static int interp_range(const Array<float> &frac, int n, float f, float *r_rest)
+{
+  for (int i = 0; i < n; i++) {
+    if (f <= frac[i + 1]) {
+      float rest = f - frac[i];
+      *r_rest = (rest == 0.0f) ? 0.0f : rest / (frac[i + 1] - frac[i]);
+      if (i == n - 1 && *r_rest == 1.0f) {
+        i = n;
+        *r_rest = 0.0f;
+      }
+      return i;
+    }
+  }
+  *r_rest = 0.0f;
+  return n;
+}
+
+/* Re-samples vm_in to produce a VMesh with nseg boundary segments. */
+static VMesh interp_vmesh(const BevelState &state, VMesh &vm_in, int nseg)
+{
+  const int n_bndv = vm_in.count;
+  const int ns_in = vm_in.seg;
+  const int nseg2 = nseg / 2;
+  const int odd = nseg % 2;
+  VMesh vm_out = new_adj_vmesh(n_bndv, nseg, vm_in.boundstart);
+
+  Array<float> prev_frac(ns_in + 1), frac(ns_in + 1);
+  Array<float> new_frac(nseg + 1), prev_new_frac(nseg + 1);
+
+  fill_vmesh_fracs(&vm_in, prev_frac, n_bndv - 1);
+  BoundVert *bndv = vm_in.boundstart;
+  fill_profile_fracs(state, bndv->prev, prev_new_frac, nseg);
+
+  for (int i = 0; i < n_bndv; i++) {
+    fill_vmesh_fracs(&vm_in, frac, i);
+    fill_profile_fracs(state, bndv, new_frac, nseg);
+    for (int j = 0; j <= nseg2 - 1 + odd; j++) {
+      for (int k = 0; k <= nseg2; k++) {
+        float restk, restkprev;
+        int k_in = interp_range(frac, ns_in, new_frac[k], &restk);
+        int k_in_prev = interp_range(prev_frac, ns_in, prev_new_frac[nseg - j], &restkprev);
+        int j_in = ns_in - k_in_prev;
+        float restj = -restkprev;
+        if (restj > -geom::BEVEL_EPSILON_D) {
+          restj = 0.0f;
+        }
+        else {
+          j_in--;
+          restj = 1.0f + restj;
+        }
+        float co[3];
+        if (restj < geom::BEVEL_EPSILON_D && restk < geom::BEVEL_EPSILON_D) {
+          copy_v3_v3(co, geom::mesh_vert_canon(&vm_in, i, j_in, k_in)->co);
+        }
+        else {
+          const int j0inc = (restj < geom::BEVEL_EPSILON_D || j_in == ns_in) ? 0 : 1;
+          const int k0inc = (restk < geom::BEVEL_EPSILON_D || k_in == ns_in) ? 0 : 1;
+          float quad[4][3];
+          copy_v3_v3(quad[0], geom::mesh_vert_canon(&vm_in, i, j_in, k_in)->co);
+          copy_v3_v3(quad[1], geom::mesh_vert_canon(&vm_in, i, j_in, k_in + k0inc)->co);
+          copy_v3_v3(quad[2], geom::mesh_vert_canon(&vm_in, i, j_in + j0inc, k_in + k0inc)->co);
+          copy_v3_v3(quad[3], geom::mesh_vert_canon(&vm_in, i, j_in + j0inc, k_in)->co);
+          interp_bilinear_quad_v3(quad, restk, restj, co);
+        }
+        copy_v3_v3(geom::mesh_vert(&vm_out, i, j, k)->co, co);
+      }
+    }
+    bndv = bndv->next;
+    prev_frac = frac;
+    prev_new_frac = new_frac;
+  }
+  if (!odd) {
+    float center[3];
+    geom::vmesh_center(&vm_in, center);
+    copy_v3_v3(geom::mesh_vert(&vm_out, 0, nseg2, nseg2)->co, center);
+  }
+  geom::vmesh_copy_equiv_verts(&vm_out);
+  return vm_out;
+}
+
+/**
+ * One step of Catmull-Clark-like cubic subdivision (Levin 1999).
+ * `vm_in.seg` must be even and >= 2. Returns a new VMesh with doubled resolution.
+ */
+static VMesh cubic_subdiv(const BevelState &state, VMesh &vm_in)
+{
+  const int n_boundary = vm_in.count;
+  const int ns_in = vm_in.seg;
+  const int ns_in2 = ns_in / 2;
+  BLI_assert(ns_in % 2 == 0);
+  const int ns_out = 2 * ns_in;
+  VMesh vm_out = new_adj_vmesh(n_boundary, ns_out, vm_in.boundstart);
+
+  /* Adjust even boundary vertices. */
+  for (int i = 0; i < n_boundary; i++) {
+    copy_v3_v3(geom::mesh_vert(&vm_out, i, 0, 0)->co, geom::mesh_vert(&vm_in, i, 0, 0)->co);
+    for (int k = 1; k < ns_in; k++) {
+      float co[3];
+      copy_v3_v3(co, geom::mesh_vert(&vm_in, i, 0, k)->co);
+      /* Smooth boundary (not for custom profile). */
+      if (state.params.custom_profile == nullptr) {
+        float acc[3];
+        add_v3_v3v3(acc,
+                    geom::mesh_vert(&vm_in, i, 0, k - 1)->co,
+                    geom::mesh_vert(&vm_in, i, 0, k + 1)->co);
+        madd_v3_v3fl(acc, co, -2.0f);
+        madd_v3_v3fl(co, acc, -1.0f / 6.0f);
+      }
+      copy_v3_v3(geom::mesh_vert_canon(&vm_out, i, 0, 2 * k)->co, co);
+    }
+  }
+
+  /* Adjust odd boundary vertices from profile. */
+  BoundVert *bndv = vm_out.boundstart;
+  for (int i = 0; i < n_boundary; i++) {
+    for (int k = 1; k < ns_out; k += 2) {
+      float co[3];
+      profile::get_profile_point(state, &bndv->profile, k, ns_out, co);
+      if (state.params.custom_profile == nullptr) {
+        float acc[3];
+        add_v3_v3v3(acc,
+                    geom::mesh_vert_canon(&vm_out, i, 0, k - 1)->co,
+                    geom::mesh_vert_canon(&vm_out, i, 0, k + 1)->co);
+        madd_v3_v3fl(acc, co, -2.0f);
+        madd_v3_v3fl(co, acc, -1.0f / 6.0f);
+      }
+      copy_v3_v3(geom::mesh_vert_canon(&vm_out, i, 0, k)->co, co);
+    }
+    bndv = bndv->next;
+  }
+  geom::vmesh_copy_equiv_verts(&vm_out);
+
+  /* Copy adjusted boundary back into vm_in. */
+  for (int i = 0; i < n_boundary; i++) {
+    for (int k = 0; k < ns_in; k++) {
+      copy_v3_v3(geom::mesh_vert(&vm_in, i, 0, k)->co, geom::mesh_vert(&vm_out, i, 0, 2 * k)->co);
+    }
+  }
+  geom::vmesh_copy_equiv_verts(&vm_in);
+
+  /* New face vertices. */
+  for (int i = 0; i < n_boundary; i++) {
+    for (int j = 0; j < ns_in2; j++) {
+      for (int k = 0; k < ns_in2; k++) {
+        float co[3];
+        geom::avg4(co,
+                   geom::mesh_vert(&vm_in, i, j, k),
+                   geom::mesh_vert(&vm_in, i, j, k + 1),
+                   geom::mesh_vert(&vm_in, i, j + 1, k),
+                   geom::mesh_vert(&vm_in, i, j + 1, k + 1));
+        copy_v3_v3(geom::mesh_vert(&vm_out, i, 2 * j + 1, 2 * k + 1)->co, co);
+      }
+    }
+  }
+
+  /* New vertical edge vertices. */
+  for (int i = 0; i < n_boundary; i++) {
+    for (int j = 0; j < ns_in2; j++) {
+      for (int k = 1; k <= ns_in2; k++) {
+        float co[3];
+        geom::avg4(co,
+                   geom::mesh_vert(&vm_in, i, j, k),
+                   geom::mesh_vert(&vm_in, i, j + 1, k),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j + 1, 2 * k - 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j + 1, 2 * k + 1));
+        copy_v3_v3(geom::mesh_vert(&vm_out, i, 2 * j + 1, 2 * k)->co, co);
+      }
+    }
+  }
+
+  /* New horizontal edge vertices. */
+  for (int i = 0; i < n_boundary; i++) {
+    for (int j = 1; j < ns_in2; j++) {
+      for (int k = 0; k < ns_in2; k++) {
+        float co[3];
+        geom::avg4(co,
+                   geom::mesh_vert(&vm_in, i, j, k),
+                   geom::mesh_vert(&vm_in, i, j, k + 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j - 1, 2 * k + 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j + 1, 2 * k + 1));
+        copy_v3_v3(geom::mesh_vert(&vm_out, i, 2 * j, 2 * k + 1)->co, co);
+      }
+    }
+  }
+
+  /* New interior vertices (not on boundary). */
+  constexpr float gamma_interior = 0.25f;
+  constexpr float beta_interior = -gamma_interior;
+  for (int i = 0; i < n_boundary; i++) {
+    for (int j = 1; j < ns_in2; j++) {
+      for (int k = 1; k <= ns_in2; k++) {
+        float co1[3], co2[3], co[3];
+        geom::avg4(co1,
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j, 2 * k - 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j, 2 * k + 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j - 1, 2 * k),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j + 1, 2 * k));
+        geom::avg4(co2,
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j - 1, 2 * k - 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j + 1, 2 * k - 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j - 1, 2 * k + 1),
+                   geom::mesh_vert_canon(&vm_out, i, 2 * j + 1, 2 * k + 1));
+        copy_v3_v3(co, co1);
+        madd_v3_v3fl(co, co2, beta_interior);
+        madd_v3_v3fl(co, geom::mesh_vert(&vm_in, i, j, k)->co, gamma_interior);
+        copy_v3_v3(geom::mesh_vert(&vm_out, i, 2 * j, 2 * k)->co, co);
+      }
+    }
+  }
+
+  geom::vmesh_copy_equiv_verts(&vm_out);
+
+  /* Special center vertex (Sabin modification). */
+  const float gamma_c = geom::sabin_gamma(n_boundary);
+  const float beta_c = -gamma_c;
+  float co1[3], co2[3], co[3];
+  zero_v3(co1);
+  zero_v3(co2);
+  for (int i = 0; i < n_boundary; i++) {
+    add_v3_v3(co1, geom::mesh_vert(&vm_out, i, ns_in, ns_in - 1)->co);
+    add_v3_v3(co2, geom::mesh_vert(&vm_out, i, ns_in - 1, ns_in - 1)->co);
+    add_v3_v3(co2, geom::mesh_vert(&vm_out, i, ns_in - 1, ns_in + 1)->co);
+  }
+  copy_v3_v3(co, co1);
+  mul_v3_fl(co, 1.0f / float(n_boundary));
+  madd_v3_v3fl(co, co2, beta_c / (2.0f * float(n_boundary)));
+  madd_v3_v3fl(co, geom::mesh_vert(&vm_in, 0, ns_in2, ns_in2)->co, gamma_c);
+  for (int i = 0; i < n_boundary; i++) {
+    copy_v3_v3(geom::mesh_vert(&vm_out, i, ns_in, ns_in)->co, co);
+  }
+
+  /* Restore final profile boundary. */
+  bndv = vm_out.boundstart;
+  for (int i = 0; i < n_boundary; i++) {
+    const int inext = (i + 1) % n_boundary;
+    for (int k = 0; k <= ns_out; k++) {
+      float pco[3];
+      profile::get_profile_point(state, &bndv->profile, k, ns_out, pco);
+      copy_v3_v3(geom::mesh_vert(&vm_out, i, 0, k)->co, pco);
+      if (k >= ns_in && k < ns_out) {
+        copy_v3_v3(geom::mesh_vert(&vm_out, inext, ns_out - k, 0)->co, pco);
+      }
+    }
+    bndv = bndv->next;
+  }
+
+  return vm_out;
+}
+
+/**
+ * Snaps `co` to lie on the superellipsoid `x^r + y^r + z^r = 1`.
+ * When `r == PRO_CIRCLE_R` normalizes the vector; for the square cases snaps
+ * to the nearest axis-aligned face. Only used for cube corner special cases.
+ */
+static void snap_to_superellipsoid(float co[3], const float super_r, bool midline)
+{
+  const float r = super_r;
+  if (r == profile::PRO_CIRCLE_R) {
+    normalize_v3(co);
+    return;
+  }
+
+  float a = max_ff(0.0f, co[0]);
+  float b = max_ff(0.0f, co[1]);
+  float c = max_ff(0.0f, co[2]);
+  float x = a, y = b, z = c;
+  if (ELEM(r, profile::PRO_SQUARE_R, profile::PRO_SQUARE_IN_R)) {
+    BLI_assert(fabsf(z) < geom::BEVEL_EPSILON_D);
+    z = 0.0f;
+    x = min_ff(1.0f, x);
+    y = min_ff(1.0f, y);
+    if (r == profile::PRO_SQUARE_R) {
+      const float dx = 1.0f - x;
+      const float dy = 1.0f - y;
+      if (dx < dy) {
+        x = 1.0f;
+        y = midline ? 1.0f : y;
+      }
+      else {
+        y = 1.0f;
+        x = midline ? 1.0f : x;
+      }
+    }
+    else {
+      if (x < y) {
+        x = 0.0f;
+        y = midline ? 0.0f : y;
+      }
+      else {
+        y = 0.0f;
+        x = midline ? 0.0f : x;
+      }
+    }
+  }
+  else {
+    const float rinv = 1.0f / r;
+    if (a == 0.0f) {
+      if (b == 0.0f) {
+        x = 0.0f;
+        y = 0.0f;
+        z = powf(c, rinv);
+      }
+      else {
+        x = 0.0f;
+        y = powf(1.0f / (1.0f + powf(c / b, r)), rinv);
+        z = c * y / b;
+      }
+    }
+    else {
+      x = powf(1.0f / (1.0f + powf(b / a, r) + powf(c / a, r)), rinv);
+      y = b * x / a;
+      z = c * x / a;
+    }
+  }
+  co[0] = x;
+  co[1] = y;
+  co[2] = z;
+}
+
+/**
+ * Builds a 4x4 matrix that maps the unit cube (with vertices at ±1) to the
+ * tetrahedron formed by `va`, `vb`, `vc` (the three boundary verts) and `vd`
+ * (the original beveled vertex). Same as BMesh's #make_unit_cube_map.
+ */
+static void make_unit_cube_map(const float va[3],
+                               const float vb[3],
+                               const float vc[3],
+                               const float vd[3],
+                               float r_mat[4][4])
+{
+  copy_v3_v3(r_mat[0], va);
+  sub_v3_v3(r_mat[0], vb);
+  sub_v3_v3(r_mat[0], vc);
+  add_v3_v3(r_mat[0], vd);
+  mul_v3_fl(r_mat[0], 0.5f);
+  r_mat[0][3] = 0.0f;
+  copy_v3_v3(r_mat[1], vb);
+  sub_v3_v3(r_mat[1], va);
+  sub_v3_v3(r_mat[1], vc);
+  add_v3_v3(r_mat[1], vd);
+  mul_v3_fl(r_mat[1], 0.5f);
+  r_mat[1][3] = 0.0f;
+  copy_v3_v3(r_mat[2], vc);
+  sub_v3_v3(r_mat[2], va);
+  sub_v3_v3(r_mat[2], vb);
+  add_v3_v3(r_mat[2], vd);
+  mul_v3_fl(r_mat[2], 0.5f);
+  r_mat[2][3] = 0.0f;
+  copy_v3_v3(r_mat[3], va);
+  add_v3_v3(r_mat[3], vb);
+  add_v3_v3(r_mat[3], vc);
+  sub_v3_v3(r_mat[3], vd);
+  mul_v3_fl(r_mat[3], 0.5f);
+  r_mat[3][3] = 1.0f;
+}
+
+/**
+ * Builds the canonical unit-simplex vmesh for the cube corner case by:
+ *   1. constructing a seg=2 seed with profile-parameterized boundary midpoints,
+ *   2. iteratively doubling via #cubic_subdiv until seg >= nseg,
+ *   3. resampling to nseg via #interp_vmesh,
+ *   4. snapping every grid point to the superellipsoid `x^r + y^r + z^r = 1`.
+ * Equivalent to BMesh's #make_cube_corner_adj_vmesh.
+ */
+static VMesh make_cube_corner_adj_vmesh(BevelState &state)
+{
+  const float r = state.pro_super_r;
+  const int nseg = state.params.segments;
+
+  /* Create 3 BoundVerts for the unit simplex corners (1,0,0), (0,1,0), (0,0,1).
+   * They are stack-allocated here and remain live for the entire subdivision.
+   * cubic_subdiv and interp_vmesh access bndv->profile via vm->boundstart, so
+   * these must not go out of scope until vm1 is returned. */
+  BoundVert unit_bv[3] = {};
+
+  for (int i = 0; i < 3; i++) {
+    float co_start[3] = {0.0f, 0.0f, 0.0f};
+    float co_end[3] = {0.0f, 0.0f, 0.0f};
+    float co_mid[3] = {0.0f, 0.0f, 0.0f};
+    co_start[i] = 1.0f;
+    co_end[(i + 1) % 3] = 1.0f;
+    co_mid[i] = 1.0f;
+    co_mid[(i + 1) % 3] = 1.0f;
+
+    /* Circular-list links. */
+    unit_bv[i].next = &unit_bv[(i + 1) % 3];
+    unit_bv[i].prev = &unit_bv[(i + 2) % 3];
+    unit_bv[i].index = i;
+    copy_v3_v3(unit_bv[i].nv.co, co_start);
+
+    /* Set up the profile for the arc from corner i to corner i+1. */
+    Profile &pro = unit_bv[i].profile;
+    copy_v3_v3(pro.start, co_start);
+    copy_v3_v3(pro.end, co_end);
+    copy_v3_v3(pro.middle, co_mid);
+    copy_v3_v3(pro.plane_co, co_start);
+    cross_v3_v3v3(pro.plane_no, co_start, co_end);
+    copy_v3_v3(pro.proj_dir, pro.plane_no);
+    pro.super_r = r;
+    pro.height = 0.0f;
+    pro.special_params = false;
+
+    /* Build the 2D→3D map and fill prof_co / prof_co_2. */
+    float map[4][4];
+    const bool use_map = (r != profile::PRO_LINE_R) &&
+                         geom::make_unit_square_map(pro.start, pro.middle, pro.end, map);
+
+    const ProfileSpacing &ps = state.pro_spacing;
+    pro.prof_co = Array<float3>(nseg + 1);
+    profile::calculate_profile_segments(
+        pro, map, use_map, false, nseg, ps.xvals.data(), ps.yvals.data(), pro.prof_co.as_mutable_span());
+
+    const bool need_2 = (nseg != ps.seg_2);
+    if (need_2) {
+      pro.prof_co_2 = Array<float3>(ps.seg_2 + 1);
+      profile::calculate_profile_segments(pro,
+                                          map,
+                                          use_map,
+                                          false,
+                                          ps.seg_2,
+                                          ps.xvals_2.data(),
+                                          ps.yvals_2.data(),
+                                          pro.prof_co_2.as_mutable_span());
+    }
+    else {
+      pro.prof_co_2 = pro.prof_co;
+    }
+  }
+
+  /* Build the seg=2 seed vmesh using the unit-simplex BoundVerts as the boundary ring. */
+  VMesh vm0 = new_adj_vmesh(3, 2, &unit_bv[0]);
+
+  for (int i = 0; i < 3; i++) {
+    copy_v3_v3(geom::mesh_vert(&vm0, i, 0, 0)->co, unit_bv[i].nv.co);
+    /* Sample the profile midpoint at k=1 out of seg=2. */
+    float pt[3];
+    profile::get_profile_point(state, &unit_bv[i].profile, 1, 2, pt);
+    copy_v3_v3(geom::mesh_vert(&vm0, i, 0, 1)->co, pt);
+  }
+
+  /* Center vertex: place it on the (1,1,1) diagonal scaled by 1/sqrt(3),
+   * then adjust slightly based on super_r to match BMesh. */
+  float cen[3];
+  copy_v3_fl(cen, float(M_SQRT1_3));
+  if (nseg > 2) {
+    if (r > 1.5f) {
+      mul_v3_fl(cen, 1.4f);
+    }
+    else if (r < 0.75f) {
+      mul_v3_fl(cen, 0.6f);
+    }
+  }
+  copy_v3_v3(geom::mesh_vert(&vm0, 0, 1, 1)->co, cen);
+  geom::vmesh_copy_equiv_verts(&vm0);
+
+  /* Subdivide until seg >= nseg, then resample. */
+  VMesh vm1 = std::move(vm0);
+  while (vm1.seg < nseg) {
+    VMesh next = cubic_subdiv(state, vm1);
+    vm1 = std::move(next);
+  }
+  if (vm1.seg != nseg) {
+    VMesh resampled = interp_vmesh(state, vm1, nseg);
+    vm1 = std::move(resampled);
+  }
+
+  /* Snap every grid point onto the superellipsoid `x^r + y^r + z^r = 1`. */
+  const int ns2 = nseg / 2;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j <= ns2; j++) {
+      for (int k = 0; k <= nseg; k++) {
+        snap_to_superellipsoid(geom::mesh_vert(&vm1, i, j, k)->co, r, false);
+      }
+    }
+  }
+  return vm1;
+}
+
+/**
+ * Tests whether `bv` is a good candidate for the tri-corner cube-corner special case.
+ * Returns 1 when it qualifies (3-vert, equal offsets, ~90° corner angles),
+ * 0 when the count is 3 but other conditions are not met,
+ * and -1 when it definitely should not use this path.
+ */
+static int tri_corner_test(const BevelState &state, const BevVert *bv)
+{
+  /* Custom profiles and vertex-only mode skip this path. */
+  if (state.params.affect_type == BevelAffect::Vertices ||
+      state.params.custom_profile != nullptr)
+  {
+    return -1;
+  }
+  if (bv->vmesh->count != 3) {
+    return 0;
+  }
+
+  const float offset = bv->edges[0].offset_l;
+  int in_plane_e = 0;
+  float totang = 0.0f;
+  const ExtendableMesh &emesh = state.emesh;
+
+  for (int i = 0; i < bv->edgecount; i++) {
+    const EdgeHalf &e = bv->edges[i];
+    /* Compute the signed dihedral angle of this edge from its two adjacent face normals. */
+    float ang = 0.0f;
+    if (e.fprev >= 0 && e.fnext >= 0) {
+      const float3 no_prev = emesh.face_normal(e.fprev);
+      const float3 no_next = emesh.face_normal(e.fnext);
+      ang = angle_signed_on_axis_v3v3_v3(no_prev, no_next, float3(0.0f) /* unused */);
+      /* Use the dot-product sign to distinguish concave from convex. */
+      const float dot = math::dot(no_prev, no_next);
+      ang = acosf(math::clamp(dot, -1.0f, 1.0f));
+      /* Negate for concave (the dihedral is > π). */
+      if (math::dot(math::cross(no_prev, no_next),
+                    emesh.vert_position(bv->v) - emesh.face_center(e.fprev)) < 0.0f)
+      {
+        ang = -ang;
+      }
+    }
+
+    const float absang = fabsf(ang);
+    if (absang <= float(M_PI_4)) {
+      in_plane_e++;
+    }
+    else if (absang >= 3.0f * float(M_PI_4)) {
+      return -1;
+    }
+
+    if (e.is_bev && !compare_ff(e.offset_l, offset, geom::BEVEL_EPSILON_D)) {
+      return -1;
+    }
+    totang += ang;
+  }
+
+  if (in_plane_e != bv->edgecount - 3) {
+    return -1;
+  }
+  const float angdiff = fabsf(fabsf(totang) - 3.0f * float(M_PI_2));
+  if ((state.pro_super_r == profile::PRO_SQUARE_R && angdiff > float(M_PI) / 16.0f) ||
+      (angdiff > float(M_PI_4)))
+  {
+    return -1;
+  }
+  if (bv->edgecount != 3 || bv->selcount != 3) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Builds the ADJ vmesh for a tri-corner bevel using the cube-corner superellipsoid snap approach.
+ * Equivalent to BMesh's #tri_corner_adj_vmesh.
+ */
+static VMesh tri_corner_adj_vmesh(BevelState &state, BevVert *bv)
+{
+  BoundVert *bndv = bv->vmesh->boundstart;
+  float co0[3], co1[3], co2[3];
+  copy_v3_v3(co0, bndv->nv.co);
+  bndv = bndv->next;
+  copy_v3_v3(co1, bndv->nv.co);
+  bndv = bndv->next;
+  copy_v3_v3(co2, bndv->nv.co);
+
+  float mat[4][4];
+  const float3 v_co = state.emesh.vert_position(bv->v);
+  make_unit_cube_map(co0, co1, co2, v_co, mat);
+
+  VMesh vm = make_cube_corner_adj_vmesh(state);
+  /* Set the correct BoundVert ring (the canonical helper builds with nullptr). */
+  vm.boundstart = bv->vmesh->boundstart;
+
+  const int ns = vm.seg;
+  const int ns2 = ns / 2;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j <= ns2; j++) {
+      for (int k = 0; k <= ns; k++) {
+        float v[4];
+        copy_v3_v3(v, geom::mesh_vert(&vm, i, j, k)->co);
+        v[3] = 1.0f;
+        mul_m4_v4(mat, v);
+        copy_v3_v3(geom::mesh_vert(&vm, i, j, k)->co, v);
+      }
+    }
+  }
+  return vm;
+}
+
+/**
+ * Builds the general ADJ vmesh by starting from a seed mesh with seg=2,
+ * then iteratively doubling resolution via #cubic_subdiv and
+ * resampling to the target with #interp_vmesh.
+ * Dispatches to #tri_corner_adj_vmesh for the cube-corner special case.
+ */
+static VMesh adj_vmesh(BevelState &state, BevVert *bv)
+{
+  const int n_bndv = bv->vmesh->count;
+  const int nseg = bv->vmesh->seg;
+
+  /* Same as the bevel of 3 edges of a vertex in a cube: use the superellipsoid snap path. */
+  if (n_bndv == 3 && tri_corner_test(state, bv) != -1 && state.pro_super_r != profile::PRO_SQUARE_IN_R) {
+    return tri_corner_adj_vmesh(state, bv);
+  }
+
+  VMesh vm0 = new_adj_vmesh(n_bndv, 2, bv->vmesh->boundstart);
+
+  /* Seed mesh: boundary from BoundVert coords, mid-arc from profile at k=1. */
+  float3 center(0.0f);
+  BoundVert *bndv = vm0.boundstart;
+  for (int i = 0; i < n_bndv; i++) {
+    copy_v3_v3(geom::mesh_vert(&vm0, i, 0, 0)->co, bndv->nv.co);
+    float pt[3];
+    profile::get_profile_point(state, &bndv->profile, 1, 2, pt);
+    copy_v3_v3(geom::mesh_vert(&vm0, i, 0, 1)->co, pt);
+    center += float3(bndv->nv.co);
+    bndv = bndv->next;
+  }
+  center /= float(n_bndv);
+
+  /* Center vertex position using fullness. */
+  const float3 v_co = state.emesh.vert_position(bv->v);
+  const float3 center_dir = v_co - center;
+  if (math::length_squared(center_dir) > geom::BEVEL_EPSILON_SQ) {
+    const float fullness = state.pro_spacing.fullness;
+    float3 cen_co = center + center_dir * fullness;
+    copy_v3_v3(geom::mesh_vert(&vm0, 0, 1, 1)->co, cen_co);
+  }
+  else {
+    copy_v3_v3(geom::mesh_vert(&vm0, 0, 1, 1)->co, center);
+  }
+  geom::vmesh_copy_equiv_verts(&vm0);
+
+  /* Subdivide until seg >= nseg. */
+  VMesh vm1 = std::move(vm0);
+  while (vm1.seg < nseg) {
+    VMesh next = cubic_subdiv(state, vm1);
+    vm1 = std::move(next);
+  }
+  if (vm1.seg != nseg) {
+    VMesh resampled = interp_vmesh(state, vm1, nseg);
+    vm1 = std::move(resampled);
+  }
+  return vm1;
+}
+
+/** \} */
 
 /* Construction around the vertex. */
 static void bevel_vert_construct(BevelState &state, int v)
@@ -2496,7 +4078,10 @@ static void bevel_vert_construct(BevelState &state, int v)
   bv->edgecount = tot_edges;
   bv->selcount = nsel;
   bv->wirecount = tot_wire;
-  bv->offset = 1.0f;  // TODO: handle vertex group or bevel weights
+  /* Use the first offset component of the first edge as an approximation.
+   * This is exact when all edges share a uniform offset, which is the common case.
+   * TODO: handle vertex groups and bevel weights properly. */
+  bv->offset = (first_e != -1) ? state.params.offsets[0][first_e] : 1.0f;
 
   bv->edges = Array<EdgeHalf>(tot_edges);
 
@@ -2574,6 +4159,17 @@ static void bevel_vert_construct(BevelState &state, int v)
       eh->offset_l = eh->offset_l_spec = 0.0f;
       eh->offset_r = eh->offset_r_spec = 0.0f;
     }
+
+    /* An edge half is a seam when its two adjacent faces have discontinuous UV data,
+     * or when one of those faces is absent (boundary edge). Mirrors the BMesh logic
+     * in #bev_vert_construct. */
+    if (eh->fprev != -1 && eh->fnext != -1) {
+      eh->is_seam = !state.uv_layer_info.contig_ldata_across_edge(
+          emesh.mesh, eh->e, eh->fprev, eh->fnext);
+    }
+    else {
+      eh->is_seam = true;
+    }
   }
 
   state.vert_hash.add_new(v, bv);
@@ -2605,12 +4201,12 @@ std::optional<Mesh *> mesh_bevel(
     construct::bevel_vert_construct(state, v);
     BevVert *bv = state.vert_hash.lookup(v);
     construct::build_boundary(state.emesh, state, bv, true);
+    construct::determine_uv_vert_connectivity(state, v);
+    construct::build_vmesh(state, bv);
     if (v == 0) {
       fmt::println("\nMESH code dump bv for vert 0");
       debug::dump_bev_vert(*bv);
     }
-
-    // TODO: determine_uv_vert_connectivity
   });
 
   return std::nullopt;

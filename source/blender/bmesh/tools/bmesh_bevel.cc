@@ -553,12 +553,38 @@ namespace debug {
     fmt::println("  (no boundverts)");
     return;
   }
-  /* Walk the circular linked list. */
+  /* Walk the circular linked list of BoundVerts. */
   const BoundVert *bndv = vm.boundstart;
   do {
     dump_bound_vert(*bndv);
     bndv = bndv->next;
   } while (bndv != vm.boundstart);
+
+  /* Print the NewVert grid if it has been allocated. */
+  if (vm.mesh != nullptr) {
+    const int n = vm.count;
+    const int ns = vm.seg;
+    const int ns2 = ns / 2;
+    /* Non-const pointer needed by mesh_vert (accessor is not const-qualified). */
+    VMesh *vmp = const_cast<VMesh *>(&vm);
+    fmt::println("  NewVerts (i, j, k) for 0<=i<{} 0<=j<={} 0<=k<{}:", n, ns2, ns);
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j <= ns2; j++) {
+        fmt::print("    ({},{}): ", i, j);
+        for (int k = 0; k < ns; k++) {
+          const int nj = ns / 2 + 1;
+          const int nk = ns + 1;
+          const NewVert *nv = &vmp->mesh[i * nj * nk + j * nk + k];
+          fmt::print("({},({:.3f},{:.3f},{:.3f})) ",
+                     nv->v ? BM_elem_index_get(nv->v) : -1,
+                     nv->co[0],
+                     nv->co[1],
+                     nv->co[2]);
+        }
+        fmt::println("");
+      }
+    }
+  }
 }
 
 /* Dumps a full #BevVert, including its #EdgeHalf array, wire edges, and #VMesh.
@@ -8202,11 +8228,6 @@ void BM_mesh_bevel(BMesh *bm,
       bv = bevel_vert_construct(bm, &bp, v);
       if (!limit_offset && bv) {
         build_boundary(&bp, bv, true);
-        // DEBUG!!
-        if (debug::vi(v) == 0) {
-          fmt::println("\nBMESH code dump bv for vert 0");
-          debug::dump_bev_vert(*bv);
-        }
         determine_uv_vert_connectivity(&bp, bm, v);
       }
     }
@@ -8248,6 +8269,11 @@ void BM_mesh_bevel(BMesh *bm,
       bv = find_bevvert(&bp, v);
       if (bv) {
         build_vmesh(&bp, bm, bv);
+        // DEBUG!!
+        if (debug::vi(v) == 0) {
+          fmt::println("\nBMESH code dump bv for vert 0");
+          debug::dump_bev_vert(*bv);
+        }
       }
     }
   }
