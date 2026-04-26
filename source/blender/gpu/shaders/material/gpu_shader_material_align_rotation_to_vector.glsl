@@ -73,7 +73,7 @@ void align_rotation_to_vector_auto_pivot(float4 rotation_in,
   aa.axis = normalize(rotation_axis);
   aa.angle = angle;
 
-  rotation = math_quaternion_multiply(to_axis_angle(aa), quat_in).as_float4();
+  rotation = math_quaternion_multiply(to_quaternion(aa), quat_in).as_float4();
 }
 
 [[node]]
@@ -110,5 +110,5 @@ void align_rotation_to_vector_fixed_pivot(float4 rotation_in,
   aa.axis = normalize(pivot_axis);
   aa.angle = angle;
 
-  rotation = math_quaternion_multiply(to_axis_angle(aa), quat_in).as_float4();
+  rotation = math_quaternion_multiply(to_quaternion(aa), quat_in).as_float4();
 }

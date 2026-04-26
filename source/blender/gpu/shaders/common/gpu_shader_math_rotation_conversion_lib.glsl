@@ -197,7 +197,7 @@ Quaternion to_quaternion(float4x4 mat, const bool normalized)
   return to_quaternion(to_float3x3(mat), normalized);
 }
 
-Quaternion to_axis_angle(AxisAngle axis_angle)
+Quaternion to_quaternion(AxisAngle axis_angle)
 {
   float angle_cos = cos(axis_angle.angle);
   /** Using half angle identities: sin(angle / 2) = sqrt((1 - angle_cos) / 2) */
@@ -226,7 +226,7 @@ Quaternion to_quaternion(float3 axis, float angle)
   AxisAngle aa;
   aa.axis = normalize(axis);
   aa.angle = angle;
-  return to_axis_angle(aa);
+  return to_quaternion(aa);
 }
 
 /** \} */
