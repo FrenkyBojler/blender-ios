@@ -103,14 +103,11 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
     });
 
     Array<int> cluster_indices(mesh.verts_num);
-    threading::parallel_for(
-        IndexRange(mesh.verts_num),
-        1024,
-        [&, vertex_cluster = std::as_const(vertex_cluster)](const IndexRange range) {
-          for (const int i : range) {
-            cluster_indices[i] = vertex_cluster.find_root(i);
-          }
-        });
+    threading::parallel_for(IndexRange(mesh.verts_num), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        cluster_indices[i] = std::as_const(vertex_cluster).find_root(i);
+      }
+    });
 
     return mesh.attributes().adapt_domain<int>(
         VArray<int>::from_container(std::move(cluster_indices)), AttrDomain::Point, domain);
