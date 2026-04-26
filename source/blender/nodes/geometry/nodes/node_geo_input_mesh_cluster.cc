@@ -37,7 +37,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
   MeshClusterFieldInput(Field<bool> selection_field,
                         Field<float3> position_field,
                         float min_distance)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Mesh Cluster Field"),
+      : bke::MeshFieldInput(CPPType::get<int>(), "Mesh Cluster by Distance"),
         selection_field_(std::move(selection_field)),
         position_field_(std::move(position_field)),
         min_distance_(min_distance)

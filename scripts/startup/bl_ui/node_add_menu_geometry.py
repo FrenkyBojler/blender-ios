@@ -755,7 +755,7 @@ class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAccumulateField")
-        self.node_operator(layout, "GeometryNodeClusterField")
+        self.node_operator(layout, "GeometryNodeClusterByDistance")
         self.node_operator(layout, "GeometryNodeFieldAtIndex")
         self.node_operator(layout, "GeometryNodeFieldOnDomain")
         self.node_operator(layout, "GeometryNodeFieldAverage")

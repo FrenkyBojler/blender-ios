@@ -39,7 +39,7 @@ set(SRC
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
-  nodes/node_geo_cluster_field.cc
+  nodes/node_geo_cluster_by_distance.cc
   nodes/node_geo_collection_children.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc

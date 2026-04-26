@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
-#include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_index_mask_expression.hh"
 #include "BLI_kdtree.hh"
@@ -12,7 +11,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_cluster_field_cc {
+namespace blender::nodes::node_geo_cluster_by_distance_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -53,7 +52,7 @@ static void masked_cluster_ids(const Span<float3> all_positions,
   });
 }
 
-class ClusterFieldInput final : public bke::GeometryFieldInput {
+class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
  private:
   Field<float3> positions_field_;
   Field<int> group_field_;
@@ -61,11 +60,11 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
   float distance_;
 
  public:
-  ClusterFieldInput(Field<float3> positions_field,
-                    Field<int> group_field,
-                    Field<bool> selection_field,
-                    const float distance)
-      : bke::GeometryFieldInput(CPPType::get<int>(), "Cluster Field"),
+  ClusterByDistanceFieldInput(Field<float3> positions_field,
+                              Field<int> group_field,
+                              Field<bool> selection_field,
+                              const float distance)
+      : bke::GeometryFieldInput(CPPType::get<int>(), "Cluster by Distance"),
         positions_field_(std::move(positions_field)),
         group_field_(std::move(group_field)),
         selection_field_(std::move(selection_field)),
@@ -220,7 +219,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
   bool is_equal_to(const fn::FieldInput &other) const final
   {
-    if (const auto *other_field = dynamic_cast<const ClusterFieldInput *>(&other)) {
+    if (const auto *other_field = dynamic_cast<const ClusterByDistanceFieldInput *>(&other)) {
       return distance_ == other_field->distance_ &&
              positions_field_ == other_field->positions_field_ &&
              group_field_ == other_field->group_field_ &&
@@ -238,7 +237,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   params.set_output("Cluster ID"_ustr,
-                    Field<int>::from_input<ClusterFieldInput>(
+                    Field<int>::from_input<ClusterByDistanceFieldInput>(
                         params.extract_input<Field<float3>>("Position"_ustr),
                         params.extract_input<Field<int>>("Group ID"_ustr),
                         params.extract_input<Field<bool>>("Selection"_ustr),
@@ -249,8 +248,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeClusterField"_ustr);
-  ntype.ui_name = "Cluster Field";
+  geo_node_type_base(&ntype, "GeometryNodeClusterByDistance"_ustr);
+  ntype.ui_name = "Cluster by Distance";
   ntype.ui_description = "Group elements into integer IDs based on proximity of vector values";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -259,4 +258,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_cluster_field_cc
+}  // namespace blender::nodes::node_geo_cluster_by_distance_cc
