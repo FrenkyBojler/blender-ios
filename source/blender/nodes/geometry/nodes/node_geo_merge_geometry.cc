@@ -6,7 +6,6 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BLI_map.hh"
-#include "BLI_task.hh"
 
 #include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_merge_by_distance.hh"
@@ -62,7 +61,6 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
 
   if ((selection.size() == domain_size) && (group_id_to_root.size() == 1)) {
     BLI_assert(selection.bounds() == IndexRange(domain_size));
-    /* TODO: Separate implementation of geometry::collaps_selected_to_point?.. */
     r_roots.reinitialize(domain_size);
     r_roots.fill(0);
     return domain_size - 1;
