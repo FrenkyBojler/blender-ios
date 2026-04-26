@@ -3268,7 +3268,7 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   /* treat 'str_last' as null terminator for str, no need to modify in-place */
   const char *str = but->editstr, *str_last;
 
-  /* compute padding in block space */
+  /* Compute padding in block space. */
   bool right_aligned = !(but->drawflag & BUT_TEXT_LEFT) && but->drawflag & BUT_TEXT_RIGHT;
 
   if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
@@ -3299,7 +3299,7 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
     startx += max_ff(0.0f, align_x_ofs);
   }
 
-  /* transform startx to screen space */
+  /* Transform startx to screen space. */
   block_to_window_fl(region, but->block, &startx, &starty_dummy);
 
   fontscale(&fstyle.points, aspect);

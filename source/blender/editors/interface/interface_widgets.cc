@@ -1811,53 +1811,53 @@ Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
  */
 static void text_clip_cursor(const uiFontStyle *fstyle, Button *but, const rcti *rect)
 {
-  /* rect already includes text padding, no need for extra margin */
+  /* Rect already includes text padding, no need for extra margin. */
   const int okwidth = BLI_rcti_size_x(rect);
 
   BLI_assert(but->editstr && but->pos >= 0);
 
-  /* need to set this first */
+  /* Need to set this first. */
   fontstyle_set(fstyle);
 
-  /* shift text left until caret is visible */
+  /* Shift text left until caret is visible. */
   but->ofs = std::min(but->ofs, but->pos);
 
-  /* string is small enough to not require clipping */
+  /* String is small enough to not require clipping. */
   if (BLF_width(fstyle->uifont_id, but->editstr, INT_MAX) <= okwidth) {
     but->ofs = 0;
     return;
   }
 
-  /* pixel width of visible string fragment */
+  /* Pixel width of visible string fragment. */
   but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, INT_MAX);
 
   const int editstr_len = strlen(but->editstr);
   int len = editstr_len;
 
-  /* shift text right to fill available space */
+  /* Shift text right to fill available space. */
   while (but->strwidth < okwidth && but->ofs > 0) {
     text_clip_give_prev_off(but, but->editstr);
     but->strwidth = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, len - but->ofs);
   }
 
-  /* shift text left until caret is visible */
+  /* Shift text left until caret is visible. */
   if (but->strwidth > okwidth) {
     while (but->strwidth > okwidth) {
       float caret_x;
 
-      /* cursor position relative to text start */
+      /* Cursor position relative to text start. */
       caret_x = BLF_width(fstyle->uifont_id, but->editstr + but->ofs, (but->pos - but->ofs));
 
-      /* caret is too far right, shift text left */
+      /* Caret is too far right, shift text left. */
       if (caret_x > okwidth - 20) {
         text_clip_give_next_off(but, but->editstr, but->editstr + editstr_len);
       }
       else {
-        /* caret is too far left, shift text right */
+        /* Caret is too far left, shift text right. */
         if (caret_x < 20 && but->ofs > 0) {
           text_clip_give_prev_off(but, but->editstr);
         }
-        /* string fragment is too wide, trim end */
+        /* String fragment is too wide, trim end. */
         len -= BLI_str_utf8_size_safe(
             BLI_str_find_prev_char_utf8(but->editstr + len, but->editstr));
       }
