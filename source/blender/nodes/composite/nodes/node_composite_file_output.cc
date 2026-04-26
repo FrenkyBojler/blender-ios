@@ -637,6 +637,7 @@ class FileOutputOperation : public NodeOperation {
         break;
       case ResultType::Int2:
       case ResultType::Int3:
+      case ResultType::Int4:
       case ResultType::Int:
       case ResultType::Bool:
       case ResultType::Float4x4:
@@ -679,6 +680,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Int3:
+      case ResultType::Int4:
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:
@@ -741,6 +743,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Int:
       case ResultType::Int3:
+      case ResultType::Int4:
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:
