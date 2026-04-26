@@ -56,7 +56,7 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   else {
     group_id_span.emplace(group_id);
     selection.foreach_index_optimized<int>(
-        [&](const int index) { group_id_to_root.add(group_id_span->operator[](index), index); });
+        [&](const int index) { group_id_to_root.add((*group_id_span)[index], index); });
   }
 
   if ((selection.size() == domain_size) && (group_id_to_root.size() == 1)) {
