@@ -102,7 +102,6 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     }
 
     Array<int> cluster_ids(mask.min_array_size());
-
 #ifndef NDEBUG
     cluster_ids.as_mutable_span().fill(no_cluster_value);
 #endif
@@ -118,7 +117,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
       VectorSet<int> group_indices;
       group_id_span.emplace(group_ids);
       mask_to_cluster.foreach_index(
-          [&](const int index) { group_indices.add(group_id_span->operator[](index)); });
+          [&](const int index) { group_indices.add((*group_id_span)[index]); });
       return group_indices;
     }();
     const int groups_num = group_indices.size();
@@ -126,7 +125,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     Array<IndexMask> all_indices_by_group_id(groups_num);
     if (group_id_span.has_value()) {
       const auto get_group_index = [&](const int i) {
-        return group_indices.index_of(group_id_span->operator[](i));
+        return group_indices.index_of((*group_id_span)[i]);
       };
       IndexMask::from_groups<int>(
           mask_to_cluster, memory, get_group_index, all_indices_by_group_id);

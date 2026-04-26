@@ -53,7 +53,6 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
     edge_evaluator.set_selection(selection_field_);
     edge_evaluator.evaluate();
     const IndexMask selection = edge_evaluator.get_evaluated_selection_as_mask();
-
     if (selection.is_empty()) {
       return fn::IndexFieldInput::get_index_varray(mask);
     }
@@ -72,7 +71,6 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
 
     selection.foreach_index([&](const int edge_i) {
       const int2 edge = edges[edge_i];
-
       const int2 edge_clusters(vertex_cluster.find_root(edge[0]),
                                vertex_cluster.find_root(edge[1]));
       if (edge_clusters[0] == edge_clusters[1]) {
@@ -81,9 +79,7 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
 
       const float3 vert_a_cluster = vert_cluster_center[edge_clusters[0]];
       const float3 vert_b_cluster = vert_cluster_center[edge_clusters[1]];
-
       const float distance = math::distance(vert_a_cluster, vert_b_cluster);
-
       if (distance >= min_distance_) {
         return;
       }
@@ -126,9 +122,7 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
 
   bool is_equal_to(const fn::FieldInput &other) const override
   {
-    if (const ClusterByConnectedFieldInput *other_field =
-            dynamic_cast<const ClusterByConnectedFieldInput *>(&other))
-    {
+    if (const auto *other_field = dynamic_cast<const ClusterByConnectedFieldInput *>(&other)) {
       if (this->min_distance_ != other_field->min_distance_) {
         return false;
       }
