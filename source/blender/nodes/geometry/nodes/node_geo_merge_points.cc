@@ -13,7 +13,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_merge_geometry_cc {
+namespace blender::nodes::node_geo_merge_points_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -150,8 +150,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMergeGeometry"_ustr);
-  ntype.ui_name = "Merge Geometry";
+  geo_node_type_base(&ntype, "GeometryNodeMergePoints"_ustr);
+  ntype.ui_name = "Merge Points";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
@@ -159,4 +159,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_merge_geometry_cc
+}  // namespace blender::nodes::node_geo_merge_points_cc
