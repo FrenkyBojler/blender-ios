@@ -4,9 +4,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_disjoint_set.hh"
-#include "BLI_math_base.hh"
-#include "BLI_math_vector_types.hh"
-#include "BLI_sort.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
 #include "BKE_geometry_fields.hh"
@@ -14,7 +12,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_input_mesh_cluster_cc {
+namespace blender::nodes::node_geo_input_cluster_by_connected_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -27,17 +25,17 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
 }
 
-class MeshClusterFieldInput final : public bke::MeshFieldInput {
+class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
  private:
   Field<bool> selection_field_;
   Field<float3> position_field_;
   float min_distance_;
 
  public:
-  MeshClusterFieldInput(Field<bool> selection_field,
-                        Field<float3> position_field,
-                        float min_distance)
-      : bke::MeshFieldInput(CPPType::get<int>(), "Mesh Cluster by Distance"),
+  ClusterByConnectedFieldInput(Field<bool> selection_field,
+                               Field<float3> position_field,
+                               float min_distance)
+      : bke::MeshFieldInput(CPPType::get<int>(), "Cluster by Connected"),
         selection_field_(std::move(selection_field)),
         position_field_(std::move(position_field)),
         min_distance_(min_distance)
@@ -131,8 +129,8 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 
   bool is_equal_to(const fn::FieldInput &other) const override
   {
-    if (const MeshClusterFieldInput *other_field = dynamic_cast<const MeshClusterFieldInput *>(
-            &other))
+    if (const ClusterByConnectedFieldInput *other_field =
+            dynamic_cast<const ClusterByConnectedFieldInput *>(&other))
     {
       if (this->min_distance_ != other_field->min_distance_) {
         return false;
@@ -157,7 +155,7 @@ class MeshClusterFieldInput final : public bke::MeshFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   params.set_output("Cluster ID"_ustr,
-                    Field<int>::from_input<MeshClusterFieldInput>(
+                    Field<int>::from_input<ClusterByConnectedFieldInput>(
                         params.extract_input<Field<bool>>("Selection"_ustr),
                         params.extract_input<Field<float3>>("Position"_ustr),
                         params.extract_input<float>("Distance"_ustr)));
@@ -167,8 +165,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputMeshCluster"_ustr);
-  ntype.ui_name = "Mesh Cluster";
+  geo_node_type_base(&ntype, "GeometryNodeInputClusterByConnected"_ustr);
+  ntype.ui_name = "Cluster by Connected";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
@@ -176,4 +174,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_input_mesh_cluster_cc
+}  // namespace blender::nodes::node_geo_input_cluster_by_connected_cc
