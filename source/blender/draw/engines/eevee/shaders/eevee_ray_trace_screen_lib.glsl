@@ -23,87 +23,6 @@
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
 
-/* Estimates the thickness of an occluder pixel along a screen ray. */
-struct ScreenThicknessEstimator {
-  /* Z slope of the N previous steps (n-1, n-2). */
-  float2 prev_ss_z_slope;
-  /* Depth buffer value of the previous sample. */
-  float prev_ss_z;
-  /* Ray T of the previous sample. */
-  float prev_t;
-
-  static ScreenThicknessEstimator init(float start_z)
-  {
-    ScreenThicknessEstimator estimator;
-    estimator.prev_ss_z_slope = float2(0.0f);
-    estimator.prev_ss_z = start_z;
-    estimator.prev_t = 0.0f;
-    return estimator;
-  }
-
-  /**
-   * Return the screen thickness (in depth buffer unit) of a sample and update the internal state.
-   *
-   * \param sample_ss_z: The depth buffer sample.
-   * \param sample_ss_t: The screen space ray t in pixel.
-   * \param sample_min_thickness: The minimum thickness to consider this sample. Ideally, it should
-   * be equal to the radius of the pixel at the sample depth.
-   */
-  float thickness(float sample_ss_z, float sample_ss_t, float sample_min_thickness)
-  {
-    float delta_t = sample_ss_t - prev_t;
-    /* Slope is negative if getting closer to the camera and positive if going away.
-     * We don't care about not hitting back faces so we drop the positive cases.
-     * This reduces the complexity of the following checks */
-    float delta_z = min(0.0f, sample_ss_z - prev_ss_z);
-    float slope = delta_z / delta_t;
-    /* Treat this sample as a segment between the previous sample and this one.
-     * Avoid loosing the surface when ray is parallel to the view plane. */
-    float thickness = -delta_z;
-    /* Treat abrupt change of slope as different objects.
-     * Increasing this number reduces the porosity of surfaces almost parallel to the view but
-     * might introduce connection between very thin objects and their background. */
-    float max_slope_change = 2.0f;
-    if (any(lessThan(float2(slope), prev_ss_z_slope * max_slope_change))) {
-      thickness = 0.0f; /* Disconnect from previous sample. */
-    }
-    /* Minimum thickness. */
-    thickness = max(thickness, sample_min_thickness);
-    /* Update state. */
-    prev_ss_z_slope.y = prev_ss_z_slope.x;
-    prev_ss_z_slope.x = slope;
-    prev_t = sample_ss_t;
-    prev_ss_z = sample_ss_z;
-    return thickness;
-  }
-
-  /**
-   * Check ray-sample intersection and update the internal state.
-   *
-   * \param sample_ss_z: The depth buffer sample.
-   * \param sample_ss_t: The screen space ray t in pixel.
-   * \param sample_min_thickness: The minimum thickness to consider this sample. Ideally, it should
-   * be equal to the radius of the pixel at the sample depth.
-   * \param ray_ss_z: The ray Z depth in depth buffer unit.
-   * \param ray_ss_z_prev: The ray Z depth in depth buffer unit of the previous iteration.
-   */
-  bool intersect(float sample_ss_z,
-                 float sample_ss_t,
-                 float sample_min_thickness,
-                 float ray_ss_z,
-                 float ray_ss_z_prev)
-  {
-    float sample_thickness = thickness(sample_ss_z, sample_ss_t, sample_min_thickness);
-    /* Make sure the sample is at least as thick as the ray step.
-     * Adding the ray thickness is equivalent to doing the full 1D AABB intersection test. */
-    sample_thickness += abs(ray_ss_z - ray_ss_z_prev);
-
-    float sample_min = sample_ss_z;
-    float sample_max = sample_ss_z + sample_thickness;
-    return ray_ss_z >= sample_min && ray_ss_z <= sample_max;
-  }
-};
-
 /* Inputs expected to be in view-space. */
 void raytrace_clip_ray_to_near_plane(Ray &ray)
 {
@@ -197,7 +116,7 @@ ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
     depth_sample = textureLod(hiz_tx, ss_ray_P.xy * hiz_data.uv_scale, floor(lod)).r;
 
     float sample_view_Z = drw_depth_screen_to_view(depth_sample);
-    float sample_ndc_min_thickness = rt_data.ndc_pixel_thicknes_at(sample_view_Z);
+    float sample_ndc_min_thickness = rt_data.ray_thickness.pixel_depth_thickness_at(sample_view_Z);
 
     delta = depth_sample - ss_ray_P.z;
     hit = thickness_estimator.intersect(

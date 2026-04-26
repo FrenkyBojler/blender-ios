@@ -14,6 +14,53 @@
 namespace blender::eevee {
 #endif
 
+struct [[host_shared]] ScreenThicknessParameters {
+  float thickness_ndc_scale;
+  float thickness_ndc_bias;
+  float thickness_vs_scale;
+  float thickness_vs_bias;
+
+  /* Return the depth buffer Z thickness of a pixel at a given view space Z depth. */
+  static ScreenThicknessParameters build(bool is_persp,
+                                         float4x4 winmat,
+                                         float avg_pixel_radius_unit,
+                                         float min_pixel_thickness,
+                                         float min_constant_thickness)
+  {
+    ScreenThicknessParameters params;
+    avg_pixel_radius_unit *= min_pixel_thickness;
+    if (is_persp) {
+      /* Perspective pixels increase footprint with the distance. */
+      params.thickness_vs_scale = -avg_pixel_radius_unit;
+      params.thickness_vs_bias = -min_constant_thickness;
+      params.thickness_ndc_scale = winmat[3][2];
+      params.thickness_ndc_bias = 0.0f;
+      /* Convert from NDC to screen range. */
+      params.thickness_ndc_scale *= 0.5f;
+    }
+    else {
+      /* Orthographic pixels have fixed footprint. */
+      params.thickness_vs_scale = 0.0f;
+      params.thickness_vs_bias = 1.0f; /* Avoid NaN. */
+      params.thickness_ndc_scale = 0.0f;
+      params.thickness_ndc_bias = -(avg_pixel_radius_unit + min_constant_thickness) * winmat[2][2];
+      /* Convert from NDC to screen range. */
+      params.thickness_ndc_bias *= 0.5f;
+    }
+    return params;
+  }
+
+  /* Return the depth buffer Z thickness of a pixel at a given view space Z depth. */
+  float pixel_depth_thickness_at(float vs_z)
+  {
+    float vs_thickness = vs_z * thickness_vs_scale + thickness_vs_bias;
+    /* NDC offset from view space offset.
+     * From http://terathon.com/gdc07_lengyel.pdf (slide 24) */
+    float ndc_thickness = vs_thickness / (vs_z * (vs_z + vs_thickness));
+    return ndc_thickness * thickness_ndc_scale + thickness_ndc_bias;
+  }
+};
+
 struct [[host_shared]] RayTraceData {
   /** ViewProjection matrix used to render the previous frame. */
   float4x4 history_persmat;
@@ -44,18 +91,12 @@ struct [[host_shared]] RayTraceData {
   bool32_t trace_refraction;
   /** View space thickness the objects. */
   float thickness;
-  float thickness_constant;
-  float thickness_scale;
-  float thickness_bias;
+  uint _pad0;
+  uint _pad1;
+  uint _pad2;
 
-  /* Return the NDC Z thickness of a pixel in at a given view space Z depth. */
-  float ndc_pixel_thicknes_at(float vs_z)
-  {
-    float vs_thickness = vs_z * thickness_scale + thickness_bias;
-    /* NDC offset from view space offset.
-     * From http://terathon.com/gdc07_lengyel.pdf (slide 24) */
-    return thickness_constant * (vs_thickness / (vs_z * (vs_z + vs_thickness)));
-  }
+  struct ScreenThicknessParameters fast_gi_thickness;
+  struct ScreenThicknessParameters ray_thickness;
 };
 
 struct [[host_shared]] AOData {

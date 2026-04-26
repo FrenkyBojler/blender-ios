@@ -482,22 +482,32 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   data_.fast_gi_resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) *
                                        fast_gi_resolution_scale);
 
-  /* See #RayTraceData::ndc_thickness_at(). */
-  data_.thickness_constant = -(2.0f * render_view.far_clip() * render_view.near_clip()) /
-                             (render_view.far_clip() - render_view.near_clip());
-  auto corners = render_view.frustum_corners_get();
+  {
+    /* See #RayTraceData::pixel_depth_thickness_at(). */
+    auto corners = render_view.frustum_corners_get();
 
-  float avg_pixel_radius_far = length(
-      float2(distance(corners[1], corners[5]), distance(corners[1], corners[6])) / float2(extent));
-  if (render_view.is_persp()) {
-    /* Perspective pixels increase footprint with the distance. */
-    data_.thickness_scale = avg_pixel_radius_far / render_view.far_clip();
-    data_.thickness_bias = data_.thickness;
-  }
-  else {
-    /* Orthographic pixels have fixed footprint. */
-    data_.thickness_scale = 0.0f;
-    data_.thickness_bias = avg_pixel_radius_far + data_.thickness;
+    const float avg_pixel_radius_far = length(
+        float2(distance(corners[1], corners[5]), distance(corners[1], corners[6])) /
+        float2(extent));
+
+    /* Average pixel radius at unit Z plane from the camera. */
+    const float avg_pixel_radius_unit = render_view.is_persp() ?
+                                            avg_pixel_radius_far / render_view.far_clip() :
+                                            avg_pixel_radius_far;
+
+    data_.ray_thickness = ScreenThicknessParameters::build(render_view.is_persp(),
+                                                           render_view.winmat(),
+                                                           avg_pixel_radius_unit,
+                                                           1.0f,
+                                                           data_.thickness);
+
+    data_.fast_gi_thickness = ScreenThicknessParameters::build(
+        render_view.is_persp(),
+        render_view.winmat(),
+        avg_pixel_radius_unit,
+        /* Eyeballed for 64 samples and scaled for lower step count. */
+        3.0f * sqrtf(64.0f / float(fast_gi_step_count_)),
+        inst_.uniform_data.data.ao.thickness_near);
   }
 
   /* TODO(fclem): Eventually all uniform data is setup here. */
