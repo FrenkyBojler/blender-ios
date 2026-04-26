@@ -89,7 +89,6 @@ BlenderDefRNA DefRNA = {
 };
 
 #ifndef RNA_RUNTIME
-static DnaRenameMaps g_rename_maps;
 
 /**
  * When set, report details about which defaults are used.
@@ -206,7 +205,8 @@ static int DNA_struct_find_index_wrapper(const SDNA *sdna, const char *type_name
   /* We may support this at some point but for now we don't. */
   BLI_assert_unreachable();
 #else
-  type_name = g_rename_maps.types.lookup_default_as(type_name, type_name).c_str();
+  static DnaRenameMaps rename_maps = DNA_rename_maps_alias_to_static();
+  type_name = rename_maps.types.lookup_default_as(type_name, type_name).c_str();
 #endif
   return DNA_struct_find_index_without_alias(sdna, type_name);
 }
@@ -739,10 +739,6 @@ BlenderRNA *RNA_create()
     DefRNA.error = true;
   }
 
-#ifndef RNA_RUNTIME
-  g_rename_maps = DNA_rename_maps_alias_to_static();
-#endif
-
   return brna;
 }
 
@@ -910,10 +906,6 @@ void RNA_free(BlenderRNA *brna)
       MEM_delete(brna);
     }
   }
-
-#ifndef RNA_RUNTIME
-  g_rename_maps = DnaRenameMaps{};
-#endif
 }
 
 static size_t rna_property_type_sizeof(PropertyType type)

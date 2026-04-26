@@ -710,7 +710,7 @@ static void write_sdna_struct_ids(FILE *file, const Span<dna::ParsedStruct> pars
   fprintf(file, "int sdna_struct_id_get_max() { return %d; }\n", int(parsed_structs.size()));
   fprintf(file, "\n}\n");
 
-  for (int64_t i = 0; i < parsed_structs.size(); i++) {
+  for (const int64_t i : parsed_structs.index_range()) {
     const char *name = parsed_structs[i].alias_type_name.c_str();
     const int sdna_index = int(i) + 1;
     fprintf(file, "struct %s;\n", name);
