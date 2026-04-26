@@ -497,6 +497,22 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 22)) {
+    /* "Deform Curves on Surface" gained a NodeGeometryDeformCurvesOnSurface
+     * storage struct (a single uint64_t cache pointer used at runtime to hold
+     * a per-node ReverseUVSampler cache).  Files saved before this change have
+     * the node with storage == nullptr; allocate default storage so the
+     * runtime code can rely on it being present. */
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (node.type_legacy == GEO_NODE_DEFORM_CURVES_ON_SURFACE && node.storage == nullptr) {
+          node.storage = MEM_new<NodeGeometryDeformCurvesOnSurface>(__func__);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

@@ -297,8 +297,19 @@ static Span<int> lookup_tris_in_cell(const int2 cell,
   return row.tri_indices.as_span().slice(offset, tris_num);
 }
 
-ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
+ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv,
+                                                  Span<float2> uv_map_override,
+                                                  Span<int3> corner_tris_override) const
 {
+  /* When a caller supplies fresh Spans, use them in place of the (possibly
+   * dangling) ones captured at construction time.  The lookup grid itself is
+   * built from triangle indices and so doesn't care about the underlying span
+   * identity — only the per-tri uv_map / corner_tris reads in `lookup_fun`
+   * dereference the Spans. */
+  const Span<float2> &uv_map = uv_map_override.is_empty() ? uv_map_ : uv_map_override;
+  const Span<int3> &corner_tris = corner_tris_override.is_empty() ? corner_tris_ :
+                                                                    corner_tris_override;
+
   const int2 cell = uv_to_cell(query_uv, resolution_);
   const Span<int> tri_indices = lookup_tris_in_cell(cell, *lookup_grid_);
   if (tri_indices.size() == 0) {
@@ -319,10 +330,10 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
   const float area_epsilon = 0.00001f;
 
   auto lookup_fun = [&](const int tri_i) {
-    const int3 &tri = corner_tris_[tri_i];
-    const float2 &uv_0 = uv_map_[tri[0]];
-    const float2 &uv_1 = uv_map_[tri[1]];
-    const float2 &uv_2 = uv_map_[tri[2]];
+    const int3 &tri = corner_tris[tri_i];
+    const float2 &uv_0 = uv_map[tri[0]];
+    const float2 &uv_1 = uv_map[tri[1]];
+    const float2 &uv_2 = uv_map[tri[2]];
     float3 bary_weights;
     if (!barycentric_coords_v2(uv_0, uv_1, uv_2, query_uv, bary_weights)) {
       return Result{};
@@ -340,9 +351,9 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
       /* Allow ignoring multiple triangle intersections if the uv is almost exactly on an edge.
        */
       if (worse_dist < -edge_epsilon) {
-        const int3 &best_tri = corner_tris_[tri_i];
+        const int3 &best_tri = corner_tris[tri_i];
         const float best_tri_area = area_tri_v2(
-            uv_map_[best_tri[0]], uv_map_[best_tri[1]], uv_map_[best_tri[2]]);
+            uv_map[best_tri[0]], uv_map[best_tri[1]], uv_map[best_tri[2]]);
         const float current_tri_area = area_tri_v2(uv_0, uv_1, uv_2);
         if (best_tri_area > area_epsilon && current_tri_area > area_epsilon) {
           /* The uv sample is in multiple triangles. */
@@ -395,12 +406,14 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
 ReverseUVSampler::~ReverseUVSampler() = default;
 
 void ReverseUVSampler::sample_many(const Span<float2> query_uvs,
-                                   MutableSpan<Result> r_results) const
+                                   MutableSpan<Result> r_results,
+                                   Span<float2> uv_map_override,
+                                   Span<int3> corner_tris_override) const
 {
   BLI_assert(query_uvs.size() == r_results.size());
   threading::parallel_for(query_uvs.index_range(), 256, [&](const IndexRange range) {
     for (const int i : range) {
-      r_results[i] = this->sample(query_uvs[i]);
+      r_results[i] = this->sample(query_uvs[i], uv_map_override, corner_tris_override);
     }
   });
 }

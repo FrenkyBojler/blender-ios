@@ -21,12 +21,42 @@
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
+#include <mutex>
 
 namespace blender::nodes::node_geo_deform_curves_on_surface_cc {
 
 using bke::CurvesGeometry;
 using bke::attribute_math::mix3;
 using geometry::ReverseUVSampler;
+
+NODE_STORAGE_FUNCS(NodeGeometryDeformCurvesOnSurface)
+
+struct NodeGeometryDeformCurvesOnSurfaceCacheEntry {
+  /* BVH-only cache: keep the ReverseUVSampler instances built from
+   * (uv_map, corner_tris, uv_bounds) between frames so the BVH-build cost is
+   * paid once per topology / curve-region change, not every frame.
+   * sample_many still runs each frame against current curve attach UVs, so
+   * per-curve UV value changes (within the same uv_bounds) are picked up
+   * correctly.  Each call passes fresh uv_map / corner_tris Spans into
+   * sample_many — the cached samplers' internal Spans would otherwise dangle
+   * after the depsgraph re-allocates the mesh's runtime caches. */
+  std::unique_ptr<ReverseUVSampler> sampler_orig;
+  std::unique_ptr<ReverseUVSampler> sampler_eval;  /* null when same_mesh */
+  uint2 tri_counts = {0, 0};
+  uint2 uv_map_counts = {0, 0};
+  Bounds<float2> uv_bounds = {{0, 0}, {0, 0}};
+  std::mutex mutex;
+};
+
+struct NodeGeometryDeformCurvesOnSurfaceCache
+    : public Map<uint2, NodeGeometryDeformCurvesOnSurfaceCacheEntry *> {
+  ~NodeGeometryDeformCurvesOnSurfaceCache()
+  {
+    this->foreach_item(
+        []([[maybe_unused]] const uint2 & /*key*/,
+           NodeGeometryDeformCurvesOnSurfaceCacheEntry *entry) { MEM_delete(entry); });
+  }
+};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -41,9 +71,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void deform_curves(const CurvesGeometry &curves,
                           const Mesh &surface_mesh_old,
                           const Mesh &surface_mesh_new,
-                          const Span<float2> curve_attachment_uvs,
-                          const ReverseUVSampler &reverse_uv_sampler_old,
-                          const ReverseUVSampler &reverse_uv_sampler_new,
+                          const Span<ReverseUVSampler::Result> surface_samples_old,
+                          const Span<ReverseUVSampler::Result> surface_samples_new,
                           const Span<float3> corner_normals_old,
                           const Span<float3> corner_normals_new,
                           const Span<float3> rest_positions,
@@ -53,25 +82,6 @@ static void deform_curves(const CurvesGeometry &curves,
                           MutableSpan<float3x3> r_rotations,
                           std::atomic<int> &r_invalid_uv_count)
 {
-  /* Find attachment points on old and new mesh. */
-  const int curves_num = curves.curves_num();
-  const bool same_sampler = (&reverse_uv_sampler_old == &reverse_uv_sampler_new);
-  Array<ReverseUVSampler::Result> surface_samples_old(curves_num);
-  /* When both samplers are the same object (same-topology meshes), skip the second allocation
-   * and sampling pass entirely and reuse the old results for the new mesh too. */
-  Array<ReverseUVSampler::Result> surface_samples_new_storage(same_sampler ? 0 : curves_num);
-  threading::parallel_invoke(
-      1024 < curves_num && !same_sampler,
-      [&]() { reverse_uv_sampler_old.sample_many(curve_attachment_uvs, surface_samples_old); },
-      [&]() {
-        if (!same_sampler) {
-          reverse_uv_sampler_new.sample_many(curve_attachment_uvs, surface_samples_new_storage);
-        }
-      });
-  const Span<ReverseUVSampler::Result> surface_samples_new = same_sampler ?
-                                                                 surface_samples_old :
-                                                                 surface_samples_new_storage;
-
   const float4x4 curves_to_surface = math::invert(surface_to_curves);
 
   const Span<float3> surface_positions_old = surface_mesh_old.vert_positions();
@@ -367,15 +377,85 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool same_mesh = arrays_equal<int3>(corner_tris_orig, corner_tris_eval) &&
                          arrays_equal<float2>(uv_map_orig, uv_map_eval);
 
-  ReverseUVSampler reverse_uv_sampler_orig(
-      uv_map_orig, corner_tris_orig, uv_bounds, surface_uv_coords.size());
-  std::optional<ReverseUVSampler> reverse_uv_sampler_eval_opt;
-  if (!same_mesh) {
-    reverse_uv_sampler_eval_opt.emplace(
-        uv_map_eval, corner_tris_eval, uv_bounds, surface_uv_coords.size());
+  /* Cache the ReverseUVSampler BVHs (not the sample results) keyed by
+   * (surface session_uid, curves_num).  Topology fingerprints
+   * (tri_counts, uv_map_counts) guard against stale BVHs.  sample_many still
+   * runs every frame against current curve attach UVs, so per-curve UV
+   * changes (sculpt, paint) are picked up correctly. */
+  NodeGeometryDeformCurvesOnSurface &storage = node_storage(
+      const_cast<bNode &>(params.node()));
+  if (storage.cache == 0) {
+    storage.cache = reinterpret_cast<uint64_t>(
+        MEM_new<NodeGeometryDeformCurvesOnSurfaceCache>(__func__));
   }
-  const ReverseUVSampler &reverse_uv_sampler_eval = same_mesh ? reverse_uv_sampler_orig :
-                                                                 *reverse_uv_sampler_eval_opt;
+  NodeGeometryDeformCurvesOnSurfaceCache &cache =
+      *reinterpret_cast<NodeGeometryDeformCurvesOnSurfaceCache *>(storage.cache);
+
+  const int curves_num = curves.curves_num();
+  const uint2 cache_key{uint(surface_mesh_orig->id.session_uid), uint(curves_num)};
+  const uint2 tri_counts{uint(corner_tris_orig.size()), uint(corner_tris_eval.size())};
+  const uint2 uv_map_counts{uint(uv_map_orig.size()), uint(uv_map_eval.size())};
+
+  NodeGeometryDeformCurvesOnSurfaceCacheEntry **entry_slot = cache.lookup_ptr(cache_key);
+  NodeGeometryDeformCurvesOnSurfaceCacheEntry *entry = entry_slot ? *entry_slot : nullptr;
+  if (entry == nullptr) {
+    entry = MEM_new<NodeGeometryDeformCurvesOnSurfaceCacheEntry>(__func__);
+    cache.add(cache_key, entry);
+  }
+  {
+    std::lock_guard lock(entry->mutex);
+    /* uv_bounds determines which triangles get pruned out of the BVH (see
+     * known_uv_bounds handling in ReverseUVSampler).  When the curves'
+     * attach-UV region shifts, the cached BVH may be missing the now-needed
+     * triangles, so rebuild on bounds change.  Bounds are exact-compared:
+     * computing them every frame is unconditional anyway. */
+    const bool cache_valid = (entry->tri_counts == tri_counts) &&
+                             (entry->uv_map_counts == uv_map_counts) &&
+                             entry->uv_bounds.min == uv_bounds.min &&
+                             entry->uv_bounds.max == uv_bounds.max &&
+                             entry->sampler_orig != nullptr &&
+                             (same_mesh || entry->sampler_eval != nullptr);
+    if (!cache_valid) {
+      entry->sampler_orig = std::make_unique<ReverseUVSampler>(
+          uv_map_orig, corner_tris_orig, uv_bounds, surface_uv_coords.size());
+      if (!same_mesh) {
+        entry->sampler_eval = std::make_unique<ReverseUVSampler>(
+            uv_map_eval, corner_tris_eval, uv_bounds, surface_uv_coords.size());
+      }
+      else {
+        entry->sampler_eval.reset();
+      }
+      entry->tri_counts = tri_counts;
+      entry->uv_map_counts = uv_map_counts;
+      entry->uv_bounds = uv_bounds;
+    }
+  }
+
+  const ReverseUVSampler &reverse_uv_sampler_orig = *entry->sampler_orig;
+  const ReverseUVSampler *reverse_uv_sampler_eval_ptr = entry->sampler_eval.get();
+
+  /* Always run sample_many against current curve attach UVs.  Pass current-
+   * frame uv_map / corner_tris into sample_many — the cached samplers'
+   * internal Spans were captured at construction and may now point at freed
+   * mesh runtime data. */
+  Array<ReverseUVSampler::Result> samples_old(curves_num);
+  Array<ReverseUVSampler::Result> samples_new_storage(same_mesh ? 0 : curves_num);
+  threading::parallel_invoke(
+      1024 < curves_num && !same_mesh,
+      [&]() {
+        reverse_uv_sampler_orig.sample_many(
+            surface_uv_coords, samples_old, uv_map_orig, corner_tris_orig);
+      },
+      [&]() {
+        if (!same_mesh) {
+          reverse_uv_sampler_eval_ptr->sample_many(
+              surface_uv_coords, samples_new_storage, uv_map_eval, corner_tris_eval);
+        }
+      });
+
+  const Span<ReverseUVSampler::Result> cached_old = samples_old.as_span();
+  const Span<ReverseUVSampler::Result> cached_new = same_mesh ? cached_old
+                                                              : samples_new_storage.as_span();
 
   /* Retrieve face corner normals from each mesh. It's necessary to use face corner normals
    * because face normals or vertex normals may lose information (custom normals, auto smooth) in
@@ -408,9 +488,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     deform_curves(curves,
                   *surface_mesh_orig,
                   *surface_mesh_eval,
-                  surface_uv_coords,
-                  reverse_uv_sampler_orig,
-                  reverse_uv_sampler_eval,
+                  cached_old,
+                  cached_new,
                   corner_normals_orig,
                   corner_normals_eval,
                   rest_positions,
@@ -425,9 +504,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     deform_curves(curves,
                   *surface_mesh_orig,
                   *surface_mesh_eval,
-                  surface_uv_coords,
-                  reverse_uv_sampler_orig,
-                  reverse_uv_sampler_eval,
+                  cached_old,
+                  cached_new,
                   corner_normals_orig,
                   corner_normals_eval,
                   rest_positions,
@@ -441,12 +519,29 @@ static void node_geo_exec(GeoNodeExecParams params)
     const VArraySpan<float2> surface_uv_coords_orig = *curves_orig.attributes().lookup_or_default(
         "surface_uv_coordinate", AttrDomain::Curve, float2(0));
     if (!surface_uv_coords_orig.is_empty()) {
+      const int hint_curves_num = curves_orig.curves_num();
+      Array<ReverseUVSampler::Result> hint_samples_old(hint_curves_num);
+      Array<ReverseUVSampler::Result> hint_samples_new_storage(same_mesh ? 0 : hint_curves_num);
+      threading::parallel_invoke(
+          1024 < hint_curves_num && !same_mesh,
+          [&]() {
+            reverse_uv_sampler_orig.sample_many(
+                surface_uv_coords_orig, hint_samples_old, uv_map_orig, corner_tris_orig);
+          },
+          [&]() {
+            if (!same_mesh) {
+              reverse_uv_sampler_eval_ptr->sample_many(
+                  surface_uv_coords_orig, hint_samples_new_storage, uv_map_eval, corner_tris_eval);
+            }
+          });
+      const Span<ReverseUVSampler::Result> hint_samples_new = same_mesh ?
+                                                                  hint_samples_old.as_span() :
+                                                                  hint_samples_new_storage.as_span();
       deform_curves(curves_orig,
                     *surface_mesh_orig,
                     *surface_mesh_eval,
-                    surface_uv_coords_orig,
-                    reverse_uv_sampler_orig,
-                    reverse_uv_sampler_eval,
+                    hint_samples_old,
+                    hint_samples_new,
                     corner_normals_orig,
                     corner_normals_eval,
                     rest_positions,
@@ -469,6 +564,30 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Curves"_ustr, curves_geometry);
 }
 
+static void node_free_deform_curves_on_surface_storage(bNode *node)
+{
+  NodeGeometryDeformCurvesOnSurface &storage = node_storage(*node);
+  MEM_delete(reinterpret_cast<NodeGeometryDeformCurvesOnSurfaceCache *>(storage.cache));
+  MEM_delete(reinterpret_cast<NodeGeometryDeformCurvesOnSurface *>(node->storage));
+}
+
+static void node_copy_deform_curves_on_surface_storage(bNodeTree * /*dst_ntree*/,
+                                                        bNode *dst_node,
+                                                        const bNode *src_node)
+{
+  const NodeGeometryDeformCurvesOnSurface &src = node_storage(*src_node);
+  auto *dst_storage = MEM_new<NodeGeometryDeformCurvesOnSurface>(__func__,
+                                                                 dna::shallow_copy(src));
+  dst_storage->cache = 0;
+  dst_node->storage = dst_storage;
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  NodeGeometryDeformCurvesOnSurface *data = MEM_new<NodeGeometryDeformCurvesOnSurface>(__func__);
+  node->storage = data;
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -482,7 +601,12 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.initfunc = node_init;
   bke::node_type_size(ntype, 170, 120, 700);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryDeformCurvesOnSurface",
+                         node_free_deform_curves_on_surface_storage,
+                         node_copy_deform_curves_on_surface_storage);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

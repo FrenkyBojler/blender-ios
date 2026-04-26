@@ -3297,6 +3297,13 @@ struct NodeGeometryCurveTrim {
   uint8_t mode = 0;
 };
 
+struct NodeGeometryDeformCurvesOnSurface {
+  DNA_DEFINE_CXX_METHODS(NodeGeometryDeformCurvesOnSurface)
+
+  /** Reserved for a future ReverseUVSampler result cache (stored as opaque pointer). */
+  uint64_t cache = 0;
+};
+
 struct NodeGeometryCurveToPoints {
   DNA_DEFINE_CXX_METHODS(NodeGeometryCurveToPoints)
 
