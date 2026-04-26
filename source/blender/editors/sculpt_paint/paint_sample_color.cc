@@ -227,7 +227,7 @@ static std::optional<float3> sample_texture_paint_color(
 
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, &iuser, nullptr);
   BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(image, ibuf, nullptr); });
-  if (!ibuf || (!ibuf->byte_buffer.data && !ibuf->float_buffer.data)) {
+  if (!ibuf || (!ibuf->byte_data() && !ibuf->float_data())) {
     return std::nullopt;
   }
 
@@ -239,7 +239,7 @@ static std::optional<float3> sample_texture_paint_color(
   }
 
   float4 rgba_f;
-  if (ibuf->float_buffer.data) {
+  if (ibuf->float_data()) {
     rgba_f = interp == SHD_INTERP_CLOSEST ? imbuf::interpolate_nearest_wrap_fl(ibuf, u, v) :
                                             imbuf::interpolate_bilinear_wrap_fl(ibuf, u, v);
     rgba_f = math::clamp(rgba_f, 0.0f, 1.0f);
@@ -485,8 +485,8 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
 
   RNA_int_set_array(op->ptr, "location", event->mval);
 
-  int2 mval(std::clamp(event->mval[0], 0, (int)region->winx),
-            std::clamp(event->mval[1], 0, (int)region->winy));
+  int2 mval(std::clamp(event->mval[0], 0, int(region->winx)),
+            std::clamp(event->mval[1], 0, int(region->winy)));
   const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
   const float3 average_color = sample_average_color(data, sampled_color);
   /* On initial invoke, we never sample to the palette. */

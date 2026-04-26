@@ -293,7 +293,7 @@ class ImageOperation : public NodeOperation {
 
     result.set_type(cached_image.type());
     result.set_precision(cached_image.precision());
-    result.wrap_external(cached_image);
+    result.share_data(cached_image);
   }
 
   void compute_alpha()
@@ -319,7 +319,7 @@ class ImageOperation : public NodeOperation {
     if (cached_alpha.is_allocated()) {
       result.set_type(cached_alpha.type());
       result.set_precision(cached_alpha.precision());
-      result.wrap_external(cached_alpha);
+      result.share_data(cached_alpha);
       return;
     }
 
@@ -353,7 +353,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeImage", CMP_NODE_IMAGE);
+  cmp_node_type_base(&ntype, "CompositorNodeImage"_ustr, CMP_NODE_IMAGE);
   ntype.ui_name = "Image";
   ntype.ui_description = "Input image or movie file";
   ntype.enum_name_legacy = "IMAGE";

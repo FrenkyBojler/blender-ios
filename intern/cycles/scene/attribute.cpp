@@ -56,7 +56,7 @@ Attribute::Attribute(ustring name,
 {
   assert((element & ATTR_ELEMENT_VOXEL) == 0);
   buffer = data;
-  /* Implicit sharing function pointers should be set if shared attribtues are created. */
+  /* Implicit sharing function pointers should be set if shared attributes are created. */
   assert(g_implicit_sharing_user_add_fn);
   assert(g_implicit_sharing_user_remove_fn);
   g_implicit_sharing_user_add_fn(sharing_info);
@@ -1000,7 +1000,7 @@ AttributeRequestSet::AttributeRequestSet() = default;
 
 AttributeRequestSet::~AttributeRequestSet() = default;
 
-bool AttributeRequestSet::modified(const AttributeRequestSet &other)
+bool AttributeRequestSet::modified(const AttributeRequestSet &other) const
 {
   if (requests.size() != other.requests.size()) {
     return true;
@@ -1045,7 +1045,7 @@ void AttributeRequestSet::add(AttributeStandard std)
   requests.push_back(AttributeRequest(std));
 }
 
-void AttributeRequestSet::add(AttributeRequestSet &reqs)
+void AttributeRequestSet::add(const AttributeRequestSet &reqs)
 {
   for (const AttributeRequest &req : reqs.requests) {
     if (req.std == ATTR_STD_NONE) {
@@ -1073,7 +1073,7 @@ void AttributeRequestSet::add_standard(ustring name)
   }
 }
 
-bool AttributeRequestSet::find(ustring name)
+bool AttributeRequestSet::find(const ustring name) const
 {
   for (const AttributeRequest &req : requests) {
     if (req.name == name) {
@@ -1084,7 +1084,7 @@ bool AttributeRequestSet::find(ustring name)
   return false;
 }
 
-bool AttributeRequestSet::find(AttributeStandard std)
+bool AttributeRequestSet::find(const AttributeStandard std) const
 {
   for (const AttributeRequest &req : requests) {
     if (req.std == std) {
@@ -1095,7 +1095,7 @@ bool AttributeRequestSet::find(AttributeStandard std)
   return false;
 }
 
-size_t AttributeRequestSet::size()
+size_t AttributeRequestSet::size() const
 {
   return requests.size();
 }

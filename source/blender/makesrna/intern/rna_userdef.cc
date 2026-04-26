@@ -338,6 +338,14 @@ static void rna_userdef_gpu_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
   WM_main_add_notifier(NC_WINDOW, nullptr);             /* full redraw */
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr); /* refresh region sizes */
+  WM_main_add_notifier(NC_UI | ND_UI_FONT, nullptr);
+  USERDEF_TAG_DIRTY;
+}
+
+static void rna_userdef_gpu_and_text_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_userdef_gpu_update(bmain, scene, ptr);
+  WM_main_add_notifier(NC_UI | ND_UI_FONT, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
@@ -1087,6 +1095,7 @@ static void rna_userdef_text_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
   BLF_cache_clear();
   ui::reinit_font();
   WM_main_add_notifier(NC_WINDOW, nullptr);
+  WM_main_add_notifier(NC_UI | ND_UI_FONT, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
@@ -1549,14 +1558,23 @@ static void rna_preference_gpu_preferred_device_set(PointerRNA *ptr, int value)
 }
 
 static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
-    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
 {
+  const bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(ptr->data);
+
   EnumPropertyItem *items = nullptr;
   int items_num = 0;
   for (const EnumPropertyItem *item = rna_enum_preferences_asset_import_method_items;
        item->identifier;
        item++)
   {
+    if ((library->flag & ASSET_LIBRARY_USE_REMOTE_URL) != 0) {
+      if (item->value == ASSET_IMPORT_LINK) {
+        /* Don't allow linking with remote libraries. */
+        continue;
+      }
+    }
+
     switch (eAssetImportMethod(item->value)) {
       case ASSET_IMPORT_APPEND_REUSE: {
         if (U.experimental.no_data_block_packing) {
@@ -1592,7 +1610,6 @@ static void rna_experimental_no_data_block_packing_update(bContext *C, PointerRN
   Scene *scene = CTX_data_scene(C);
   rna_userdef_update(bmain, scene, ptr);
   AS_asset_library_import_method_ensure_valid(*bmain);
-  AS_asset_library_essential_import_method_update();
   rna_userdef_asset_libraries_refresh(C, ptr);
 }
 
@@ -1641,7 +1658,7 @@ static void rna_def_userdef_theme_ui_font_style(BlenderRNA *brna)
   RNA_def_property_range(prop, 6.0f, 32.0f);
   RNA_def_property_ui_range(prop, 8.0f, 20.0f, 10.0f, 1);
   RNA_def_property_ui_text(prop, "Points", "Font size in points");
-  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_and_text_update");
 
   prop = RNA_def_property(srna, "character_weight", PROP_INT, PROP_NONE);
   RNA_def_property_int_default(prop, 400);
@@ -2970,7 +2987,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Bevel", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "seam", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -5019,7 +5036,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "UI Scale", "Changes the size of the fonts and widgets in the interface");
   RNA_def_property_range(prop, 0.5f, 6.0f);
   RNA_def_property_ui_range(prop, 0.5f, 3.0f, 1, 2);
-  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_and_text_update");
 
   prop = RNA_def_property(srna, "border_width", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Border Width", "Size of the padding around each editor.");
@@ -6173,6 +6190,14 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Region Overlap", "Display tool/property regions over the main region");
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
+  prop = RNA_def_property(srna, "show_panel_tabs_compact", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_UIFLAG2_PANEL_TABS_COMPACT);
+  RNA_def_property_ui_text(
+      prop,
+      "Compact Sidebar Tabs",
+      "Display sidebar tabs in a compact size that shows icons when available");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "viewport_aa", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_userdef_viewport_aa_items);

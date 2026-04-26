@@ -43,7 +43,7 @@ ImBuf *prepare_effect_imbufs(const RenderData *context,
     /* Hmm, global float option? */
     out = IMB_allocImBuf(x, y, 32, IB_byte_data | base_flags);
   }
-  else if ((ibuf1 && ibuf1->float_buffer.data) || (ibuf2 && ibuf2->float_buffer.data)) {
+  else if ((ibuf1 && ibuf1->float_data()) || (ibuf2 && ibuf2->float_data())) {
     /* if any inputs are float, output is float too */
     out = IMB_allocImBuf(x, y, 32, IB_float_data | base_flags);
   }
@@ -51,7 +51,7 @@ ImBuf *prepare_effect_imbufs(const RenderData *context,
     out = IMB_allocImBuf(x, y, 32, IB_byte_data | base_flags);
   }
 
-  if (out->float_buffer.data) {
+  if (out->float_data()) {
     if (ibuf1) {
       ensure_ibuf_is_sequencer_space(scene, ibuf1, true);
     }
@@ -61,11 +61,11 @@ ImBuf *prepare_effect_imbufs(const RenderData *context,
     IMB_colormanagement_assign_float_colorspace(out, scene->sequencer_colorspace_settings.name);
   }
   else {
-    if (ibuf1 && !ibuf1->byte_buffer.data) {
+    if (ibuf1 && !ibuf1->byte_data()) {
       IMB_byte_from_float(ibuf1);
     }
 
-    if (ibuf2 && !ibuf2->byte_buffer.data) {
+    if (ibuf2 && !ibuf2->byte_data()) {
       IMB_byte_from_float(ibuf2);
     }
   }
@@ -289,7 +289,7 @@ EffectHandle strip_effect_handle_get(Strip *strip)
 {
   EffectHandle h = {};
   if (strip->is_effect()) {
-    h = effect_handle_get(StripType(strip->type));
+    h = effect_handle_get(strip->type);
   }
   return h;
 }
@@ -298,7 +298,7 @@ EffectHandle strip_blend_mode_handle_get(Strip *strip)
 {
   EffectHandle h = {};
   if (strip->blend_mode != STRIP_BLEND_REPLACE) {
-    h = effect_handle_for_blend_mode_get(StripBlendMode(strip->blend_mode));
+    h = effect_handle_for_blend_mode_get(strip->blend_mode);
   }
   return h;
 }
@@ -322,7 +322,7 @@ static float transition_fader_calc(const Scene *scene, const Strip *strip, float
 float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame)
 {
   if (strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE) {
-    if (effect_is_transition(StripType(strip->type))) {
+    if (effect_is_transition(strip->type)) {
       return transition_fader_calc(scene, strip, timeline_frame);
     }
     return 1.0f;
