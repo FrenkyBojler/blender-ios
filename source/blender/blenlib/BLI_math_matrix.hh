@@ -1644,7 +1644,7 @@ VecBase<T, 3> transform_point(const MatBase<T, 3, 3> &mat, const VecBase<T, 3> &
 }
 
 template<typename T>
-VecBase<T, 3> transform_point(const MatBase<T, 4, 4> &mat, const VecBase<T, 3> &point)
+inline VecBase<T, 3> transform_point(const MatBase<T, 4, 4> &mat, const VecBase<T, 3> &point)
 {
   return mat.template view<3, 3>() * point + mat.location();
 }

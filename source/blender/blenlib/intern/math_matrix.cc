@@ -22,29 +22,13 @@ namespace blender {
 /** \name Matrix multiplication
  * \{ */
 
+#if !(BLI_HAVE_SSE2)
+
 template<> float4x4 operator*(const float4x4 &a, const float4x4 &b)
 {
   using namespace math;
   float4x4 result;
 
-#if BLI_HAVE_SSE2
-  __m128 A0 = _mm_load_ps(a[0]);
-  __m128 A1 = _mm_load_ps(a[1]);
-  __m128 A2 = _mm_load_ps(a[2]);
-  __m128 A3 = _mm_load_ps(a[3]);
-
-  for (int i = 0; i < 4; i++) {
-    __m128 B0 = _mm_set1_ps(b[i][0]);
-    __m128 B1 = _mm_set1_ps(b[i][1]);
-    __m128 B2 = _mm_set1_ps(b[i][2]);
-    __m128 B3 = _mm_set1_ps(b[i][3]);
-
-    __m128 sum = _mm_add_ps(_mm_add_ps(_mm_mul_ps(B0, A0), _mm_mul_ps(B1, A1)),
-                            _mm_add_ps(_mm_mul_ps(B2, A2), _mm_mul_ps(B3, A3)));
-
-    _mm_store_ps(result[i], sum);
-  }
-#else
   result[0][0] = b[0][0] * a[0][0] + b[0][1] * a[1][0] + b[0][2] * a[2][0] + b[0][3] * a[3][0];
   result[0][1] = b[0][0] * a[0][1] + b[0][1] * a[1][1] + b[0][2] * a[2][1] + b[0][3] * a[3][1];
   result[0][2] = b[0][0] * a[0][2] + b[0][1] * a[1][2] + b[0][2] * a[2][2] + b[0][3] * a[3][2];
@@ -64,10 +48,11 @@ template<> float4x4 operator*(const float4x4 &a, const float4x4 &b)
   result[3][1] = b[3][0] * a[0][1] + b[3][1] * a[1][1] + b[3][2] * a[2][1] + b[3][3] * a[3][1];
   result[3][2] = b[3][0] * a[0][2] + b[3][1] * a[1][2] + b[3][2] * a[2][2] + b[3][3] * a[3][2];
   result[3][3] = b[3][0] * a[0][3] + b[3][1] * a[1][3] + b[3][2] * a[2][3] + b[3][3] * a[3][3];
-#endif
 
   return result;
 }
+
+#endif
 
 template<> float3x3 operator*(const float3x3 &a, const float3x3 &b)
 {

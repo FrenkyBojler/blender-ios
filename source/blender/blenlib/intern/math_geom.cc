@@ -3759,30 +3759,6 @@ int barycentric_inside_triangle_v2(const float w[3])
   return 0;
 }
 
-bool barycentric_coords_v2(
-    const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
-{
-  const float x = co[0], y = co[1];
-  const float x1 = v1[0], y1 = v1[1];
-  const float x2 = v2[0], y2 = v2[1];
-  const float x3 = v3[0], y3 = v3[1];
-  const float det = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
-
-#ifndef NDEBUG /* Avoid floating point exception when debugging. */
-  if (det != 0.0f)
-#endif
-  {
-    w[0] = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / det;
-    w[1] = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / det;
-    w[2] = 1.0f - w[0] - w[1];
-    if (is_finite_v3(w)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 void barycentric_weights_v2(
     const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
 {

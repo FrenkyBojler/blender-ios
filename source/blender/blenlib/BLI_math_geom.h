@@ -1033,7 +1033,7 @@ void barycentric_weights_v2_quad(const float v1[2],
 /**
  * \return false for degenerated triangles.
  */
-bool barycentric_coords_v2(
+MINLINE bool barycentric_coords_v2(
     const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3]);
 /**
  * \return

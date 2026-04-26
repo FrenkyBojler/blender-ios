@@ -40,6 +40,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
 
+#include "BLI_simd.hh"
+
 namespace blender {
 
 template<typename T,
@@ -1031,7 +1033,34 @@ using double4x3 = MatBase<double, 4, 3>;
 using double4x4 = MatBase<double, 4, 4>;
 
 /* Specialization for SSE optimization. */
+#if BLI_HAVE_SSE2
+template<> inline float4x4 operator*(const float4x4 &a, const float4x4 &b)
+{
+  using namespace math;
+  float4x4 result;
+
+  __m128 A0 = _mm_load_ps(a[0]);
+  __m128 A1 = _mm_load_ps(a[1]);
+  __m128 A2 = _mm_load_ps(a[2]);
+  __m128 A3 = _mm_load_ps(a[3]);
+
+  for (int i = 0; i < 4; i++) {
+    __m128 B0 = _mm_set1_ps(b[i][0]);
+    __m128 B1 = _mm_set1_ps(b[i][1]);
+    __m128 B2 = _mm_set1_ps(b[i][2]);
+    __m128 B3 = _mm_set1_ps(b[i][3]);
+
+    __m128 sum = _mm_add_ps(_mm_add_ps(_mm_mul_ps(B0, A0), _mm_mul_ps(B1, A1)),
+                            _mm_add_ps(_mm_mul_ps(B2, A2), _mm_mul_ps(B3, A3)));
+
+    _mm_store_ps(result[i], sum);
+  }
+  return result;
+}
+#else
 template<> float4x4 operator*(const float4x4 &a, const float4x4 &b);
+#endif
+
 template<> float3x3 operator*(const float3x3 &a, const float3x3 &b);
 
 extern template float2x2 operator*(const float2x2 &a, const float2x2 &b);
