@@ -43,6 +43,7 @@ void ShapingData::legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *st
   size_t char_count = BLI_strnlen_utf8(str, len);
   std::u32string str32(char_count + 1, 0);
   BLI_str_utf8_as_utf32(str32.data(), str, char_count + 1);
+  this->bounds.xmin = INT_MAX;
   size_t offset = 0;
   for (size_t i = 0; i < char_count; i++) {
     const char32_t codepoint = str32[i];
@@ -140,7 +141,9 @@ ShapingData::ShapingData(FontBLF *font,
   hb_script_t script = HB_SCRIPT_UNKNOWN;
   hb_script_t last_script = HB_SCRIPT_UNKNOWN;
   hb_buffer_t *hb_buf = hb_buffer_create();
+  this->bounds.xmin = INT_MAX;
   bool single_gc = true;
+
   if (!hb_buf) {
     return; /* Out of memory */
   }
@@ -311,6 +314,7 @@ ShapingData::ShapingData(FontBLF *font,
       // for RTL (maybe):
       // this->glyphs.append({segment_font, segment_gc, g, bounds, glyph_str8_offset});
 
+      this->bounds.xmin = std::min(this->bounds.xmin, g->box_xmin);
       this->bounds.xmax += advance;
       this->bounds.ymin = std::min(this->bounds.ymin, g->box_ymin);
       this->bounds.ymax = std::max(this->bounds.ymax, g->box_ymax);
