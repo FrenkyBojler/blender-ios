@@ -393,6 +393,9 @@ struct GHOST_InstanceVK {
     vector<VkPhysicalDevice> physical_devices(device_count);
     vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data());
 
+    const bool use_preferred_device_index = preferred_device.vendor_id == uint(-1) &&
+                                            preferred_device.device_id == uint(-1) &&
+                                            preferred_device.index >= 0;
     int best_device_score = -1;
     int device_index = -1;
     for (const VkPhysicalDevice &physical_device : physical_devices) {
@@ -419,6 +422,14 @@ struct GHOST_InstanceVK {
           !device_vk.features.features.dualSrcBlend || !device_vk.features.features.logicOp ||
           !device_vk.features.features.imageCubeArray)
       {
+        continue;
+      }
+
+      if (use_preferred_device_index) {
+        if (preferred_device.index == device_index) {
+          best_physical_device = physical_device;
+          break;
+        }
         continue;
       }
 
@@ -458,6 +469,12 @@ struct GHOST_InstanceVK {
     }
 
     if (best_physical_device == VK_NULL_HANDLE) {
+      if (use_preferred_device_index) {
+        CLOG_ERROR(&LOG,
+                   "Requested Vulkan GPU device index %d is unavailable or unsupported.",
+                   preferred_device.index);
+        return GHOST_kFailure;
+      }
       CLOG_ERROR(&LOG, "No suitable Vulkan Device found!");
       return GHOST_kFailure;
     }

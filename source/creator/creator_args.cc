@@ -77,6 +77,11 @@
 
 namespace blender {
 
+static GPUBackendType arg_gpu_backend = GPU_BACKEND_NONE;
+static bool arg_gpu_backend_set = false;
+static bool arg_gpu_device_index_set = false;
+static bool arg_gpu_device_index_error = false;
+
 /* -------------------------------------------------------------------- */
 /** \name Build Defines
  * \{ */
@@ -804,6 +809,7 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
+  BLI_args_print_arg_doc(ba, "--gpu-device");
   BLI_args_print_arg_doc(ba, "--gpu-vsync");
   if (defs.with_opengl_backend) {
     BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
@@ -1695,8 +1701,40 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   }
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
+  arg_gpu_backend = gpu_backend;
+  arg_gpu_backend_set = true;
   GPU_backend_type_selection_set_override(gpu_backend);
 
+  return 1;
+}
+
+static const char arg_handle_gpu_device_set_doc[] =
+    "<index>\n"
+    "\tPrefer a GPU device index.\n"
+    "\tThis overrides the GPU device from user preferences for this run only.\n"
+    "\tRequires '--gpu-backend vulkan'. Only Vulkan is supported currently.";
+static int arg_handle_gpu_device_set(int argc, const char **argv, void * /*data*/)
+{
+  const char *arg_id = "--gpu-device";
+  if (argc < 2) {
+    fprintf(stderr, "\nError: GPU device index must follow '%s'.\n", arg_id);
+    return 0;
+  }
+
+  const char *err_msg = nullptr;
+  int device_index;
+  if (!parse_int_strict_range(argv[1], nullptr, 0, INT_MAX, &device_index, &err_msg)) {
+    fprintf(stderr,
+            "\nError: %s '%s %s', expected a non-negative integer.\n",
+            err_msg,
+            arg_id,
+            argv[1]);
+    arg_gpu_device_index_error = true;
+    return 1;
+  }
+
+  GPU_backend_preferred_device_index_set_override(device_index);
+  arg_gpu_device_index_set = true;
   return 1;
 }
 
@@ -1736,6 +1774,26 @@ static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/
   GPU_backend_vsync_set_override(vsync);
 
   return 1;
+}
+
+bool main_args_post_environment_validate()
+{
+  GPU_backend_preferred_device_use_user_pref_set(!arg_gpu_backend_set);
+
+  if (arg_gpu_device_index_error) {
+    return false;
+  }
+
+  if (arg_gpu_device_index_set) {
+    if (!arg_gpu_backend_set || arg_gpu_backend != GPU_BACKEND_VULKAN) {
+      fprintf(stderr,
+              "\nError: '--gpu-device' requires '--gpu-backend vulkan'. "
+              "Only Vulkan is supported currently.\n");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 static const char arg_handle_gpu_compilation_subprocesses_set_doc[] =
@@ -2920,6 +2978,12 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BuildDefs defs;
   build_defs_init(&defs, all);
 
+  arg_gpu_backend = GPU_BACKEND_NONE;
+  arg_gpu_backend_set = false;
+  arg_gpu_device_index_set = false;
+  arg_gpu_device_index_error = false;
+  GPU_backend_preferred_device_use_user_pref_set(true);
+
   /* end argument processing after -- */
   BLI_args_pass_set(ba, -1);
   BLI_args_add(ba, "--", nullptr, CB(arg_handle_arguments_end), nullptr);
@@ -2962,6 +3026,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
+  BLI_args_add(ba, nullptr, "--gpu-device", CB(arg_handle_gpu_device_set), nullptr);
   BLI_args_add(ba, nullptr, "--gpu-vsync", CB(arg_handle_gpu_vsync_set), nullptr);
   if (defs.with_opengl_backend) {
     BLI_args_add(ba,

@@ -357,6 +357,8 @@ void GPU_render_step(bool force_resource_release)
 static GPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
 static std::optional<GPUBackendType> g_backend_type_override = std::nullopt;
 static std::optional<bool> g_backend_type_supported = std::nullopt;
+static std::optional<int> g_preferred_device_index_override = std::nullopt;
+static bool g_preferred_device_use_user_pref = true;
 static std::optional<int> g_vsync_override = std::nullopt;
 static GPUBackend *g_backend = nullptr;
 static GHOST_ISystem *g_ghost_system = nullptr;
@@ -405,6 +407,46 @@ void GPU_backend_type_selection_set_override(const GPUBackendType backend_type)
 bool GPU_backend_type_selection_is_overridden()
 {
   return g_backend_type_override.has_value();
+}
+
+int GPU_backend_preferred_device_index_get()
+{
+  return g_preferred_device_index_override.value();
+}
+
+void GPU_backend_preferred_device_index_set_override(const int device_index)
+{
+  BLI_assert(device_index >= 0);
+  g_preferred_device_index_override = device_index;
+}
+
+bool GPU_backend_preferred_device_index_is_overridden()
+{
+  return g_preferred_device_index_override.has_value();
+}
+
+void GPU_backend_preferred_device_use_user_pref_set(const bool use_user_preference)
+{
+  g_preferred_device_use_user_pref = use_user_preference;
+}
+
+void GPU_backend_preferred_device_get(GHOST_GPUDevice *r_device)
+{
+  if (GPU_backend_preferred_device_index_is_overridden()) {
+    r_device->index = GPU_backend_preferred_device_index_get();
+    r_device->vendor_id = uint(-1);
+    r_device->device_id = uint(-1);
+  }
+  else if (!g_preferred_device_use_user_pref) {
+    r_device->index = -1;
+    r_device->vendor_id = 0u;
+    r_device->device_id = 0u;
+  }
+  else {
+    r_device->index = U.gpu_preferred_index;
+    r_device->vendor_id = U.gpu_preferred_vendor_id;
+    r_device->device_id = U.gpu_preferred_device_id;
+  }
 }
 
 bool GPU_backend_type_selection_detect()
@@ -611,9 +653,7 @@ GPUSecondaryContextData GPU_create_secondary_context()
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  GPU_backend_preferred_device_get(&gpu_settings.preferred_device);
 
   /* Grab the system handle. */
   GHOST_ISystem *ghost_system = GPU_backend_ghost_system_get();

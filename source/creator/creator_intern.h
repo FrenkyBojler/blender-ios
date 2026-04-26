@@ -30,6 +30,7 @@ extern "C" {
  * Used for documentation (see Python API: `bpy.app.help_text(all=True)`).
  */
 void main_args_setup(struct bContext *C, struct bArgs *ba, bool all);
+bool main_args_post_environment_validate();
 /**
  * Handler for loading blend files.
  * \note arguments that cannot be parsed are assumed to be blend files.

@@ -12,6 +12,8 @@
 
 #include "GPU_platform.hh"
 
+struct GHOST_GPUDevice;
+
 class GHOST_IContext;
 class GHOST_ISystem;
 class GHOST_IWindow;
@@ -53,6 +55,18 @@ void GPU_backend_type_selection_set_override(GPUBackendType backend_type);
  * Check if the GPU_backend_type_selection_detect is overridden to only test a specific backend.
  */
 bool GPU_backend_type_selection_is_overridden();
+
+/**
+ * Get the preferred GPU device index override (when set).
+ */
+int GPU_backend_preferred_device_index_get();
+/**
+ * Override the user-preference GPU device to use the specified GPU.
+ */
+void GPU_backend_preferred_device_index_set_override(int device_index);
+bool GPU_backend_preferred_device_index_is_overridden();
+void GPU_backend_preferred_device_use_user_pref_set(bool use_user_preference);
+void GPU_backend_preferred_device_get(GHOST_GPUDevice *r_device);
 
 /**
  * Get the VSync value (when set).
