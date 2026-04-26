@@ -1761,8 +1761,8 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
                 col.template_curve_mapping(gp_settings, "curve_strength", brush=True, show_presets=True)
 
     if props:
-        layout.prop(props, "curve_type", text="")
-        if props.curve_type != "BEZIER":
+        layout.prop(gp_settings, "curve_type", text="")
+        if gp_settings.curve_type != "BEZIER":
             layout.prop(props, "subdivision")
 
     # Brush details

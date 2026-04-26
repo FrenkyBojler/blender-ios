@@ -832,6 +832,11 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   curves.update_curve_types();
   curve_attributes_to_skip.add("curve_type");
 
+  if (ptd.curve_type == CURVE_TYPE_NURBS) {
+    curves.nurbs_knots_modes_for_write()[target_curve_index] = NURBS_KNOT_MODE_ENDPOINT;
+    curve_attributes_to_skip.add("knots_mode");
+  }
+
   /* Initialize the rest of the attributes with default values. */
   bke::fill_attribute_range_default(attributes,
                                     bke::AttrDomain::Curve,
@@ -859,9 +864,12 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
   status.opmodal(IFACE_("Cancel"), op->type, int(ModalKeyMode::Cancel));
   status.opmodal(IFACE_("Panning"), op->type, int(ModalKeyMode::Panning));
   status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
-  status.opmodal("", op->type, int(ModalKeyMode::IncreaseSubdivision));
-  status.opmodal("", op->type, int(ModalKeyMode::DecreaseSubdivision));
-  status.item(fmt::format("{} ({})", IFACE_("Subdivisions"), ptd.subdivision), ICON_NONE);
+
+  if (ptd.curve_type != CURVE_TYPE_BEZIER) {
+    status.opmodal("", op->type, int(ModalKeyMode::IncreaseSubdivision));
+    status.opmodal("", op->type, int(ModalKeyMode::DecreaseSubdivision));
+    status.item(fmt::format("{} ({})", IFACE_("Subdivisions"), ptd.subdivision), ICON_NONE);
+  }
 
   if (ptd.segments == 1) {
     status.item(IFACE_("Center"), ICON_EVENT_ALT);
@@ -962,7 +970,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   }
   ptd.settings = ptd.brush->gpencil_settings;
   ptd.on_back = (vc.scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
-  ptd.curve_type = CurveType(RNA_enum_get(op->ptr, "curve_type"));
+  ptd.curve_type = CurveType(ptd.settings->curve_type);
 
   BKE_curvemapping_init(ptd.settings->curve_sensitivity);
   BKE_curvemapping_init(ptd.settings->curve_strength);
@@ -1739,12 +1747,6 @@ static void grease_pencil_primitive_common_props(wmOperatorType *ot,
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem grease_pencil_primitive_curve_type[] = {
-      {int(CurveType::CURVE_TYPE_POLY), "POLY", 0, "Poly", ""},
-      {int(CurveType::CURVE_TYPE_BEZIER), "BEZIER", 0, "Bezier", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   PropertyRNA *prop;
 
   prop = RNA_def_int(ot->srna,
@@ -1760,13 +1762,6 @@ static void grease_pencil_primitive_common_props(wmOperatorType *ot,
 
   RNA_def_enum(
       ot->srna, "type", grease_pencil_primitive_type, int(default_type), "Type", "Type of shape");
-
-  RNA_def_enum(ot->srna,
-               "curve_type",
-               grease_pencil_primitive_curve_type,
-               int(CurveType::CURVE_TYPE_POLY),
-               "Curve Type",
-               "Curve type of shape");
 }
 
 static void GREASE_PENCIL_OT_primitive_line(wmOperatorType *ot)

@@ -2007,6 +2007,17 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing(View3DPanel, Panel)
         brush = context.tool_settings.gpencil_paint.brush
         gp_settings = brush.gpencil_settings
 
+        paint = context.tool_settings.gpencil_paint
+        tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
+        is_primitive_tool = tool.idname in {
+            "builtin.arc",
+            "builtin.curve",
+            "builtin.line",
+            "builtin.box",
+            "builtin.circle",
+            "builtin.polyline",
+        }
+
         col = layout.column()
         col.active = gp_settings.use_settings_postprocess
 
@@ -2035,14 +2046,15 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing(View3DPanel, Panel)
         row2.enabled = gp_settings.use_settings_outline
         row2.prop(gp_settings, "outline_thickness_factor")
 
-        col.separator()
+        if not is_primitive_tool:
+            col.separator()
 
-        col1 = col.column(align=True)
-        col1.prop(gp_settings, "curve_type")
+            col1 = col.column(align=True)
+            col1.prop(gp_settings, "curve_type")
 
-        col1 = col.row(align=True)
-        col1.prop(gp_settings, "conversion_threshold")
-        col1.enabled = gp_settings.curve_type != "POLY"
+            col1 = col.row(align=True)
+            col1.prop(gp_settings, "conversion_threshold")
+            col1.enabled = gp_settings.curve_type != "POLY"
 
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
