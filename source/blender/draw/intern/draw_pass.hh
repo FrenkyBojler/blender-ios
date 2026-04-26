@@ -1185,6 +1185,10 @@ inline void PassBase<T>::material_set(Manager &manager,
       /* Sky */
       bind_texture(tex->sampler_name, *tex->sky, tex->sampler_state);
     }
+    else if (tex->generated) {
+      /* Generated material texture. */
+      bind_texture(tex->sampler_name, *tex->generated, tex->sampler_state);
+    }
   }
 
   gpu::UniformBuf *ubo = GPU_material_uniform_buffer_get(material);

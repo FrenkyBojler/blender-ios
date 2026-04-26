@@ -265,6 +265,7 @@ struct GPUMaterialTexture {
   bool iuser_available;
   gpu::Texture **colorband;
   gpu::Texture **sky;
+  gpu::Texture **generated;
   char sampler_name[32];       /* Name of sampler in GLSL. */
   char tiled_mapping_name[32]; /* Name of tile mapping sampler in GLSL. */
   int users;
@@ -413,6 +414,11 @@ GPUNodeLink *GPU_image_sky(GPUMaterial *mat,
                            const float *pixels,
                            float *layer,
                            GPUSamplerState sampler_state);
+GPUNodeLink *GPU_image_generated(GPUMaterial *mat,
+                                 int width,
+                                 int height,
+                                 float *pixels,
+                                 GPUSamplerState sampler_state);
 GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *r_row);
 
 /**

@@ -386,6 +386,7 @@ class NODE_MT_shader_node_texture_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeTexGradient")
         self.node_operator(layout, "ShaderNodeTexIES")
         self.node_operator(layout, "ShaderNodeTexImage")
+        self.node_operator(layout, "ShaderNodeStringToImage")
         self.node_operator(layout, "ShaderNodeTexMagic")
         self.node_operator(layout, "ShaderNodeTexNoise")
         self.node_operator(layout, "ShaderNodeTexSky")

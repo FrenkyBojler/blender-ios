@@ -2,6 +2,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include <algorithm>
+#include <cstring>
+#include <limits>
+#include <optional>
+
 #include "scene/shader.h"
 #include "kernel/svm/types.h"
 #include "scene/background.h"
@@ -16,15 +21,32 @@
 #include "blender/sync.h"
 #include "blender/util.h"
 
+#include "util/colorspace.h"
+#include "util/image_metadata.h"
 #include "util/set.h"
 #include "util/string.h"
 #include "util/task.h"
+#include "util/types_float4.h"
+#include "util/unique_ptr.h"
 
+#include "BLI_array.hh"
+#include "BLI_assert.h"
+#include "BLI_memory_utils.hh"
 #include "BLI_listbase.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.h"
+#include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 #include "BKE_duplilist.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_vfont.hh"
+
+#include "BLF_api.hh"
 
 #include "NOD_shader.h"
 #include "NOD_shader_nodes_inline.hh"
@@ -33,6 +55,9 @@
 
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
+#include "DNA_packedFile_types.h"
+#include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 
 CCL_NAMESPACE_BEGIN
@@ -40,6 +65,219 @@ CCL_NAMESPACE_BEGIN
 using PtrInputMap = unordered_multimap<void *, ShaderInput *>;
 using PtrOutputMap = map<void *, ShaderOutput *>;
 using ProxyMap = map<string, ConvertNode *>;
+
+/* -------------------------------------------------------------------- */
+/** \name String To Image Texture Loader
+ *
+ * Keep this local to the Blender/Cycles bridge for now, mirroring the compositor node rasterizer.
+ * The shader node treats string and font inputs as material-static data and exposes the rasterized
+ * text through a regular Cycles ImageTextureNode.
+ * \{ */
+
+static int string_image_load_font(const blender::VFont *font)
+{
+  if (!font || blender::BKE_vfont_is_builtin(font)) {
+    return blender::BLF_load_default(true);
+  }
+
+  if (font->packedfile != nullptr) {
+    char name[MAX_ID_FULL_NAME];
+    blender::BKE_id_full_name_get(name, &font->id, 0);
+    return blender::BLF_load_mem_unique(
+        name, static_cast<const unsigned char *>(font->packedfile->data), font->packedfile->size);
+  }
+
+  char file_path[FILE_MAX];
+  blender::STRNCPY(file_path, font->filepath);
+  const char *base_path = font->id.lib ?
+                              blender::BKE_main_blendfile_path_from_library(*font->id.lib) :
+                              blender::BKE_main_blendfile_path_from_global();
+  blender::BLI_path_abs(file_path, base_path);
+  return blender::BLF_load_unique(file_path);
+}
+
+static float string_image_horizontal_position(
+    const int start_offset,
+    const int line_width,
+    const int total_width,
+    const blender::CMPNodeStringToImageHorizontalAlignment alignment)
+{
+  switch (alignment) {
+    case blender::CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT:
+      return float(-start_offset);
+    case blender::CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER:
+      return -start_offset + (total_width - line_width) / 2.0f;
+    case blender::CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT:
+      return float(-start_offset + total_width - line_width);
+  }
+
+  BLI_assert_unreachable();
+  return float(-start_offset);
+}
+
+static float string_image_vertical_position(const int lines_count,
+                                            const int line_index,
+                                            const int line_height,
+                                            const int descender)
+{
+  return (lines_count - 1 - line_index) * line_height - float(descender);
+}
+
+static bool string_image_rasterize(
+    const blender::StringRef string,
+    const blender::VFont *font,
+    const float size,
+    const blender::CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+    const std::optional<int> wrap_width,
+    int64_t &r_width,
+    int64_t &r_height,
+    vector<float> &r_pixels)
+{
+  if (string.is_empty() || size <= 0.0f) {
+    return false;
+  }
+
+  const int font_identifier = string_image_load_font(font);
+  if (font_identifier == -1) {
+    return false;
+  }
+  struct FontUnloadGuard {
+    int font_identifier;
+    ~FontUnloadGuard()
+    {
+      blender::BLF_unload_id(font_identifier);
+    }
+  } font_unload_guard{font_identifier};
+
+  blender::BLF_size(font_identifier, size);
+
+  blender::Vector<blender::StringRef> lines = blender::BLF_string_wrap(
+      font_identifier, string, wrap_width.value_or(-1), blender::BLFWrapMode::Typographical);
+  if (lines.is_empty()) {
+    return false;
+  }
+
+  int total_width = 0;
+  blender::Array<int> line_widths(lines.size());
+  int start_offset = std::numeric_limits<int>::max();
+  for (const int64_t i : lines.index_range()) {
+    blender::rcti line_bounding_box;
+    blender::BLF_boundbox(font_identifier, lines[i].data(), lines[i].size(), &line_bounding_box);
+    line_widths[i] = blender::BLI_rcti_size_x(&line_bounding_box);
+    total_width = std::max(total_width, line_widths[i]);
+    start_offset = std::min(start_offset, line_bounding_box.xmin);
+  }
+
+  const int line_height = blender::BLF_height_max(font_identifier);
+  const int total_height = line_height * lines.size();
+  if (total_width <= 0 || total_height <= 0) {
+    return false;
+  }
+
+  blender::Array<float> alpha_pixels(size_t(total_width) * total_height, 0.0f);
+  const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  blender::BLF_buffer_col(font_identifier, white);
+  blender::BLF_buffer(
+      font_identifier, alpha_pixels.data(), nullptr, total_width, total_height, 1, nullptr);
+
+  const int descender = blender::BLF_descender(font_identifier);
+  for (const int64_t i : lines.index_range()) {
+    const float vertical_position = string_image_vertical_position(
+        lines.size(), i, line_height, descender);
+    const float horizontal_position = string_image_horizontal_position(
+        start_offset, line_widths[i], total_width, horizontal_alignment);
+    blender::BLF_position(font_identifier, horizontal_position, vertical_position, 0.0f);
+    blender::BLF_draw_buffer(font_identifier, lines[i].data(), lines[i].size());
+  }
+
+  blender::BLF_buffer(font_identifier, nullptr, nullptr, 0, 0, 1, nullptr);
+
+  r_width = total_width;
+  r_height = total_height;
+  r_pixels.resize(size_t(total_width) * total_height * 4);
+  for (const int64_t i : alpha_pixels.index_range()) {
+    const float mask = alpha_pixels[i];
+    r_pixels[i * 4 + 0] = mask;
+    r_pixels[i * 4 + 1] = mask;
+    r_pixels[i * 4 + 2] = mask;
+    r_pixels[i * 4 + 3] = mask;
+  }
+  return true;
+}
+
+class StringImageLoader : public ImageLoader {
+ public:
+  StringImageLoader(const string &string,
+                    const blender::VFont *font,
+                    const float size,
+                    const blender::CMPNodeStringToImageHorizontalAlignment horizontal_alignment,
+                    const blender::CMPNodeStringToImageVerticalAlignment vertical_alignment,
+                    const std::optional<int> wrap_width)
+      : string_(string),
+        font_(font),
+        size_(size),
+        horizontal_alignment_(horizontal_alignment),
+        vertical_alignment_(vertical_alignment),
+        wrap_width_(wrap_width)
+  {
+    if (!string_image_rasterize(
+            blender::StringRef(string_), font_, size_, horizontal_alignment_, wrap_width_, width_,
+            height_, pixels_))
+    {
+      width_ = 1;
+      height_ = 1;
+      pixels_.assign(4, 0.0f);
+    }
+  }
+
+  bool load_metadata(ImageMetaData &metadata,
+                     const ImageLoaderParams & /*params*/,
+                     Progress & /*progress*/) override
+  {
+    metadata.width = width_;
+    metadata.height = height_;
+    metadata.channels = 4;
+    metadata.type = IMAGE_DATA_TYPE_FLOAT4;
+    metadata.colorspace = u_colorspace_data;
+    metadata.is_unassociated_alpha = false;
+    return true;
+  }
+
+  bool load_pixels(const ImageMetaData &metadata, void *pixels) override
+  {
+    memcpy(pixels, pixels_.data(), pixels_.size() * sizeof(float));
+    metadata.conform_pixels(pixels);
+    return true;
+  }
+
+  string name() const override
+  {
+    return "string_to_image";
+  }
+
+  bool equals(const ImageLoader &other) const override
+  {
+    const StringImageLoader *other_loader = dynamic_cast<const StringImageLoader *>(&other);
+    return other_loader && string_ == other_loader->string_ && font_ == other_loader->font_ &&
+           size_ == other_loader->size_ &&
+           horizontal_alignment_ == other_loader->horizontal_alignment_ &&
+           vertical_alignment_ == other_loader->vertical_alignment_ &&
+           wrap_width_ == other_loader->wrap_width_;
+  }
+
+ private:
+  string string_;
+  const blender::VFont *font_;
+  float size_;
+  blender::CMPNodeStringToImageHorizontalAlignment horizontal_alignment_;
+  blender::CMPNodeStringToImageVerticalAlignment vertical_alignment_;
+  std::optional<int> wrap_width_;
+  int64_t width_ = 0;
+  int64_t height_ = 0;
+  vector<float> pixels_;
+};
+
+/** \} */
 
 /* Find */
 
@@ -76,7 +314,7 @@ static EmissionSampling get_emission_sampling(blender::PointerRNA &ptr)
 
 static int validate_enum_value(const int value, const int num_values, const int default_value)
 {
-  if (value >= num_values) {
+  if (value < 0 || value >= num_values) {
     return default_value;
   }
   return value;
@@ -99,6 +337,45 @@ template<typename NodeType> static ExtensionType get_image_extension(NodeType &b
 {
   const int value = b_node.extension;
   return (ExtensionType)validate_enum_value(value, EXTENSION_NUM_TYPES, EXTENSION_REPEAT);
+}
+
+static ExtensionType get_string_image_extension(const blender::bNode &b_node)
+{
+  return (ExtensionType)validate_enum_value(b_node.custom1, EXTENSION_NUM_TYPES, EXTENSION_CLIP);
+}
+
+static float string_image_horizontal_alignment_offset(
+    const blender::CMPNodeStringToImageHorizontalAlignment horizontal_alignment)
+{
+  switch (horizontal_alignment) {
+    case blender::CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT:
+      return -0.5f;
+    case blender::CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER:
+      return 0.0f;
+    case blender::CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT:
+      return 0.5f;
+  }
+
+  BLI_assert_unreachable();
+  return 0.0f;
+}
+
+static float string_image_vertical_alignment_offset(
+    const blender::CMPNodeStringToImageVerticalAlignment vertical_alignment)
+{
+  switch (vertical_alignment) {
+    case blender::CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP:
+    case blender::CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE:
+      return 0.5f;
+    case blender::CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE:
+      return 0.0f;
+    case blender::CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE:
+    case blender::CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM:
+      return -0.5f;
+  }
+
+  BLI_assert_unreachable();
+  return 0.0f;
 }
 
 static ImageAlphaType get_image_alpha_type(blender::Image &b_image)
@@ -289,6 +566,59 @@ static bool is_image_animated(blender::eImageSource b_image_source,
   return (b_image_source == blender::IMA_SRC_MOVIE ||
           b_image_source == blender::IMA_SRC_SEQUENCE) &&
          (b_image_user.flag & blender::IMA_ANIM_ALWAYS) != 0;
+}
+
+static const blender::bNodeSocket *find_input_socket(const blender::bNode &node,
+                                                     const blender::StringRefNull identifier)
+{
+  return blender::bke::node_find_socket(node, blender::SOCK_IN, identifier);
+}
+
+static string socket_string_value(const blender::bNode &node,
+                                  const blender::StringRefNull identifier)
+{
+  const blender::bNodeSocket *socket = find_input_socket(node, identifier);
+  if (!socket) {
+    return "";
+  }
+  return socket->default_value_typed<blender::bNodeSocketValueString>()->value;
+}
+
+static const blender::VFont *socket_font_value(const blender::bNode &node,
+                                               const blender::StringRefNull identifier)
+{
+  const blender::bNodeSocket *socket = find_input_socket(node, identifier);
+  if (!socket) {
+    return blender::BKE_vfont_builtin_ensure();
+  }
+  const blender::VFont *font =
+      socket->default_value_typed<blender::bNodeSocketValueFont>()->value;
+  return font ? font : blender::BKE_vfont_builtin_ensure();
+}
+
+static float socket_float_value(const blender::bNode &node,
+                                const blender::StringRefNull identifier)
+{
+  const blender::bNodeSocket *socket = find_input_socket(node, identifier);
+  return socket ? socket->default_value_typed<blender::bNodeSocketValueFloat>()->value : 0.0f;
+}
+
+static int socket_int_value(const blender::bNode &node, const blender::StringRefNull identifier)
+{
+  const blender::bNodeSocket *socket = find_input_socket(node, identifier);
+  return socket ? socket->default_value_typed<blender::bNodeSocketValueInt>()->value : 0;
+}
+
+static bool socket_bool_value(const blender::bNode &node, const blender::StringRefNull identifier)
+{
+  const blender::bNodeSocket *socket = find_input_socket(node, identifier);
+  return socket ? socket->default_value_typed<blender::bNodeSocketValueBoolean>()->value : false;
+}
+
+static int socket_menu_value(const blender::bNode &node, const blender::StringRefNull identifier)
+{
+  const blender::bNodeSocket *socket = find_input_socket(node, identifier);
+  return socket ? socket->default_value_typed<blender::bNodeSocketValueMenu>()->value : 0;
 }
 
 static ShaderNode *add_node(Scene *scene,
@@ -905,6 +1235,39 @@ static ShaderNode *add_node(Scene *scene,
         image->set_filename(filename);
       }
     }
+    node = image;
+  }
+  else if (b_node.is_type("ShaderNodeStringToImage"_ustr)) {
+    ImageTextureNode *image = graph->create_node<ImageTextureNode>();
+
+    image->set_interpolation(INTERPOLATION_LINEAR);
+    image->set_extension(get_string_image_extension(b_node));
+    image->set_colorspace(u_colorspace_data);
+    image->set_alpha_type(IMAGE_ALPHA_ASSOCIATED);
+
+    const string string = socket_string_value(b_node, "String");
+    const blender::VFont *font = socket_font_value(b_node, "Font");
+    const float size = socket_float_value(b_node, "Size");
+    const auto horizontal_alignment = blender::CMPNodeStringToImageHorizontalAlignment(
+        socket_menu_value(b_node, "Horizontal Alignment"));
+    const auto vertical_alignment = blender::CMPNodeStringToImageVerticalAlignment(
+        socket_menu_value(b_node, "Vertical Alignment"));
+    const bool use_wrap = socket_bool_value(b_node, "Wrap");
+    const std::optional<int> wrap_width = use_wrap ?
+                                             std::optional<int>(std::max(
+                                                 0, socket_int_value(b_node, "Wrap Width"))) :
+                                             std::nullopt;
+    const float alignment_offset_x = string_image_horizontal_alignment_offset(
+        horizontal_alignment);
+    const float alignment_offset_y = string_image_vertical_alignment_offset(vertical_alignment);
+    image->set_tex_mapping_translation(
+        make_float3(-alignment_offset_x, -alignment_offset_y, 0.0f));
+
+    image->handle = scene->image_manager->add_image(
+        make_unique<StringImageLoader>(
+            string, font, size, horizontal_alignment, vertical_alignment, wrap_width),
+        image->image_params());
+
     node = image;
   }
   else if (b_node.is_type("ShaderNodeTexEnvironment"_ustr)) {

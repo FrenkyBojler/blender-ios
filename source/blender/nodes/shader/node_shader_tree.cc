@@ -159,8 +159,8 @@ static bool shader_validate_link(eNodeSocketDatatype from, eNodeSocketDatatype t
   if (from == SOCK_SHADER) {
     return to == SOCK_SHADER;
   }
-  if (ELEM(to, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_MENU) ||
-      ELEM(from, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_MENU))
+  if (ELEM(to, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_MENU, SOCK_STRING, SOCK_FONT) ||
+      ELEM(from, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_MENU, SOCK_STRING, SOCK_FONT))
   {
     return from == to;
   }
@@ -177,6 +177,8 @@ static bool shader_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreetype*
                                                                SOCK_VECTOR,
                                                                SOCK_RGBA,
                                                                SOCK_SHADER,
+                                                               SOCK_STRING,
+                                                               SOCK_FONT,
                                                                SOCK_BUNDLE,
                                                                SOCK_CLOSURE,
                                                                SOCK_MENU);

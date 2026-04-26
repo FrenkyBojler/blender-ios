@@ -82,6 +82,7 @@ set(SRC
   nodes/node_shader_sepcomb_xyz.cc
   nodes/node_shader_shader_to_rgb.cc
   nodes/node_shader_squeeze.cc
+  nodes/node_shader_string_to_image.cc
   nodes/node_shader_subsurface_scattering.cc
   nodes/node_shader_tangent.cc
   nodes/node_shader_tex_brick.cc
@@ -123,6 +124,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenkernel
+  PRIVATE bf::blenfont
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph

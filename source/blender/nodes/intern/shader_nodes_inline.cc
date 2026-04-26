@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <string>
 #include <variant>
 
 #include "BKE_compute_context_cache.hh"
@@ -14,6 +15,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
+
+#include "DNA_vfont_types.h"
 
 #include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
@@ -39,7 +42,7 @@ struct NodeAndSocket {
 };
 
 struct PrimitiveSocketValue {
-  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue> value;
+  std::variant<int, float, bool, ColorGeometry4f, float3, std::string, VFont *, MenuValue> value;
 
   const void *buffer() const
   {
@@ -68,6 +71,12 @@ struct PrimitiveSocketValue {
     }
     if (type.is<float3>()) {
       return {*static_cast<const float3 *>(value.get())};
+    }
+    if (type.is<std::string>()) {
+      return {*static_cast<const std::string *>(value.get())};
+    }
+    if (type.is<VFont *>()) {
+      return {*static_cast<VFont *const *>(value.get())};
     }
     if (type.is<MenuValue>()) {
       return {*static_cast<const MenuValue *>(value.get())};
@@ -142,6 +151,11 @@ struct SocketValue {
         case SOCK_RGBA:
           return PrimitiveSocketValue{
               ColorGeometry4f(socket.default_value_typed<bNodeSocketValueRGBA>()->value)};
+        case SOCK_STRING:
+          return PrimitiveSocketValue{
+              std::string(socket.default_value_typed<bNodeSocketValueString>()->value)};
+        case SOCK_FONT:
+          return PrimitiveSocketValue{socket.default_value_typed<bNodeSocketValueFont>()->value};
         case SOCK_MENU:
           return PrimitiveSocketValue{
               MenuValue(socket.default_value_typed<bNodeSocketValueMenu>()->value)};
@@ -155,6 +169,8 @@ struct SocketValue {
         case SOCK_BOOLEAN:
         case SOCK_VECTOR:
         case SOCK_RGBA:
+        case SOCK_STRING:
+        case SOCK_FONT:
         case SOCK_FLOAT:
           return PrimitiveSocketValue::from_value(
               {type.base_cpp_type, type.base_cpp_type->default_value()});
@@ -1460,6 +1476,20 @@ class ShaderNodesInliner {
       case SOCK_RGBA: {
         copy_v4_v4(socket.default_value_typed<bNodeSocketValueRGBA>()->value,
                    std::get<ColorGeometry4f>(value.value));
+        break;
+      }
+      case SOCK_STRING: {
+        STRNCPY(socket.default_value_typed<bNodeSocketValueString>()->value,
+                std::get<std::string>(value.value).c_str());
+        break;
+      }
+      case SOCK_FONT: {
+        socket.default_value_typed<bNodeSocketValueFont>()->value = std::get<VFont *>(value.value);
+        break;
+      }
+      case SOCK_MENU: {
+        socket.default_value_typed<bNodeSocketValueMenu>()->value =
+            std::get<MenuValue>(value.value).value;
         break;
       }
       default: {

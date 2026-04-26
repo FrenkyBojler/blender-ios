@@ -72,6 +72,12 @@ void node_tex_image_linear(float3 co, sampler2D ima, float4 &color, float &alpha
 }
 
 [[node]]
+void node_string_to_image_align(float3 co, float3 offset, float3 &outco)
+{
+  outco = co + offset;
+}
+
+[[node]]
 void node_tex_image_cubic(float3 co, sampler2D ima, float4 &color, float &alpha)
 {
   color = texture_bicubic(ima, co.xy);

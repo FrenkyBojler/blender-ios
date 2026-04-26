@@ -47,6 +47,8 @@ namespace blender {
 
 static void gpu_material_ramp_texture_build(GPUMaterial *mat);
 static void gpu_material_sky_texture_build(GPUMaterial *mat);
+static void gpu_material_generated_texture_build(GPUMaterial *mat);
+static void gpu_material_generated_textures_free(GPUMaterial *mat);
 
 /* Structs */
 #define MAX_COLOR_BAND 128
@@ -60,6 +62,14 @@ struct GPUColorBandBuilder {
 struct GPUSkyBuilder {
   float pixels[MAX_GPU_SKIES][GPU_SKY_WIDTH * GPU_SKY_HEIGHT][4];
   int current_layer;
+};
+
+struct GPUGeneratedTexture {
+  GPUGeneratedTexture *next, *prev;
+  int width = 0;
+  int height = 0;
+  float *pixels = nullptr;
+  gpu::Texture *texture = nullptr;
 };
 
 struct GPUMaterial {
@@ -92,6 +102,8 @@ struct GPUMaterial {
   gpu::Texture *sky_tex = nullptr;
   /* Builder for sky_tex. */
   GPUSkyBuilder *sky_builder = nullptr;
+  /* Generated 2D textures owned by this material. */
+  ListBaseT<GPUGeneratedTexture> generated_textures = {};
   /* Low level node graph(s). Also contains resources needed by the material. */
   GPUNodeGraph graph = {};
 
@@ -125,6 +137,7 @@ struct GPUMaterial {
     if (sky_tex != nullptr) {
       GPU_texture_free(sky_tex);
     }
+    gpu_material_generated_textures_free(this);
   }
 };
 
@@ -178,6 +191,7 @@ GPUMaterialFromNodeTreeResult GPU_material_from_nodetree(
 
   gpu_material_ramp_texture_build(mat);
   gpu_material_sky_texture_build(mat);
+  gpu_material_generated_texture_build(mat);
 
   /* Use default material pass when possible. */
   if (GPUPass *default_pass = pass_replacement_cb ? pass_replacement_cb(thunk, mat) : nullptr) {
@@ -519,6 +533,53 @@ static void gpu_material_sky_texture_build(GPUMaterial *mat)
 
   MEM_delete(mat->sky_builder);
   mat->sky_builder = nullptr;
+}
+
+gpu::Texture **gpu_material_generated_texture_set(GPUMaterial *mat,
+                                                  const int width,
+                                                  const int height,
+                                                  float *pixels)
+{
+  GPUGeneratedTexture *generated = MEM_new<GPUGeneratedTexture>("GPUGeneratedTexture");
+  generated->width = width;
+  generated->height = height;
+  generated->pixels = pixels;
+  BLI_addtail(&mat->generated_textures, generated);
+  return &generated->texture;
+}
+
+static void gpu_material_generated_texture_build(GPUMaterial *mat)
+{
+  for (GPUGeneratedTexture &generated : mat->generated_textures) {
+    if (generated.texture != nullptr || generated.pixels == nullptr) {
+      continue;
+    }
+    generated.texture = GPU_texture_create_2d("mat_generated",
+                                              generated.width,
+                                              generated.height,
+                                              1,
+                                              gpu::TextureFormat::SFLOAT_32_32_32_32,
+                                              GPU_TEXTURE_USAGE_SHADER_READ,
+                                              generated.pixels);
+    MEM_delete(generated.pixels);
+    generated.pixels = nullptr;
+  }
+}
+
+static void gpu_material_generated_textures_free(GPUMaterial *mat)
+{
+  while (GPUGeneratedTexture *generated = static_cast<GPUGeneratedTexture *>(
+             mat->generated_textures.first))
+  {
+    if (generated->texture != nullptr) {
+      GPU_texture_free(generated->texture);
+    }
+    if (generated->pixels != nullptr) {
+      MEM_delete(generated->pixels);
+    }
+    BLI_remlink(&mat->generated_textures, generated);
+    MEM_delete(generated);
+  }
 }
 
 /* Code generation */

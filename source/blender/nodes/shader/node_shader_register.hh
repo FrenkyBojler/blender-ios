@@ -79,6 +79,7 @@ void register_node_type_sh_sepcolor();
 void register_node_type_sh_sepxyz();
 void register_node_type_sh_shadertorgb();
 void register_node_type_sh_squeeze();
+void register_node_type_sh_string_to_image();
 void register_node_type_sh_subsurface_scattering();
 void register_node_type_sh_tangent();
 void register_node_type_sh_tex_brick();

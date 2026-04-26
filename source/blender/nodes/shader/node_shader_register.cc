@@ -80,6 +80,7 @@ void register_shader_nodes()
   register_node_type_sh_sepxyz();
   register_node_type_sh_shadertorgb();
   register_node_type_sh_squeeze();
+  register_node_type_sh_string_to_image();
   register_node_type_sh_subsurface_scattering();
   register_node_type_sh_tangent();
   register_node_type_sh_tex_brick();

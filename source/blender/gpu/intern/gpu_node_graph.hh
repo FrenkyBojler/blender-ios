@@ -239,5 +239,9 @@ gpu::Texture **gpu_material_ramp_texture_row_set(GPUMaterial *mat,
  */
 gpu::Texture **gpu_material_sky_texture_layer_set(
     GPUMaterial *mat, int width, int height, const float *pixels, float *row);
+gpu::Texture **gpu_material_generated_texture_set(GPUMaterial *mat,
+                                                  int width,
+                                                  int height,
+                                                  float *pixels);
 
 }  // namespace blender

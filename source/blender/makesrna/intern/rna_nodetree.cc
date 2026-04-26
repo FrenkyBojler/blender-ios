@@ -5475,6 +5475,19 @@ static void def_sh_tex_image(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, 0, "rna_Node_update");
 }
 
+static void def_sh_string_to_image(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "extension", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, prop_image_extension);
+  RNA_def_property_ui_text(
+      prop, "Extension", "How the generated image is extrapolated past its original bounds");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_IMAGE);
+  RNA_def_property_update(prop, 0, "rna_Node_update");
+}
+
 static void def_tex_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10185,6 +10198,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeTexGradient", def_sh_tex_gradient);
   define("ShaderNode", "ShaderNodeTexIES", def_sh_tex_ies);
   define("ShaderNode", "ShaderNodeTexImage", def_sh_tex_image);
+  define("ShaderNode", "ShaderNodeStringToImage", def_sh_string_to_image);
   define("ShaderNode", "ShaderNodeTexMagic", def_sh_tex_magic);
   define("ShaderNode", "ShaderNodeTexNoise", def_sh_tex_noise);
   define("ShaderNode", "ShaderNodeTexSky", def_sh_tex_sky);
