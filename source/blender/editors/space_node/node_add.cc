@@ -1337,6 +1337,30 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
 /** \name Add Group Input Node Operator
  * \{ */
 
+static void hide_unselected_sockets(bNode *node, bNodeTreeInterfaceItem *item, bool panels_with_header_unselected) {
+  switch (eNodeTreeInterfaceItemType(item->item_type)) {
+    case NODE_INTERFACE_SOCKET: {
+      auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
+      if (socket->flag & NODE_INTERFACE_SOCKET_INPUT && !(socket->flag & NODE_INTERFACE_SOCKET_SELECT)) {
+        auto *node_socket = node->output_by_identifier(UString(socket->identifier));
+        node_socket->flag |= SOCK_HIDDEN;
+      }
+      break;
+    }
+    case NODE_INTERFACE_PANEL: {
+      /* Only visit unselected panels. */
+      auto *interface_panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
+      bool panel_selection_ignored = panels_with_header_unselected && interface_panel->header_toggle_socket();
+      if (!(interface_panel->flag & NODE_INTERFACE_PANEL_SELECT) || panel_selection_ignored) {
+        for (auto *sub_item : interface_panel->items()) {
+          hide_unselected_sockets(node, sub_item, panels_with_header_unselected);
+        }
+      }
+      break;
+    }
+  }
+}
+
 static wmOperatorStatus node_add_group_input_node_exec(bContext *C, wmOperator *op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -1351,33 +1375,11 @@ static wmOperatorStatus node_add_group_input_node_exec(bContext *C, wmOperator *
   bNode *group_input_node = add_node(*C, "NodeGroupInput"_ustr, snode->runtime->cursor);
 
   if (only_selected) {
-    /* Hide unselected sockets, only visit unselected panels. */
-    const std::function<void(bNodeTreeInterfaceItem*)> hide_unselected = [&](bNodeTreeInterfaceItem *item) {
-      switch (eNodeTreeInterfaceItemType(item->item_type)) {
-        case NODE_INTERFACE_SOCKET: {
-          auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
-          if (socket->flag & NODE_INTERFACE_SOCKET_INPUT && !(socket->flag & NODE_INTERFACE_SOCKET_SELECT)) {
-            auto *node_socket = group_input_node->output_by_identifier(UString(socket->identifier));
-            node_socket->flag |= SOCK_HIDDEN;
-          }
-          break;
-        }
-        case NODE_INTERFACE_PANEL: {
-          auto *interface_panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
-          bool ignore_contents = !all_panel_contents && interface_panel->header_toggle_socket();
-          if (!(interface_panel->flag & NODE_INTERFACE_PANEL_SELECT) || ignore_contents) {
-            for (auto *sub_item : interface_panel->items()) {
-              hide_unselected(sub_item);
-            }
-          }
-          break;
-        }
-      }
-    };
+    hide_unselected_sockets(group_input_node,
+                            reinterpret_cast<bNodeTreeInterfaceItem *>(&interface.root_panel),
+                            !all_panel_contents);
 
-    hide_unselected(reinterpret_cast<bNodeTreeInterfaceItem *>(&interface.root_panel));
-
-    /* Hide __extend__ socket */
+    /* Hide __extend__ socket. */
     group_input_node->output_by_identifier("__extend__"_ustr)->flag |= SOCK_HIDDEN;
   }
 
@@ -1404,6 +1406,25 @@ static wmOperatorStatus node_add_group_input_node_invoke(bContext *C,
   return node_add_group_input_node_exec(C, op);
 }
 
+static bool contains_any_selected_input(bNodeTreeInterfaceItem *item, bool parent_selected) {
+  switch (eNodeTreeInterfaceItemType(item->item_type)) {
+    case NODE_INTERFACE_SOCKET: {
+        auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
+        return socket->flag & NODE_INTERFACE_SOCKET_INPUT && (parent_selected || socket->flag & NODE_INTERFACE_SOCKET_SELECT);
+    }
+    case NODE_INTERFACE_PANEL: {
+        auto *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
+        for (auto *sub_item : panel->items()) {
+          /* There's no need to handle the header toggle differently. */
+          if (contains_any_selected_input(sub_item, parent_selected || panel->flag & NODE_INTERFACE_PANEL_SELECT)) {
+            return true;
+          }
+        }
+    }
+  }
+  return false;
+}
+
 static bool node_add_group_input_node_poll(bContext *C)
 {
   if (!ED_operator_node_editable(C)) {
@@ -1413,25 +1434,6 @@ static bool node_add_group_input_node_poll(bContext *C)
   const SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *ntree = snode->edittree;
   bNodeTreeInterface &interface = ntree->tree_interface;
-
-  const std::function<bool(bNodeTreeInterfaceItem*, bool)> contains_any_selected_input = [&](bNodeTreeInterfaceItem *item, bool parent_selected) {
-    switch (eNodeTreeInterfaceItemType(item->item_type)) {
-      case NODE_INTERFACE_SOCKET: {
-        auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
-        return socket->flag & NODE_INTERFACE_SOCKET_INPUT && (parent_selected || socket->flag & NODE_INTERFACE_SOCKET_SELECT);
-      }
-      case NODE_INTERFACE_PANEL: {
-        auto *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
-        for (auto *sub_item : panel->items()) {
-          /* There's no need to handle the header toggle differently during poll. */
-          if (contains_any_selected_input(sub_item, parent_selected || panel->flag & NODE_INTERFACE_PANEL_SELECT)) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  };
 
   if (!contains_any_selected_input(reinterpret_cast<bNodeTreeInterfaceItem*>(&interface.root_panel), false)) {
     CTX_wm_operator_poll_msg_set(C, "No selected input sockets or panels");
