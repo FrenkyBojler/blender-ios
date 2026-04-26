@@ -1389,7 +1389,10 @@ struct KernelObject {
 
   uint attribute_map_offset;
   uint motion_offset;
-  int normal_attr_offset;
+
+  /* Cached offset into attribute arrays, as these are accessed often. */
+  int position_offset;
+  int normal_offset;
 
   float cryptomatte_object;
   float cryptomatte_asset;
