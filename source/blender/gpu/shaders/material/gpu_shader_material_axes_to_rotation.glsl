@@ -25,19 +25,19 @@ void axes_to_rotation(float3 primary_in,
   if (primary_is_non_zero && secondary_is_non_zero) {
     tertiary = cross(primary, secondary);
     if (is_zero(tertiary)) {
-      tertiary = orthogonal(primary);
+      tertiary = orthogonal<float3>(primary);
     }
     tertiary = normalize(tertiary);
     secondary = cross(tertiary, primary);
   }
   else if (primary_is_non_zero) {
-    secondary = orthogonal(primary);
+    secondary = orthogonal<float3>(primary);
     secondary = normalize(secondary);
     tertiary = cross(primary, secondary);
   }
   else if (secondary_is_non_zero) {
     secondary = normalize(secondary);
-    primary = orthogonal(secondary);
+    primary = orthogonal<float3>(secondary);
     primary = normalize(primary);
     tertiary = cross(primary, secondary);
   }
