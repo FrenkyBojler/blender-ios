@@ -5925,6 +5925,10 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.separator()
 
+        layout.operator_menu_enum("grease_pencil.stroke_boolean", text="Stroke Boolean", property="boolean_mode")
+
+        layout.separator()
+
         layout.operator("grease_pencil.reset_uvs")
         layout.operator("grease_pencil.join_fills")
         layout.operator("grease_pencil.separate_fills")
