@@ -29,15 +29,15 @@ eSnapMode snapLattice(SnapObjectContext *sctx, const Object *ob_eval, const floa
     return SCE_SNAP_TO_NONE;
   }
 
-  Lattice *lt = id_cast<Lattice *>(ob_eval->data);
+  Lattice *lt_id = id_cast<Lattice *>(ob_eval->data);
 
   SnapData nearest2d(sctx, obmat);
 
   const bool use_obedit = BKE_object_is_in_editmode(ob_eval);
-  Lattice *eval_lt = use_obedit ? lt->editlatt->latt : lt;
+  Lattice *lt = use_obedit ? lt_id->editlatt->latt : lt_id;
 
   if (!use_obedit) {
-    std::optional<Bounds<float3>> bounds = BKE_lattice_minmax(eval_lt);
+    std::optional<Bounds<float3>> bounds = BKE_lattice_minmax(lt);
     if (bounds && !nearest2d.snap_boundbox(bounds->min, bounds->max)) {
       return SCE_SNAP_TO_NONE;
     }
@@ -48,8 +48,8 @@ eSnapMode snapLattice(SnapObjectContext *sctx, const Object *ob_eval, const floa
   bool skip_selected = (sctx->runtime.params.snap_target_select & SCE_SNAP_TARGET_NOT_SELECTED) !=
                        0;
 
-  const int totpoint = eval_lt->pntsu * eval_lt->pntsv * eval_lt->pntsw;
-  Span<BPoint> points(eval_lt->def, totpoint);
+  const int totpoint = lt->pntsu * lt->pntsv * lt->pntsw;
+  Span<BPoint> points(lt->def, totpoint);
 
   for (const BPoint &bp : points) {
     if (use_obedit) {
