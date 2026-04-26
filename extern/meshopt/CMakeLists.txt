@@ -14,6 +14,8 @@ set(SRC
   src/decoder.cpp
   src/common.h
   src/decoder.h
+  src/encoder.cpp
+  src/encoder.h
 )
 
 set(LIB
