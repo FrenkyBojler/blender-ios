@@ -868,7 +868,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   # explicitly turned off here as it will make floating point math give a bit
   # different results. This will lead to automated test failures. So disable
   # this until we support it.
-  set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing -ffp-contract=off")
+  set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing -ffp-contract=off -ftree-vectorize")
 
   # `maybe-uninitialized` is unreliable in release builds, but fine in debug builds.
   set(GCC_EXTRA_FLAGS_RELEASE "-Wno-maybe-uninitialized")
