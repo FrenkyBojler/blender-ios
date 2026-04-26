@@ -21,9 +21,11 @@
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -70,14 +72,14 @@ static void version_geometry_nodes_properties(FileData &fd,
     return;
   }
   if (ID_MISSING(&nmd.node_group->id)) {
-    /* Keeping the old idproperties is not an option, and not really usefull, since if the
-     * blendfile is saved in this current state, it won't be re-versionned here later anyway.
+    /* Keeping the old idproperties is not an option, and not really useful, since if the
+     * blend-file is saved in this current state, it won't be re-versioned here later anyway.
      *
      * Furthermore, the whole remaining part of the code expects this to be nullptr, and keeping it
      * at runtime actually causes weird issues in depsgraph nodes building phase.
      *
      * So all in all, it's simpler and safer to also just lose these values here - if file is not
-     * saved in this state, next loading will do the versionning if the nodegroup is available
+     * saved in this state, next loading will do the versioning if the node-group is available
      * again, otherwise that data is lost.
      */
     IDP_FreeProperty(nmd.settings_legacy.properties);
@@ -207,6 +209,31 @@ static void version_geometry_nodes_properties(FileData &fd,
   nmd.settings_legacy.properties = nullptr;
 }
 
+static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree)
+{
+  node_tree.ensure_interface_cache();
+  Set<StringRef> all_identifiers;
+  for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
+    if (item->item_type == NODE_INTERFACE_PANEL) {
+      continue;
+    }
+    auto &socket = *bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
+    /* Socket identifiers are required to be valid RNA identifiers and unique. */
+    if (!RNA_validate_identifier(socket.identifier, true)) {
+      RNA_identifier_sanitize(socket.identifier, true);
+      if (all_identifiers.contains(socket.identifier)) {
+        std::string new_identifier = BLI_uniquename_cb(
+            [&](StringRef name) { return all_identifiers.contains(name); },
+            '_',
+            socket.identifier);
+        MEM_SAFE_DELETE(socket.identifier);
+        socket.identifier = BLI_strdup(new_identifier.c_str());
+      }
+    }
+    all_identifiers.add(socket.identifier);
+  }
+}
+
 /* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
@@ -234,7 +261,7 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
     Editing *ed = seq::editing_get(&scene);
     if (ed != nullptr) {
       seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
-        constexpr int flag_linear_modifiers = 1 << 23;
+        constexpr eStripFlag flag_linear_modifiers = eStripFlag(1 << 23);
         strip->flag &= ~flag_linear_modifiers;
         return true;
       });
@@ -391,6 +418,82 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (brush.gpencil_settings != nullptr) {
         brush.gpencil_settings->curve_type = CURVE_TYPE_POLY;
         brush.gpencil_settings->conversion_threshold = 0.001f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 17)) {
+    for (Material &materials : bmain->materials) {
+      if (materials.gp_style != nullptr) {
+        materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
+        materials.gp_style->placement_count = 1;
+        materials.gp_style->placement_density = 10.0f;
+        materials.gp_style->placement_radius_spacing = 100.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 18)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings->sculpt) {
+        Sculpt &sculpt = *scene.toolsettings->sculpt;
+        MeshAutomaskingSettings *settings = MEM_new<MeshAutomaskingSettings>(__func__);
+        settings->flags = sculpt.automasking_flags;
+        settings->boundary_edges_propagation_steps =
+            sculpt.automasking_boundary_edges_propagation_steps;
+        settings->cavity_blur_steps = sculpt.automasking_cavity_blur_steps;
+        settings->cavity_factor = sculpt.automasking_cavity_factor;
+        settings->start_normal_limit = sculpt.automasking_start_normal_limit;
+        settings->start_normal_falloff = sculpt.automasking_start_normal_falloff;
+        settings->view_normal_limit = sculpt.automasking_view_normal_limit;
+        settings->view_normal_falloff = sculpt.automasking_view_normal_falloff;
+        settings->cavity_curve = BKE_curvemapping_copy(sculpt.automasking_cavity_curve);
+        settings->cavity_curve_op = BKE_curvemapping_copy(sculpt.automasking_cavity_curve_op);
+
+        scene.toolsettings->sculpt->paint.mesh_automasking_settings = settings;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 19)) {
+    for (bNodeTree &tree : bmain->nodetrees) {
+      sanitize_node_tree_interface_socket_identifiers(tree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 20)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.ob_mode != OB_MODE_SCULPT) {
+        continue;
+      }
+
+      brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+      brush.mesh_automasking_settings->flags = brush.automasking_flags;
+      brush.mesh_automasking_settings->boundary_edges_propagation_steps =
+          brush.automasking_boundary_edges_propagation_steps;
+      brush.mesh_automasking_settings->cavity_blur_steps = brush.automasking_cavity_blur_steps;
+      brush.mesh_automasking_settings->cavity_factor = brush.automasking_cavity_factor;
+      brush.mesh_automasking_settings->start_normal_falloff =
+          brush.automasking_start_normal_falloff;
+      brush.mesh_automasking_settings->start_normal_limit = brush.automasking_start_normal_limit;
+      brush.mesh_automasking_settings->view_normal_falloff = brush.automasking_view_normal_falloff;
+      brush.mesh_automasking_settings->view_normal_limit = brush.automasking_view_normal_limit;
+      brush.mesh_automasking_settings->cavity_curve = BKE_curvemapping_copy(
+          brush.automasking_cavity_curve);
+      brush.mesh_automasking_settings->cavity_curve_op = nullptr;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 21)) {
+    for (Material &materials : bmain->materials) {
+      if (materials.gp_style != nullptr) {
+        materials.gp_style->random_size_factor = 0.0f;
+        materials.gp_style->random_strength_factor = 0.0f;
+        materials.gp_style->random_rotation_factor = 0.0f;
+        materials.gp_style->random_hue_factor = 0.0f;
+        materials.gp_style->random_saturation_factor = 0.0f;
+        materials.gp_style->random_value_factor = 0.0f;
+        materials.gp_style->random_noise_scale = 1.0f;
       }
     }
   }

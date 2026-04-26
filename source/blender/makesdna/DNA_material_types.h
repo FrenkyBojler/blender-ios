@@ -50,6 +50,8 @@ enum eMaterialGPencilStyle_Flag {
   GP_MATERIAL_IS_STROKE_HOLDOUT = (1 << 13),
   /* Material used as fill masking. */
   GP_MATERIAL_IS_FILL_HOLDOUT = (1 << 14),
+  /* Material use randomization. */
+  GP_MATERIAL_USE_DOTS_RANDOMIZATION = (1 << 15),
 };
 
 enum eMaterialGPencilStyle_Mode {
@@ -239,6 +241,13 @@ enum {
   GP_MATERIAL_FOLLOW_FIXED = 2,
 };
 
+/* Grease Pencil Placement Drawing Modes */
+enum eMaterialGPencilPlacementMode {
+  GP_MATERIAL_PLACEMENT_COUNT = 0,
+  GP_MATERIAL_PLACEMENT_RADIUS = 1,
+  GP_MATERIAL_PLACEMENT_DENSITY = 2,
+};
+
 struct TexPaintSlot {
   DNA_DEFINE_CXX_METHODS(TexPaintSlot)
 
@@ -316,6 +325,25 @@ struct MaterialGPencilStyle {
   int alignment_mode = 0;
   /** Rotation for texture for Dots and Squares. */
   float alignment_rotation = 0;
+  /** #eMaterialGPencilPlacementMode Placement mode for Dots and Squares. */
+  int placement_mode = 0;
+  /* Number of points per segment when placement mode is `GP_MATERIAL_PLACEMENT_COUNT` */
+  int placement_count = 0;
+  /* Radius factor for points when placement mode is `GP_MATERIAL_PLACEMENT_RADIUS` */
+  float placement_radius_spacing = 0;
+  /* Point density per unit when placement mode is `GP_MATERIAL_PLACEMENT_DENSITY` */
+  float placement_density = 0;
+
+  float random_size_factor = 0;
+  float random_strength_factor = 0;
+  float random_rotation_factor = 0;
+
+  float random_hue_factor = 0;
+  float random_saturation_factor = 0;
+  float random_value_factor = 0;
+
+  float random_noise_scale = 0;
+  char _pad3[4] = {};
 };
 
 struct MaterialLineArt {
