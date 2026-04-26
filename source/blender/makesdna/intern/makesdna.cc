@@ -33,7 +33,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h" /* For `intptr_t` support. */
@@ -104,7 +103,7 @@ void BLI_system_backtrace(FILE *fp)
 
 /** SDNA builtin or struct type. */
 struct TypeInfo {
-  std::string name;
+  const std::string name;
   /* Native, 32 bit and 64 bit platform sizes. */
   short size_native;
   short size_32;
@@ -116,63 +115,61 @@ struct TypeInfo {
   bool is_struct;
 };
 
-/** Table of unique SNDA table. */
+/** Table of unique SDNA types. */
 struct TypeTable {
-  /** Types in insertion order. The order important to match existing DNA. */
-  Vector<TypeInfo> types;
-  /** Typename name → index lookup. */
-  Map<std::string, int> name_to_index;
+  /* Using a vector set with guaranteed insertion order, so that resulting SDNA
+   * types are always in the same order. */
+  class GetIDFn {
+   public:
+    StringRef operator()(const TypeInfo &info) const
+    {
+      return info.name;
+    }
+  };
+  CustomIDVectorSet<TypeInfo, GetIDFn> types;
 
-  /** Add a built-in type. */
   void add_builtin(StringRefNull name, short size)
   {
-    const int new_index = int(types.size());
-    types.append({.name = name,
-                  .size_native = size,
-                  .size_32 = size,
-                  .size_64 = size,
-                  .align_32 = size,
-                  .align_64 = size,
-                  .is_struct = false});
-    name_to_index.add_new(name, new_index);
+    this->types.add_new({.name = name,
+                         .size_native = size,
+                         .size_32 = size,
+                         .size_64 = size,
+                         .align_32 = size,
+                         .align_64 = size,
+                         .is_struct = false});
   }
 
   /** Add a struct type if it doesn't exist yet. Sizes will be computed later. */
   void add_struct(StringRefNull name)
   {
-    if (name_to_index.contains(name)) {
-      return;
-    }
-
-    const int new_index = int(types.size());
-    types.append({.name = name,
-                  .size_native = 0,
-                  .size_32 = 0,
-                  .size_64 = 0,
-                  .align_32 = 0,
-                  .align_64 = 0,
-                  .is_struct = true});
-    name_to_index.add_new(name, new_index);
+    this->types.add({.name = name,
+                     .size_native = 0,
+                     .size_32 = 0,
+                     .size_64 = 0,
+                     .align_32 = 0,
+                     .align_64 = 0,
+                     .is_struct = true});
   }
 
   /** Look up the index of an existing type. */
   int lookup_index(StringRefNull name) const
   {
-    return *name_to_index.lookup_ptr_as(name);
+    return this->types.index_of_as(name);
   }
 
   /** Look up an existing type by name. */
   TypeInfo &lookup(StringRefNull name)
   {
-    return types[lookup_index(name)];
+    /* Const cast is okay because only TypeInfo::name is used for #VectorSet hash and equality. */
+    return const_cast<TypeInfo &>(this->types[this->lookup_index(name)]);
   }
   const TypeInfo &lookup(StringRefNull name) const
   {
-    return types[lookup_index(name)];
+    return this->types[this->lookup_index(name)];
   }
 };
 
-static TypeTable build_type_table(const Vector<dna::ParsedStruct> &parsed_structs)
+static TypeTable build_type_table(const Span<dna::ParsedStruct> parsed_structs)
 {
   TypeTable table;
 
@@ -202,7 +199,7 @@ static TypeTable build_type_table(const Vector<dna::ParsedStruct> &parsed_struct
   /* Fake place-holder struct definition used to get an identifier for raw, untyped bytes buffers
    * in blend-files.
    *
-   * It will be written into the blend-files SDNA, but it must never be used in the source code.
+   * It will be written into the blend-file's SDNA, but it must never be used in the source code.
    * Trying to declare `struct raw_data` in DNA headers will cause a build error.
    *
    * NOTE: While not critical, since all blend-files before introduction of this 'raw_data'
@@ -569,10 +566,10 @@ static void write_sdna_blob(FILE *file,
   const int num_structs = 1 + int(parsed_structs.size());
 
   /* Deduplicated member names in source order. */
-  VectorSet<std::string> member_names;
+  VectorSet<StringRefNull> member_names;
   for (const dna::ParsedStruct &ps : parsed_structs) {
     for (const dna::ParsedMember &pm : ps.members) {
-      member_names.add_as(pm.member_name);
+      member_names.add(pm.member_name);
     }
   }
 
@@ -582,7 +579,7 @@ static void write_sdna_blob(FILE *file,
            int(member_names.size()),
            int(table.types.size()),
            num_structs);
-    for (const std::string &name : member_names) {
+    for (const StringRefNull name : member_names) {
       printf(" %s\n", name.c_str());
     }
     printf("\n");
@@ -622,7 +619,7 @@ static void write_sdna_blob(FILE *file,
   int len = int(member_names.size());
   dna_write(file, &len, 4);
   len = 0;
-  for (const std::string &member_name : member_names) {
+  for (const StringRefNull member_name : member_names) {
     const int member_len = int(member_name.size()) + 1;
     dna_write(file, member_name.c_str(), member_len);
     len += member_len;
@@ -662,6 +659,8 @@ static void write_sdna_blob(FILE *file,
   dna_write(file, "STRC", 4);
   dna_write(file, &num_structs, 4);
 
+  BLI_assert_msg(table.types.size() < SHRT_MAX, "SDNA only supports up to SHRT_MAX types");
+
   /* Synthetic `raw_data` struct: type index, zero members. */
   const short raw_data_header[2] = {short(table.lookup_index("raw_data")), 0};
   dna_write(file, raw_data_header, 4);
@@ -692,7 +691,7 @@ static void write_sdna_type_offsets(FILE *file, const Span<dna::ParsedStruct> pa
   fprintf(file, "#define SDNA_TYPE_FROM_STRUCT(id) _SDNA_TYPE_##id\n");
   fprintf(file, "enum {\n");
   fprintf(file, "\t_SDNA_TYPE_raw_data = %d,\n", SDNA_RAW_DATA_STRUCT_INDEX);
-  for (int64_t i = 0; i < parsed_structs.size(); i++) {
+  for (const int64_t i : parsed_structs.index_range()) {
     const int sdna_index = int(i) + 1;
     fprintf(
         file, "\t_SDNA_TYPE_%s = %d,\n", parsed_structs[i].alias_type_name.c_str(), sdna_index);
