@@ -84,7 +84,7 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
     Array<bool> is_unit_group(domain_size, true);
     selection.foreach_index_optimized<int>(
         [&](const int index) {
-          const int group_root = group_id_to_root.lookup(group_id_span->operator[](index));
+          const int group_root = group_id_to_root.lookup((*group_id_span)[index]);
           if (group_root != index) {
             is_unit_group[group_root] = false;
           }
@@ -93,7 +93,7 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
 
     selection.foreach_index_optimized<int>(
         [&](const int index) {
-          const int group_root = group_id_to_root.lookup(group_id_span->operator[](index));
+          const int group_root = group_id_to_root.lookup((*group_id_span)[index]);
           if (is_unit_group[group_root]) {
             BLI_assert(group_root == index);
             BLI_assert(r_roots[index] == -1);
