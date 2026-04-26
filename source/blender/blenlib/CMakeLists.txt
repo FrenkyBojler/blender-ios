@@ -371,6 +371,7 @@ set(SRC
   BLI_span.hh
   BLI_stack.h
   BLI_stack.hh
+  BLI_stackless_function.hh
   BLI_strict_flags.h
   BLI_string.h
   BLI_string_cursor_utf8.h
@@ -582,6 +583,7 @@ if(WITH_GTESTS)
     tests/BLI_span_test.cc
     tests/BLI_stack_cxx_test.cc
     tests/BLI_stack_test.cc
+    tests/BLI_stackless_function_test.cc
     tests/BLI_string_ref_test.cc
     tests/BLI_string_search_test.cc
     tests/BLI_string_test.cc
