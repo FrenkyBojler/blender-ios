@@ -334,8 +334,13 @@ uint8_t *imb_load_dds_compressed_data(const char *filepath, int width, int heigh
   const uchar *file_data = static_cast<const uchar *>(BLI_mmap_get_pointer(mmap_file));
   const size_t file_size = BLI_mmap_get_length(mmap_file);
 
-  /* Pull out pixel format and mipmap count flags from DDS header. This function
-   * is called only for files that already parsed as valid DDS. */
+  constexpr size_t dds_header_size = 128;
+  if (file_size < dds_header_size) {
+    BLI_mmap_free(mmap_file);
+    return nullptr;
+  }
+
+  /* Pull out pixel format and mipmap count flags from DDS header. */
   uint32_t flags = 0, mipcount = 0, fourcc = 0;
   memcpy(&flags, file_data + 8, 4);
   memcpy(&mipcount, file_data + 28, 4);
@@ -350,7 +355,6 @@ uint8_t *imb_load_dds_compressed_data(const char *filepath, int width, int heigh
       mipcount = 1;
     }
 
-    constexpr size_t dds_header_size = 128;
     size_t pixel_data_size = file_size - dds_header_size;
 
     result = MEM_new_array_uninitialized<uint8_t>(pixel_data_size, "DDS compressed data");
