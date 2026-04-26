@@ -1199,7 +1199,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   if (U.experimental.use_toast_notifications) {
     /* Draw toast notifications oldest to newest. */
     for (ARegion &region : screen->regionbase.items_reversed_mutable()) {
-      if (!(region.flag & RGN_FLAG_NOTIFICATION)) {
+      if (region.regiontype != RGN_TYPE_NOTIFICATION) {
         continue;
       }
       if (region.flag & RGN_FLAG_HIDDEN) {

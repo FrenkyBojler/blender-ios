@@ -12,6 +12,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_time.h"
@@ -76,7 +77,7 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
   ARegion *region_iter = region;
   while (region_iter->next) {
     region_iter = region_iter->next;
-    if (region_iter->flag & RGN_FLAG_NOTIFICATION) {
+    if (region_iter->regiontype == RGN_TYPE_NOTIFICATION) {
       NotificationData *previous = static_cast<NotificationData *>(region_iter->regiondata);
       num_visible++;
       prior_pos = std::max(prior_pos, previous->pos);
@@ -260,15 +261,17 @@ void notification(bScreen *screen, StringRef message, int icon, eReportType repo
   const float blend_factor = btheme->tui.notification_blend;
   interp_v4_v4v4(data->bg_color, data->bg_color, data->line_color, blend_factor);
 
-  ARegion *region = region_temp_add(screen);
+  ARegion *region = BKE_area_region_new();
+  BLI_addtail(&screen->regionbase, region);
+  region->regiontype = RGN_TYPE_NOTIFICATION;
+  region->alignment = RGN_ALIGN_FLOAT;
   region->regiondata = data;
-  region->flag |= RGN_FLAG_NOTIFICATION;
 
   static ARegionType type = []() {
     ARegionType type = {};
     type.layout = notification_region_layout_fn;
     type.free = notification_region_free_fn;
-    type.regionid = RGN_TYPE_TEMPORARY;
+    type.regionid = RGN_TYPE_NOTIFICATION;
     type.draw_overlay = notification_region_draw_overlay_fn;
     return type;
   }();

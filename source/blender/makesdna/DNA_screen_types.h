@@ -686,8 +686,9 @@ enum eRegion_Type {
   RGN_TYPE_XR = 13,
   RGN_TYPE_ASSET_SHELF = 14,
   RGN_TYPE_ASSET_SHELF_HEADER = 15,
+  RGN_TYPE_NOTIFICATION = 16,
 
-#define RGN_TYPE_NUM (RGN_TYPE_ASSET_SHELF_HEADER + 1)
+#define RGN_TYPE_NUM (RGN_TYPE_NOTIFICATION + 1)
 };
 
 /** Use for function args. */
@@ -758,9 +759,6 @@ enum {
   RGN_FLAG_POLL_FAILED = (1 << 10),
   RGN_FLAG_RESIZE_RESPECT_BUTTON_SECTIONS = (1 << 11),
   RGN_FLAG_INDICATE_OVERFLOW = (1 << 12),
-
-  /* Toast notification. */
-  RGN_FLAG_NOTIFICATION = (1 << 13),
 };
 
 /** #ARegion.do_draw */

@@ -1245,7 +1245,8 @@ void CTX_wm_region_set(bContext *C, ARegion *region)
 
 void CTX_wm_region_popup_set(bContext *C, ARegion *region_popup)
 {
-  BLI_assert(region_popup == nullptr || region_popup->regiontype == RGN_TYPE_TEMPORARY);
+  BLI_assert(region_popup == nullptr ||
+             ELEM(region_popup->regiontype, RGN_TYPE_TEMPORARY, RGN_TYPE_NOTIFICATION));
   C->wm.region_popup = region_popup;
 }
 
