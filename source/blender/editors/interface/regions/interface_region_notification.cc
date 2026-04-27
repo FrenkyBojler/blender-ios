@@ -28,25 +28,21 @@
 
 namespace blender::ui::notification {
 
-#define NOTIFICATION_MAX_SHOWN 3
-
-#define NOTIFICATION_MAX_CHARACTERS 70
-#define NOTIFICATION_SECONDS_PER_CHAR 0.05f
-
-#define NOTIFICATION_HEIGHT (1.4f * UI_UNIT_Y)
+static constexpr float HEIGHT = 28.0f;
 /* Vertical distance separating notifications. */
-#define NOTIFICATION_MARGIN (0.2f * UI_UNIT_X)
+static constexpr float MARGIN = 4.0f;
 /* Padding inside the notification box. */
-#define NOTIFICATION_PADDING (0.5f * UI_UNIT_X)
+static constexpr float PADDING = 10.0f;
+static constexpr float LINE_WIDTH = 4.0f;
+static constexpr float LINE_PADDING = 2.0f;
 
-#define NOTIFICATION_INITIAL_Y (HEADERY * UI_SCALE_FAC)
-#define NOTIFICATION_EXIT_SCROLL (NOTIFICATION_HEIGHT * 0.3f)
+static constexpr int MAX_SHOWN = 3;
+static constexpr int MAX_CHARACTERS = 70;
+static constexpr float SECONDS_PER_CHAR = 0.05f;
 
-#define NOTIFICATION_FADE_IN (0.1f)
-#define NOTIFICATION_FADE_OUT (0.45f)
-
-#define NOTIFICATION_LINE_WIDTH (0.2f * UI_UNIT_X)
-#define NOTIFICATION_LINE_PADDING (0.1f * UI_UNIT_X)
+static constexpr float FADE_IN_TIME = 0.1f;
+static constexpr float FADE_OUT_TIME = 0.45f;
+static constexpr float EXIT_SCROLL = 8.4f;
 
 struct NotificationData {
   std::string message;
@@ -80,7 +76,7 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
     }
   }
 
-  if (now > (data->time_end) || num_visible > NOTIFICATION_MAX_SHOWN) {
+  if (now > (data->time_end) || num_visible > MAX_SHOWN) {
     /* Hide. This will cause removal. */
     region->flag |= RGN_FLAG_HIDDEN;
     return;
@@ -88,20 +84,19 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
 
   if (now < data->time_display) {
     /* Scroll up and fade in. */
-    const float prop = ((data->time_display - now) / NOTIFICATION_FADE_IN);
-    data->pos = prior_pos + NOTIFICATION_MARGIN + ((1.0f - prop) * NOTIFICATION_HEIGHT);
+    const float prop = ((data->time_display - now) / FADE_IN_TIME);
+    data->pos = prior_pos + ((MARGIN * UI_SCALE_FAC) + ((1.0f - prop) * (HEIGHT * UI_SCALE_FAC)));
     data->opacity = 1.0f - prop;
   }
   else if (now > data->time_hide) {
     /* Scroll up and fade out. */
-    const float prop = (now - data->time_hide) / NOTIFICATION_FADE_OUT;
-    data->pos = prior_pos + NOTIFICATION_HEIGHT + NOTIFICATION_MARGIN +
-                (prop * NOTIFICATION_EXIT_SCROLL);
+    const float prop = (now - data->time_hide) / FADE_OUT_TIME;
+    data->pos = prior_pos + (HEIGHT + MARGIN) * UI_SCALE_FAC + (prop * EXIT_SCROLL * UI_SCALE_FAC);
     data->opacity = 1.0f - prop;
   }
   else {
     /* Display the notification. */
-    data->pos = prior_pos + NOTIFICATION_HEIGHT + NOTIFICATION_MARGIN;
+    data->pos = prior_pos + (HEIGHT + MARGIN) * UI_SCALE_FAC;
     data->opacity = 1.0f;
   }
 
@@ -111,10 +106,10 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
 
   bTheme *btheme = theme::theme_get();
   const float corner_radius = btheme->tui.wcol_menu_back.roundness * U.widget_unit;
-  rctf rect = {NOTIFICATION_MARGIN,
-               float(region->winx) - NOTIFICATION_MARGIN,
+  rctf rect = {(MARGIN * UI_SCALE_FAC),
+               float(region->winx) - (MARGIN * UI_SCALE_FAC),
                data->pos,
-               data->pos + NOTIFICATION_HEIGHT};
+               data->pos + (HEIGHT * UI_SCALE_FAC)};
 
   draw_roundbox_corner_set(CNR_ALL);
 
@@ -127,10 +122,10 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
   draw_roundbox_4fv(&rect, true, corner_radius, data->bg_color);
 
   /* Indicator line. */
-  rctf rect_line = {NOTIFICATION_MARGIN + NOTIFICATION_LINE_PADDING * 2,
-                    NOTIFICATION_MARGIN + NOTIFICATION_LINE_WIDTH + NOTIFICATION_LINE_PADDING,
-                    data->pos + 0.2f * UI_UNIT_Y,
-                    data->pos - 0.2f * UI_UNIT_Y + NOTIFICATION_HEIGHT};
+  rctf rect_line = {(MARGIN + LINE_PADDING) * UI_SCALE_FAC * 2,
+                    (MARGIN + LINE_WIDTH + LINE_PADDING) * UI_SCALE_FAC,
+                    data->pos + (MARGIN * UI_SCALE_FAC),
+                    data->pos - (MARGIN + HEIGHT) * UI_SCALE_FAC};
   draw_roundbox_4fv(&rect_line, true, 3.0f, data->line_color);
 
   /* Outline. */
@@ -144,7 +139,7 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
   /* Icon. */
   uchar icon_color[4];
   rgba_float_to_uchar(icon_color, data->line_color);
-  icon_draw_ex(rect.xmin + NOTIFICATION_PADDING + NOTIFICATION_LINE_PADDING,
+  icon_draw_ex(rect.xmin + (PADDING + LINE_PADDING) * UI_SCALE_FAC,
                rect.ymin + (5.5f * UI_SCALE_FAC),
                data->icon,
                1.0f / UI_SCALE_FAC,
@@ -159,8 +154,7 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
   fontstyle_set(&style->widget);
   BLF_color4fv(style->widget.uifont_id, data->text_color);
   BLF_position(style->widget.uifont_id,
-               rect.xmin + NOTIFICATION_PADDING + NOTIFICATION_LINE_PADDING +
-                   (22.0f * UI_SCALE_FAC),
+               rect.xmin + (PADDING + LINE_PADDING + 22.0f) * UI_SCALE_FAC,
                rect.ymin + (10 * UI_SCALE_FAC),
                0.0f);
   BLF_draw(style->widget.uifont_id, data->message.c_str(), data->message.size());
@@ -182,31 +176,30 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
   const uiStyle *style = style_get_dpi();
   fontstyle_set(&style->widget);
   int text_width = BLF_width(style->widget.uifont_id, data->message.c_str(), data->message.size());
-  const int width = NOTIFICATION_MARGIN + NOTIFICATION_PADDING + text_width +
-                    (22.0f * UI_SCALE_FAC) + NOTIFICATION_PADDING + NOTIFICATION_MARGIN;
+  const int width = text_width + (MARGIN + PADDING + 22.0f + PADDING + MARGIN) * UI_SCALE_FAC;
 
   wmWindow *win = CTX_wm_window(C);
 
   int pos_x;
 
   if (U.notification_position == USER_NOTIFICATION_POS_LEFT) {
-    pos_x = (NOTIFICATION_MARGIN / 2);
+    pos_x = (MARGIN * UI_SCALE_FAC / 2);
   }
   else if (U.notification_position == USER_NOTIFICATION_POS_CENTER) {
     pos_x = (win->sizex / 2) - (width / 2);
   }
   else {
-    pos_x = (win->sizex - (NOTIFICATION_MARGIN / 2)) - width;
+    pos_x = (win->sizex - (MARGIN * UI_SCALE_FAC / 2)) - width;
   }
 
   const int initial_y = data->initial_y;
 
   region->winrct.xmin = pos_x;
   region->winrct.xmax = region->winrct.xmin + width;
-  region->winrct.ymin = -NOTIFICATION_HEIGHT;
-  region->winrct.ymin = -NOTIFICATION_HEIGHT + initial_y;
-  region->winrct.ymax = region->winrct.ymin + (NOTIFICATION_MARGIN * NOTIFICATION_MAX_SHOWN) +
-                        (NOTIFICATION_HEIGHT * (NOTIFICATION_MAX_SHOWN + 1));
+  region->winrct.ymin = -(HEIGHT * UI_SCALE_FAC);
+  region->winrct.ymin = -(HEIGHT * UI_SCALE_FAC) + initial_y;
+  region->winrct.ymax = region->winrct.ymin + (MARGIN * UI_SCALE_FAC * MAX_SHOWN) +
+                        (HEIGHT * UI_SCALE_FAC * (MAX_SHOWN + 1));
   ED_region_update_rect(region);
 }
 
@@ -216,7 +209,7 @@ int event_handler(bContext *C, ARegion *region, wmEvent *event)
 
   if (event->type == MOUSEMOVE) {
     data->time_hide = BLI_time_now_seconds() + 10;
-    data->time_end = data->time_hide + NOTIFICATION_FADE_OUT;
+    data->time_end = data->time_hide + FADE_OUT_TIME;
   }
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
@@ -231,22 +224,21 @@ void show(bScreen *screen, StringRef message, int icon, eReportType report_type)
 {
   NotificationData *data = MEM_new<NotificationData>(__func__);
   data->icon = icon;
-  data->initial_y = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? NOTIFICATION_MARGIN : 0;
+  data->initial_y = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? (MARGIN * UI_SCALE_FAC) : 0;
   data->opacity = 0.0f;
   data->pos = 0.0f;
 
   data->message = message;
-  if (data->message.size() > NOTIFICATION_MAX_CHARACTERS) {
-    data->message = data->message.substr(0, NOTIFICATION_MAX_CHARACTERS) +
-                    BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+  if (data->message.size() > MAX_CHARACTERS) {
+    data->message = data->message.substr(0, MAX_CHARACTERS) + BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
   }
 
   const float display_seconds = std::max(U.notification_seconds,
-                                         data->message.size() * NOTIFICATION_SECONDS_PER_CHAR);
+                                         data->message.size() * SECONDS_PER_CHAR);
   data->time_start = BLI_time_now_seconds();
-  data->time_display = data->time_start + NOTIFICATION_FADE_IN;
+  data->time_display = data->time_start + FADE_IN_TIME;
   data->time_hide = data->time_display + display_seconds;
-  data->time_end = data->time_hide + NOTIFICATION_FADE_OUT;
+  data->time_end = data->time_hide + FADE_OUT_TIME;
 
   bTheme *btheme = theme::theme_get();
   rgba_uchar_to_float(data->text_color, btheme->tui.wcol_menu_back.text_sel);
