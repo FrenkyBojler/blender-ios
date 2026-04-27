@@ -1340,7 +1340,11 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
     verts_start_offsets.last() = total_verts_num;
 
-    total_verts_num += intersection_points.size();
+    for (const int fill_index : intersection_points.index_range()) {
+      const Span<float3> inter_points = intersection_points[fill_index];
+
+      total_verts_num += inter_points.size();
+    }
 
     total_triangles_num += (num_points + num_cyclic) * 2;
 
