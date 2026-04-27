@@ -44,8 +44,8 @@ static const EnumPropertyItem io_stl_export_evaluation_mode[] = {
      "DAG_EVAL_VIEWPORT",
      0,
      "Viewport",
-     "Export objects as they appear in the viewport (when in sculptmode though, a potential "
-     "multiresolution modifier is not evaluated for the exported mesh)"},
+     "Export objects as they appear in the viewport (Multiresolution modifiers in Sculpt Mode "
+     "will not be evaluated)"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static wmOperatorStatus wm_stl_export_invoke(bContext *C,
@@ -70,7 +70,7 @@ static wmOperatorStatus wm_stl_export_exec(bContext *C, wmOperator *op)
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
   export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
-  export_params.export_eval_mode = eEvaluationMode(RNA_enum_get(op->ptr, "export_eval_mode"));
+  export_params.evaluation_mode = eEvaluationMode(RNA_enum_get(op->ptr, "evaluation_mode"));
   export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
   export_params.use_scene_unit = RNA_boolean_get(op->ptr, "use_scene_unit");
   export_params.ascii_format = RNA_boolean_get(op->ptr, "ascii_format");
@@ -121,7 +121,7 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
   if (ui::Layout *panel = layout.panel(C, "STL_export_geometry", false, IFACE_("Geometry"))) {
     ui::Layout &col = panel->column(false);
     col.prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
-    col.prop(ptr, "export_eval_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
+    col.prop(ptr, "evaluation_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
   }
 }
 
@@ -207,7 +207,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
       ot->srna, "apply_modifiers", true, "Apply Modifiers", "Apply modifiers to exported meshes");
 
   RNA_def_enum(ot->srna,
-               "export_eval_mode",
+               "evaluation_mode",
                io_stl_export_evaluation_mode,
                DAG_EVAL_RENDER,
                "Object Properties",
