@@ -48,7 +48,7 @@ from bpy_extras.io_utils import (
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportFBX(bpy.types.Operator, ImportHelper):
-    """Load a FBX file"""
+    """Load a FBX file (slower python method)"""
     bl_idname = "import_scene.fbx"
     bl_label = "Import FBX"
     bl_options = {'UNDO', 'PRESET'}
