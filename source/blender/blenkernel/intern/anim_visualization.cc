@@ -48,7 +48,7 @@ void animviz_settings_init(bAnimVizSettings *avs)
 
 /* ------------------- */
 
-void animviz_free_motionpath_cache(bMotionPath *mpath)
+static void animviz_free_motionpath_cache(bMotionPath *mpath)
 {
   /* sanity check */
   if (mpath == nullptr) {
@@ -81,14 +81,20 @@ void MotionPathRuntime::deregister_async_job()
   this->job_owner = nullptr;
 }
 
+void animviz_stop_motionpath_job_ex(wmWindowManager *wm, Scene *job_owner)
+{
+  /* `WM_jobs_kill_type` is a blocking call which joins the thread. Doing so guarantees we wait
+   * until the depsgraph evaluation has finished on the thread before proceeding to free data. */
+  WM_jobs_kill_type(wm, job_owner, WM_JOB_TYPE_MOTION_PATH_EVAL);
+}
+
 void animviz_stop_motionpath_job(bMotionPath *motion_path)
 {
   if (!motion_path->runtime->wm) {
     /* No running job. */
     return;
   }
-  WM_jobs_kill_type(
-      motion_path->runtime->wm, motion_path->runtime->job_owner, WM_JOB_TYPE_MOTION_PATH_EVAL);
+  animviz_stop_motionpath_job_ex(motion_path->runtime->wm, motion_path->runtime->job_owner);
   motion_path->runtime->deregister_async_job();
 }
 
@@ -192,7 +198,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
       mpath->end_frame = avs->path_ef + 1;
       return mpath;
     }
-
+    animviz_stop_motionpath_job(mpath);
     /* Clear the existing cache, to allocate a new one below. */
     animviz_free_motionpath_cache(mpath);
   }

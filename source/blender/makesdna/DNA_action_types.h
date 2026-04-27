@@ -71,6 +71,7 @@ enum eMotionPathVert_Flag {
   MOTIONPATH_VERT_SEL = (1 << 0),
   MOTIONPATH_VERT_KEY = (1 << 1),
 };
+ENUM_OPERATORS(eMotionPathVert_Flag);
 
 /* bMotionPath->flag */
 enum eMotionPath_Flag {

@@ -46,9 +46,10 @@ void animviz_settings_init(struct bAnimVizSettings *avs);
 struct bMotionPath *animviz_copy_motionpath(const struct bMotionPath *mpath_src);
 
 /**
- * Free the given motion path's cache.
+ * Stops the thread evaluating the motion paths and blocks the main thread until it has
+ * stopped.
  */
-void animviz_free_motionpath_cache(struct bMotionPath *mpath);
+void animviz_stop_motionpath_job_ex(wmWindowManager *wm, Scene *job_owner);
 
 /**
  * Stops the thread calculating the motion path and blocks the main thread until it has

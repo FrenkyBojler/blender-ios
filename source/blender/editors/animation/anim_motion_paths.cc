@@ -11,6 +11,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <stdio.h>
 #include <thread>
 
 #include "BLI_bounds.hh"
@@ -19,6 +20,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -570,19 +572,45 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   }
 }
 
-/* Buffer owned by the thread which it writes to. */
+/* Buffer owned by the thread which calculates the data. */
 struct TargetEvalResult {
   Array<float3> points;
   /* Flags for the point indicating key data. This won't work with subframes. Since we only work
    * with data on full frames here we don't have a spot to save subframe data. */
   Array<eMotionPathVert_Flag> flags;
-  TargetEvalResult(){};
+
+  TargetEvalResult() = default;
   TargetEvalResult(const int size)
   {
     points.reinitialize(size);
     flags.reinitialize(size);
   }
 };
+
+static bool rna_path_is_for_bone(const StringRefNull path, const bPoseChannel &pose_bone)
+{
+  if (!path.startswith("pose.bones[")) {
+    return false;
+  }
+  char name_esc[sizeof(pose_bone.name) * 2];
+  BLI_str_escape(name_esc, pose_bone.name, sizeof(name_esc));
+  const std::string bone_path = fmt::format("pose.bones[\"{}\"]", name_esc);
+  return path.startswith(bone_path);
+}
+
+static void build_keylist_for_target(MPathTarget &target, AnimKeylist &keylist)
+{
+  /* For object level motion paths this is a nullptr in which case the filtering is ignored. */
+  bPoseChannel *pose_bone = target.pchan;
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(target.ob->adt)) {
+    if (pose_bone && !rna_path_is_for_bone(fcu->rna_path, *pose_bone)) {
+      continue;
+    }
+    /* When only updating a subset of the motion path we could pass a range here to improve
+     * performance. */
+    fcurve_to_keylist(target.ob->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, true);
+  }
+}
 
 struct MotionPathEvalData {
   Depsgraph *depsgraph;
@@ -598,6 +626,7 @@ struct MotionPathEvalData {
 
   /* Main thread data. Do not modify during eval. */
   Array<MPathTarget> targets;
+  Array<AnimKeylist *> keylists;
   Scene *scene;
 
   MotionPathEvalData(const Span<MPathTarget *> targets,
@@ -614,10 +643,14 @@ struct MotionPathEvalData {
 
     results.reinitialize(targets.size());
     this->targets.reinitialize(targets.size());
+    this->keylists.reinitialize(targets.size());
     for (const int target_index : targets.index_range()) {
       results[target_index] = {frame_range.size()};
       this->targets[target_index] = *targets[target_index];
       this->targets[target_index].mpath->runtime->register_async_job(wm, scene);
+      this->keylists[target_index] = ED_keylist_create();
+      build_keylist_for_target(this->targets[target_index], *this->keylists[target_index]);
+      ED_keylist_prepare_for_direct_access(this->keylists[target_index]);
     }
   }
 };
@@ -696,16 +729,24 @@ restart:
     DEG_evaluate_on_framechange(eval_data->depsgraph, frame, DEG_EVALUATE_SYNC_WRITEBACK_NO);
     for (const int target_index : eval_data->targets.index_range()) {
       if (worker_status->stop) {
+        std::cout << "Stopped thread function" << std::endl;
         return;
       }
       if (eval_data->restart.load()) {
         /* I think this is a valid use case for goto. Seems to me the simplest way to break both
          * loops and run some code. */
+        std::cout << "Restart" << std::endl;
         goto restart;
       }
       job_write_evaluated_transform_values(*eval_data, target_index, frame_index);
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      if (ED_keylist_find_exact(eval_data->keylists[target_index], frame)) {
+        eval_data->results[target_index].flags[frame_index] |= MOTIONPATH_VERT_KEY;
+      }
+      else {
+        eval_data->results[target_index].flags[frame_index] &= ~MOTIONPATH_VERT_KEY;
+      }
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     eval_data->evaluated_frames[frame_index].store(true);
     worker_status->progress = float(frame - eval_data->frame_range.min) /
                               eval_data->frame_range.size();
@@ -722,7 +763,9 @@ static void flush_to_motion_path(MotionPathEvalData &eval_data)
       if (!eval_data.evaluated_frames[frame_index].load()) {
         continue;
       }
-      copy_v3_v3(target->mpath->points[frame_index].co, result.points[frame_index]);
+      bMotionPathVert &vert = target->mpath->points[frame_index];
+      copy_v3_v3(vert.co, result.points[frame_index]);
+      vert.flag = result.flags[frame_index];
     }
     DEG_id_tag_update(&target->ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, target->ob);
@@ -749,9 +792,13 @@ static void finish_job(void *job_data)
 
 static void free_job_data(void *job_data)
 {
+  std::cout << "Free Job Data" << std::endl;
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   for (MPathTarget &target : eval_data->targets) {
     target.mpath->runtime->deregister_async_job();
+  }
+  for (AnimKeylist *keylist : eval_data->keylists) {
+    ED_keylist_free(keylist);
   }
   DEG_graph_free(eval_data->depsgraph);
   MEM_delete(eval_data);
@@ -801,7 +848,8 @@ void animviz_calc_motionpaths_async(Main *bmain,
     else {
       /* If something about the job data has changed we have to wait for the thread to stop and
        * rebuild it from scratch. */
-      WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+      std::cout << "Rebuild job data" << std::endl;
+      animviz_stop_motionpath_job_ex(wm, scene);
       wm_job = WM_jobs_get(wm,
                            window,
                            scene,

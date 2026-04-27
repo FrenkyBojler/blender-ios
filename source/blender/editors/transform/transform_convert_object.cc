@@ -898,8 +898,8 @@ static void recalcData_objects(TransInfo *t)
 
   if (motionpath_update) {
     /* Update motion paths once for all transformed objects. */
-    object::motion_paths_recalc_selected(
-        t->context, t->scene, object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME);
+    /* object::motion_paths_recalc_selected(
+        t->context, t->scene, object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME); */
   }
 
   if (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) {
