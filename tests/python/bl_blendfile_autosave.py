@@ -79,13 +79,13 @@ def argparse_create():
     import argparse
 
     # When --help or no args are given, print this help
-    description = "Test basic IO of blend file."
+    description = "Test basic IO of autosaving a .blend file."
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--output-dir",
         dest="output_dir",
         default=".",
-        help="Where to output temp saved blendfiles",
+        help="Where to output temp saved files",
         required=False,
     )
 
