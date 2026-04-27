@@ -250,8 +250,7 @@ class USERPREF_PT_interface_display(InterfacePanel, CenterAlignMixIn, Panel):
         if prefs.experimental.use_toast_notifications:
             col.separator()
             row = col.row()
-            row.prop(view, "notification_position", expand=True, text="Notifications")
-            col.prop(view, "notification_seconds", text="Duration")
+            col.prop(view, "notification_seconds", text="Notification Duration")
 
 
 class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
@@ -1258,11 +1257,6 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col = flow.column(align=True)
         col.prop(ui, "menu_shadow_fac")
         col.prop(ui, "menu_shadow_width", text="Shadow Width")
-
-        if context.preferences.experimental.use_toast_notifications:
-            flow.separator()
-            col = flow.column()
-            col.prop(ui, "notification_blend")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):

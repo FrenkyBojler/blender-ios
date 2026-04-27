@@ -34,7 +34,7 @@ static constexpr float HEIGHT = 28.0f;
 /* Vertical distance separating notifications. */
 static constexpr float MARGIN = 4.0f;
 /* Padding inside the notification box. */
-static constexpr float PADDING = 10.0f;
+static constexpr float PADDING = 8.0f;
 static constexpr float LINE_WIDTH = 4.0f;
 static constexpr float LINE_PADDING = 2.0f;
 static constexpr float MAX_TEXT_WIDTH = 300.0f;
@@ -51,7 +51,7 @@ struct NotificationData {
   float opacity;
   float pos;
   float bg_color[4];
-  float line_color[4];
+  float icon_color[4];
   float text_color[4];
   double time_start;
   double time_display;
@@ -101,7 +101,7 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
   }
 
   data->bg_color[3] = data->opacity;
-  data->line_color[3] = data->opacity;
+  data->icon_color[3] = data->opacity;
   data->text_color[3] = data->opacity;
 
   bTheme *btheme = theme::theme_get();
@@ -121,13 +121,6 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
                   btheme->tui.menu_shadow_fac * data->opacity);
   draw_roundbox_4fv(&rect, true, corner_radius, data->bg_color);
 
-  /* Indicator line. */
-  rctf rect_line = {(MARGIN + LINE_PADDING) * UI_SCALE_FAC * 2,
-                    (MARGIN + LINE_WIDTH + LINE_PADDING) * UI_SCALE_FAC,
-                    data->pos + (MARGIN * UI_SCALE_FAC),
-                    data->pos - (MARGIN + HEIGHT) * UI_SCALE_FAC};
-  draw_roundbox_4fv(&rect_line, true, 3.0f, data->line_color);
-
   /* Outline. */
   const uchar *outline_color_uchar = btheme->tui.wcol_menu_back.outline;
   float outline_color[4];
@@ -138,7 +131,7 @@ static void notification_region_draw_overlay_fn(const bContext * /*C*/, ARegion 
 
   /* Icon. */
   uchar icon_color[4];
-  rgba_float_to_uchar(icon_color, data->line_color);
+  rgba_float_to_uchar(icon_color, data->icon_color);
   icon_draw_ex(rect.xmin + (PADDING + LINE_PADDING) * UI_SCALE_FAC,
                rect.ymin + (5.5f * UI_SCALE_FAC),
                data->icon,
@@ -180,18 +173,7 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
 
   wmWindow *win = CTX_wm_window(C);
 
-  int pos_x;
-
-  if (U.notification_position == UserPrefNotificationPosition::Left) {
-    pos_x = (MARGIN * UI_SCALE_FAC / 2);
-  }
-  else if (U.notification_position == UserPrefNotificationPosition::Center) {
-    pos_x = (win->sizex / 2) - (width / 2);
-  }
-  else {
-    pos_x = (win->sizex - (MARGIN * UI_SCALE_FAC / 2)) - width;
-  }
-
+  int pos_x = (win->sizex - (MARGIN * UI_SCALE_FAC / 2)) - width;
   const int initial_y = data->initial_y;
 
   region->winrct.xmin = pos_x;
@@ -252,10 +234,10 @@ void show(bScreen *screen, StringRef message, int icon, eReportType report_type)
   rgba_uchar_to_float(data->text_color, btheme->tui.wcol_menu_back.text_sel);
   rgba_uchar_to_float(data->bg_color, btheme->tui.wcol_menu_back.inner);
 
-  theme::get_color_shade_4fv(icon_colorid_from_report_type(report_type), 20, data->line_color);
+  theme::get_color_shade_4fv(icon_colorid_from_report_type(report_type), 20, data->icon_color);
 
-  const float blend_factor = btheme->tui.notification_blend;
-  interp_v4_v4v4(data->bg_color, data->bg_color, data->line_color, blend_factor);
+  const float blend_factor = 0.2f;
+  interp_v4_v4v4(data->bg_color, data->bg_color, data->icon_color, blend_factor);
 
   ARegion *region = BKE_area_region_new();
   BLI_addtail(&screen->regionbase, region);

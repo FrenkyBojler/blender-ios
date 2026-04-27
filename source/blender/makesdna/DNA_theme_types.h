@@ -272,6 +272,7 @@ typedef struct ThemeUI {
   unsigned char icon_folder[4];
   /** Auto Keying indicator. */
   unsigned char icon_autokey[4];
+  char _pad3[4];
   /** Intensity of the border icons. >0 will render an border around themed
    * icons. */
   float icon_border_intensity;
@@ -284,10 +285,6 @@ typedef struct ThemeUI {
   unsigned char panel_title[4];
   unsigned char panel_text[4];
   unsigned char panel_active[4];
-
-  /* Notifications. */
-  float notification_blend;
-
 } ThemeUI;
 
 /* try to put them all in one, if needed a special struct can be created as well

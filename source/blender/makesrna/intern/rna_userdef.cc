@@ -2055,14 +2055,6 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Tab Colors", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "notification_blend", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_ui_text(prop,
-                           "Notification Background Blend",
-                           "Mix the notification background with the report status color");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 0.5f, 0.1, 2);
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "menu_shadow_fac", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(
       prop, "Panel/Menu Shadow Strength", "Blending factor for panel and menu shadows");
@@ -5065,33 +5057,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_DEVELOPER_UI);
   RNA_def_property_ui_text(
       prop, "Developer Extras", "Display advanced settings and tools for developers");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-  static const EnumPropertyItem notification_position_items[] = {
-      {int(UserPrefNotificationPosition::Left),
-       "LEFT",
-       0,
-       "Left",
-       "Align toast notifications to the left"},
-      {int(UserPrefNotificationPosition::Center),
-       "CENTER",
-       0,
-       "Center",
-       "Center-align toast notifications"},
-      {int(UserPrefNotificationPosition::Right),
-       "RIGHT",
-       0,
-       "Right",
-       "Align toast notifications to the right"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  prop = RNA_def_property(srna, "notification_position", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, notification_position_items);
-  RNA_def_property_enum_sdna(prop, nullptr, "notification_position");
-  RNA_def_property_enum_default(prop, int(UserPrefNotificationPosition::Right));
-  RNA_def_property_ui_text(
-      prop, "Notification Position", "Position of toast notifications relative to the window");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "notification_seconds", PROP_FLOAT, PROP_TIME);

@@ -178,13 +178,6 @@ enum eUserpref_UI_Flag2 {
   USER_UIFLAG2_PANEL_TABS_COMPACT = (1 << 5),
 };
 
-/** #eUserpref_UI_Flag2.notification_position */
-enum class UserPrefNotificationPosition : int8_t {
-  Left = 0,
-  Center = 1,
-  Right = 2,
-};
-
 /** #UserDef.gpu_flag */
 enum eUserpref_GPU_Flag {
   USER_GPU_FLAG_UNUSED_0 = (1 << 0), /* Unused. To be removed. */
@@ -940,9 +933,7 @@ struct UserDef {
   char uiflag2 = USER_REGION_OVERLAP | USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   char gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION;
 
-  /** eUserpref_NotificationPosition. */
-  UserPrefNotificationPosition notification_position = UserPrefNotificationPosition::Right;
-  char _pad8[1] = {};
+  char _pad8[2] = {};
   float notification_seconds = 2.0f;
 
   /* Experimental flag for app-templates to make changes to behavior

@@ -285,7 +285,6 @@ const bTheme U_theme_default = {
     .panel_title = RGBA(0xe6e6e6ff),
     .panel_text = RGBA(0xe6e6e6ff),
     .panel_active = RGBA(0x4772b3ff),
-    .notification_blend = 0.2f,
   },
   .regions = {
     .asset_shelf = {
