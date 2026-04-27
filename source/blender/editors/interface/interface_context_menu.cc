@@ -111,7 +111,6 @@ static const char *shortcut_get_operator_property(bContext *C, Button *but, IDPr
     return but->optype->idname;
   }
 
-  printf("but->type: %d\n", int(but->type));
   if (but->rnaprop) {
     const PropertyType rnaprop_type = RNA_property_type(but->rnaprop);
 
