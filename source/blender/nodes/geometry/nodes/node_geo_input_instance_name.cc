@@ -11,7 +11,7 @@ namespace blender::nodes::node_geo_input_instance_name_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Name").field_source();
+  b.add_output<decl::Int>("Name"_ustr).field_source();
 }
 
 class InstanceNameField final : public bke::InstancesFieldInput { //replace int hash with string when possible
@@ -62,7 +62,7 @@ class InstanceNameField final : public bke::InstancesFieldInput { //replace int 
     return 42374372;
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     return dynamic_cast<const InstanceNameField *>(&other) != nullptr;
   }
@@ -70,14 +70,14 @@ class InstanceNameField final : public bke::InstancesFieldInput { //replace int 
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Name", Field<int>(std::make_shared<InstanceNameField>()));
+  params.set_output("Name"_ustr, Field<int>::from_input<InstanceNameField>());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputInstanceName");
+  geo_node_type_base(&ntype, "GeometryNodeInputInstanceName"_ustr);
   ntype.ui_name = "Instance Name";
   ntype.ui_description = "Output the name of each instance's geometry set";
   ntype.nclass = NODE_CLASS_INPUT;
