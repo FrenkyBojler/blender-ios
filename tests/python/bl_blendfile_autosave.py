@@ -47,7 +47,7 @@ class TestBlendFileAutosave(TestHelper):
 
         autosave_data = self.blender_data_to_tuple(bpy.data, "autosave_data")
 
-        bpy.ops.wm.save_autosave()
+        bpy.ops.wm.save_auto_save()
         bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
 
         read_data = self.blender_data_to_tuple(bpy.data, "read_data")

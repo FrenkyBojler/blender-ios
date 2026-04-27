@@ -2343,7 +2343,7 @@ bool WM_autosave_write(wmWindowManager *wm, Main *bmain, ReportList *reports)
   wm_autosave_timer_end(wm);
   wm_autosave_timer_begin(wm);
 
-  wm->autosave_scheduled = false;
+  wm->autosave_scheduled = !success;
   return success;
 }
 
@@ -2420,19 +2420,19 @@ void wm_autosave_delete()
   }
 }
 
-static wmOperatorStatus wm_save_autosave_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_save_auto_save_exec(bContext *C, wmOperator *op)
 {
   const bool success = WM_autosave_write(CTX_wm_manager(C), CTX_data_main(C), op->reports);
   return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-void WM_OT_save_autosave(wmOperatorType *ot)
+void WM_OT_save_auto_save(wmOperatorType *ot)
 {
   ot->name = "Save Autosave";
-  ot->idname = "WM_OT_save_autosave";
+  ot->idname = "WM_OT_save_auto_save";
   ot->description = "Create an autosave in the temp directory for the current file";
 
-  ot->exec = wm_save_autosave_exec;
+  ot->exec = wm_save_auto_save_exec;
 }
 
 /** \} */
