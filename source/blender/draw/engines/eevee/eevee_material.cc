@@ -202,7 +202,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                                blender::Material *blender_mat,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
-                                               eMaterialProbe probe_capture)
+                                               eMaterialProbe probe_capture,
+                                               bool is_raycast_target)
 {
   bNodeTree *ntree = (blender_mat->nodetree != nullptr) ? blender_mat->nodetree :
                                                           default_surface->nodetree;
@@ -223,8 +224,6 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                MAT_PIPE_FORWARD,
                                MAT_PIPE_PREPASS_FORWARD,
                                MAT_PIPE_PREPASS_FORWARD_VELOCITY,
-                               MAT_PIPE_PREPASS_FORWARD_RAYCAST,
-                               MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST,
                                MAT_PIPE_PREPASS_OVERLAP);
 
   switch (GPU_material_status(matpass.gpumat)) {
@@ -277,12 +276,12 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     matpass.sub_pass = nullptr;
   }
   else {
-    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture);
+    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture, is_raycast_target);
 
     PassMain::Sub *shader_sub = shader_map_.lookup_or_add_cb(shader_key, [&]() {
       /* First time encountering this shader. Create a sub that will contain materials using it. */
       return inst_.pipelines.material_add(
-          ob, blender_mat, matpass.gpumat, pipeline_type, probe_capture);
+          ob, blender_mat, matpass.gpumat, pipeline_type, probe_capture, is_raycast_target);
     });
 
     if (shader_sub != nullptr) {
@@ -328,17 +327,11 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
   eMaterialPipeline surface_pipe, prepass_pipe;
   if (use_forward_pipeline) {
     surface_pipe = MAT_PIPE_FORWARD;
-    prepass_pipe = hide_on_raycast ? (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY :
-                                                   MAT_PIPE_PREPASS_FORWARD) :
-                                     (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST :
-                                                   MAT_PIPE_PREPASS_FORWARD_RAYCAST);
+    prepass_pipe = has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY : MAT_PIPE_PREPASS_FORWARD;
   }
   else {
     surface_pipe = MAT_PIPE_DEFERRED;
-    prepass_pipe = hide_on_raycast ? (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY :
-                                                   MAT_PIPE_PREPASS_DEFERRED) :
-                                     (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST :
-                                                   MAT_PIPE_PREPASS_DEFERRED_RAYCAST);
+    prepass_pipe = has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY : MAT_PIPE_PREPASS_DEFERRED;
   }
 
   /** NOTE: Use prepass_pipe instead of surface_pipe, since surface_pipe doesn't take velocity
@@ -362,7 +355,8 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
     }
     else {
       if (!hide_on_camera) {
-        mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
+        mat.prepass = material_pass_get(
+            ob, blender_mat, prepass_pipe, geometry_type, MAT_PROBE_NONE, !hide_on_raycast);
       }
 
       mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
@@ -470,8 +464,8 @@ ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)
         shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
       };
 
-  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_RAYCAST, MAT_GEOM_MESH);
-  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_DEFERRED, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_SHADOW, MAT_GEOM_MESH);
 

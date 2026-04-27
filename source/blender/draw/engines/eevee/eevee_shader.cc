@@ -721,8 +721,6 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
         case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
-        case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
-        case MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST:
           pipeline_info_name = "eevee_surf_depth";
           additional_info_name = "eevee_velocity_geom";
           info.name_ += "_depth_velocity";
@@ -730,8 +728,6 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
         case MAT_PIPE_PREPASS_OVERLAP:
         case MAT_PIPE_PREPASS_FORWARD:
         case MAT_PIPE_PREPASS_DEFERRED:
-        case MAT_PIPE_PREPASS_FORWARD_RAYCAST:
-        case MAT_PIPE_PREPASS_DEFERRED_RAYCAST:
           pipeline_info_name = "eevee_surf_depth";
           info.name_ += "_depth";
           break;
@@ -1365,13 +1361,9 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
   bool is_prepass = ELEM(pipeline_type,
                          eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED,
                          eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_RAYCAST,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST,
                          eMaterialPipeline::MAT_PIPE_PREPASS_OVERLAP,
                          eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD,
                          eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_RAYCAST,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST,
                          eMaterialPipeline::MAT_PIPE_PREPASS_PLANAR);
 
   bool has_vertex_displacement = GPU_material_has_displacement_output(mat) &&
