@@ -1089,6 +1089,8 @@ void ED_view3d_cursor3d_update(bContext *C,
 
 static wmOperatorStatus view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  View3D *v3d = CTX_wm_view3d(C);
+
   bool use_depth = (U.uiflag & USER_DEPTH_CURSOR);
   {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_depth");
@@ -1101,6 +1103,10 @@ static wmOperatorStatus view3d_cursor3d_invoke(bContext *C, wmOperator *op, cons
   }
   const enum eV3DCursorOrient orientation = eV3DCursorOrient(RNA_enum_get(op->ptr, "orientation"));
   ED_view3d_cursor3d_update(C, event->mval, use_depth, orientation);
+
+  if (v3d && ((v3d->flag2 & V3D_HIDE_OVERLAYS) || (v3d->overlay.flag & V3D_OVERLAY_HIDE_CURSOR))) {
+    BKE_report(op->reports, RPT_WARNING, "3D Cursor disabled in Overlays");
+  }
 
   /* Use pass-through to allow click-drag to transform the cursor. */
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
