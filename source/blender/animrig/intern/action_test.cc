@@ -7,6 +7,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -16,19 +17,14 @@
 #include "DNA_object_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
-#include "RNA_prototypes.hh"
 
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_string_utils.hh"
 
 #include "DEG_depsgraph_build.hh"
 
 #include <limits>
 
-#include "CLG_log.h"
 #include "testing/testing.h"
 
 namespace blender::animrig::tests {
@@ -53,19 +49,12 @@ class ActionLayersTest : public testing::Test {
 
   static void SetUpTestSuite()
   {
-    /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
-    CLG_init();
-
-    /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
-    BKE_idtype_init();
-
-    RNA_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
-    RNA_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
@@ -868,7 +857,9 @@ TEST_F(ActionLayersTest, assign_action_ensure_slot_for_keying)
 {
   { /* Slotless Action, should create a typed slot. */
     Action &action = action_add(*this->bmain, "ACEmpty");
+    EXPECT_EQ(action.id.us, 0);
     Slot *chosen_slot = assign_action_ensure_slot_for_keying(action, cube->id);
+    EXPECT_EQ(action.id.us, 1);
     ASSERT_NE(nullptr, chosen_slot);
     EXPECT_EQ(ID_OB, chosen_slot->idtype);
     EXPECT_STREQ("OBKüüübus", chosen_slot->identifier);
@@ -1245,7 +1236,7 @@ TEST_F(ActionLayersTest, fcurves_for_action_slot)
 /* Allocate fcu->bezt, and also return a unique_ptr to it for easily freeing the memory. */
 static void allocate_keyframes(FCurve &fcu, const size_t num_keyframes)
 {
-  fcu.bezt = MEM_calloc_arrayN<BezTriple>(num_keyframes, __func__);
+  fcu.bezt = MEM_new_array_zeroed<BezTriple>(num_keyframes, __func__);
 }
 
 /* Append keyframe, assumes that fcu->bezt is allocated and has enough space. */
@@ -1281,16 +1272,12 @@ class ActionQueryTest : public testing::Test {
 
   static void SetUpTestSuite()
   {
-    /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
-    CLG_init();
-
-    /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
@@ -1319,7 +1306,7 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* One curve with one key. */
   {
-    FCurve &fcu = *MEM_new_for_free<FCurve>(__func__);
+    FCurve &fcu = *MEM_new<FCurve>(__func__);
     allocate_keyframes(fcu, 1);
     add_keyframe(fcu, 1.0f, 2.0f);
 
@@ -1333,8 +1320,8 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* Two curves with one key each on different frames. */
   {
-    FCurve &fcu1 = *MEM_new_for_free<FCurve>(__func__);
-    FCurve &fcu2 = *MEM_new_for_free<FCurve>(__func__);
+    FCurve &fcu1 = *MEM_new<FCurve>(__func__);
+    FCurve &fcu2 = *MEM_new<FCurve>(__func__);
     allocate_keyframes(fcu1, 1);
     allocate_keyframes(fcu2, 1);
     add_keyframe(fcu1, 1.0f, 2.0f);
@@ -1351,7 +1338,7 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
 
   /* One curve with two keys. */
   {
-    FCurve &fcu = *MEM_new_for_free<FCurve>(__func__);
+    FCurve &fcu = *MEM_new<FCurve>(__func__);
     allocate_keyframes(fcu, 2);
     add_keyframe(fcu, 1.0f, 2.0f);
     add_keyframe(fcu, 1.5f, 2.0f);
@@ -1378,7 +1365,7 @@ TEST_F(ActionQueryTest, action_has_single_frame)
 
   /* One curve with one key. */
   {
-    FCurve &fcu = *MEM_new_for_free<FCurve>(__func__);
+    FCurve &fcu = *MEM_new<FCurve>(__func__);
     allocate_keyframes(fcu, 1);
     add_keyframe(fcu, 1.0f, 2.0f);
 
@@ -1392,8 +1379,8 @@ TEST_F(ActionQueryTest, action_has_single_frame)
 
   /* Two curves with one key each. */
   {
-    FCurve &fcu1 = *MEM_new_for_free<FCurve>(__func__);
-    FCurve &fcu2 = *MEM_new_for_free<FCurve>(__func__);
+    FCurve &fcu1 = *MEM_new<FCurve>(__func__);
+    FCurve &fcu2 = *MEM_new<FCurve>(__func__);
     allocate_keyframes(fcu1, 1);
     allocate_keyframes(fcu2, 1);
     add_keyframe(fcu1, 1.0f, 327.0f);
@@ -1414,7 +1401,7 @@ TEST_F(ActionQueryTest, action_has_single_frame)
 
   /* One curve with two keys. */
   {
-    FCurve &fcu = *MEM_new_for_free<FCurve>(__func__);
+    FCurve &fcu = *MEM_new<FCurve>(__func__);
     allocate_keyframes(fcu, 2);
     add_keyframe(fcu, 1.0f, 2.0f);
     add_keyframe(fcu, 2.0f, 2.5f);
@@ -1433,9 +1420,15 @@ class ChannelbagTest : public testing::Test {
  public:
   Channelbag *channelbag;
 
-  static void SetUpTestSuite() {}
+  static void SetUpTestSuite()
+  {
+    bke::gtest_setup();
+  }
 
-  static void TearDownTestSuite() {}
+  static void TearDownTestSuite()
+  {
+    bke::gtest_teardown();
+  }
 
   void SetUp() override
   {
@@ -2143,16 +2136,12 @@ class ActionFCurveMoveTest : public testing::Test {
 
   static void SetUpTestSuite()
   {
-    /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
-    CLG_init();
-
-    /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override

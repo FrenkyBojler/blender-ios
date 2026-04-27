@@ -785,7 +785,7 @@ static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
   WM_operator_properties_border_to_rcti(op, &rect);
 
   rv3d->rflag |= RV3D_CLIPPING;
-  rv3d->clipbb = MEM_new_for_free<BoundBox>("clipbb");
+  rv3d->clipbb = MEM_new<BoundBox>("clipbb");
 
   /* nullptr object because we don't want it in object space */
   ED_view3d_clipping_calc(rv3d->clipbb, rv3d->clip, region, nullptr, &rect);
@@ -801,10 +801,22 @@ static wmOperatorStatus view3d_clipping_invoke(bContext *C, wmOperator *op, cons
   if (rv3d->rflag & RV3D_CLIPPING) {
     rv3d->rflag &= ~RV3D_CLIPPING;
     ED_region_tag_redraw(region);
-    MEM_SAFE_FREE(rv3d->clipbb);
+    MEM_SAFE_DELETE(rv3d->clipbb);
     return OPERATOR_FINISHED;
   }
   return WM_gesture_box_invoke(C, op, event);
+}
+
+static bool view3d_wire_or_solid_poll(bContext *C)
+{
+  if (const View3D *v3d = CTX_wm_view3d(C)) {
+    if ELEM (v3d->shading.type, OB_WIRE, OB_SOLID) {
+      return true;
+    }
+  }
+
+  CTX_wm_operator_poll_msg_set(C, "Clipping works in Wireframe and Solid viewport shading only");
+  return false;
 }
 
 void VIEW3D_OT_clip_border(wmOperatorType *ot)
@@ -821,7 +833,7 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
   ot->modal = WM_gesture_box_modal;
   ot->cancel = WM_gesture_box_cancel;
 
-  ot->poll = ED_operator_region_view3d_active;
+  ot->poll = view3d_wire_or_solid_poll;
 
   /* flags */
   ot->flag = 0;

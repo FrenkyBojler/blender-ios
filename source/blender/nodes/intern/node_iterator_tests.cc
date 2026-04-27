@@ -3,23 +3,19 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
-#include "CLG_log.h"
-
 /* Allow using `Scene->nodetree` because it's still relevant for backward compatibility. */
 #define DNA_DEPRECATED_ALLOW
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_scene.hh"
-
-#include "IMB_imbuf.hh"
 
 #include "ED_node_c.hh"
 
@@ -34,23 +30,12 @@ class NodeTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite()
   {
-    CLG_init();
-    BKE_idtype_init();
-    RNA_init();
-    bke::node_system_init();
-    BKE_appdir_init();
-    IMB_init();
-    BKE_materials_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    BKE_materials_exit();
-    bke::node_system_exit();
-    RNA_exit();
-    BKE_appdir_exit();
-    IMB_exit();
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   struct IteratorResult {
@@ -173,7 +158,7 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   /* `scene->nodetree` is not managed by the scene anymore, i.e. `scene_free_data()` doesn't free
    * its embedded node-trees, so we need to free it manually here. */
   bke::node_tree_free_embedded_tree(scene->nodetree);
-  MEM_freeN(scene->nodetree);
+  MEM_delete(scene->nodetree);
   scene->nodetree = nullptr;
 }
 
@@ -216,7 +201,7 @@ TEST_F(NodeTest, tree_iterator_1mat_3scenes)
   /* `scene->nodetree` is not managed by the scene anymore, i.e. `scene_free_data()` doesn't free
    * its embedded node-trees, so we need to free it manually here. */
   bke::node_tree_free_embedded_tree(scene2->nodetree);
-  MEM_freeN(scene2->nodetree);
+  MEM_delete(scene2->nodetree);
   scene2->nodetree = nullptr;
 }
 

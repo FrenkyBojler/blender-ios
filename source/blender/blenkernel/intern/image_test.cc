@@ -10,6 +10,7 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
@@ -19,14 +20,12 @@
 #include "testing/testing.h"
 #include "gmock/gmock.h"
 
+#include "IMB_cache.hh"
 #include "IMB_imbuf.hh"
-#include "IMB_moviecache.hh"
 
 #include "DNA_image_types.h"
 
 #include "RE_pipeline.h"
-
-#include "CLG_log.h"
 
 namespace blender::bke::tests {
 
@@ -118,12 +117,12 @@ TEST(udim, image_get_tile_strformat)
   udim_pattern = BKE_image_get_tile_strformat("test.<UDIM>.png", &tile_format);
   EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UDIM);
   EXPECT_STREQ(udim_pattern, "test.%d.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
   EXPECT_EQ(tile_format, UDIM_TILE_FORMAT_UVTILE);
   EXPECT_STREQ(udim_pattern, "test.u%d_v%d.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
 TEST(udim, image_get_tile_number_from_filepath)
@@ -158,7 +157,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "wrong.1004.png", udim_pattern, tile_format, &tile_number));
 
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
@@ -178,7 +177,7 @@ TEST(udim, image_get_tile_number_from_filepath)
   EXPECT_FALSE(BKE_image_get_tile_number_from_filepath(
       "wrong.u2_v2.png", udim_pattern, tile_format, &tile_number));
 
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
 TEST(udim, image_set_filepath_from_tile_number)
@@ -204,7 +203,7 @@ TEST(udim, image_set_filepath_from_tile_number)
   /* UDIM tile format tests. */
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);
   EXPECT_STREQ(filepath, "test.1028.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 
   /* UVTILE tile format tests. */
   udim_pattern = BKE_image_get_tile_strformat("test.<UVTILE>.png", &tile_format);
@@ -213,7 +212,7 @@ TEST(udim, image_set_filepath_from_tile_number)
 
   BKE_image_set_filepath_from_tile_number(filepath, udim_pattern, tile_format, 1028);
   EXPECT_STREQ(filepath, "test.u8_v3.png");
-  MEM_freeN(udim_pattern);
+  MEM_delete(udim_pattern);
 }
 
 class ImageTest : public ::testing::Test {
@@ -233,21 +232,16 @@ class ImageTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite()
   {
-    CLG_init();
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
   {
-    BKE_appdir_init();
-    IMB_init();
-    IMB_moviecache_init();
-
     bmain_ = BKE_main_new();
     G_MAIN = bmain_;
   }
@@ -256,10 +250,6 @@ class ImageTest : public ::testing::Test {
   {
     BKE_main_free(bmain_);
     G_MAIN = nullptr;
-
-    IMB_moviecache_destruct();
-    IMB_exit();
-    BKE_appdir_exit();
   }
 
   Image *load_image(const char *path)

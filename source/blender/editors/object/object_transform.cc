@@ -349,7 +349,7 @@ static void object_clear_rot(Object *ob, const bool clear_delta)
         copy_v3_v3(ob->rot, eul);
       }
     }
-  } /* Duplicated in source/blender/editors/armature/editarmature.c */
+  } /* Duplicated in source/blender/editors/armature/armature_edit.cc */
   else {
     if (ob->rotmode == ROT_MODE_QUAT) {
       unit_qt(ob->quat);
@@ -436,7 +436,7 @@ static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
     xcs = xform_skip_child_container_create();
     xform_skip_child_container_item_ensure_from_array(
-        xcs, scene, view_layer, objects.data(), objects.size());
+        xcs, *bmain, scene, view_layer, objects.data(), objects.size());
   }
   if (use_transform_data_origin) {
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
@@ -2070,7 +2070,7 @@ enum {
   TGT_MODAL_PRECISION_DISABLE,
 };
 
-void object_target_modal_keymap(wmKeyConfig *keyconf)
+void object_transform_axis_target_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
       {TGT_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
@@ -2139,7 +2139,7 @@ struct XFormAxisData {
   ViewDepths *depths;
   struct {
     float depth;
-    blender::float3 normal;
+    float3 normal;
     bool is_depth_valid;
     bool is_normal_valid;
   } prev;
@@ -2203,12 +2203,9 @@ static bool object_is_target_compat(const Object *ob)
       return true;
     }
   }
-  /* We might want to enable this later, for now just lights. */
-#if 0
   else if (ob->type == OB_CAMERA) {
     return true;
   }
-#endif
   return false;
 }
 
@@ -2228,7 +2225,7 @@ static void object_transform_axis_target_free_data(bContext *C, wmOperator *op)
   }
 
   for (XFormAxisItem &item : xfd->object_data) {
-    MEM_freeN(item.obtfm);
+    BKE_object_tfm_free(item.obtfm);
   }
   MEM_delete(xfd);
   op->customdata = nullptr;
@@ -2241,6 +2238,7 @@ static void object_apply_rotation(Object *ob, const float rmat[3][3])
   float loc[3];
   float rmat4[4][4];
   copy_m4_m3(rmat4, rmat);
+
   copy_v3_v3(size, ob->scale);
   copy_v3_v3(loc, ob->loc);
   BKE_object_apply_mat4(ob, rmat4, true, true);
@@ -2374,12 +2372,12 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     Object *light = xfd->vc.obact;
 
     /* Get light's normal direction (local Z-axis in world space) */
-    blender::float3 light_normal;
+    float3 light_normal;
     copy_v3_v3(light_normal, light->object_to_world().ptr()[2]);
     negate_v3(light_normal); /* Light points in negative Z direction by default */
 
     /* Use snap system to cast ray from light position */
-    blender::ed::transform::SnapObjectParams snap_params = {};
+    transform::SnapObjectParams snap_params = {};
     snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
     snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
     snap_params.occlusion_test = blender::ed::transform::SNAP_OCCLUSION_NEVER;
@@ -2388,10 +2386,10 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     snap_params.face_nearest_steps = 1;
     snap_params.grid_size = 0.0f;
 
-    blender::ed::transform::SnapObjectContext *sctx =
-        blender::ed::transform::snap_object_context_create();
+    transform::SnapObjectContext *sctx =
+        transform::snap_object_context_create();
 
-    blender::float3 hit_co, hit_no;
+    float3 hit_co, hit_no;
     float ray_depth = BVH_RAYCAST_DIST_MAX; /* Cast ray far into the scene */
 
     bool hit = blender::ed::transform::snap_object_project_ray(
@@ -2655,7 +2653,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         if (ED_view3d_depth_unproject_v3(region, effective_mval, depth, location_world)) {
           if (xfd->is_light_positioning && xfd->light_mode != LIGHT_TARGET_MODE) {
 
-            blender::float3 normal;
+            float3 normal;
             bool normal_found = false;
             if (get_smoothed_surface_normal(&xfd->vc, depths, effective_mval, normal)) {
               normal_found = true;
@@ -2678,11 +2676,11 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                  * It's calculated once at initialization and only changes with Z-axis adjustment.
                  */
 
-                blender::float3 final_location;
-                blender::float3 final_normal;
-                blender::float3 view_dir;
-                blender::float3 reflected_dir;
-                blender::float3 direction_to_target;
+                float3 final_location;
+                float3 final_normal;
+                float3 view_dir;
+                float3 reflected_dir;
+                float3 direction_to_target;
 
                 switch (xfd->light_mode) {
                   case LIGHT_TARGET_MODE:
@@ -2699,7 +2697,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   case LIGHT_SPECULAR_MODE:
                     /* Reflection positioning: calculate reflection direction */
                     {
-                      blender::float2 mval = {float(event->mval[0]), float(event->mval[1])};
+                      float2 mval = {float(event->mval[0]), float(event->mval[1])};
                       ED_view3d_win_to_vector(xfd->vc.region, mval, view_dir);
                       normalize_v3(view_dir);
                       /* Calculate reflection direction using Blender's reflect function */
@@ -2786,7 +2784,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   item.xform_dist = xfd->light_offset_distance;
                 }
                 else {
-                  blender::float3 ob_axis;
+                  float3 ob_axis;
                   item.xform_dist = len_v3v3(item.ob->object_to_world().location(),
                                              location_world);
                   normalize_v3_v3(ob_axis, item.ob->object_to_world().ptr()[2]);
@@ -2797,7 +2795,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   }
                 }
 
-                blender::float3 target_normal;
+                float3 target_normal;
 
                 if (normal_found) {
                   copy_v3_v3(target_normal, normal);
@@ -2814,7 +2812,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 }
 #endif
                 {
-                  blender::float3 loc;
+                  float3 loc;
 
                   copy_v3_v3(loc, location_world);
                   /* For light positioning, use the fixed offset distance to maintain consistency
@@ -2839,7 +2837,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 copy_v3_v3(xfd->prev.normal, normal);
                 xfd->prev.is_normal_valid = true;
               }
-            } /* End of original positioning logic */
+            }
           }
           else {
             for (XFormAxisItem &item : xfd->object_data) {
@@ -2900,6 +2898,10 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
   ot->description =
       "Interactively point cameras and lights to a location. It can be used to point lights to "
       "object normals, specular reflections, or shadow targets";
+  ot->name = "Look at Surface";
+  ot->description =
+      "Interactively point cameras and lights to the surface under the pointer (Ctrl to "
+      "translate)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
   /* API callbacks. */

@@ -39,13 +39,18 @@
 #include "COM_multi_function_procedure_operation.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
+#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
-MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(
-    Context &context, PixelCompileUnit &compile_unit, const VectorSet<const bNode *> &schedule)
-    : PixelOperation(context, compile_unit, schedule), procedure_builder_(procedure_)
+MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &context,
+                                                                 PixelCompileUnit &compile_unit,
+                                                                 const Schedule &schedule,
+                                                                 const bool is_single_value)
+    : PixelOperation(context, compile_unit, schedule),
+      procedure_builder_(procedure_),
+      is_single_value_(is_single_value)
 {
   this->build_procedure();
   procedure_executor_ = std::make_unique<mf::ProcedureExecutor>(procedure_);
@@ -53,12 +58,10 @@ MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(
 
 void MultiFunctionProcedureOperation::execute()
 {
-  const Domain domain = compute_domain();
+  const Domain domain = is_single_value_ ? Domain(int2(1)) : this->compute_domain();
   const int64_t size = int64_t(domain.data_size.x) * domain.data_size.y;
   const IndexMask mask = IndexMask(size);
   mf::ParamsBuilder parameter_builder{*procedure_executor_, &mask};
-
-  const bool is_single_value = this->is_single_value_operation();
 
   /* For each of the parameters, either add an input or an output depending on its interface type,
    * allocating the outputs when needed. */
@@ -69,19 +72,27 @@ void MultiFunctionProcedureOperation::execute()
         parameter_builder.add_readonly_single_input(input.single_value());
       }
       else {
-        parameter_builder.add_readonly_single_input(input.cpu_data());
+        if (is_single_value_) {
+          /* The operation is operating on single values but an image is provided, so add a default
+           * single value as a fallback. */
+          parameter_builder.add_readonly_single_input(
+              GPointer(input.get_cpp_type(), input.get_cpp_type().default_value()));
+        }
+        else {
+          parameter_builder.add_readonly_single_input(input.cpu_data());
+        }
       }
     }
     else {
       Result &output = get_result(parameter_identifiers_[i]);
-      if (is_single_value) {
+      if (is_single_value_) {
         output.allocate_single_value();
         parameter_builder.add_uninitialized_single_output(
             GMutableSpan(output.get_cpp_type(), output.single_value().get(), 1));
       }
       else {
         output.allocate_texture(domain);
-        parameter_builder.add_uninitialized_single_output(output.cpu_data());
+        parameter_builder.add_uninitialized_single_output(output.cpu_data_for_write());
       }
     }
   }
@@ -90,7 +101,7 @@ void MultiFunctionProcedureOperation::execute()
   procedure_executor_->call_auto(mask, parameter_builder, context_builder);
 
   /* In case of single value execution, update single value data. */
-  if (is_single_value) {
+  if (is_single_value_) {
     for (int i = 0; i < procedure_.params().size(); i++) {
       if (procedure_.params()[i].type == mf::ParamType::InterfaceType::Output) {
         Result &output = get_result(parameter_identifiers_[i]);
@@ -155,6 +166,14 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
       continue;
     }
 
+    const mf::ParamType parameter_type = multi_function.param_type(available_inputs_index);
+    available_inputs_index++;
+
+    if (schedule_.unneeded_inputs.contains(input)) {
+      input_variables.append(this->get_default_value_variable(parameter_type.data_type()));
+      continue;
+    }
+
     const bNodeSocket *output = get_output_linked_to_input(*input);
     if (!output) {
       const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input);
@@ -180,11 +199,8 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
     }
 
     /* Implicitly convert the variable type to the expected parameter type if needed. */
-    const mf::ParamType parameter_type = multi_function.param_type(available_inputs_index);
     input_variables.last() = this->convert_variable(input_variables.last(),
                                                     parameter_type.data_type());
-
-    available_inputs_index++;
   }
 
   return input_variables;
@@ -233,9 +249,32 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
       }
       break;
     }
+    case SOCK_INT_VECTOR: {
+      switch (input.default_value_typed<bNodeSocketValueIntVector>()->dimensions) {
+        case 2: {
+          const int2 value = int2(input.default_value_typed<bNodeSocketValueIntVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<int2>>(value);
+          break;
+        }
+        case 3: {
+          const int3 value = int3(input.default_value_typed<bNodeSocketValueIntVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<int3>>(value);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+      break;
+    }
     case SOCK_RGBA: {
       const Color value = Color(input.default_value_typed<bNodeSocketValueRGBA>()->value);
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
+      break;
+    }
+    case SOCK_MATRIX: {
+      const float4x4 value = float4x4::identity();
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4x4>>(value);
       break;
     }
     case SOCK_MENU: {
@@ -248,6 +287,36 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
       const std::string value = input.default_value_typed<bNodeSocketValueString>()->value;
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<std::string>>(
           value);
+      break;
+    }
+    case SOCK_OBJECT: {
+      Object *value = input.default_value_typed<bNodeSocketValueObject>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Object *>>(value);
+      break;
+    }
+    case SOCK_IMAGE: {
+      Image *value = input.default_value_typed<bNodeSocketValueImage>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Image *>>(value);
+      break;
+    }
+    case SOCK_FONT: {
+      VFont *value = input.default_value_typed<bNodeSocketValueFont>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<VFont *>>(value);
+      break;
+    }
+    case SOCK_SCENE: {
+      Scene *value = input.default_value_typed<bNodeSocketValueScene>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Scene *>>(value);
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      Text *value = input.default_value_typed<bNodeSocketValueText>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Text *>>(value);
+      break;
+    }
+    case SOCK_MASK: {
+      Mask *value = input.default_value_typed<bNodeSocketValueMask>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<Mask *>>(value);
       break;
     }
     default:
@@ -371,7 +440,7 @@ void MultiFunctionProcedureOperation::assign_output_variables(const bNode &node,
      * populated for it. */
     const bool is_operation_output = is_output_linked_to_node_conditioned(
         *output, [&](const bNode &node) {
-          return schedule_.contains(&node) && !compile_unit_.contains(&node);
+          return schedule_.nodes.contains(&node) && !compile_unit_.contains(&node);
         });
 
     /* If the output is used as the node preview, then an output result needs to be populated for
@@ -426,12 +495,7 @@ mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *va
 
   /* Conversion is not possible, return a default variable instead. */
   if (!function) {
-    const mf::MultiFunction &constant_function =
-        procedure_.construct_function<mf::CustomMF_GenericConstant>(
-            expected_type.single_type(), expected_type.single_type().default_value(), false);
-    mf::Variable *constant_variable = procedure_builder_.add_call<1>(constant_function)[0];
-    implicit_variables_.append(constant_variable);
-    return constant_variable;
+    return this->get_default_value_variable(expected_type);
   }
 
   mf::Variable *converted_variable = procedure_builder_.add_call<1>(*function, {variable})[0];
@@ -439,18 +503,14 @@ mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *va
   return converted_variable;
 }
 
-bool MultiFunctionProcedureOperation::is_single_value_operation()
+mf::Variable *MultiFunctionProcedureOperation::get_default_value_variable(const mf::DataType type)
 {
-  /* Return true if all inputs are single values. */
-  for (int i = 0; i < procedure_.params().size(); i++) {
-    if (procedure_.params()[i].type == mf::ParamType::InterfaceType::Input) {
-      Result &input = this->get_input(parameter_identifiers_[i]);
-      if (!input.is_single_value()) {
-        return false;
-      }
-    }
-  }
-  return true;
+  const mf::MultiFunction &constant_function =
+      procedure_.construct_function<mf::CustomMF_GenericConstant>(
+          type.single_type(), type.single_type().default_value(), false);
+  mf::Variable *constant_variable = procedure_builder_.add_call<1>(constant_function)[0];
+  implicit_variables_.append(constant_variable);
+  return constant_variable;
 }
 
 }  // namespace blender::compositor

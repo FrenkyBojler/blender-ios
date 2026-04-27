@@ -67,7 +67,7 @@ static void version_bonecollection_anim(FCurve *fcurve)
   }
 
   const std::string path_remainder(rna_path.drop_known_prefix(rna_path_prefix));
-  MEM_freeN(fcurve->rna_path);
+  MEM_delete(fcurve->rna_path);
   fcurve->rna_path = BLI_sprintfN("collections_all[%s", path_remainder.c_str());
 }
 
@@ -350,7 +350,7 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
       bNodeSocket *from_socket = alpha.socket->link->fromsock;
       bke::node_remove_link(ntree, *alpha.socket->link);
 
-      bNode *math_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
+      bNode *math_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeMath"_ustr);
       math_node->custom1 = NODE_MATH_GREATER_THAN;
       math_node->flag |= NODE_COLLAPSED;
       math_node->parent = to_node->parent;
@@ -417,7 +417,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
     /* We do not want to affect Cycles. So we split the output into two specific outputs. */
     output_node->custom1 = SHD_OUTPUT_CYCLES;
 
-    bNode *new_output = bke::node_add_node(nullptr, *ntree, "ShaderNodeOutputMaterial");
+    bNode *new_output = bke::node_add_node(nullptr, *ntree, "ShaderNodeOutputMaterial"_ustr);
     new_output->custom1 = SHD_OUTPUT_EEVEE;
     new_output->parent = output_node->parent;
     new_output->locx_legacy = output_node->locx_legacy;
@@ -444,7 +444,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   bNodeSocket *old_out_sock = bke::node_find_socket(*old_output_node, SOCK_IN, "Surface");
 
   /* Add mix node for mixing between original material, and transparent BSDF for shadows */
-  bNode *mix_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeMixShader");
+  bNode *mix_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeMixShader"_ustr);
   STRNCPY(mix_node->label, "Disable Shadow");
   mix_node->flag |= NODE_COLLAPSED;
   mix_node->parent = output_node->parent;
@@ -467,7 +467,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   bke::node_add_link(*ntree, *mix_node, *mix_out, *output_node, *out_sock);
 
   /* Add light path node to control shadow visibility */
-  bNode *lp_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeLightPath");
+  bNode *lp_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeLightPath"_ustr);
   lp_node->flag |= NODE_COLLAPSED;
   lp_node->parent = output_node->parent;
   lp_node->locx_legacy = output_node->locx_legacy;
@@ -482,7 +482,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   }
 
   /* Add transparent BSDF to make shadows transparent. */
-  bNode *bsdf_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeBsdfTransparent");
+  bNode *bsdf_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeBsdfTransparent"_ustr);
   bsdf_node->flag |= NODE_COLLAPSED;
   bsdf_node->parent = output_node->parent;
   bsdf_node->locx_legacy = output_node->locx_legacy;
@@ -629,8 +629,10 @@ static void versioning_node_hue_correct_set_wrappng(bNodeTree *ntree)
     for (bNode &node : ntree->nodes.items_mutable()) {
 
       if (node.type_legacy == CMP_NODE_HUECORRECT) {
-        CurveMapping *cumap = static_cast<CurveMapping *>(node.storage);
-        hue_correct_set_wrapping(cumap);
+        if (version_node_ensure_storage_or_invalidate(node)) {
+          CurveMapping *cumap = static_cast<CurveMapping *>(node.storage);
+          hue_correct_set_wrapping(cumap);
+        }
       }
     }
   }
@@ -651,7 +653,7 @@ static void add_image_editor_asset_shelf(Main &bmain)
         if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
                 regionbase, RGN_TYPE_ASSET_SHELF, __func__, RGN_TYPE_TOOL_HEADER))
         {
-          new_shelf_region->regiondata = MEM_new_for_free<RegionAssetShelf>(__func__);
+          new_shelf_region->regiondata = MEM_new<RegionAssetShelf>(__func__);
           new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
           new_shelf_region->flag |= RGN_FLAG_HIDDEN;
         }
@@ -987,6 +989,9 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node.type_legacy != CMP_NODE_BLUR) {
           continue;
         }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
+          continue;
+        }
 
         NodeBlurData &blur_data = *static_cast<NodeBlurData *>(node.storage);
 
@@ -1278,13 +1283,16 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node.type_legacy != GEO_NODE_CAPTURE_ATTRIBUTE) {
           continue;
         }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
+          continue;
+        }
         NodeGeometryAttributeCapture *storage = static_cast<NodeGeometryAttributeCapture *>(
             node.storage);
         if (storage->next_identifier > 0) {
           continue;
         }
         storage->capture_items_num = 1;
-        storage->capture_items = MEM_new_array_for_free<NodeGeometryAttributeCaptureItem>(
+        storage->capture_items = MEM_new_array<NodeGeometryAttributeCaptureItem>(
             storage->capture_items_num, __func__);
         NodeGeometryAttributeCaptureItem &item = storage->capture_items[0];
         item.data_type = storage->data_type_legacy;
@@ -1314,6 +1322,9 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
       }
       for (bNode &node : ntree->nodes) {
         if (node.type_legacy != CMP_NODE_CURVE_RGB) {
+          continue;
+        }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
           continue;
         }
 
@@ -1393,7 +1404,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
              * be needed for future versioning (before linking), see
              * #do_version_denoise_menus_to_inputs so we set a valid storage at this stage such
              * that the node becomes well defined. */
-            NodeDenoise *ndg = MEM_new_for_free<NodeDenoise>(__func__);
+            NodeDenoise *ndg = MEM_new<NodeDenoise>(__func__);
             ndg->hdr = true;
             ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
             node.storage = ndg;

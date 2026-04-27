@@ -115,6 +115,11 @@ const char *RNA_struct_ui_description_raw(const StructRNA *type);
 const char *RNA_struct_translation_context(const StructRNA *type);
 int RNA_struct_ui_icon(const StructRNA *type);
 
+/**
+ * Debug utility to print a #StructRNA.
+ */
+std::string RNA_struct_to_string(const StructRNA &type);
+
 PropertyRNA *RNA_struct_name_property(const StructRNA *type);
 const EnumPropertyItem *RNA_struct_property_tag_defines(const StructRNA *type);
 PropertyRNA *RNA_struct_iterator_property(StructRNA *type);
@@ -167,6 +172,12 @@ bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
  */
 bool RNA_struct_system_idprops_unset(PointerRNA *ptr, const char *identifier);
 
+/**
+ * If true, the name of the struct is unique among all names in the public namespace and can be
+ * looked up with #RNA_struct_find.
+ */
+bool RNA_struct_in_public_namespace(const StructRNA *type);
+
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
 
 /**
@@ -201,7 +212,7 @@ unsigned int RNA_struct_count_properties(StructRNA *srna);
  * \return The matching pointer if any, or `nullopt` otherwise.
  */
 std::optional<AncestorPointerRNA> RNA_struct_search_closest_ancestor_by_type(
-    PointerRNA *ptr, const StructRNA *srna);
+    const PointerRNA *ptr, const StructRNA *srna);
 
 /**
  * Low level direct access to type->properties,
@@ -216,7 +227,7 @@ PropertyRNA *RNA_struct_type_find_property_no_base(StructRNA *srna, const char *
 PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifier);
 
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
-const ListBaseT<FunctionRNA> *RNA_struct_type_functions(StructRNA *srna);
+Span<std::unique_ptr<FunctionRNA>> RNA_struct_type_functions(StructRNA *srna);
 
 [[nodiscard]] char *RNA_struct_name_get_alloc_ex(
     PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
@@ -665,6 +676,12 @@ int RNA_property_collection_raw_set(ReportList *reports,
                                     int len);
 size_t RNA_raw_type_sizeof(RawPropertyType type);
 RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
+
+/**
+ * Update the system properties (IDProperties) for a specific RNA type, converting so that
+ * properties match the current RNA definition.
+ */
+void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
 
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);

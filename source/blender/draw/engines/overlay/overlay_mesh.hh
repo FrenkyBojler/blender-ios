@@ -371,7 +371,7 @@ class Meshes : Overlay {
 
     if (mesh_has_skin_roots(ob)) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_skin_roots(mesh);
-      edit_mesh_skin_roots_ps_.draw_expand(geom, GPU_PRIM_LINES, 32, 1, res_handle);
+      edit_mesh_skin_roots_ps_.draw_expand(geom, GPU_PRIM_LINES, 15, 1, res_handle);
     }
     if (state.show_text && (state.overlay.edit_flag & overlay_edit_text)) {
       DRW_text_edit_mesh_measure_stats(state.region, state.v3d, ob, state.scene->unit, state.dt);
@@ -784,7 +784,7 @@ class MeshUVs : Overlay {
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
-    const StringRef active_uv_map = mesh.active_uv_map_name();
+    const StringRef active_uv_map = mesh.active_or_default_uv_map_name();
     const bke::AttributeAccessor attributes = mesh.attributes();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         active_uv_map);
@@ -825,7 +825,7 @@ class MeshUVs : Overlay {
         state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
     const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection));
-    const StringRef active_uv_map = mesh.active_uv_map_name();
+    const StringRef active_uv_map = mesh.active_or_default_uv_map_name();
     const bke::AttributeAccessor attributes = mesh.attributes();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         active_uv_map);
@@ -1115,7 +1115,7 @@ class MeshUVs : Overlay {
   {
     const int width = resolution.x;
     const int height = floor(float(resolution.y) * (aspect.y / aspect.x));
-    float *buffer = MEM_malloc_arrayN<float>(height * width, __func__);
+    float *buffer = MEM_new_array_uninitialized<float>(height * width, __func__);
 
     MaskRasterHandle *handle = BKE_maskrasterize_handle_new();
     BKE_maskrasterize_handle_init(handle, mask, width, height, true, true, true);
@@ -1126,7 +1126,7 @@ class MeshUVs : Overlay {
     mask_texture_.ensure_2d(
         gpu::TextureFormat::SFLOAT_16, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
 
-    MEM_freeN(buffer);
+    MEM_delete(buffer);
   }
 };
 

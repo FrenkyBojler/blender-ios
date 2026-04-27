@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "DNA_space_types.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -43,7 +45,7 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceConsole *sconsole;
 
-  sconsole = MEM_new_for_free<SpaceConsole>("initconsole");
+  sconsole = MEM_new<SpaceConsole>("initconsole");
   sconsole->spacetype = SPACE_CONSOLE;
 
   sconsole->lheight = 14;
@@ -94,7 +96,7 @@ static void console_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *console_duplicate(SpaceLink *sl)
 {
-  SpaceConsole *sconsolen = static_cast<SpaceConsole *>(MEM_dupallocN(sl));
+  SpaceConsole *sconsolen = MEM_dupalloc(reinterpret_cast<SpaceConsole *>(sl));
 
   /* clear or remove stuff from old */
 
@@ -330,7 +332,7 @@ static void console_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
     }
     else {
       BLI_remlink(&sconsole->history, &cl);
-      MEM_freeN(&cl);
+      MEM_delete(&cl);
     }
   }
 }
@@ -342,7 +344,7 @@ static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   for (ConsoleLine &cl : con->history) {
     /* 'len_alloc' is invalid on write, set from 'len' on read */
     writer->write_struct(&cl);
-    BLO_write_char_array(writer, size_t(cl.len) + 1, cl.line);
+    writer->write_char_array(size_t(cl.len) + 1, cl.line);
   }
   writer->write_struct_cast<SpaceConsole>(sl);
 }
@@ -366,7 +368,7 @@ void ED_spacetype_console()
   st->blend_write = console_space_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype console region");
+  art = MEM_new_zeroed<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 
@@ -379,7 +381,7 @@ void ED_spacetype_console()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN<ARegionType>("spacetype console region");
+  art = MEM_new_zeroed<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;

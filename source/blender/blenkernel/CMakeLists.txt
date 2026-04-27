@@ -115,7 +115,6 @@ set(SRC
   intern/editmesh_tangent.cc
   intern/effect.cc
   intern/fcurve.cc
-  intern/fcurve_cache.cc
   intern/fcurve_driver.cc
   intern/file_handler.cc
   intern/fluid.cc
@@ -138,7 +137,9 @@ set(SRC
   intern/grease_pencil.cc
   intern/grease_pencil_attributes.cc
   intern/grease_pencil_convert_legacy.cc
+  intern/grease_pencil_fills.cc
   intern/grease_pencil_vertex_groups.cc
+  intern/gtest_setup.cc
   intern/icons.cc
   intern/icons_rasterize.cc
   intern/id_hash.cc
@@ -411,11 +412,14 @@ set(SRC
   BKE_gpencil_modifier_legacy.h
   BKE_grease_pencil.h
   BKE_grease_pencil.hh
+  BKE_grease_pencil_fills.hh
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
+  BKE_gtest_setup.hh
   BKE_icons.hh
   BKE_id_hash.hh
   BKE_idprop.hh
+  BKE_idprop_hash.hh
   BKE_idtype.hh
   BKE_image.hh
   BKE_image_format.hh
@@ -472,6 +476,7 @@ set(SRC
   BKE_node_socket_value_fwd.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
+  BKE_node_tree_interface_convert.hh
   BKE_node_tree_reference_lifetimes.hh
   BKE_node_tree_update.hh
   BKE_node_tree_zones.hh
@@ -501,6 +506,8 @@ set(SRC
   BKE_shrinkwrap.hh
   BKE_softbody.h
   BKE_sound.hh
+  BKE_sound_sample.hh
+  BKE_sound_types.hh
   BKE_speaker.hh
   BKE_studiolight.h
   BKE_subdiv.hh
@@ -540,7 +547,6 @@ set(SRC
   nla_private.h
   particle_private.h
 
-  intern/attribute_access_intern.hh
   intern/attribute_storage_access.hh
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
@@ -572,7 +578,9 @@ set(LIB
   PRIVATE bf::gpu
   bf_ikplugin
   PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::imbuf::movie
+  PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
@@ -587,7 +595,6 @@ set(LIB
   PRIVATE bf::sequencer
   bf_shader_fx
   bf_simulation
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::intern::atomic
   PRIVATE bf::dependencies::zlib
@@ -620,10 +627,6 @@ if(WITH_BULLET)
     bf_intern_rigidbody
     PRIVATE bf::dependencies::optional::bullet
   )
-endif()
-
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)

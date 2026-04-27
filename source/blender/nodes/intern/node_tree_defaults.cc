@@ -44,7 +44,7 @@ void node_tree_shader_default(const bContext *C, Main *bmain, ID *id)
 
     if (ma->nodetree) {
       bke::node_tree_free_embedded_tree(ma->nodetree);
-      MEM_freeN(ma->nodetree);
+      MEM_delete(ma->nodetree);
       ma->nodetree = nullptr;
     }
     ma->nodetree = bke::node_tree_copy_tree(bmain, *ma_default->nodetree);
@@ -79,7 +79,7 @@ void node_tree_shader_default(const bContext *C, Main *bmain, ID *id)
     }
     else {
       ntree = bke::node_tree_add_tree_embedded(
-          nullptr, id, "Shader Nodetree", ntreeType_Shader->idname);
+          nullptr, id, "Shader Nodetree", ntreeType_Shader->idname.ref());
       shader = bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
       output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_LIGHT);
       bke::node_add_link(*ntree,
@@ -115,7 +115,7 @@ void node_tree_composit_default(const bContext *C, Scene *sce)
   }
 
   sce->compositing_node_group = bke::node_tree_add_tree(
-      bmain, DATA_("Compositor Nodes"), ntreeType_Composite->idname);
+      bmain, DATA_("Compositor Nodes"), ntreeType_Composite->idname.ref());
 
   node_tree_composit_default_init(C, sce->compositing_node_group);
 
@@ -132,23 +132,25 @@ void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
   ntree->tree_interface.add_socket(
       DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
-  bNode *composite = bke::node_add_node(C, *ntree, "NodeGroupOutput");
+  bNode *composite = bke::node_add_node(C, *ntree, "NodeGroupOutput"_ustr);
   composite->location[0] = 200.0f;
-  composite->location[1] = 0.0f;
+  /* The asset shelf is visible by default, so add a small offset to keep nodes centered in the
+   * visible area.*/
+  composite->location[1] = 100.0f;
 
   bNode *in = bke::node_add_static_node(C, *ntree, CMP_NODE_R_LAYERS);
   in->location[0] = -150.0f - in->width;
-  in->location[1] = 0.0f;
+  in->location[1] = 100.0f;
   bke::node_set_active(*ntree, *in);
   in->flag &= ~NODE_PREVIEW;
 
   bNode *reroute = bke::node_add_static_node(C, *ntree, NODE_REROUTE);
   reroute->location[0] = 100.0f;
-  reroute->location[1] = -35.0f;
+  reroute->location[1] = 65.0f;
 
   bNode *viewer = bke::node_add_static_node(C, *ntree, CMP_NODE_VIEWER);
   viewer->location[0] = 200.0f;
-  viewer->location[1] = -80.0f;
+  viewer->location[1] = 20.0f;
 
   /* Viewer and Composite nodes are linked to Render Layer's output image socket through a reroute
    * node. */

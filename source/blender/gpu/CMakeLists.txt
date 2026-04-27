@@ -99,6 +99,7 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_mipmap.cc
   intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
@@ -111,16 +112,18 @@ set(SRC
   shader_tool/enum.cc
   shader_tool/flow_control.cc
   shader_tool/function.cc
+  shader_tool/grammar.cc
   shader_tool/intermediate.cc
   shader_tool/metadata.cc
   shader_tool/namespace.cc
   shader_tool/processor.cc
   shader_tool/resource_table.cc
-  shader_tool/shader_tool.cc
   shader_tool/string.cc
   shader_tool/struct.cc
   shader_tool/template.cc
   shader_tool/union.cc
+
+  shader_tool/lexit/lexit.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -177,14 +180,17 @@ set(SRC
   intern/gpu_shader_create_info.hh
   intern/gpu_shader_create_info_pipeline.hh
   intern/gpu_shader_create_info_private.hh
+  intern/gpu_shader_dead_code_elimination.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
   intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
+  intern/gpu_shader_srd_cpp.hh
+  intern/gpu_shader_srd_info.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
-  intern/gpu_texture_private.hh
   intern/gpu_texture_pool_private.hh
+  intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
 
@@ -213,6 +219,7 @@ set(OPENGL_SRC
   opengl/gl_state.cc
   opengl/gl_storage_buffer.cc
   opengl/gl_texture.cc
+  opengl/gl_texture_pool.cc
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
   opengl/gl_vertex_buffer.cc
@@ -388,6 +395,7 @@ set(METAL_SRC
   metal/mtl_state.mm
   metal/mtl_storage_buffer.mm
   metal/mtl_texture.mm
+  metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
@@ -431,9 +439,8 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
 )
 
 # Select Backend source based on availability
@@ -542,6 +549,7 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
+  shaders/gpu_shader_2D_update_mipmaps.bsl.hh
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl
@@ -618,6 +626,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
@@ -648,6 +657,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_hair.glsl
   shaders/material/gpu_shader_material_holdout.glsl
   shaders/material/gpu_shader_material_hue_sat_val.glsl
+  shaders/material/gpu_shader_material_implicit_defaults.glsl
   shaders/material/gpu_shader_material_invert.glsl
   shaders/material/gpu_shader_material_layer_weight.glsl
   shaders/material/gpu_shader_material_light_falloff.glsl
@@ -667,6 +677,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_particle_info.glsl
   shaders/material/gpu_shader_material_point_info.glsl
   shaders/material/gpu_shader_material_principled.glsl
+  shaders/material/gpu_shader_material_raycast.glsl
   shaders/material/gpu_shader_material_ray_portal.glsl
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_repeat_zone.glsl
@@ -709,7 +720,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_volume_coefficients.glsl
   shaders/material/gpu_shader_material_voronoi.glsl
   shaders/material/gpu_shader_material_wireframe.glsl
-  shaders/material/gpu_shader_material_world_normals.glsl
 
   shaders/gpu_shader_gpencil_stroke_vert.glsl
   shaders/gpu_shader_gpencil_stroke_frag.glsl
@@ -731,7 +741,7 @@ set(GLSL_SRC
   GPU_shader_shared_utils.hh
 )
 
-set(GLSL_SRC_TEST
+set(GLSL_TEST_SRC
   shaders/infos/gpu_shader_test_infos.hh
 
   tests/shaders/gpu_math_test.glsl
@@ -791,14 +801,14 @@ set(VULKAN_BACKEND_GLSL_SRC
 
 if(WITH_GTESTS)
   if(WITH_GPU_BACKEND_TESTS)
-    list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
+    list(APPEND GLSL_SRC ${GLSL_TEST_SRC})
   endif()
 endif()
 
 if(WITH_METAL_BACKEND)
   list(APPEND GLSL_SRC ${MTL_BACKEND_GLSL_SRC})
 
-  set(MSL_C)
+  set(MSL_C "")
   foreach(MSL_FILE ${MSL_SRC})
     data_to_c_simple(${MSL_FILE} MSL_C)
   endforeach()
@@ -814,18 +824,18 @@ set(GLSL_INC
   intern
   shaders
   shaders/common
-  shaders/material
   shaders/infos
+  shaders/material
 
   vulkan/shaders
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
-set(SHADER_C)
+set(SHADER_C "")
 list(APPEND SHADER_C ${GLSL_C})
 if(WITH_METAL_BACKEND)
   list(APPEND SHADER_C ${MSL_C})
@@ -844,6 +854,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
@@ -885,10 +896,6 @@ target_link_libraries(bf_gpu PUBLIC
   bf_imbuf_opencolorio_shaders
 )
 
-if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(bf_gpu PUBLIC rt)
-endif()
-
 # If `execinfo.h` exists on a *BSD system then also link in `libexecinfo`.
 # Needed for `backtrace` / `backtrace_symbols` (GNU extensions)
 # brought in by `blenlib/intern/system.cc`.
@@ -911,8 +918,8 @@ endif()
 
 
 if(WITH_GTESTS)
-  set(TEST_SRC)
-  set(TEST_INC)
+  set(TEST_SRC "")
+  set(TEST_INC "")
   set(TEST_LIB
     bf_intern_ghost
     bf_imbuf
@@ -934,6 +941,7 @@ if(WITH_GTESTS)
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
       tests/texture_test.cc
+      tests/texture_view_test.cc
       tests/vertex_buffer_test.cc
     )
   endif()

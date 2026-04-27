@@ -95,6 +95,7 @@ set(SRC
   bpy_library.hh
   bpy_msgbus.hh
   bpy_operator.hh
+  bpy_operator_function.hh
   bpy_operator_wrap.hh
   bpy_path.hh
   bpy_props.hh
@@ -229,10 +230,6 @@ if(WITH_IMAGE_CINEON)
   add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_IMAGE_OPENEXR)
-endif()
-
 if(WITH_IMAGE_OPENJPEG)
   add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
@@ -255,6 +252,9 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
+  list(APPEND INC
+    ../../../../intern/opensubdiv
+  )
 endif()
 
 if(WITH_JACK)
@@ -320,13 +320,6 @@ if(WITH_USD)
   add_definitions(-DWITH_USD)
   list(APPEND INC
     ../../io/usd
-  )
-endif()
-
-if(WITH_OPENSUBDIV)
-  add_definitions(-DWITH_OPENSUBDIV)
-  list(APPEND INC
-    ../../../../intern/opensubdiv
   )
 endif()
 

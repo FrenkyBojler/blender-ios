@@ -172,7 +172,7 @@ static bool object_materials_supported_poll_ex(bContext *C, const Object *ob)
   }
 
   /* Material linked to obdata. */
-  const ID *data = static_cast<ID *>(ob->data);
+  const ID *data = ob->data;
   return (data && ID_IS_EDITABLE(data) && !ID_IS_OVERRIDE_LIBRARY(data));
 }
 
@@ -492,7 +492,7 @@ static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
 
     if (changed) {
       changed_multi = true;
-      DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+      DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
     }
   }
@@ -558,7 +558,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
 
   Material ***matar_object = &ob->mat;
 
-  Material **matar = MEM_calloc_arrayN<Material *>(size_t(ob->totcol), __func__);
+  Material **matar = MEM_new_array_zeroed<Material *>(size_t(ob->totcol), __func__);
   for (int i = ob->totcol; i--;) {
     matar[i] = ob->matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
   }
@@ -591,7 +591,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
   }
   CTX_DATA_END;
 
-  MEM_freeN(matar);
+  MEM_delete(matar);
 
   return OPERATOR_FINISHED;
 }
@@ -646,7 +646,7 @@ static wmOperatorStatus material_slot_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  slot_remap = MEM_malloc_arrayN<uint>(ob->totcol, __func__);
+  slot_remap = MEM_new_array_uninitialized<uint>(ob->totcol, __func__);
 
   range_vn_u(slot_remap, ob->totcol, 0);
 
@@ -655,7 +655,7 @@ static wmOperatorStatus material_slot_move_exec(bContext *C, wmOperator *op)
 
   BKE_object_material_remap(ob, slot_remap);
 
-  MEM_freeN(slot_remap);
+  MEM_delete(slot_remap);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -1030,6 +1030,7 @@ void WORLD_OT_new(wmOperatorType *ot)
 static wmOperatorStatus view_layer_add_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   ViewLayer *view_layer_current = win ? WM_window_get_active_view_layer(win) : nullptr;
@@ -1040,8 +1041,12 @@ static wmOperatorStatus view_layer_add_exec(bContext *C, wmOperator *op)
       type = VIEWLAYER_ADD_NEW;
     }
   }
-  ViewLayer *view_layer_new = BKE_view_layer_add(
-      scene, view_layer_current ? view_layer_current->name : nullptr, view_layer_current, type);
+  ViewLayer *view_layer_new = BKE_view_layer_add(bmain,
+                                                 scene,
+                                                 view_layer_current ? view_layer_current->name :
+                                                                      nullptr,
+                                                 view_layer_current,
+                                                 type);
 
   if (win) {
     WM_window_set_active_view_layer(win, view_layer_new);
@@ -1448,6 +1453,7 @@ enum {
 
 static Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
 
@@ -1468,7 +1474,7 @@ static Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(bContext *
   int subset = RNA_enum_get(op->ptr, "subset");
   switch (subset) {
     case LIGHTCACHE_SUBSET_ALL: {
-      FOREACH_OBJECT_BEGIN (scene, view_layer, ob) {
+      FOREACH_OBJECT_BEGIN (bmain, scene, view_layer, ob) {
         if (is_irradiance_volume(ob)) {
           irradiance_volume_setup(ob);
         }
@@ -2644,12 +2650,36 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
         mtex_ar[act] = mtex_ar[act - 1];
         mtex_ar[act - 1] = mtexswap;
 
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act - 1, -1, false);
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act - 1, false);
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      act - 1,
+                                      -1,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      act,
+                                      act - 1,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      -1,
+                                      act,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
 
         set_active_mtex(id, act - 1);
       }
@@ -2660,12 +2690,36 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
         mtex_ar[act] = mtex_ar[act + 1];
         mtex_ar[act + 1] = mtexswap;
 
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act + 1, -1, false);
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act + 1, false);
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      act + 1,
+                                      -1,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      act,
+                                      act + 1,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      -1,
+                                      act,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
 
         set_active_mtex(id, act + 1);
       }
@@ -2880,7 +2934,7 @@ static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
         bmain, &nodetree->id, paste_material_nodetree_ids_decref, nullptr, IDWALK_NOP);
 
     bke::node_tree_free_embedded_tree(nodetree);
-    MEM_freeN(nodetree);
+    MEM_delete(nodetree);
     ma->nodetree = nullptr;
   }
 
@@ -3033,7 +3087,7 @@ static void paste_mtex_copybuf(ID *id)
 
   if (mtex) {
     if (*mtex == nullptr) {
-      *mtex = MEM_new_for_free<MTex>("mtex copy");
+      *mtex = MEM_new<MTex>("mtex copy");
     }
     else if ((*mtex)->tex) {
       id_us_min(&(*mtex)->tex->id);
@@ -3157,7 +3211,7 @@ void TEXTURE_OT_slot_paste(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Paste Texture Slot Settings";
   ot->idname = "TEXTURE_OT_slot_paste";
-  ot->description = "Copy the texture settings and nodes";
+  ot->description = "Paste the texture settings and nodes";
 
   /* API callbacks. */
   ot->exec = paste_mtex_exec;

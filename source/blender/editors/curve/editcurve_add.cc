@@ -133,7 +133,7 @@ Nurb *ED_curve_add_nurbs_primitive(
 
   /* these types call this function to return a Nurb */
   if (!ELEM(stype, CU_PRIM_TUBE, CU_PRIM_DONUT)) {
-    nu = MEM_new_for_free<Nurb>("addNurbprim");
+    nu = MEM_new<Nurb>("addNurbprim");
     nu->type = cutype;
     nu->resolu = cu->resolu;
     nu->resolv = cu->resolv;
@@ -144,7 +144,7 @@ Nurb *ED_curve_add_nurbs_primitive(
       nu->resolu = cu->resolu;
       if (cutype == CU_BEZIER) {
         nu->pntsu = 2;
-        nu->bezt = MEM_calloc_arrayN<BezTriple>(nu->pntsu, "addNurbprim1");
+        nu->bezt = MEM_new_array_zeroed<BezTriple>(nu->pntsu, "addNurbprim1");
         bezt = nu->bezt;
         bezt->h1 = bezt->h2 = HD_ALIGN;
         bezt->f1 = bezt->f2 = bezt->f3 = SELECT;
@@ -181,7 +181,7 @@ Nurb *ED_curve_add_nurbs_primitive(
         nu->pntsu = 4;
         nu->pntsv = 1;
         nu->orderu = 4;
-        nu->bp = MEM_calloc_arrayN<BPoint>(nu->pntsu, "addNurbprim3");
+        nu->bp = MEM_new_array_zeroed<BPoint>(nu->pntsu, "addNurbprim3");
 
         bp = nu->bp;
         for (a = 0; a < 4; a++, bp++) {
@@ -218,7 +218,7 @@ Nurb *ED_curve_add_nurbs_primitive(
       nu->orderu = 5;
       nu->flagu = CU_NURB_ENDPOINT; /* endpoint */
       nu->resolu = cu->resolu;
-      nu->bp = MEM_calloc_arrayN<BPoint>(nu->pntsu, "addNurbprim3");
+      nu->bp = MEM_new_array_zeroed<BPoint>(nu->pntsu, "addNurbprim3");
 
       bp = nu->bp;
       for (a = 0; a < 5; a++, bp++) {
@@ -253,7 +253,7 @@ Nurb *ED_curve_add_nurbs_primitive(
 
       if (cutype == CU_BEZIER) {
         nu->pntsu = 4;
-        nu->bezt = MEM_calloc_arrayN<BezTriple>(nu->pntsu, "addNurbprim1");
+        nu->bezt = MEM_new_array_zeroed<BezTriple>(nu->pntsu, "addNurbprim1");
         nu->flagu = CU_NURB_CYCLIC;
         bezt = nu->bezt;
 
@@ -298,7 +298,7 @@ Nurb *ED_curve_add_nurbs_primitive(
         nu->pntsu = 8;
         nu->pntsv = 1;
         nu->orderu = 3;
-        nu->bp = MEM_calloc_arrayN<BPoint>(nu->pntsu, "addNurbprim6");
+        nu->bp = MEM_new_array_zeroed<BPoint>(nu->pntsu, "addNurbprim6");
         nu->flagu = CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT;
         bp = nu->bp;
 
@@ -335,7 +335,7 @@ Nurb *ED_curve_add_nurbs_primitive(
         nu->orderu = 4;
         nu->orderv = 4;
         nu->flag = CU_SMOOTH;
-        nu->bp = MEM_calloc_arrayN<BPoint>((4 * 4), "addNurbprim6");
+        nu->bp = MEM_new_array_zeroed<BPoint>((4 * 4), "addNurbprim6");
         nu->flagu = 0;
         nu->flagv = 0;
         bp = nu->bp;
@@ -397,7 +397,7 @@ Nurb *ED_curve_add_nurbs_primitive(
         nu->resolu = cu->resolu;
         nu->resolv = cu->resolv;
         nu->flag = CU_SMOOTH;
-        nu->bp = MEM_calloc_arrayN<BPoint>(nu->pntsu, "addNurbprim6");
+        nu->bp = MEM_new_array_zeroed<BPoint>(nu->pntsu, "addNurbprim6");
         nu->flagu = 0;
         bp = nu->bp;
 
@@ -500,7 +500,7 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   ListBaseT<Nurb> *editnurb;
   Nurb *nu;
@@ -700,7 +700,7 @@ void SURFACE_OT_primitive_nurbs_surface_curve_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Surface Curve";
-  ot->description = "Construct a Nurbs surface Curve";
+  ot->description = "Construct a NURBS surface curve";
   ot->idname = "SURFACE_OT_primitive_nurbs_surface_curve_add";
 
   /* API callbacks. */
@@ -723,7 +723,7 @@ void SURFACE_OT_primitive_nurbs_surface_circle_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Surface Circle";
-  ot->description = "Construct a Nurbs surface Circle";
+  ot->description = "Construct a NURBS surface circle";
   ot->idname = "SURFACE_OT_primitive_nurbs_surface_circle_add";
 
   /* API callbacks. */
@@ -746,7 +746,7 @@ void SURFACE_OT_primitive_nurbs_surface_surface_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Surface Patch";
-  ot->description = "Construct a Nurbs surface Patch";
+  ot->description = "Construct a NURBS surface patch";
   ot->idname = "SURFACE_OT_primitive_nurbs_surface_surface_add";
 
   /* API callbacks. */
@@ -769,7 +769,7 @@ void SURFACE_OT_primitive_nurbs_surface_cylinder_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Surface Cylinder";
-  ot->description = "Construct a Nurbs surface Cylinder";
+  ot->description = "Construct a NURBS surface cylinder";
   ot->idname = "SURFACE_OT_primitive_nurbs_surface_cylinder_add";
 
   /* API callbacks. */
@@ -792,7 +792,7 @@ void SURFACE_OT_primitive_nurbs_surface_sphere_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Surface Sphere";
-  ot->description = "Construct a Nurbs surface Sphere";
+  ot->description = "Construct a NURBS surface sphere";
   ot->idname = "SURFACE_OT_primitive_nurbs_surface_sphere_add";
 
   /* API callbacks. */
@@ -815,7 +815,7 @@ void SURFACE_OT_primitive_nurbs_surface_torus_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Surface Torus";
-  ot->description = "Construct a Nurbs surface Torus";
+  ot->description = "Construct a NURBS surface torus";
   ot->idname = "SURFACE_OT_primitive_nurbs_surface_torus_add";
 
   /* API callbacks. */

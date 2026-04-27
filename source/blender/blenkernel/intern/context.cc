@@ -113,13 +113,13 @@ struct bContext {
 
 bContext *CTX_create()
 {
-  bContext *C = MEM_callocN<bContext>(__func__);
+  bContext *C = MEM_new_zeroed<bContext>(__func__);
   return C;
 }
 
 bContext *CTX_copy(const bContext *C)
 {
-  bContext *newC = MEM_callocN<bContext>(__func__);
+  bContext *newC = MEM_new_zeroed<bContext>(__func__);
   *newC = *C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
@@ -132,7 +132,7 @@ void CTX_free(bContext *C)
   /* This may contain a dynamically allocated message, free. */
   CTX_wm_operator_poll_msg_clear(C);
 
-  MEM_freeN(C);
+  MEM_delete(C);
 }
 
 /* store */
@@ -317,7 +317,7 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
             if (name && name[0] != '\0') {
               member_name = name;
               if (name != name_buf) {
-                MEM_freeN(name);
+                MEM_delete(name);
               }
             }
           }
@@ -628,9 +628,10 @@ static bool ctx_data_base_collection_get(const bContext *C,
 
   bContextDataResult result{};
 
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
 
   bool ok = false;
 
@@ -774,7 +775,7 @@ static void data_dir_add(ListBaseT<LinkData> *lb, const char *member, const bool
     return;
   }
 
-  link = MEM_callocN<LinkData>(__func__);
+  link = MEM_new_zeroed<LinkData>(__func__);
   link->data = const_cast<char *>(member);
   BLI_addtail(lb, link);
 }
@@ -807,7 +808,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
       name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), &namelen);
       data_dir_add(&lb, name, use_all);
       if (name != name_buf) {
-        MEM_freeN(name);
+        MEM_delete(name);
       }
     }
     RNA_PROP_END;
@@ -1624,9 +1625,11 @@ Base *CTX_data_active_base(const bContext *C)
   if (ob == nullptr) {
     return nullptr;
   }
+
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   return BKE_view_layer_base_find(view_layer, ob);
 }
 

@@ -9,13 +9,13 @@
 #include "DNA_anim_types.h"
 
 #include "BKE_fcurve.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
 #include "RNA_define.hh"
 
-#include "CLG_log.h"
 #include "testing/testing.h"
 
 namespace blender::animrig::tests {
@@ -27,14 +27,12 @@ class AnimDrawTest : public testing::Test {
 
   static void SetUpTestSuite()
   {
-    RNA_init();
-    CLG_init();
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
@@ -52,7 +50,7 @@ class AnimDrawTest : public testing::Test {
 
 TEST_F(AnimDrawTest, anim_unit_mapping_get_factor_not_normalizing)
 {
-  FCurve *fcurve = MEM_new_for_free<FCurve>(__func__);
+  FCurve *fcurve = MEM_new<FCurve>(__func__);
   fcurve->array_index = 0;
 
   /* Avoid creating a Scene via BKE_id_new<Scene>(this->bmain, "SCTestScene"); as that requires

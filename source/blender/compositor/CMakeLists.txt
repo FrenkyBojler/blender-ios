@@ -122,6 +122,7 @@ set(SRC
   cached_resources/intern/morphological_distance_feather_weights.cc
   cached_resources/intern/ocio_color_space_conversion_shader.cc
   cached_resources/intern/smaa_precomputed_textures.cc
+  cached_resources/intern/string_image.cc
   cached_resources/intern/symmetric_blur_weights.cc
   cached_resources/intern/symmetric_separable_blur_weights.cc
   cached_resources/intern/van_vliet_gaussian_coefficients.cc
@@ -139,6 +140,7 @@ set(SRC
   cached_resources/COM_morphological_distance_feather_weights.hh
   cached_resources/COM_ocio_color_space_conversion_shader.hh
   cached_resources/COM_smaa_precomputed_textures.hh
+  cached_resources/COM_string_image.hh
   cached_resources/COM_symmetric_blur_weights.hh
   cached_resources/COM_symmetric_separable_blur_weights.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
@@ -147,18 +149,16 @@ set(SRC
 
   derived_resources/COM_denoised_auxiliary_pass.hh
 
-  utilities/intern/gpu_material.cc
   utilities/intern/oidn.cc
 
   utilities/COM_utilities_diagonals.hh
-  utilities/COM_utilities_gpu_material.hh
   utilities/COM_utilities_oidn.hh
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blentranslation
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
@@ -168,7 +168,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::optional::fftw3
   PRIVATE bf::dependencies::optional::openimagedenoise
@@ -222,7 +222,6 @@ set(GLSL_SRC
   shaders/infos/compositor_pixelate_infos.hh
   shaders/infos/compositor_plane_deform_infos.hh
   shaders/infos/compositor_premultiply_alpha_infos.hh
-  shaders/infos/compositor_read_input_infos.hh
   shaders/infos/compositor_realize_on_domain_infos.hh
   shaders/infos/compositor_relative_to_pixel_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
@@ -311,6 +310,7 @@ set(GLSL_SRC
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
   shaders/compositor_morphological_distance_threshold.glsl
+  shaders/compositor_morphological_distance_threshold_seeds.glsl
   shaders/compositor_morphological_step.glsl
   shaders/compositor_motion_blur.glsl
   shaders/compositor_motion_blur_max_velocity_dilate.glsl
@@ -326,7 +326,6 @@ set(GLSL_SRC
   shaders/compositor_plane_deform.glsl
   shaders/compositor_premultiply_alpha.glsl
   shaders/compositor_radial_lens_distortion.glsl
-  shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_relative_to_pixel_float.glsl
   shaders/compositor_relative_to_pixel_float_per_dimension.glsl
@@ -393,6 +392,16 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_summed_area_table_lib.glsl
   shaders/library/gpu_shader_compositor_texture_utilities.glsl
   shaders/library/gpu_shader_compositor_type_conversion.glsl
+
+  shaders/library/gpu_shader_function_combine_matrix.glsl
+  shaders/library/gpu_shader_function_invert_matrix.glsl
+  shaders/library/gpu_shader_function_matrix_determinant.glsl
+  shaders/library/gpu_shader_function_matrix_multiply.glsl
+  shaders/library/gpu_shader_function_project_point.glsl
+  shaders/library/gpu_shader_function_separate_matrix.glsl
+  shaders/library/gpu_shader_function_transform_direction.glsl
+  shaders/library/gpu_shader_function_transform_point.glsl
+  shaders/library/gpu_shader_function_transpose_matrix.glsl
 )
 
 set(GLSL_INC
@@ -402,11 +411,11 @@ set(GLSL_INC
   ../gpu/shaders/common
 
   shaders
-  shaders/library
   shaders/infos
+  shaders/library
 )
 
-set(GLSL_C)
+set(GLSL_C "")
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
@@ -424,6 +433,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
@@ -442,16 +452,8 @@ list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 target_include_directories(bf_compositor_shaders PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
-endif()
-
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
-  target_compile_options(bf_compositor PRIVATE "-Wsuggest-override")
+  target_compile_options(bf_compositor PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>)
 endif()

@@ -151,7 +151,7 @@ static void rna_remlink(ListBase *listbase, void *vlink)
 void rna_freelinkN(ListBase *listbase, void *vlink)
 {
   rna_remlink(listbase, vlink);
-  MEM_freeN(vlink);
+  MEM_delete(static_cast<Link *>(vlink));
 }
 
 void rna_freelistN(ListBase *listbase)
@@ -160,7 +160,7 @@ void rna_freelistN(ListBase *listbase)
 
   for (link = static_cast<Link *>(listbase->first); link; link = next) {
     next = link->next;
-    MEM_freeN(link);
+    MEM_delete(link);
   }
 
   listbase->first = listbase->last = nullptr;
@@ -522,7 +522,7 @@ static int rna_find_sdna_member(SDNA *sdna,
   return 0;
 }
 
-static bool rna_validate_identifier(const char *identifier, bool property, const char **r_error)
+bool RNA_validate_identifier(const char *identifier, bool is_property, const char **r_error)
 {
   int a = 0;
 
@@ -544,14 +544,18 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
   };
 
   if (!isalpha(identifier[0])) {
-    *r_error = "first character failed isalpha() check";
+    if (r_error) {
+      *r_error = "first character failed isalpha() check";
+    }
     return false;
   }
 
   for (a = 0; identifier[a]; a++) {
-    if (DefRNA.preprocess && property) {
+    if (DefRNA.preprocess && is_property) {
       if (isalpha(identifier[a]) && isupper(identifier[a])) {
-        *r_error = "property names must contain lower case characters only";
+        if (r_error) {
+          *r_error = "property names must contain lower case characters only";
+        }
         return false;
       }
     }
@@ -561,24 +565,30 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
     }
 
     if (identifier[a] == ' ') {
-      *r_error = "spaces are not okay in identifier names";
+      if (r_error) {
+        *r_error = "spaces are not okay in identifier names";
+      }
       return false;
     }
 
     if (isalnum(identifier[a]) == 0) {
-      *r_error = "one of the characters failed an isalnum() check and is not an underscore";
+      if (r_error) {
+        *r_error = "one of the characters failed an isalnum() check and is not an underscore";
+      }
       return false;
     }
   }
 
   for (a = 0; kwlist[a]; a++) {
     if (STREQ(identifier, kwlist[a])) {
-      *r_error = "this keyword is reserved by Python";
+      if (r_error) {
+        *r_error = "this keyword is reserved by Python";
+      }
       return false;
     }
   }
 
-  if (property) {
+  if (is_property) {
     static const char *kwlist_prop[] = {
         /* not keywords but reserved all the same because py uses */
         "keys",
@@ -590,7 +600,9 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
 
     for (a = 0; kwlist_prop[a]; a++) {
       if (STREQ(identifier, kwlist_prop[a])) {
-        *r_error = "this keyword is reserved by Python";
+        if (r_error) {
+          *r_error = "this keyword is reserved by Python";
+        }
         return false;
       }
     }
@@ -599,7 +611,7 @@ static bool rna_validate_identifier(const char *identifier, bool property, const
   return true;
 }
 
-void RNA_identifier_sanitize(char *identifier, int property)
+void RNA_identifier_sanitize(char *identifier, bool is_property)
 {
   int a = 0;
 
@@ -618,7 +630,7 @@ void RNA_identifier_sanitize(char *identifier, int property)
   }
 
   for (a = 0; identifier[a]; a++) {
-    if (DefRNA.preprocess && property) {
+    if (DefRNA.preprocess && is_property) {
       if (isalpha(identifier[a]) && isupper(identifier[a])) {
         /* property names must contain lower case characters only */
         identifier[a] = tolower(identifier[a]);
@@ -650,7 +662,7 @@ void RNA_identifier_sanitize(char *identifier, int property)
     }
   }
 
-  if (property) {
+  if (is_property) {
     static const char *kwlist_prop[] = {
         /* not keywords but reserved all the same because py uses */
         "keys",
@@ -685,6 +697,11 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
     r_range[1] = SHRT_MAX;
     return true;
   }
+  if (STR_ELEM(dnatype, "ushort")) {
+    r_range[0] = 0;
+    r_range[1] = USHRT_MAX;
+    return true;
+  }
   if (STREQ(dnatype, "int")) {
     r_range[0] = INT_MIN;
     r_range[1] = INT_MAX;
@@ -699,6 +716,13 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
 }
 
 /* Blender Data Definition */
+
+BlenderRNA *RNA_create_runtime()
+{
+  BlenderRNA *brna = MEM_new<BlenderRNA>(__func__);
+  brna->runtime = true;
+  return brna;
+}
 
 BlenderRNA *RNA_create()
 {
@@ -734,7 +758,7 @@ void RNA_define_free(BlenderRNA * /*brna*/)
   FunctionDefRNA *dfunc;
 
   for (AllocDefRNA &alloc : DefRNA.allocs) {
-    MEM_freeN(alloc.mem);
+    MEM_delete_void(alloc.mem);
   }
   rna_freelistN(&DefRNA.allocs);
 
@@ -808,7 +832,6 @@ void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *rna_ext)
 void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 {
 #ifdef RNA_RUNTIME
-  FunctionRNA *func, *nextfunc;
   PropertyRNA *prop, *nextprop;
   PropertyRNA *parm, *nextparm;
 
@@ -836,9 +859,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
     }
   }
 
-  for (func = static_cast<FunctionRNA *>(srna->functions.first); func; func = nextfunc) {
-    nextfunc = static_cast<FunctionRNA *>(func->cont.next);
-
+  for (const std::unique_ptr<FunctionRNA> &func : srna->functions) {
     for (parm = static_cast<PropertyRNA *>(func->cont.properties.first); parm; parm = nextparm) {
       nextparm = parm->next;
 
@@ -849,11 +870,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
       }
     }
 
-    RNA_def_func_free_pointers(func);
-
-    if (func->flag & FUNC_RUNTIME) {
-      rna_freelinkN(&srna->functions, func);
-    }
+    RNA_def_func_free_pointers(func.get());
   }
 
   rna_brna_structs_remove_and_free(brna, srna);
@@ -864,20 +881,14 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 
 void RNA_free(BlenderRNA *brna)
 {
-  FunctionRNA *func;
-
   if (DefRNA.preprocess) {
     RNA_define_free(brna);
 
     for (std::unique_ptr<StructRNA> &srna : brna->structs) {
-      for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
-           func = static_cast<FunctionRNA *>(func->cont.next))
-      {
+      for (std::unique_ptr<FunctionRNA> &func : srna->functions) {
         rna_freelistN(&func->cont.properties);
       }
-
       rna_freelistN(&srna->cont.properties);
-      rna_freelistN(&srna->functions);
     }
 
     MEM_delete(brna);
@@ -891,7 +902,18 @@ void RNA_free(BlenderRNA *brna)
 
     /* Reverse iteration to make removing from vector faster. */
     for (auto srna = brna->structs.rbegin(); srna != brna->structs.rend(); srna++) {
+      if (brna->runtime) {
+#ifdef RNA_RUNTIME
+#  ifdef WITH_PYTHON
+        BPY_free_srna_pytype(srna->get());
+#  endif
+#endif
+      }
       RNA_struct_free(brna, srna->get());
+    }
+
+    if (brna->runtime) {
+      MEM_delete(brna);
     }
   }
 
@@ -947,7 +969,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
   if (DefRNA.preprocess) {
     const char *error = nullptr;
 
-    if (!rna_validate_identifier(identifier, false, &error)) {
+    if (!RNA_validate_identifier(identifier, false, &error)) {
       CLOG_ERROR(&LOG, "struct identifier \"%s\" error - %s", identifier, error);
       DefRNA.error = true;
     }
@@ -958,13 +980,18 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
   DefRNA.laststruct = srna;
 
   if (srnafrom) {
-    /* Copy from struct to derive stuff, a bit clumsy since we can't
-     * use #MEM_dupallocN, data structs may not be allocated but builtin. */
-    memcpy(srna, srnafrom, sizeof(StructRNA));
-    srna->cont.prop_lookup_set = nullptr;
-    BLI_listbase_clear(&srna->cont.properties);
-    BLI_listbase_clear(&srna->functions);
-    srna->py_type = nullptr;
+    srna->blender_type = srnafrom->blender_type;
+    srna->flag = srnafrom->flag;
+    srna->prop_tag_defines = srnafrom->prop_tag_defines;
+    srna->icon = srnafrom->icon;
+    srna->nested = srnafrom->nested;
+    srna->refine = srnafrom->refine;
+    srna->path = srnafrom->path;
+    srna->reg = srnafrom->reg;
+    srna->unreg = srnafrom->unreg;
+    srna->instance = srnafrom->instance;
+    srna->idproperties = srnafrom->idproperties;
+    srna->system_idproperties = srnafrom->system_idproperties;
 
     srna->base = srnafrom;
 
@@ -998,7 +1025,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
   rna_brna_structs_add(brna, std::move(srna_ptr));
 
   if (DefRNA.preprocess) {
-    ds = MEM_callocN<StructDefRNA>("StructDefRNA");
+    ds = MEM_new_zeroed<StructDefRNA>("StructDefRNA");
     ds->srna = srna;
     rna_addtail(&DefRNA.structs, ds);
 
@@ -1065,7 +1092,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
 #ifdef RNA_RUNTIME
       PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
       pprop->get = rna_builtin_type_get;
-      pprop->type = RNA_Struct;
+      pprop->pointer_type = RNA_Struct;
 #endif
     }
   }
@@ -1293,6 +1320,11 @@ void RNA_def_struct_path_func(StructRNA *srna, const char *path)
   }
 }
 
+void RNA_def_struct_path_func_runtime(StructRNA *srna, StructPathFunc path_fn)
+{
+  srna->path = path_fn;
+}
+
 void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *identifier)
 {
   if (DefRNA.preprocess) {
@@ -1357,7 +1389,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   if (DefRNA.preprocess) {
     const char *error = nullptr;
 
-    if (!rna_validate_identifier(identifier, true, &error)) {
+    if (!RNA_validate_identifier(identifier, true, &error)) {
       CLOG_ERROR(
           &LOG, "property identifier \"%s.%s\" - %s", CONTAINER_RNA_ID(cont), identifier, error);
       DefRNA.error = true;
@@ -1374,13 +1406,13 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
       }
     }
 
-    dprop = MEM_callocN<PropertyDefRNA>("PropertyDefRNA");
+    dprop = MEM_new_zeroed<PropertyDefRNA>("PropertyDefRNA");
     rna_addtail(&dcont->properties, dprop);
   }
   else {
 #ifndef NDEBUG
     const char *error = nullptr;
-    if (!rna_validate_identifier(identifier, true, &error)) {
+    if (!RNA_validate_identifier(identifier, true, &error)) {
       CLOG_ERROR(&LOG,
                  "runtime property identifier \"%s.%s\" - %s",
                  CONTAINER_RNA_ID(cont),
@@ -1392,7 +1424,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   }
 
   prop = static_cast<PropertyRNA *>(
-      MEM_callocN(rna_property_type_sizeof(PropertyType(type)), "PropertyRNA"));
+      MEM_new_zeroed(rna_property_type_sizeof(PropertyType(type)), "PropertyRNA"));
 
   switch (type) {
     case PROP_BOOLEAN:
@@ -1959,7 +1991,7 @@ void RNA_def_property_struct_type(PropertyRNA *prop, const char *type)
   switch (prop->type) {
     case PROP_POINTER: {
       PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
-      pprop->type = reinterpret_cast<StructRNA *>(const_cast<char *>(type));
+      pprop->pointer_type = reinterpret_cast<StructRNA *>(const_cast<char *>(type));
       break;
     }
     case PROP_COLLECTION: {
@@ -1990,7 +2022,7 @@ void RNA_def_property_struct_runtime(StructOrFunctionRNA *cont, PropertyRNA *pro
   switch (prop->type) {
     case PROP_POINTER: {
       PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
-      pprop->type = type;
+      pprop->pointer_type = type;
 
       /* Check between `cont` and `srna` is mandatory, since when defined from python
        * `DefRNA.laststruct` is not valid.
@@ -3845,6 +3877,23 @@ void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
   }
 }
 
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc)
+{
+  PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
+  if (getfunc) {
+    pprop->get = getfunc;
+  }
+  if (setfunc) {
+    pprop->set = setfunc;
+  }
+  if (typefunc) {
+    pprop->type_fn = typefunc;
+  }
+}
+
 void RNA_def_property_pointer_funcs(
     PropertyRNA *prop, const char *get, const char *set, const char *type_fn, const char *poll)
 {
@@ -4089,7 +4138,7 @@ void RNA_def_property_string_default_func(PropertyRNA *prop, const char *get_def
 void RNA_def_property_srna(PropertyRNA *prop, const char *type)
 {
   const char *error = nullptr;
-  if (!rna_validate_identifier(type, false, &error)) {
+  if (!RNA_validate_identifier(type, false, &error)) {
     CLOG_ERROR(&LOG, "struct identifier \"%s\" error - %s", type, error);
     DefRNA.error = true;
     return;
@@ -4853,27 +4902,27 @@ PropertyRNA *RNA_def_collection_runtime(StructOrFunctionRNA *cont_,
 
 static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
 {
-  FunctionRNA *func;
   StructDefRNA *dsrna;
   FunctionDefRNA *dfunc;
 
   if (DefRNA.preprocess) {
     const char *error = nullptr;
-    if (!rna_validate_identifier(identifier, false, &error)) {
+    if (!RNA_validate_identifier(identifier, false, &error)) {
       CLOG_ERROR(&LOG, "function identifier \"%s\" - %s", identifier, error);
       DefRNA.error = true;
     }
   }
 
-  func = MEM_callocN<FunctionRNA>("FunctionRNA");
+  auto func_ptr = std::make_unique<FunctionRNA>();
+  auto *func = func_ptr.get();
   func->identifier = identifier;
   func->description = identifier;
 
-  rna_addtail(&srna->functions, func);
+  srna->functions.append(std::move(func_ptr));
 
   if (DefRNA.preprocess) {
     dsrna = rna_find_struct_def(srna);
-    dfunc = MEM_callocN<FunctionDefRNA>("FunctionDefRNA");
+    dfunc = MEM_new_zeroed<FunctionDefRNA>("FunctionDefRNA");
     rna_addtail(&dsrna->functions, dfunc);
     dfunc->func = func;
   }
@@ -4889,7 +4938,10 @@ FunctionRNA *RNA_def_function(StructRNA *srna, const char *identifier, const cha
   FunctionRNA *func;
   FunctionDefRNA *dfunc;
 
-  if (BLI_findstring_ptr(&srna->functions, identifier, offsetof(FunctionRNA, identifier))) {
+  if (std::find_if(srna->functions.begin(), srna->functions.end(), [&](const auto &func) {
+        return STREQ(func->identifier, identifier);
+      }) != srna->functions.end())
+  {
     CLOG_ERROR(&LOG, "%s.%s already defined.", srna->identifier, identifier);
     return nullptr;
   }
@@ -5060,7 +5112,7 @@ void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, const EnumPropert
   int tot = *totitem;
 
   if (tot == 0) {
-    *items = MEM_calloc_arrayN<EnumPropertyItem>(8, __func__);
+    *items = MEM_new_array_zeroed<EnumPropertyItem>(8, __func__);
 /* Ensure we get crashes on missing calls to #RNA_enum_item_end, see #74227. */
 #ifndef NDEBUG
     memset(*items, 0xff, sizeof(EnumPropertyItem[8]));
@@ -5069,7 +5121,7 @@ void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, const EnumPropert
   else if (tot >= 8 && (tot & (tot - 1)) == 0) {
     /* Power of two > 8. */
     *items = static_cast<EnumPropertyItem *>(
-        MEM_recallocN_id(*items, sizeof(EnumPropertyItem) * tot * 2, __func__));
+        MEM_realloc_zeroed_id(*items, sizeof(EnumPropertyItem) * tot * 2, __func__));
 #ifndef NDEBUG
     memset((*items) + tot, 0xff, sizeof(EnumPropertyItem) * tot);
 #endif
@@ -5145,13 +5197,13 @@ void RNA_def_struct_free_pointers(BlenderRNA *brna, StructRNA *srna)
           brna->structs_map.remove(srna->identifier);
         }
       }
-      MEM_freeN(srna->identifier);
+      MEM_delete(srna->identifier);
     }
     if (srna->name) {
-      MEM_freeN(srna->name);
+      MEM_delete(srna->name);
     }
     if (srna->description) {
-      MEM_freeN(srna->description);
+      MEM_delete(srna->description);
     }
   }
 }
@@ -5172,10 +5224,10 @@ void RNA_def_func_free_pointers(FunctionRNA *func)
 {
   if (func->flag & FUNC_FREE_POINTERS) {
     if (func->identifier) {
-      MEM_freeN(func->identifier);
+      MEM_delete(func->identifier);
     }
     if (func->description) {
-      MEM_freeN(func->description);
+      MEM_delete(func->description);
     }
   }
 }
@@ -5200,8 +5252,8 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA * /*cont_*/, Proper
       BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop);
 
       if (bprop->defaultarray) {
-        bool *array = MEM_malloc_arrayN<bool>(size_t(prop->totarraylength),
-                                              "RNA_def_property_store");
+        bool *array = MEM_new_array_uninitialized<bool>(size_t(prop->totarraylength),
+                                                        "RNA_def_property_store");
         memcpy(array, bprop->defaultarray, sizeof(bool) * prop->totarraylength);
         bprop->defaultarray = array;
       }
@@ -5211,8 +5263,8 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA * /*cont_*/, Proper
       IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop);
 
       if (iprop->defaultarray) {
-        int *array = MEM_malloc_arrayN<int>(size_t(prop->totarraylength),
-                                            "RNA_def_property_store");
+        int *array = MEM_new_array_uninitialized<int>(size_t(prop->totarraylength),
+                                                      "RNA_def_property_store");
         memcpy(array, iprop->defaultarray, sizeof(int) * prop->totarraylength);
         iprop->defaultarray = array;
       }
@@ -5222,8 +5274,8 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA * /*cont_*/, Proper
       EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop);
 
       if (eprop->item) {
-        EnumPropertyItem *array = MEM_malloc_arrayN<EnumPropertyItem>(size_t(eprop->totitem) + 1,
-                                                                      "RNA_def_property_store");
+        EnumPropertyItem *array = MEM_new_array_uninitialized<EnumPropertyItem>(
+            size_t(eprop->totitem) + 1, "RNA_def_property_store");
         memcpy(array, eprop->item, sizeof(*array) * (eprop->totitem + 1));
         eprop->item = array;
 
@@ -5245,8 +5297,8 @@ void RNA_def_property_duplicate_pointers(StructOrFunctionRNA * /*cont_*/, Proper
       FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop);
 
       if (fprop->defaultarray) {
-        float *array = MEM_malloc_arrayN<float>(size_t(prop->totarraylength),
-                                                "RNA_def_property_store");
+        float *array = MEM_new_array_uninitialized<float>(size_t(prop->totarraylength),
+                                                          "RNA_def_property_store");
         memcpy(array, fprop->defaultarray, sizeof(float) * prop->totarraylength);
         fprop->defaultarray = array;
       }
@@ -5289,40 +5341,40 @@ void RNA_def_property_free_pointers(PropertyRNA *prop)
     }
 
     if (prop->identifier) {
-      MEM_freeN(prop->identifier);
+      MEM_delete(prop->identifier);
     }
     if (prop->name) {
-      MEM_freeN(prop->name);
+      MEM_delete(prop->name);
     }
     if (prop->description) {
-      MEM_freeN(prop->description);
+      MEM_delete(prop->description);
     }
     if (prop->py_data) {
-      MEM_freeN(prop->py_data);
+      MEM_delete_void(prop->py_data);
     }
     if (prop->deprecated) {
-      MEM_freeN(prop->deprecated);
+      MEM_delete(prop->deprecated);
     }
 
     switch (prop->type) {
       case PROP_BOOLEAN: {
         BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop);
         if (bprop->defaultarray) {
-          MEM_freeN(bprop->defaultarray);
+          MEM_delete(bprop->defaultarray);
         }
         break;
       }
       case PROP_INT: {
         IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop);
         if (iprop->defaultarray) {
-          MEM_freeN(iprop->defaultarray);
+          MEM_delete(iprop->defaultarray);
         }
         break;
       }
       case PROP_FLOAT: {
         FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop);
         if (fprop->defaultarray) {
-          MEM_freeN(fprop->defaultarray);
+          MEM_delete(fprop->defaultarray);
         }
         break;
       }
@@ -5331,25 +5383,25 @@ void RNA_def_property_free_pointers(PropertyRNA *prop)
 
         for (a = 0; a < eprop->totitem; a++) {
           if (eprop->item[a].identifier) {
-            MEM_freeN(eprop->item[a].identifier);
+            MEM_delete(eprop->item[a].identifier);
           }
           if (eprop->item[a].name) {
-            MEM_freeN(eprop->item[a].name);
+            MEM_delete(eprop->item[a].name);
           }
           if (eprop->item[a].description) {
-            MEM_freeN(eprop->item[a].description);
+            MEM_delete(eprop->item[a].description);
           }
         }
 
         if (eprop->item) {
-          MEM_freeN(eprop->item);
+          MEM_delete(eprop->item);
         }
         break;
       }
       case PROP_STRING: {
         StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop);
         if (sprop->defaultvalue) {
-          MEM_freeN(sprop->defaultvalue);
+          MEM_delete(sprop->defaultvalue);
         }
         break;
       }

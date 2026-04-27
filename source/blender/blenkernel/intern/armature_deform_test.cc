@@ -13,14 +13,13 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
-
-#include "CLG_log.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_curves_types.h"
@@ -120,7 +119,7 @@ class ArmatureDeformTestBase {
     bArmature *arm = BKE_id_new<bArmature>(bmain, "Test Armature");
     ob->data = id_cast<ID *>(arm);
 
-    Bone *bone1 = MEM_new_for_free<Bone>("Bone1");
+    Bone *bone1 = MEM_new<Bone>("Bone1");
     STRNCPY(bone1->name, "Bone1");
     copy_v3_v3(bone1->tail, float3(0, 0, 0));
     copy_v3_v3(bone1->head, float3(0, 0, 1));
@@ -132,7 +131,7 @@ class ArmatureDeformTestBase {
     bone1->rad_head = 2.0f;
     bone1->rad_tail = 2.0f;
 
-    Bone *bone2 = MEM_new_for_free<Bone>("Bone2");
+    Bone *bone2 = MEM_new<Bone>("Bone2");
     STRNCPY(bone2->name, "Bone2");
     copy_v3_v3(bone2->tail, float3(0, 0, 0));
     copy_v3_v3(bone2->head, float3(0, 0, 1));
@@ -208,8 +207,8 @@ class ArmatureDeformTestBase {
     }
     mesh->tag_positions_changed();
 
-    bDeformGroup *defgroup1 = MEM_new_for_free<bDeformGroup>(__func__);
-    bDeformGroup *defgroup2 = MEM_new_for_free<bDeformGroup>(__func__);
+    bDeformGroup *defgroup1 = MEM_new<bDeformGroup>(__func__);
+    bDeformGroup *defgroup2 = MEM_new<bDeformGroup>(__func__);
     STRNCPY(defgroup1->name, "Bone1");
     STRNCPY(defgroup2->name, "Bone2");
     BLI_addtail(&mesh->vertex_group_names, defgroup1);
@@ -629,13 +628,12 @@ class ArmatureDeformParamTest : public ArmatureDeformTestBase,
  public:
   static void SetUpTestSuite()
   {
-    CLG_init();
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
@@ -767,13 +765,12 @@ class ArmatureDeformTest : public ArmatureDeformTestBase, public testing::Test {
  public:
   static void SetUpTestSuite()
   {
-    CLG_init();
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override

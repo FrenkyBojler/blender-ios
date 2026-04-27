@@ -12,11 +12,13 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
-#include "DNA_scene_types.h" /* for #ImageFormatData */
+#include "DNA_scene_types.h"  /* for #ImageFormatData */
+#include "DNA_screen_types.h" /* For #TextboxState. */
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
 #include "BLI_enum_flags.hh"
+#include "BLI_ustring.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
 #include "BLI_vector.hh"
@@ -107,6 +109,7 @@ enum eNodeSocketDatatype {
   SOCK_TEXT_ID = 21,
   SOCK_MASK = 22,
   SOCK_SOUND = 23,
+  SOCK_INT_VECTOR = 24,
 };
 
 /** Socket shape. */
@@ -288,6 +291,11 @@ enum {
    * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
+  /**
+   * Internal tree for building gpu shaders. This enables context-dependent node declarations for
+   * adding "Weight" input sockets.
+   */
+  NTREE_IS_GPU_SHADER_INTERNAL = 1 << 6,
 };
 
 enum eNodeTreeRuntimeFlag {
@@ -660,6 +668,18 @@ enum {
   SHD_SPACE_BLENDER_WORLD = 4,
 };
 
+/* normal map, convention */
+enum {
+  SHD_NORMAL_MAP_CONVENTION_OPENGL = 0,
+  SHD_NORMAL_MAP_CONVENTION_DIRECTX = 1,
+};
+
+/* normal map, base */
+enum {
+  SHD_NORMAL_MAP_BASE_ORIGINAL = 0,
+  SHD_NORMAL_MAP_BASE_DISPLACED = 1,
+};
+
 enum {
   SHD_AO_INSIDE = 1,
   SHD_AO_LOCAL = 2,
@@ -764,6 +784,7 @@ enum NodeVectorMathOperation {
   NODE_VECTOR_MATH_MULTIPLY_ADD = 26,
   NODE_VECTOR_MATH_POWER = 27,
   NODE_VECTOR_MATH_SIGN = 28,
+  NODE_VECTOR_MATH_ROUND = 29,
 };
 
 enum NodeBooleanMathOperation {
@@ -861,8 +882,9 @@ enum {
   SHD_SUBSURFACE_GAUSSIAN = 2,
 #endif
   SHD_SUBSURFACE_BURLEY = 3,
-  SHD_SUBSURFACE_RANDOM_WALK = 4,
+  SHD_SUBSURFACE_RANDOM_WALK_LEGACY = 4,
   SHD_SUBSURFACE_RANDOM_WALK_SKIN = 5,
+  SHD_SUBSURFACE_RANDOM_WALK = 6,
 };
 
 /* blur node */
@@ -1091,6 +1113,20 @@ enum CMPNodeRelativeToPixelReferenceDimension {
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_DIAGONAL = 5,
 };
 
+enum CMPNodeStringToImageHorizontalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT = 0,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER = 1,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT = 2,
+};
+
+enum CMPNodeStringToImageVerticalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP = 0,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE = 1,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE = 2,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE = 3,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM = 4,
+};
+
 /* Scattering phase functions */
 enum {
   SHD_PHASE_HENYEY_GREENSTEIN = 0,
@@ -1268,6 +1304,14 @@ enum GeometryNodeCurveFillMode {
   GEO_NODE_CURVE_FILL_MODE_NGONS = 1,
 };
 
+/** See #CDT_output_type in BLI_delaunay_2d.hh for winding rule details. */
+enum GeometryNodeCurveFillRule {
+  /** Even-odd winding rule for hole detection. */
+  GEO_NODE_CURVE_FILL_RULE_EVEN_ODD = 0,
+  /** Non-zero winding rule. */
+  GEO_NODE_CURVE_FILL_RULE_NON_ZERO = 1,
+};
+
 enum GeometryNodeMeshToPointsMode {
   GEO_NODE_MESH_TO_POINTS_VERTICES = 0,
   GEO_NODE_MESH_TO_POINTS_EDGES = 1,
@@ -1440,6 +1484,9 @@ struct bNodeSocket {
   bke::bNodeSocketRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
+  /** The cached #UString that matches the socket identifier. */
+  UString identifier_ustr() const;
+
   /**
    * Whether the socket is hidden in a way that the user can control.
    *
@@ -1687,7 +1734,7 @@ struct bNode {
    * to catch typos earlier. One can compare with `bNodeType::idname` directly if the idname might
    * not be registered.
    */
-  bool is_type(StringRef query_idname) const;
+  bool is_type(UString query_idname) const;
 
   const nodes::NodeDeclaration *declaration() const;
   /** A span containing all internal links when the node is muted. */
@@ -1716,10 +1763,10 @@ struct bNode {
   bNodeSocket &output_socket(int index);
   const bNodeSocket &output_socket(int index) const;
   /** Lookup socket of this node by its identifier. */
-  const bNodeSocket *input_by_identifier(StringRef identifier) const;
-  const bNodeSocket *output_by_identifier(StringRef identifier) const;
-  bNodeSocket *input_by_identifier(StringRef identifier);
-  bNodeSocket *output_by_identifier(StringRef identifier);
+  const bNodeSocket *input_by_identifier(UString identifier) const;
+  const bNodeSocket *output_by_identifier(UString identifier) const;
+  bNodeSocket *input_by_identifier(UString identifier);
+  bNodeSocket *output_by_identifier(UString identifier);
   /** Lookup socket by its declaration. */
   const bNodeSocket &socket_by_decl(const nodes::SocketDeclaration &decl) const;
   bNodeSocket &socket_by_decl(const nodes::SocketDeclaration &decl);
@@ -1741,16 +1788,16 @@ struct bNodeInstanceKey {
   unsigned int value = 0;
 
 #ifdef __cplusplus
-  inline bool operator==(const bNodeInstanceKey &other) const
+  bool operator==(const bNodeInstanceKey &other) const
   {
     return value == other.value;
   }
-  inline bool operator!=(const bNodeInstanceKey &other) const
+  bool operator!=(const bNodeInstanceKey &other) const
   {
     return !(*this == other);
   }
 
-  inline uint64_t hash() const
+  uint64_t hash() const
   {
     return value;
   }
@@ -1846,6 +1893,10 @@ struct bNodeTree {
   struct bGPdata *gpd = nullptr;
   /** Node tree stores its own offset for consistent editor view. */
   float view_center[2] = {};
+  /** Width of the current view. Used to store and set zoom level. */
+  float view_width = 0.0f;
+
+  char _pad[4];
 
   ListBaseT<bNode> nodes;
   ListBaseT<bNodeLink> links;
@@ -1949,8 +2000,8 @@ struct bNodeTree {
   Span<bNodeSocket *> all_sockets();
   Span<const bNodeSocket *> all_sockets() const;
   /** Efficient lookup of all nodes with a specific type. */
-  Span<bNode *> nodes_by_type(StringRefNull type_idname);
-  Span<const bNode *> nodes_by_type(StringRefNull type_idname) const;
+  Span<bNode *> nodes_by_type(UString type_idname);
+  Span<const bNode *> nodes_by_type(UString type_idname) const;
   /** Frame nodes without any parents. */
   Span<bNode *> root_frames() const;
   /** A span containing all links in the node tree. */
@@ -2000,6 +2051,9 @@ struct bNodeTree {
   int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
+
+  int interface_input_index_by_identifier(StringRef identifier) const;
+  int interface_output_index_by_identifier(StringRef identifier) const;
 #endif
 };
 
@@ -2032,6 +2086,16 @@ struct bNodeSocketValueVector {
   float value[4] = {};
   float min = 0, max = 0;
   /* The number of dimensions of the vector. Can be 2, 3, or 4. */
+  int dimensions = 0;
+};
+
+struct bNodeSocketValueIntVector {
+  /** RNA subtype. */
+  int subtype = 0;
+  /* Only some of the values might be used depending on the dimensions. */
+  int value[3] = {};
+  int min = 0, max = 0;
+  /* The number of dimensions of the vector. Can be 2 or 3. */
   int dimensions = 0;
 };
 
@@ -2117,6 +2181,13 @@ struct NodeFrame {
 
 struct NodeReroute {
   DNA_DEFINE_CXX_METHODS(NodeReroute)
+
+  /** Name of the socket type (e.g. `NodeSocketFloat`). */
+  char type_idname[64] = "";
+};
+
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
 
   /** Name of the socket type (e.g. `NodeSocketFloat`). */
   char type_idname[64] = "";
@@ -2318,7 +2389,9 @@ struct NodeCompositorFileOutput {
   int active_item_index = 0;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render = 0;
-  char _pad[7] = {};
+  /* Add a file extension to the file name. */
+  char use_file_extension = 0;
+  char _pad[6] = {};
 };
 
 struct NodeImageMultiFileSocket {
@@ -2812,6 +2885,9 @@ struct NodeShaderNormalMap {
 
   int space = 0;
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64] = "";
+  char convention = SHD_NORMAL_MAP_CONVENTION_OPENGL;
+  char base = SHD_NORMAL_MAP_BASE_DISPLACED;
+  char _pad[6];
 };
 
 struct NodeRadialTiling {
@@ -2952,6 +3028,13 @@ struct NodeInputInt {
   int integer = 0;
 };
 
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
+};
+
 struct NodeInputRotation {
   DNA_DEFINE_CXX_METHODS(NodeInputRotation)
 
@@ -2961,7 +3044,15 @@ struct NodeInputRotation {
 struct NodeInputVector {
   DNA_DEFINE_CXX_METHODS(NodeInputVector)
 
-  float vector[3] = {};
+  float vector[4] = {};
+  int dimensions = 3;
+};
+
+struct NodeInputIntVector {
+  DNA_DEFINE_CXX_METHODS(NodeInputIntVector)
+
+  int vector[3] = {};
+  int dimensions = 3;
 };
 
 struct NodeInputColor {
@@ -2974,6 +3065,7 @@ struct NodeInputString {
   DNA_DEFINE_CXX_METHODS(NodeInputString)
 
   char *string = nullptr;
+  TextboxState textbox_state = {};
 };
 
 struct NodeGeometryExtrudeMesh {
@@ -3259,7 +3351,10 @@ struct NodeGeometryRaycast {
 struct NodeGeometryCurveFill {
   DNA_DEFINE_CXX_METHODS(NodeGeometryCurveFill)
 
+  /** #GeometryNodeCurveFillMode. */
   uint8_t mode = 0;
+  /** #GeometryNodeCurveFillRule. */
+  uint8_t fill_rule = 0;
 };
 
 struct NodeGeometryMeshToPoints {
@@ -3702,6 +3797,22 @@ struct GeometryNodeFieldToGrid {
   int active_index = 0;
 };
 
+struct GeometryNodeFieldToListItem {
+  /** #eNodeSocketDatatype. */
+  int8_t socket_type = SOCK_FLOAT;
+  char _pad[3] = {};
+  int identifier = 0;
+  char *name = nullptr;
+};
+
+struct GeometryNodeFieldToList {
+  char _pad[4] = {};
+  int next_identifier = 0;
+  GeometryNodeFieldToListItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+};
+
 struct NodeGeometryDistributePointsInVolume {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDistributePointsInVolume)
 
@@ -3840,6 +3951,14 @@ struct NodeFunctionFormatString {
   int next_identifier = 0;
   int active_index = 0;
   char _pad[4] = {};
+};
+
+struct NodeGeometryListGetItem {
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type = SOCK_FLOAT;
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+  char _pad = {};
 };
 
 struct NodeGetBundleItem {

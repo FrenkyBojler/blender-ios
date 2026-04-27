@@ -116,9 +116,8 @@ struct wmEventHandler_Op {
   /** Operator can be NULL. */
   wmOperator *op;
 
-  /** Workaround: special cases for file-select and XR. */
+  /** Workaround: special case for file-select. */
   bool is_fileselect;
-  bool is_xr;
 
   /** Store context for this handler for derived/modal handlers. */
   struct {
@@ -206,7 +205,7 @@ void wm_drop_end(bContext *C, wmDrag *drag, wmDropBox *drop);
 /**
  * Called in inner handler loop, region context.
  */
-void wm_drags_check_ops(bContext *C, const wmEvent *event);
+void wm_drags_handle_events(bContext *C, const wmEvent *event);
 /**
  * The operator of a dropbox should always be executed in the context determined by the mouse
  * coordinates. The dropbox poll should check the context area and region as needed.

@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
-#include "CLG_log.h"
-
 #include "BKE_bpath.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -54,12 +53,11 @@ class BPathTest : public testing::Test {
  public:
   static void SetUpTestSuite()
   {
-    CLG_init();
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
@@ -154,7 +152,7 @@ TEST_F(BPathTest, list_backup_restore)
   ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
   EXPECT_EQ(BLI_listbase_count(path_list), 2);
 
-  MEM_freeN(text->filepath);
+  MEM_delete(text->filepath);
   text->filepath = BLI_strdup(TEXT_PATH_ABSOLUTE);
   STRNCPY(movie_clip->filepath, MOVIECLIP_PATH_RELATIVE);
 

@@ -19,6 +19,7 @@
 #include "BKE_armature.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
+#include "BKE_gtest_setup.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -26,9 +27,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
-
-#include "CLG_log.h"
-#include "testing/testing.h"
 
 #include <functional>
 #include <optional>
@@ -42,7 +40,7 @@ const float FRAME_STEP = 0.005;
 static void build_fcurve(FCurve &fcurve)
 {
   fcurve.totvert = 3;
-  fcurve.bezt = MEM_calloc_arrayN<BezTriple>(fcurve.totvert, "BezTriples");
+  fcurve.bezt = MEM_new_array_zeroed<BezTriple>(fcurve.totvert, "BezTriples");
   fcurve.bezt[0].vec[1][0] = 10.0f;
   fcurve.bezt[0].vec[1][1] = 1.0f;
   fcurve.bezt[1].vec[1][0] = 20.0f;
@@ -203,16 +201,12 @@ class KeylistSummaryTest : public testing::Test {
 
   static void SetUpTestSuite()
   {
-    /* BKE_id_free() hits a code path that uses CLOG, which crashes if not initialized properly. */
-    CLG_init();
-
-    /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
-    BKE_idtype_init();
+    bke::gtest_setup();
   }
 
   static void TearDownTestSuite()
   {
-    CLG_exit();
+    bke::gtest_teardown();
   }
 
   void SetUp() override
@@ -224,8 +218,8 @@ class KeylistSummaryTest : public testing::Test {
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
-    bone1 = MEM_new_for_free<Bone>("KeylistSummaryTest");
-    bone2 = MEM_new_for_free<Bone>("KeylistSummaryTest");
+    bone1 = MEM_new<Bone>("KeylistSummaryTest");
+    bone2 = MEM_new<Bone>("KeylistSummaryTest");
     STRNCPY_UTF8(bone1->name, "Bone.001");
     STRNCPY_UTF8(bone2->name, "Bone.002");
     BLI_addtail(&armature_data->bonebase, bone1);
