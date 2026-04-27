@@ -57,7 +57,8 @@ static Vector<BMVert *> collect_verts_from_faces(Span<BMFace *> faces)
 void bmo_flatten_exec(BMesh *bm, BMOperator *op)
 {
   const float factor = BMO_slot_float_get(op->slots_in, "factor");
-  const FlattenMethod method = static_cast<FlattenMethod>(BMO_slot_int_get(op->slots_in, "method"));
+  const FlattenMethod method = static_cast<FlattenMethod>(
+      BMO_slot_int_get(op->slots_in, "method"));
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
@@ -89,7 +90,7 @@ void bmo_flatten_exec(BMesh *bm, BMOperator *op)
 
     Vector<BMVert *> verts = collect_verts_from_faces(faces);
     float3 center;
-    float3 normal;
+    float3 normal(0.0f);
 
     switch (method) {
       case FLATTEN_BEST_FIT:
@@ -104,12 +105,8 @@ void bmo_flatten_exec(BMesh *bm, BMOperator *op)
         normal = view_direction;
         center = compute_centroid(verts);
         break;
-      default:
-        BLI_assert_unreachable();
-        MEM_delete(group_index);
-        return;
     }
-
+    BLI_assert(!math::is_zero(normal));
     for (BMVert *v : verts) {
       float3 co(v->co);
       float3 projected = co - math::dot(co - center, normal) * normal;
