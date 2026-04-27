@@ -28,6 +28,8 @@
 
 namespace blender::ui::notification {
 
+static constexpr int MAX_SHOWN = 3;
+
 static constexpr float HEIGHT = 28.0f;
 /* Vertical distance separating notifications. */
 static constexpr float MARGIN = 4.0f;
@@ -35,12 +37,10 @@ static constexpr float MARGIN = 4.0f;
 static constexpr float PADDING = 10.0f;
 static constexpr float LINE_WIDTH = 4.0f;
 static constexpr float LINE_PADDING = 2.0f;
-
-static constexpr int MAX_SHOWN = 3;
-static constexpr int MAX_CHARACTERS = 70;
-static constexpr float SECONDS_PER_CHAR = 0.05f;
+static constexpr float MAX_TEXT_WIDTH = 300.0f;
 
 static constexpr float FADE_IN_TIME = 0.1f;
+static constexpr float SECONDS_PER_CHAR = 0.05f;
 static constexpr float FADE_OUT_TIME = 0.45f;
 static constexpr float EXIT_SCROLL = 8.4f;
 
@@ -229,8 +229,16 @@ void show(bScreen *screen, StringRef message, int icon, eReportType report_type)
   data->pos = 0.0f;
 
   data->message = message;
-  if (data->message.size() > MAX_CHARACTERS) {
-    data->message = data->message.substr(0, MAX_CHARACTERS) + BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+
+  const uiStyle *style = style_get_dpi();
+  fontstyle_set(&style->widget);
+  size_t len = BLF_width_to_strlen(style->widget.uifont_id,
+                                   data->message.c_str(),
+                                   data->message.size(),
+                                   MAX_TEXT_WIDTH * UI_SCALE_FAC,
+                                   nullptr);
+  if (len < data->message.size() - 1) {
+    data->message = data->message.substr(0, len) + BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
   }
 
   const float display_seconds = std::max(U.notification_seconds,
