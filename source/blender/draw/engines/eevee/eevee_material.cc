@@ -219,7 +219,11 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
   queue_texture_loading(matpass.gpumat);
 
-  const bool is_forward = pipeline_is_forward(pipeline_type);
+  const bool is_forward = ELEM(pipeline_type,
+                               MAT_PIPE_FORWARD,
+                               MAT_PIPE_PREPASS_FORWARD,
+                               MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+                               MAT_PIPE_PREPASS_OVERLAP);
 
   switch (GPU_material_status(matpass.gpumat)) {
     case GPU_MAT_SUCCESS: {
@@ -319,9 +323,21 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
 
   const bool use_forward_pipeline = (blender_mat->surface_render_method ==
                                      MA_SURFACE_METHOD_FORWARD);
-  eMaterialPipeline surface_pipe = use_forward_pipeline ? MAT_PIPE_FORWARD : MAT_PIPE_DEFERRED;
-  eMaterialPipeline prepass_pipe = pipeline_prepass_get(
-      use_forward_pipeline, has_motion, !hide_on_raycast);
+  eMaterialPipeline surface_pipe, prepass_pipe;
+  if (use_forward_pipeline) {
+    surface_pipe = MAT_PIPE_FORWARD;
+    prepass_pipe = hide_on_raycast ? (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY :
+                                                   MAT_PIPE_PREPASS_FORWARD) :
+                                     (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST :
+                                                   MAT_PIPE_PREPASS_FORWARD_RAYCAST);
+  }
+  else {
+    surface_pipe = MAT_PIPE_DEFERRED;
+    prepass_pipe = hide_on_raycast ? (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY :
+                                                   MAT_PIPE_PREPASS_DEFERRED) :
+                                     (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST :
+                                                   MAT_PIPE_PREPASS_DEFERRED_RAYCAST);
+  }
 
   /** NOTE: Use prepass_pipe instead of surface_pipe, since surface_pipe doesn't take velocity
    * variants into account, causing all users of the same material to use velocity or not based on
@@ -452,8 +468,8 @@ ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)
         shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
       };
 
-  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_RAYCAST, MAT_GEOM_MESH);
-  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_DEFERRED, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_SHADOW, MAT_GEOM_MESH);
 

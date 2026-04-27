@@ -898,24 +898,25 @@ class PipelineModule {
 
     switch (pipeline_type) {
       case MAT_PIPE_PREPASS_DEFERRED:
-      case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
-      case MAT_PIPE_PREPASS_DEFERRED_RAYCAST:
-      case MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST:
-        return deferred.prepass_add(blender_mat,
-                                    gpumat,
-                                    pipeline_has_velocity(pipeline_type),
-                                    pipeline_is_raycast_target(pipeline_type));
+        return deferred.prepass_add(blender_mat, gpumat, false, false);
       case MAT_PIPE_PREPASS_FORWARD:
-      case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
-      case MAT_PIPE_PREPASS_FORWARD_RAYCAST:
-      case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
-        return forward.prepass_opaque_add(blender_mat,
-                                          gpumat,
-                                          pipeline_has_velocity(pipeline_type),
-                                          pipeline_is_raycast_target(pipeline_type));
+        return forward.prepass_opaque_add(blender_mat, gpumat, false, false);
       case MAT_PIPE_PREPASS_OVERLAP:
         BLI_assert_msg(0, "Overlap prepass should register to the forward pipeline directly.");
         return nullptr;
+
+      case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
+        return deferred.prepass_add(blender_mat, gpumat, true, false);
+      case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
+        return forward.prepass_opaque_add(blender_mat, gpumat, true, false);
+      case MAT_PIPE_PREPASS_DEFERRED_RAYCAST:
+        return deferred.prepass_add(blender_mat, gpumat, false, true);
+      case MAT_PIPE_PREPASS_FORWARD_RAYCAST:
+        return forward.prepass_opaque_add(blender_mat, gpumat, false, true);
+      case MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST:
+        return deferred.prepass_add(blender_mat, gpumat, true, true);
+      case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
+        return forward.prepass_opaque_add(blender_mat, gpumat, true, true);
 
       case MAT_PIPE_DEFERRED:
         return deferred.material_add(blender_mat, gpumat);
