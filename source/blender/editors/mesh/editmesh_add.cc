@@ -745,7 +745,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
   make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   if (U.experimental.use_toast_notifications) {
-    blender::ui::notification(CTX_wm_screen(C), "Oooh Oooh Oooh", ICON_MONKEY, RPT_INFO);
+    blender::ui::notification::show(CTX_wm_screen(C), "Oooh Oooh Oooh", ICON_MONKEY, RPT_INFO);
   }
 
   return OPERATOR_FINISHED;

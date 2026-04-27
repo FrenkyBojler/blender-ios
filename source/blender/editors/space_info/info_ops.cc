@@ -610,7 +610,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(C);
 
   if (U.experimental.use_toast_notifications) {
-    ui::notification(CTX_wm_screen(C),
+    ui::notification::show(CTX_wm_screen(C),
                      report->message,
                      ui::icon_from_report_type(report->type),
                      eReportType(report->type));

@@ -287,12 +287,16 @@ AbstractTreeView *block_add_view(Block &block,
 
 void alert(bContext *C, StringRef title, StringRef message, AlertIcon icon, bool compact);
 
-void notification(bScreen *screen,
-                  StringRef message,
-                  int icon = ICON_INFO,
-                  eReportType report_type = RPT_INFO);
+namespace notification {
 
-int notification_event_handler(bContext *C, ARegion *region, wmEvent *event);
+void show(bScreen *screen,
+          StringRef message,
+          int icon = ICON_INFO,
+          eReportType report_type = RPT_INFO);
+
+int event_handler(bContext *C, ARegion *region, wmEvent *event);
+
+}  // namespace notification  
 
 }  // namespace ui
 }  // namespace blender

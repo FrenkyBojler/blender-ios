@@ -26,7 +26,7 @@
 #include "interface_intern.hh"
 #include "interface_regions_intern.hh"
 
-namespace blender::ui {
+namespace blender::ui::notification {
 
 #define NOTIFICATION_MAX_SHOWN 3
 
@@ -210,7 +210,7 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
   ED_region_update_rect(region);
 }
 
-int notification_event_handler(bContext *C, ARegion *region, wmEvent *event)
+int event_handler(bContext *C, ARegion *region, wmEvent *event)
 {
   NotificationData *data = static_cast<NotificationData *>(region->regiondata);
 
@@ -227,7 +227,7 @@ int notification_event_handler(bContext *C, ARegion *region, wmEvent *event)
   return WM_UI_HANDLER_BREAK;
 }
 
-void notification(bScreen *screen, StringRef message, int icon, eReportType report_type)
+void show(bScreen *screen, StringRef message, int icon, eReportType report_type)
 {
   NotificationData *data = MEM_new<NotificationData>(__func__);
   data->icon = icon;
@@ -278,4 +278,4 @@ void notification(bScreen *screen, StringRef message, int icon, eReportType repo
 
 /** \} */
 
-}  // namespace blender::ui
+}  // namespace blender::ui::notification

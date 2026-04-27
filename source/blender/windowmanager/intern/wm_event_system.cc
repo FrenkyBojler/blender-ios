@@ -4377,7 +4377,7 @@ void wm_event_do_handlers(bContext *C)
             if ((region.regiontype == RGN_TYPE_NOTIFICATION) &&
                 BLI_rcti_isect_pt_v(&region.winrct, event->xy))
             {
-              ui::notification_event_handler(C, &region, event);
+              ui::notification::event_handler(C, &region, event);
             }
           }
         }
