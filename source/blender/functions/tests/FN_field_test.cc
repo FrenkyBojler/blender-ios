@@ -4,6 +4,8 @@
 
 #include "testing/testing.h"
 
+#include "BKE_gtest_base.hh"
+
 #include "BLI_cpp_type.hh"
 
 #include "FN_field_evaluation.hh"
@@ -12,13 +14,7 @@
 
 namespace blender::fn::tests {
 
-class FieldTest : public ::testing::Test {
- public:
-  static void SetUpTestSuite()
-  {
-    register_cpp_types();
-  }
-};
+class FieldTest : public bke::BlenderGTestBase {};
 
 TEST_F(FieldTest, ConstantFunction)
 {

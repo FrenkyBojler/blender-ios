@@ -64,6 +64,7 @@ void BlendfileLoadingBaseTest::SetUpTestCase()
   BKE_blender_globals_init();
 
   BKE_idtype_init();
+  BKE_cpp_types_init();
   BKE_appdir_init();
   BKE_cpp_types_init();
   IMB_init();

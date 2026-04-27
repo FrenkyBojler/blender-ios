@@ -8,6 +8,7 @@
 #include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -26,8 +27,6 @@ struct GreasePencilIDTestContext {
 
   GreasePencilIDTestContext()
   {
-    BKE_cpp_types_init();
-    BKE_idtype_init();
     this->bmain = BKE_main_new();
     this->grease_pencil = BKE_id_new<GreasePencil>(this->bmain, "GP");
   }
@@ -37,7 +36,9 @@ struct GreasePencilIDTestContext {
   }
 };
 
-TEST(grease_pencil_merge, merge_simple)
+class GreasePencilMergeTest : public bke::BlenderGTestBase {};
+
+TEST_F(GreasePencilMergeTest, merge_simple)
 {
   using namespace bke::greasepencil;
   GreasePencilIDTestContext ctx;
@@ -65,7 +66,7 @@ TEST(grease_pencil_merge, merge_simple)
   BKE_id_free(nullptr, merged_grease_pencil);
 }
 
-TEST(grease_pencil_merge, merge_in_same_group)
+TEST_F(GreasePencilMergeTest, merge_in_same_group)
 {
   using namespace bke::greasepencil;
   GreasePencilIDTestContext ctx;
@@ -117,7 +118,7 @@ TEST(grease_pencil_merge, merge_in_same_group)
   BKE_id_free(nullptr, merged_grease_pencil);
 }
 
-TEST(grease_pencil_merge, merge_in_different_group)
+TEST_F(GreasePencilMergeTest, merge_in_different_group)
 {
   using namespace bke::greasepencil;
   GreasePencilIDTestContext ctx;
@@ -178,7 +179,7 @@ TEST(grease_pencil_merge, merge_in_different_group)
   BKE_id_free(nullptr, merged_grease_pencil);
 }
 
-TEST(grease_pencil_merge, merge_keyframes)
+TEST_F(GreasePencilMergeTest, merge_keyframes)
 {
   using namespace bke::greasepencil;
   GreasePencilIDTestContext ctx;
@@ -236,7 +237,7 @@ TEST(grease_pencil_merge, merge_keyframes)
   BKE_id_free(nullptr, merged_grease_pencil);
 }
 
-TEST(grease_pencil_merge, merge_layer_attributes)
+TEST_F(GreasePencilMergeTest, merge_layer_attributes)
 {
   using namespace bke;
   using namespace bke::greasepencil;

@@ -8,17 +8,12 @@
 #include "FN_multi_function_builder.hh"
 #include "FN_multi_function_test_common.hh"
 
+#include "BKE_gtest_base.hh"
+
 namespace blender::fn::multi_function::tests {
 
-class MultiFunctionTest : public testing::Test {
- public:
-  static void SetUpTestSuite()
-  {
-    register_cpp_types();
-  }
-};
-
 namespace {
+class MultiFunctionTest : public bke::BlenderGTestBase {};
 
 class AddFunction : public MultiFunction {
  public:

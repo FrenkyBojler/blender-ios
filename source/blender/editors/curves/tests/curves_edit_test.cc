@@ -10,6 +10,8 @@
 
 #include "ED_curves.hh"
 
+#include "BKE_gtest_base.hh"
+
 #include "testing/testing.h"
 
 namespace blender::ed::curves::tests {
@@ -62,13 +64,7 @@ static void validate_positions(const Span<Vector<float3>> expected_positions,
   }
 }
 
-class CurvesEditorsTest : public ::testing::Test {
- protected:
-  static void SetUpTestSuite()
-  {
-    BKE_cpp_types_init();
-  }
-};
+class CurvesEditorsTest : public bke::BlenderGTestBase {};
 
 TEST_F(CurvesEditorsTest, DuplicatePointsTwoSingle)
 {

@@ -8,6 +8,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -64,6 +65,8 @@ static void expect_near_positions(const Span<float3> actual, const Span<float2> 
     EXPECT_NEAR(expected[i].y, actual[i].y, 1e-4) << "Y mismatch at index " << i;
   }
 }
+
+class GreasePencilTrimTest : public bke::BlenderGTestBase {};
 
 TEST_F(GreasePencilTrimTest, trim_two_edges)
 {
