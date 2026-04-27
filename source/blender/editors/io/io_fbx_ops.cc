@@ -160,7 +160,7 @@ void WM_OT_fbx_import(wmOperatorType *ot)
   PropertyRNA *prop;
 
   ot->name = "Import FBX";
-  ot->description = "Import FBX file into current scene";
+  ot->description = "Import FBX file into current scene (faster C++ method)";
   ot->idname = "WM_OT_fbx_import";
 
   ot->invoke = ed::io::filesel_drop_import_invoke;
