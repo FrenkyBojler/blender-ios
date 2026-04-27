@@ -70,26 +70,6 @@ bool button_is_toggle(const Button *but)
               ButtonType::Row);
 }
 
-static bool button_text_is_list_item_overlay(const Button *but)
-{
-  if (but->type != ButtonType::Text || but->block == nullptr) {
-    return false;
-  }
-
-  for (const Button &other : but->block->buttons()) {
-    if (!ELEM(other.type, ButtonType::ListRow, ButtonType::ViewItem)) {
-      continue;
-    }
-    if (other.rect.xmin <= but->rect.xmin && other.rect.xmax >= but->rect.xmax &&
-        other.rect.ymin <= but->rect.ymin && other.rect.ymax >= but->rect.ymax)
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 bool button_is_interactive_ex(const Button *but, const bool labeledit, const bool for_tooltip)
 {
   /* NOTE: #ButtonType::Label is included for highlights, this allows drags. */
@@ -127,11 +107,7 @@ bool button_is_interactive_ex(const Button *but, const bool labeledit, const boo
   if ((but->type == ButtonType::Text) &&
       ELEM(but->emboss, EmbossType::None, EmbossType::NoneOrStatus) && !labeledit)
   {
-    if (!for_tooltip) {
-      return false;
-    }
-    if (button_text_is_list_item_overlay(but)) {
-      /* Let the item take tooltip hover instead of its text. */
+    if (!for_tooltip || (but->flag2 & BUT2_NODE_SOCKET_NAME_EDITABLE) == 0) {
       return false;
     }
   }

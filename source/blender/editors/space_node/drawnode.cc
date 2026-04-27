@@ -1111,6 +1111,9 @@ static void draw_node_socket_name_editable(ui::Layout *layout,
                    UI_ITEM_NONE,
                    "",
                    ICON_NONE);
+      if (ui::Button *but = layout->last_button()) {
+        ui::button_flag2_enable(but, ui::BUT2_NODE_SOCKET_NAME_EDITABLE);
+      }
       return;
     }
   }

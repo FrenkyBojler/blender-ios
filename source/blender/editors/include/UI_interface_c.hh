@@ -405,6 +405,8 @@ enum {
    * buttons currently.
    */
   BUT2_FORCE_SEMI_MODAL_ACTIVE = 1 << 1,
+  /** Editable node socket name text button. */
+  BUT2_NODE_SOCKET_NAME_EDITABLE = 1 << 2,
 };
 
 /** #Button.dragflag */

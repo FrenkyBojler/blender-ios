@@ -8862,9 +8862,8 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
       }
     }
 
-    if (data->disable_force && but->type == ButtonType::Text &&
-        ELEM(but->emboss, EmbossType::None, EmbossType::NoneOrStatus) &&
-        event->type == LEFTMOUSE && event->val == KM_DBL_CLICK)
+    if (event->type == LEFTMOUSE && event->val == KM_DBL_CLICK &&
+        but->flag2 & BUT2_NODE_SOCKET_NAME_EDITABLE)
     {
       button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
       return WM_UI_HANDLER_BREAK;
@@ -9998,7 +9997,6 @@ static int handle_button_over(bContext *C, const wmEvent *event, ARegion *region
       }
 
       if (but->active && !button_is_interactive(but, labeledit)) {
-        /* This button may be a text button with no emboss and a tooltip. */
         but->active->disable_force = true;
       }
     }

@@ -5695,6 +5695,11 @@ Block *Layout::block() const
   return root_->block;
 }
 
+Button *Layout::last_button() const
+{
+  return root_->block ? root_->block->last_but() : nullptr;
+}
+
 wm::OpCallContext Layout::operator_context() const
 {
   return root_->opcontext;

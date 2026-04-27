@@ -174,6 +174,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void alignment_set(LayoutAlign alignment);
 
   [[nodiscard]] Block *block() const;
+  [[nodiscard]] Button *last_button() const;
 
   void context_copy(const bContextStore *context);
 
