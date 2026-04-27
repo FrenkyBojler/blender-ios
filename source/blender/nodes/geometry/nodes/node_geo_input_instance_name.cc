@@ -11,7 +11,7 @@ namespace blender::nodes::node_geo_input_instance_name_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Name"_ustr).field_source();
+  b.add_output<decl::String>("Name"_ustr).field_source();
 }
 
 class InstanceNameField final : public bke::InstancesFieldInput { //replace int hash with string when possible
@@ -38,23 +38,23 @@ class InstanceNameField final : public bke::InstancesFieldInput { //replace int 
         exec_mode::grain_size(2048));
 
     reference_mask = IndexMask::from_bools(reference_in_mask.as_span(), memory);
-    Array<int> reference_name(references.size());
+    Array<std::string> reference_name(references.size());
 
     reference_mask.foreach_index(
         [&](const int reference_index) {
           const bke::InstanceReference &reference = references[reference_index];
-          reference_name[reference_index] = hash_string(reference.name());
+          reference_name[reference_index] = reference.name();
         },
         exec_mode::grain_size(128));
 
-    Array<int> output_name(mask.min_array_size());
+    Array<std::string> output_name(mask.min_array_size());
     mask.foreach_index(
         [&](const int instance_index) {
           output_name[instance_index] = reference_name[handles[instance_index]];
         },
         exec_mode::grain_size(4096));
 
-    return VArray<int>::from_container(std::move(output_name));
+    return VArray<std::string>::from_container(std::move(output_name));
   }
 
   uint64_t hash() const override
@@ -70,7 +70,7 @@ class InstanceNameField final : public bke::InstancesFieldInput { //replace int 
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Name"_ustr, Field<int>::from_input<InstanceNameField>());
+  params.set_output("Name"_ustr, Field<std::string>::from_input<InstanceNameField>());
 }
 
 static void node_register()
