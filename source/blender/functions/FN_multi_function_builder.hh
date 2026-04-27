@@ -817,6 +817,10 @@ namespace fn::multi_function {
  * freeing the value.
  */
 class CustomMF_GenericConstant : public MultiFunction {
+ public:
+  /* For compatible hash with typed class. */
+  static constexpr int8_t HASH_ID = 0;
+
  private:
   const CPPType &type_;
   const void *value_;
@@ -871,8 +875,7 @@ template<typename T> class CustomMF_Constant : public MultiFunction {
 
   void hash_unique(UniqueHashBytes &hash) const override
   {
-    static constexpr int8_t id = 0;
-    hash.add(&id);
+    hash.add(&CustomMF_GenericConstant::HASH_ID);
     hash_unique_default(value_, hash);
     hash.add(&CPPType::get<T>());
   }
