@@ -1201,9 +1201,6 @@ static void draw_plane_marker_image(Scene *scene,
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
 
   if (ibuf) {
-    //@TODO ?
-    // bool is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
-
     GPUVertFormat *imm_format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(imm_format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
     uint texCoord = GPU_vertformat_attr_add(
