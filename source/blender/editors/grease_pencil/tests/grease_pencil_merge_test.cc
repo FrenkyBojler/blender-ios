@@ -5,7 +5,6 @@
 #include "testing/testing.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_gtest_base.hh"

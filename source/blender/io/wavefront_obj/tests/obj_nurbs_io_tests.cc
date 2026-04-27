@@ -5,7 +5,6 @@
 #include "BLI_string.h"
 
 #include "BKE_appdir.hh"
-#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_gtest_base.hh"
 

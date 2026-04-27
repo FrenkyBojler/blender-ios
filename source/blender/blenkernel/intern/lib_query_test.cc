@@ -13,7 +13,6 @@
 
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
-#include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_gtest_base.hh"
 #include "BKE_idprop.hh"

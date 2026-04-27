@@ -6,8 +6,6 @@
  * \ingroup bke
  */
 
-#include "BKE_cpp_types.hh"
-
 #include "ED_curves.hh"
 
 #include "BKE_gtest_base.hh"
@@ -68,7 +66,6 @@ class CurvesEditorsTest : public bke::BlenderGTestBase {};
 
 TEST_F(CurvesEditorsTest, DuplicatePointsTwoSingle)
 {
-
   /* Two points from single curve. */
   const Vector<float3> expected_positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}};
 

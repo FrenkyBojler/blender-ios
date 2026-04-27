@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "BKE_cpp_types.hh"
 #include "testing/testing.h"
 
 #include "BKE_attribute.hh"

@@ -9,7 +9,6 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_cpp_types.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"

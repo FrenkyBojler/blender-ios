@@ -2,10 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_cpp_types.hh"
 #include "BLI_array_utils.hh"
 
 #include "BKE_curves.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 
@@ -15,7 +15,7 @@
 
 namespace blender::bke::tests {
 
-class GreasePencilInterpolate : public testing::Test {
+class GreasePencilInterpolate : public BlenderGTestBase {
  public:
   enum class TestCurveShape {
     Zero,
@@ -23,11 +23,6 @@ class GreasePencilInterpolate : public testing::Test {
     Eight,
     Helix,
   };
-
-  void SetUp() override
-  {
-    BKE_cpp_types_init();
-  }
 
   static void create_test_shape(const TestCurveShape shape, MutableSpan<float3> positions)
   {
