@@ -203,7 +203,7 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
                                                eMaterialProbe probe_capture,
-                                               bool is_raycast_target)
+                                               bool hide_on_raycast)
 {
   bNodeTree *ntree = (blender_mat->nodetree != nullptr) ? blender_mat->nodetree :
                                                           default_surface->nodetree;
@@ -276,12 +276,12 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     matpass.sub_pass = nullptr;
   }
   else {
-    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture, is_raycast_target);
+    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture, hide_on_raycast);
 
     PassMain::Sub *shader_sub = shader_map_.lookup_or_add_cb(shader_key, [&]() {
       /* First time encountering this shader. Create a sub that will contain materials using it. */
       return inst_.pipelines.material_add(
-          ob, blender_mat, matpass.gpumat, pipeline_type, probe_capture, is_raycast_target);
+          ob, blender_mat, matpass.gpumat, pipeline_type, probe_capture, hide_on_raycast);
     });
 
     if (shader_sub != nullptr) {
@@ -356,7 +356,7 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
     else {
       if (!hide_on_camera) {
         mat.prepass = material_pass_get(
-            ob, blender_mat, prepass_pipe, geometry_type, MAT_PROBE_NONE, !hide_on_raycast);
+            ob, blender_mat, prepass_pipe, geometry_type, MAT_PROBE_NONE, hide_on_raycast);
       }
 
       mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);

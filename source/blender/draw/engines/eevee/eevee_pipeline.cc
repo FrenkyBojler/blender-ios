@@ -289,27 +289,27 @@ void Prepass::setup_subpasses(DRWState common_state)
 
   static constexpr const char
       *subpass_names[2 /*raycast target*/][2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
-          {{{"NoRaycast.SingleSided.Static.NoID", "NoRaycast.SingleSided.Static.ID"},
-            {"NoRaycast.SingleSided.Moving.NoID", "NoRaycast.SingleSided.Moving.ID"}},
-           {{"NoRaycast.DoubleSided.Static.NoID", "NoRaycast.DoubleSided.Static.ID"},
-            {"NoRaycast.DoubleSided.Moving.NoID", "NoRaycast.DoubleSided.Moving.ID"}}},
-          {{{"SingleSided.Static.NoID", "SingleSided.Static.ID"},
-            {"SingleSided.Moving.NoID", "SingleSided.Moving.ID"}},
-           {{"DoubleSided.Static.NoID", "DoubleSided.Static.ID"},
-            {"DoubleSided.Moving.NoID", "DoubleSided.Moving.ID"}}}};
+          {{{"SingleSided.Static", "SingleSided.Static.ID"},
+            {"SingleSided.Moving", "SingleSided.Moving.ID"}},
+           {{"DoubleSided.Static", "DoubleSided.Static.ID"},
+            {"DoubleSided.Moving", "DoubleSided.Moving.ID"}}},
+          {{{"SingleSided.Static.HideOnRaycast", "SingleSided.Static.ID.HideOnRaycast"},
+            {"SingleSided.Moving.HideOnRaycast", "SingleSided.Moving.ID.HideOnRaycast"}},
+           {{"DoubleSided.Static.HideOnRaycast", "DoubleSided.Static.ID.HideOnRaycast"},
+            {"DoubleSided.Moving.HideOnRaycast", "DoubleSided.Moving.ID.HideOnRaycast"}}}};
 
-  for (bool raycast_target : {true, false}) { /* Render Raycast targets first. */
+  for (bool hide_on_raycast : {false, true}) { /* Render Raycast targets first. */
     for (bool double_sided : {false, true}) {
       for (bool moving : {false, true}) {
         for (bool write_id : {false, true}) {
           PassMain::Sub *&subpass =
-              prepass_subpasses_[raycast_target][double_sided][moving][write_id];
-          subpass = &this->sub(subpass_names[raycast_target][double_sided][moving][write_id]);
+              prepass_subpasses_[hide_on_raycast][double_sided][moving][write_id];
+          subpass = &this->sub(subpass_names[hide_on_raycast][double_sided][moving][write_id]);
           subpass->state_set(common_state |
                              (double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK));
           subpass->subpass_transition(
               GPU_ATTACHMENT_WRITE,
-              {raycast_target ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE, /* normal */
+              {hide_on_raycast ? GPU_ATTACHMENT_IGNORE : GPU_ATTACHMENT_WRITE, /* normal */
                write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
                moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
         }
@@ -317,19 +317,19 @@ void Prepass::setup_subpasses(DRWState common_state)
     }
   }
 
-  /* Copy framebuffer depth to the raycast depth copy on the first NoRaycast pass.
+  /* Copy framebuffer depth to the raycast depth copy on the first HideOnRaycast pass.
    * Will be skipped if they are not set. */
-  prepass_subpasses_[false][false][false][false]->texture_copy(&fb_depth_tx_, &raycast_depth_tx_);
+  prepass_subpasses_[true][false][false][false]->texture_copy(&fb_depth_tx_, &raycast_depth_tx_);
 }
 
 PassMain::Sub *Prepass::add(blender::Material *blender_mat,
                             GPUMaterial *gpumat,
                             bool has_motion,
-                            bool is_raycast_target)
+                            bool hide_on_raycast)
 {
   bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
-  bool write_id = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST) && is_raycast_target;
-  PassMain::Sub *pass = prepass_subpasses_[is_raycast_target][double_sided][has_motion][write_id];
+  bool write_id = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST) && !hide_on_raycast;
+  PassMain::Sub *pass = prepass_subpasses_[hide_on_raycast][double_sided][has_motion][write_id];
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
@@ -445,7 +445,7 @@ void ForwardPipeline::end_sync()
 PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_mat,
                                                    GPUMaterial *gpumat,
                                                    bool has_motion,
-                                                   bool is_raycast_target)
+                                                   bool hide_on_raycast)
 {
   BLI_assert_msg(GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) == false,
                  "Forward Transparent should be registered directly without calling "
@@ -456,7 +456,7 @@ PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_ma
    * is no mix shader (could do better constant folding but that's expensive). */
 
   has_opaque_ = true;
-  return prepass_ps_.add(blender_mat, gpumat, has_motion, is_raycast_target);
+  return prepass_ps_.add(blender_mat, gpumat, has_motion, hide_on_raycast);
 }
 
 PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
@@ -983,9 +983,9 @@ void DeferredLayer::end_sync(bool is_first_pass,
 PassMain::Sub *DeferredLayer::prepass_add(blender::Material *blender_mat,
                                           GPUMaterial *gpumat,
                                           bool has_motion,
-                                          bool is_raycast_target)
+                                          bool hide_on_raycast)
 {
-  return prepass_ps_.add(blender_mat, gpumat, has_motion, is_raycast_target);
+  return prepass_ps_.add(blender_mat, gpumat, has_motion, hide_on_raycast);
 }
 
 PassMain::Sub *DeferredLayer::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)
@@ -1181,12 +1181,12 @@ void DeferredPipeline::debug_draw(draw::View &view, gpu::FrameBuffer *combined_f
 PassMain::Sub *DeferredPipeline::prepass_add(blender::Material *blender_mat,
                                              GPUMaterial *gpumat,
                                              bool has_motion,
-                                             bool is_raycast_target)
+                                             bool hide_on_raycast)
 {
   if (blender_mat->blend_flag & MA_BL_SS_REFRACTION) {
-    return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion, is_raycast_target);
+    return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion, hide_on_raycast);
   }
-  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion, is_raycast_target);
+  return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion, hide_on_raycast);
 }
 
 PassMain::Sub *DeferredPipeline::material_add(blender::Material *blender_mat, GPUMaterial *gpumat)

@@ -284,13 +284,13 @@ struct ShaderKey {
   ShaderKey(GPUMaterial *gpumat,
             blender::Material *blender_mat,
             eMaterialProbe probe_capture,
-            bool is_raycast_target)
+            bool hide_on_raycast)
   {
     shader = GPU_material_get_shader(gpumat);
     options = uint64_t(shader_closure_bits_from_flag(gpumat));
     options = (options << 8) | blender_mat->blend_flag;
     options = (options << 2) | uint64_t(probe_capture);
-    options = (options << 1) | (is_raycast_target ? 1 : 0);
+    options = (options << 1) | (hide_on_raycast ? 1 : 0);
   }
 
   uint64_t hash() const
@@ -414,7 +414,7 @@ class MaterialModule {
                                  eMaterialPipeline pipeline_type,
                                  eMaterialGeometry geometry_type,
                                  eMaterialProbe probe_capture = MAT_PROBE_NONE,
-                                 bool is_raycast_target = false);
+                                 bool hide_on_raycast = false);
 
   /* Push unloaded texture used by this material to the texture loading queue. */
   void queue_texture_loading(GPUMaterial *material);
