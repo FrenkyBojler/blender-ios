@@ -80,12 +80,11 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
     fn(threshold_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-    fn::FieldHashDeep field_hash;
-    hash.add(field_hash.ensure(threshold_));
+    hash.add(deep_hash_cache.ensure(threshold_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

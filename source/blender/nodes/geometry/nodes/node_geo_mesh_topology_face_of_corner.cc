@@ -36,7 +36,7 @@ class CornerFaceIndexInput final : public bke::MeshFieldInput {
     return VArray<int>::from_span(mesh.corner_to_face_map());
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -62,7 +62,7 @@ class CornerIndexInFaceInput final : public bke::MeshFieldInput {
     });
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

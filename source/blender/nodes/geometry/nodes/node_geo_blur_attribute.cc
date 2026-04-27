@@ -427,13 +427,12 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
     fn(value_field_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
-    fn::FieldHashDeep field_hash;
-    hash.add(field_hash.ensure(weight_field_));
-    hash.add(field_hash.ensure(value_field_));
+    hash.add(deep_hash_cache.ensure(weight_field_));
+    hash.add(deep_hash_cache.ensure(value_field_));
     hash.add(iterations_);
   }
 

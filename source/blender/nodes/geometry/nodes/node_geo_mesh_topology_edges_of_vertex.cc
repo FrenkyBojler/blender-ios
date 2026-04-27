@@ -133,14 +133,13 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
     fn(sort_weight_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
     static constexpr int8_t id = 0;
-    fn::FieldHashDeep field_hash;
     hash.add(&id);
-    hash.add(field_hash.ensure(vert_index_));
-    hash.add(field_hash.ensure(sort_index_));
-    hash.add(field_hash.ensure(sort_weight_));
+    hash.add(deep_hash_cache.ensure(vert_index_));
+    hash.add(deep_hash_cache.ensure(sort_index_));
+    hash.add(deep_hash_cache.ensure(sort_weight_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
@@ -165,7 +164,7 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
     return VArray<int>::from_container(std::move(counts));
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

@@ -47,7 +47,7 @@ class IslandFieldInput final : public bke::MeshFieldInput {
         VArray<int>::from_container(std::move(output)), AttrDomain::Point, domain);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -80,7 +80,7 @@ class IslandCountFieldInput final : public bke::MeshFieldInput {
     return VArray<int>::from_single(islands_num, mesh.attributes().domain_size(domain));
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

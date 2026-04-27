@@ -283,7 +283,8 @@ GVArray CurveLengthFieldInput::get_varray_for_context(const CurvesGeometry &curv
   return construct_curve_length_gvarray(curves, domain);
 }
 
-void CurveLengthFieldInput::hash_unique(UniqueHashBytes &hash) const
+void CurveLengthFieldInput::hash_unique(UniqueHashBytes &hash,
+                                        fn::FieldHashDeep & /*deep_hash_cache*/) const
 {
   static constexpr int8_t id = 0;
   hash.add(&id);

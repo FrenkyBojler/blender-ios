@@ -94,13 +94,12 @@ class PathToEdgeSelectionFieldInput final : public bke::MeshFieldInput {
     fn(next_vertex_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
     static constexpr int8_t id = 0;
-    fn::FieldHashDeep field_hash;
     hash.add(&id);
-    hash.add(field_hash.ensure(start_vertices_));
-    hash.add(field_hash.ensure(next_vertex_));
+    hash.add(deep_hash_cache.ensure(start_vertices_));
+    hash.add(deep_hash_cache.ensure(next_vertex_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override

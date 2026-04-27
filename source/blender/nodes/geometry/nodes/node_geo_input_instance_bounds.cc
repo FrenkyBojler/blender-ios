@@ -95,7 +95,7 @@ class InstanceBoundsField final : public bke::InstancesFieldInput {
     return VArray<float3>::from_container(std::move(output_bounds));
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

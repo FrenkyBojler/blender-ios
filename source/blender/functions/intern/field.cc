@@ -129,7 +129,7 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
               hash_context.add(v.type);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-              v.node->hash_unique(hash_context);
+              v.node->hash_unique(hash_context, *this);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
               v.node->multi_function().hash_unique(hash_context);
@@ -173,7 +173,8 @@ const FieldInputsPtr &FieldInput::field_inputs() const
 uint64_t FieldInput::hash() const
 {
   UniqueHashBytes hash_context;
-  this->hash_unique(hash_context);
+  FieldHashDeep deep_hash_cache;
+  this->hash_unique(hash_context, deep_hash_cache);
   return get_default_hash(hash_context.data);
 }
 
@@ -181,7 +182,7 @@ FieldInput::~FieldInput() = default;
 
 void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
 
-void FieldInput::hash_unique(UniqueHashBytes &hash) const
+void FieldInput::hash_unique(UniqueHashBytes &hash, FieldHashDeep & /*deep_hash_cache*/) const
 {
   hash.add(this);
 }
@@ -479,7 +480,8 @@ GVArray IndexFieldInput::get_varray_for_context(const fn::FieldContext & /*conte
   return get_index_varray(mask);
 }
 
-void IndexFieldInput::hash_unique(UniqueHashBytes &hash) const
+void IndexFieldInput::hash_unique(UniqueHashBytes &hash,
+                                  fn::FieldHashDeep & /*deep_hash_cache*/) const
 {
   static constexpr int8_t id = 0;
   hash.add(&id);

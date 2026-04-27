@@ -57,7 +57,7 @@ class EdgeVertsInput final : public bke::MeshFieldInput {
     return construct_edge_verts_gvarray(mesh, vertex_, domain);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -108,7 +108,7 @@ class EdgePositionFieldInput final : public bke::MeshFieldInput {
     return construct_edge_positions_gvarray(mesh, vertex_, domain);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

@@ -247,13 +247,12 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
     fn(group_index_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
     static constexpr int8_t id = 0;
-    fn::FieldHashDeep field_hash;
     hash.add(&id);
-    hash.add(field_hash.ensure(input_));
-    hash.add(field_hash.ensure(group_index_));
+    hash.add(deep_hash_cache.ensure(input_));
+    hash.add(deep_hash_cache.ensure(group_index_));
     hash.add(source_domain_);
     hash.add(operation_);
   }

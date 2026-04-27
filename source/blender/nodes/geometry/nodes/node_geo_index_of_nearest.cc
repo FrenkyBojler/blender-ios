@@ -139,13 +139,12 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     fn(group_field_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
     static constexpr int8_t id = 0;
-    fn::FieldHashDeep field_hash;
     hash.add(&id);
-    hash.add(field_hash.ensure(positions_field_));
-    hash.add(field_hash.ensure(group_field_));
+    hash.add(deep_hash_cache.ensure(positions_field_));
+    hash.add(deep_hash_cache.ensure(group_field_));
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final
@@ -201,12 +200,11 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     fn(group_field_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
     static constexpr int8_t id = 0;
-    fn::FieldHashDeep field_hash;
     hash.add(&id);
-    hash.add(field_hash.ensure(group_field_));
+    hash.add(deep_hash_cache.ensure(group_field_));
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final

@@ -81,7 +81,7 @@ class AngleFieldInput final : public bke::MeshFieldInput {
     return mesh.attributes().adapt_domain<float>(std::move(angles), AttrDomain::Edge, domain);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -174,7 +174,7 @@ class SignedAngleFieldInput final : public bke::MeshFieldInput {
     return mesh.attributes().adapt_domain<float>(std::move(angles), AttrDomain::Edge, domain);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

@@ -285,6 +285,21 @@ class FieldContext {
 };
 
 /**
+ * "Deep" hashing for fields that considers the operation and inputs semantically, rather than
+ * just the shallow data (i.e. memory address) of the field data, like the default "hash()"
+ * implementation. Because common field reuse would give this potentially exponential cost, this
+ * struct caches the hashes of intermediate fields.
+ */
+struct FieldHashDeep {
+  Map<GFieldRef, UniqueHash> cache;
+  UniqueHash ensure(const GFieldRef &field);
+  UniqueHash lookup(const GFieldRef &field) const
+  {
+    return this->cache.lookup(field);
+  }
+};
+
+/**
  * Cache of field inputs. This is used quite often and is therefore computed eagerly for
  * intermediate operations. Otherwise one would have to parse the field tree every time the set of
  * inputs is required. Since many fields share the same set of inputs, this is often shared.
@@ -328,7 +343,7 @@ class FieldInput : public ImplicitSharingMixin {
   const FieldInputsPtr &field_inputs() const;
 
   uint64_t hash() const;
-  virtual void hash_unique(UniqueHashBytes &hash) const;
+  virtual void hash_unique(UniqueHashBytes &hash, FieldHashDeep &deep_hash_cache) const;
 
   /**
    * If this #FieldInput depends on other fields, this function should be overridden.
@@ -392,21 +407,6 @@ template<typename T> constexpr bool is_field_v<Field<T>> = true;
 
 Field<bool> invert_boolean_field(const Field<bool> &field);
 
-/**
- * "Deep" hashing for fields that considers the operation and inputs semantically, rather than
- * just the shallow data (i.e. memory address) of the field data, like the default "hash()"
- * implementation. Because common field reuse would give this potentially exponential cost, this
- * struct caches the hashes of intermediate fields.
- */
-struct FieldHashDeep {
-  Map<GFieldRef, UniqueHash> cache;
-  UniqueHash ensure(const GFieldRef &field);
-  UniqueHash lookup(const GFieldRef &field) const
-  {
-    return this->cache.lookup(field);
-  }
-};
-
 class IndexFieldInput final : public FieldInput {
  public:
   IndexFieldInput();
@@ -417,7 +417,7 @@ class IndexFieldInput final : public FieldInput {
                                  const IndexMask &mask,
                                  ResourceScope &scope) const final;
 
-  void hash_unique(UniqueHashBytes &hash) const override;
+  void hash_unique(UniqueHashBytes &hash, FieldHashDeep &deep_hash_cache) const override;
 
   /** Cached index field to avoid allocating a new one every time. */
   static const Field<int> &get_field();

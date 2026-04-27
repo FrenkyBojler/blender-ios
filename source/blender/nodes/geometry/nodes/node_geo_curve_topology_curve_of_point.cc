@@ -36,7 +36,7 @@ class CurveOfPointInput final : public bke::CurvesFieldInput {
     return VArray<int>::from_container(curves.point_to_curve_map());
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);
@@ -69,7 +69,7 @@ class PointIndexInCurveInput final : public bke::CurvesFieldInput {
         });
   }
 
-  void hash_unique(UniqueHashBytes &hash) const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
     static constexpr int8_t id = 0;
     hash.add(&id);

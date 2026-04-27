@@ -79,13 +79,12 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     fn(offset_);
   }
 
-  void hash_unique(UniqueHashBytes &hash) const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const final
   {
     static constexpr int8_t id = 0;
-    fn::FieldHashDeep field_hash;
     hash.add(&id);
-    hash.add(field_hash.ensure(corner_index_));
-    hash.add(field_hash.ensure(offset_));
+    hash.add(deep_hash_cache.ensure(corner_index_));
+    hash.add(deep_hash_cache.ensure(offset_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
