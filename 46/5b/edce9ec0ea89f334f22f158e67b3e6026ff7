@@ -1,2 +1,3 @@
 Referenced by issue #157813, EEVEE: Blender crashes when disabling Camera Ray Visibility on an object that uses Volume material
 Referenced by pull request #157814, Fix #157813: Segfault when Camera Ray Visibility is toggled
+Referenced by commit 3a29d756911d974d4097f2ce1103557aa11fc5db, Fix #157813: Segfault when Camera Ray Visibility is toggled
