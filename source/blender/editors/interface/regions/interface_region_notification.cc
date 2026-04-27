@@ -182,10 +182,10 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
 
   int pos_x;
 
-  if (U.notification_position == USER_NOTIFICATION_POS_LEFT) {
+  if (U.notification_position == UserPrefNotificationPosition::Left) {
     pos_x = (MARGIN * UI_SCALE_FAC / 2);
   }
-  else if (U.notification_position == USER_NOTIFICATION_POS_CENTER) {
+  else if (U.notification_position == UserPrefNotificationPosition::Center) {
     pos_x = (win->sizex / 2) - (width / 2);
   }
   else {

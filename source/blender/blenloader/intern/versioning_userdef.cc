@@ -1766,7 +1766,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(502, 100)) {
-    userdef->notification_position = USER_NOTIFICATION_POS_RIGHT;
+    userdef->notification_position = UserPrefNotificationPosition::Right;
     userdef->notification_seconds = U_default.notification_seconds;
   }
 

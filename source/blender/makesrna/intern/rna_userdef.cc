@@ -5068,16 +5068,28 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   static const EnumPropertyItem notification_position_items[] = {
-      {USER_NOTIFICATION_POS_LEFT, "LEFT", 0, "Left", "Align toast notifications to the left"},
-      {USER_NOTIFICATION_POS_CENTER, "CENTER", 0, "Center", "Center-align toast notifications"},
-      {USER_NOTIFICATION_POS_RIGHT, "RIGHT", 0, "Right", "Align toast notifications to the right"},
+      {int(UserPrefNotificationPosition::Left),
+       "LEFT",
+       0,
+       "Left",
+       "Align toast notifications to the left"},
+      {int(UserPrefNotificationPosition::Center),
+       "CENTER",
+       0,
+       "Center",
+       "Center-align toast notifications"},
+      {int(UserPrefNotificationPosition::Right),
+       "RIGHT",
+       0,
+       "Right",
+       "Align toast notifications to the right"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   prop = RNA_def_property(srna, "notification_position", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, notification_position_items);
   RNA_def_property_enum_sdna(prop, nullptr, "notification_position");
-  RNA_def_property_enum_default(prop, USER_NOTIFICATION_POS_RIGHT);
+  RNA_def_property_enum_default(prop, int(UserPrefNotificationPosition::Right));
   RNA_def_property_ui_text(
       prop, "Notification Position", "Position of toast notifications relative to the window");
   RNA_def_property_update(prop, 0, "rna_userdef_update");

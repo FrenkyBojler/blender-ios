@@ -179,10 +179,10 @@ enum eUserpref_UI_Flag2 {
 };
 
 /** #eUserpref_UI_Flag2.notification_position */
-enum eUserpref_NotificationPosition {
-  USER_NOTIFICATION_POS_LEFT = 0,
-  USER_NOTIFICATION_POS_CENTER = 1,
-  USER_NOTIFICATION_POS_RIGHT = 2,
+enum class UserPrefNotificationPosition : int8_t {
+  Left = 0,
+  Center = 1,
+  Right = 2,
 };
 
 /** #UserDef.gpu_flag */
@@ -941,7 +941,7 @@ struct UserDef {
   char gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION;
 
   /** eUserpref_NotificationPosition. */
-  char notification_position = USER_NOTIFICATION_POS_RIGHT;
+  UserPrefNotificationPosition notification_position = UserPrefNotificationPosition::Right;
   char _pad8[1] = {};
   float notification_seconds = 2.0f;
 
