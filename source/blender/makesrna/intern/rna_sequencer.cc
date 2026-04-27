@@ -1707,7 +1707,7 @@ static bool rna_StripModifier_otherStrip_poll(PointerRNA *ptr, PointerRNA value)
 }
 
 static StripModifierData *rna_Strip_modifier_new(
-    Strip *strip, bContext *C, ReportList *reports, const char *name, int type)
+    ID *scene_id, Strip *strip, ReportList *reports, const char *name, int type)
 {
   if (!seq::strip_supports_modifiers(strip)) {
     BKE_report(reports, RPT_ERROR, "Strip type does not support modifiers");
@@ -1715,7 +1715,7 @@ static StripModifierData *rna_Strip_modifier_new(
     return nullptr;
   }
   else {
-    Scene *scene = CTX_data_sequencer_scene(C);
+    Scene *scene = id_cast<Scene *>(scene_id);
     StripModifierData *smd;
 
     smd = seq::modifier_new(strip, name, eStripModifierType(type));
@@ -2424,7 +2424,7 @@ static void rna_def_strip_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 
   /* add modifier */
   func = RNA_def_function(srna, "new", "rna_Strip_modifier_new");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Add a new modifier");
   parm = RNA_def_string(func, "name", "Name", 0, "", "New name for the modifier");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
