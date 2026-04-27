@@ -10,7 +10,7 @@
 
 #include <cstdint>
 #include <memory>
-#include <optional>
+#include <functional>
 
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -110,7 +110,57 @@ class BlenderProject {
 
 }  // namespace bke
 
+/**
+ * Fetch the current active Blender Project, if any.
+ *
+ * WARNING: this fetches the project without any synchronization for
+ * multi-threading, so it is your responsibility to ensure thread safety. Prefer
+ * using `BKE_with_blender_project()` and `BKE_with_blender_project_write()`,
+ * which handle thread synchronization for you.
+ *
+ * \param bmain: The `Main` to return the active project for. At the moment,
+ * there is just one global project. However, some temporary `Main`s should be
+ * treated as not ever being in a project, in which case this will return
+ * nullptr.
+ *
+ * \returns Either the current active project, or nullptr if there is no active
+ * project or if the passed bmain is considered projectless.
+ *
+ * \see BKE_with_blender_project()
+ *
+ * \see BKE_with_blender_project_write()
+ */
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain);
+
+/**
+ * Run the given lambda with read-only access to the active Blender Project, if
+ * any.
+ *
+ * This follows the same semantics as `BKE_blender_project_get()`, but ensures
+ * thread safety by holding a shared mutex lock while the lambda is run.
+ *
+ * \see BKE_blender_project_get()
+ *
+ * \see BKE_with_blender_project_write()
+ */
+void BKE_with_blender_project(const Main *bmain,
+                              std::function<void(const bke::BlenderProject *)> lambda);
+
+/**
+ * Run the given lambda with write access to the active Blender Project, if any.
+ *
+ * Same as `BKE_with_blender_project()`, except that it takes an exclusive mutex
+ * lock to provide write access to the project.
+ *
+ * If you only need to read from the project, use `BKE_with_blender_project()`
+ * instead of this to reduce thread contention.
+ *
+ * \see BKE_blender_project_get()
+ *
+ * \see BKE_with_blender_project()
+ */
+void BKE_with_blender_project_write(const Main *bmain,
+                                    std::function<void(bke::BlenderProject *)> lambda);
 
 /**
  * Initialize a new active Blender Project.

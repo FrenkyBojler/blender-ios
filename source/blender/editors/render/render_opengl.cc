@@ -994,15 +994,18 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
       const char *suffix = is_multiview_name ?
                                BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
                                "";
-      MovieWriter *writer = MOV_write_begin(scene_eval,
-                                            BKE_blender_project_get(G_MAIN),
-                                            &scene->r,
-                                            &image_format,
-                                            width,
-                                            height,
-                                            oglrender->reports,
-                                            PRVRANGEON != 0,
-                                            suffix);
+      MovieWriter *writer;
+      BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+        writer = MOV_write_begin(scene_eval,
+                                 project,
+                                 &scene->r,
+                                 &image_format,
+                                 width,
+                                 height,
+                                 oglrender->reports,
+                                 PRVRANGEON != 0,
+                                 suffix);
+      });
       if (writer == nullptr) {
         BKE_image_format_free(&image_format);
         screen_opengl_render_end(oglrender);
@@ -1130,7 +1133,11 @@ static void write_result_func(TaskPool *__restrict pool, void *task_data_v)
    * writing another frame. If that happens we may reach the MAX_SCHEDULED_FRAMES limit,
    * and cause the render thread and writing threads to deadlock waiting for each other. */
   WriteTaskData *task_data = static_cast<WriteTaskData *>(task_data_v);
-  threading::isolate_task([&] { write_result(BKE_blender_project_get(G_MAIN), pool, task_data); });
+  threading::isolate_task([&] {
+    BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+      write_result(project, pool, task_data);
+    });
+  });
 }
 
 static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
@@ -1269,8 +1276,9 @@ static wmOperatorStatus screen_opengl_render_modal(bContext *C,
   /* Still render completes immediately, but still modal to show some feedback
    * in case render initialization takes a while. */
   if (!oglrender->is_animation) {
-    const Main *bmain = CTX_data_main(C);
-    screen_opengl_render_apply(BKE_blender_project_get(bmain), oglrender);
+    BKE_with_blender_project(CTX_data_main(C), [&](const bke::BlenderProject *project) {
+      screen_opengl_render_apply(project, oglrender);
+    });
     screen_opengl_render_end(oglrender);
     MEM_delete(oglrender);
     return OPERATOR_FINISHED;
@@ -1304,7 +1312,9 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
       canceled = true;
     }
     else {
-      finished = !screen_opengl_render_anim_step(BKE_blender_project_get(G_MAIN), oglrender);
+      BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+        finished = !screen_opengl_render_anim_step(project, oglrender);
+      });
       worker_status->progress = float(scene->r.cfra - playback_range.start_frame + 1) /
                                 float(playback_range.end_frame - playback_range.start_frame + 1);
       worker_status->do_update = true;
@@ -1388,7 +1398,9 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
 
   if (!oglrender->is_animation) { /* same as invoke */
-    screen_opengl_render_apply(BKE_blender_project_get(bmain), oglrender);
+    BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+      screen_opengl_render_apply(project, oglrender);
+    });
     screen_opengl_render_end(oglrender);
     MEM_delete(oglrender);
 
@@ -1401,9 +1413,11 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  while (ret) {
-    ret = screen_opengl_render_anim_step(BKE_blender_project_get(bmain), oglrender);
-  }
+  BKE_with_blender_project(bmain, [&](const bke::BlenderProject *project) {
+    while (ret) {
+      ret = screen_opengl_render_anim_step(project, oglrender);
+    }
+  });
 
   screen_opengl_render_end(oglrender);
   MEM_delete(oglrender);

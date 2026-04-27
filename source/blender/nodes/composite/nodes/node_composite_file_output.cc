@@ -175,8 +175,9 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
 
   bke::path_templates::VariableMap template_variables;
-  BKE_add_template_variables_general(
-      template_variables, &node.owner_tree().id, BKE_blender_project_get(G_MAIN));
+  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *project) {
+    BKE_add_template_variables_general(template_variables, &node.owner_tree().id, project);
+  });
   BKE_add_template_variables_for_render_path(template_variables, scene);
   BKE_add_template_variables_for_node(template_variables, node);
 
@@ -639,6 +640,7 @@ class FileOutputOperation : public NodeOperation {
         break;
       case ResultType::Int2:
       case ResultType::Int3:
+      case ResultType::Int4:
       case ResultType::Int:
       case ResultType::Bool:
       case ResultType::Float4x4:
@@ -680,6 +682,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Int3:
+      case ResultType::Int4:
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:
@@ -741,6 +744,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Int:
       case ResultType::Int3:
+      case ResultType::Int4:
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:

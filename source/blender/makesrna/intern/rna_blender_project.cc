@@ -43,12 +43,13 @@ using namespace bke;
 
 static void project_mark_dirty()
 {
-  bke::BlenderProject *project = BKE_blender_project_get(G_MAIN);
-  if (project) {
-    return;
-  }
+  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *project) {
+    if (project == nullptr) {
+      return;
+    }
 
-  project->is_dirty = true;
+    project->is_dirty = true;
+  });
 }
 
 /* For properties that AREN'T saved to disk as part of the project data. */
@@ -194,42 +195,61 @@ static void rna_ProjectVariable_value_string_set(PointerRNA *ptr, const char *va
 
 static void rna_BlenderProject_name_get(PointerRNA *ptr, char *value)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+    const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
 
-  strcpy(value, project_data->get_name().c_str());
+    strcpy(value, project->get_name().c_str());
+  });
 }
 
 static int rna_BlenderProject_name_length(PointerRNA *ptr)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  int length;
+  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+    const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
 
-  return project_data->get_name().size();
+    length = project->get_name().size();
+  });
+  return length;
 }
 
 static void rna_BlenderProject_name_set(PointerRNA *ptr, const char *value)
 {
-  bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *locked_project) {
+    bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
 
-  if (strlen(value) == 0) {
-    /* Leave the name as-is when passed an empty (which is invalid) name. */
-    return;
-  }
+    if (strlen(value) == 0) {
+      /* Leave the name as-is when passed an empty (which is invalid) name. */
+      return;
+    }
 
-  project_data->set_name(value);
+    project->set_name(value);
+  });
 }
 
 static void rna_BlenderProject_root_path_get(PointerRNA *ptr, char *value)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+    const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
 
-  strcpy(value, project_data->get_root_path().c_str());
+    strcpy(value, project->get_root_path().c_str());
+  });
 }
 
 static int rna_BlenderProject_root_path_length(PointerRNA *ptr)
 {
-  const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
+  int length;
+  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+    const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
 
-  return project_data->get_root_path().size();
+    length = project->get_root_path().size();
+  });
+  return length;
 }
 
 static int rna_BlenderProject_active_variable_index_get(PointerRNA *ptr)
@@ -375,14 +395,22 @@ void rna_ProjectVariables_move(bke::BlenderProject *project_data,
 
 static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
 {
-  bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
-  return project_data->is_dirty;
+  bool is_dirty;
+  BKE_with_blender_project(G_MAIN, [&](const bke::BlenderProject *locked_project) {
+    bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
+    is_dirty = project->is_dirty;
+  });
+  return is_dirty;
 }
 
 static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)
 {
-  bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
-  project_data->is_dirty = value;
+  BKE_with_blender_project_write(G_MAIN, [&](bke::BlenderProject *locked_project) {
+    bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    BLI_assert(project == locked_project);
+    project->is_dirty = value;
+  });
 }
 
 }  // namespace blender
