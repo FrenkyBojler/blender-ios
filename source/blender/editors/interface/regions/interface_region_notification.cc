@@ -28,10 +28,6 @@
 
 namespace blender::ui {
 
-/* -------------------------------------------------------------------- */
-/** \name Utility Functions
- * \{ */
-
 #define NOTIFICATION_MAX_SHOWN 3
 
 #define NOTIFICATION_MAX_CHARACTERS 70
