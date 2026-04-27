@@ -57,7 +57,7 @@ static Vector<BMVert *> collect_verts_from_faces(Span<BMFace *> faces)
 void bmo_flatten_exec(BMesh *bm, BMOperator *op)
 {
   const float factor = BMO_slot_float_get(op->slots_in, "factor");
-  const int method = BMO_slot_int_get(op->slots_in, "method");
+  const FlattenMethod method = static_cast<FlattenMethod>(BMO_slot_int_get(op->slots_in, "method"));
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
