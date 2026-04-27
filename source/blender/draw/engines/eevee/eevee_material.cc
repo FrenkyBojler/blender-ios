@@ -470,8 +470,8 @@ ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)
         shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
       };
 
-  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED, MAT_GEOM_MESH);
-  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_RAYCAST, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_DEFERRED, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_SHADOW, MAT_GEOM_MESH);
 
