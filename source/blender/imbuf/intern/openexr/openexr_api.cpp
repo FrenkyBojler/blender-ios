@@ -83,6 +83,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
+#include "BLI_math_half.hh"
 #include "BLI_mmap.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -378,21 +379,6 @@ class OFileStream : public OStream {
   std::ofstream ofs;
 };
 
-struct _RGBAZ {
-  half r;
-  half g;
-  half b;
-  half a;
-  half z;
-};
-
-using RGBAZ = _RGBAZ;
-
-static half float_to_half_safe(const float value, const float max_val = HALF_MAX)
-{
-  return half(clamp_f(value, -max_val, max_val));
-}
-
 bool imb_is_a_openexr(const uchar *mem, const size_t size)
 {
   /* No define is exposed for this size. */
@@ -631,10 +617,16 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
     }
     OutputFile file(*file_stream, header);
 
-    /* we store first everything in half array */
-    std::unique_ptr<RGBAZ[]> pixels = std::unique_ptr<RGBAZ[]>(new RGBAZ[int64_t(height) * width]);
-    RGBAZ *to = pixels.get();
-    int xstride = sizeof(RGBAZ);
+    struct RGBAHalf {
+      uint16_t r;
+      uint16_t g;
+      uint16_t b;
+      uint16_t a;
+    };
+    std::unique_ptr<RGBAHalf[]> pixels = std::unique_ptr<RGBAHalf[]>(
+        new RGBAHalf[int64_t(height) * width]);
+    RGBAHalf *to = pixels.get();
+    int xstride = sizeof(RGBAHalf);
     int ystride = xstride * width;
 
     /* indicate used buffers */
@@ -644,33 +636,43 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
     if (is_alpha) {
       frameBuffer.insert("A", Slice(HALF, (char *)&to->a, xstride, ystride));
     }
+    const int comp_r = 0;
+    const int comp_g = channels >= 2 ? 1 : 0;
+    const int comp_b = channels >= 3 ? 2 : 0;
+    const int comp_a = channels >= 4 ? 3 : 0;
     if (ibuf->float_data()) {
       const float *float_data = ibuf->float_data();
 
+      Array<float4> row_buffer(width);
       for (int i = ibuf->y - 1; i >= 0; i--) {
         const float *from = float_data + int64_t(channels) * i * width;
-
-        for (int j = ibuf->x; j > 0; j--) {
-          to->r = float_to_half_safe(from[0], half_max_val);
-          to->g = float_to_half_safe((channels >= 2) ? from[1] : from[0], half_max_val);
-          to->b = float_to_half_safe((channels >= 3) ? from[2] : from[0], half_max_val);
-          to->a = float_to_half_safe((channels >= 4) ? from[3] : 1.0f, half_max_val);
-          to++;
+        for (int j = 0; j < ibuf->x; j++) {
+          row_buffer[j] = float4(from[comp_r], from[comp_g], from[comp_b], from[comp_a]);
           from += channels;
         }
+        math::float_to_half_clamp_array(
+            &row_buffer.data()->x, &to->r, 4 * width, -half_max_val, half_max_val);
+        to += width;
       }
     }
     else {
+      uint16_t color_to_half[256];
+      uint16_t alpha_to_half[256];
+      for (int v = 0; v < 256; v++) {
+        color_to_half[v] = math::float_to_half(BLI_color_from_srgb_table[v]);
+        alpha_to_half[v] = math::float_to_half(float(v) / 255.0f);
+      }
+
       const uchar *byte_data = ibuf->byte_data();
 
       for (int i = ibuf->y - 1; i >= 0; i--) {
         const uchar *from = byte_data + int64_t(4) * i * width;
 
         for (int j = ibuf->x; j > 0; j--) {
-          to->r = srgb_to_linearrgb(float(from[0]) / 255.0f);
-          to->g = srgb_to_linearrgb(float(from[1]) / 255.0f);
-          to->b = srgb_to_linearrgb(float(from[2]) / 255.0f);
-          to->a = channels >= 4 ? float(from[3]) / 255.0f : 1.0f;
+          to->r = color_to_half[from[0]];
+          to->g = color_to_half[from[1]];
+          to->b = color_to_half[from[2]];
+          to->a = is_alpha ? alpha_to_half[from[3]] : 0x3c00; /* 0x3c00 = FP16 1.0 */
           to++;
           from += 4;
         }
@@ -739,19 +741,14 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int 
     int ystride = -xstride * width;
 
     /* Last scan-line, stride negative. */
-    float *rect[4] = {nullptr, nullptr, nullptr, nullptr};
-    rect[0] = ibuf->float_data_for_write() + int64_t(channels) * (height - 1) * width;
-    rect[1] = (channels >= 2) ? rect[0] + 1 : rect[0];
-    rect[2] = (channels >= 3) ? rect[0] + 2 : rect[0];
-    rect[3] = (channels >= 4) ?
-                  rect[0] + 3 :
-                  rect[0]; /* red as alpha, is this needed since alpha isn't written? */
-
-    frameBuffer.insert("R", Slice(Imf::FLOAT, (char *)rect[0], xstride, ystride));
-    frameBuffer.insert("G", Slice(Imf::FLOAT, (char *)rect[1], xstride, ystride));
-    frameBuffer.insert("B", Slice(Imf::FLOAT, (char *)rect[2], xstride, ystride));
+    const float *src_data = ibuf->float_data() + int64_t(channels) * (height - 1) * width;
+    frameBuffer.insert("R", Slice(Imf::FLOAT, (char *)src_data, xstride, ystride));
+    frameBuffer.insert(
+        "G", Slice(Imf::FLOAT, (char *)(src_data + (channels >= 2 ? 1 : 0)), xstride, ystride));
+    frameBuffer.insert(
+        "B", Slice(Imf::FLOAT, (char *)(src_data + (channels >= 3 ? 2 : 0)), xstride, ystride));
     if (is_alpha) {
-      frameBuffer.insert("A", Slice(Imf::FLOAT, (char *)rect[3], xstride, ystride));
+      frameBuffer.insert("A", Slice(Imf::FLOAT, (char *)(src_data + 3), xstride, ystride));
     }
 
     file.setFrameBuffer(frameBuffer);
@@ -1216,9 +1213,11 @@ void IMB_exr_write_channels(ExrHandle *handle)
       }
     }
 
-    Vector<half> rect_half;
-    half *current_rect_half = nullptr;
+    Vector<float> row_float;
+    Vector<uint16_t> rect_half;
+    uint16_t *current_rect_half = nullptr;
     if (num_half_channels > 0) {
+      row_float.resize(handle->width);
       rect_half.resize(size_t(num_half_channels) * num_pixels);
       current_rect_half = rect_half.data();
     }
@@ -1232,12 +1231,22 @@ void IMB_exr_write_channels(ExrHandle *handle)
       }
 
       if (echan.use_half_float) {
-        const float *rect = echan.rect;
-        half *cur = current_rect_half;
-        for (size_t i = 0; i < num_pixels; i++, cur++) {
-          *cur = float_to_half_safe(rect[i * echan.xstride], handle->half_max_val);
+        const float *src_float = echan.rect;
+        /* Convert & clamp input floats to halfs one scanline at a time. */
+        int64_t src_index = 0;
+        for (int y = 0; y < handle->height; y++) {
+          for (int x = 0; x < handle->width; x++) {
+            row_float[x] = src_float[src_index];
+            src_index += echan.xstride;
+          }
+          math::float_to_half_clamp_array(row_float.data(),
+                                          current_rect_half + y * handle->width,
+                                          handle->width,
+                                          -handle->half_max_val,
+                                          handle->half_max_val);
         }
-        half *rect_to_write = current_rect_half + (handle->height - 1L) * handle->width;
+
+        uint16_t *rect_to_write = current_rect_half + (handle->height - 1L) * handle->width;
         frameBuffer.insert(
             echan.name,
             Slice(Imf::HALF, (char *)rect_to_write, sizeof(half), -handle->width * sizeof(half)));
