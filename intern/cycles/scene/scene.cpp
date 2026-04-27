@@ -62,7 +62,7 @@ Scene ::Scene(const SceneParams &params_, Device *device)
   light_manager = make_unique<LightManager>();
   geometry_manager = make_unique<GeometryManager>();
   object_manager = make_unique<ObjectManager>();
-  image_manager = make_unique<ImageManager>(device->info);
+  image_manager = make_unique<ImageManager>(device->info, params);
   particle_system_manager = make_unique<ParticleSystemManager>();
   bake_manager = make_unique<BakeManager>();
   procedural_manager = make_unique<ProceduralManager>();
@@ -632,15 +632,25 @@ bool Scene::update(Progress &progress)
 
 bool Scene::update_camera_resolution(Progress &progress, int width, int height)
 {
-  if (!camera->set_screen_size(width, height)) {
-    return false;
+  bool update_data = false;
+
+  if (camera->set_screen_size(width, height)) {
+    camera->device_update(device, &dscene, this);
+    update_data = true;
   }
 
-  camera->device_update(device, &dscene, this);
+  if (integrator->get_use_pixel_jitter()) {
+    integrator->tag_use_pixel_jitter_modified();
 
-  progress.set_status("Updating Device", "Writing constant memory");
-  device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
-  return true;
+    integrator->device_update(device, &dscene, this);
+    update_data = true;
+  }
+
+  if (update_data) {
+    progress.set_status("Updating Device", "Writing constant memory");
+    device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
+  }
+  return update_data;
 }
 
 static void log_kernel_features(const uint features)
@@ -1024,7 +1034,7 @@ template<> void Scene::delete_node(Geometry *node)
   else {
     flag = GeometryManager::MESH_REMOVED;
     if (node->has_volume) {
-      volume_manager->tag_update(node);
+      volume_manager->tag_update({node});
     }
   }
 
@@ -1038,7 +1048,7 @@ template<> void Scene::delete_node(Object *node)
 
   uint flag = ObjectManager::OBJECT_REMOVED;
   if (node->get_geometry()->has_volume) {
-    volume_manager->tag_update(node, flag);
+    volume_manager->tag_update({node}, flag);
   }
 
   objects.erase_by_swap(node);
@@ -1088,6 +1098,7 @@ template<typename T> static void assert_same_owner(const set<T *> &nodes, const 
 template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwner *owner)
 {
   assert_same_owner(nodes, owner);
+  volume_manager->tag_update(nodes);
   geometry.erase_in_set(nodes);
   geometry_manager->tag_update(this, GeometryManager::GEOMETRY_REMOVED);
   light_manager->tag_update(this, LightManager::LIGHT_REMOVED);
@@ -1096,6 +1107,7 @@ template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwne
 template<> void Scene::delete_nodes(const set<Object *> &nodes, const NodeOwner *owner)
 {
   assert_same_owner(nodes, owner);
+  volume_manager->tag_update(nodes, ObjectManager::OBJECT_REMOVED);
   objects.erase_in_set(nodes);
   object_manager->tag_update(this, ObjectManager::OBJECT_REMOVED);
 }

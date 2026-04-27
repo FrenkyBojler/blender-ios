@@ -22,7 +22,9 @@ from .extensions.specular import export_specular
 from .extensions.transmission import export_transmission
 from .extensions.clearcoat import export_clearcoat
 from .extensions.anisotropy import export_anisotropy
+from .extensions.iridescence import export_iridescence
 from .extensions.ior import export_ior
+from .extensions.dispersion import export_dispersion
 from .search_node_tree import \
     has_image_node_from_socket, \
     get_socket_from_gltf_material_node, \
@@ -164,6 +166,9 @@ def gather_material(bmat, export_settings):
                     bmat.get_used_material().node_tree], bpy.types.ShaderNodeTexImage)
         else:
             nodes = []
+        # Store index of additional texture for this material
+        export_settings['additional_texture_export_current_idx'][bmat.id] = len(
+            export_settings['additional_texture_export'])
         cpt_additional = 0
         for node in nodes:
             if nodes_used.get(node[0].name):
@@ -298,7 +303,6 @@ def __gather_extensions(bmat, emissive_factor, export_settings):
         udim_infos.update(udim_info_clearcoat)
 
     # KHR_materials_transmission
-
     transmission_extension, uvmap_info, udim_info_transmission = export_transmission(bmat, export_settings)
     if transmission_extension:
         extensions["KHR_materials_transmission"] = transmission_extension
@@ -311,7 +315,6 @@ def __gather_extensions(bmat, emissive_factor, export_settings):
         extensions["KHR_materials_emissive_strength"] = emissive_strength_extension
 
     # KHR_materials_volume
-
     volume_extension, uvmap_info, udim_info = export_volume(bmat, export_settings)
     if volume_extension:
         extensions["KHR_materials_volume"] = volume_extension
@@ -338,6 +341,18 @@ def __gather_extensions(bmat, emissive_factor, export_settings):
         extensions["KHR_materials_anisotropy"] = anisotropy_extension
         uvmap_infos.update(uvmap_info)
         udim_infos.update(udim_info)
+
+    # KHR_materials_iridescence
+    iridescence_extension, uvmap_info, udim_info = export_iridescence(bmat, export_settings)
+    if iridescence_extension:
+        extensions["KHR_materials_iridescence"] = iridescence_extension
+        uvmap_infos.update(uvmap_info)
+        udim_infos.update(udim_info)
+
+    # KHR_materials_dispersion
+    dispersion_extension = export_dispersion(bmat, extensions, export_settings)
+    if dispersion_extension:
+        extensions["KHR_materials_dispersion"] = dispersion_extension
 
     # KHR_materials_ior
     # Keep this extension at the end, because we export it only if some others are exported
@@ -546,16 +561,6 @@ def __export_unlit(bmat, export_settings):
     return material, uvmap_info, vc_info, udim_info
 
 
-def get_active_uvmap_index(blender_mesh):
-    # retrieve active render UVMap
-    active_uvmap_idx = 0
-    for i in range(len(blender_mesh.uv_layers)):
-        if blender_mesh.uv_layers[i].active_render is True:
-            active_uvmap_idx = i
-            break
-    return active_uvmap_idx
-
-
 def get_final_material(mesh, blender_material, attr_indices, base_material, uvmap_info, export_settings):
 
     # First, we need to calculate all index of UVMap
@@ -566,7 +571,7 @@ def get_final_material(mesh, blender_material, attr_indices, base_material, uvma
     for m, v in uvmap_info.items():
 
         if m.startswith("additional") and additional_indices <= int(m[10:]):
-            additional_indices = +1
+            additional_indices += 1
 
         if 'type' not in v.keys():
             continue
@@ -576,10 +581,10 @@ def get_final_material(mesh, blender_material, attr_indices, base_material, uvma
             if i >= 0:
                 indices[m] = i
             else:
-                # Using active index
-                indices[m] = get_active_uvmap_index(mesh)
-        elif v['type'] == 'Active':
-            indices[m] = get_active_uvmap_index(mesh)
+                # Using render index
+                indices[m] = mesh.uv_layers.active_render_index
+        elif v['type'] == 'Render':
+            indices[m] = mesh.uv_layers.active_render_index
         elif v['type'] == "Attribute":
             # This can be a regular UVMap or a custom attribute
             i = mesh.uv_layers.find(v['value'])
@@ -679,13 +684,19 @@ def __get_final_material_with_indices(blender_material, base_material, caching_i
         elif tex == "anisotropyTexture":
             if material.extensions["KHR_materials_anisotropy"].extension['anisotropyTexture']:
                 material.extensions["KHR_materials_anisotropy"].extension['anisotropyTexture'].tex_coord = ind
+        elif tex == "iridescenceTexture":
+            if material.extensions["KHR_materials_iridescence"].extension['iridescenceTexture']:
+                material.extensions["KHR_materials_iridescence"].extension['iridescenceTexture'].tex_coord = ind
+        elif tex == "iridescenceThicknessTexture":
+            if material.extensions["KHR_materials_iridescence"].extension['iridescenceThicknessTexture']:
+                material.extensions["KHR_materials_iridescence"].extension['iridescenceThicknessTexture'].tex_coord = ind
         elif tex.startswith("additional"):
-            export_settings['additional_texture_export'][export_settings['additional_texture_export_current_idx'] +
-                                                         int(tex[10:])].tex_coord = ind
+            export_settings['additional_texture_export'][export_settings['additional_texture_export_current_idx']
+                                                         [id(blender_material)] + int(tex[10:])].tex_coord = ind
+            # We can use id(blender_material) here, as we are not using inline tree
+            # for additional textures, so the material is always the original one
         else:
             export_settings['log'].error("some Textures tex coord are not managed")
-
-    export_settings['additional_texture_export_current_idx'] = len(export_settings['additional_texture_export'])
 
     return material
 
@@ -753,6 +764,8 @@ def get_all_textures(idx=0):
     tab.append("sheenRoughnessTexture")
     tab.append("thicknessTexture")
     tab.append("anisotropyTexture")
+    tab.append("iridescenceTexture")
+    tab.append("iridescenceThicknessTexture")
 
     for i in range(idx):
         tab.append("additional" + str(i))

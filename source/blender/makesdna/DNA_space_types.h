@@ -805,9 +805,10 @@ struct bNodeTreePath {
   struct bNodeTree *nodetree = nullptr;
   /** Base key for nodes in this tree instance. */
   bNodeInstanceKey parent_key;
-  char _pad[4] = {};
   /** V2d center point, so node trees can have different offsets in editors. */
   float view_center[2] = {};
+  /** V2d width. Used to calculate zoom levels for node editors. */
+  float view_width = 0.0f;
 
   char node_name[/*MAX_NAME*/ 64] = "";
   char display_name[/*MAX_NAME*/ 64] = "";
@@ -818,6 +819,8 @@ struct SpaceNodeOverlay {
   int flag = 0;
   /* eSpaceNodeOverlay_preview_shape */
   int preview_shape = 0;
+  float passepartout_alpha = 0;
+  char _pad[4] = {};
 };
 
 struct SpaceNode {

@@ -220,12 +220,10 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   /* Wrap most text typographically with hard width limit. */
   BLF_wordwrap(data->fstyle.uifont_id,
                data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+               BLFWrapMode::Typographical | BLFWrapMode::HardLimit);
 
   /* Wrap paths with path-specific wrapping with hard width limit. */
-  BLF_wordwrap(blf_mono_font,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
+  BLF_wordwrap(blf_mono_font, data->wrap_width, BLFWrapMode::Path | BLFWrapMode::HardLimit);
 
   bbox.xmin += 0.5f * pad_x; /* add padding to the text */
   bbox.ymax -= 0.5f * pad_y;
@@ -314,7 +312,7 @@ static void tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
                                      field->image->ibuf->y,
                                      gpu::TextureFormat::UNORM_8_8_8_8,
                                      true,
-                                     field->image->ibuf->byte_buffer.data,
+                                     field->image->ibuf->byte_data(),
                                      1.0f,
                                      1.0f,
                                      float(field->image->width) / float(field->image->ibuf->x),
@@ -1157,6 +1155,29 @@ static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
     }
   }
 
+  /* Show template-evaluated path for filepaths with path templates. */
+  if (but->type == ButtonType::Text && rnaprop &&
+      (RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0)
+  {
+    char filepath[FILE_MAX];
+
+    RNA_property_string_get(&but->rnapoin, rnaprop, filepath);
+
+    if (BKE_path_contains_template_syntax(filepath)) {
+      const std::optional<blender::bke::path_templates::VariableMap> variables =
+          BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
+      BLI_assert(variables.has_value());
+
+      const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+          filepath, sizeof(filepath), *variables);
+
+      if (errors.is_empty()) {
+        tooltip_text_field_add(
+            *data, std::string(filepath), {}, TIP_STYLE_NORMAL, TIP_LC_DIMMED, true);
+      }
+    }
+  }
+
   if (rnaprop) {
     const int unit_type = button_unit_type_get(but);
 
@@ -1445,10 +1466,8 @@ static ARegion *tooltip_create_with_data(bContext *C,
   BLF_enable(blf_mono_font, font_flag);
   BLF_wordwrap(data->fstyle.uifont_id,
                data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
-  BLF_wordwrap(blf_mono_font,
-               data->wrap_width,
-               BLFWrapMode(int(BLFWrapMode::Path) | int(BLFWrapMode::HardLimit)));
+               BLFWrapMode::Typographical | BLFWrapMode::HardLimit);
+  BLF_wordwrap(blf_mono_font, data->wrap_width, BLFWrapMode::Path | BLFWrapMode::HardLimit);
 
   int i, fonth, fontw;
   for (i = 0, fontw = 0, fonth = 0; i < data->fields.size(); i++) {
@@ -1766,6 +1785,22 @@ ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
   }
 
   return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
+}
+
+ARegion *tooltip_create_from_panel_category(bContext *C,
+                                            const std::string &category_name,
+                                            const int x,
+                                            const int y)
+{
+  std::unique_ptr<TooltipData> data = std::make_unique<TooltipData>();
+  tooltip_text_field_add(*data, category_name, {}, TIP_STYLE_HEADER, TIP_LC_VALUE, false);
+  const float init_position[2] = {float(x) + 61.0f * UI_SCALE_FAC,
+                                  float(y) + 32.0f * UI_SCALE_FAC};
+  const rcti overlap_rect_fl = {x - int(25.0f * UI_SCALE_FAC),
+                                x + int(28.0f * UI_SCALE_FAC),
+                                y - int(31.0f * UI_SCALE_FAC),
+                                y + int(round(20.7f * UI_SCALE_FAC))};
+  return tooltip_create_with_data(C, std::move(data), init_position, &overlap_rect_fl);
 }
 
 static void tooltip_from_image(Image &ima, TooltipData &data)

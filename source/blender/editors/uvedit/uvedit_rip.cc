@@ -903,6 +903,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
 static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -939,7 +940,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   const float aspect_y = aspx / aspy;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     /* While this is almost always true, any mis-match (from multiple scenes for example).
@@ -977,7 +978,7 @@ static wmOperatorStatus uv_rip_invoke(bContext *C, wmOperator *op, const wmEvent
 void UV_OT_rip(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "UV Rip";
+  ot->name = "Rip UVs";
   ot->description = "Rip selected vertices or a selected region";
   ot->idname = "UV_OT_rip";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
