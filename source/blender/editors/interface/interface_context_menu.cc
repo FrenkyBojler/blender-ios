@@ -88,8 +88,7 @@ static IDProperty *shortcut_property_from_rna_for_enum(bContext *C, Button *but_
     return nullptr;
   }
 
-  /* Create ID property of data path, to pass to the operator. */
-   printf("Index: %d\n", int(but->hardmin));
+  /* Create ID property of data path and value, to pass to the operator. */
   IDProperty *prop = bke::idprop::create_group(__func__).release();
   IDP_AddToGroup(prop, bke::idprop::create("data_path", final_data_path.value()).release());
   IDP_AddToGroup(prop, bke::idprop::create("value", RNA_enum_identifier_from_prop(but_parent->rnaprop, int(but->hardmin))).release());
@@ -127,7 +126,6 @@ static const char *shortcut_get_operator_property(bContext *C, Button *but, IDPr
     }
   }
 
-  printf("but->type: %d\n", int(but->type));
   if (but->type == ButtonType::ButMenu) {
     if ((but->block->handle != nullptr)) {
       Button *but_parent = but->block->handle->popup_create_vars.but;
