@@ -19,15 +19,6 @@
 
 namespace blender {
 
-/**
- * Methods for determining the orientation of flattening the plane.
- */
-enum FlattenMethod {
-  FLATTEN_BEST_FIT = 0,
-  FLATTEN_NORMAL = 1,
-  FLATTEN_VIEW = 2,
-};
-
 static float3 compute_centroid(Span<BMVert *> verts)
 {
   float3 center(0.0f);
