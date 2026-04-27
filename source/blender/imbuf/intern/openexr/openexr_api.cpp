@@ -553,7 +553,7 @@ static void openexr_header_metadata_colorspace(Header *header, const ColorSpace 
   }
 }
 
-static void openexr_header_metadata_colorspace(Header *header, ImBuf *ibuf)
+static void openexr_header_metadata_colorspace(Header *header, const ImBuf *ibuf)
 {
   /* Get colorspace from image buffer. */
   const ColorSpace *colorspace = nullptr;
@@ -580,195 +580,66 @@ static void openexr_header_metadata_callback(void *data,
   header->insert(propname, StringAttribute(prop));
 }
 
-static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int flags)
+struct RGBAHalf {
+  uint16_t r;
+  uint16_t g;
+  uint16_t b;
+  uint16_t a;
+};
+
+static void convert_input_to_half_rgba(const ImBuf *ibuf, RGBAHalf *dst)
 {
   const int channels = ibuf->channels;
   const bool is_alpha = (channels >= 4) && (ibuf->planes == 32);
   const int width = ibuf->x;
   const int height = ibuf->y;
-  OStream *file_stream = nullptr;
 
-  try {
-    Header header(width, height);
+  if (ibuf->float_data()) {
+    const float *float_data = ibuf->float_data();
 
     const int compression = ibuf->foptions.flag & OPENEXR_CODEC_MASK;
-    openexr_header_compression(&header, compression, ibuf->foptions.quality);
-    openexr_header_metadata_global(&header, ibuf->metadata);
-    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
-    openexr_header_metadata_colorspace(&header, ibuf);
-
     const float half_max_val = compression_half_max(compression, ibuf->foptions.quality);
-
-    /* create channels */
-    header.channels().insert("R", Channel(HALF));
-    header.channels().insert("G", Channel(HALF));
-    header.channels().insert("B", Channel(HALF));
-    if (is_alpha) {
-      header.channels().insert("A", Channel(HALF));
-    }
-
-    FrameBuffer frameBuffer;
-
-    /* Manually create `ofstream`, so we can handle UTF8 file-paths on windows. */
-    if (flags & IB_mem) {
-      file_stream = new OMemStream(ibuf);
-    }
-    else {
-      file_stream = new OFileStream(filepath);
-    }
-    OutputFile file(*file_stream, header);
-
-    struct RGBAHalf {
-      uint16_t r;
-      uint16_t g;
-      uint16_t b;
-      uint16_t a;
-    };
-    std::unique_ptr<RGBAHalf[]> pixels = std::unique_ptr<RGBAHalf[]>(
-        new RGBAHalf[int64_t(height) * width]);
-    RGBAHalf *to = pixels.get();
-    int xstride = sizeof(RGBAHalf);
-    int ystride = xstride * width;
-
-    /* indicate used buffers */
-    frameBuffer.insert("R", Slice(HALF, (char *)&to->r, xstride, ystride));
-    frameBuffer.insert("G", Slice(HALF, (char *)&to->g, xstride, ystride));
-    frameBuffer.insert("B", Slice(HALF, (char *)&to->b, xstride, ystride));
-    if (is_alpha) {
-      frameBuffer.insert("A", Slice(HALF, (char *)&to->a, xstride, ystride));
-    }
     const int comp_r = 0;
     const int comp_g = channels >= 2 ? 1 : 0;
     const int comp_b = channels >= 3 ? 2 : 0;
     const int comp_a = channels >= 4 ? 3 : 0;
-    if (ibuf->float_data()) {
-      const float *float_data = ibuf->float_data();
 
-      threading::parallel_for_each(IndexRange(height), [&](int64_t y) {
-        Array<float4> row_buffer(width);
-        RGBAHalf *to_row = to + y * width;
+    threading::parallel_for_each(IndexRange(height), [&](int64_t y) {
+      Array<float4> row_buffer(width);
+      RGBAHalf *to_row = dst + y * width;
 
-        const float *from = float_data + int64_t(channels) * (ibuf->y - 1 - y) * width;
-        for (int x = 0; x < ibuf->x; x++) {
-          row_buffer[x] = float4(from[comp_r], from[comp_g], from[comp_b], from[comp_a]);
-          from += channels;
-        }
-        math::float_to_half_clamp_array(
-            &row_buffer.data()->x, &to_row->r, 4 * width, -half_max_val, half_max_val);
-      });
-    }
-    else {
-      uint16_t color_to_half[256];
-      uint16_t alpha_to_half[256];
-      for (int v = 0; v < 256; v++) {
-        color_to_half[v] = math::float_to_half(BLI_color_from_srgb_table[v]);
-        alpha_to_half[v] = math::float_to_half(float(v) / 255.0f);
+      const float *from = float_data + int64_t(channels) * (ibuf->y - 1 - y) * width;
+      for (int x = 0; x < ibuf->x; x++) {
+        row_buffer[x] = float4(from[comp_r], from[comp_g], from[comp_b], from[comp_a]);
+        from += channels;
       }
+      math::float_to_half_clamp_array(
+          &row_buffer.data()->x, &to_row->r, 4 * width, -half_max_val, half_max_val);
+    });
+  }
+  else {
+    uint16_t color_to_half[256];
+    uint16_t alpha_to_half[256];
+    for (int v = 0; v < 256; v++) {
+      color_to_half[v] = math::float_to_half(BLI_color_from_srgb_table[v]);
+      alpha_to_half[v] = math::float_to_half(float(v) / 255.0f);
+    }
 
-      const uchar *byte_data = ibuf->byte_data();
+    const uchar *byte_data = ibuf->byte_data();
 
-      for (int i = ibuf->y - 1; i >= 0; i--) {
-        const uchar *from = byte_data + int64_t(4) * i * width;
+    for (int i = ibuf->y - 1; i >= 0; i--) {
+      const uchar *from = byte_data + int64_t(4) * i * width;
 
-        for (int j = ibuf->x; j > 0; j--) {
-          to->r = color_to_half[from[0]];
-          to->g = color_to_half[from[1]];
-          to->b = color_to_half[from[2]];
-          to->a = is_alpha ? alpha_to_half[from[3]] : 0x3c00; /* 0x3c00 = FP16 1.0 */
-          to++;
-          from += 4;
-        }
+      for (int j = ibuf->x; j > 0; j--) {
+        dst->r = color_to_half[from[0]];
+        dst->g = color_to_half[from[1]];
+        dst->b = color_to_half[from[2]];
+        dst->a = is_alpha ? alpha_to_half[from[3]] : 0x3c00; /* 0x3c00 = FP16 1.0 */
+        dst++;
+        from += 4;
       }
     }
-
-    CLOG_DEBUG(&LOG, "Writing OpenEXR file of height %d", height);
-
-    file.setFrameBuffer(frameBuffer);
-    file.writePixels(height);
   }
-  catch (const std::exception &exc) {
-    delete file_stream;
-    CLOG_ERROR(&LOG, "%s: %s", __func__, exc.what());
-
-    return false;
-  }
-  catch (...) { /* Catch-all for edge cases or compiler bugs. */
-    delete file_stream;
-    CLOG_ERROR(&LOG, "Unknown error in %s", __func__);
-
-    return false;
-  }
-
-  delete file_stream;
-  return true;
-}
-
-static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int flags)
-{
-  const int channels = ibuf->channels;
-  const bool is_alpha = (channels >= 4) && (ibuf->planes == 32);
-  const int width = ibuf->x;
-  const int height = ibuf->y;
-  OStream *file_stream = nullptr;
-
-  try {
-    Header header(width, height);
-
-    openexr_header_compression(
-        &header, ibuf->foptions.flag & OPENEXR_CODEC_MASK, ibuf->foptions.quality);
-    openexr_header_metadata_global(&header, ibuf->metadata);
-    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
-    openexr_header_metadata_colorspace(&header, ibuf);
-
-    /* create channels */
-    header.channels().insert("R", Channel(Imf::FLOAT));
-    header.channels().insert("G", Channel(Imf::FLOAT));
-    header.channels().insert("B", Channel(Imf::FLOAT));
-    if (is_alpha) {
-      header.channels().insert("A", Channel(Imf::FLOAT));
-    }
-
-    FrameBuffer frameBuffer;
-
-    /* Manually create `ofstream`, so we can handle UTF8 file-paths on windows. */
-    if (flags & IB_mem) {
-      file_stream = new OMemStream(ibuf);
-    }
-    else {
-      file_stream = new OFileStream(filepath);
-    }
-    OutputFile file(*file_stream, header);
-
-    int xstride = sizeof(float) * channels;
-    int ystride = -xstride * width;
-
-    /* Last scan-line, stride negative. */
-    const float *src_data = ibuf->float_data() + int64_t(channels) * (height - 1) * width;
-    frameBuffer.insert("R", Slice(Imf::FLOAT, (char *)src_data, xstride, ystride));
-    frameBuffer.insert(
-        "G", Slice(Imf::FLOAT, (char *)(src_data + (channels >= 2 ? 1 : 0)), xstride, ystride));
-    frameBuffer.insert(
-        "B", Slice(Imf::FLOAT, (char *)(src_data + (channels >= 3 ? 2 : 0)), xstride, ystride));
-    if (is_alpha) {
-      frameBuffer.insert("A", Slice(Imf::FLOAT, (char *)(src_data + 3), xstride, ystride));
-    }
-
-    file.setFrameBuffer(frameBuffer);
-    file.writePixels(height);
-  }
-  catch (const std::exception &exc) {
-    CLOG_ERROR(&LOG, "%s: %s", __func__, exc.what());
-    delete file_stream;
-    return false;
-  }
-  catch (...) { /* Catch-all for edge cases or compiler bugs. */
-    CLOG_ERROR(&LOG, "Unknown error in %s", __func__);
-    delete file_stream;
-    return false;
-  }
-
-  delete file_stream;
-  return true;
 }
 
 bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int flags)
@@ -778,16 +649,89 @@ bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int flags)
     ibuf->encoded_size = 0;
   }
 
-  if (ibuf->foptions.flag & OPENEXR_HALF) {
-    return imb_save_openexr_half(ibuf, filepath, flags);
+  const bool half_precision = (ibuf->foptions.flag & OPENEXR_HALF) ||
+                              ibuf->float_data() == nullptr;
+
+  const int channels = ibuf->channels;
+  const bool is_alpha = (channels >= 4) && (ibuf->planes == 32);
+  const int width = ibuf->x;
+  const int height = ibuf->y;
+  OStream *file_stream = nullptr;
+  try {
+    Header header(width, height);
+
+    const int compression = ibuf->foptions.flag & OPENEXR_CODEC_MASK;
+    openexr_header_compression(&header, compression, ibuf->foptions.quality);
+    openexr_header_metadata_global(&header, ibuf->metadata);
+    openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
+    openexr_header_metadata_colorspace(&header, ibuf);
+
+    /* create channels */
+    Channel channel(half_precision ? HALF : FLOAT);
+    header.channels().insert("R", channel);
+    header.channels().insert("G", channel);
+    header.channels().insert("B", channel);
+    if (is_alpha) {
+      header.channels().insert("A", channel);
+    }
+
+    if (flags & IB_mem) {
+      file_stream = new OMemStream(ibuf);
+    }
+    else {
+      file_stream = new OFileStream(filepath);
+    }
+    OutputFile file(*file_stream, header);
+
+    FrameBuffer frameBuffer;
+    Vector<RGBAHalf> half_pixels;
+
+    if (half_precision) {
+      half_pixels.resize(int64_t(height) * width);
+      RGBAHalf *to = half_pixels.data();
+      int xstride = sizeof(RGBAHalf);
+      int ystride = xstride * width;
+      frameBuffer.insert("R", Slice(HALF, (char *)&to->r, xstride, ystride));
+      frameBuffer.insert("G", Slice(HALF, (char *)&to->g, xstride, ystride));
+      frameBuffer.insert("B", Slice(HALF, (char *)&to->b, xstride, ystride));
+      if (is_alpha) {
+        frameBuffer.insert("A", Slice(HALF, (char *)&to->a, xstride, ystride));
+      }
+
+      convert_input_to_half_rgba(ibuf, half_pixels.data());
+    }
+    else {
+      int xstride = sizeof(float) * channels;
+      int ystride = -xstride * width;
+
+      /* Last scan-line, stride negative. */
+      const float *src_data = ibuf->float_data() + int64_t(channels) * (height - 1) * width;
+      frameBuffer.insert("R", Slice(FLOAT, (char *)src_data, xstride, ystride));
+      frameBuffer.insert(
+          "G", Slice(FLOAT, (char *)(src_data + (channels >= 2 ? 1 : 0)), xstride, ystride));
+      frameBuffer.insert(
+          "B", Slice(FLOAT, (char *)(src_data + (channels >= 3 ? 2 : 0)), xstride, ystride));
+      if (is_alpha) {
+        frameBuffer.insert("A", Slice(FLOAT, (char *)(src_data + 3), xstride, ystride));
+      }
+    }
+
+    file.setFrameBuffer(frameBuffer);
+    file.writePixels(height);
+  }
+  catch (const std::exception &exc) {
+    delete file_stream;
+    CLOG_ERROR(&LOG, "%s: %s", __func__, exc.what());
+    return false;
+  }
+  catch (...) { /* Catch-all for edge cases or compiler bugs. */
+    delete file_stream;
+    CLOG_ERROR(&LOG, "Unknown error in %s", __func__);
+    return false;
   }
 
-  /* when no float rect, we save as half (16 bits is sufficient) */
-  if (ibuf->float_data() == nullptr) {
-    return imb_save_openexr_half(ibuf, filepath, flags);
-  }
-
-  return imb_save_openexr_float(ibuf, filepath, flags);
+  delete file_stream;
+  return true;
 }
 
 /* ******* Nicer API, MultiLayer and with Tile file support ************************************ */
