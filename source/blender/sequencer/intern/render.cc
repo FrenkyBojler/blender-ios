@@ -18,7 +18,6 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
@@ -1655,12 +1654,8 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
   }
   else if (strip->type == STRIP_TYPE_SCENE) {
     /* Recursive check. */
-    if (BLI_linklist_index(state->scenes_in_progress, strip->scene) == -1) {
-      LinkNode scene_parent{};
-      scene_parent.next = state->scenes_in_progress;
-      scene_parent.link = context->scene;
-      state->scenes_in_progress = &scene_parent;
-      /* End check. */
+    if (!state->scenes_in_progress.contains(strip->scene)) {
+      state->scenes_in_progress.add(context->scene);
 
       if (strip->flag & SEQ_SCENE_STRIPS) {
         if (strip->scene && (context->scene != strip->scene)) {
@@ -1678,8 +1673,8 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
         ibuf = seq_render_scene_strip(context, strip, frame_index, timeline_frame);
       }
 
-      /* Step back in the recursive check list. */
-      state->scenes_in_progress = state->scenes_in_progress->next;
+      /* End recursive check. */
+      state->scenes_in_progress.remove(context->scene);
     }
   }
   else if (strip->is_effect()) {

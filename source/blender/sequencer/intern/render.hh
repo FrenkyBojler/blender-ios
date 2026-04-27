@@ -17,7 +17,6 @@ namespace blender {
 
 struct Depsgraph;
 struct ImBuf;
-struct LinkNode;
 struct Mask;
 struct RenderData;
 struct Scene;
@@ -29,7 +28,7 @@ namespace seq {
 /* Recursion protection while rendering a single sequencer frame.
  * If the same scene or strip is seen, recursion stops. */
 struct SeqRenderState {
-  LinkNode *scenes_in_progress = nullptr;
+  Set<Scene *> scenes_in_progress;
   Set<Strip *> strips_in_progress;
 };
 
