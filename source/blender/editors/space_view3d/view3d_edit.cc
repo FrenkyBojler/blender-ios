@@ -191,6 +191,7 @@ static wmOperatorStatus view3d_center_camera_exec(bContext *C, wmOperator * /*op
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   rv3d->camdx = rv3d->camdy = 0.0f;
+  rv3d->camroll = 0.0f;
 
   ED_view3d_calc_camera_border_size(scene, depsgraph, region, v3d, rv3d, size);
 

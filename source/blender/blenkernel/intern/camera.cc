@@ -429,6 +429,7 @@ void BKE_camera_params_from_view3d(CameraParams *params,
 
     params->offsetx = 2.0f * rv3d->camdx * params->zoom;
     params->offsety = 2.0f * rv3d->camdy * params->zoom;
+    params->roll = rv3d->camroll;
 
     params->shiftx *= params->zoom;
     params->shifty *= params->zoom;
@@ -504,6 +505,12 @@ void BKE_camera_params_compute_viewplane(
   /* lens shift and offset */
   dx = params->shiftx * viewfac + winx * params->offsetx;
   dy = params->shifty * viewfac + winy * params->offsety;
+
+  float c = cosf(params->roll);
+  float s = sinf(params->roll);
+  float dx2 = dx;
+  dx = dx2 * c + dy * s;
+  dy = -dx2 * s + dy * c;
 
   viewplane.xmin += dx;
   viewplane.ymin += dy;

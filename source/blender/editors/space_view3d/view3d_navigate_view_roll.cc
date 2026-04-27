@@ -68,6 +68,13 @@ static void viewroll_apply(ViewOpsData *vod, int x, int y)
   if (angle != 0.0f) {
     view_roll_angle(
         vod->region, vod->rv3d->viewquat, vod->init.quat, vod->init.mousevec, angle, false);
+
+    const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
+    if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
+      vod->rv3d->camroll = vod->init.camroll + angle;
+      /* Keep angle between -Pi and Pi */
+      vod->rv3d->camroll = math::mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
+    }
   }
 
   if (vod->use_dyn_ofs) {
@@ -188,12 +195,6 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
 
   ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
 
-  const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
-  if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
-    viewops_data_free(C, vod);
-    op->customdata = nullptr;
-    return OPERATOR_CANCELLED;
-  }
 
   if (vod->depsgraph == nullptr) {
     vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -214,6 +215,13 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
   normalize_v3_v3(mousevec, vod->rv3d->viewinv[2]);
   negate_v3(mousevec);
   view_roll_angle(vod->region, quat_new, vod->rv3d->viewquat, mousevec, angle, true);
+
+  const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
+  if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
+    vod->rv3d->camroll = vod->init.camroll + angle;
+    /* Keep angle between -Pi and Pi */
+    vod->rv3d->camroll = math::mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
+  }
 
   V3D_SmoothParams sview_params = {};
   sview_params.quat = quat_new;

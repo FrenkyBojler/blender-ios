@@ -587,8 +587,24 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   const float camdxy_init[2] = {rv3d->camdx, rv3d->camdy};
   const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 2.0f;
-  rv3d->camdx += event_ofs[0] / (region->winx * zoomfac);
-  rv3d->camdy += event_ofs[1] / (region->winy * zoomfac);
+  float x = event_ofs[0] / (region->winx * zoomfac);
+  float y = event_ofs[1] / (region->winy * zoomfac);
+  float aspect = float(region->winx) / float(region->winy);
+
+  x *= aspect;
+
+  const float c = cosf(rv3d->camroll);
+  const float s = sinf(rv3d->camroll);
+
+  float x2 = x;
+  x = x * c - y * s;
+  y = x2 * s + y * c;
+
+  x /= aspect;
+
+  rv3d->camdx += x;
+  rv3d->camdy += y;
+
   CLAMP(rv3d->camdx, -1.0f, 1.0f);
   CLAMP(rv3d->camdy, -1.0f, 1.0f);
   return (camdxy_init[0] != rv3d->camdx) || (camdxy_init[1] != rv3d->camdy);

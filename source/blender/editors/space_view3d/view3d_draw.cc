@@ -558,6 +558,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   x2 = viewborder.xmax;
   y2 = viewborder.ymax;
 
+  const float roll = rv3d->camroll;
   GPU_line_width(1.0f);
 
   /* apply offsets so the real 3D camera shows through */
@@ -579,6 +580,15 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   {
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
+    if (roll != 0.0f) {
+      GPU_matrix_push();
+      const int center_x = (x1 + x2) / 2;
+      const int center_y = (y1 + y2) / 2;
+      GPU_matrix_translate_2f(center_x, center_y);
+      GPU_matrix_rotate_2d(RAD2DEG(-rv3d->camroll));
+      GPU_matrix_translate_2f(-center_x, -center_y);
+    }
+
     /* passepartout, specified in camera edit buttons */
     if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f &&
         v3d->flag2 & V3D_SHOW_CAMERA_PASSEPARTOUT)
@@ -595,17 +605,27 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
       immUniformThemeColorAlpha(TH_CAMERA_PASSEPARTOUT, alpha);
 
-      if (x1i > 0.0f) {
-        immRectf(shdr_pos, 0.0f, winy, x1i, 0.0f);
-      }
+      if (roll == 0.0f) {
+        if (x1i > 0.0f) {
+          immRectf(shdr_pos, 0.0f, winy, x1i, 0.0f);
+        }
       if (x2i < winx) {
         immRectf(shdr_pos, x2i, winy, winx, 0.0f);
       }
       if (y2i < winy) {
         immRectf(shdr_pos, x1i, winy, x2i, y2i);
       }
-      if (y2i > 0.0f) {
-        immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
+        if (y2i > 0.0f) {
+          immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
+        }
+      }
+      else {
+        const float padding = math::max(winx, winy);
+
+        immRectf(shdr_pos, -padding, winy + padding, x1i, -padding);
+        immRectf(shdr_pos, x2i, winy + padding, winx + padding, -padding);
+        immRectf(shdr_pos, x1i, winy + padding, x2i, y2i);
+        immRectf(shdr_pos, x1i, y1i, x2i, -padding);
       }
 
       GPU_blend(GPU_BLEND_NONE);
@@ -626,6 +646,9 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
   /* When overlays are disabled, only show camera outline & passepartout. */
   if (v3d->flag2 & V3D_HIDE_OVERLAYS || !(v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
+    if (roll != 0.0f) {
+      GPU_matrix_pop();
+    }
     return;
   }
 
@@ -803,6 +826,10 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
                      0.0f,
                      v3d->camera->id.name + 2,
                      sizeof(v3d->camera->id.name) - 2);
+  }
+
+  if (roll != 0.0f) {
+    GPU_matrix_pop();
   }
 }
 
