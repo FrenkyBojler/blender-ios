@@ -3,3 +3,4 @@ Referenced by issue #157229, Viewer nodes affecting exposed parameters in a menu
 Referenced by issue #157253, Menu / Index Switching changing exposed node parameter behavior in 5.1.0
 Referenced by pull request #157296, Fix #157253: Incorrect Menu/Index Switch node parameter behavior
 Referenced by pull request #157887, Fix #157253: socket usage inferencing regression
+Referenced by commit d8701590917d0254582614c1e3ade7cc9003d0eb, Fix #157253: socket usage inferencing regression
