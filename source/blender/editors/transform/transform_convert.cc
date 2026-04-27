@@ -331,13 +331,12 @@ static bool pchan_autoik_adjust(bPoseChannel *pchan, const short chainlen, const
         }
         changed |= (data->rootbone != old_rootbone);
 
-        const bool use_stretch_new = ((autoik_flags & AUTOIK_USE_STRETCH) != 0);
-        const bool use_stretch_old = ((data->flag & CONSTRAINT_IK_STRETCH) != 0);
+        short old_flags = data->flag;
         data->flag &= ~CONSTRAINT_IK_STRETCH;
-        if (use_stretch_new) {
+        if ((autoik_flags & AUTOIK_USE_STRETCH) != 0) {
           data->flag |= CONSTRAINT_IK_STRETCH;
         }
-        changed |= (use_stretch_new && use_stretch_old);
+        changed |= (data->flag != old_flags);
       }
     }
   }
