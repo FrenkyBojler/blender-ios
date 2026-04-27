@@ -1170,8 +1170,11 @@ class NODE_OT_interface_item_new_panel_toggle(Operator):
         active_panel = interface.active
 
         item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
-        item.is_panel_toggle = True
+
+        # Set is_panel_toggle after moving into parent
         interface.move_to_parent(item, active_panel, 0)
+        item.is_panel_toggle = True
+
         return {'FINISHED'}
 
 
@@ -1287,8 +1290,6 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         # Use the same name as the panel in the UI for clarity.
         active_item.name = parent_panel.name
 
-        # Move the socket to the first position.
-        interface.move_to_parent(active_item, parent_panel, 0)
         # Make the panel active.
         interface.active = parent_panel
 
