@@ -65,10 +65,10 @@ class TestBlendFileAutosave(TestHelper):
         self.assertIn("NewCubeMesh", bpy.data.meshes)
 
 
-
 TESTS = (
     TestBlendFileAutosave,
 )
+
 
 def argparse_create():
     import argparse
