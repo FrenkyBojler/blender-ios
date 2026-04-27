@@ -706,7 +706,7 @@ restart:
   eval_data->restart.store(false);
 
   int left_bound = eval_data->evaluation_center;
-  int right_bound = eval_data->evaluation_center + 1;
+  int right_bound = left_bound + 1;
   bool left_right = true;
 
   while (left_bound >= eval_data->frame_range.min || right_bound < eval_data->frame_range.max) {
@@ -746,7 +746,7 @@ restart:
         eval_data->results[target_index].flags[frame_index] &= ~MOTIONPATH_VERT_KEY;
       }
     }
-    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     eval_data->evaluated_frames[frame_index].store(true, std::memory_order_release);
     worker_status->progress = float(frame - eval_data->frame_range.min) /
                               eval_data->frame_range.size();
@@ -840,6 +840,9 @@ void animviz_calc_motionpaths_async(Main *bmain,
     MotionPathEvalData *job_data = static_cast<MotionPathEvalData *>(
         WM_jobs_customdata_get(wm_job));
     if (targets_match_job_data(targets, *job_data)) {
+      /* Updating without an atomic flag. The center is only read at the start of the worker job,
+       * so this is unlikely to result in a data race. */
+      job_data->evaluation_center = scene->r.cfra;
       /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
        * to restart the work with the same data. */
       job_data->restart.store(true);
