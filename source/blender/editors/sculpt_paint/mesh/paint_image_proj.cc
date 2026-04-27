@@ -455,14 +455,11 @@ struct ProjPaintState {
   Span<int2> edges_eval;
   OffsetIndices<int> faces_eval;
   Span<int> corner_verts_eval;
-  bool select_poly_is_single;
-  bool select_poly_single;
+  std::optional<bool> select_poly_single;
   const bool *select_poly_eval;
-  bool hide_poly_is_single;
-  bool hide_poly_single;
+  std::optional<bool> hide_poly_single;
   const bool *hide_poly_eval;
-  bool material_index_is_single;
-  int material_index_single;
+  std::optional<int> material_index_single;
   const int *material_indices;
   Span<float3> corner_normals_eval;
   Span<int3> corner_tris_eval;
@@ -588,8 +585,8 @@ static int project_paint_face_paint_tile(Image *ima, const float *uv)
 static Material *tex_get_material(const ProjPaintState *ps, int face_i)
 {
   int mat_nr = 0;
-  if (ps->material_index_is_single) {
-    mat_nr = ps->material_index_single;
+  if (ps->material_index_single) {
+    mat_nr = ps->material_index_single.value();
   }
   else if (ps->material_indices) {
     mat_nr = ps->material_indices[face_i];
@@ -4102,11 +4099,9 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   if (const bke::GAttributeReader attr = attributes.lookup(".select_poly")) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
       if (attr.varray.is_single()) {
-        ps->select_poly_is_single = true;
         ps->select_poly_single = attr.varray.typed<bool>().get_internal_single();
       }
       else if (attr.varray.is_span()) {
-        ps->select_poly_is_single = false;
         ps->select_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
       }
     }
@@ -4114,11 +4109,9 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly")) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
       if (attr.varray.is_single()) {
-        ps->hide_poly_is_single = true;
         ps->hide_poly_single = attr.varray.typed<bool>().get_internal_single();
       }
       else if (attr.varray.is_span()) {
-        ps->hide_poly_is_single = false;
         ps->hide_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
       }
     }
@@ -4126,11 +4119,9 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   if (const bke::GAttributeReader attr = attributes.lookup("material_index")) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<int>()) {
       if (attr.varray.is_single()) {
-        ps->material_index_is_single = true;
         ps->material_index_single = attr.varray.typed<int>().get_internal_single();
       }
       else if (attr.varray.is_span()) {
-        ps->material_index_is_single = false;
         ps->material_indices = attr.varray.get_internal_span().typed<int>().data();
       }
     }
@@ -4274,8 +4265,8 @@ static bool project_paint_check_face_paintable(const ProjPaintState *ps,
     {
       return face_lookup->select_poly_orig[orig_index];
     }
-    if (ps->select_poly_is_single) {
-      return ps->select_poly_single;
+    if (ps->select_poly_single) {
+      return ps->select_poly_single.value();
     }
     if (ps->select_poly_eval) {
       return ps->select_poly_eval[face_i];
@@ -4289,8 +4280,8 @@ static bool project_paint_check_face_paintable(const ProjPaintState *ps,
   {
     return !face_lookup->hide_poly_orig[orig_index];
   }
-  if (ps->hide_poly_is_single) {
-    return !ps->hide_poly_single;
+  if (ps->hide_poly_single) {
+    return !ps->hide_poly_single.value();
   }
   if (ps->hide_poly_eval) {
     return !ps->hide_poly_eval[face_i];
