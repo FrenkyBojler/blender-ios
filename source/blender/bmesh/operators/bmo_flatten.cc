@@ -19,8 +19,6 @@
 
 namespace blender {
 
-static constexpr float FLATTEN_EPSILON = 1e-6f;
-
 /**
  * Methods for determining the orientation of flattening the plane.
  */
