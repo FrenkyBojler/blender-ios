@@ -11,7 +11,7 @@
 #include "BLI_array.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_set.hh"
+#include "BLI_vector_set.hh"
 #include "BLI_vector.hh"
 
 #include "bmesh.hh"
@@ -40,18 +40,15 @@ static float3 compute_average_face_normal(Span<BMFace *> faces)
 
 static Vector<BMVert *> collect_verts_from_faces(Span<BMFace *> faces)
 {
-  Set<BMVert *> visited;
-  Vector<BMVert *> verts;
+  VectorSet<BMVert *> verts;
   for (BMFace *f : faces) {
     BMIter viter;
     BMVert *v;
     BM_ITER_ELEM (v, &viter, f, BM_VERTS_OF_FACE) {
-      if (visited.add(v)) {
-        verts.append(v);
-      }
+      verts.add(v);
     }
   }
-  return verts;
+  return verts.extract_vector();
 }
 
 void bmo_flatten_exec(BMesh *bm, BMOperator *op)
