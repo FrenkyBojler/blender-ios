@@ -553,7 +553,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_SOUND: {
-      template_id(&layout, &ctx.C, socket_props_ptr, "value", nullptr, "SOUND_OT_open", nullptr);
+      template_id(&row, &ctx.C, socket_props_ptr, "value", nullptr, "SOUND_OT_open", nullptr);
       break;
     }
     case SOCK_IMAGE: {
