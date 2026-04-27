@@ -6,16 +6,13 @@ import bpy
 
 
 # Attribute entries are stored as (attribute_name, shader_attribute_type).
-# Example:
 # {
 #     "attribute": [("UVMap", 'GEOMETRY')],
 #     "instancer": [("instance_color", 'INSTANCER')],
 # }
 AttributesMap = dict[str, list[tuple[str, str]]]
-ObjectList = list[bpy.types.Object]
-ObjectKeySet = set[int]
 # Used to de-duplicate entries by both the attribute type and name.
-# Example: {('GEOMETRY', "color"), ('INSTANCER', "color")}
+# {('GEOMETRY', "color"), ('INSTANCER', "color")}
 AttributeKeySet = set[tuple[str, str]]
 
 
@@ -54,7 +51,7 @@ def _object_key(obj: bpy.types.Object) -> int | None:
         return None
 
 
-def _append_object(objects: ObjectList, used_objects: ObjectKeySet, obj: bpy.types.Object | None) -> None:
+def _append_object(objects: list[bpy.types.Object], used_objects: set[int], obj: bpy.types.Object | None) -> None:
     if obj is None:
         return
 
@@ -66,7 +63,7 @@ def _append_object(objects: ObjectList, used_objects: ObjectKeySet, obj: bpy.typ
     used_objects.add(key)
 
 
-def _objects_with_material(material: bpy.types.Material | None) -> ObjectList:
+def _objects_with_material(material: bpy.types.Material | None) -> list[bpy.types.Object]:
     objects = []
     if material is None:
         return objects
@@ -80,7 +77,7 @@ def _objects_with_material(material: bpy.types.Material | None) -> ObjectList:
     return objects
 
 
-def _context_objects(context: bpy.types.Context) -> ObjectList:
+def _context_objects(context) -> list[bpy.types.Object]:
     objects = []
     used_objects = set()
 
@@ -259,7 +256,7 @@ def _add_instance_point_attributes_from_object(
         _add_attribute_name(attributes, used_names, "instancer", name, 'INSTANCER')
 
 
-def object_attribute_names(context: bpy.types.Context) -> AttributesMap:
+def object_attribute_names(context) -> AttributesMap:
     attributes = {
         "modifier": [],
         "vertex_group": [],
