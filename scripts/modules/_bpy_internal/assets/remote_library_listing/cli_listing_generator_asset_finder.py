@@ -78,6 +78,7 @@ def list_assets(blendfile: Path, asset_library_root: Path) -> tuple[api_models.F
     # After processing is done, set the thumbnail dir mtime to that of the
     # blendfile. By tracking the mtime of the directory itself, not every
     # individual thumbnail needs to be time-checked.
+    thumbnail_dir.mkdir(exist_ok=True, parents=True)
     thumbnail_timestamper.touch(exist_ok=True)
     os.utime(thumbnail_timestamper, (blend_stat.st_atime, blend_stat.st_mtime))
 
@@ -102,7 +103,7 @@ def _find_assets(
         if thumbnail_path and should_write_thumbnails:
             _save_thumbnail(datablock, thumbnail_path)
 
-        if thumbnail_path:
+        if thumbnail_path and thumbnail_path.exists():
             as_posix = thumbnail_path.relative_to(asset_library_root).as_posix()
             thumbnail = api_models.URLWithHash(
                 url=urllib.parse.quote(as_posix),

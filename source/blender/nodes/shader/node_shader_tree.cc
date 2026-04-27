@@ -190,7 +190,7 @@ void register_node_tree_type_sh()
 
   tt->type = NTREE_SHADER;
   tt->idname = "ShaderNodeTree"_ustr;
-  tt->group_idname = "ShaderNodeGroup";
+  tt->group_idname = "ShaderNodeGroup"_ustr;
   tt->ui_name = N_("Shader Editor");
   tt->ui_icon = ICON_NODE_MATERIAL;
   tt->ui_description = N_("Edit materials, lights, and world shading using nodes");
@@ -693,9 +693,6 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
             case SH_NODE_VOLUME_SCATTER:
             case SH_NODE_VOLUME_COEFFICIENTS:
               fromsock = ntree_shader_node_find_input(fromnode, "Weight");
-              /* Make "weight" sockets available so that links to it are available as well and are
-               * not ignored in other places. */
-              fromsock->flag &= ~SOCK_UNAVAIL;
               if (fromsock->link) {
                 ntree_weight_tree_merge_weight(ntree, fromnode, fromsock, &tonode, &tosock);
               }

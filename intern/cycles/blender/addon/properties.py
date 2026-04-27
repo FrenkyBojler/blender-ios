@@ -873,6 +873,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         subtype='PIXEL'
     )
 
+    use_pixel_jitter: BoolProperty(
+        name="Use Pixel Jitter",
+        default=False,
+    )
+
     seed: IntProperty(
         name="Seed",
         description="Seed value for integrator to get different noise patterns",
@@ -1093,6 +1098,17 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description=adaptive_compile_description,
         default=False)
 
+    debug_use_texture_cache_eviction: BoolProperty(
+        name="Cache Eviction",
+        description="Evict unused tiles from the texture cache to free up memory",
+        default=True)
+
+    debug_texture_cache_preserve_unused: IntProperty(
+        name="Preserve Unused MB",
+        description="Preserve unused texture cache data, up to this amount of memory",
+        min=0,
+        default=0)
+
     @classmethod
     def register(cls):
         bpy.types.Scene.cycles = PointerProperty(
@@ -1260,6 +1276,11 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
                     "(lower values give more accurate and detailed results, but also increased render time)",
         default=1.0,
         min=0.0000001, max=100000.0, soft_min=0.1, soft_max=100.0, precision=4
+    )
+    use_shadows: BoolProperty(
+        name="Shadows",
+        description="Enable shadow casting from the world",
+        default=True,
     )
 
     @classmethod
