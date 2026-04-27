@@ -230,16 +230,12 @@ static int member_size_native(const TypeInfo &member_type, const dna::ParsedMemb
 {
   const char *cp = parsed_member.member_name.c_str();
   const int namelen = int(parsed_member.member_name.size());
-  /* Array length multiplier. */
-  int mul = 1;
-  if (cp[namelen - 1] == ']') {
-    mul = DNA_member_array_num(cp);
-  }
+  const int array_num = (cp[namelen - 1] == ']') ? DNA_member_array_num(cp) : 1;
   /* Pointer size. */
   if (cp[0] == '*' || cp[1] == '*') {
-    return sizeof(void *) * mul;
+    return sizeof(void *) * array_num;
   }
-  return member_type.size_native * mul;
+  return member_type.size_native * array_num;
 }
 
 static bool check_member_alignment(const TypeInfo &struct_info,
@@ -320,17 +316,14 @@ static int compute_type_size_and_alignment(TypeTable &table,
         for (const dna::ParsedMember &parsed_member : parsed_struct.members) {
           const TypeInfo &member_type = table.lookup(parsed_member.type_name);
           const char *cp = parsed_member.member_name.c_str();
-          int namelen = int(parsed_member.member_name.size());
+          const int namelen = int(parsed_member.member_name.size());
 
           /* is it a pointer or function pointer? */
           if (cp[0] == '*' || cp[1] == '*') {
             /* has the name an extra length? (array) */
-            int mul = 1;
-            if (cp[namelen - 1] == ']') {
-              mul = DNA_member_array_num(cp);
-            }
+            const int array_num = (cp[namelen - 1] == ']') ? DNA_member_array_num(cp) : 1;
 
-            if (mul == 0) {
+            if (array_num == 0) {
               fprintf(stderr,
                       "Zero array size found or could not parse %s: '%.*s'\n",
                       struct_info.name.c_str(),
@@ -368,8 +361,8 @@ static int compute_type_size_and_alignment(TypeTable &table,
             }
 
             size_native += member_size_native(member_type, parsed_member);
-            size_32 += 4 * mul;
-            size_64 += 8 * mul;
+            size_32 += 4 * array_num;
+            size_64 += 8 * array_num;
             max_align_32 = std::max(max_align_32, 4);
             max_align_64 = std::max(max_align_64, 8);
           }
@@ -384,12 +377,9 @@ static int compute_type_size_and_alignment(TypeTable &table,
           }
           else if (member_type.size_native) {
             /* has the name an extra length? (array) */
-            int mul = 1;
-            if (cp[namelen - 1] == ']') {
-              mul = DNA_member_array_num(cp);
-            }
+            const int array_num = (cp[namelen - 1] == ']') ? DNA_member_array_num(cp) : 1;
 
-            if (mul == 0) {
+            if (array_num == 0) {
               fprintf(stderr,
                       "Zero array size found or could not parse %s: '%.*s'\n",
                       struct_info.name.c_str(),
@@ -430,8 +420,8 @@ static int compute_type_size_and_alignment(TypeTable &table,
             }
 
             size_native += member_size_native(member_type, parsed_member);
-            size_32 += mul * member_type.size_32;
-            size_64 += mul * member_type.size_64;
+            size_32 += array_num * member_type.size_32;
+            size_64 += array_num * member_type.size_64;
             max_align_32 = std::max<int>(max_align_32, member_type.align_32);
             max_align_64 = std::max<int>(max_align_64, member_type.align_64);
             max_align_32 = std::max<int>(max_align_32, member_align);
@@ -449,6 +439,11 @@ static int compute_type_size_and_alignment(TypeTable &table,
           unknown++;
         }
         else {
+          /* Sanity check: struct sizes are written as #short to the SDNA blob. */
+          BLI_assert(size_native <= SHRT_MAX);
+          BLI_assert(size_32 <= SHRT_MAX);
+          BLI_assert(size_64 <= SHRT_MAX);
+
           struct_info.size_native = short(size_native);
           struct_info.size_32 = short(size_32);
           struct_info.size_64 = short(size_64);
