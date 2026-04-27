@@ -54,6 +54,82 @@ enum eMaterialPipeline {
   MAT_PIPE_CAPTURE,
 };
 
+constexpr eMaterialPipeline pipeline_prepass_get(bool is_forward,
+                                                 bool with_velocity,
+                                                 bool with_raycast)
+{
+  return is_forward ?
+             (with_velocity ?
+                  (with_raycast ? MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST :
+                                  MAT_PIPE_PREPASS_FORWARD_VELOCITY) :
+                  (with_raycast ? MAT_PIPE_PREPASS_FORWARD_RAYCAST : MAT_PIPE_PREPASS_FORWARD)) :
+             (with_velocity ?
+                  (with_raycast ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST :
+                                  MAT_PIPE_PREPASS_DEFERRED_VELOCITY) :
+                  (with_raycast ? MAT_PIPE_PREPASS_DEFERRED_RAYCAST : MAT_PIPE_PREPASS_DEFERRED));
+};
+
+constexpr bool pipeline_is_forward(eMaterialPipeline pipeline)
+{
+  switch (pipeline) {
+    case MAT_PIPE_FORWARD:
+    case MAT_PIPE_PREPASS_FORWARD:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
+    case MAT_PIPE_PREPASS_FORWARD_RAYCAST:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
+    case MAT_PIPE_PREPASS_OVERLAP:
+    case MAT_PIPE_PREPASS_PLANAR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+constexpr bool pipeline_is_prepass(eMaterialPipeline pipeline)
+{
+  switch (pipeline) {
+    case MAT_PIPE_PREPASS_DEFERRED:
+    case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
+    case MAT_PIPE_PREPASS_DEFERRED_RAYCAST:
+    case MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST:
+    case MAT_PIPE_PREPASS_FORWARD:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
+    case MAT_PIPE_PREPASS_FORWARD_RAYCAST:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
+    case MAT_PIPE_PREPASS_OVERLAP:
+    case MAT_PIPE_PREPASS_PLANAR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+constexpr bool pipeline_has_velocity(eMaterialPipeline pipeline)
+{
+  switch (pipeline) {
+    case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
+    case MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
+      return true;
+    default:
+      return false;
+  }
+}
+
+constexpr bool pipeline_is_raycast_target(eMaterialPipeline pipeline)
+{
+  switch (pipeline) {
+    case MAT_PIPE_PREPASS_DEFERRED_RAYCAST:
+    case MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST:
+    case MAT_PIPE_PREPASS_FORWARD_RAYCAST:
+    case MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST:
+      return true;
+    default:
+      return false;
+  }
+}
+
 /**
  * Defines the geometric primitive type the shader is intended to run on.
  * This affects attribute fetching and attribute interpolation.

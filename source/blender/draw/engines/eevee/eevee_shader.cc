@@ -1362,17 +1362,7 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
                                  transparent_shadows);
 
   bool is_shadow_pass = pipeline_type == eMaterialPipeline::MAT_PIPE_SHADOW;
-  bool is_prepass = ELEM(pipeline_type,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_RAYCAST,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY_RAYCAST,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_OVERLAP,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_RAYCAST,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST,
-                         eMaterialPipeline::MAT_PIPE_PREPASS_PLANAR);
+  bool is_prepass = pipeline_is_prepass(pipeline_type);
 
   bool has_vertex_displacement = GPU_material_has_displacement_output(mat) &&
                                  displacement_type != eMaterialDisplacement::MAT_DISPLACEMENT_BUMP;
