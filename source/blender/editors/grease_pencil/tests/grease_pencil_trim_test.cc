@@ -24,14 +24,6 @@
 
 namespace blender::ed::greasepencil::tests {
 
-class GreasePencilTrimTest : public testing::Test {
- public:
-  static void SetUpTestSuite()
-  {
-    BKE_cpp_types_init();
-  }
-};
-
 static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
                                               const Span<float2> positions_2d,
                                               const Span<bool> cyclic)
