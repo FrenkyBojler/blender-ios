@@ -746,8 +746,8 @@ restart:
         eval_data->results[target_index].flags[frame_index] &= ~MOTIONPATH_VERT_KEY;
       }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    eval_data->evaluated_frames[frame_index].store(true);
+    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    eval_data->evaluated_frames[frame_index].store(true, std::memory_order_release);
     worker_status->progress = float(frame - eval_data->frame_range.min) /
                               eval_data->frame_range.size();
     worker_status->do_update = true;
@@ -760,7 +760,7 @@ static void flush_to_motion_path(MotionPathEvalData &eval_data)
     MPathTarget *target = &eval_data.targets[target_index];
     TargetEvalResult &result = eval_data.results[target_index];
     for (const int frame_index : result.points.index_range()) {
-      if (!eval_data.evaluated_frames[frame_index].load()) {
+      if (!eval_data.evaluated_frames[frame_index].load(std::memory_order_acquire)) {
         continue;
       }
       bMotionPathVert &vert = target->mpath->points[frame_index];
