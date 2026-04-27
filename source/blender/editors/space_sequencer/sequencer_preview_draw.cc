@@ -1933,12 +1933,6 @@ void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region)
   const Scene *scene = CTX_data_sequencer_scene(C);
   const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
-  const int start_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.psfra : scene->r.sfra;
-  const int end_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.pefra : scene->r.efra;
-
-  region->v2d.cur.xmin = start_frame;
-  region->v2d.cur.xmax = std::max(end_frame, start_frame + 1);
-
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
   ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), false, true);

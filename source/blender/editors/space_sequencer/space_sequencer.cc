@@ -1169,6 +1169,17 @@ static void sequencer_scrubbing_region_listener(const wmRegionListenerParams *pa
   }
 }
 
+static void sequencer_scrubbing_region_layout(const bContext *C, ARegion *region)
+{
+  const Scene *scene = CTX_data_sequencer_scene(C);
+
+  const int start_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.psfra : scene->r.sfra;
+  const int end_frame = (scene->r.flag & SCER_PRV_RANGE) ? scene->r.pefra : scene->r.efra;
+
+  region->v2d.cur.xmin = start_frame;
+  region->v2d.cur.xmax = std::max(end_frame, start_frame + 1);
+}
+
 void ED_spacetype_sequencer()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -1305,6 +1316,7 @@ void ED_spacetype_sequencer()
   art->init = sequencer_scrubbing_region_init;
   art->poll = sequencer_scrubbing_region_poll;
   art->draw = sequencer_scrubbing_region_draw;
+  art->layout = sequencer_scrubbing_region_layout;
   art->listener = sequencer_scrubbing_region_listener;
   BLI_addhead(&st->regiontypes, art);
 
