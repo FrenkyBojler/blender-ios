@@ -10,6 +10,7 @@
 
 #include "BLO_read_write.hh"
 
+#include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_layer_types.h"
@@ -17,6 +18,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_collection.hh"
+#include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
@@ -218,7 +220,21 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   walk(user_data, ob, reinterpret_cast<ID **>(&lmd->light_contour_object), IDWALK_CB_NOP);
 }
 
-static void panel_draw(const bContext * /*C*/, Panel *panel)
+static bool is_camera_supported(const GreasePencilLineartModifierData *ld, const bContext *C)
+{
+  Object *use_camera = nullptr;
+  if (ld->source_camera != nullptr) {
+    use_camera = ld->source_camera;
+  }
+  else {
+    Scene *scene = CTX_data_scene(C);
+    use_camera = scene->camera;
+  }
+  Camera *camera_data = reinterpret_cast<Camera *>(use_camera->data);
+  return ELEM(camera_data->type, CAM_PERSP, CAM_ORTHO);
+}
+
+static void panel_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
 
@@ -227,13 +243,20 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
+  const GreasePencilLineartModifierData *ld = static_cast<const GreasePencilLineartModifierData *>(
+      ptr->data);
+
+  if (!is_camera_supported(ld, C)) {
+    layout.label("Camera type not supported!", ICON_WARNING_LARGE);
+  }
+
   const int source_type = RNA_enum_get(ptr, "source_type");
   const bool is_baked = RNA_boolean_get(ptr, "is_baked");
 
   layout.use_property_split_set(true);
   layout.enabled_set(!is_baked);
 
-  if (!is_first_lineart(*static_cast<const GreasePencilLineartModifierData *>(ptr->data))) {
+  if (!is_first_lineart(*ld)) {
     layout.prop(ptr, "use_cache", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
