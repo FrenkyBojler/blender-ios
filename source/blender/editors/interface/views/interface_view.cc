@@ -346,20 +346,20 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
      * insert it before first or after last visible item depends on the mouse position. */
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
       /* Find the first or last item which we want to drop below. */
-      AbstractTreeViewItem *border_item = nullptr;
+      AbstractTreeViewItem *first_or_last_visible = nullptr;
       tree_view->foreach_root_item([&](AbstractTreeViewItem &item) {
         if (!item.is_interactive()) {
           return;
         }
         std::optional<rctf> rct = item.get_win_rect(*region);
         if (rct.has_value()) {
-          if ((!border_item && (xy[1] > rct->ymax)) || (xy[1] < rct->ymin)) {
-            border_item = &item;
+          if ((!first_or_last_visible && (xy[1] > rct->ymax)) || (xy[1] < rct->ymin)) {
+            first_or_last_visible = &item;
           }
         }
       });
-      if (border_item) {
-        return border_item->create_item_drop_target();
+      if (first_or_last_visible) {
+        return first_or_last_visible->create_item_drop_target();
       }
     }
   }
