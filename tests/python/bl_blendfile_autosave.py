@@ -5,6 +5,7 @@
 # ./blender.bin --background --python tests/python/bl_blendfile_autosave.py
 import bpy
 import os
+import re
 import sys
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -17,9 +18,11 @@ class TestBlendFileAutosave(TestHelper):
 
     @staticmethod
     def find_autosave_path(base_dir, base_filename):
+        pattern = re.compile("{}_[0-9]+_autosave.blend".format(base_filename))
+
         paths = os.listdir(base_dir)
         for path in paths:
-            if path.startswith(base_filename):
+            if pattern.match(path):
                 return os.path.join(base_dir, path)
 
         return None
@@ -56,11 +59,13 @@ class TestBlendFileAutosave(TestHelper):
 
         autosave_path = self.find_autosave_path(output_dir, "blendfile_autosave")
         self.assertTrue(autosave_path)
+        self.assertNotEqual(output_path, autosave_path)
 
-        bpy.ops.wm.recover_auto_save(filepath=autosave_path)
+        retval = bpy.ops.wm.recover_auto_save(filepath=autosave_path)
+        self.assertEqual(retval, {'FINISHED'})
 
-        read_data = self.blender_data_to_tuple(bpy.data, "read_data 2")
-        self.assertEqual(read_data, autosave_data)
+        recover_data = self.blender_data_to_tuple(bpy.data, "recover_data")
+        self.assertEqual(recover_data, autosave_data)
         self.assertIn("OrigCubeMesh", bpy.data.meshes)
         self.assertIn("NewCubeMesh", bpy.data.meshes)
 
