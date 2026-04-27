@@ -2786,7 +2786,7 @@ static void UI_OT_view_scroll(wmOperatorType *ot)
 static bool view_item_rename_poll(bContext *C)
 {
   AbstractView *view = get_view_focused(C);
-  if (get_view_focused(C) == nullptr) {
+  if (view == nullptr) {
     return false;
   }
 

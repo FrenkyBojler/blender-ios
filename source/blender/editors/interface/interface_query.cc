@@ -521,7 +521,7 @@ static bool but_is_active_view_item(const Button *but, const void *view)
          view_item_but->view_item->is_active();
 }
 
-Button *view_item_find_active(const ARegion *region, AbstractView *view)
+Button *view_item_find_active(const ARegion *region, const AbstractView *view)
 {
   return but_find(region, but_is_active_view_item, view);
 }
