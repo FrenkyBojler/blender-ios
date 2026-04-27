@@ -107,7 +107,8 @@ bool button_is_interactive_ex(const Button *but, const bool labeledit, const boo
   if ((but->type == ButtonType::Text) &&
       ELEM(but->emboss, EmbossType::None, EmbossType::NoneOrStatus) && !labeledit)
   {
-    if (!for_tooltip || (but->flag2 & BUT2_NODE_SOCKET_NAME_EDITABLE) == 0) {
+    /* Make editable socket name buttons interactive. */
+    if ((but->flag2 & BUT2_NODE_SOCKET_NAME_EDITABLE) == 0) {
       return false;
     }
   }
