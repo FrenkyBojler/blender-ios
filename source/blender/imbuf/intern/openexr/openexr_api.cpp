@@ -88,6 +88,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_task.hh"
 #include "BLI_threads.h"
 
 #include "BKE_blender_version.h"
@@ -643,17 +644,18 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
     if (ibuf->float_data()) {
       const float *float_data = ibuf->float_data();
 
-      Array<float4> row_buffer(width);
-      for (int i = ibuf->y - 1; i >= 0; i--) {
-        const float *from = float_data + int64_t(channels) * i * width;
-        for (int j = 0; j < ibuf->x; j++) {
-          row_buffer[j] = float4(from[comp_r], from[comp_g], from[comp_b], from[comp_a]);
+      threading::parallel_for_each(IndexRange(height), [&](int64_t y) {
+        Array<float4> row_buffer(width);
+        RGBAHalf *to_row = to + y * width;
+
+        const float *from = float_data + int64_t(channels) * (ibuf->y - 1 - y) * width;
+        for (int x = 0; x < ibuf->x; x++) {
+          row_buffer[x] = float4(from[comp_r], from[comp_g], from[comp_b], from[comp_a]);
           from += channels;
         }
         math::float_to_half_clamp_array(
-            &row_buffer.data()->x, &to->r, 4 * width, -half_max_val, half_max_val);
-        to += width;
-      }
+            &row_buffer.data()->x, &to_row->r, 4 * width, -half_max_val, half_max_val);
+      });
     }
     else {
       uint16_t color_to_half[256];
@@ -1213,11 +1215,9 @@ void IMB_exr_write_channels(ExrHandle *handle)
       }
     }
 
-    Vector<float> row_float;
     Vector<uint16_t> rect_half;
     uint16_t *current_rect_half = nullptr;
     if (num_half_channels > 0) {
-      row_float.resize(handle->width);
       rect_half.resize(size_t(num_half_channels) * num_pixels);
       current_rect_half = rect_half.data();
     }
@@ -1232,19 +1232,19 @@ void IMB_exr_write_channels(ExrHandle *handle)
 
       if (echan.use_half_float) {
         const float *src_float = echan.rect;
-        /* Convert & clamp input floats to halfs one scanline at a time. */
-        int64_t src_index = 0;
-        for (int y = 0; y < handle->height; y++) {
-          for (int x = 0; x < handle->width; x++) {
-            row_float[x] = src_float[src_index];
-            src_index += echan.xstride;
+        /* Convert & clamp input floats to halfs. */
+        threading::parallel_for(IndexRange(num_pixels), 16 * 1024, [&](IndexRange range) {
+          Array<float> gathered_floats(range.size());
+          int64_t i = 0;
+          for (int64_t index : range) {
+            gathered_floats[i++] = src_float[index * echan.xstride];
           }
-          math::float_to_half_clamp_array(row_float.data(),
-                                          current_rect_half + y * handle->width,
-                                          handle->width,
+          math::float_to_half_clamp_array(gathered_floats.data(),
+                                          current_rect_half + range.first(),
+                                          range.size(),
                                           -handle->half_max_val,
                                           handle->half_max_val);
-        }
+        });
 
         uint16_t *rect_to_write = current_rect_half + (handle->height - 1L) * handle->width;
         frameBuffer.insert(
