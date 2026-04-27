@@ -20,8 +20,8 @@ namespace blender::nodes::node_geo_attribute_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
-  b.add_output<decl::String>("Names").structure_type(StructureType::List);
+  b.add_input<decl::Geometry>("Geometry"_ustr);
+  b.add_output<decl::String>("Names"_ustr).structure_type(StructureType::List);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -73,7 +73,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
 
-  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
   const eCustomDataType data_type = eCustomDataType(node.custom1);
   const AttrDomain domain = AttrDomain(node.custom2);
 
@@ -114,7 +114,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   parallel_sort(
       names.begin(), names.end(), [](const StringRef &a, const StringRef &b) { return a < b; });
 
-  params.set_output("Names", List::from_container(names));
+  params.set_output("Names"_ustr, List::from_container(names));
 }
 
 static void node_rna(StructRNA *srna)
@@ -140,7 +140,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeAttributeList");
+  geo_node_type_base(&ntype, "GeometryNodeAttributeList"_ustr);
   ntype.ui_name = "Attribute List";
   ntype.ui_description = "Samples attribute names as a list";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
