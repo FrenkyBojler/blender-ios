@@ -223,6 +223,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                MAT_PIPE_FORWARD,
                                MAT_PIPE_PREPASS_FORWARD,
                                MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+                               MAT_PIPE_PREPASS_FORWARD_RAYCAST,
+                               MAT_PIPE_PREPASS_FORWARD_VELOCITY_RAYCAST,
                                MAT_PIPE_PREPASS_OVERLAP);
 
   switch (GPU_material_status(matpass.gpumat)) {
