@@ -435,6 +435,13 @@ struct BevelParams {
 
 namespace debug {
 
+/* Ensures vert, edge, and face indices are up to date so that #vi, #ei, and #fi
+ * return readable sequential values.  Call this once before any dump function. */
+[[maybe_unused]] static void ensure_indices(BMesh *bm)
+{
+  BM_mesh_elem_index_ensure(bm, BM_VERT | BM_EDGE | BM_FACE);
+}
+
 /* Prints a float3 array as "(x,y,z)" with no trailing newline. */
 [[maybe_unused]] static void print_float3(const float v[3])
 {
@@ -625,7 +632,150 @@ namespace debug {
   }
 }
 
+/**
+ * Dumps the edge-strip quads associated with `bv` that were created by
+ * #bevel_build_edge_polygons.
+ *
+ * For each beveled #EdgeHalf of `bv`, uses `leftv->index` as the boundary row `i`
+ * in the #VMesh, then for each segment k walks successive boundary vertex pairs
+ * (i,0,k) and (i,0,k+1) to identify the adjacent edge-polygon face.  Since there is
+ * no direct face list, we scan all edges of the BMesh and look for an edge between
+ * the two consecutive boundary ring verts; the adjacent F_EDGE face (the one that is
+ * NOT an original face) is then dumped.
+ */
+[[maybe_unused]] static void dump_edge_polygons(const BMesh *bm, const BevVert &bv)
+{
+  const VMesh *vm = bv.vmesh;
+  if (!vm) {
+    return;
+  }
+  const int ns = vm->seg;
+  VMesh *vmp = const_cast<VMesh *>(vm);
+  /* Non-const pointer needed by mesh_vert. */
+
+  fmt::println("  Edge polygons for bv={}:", vi(bv.v));
+
+  for (int eidx = 0; eidx < bv.edgecount; eidx++) {
+    const EdgeHalf &eh = bv.edges[eidx];
+    if (!eh.is_bev || !eh.leftv) {
+      continue;
+    }
+    const int i = eh.leftv->index;
+    fmt::println("    EdgeHalf[{}] e={} i={}:", eidx, ei(eh.e), i);
+
+    for (int k = 0; k < ns; k++) {
+      /* The two consecutive boundary ring verts on this endpoint. */
+      const int nj = ns / 2 + 1;
+      const int nk = ns + 1;
+      const NewVert *nv_a = &vmp->mesh[i * nj * nk + 0 * nk + k];
+      const NewVert *nv_b = &vmp->mesh[i * nj * nk + 0 * nk + (k + 1)];
+      BMVert *va = nv_a->v;
+      BMVert *vb = nv_b->v;
+      if (!va || !vb) {
+        continue;
+      }
+      /* Find the BMEdge connecting va and vb. */
+      BMEdge *bme = BM_edge_exists(va, vb);
+      if (!bme) {
+        fmt::println("      k={} va={} vb={}: no edge found", k, vi(va), vi(vb));
+        continue;
+      }
+      /* Walk the radial faces of this edge to find the F_EDGE face
+       * (the one that is not an original input face, i.e., not fprev/fnext). */
+      BMFace *f_edge = nullptr;
+      BMLoop *l = bme->l;
+      if (l) {
+        BMLoop *l_start = l;
+        do {
+          /* Pick the face that shares neither fprev nor fnext with eh. */
+          BMFace *f = l->f;
+          if (f != eh.fprev && f != eh.fnext) {
+            f_edge = f;
+            break;
+          }
+          l = l->radial_next;
+        } while (l != l_start);
+      }
+      if (!f_edge) {
+        /* If not found by exclusion, just pick any radial face. */
+        f_edge = bme->l ? bme->l->f : nullptr;
+      }
+      if (!f_edge) {
+        fmt::println("      k={} va={} vb={}: no face found", k, vi(va), vi(vb));
+        continue;
+      }
+      /* Dump the face corners. */
+      fmt::print("      k={} face={} corners:", k, fi(f_edge));
+      BMIter liter;
+      BMLoop *l_dump;
+      BM_ITER_ELEM (l_dump, &liter, f_edge, BM_LOOPS_OF_FACE) {
+        fmt::print(" [v={} e={}]", vi(l_dump->v), ei(l_dump->e));
+      }
+      fmt::println("");
+    }
+  }
+}
+
+/**
+ * Dumps the rebuilt face `f` that replaced an original mesh face.
+ * Prints the face index and each loop's vertex index, edge index, and vertex coordinates.
+ */
+[[maybe_unused]] static void dump_rebuilt_face(BMFace *f)
+{
+  if (!f) {
+    fmt::println("  dump_rebuilt_face: face is null");
+    return;
+  }
+  fmt::print("  Rebuilt face={} ({} verts):", fi(f), f->len);
+  BMIter liter;
+  BMLoop *l;
+  BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+    fmt::print(" [v={} e={} co=({:.3f},{:.3f},{:.3f})]",
+               vi(l->v),
+               ei(l->e),
+               l->v->co[0],
+               l->v->co[1],
+               l->v->co[2]);
+  }
+  fmt::println("");
+}
+
 } /* namespace debug */
+
+/**
+ * Maps each newly-created #BMFace to the index of the original mesh face (#BMFace)
+ * used as its representative (frep) during UV/attribute interpolation.
+ * Populated inside #bev_create_ngon; cleared by #bevel_mesh at the top of the bevel call.
+ * Only active when `BEVEL_DEBUG` is defined.
+ */
+static Map<BMFace *, int> g_frep_map;
+
+namespace debug {
+
+/**
+ * Dumps the face representative map populated by #bev_create_ngon.
+ * For each newly-created face prints: "  new_face=<idx> frep=<orig_face_idx>".
+ * `bm` must have up-to-date indices (call #ensure_indices first).
+ */
+[[maybe_unused]] static void dump_face_reps(BMesh *bm)
+{
+  UNUSED_VARS(bm);
+  fmt::println("BMESH face frep map ({} entries):", g_frep_map.size());
+  /* Collect and sort by new-face index for a stable, readable output. */
+  Vector<std::pair<int, int>> entries;
+  entries.reserve(g_frep_map.size());
+  for (const auto &item : g_frep_map.items()) {
+    entries.append({BM_elem_index_get(item.key), item.value});
+  }
+  std::sort(entries.begin(), entries.end(), [](const auto &a, const auto &b) {
+    return a.first < b.first;
+  });
+  for (const auto &[face_idx, frep_idx] : entries) {
+    fmt::println("  new_face={} frep={}", face_idx, frep_idx);
+  }
+}
+
+} /* namespace debug (continued) */
 
 #endif /* BEVEL_DEBUG */
 
@@ -1186,6 +1336,15 @@ static BMFace *bev_create_ngon(BevelParams *bp,
 
   UVFace *uv_face = register_uv_face(bp, f, facerep, face_arr);
   update_uv_vert_map(bp, uv_face, bv, nv_bv_map);
+
+#ifdef BEVEL_DEBUG
+  {
+    /* Record the effective face rep chosen for this new face, for debugging parity with
+     * the mesh bevel's `new_face_examples_` array. */
+    BMFace *eff_frep = facerep ? facerep : (face_arr ? face_arr[0] : nullptr);
+    g_frep_map.add_overwrite(f, eff_frep ? BM_elem_index_get(eff_frep) : -1);
+  }
+#endif
 
   return f;
 }
@@ -7000,7 +7159,10 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 }
 
 /* Face f has at least one beveled vertex. Rebuild f. */
-static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
+static bool bev_rebuild_polygon(BMesh *bm,
+                                BevelParams *bp,
+                                BMFace *f,
+                                BMFace **r_new_face = nullptr)
 {
   bool do_rebuild = false;
   Vector<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> vv;
@@ -7170,6 +7332,9 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 
     /* Don't select newly or return created boundary faces. */
     if (f_new) {
+      if (r_new_face) {
+        *r_new_face = f_new;
+      }
       record_face_kind(bp, f_new, F_RECON);
       BM_elem_flag_disable(f_new, BM_ELEM_TAG);
       /* Also don't want new edges that aren't part of a new bevel face. */
@@ -7199,7 +7364,8 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 static void bevel_rebuild_existing_polygons(BMesh *bm,
                                             BevelParams *bp,
                                             BMVert *v,
-                                            Set<BMFace *> &rebuilt_orig_faces)
+                                            Set<BMFace *> &rebuilt_orig_faces,
+                                            BMFace **r_rebuilt_face_0 = nullptr)
 {
   BMIter iter;
   BMFace *f;
@@ -7208,8 +7374,12 @@ static void bevel_rebuild_existing_polygons(BMesh *bm,
      * a check against `rebuilt_orig_faces` container - previous calls to
      * `bevel_rebuild_existing_polygons` could have already rebuilt faces touching vertex `v`. */
     if (!rebuilt_orig_faces.contains(f)) {
-      if (bev_rebuild_polygon(bm, bp, f)) {
+      BMFace *new_face = nullptr;
+      if (bev_rebuild_polygon(bm, bp, f, &new_face)) {
         rebuilt_orig_faces.add(f);
+        if (r_rebuilt_face_0 && BM_elem_index_get(f) == 0) {
+          *r_rebuilt_face_0 = new_face;
+        }
       }
     }
   }
@@ -8175,6 +8345,12 @@ void BM_mesh_bevel(BMesh *bm,
     return;
   }
 
+#ifdef BEVEL_DEBUG
+  /* Clear the frep recording map for this bevel call. Indices must be current for recording. */
+  g_frep_map.clear();
+  BM_mesh_elem_index_ensure(bm, BM_FACE);
+#endif
+
 #ifdef BEVEL_DEBUG_TIME
   double start_time = BLI_time_now_seconds();
 #endif
@@ -8270,8 +8446,9 @@ void BM_mesh_bevel(BMesh *bm,
       if (bv) {
         build_vmesh(&bp, bm, bv);
         // DEBUG!!
-        if (debug::vi(v) == 0) {
-          fmt::println("\nBMESH code dump bv for vert 0");
+        if (debug::vi(v) == 1) {
+          fmt::println("\nBMESH code dump bv for vert 1");
+          debug::ensure_indices(bm);
           debug::dump_bev_vert(*bv);
         }
       }
@@ -8283,6 +8460,17 @@ void BM_mesh_bevel(BMesh *bm,
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
       if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
         bevel_build_edge_polygons(bm, &bp, e);
+      }
+    }
+    /* Debug: dump edge polygons for vertex 1. */
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_TAG) && debug::vi(v) == 1) {
+        bv = find_bevvert(&bp, v);
+        if (bv) {
+          debug::ensure_indices(bm);
+          debug::dump_edge_polygons(bm, *bv);
+        }
+        break;
       }
     }
   }
@@ -8299,11 +8487,21 @@ void BM_mesh_bevel(BMesh *bm,
 
   /* Rebuild face polygons around affected vertices. */
   Set<BMFace *> rebuilt_orig_faces;
+  BMFace *rebuilt_face_0 = nullptr;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
     if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
-      bevel_rebuild_existing_polygons(bm, &bp, v, rebuilt_orig_faces);
+      bevel_rebuild_existing_polygons(bm, &bp, v, rebuilt_orig_faces, &rebuilt_face_0);
       bevel_reattach_wires(bm, &bp, v);
     }
+  }
+  /* Debug: dump the rebuilt face that replaced original face 0. */
+  {
+    debug::ensure_indices(bm);
+    fmt::println("\nBMESH rebuilt face for orig face 0:");
+    debug::dump_rebuilt_face(rebuilt_face_0);
+    /* Dump all face reps recorded during face creation. */
+    fmt::println("");
+    debug::dump_face_reps(bm);
   }
 
   for (BMFace *f : rebuilt_orig_faces) {
