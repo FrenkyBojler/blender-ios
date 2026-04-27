@@ -616,7 +616,7 @@ struct MotionPathEvalData {
   Depsgraph *depsgraph;
   /* Defines a frame from which to start evaluating the motion path. This is to first evaluate the
    * frames that are important for the user. */
-  int evaluation_center;
+  std::atomic<int> evaluation_center;
   Bounds<int> frame_range;
   Array<std::atomic<bool>> evaluated_frames;
   Array<TargetEvalResult> results;
@@ -633,8 +633,9 @@ struct MotionPathEvalData {
                      wmWindowManager *wm,
                      Scene *scene,
                      Bounds<int> frame_range)
-      : evaluation_center(scene->r.cfra), frame_range(frame_range), scene(scene)
+      : frame_range(frame_range), scene(scene)
   {
+    evaluation_center.store(scene->r.cfra);
     evaluated_frames.reinitialize(frame_range.size());
     for (const int i : evaluated_frames.index_range()) {
       evaluated_frames[i].store(false);
@@ -696,7 +697,7 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   MotionPathEvalData *eval_data = static_cast<MotionPathEvalData *>(job_data);
   BLI_assert(eval_data->targets.size() == eval_data->results.size());
   BLI_assert(!eval_data->frame_range.is_empty());
-  BLI_assert(eval_data->frame_range.contains(eval_data->evaluation_center));
+  BLI_assert(eval_data->frame_range.contains(eval_data->evaluation_center.load()));
   BLI_assert(!DEG_is_active(eval_data->depsgraph));
 
 restart:
@@ -705,7 +706,7 @@ restart:
   }
   eval_data->restart.store(false);
 
-  int left_bound = eval_data->evaluation_center;
+  int left_bound = eval_data->evaluation_center.load();
   int right_bound = left_bound + 1;
   bool left_right = true;
 
@@ -732,7 +733,7 @@ restart:
         std::cout << "Stopped thread function" << std::endl;
         return;
       }
-      if (eval_data->restart.load()) {
+      if (eval_data->restart.load(std::memory_order_acquire)) {
         /* I think this is a valid use case for goto. Seems to me the simplest way to break both
          * loops and run some code. */
         std::cout << "Restart" << std::endl;
@@ -840,9 +841,7 @@ void animviz_calc_motionpaths_async(Main *bmain,
     MotionPathEvalData *job_data = static_cast<MotionPathEvalData *>(
         WM_jobs_customdata_get(wm_job));
     if (targets_match_job_data(targets, *job_data)) {
-      /* Updating without an atomic flag. The center is only read at the start of the worker job,
-       * so this is unlikely to result in a data race. */
-      job_data->evaluation_center = scene->r.cfra;
+      job_data->evaluation_center.store(scene->r.cfra);
       /* We cannot kill the job during depsgraph evaluation. Setting this bool will tell the thread
        * to restart the work with the same data. */
       job_data->restart.store(true);
@@ -870,6 +869,7 @@ void animviz_calc_motionpaths_async(Main *bmain,
   MotionPathEvalData *job_data = MEM_new<MotionPathEvalData>(
       __func__, targets, wm, scene, frame_range);
   job_data->depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
+  BLI_assert(!DEG_is_active(job_data->depsgraph));
 
   WM_jobs_customdata_set(wm_job, job_data, free_job_data);
   WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
