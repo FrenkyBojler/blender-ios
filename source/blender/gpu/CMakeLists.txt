@@ -99,8 +99,8 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
-  intern/gpu_texture_pool.cc
   intern/gpu_texture_mipmap.cc
+  intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -180,10 +180,13 @@ set(SRC
   intern/gpu_shader_create_info.hh
   intern/gpu_shader_create_info_pipeline.hh
   intern/gpu_shader_create_info_private.hh
+  intern/gpu_shader_dead_code_elimination.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
   intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
+  intern/gpu_shader_srd_cpp.hh
+  intern/gpu_shader_srd_info.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
   intern/gpu_texture_pool_private.hh
@@ -437,7 +440,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::nodes
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
 )
 
 # Select Backend source based on availability
@@ -738,7 +741,7 @@ set(GLSL_SRC
   GPU_shader_shared_utils.hh
 )
 
-set(GLSL_SRC_TEST
+set(GLSL_TEST_SRC
   shaders/infos/gpu_shader_test_infos.hh
 
   tests/shaders/gpu_math_test.glsl
@@ -798,7 +801,7 @@ set(VULKAN_BACKEND_GLSL_SRC
 
 if(WITH_GTESTS)
   if(WITH_GPU_BACKEND_TESTS)
-    list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
+    list(APPEND GLSL_SRC ${GLSL_TEST_SRC})
   endif()
 endif()
 
@@ -821,8 +824,8 @@ set(GLSL_INC
   intern
   shaders
   shaders/common
-  shaders/material
   shaders/infos
+  shaders/material
 
   vulkan/shaders
 )
@@ -851,6 +854,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")

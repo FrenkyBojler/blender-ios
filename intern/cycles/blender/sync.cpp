@@ -224,7 +224,7 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
       }
       shader_map.set_recalc(b_id);
     }
-    /* World */
+    /* Scene */
     else if (GS(b_id->name) == blender::ID_SCE) {
       shader_map.set_recalc(b_id);
     }
@@ -377,6 +377,8 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
   integrator->set_caustics_reflective(get_boolean(cscene, "caustics_reflective"));
   integrator->set_caustics_refractive(get_boolean(cscene, "caustics_refractive"));
   integrator->set_filter_glossy(get_float(cscene, "blur_glossy"));
+
+  integrator->set_use_pixel_jitter(get_boolean(cscene, "use_pixel_jitter"));
 
   int seed = get_int(cscene, "seed");
   if (get_boolean(cscene, "use_animated_seed")) {
@@ -552,12 +554,7 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoiser_type(denoise_params.type);
     integrator->set_denoise_use_gpu(denoise_params.use_gpu);
     integrator->set_denoise_start_sample(denoise_params.start_sample);
-    integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
-    integrator->set_use_denoise_pass_specular_albedo(denoise_params.use_pass_specular_albedo);
-    integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
-    integrator->set_use_denoise_pass_roughness(denoise_params.use_pass_roughness);
-    integrator->set_use_denoise_pass_depth(denoise_params.use_pass_depth);
-    integrator->set_use_denoise_pass_motion(denoise_params.temporally_stable);
+    integrator->set_denoiser_passes(denoise_params.passes);
     integrator->set_denoiser_prefilter(denoise_params.prefilter);
     integrator->set_denoiser_quality(denoise_params.quality);
     integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
@@ -839,7 +836,7 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
     PassMode pass_mode = PassMode::DENOISED;
 
     if (!get_known_pass_type(b_pass, pass_type, pass_mode)) {
-      if (!expected_passes.count(b_pass.name)) {
+      if (!expected_passes.contains(b_pass.name)) {
         LOG_ERROR << "Unknown pass " << b_pass.name;
       }
       continue;
@@ -1158,18 +1155,15 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
 
   switch (input_passes) {
     case DENOISER_INPUT_RGB:
-      denoising.use_pass_albedo = false;
-      denoising.use_pass_normal = false;
+      denoising.passes = DENOISER_PASS_NONE;
       break;
 
     case DENOISER_INPUT_RGB_ALBEDO:
-      denoising.use_pass_albedo = true;
-      denoising.use_pass_normal = false;
+      denoising.passes = DENOISER_PASS_ALBEDO;
       break;
 
     case DENOISER_INPUT_RGB_ALBEDO_NORMAL:
-      denoising.use_pass_albedo = true;
-      denoising.use_pass_normal = true;
+      denoising.passes = DENOISER_PASS_ALBEDO | DENOISER_PASS_NORMAL;
       break;
 
     default:

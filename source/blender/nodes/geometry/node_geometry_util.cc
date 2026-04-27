@@ -135,7 +135,7 @@ bool geo_node_poll_default(const bke::bNodeType * /*ntype*/,
 }
 
 void geo_node_type_base(bke::bNodeType *ntype,
-                        std::string idname,
+                        UString idname,
                         const std::optional<int16_t> legacy_type)
 {
   bke::node_type_base(*ntype, idname, legacy_type);
@@ -156,7 +156,7 @@ static bool geo_cmp_node_poll_default(const bke::bNodeType * /*ntype*/,
 }
 
 void geo_cmp_node_type_base(bke::bNodeType *ntype,
-                            std::string idname,
+                            UString idname,
                             const std::optional<int16_t> legacy_type)
 {
   bke::node_type_base(*ntype, idname, legacy_type);

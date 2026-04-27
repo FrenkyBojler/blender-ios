@@ -864,7 +864,7 @@ static void rna_Node_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNode *node = ptr->data_as<bNode>();
   const bke::bNodeType *ntype = node->typeinfo;
-  StringRef(ntype->idname).copy_unsafe(value);
+  ntype->idname.ref().copy_unsafe(value);
 }
 
 static int rna_Node_bl_idname_length(PointerRNA *ptr)
@@ -878,7 +878,7 @@ static void rna_Node_bl_idname_set(PointerRNA *ptr, const char *value)
 {
   bNode *node = ptr->data_as<bNode>();
   bke::bNodeType *ntype = node->typeinfo;
-  ntype->idname = value;
+  ntype->idname = UString(value);
 }
 
 static void rna_Node_bl_label_get(PointerRNA *ptr, char *value)
@@ -1111,7 +1111,7 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
   }
 
   /* check if we have registered this tree type before, and remove it */
-  nt = bke::node_tree_type_find(dummy_nt.idname);
+  nt = bke::node_tree_type_find(dummy_nt.idname.ref());
   if (nt) {
     BKE_reportf(reports,
                 RPT_INFO,
@@ -1257,9 +1257,9 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
   }
 
   /* If the given idname is an alias, translate it to the proper idname. */
-  type = bke::node_type_find_alias(type);
+  type = bke::node_type_find_alias(UString(type)).ref();
 
-  ntype = bke::node_type_find(type);
+  ntype = bke::node_type_find(UString(type));
   if (!ntype) {
     BKE_reportf(reports, RPT_ERROR, "Node type %s undefined", type.c_str());
     return nullptr;
@@ -1286,7 +1286,7 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
     }
   }
 
-  node = bke::node_add_node(C, *ntree, type);
+  node = bke::node_add_node(C, *ntree, UString(type));
   BLI_assert(node && node->typeinfo);
 
   if (ntree->type == NTREE_TEXTURE) {
@@ -1384,8 +1384,8 @@ static void node_viewer_set_shortcut_fn(bNode *node, bNodeTree &ntree, int value
 {
   /* Avoid having two nodes with the same shortcut. */
   for (bNode *other_node : ntree.all_nodes()) {
-    if ((other_node->is_type("CompositorNodeViewer") ||
-         other_node->is_type("GeometryNodeViewer")) &&
+    if ((other_node->is_type("CompositorNodeViewer"_ustr) ||
+         other_node->is_type("GeometryNodeViewer"_ustr)) &&
         other_node->custom1 == value)
     {
       other_node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
@@ -1547,7 +1547,7 @@ static void rna_NodeTree_bl_idname_get(PointerRNA *ptr, char *value)
 {
   const bNodeTree *node = ptr->data_as<bNodeTree>();
   const bke::bNodeTreeType *ntype = node->typeinfo;
-  StringRef(ntype->idname).copy_unsafe(value);
+  ntype->idname.ref().copy_unsafe(value);
 }
 
 static int rna_NodeTree_bl_idname_length(PointerRNA *ptr)
@@ -1561,7 +1561,7 @@ static void rna_NodeTree_bl_idname_set(PointerRNA *ptr, const char *value)
 {
   bNodeTree *node = ptr->data_as<bNodeTree>();
   bke::bNodeTreeType *ntype = node->typeinfo;
-  ntype->idname = value;
+  ntype->idname = UString(value);
 }
 
 static void rna_NodeTree_bl_label_get(PointerRNA *ptr, char *value)
@@ -4479,6 +4479,12 @@ static const EnumPropertyItem node_subsurface_method_items[] = {
      "Random Walk (Skin)",
      "Volumetric approximation to physically based volume scattering, with scattering radius "
      "automatically adjusted to match color textures. Designed for skin shading."},
+    {SHD_SUBSURFACE_RANDOM_WALK_LEGACY,
+     "RANDOM_WALK_LEGACY",
+     0,
+     "Random Walk (Legacy)",
+     "Volumetric approximation to physically based volume scattering, using the scattering radius "
+     "as specified"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem prop_image_extension[] = {
@@ -5079,7 +5085,12 @@ static void def_fn_input_string(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "string", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "String", "");
+  RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "textbox_state", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "TextboxState");
+  RNA_def_property_pointer_sdna(prop, nullptr, "textbox_state");
 }
 
 /* -- Shader Nodes ---------------------------------------------------------- */
@@ -9029,6 +9040,28 @@ static void rna_def_node_sockets_api(BlenderRNA *brna, PropertyRNA *cprop, int i
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
+static void rna_def_node_panel_state(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "NodePanelState", nullptr);
+  RNA_def_struct_sdna(srna, "bNodePanelState");
+  RNA_def_struct_ui_text(srna, "Node Panel State", "Expansion state of a panel in a node");
+
+  prop = RNA_def_property(srna, "identifier", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "identifier");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Identifier", "Unique identifier matching the panel's persistent_uid");
+
+  prop = RNA_def_property(srna, "is_collapsed", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_PANEL_COLLAPSED);
+  RNA_def_property_ui_text(prop, "Is Collapsed", "Whether the panel is collapsed");
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
+}
+
 static void rna_def_node(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -9154,6 +9187,12 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Outputs", "");
   rna_def_node_sockets_api(brna, prop, SOCK_OUT);
+
+  prop = RNA_def_property(srna, "panel_states", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "panel_states_array", "num_panel_states");
+  RNA_def_property_struct_type(prop, "NodePanelState");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Panel States", "Expansion state of each panel in the node");
 
   prop = RNA_def_property(srna, "internal_links", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_funcs(prop,
@@ -10248,6 +10287,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
   define("CompositorNode", "CompositorNodeSequencerStripInfo");
+  define("CompositorNode", "CompositorNodeStringToImage");
   define("CompositorNode", "CompositorNodeSwitch");
   define("CompositorNode", "CompositorNodeSwitchView");
   define("CompositorNode", "CompositorNodeTime", def_time);
@@ -10449,6 +10489,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputImage", def_geo_image);
   define("GeometryNode", "GeometryNodeInputIndex");
   define("GeometryNode", "GeometryNodeInputInstanceBounds");
+  define("GeometryNode", "GeometryNodeInputInstanceReference");
   define("GeometryNode", "GeometryNodeInputInstanceRotation");
   define("GeometryNode", "GeometryNodeInputInstanceScale");
   define("GeometryNode", "GeometryNodeInputMaterial", def_geo_input_material);
@@ -10527,6 +10568,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSampleIndex", def_geo_sample_index);
   define("GeometryNode", "GeometryNodeSampleNearest");
   define("GeometryNode", "GeometryNodeSampleNearestSurface");
+  define("GeometryNode", "GeometryNodeSampleSoundFrequencies");
   define("GeometryNode", "GeometryNodeSampleUVSurface");
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
@@ -10611,6 +10653,7 @@ static void rna_def_nodes(BlenderRNA *brna)
 
 void RNA_def_nodetree(BlenderRNA *brna)
 {
+  rna_def_node_panel_state(brna);
   rna_def_node(brna);
   rna_def_node_link(brna);
 

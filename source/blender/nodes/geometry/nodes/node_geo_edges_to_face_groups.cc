@@ -77,7 +77,7 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     return non_boundary_edge_field_.hash();
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldInput &other) const override
   {
     if (const auto *other_field = dynamic_cast<const FaceSetFromBoundariesInput *>(&other)) {
       return other_field->non_boundary_edge_field_ == non_boundary_edge_field_;
@@ -97,14 +97,14 @@ static void geo_node_exec(GeoNodeExecParams params)
   Field<bool> non_boundary_edges = fn::invert_boolean_field(std::move(boundary_edges));
   params.set_output(
       "Face Group ID"_ustr,
-      Field<int>(std::make_shared<FaceSetFromBoundariesInput>(std::move(non_boundary_edges))));
+      Field<int>::from_input<FaceSetFromBoundariesInput>(std::move(non_boundary_edges)));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeEdgesToFaceGroups", GEO_NODE_EDGES_TO_FACE_GROUPS);
+  geo_node_type_base(&ntype, "GeometryNodeEdgesToFaceGroups"_ustr, GEO_NODE_EDGES_TO_FACE_GROUPS);
   ntype.ui_name = "Edges to Face Groups";
   ntype.ui_description = "Group faces into regions surrounded by the selected boundary edges";
   ntype.enum_name_legacy = "EDGES_TO_FACE_GROUPS";

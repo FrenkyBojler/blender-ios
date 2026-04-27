@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_cpp_type_make.hh"
-#include "BLI_cpp_types_make.hh"
 
 #include "BKE_cpp_types.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
@@ -26,8 +25,6 @@ struct Material;
 BLI_CPP_TYPE_MAKE(bke::GeometrySet, CPPTypeFlags::Printable | CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(bke::InstanceReference, CPPTypeFlags::None)
 
-BLI_VECTOR_CPP_TYPE_MAKE(bke::GeometrySet);
-
 BLI_CPP_TYPE_MAKE(Object *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(Collection *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(Tex *, CPPTypeFlags::BasicType)
@@ -46,7 +43,6 @@ BLI_CPP_TYPE_MAKE(nodes::ListPtr, CPPTypeFlags::EqualityComparable);
 
 BLI_CPP_TYPE_MAKE(bke::GeometryNodesReferenceSet, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(bke::SocketValueVariant, CPPTypeFlags::Printable);
-BLI_VECTOR_CPP_TYPE_MAKE(bke::SocketValueVariant);
 BLI_CPP_TYPE_MAKE(nodes::GeoNodesMultiInput<bke::SocketValueVariant>, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(nodes::BundleItemValue, CPPTypeFlags::None);
 
@@ -56,8 +52,6 @@ void BKE_cpp_types_init()
 
   BLI_CPP_TYPE_REGISTER(bke::GeometrySet);
   BLI_CPP_TYPE_REGISTER(bke::InstanceReference);
-
-  BLI_VECTOR_CPP_TYPE_REGISTER(bke::GeometrySet);
 
   BLI_CPP_TYPE_REGISTER(Object *);
   BLI_CPP_TYPE_REGISTER(Collection *);
@@ -77,7 +71,6 @@ void BKE_cpp_types_init()
 
   BLI_CPP_TYPE_REGISTER(bke::GeometryNodesReferenceSet);
   BLI_CPP_TYPE_REGISTER(bke::SocketValueVariant);
-  BLI_VECTOR_CPP_TYPE_REGISTER(bke::SocketValueVariant);
   BLI_CPP_TYPE_REGISTER(nodes::GeoNodesMultiInput<bke::SocketValueVariant>);
   BLI_CPP_TYPE_REGISTER(nodes::BundleItemValue);
 }

@@ -122,6 +122,7 @@ set(SRC
   cached_resources/intern/morphological_distance_feather_weights.cc
   cached_resources/intern/ocio_color_space_conversion_shader.cc
   cached_resources/intern/smaa_precomputed_textures.cc
+  cached_resources/intern/string_image.cc
   cached_resources/intern/symmetric_blur_weights.cc
   cached_resources/intern/symmetric_separable_blur_weights.cc
   cached_resources/intern/van_vliet_gaussian_coefficients.cc
@@ -139,6 +140,7 @@ set(SRC
   cached_resources/COM_morphological_distance_feather_weights.hh
   cached_resources/COM_ocio_color_space_conversion_shader.hh
   cached_resources/COM_smaa_precomputed_textures.hh
+  cached_resources/COM_string_image.hh
   cached_resources/COM_symmetric_blur_weights.hh
   cached_resources/COM_symmetric_separable_blur_weights.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
@@ -147,15 +149,14 @@ set(SRC
 
   derived_resources/COM_denoised_auxiliary_pass.hh
 
-  utilities/intern/gpu_material.cc
   utilities/intern/oidn.cc
 
   utilities/COM_utilities_diagonals.hh
-  utilities/COM_utilities_gpu_material.hh
   utilities/COM_utilities_oidn.hh
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blentranslation
   PRIVATE bf::functions
@@ -167,7 +168,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::optional::fftw3
   PRIVATE bf::dependencies::optional::openimagedenoise
@@ -410,8 +411,8 @@ set(GLSL_INC
   ../gpu/shaders/common
 
   shaders
-  shaders/library
   shaders/infos
+  shaders/library
 )
 
 set(GLSL_C "")
@@ -432,6 +433,7 @@ set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+  string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
   string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
   string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")

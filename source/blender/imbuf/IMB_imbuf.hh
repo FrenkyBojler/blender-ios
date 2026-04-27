@@ -67,39 +67,39 @@ bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
  * Test image file.
  */
 bool IMB_test_image(const char *filepath);
-bool IMB_test_image_type_matches(const char *filepath, int filetype);
-int IMB_test_image_type_from_memory(const unsigned char *buf, size_t buf_size);
-int IMB_test_image_type(const char *filepath);
+bool IMB_test_image_type_matches(const char *filepath, eImbFileType filetype);
+eImbFileType IMB_test_image_type_from_memory(const unsigned char *buf, size_t buf_size);
+eImbFileType IMB_test_image_type(const char *filepath);
 
 /**
  * Return true if the file type is supported (compiled in).
  */
-bool IMB_ftype_is_supported(int ftype);
+bool IMB_ftype_is_supported(eImbFileType ftype);
 
 /**
  * Return the string identifier for a file type, or nullptr if not found.
  */
-const char *IMB_ftype_to_id(int ftype);
+const char *IMB_ftype_to_id(eImbFileType ftype);
 
 /**
  * Return the file type enum value for a string identifier, or #IMB_FTYPE_NONE if not found.
  */
-int IMB_ftype_from_id(const char *id);
+eImbFileType IMB_ftype_from_id(const char *id);
 
 /**
  * Return the null-terminated list of extensions for a file type, or nullptr if not found.
  */
-const char **IMB_ftype_file_extensions(int ftype);
+const char **IMB_ftype_file_extensions(eImbFileType ftype);
 
 /**
  * Return the read capability flags for a file type.
  */
-eImFileTypeCapability IMB_ftype_capability_read(int ftype);
+eImFileTypeCapability IMB_ftype_capability_read(eImbFileType ftype);
 
 /**
  * Return the write capability flags for a file type.
  */
-eImFileTypeCapability IMB_ftype_capability_write(int ftype);
+eImFileTypeCapability IMB_ftype_capability_write(eImbFileType ftype);
 
 /**
  * Load thumbnail image.
@@ -257,7 +257,6 @@ enum IMB_BlendMode {
   IMB_BLEND_COLOR = 23,
   IMB_BLEND_INTERPOLATE = 24,
 
-  IMB_BLEND_COPY = 1000,
   IMB_BLEND_COPY_RGB = 1001,
   IMB_BLEND_COPY_ALPHA = 1002,
 };
@@ -276,9 +275,40 @@ void IMB_blend_color_float(MutableSpan<float4> dst,
                            IMB_BlendMode mode);
 
 /**
- * In-place image crop.
+ * Copy a rectangle of pixel data from one image buffer to another. The source and destination
+ * buffers are described by the pointers and corresponding 2D sizes. They must not reference the
+ * same memory.
  */
-void IMB_rect_crop(ImBuf *ibuf, const rcti *crop);
+void IMB_copy_rect(float *dst,
+                   const int2 &dst_size,
+                   const float *src,
+                   const int2 &src_size,
+                   int channels,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
+void IMB_copy_rect(uchar *dst,
+                   const int2 &dst_size,
+                   const uchar *src,
+                   const int2 &src_size,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
+
+/**
+ * In-place image crop. `rect` is *inclusive*.
+ */
+void IMB_crop(ImBuf *ibuf, const int2 &rect_pos, const int2 &rect_size);
+
+/**
+ * Copy a rectangle of pixel data from one image buffer to another. Data outside of the destination
+ * rectangle is not written to.
+ */
+void IMB_copy_rect(ImBuf *dst,
+                   const ImBuf *src,
+                   const int2 &src_rect_pos,
+                   const int2 &dst_rect_pos,
+                   const int2 &rect_size);
 
 /**
  * In-place size setting (caller must fill in buffer contents).
@@ -293,14 +323,6 @@ void IMB_rectclip(ImBuf *dbuf,
                   int *srcy,
                   int *width,
                   int *height);
-void IMB_rectcpy(ImBuf *dbuf,
-                 const ImBuf *sbuf,
-                 int destx,
-                 int desty,
-                 int srcx,
-                 int srcy,
-                 int width,
-                 int height);
 void IMB_rectblend(ImBuf *dbuf,
                    const ImBuf *obuf,
                    const ImBuf *sbuf,
@@ -379,21 +401,29 @@ enum class IMBScaleFilter {
  * Scale/resize image to new dimensions.
  * Return true if \a ibuf is modified.
  */
-bool IMB_scale(ImBuf *ibuf,
-               unsigned int newx,
-               unsigned int newy,
-               IMBScaleFilter filter,
-               bool threaded = true);
+bool IMB_scale(ImBuf *ibuf, int2 new_size, IMBScaleFilter filter, bool threaded = true);
+inline bool IMB_scale(
+    ImBuf *ibuf, unsigned int newx, unsigned int newy, IMBScaleFilter filter, bool threaded = true)
+{
+  return IMB_scale(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Scale/resize image to new dimensions, into a newly created result image.
  * Metadata of input image (if any) is copied into the result image.
  */
 ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
-                          unsigned int newx,
-                          unsigned int newy,
+                          int2 new_size,
                           IMBScaleFilter filter,
                           bool threaded = true);
+inline ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
+                                 unsigned int newx,
+                                 unsigned int newy,
+                                 IMBScaleFilter filter,
+                                 bool threaded = true)
+{
+  return IMB_scale_into_new(ibuf, int2(newx, newy), filter, threaded);
+}
 
 /**
  * Test if color-space conversions of pixels in buffer need to take into account alpha.
