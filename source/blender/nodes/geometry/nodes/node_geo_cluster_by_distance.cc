@@ -210,20 +210,13 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     fn(selection_field_);
   }
 
-  uint64_t hash() const final
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
-    return get_default_hash(positions_field_, group_field_, selection_field_);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const final
-  {
-    if (const auto *other_field = dynamic_cast<const ClusterByDistanceFieldInput *>(&other)) {
-      return distance_ == other_field->distance_ &&
-             positions_field_ == other_field->positions_field_ &&
-             group_field_ == other_field->group_field_ &&
-             selection_field_ == other_field->selection_field_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(positions_field_));
+    hash.add(deep_hash_cache.ensure(group_field_));
+    hash.add(deep_hash_cache.ensure(selection_field_));
   }
 
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final

@@ -115,26 +115,12 @@ class ClusterByConnectedFieldInput final : public bke::MeshFieldInput {
     fn(position_field_);
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override
   {
-    return get_default_hash(selection_field_, position_field_, min_distance_);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const auto *other_field = dynamic_cast<const ClusterByConnectedFieldInput *>(&other)) {
-      if (this->min_distance_ != other_field->min_distance_) {
-        return false;
-      }
-      if (this->selection_field_ != other_field->selection_field_) {
-        return false;
-      }
-      if (this->position_field_ != other_field->position_field_) {
-        return false;
-      }
-      return true;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(deep_hash_cache.ensure(selection_field_));
+    hash.add(deep_hash_cache.ensure(position_field_));
   }
 
   std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
