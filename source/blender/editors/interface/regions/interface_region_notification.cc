@@ -35,7 +35,6 @@ static constexpr float HEIGHT = 28.0f;
 static constexpr float MARGIN = 4.0f;
 /* Padding inside the notification box. */
 static constexpr float PADDING = 8.0f;
-static constexpr float LINE_WIDTH = 4.0f;
 static constexpr float LINE_PADDING = 2.0f;
 static constexpr float MAX_TEXT_WIDTH = 300.0f;
 
