@@ -2101,6 +2101,13 @@ int RNA_enum_from_value(const EnumPropertyItem *item, const int value)
   return -1;
 }
 
+const char *RNA_enum_identifier_from_prop(PropertyRNA *prop, const int value)
+{
+  EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop);
+  const int enum_index = RNA_enum_from_value(eprop->item, value);
+  return eprop->item[enum_index].identifier;
+}
+
 uint RNA_enum_items_count(const EnumPropertyItem *item)
 {
   uint i = 0;

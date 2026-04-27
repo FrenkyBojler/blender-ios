@@ -336,6 +336,7 @@ int RNA_enum_from_identifier(const EnumPropertyItem *item, const char *identifie
 bool RNA_enum_value_from_identifier(const EnumPropertyItem *item,
                                     const char *identifier,
                                     int *r_value);
+const char *RNA_enum_identifier_from_prop(PropertyRNA *prop, const int value);
 /**
  * Take care using this with translated enums,
  * prefer #RNA_enum_from_identifier where possible.

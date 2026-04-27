@@ -72,6 +72,27 @@ static IDProperty *shortcut_property_from_rna(bContext *C, Button *but)
   /* Create ID property of data path, to pass to the operator. */
   IDProperty *prop = bke::idprop::create_group(__func__).release();
   IDP_AddToGroup(prop, bke::idprop::create("data_path", final_data_path.value()).release());
+  IDP_AddToGroup(prop, bke::idprop::create("value", but->rnaindex).release());
+  return prop;
+}
+
+static IDProperty *shortcut_property_from_rna_for_enum(bContext *C, Button *but_parent, Button *but)
+{
+  /* Compute data path from context to property. */
+
+  /* If this returns null, we won't be able to bind shortcuts to these RNA properties.
+   * Support can be added at #wm_context_member_from_ptr. */
+  std::optional<std::string> final_data_path = WM_context_path_resolve_property_full(
+      C, &but_parent->rnapoin, but_parent->rnaprop, but_parent->rnaindex);
+  if (!final_data_path.has_value()) {
+    return nullptr;
+  }
+
+  /* Create ID property of data path, to pass to the operator. */
+   printf("Index: %d\n", int(but->hardmin));
+  IDProperty *prop = bke::idprop::create_group(__func__).release();
+  IDP_AddToGroup(prop, bke::idprop::create("data_path", final_data_path.value()).release());
+  IDP_AddToGroup(prop, bke::idprop::create("value", RNA_enum_identifier_from_prop(but_parent->rnaprop, int(but->hardmin))).release());
   return prop;
 }
 
@@ -103,6 +124,20 @@ static const char *shortcut_get_operator_property(bContext *C, Button *but, IDPr
         return nullptr;
       }
       return "WM_OT_context_menu_enum";
+    }
+  }
+
+  printf("but->type: %d\n", int(but->type));
+  if (but->type == ButtonType::ButMenu) {
+    if ((but->block->handle != nullptr)) {
+      Button *but_parent = but->block->handle->popup_create_vars.but;
+      if (but_parent && but_parent->rnaprop) {
+       *r_prop = shortcut_property_from_rna_for_enum(C, but_parent, but);
+       if (*r_prop == nullptr) {
+         return nullptr;
+       }
+       return "WM_OT_context_set_enum";
+      }
     }
   }
 
