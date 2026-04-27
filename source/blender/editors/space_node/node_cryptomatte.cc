@@ -450,9 +450,7 @@ static bool cryptomatte_pick_poll(bContext *C)
   return ED_node_is_compositor(snode);
 }
 
-static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
-                                                wmOperator *op,
-                                                const wmEvent * /*event*/)
+static wmOperatorStatus cryptomatte_pick_invoke(bContext *C, wmOperator *op, const bool is_add)
 {
   PointerRNA ptr = CTX_data_pointer_get(C, "node");
   bNode *node = nullptr;
@@ -478,7 +476,7 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
   picker->node = node;
   picker->ntree = ntree;
   picker->session = ntreeCompositCryptomatteSession(node);
-  picker->is_add = STREQ(op->type->idname, "NODE_OT_cryptomatte_entry_add");
+  picker->is_add = is_add;
   picker->cb_win = CTX_wm_window(C);
   picker->draw_handle_sample_text = WM_draw_cb_activate(
       picker->cb_win, cryptomatte_draw_cb, picker);
@@ -491,6 +489,20 @@ static wmOperatorStatus cryptomatte_pick_invoke(bContext *C,
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
+}
+
+static wmOperatorStatus cryptomatte_entry_add_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent * /*event*/)
+{
+  return cryptomatte_pick_invoke(C, op, true);
+}
+
+static wmOperatorStatus cryptomatte_entry_remove_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
+{
+  return cryptomatte_pick_invoke(C, op, false);
 }
 
 static wmOperatorStatus cryptomatte_pick_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -566,23 +578,18 @@ wmKeyMap *cryptomatte_pick_modal_keymap(wmKeyConfig *keyconf)
 /** \name Operator Registration
  * \{ */
 
-static void cryptomatte_entry_op_define(wmOperatorType *ot)
-{
-  ot->invoke = cryptomatte_pick_invoke;
-  ot->modal = cryptomatte_pick_modal;
-  ot->cancel = cryptomatte_pick_cancel;
-  ot->poll = cryptomatte_pick_poll;
-
-  ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
-}
-
 void NODE_OT_cryptomatte_entry_add(wmOperatorType *ot)
 {
   ot->name = "Add Cryptomatte Entry";
   ot->idname = "NODE_OT_cryptomatte_entry_add";
   ot->description = "Add object or material to matte, by picking a color from the Pick output";
 
-  cryptomatte_entry_op_define(ot);
+  ot->invoke = cryptomatte_entry_add_invoke;
+  ot->modal = cryptomatte_pick_modal;
+  ot->cancel = cryptomatte_pick_cancel;
+  ot->poll = cryptomatte_pick_poll;
+
+  ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 }
 
 void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot)
@@ -592,7 +599,12 @@ void NODE_OT_cryptomatte_entry_remove(wmOperatorType *ot)
   ot->description =
       "Remove object or material from matte, by picking a color from the Pick output";
 
-  cryptomatte_entry_op_define(ot);
+  ot->invoke = cryptomatte_entry_remove_invoke;
+  ot->modal = cryptomatte_pick_modal;
+  ot->cancel = cryptomatte_pick_cancel;
+  ot->poll = cryptomatte_pick_poll;
+
+  ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 }
 
 /** \} */
