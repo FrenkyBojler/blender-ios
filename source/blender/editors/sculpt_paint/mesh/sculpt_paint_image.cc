@@ -133,19 +133,23 @@ static void calc_pixel_row_positions(const Span<float3> vert_positions,
                                      const Span<int> tri_indices,
                                      const Span<float2> delta_barycentric_coords,
                                      const PackedPixelRow &pixel_row,
+                                     const IndexRange range,
                                      const MutableSpan<float3> positions)
 {
-  const float3 start = calc_pixel_position(vert_positions,
+  const float3 first = calc_pixel_position(vert_positions,
                                            vert_tris,
                                            tri_indices[pixel_row.uv_primitive_index],
                                            pixel_row.start_barycentric_coord);
-  const float3 next = calc_pixel_position(
+  const float3 second = calc_pixel_position(
       vert_positions,
       vert_tris,
       tri_indices[pixel_row.uv_primitive_index],
       pixel_row.start_barycentric_coord + delta_barycentric_coords[pixel_row.uv_primitive_index]);
-  const float3 delta = next - start;
-  for (const int i : IndexRange(pixel_row.num_pixels)) {
+  const float3 delta = second - first;
+
+  const float3 start = first + delta * range.start();
+
+  for (const int i : IndexRange(range.size())) {
     positions[i] = start + delta * i;
   }
 }
@@ -188,18 +192,19 @@ static void calc_brush_colors(MutableSpan<float4> buffer_colors,
 static MutableSpan<float4> read_image_pixels(MutableSpan<float4> image_pixels,
                                              const TileColorspaceProcessor &processors,
                                              const PackedPixelRow &pixel_row,
+                                             const IndexRange range,
                                              const int width)
 {
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x);
-  MutableSpan<float4> scene_linear_pixels = image_pixels.slice(start_offset, pixel_row.num_pixels);
+  MutableSpan<float4> scene_linear_pixels = image_pixels.slice(start_offset, range.size());
 
   if (processors.is_noop) {
     return scene_linear_pixels;
   }
 
   processors.buffer_to_linear_processor.apply(
-      reinterpret_cast<float *>(scene_linear_pixels.data()), pixel_row.num_pixels, 1, 4, false);
+      reinterpret_cast<float *>(scene_linear_pixels.data()), range.size(), 1, 4, false);
 
   return scene_linear_pixels;
 }
@@ -207,6 +212,7 @@ static MutableSpan<float4> read_image_pixels(MutableSpan<float4> image_pixels,
 static MutableSpan<float4> read_image_pixels(Span<uchar4> image_pixels,
                                              const TileColorspaceProcessor &processors,
                                              const PackedPixelRow &pixel_row,
+                                             const IndexRange range,
                                              const int width,
                                              Vector<float4> &storage)
 {
@@ -232,6 +238,7 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
                                MutableSpan<uchar4> image_pixels,
                                const TileColorspaceProcessor &processors,
                                const PackedPixelRow &pixel_row,
+                               const IndexRange range,
                                const int width)
 {
   if (!processors.is_noop) {
@@ -251,6 +258,7 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
                                MutableSpan<float4> image_pixels,
                                const TileColorspaceProcessor &processors,
                                const PackedPixelRow &pixel_row,
+                               const IndexRange range,
                                const int width)
 {
   if (!processors.is_noop) {
@@ -334,6 +342,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   Vector<float> distances;
 
   bool pixels_updated = false;
+  IndexMaskMemory memory;
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
     if (image_buffer == nullptr) {
@@ -356,66 +365,81 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-    for (const PackedPixelRow &pixel_row : tile_data.pixel_rows) {
-      if (!brush_test[pixel_row.uv_primitive_index]) {
-        continue;
-      }
+    IndexMask valid_primitives = IndexMask::from_predicate(
+        tile_data.pixel_rows.index_range(), memory, [&](const int i) {
+          return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
+        });
 
-      pixel_positions.resize(pixel_row.num_pixels);
-      calc_pixel_row_positions(positions,
-                               pbvh_data.vert_tris,
-                               pixel_node.uv_primitives.tri_indices,
-                               pixel_node.uv_primitives.delta_barycentric_coords,
-                               pixel_row,
-                               pixel_positions);
+    valid_primitives.foreach_index([&](const int i) {
+      const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
+      const bool pixels_painted = threading::parallel_reduce(
+          IndexRange(pixel_row.num_pixels),
+          512,
+          false,
+          [&](const IndexRange range, bool /*changed*/) {
+            pixel_positions.resize(range.size());
+            calc_pixel_row_positions(positions,
+                                     pbvh_data.vert_tris,
+                                     pixel_node.uv_primitives.tri_indices,
+                                     pixel_node.uv_primitives.delta_barycentric_coords,
+                                     pixel_row,
+                                     range,
+                                     pixel_positions);
 
-      factors.resize(pixel_positions.size());
-      factors.fill(1.0f);
+            factors.resize(pixel_positions.size());
+            factors.fill(1.0f);
 
-      distances.resize(pixel_positions.size());
-      calc_brush_distances(
-          ss, pixel_positions, eBrushFalloffShape(brush.falloff_shape), distances);
-      filter_distances_with_radius(cache.radius, distances, factors);
-      apply_hardness_to_distances(cache, distances);
-      calc_brush_strength_factors(cache, brush, distances, factors);
-      calc_brush_texture_factors(ss, brush, pixel_positions, factors);
-      scale_factors(factors, cache.bstrength);
+            distances.resize(pixel_positions.size());
+            calc_brush_distances(
+                ss, pixel_positions, eBrushFalloffShape(brush.falloff_shape), distances);
+            filter_distances_with_radius(cache.radius, distances, factors);
+            apply_hardness_to_distances(cache, distances);
+            calc_brush_strength_factors(cache, brush, distances, factors);
+            calc_brush_texture_factors(ss, brush, pixel_positions, factors);
+            scale_factors(factors, cache.bstrength);
 
-      const bool pixels_painted = std::ranges::any_of(
-          factors, [](const float factor) { return factor != 0.0f; });
+            const bool nonzero_factor = std::ranges::any_of(
+                factors, [](const float factor) { return factor != 0.0f; });
 
-      if (!pixels_painted) {
-        continue;
-      }
+            if (!nonzero_factor) {
+              return false;
+            }
 
-      paint_pixels.resize(pixel_positions.size());
-      calc_brush_colors(paint_pixels, factors, brush_color);
+            paint_pixels.resize(pixel_positions.size());
+            calc_brush_colors(paint_pixels, factors, brush_color);
 
-      MutableSpan<float4> scene_linear_pixels;
-      if (!float_buffer.is_empty()) {
-        scene_linear_pixels = read_image_pixels(
-            float_buffer, *processors, pixel_row, image_buffer->x);
-      }
-      else {
-        scene_linear_pixels = read_image_pixels(
-            byte_buffer, *processors, pixel_row, image_buffer->x, byte_to_float_pixels);
-      }
+            MutableSpan<float4> scene_linear_pixels;
+            if (!float_buffer.is_empty()) {
+              scene_linear_pixels = read_image_pixels(
+                  float_buffer, *processors, pixel_row, range,image_buffer->x);
+            }
+            else {
+              scene_linear_pixels = read_image_pixels(
+                  byte_buffer, *processors, pixel_row, range, image_buffer->x, byte_to_float_pixels);
+            }
 
 #ifdef DEBUG_PIXEL_NODES
-      apply_debug_color(scene_linear_pixels, pixel_row);
+            apply_debug_color(scene_linear_pixels, pixel_row);
 #endif
 
-      blend_colors(paint_pixels, scene_linear_pixels, brush);
+            blend_colors(paint_pixels, scene_linear_pixels, brush);
 
-      if (!float_buffer.is_empty()) {
-        write_image_pixels(paint_pixels, float_buffer, *processors, pixel_row, image_buffer->x);
-      }
-      else {
-        write_image_pixels(paint_pixels, byte_buffer, *processors, pixel_row, image_buffer->x);
-      }
+            if (!float_buffer.is_empty()) {
+              write_image_pixels(
+                  paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+            else {
+              write_image_pixels(
+                  paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+            return true;
+          },
+          std::logical_or());
 
-      tile_data.mark_dirty(pixel_row);
-    }
+      if (pixels_painted) {
+        tile_data.mark_dirty(pixel_row);
+      }
+    });
 
     if (tile_data.flags.dirty) {
       BKE_image_mark_dirty(image_data.image, image_buffer);
