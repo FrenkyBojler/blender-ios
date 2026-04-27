@@ -302,7 +302,9 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
  * \{ */
 
 /** Adjust pose-channel's auto-ik chainlen or toggle stretch. */
-static bool pchan_autoik_adjust(bPoseChannel *pchan, const short chainlen, const char autoik_flags)
+static bool pchan_autoik_adjust(bPoseChannel *pchan,
+                                const short chainlen,
+                                const eAutoik_Flags autoik_flags)
 {
   bool changed = false;
 
@@ -349,7 +351,7 @@ void transform_autoik_update(TransInfo *t, short mode)
   Main *bmain = CTX_data_main(t->context);
 
   short *chainlen = &t->settings->autoik_chainlen;
-  char *autoik_flags = &t->settings->autoik_flags;
+  eAutoik_Flags *autoik_flags = &t->settings->autoik_flags;
 
   /* `mode` determines what change to apply. */
   if (mode == 1) {
@@ -368,7 +370,7 @@ void transform_autoik_update(TransInfo *t, short mode)
   }
   else if (mode == 2) {
     /* `mode==2` is from T: toggles stretch. */
-    *autoik_flags ^= AUTOIK_USE_STRETCH;
+    *autoik_flags = eAutoik_Flags(*autoik_flags ^ AUTOIK_USE_STRETCH);
   }
 
   /* Apply to all pose-channels. */

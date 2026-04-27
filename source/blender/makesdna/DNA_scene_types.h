@@ -2088,7 +2088,7 @@ enum {
 };
 
 /** #ToolSettings::autoik_flags */
-enum eAutoik_Flags {
+enum eAutoik_Flags : char {
   AUTOIK_USE_STRETCH = (1 << 0),
 };
 
@@ -2232,7 +2232,7 @@ struct ToolSettings {
   /* Auto-IK. */
   /** Runtime only. */
   short autoik_chainlen = 0;
-  char autoik_flags = AUTOIK_USE_STRETCH;
+  eAutoik_Flags autoik_flags = AUTOIK_USE_STRETCH;
 
   /* Grease Pencil. */
   /** Flags/options for how the tool works. */

@@ -500,7 +500,8 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 22)) {
     for (Scene &scene : bmain->scenes) {
-      scene.toolsettings->autoik_flags |= AUTOIK_USE_STRETCH;
+      scene.toolsettings->autoik_flags = eAutoik_Flags(scene.toolsettings->autoik_flags |
+                                                       AUTOIK_USE_STRETCH);
     }
   }
   /**
