@@ -293,15 +293,19 @@ void Prepass::setup_subpasses(DRWState common_state)
             {"SingleSided.Moving", "SingleSided.Moving.ID"}},
            {{"DoubleSided.Static", "DoubleSided.Static.ID"},
             {"DoubleSided.Moving", "DoubleSided.Moving.ID"}}},
-          {{{"SingleSided.Static.HideOnRaycast", "SingleSided.Static.ID.HideOnRaycast"},
-            {"SingleSided.Moving.HideOnRaycast", "SingleSided.Moving.ID.HideOnRaycast"}},
-           {{"DoubleSided.Static.HideOnRaycast", "DoubleSided.Static.ID.HideOnRaycast"},
-            {"DoubleSided.Moving.HideOnRaycast", "DoubleSided.Moving.ID.HideOnRaycast"}}}};
+          {{{"SingleSided.Static.HideOnRaycast", nullptr},
+            {"SingleSided.Moving.HideOnRaycast", nullptr}},
+           {{"DoubleSided.Static.HideOnRaycast", nullptr},
+            {"DoubleSided.Moving.HideOnRaycast", nullptr}}}};
 
   for (bool hide_on_raycast : {false, true}) { /* Render Raycast targets first. */
     for (bool double_sided : {false, true}) {
       for (bool moving : {false, true}) {
         for (bool write_id : {false, true}) {
+          if (hide_on_raycast && write_id) {
+            /* This is never needed. */
+            continue;
+          }
           PassMain::Sub *&subpass =
               prepass_subpasses_[hide_on_raycast][double_sided][moving][write_id];
           subpass = &this->sub(subpass_names[hide_on_raycast][double_sided][moving][write_id]);
