@@ -87,8 +87,15 @@ class TestGraph:
                 revision_dates[revision] = int(entry.date)
 
             output_values = entry.output_all_runs.get(output)
-            if len(output_values) > 1:
+            if output_values and len(output_values) > 1:
                 use_error_bars = True
+
+        default_entry = {
+            'x': None,
+            'y': None,
+            'yMin': None,
+            'yMax': None,
+        }
 
         # Convert to chart.js data layout.
         if chart_type == 'comparison':
@@ -104,7 +111,7 @@ class TestGraph:
             for revision, index in sorted_revisions:
                 datasets.append({
                     'label': revision,
-                    'data': [None] * len(tests),
+                    'data': [default_entry] * len(tests),
                 })
 
             for entry in entries:
@@ -131,7 +138,7 @@ class TestGraph:
             for test, index in sorted_tests:
                 datasets.append({
                     'label': test,
-                    'data': [None] * len(revisions),
+                    'data': [default_entry] * len(revisions),
                     'tension': 0.1,
                 })
 

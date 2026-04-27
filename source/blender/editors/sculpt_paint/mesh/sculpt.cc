@@ -222,9 +222,9 @@ int active_face_set_get(const Object &object)
   return face_set_none_id;
 }
 
-int vert_face_set_get(const GroupedSpan<int> vert_to_face_map,
-                      const Span<int> face_sets,
-                      const int vert)
+int vert_face_set_max_get(const GroupedSpan<int> vert_to_face_map,
+                          const Span<int> face_sets,
+                          const int vert)
 {
   int face_set = face_set_none_id;
   for (const int face : vert_to_face_map[vert]) {
@@ -239,9 +239,23 @@ int vert_face_set_get(const SubdivCCG &subdiv_ccg, const Span<int> face_sets, co
   return face_sets[face];
 }
 
-int vert_face_set_get(const int /*face_set_offset*/, const BMVert & /*vert*/)
+int vert_face_set_max_get(const int /*face_set_offset*/, const BMVert & /*vert*/)
 {
   return face_set_none_id;
+}
+
+Set<int> vert_face_sets_get(const GroupedSpan<int> vert_to_face_map,
+                            const Span<int> face_sets,
+                            const int vert)
+{
+  Set<int> result;
+  for (const int face : vert_to_face_map[vert]) {
+    result.add(face_sets[face]);
+  }
+  if (result.is_empty()) {
+    result.add(face_set_none_id);
+  }
+  return result;
 }
 
 bool vert_has_face_set(const GroupedSpan<int> vert_to_face_map,
@@ -278,6 +292,22 @@ bool vert_has_face_set(const int face_set_offset, const BMVert &vert, const int 
   BMFace *face;
   BM_ITER_ELEM (face, &iter, &const_cast<BMVert &>(vert), BM_FACES_OF_VERT) {
     if (BM_ELEM_CD_GET_INT(face, face_set_offset) == face_set) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool vert_has_any_face_set(const GroupedSpan<int> vert_to_face_map,
+                           const Span<int> face_sets,
+                           int vert,
+                           const Set<int> &allowed_face_sets)
+{
+  if (face_sets.is_empty()) {
+    return allowed_face_sets.contains(face_set_none_id);
+  }
+  for (const int face : vert_to_face_map[vert]) {
+    if (allowed_face_sets.contains(face_sets[face])) {
       return true;
     }
   }
@@ -4971,7 +5001,7 @@ struct SculptPaintStroke final : public PaintStroke {
   void redraw(bool final) override;
   bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
-  void done(bool is_cancel) override;
+  void done(bool is_cancel, bool stroke_started) override;
 };
 
 bool SculptPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
@@ -5875,7 +5905,7 @@ static void brush_exit_tex(Sculpt &sd)
   }
 }
 
-void SculptPaintStroke::done(bool is_cancel)
+void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
 {
   Object &ob = *this->object;
   SculptSession &ss = *ob.runtime->sculpt_session;
@@ -5908,7 +5938,7 @@ void SculptPaintStroke::done(bool is_cancel)
   MEM_delete(ss.cache);
   ss.cache = nullptr;
 
-  if (!is_cancel) {
+  if (!is_cancel && stroke_started) {
     stroke_undo_end(*paint_mode_settings_, *this->object, brush);
   }
 
@@ -5970,15 +6000,13 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush_type_is_paint(brush.sculpt_brush_type) &&
       !color_supported_check(scene, ob, op->reports))
   {
-    stroke->done(true);
-    stroke->free(C, op);
+    stroke->cancel(C);
     MEM_delete(stroke);
     return OPERATOR_CANCELLED;
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) && !shape_key_check(ob, op->reports))
   {
-    stroke->done(true);
-    stroke->free(C, op);
+    stroke->cancel(C);
     MEM_delete(stroke);
     return OPERATOR_CANCELLED;
   }
@@ -5989,8 +6017,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
     if (!pbvh || pbvh->type() != bke::pbvh::Type::Grids) {
       BKE_report(op->reports, RPT_ERROR, "Only supported in multiresolution mode");
-      stroke->done(true);
-      stroke->free(C, op);
+      stroke->cancel(C);
       MEM_delete(stroke);
       return OPERATOR_CANCELLED;
     }
@@ -6012,8 +6039,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
-    stroke->done(true);
-    stroke->free(C, op);
+    stroke->cancel(C);
     MEM_delete(stroke);
     return OPERATOR_PASS_THROUGH;
   }
@@ -6024,10 +6050,12 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
     if (stroke) {
-      /* We don't need to call `stroke->done` in this case, as it should have happened inside
-       * the modal call */
-      BLI_assert(ob.runtime->sculpt_session->cache == nullptr);
-      stroke->free(C, op);
+      if (retval == OPERATOR_FINISHED) {
+        stroke->finish(C);
+      }
+      else {
+        stroke->cancel(C);
+      }
       MEM_delete(stroke);
     }
     return retval;
@@ -6067,7 +6095,7 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
   UNUSED_VARS_NDEBUG(brush);
 
   undo::restore_from_undo_step(depsgraph, sd, ob);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)

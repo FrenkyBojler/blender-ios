@@ -425,6 +425,13 @@ void BaryWeightFromPositionFn::call(const IndexMask &mask,
                                    bary_weights);
 }
 
+void BaryWeightFromPositionFn::hash_unique(UniqueHashBytes &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(source_.get_mesh());
+}
+
 NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
     : source_(std::move(geometry))
 {
@@ -460,15 +467,21 @@ void NearestCornerFromPositionFn::call(const IndexMask &mask,
                               nearest_corner);
 }
 
+void NearestCornerFromPositionFn::hash_unique(UniqueHashBytes &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(source_.get_mesh());
+}
+
 BaryWeightSampleFn::BaryWeightSampleFn(GeometrySet geometry, fn::GField src_field)
-    : source_(std::move(geometry))
+    : source_(std::move(geometry)), src_field_(std::move(src_field))
 {
   source_.ensure_owns_direct_data();
-  this->evaluate_source(std::move(src_field));
   mf::SignatureBuilder builder{"Sample Barycentric Triangles", signature_};
   builder.single_input<int>("Triangle Index");
   builder.single_input<float3>("Barycentric Weight");
-  builder.single_output("Value", source_data_->type());
+  builder.single_output("Value", src_field_.cpp_type());
   this->set_signature(&signature_);
 }
 
@@ -521,28 +534,42 @@ void BaryWeightSampleFn::call(const IndexMask &mask,
   dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
 }
 
-void BaryWeightSampleFn::evaluate_source(fn::GField src_field)
+void BaryWeightSampleFn::hash_unique(UniqueHashBytes &hash) const
 {
-  const auto &component = *source_.get_component<bke::MeshComponent>();
-  const Mesh &mesh = *component.get();
-  src_domain_ = bke::try_detect_field_domain(component, src_field).value_or(AttrDomain::Corner);
-  if (src_domain_ == AttrDomain::Edge) {
-    /* To maintain legacy behavior and avoid making decisions here about barycentric mixing of edge
-     * attributes, just use the domain interpolation to read the attribute on the face corner
-     * domain. */
-    src_domain_ = AttrDomain::Corner;
-  }
-  else if (src_domain_ == AttrDomain::Face) {
-    tri_faces_ = mesh.corner_tri_faces();
-  }
-  corner_verts_ = mesh.corner_verts();
-  corner_tris_ = mesh.corner_tris();
-  source_context_.emplace(MeshFieldContext(mesh, src_domain_));
-  const int domain_size = mesh.attributes().domain_size(src_domain_);
-  source_evaluator_ = std::make_unique<fn::FieldEvaluator>(*source_context_, domain_size);
-  source_evaluator_->add(std::move(src_field));
-  source_evaluator_->evaluate();
-  source_data_ = &source_evaluator_->get_evaluated(0);
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(source_.get_mesh());
+  fn::FieldHashDeep field_hash;
+  hash.add(field_hash.ensure(src_field_));
+}
+
+void BaryWeightSampleFn::prepare_for_execution() const
+{
+  mutex_.ensure([&]() {
+    const auto &component = *source_.get_component<bke::MeshComponent>();
+    const Mesh &mesh = *component.get();
+    corner_verts_ = mesh.corner_verts();
+    corner_tris_ = mesh.corner_tris();
+    /* Use the most complex domain for now, ensuring no information is lost. In the future, it
+     * should be possible to use the most complex domain required by the field inputs, to simplify
+     * sampling and avoid domain conversions. */
+    src_domain_ = bke::try_detect_field_domain(component, src_field_).value_or(AttrDomain::Corner);
+    if (src_domain_ == AttrDomain::Edge) {
+      /* To maintain legacy behavior and avoid making decisions here about barycentric mixing of
+       * edge attributes, just use the domain interpolation to read the attribute on the face
+       * corner domain. */
+      src_domain_ = AttrDomain::Corner;
+    }
+    else if (src_domain_ == AttrDomain::Face) {
+      tri_faces_ = mesh.corner_tri_faces();
+    }
+    source_context_.emplace(MeshFieldContext(mesh, src_domain_));
+    const int domain_size = mesh.attributes().domain_size(src_domain_);
+    source_evaluator_ = std::make_unique<fn::FieldEvaluator>(*source_context_, domain_size);
+    source_evaluator_->add(src_field_);
+    source_evaluator_->evaluate();
+    source_data_ = &source_evaluator_->get_evaluated(0);
+  });
 }
 
 }  // namespace blender::bke::mesh_surface_sample

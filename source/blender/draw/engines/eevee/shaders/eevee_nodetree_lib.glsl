@@ -240,7 +240,7 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
 #if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && !defined(MAT_SHADOW)
   // clang-format on
 #  if 0 /* TODO(fclem): Finish inverted horizon scan. */
-  /* TODO(fclem): Replace eevee_ambient_occlusion_lib by eevee_horizon_scan_eval_lib when this is
+  /* TODO(fclem): Replace eevee_ambient_occlusion_lib by eevee_fast_gi when this is
    * finished. */
   float3 vP = drw_point_world_to_view(g_data.P);
   float3 vN = drw_normal_world_to_view(normal);
@@ -448,8 +448,8 @@ void brdf_f82_tint_lut(float3 F0,
 
   /* Precompute the F82 term factor for the Fresnel model.
    * In the classic F82 model, the F82 input directly determines the value of the Fresnel
-   * model at ~82°, similar to F0 and F90.
-   * With F82-Tint, on the other hand, the value at 82° is the value of the classic Schlick
+   * model at ~82 degrees, similar to F0 and F90.
+   * With F82-Tint, on the other hand, the value at 82 degrees is the value of the classic Schlick
    * model multiplied by the tint input.
    * Therefore, the factor follows by setting `F82Tint(cosI) = FSchlick(cosI) - b*cosI*(1-cosI)^6`
    * and `F82Tint(acos(1/7)) = FSchlick(acos(1/7)) * f82_tint` and solving for `b`. */
