@@ -611,9 +611,9 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
 
   if (U.experimental.use_toast_notifications) {
     ui::notification::show(CTX_wm_screen(C),
-                     report->message,
-                     ui::icon_from_report_type(report->type),
-                     eReportType(report->type));
+                           report->message,
+                           ui::icon_from_report_type(report->type),
+                           eReportType(report->type));
     WM_event_timer_remove(wm, nullptr, reports->reporttimer);
     reports->reporttimer = nullptr;
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);

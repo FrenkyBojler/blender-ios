@@ -296,7 +296,7 @@ void show(bScreen *screen,
 
 int event_handler(bContext *C, ARegion *region, wmEvent *event);
 
-}  // namespace notification  
+}  // namespace notification
 
 }  // namespace ui
 }  // namespace blender
