@@ -593,6 +593,10 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           Map<int, int> vert_id_to_intersection_point;
           const float3x3 invert_axis_mat = math::invert(axis_mat);
+          const float3 depth_point = positions[points_by_curve[fill.first()].first()];
+          float2 pos2d;
+          mul_v2_m3v3(pos2d, axis_mat.ptr(), depth_point);
+          const float3 depth_direction = depth_point - invert_axis_mat * float3(pos2d, 0.0f);
 
           for (const int vert : result.vert.index_range()) {
             /* The point already exists. */
@@ -603,7 +607,9 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             vert_id_to_intersection_point.add(vert, intersection_point_results[pos].size());
 
             const float2 co = float2(result.vert[vert]);
-            intersection_point_results[pos].append(invert_axis_mat * float3(co.x, co.y, 0.0f));
+
+            intersection_point_results[pos].append(invert_axis_mat * float3(co.x, co.y, 0.0f) +
+                                                   depth_direction);
           }
 
           auto vert_to_point = [&](const int vert) {
