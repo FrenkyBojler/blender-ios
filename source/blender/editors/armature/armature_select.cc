@@ -1978,7 +1978,7 @@ static void is_ancestor(EditBone *bone, EditBone *ancestor)
   bone->temp.ebone = bone->temp.ebone->temp.ebone;
 }
 
-static void select_similar_children(bContext *C)
+static void select_similar_children(bContext *C, bool only_connected)
 {
   Object *obedit = CTX_data_edit_object(C);
   bArmature *arm = id_cast<bArmature *>(obedit->data);
@@ -1991,7 +1991,9 @@ static void select_similar_children(bContext *C)
   for (EditBone &ebone_iter : *arm->edbo) {
     is_ancestor(&ebone_iter, ebone_act);
 
-    if (ebone_iter.temp.ebone == ebone_act && EBONE_SELECTABLE(arm, &ebone_iter)) {
+    if (ebone_iter.temp.ebone == ebone_act && EBONE_SELECTABLE(arm, &ebone_iter) &&
+        (!only_connected || (ebone_iter.flag & BONE_CONNECTED)))
+    {
       ED_armature_ebone_select_set(&ebone_iter, true);
     }
   }
@@ -2000,14 +2002,16 @@ static void select_similar_children(bContext *C)
   DEG_id_tag_update(&obedit->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-static void select_similar_children_immediate(bContext *C)
+static void select_similar_children_immediate(bContext *C, bool only_connected)
 {
   Object *obedit = CTX_data_edit_object(C);
   bArmature *arm = id_cast<bArmature *>(obedit->data);
   EditBone *ebone_act = CTX_data_active_bone(C);
 
   for (EditBone &ebone_iter : *arm->edbo) {
-    if (ebone_iter.parent == ebone_act && EBONE_SELECTABLE(arm, &ebone_iter)) {
+    if (ebone_iter.parent == ebone_act && EBONE_SELECTABLE(arm, &ebone_iter) &&
+        (!only_connected || (ebone_iter.flag & BONE_CONNECTED)))
+    {
       ED_armature_ebone_select_set(&ebone_iter, true);
     }
   }
@@ -2041,6 +2045,7 @@ static wmOperatorStatus armature_select_similar_exec(bContext *C, wmOperator *op
   /* Get props */
   int type = RNA_enum_get(op->ptr, "type");
   float thresh = RNA_float_get(op->ptr, "threshold");
+  const bool only_connected = RNA_boolean_get(op->ptr, "only_connected");
 
   /* Check for active bone */
   if (CTX_data_active_bone(C) == nullptr) {
@@ -2053,10 +2058,10 @@ static wmOperatorStatus armature_select_similar_exec(bContext *C, wmOperator *op
 
   switch (type) {
     case SIMEDBONE_CHILDREN:
-      select_similar_children(C);
+      select_similar_children(C, only_connected);
       break;
     case SIMEDBONE_CHILDREN_IMMEDIATE:
-      select_similar_children_immediate(C);
+      select_similar_children_immediate(C, only_connected);
       break;
     case SIMEDBONE_SIBLINGS:
       select_similar_siblings(C);
@@ -2101,6 +2106,9 @@ static void select_similar_ui(bContext * /*C*/, wmOperator *op)
   if ((type == SIMEDBONE_LENGTH) || (type == SIMEDBONE_DIRECTION)) {
     layout.prop(op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
+  if ((type == SIMEDBONE_CHILDREN) || (type == SIMEDBONE_CHILDREN_IMMEDIATE)) {
+    layout.prop(op->ptr, "only_connected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 void ARMATURE_OT_select_similar(wmOperatorType *ot)
@@ -2122,6 +2130,11 @@ void ARMATURE_OT_select_similar(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", prop_similar_types, SIMEDBONE_LENGTH, "Type", "");
   RNA_def_float(ot->srna, "threshold", 0.1f, 0.0f, 1.0f, "Threshold", "", 0.0f, 1.0f);
+  RNA_def_boolean(ot->srna,
+                  "only_connected",
+                  false,
+                  "Only Connected",
+                  "Only select bones that have a connected parent/child relationship");
 }
 
 /** \} */
