@@ -347,7 +347,7 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                     "paint.vertex_paint",
                     "paint.weight_paint",
                     "sculpt.brush_stroke",
-                    "sculpt_curves.brush_stroke"
+                    "sculpt_curves.brush_stroke",
                 } and item_prop:
                     index_to_fix = -1
                     value_to_copy = None
