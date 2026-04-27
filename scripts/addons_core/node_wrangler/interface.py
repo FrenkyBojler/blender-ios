@@ -9,7 +9,8 @@ from bpy.app.translations import contexts as i18n_contexts
 from bl_ui.node_add_menu import AddNodeMenu, SwapNodeMenu
 
 from .utils.constants import blend_types, geo_combine_operations, operations
-from .utils.nodes import get_nodes_links, NWBaseMenu
+from .utils.attributes import object_attribute_names
+from .utils.nodes import NWBaseMenu
 
 
 def socket_to_icon(socket):
@@ -317,6 +318,10 @@ class NWLinkUseOutputsNamesMenu(Menu, NWBaseMenu):
 
 class NWAttributeMenuBase:
     bl_label = "Attributes"
+    hidden_menu = ""
+    instancer_menu = ""
+    show_hidden = False
+    show_instancer = False
 
     @classmethod
     def poll(cls, context):
@@ -324,43 +329,98 @@ class NWAttributeMenuBase:
         return (space.type == 'NODE_EDITOR'
                 and space.node_tree is not None
                 and space.node_tree.library is None
+                and space.edit_tree is not None
                 and space.tree_type == 'ShaderNodeTree'
-                and space.shader_type == 'OBJECT')
+                and space.shader_type == 'OBJECT'
+                and context.object is not None)
+
+    def draw_attribute_nodes(self, layout, attr_entries):
+        for attr_name, attribute_type in attr_entries:
+            props = self.node_operator(layout, "ShaderNodeAttribute", label=attr_name, translate=False)
+            ops = props.settings.add()
+            ops.name = "attribute_name"
+            ops.value = repr(attr_name)
+            ops = props.settings.add()
+            ops.name = "attribute_type"
+            ops.value = repr(attribute_type)
 
     def draw(self, context):
-        l = self.layout
-        nodes, links = get_nodes_links(context)
-        mat = context.object.active_material
+        layout = self.layout
+        attrs = object_attribute_names(context)
 
-        objs = []
-        for obj in bpy.data.objects:
-            for slot in obj.material_slots:
-                if slot.material == mat:
-                    objs.append(obj)
-        attrs = []
-        for obj in objs:
-            if obj.data.attributes:
-                for attr in obj.data.attributes:
-                    if not attr.is_internal:
-                        attrs.append(attr.name)
-        attrs = list(set(attrs))  # get a unique list
+        if self.show_hidden:
+            if attrs["hidden"]:
+                self.draw_attribute_nodes(layout, attrs["hidden"])
+            else:
+                layout.label(text="No hidden attributes")
+            return
 
-        if attrs:
-            for attr_name in attrs:
-                props = self.node_operator(l, "ShaderNodeAttribute", label=attr_name, translate=False)
-                ops = props.settings.add()
-                ops.name = "attribute_name"
-                ops.value = repr(attr_name)
-        else:
-            l.label(text="No attributes on objects with this material")
+        if self.show_instancer:
+            if attrs["instancer"]:
+                self.draw_attribute_nodes(layout, attrs["instancer"])
+            else:
+                layout.label(text="No instancer attributes")
+            return
+
+        drew_items = False
+        for attr_type in ("modifier", "vertex_group", "attribute"):
+            if not attrs[attr_type]:
+                continue
+            if drew_items:
+                layout.separator()
+            self.draw_attribute_nodes(layout, attrs[attr_type])
+            drew_items = True
+
+        if attrs["instancer"]:
+            if drew_items:
+                layout.separator()
+            layout.menu(self.instancer_menu, text="Instancer")
+            drew_items = True
+
+        if attrs["hidden"]:
+            if drew_items:
+                layout.separator()
+            layout.menu(self.hidden_menu, text="Hidden")
+            return
+
+        if not drew_items:
+            layout.label(text="No attributes on objects with this material")
 
 
 class NWAttributeMenuAdd(NWAttributeMenuBase, AddNodeMenu):
     bl_idname = "NODE_MT_nw_node_attribute_menu_add"
+    hidden_menu = "NODE_MT_nw_node_hidden_attribute_menu_add"
+    instancer_menu = "NODE_MT_nw_node_instancer_attribute_menu_add"
 
 
 class NWAttributeMenuSwap(NWAttributeMenuBase, SwapNodeMenu):
     bl_idname = "NODE_MT_nw_node_attribute_menu_swap"
+    hidden_menu = "NODE_MT_nw_node_hidden_attribute_menu_swap"
+    instancer_menu = "NODE_MT_nw_node_instancer_attribute_menu_swap"
+
+
+class NWHiddenAttributeMenuAdd(NWAttributeMenuBase, AddNodeMenu):
+    bl_idname = "NODE_MT_nw_node_hidden_attribute_menu_add"
+    bl_label = "Hidden"
+    show_hidden = True
+
+
+class NWHiddenAttributeMenuSwap(NWAttributeMenuBase, SwapNodeMenu):
+    bl_idname = "NODE_MT_nw_node_hidden_attribute_menu_swap"
+    bl_label = "Hidden"
+    show_hidden = True
+
+
+class NWInstancerAttributeMenuAdd(NWAttributeMenuBase, AddNodeMenu):
+    bl_idname = "NODE_MT_nw_node_instancer_attribute_menu_add"
+    bl_label = "Instancer"
+    show_instancer = True
+
+
+class NWInstancerAttributeMenuSwap(NWAttributeMenuBase, SwapNodeMenu):
+    bl_idname = "NODE_MT_nw_node_instancer_attribute_menu_swap"
+    bl_label = "Instancer"
+    show_instancer = True
 
 
 #
@@ -375,12 +435,18 @@ def select_parent_children_buttons(self, context):
 
 
 def attr_nodes_add_menu_func(self, context):
+    if not NWAttributeMenuAdd.poll(context):
+        return
+
     col = self.layout.column(align=True)
     col.menu("NODE_MT_nw_node_attribute_menu_add")
     col.separator()
 
 
 def attr_nodes_swap_menu_func(self, context):
+    if not NWAttributeMenuSwap.poll(context):
+        return
+
     col = self.layout.column(align=True)
     col.menu("NODE_MT_nw_node_attribute_menu_swap")
     col.separator()
@@ -442,6 +508,10 @@ classes = (
     NWLinkUseOutputsNamesMenu,
     NWAttributeMenuAdd,
     NWAttributeMenuSwap,
+    NWHiddenAttributeMenuAdd,
+    NWHiddenAttributeMenuSwap,
+    NWInstancerAttributeMenuAdd,
+    NWInstancerAttributeMenuSwap,
 )
 
 
@@ -452,8 +522,8 @@ def register():
 
     # menu items
     bpy.types.NODE_MT_select.append(select_parent_children_buttons)
-    bpy.types.NODE_MT_category_shader_input.prepend(attr_nodes_add_menu_func)
-    bpy.types.NODE_MT_shader_node_input_swap.prepend(attr_nodes_swap_menu_func)
+    bpy.types.NODE_MT_shader_node_add_all.prepend(attr_nodes_add_menu_func)
+    bpy.types.NODE_MT_shader_node_swap_all.prepend(attr_nodes_swap_menu_func)
     bpy.types.NODE_PT_backdrop.append(bgreset_menu_func)
     bpy.types.NODE_PT_active_node_generic.append(save_viewer_menu_func)
     bpy.types.NODE_MT_category_shader_texture.prepend(multipleimages_menu_func)
@@ -465,8 +535,8 @@ def register():
 def unregister():
     # menu items
     bpy.types.NODE_MT_select.remove(select_parent_children_buttons)
-    bpy.types.NODE_MT_category_shader_input.remove(attr_nodes_add_menu_func)
-    bpy.types.NODE_MT_shader_node_input_swap.remove(attr_nodes_swap_menu_func)
+    bpy.types.NODE_MT_shader_node_add_all.remove(attr_nodes_add_menu_func)
+    bpy.types.NODE_MT_shader_node_swap_all.remove(attr_nodes_swap_menu_func)
     bpy.types.NODE_PT_backdrop.remove(bgreset_menu_func)
     bpy.types.NODE_PT_active_node_generic.remove(save_viewer_menu_func)
     bpy.types.NODE_MT_category_shader_texture.remove(multipleimages_menu_func)
