@@ -11,8 +11,8 @@
 #include "BLI_array.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_vector_set.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */

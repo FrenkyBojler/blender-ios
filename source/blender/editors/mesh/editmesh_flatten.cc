@@ -34,7 +34,7 @@ namespace blender {
 
 static const EnumPropertyItem prop_method_items[] = {
     {FLATTEN_BEST_FIT, "BEST_FIT", 0, "Best Fit", "Calculate a best fitting plane"},
-    {FLATTEN_NORMAL, "NORMAL", 0, "Normal", "Derive plane from averaging vertex normals"},
+    {FLATTEN_NORMAL, "NORMAL", 0, "Normal", "Derive plane by averaging face normals"},
     {FLATTEN_VIEW, "VIEW", 0, "View", "Flatten on a plane perpendicular to the viewing angle"},
     {0, nullptr},
 };
