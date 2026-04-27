@@ -455,7 +455,7 @@ bool modifier_remove(Strip *strip, StripModifierData *smd)
   }
 
   if (smd->flag & STRIP_MODIFIER_FLAG_ACTIVE) {
-    /* Prefer the previous modifier but use the next if this modifier is the first in the list. */
+    /* Prefer the next modifier but use the previous if this modifier is the last in the list. */
     if (smd->next != nullptr) {
       modifier_set_active(strip, smd->next);
     }
