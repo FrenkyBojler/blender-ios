@@ -15,8 +15,9 @@ __all__ = {
 }
 
 import argparse
-import os
 import sys
+
+from pathlib import Path
 
 from make_utils import call
 
@@ -30,19 +31,16 @@ def parse_arguments() -> argparse.Namespace:
 def main() -> int:
     args = parse_arguments()
 
-    benchmark_dir = os.path.join(os.path.pardir, "benchmark")
-    if not os.path.exists(benchmark_dir):
-        build_dir = args.build_directory
-        if sys.platform == "darwin":
-            blender_bin = os.path.join(build_dir, "bin/Blender.app/Contents/MacOS/Blender")
-        else:
-            blender_bin = os.path.join(build_dir, os.path.normcase("bin/blender"))
+    benchmark_dir = Path(__file__).absolute().parent.joinpath("benchmark")
+    if not benchmark_dir.exists():
+        build_dir = Path(args.build_directory)
+        blender_bin = build_dir.joinpath("bin").absolute()
 
-        if not os.path.isfile(blender_bin):
-            sys.stderr.write("blender binary not found, can't initialize benchmarks")
+        if not blender_bin.exists():
+            sys.stderr.write("blender `bin` directory not found, can't initialize benchmarks")
             return 1
 
-        create_dir_command = ["./tests/performance/benchmark.py", "init", "--blender_bin", os.path.abspath(blender_bin)]
+        create_dir_command = ["./tests/performance/benchmark.py", "init", "--blender", blender_bin]
         exitcode = call(create_dir_command)
         if exitcode != 0:
             return exitcode
