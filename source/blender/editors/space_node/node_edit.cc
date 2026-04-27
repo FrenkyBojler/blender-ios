@@ -418,8 +418,11 @@ struct NodeSizeWidget {
   bool precision, snap_to_grid;
 };
 
-static void node_resize_init(
-    bContext *C, wmOperator *op, const float2 &cursor, const VectorSet<bNode*> &nodes, NodeResizeDirection dir)
+static void node_resize_init(bContext *C,
+                             wmOperator *op,
+                             const float2 &cursor,
+                             const VectorSet<bNode *> &nodes,
+                             NodeResizeDirection dir)
 {
   Scene *scene = CTX_data_scene(C);
   NodeSizeWidget *nsw = MEM_new<NodeSizeWidget>(__func__);
