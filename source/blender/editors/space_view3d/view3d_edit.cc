@@ -287,10 +287,36 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
     vb.ymax = region->winy;
   }
 
-  border.xmin = (float(rect.xmin) - vb.xmin) / BLI_rctf_size_x(&vb);
-  border.ymin = (float(rect.ymin) - vb.ymin) / BLI_rctf_size_y(&vb);
-  border.xmax = (float(rect.xmax) - vb.xmin) / BLI_rctf_size_x(&vb);
-  border.ymax = (float(rect.ymax) - vb.ymin) / BLI_rctf_size_y(&vb);
+  border.xmin = (float(rect.xmin) - vb.xmin);
+  border.ymin = (float(rect.ymin) - vb.ymin);
+  border.xmax = (float(rect.xmax) - vb.xmin);
+  border.ymax = (float(rect.ymax) - vb.ymin);
+
+  if (rv3d->persp == RV3D_CAMOB && rv3d->camroll != 0.0f) {
+    border.xmin -= BLI_rctf_size_x(&vb) / 2.0f;
+    border.ymin -= BLI_rctf_size_y(&vb) / 2.0f;
+    border.xmax -= BLI_rctf_size_x(&vb) / 2.0f;
+    border.ymax -= BLI_rctf_size_y(&vb) / 2.0f;
+
+    float c = cosf(rv3d->camroll);
+    float s = sinf(rv3d->camroll);
+    float xmin1 = border.xmin;
+    float xmax1 = border.xmax;
+    border.xmin = xmin1 * c - border.ymin * s;
+    border.ymin = xmin1 * s + border.ymin * c;
+    border.xmax = xmax1 * c - border.ymax * s;
+    border.ymax = xmax1 * s + border.ymax * c;
+
+    border.xmin += BLI_rctf_size_x(&vb) / 2.0f;
+    border.ymin += BLI_rctf_size_y(&vb) / 2.0f;
+    border.xmax += BLI_rctf_size_x(&vb) / 2.0f;
+    border.ymax += BLI_rctf_size_y(&vb) / 2.0f;
+  }
+
+  border.xmin = border.xmin / BLI_rctf_size_x(&vb);
+  border.ymin = border.ymin / BLI_rctf_size_y(&vb);
+  border.xmax = border.xmax / BLI_rctf_size_x(&vb);
+  border.ymax = border.ymax / BLI_rctf_size_y(&vb);
 
   /* actually set border */
   CLAMP(border.xmin, 0.0f, 1.0f);
