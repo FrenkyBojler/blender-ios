@@ -1729,13 +1729,13 @@ static StripModifierData *rna_Strip_modifier_new(
   }
 }
 
-static void rna_Strip_modifier_remove(Strip *strip,
-                                      bContext *C,
+static void rna_Strip_modifier_remove(ID *scene_id,
+                                      Strip *strip,
                                       ReportList *reports,
                                       PointerRNA *smd_ptr)
 {
   StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = id_cast<Scene *>(scene_id);
 
   if (seq::modifier_remove(strip, smd) == false) {
     BKE_report(reports, RPT_ERROR, "Modifier was not found in the stack");
@@ -1748,9 +1748,9 @@ static void rna_Strip_modifier_remove(Strip *strip,
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 }
 
-static void rna_Strip_modifier_clear(Strip *strip, bContext *C)
+static void rna_Strip_modifier_clear(ID *scene_id, Strip *strip)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = id_cast<Scene *>(scene_id);
 
   seq::modifier_clear(strip);
 
@@ -2443,7 +2443,7 @@ static void rna_def_strip_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 
   /* remove modifier */
   func = RNA_def_function(srna, "remove", "rna_Strip_modifier_remove");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Remove an existing modifier from the strip");
   /* modifier to remove */
   parm = RNA_def_pointer(func, "modifier", "StripModifier", "", "Modifier to remove");
@@ -2452,7 +2452,7 @@ static void rna_def_strip_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 
   /* clear all modifiers */
   func = RNA_def_function(srna, "clear", "rna_Strip_modifier_clear");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
   RNA_def_function_ui_description(func, "Remove all modifiers from the strip");
 
   /* Active modifier. */
