@@ -839,6 +839,7 @@ void ED_view3d_calc_camera_border(const Scene *scene,
                                   const View3D *v3d,
                                   const RegionView3D *rv3d,
                                   bool no_shift,
+                                  bool no_roll,
                                   rctf *r_viewborder);
 void ED_view3d_calc_camera_border_size(const Scene *scene,
                                        Depsgraph *depsgraph,

@@ -94,6 +94,7 @@ class Context : public compositor::Context {
                                  draw_ctx->v3d,
                                  draw_ctx->rv3d,
                                  false,
+                                 true,
                                  &camera_border);
 
     const Bounds<int2> camera_region = Bounds<int2>(
@@ -129,6 +130,7 @@ class Context : public compositor::Context {
                                  draw_ctx->v3d,
                                  draw_ctx->rv3d,
                                  false,
+                                 true,
                                  &camera_border);
 
     const Bounds<int2> camera_region = Bounds<int2>(

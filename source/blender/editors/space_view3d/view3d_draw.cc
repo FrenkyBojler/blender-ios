@@ -141,7 +141,7 @@ void ED_view3d_update_viewmat(const Depsgraph *depsgraph,
   /* store window coordinates scaling/offset */
   if (!offscreen && rv3d->persp == RV3D_CAMOB && v3d->camera) {
     rctf cameraborder;
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &cameraborder);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, false, &cameraborder);
     rv3d->viewcamtexcofac[0] = float(region->winx) / BLI_rctf_size_x(&cameraborder);
     rv3d->viewcamtexcofac[1] = float(region->winy) / BLI_rctf_size_y(&cameraborder);
 
@@ -390,7 +390,8 @@ static void view3d_camera_border(const Scene *scene,
                                  const RegionView3D *rv3d,
                                  rctf *r_viewborder,
                                  const bool no_shift,
-                                 const bool no_zoom)
+                                 const bool no_zoom,
+                                 const bool no_roll)
 {
   CameraParams params;
   rctf rect_view, rect_camera;
@@ -401,6 +402,9 @@ static void view3d_camera_border(const Scene *scene,
   BKE_camera_params_from_view3d(&params, depsgraph, v3d, rv3d);
   if (no_zoom) {
     params.zoom = 1.0f;
+  }
+  if (no_roll) {
+    params.roll = 0.0f;
   }
   BKE_camera_params_compute_viewplane(&params, region->winx, region->winy, 1.0f, 1.0f);
   rect_view = params.viewplane;
@@ -414,6 +418,9 @@ static void view3d_camera_border(const Scene *scene,
   if (no_shift) {
     params.shiftx = 0.0f;
     params.shifty = 0.0f;
+  }
+  if (no_roll) {
+    params.roll = 0.0f;
   }
   BKE_camera_params_compute_viewplane(
       &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
@@ -439,7 +446,7 @@ void ED_view3d_calc_camera_border_size(const Scene *scene,
 {
   rctf viewborder;
 
-  view3d_camera_border(scene, depsgraph, region, v3d, rv3d, &viewborder, true, true);
+  view3d_camera_border(scene, depsgraph, region, v3d, rv3d, &viewborder, true, true, false);
   r_size[0] = BLI_rctf_size_x(&viewborder);
   r_size[1] = BLI_rctf_size_y(&viewborder);
 }
@@ -450,9 +457,11 @@ void ED_view3d_calc_camera_border(const Scene *scene,
                                   const View3D *v3d,
                                   const RegionView3D *rv3d,
                                   const bool no_shift,
+                                  const bool no_roll,
                                   rctf *r_viewborder)
 {
-  view3d_camera_border(scene, depsgraph, region, v3d, rv3d, r_viewborder, no_shift, false);
+  view3d_camera_border(
+      scene, depsgraph, region, v3d, rv3d, r_viewborder, no_shift, false, no_roll);
 }
 
 static void drawviewborder_grid3(uint shdr_pos, float x1, float x2, float y1, float y2, float fac)
@@ -551,7 +560,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
     ca = id_cast<Camera *>(v3d->camera->data);
   }
 
-  ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
+  ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, true, &viewborder);
   /* the offsets */
   x1 = viewborder.xmin;
   y1 = viewborder.ymin;
@@ -582,8 +591,8 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
     if (roll != 0.0f) {
       GPU_matrix_push();
-      const int center_x = (x1 + x2) / 2;
-      const int center_y = (y1 + y2) / 2;
+      const int center_x = region->winx / 2;
+      const int center_y = region->winy / 2;
       GPU_matrix_translate_2f(center_x, center_y);
       GPU_matrix_rotate_2d(RAD2DEG(-rv3d->camroll));
       GPU_matrix_translate_2f(-center_x, -center_y);
@@ -609,12 +618,12 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
         if (x1i > 0.0f) {
           immRectf(shdr_pos, 0.0f, winy, x1i, 0.0f);
         }
-      if (x2i < winx) {
-        immRectf(shdr_pos, x2i, winy, winx, 0.0f);
-      }
-      if (y2i < winy) {
-        immRectf(shdr_pos, x1i, winy, x2i, y2i);
-      }
+        if (x2i < winx) {
+          immRectf(shdr_pos, x2i, winy, winx, 0.0f);
+        }
+        if (y2i < winy) {
+          immRectf(shdr_pos, x1i, winy, x2i, y2i);
+        }
         if (y2i > 0.0f) {
           immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
         }
@@ -2954,7 +2963,7 @@ bool ED_view3d_calc_render_border(
   /* Compute border. */
   if (rv3d->persp == RV3D_CAMOB) {
     rctf viewborder;
-    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
+    ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, true, &viewborder);
 
     r_rect->xmin = viewborder.xmin + scene->r.border.xmin * BLI_rctf_size_x(&viewborder);
     r_rect->ymin = viewborder.ymin + scene->r.border.ymin * BLI_rctf_size_y(&viewborder);

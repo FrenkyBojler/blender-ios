@@ -557,7 +557,7 @@ static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup
     Scene *scene = CTX_data_scene(C);
     View3D *v3d = CTX_wm_view3d(C);
     ED_view3d_calc_camera_border(
-        scene, depsgraph, region, v3d, rv3d, false, &viewgroup->state.view_border);
+        scene, depsgraph, region, v3d, rv3d, false, true, &viewgroup->state.view_border);
   }
   else {
     rctf rect{};

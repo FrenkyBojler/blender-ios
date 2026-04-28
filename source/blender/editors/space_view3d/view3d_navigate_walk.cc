@@ -361,7 +361,7 @@ static void drawWalkPixel(const bContext * /*C*/, ARegion *region, void *arg)
 
   if (ED_view3d_cameracontrol_object_get(walk->v3d_camera_control)) {
     ED_view3d_calc_camera_border(
-        walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, false, &viewborder);
+        walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, false, true, &viewborder);
     xoff = viewborder.xmin + BLI_rctf_size_x(&viewborder) * 0.5f;
     yoff = viewborder.ymin + BLI_rctf_size_y(&viewborder) * 0.5f;
   }
