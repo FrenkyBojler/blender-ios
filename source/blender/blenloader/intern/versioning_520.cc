@@ -297,17 +297,21 @@ static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
     bool has_image_output = false;
     group.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
       if (item.item_type != NODE_INTERFACE_SOCKET) {
+        /* Continue. */
         return true;
       }
       const auto &socket = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
       if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-        has_image_input = STREQ(socket.socket_type, "NodeSocketColor");
+        has_image_input = has_image_input || STREQ(socket.socket_type, "NodeSocketColor");
+        /* Continue. */
         return true;
       }
       if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-        has_image_output = STREQ(socket.socket_type, "NodeSocketColor");
+        has_image_output = has_image_output || STREQ(socket.socket_type, "NodeSocketColor");
+        /* Continue. */
         return true;
       }
+      /* Break. */
       return false;
     });
 
