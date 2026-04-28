@@ -851,6 +851,7 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
 
 const Bone *bPoseChannel::bone_get(const bArmature &armature) const
 {
+  /* TODO(Sybren): actually implement this function via array lookup: */
   // BLI_assert_msg(this->runtime.bone_index >= 0, "bone index should be known");
   // return armature.bone_get_indexed(this->runtime.bone_index);
   UNUSED_VARS(armature);

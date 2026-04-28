@@ -664,8 +664,6 @@ struct bPoseChannel_BBoneSegmentBoundary {
 struct bPoseChannel_Runtime {
   SessionUID session_uid;
 
-  int64_t bone_index = -1;
-
   /* Cached dual quaternion for deformation. */
   struct DualQuat deform_dual_quat;
 

@@ -2837,12 +2837,16 @@ void BKE_armature_where_is(bArmature *arm)
 /** \name Pose Rebuild
  * \{ */
 
-static void rebuild_pose_from_armature(bPose *pose, const bArmature &armature)
+static void rebuild_pose_from_armature(bPose *pose, bArmature &armature)
 {
   bPoseChannel *prev_pchan = nullptr;
   BKE_armature_foreach_bone(armature, [&](const int bone_index, const Bone &bone) {
+    UNUSED_VARS(bone_index);
+
     bPoseChannel *pchan = BKE_pose_channel_ensure(pose, bone.name);
-    pchan->runtime.bone_index = bone_index;
+    /* BKE_armature_foreach_bone() only has a const version, but `armature` is mutable, so
+     * const_cast is ok. */
+    pchan->bone = const_cast<Bone *>(&bone);
 
     /* Bones are visited depth-first, so the parent pchan is guaranteed to exist. */
     pchan->parent = bone.parent ? BKE_pose_channel_find_name(pose, bone.parent->name) : nullptr;
@@ -3370,39 +3374,6 @@ bool BoneCollection::is_solo() const
 bool BoneCollection::is_expanded() const
 {
   return this->flags & BONE_COLLECTION_EXPANDED;
-}
-
-/**
- * Rebuild the runtime bone array from the armature's bone listbase.
- */
-static void rebuild_bone_array(bArmature &armature)
-{
-  bke::bArmature_Runtime &runtime = *armature.runtime;
-  const int num_bones = BKE_armature_bonelist_count(&armature.bonebase);
-  runtime.bones.reinitialize(num_bones);
-
-  BKE_armature_foreach_bone(armature, [&](const int bone_index, const Bone &bone) {
-    // const_cast: the bone ref is const because BKE_armature_foreach_bone() is only
-    // implemented for const types.
-    runtime.bones[bone_index] = const_cast<Bone *>(&bone);
-  });
-}
-
-const Bone *bArmature::bone_get_indexed(const int64_t bone_index) const
-{
-  if (this->runtime->bones.is_empty()) {
-    /* const_cast: allow the function to write to the runtime data. */
-    rebuild_bone_array(const_cast<bArmature &>(*this));
-  }
-
-  BLI_assert(bone_index >= 0);
-  BLI_assert(bone_index < this->runtime->bones.size());
-  return this->runtime->bones[bone_index];
-}
-
-Bone *bArmature::bone_get_indexed(const int64_t bone_index)
-{
-  return const_cast<Bone *>(std::as_const(*this).bone_get_indexed(bone_index));
 }
 
 /** \} */
