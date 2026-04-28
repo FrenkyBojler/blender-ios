@@ -7,8 +7,6 @@
  */
 
 /* Allow using deprecated functionality for .blend file I/O. */
-#include "BKE_pose.hh"
-#include "BLI_assert.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include <algorithm>
@@ -20,6 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assert.h"
 #include "BLI_kdopbvh.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -71,6 +70,7 @@
 #include "BKE_movieclip.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+#include "BKE_pose.hh"
 #include "BKE_scene.hh"
 #include "BKE_shrinkwrap.hh"
 #include "BKE_tracking.hh"

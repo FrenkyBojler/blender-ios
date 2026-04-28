@@ -867,10 +867,30 @@ struct bPoseChannel {
   struct bPoseChannel_Runtime runtime;
 
 #ifdef __cplusplus
+  /**
+   * Get the armature bone that corresponds to this bPoseChannel.
+   *
+   * Prefer this function over bone_get(armature), as it performs more checks at runtime.
+   */
   const Bone *bone_get(const Object &owner) const;
+  /**
+   * Get the armature bone that corresponds to this bPoseChannel.
+   *
+   * Prefer this function over bone_get(armature), as it performs more checks at runtime.
+   */
   Bone *bone_get(Object &owner);
 
+  /**
+   * Get the armature bone that corresponds to this bPoseChannel.
+   *
+   * Prefer bone_get(object) over this function, as that performs more checks at runtime.
+   */
   const Bone *bone_get(const bArmature &armature) const;
+  /**
+   * Get the armature bone that corresponds to this bPoseChannel.
+   *
+   * Prefer bone_get(object) over this function, as that performs more checks at runtime.
+   */
   Bone *bone_get(bArmature &armature);
 #endif
 };

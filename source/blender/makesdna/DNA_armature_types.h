@@ -13,7 +13,6 @@
 #include "DNA_listBase.h"
 #include "DNA_theme_types.h"
 
-#include "BLI_array.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_span.hh"
 

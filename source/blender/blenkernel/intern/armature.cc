@@ -3374,7 +3374,9 @@ bool BoneCollection::is_expanded() const
 
 /** \} */
 
-static int visit_bone_and_descendants(const Bone &bone, int bone_index, ForeachBoneFn callback)
+static int visit_bone_and_descendants(const Bone &bone,
+                                      int bone_index,
+                                      const ForeachBoneFn callback)
 {
   callback(bone_index++, bone);
   for (const Bone &child : bone.childbase) {
@@ -3383,7 +3385,7 @@ static int visit_bone_and_descendants(const Bone &bone, int bone_index, ForeachB
   return bone_index;
 }
 
-void BKE_armature_foreach_bone(const bArmature &armature, ForeachBoneFn callback)
+void BKE_armature_foreach_bone(const bArmature &armature, const ForeachBoneFn callback)
 {
   int bone_index = 0;
   for (const Bone &bone : armature.bonebase) {

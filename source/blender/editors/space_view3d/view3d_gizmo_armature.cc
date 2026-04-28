@@ -6,7 +6,6 @@
  * \ingroup spview3d
  */
 
-#include "BKE_pose.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -16,6 +15,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
+#include "BKE_pose.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
@@ -53,7 +53,7 @@ struct BoneSplineHandle {
   wmGizmo *gizmo;
 
   /* These cannot be packed into a bke::PChanBone, as this struct is allocated with
-   * MEM_new_zeroed(). */
+   * MEM_new_zeroed() and therefore must be trivial. */
   bPoseChannel *pchan;
   Bone *pchan_bone;
 

@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_pose.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -21,6 +20,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
+#include "BKE_pose.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_curves_types.h"

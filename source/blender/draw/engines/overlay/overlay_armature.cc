@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BKE_pose.hh"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_mesh_types.h"
@@ -31,6 +30,7 @@
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
 #include "BKE_object.hh"
+#include "BKE_pose.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -1222,7 +1222,6 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone, bArmature &a
    * matrix for the box, that we cannot use to draw end points & co. */
   if (bone.is_posebone()) {
     bPoseChannel *pchan = bone.as_posebone();
-
     Mat4 *bbones_mat = reinterpret_cast<Mat4 *>(pchan->draw_data->bbone_matrix);
     if (bbone_segments > 1) {
       BKE_pchan_bbone_spline_setup(bone.as_pchanbone(), armature, false, false, bbones_mat);
@@ -1690,7 +1689,7 @@ static void draw_bone_degrees_of_freedom(const Armatures::DrawContext *ctx,
   const Bone *bone = pchan->bone_get(*ctx->armature);
   mul_m4_m4m3(posetrans, posetrans, bone->bone_mat);
 
-  float scale = bone->length * pchan->scale[1];
+  const float scale = bone->length * pchan->scale[1];
   scale_m4_fl(tmp, scale);
   tmp[1][1] = -tmp[1][1];
   mul_m4_m4m4(posetrans, posetrans, tmp);

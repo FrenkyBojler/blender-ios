@@ -8,7 +8,6 @@
 
 #include <algorithm>
 
-#include "BKE_pose.hh"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -25,6 +24,7 @@
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
+#include "BKE_pose.hh"
 #include "BKE_report.hh"
 
 #include "BIK_api.h"

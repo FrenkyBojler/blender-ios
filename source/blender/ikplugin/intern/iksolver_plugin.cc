@@ -8,7 +8,6 @@
 
 #include <algorithm>
 
-#include "BKE_pose.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BIK_api.h"
@@ -20,6 +19,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
+#include "BKE_pose.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"

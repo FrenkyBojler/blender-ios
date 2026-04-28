@@ -10,11 +10,9 @@
 #include <cstring>
 #include <ctime>
 
-#include "DNA_armature_types.h"
-#include "RNA_define.hh"
-
 /* #include "BLI_sys_types.h" */
 
+#include "RNA_define.hh"
 #include "RNA_types.hh"
 #include "rna_internal.hh" /* own include */
 
@@ -27,6 +25,7 @@
 
 #  include "DNA_action_types.h"
 #  include "DNA_anim_types.h"
+#  include "DNA_armature_types.h"
 
 #  include "BLI_ghash.h"
 #  include "BLI_math_matrix.h"

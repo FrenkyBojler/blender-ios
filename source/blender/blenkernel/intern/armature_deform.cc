@@ -14,10 +14,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BKE_pose.hh"
-#include "DNA_action_types.h"
-#include "MEM_guardedalloc.h"
-
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_math_matrix.h"
@@ -27,6 +23,7 @@
 #include "BLI_task.h"
 #include "BLI_task.hh"
 
+#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_listBase.h"
@@ -41,6 +38,9 @@
 #include "BKE_editmesh.hh"
 #include "BKE_lattice.hh"
 #include "BKE_mesh.hh"
+#include "BKE_pose.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "CLG_log.h"
 
@@ -344,9 +344,6 @@ static ArmatureDeformParams get_armature_deform_params(
       Bone *bone = pchan ? pchan->bone_get(*armature) : nullptr;
       if (pchan && !(bone->flag & BONE_NO_DEFORM)) {
         deform_params.pose_channel_by_vertex_group[i] = {pchan, bone};
-      }
-      else {
-        deform_params.pose_channel_by_vertex_group[i] = {nullptr, nullptr};
       }
     }
   }

@@ -509,8 +509,8 @@ static int rna_PoseChannel_proxy_editable(const PointerRNA * /*ptr*/, const char
   Object *ob = (Object *)ptr->owner_id;
   bArmature *arm = ob->data;
   bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-
-  if (pchan->bone_get(*ob) && (pchan->bone_get(*ob)->layer & arm->layer_protected)) {
+  Bone *bone = pchan->bone_get(*ob);
+  if (bone && (bone->layer & arm->layer_protected)) {
     *r_info = "Can't edit property of a proxy on a protected layer";
     return 0;
   }

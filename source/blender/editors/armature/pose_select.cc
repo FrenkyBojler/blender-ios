@@ -8,15 +8,15 @@
 
 #include <cstring>
 
-#include "BKE_pose.hh"
-#include "BLI_assert.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_windowmanager_enums.h"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string.h"
@@ -28,15 +28,15 @@
 #include "BKE_layer.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_pose.hh"
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
-#include "DNA_windowmanager_enums.h"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-
 #include "RNA_types.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -113,7 +113,6 @@ void ED_pose_bone_select(Object *ob, bPoseChannel *pchan, bool select, bool chan
 
   Bone *bone = pchan->bone_get(*ob);
   if (!bone) {
-    BLI_assert_unreachable();
     return;
   }
 
@@ -417,19 +416,21 @@ bool ED_pose_deselect_all_multi(bContext *C, int select_mode, const bool ignore_
 
 /* ***************** Selections ********************** */
 
-static void selectconnected_posebonechildren(Object &ob, bPoseChannel &pchan, const bool extend)
+static void selectconnected_posebonechildren(Object &ob,
+                                             bPoseChannel &pose_bone,
+                                             const bool extend)
 {
-  animrig::pose_bone_descendent_depth_iterator(ob, pchan, [&](bPoseChannel &child) {
-    Bone *child_bone = child.bone_get(ob);
-    if (!child_bone) {
+  animrig::pose_bone_descendent_depth_iterator(ob, pose_bone, [&](bPoseChannel &pose_child) {
+    Bone *bone_child = pose_child.bone_get(ob);
+    if (!bone_child) {
       BLI_assert_unreachable();
       return false;
     }
     /* pose_bone_descendent_depth_iterator also visits `pose_bone` itself, and that should
      * always be (de)selected, because it's always "connected" to itself. */
-    const bool is_input_bone = (&child == &pchan);
-    const bool is_connected = is_input_bone || (child_bone->flag & BONE_CONNECTED);
-    const bool is_selectable = (child_bone->flag & BONE_UNSELECTABLE) == 0;
+    const bool is_input_bone = (&pose_child == &pose_bone);
+    const bool is_connected = is_input_bone || (bone_child->flag & BONE_CONNECTED);
+    const bool is_selectable = (bone_child->flag & BONE_UNSELECTABLE) == 0;
     const bool is_ok = is_selectable && is_connected;
     if (!is_ok) {
       /* Stop when unconnected child or unselectable bone is encountered. */
@@ -437,10 +438,10 @@ static void selectconnected_posebonechildren(Object &ob, bPoseChannel &pchan, co
     }
 
     if (extend) {
-      animrig::bone_deselect(&child);
+      animrig::bone_deselect(&pose_child);
     }
     else {
-      animrig::bone_select(&child);
+      animrig::bone_select(&pose_child);
     }
     return true;
   });
