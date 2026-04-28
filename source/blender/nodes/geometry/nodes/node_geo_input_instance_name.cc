@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
 
 #include "node_geometry_util.hh"
@@ -14,20 +13,20 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::String>("Name"_ustr).field_source();
 }
 
-class InstanceNameField final : public bke::InstancesFieldInput { //replace int hash with string when possible
+class InstanceNameField final : public bke::InstancesFieldInput {
  public:
-  InstanceNameField() : bke::InstancesFieldInput(CPPType::get<int>(), "Name") {}
+  InstanceNameField() : bke::InstancesFieldInput(CPPType::get<std::string>(), "Name") {}
 
   GVArray get_varray_for_context(const bke::Instances &instances,
-                                 const IndexMask &mask) const final
+                                 const IndexMask &mask) const override
   {
     const Span<int> handles = instances.reference_handles();
     const Span<bke::InstanceReference> references = instances.references();
 
     IndexMaskMemory memory;
     IndexMask reference_mask(references.size());
-    Array<bool> reference_in_mask(references.size(), false);
 
+    Array<bool> reference_in_mask(references.size(), false);
     mask.foreach_index(
         [&](const int i) {
           const int handle = handles[i];
@@ -38,8 +37,8 @@ class InstanceNameField final : public bke::InstancesFieldInput { //replace int 
         exec_mode::grain_size(2048));
 
     reference_mask = IndexMask::from_bools(reference_in_mask.as_span(), memory);
-    Array<std::string> reference_name(references.size());
 
+    Array<StringRef> reference_name(references.size());
     reference_mask.foreach_index(
         [&](const int reference_index) {
           const bke::InstanceReference &reference = references[reference_index];
@@ -57,14 +56,10 @@ class InstanceNameField final : public bke::InstancesFieldInput { //replace int 
     return VArray<std::string>::from_container(std::move(output_name));
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return 42374372;
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    return dynamic_cast<const InstanceNameField *>(&other) != nullptr;
+    static constexpr uint8_t id = 0;
+    hash.add(&id);
   }
 };
 
