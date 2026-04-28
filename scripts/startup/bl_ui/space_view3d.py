@@ -1360,10 +1360,10 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
         obj = context.object
         if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
             if obj.mode == 'POSE':
-               pose_bone = context.active_pose_bone
-               bone = pose_bone.bone if pose_bone else None
+                pose_bone = context.active_pose_bone
+                bone = pose_bone.bone if pose_bone else None
             else:
-               bone = context.active_bone            
+                bone = context.active_bone
             if bone and bone.display_type_effective == 'BBONE':
                 layout.separator()
 
