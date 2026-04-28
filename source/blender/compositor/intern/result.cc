@@ -836,6 +836,7 @@ void Result::share_data(gpu::Texture *texture, std::optional<ImplicitSharingInfo
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
   if (sharing_info.has_value()) {
     sharing_info_ = sharing_info.value();
+    sharing_info_->add_user();
   }
   else {
     sharing_info_ = new ExternalSharingInfo();
@@ -854,6 +855,7 @@ void Result::share_data(const void *data,
   domain_ = Domain(size);
   if (sharing_info.has_value()) {
     sharing_info_ = sharing_info.value();
+    sharing_info_->add_user();
   }
   else {
     sharing_info_ = new ExternalSharingInfo();
