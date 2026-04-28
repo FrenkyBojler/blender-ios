@@ -98,6 +98,7 @@ oidn::BufferRef create_oidn_buffer(const oidn::DeviceRef &device, Result &image)
   /* The device can access host-side data, so create a shared buffer that wraps the data. */
   const bool can_access_host_memory = device.get<bool>("systemMemorySupported");
   if (can_access_host_memory) {
+    /* OIDN does not have const pointer variant in the shared buffer API, so use a const_cast. */
     return device.newBuffer(const_cast<void *>(image.cpu_data().data()), image.size_in_bytes());
   }
 

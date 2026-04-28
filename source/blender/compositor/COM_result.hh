@@ -143,8 +143,8 @@ class Result {
    * results and eventually freeing it when it is no longer needed. It is heap allocated during
    * data allocation, it gains new users through calls to share_data, and its users gets removed
    * and its data potentially deleted in the free method. Notice that implicit sharing in Blender
-   * allows copying shared data to make it mutable, this is not allowed in the compositor, data is
-   * only mutable if it has a single user. */
+   * allows copying shared data to make it mutable, this is not allowed in the compositor, and it
+   * does not implement a copy-on-write mechanism, so copying needs to be done explicitly. */
   ImplicitSharingInfo *sharing_info_;
   /* The number of users that currently needs this result. Operations initializes this by calling
    * the set_reference_count method before evaluation. Once each operation that needs the result no
@@ -306,7 +306,7 @@ class Result {
    * set to have the data and display size as the given size. The given buffer should have a format
    * that is compatible with the result. */
   void share_data(const void *data,
-                  const int2 size,
+                  int2 size,
                   std::optional<ImplicitSharingInfo *> sharing_info = std::nullopt);
 
   /* Sets the transformation of the domain of the result to the given transformation. */
@@ -334,8 +334,8 @@ class Result {
   /* Decrement the reference count of the result and free its data if it reaches zero. */
   void release();
 
-  /* Frees the result data. If the result is not allocated, or shares the data and is not the sole
-   * user, then this will do nothing. */
+  /* Remove a user from the result's data and frees the data if there are no more owners. If the
+   * result is not allocated, this will do nothing. */
   void free();
 
   /* Returns true if this result should be computed and false otherwise. The result should be
