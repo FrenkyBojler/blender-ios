@@ -381,8 +381,7 @@ class Grid : Overlay {
         grid_ubo_.clip_rect = float2(v3d->clip_end);
       }
       else {
-        grid_ubo_.clip_rect = float2(4.0f / fabsf(rv3d->winmat[0][0]),
-                                     4.0f / fabsf(rv3d->winmat[1][1]));
+        grid_ubo_.clip_rect = float2(4.0f / rv3d->winmat[0][0], 4.0f / rv3d->winmat[1][1]);
       }
     }
 
