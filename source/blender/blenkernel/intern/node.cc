@@ -249,10 +249,6 @@ static void ntree_copy_data(Main * /*bmain*/,
     ntree_dst->geometry_node_asset_traits->node_tool_idname = BLI_strdup_null(
         ntree_src->geometry_node_asset_traits->node_tool_idname);
   }
-  if (ntree_src->compositor_node_asset_traits) {
-    ntree_dst->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(
-        __func__, *ntree_src->compositor_node_asset_traits);
-  }
 
   if (ntree_src->nested_node_refs) {
     ntree_dst->nested_node_refs = MEM_new_array<bNestedNodeRef>(
@@ -311,9 +307,6 @@ static void ntree_free_data(ID *id)
   if (ntree->geometry_node_asset_traits) {
     MEM_SAFE_DELETE(ntree->geometry_node_asset_traits->node_tool_idname);
     MEM_delete(ntree->geometry_node_asset_traits);
-  }
-  if (ntree->compositor_node_asset_traits) {
-    MEM_delete(ntree->compositor_node_asset_traits);
   }
 
   if (ntree->nested_node_refs) {
@@ -1302,7 +1295,6 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   if (ntree->geometry_node_asset_traits) {
     writer->write_string(ntree->geometry_node_asset_traits->node_tool_idname);
   }
-  writer->write_struct(ntree->compositor_node_asset_traits);
 
   writer->write_struct_array(ntree->nested_node_refs_num, ntree->nested_node_refs);
 
@@ -2068,7 +2060,6 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
   if (ntree->geometry_node_asset_traits) {
     BLO_read_string(reader, &ntree->geometry_node_asset_traits->node_tool_idname);
   }
-  BLO_read_struct(reader, CompositorNodeAssetTraits, &ntree->compositor_node_asset_traits);
 
   BLO_read_struct_array(
       reader, bNestedNodeRef, ntree->nested_node_refs_num, &ntree->nested_node_refs);
@@ -2289,11 +2280,6 @@ void node_update_asset_metadata(bNodeTree &node_tree)
           StringRefNull(node_tree.geometry_node_asset_traits->node_tool_idname));
       BKE_asset_metadata_idprop_ensure(asset_data, property.release());
     }
-  }
-  if (node_tree.compositor_node_asset_traits) {
-    auto property = idprop::create("compositor_node_asset_traits_flag",
-                                   node_tree.compositor_node_asset_traits->flag);
-    BKE_asset_metadata_idprop_ensure(asset_data, property.release());
   }
 }
 

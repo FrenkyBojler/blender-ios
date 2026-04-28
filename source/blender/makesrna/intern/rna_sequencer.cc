@@ -1897,12 +1897,6 @@ static bool rna_Compositor_node_group_poll(PointerRNA * /*ptr*/, PointerRNA valu
   if (node_tree->type != NTREE_COMPOSIT) {
     return false;
   }
-  if (node_tree->compositor_node_asset_traits) {
-    if ((node_tree->compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_STRIP_MODIFIER) == 0)
-    {
-      return false;
-    }
-  }
   return true;
 }
 

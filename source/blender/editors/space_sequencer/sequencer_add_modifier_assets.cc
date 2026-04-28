@@ -51,12 +51,6 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C)
     if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_COMPOSIT) {
       return false;
     }
-    const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
-        &meta_data, "compositor_node_asset_traits_flag");
-    if (traits_flag == nullptr || !(IDP_int_get(traits_flag) & COMPOSIT_NODE_ASSET_STRIP_MODIFIER))
-    {
-      return false;
-    }
     return true;
   };
   const AssetLibraryReference library = asset_system::all_library_reference();
@@ -119,11 +113,6 @@ static bool unassigned_local_poll(const Main &bmain)
     if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group.compositor_node_asset_traits ||
-        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_STRIP_MODIFIER))
-    {
-      continue;
-    }
     return true;
   }
   return false;
@@ -146,11 +135,6 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
     if (group.id.library_weak_reference || group.id.asset_data) {
-      continue;
-    }
-    if (!group.compositor_node_asset_traits ||
-        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_STRIP_MODIFIER))
-    {
       continue;
     }
 
