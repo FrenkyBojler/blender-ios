@@ -20,6 +20,8 @@ BLOCKLIST_ALL = [
     "hair_instancer_uv.blend",
     "principled_hair_directcoloring.blend",
     "visibility_particles.blend",
+    "openvdb_interpolation",
+    "openvdb_slice",
     # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
     "camera_depth_of_field_jittered.blend",
     "shadow_resolution.blend",
