@@ -270,8 +270,7 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x) + range.start();
 
-  std::copy_n(
-      scene_linear_pixels.begin(), range.size(), image_pixels.begin() + start_offset);
+  std::copy_n(scene_linear_pixels.begin(), range.size(), image_pixels.begin() + start_offset);
 }
 
 static void blend_colors(MutableSpan<float4> paint_pixels,
@@ -417,11 +416,15 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
             if (!float_buffer.is_empty()) {
               tls.scene_linear_pixels = read_image_pixels(
-                  float_buffer, *processors, pixel_row, range,image_buffer->x);
+                  float_buffer, *processors, pixel_row, range, image_buffer->x);
             }
             else {
-              tls.scene_linear_pixels = read_image_pixels(
-                  byte_buffer, *processors, pixel_row, range, image_buffer->x, tls.byte_to_float_pixels);
+              tls.scene_linear_pixels = read_image_pixels(byte_buffer,
+                                                          *processors,
+                                                          pixel_row,
+                                                          range,
+                                                          image_buffer->x,
+                                                          tls.byte_to_float_pixels);
             }
 
 #ifdef DEBUG_PIXEL_NODES
