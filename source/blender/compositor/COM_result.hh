@@ -292,16 +292,22 @@ class Result {
    * and precision as this result. */
   void share_data(const Result &source);
 
-  /* Share the data of an external GPU texture that is not allocated nor managed by the result. The
-   * domain will be set to have the data and display size as the texture size. The given texture
-   * should have a format that is compatible with the result and is assumed to have a lifetime that
-   * covers the evaluation of the compositor. */
-  void share_data(gpu::Texture *texture);
+  /* Share the data of a GPU texture that is managed by the given implicit sharing info. If no
+   * implicit sharing info is provided, the texture is assumed to be external, has a lifetime that
+   * covers the entire evaluation of the compositor, and will thus not be freed. The domain will be
+   * set to have the data and display size as the texture size. The given texture should have a
+   * format that is compatible with the result. */
+  void share_data(gpu::Texture *texture,
+                  std::optional<ImplicitSharingInfo *> sharing_info = std::nullopt);
 
-  /* Share the data of an external CPU buffer that is not allocated nor managed by the result. The
-   * domain will be set to have the given data and display size. The given buffer is assumed to
-   * have a lifetime that covers the evaluation of the compositor. */
-  void share_data(void *data, int2 size);
+  /* Share the data of a GPU buffer that is managed by the given implicit sharing info. If no
+   * implicit sharing info is provided, the buffer is assumed to be external, has a lifetime that
+   * covers the entire evaluation of the compositor, and will thus not be freed. The domain will be
+   * set to have the data and display size as the given size. The given buffer should have a format
+   * that is compatible with the result. */
+  void share_data(void *data,
+                  int2 size,
+                  std::optional<ImplicitSharingInfo *> sharing_info = std::nullopt);
 
   /* Sets the transformation of the domain of the result to the given transformation. */
   void set_transformation(const float3x3 &transformation);

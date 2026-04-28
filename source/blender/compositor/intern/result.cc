@@ -825,7 +825,7 @@ class ExternalSharingInfo : public ImplicitSharingInfo {
   }
 };
 
-void Result::share_data(gpu::Texture *texture)
+void Result::share_data(gpu::Texture *texture, std::optional<ImplicitSharingInfo *> sharing_info)
 {
   BLI_assert(is_compatible_texture(texture, *this));
   BLI_assert(!this->is_allocated());
@@ -834,10 +834,15 @@ void Result::share_data(gpu::Texture *texture)
   storage_type_ = ResultStorageType::GPU;
   is_single_value_ = false;
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
-  sharing_info_ = new ExternalSharingInfo();
+  if (sharing_info.has_value()) {
+    sharing_info_ = sharing_info.value();
+  }
+  else {
+    sharing_info_ = new ExternalSharingInfo();
+  }
 }
 
-void Result::share_data(void *data, int2 size)
+void Result::share_data(void *data, int2 size, std::optional<ImplicitSharingInfo *> sharing_info)
 {
   BLI_assert(!this->is_allocated());
 
@@ -845,7 +850,12 @@ void Result::share_data(void *data, int2 size)
   cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
   storage_type_ = ResultStorageType::CPU;
   domain_ = Domain(size);
-  sharing_info_ = new ExternalSharingInfo();
+  if (sharing_info.has_value()) {
+    sharing_info_ = sharing_info.value();
+  }
+  else {
+    sharing_info_ = new ExternalSharingInfo();
+  }
 }
 
 void Result::set_transformation(const float3x3 &transformation)
