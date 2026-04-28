@@ -2943,7 +2943,7 @@ void BKE_pose_rebuild(Main *bmain, Object *ob, bArmature *arm, const bool do_id_
     }
   }
 
-  BKE_pose_update_constraint_flags(pose); /* for IK detection for example */
+  BKE_pose_update_constraint_flags(*ob); /* for IK detection for example */
 
   pose->flag &= ~POSE_RECALC;
   pose->flag |= POSE_WAS_REBUILT;
@@ -3081,7 +3081,6 @@ void BKE_pose_where_is_bone(Depsgraph *depsgraph,
 void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   bArmature *arm;
-  Bone *bone;
   float imat[4][4];
   float ctime;
 
@@ -3102,7 +3101,7 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
   /* In edit-mode or rest-position we read the data from the bones. */
   if (arm->edbo || (arm->flag & ARM_RESTPOS)) {
     for (bPoseChannel &pchan : ob->pose->chanbase) {
-      bone = pchan.bone;
+      const Bone *bone = pchan.bone_get(*arm);
       if (bone) {
         copy_m4_m4(pchan.pose_mat, bone->arm_mat);
         copy_v3_v3(pchan.pose_head, bone->arm_head);
@@ -3148,8 +3147,9 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
   /* calculating deform matrices */
   for (bPoseChannel &pchan : ob->pose->chanbase) {
-    if (pchan.bone) {
-      invert_m4_m4(imat, pchan.bone->arm_mat);
+    const Bone *bone = pchan.bone_get(*arm);
+    if (bone) {
+      invert_m4_m4(imat, bone->arm_mat);
       mul_m4_m4m4(pchan.chan_mat, pchan.pose_mat, imat);
     }
   }
@@ -3167,11 +3167,12 @@ std::optional<Bounds<float3>> BKE_armature_min_max(const Object *ob)
 }
 
 void BKE_pchan_minmax(const Object *ob,
-                      const bPoseChannel *pchan,
+                      const bke::PChanBoneConst pchanbone,
                       const bool use_empty_drawtype,
                       float3 &r_min,
                       float3 &r_max)
 {
+  const bPoseChannel *pchan = pchanbone.pchan;
   const bArmature *arm = id_cast<const bArmature *>(ob->data);
 
   Object *ob_custom = nullptr;
@@ -3203,7 +3204,6 @@ void BKE_pchan_minmax(const Object *ob,
 
   if (bb_custom) {
     float4x4 mat, smat, rmat, tmp;
-    const bke::PChanBoneConst pchanbone{pchan, pchan->bone_get(*ob)};
     scale_m4_fl(smat.ptr(), PCHAN_CUSTOM_BONE_LENGTH(pchanbone));
     rescale_m4(smat.ptr(), pchan->custom_scale_xyz);
     eulO_to_mat4(rmat.ptr(), pchan->custom_rotation_euler, ROT_MODE_XYZ);
@@ -3239,19 +3239,20 @@ std::optional<Bounds<float3>> BKE_pose_minmax(const Object *ob, const bool use_s
   for (const bPoseChannel &pchan : ob->pose->chanbase) {
     /* XXX pchan->bone_get(*ob) may be nullptr for duplicated bones, see
      * duplicateEditBoneObjects() comment (editarmature.c:2592)... Skip in this case too! */
-    if (!pchan.bone) {
+    const Bone *bone = pchan.bone_get(*ob);
+    if (!bone) {
       continue;
     }
     /* Despite `bone_is_selected` also checking for visibility we need to check visibility
      * manually due to `use_select` potentially ignoring selection state. */
-    if (!animrig::bone_is_visible(arm, &pchan)) {
+    if (!animrig::bone_is_visible(arm, {&pchan, bone})) {
       continue;
     }
-    if (use_select && !animrig::bone_is_selected(arm, &pchan)) {
+    if (use_select && !animrig::bone_is_selected(arm, {&pchan, bone})) {
       continue;
     }
 
-    BKE_pchan_minmax(ob, &pchan, false, min, max);
+    BKE_pchan_minmax(ob, {&pchan, bone}, false, min, max);
     found_pchan = true;
   }
 

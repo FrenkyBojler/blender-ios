@@ -746,7 +746,7 @@ struct bPoseChannel {
   char _pad0[4] = {};
 
   /** Set on read file or rebuild pose. */
-  DNA_DEPRECATED struct Bone *bone = nullptr;
+  DNA_DEPRECATED struct Bone *bone_ = nullptr;
   /** Set on read file or rebuild pose. */
   struct bPoseChannel *parent = nullptr;
   /** Set on read file or rebuild pose, the 'ik' child, for b-bones. */

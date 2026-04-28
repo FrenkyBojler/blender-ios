@@ -12,6 +12,7 @@
 #include <cstring>
 #include <optional>
 
+#include "BKE_pose.hh"
 #include "BLI_assert.h"
 #include "MEM_guardedalloc.h"
 
@@ -818,12 +819,13 @@ void action_group_colors_set_from_posebone(bActionGroup *grp,
                                            const bPoseChannel *pchan)
 {
   BLI_assert_msg(pchan, "cannot 'set action group colors from posebone' without a posebone");
-  if (!pchan->bone_get(armature)) {
+  const Bone *bone = pchan->bone_get(armature);
+  if (!bone) {
     /* pchan->bone is only set after leaving editmode. */
     return;
   }
 
-  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get(pchan);
+  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get({pchan, bone});
   action_group_colors_set(grp, &color);
 }
 
@@ -851,8 +853,10 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color)
 
 const Bone *bPoseChannel::bone_get(const bArmature &armature) const
 {
-  BLI_assert_msg(this->runtime.bone_index >= 0, "bone index should be known");
-  return armature.bone_get_indexed(this->runtime.bone_index);
+  // BLI_assert_msg(this->runtime.bone_index >= 0, "bone index should be known");
+  // return armature.bone_get_indexed(this->runtime.bone_index);
+  UNUSED_VARS(armature);
+  return this->bone_;
 }
 
 const Bone *bPoseChannel::bone_get(const Object &owner) const
@@ -982,8 +986,9 @@ bPoseChannel *BKE_pose_channel_active(Object *ob, const bool check_bonecoll)
 
   /* find active */
   for (bPoseChannel &pchan : ob->pose->chanbase) {
-    if ((pchan.bone) && (pchan.bone == arm->act_bone)) {
-      if (!check_bonecoll || ANIM_bone_in_visible_collection(arm, pchan.bone)) {
+    const Bone *bone = pchan.bone_get(*ob);
+    if (bone && bone == arm->act_bone) {
+      if (!check_bonecoll || ANIM_bone_in_visible_collection(arm, bone)) {
         return &pchan;
       }
     }
@@ -1011,8 +1016,9 @@ bPoseChannel *BKE_pose_channel_active_or_first_selected(Object *ob)
   }
 
   for (bPoseChannel &pchan : ob->pose->chanbase) {
-    if (pchan.bone != nullptr) {
-      if (animrig::bone_is_selected(arm, &pchan)) {
+    Bone *bone = pchan.bone_get(*ob);
+    if (bone != nullptr) {
+      if (animrig::bone_is_selected(arm, {&pchan, bone})) {
         return &pchan;
       }
     }
@@ -1511,11 +1517,12 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
   pchan->drawflag = pchan_from->drawflag;
 }
 
-void BKE_pose_update_constraint_flags(bPose *pose)
+void BKE_pose_update_constraint_flags(Object &pose_ob)
 {
+  bPose *pose = pose_ob.pose;
   pose->flag &= ~POSE_CONSTRAINTS_TIMEDEPEND;
 
-  for (bPoseChannel &pchan : pose->chanbase) {
+  for (bPoseChannel &pchan : pose_ob.pose->chanbase) {
     pchan.constflag = 0;
 
     for (bConstraint &con : pchan.constraints) {
@@ -1538,13 +1545,13 @@ void BKE_pose_update_constraint_flags(bPose *pose)
           if (data->rootbone < 0) {
             data->rootbone = 0;
 
-            bPoseChannel *parchan = chain_tip;
-            while (parchan) {
+            Bone *parbone = chain_tip->bone_get(pose_ob);
+            while (parbone) {
               data->rootbone++;
-              if ((parchan->bone->flag & BONE_CONNECTED) == 0) {
+              if ((parbone->flag & BONE_CONNECTED) == 0) {
                 break;
               }
-              parchan = parchan->parent;
+              parbone = parbone->parent;
             }
           }
 
@@ -1661,8 +1668,9 @@ void BKE_pose_remove_group_index(bPose *pose, const int index)
 
 /* ************** Pose Management Tools ****************** */
 
-void BKE_pose_rest(bPose *pose, bool selected_bones_only)
+void BKE_pose_rest(Object &pose_ob, bool selected_bones_only)
 {
+  bPose *pose = pose_ob.pose;
   if (!pose) {
     return;
   }
@@ -1671,7 +1679,9 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
   memset(pose->cyclic_offset, 0, sizeof(pose->cyclic_offset));
 
   for (bPoseChannel &pchan : pose->chanbase) {
-    if (selected_bones_only && pchan.bone != nullptr && (pchan.flag & POSE_SELECTED) == 0) {
+    if (selected_bones_only && pchan.bone_get(pose_ob) != nullptr &&
+        (pchan.flag & POSE_SELECTED) == 0)
+    {
       continue;
     }
     zero_v3(pchan.loc);
@@ -1806,7 +1816,7 @@ void what_does_obaction(Object *ob,
       BKE_pose_channels_hash_ensure(pose);
     }
     if (pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
-      BKE_pose_update_constraint_flags(pose);
+      BKE_pose_update_constraint_flags(*workob);
     }
   }
 
@@ -1924,7 +1934,7 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
     BKE_pose_channel_runtime_reset(&pchan.runtime);
     BKE_pose_channel_session_uid_generate(&pchan);
 
-    pchan.bone = nullptr;
+    pchan.bone_ = nullptr;
     BLO_read_struct(reader, bPoseChannel, &pchan.parent);
     BLO_read_struct(reader, bPoseChannel, &pchan.child);
     BLO_read_struct(reader, bPoseChannel, &pchan.custom_tx);
@@ -1983,9 +1993,9 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
   }
 
   for (bPoseChannel &pchan : pose->chanbase) {
-    pchan.bone = BKE_armature_find_bone_name(arm, pchan.name);
+    pchan.bone_ = BKE_armature_find_bone_name(arm, pchan.name);
 
-    if (UNLIKELY(pchan.bone == nullptr)) {
+    if (UNLIKELY(pchan.bone_ == nullptr)) {
       rebuild = true;
     }
 

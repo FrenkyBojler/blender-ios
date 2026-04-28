@@ -221,7 +221,7 @@ bool BKE_pose_channels_is_valid(const bPose *pose) ATTR_WARN_UNUSED_RESULT;
  * Checks for IK constraint, Spline IK, and also for Follow-Path constraint.
  * can do more constraints flags later. pose should be entirely OK.
  */
-void BKE_pose_update_constraint_flags(bPose *pose) ATTR_NONNULL(1);
+void BKE_pose_update_constraint_flags(Object &pose_ob);
 
 /**
  * Tag constraint flags for update.
@@ -303,7 +303,7 @@ bool BKE_pose_copy_result(bPose *to, bPose *from);
 /**
  * Zero the pose transforms for the entire pose or only for selected bones.
  */
-void BKE_pose_rest(bPose *pose, bool selected_bones_only);
+void BKE_pose_rest(Object &pose_ob, bool selected_bones_only);
 
 /**
  * Tag pose for recalculation. Also tag all related data to be recalculated.

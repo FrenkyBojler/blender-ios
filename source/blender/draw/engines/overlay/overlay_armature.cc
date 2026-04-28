@@ -167,7 +167,7 @@ class UnifiedBonePtr {
       return static_cast<eBone_Flag>(eBone_->flag);
     }
     /* Making sure the select flag is set correctly since it moved to the pose channel. */
-    eBone_Flag flag = static_cast<eBone_Flag>(pchan_->bone->flag);
+    eBone_Flag flag = static_cast<eBone_Flag>(bone_->flag);
     if (pchan_->flag & POSE_SELECTED) {
       flag |= BONE_SELECTED;
     }
@@ -185,7 +185,7 @@ class UnifiedBonePtr {
 
   bool has_parent() const
   {
-    return is_editbone_ ? eBone_->parent != nullptr : pchan_->bone->parent != nullptr;
+    return is_editbone_ ? eBone_->parent != nullptr : bone_->parent != nullptr;
   }
 
   using f44 = float[4][4];
@@ -212,12 +212,12 @@ class UnifiedBonePtr {
    * reason that these are returned as references. I'll leave refactoring that for another time. */
   const float &rad_head() const
   {
-    return is_editbone_ ? eBone_->rad_head : pchan_->bone->rad_head;
+    return is_editbone_ ? eBone_->rad_head : bone_->rad_head;
   }
 
   const float &rad_tail() const
   {
-    return is_editbone_ ? eBone_->rad_tail : pchan_->bone->rad_tail;
+    return is_editbone_ ? eBone_->rad_tail : bone_->rad_tail;
   }
 
   const animrig::BoneColor &effective_bonecolor() const
@@ -229,7 +229,7 @@ class UnifiedBonePtr {
     if (pchan_->color.palette_index == 0) {
       /* If the pchan has the 'default' color, treat it as a signal to use the underlying bone
        * color. */
-      return pchan_->bone->color.wrap();
+      return bone_->color.wrap();
     }
     return pchan_->color.wrap();
   }
@@ -1514,7 +1514,7 @@ static void bone_draw_b_bone(const Armatures::DrawContext *ctx,
   Span<Mat4> bbone_matrices;
   if (bone.is_posebone()) {
     bbone_matrices = {reinterpret_cast<Mat4 *>(bone.as_posebone()->draw_data->bbone_matrix),
-                      bone.as_posebone()->bone->segments};
+                      bone.posebone_bone()->segments};
   }
   else {
     bbone_matrices = {
@@ -1603,7 +1603,7 @@ static void bone_draw_wire(const Armatures::DrawContext *ctx,
   Span<Mat4> bbone_matrices;
   if (bone.is_posebone()) {
     bbone_matrices = {reinterpret_cast<Mat4 *>(bone.as_posebone()->draw_data->bbone_matrix),
-                      bone.as_posebone()->bone->segments};
+                      bone.posebone_bone()->segments};
   }
   else {
     bbone_matrices = {

@@ -1112,7 +1112,7 @@ static void convert_pose(IK_Scene *ikscene)
 }
 
 /* compute array of joint value corresponding to current pose */
-static void BKE_pose_rest(IK_Scene *ikscene)
+static void pose_rest(IK_Scene *ikscene)
 {
   bPoseChannel *pchan;
   IK_Channel *ikchan;
@@ -1212,7 +1212,7 @@ static IK_Scene *convert_tree(
   /* build the array of joints corresponding to the IK chain */
   convert_channels(depsgraph, ikscene, tree, ctime);
   /* in Blender, the rest pose is always 0 for joints */
-  BKE_pose_rest(ikscene);
+  pose_rest(ikscene);
   rot = ikscene->jointArray(0);
 
   for (a = 0, ikchan = ikscene->channels; a < tree->totchannel; a++, ikchan++) {

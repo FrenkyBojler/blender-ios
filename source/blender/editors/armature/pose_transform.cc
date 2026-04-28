@@ -1501,7 +1501,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
     }
     else {
       /* No animation, so just reset to the rest pose. */
-      BKE_pose_rest(ob->pose, only_select);
+      BKE_pose_rest(*ob, only_select);
     }
 
     /* notifiers and updates */

@@ -891,8 +891,11 @@ static bool pose_select_same_color(bContext *C, const bool extend)
   }
 
   /* Use the color of the active pose bone. */
-  bPoseChannel *active_pose_bone = CTX_data_active_pose_bone(C);
-  auto color = animrig::ANIM_bonecolor_posebone_get(active_pose_bone);
+  PointerRNA active_pose_bone_ptr = CTX_data_active_pose_bone_ptr(C);
+  Object *pose_ob = id_cast<Object *>(active_pose_bone_ptr.owner_id);
+  bPoseChannel *active_pose_bone = active_pose_bone_ptr.data_as<bPoseChannel>();
+  Bone *active_bone = active_pose_bone->bone_get(*pose_ob);
+  auto color = animrig::ANIM_bonecolor_posebone_get({active_pose_bone, active_bone});
   used_colors.add(color);
 
   /* Select all visible bones that have the same color. */
@@ -903,7 +906,7 @@ static bool pose_select_same_color(bContext *C, const bool extend)
       continue;
     }
 
-    auto color = animrig::ANIM_bonecolor_posebone_get(pchan);
+    auto color = animrig::ANIM_bonecolor_posebone_get({pchan, bone});
     if (!used_colors.contains(color)) {
       continue;
     }

@@ -43,9 +43,11 @@ template<typename PoseChannelT, typename BoneT> struct PChanBoneT {
 
   PChanBoneT(PoseChannelT *pchan, BoneT *bone) : pchan(pchan), bone(bone)
   {
-    BLI_assert(pchan != nullptr);
-    BLI_assert(bone != nullptr);
+    BLI_assert_msg((pchan == nullptr) == (bone == nullptr),
+                   "either both pointers should be nil, or none of them should be");
   }
+
+  PChanBoneT() : pchan(nullptr), bone(nullptr) {}
 
   /* Implicit conversion from the non-const variant to the const variant.
    * Enabled only when that direction actually adds const, so the reverse
@@ -56,8 +58,6 @@ template<typename PoseChannelT, typename BoneT> struct PChanBoneT {
   PChanBoneT(const PChanBoneT<OtherPChan, OtherBone> &other) : pchan(other.pchan), bone(other.bone)
   {
   }
-
-  PChanBoneT() : pchan(nullptr), bone(nullptr) {}
 };
 
 using PChanBone = PChanBoneT<bPoseChannel, Bone>;

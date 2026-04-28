@@ -206,11 +206,12 @@ static void rna_Pose_ik_solver_update(Main *bmain, Scene * /*scene*/, PointerRNA
 {
   Object *ob = id_cast<Object *>(ptr->owner_id);
   bPose *pose = static_cast<bPose *>(ptr->data);
+  BLI_assert(ob->pose == pose);
 
   BKE_pose_tag_recalc(bmain, pose); /* checks & sorts pose channels */
   DEG_relations_tag_update(bmain);
 
-  BKE_pose_update_constraint_flags(pose);
+  BKE_pose_update_constraint_flags(*ob);
 
   ed::object::object_test_constraints(bmain, ob);
 

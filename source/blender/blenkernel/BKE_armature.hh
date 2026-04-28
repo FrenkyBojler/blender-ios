@@ -187,8 +187,8 @@ void BKE_armature_foreach_bone(const bArmature &armature, ForeachBoneFn callback
  * account when calculating the bounds.
  */
 void BKE_pchan_minmax(const Object *ob,
-                      const bPoseChannel *pchan,
-                      const bool use_empty_drawtype,
+                      bke::PChanBoneConst pchanbone,
+                      bool use_empty_drawtype,
                       float3 &r_min,
                       float3 &r_max);
 /**
