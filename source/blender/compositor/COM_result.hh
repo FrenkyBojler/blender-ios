@@ -80,7 +80,7 @@ enum class ResultPrecision : uint8_t {
 enum class ResultStorageType : uint8_t {
   /* Stored as a gpu::Texture on the GPU. */
   GPU,
-  /* Stored as a buffer on the CPU and wrapped in a GMutableSpan. */
+  /* Stored as a buffer on the CPU. */
   CPU,
 };
 
@@ -129,15 +129,15 @@ class Result {
   bool is_single_value_ = false;
   /* The type of storage used to hold the data. Used to correctly interpret the data union. */
   ResultStorageType storage_type_ = ResultStorageType::GPU;
-  /* Stores the result's pixel data, either stored in a GPU texture or a buffer that is wrapped in
-   * a GMutableSpan on CPU. This will represent a 1x1 image if the result is a single value, the
-   * value of which will be identical to that of the value member. See class description for more
-   * information. */
+  /* Stores a reference to the result's pixel data managed by the sharing info, either stored in a
+   * GPU texture or a buffer that is wrapped in a GSpan on CPU. This will represent a 1x1 image if
+   * the result is a single value, the value of which will be identical to that of the value
+   * member. See class description for more information. */
   union {
     /* This will be a 2D texture for most types, but can be a 2D texture array for large types like
      * float4x4 where each column will be stored in a layer. */
     gpu::Texture *gpu_texture_ = nullptr;
-    GMutableSpan cpu_data_;
+    GSpan cpu_data_;
   };
   /* Implicit sharing info manages the result's data, allowing it to be shared between multiple
    * results and eventually freeing it when it is no longer needed. It is heap allocated during
@@ -305,8 +305,8 @@ class Result {
    * covers the entire evaluation of the compositor, and will thus not be freed. The domain will be
    * set to have the data and display size as the given size. The given buffer should have a format
    * that is compatible with the result. */
-  void share_data(void *data,
-                  int2 size,
+  void share_data(const void *data,
+                  const int2 size,
                   std::optional<ImplicitSharingInfo *> sharing_info = std::nullopt);
 
   /* Sets the transformation of the domain of the result to the given transformation. */
@@ -508,7 +508,7 @@ BLI_INLINE_METHOD GMutableSpan Result::cpu_data_for_write()
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   BLI_assert(sharing_info_->is_mutable());
-  return cpu_data_;
+  return GMutableSpan(cpu_data_.type(), const_cast<void *>(cpu_data_.data()), cpu_data_.size());
 }
 
 template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const

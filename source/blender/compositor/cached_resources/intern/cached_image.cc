@@ -340,7 +340,7 @@ CachedImage::CachedImage(Context &context,
   else {
     const int2 size = int2(image_buffer->x, image_buffer->y);
     Result buffer_result(context, float_type(image_buffer->channels), ResultPrecision::Full);
-    buffer_result.share_data(linear_image_buffer->float_data_for_write(), size);
+    buffer_result.share_data(linear_image_buffer->float_data(), size);
     this->result.allocate_texture(size, false);
 
     if (buffer_result.type() == ResultType::Color && result.type() == ResultType::Float4) {

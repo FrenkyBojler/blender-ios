@@ -842,12 +842,14 @@ void Result::share_data(gpu::Texture *texture, std::optional<ImplicitSharingInfo
   }
 }
 
-void Result::share_data(void *data, int2 size, std::optional<ImplicitSharingInfo *> sharing_info)
+void Result::share_data(const void *data,
+                        const int2 size,
+                        std::optional<ImplicitSharingInfo *> sharing_info)
 {
   BLI_assert(!this->is_allocated());
 
   const int64_t array_size = int64_t(size.x) * int64_t(size.y);
-  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
+  cpu_data_ = GSpan(this->get_cpp_type(), data, array_size);
   storage_type_ = ResultStorageType::CPU;
   domain_ = Domain(size);
   if (sharing_info.has_value()) {
@@ -921,7 +923,7 @@ void Result::free()
       gpu_texture_ = nullptr;
       break;
     case ResultStorageType::CPU:
-      cpu_data_ = GMutableSpan();
+      cpu_data_ = GSpan();
       break;
   }
 }
@@ -1170,7 +1172,7 @@ void Result::allocate_data(const int2 size,
     const int64_t array_size = int64_t(size.x) * int64_t(size.y);
     auto *new_array = new ImplicitSharedValue<GArray<>>(this->get_cpp_type(), array_size);
     sharing_info_ = new_array;
-    cpu_data_ = new_array->data.as_mutable_span();
+    cpu_data_ = new_array->data.as_span();
   }
 }
 
