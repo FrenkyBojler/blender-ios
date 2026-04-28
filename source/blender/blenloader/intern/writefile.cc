@@ -903,14 +903,25 @@ static void writestruct_at_address_nr(WriteData *wd,
   const bool can_write_raw_runtime_data = struct_info.pointers.is_empty() && !fn;
 
   if (can_write_raw_runtime_data) {
-    /* The passed in data contains no pointers, so it can be written without an additional copy.
-     */
+    /* The passed in data contains no pointers, so it can be written without an additional copy. */
     data_to_write = data;
   }
   else {
     void *buffer = buffer_owner.buffer();
     data_to_write = buffer;
     memcpy(buffer, data, len_in_bytes);
+
+    /* Optionally allow custom modifications to the struct data before it is written. */
+    if (fn) {
+      for (const int i : IndexRange(nr)) {
+        const int offset = i * struct_info.size_in_bytes;
+        BlendStructWriter struct_writer(
+            *wd,
+            struct_nr,
+            {static_cast<char *>(POINTER_OFFSET(buffer, offset)), struct_info.size_in_bytes});
+        fn(struct_writer);
+      }
+    }
 
     /* When writing to file, use stable pointers for everything. */
     if (!wd->use_memfile) {
@@ -922,17 +933,6 @@ static void writestruct_at_address_nr(WriteData *wd,
           const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
           *p_ptr = p_ptr_address_id;
         }
-      }
-    }
-
-    if (fn) {
-      for (const int i : IndexRange(nr)) {
-        const int offset = i * struct_info.size_in_bytes;
-        BlendStructWriter struct_writer(
-            *wd,
-            struct_nr,
-            {static_cast<char *>(POINTER_OFFSET(buffer, offset)), struct_info.size_in_bytes});
-        fn(struct_writer);
       }
     }
   }
