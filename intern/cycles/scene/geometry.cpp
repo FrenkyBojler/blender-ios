@@ -177,43 +177,43 @@ void GeometryManager::update_interactive_motion(Scene *scene)
 {
   bool update = false;
 
-  parallel_for(blocked_range<size_t>(0, scene->geometry.size(), 32),
-               [&](const blocked_range<size_t> &r) {
-                 for (size_t i = r.begin(); i != r.end(); i++) {
-                   Geometry *geom = scene->geometry[i];
+  parallel_for(
+      blocked_range<size_t>(0, scene->geometry.size(), 32), [&](const blocked_range<size_t> &r) {
+        for (size_t i = r.begin(); i != r.end(); i++) {
+          Geometry *geom = scene->geometry[i];
 
-                   if (geom->is_mesh() && !geom->has_true_displacement()) {
-                     Mesh *mesh = static_cast<Mesh *>(geom);
+          if (geom->is_mesh() && !geom->has_true_displacement()) {
+            Mesh *mesh = static_cast<Mesh *>(geom);
 
-                     if (!mesh->verts_pre.empty() && mesh->verts != mesh->verts_pre) {
-                       mesh->verts_pre = mesh->verts;
-                       mesh->tag_verts_pre_modified();
+            if (!mesh->verts_pre.empty() && mesh->verts != mesh->verts_pre) {
+              mesh->verts_pre = mesh->verts;
+              mesh->tag_verts_pre_modified();
 
-                       update = true;
-                     }
-                   }
-                   else if (geom->is_hair()) {
-                     Hair *hair = static_cast<Hair *>(geom);
+              update = true;
+            }
+          }
+          else if (geom->is_hair()) {
+            Hair *hair = static_cast<Hair *>(geom);
 
-                     if (!hair->curve_keys_pre.empty() && hair->curve_keys != hair->curve_keys_pre) {
-                       hair->curve_keys_pre = hair->curve_keys;
-                       hair->tag_curve_keys_pre_modified();
+            if (!hair->curve_keys_pre.empty() && hair->curve_keys != hair->curve_keys_pre) {
+              hair->curve_keys_pre = hair->curve_keys;
+              hair->tag_curve_keys_pre_modified();
 
-                       update = true;
-                     }
-                   }
-                   else if (geom->is_pointcloud()) {
-                     PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+              update = true;
+            }
+          }
+          else if (geom->is_pointcloud()) {
+            PointCloud *pointcloud = static_cast<PointCloud *>(geom);
 
-                     if (!pointcloud->points_pre.empty() && pointcloud->points != pointcloud->points_pre) {
-                       pointcloud->points_pre = pointcloud->points;
-                       pointcloud->tag_points_pre_modified();
+            if (!pointcloud->points_pre.empty() && pointcloud->points != pointcloud->points_pre) {
+              pointcloud->points_pre = pointcloud->points;
+              pointcloud->tag_points_pre_modified();
 
-                       update = true;
-                     }
-                   }
-                 }
-               });
+              update = true;
+            }
+          }
+        }
+      });
 
   if (update) {
     tag_update(scene, TRANSFORM_MODIFIED);
