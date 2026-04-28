@@ -2879,6 +2879,8 @@ void BKE_pose_clear_pointers(bPose *pose)
 void BKE_pose_remap_bone_pointers(bArmature *armature, bPose *pose)
 {
   for (bPoseChannel &pchan : pose->chanbase) {
+    /* OK to assign to pchan.bone_. Once the bone indices are used,
+     * this function can be removed. */
     pchan.bone_ = BKE_armature_find_bone_name(armature, pchan.name);
   }
 }

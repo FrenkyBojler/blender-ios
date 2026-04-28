@@ -1211,7 +1211,7 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
     pchan->roll2 = pchan_orig->roll2 * -1; /* XXX? */
 
     float pchan_mtx_final[4][4];
-    BKE_pchan_to_mat4(pchanbone_orig, pchan_mtx_final);
+    BKE_pchan_to_mat4(*pchanbone_orig, pchan_mtx_final);
     mul_m4_m4m4(pchan_mtx_final, pchan_mtx_final, flip_mtx);
     mul_m4_m4m4(pchan_mtx_final, flip_mtx, pchan_mtx_final);
     if (pid) {

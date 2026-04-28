@@ -3203,7 +3203,7 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
 
   /* Make sure the bone is still valid */
   const bPoseChannel *pchan = BKE_pose_channel_find_name(par->pose, ob->parsubstr);
-  const Bone *pchan_bone = pchan ? pchan->bone_get(*ob) : nullptr;
+  const Bone *pchan_bone = pchan ? pchan->bone_get(*par) : nullptr;
   if (!pchan || !pchan_bone) {
     CLOG_WARN(
         &LOG, "Parent Bone: '%s' for Object: '%s' doesn't exist", ob->parsubstr, ob->id.name + 2);

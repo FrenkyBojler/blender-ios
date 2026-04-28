@@ -36,6 +36,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "RNA_types.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -933,7 +934,8 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
   Set<Object *> updated_objects;
 
   /* Refuse to do anything if there is no active pose bone. */
-  bPoseChannel *active_pchan = CTX_data_active_pose_bone(C);
+  PointerRNA active_pchan_ptr = CTX_data_active_pose_bone_ptr(C);
+  bPoseChannel *active_pchan = active_pchan_ptr.data_as<bPoseChannel>();
   if (!active_pchan) {
     return false;
   }
@@ -948,15 +950,13 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
     CTX_DATA_END;
   }
 
-  /* Mirror what screen_ctx_active_pose_bone() is doing to get the active pose bone, so we can get
-   * the pose object. */
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  Object *obpose = BKE_object_pose_armature_get(obact);
-
   /* Build a set of bone collection names, to allow cross-Armature selection. */
+  Object *obpose = id_cast<Object *>(active_pchan_ptr.owner_id);
+  Bone *active_bone = active_pchan->bone_get(*obpose);
+  BLI_assert(active_bone);
+
   Set<std::string> collection_names;
-  for (BoneCollectionReference &bcoll_ref : active_pchan->bone_get(*obpose)->runtime.collections) {
+  for (BoneCollectionReference &bcoll_ref : active_bone->runtime.collections) {
     collection_names.add(bcoll_ref.bcoll->name);
   }
 
