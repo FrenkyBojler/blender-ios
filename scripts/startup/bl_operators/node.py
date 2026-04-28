@@ -383,16 +383,15 @@ class NodeSwapOperator(NodeOperator):
             elif is_reroute:
                 # Transfer reroute input to the first compatible socket.
                 input = old_node.inputs[0]
-                for link in input.links[:]:
-                    new_socket = None
-                    for s in new_node.inputs:
-                        if s.hide or not s.enabled:
-                            continue
-                        if s.type == input.type or cast_value(input, s) is not None:
-                            new_socket = s
-                            break
-
-                    if new_socket:
+                new_socket = None
+                for s in new_node.inputs:
+                    if s.hide or not s.enabled:
+                        continue
+                    if s.type == input.type or cast_value(input, s) is not None:
+                        new_socket = s
+                        break
+                if new_socket:
+                    for link in input.links[:]:
                         tree.links.new(link.from_socket, new_socket)
             else:
                 for input in old_node.inputs:
@@ -423,19 +422,18 @@ class NodeSwapOperator(NodeOperator):
                         except IndexError:
                             pass
             elif is_reroute:
-                # Transfer reroute outputs to the first compatible socket.
+                # Find first compatible output socket.
                 output = old_node.outputs[0]
-                for link in output.links[:]:
-                    # Find first available compatible socket.
-                    new_socket = None
-                    for s in new_node.outputs:
-                        if s.hide or not s.enabled:
-                            continue
-                        if s.type == output.type:
-                            new_socket = s
-                            break
-
-                    if new_socket:
+                new_socket = None
+                for s in new_node.outputs:
+                    if s.hide or not s.enabled:
+                        continue
+                    if s.type == output.type or cast_value(s, output) is not None:
+                        new_socket = s
+                        break
+                if new_socket:
+                    # Transfer reroute outputs to chosen socket.
+                    for link in output.links[:]:
                         is_multi_input = link.to_socket.is_multi_input
                         new_link = tree.links.new(new_socket, link.to_socket)
                         if is_multi_input:
