@@ -443,6 +443,8 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   ima->runtime = MEM_new<bke::ImageRuntime>(__func__);
 
   BKE_image_populate_cache_from_autosave(ima);
+  BLI_assert_msg(!(ima->flag & IMA_AUTOSAVE_TEMPPACK),
+                 "An image should never be marked as temporary packed after loading");
 }
 
 static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
@@ -4528,6 +4530,8 @@ void BKE_image_populate_cache_from_autosave(Image *ima)
       IMB_freeImBuf(ibuf);
     }
   }
+
+  BKE_image_clear_autosave(ima);
 }
 
 static ImBuf *image_get_ibuf_multilayer(Image *ima, ImageUser *iuser)
