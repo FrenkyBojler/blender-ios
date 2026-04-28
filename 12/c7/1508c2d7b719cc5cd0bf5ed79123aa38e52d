@@ -1,2 +1,3 @@
 Referenced by commit b80c07321ba, Fix T47300: SHIFT TAB, CTRL SHIFT TAB shortcuts does not toggle snap, snap mode on off anymore.
 Referenced by issue #47228, X11: Hotkeys aren't working when first defined keymap is not latin-one compatible
+Referenced by commit eaf63a35ae0b526c0cf8358f4d30b74dfe47da43, Fix #120892: GHOXT/Wayland keyboard input for non English layouts
