@@ -196,7 +196,7 @@ static MutableSpan<float4> read_image_pixels(MutableSpan<float4> image_pixels,
                                              const int width)
 {
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
-                           int(pixel_row.start_image_coordinate.x);
+                           int(pixel_row.start_image_coordinate.x) + range.start();
   MutableSpan<float4> scene_linear_pixels = image_pixels.slice(start_offset, range.size());
 
   if (processors.is_noop) {
@@ -216,11 +216,11 @@ static MutableSpan<float4> read_image_pixels(Span<uchar4> image_pixels,
                                              const int width,
                                              Vector<float4> &storage)
 {
-  storage.resize(pixel_row.num_pixels);
+  storage.resize(range.size());
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
-                           int(pixel_row.start_image_coordinate.x);
+                           int(pixel_row.start_image_coordinate.x) + range.start();
 
-  for (int i = 0; i < pixel_row.num_pixels; i++) {
+  for (int i = 0; i < range.size(); i++) {
     rgba_uchar_to_float(storage[i], image_pixels[start_offset + i]);
   }
 
@@ -229,7 +229,7 @@ static MutableSpan<float4> read_image_pixels(Span<uchar4> image_pixels,
   }
 
   processors.buffer_to_linear_processor.apply(
-      reinterpret_cast<float *>(storage.data()), pixel_row.num_pixels, 1, 4, false);
+      reinterpret_cast<float *>(storage.data()), range.size(), 1, 4, false);
 
   return storage;
 }
@@ -243,13 +243,13 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
 {
   if (!processors.is_noop) {
     processors.linear_to_buffer_processor.apply(
-        reinterpret_cast<float *>(scene_linear_pixels.data()), pixel_row.num_pixels, 1, 4, false);
+        reinterpret_cast<float *>(scene_linear_pixels.data()), range.size(), 1, 4, false);
   }
 
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
-                           int(pixel_row.start_image_coordinate.x);
+                           int(pixel_row.start_image_coordinate.x) + range.start();
 
-  for (int i = 0; i < pixel_row.num_pixels; i++) {
+  for (int i = 0; i < range.size(); i++) {
     rgba_float_to_uchar(image_pixels[start_offset + i], scene_linear_pixels[i]);
   }
 }
@@ -263,14 +263,14 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
 {
   if (!processors.is_noop) {
     processors.linear_to_buffer_processor.apply(
-        reinterpret_cast<float *>(scene_linear_pixels.data()), pixel_row.num_pixels, 1, 4, false);
+        reinterpret_cast<float *>(scene_linear_pixels.data()), range.size(), 1, 4, false);
   }
 
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
-                           int(pixel_row.start_image_coordinate.x);
+                           int(pixel_row.start_image_coordinate.x) + range.start();
 
   std::copy_n(
-      scene_linear_pixels.begin(), pixel_row.num_pixels, image_pixels.begin() + start_offset);
+      scene_linear_pixels.begin(), range.size(), image_pixels.begin() + start_offset);
 }
 
 static void blend_colors(MutableSpan<float4> paint_pixels,
@@ -374,7 +374,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
       const bool pixels_painted = threading::parallel_reduce(
           IndexRange(pixel_row.num_pixels),
-          512,
+          256,
           false,
           [&](const IndexRange range, bool /*changed*/) {
             pixel_positions.resize(range.size());
