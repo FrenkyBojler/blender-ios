@@ -58,9 +58,10 @@ class MotionPathTestObject(unittest.TestCase):
         # Needs to be evaluated for the matrix properties to return the correct value.
         bpy.context.evaluated_depsgraph_get()
         self.anim_object.matrix_parent_inverse = parent_ob.matrix_local.inverted()
-        parent_ob.keyframe_insert("rotation_euler", frame=10)
         parent_ob.rotation_euler = (0, math.pi / 2, 0)
         parent_ob.keyframe_insert("rotation_euler", frame=1)
+        parent_ob.rotation_euler = (0, 0, 0)
+        parent_ob.keyframe_insert("rotation_euler", frame=10)
 
         bpy.ops.object.paths_calculate(range='SCENE')
         motion_path = self.anim_object.motion_path
@@ -104,7 +105,7 @@ class MotionPathTestArmature(unittest.TestCase):
         self.pose_bone_b.select = False
 
     def test_cache_range(self):
-        """Teting if the motion path creates the correct range."""
+        """Testing if the motion path creates the correct range."""
         self.pose_bone_a.keyframe_insert("location", frame=0)
         self.pose_bone_a.keyframe_insert("location", frame=10)
 
@@ -150,12 +151,18 @@ class MotionPathTestArmature(unittest.TestCase):
         # If we don't clear the path, the bake option has no effect.
         # I (christoph) think that behavior should change, but it is documented here anyway.
         bpy.ops.pose.paths_calculate(range='KEYS_ALL', bake_location='TAILS')
+        self.assertEqual(len(motion_path.points), 11)
+        # Since the animation is a movement on the local x-axis, which equals to
+        # the global y in this setup the x-value will not change throughout the
+        # animation.
         for point in motion_path.points:
             self.assertAlmostEqual(point.co[0], 1, 3)
 
         bpy.ops.pose.paths_clear(only_selected=True)
+        self.assertEqual(self.pose_bone_a.motion_path, None)
         bpy.ops.pose.paths_calculate(range='KEYS_ALL', bake_location='TAILS')
         motion_path = self.pose_bone_a.motion_path
+        self.assertEqual(len(motion_path.points), 11)
         for point in motion_path.points:
             self.assertAlmostEqual(point.co[0], 0, 3)
 
