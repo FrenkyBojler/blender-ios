@@ -226,14 +226,15 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
 
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  uchar color[3];
-  ui::theme::get_color_3ubv(TH_BACK, color);
-  if (srgb_to_grayscale_byte(color) > 96) {
-    immUniformColor4f(0.1f, 0.1f, 0.1f, 0.7f);
-  }
-  else {
-    immUniformColor4f(0.8f, 0.8f, 0.8f, 0.4f);
-  }
+
+  uchar back[3];
+  ui::theme::get_color_3ubv(TH_BACK, back);
+  const bool is_light_background = srgb_to_grayscale_byte(back) > 96;
+  uchar arrow[4];
+  const bTheme *btheme = ui::theme::theme_get();
+  copy_v4_v4_uchar(arrow, btheme->tui.wcol_regular.text);
+  arrow[3] = is_light_background ? 200 : 100;
+  immUniformColor4ubv(arrow);
 
   immBegin(GPU_PRIM_TRI_FAN, 6);
   for (int i = 0; i < 6; i++) {
