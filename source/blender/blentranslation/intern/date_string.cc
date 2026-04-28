@@ -90,7 +90,6 @@ std::string date(const std::tm *date_time, const StringRef locale_iso, DateForma
                                                        CTX_N_(BLT_I18NCONTEXT_TIME, "Nov"),
                                                        CTX_N_(BLT_I18NCONTEXT_TIME, "Dec")};
 
-
   std::string date_format_str;
 
   BLI_assert(date_time->tm_mon >= 0 && date_time->tm_mon < 12);
