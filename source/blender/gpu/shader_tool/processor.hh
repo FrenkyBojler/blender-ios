@@ -72,12 +72,12 @@ class SourceProcessor {
   parser::ErrorHandler error_handler = {
       .default_filename = filepath_.substr(filepath_.find_last_of('/') + 1)};
 
-  void report_error(Token tok, std::string message)
+  void report_error(Token tok, const std::string &message)
   {
     error_handler.report(tok, message);
   }
 
-  void report_error(int row, int column, std::string line, std::string message)
+  void report_error(int row, int column, const std::string &line, const std::string &message)
   {
     error_handler.report(row, column, line, message);
   }
@@ -253,6 +253,8 @@ class SourceProcessor {
   void lower_empty_struct(Parser &parser);
   /* Transform `a.fn(b)` into `fn(a, b)`. */
   void lower_method_calls(Parser &parser);
+  /* Transform `auto [a, b] = fn()` into `S _tmp = fn(); a = _tmp.A; b = _tmp.B;`. */
+  void lower_structured_bindings(Parser &parser);
   /* Parse, convert to create infos, and erase declaration. */
   void lower_pipeline_definition(Parser &parser, const std::string &filename);
   /* Remove `[vertex|fragment|compute]` function attribute and add appropriate guards. */
@@ -374,12 +376,12 @@ class SourceProcessor {
                                                          Token template_tok,
                                                          bool is_method,
                                                          Scope ns_scope,
-                                                         std::string filepath);
+                                                         const std::string &filepath);
 
   void parse_namespace_symbols(SourceProcessor::Parser &parser,
                                Scope ns,
                                metadata::Source &metadata,
-                               std::string filepath);
+                               const std::string &filepath);
 
   std::string template_full_specified_name(metadata::TemplateDefinition &template_def);
 
