@@ -49,7 +49,33 @@ static const LocalePatterns *get_locale_patterns(const StringRef locale_iso)
   return &patterns[0];
 }
 
-static std::string format_with_pattern(const std::tm *tm, std::string pattern)
+std::string time(const std::tm *date_time, const StringRef locale_iso, TimeFormat format)
+{
+  std::string time_format_str;
+
+  if (format == TimeFormat::Default) {
+    const LocalePatterns *pattern = get_locale_patterns(locale_iso);
+    time_format_str = pattern->time;
+  }
+  else if (format == TimeFormat::H24_Colon) {
+    time_format_str = "{H:02}:{M:02}";
+  }
+  else if (format == TimeFormat::H12_Colon) {
+    time_format_str = "{I}:{M:02} {p}";
+  }
+
+  return fmt::format(
+      fmt::runtime(time_format_str),
+      fmt::arg("H", date_time->tm_hour),
+      fmt::arg("M", date_time->tm_min),
+      fmt::arg("S", date_time->tm_sec),
+      fmt::arg("I", (date_time->tm_hour % 12) == 0 ? 12 : (date_time->tm_hour % 12)),
+      fmt::arg("p",
+               (date_time->tm_hour < 12) ? CTX_IFACE_(BLT_I18NCONTEXT_TIME, "AM") :
+                                           CTX_IFACE_(BLT_I18NCONTEXT_TIME, "PM")));
+}
+
+std::string date(const std::tm *date_time, const StringRef locale_iso, DateFormat format)
 {
   static constexpr std::array<StringRef, 12> months = {CTX_N_(BLT_I18NCONTEXT_TIME, "Jan"),
                                                        CTX_N_(BLT_I18NCONTEXT_TIME, "Feb"),
@@ -64,45 +90,11 @@ static std::string format_with_pattern(const std::tm *tm, std::string pattern)
                                                        CTX_N_(BLT_I18NCONTEXT_TIME, "Nov"),
                                                        CTX_N_(BLT_I18NCONTEXT_TIME, "Dec")};
 
-  BLI_assert(tm->tm_mon >= 0 && tm->tm_mon < 12);
-  const int month_index = std::clamp(tm->tm_mon, 0, 11);
 
-  return fmt::format(fmt::runtime(pattern),
-                     fmt::arg("Y", tm->tm_year + 1900),
-                     fmt::arg("m", tm->tm_mon + 1),
-                     fmt::arg("b", CTX_IFACE_(BLT_I18NCONTEXT_TIME, months[month_index])),
-                     fmt::arg("d", tm->tm_mday),
-                     fmt::arg("H", tm->tm_hour),
-                     fmt::arg("M", tm->tm_min),
-                     fmt::arg("I", (tm->tm_hour % 12) == 0 ? 12 : (tm->tm_hour % 12)),
-                     fmt::arg("p",
-                              (tm->tm_hour < 12) ? CTX_IFACE_(BLT_I18NCONTEXT_TIME, "AM") :
-                                                   CTX_IFACE_(BLT_I18NCONTEXT_TIME, "PM")));
-}
+  std::string date_format_str;
 
-/* Public functions. */
-
-std::string time(const std::tm *date_time, const StringRef locale_iso, TimeFormat format)
-{
-  StringRef time_format_str;
-
-  if (format == TimeFormat::Default) {
-    const LocalePatterns *pattern = get_locale_patterns(locale_iso);
-    time_format_str = pattern->time;
-  }
-  else if (format == TimeFormat::H24_Colon) {
-    time_format_str = "{H:02}:{M:02}";
-  }
-  else if (format == TimeFormat::H12_Colon) {
-    time_format_str = "{I}:{M:02} {p}";
-  }
-
-  return format_with_pattern(date_time, time_format_str);
-}
-
-std::string date(const std::tm *date_time, const StringRef locale_iso, DateFormat format)
-{
-  StringRef date_format_str;
+  BLI_assert(date_time->tm_mon >= 0 && date_time->tm_mon < 12);
+  const int month_index = std::clamp(date_time->tm_mon, 0, 11);
 
   if (format == DateFormat::Default) {
     const LocalePatterns *pattern = get_locale_patterns(locale_iso);
@@ -130,7 +122,11 @@ std::string date(const std::tm *date_time, const StringRef locale_iso, DateForma
     date_format_str = "{Y}-{m:02}-{d:02}";
   }
 
-  return format_with_pattern(date_time, date_format_str);
+  return fmt::format(fmt::runtime(date_format_str),
+                     fmt::arg("Y", date_time->tm_year + 1900),
+                     fmt::arg("m", date_time->tm_mon + 1),
+                     fmt::arg("b", CTX_IFACE_(BLT_I18NCONTEXT_TIME, months[month_index])),
+                     fmt::arg("d", date_time->tm_mday));
 }
 
 std::string datetime(const std::tm *datetime,
