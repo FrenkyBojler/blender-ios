@@ -247,8 +247,9 @@ enum ePchan_DrawFlag {
 };
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */
-#define PCHAN_CUSTOM_BONE_LENGTH(pchan) \
-  (((pchan)->drawflag & PCHAN_DRAW_NO_CUSTOM_BONE_SIZE) ? 1.0f : (pchan)->bone->length)
+#define PCHAN_CUSTOM_BONE_LENGTH(pchanbone) \
+  (((pchanbone).pchan->drawflag & PCHAN_DRAW_NO_CUSTOM_BONE_SIZE) ? 1.0f : \
+                                                                    (pchanbone).bone->length)
 
 #ifdef DNA_DEPRECATED_ALLOW
 /* PoseChannel->bboneflag */
@@ -834,7 +835,7 @@ struct bPoseChannel {
 
   /**
    * Curved bones settings - these are for animating,
-   * and are applied on top of the copies in pchan->bone_get(*armature)
+   * and are applied on top of the copies in pchan->bone_get(*ob)
    */
   float roll1 = 0, roll2 = 0;
   float curve_in_x = 0, curve_in_z = 0;
@@ -847,7 +848,7 @@ struct bPoseChannel {
   float scale_in[3] = {1.0f, 1.0f, 1.0f};
   float scale_out[3] = {1.0f, 1.0f, 1.0f};
 
-  /** B-Bone custom handles; set on read file or rebuild pose based on pchan->bone_get(*armature)
+  /** B-Bone custom handles; set on read file or rebuild pose based on pchan->bone_get(*ob)
    * data. */
   struct bPoseChannel *bbone_prev = nullptr;
   struct bPoseChannel *bbone_next = nullptr;

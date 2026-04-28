@@ -2935,7 +2935,7 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
                        &anim_eval_context);
 
     /* convert animation to matrices for use here */
-    BKE_pchan_calc_mat(tchan);
+    BKE_pchan_calc_mat({tchan, tchan->bone_get(*cob->ob)});
     copy_m4_m4(ct->matrix, tchan->chan_mat);
 
     /* Clean up */

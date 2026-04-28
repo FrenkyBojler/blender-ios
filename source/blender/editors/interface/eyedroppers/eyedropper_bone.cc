@@ -8,6 +8,7 @@
  * Eyedropper (bones)
  */
 
+#include "DNA_ID.h"
 #include "DNA_layer_types.h"
 
 #include "BKE_armature.hh"
@@ -390,9 +391,10 @@ static SampleResult bonedropper_sample(bContext *C, BoneDropper &bdr, const int 
      * need to do a conversion. We will just assume the ID under the cursor is the one we are
      * searching for since there is no way to get the armature ID from the object ID that we
      * have. */
+    Object *pose_ob = id_cast<Object *>(sample_data.bone_rna.owner_id);
     bPoseChannel *pose_bone = static_cast<bPoseChannel *>(sample_data.bone_rna.data);
     sample_data.bone_rna = RNA_pointer_create_discrete(
-        bdr.search_ptr.owner_id, RNA_Bone, pose_bone->bone);
+        bdr.search_ptr.owner_id, RNA_Bone, pose_bone->bone_get(*pose_ob));
   }
 
   PropertyType type = RNA_property_type(bdr.prop);

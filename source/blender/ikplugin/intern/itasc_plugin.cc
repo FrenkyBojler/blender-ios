@@ -1088,7 +1088,7 @@ static void convert_pose(IK_Scene *ikscene)
        a++, ikchan++)
   {
     pchan = ikchan->pchan;
-    bone = pchan->bone_get(*armature);
+    bone = pchan->bone_get(*ikscene->blArmature);
 
     if (pchan->parent) {
       unit_m4(bmat);
@@ -1132,7 +1132,7 @@ static void BKE_pose_rest(IK_Scene *ikscene)
        a++, ikchan++)
   {
     pchan = ikchan->pchan;
-    bone = pchan->bone_get(*armature);
+    bone = pchan->bone_get(*ikscene->blArmature);
 
     if (ikchan->jointType & IK_TRANSY) {
       rot[ikchan->ndof - 1] = bone->length * scale;
@@ -1217,7 +1217,7 @@ static IK_Scene *convert_tree(
 
   for (a = 0, ikchan = ikscene->channels; a < tree->totchannel; a++, ikchan++) {
     pchan = ikchan->pchan;
-    bone = pchan->bone_get(*armature);
+    bone = pchan->bone_get(*ob);
 
     KDL::Frame tip(iTaSC::F_identity);
     /* compute the position and rotation of the head from previous segment */
@@ -1257,7 +1257,7 @@ static IK_Scene *convert_tree(
     length = bone->length * ikscene->blScale;
     parent = (a > 0) ? ikscene->channels[tree->parent[a]].tail : root;
     /* first the fixed segment to the bone head */
-    if (!(ikchan->pchan->bone_get(*armature)->flag & BONE_CONNECTED) ||
+    if (!(ikchan->pchan->bone_get(*ob)->flag & BONE_CONNECTED) ||
         head.M.GetRot().Norm() > KDL::epsilon)
     {
       joint = bone->name;
@@ -1473,10 +1473,10 @@ static IK_Scene *convert_tree(
       iktarget->simulation = (ikparam->flag & ITASC_SIMULATION);
       iktarget->rootChannel = ikscene->channels[0].pchan;
       iktarget->owner = ob;
-      iktarget->targetName = pchan->bone_get(*armature)->name;
+      iktarget->targetName = pchan->bone_get(*ob)->name;
       iktarget->targetName += ":T:";
       iktarget->targetName += target->con->name;
-      iktarget->constraintName = pchan->bone_get(*armature)->name;
+      iktarget->constraintName = pchan->bone_get(*ob)->name;
       iktarget->constraintName += ":C:";
       iktarget->constraintName += target->con->name;
       numtarget++;
@@ -1525,9 +1525,9 @@ static IK_Scene *convert_tree(
     /* it has a parent, get the pose matrix from it */
     float baseFrame[4][4];
     pchan = pchan->parent;
-    copy_m4_m4(baseFrame, pchan->bone_get(*armature)->arm_mat);
+    copy_m4_m4(baseFrame, pchan->bone_get(*ob)->arm_mat);
     /* move to the tail and scale to get rest pose of armature base */
-    copy_v3_v3(baseFrame[3], pchan->bone_get(*armature)->arm_tail);
+    copy_v3_v3(baseFrame[3], pchan->bone_get(*ob)->arm_tail);
     invert_m4_m4(invBaseFrame, baseFrame);
   }
   else {
@@ -1549,13 +1549,15 @@ static IK_Scene *convert_tree(
     for (bone_count = 0, bone_length = 0.0f, a = iktarget->channel; a >= 0;
          a = tree->parent[a], bone_count++)
     {
-      bone_length += ikscene->blScale * tree->pchan[a]->bone->length;
+      const bPoseChannel *pchan = tree->pchan[a];
+      const Bone *bone = pchan->bone_get(*ikscene->blArmature);
+      bone_length += ikscene->blScale * bone->length;
     }
     bone_length /= bone_count;
 
     /* store the rest pose of the end effector to compute enforce target */
-    copy_m4_m4(mat, pchan->bone_get(*armature)->arm_mat);
-    copy_v3_v3(mat[3], pchan->bone_get(*armature)->arm_tail);
+    copy_m4_m4(mat, pchan->bone_get(*ob)->arm_mat);
+    copy_v3_v3(mat[3], pchan->bone_get(*ob)->arm_tail);
     /* get the rest pose relative to the armature base */
     mul_m4_m4m4(iktarget->eeRest, invBaseFrame, mat);
     iktarget->eeBlend = (!ikscene->polarConstraint && condata->type == CONSTRAINT_IK_COPYPOSE) ?

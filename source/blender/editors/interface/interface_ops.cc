@@ -986,7 +986,7 @@ static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
   BLI_assert(GS(object->data->name) == ID_AR);
   bArmature *armature = id_cast<bArmature *>(object->data);
 
-  return RNA_pointer_create_discrete(&armature->id, RNA_Bone, pchan->bone_get(*armature));
+  return RNA_pointer_create_discrete(&armature->id, RNA_Bone, pchan->bone_get(*object));
 }
 
 static void context_selected_bones_via_pose(bContext *C, Vector<PointerRNA> *r_lb)

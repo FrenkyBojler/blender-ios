@@ -416,11 +416,9 @@ bool ED_pose_deselect_all_multi(bContext *C, int select_mode, const bool ignore_
 
 /* ***************** Selections ********************** */
 
-static void selectconnected_posebonechildren(Object &ob,
-                                             bPoseChannel &pose_bone,
-                                             const bool extend)
+static void selectconnected_posebonechildren(Object &ob, bPoseChannel &pchan, const bool extend)
 {
-  animrig::pose_bone_descendent_depth_iterator(*ob.pose, pose_bone, [&](bPoseChannel &child) {
+  animrig::pose_bone_descendent_depth_iterator(ob, pchan, [&](bPoseChannel &child) {
     Bone *child_bone = child.bone_get(ob);
     if (!child_bone) {
       BLI_assert_unreachable();
@@ -428,7 +426,7 @@ static void selectconnected_posebonechildren(Object &ob,
     }
     /* pose_bone_descendent_depth_iterator also visits `pose_bone` itself, and that should
      * always be (de)selected, because it's always "connected" to itself. */
-    const bool is_input_bone = (&child == &pose_bone);
+    const bool is_input_bone = (&child == &pchan);
     const bool is_connected = is_input_bone || (child_bone->flag & BONE_CONNECTED);
     const bool is_selectable = (child_bone->flag & BONE_UNSELECTABLE) == 0;
     const bool is_ok = is_selectable && is_connected;

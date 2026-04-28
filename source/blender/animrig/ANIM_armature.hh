@@ -100,8 +100,8 @@ inline void bone_deselect(bPoseChannel *pchan)
  * Iterates all descendents of the given pose bone including the bone itself. Iterates breadth
  * first.
  */
-void pose_bone_descendent_iterator(bPose &pose,
-                                   bPoseChannel &pose_bone,
+void pose_bone_descendent_iterator(Object &pose_ob,
+                                   bPoseChannel &pchan,
                                    FunctionRef<void(bPoseChannel &child_bone)> callback);
 
 /**
@@ -109,7 +109,7 @@ void pose_bone_descendent_iterator(bPose &pose,
  * stopped if the callback returns false. Returns true if the iteration completed or false if it
  * was stopped before visiting all bones.
  */
-bool pose_bone_descendent_depth_iterator(bPose &pose,
-                                         bPoseChannel &pose_bone,
+bool pose_bone_descendent_depth_iterator(Object &pose_ob,
+                                         bPoseChannel &pchan,
                                          FunctionRef<bool(bPoseChannel &child_bone)> callback);
 }  // namespace blender::animrig

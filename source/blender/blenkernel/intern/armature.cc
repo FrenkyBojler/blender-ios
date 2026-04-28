@@ -2996,7 +2996,7 @@ void BKE_pchan_to_mat4(const bke::PChanBoneConst pchanbone, float r_chanmat[4][4
   }
 }
 
-void BKE_pchan_calc_mat(bke::PChanBone pchanbone)
+void BKE_pchan_calc_mat(const bke::PChanBone pchanbone)
 {
   /* this is just a wrapper around the copy of this function which calculates the matrix
    * and stores the result in any given channel
@@ -3004,7 +3004,7 @@ void BKE_pchan_calc_mat(bke::PChanBone pchanbone)
   BKE_pchan_to_mat4(pchanbone, pchanbone.pchan->chan_mat);
 }
 
-void BKE_pose_where_is_bone_tail(bke::PChanBone pchanbone)
+void BKE_pose_where_is_bone_tail(const bke::PChanBone pchanbone)
 {
   float vec[3];
 
@@ -3021,8 +3021,9 @@ void BKE_pose_where_is_bone(Depsgraph *depsgraph,
                             bool do_extra)
 {
   /* This gives a chan_mat with actions (F-Curve) results. */
+  Bone *bone = pchan->bone_get(*ob);
   if (do_extra) {
-    BKE_pchan_calc_mat(pchan);
+    BKE_pchan_calc_mat({pchan, bone});
   }
   else {
     unit_m4(pchan->chan_mat);
@@ -3030,7 +3031,6 @@ void BKE_pose_where_is_bone(Depsgraph *depsgraph,
 
   /* Construct the posemat based on PoseChannels, that we do before applying constraints. */
   /* pose_mat(b) = pose_mat(b-1) * yoffs(b-1) * d_root(b) * bone_mat(b) * chan_mat(b) */
-  const Bone *bone = pchan->bone_get(*ob);
   BKE_armature_mat_bone_to_pose({pchan, bone}, pchan->chan_mat, pchan->pose_mat);
 
   /* Only root-bones get the cyclic offset (unless user doesn't want that). */
@@ -3203,7 +3203,8 @@ void BKE_pchan_minmax(const Object *ob,
 
   if (bb_custom) {
     float4x4 mat, smat, rmat, tmp;
-    scale_m4_fl(smat.ptr(), PCHAN_CUSTOM_BONE_LENGTH(pchan));
+    const bke::PChanBoneConst pchanbone{pchan, pchan->bone_get(*ob)};
+    scale_m4_fl(smat.ptr(), PCHAN_CUSTOM_BONE_LENGTH(pchanbone));
     rescale_m4(smat.ptr(), pchan->custom_scale_xyz);
     eulO_to_mat4(rmat.ptr(), pchan->custom_rotation_euler, ROT_MODE_XYZ);
     copy_m4_m4(tmp.ptr(), pchan_tx->pose_mat);
@@ -3236,7 +3237,7 @@ std::optional<Bounds<float3>> BKE_pose_minmax(const Object *ob, const bool use_s
 
   bool found_pchan = false;
   for (const bPoseChannel &pchan : ob->pose->chanbase) {
-    /* XXX pchan->bone_get(*armature) may be nullptr for duplicated bones, see
+    /* XXX pchan->bone_get(*ob) may be nullptr for duplicated bones, see
      * duplicateEditBoneObjects() comment (editarmature.c:2592)... Skip in this case too! */
     if (!pchan.bone) {
       continue;

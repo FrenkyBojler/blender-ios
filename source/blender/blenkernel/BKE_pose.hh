@@ -57,13 +57,7 @@ template<typename PoseChannelT, typename BoneT> struct PChanBoneT {
   {
   }
 
-  using ArmatureT = std::conditional_t<std::is_const_v<BoneT>, const bArmature, bArmature>;
-
-  static PChanBoneT from_pchan(PoseChannelT *pchan, ArmatureT &armature)
-  {
-    BLI_assert(pchan != nullptr);
-    return PChanBoneT(pchan, pchan->bone_get(armature));
-  }
+  PChanBoneT() : pchan(nullptr), bone(nullptr) {}
 };
 
 using PChanBone = PChanBoneT<bPoseChannel, Bone>;

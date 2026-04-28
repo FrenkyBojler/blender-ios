@@ -293,7 +293,7 @@ void BKE_pose_where_is_bone(Depsgraph *depsgraph,
 /**
  * Calculate tail of pose-channel.
  */
-void BKE_pose_where_is_bone_tail(bke::PChanBoneConst pchanbone);
+void BKE_pose_where_is_bone_tail(bke::PChanBone pchanbone);
 
 void vec_roll_to_mat3(const float vec[3], float roll, float r_mat[3][3]);
 
@@ -399,7 +399,7 @@ void BKE_pchan_to_mat4(bke::PChanBoneConst pchanbone, float r_chanmat[4][4]);
  * Convert the loc/rot/size to mat4 (`pchan.chan_mat`),
  * used in `constraint.cc` too.
  */
-void BKE_pchan_calc_mat(bPoseChannel *pchan);
+void BKE_pchan_calc_mat(bke::PChanBone pchanbone);
 
 /**
  * Simple helper, computes the offset bone matrix:

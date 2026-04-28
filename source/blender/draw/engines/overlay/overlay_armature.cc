@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BKE_pose.hh"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_mesh_types.h"
@@ -124,6 +125,20 @@ class UnifiedBonePtr {
                    "bPoseChannel's armature Bone* only set when "
                    "UnifiedBonePtr contains a pose channel");
     return bone_;
+  }
+  bke::PChanBone as_pchanbone()
+  {
+    BLI_assert_msg(!is_editbone_,
+                   "bPoseChannel's armature Bone* only set when "
+                   "UnifiedBonePtr contains a pose channel");
+    return {pchan_, bone_};
+  }
+  bke::PChanBoneConst as_pchanbone() const
+  {
+    BLI_assert_msg(!is_editbone_,
+                   "bPoseChannel's armature Bone* only set when "
+                   "UnifiedBonePtr contains a pose channel");
+    return {pchan_, bone_};
   }
 
   bool is_editbone() const
@@ -1018,7 +1033,8 @@ static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
   /* TODO: This should be moved to depsgraph or armature refresh
    * and not be tied to the draw pass creation.
    * This would refresh armature without invalidating the draw cache. */
-  mul_v3_v3fl(bone_scale, pchan->custom_scale_xyz, PCHAN_CUSTOM_BONE_LENGTH(pchan));
+  const bke::PChanBoneConst pchanbone{pchan, bone.posebone_bone()};
+  mul_v3_v3fl(bone_scale, pchan->custom_scale_xyz, PCHAN_CUSTOM_BONE_LENGTH(pchanbone));
   bone_mat = pchan->custom_tx ? pchan->custom_tx->pose_mat : pchan->pose_mat;
   disp_mat = bone.disp_mat();
   disp_tail_mat = pchan->disp_tail_mat;
@@ -1167,7 +1183,7 @@ static void ebone_spline_preview(EditBone *ebone, const float result_array[MAX_B
 }
 
 /* This function is used for both B-Bone and Wire matrix updates. */
-static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
+static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone, bArmature &armature)
 {
   float s[4][4], ebmat[4][4];
   float length, xwidth, zwidth;
@@ -1209,8 +1225,7 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
 
     Mat4 *bbones_mat = reinterpret_cast<Mat4 *>(pchan->draw_data->bbone_matrix);
     if (bbone_segments > 1) {
-      Bone *pchan_bone = bone.posebone_bone();
-      BKE_pchan_bbone_spline_setup(pchan, *pchan_bone, false, false, bbones_mat);
+      BKE_pchan_bbone_spline_setup(bone.as_pchanbone(), armature, false, false, bbones_mat);
 
       for (int i = bbone_segments; i--; bbones_mat++) {
         mul_m4_m4m4(bbones_mat->mat, bbones_mat->mat, s);
@@ -1908,13 +1923,14 @@ static void draw_bone_name(const Armatures::DrawContext *ctx, const UnifiedBoneP
 
 static void bone_draw_update_display_matrix(const eArmature_Drawtype drawtype,
                                             const bool use_custom_shape,
-                                            UnifiedBonePtr bone)
+                                            UnifiedBonePtr bone,
+                                            bArmature &armature)
 {
   if (use_custom_shape) {
     draw_bone_update_disp_matrix_custom_shape(bone);
   }
   else if (ELEM(drawtype, ARM_DRAW_TYPE_B_BONE, ARM_DRAW_TYPE_WIRE)) {
-    draw_bone_update_disp_matrix_bbone(bone);
+    draw_bone_update_disp_matrix_bbone(bone, armature);
   }
   else {
     draw_bone_update_disp_matrix_default(bone);
@@ -1977,7 +1993,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
     const eArmature_Drawtype drawtype = eBone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED ?
                                             arm_drawtype :
                                             eArmature_Drawtype(eBone->drawtype);
-    bone_draw_update_display_matrix(drawtype, false, bone);
+    bone_draw_update_display_matrix(drawtype, false, bone, arm);
     bone_draw(drawtype, false, ctx, bone, boneflag, select_id);
 
     if (!is_select) {
@@ -2111,7 +2127,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     const eArmature_Drawtype drawtype = bone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED ?
                                             arm_drawtype :
                                             eArmature_Drawtype(bone->drawtype);
-    bone_draw_update_display_matrix(drawtype, use_custom_shape, bone_ptr);
+    bone_draw_update_display_matrix(drawtype, use_custom_shape, bone_ptr, arm);
     bone_draw(drawtype, use_custom_shape, ctx, bone_ptr, boneflag, select_id);
 
     /* Below this point nothing is used for selection queries. */
