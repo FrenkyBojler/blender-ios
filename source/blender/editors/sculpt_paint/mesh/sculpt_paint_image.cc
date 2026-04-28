@@ -185,13 +185,9 @@ static void calc_brush_colors(MutableSpan<float4> buffer_colors,
 {
   BLI_assert(buffer_colors.size() == factors.size());
 
-  threading::isolate_task([&] {
-    threading::parallel_for(buffer_colors.index_range(), 512, [&](const IndexRange range) {
-      for (const int i : range) {
-        buffer_colors[i] = brush_color * factors[i];
-      }
-    });
-  });
+  for (const int i : buffer_colors.index_range()) {
+    buffer_colors[i] = brush_color * factors[i];
+  }
 }
 
 static MutableSpan<float4> read_image_pixels(MutableSpan<float4> image_pixels,
@@ -225,13 +221,9 @@ static MutableSpan<float4> read_image_pixels(Span<uchar4> image_pixels,
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x) + range.start();
 
-  threading::isolate_task([&]() {
-    threading::parallel_for(range, 512, [&](const IndexRange range) {
-      for (int i = 0; i < range.size(); i++) {
-        rgba_uchar_to_float(storage[i], image_pixels[start_offset + i]);
-      }
-    });
-  });
+  for (int i = 0; i < range.size(); i++) {
+    rgba_uchar_to_float(storage[i], image_pixels[start_offset + i]);
+  }
 
   if (processors.is_noop) {
     return storage;
@@ -258,13 +250,9 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x) + range.start();
 
-  threading::isolate_task([&]() {
-    threading::parallel_for(range, 512, [&](const IndexRange range) {
-      for (int i = 0; i < range.size(); i++) {
-        rgba_float_to_uchar(image_pixels[start_offset + i], scene_linear_pixels[i]);
-      }
-    });
-  });
+  for (int i = 0; i < range.size(); i++) {
+    rgba_float_to_uchar(image_pixels[start_offset + i], scene_linear_pixels[i]);
+  }
 }
 
 static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
@@ -293,14 +281,10 @@ static void blend_colors(MutableSpan<float4> paint_pixels,
   BLI_assert(paint_pixels.size() == scene_linear_pixels.size());
 
   /* Mix the initial image color with the paint color. */
-  threading::isolate_task([&] {
-    threading::parallel_for(paint_pixels.index_range(), 512, [&](const IndexRange range) {
-      for (const int i : range) {
-        blend_color_mix_float(paint_pixels[i], scene_linear_pixels[i], paint_pixels[i]);
-        paint_pixels[i] *= brush.alpha;
-      }
-    });
-  });
+  for (const int i : paint_pixels.index_range()) {
+    blend_color_mix_float(paint_pixels[i], scene_linear_pixels[i], paint_pixels[i]);
+    paint_pixels[i] *= brush.alpha;
+  }
 
   /* Apply the blended color to the original image with the brush alpha. */
   IMB_blend_color_float(
