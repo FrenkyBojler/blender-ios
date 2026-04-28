@@ -16,6 +16,7 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
@@ -225,9 +226,14 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
 
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  float color[4];
-  ui::theme::get_color_4fv(TH_REGION_TOGGLE_TEXT, color);
-  immUniformColor4fv(color);
+  uchar color[3];
+  ui::theme::get_color_3ubv(TH_BACK, color);
+  if (srgb_to_grayscale_byte(color) > 96) {
+    immUniformColor4f(0.1f, 0.1f, 0.1f, 0.7f);
+  }
+  else {
+    immUniformColor4f(0.8f, 0.8f, 0.8f, 0.4f);
+  }
 
   immBegin(GPU_PRIM_TRI_FAN, 6);
   for (int i = 0; i < 6; i++) {
@@ -265,10 +271,10 @@ static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *a
   }
 
   float color[4];
-  ui::theme::get_color_4fv(TH_REGION_TOGGLE, color);
+  ui::theme::get_color_4fv(TH_BACK, color);
   /* Workaround for different color spaces between normal areas and the ones using GPUViewports. */
-  float alpha = WM_region_use_viewport(area, region) ? 1.0f : 0.6f;
-  color[3] *= alpha;
+  float alpha = WM_region_use_viewport(area, region) ? 0.6f : 0.4f;
+  color[3] = alpha;
   rctf rect{};
   /* Hit size is a bit larger than visible background. */
   rect.xmin = float(az->x1) + U.pixelsize;
