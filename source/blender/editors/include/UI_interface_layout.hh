@@ -924,7 +924,7 @@ enum eUI_Item_Flag : uint32_t {
    * text input while leaving the remaining UI interactive).
    */
   ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE = 1 << 15,
-  /** Text buttons styled like labels. */
+  /** Text buttons with no emboss styled like labels. */
   ITEM_R_TEXT_BUT_LABEL_STYLE = 1 << 16,
 };
 ENUM_OPERATORS(eUI_Item_Flag)

@@ -405,7 +405,7 @@ enum {
    * buttons currently.
    */
   BUT2_FORCE_SEMI_MODAL_ACTIVE = 1 << 1,
-  /** Allow double click edit on text buttons with no emboss that look like labels. */
+  /** Allow double click editing on text buttons with no emboss styled like labels. */
   BUT2_TEXT_LABEL_STYLE = 1 << 2,
 };
 
