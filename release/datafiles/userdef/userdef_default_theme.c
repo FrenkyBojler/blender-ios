@@ -306,10 +306,6 @@ const bTheme U_theme_default = {
       .back = RGBA(0x30303000),
       .tab_back = RGBA(0x18181800),
     },
-    .toggle = {
-      .back = RGBA(0x0d0d0d99),
-      .icon = RGBA(0xcccccc66),
-    },
   },
   .common = {
     .anim = {

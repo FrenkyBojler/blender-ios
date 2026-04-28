@@ -2392,26 +2392,6 @@ static void rna_def_userdef_theme_regions_sidebars(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
-/* Region toggle */
-static void rna_def_userdef_theme_regions_toggle(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "ThemeRegionsToggle", nullptr);
-  RNA_def_struct_ui_text(srna, "Region Toggle Settings", "Theme settings for hidden region toggles");
-
-  prop = RNA_def_property(srna, "back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "icon", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Icon", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-}
-
 static void rna_def_userdef_theme_regions(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2421,7 +2401,6 @@ static void rna_def_userdef_theme_regions(BlenderRNA *brna)
   rna_def_userdef_theme_regions_asset_shelf(brna);
   rna_def_userdef_theme_regions_scrubbing(brna);
   rna_def_userdef_theme_regions_sidebars(brna);
-  rna_def_userdef_theme_regions_toggle(brna);
 
   srna = RNA_def_struct(brna, "ThemeRegions", nullptr);
   RNA_def_struct_ui_text(srna,
@@ -2446,11 +2425,6 @@ static void rna_def_userdef_theme_regions(BlenderRNA *brna)
   prop = RNA_def_property(srna, "sidebars", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_ui_text(prop, "Toolbar / Sidebar", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "toggle", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_ui_text(prop, "Toggle", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 

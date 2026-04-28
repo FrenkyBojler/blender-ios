@@ -74,9 +74,6 @@ enum ThemeColorID {
   TH_HEADER_TEXT,
   TH_HEADER_TEXT_HI,
 
-  TH_REGION_TOGGLE,
-  TH_REGION_TOGGLE_TEXT,
-
   /* panels */
   TH_PANEL_HEADER,
   TH_PANEL_BACK,
