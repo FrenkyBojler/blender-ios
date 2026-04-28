@@ -347,6 +347,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
   bool pixels_updated = false;
   IndexMaskMemory memory;
+  /* TODO: Experiment with collecting all of the index ranges first */
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
     if (image_buffer == nullptr) {
@@ -399,6 +400,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         apply_hardness_to_distances(cache, tls.distances);
         calc_brush_strength_factors(cache, brush, tls.distances, tls.factors);
         calc_brush_texture_factors(ss, brush, tls.pixel_positions, tls.factors);
+        /* TODO: Experiment with calculating all of the float values first */
         scale_factors(tls.factors, cache.bstrength);
 
         const bool nonzero_factor = std::ranges::any_of(
@@ -443,6 +445,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
       });
     });
 
+    /* TODO: Make this a parallel reduction step */
     valid_rows.foreach_index([&](const int i, const int pos) {
       if (row_changed[pos]) {
         tile_data.mark_dirty(tile_data.pixel_rows[i]);
