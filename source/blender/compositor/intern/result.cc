@@ -7,6 +7,8 @@
 #include <string>
 #include <variant>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_array.hh"
@@ -819,6 +821,9 @@ void Result::share_data(const Result &source)
  * result, it simply deletes itself with no data deletion. */
 class ExternalSharingInfo : public ImplicitSharingInfo {
  public:
+  MEM_CXX_CLASS_ALLOC_FUNCS("ExternalSharingInfo");
+
+ private:
   void delete_self_with_data() override
   {
     delete this;
