@@ -960,18 +960,18 @@ void BKE_pose_bone_done(Depsgraph *depsgraph, Object *object, int pchan_index)
   float imat[4][4];
   DEG_debug_print_eval_subdata(
       depsgraph, __func__, object->id.name, object, "pchan", pchan->name, pchan);
-  if (pchan->bone_get(*armature)) {
-    invert_m4_m4(imat, pchan->bone_get(*armature)->arm_mat);
+  const Bone *bone = pchan->bone_get(*armature);
+  if (bone) {
+    invert_m4_m4(imat, bone->arm_mat);
     mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
-    if (!(pchan->bone_get(*armature)->flag & BONE_NO_DEFORM)) {
-      mat4_to_dquat(
-          &pchan->runtime.deform_dual_quat, pchan->bone_get(*armature)->arm_mat, pchan->chan_mat);
+    if (!(bone->flag & BONE_NO_DEFORM)) {
+      mat4_to_dquat(&pchan->runtime.deform_dual_quat, bone->arm_mat, pchan->chan_mat);
     }
   }
   pose_channel_flush_to_orig_if_needed(depsgraph, object, pchan);
   if (DEG_is_active(depsgraph)) {
     bPoseChannel *pchan_orig = pchan->orig_pchan;
-    if (pchan->bone_get(*armature) == nullptr || pchan->bone_get(*armature)->segments <= 1) {
+    if (bone == nullptr || bone->segments <= 1) {
       BKE_pose_channel_free_bbone_cache(&pchan_orig->runtime);
     }
   }

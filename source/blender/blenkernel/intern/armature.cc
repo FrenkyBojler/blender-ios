@@ -2876,6 +2876,13 @@ void BKE_pose_clear_pointers(bPose *pose)
   }
 }
 
+void BKE_pose_remap_bone_pointers(bArmature *armature, bPose *pose)
+{
+  for (bPoseChannel &pchan : pose->chanbase) {
+    pchan.bone_ = BKE_armature_find_bone_name(armature, pchan.name);
+  }
+}
+
 /** Find the matching pose channel using the bone name, if not nullptr. */
 static bPoseChannel *pose_channel_find_bone(bPose *pose, Bone *bone)
 {

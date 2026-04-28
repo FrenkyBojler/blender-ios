@@ -2722,6 +2722,9 @@ static void armdef_evaluate(bConstraint *con,
       return;
     }
     Bone *pchan_bone = pchan->bone_get(*ct.tar);
+    if (!pchan_bone) {
+      return;
+    }
 
     armdef_accumulate_bone(
         &ct, {pchan, pchan_bone}, input_co, use_envelopes, &weight, sum_mat, pdq);
@@ -2934,8 +2937,11 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
                        pchan->name,
                        &anim_eval_context);
 
-    /* convert animation to matrices for use here */
-    BKE_pchan_calc_mat({tchan, tchan->bone_get(*cob->ob)});
+    /* tchan is a temp pose channel on `pose`, and is just meant as a 'carrier' for transform data.
+     * The Armature bone that it represents is from cob->ob's armature. At the time of writing, it
+     * is only used to get its BONE_CONNECTED flag. */
+    Bone *pchan_bone = pchan->bone_get(*cob->ob);
+    BKE_pchan_calc_mat({tchan, pchan_bone});
     copy_m4_m4(ct->matrix, tchan->chan_mat);
 
     /* Clean up */

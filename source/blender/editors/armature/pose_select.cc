@@ -1115,13 +1115,13 @@ static bool pose_select_siblings(bContext *C, const bool extend)
       deselect_pose_bones(parents_of_selected);
     }
     for (bPoseChannel &pchan : pose_object->pose->chanbase) {
-      Bone *bone = pchan.parent->bone_get(*pose_object);
+      Bone *bone = pchan.bone_get(*pose_object);
       const bke::PChanBone pchanbone{&pchan, bone};
 
       if (!animrig::bone_is_selectable(arm, pchanbone)) {
         continue;
       }
-      if (!parents_of_selected.contains(pchan.parent)) {
+      if (!pchan.parent || !parents_of_selected.contains(pchan.parent)) {
         continue;
       }
       /* Checking if the bone is already selected so `changed_any_selection` stays true to its

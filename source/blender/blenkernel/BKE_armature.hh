@@ -254,6 +254,7 @@ void BKE_armature_where_is_bone(Bone *bone, const Bone *bone_parent, bool use_re
  * (needed in remap case, since we cannot always wait for a complete pose rebuild).
  */
 void BKE_pose_clear_pointers(bPose *pose);
+void BKE_pose_remap_bone_pointers(bArmature *armature, bPose *pose);
 /**
  * Update the links for the B-Bone handles from Bone data.
  */

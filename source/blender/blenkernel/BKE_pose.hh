@@ -31,9 +31,8 @@ namespace blender::bke {
 /**
  * Pairing of a pose channel with its corresponding armature bone.
  *
- * Both pointers are expected to be non-null and to refer to matching data
- * (i.e. `bone` is the #Bone that `pchan` currently resolves to via its
- * armature index). This is checked at construction.
+ * Both pointers are expected to both be null, or both be non-null and refer to matching data (i.e.
+ * `bone` is the #Bone that `pchan` currently resolves to via its armature index).
  *
  * This type is non-owning. It must not outlive either pointers.
  */

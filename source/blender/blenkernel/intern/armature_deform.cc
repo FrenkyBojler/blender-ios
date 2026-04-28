@@ -341,8 +341,8 @@ static ArmatureDeformParams get_armature_deform_params(
     for (const auto [i, dg] : (defbase)->enumerate()) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob_arm.pose, dg.name);
       /* Exclude non-deforming bones. */
-      Bone *bone = pchan->bone_get(*armature);
-      if (pchan && (bone->flag & BONE_NO_DEFORM)) {
+      Bone *bone = pchan ? pchan->bone_get(*armature) : nullptr;
+      if (pchan && !(bone->flag & BONE_NO_DEFORM)) {
         deform_params.pose_channel_by_vertex_group[i] = {pchan, bone};
       }
       else {

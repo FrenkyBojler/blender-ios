@@ -1180,9 +1180,9 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
     /* I (Sybren) am not sure how the multi-object transforming works, so there is no assumption
      * that the pchan in td->extra belongs to the 'ob' parameter given to this function. That's why
      * the bone lookup happens when td->extra gets its value, and not here. */
-    bke::PChanBoneConst &pchanbone_orig = *static_cast<bke::PChanBoneConst *>(td->extra);
-    const bPoseChannel *pchan_orig = pchanbone_orig.pchan;
-    const Bone *bone_orig = pchanbone_orig.bone;
+    bke::PChanBoneConst *pchanbone_orig = static_cast<bke::PChanBoneConst *>(td->extra);
+    const bPoseChannel *pchan_orig = pchanbone_orig->pchan;
+    const Bone *bone_orig = pchanbone_orig->bone;
 
     BLI_assert(pchan_orig->runtime.flag & POSE_RUNTIME_TRANSFORM);
     if (bone_orig->flag & BONE_TRANSFORM_MIRROR) {

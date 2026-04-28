@@ -1545,6 +1545,10 @@ void BKE_pose_update_constraint_flags(Object &pose_ob)
           if (data->rootbone < 0) {
             data->rootbone = 0;
 
+            /* TODO(Sybren): call the yet-to-be-written 'assert the bone indices are up to date'
+             * function. This walk uses the armature bone hierarchy (via parbone->parent) rather
+             * than the pose channel hierarchy, which is only safe when the pose is consistent
+             * with the armature. The assert function will make that precondition explicit. */
             Bone *parbone = chain_tip->bone_get(pose_ob);
             while (parbone) {
               data->rootbone++;
