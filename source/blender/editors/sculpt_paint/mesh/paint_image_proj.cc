@@ -218,7 +218,7 @@ struct ProjPaintImage {
   ImBuf *ibuf;
   ImagePaintPartialRedraw *partRedrawRect;
   /** Only used to build undo tiles during painting. */
-  volatile void **undoRect;
+  volatile const void **undoRect;
   /** The mask accumulation must happen on canvas, not on space screen bucket.
    * Here we store the mask rectangle. */
   ushort **maskRect;
@@ -1831,7 +1831,7 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
   if (generate_tile) {
     PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
-    volatile void *undorect;
+    volatile const void *undorect;
     if (tinf->masked) {
       undorect = ED_image_paint_tile_push(undo_tiles,
                                           pjIma->ima,
@@ -1842,7 +1842,8 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
                                           &pjIma->maskRect[tile_index],
                                           &pjIma->valid[tile_index],
                                           true,
-                                          false);
+                                          false)
+                     ->data;
     }
     else {
       undorect = ED_image_paint_tile_push(undo_tiles,
@@ -1854,7 +1855,8 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
                                           nullptr,
                                           &pjIma->valid[tile_index],
                                           true,
-                                          false);
+                                          false)
+                     ->data;
     }
 
     BKE_image_mark_dirty(pjIma->ima, pjIma->ibuf);
@@ -4372,7 +4374,7 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
     projIma->partRedrawRect = static_cast<ImagePaintPartialRedraw *>(
         BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED));
     partial_redraw_array_init(projIma->partRedrawRect);
-    projIma->undoRect = static_cast<volatile void **>(BLI_memarena_alloc(arena, size));
+    projIma->undoRect = static_cast<volatile const void **>(BLI_memarena_alloc(arena, size));
     memset(static_cast<void *>(projIma->undoRect), 0, size);
     projIma->maskRect = static_cast<ushort **>(BLI_memarena_alloc(arena, size));
     memset(projIma->maskRect, 0, size);

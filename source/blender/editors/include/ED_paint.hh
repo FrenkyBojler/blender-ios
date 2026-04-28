@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "DNA_view3d_enums.h"
+#include "BLI_implicit_sharing.hh"
 
-#include "IMB_imbuf_types.hh"
+#include "DNA_view3d_enums.h"
 
 #include <cstdint>
 #include <optional>
