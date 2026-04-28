@@ -81,11 +81,11 @@ static void pose_do_bone_select(bPoseChannel *pchan, const int select_mode)
 }
 
 /* Useful to get the selection before modifying it. */
-static Set<bPoseChannel *> get_selected_pose_bones(Object *pose_object)
+static Set<bPoseChannel *> get_selected_pose_bones(Object &pose_object)
 {
   Set<bPoseChannel *> selected_pose_bones;
-  bArmature *arm = id_cast<bArmature *>((pose_object) ? pose_object->data : nullptr);
-  for (bPoseChannel &pchan : pose_object->pose->chanbase) {
+  bArmature *arm = id_cast<bArmature *>(pose_object.data);
+  for (bPoseChannel &pchan : pose_object.pose->chanbase) {
     if (animrig::bone_is_selected(arm, &pchan)) {
       selected_pose_bones.add(&pchan);
     }
@@ -128,6 +128,19 @@ static bool any_parent_to_select(const Set<bPoseChannel *> &pose_bones)
 }
 
 /**
+ * Returns true if at least one of the given bones has a child.
+ */
+static bool any_child_to_select(const Set<bPoseChannel *> &pose_bones)
+{
+  for (bPoseChannel *pose_bone : pose_bones) {
+    if (!BLI_listbase_is_empty(&pose_bone->bone->childbase)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Of all selected pose bones, select their parents.
  *
  * \param stop_at_root If true, selection will remain unchanged if there are no parents to select.
@@ -141,7 +154,7 @@ static bool pose_select_parents(bContext *C, const bool extend, const bool stop_
   for (Object *pose_object : objects) {
     bArmature *arm = id_cast<bArmature *>(pose_object->data);
     BLI_assert(arm);
-    Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
+    Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(*pose_object);
     if (stop_at_root && !any_parent_to_select(selected_pose_bones)) {
       continue;
     }
@@ -164,19 +177,6 @@ static bool pose_select_parents(bContext *C, const bool extend, const bool stop_
 }
 
 /**
- * Returns true if at least one of the given bones has a child.
- */
-static bool any_child_to_select(const Set<bPoseChannel *> &pose_bones)
-{
-  for (bPoseChannel *pose_bone : pose_bones) {
-    if (!BLI_listbase_is_empty(&pose_bone->bone->childbase)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Selects children of currently selected bones in all objects in pose mode. If `all` is true, a
  * bone will be selected if any bone in it's parent hierarchy is selected. If false, only bones
  * whose direct parent is selected are changed.
@@ -196,7 +196,7 @@ static bool pose_select_children(bContext *C,
   for (Object *pose_object : objects) {
     bArmature *arm = id_cast<bArmature *>(pose_object->data);
     BLI_assert(arm);
-    Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(pose_object);
+    Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(*pose_object);
     if (stop_at_leaf && !any_child_to_select(selected_pose_bones)) {
       continue;
     }
@@ -886,10 +886,10 @@ static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   if (direction == BONE_SELECT_PARENT) {
-    changed = pose_select_parents(C, extend, true);
+    changed = pose_select_parents(C, extend, /* stop_at_root= */ true);
   }
   else { /* direction == BONE_SELECT_CHILD */
-    changed = pose_select_children(C, false, extend, true);
+    changed = pose_select_children(C, /* all= */ false, extend, /* stop_at_leaf= */ true);
   }
 
   if (changed == false) {
@@ -1200,15 +1200,15 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
       break;
 
     case SelectRelatedMode::CHILDREN:
-      changed = pose_select_children(C, true, extend, false);
+      changed = pose_select_children(C, /* all= */ true, extend, /* stop_at_leaf= */ false);
       break;
 
     case SelectRelatedMode::IMMEDIATE_CHILDREN:
-      changed = pose_select_children(C, false, extend, false);
+      changed = pose_select_children(C, /* all= */ false, extend, /* stop_at_leaf= */ false);
       break;
 
     case SelectRelatedMode::PARENT:
-      changed = pose_select_parents(C, extend, false);
+      changed = pose_select_parents(C, extend, /* stop_at_root= */ false);
       break;
 
     case SelectRelatedMode::SIBLINGS:
