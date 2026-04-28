@@ -12,10 +12,6 @@
 #include <cstring>
 #include <optional>
 
-#include "BKE_pose.hh"
-#include "BLI_assert.h"
-#include "MEM_guardedalloc.h"
-
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
@@ -25,6 +21,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
@@ -55,6 +52,7 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+#include "BKE_pose.hh"
 #include "BKE_preview_image.hh"
 
 #include "DEG_depsgraph.hh"
@@ -66,6 +64,8 @@
 #include "RNA_path.hh"
 
 #include "BLO_read_write.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"

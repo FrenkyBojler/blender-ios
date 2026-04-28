@@ -13,11 +13,6 @@
  * \ingroup bke
  *
  * Pose-related types and functions.
- *
- * This header exposes C++ helpers for working with poses. In particular,
- * #blender::bke::PoseBone bundles a #bPoseChannel together with its
- * corresponding #Bone, so that code which already has both pointers can
- * pass them around without repeating the armature bone-array lookup.
  */
 
 namespace blender {
@@ -30,6 +25,10 @@ namespace blender::bke {
 
 /**
  * Pairing of a pose channel with its corresponding armature bone.
+ *
+ * This struct allows code which already has both pointers can pass them around without repeating
+ * the armature bone lookup. Currently this lookup is cheap (just following a pointer), but in the
+ * future it will become more expensive (array index lookup to find that pointer, then follow it).
  *
  * Both pointers are expected to both be null, or both be non-null and refer to matching data (i.e.
  * `bone` is the #Bone that `pchan` currently resolves to via its armature index).
@@ -46,6 +45,11 @@ template<typename PoseChannelT, typename BoneT> struct PChanBoneT {
                    "either both pointers should be nil, or none of them should be");
   }
 
+  /**
+   * Default constructor for nullptr values.
+   *
+   * This constructor is here to allow arrays of PChanBoneT to be preallocated.
+   */
   PChanBoneT() : pchan(nullptr), bone(nullptr) {}
 
   /* Implicit conversion from the non-const variant to the const variant.

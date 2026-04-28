@@ -265,9 +265,8 @@ static void action_flip_pchan(Object *ob_arm,
     pchan_flip = BKE_pose_channel_find_name(ob_arm->pose, pchan_name_flip);
   }
 
-  const bArmature &armature = id_cast<bArmature &>(*ob_arm->data);
-  const Bone *pchan_bone = pchan->bone_get(armature);
-  const Bone *pchan_flip_bone = pchan_flip ? pchan_flip->bone_get(armature) : nullptr;
+  const Bone *pchan_bone = pchan->bone_get(*ob_arm);
+  const Bone *pchan_flip_bone = pchan_flip ? pchan_flip->bone_get(*ob_arm) : nullptr;
 
   float arm_mat_inv[4][4];
   invert_m4_m4(arm_mat_inv, pchan_flip ? pchan_flip_bone->arm_mat : pchan_bone->arm_mat);

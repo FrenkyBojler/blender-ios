@@ -15,11 +15,8 @@
 #include <optional>
 #include <utility>
 
-#include "BLI_assert.h"
-#include "DNA_action_types.h"
-#include "MEM_guardedalloc.h"
-
 #include "BLI_alloca.h"
+#include "BLI_assert.h"
 #include "BLI_bounds.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
@@ -33,6 +30,7 @@
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
 
+#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_listBase.h"
@@ -62,6 +60,8 @@
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "BIK_api.h"
 
@@ -2876,6 +2876,7 @@ static void rebuild_pose_from_armature(bPose *pose, bArmature &armature)
 void BKE_pose_clear_pointers(bPose *pose)
 {
   for (bPoseChannel &pchan : pose->chanbase) {
+    pchan.bone = nullptr;
     pchan.child = nullptr;
   }
 }
@@ -2883,8 +2884,6 @@ void BKE_pose_clear_pointers(bPose *pose)
 void BKE_pose_remap_bone_pointers(bArmature *armature, bPose *pose)
 {
   for (bPoseChannel &pchan : pose->chanbase) {
-    /* OK to assign to pchan.bone_. Once the bone indices are used,
-     * this function can be removed. */
     pchan.bone = BKE_armature_find_bone_name(armature, pchan.name);
   }
 }
@@ -2906,9 +2905,6 @@ void BKE_pose_channels_clear_with_null_bone(Object *armature_ob, const bool do_i
   BLI_assert(armature_ob->pose);
   bPose *pose = armature_ob->pose;
   for (bPoseChannel &pchan : pose->chanbase.items_mutable()) {
-    /* TODO(Sybren): see if this is still correct, maybe this should check the bone index
-     * instead?
-     */
     Bone *bone = pchan.bone_get(*armature_ob);
     if (bone == nullptr) {
       BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
