@@ -3434,7 +3434,7 @@ static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, con
 
   (void)corner_verts;
   return isect_point_poly_v2(
-      co_2d, reinterpret_cast<const float(*)[2]>(projverts.data()), uint(n));
+      co_2d, reinterpret_cast<const float (*)[2]>(projverts.data()), uint(n));
 }
 
 /**
@@ -3555,7 +3555,7 @@ static float projected_boundary_area(const BevelState &state, BevVert *bv, const
     ++i;
   } while ((v = v->next) != vm->boundstart);
 
-  return area_poly_v2(reinterpret_cast<const float(*)[2]>(proj_co.data()), count);
+  return area_poly_v2(reinterpret_cast<const float (*)[2]>(proj_co.data()), count);
 }
 
 /**
@@ -5102,7 +5102,8 @@ static VMesh make_cube_corner_adj_vmesh(BevelState &state)
  */
 static void closer_v3_v3v3v3(float r[3], const float a[3], const float b[3], const float v[3])
 {
-  if (math::distance_squared(float3(a), float3(v)) <= math::distance_squared(float3(b), float3(v))) {
+  if (math::distance_squared(float3(a), float3(v)) <= math::distance_squared(float3(b), float3(v)))
+  {
     copy_v3_v3(r, a);
   }
   else {
@@ -5194,7 +5195,8 @@ static void snap_to_pipe_profile(
   closest_to_plane_v3(middle_plane, plane, pro->middle);
 
   float m[4][4], minv[4][4];
-  if (geom::make_unit_square_map(start_plane, middle_plane, end_plane, m) && invert_m4_m4(minv, m)) {
+  if (geom::make_unit_square_map(start_plane, middle_plane, end_plane, m) && invert_m4_m4(minv, m))
+  {
     /* Transform co and project it onto superellipse. */
     float p[3];
     mul_v3_m4v3(p, minv, co);
@@ -5251,7 +5253,8 @@ static VMesh pipe_adj_vmesh(BevelState &state, BevVert *bv, BoundVert *vpipe)
             else {
               /* This is part of either pipe profile boundvert area in the 4-way intersection. */
               profile_point_pipe1 = geom::mesh_vert(&vm, i, 0, k)->co;
-              profile_point_pipe2 = geom::mesh_vert(&vm, (i == ipipe1) ? ipipe2 : ipipe1, 0, ns - k)->co;
+              profile_point_pipe2 =
+                  geom::mesh_vert(&vm, (i == ipipe1) ? ipipe2 : ipipe1, 0, ns - k)->co;
               f = float(j) / float(ns); /* The ring index brings us closer to the other side. */
             }
           }
@@ -5263,14 +5266,15 @@ static VMesh pipe_adj_vmesh(BevelState &state, BevVert *bv, BoundVert *vpipe)
           }
 
           /* Place the vertex by interpolating between the two profile points using the factor. */
-          interp_v3_v3v3(geom::mesh_vert(&vm, i, j, k)->co, profile_point_pipe1, profile_point_pipe2, f);
+          interp_v3_v3v3(
+              geom::mesh_vert(&vm, i, j, k)->co, profile_point_pipe1, profile_point_pipe2, f);
         }
         else {
           /* A tricky case is for the 'square' profiles and an even nseg: we want certain
            * vertices to snap to the midline on the pipe, not just to one plane or the other. */
           const bool even = (ns % 2) == 0;
           const bool midline = even && k == half_ns &&
-                         ((i == 0 && j == half_ns) || ELEM(i, ipipe1, ipipe2));
+                               ((i == 0 && j == half_ns) || ELEM(i, ipipe1, ipipe2));
           snap_to_pipe_profile(state, bv, vpipe, midline, geom::mesh_vert(&vm, i, j, k)->co);
         }
       }
@@ -5890,7 +5894,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
 
   /* Compute mean-value interpolation weights. */
   Array<float> w(n);
-  interp_weights_poly_v2(w.data(), reinterpret_cast<float(*)[2]>(cos_2d.data()), n, co_2d);
+  interp_weights_poly_v2(w.data(), reinterpret_cast<float (*)[2]>(cos_2d.data()), n, co_2d);
 
   /* Weighted sum of UV values. */
   float2 result(0.0f);
