@@ -47,7 +47,6 @@ bool vert_has_unique_face_set(OffsetIndices<int> faces,
                               const SubdivCCG &subdiv_ccg,
                               SubdivCCGCoord coord);
 bool vert_has_unique_face_set(int face_set_offset, const BMVert &vert);
-/** Check if coord is in face_set. */
 bool coord_has_face_set(OffsetIndices<int> faces,
                         Span<int> corner_verts,
                         GroupedSpan<int> vert_to_face_map,
@@ -55,7 +54,6 @@ bool coord_has_face_set(OffsetIndices<int> faces,
                         const SubdivCCG &subdiv_ccg,
                         SubdivCCGCoord coord,
                         int face_set);
-/** Check if coord is in any face set in face_set_ids. */
 bool coord_has_any_face_set(OffsetIndices<int> faces,
                             Span<int> corner_verts,
                             GroupedSpan<int> vert_to_face_map,
