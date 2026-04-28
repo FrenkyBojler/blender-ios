@@ -403,7 +403,6 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
       BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
       for (const int grid : IndexRange(subdiv_ccg.grids_num)) {
         const int start = grid * key.grid_area;
-
         BKE_subdiv_ccg_foreach_visible_grid_vert(key, grid_hidden, grid, [&](const int offset) {
           const int vert = start + offset;
           if (!is_vert_in_active_component(ss, expand_cache, vert)) {
@@ -411,13 +410,13 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
           }
           if (expand_cache.snap) {
             const SubdivCCGCoord coord = SubdivCCGCoord::from_index(key, vert);
-            if (face_set::coord_has_face_set(faces,
-                                             corner_verts,
-                                             vert_to_face_map,
-                                             face_sets,
-                                             subdiv_ccg,
-                                             coord,
-                                             *expand_cache.snap_enabled_face_sets))
+            if (face_set::coord_has_any_face_set(faces,
+                                                 corner_verts,
+                                                 vert_to_face_map,
+                                                 face_sets,
+                                                 subdiv_ccg,
+                                                 coord,
+                                                 *expand_cache.snap_enabled_face_sets))
             {
               enabled_verts[vert].set(true);
             }
@@ -2099,10 +2098,10 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
               },
               exec_mode::grain_size(1));
 
-          BKE_subdiv_ccg_average_grids(*ss.subdiv_ccg);
-
           IndexMaskMemory memory;
           pbvh.tag_masks_changed(IndexMask::from_bools(node_changed, memory));
+
+          BKE_subdiv_ccg_average_grids(*ss.subdiv_ccg);
           break;
         }
         case bke::pbvh::Type::BMesh: {

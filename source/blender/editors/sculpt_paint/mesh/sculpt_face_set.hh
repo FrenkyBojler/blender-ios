@@ -45,6 +45,8 @@ bool vert_has_unique_face_set(OffsetIndices<int> faces,
                               Span<int> face_sets,
                               const SubdivCCG &subdiv_ccg,
                               SubdivCCGCoord coord);
+bool vert_has_unique_face_set(int face_set_offset, const BMVert &vert);
+/** Check if coord is in face_set. */
 bool coord_has_face_set(OffsetIndices<int> faces,
                         Span<int> corner_verts,
                         GroupedSpan<int> vert_to_face_map,
@@ -52,14 +54,15 @@ bool coord_has_face_set(OffsetIndices<int> faces,
                         const SubdivCCG &subdiv_ccg,
                         SubdivCCGCoord coord,
                         int face_set);
-bool coord_has_face_set(OffsetIndices<int> faces,
-                        Span<int> corner_verts,
-                        GroupedSpan<int> vert_to_face_map,
-                        Span<int> face_sets,
-                        const SubdivCCG &subdiv_ccg,
-                        SubdivCCGCoord coord,
-                        const Set<int> &face_set_ids);
-bool vert_has_unique_face_set(int face_set_offset, const BMVert &vert);
+
+/** Check if coord is in any face set in face_set_ids. */
+bool coord_has_any_face_set(OffsetIndices<int> faces,
+                            Span<int> corner_verts,
+                            GroupedSpan<int> vert_to_face_map,
+                            Span<int> face_sets,
+                            const SubdivCCG &subdiv_ccg,
+                            SubdivCCGCoord coord,
+                            const Set<int> &allowed_face_sets);
 
 constexpr float FACE_SET_MIN_FADE = 0.05f;
 
