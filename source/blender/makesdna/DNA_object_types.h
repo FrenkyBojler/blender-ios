@@ -464,7 +464,7 @@ struct Object {
   /** String describing sub-object info. */
   char parsubstr[/*MAX_NAME*/ 64] = "";
   struct Object *parent = nullptr, *track = nullptr;
-  float parent_bone_head_tail = 1.0f;
+  float parent_bone_head_tail = {};
   char _pad4[4] = {};
   /* Proxy pointer are deprecated, only kept for conversion to liboverrides. */
   DNA_DEPRECATED struct Object *proxy = nullptr;
