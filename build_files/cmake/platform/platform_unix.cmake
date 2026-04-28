@@ -670,6 +670,11 @@ if(WITH_LIBMV)
 endif()
 add_bundled_libraries(ceres/lib)
 
+if(WITH_MESHOPTIMIZER)
+  find_package_wrapper(meshoptimizer REQUIRED)
+  set_and_warn_library_found("meshoptimizer" MESHOPTIMIZER_FOUND WITH_MESHOPTIMIZER)
+endif()
+
 # Jack is intended to use the system library.
 if(WITH_JACK)
   find_package_wrapper(Jack)

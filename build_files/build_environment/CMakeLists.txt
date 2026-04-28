@@ -185,6 +185,7 @@ include(cmake/rubberband.cmake)
 include(cmake/abseil.cmake)
 include(cmake/eigen.cmake)
 include(cmake/ceres.cmake)
+include(cmake/meshoptimizer.cmake)
 # Keep these last.
 include(cmake/deps_md.cmake)
 include(cmake/cve_check.cmake)

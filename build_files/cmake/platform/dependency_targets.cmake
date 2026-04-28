@@ -483,3 +483,15 @@ else()
   add_library(bf_deps_optional_osl INTERFACE)
   add_library(bf::dependencies::optional::osl ALIAS bf_deps_optional_osl)
 endif()
+
+# -----------------------------------------------------------------------------
+# Configure meshoptimizer
+
+add_library(bf_deps_optional_meshoptimizer INTERFACE)
+add_library(bf::dependencies::optional::meshoptimizer ALIAS bf_deps_optional_meshoptimizer)
+
+if(TARGET meshoptimizer::meshoptimizer)
+  target_compile_definitions(bf_deps_optional_meshoptimizer INTERFACE WITH_MESHOPTIMIZER)
+  target_link_libraries(bf_deps_optional_meshoptimizer INTERFACE meshoptimizer::meshoptimizer)
+endif()
+
