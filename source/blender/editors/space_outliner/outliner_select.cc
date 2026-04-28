@@ -1721,7 +1721,8 @@ static void do_outliner_range_select(bContext *C,
                                      const bool recurse,
                                      Collection *in_collection)
 {
-  TreeElement *active = outliner_find_element_with_flag(&space_outliner->runtime->tree, TSE_ACTIVE);
+  TreeElement *active = outliner_find_element_with_flag(&space_outliner->runtime->tree,
+                                                        TSE_ACTIVE);
 
   /* If no active element exists, activate the element under the cursor */
   if (!active) {
@@ -1820,7 +1821,9 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  if (!(te = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, view_mval[1]))) {
+  if (!(te = outliner_find_item_at_y(
+            space_outliner, &space_outliner->runtime->tree, view_mval[1])))
+  {
     if (deselect_all) {
       changed |= outliner_flag_set(*space_outliner, TSE_SELECTED, false);
     }
@@ -2030,7 +2033,8 @@ static wmOperatorStatus outliner_box_select_invoke(bContext *C,
   ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   /* Find element clicked on */
-  TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, view_mval[1]);
+  TreeElement *te = outliner_find_item_at_y(
+      space_outliner, &space_outliner->runtime->tree, view_mval[1]);
 
   /* Pass through if click is over name or icons, or not tweak event */
   if (te && tweak && outliner_item_is_co_over_name_icons(te, view_mval[0])) {
@@ -2212,7 +2216,8 @@ static TreeElement *do_outliner_select_walk(SpaceOutliner *space_outliner,
  * Changed is set to true if the active element is found, or false if it was set */
 static TreeElement *find_walk_select_start_element(SpaceOutliner *space_outliner, bool *r_changed)
 {
-  TreeElement *active_te = outliner_find_element_with_flag(&space_outliner->runtime->tree, TSE_ACTIVE);
+  TreeElement *active_te = outliner_find_element_with_flag(&space_outliner->runtime->tree,
+                                                           TSE_ACTIVE);
   *r_changed = false;
 
   /* If no active element exists, use the first element in the tree */

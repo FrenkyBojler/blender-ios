@@ -3899,7 +3899,8 @@ static void outliner_draw_tree(ui::Block *block,
   {
     int starty = int(region->v2d.tot.ymax) - OL_Y_OFFSET;
     int startx = columns_offset + UI_UNIT_X / 2 - (U.pixelsize + 1) / 2;
-    outliner_draw_hierarchy_lines(space_outliner, &space_outliner->runtime->tree, tvc, startx, &starty);
+    outliner_draw_hierarchy_lines(
+        space_outliner, &space_outliner->runtime->tree, tvc, startx, &starty);
   }
 
   /* Items themselves. */
@@ -4099,7 +4100,8 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_PROPERTIES) {
       block_emboss_set(block, ui::EmbossType::Emboss);
       block_flag_enable(block, ui::BLOCK_NO_DRAW_OVERRIDDEN_STATE);
-      outliner_draw_overrides_rna_buts(block, region, space_outliner, &space_outliner->runtime->tree, x);
+      outliner_draw_overrides_rna_buts(
+          block, region, space_outliner, &space_outliner->runtime->tree, x);
       block_emboss_set(block, ui::EmbossType::NoneOrStatus);
     }
     else if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES) {

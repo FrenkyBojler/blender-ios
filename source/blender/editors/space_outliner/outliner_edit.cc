@@ -224,7 +224,8 @@ static wmOperatorStatus outliner_item_openclose_modal(bContext *C,
       &region->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
   if (event->type == MOUSEMOVE) {
-    TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, view_mval[1]);
+    TreeElement *te = outliner_find_item_at_y(
+        space_outliner, &space_outliner->runtime->tree, view_mval[1]);
 
     /* Only openclose if mouse is not over the previously toggled element */
     if (te && TREESTORE(te) != data->prev_tselem) {
@@ -269,7 +270,8 @@ static wmOperatorStatus outliner_item_openclose_invoke(bContext *C,
 
   ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
-  TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, view_mval[1]);
+  TreeElement *te = outliner_find_item_at_y(
+      space_outliner, &space_outliner->runtime->tree, view_mval[1]);
 
   if (te && outliner_item_is_co_within_close_toggle(te, view_mval[0])) {
     TreeStoreElem *tselem = TREESTORE(te);
@@ -399,7 +401,8 @@ void item_rename_fn(bContext *C,
 static TreeElement *outliner_item_rename_find_active(const SpaceOutliner *space_outliner,
                                                      ReportList *reports)
 {
-  TreeElement *active_element = outliner_find_element_with_flag(&space_outliner->runtime->tree, TSE_ACTIVE);
+  TreeElement *active_element = outliner_find_element_with_flag(&space_outliner->runtime->tree,
+                                                                TSE_ACTIVE);
 
   if (!active_element) {
     BKE_report(reports, RPT_WARNING, "No active item to rename");
@@ -416,7 +419,8 @@ static TreeElement *outliner_item_rename_find_hovered(const SpaceOutliner *space
   float fmval[2];
   ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
-  TreeElement *hovered = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, fmval[1]);
+  TreeElement *hovered = outliner_find_item_at_y(
+      space_outliner, &space_outliner->runtime->tree, fmval[1]);
   if (hovered && outliner_item_is_co_over_name(hovered, fmval[0])) {
     return hovered;
   }
@@ -1412,8 +1416,9 @@ static wmOperatorStatus outliner_select_all_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   int action = RNA_enum_get(op->ptr, "action");
   if (action == SEL_TOGGLE) {
-    action = outliner_flag_is_any_test(&space_outliner->runtime->tree, TSE_SELECTED, 1) ? SEL_DESELECT :
-                                                                                 SEL_SELECT;
+    action = outliner_flag_is_any_test(&space_outliner->runtime->tree, TSE_SELECTED, 1) ?
+                 SEL_DESELECT :
+                 SEL_SELECT;
   }
 
   switch (action) {

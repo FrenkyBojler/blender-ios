@@ -131,7 +131,8 @@ static TreeElement *outliner_drop_insert_find(bContext *C,
   mval[1] = xy[1] - region->winrct.ymin;
 
   ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
-  te_hovered = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, view_mval[1]);
+  te_hovered = outliner_find_item_at_y(
+      space_outliner, &space_outliner->runtime->tree, view_mval[1]);
 
   if (te_hovered) {
     /* Mouse hovers an element (ignoring x-axis),
@@ -1047,7 +1048,8 @@ static void datastack_drop_reorder(bContext *C, ReportList *reports, StackDropDa
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
-  TreeElement *drag_te = outliner_find_tree_element(&space_outliner->runtime->tree, drop_data->drag_tselem);
+  TreeElement *drag_te = outliner_find_tree_element(&space_outliner->runtime->tree,
+                                                    drop_data->drag_tselem);
   if (!drag_te) {
     return;
   }
@@ -1356,7 +1358,8 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     relative = data.to;
     relative_after = (data.insert_type == TE_INSERT_AFTER);
 
-    TreeElement *parent_te = outliner_find_parent_element(&space_outliner->runtime->tree, nullptr, data.te);
+    TreeElement *parent_te = outliner_find_parent_element(
+        &space_outliner->runtime->tree, nullptr, data.te);
     data.to = (parent_te) ? outliner_collection_from_tree_element(parent_te) : nullptr;
   }
 

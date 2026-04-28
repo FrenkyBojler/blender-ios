@@ -673,8 +673,14 @@ static void outliner_do_libdata_operation_selection_set(bContext *C,
     }
   }
 
-  outliner_do_libdata_operation_selection_set(
-      C, reports, scene, space_outliner, space_outliner->runtime->tree, false, operation_fn, selection_set);
+  outliner_do_libdata_operation_selection_set(C,
+                                              reports,
+                                              scene,
+                                              space_outliner,
+                                              space_outliner->runtime->tree,
+                                              false,
+                                              operation_fn,
+                                              selection_set);
 }
 
 /** \} */
@@ -2571,8 +2577,12 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
       break;
     }
     case OL_OP_DESELECT:
-      outliner_do_object_operation(
-          C, op->reports, scene, space_outliner, &space_outliner->runtime->tree, object_deselect_fn);
+      outliner_do_object_operation(C,
+                                   op->reports,
+                                   scene,
+                                   space_outliner,
+                                   &space_outliner->runtime->tree,
+                                   object_deselect_fn);
       str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect Objects");
       selection_changed = true;
       break;

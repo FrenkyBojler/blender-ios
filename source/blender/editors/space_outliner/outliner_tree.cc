@@ -711,7 +711,8 @@ static void outliner_restore_scrolling_position(SpaceOutliner *space_outliner,
   if (focus->tselem != nullptr) {
     outliner_set_coordinates(region, space_outliner);
 
-    TreeElement *te_new = outliner_find_tree_element(&space_outliner->runtime->tree, focus->tselem);
+    TreeElement *te_new = outliner_find_tree_element(&space_outliner->runtime->tree,
+                                                     focus->tselem);
 
     if (te_new != nullptr) {
       int ys_new = te_new->ys;
@@ -777,7 +778,8 @@ static TreeElement *outliner_find_first_desired_element_at_y(const SpaceOutliner
                                                              const float view_co,
                                                              const float view_co_limit)
 {
-  TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->runtime->tree, view_co);
+  TreeElement *te = outliner_find_item_at_y(
+      space_outliner, &space_outliner->runtime->tree, view_co);
 
   bool (*callback_test)(TreeElement *);
   if ((space_outliner->outlinevis == SO_VIEW_LAYER) &&
