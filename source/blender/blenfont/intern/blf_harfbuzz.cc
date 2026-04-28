@@ -309,10 +309,15 @@ ShapingData::ShapingData(FontBLF *font,
                      glyph_pos[i].y_offset,
                      g->box_ymax + glyph_pos[i].y_offset};
 
-      /* Use precomputed UTF-8 byte offset for the glyph's cluster. */
-      this->glyphs.append({segment_font, segment_gc, g, bounds, utf8_offsets[cluster]});
-      // for RTL (maybe):
-      // this->glyphs.append({segment_font, segment_gc, g, bounds, glyph_str8_offset});
+      if (props.direction == HB_DIRECTION_RTL) {
+        /* Purposely use glyph-ordered offsets to simplify editing for now. */
+        this->glyphs.append({segment_font, segment_gc, g, bounds, glyph_str8_offset});
+        glyph_str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
+      }
+      else {
+        /* Use precomputed UTF-8 byte offset for the glyph's cluster. */
+        this->glyphs.append({segment_font, segment_gc, g, bounds, utf8_offsets[cluster]});
+      }
 
       this->bounds.xmin = std::min(this->bounds.xmin, g->box_xmin);
       this->bounds.xmax += advance;
