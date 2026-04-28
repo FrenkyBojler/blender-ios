@@ -141,8 +141,6 @@ void ShadingView::render()
 
   inst_.pipelines.deferred.render(main_view_,
                                   render_view_,
-                                  rbufs.depth_tx,
-                                  with_raycast ? rbufs.raycast_depth_tx.gpu_texture() : nullptr,
                                   prepass_fb_,
                                   combined_fb_,
                                   gbuffer_fb_,
@@ -160,13 +158,8 @@ void ShadingView::render()
 
   inst_.ambient_occlusion.render_pass(render_view_);
 
-  inst_.pipelines.forward.render(render_view_,
-                                 rbufs.depth_tx,
-                                 with_raycast ? rbufs.raycast_depth_tx.gpu_texture() : nullptr,
-                                 prepass_fb_,
-                                 transparent_fb_,
-                                 combined_fb_,
-                                 extent_);
+  inst_.pipelines.forward.render(
+      render_view_, rbufs.depth_tx, prepass_fb_, transparent_fb_, combined_fb_, extent_);
 
   inst_.lights.debug_draw(render_view_, combined_fb_);
   inst_.hiz_buffer.debug_draw(render_view_, combined_fb_);
@@ -409,13 +402,7 @@ void CaptureView::render_probes()
       /* Alpha stores transmittance. So start at 1. */
       GPU_framebuffer_clear_color_depth(
           combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
-      inst_.pipelines.probe.render(view,
-                                   inst_.render_buffers.depth_tx,
-                                   with_raycast ? rbufs.raycast_depth_tx.gpu_texture() : nullptr,
-                                   prepass_fb,
-                                   combined_fb_,
-                                   gbuffer_fb_,
-                                   extent);
+      inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 
     inst_.render_buffers.release();

@@ -144,25 +144,33 @@ class ShadowPipeline {
  * Helper class for handling prepasses in Forward and Deferred pipelines.
  * \{ */
 
-class Prepass : public PassMain {
-  PassMain::Sub *prepass_subpasses_[2 /*hide on raycast*/][2 /*double sided*/][2 /*moving*/]
-                                   [2 /*write id*/] = {{{{nullptr}}}};
+class Prepass {
+  Instance &inst_;
 
-  gpu::Texture *fb_depth_tx_ = nullptr;
-  gpu::Texture *raycast_depth_tx_ = nullptr;
+  PassMain raycast_vis_on_ps_{"Prepass Raycast Visibility On"};
+  PassMain::Sub *raycast_vis_on_subs_[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+      {{nullptr}}};
+
+  PassMain raycast_vis_off_ps_{"Prepass Raycast Visibility Off"};
+  PassMain::Sub *raycast_vis_off_subs_[2 /*double sided*/][2 /*moving*/] = {{nullptr}};
 
  public:
-  Prepass(const char *name) : PassMain(name) {};
-  void setup_subpasses(DRWState common_state);
+  Prepass(Instance &inst) : inst_(inst) {};
+
+  void init(DRWState extra_state = DRW_STATE_NO_DRAW,
+            FunctionRef<void(PassMain &pass)> pass_setup_cb = {});
+
   PassMain::Sub *add(blender::Material *blender_mat,
                      GPUMaterial *gpumat,
                      bool has_motion,
                      bool hide_on_raycast);
-  void set_depth_textures(gpu::Texture *fb_depth_tx, gpu::Texture *raycast_depth_tx)
+
+  bool is_empty()
   {
-    fb_depth_tx_ = fb_depth_tx;
-    raycast_depth_tx_ = raycast_depth_tx;
+    return raycast_vis_on_ps_.is_empty() && raycast_vis_off_ps_.is_empty();
   }
+
+  void render(View &view);
 };
 
 /** \} */
@@ -177,7 +185,7 @@ class ForwardPipeline {
  private:
   Instance &inst_;
 
-  Prepass prepass_ps_ = {"Prepass"};
+  Prepass prepass_{inst_};
 
   PassMain opaque_ps_ = {"Shading"};
   PassMain::Sub *opaque_subpasses_[2 /*Raycast*/][2 /*Double-Sided*/] = {{nullptr}};
@@ -240,7 +248,6 @@ class ForwardPipeline {
 
   void render(View &view,
               gpu::Texture *depth_tx,
-              gpu::Texture *raycast_depth_copy_tx,
               Framebuffer &prepass_fb,
               Framebuffer &transparent_fb,
               Framebuffer &combined_fb,
@@ -254,11 +261,15 @@ class ForwardPipeline {
  * \{ */
 
 struct DeferredLayerBase {
-  Prepass prepass_ps_ = {"Prepass"};
+  Prepass prepass_;
+
+  PassSimple clear_aovs_ps_{"Clear AOVs"};
 
   PassMain gbuffer_ps_ = {"Shading"};
   PassMain::Sub *gbuffer_subpasses_[2 /*Hybrid*/][2 /*Raycast*/][2 /*Double-Sided*/] = {
       {{nullptr}}};
+
+  DeferredLayerBase(Instance &inst) : prepass_(inst) {};
 
   PassMain::Sub *get_gbuffer_subpass(blender::Material *blender_mat, GPUMaterial *gpumat)
   {
@@ -384,7 +395,7 @@ class DeferredLayer : DeferredLayerBase {
   bool use_clamp_indirect_ = false;
 
  public:
-  DeferredLayer(Instance &inst) : inst_(inst)
+  DeferredLayer(Instance &inst) : DeferredLayerBase(inst), inst_(inst)
   {
     float4 data(0.0f);
     dummy_black.ensure_2d(gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT,
@@ -421,8 +432,6 @@ class DeferredLayer : DeferredLayerBase {
   /* Returns the radiance buffer to feed the next layer. */
   gpu::Texture *render(View &main_view,
                        View &render_view,
-                       gpu::Texture *depth_tx,
-                       gpu::Texture *raycast_depth_copy_tx,
                        Framebuffer &prepass_fb,
                        Framebuffer &combined_fb,
                        Framebuffer &gbuffer_fb,
@@ -458,8 +467,6 @@ class DeferredPipeline {
 
   void render(View &main_view,
               View &render_view,
-              gpu::Texture *depth_tx,
-              gpu::Texture *raycast_depth_copy_tx,
               Framebuffer &prepass_fb,
               Framebuffer &combined_fb,
               Framebuffer &gbuffer_fb,
@@ -625,7 +632,7 @@ class DeferredProbePipeline {
   Texture dummy_black = {"dummy_black"};
 
  public:
-  DeferredProbePipeline(Instance &inst) : inst_(inst)
+  DeferredProbePipeline(Instance &inst) : inst_(inst), opaque_layer_(inst)
   {
     float4 data(0.0f);
     dummy_black.ensure_2d(
@@ -639,8 +646,6 @@ class DeferredProbePipeline {
   PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
-              gpu::Texture *depth_tx,
-              gpu::Texture *raycast_depth_copy_tx,
               Framebuffer &prepass_fb,
               Framebuffer &combined_fb,
               Framebuffer &gbuffer_fb,
@@ -681,7 +686,7 @@ class PlanarProbePipeline : DeferredLayerBase {
   Texture dummy_black_ = {"dummy_black"};
 
  public:
-  PlanarProbePipeline(Instance &inst) : inst_(inst)
+  PlanarProbePipeline(Instance &inst) : DeferredLayerBase(inst), inst_(inst)
   {
     float4 data(0.0f);
     dummy_black_.ensure_2d(
