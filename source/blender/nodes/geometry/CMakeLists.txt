@@ -32,7 +32,6 @@ set(SRC
   nodes/node_geo_attribute_capture.cc
   nodes/node_geo_attribute_domain_size.cc
   nodes/node_geo_attribute_statistic.cc
-  nodes/node_geo_attribute_to_list.cc
   nodes/node_geo_bake.cc
   nodes/node_geo_blur_attribute.cc
   nodes/node_geo_bone_info.cc
@@ -291,7 +290,6 @@ set(SRC
   nodes/node_geo_warning.cc
   nodes/node_geo_xpbd_solver.cc
 
-  include/NOD_geo_attribute_to_list.hh
   include/NOD_geo_bake.hh
   include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh

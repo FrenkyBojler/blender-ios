@@ -645,7 +645,6 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_composite.hh"
 #  include "NOD_compositor_file_output.hh"
 #  include "NOD_fn_format_string.hh"
-#  include "NOD_geo_attribute_to_list.hh"
 #  include "NOD_geo_bake.hh"
 #  include "NOD_geo_bundle.hh"
 #  include "NOD_geo_capture_attribute.hh"
@@ -679,7 +678,6 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 
 namespace blender {
 
-using nodes::AttributeToListItemsAccessor;
 using nodes::BakeItemsAccessor;
 using nodes::CaptureAttributeItemsAccessor;
 using nodes::ClosureInputItemsAccessor;
@@ -7974,71 +7972,6 @@ static void rna_def_geo_capture_attribute(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
-static void rna_def_geo_attribute_to_list_item(BlenderRNA *brna)
-{
-  StructRNA *srna;
-
-  srna = RNA_def_struct(brna, "NodeGeometryAttributeToListItem", nullptr);
-  RNA_def_struct_ui_text(srna, "Item", "");
-  RNA_def_struct_sdna(srna, "NodeGeometryAttributeToListItem");
-
-  rna_def_node_item_array_socket_item_common(srna, "AttributeToListItemsAccessor", true);
-}
-
-static void rna_def_geo_attribute_to_list_items(BlenderRNA *brna)
-{
-  StructRNA *srna;
-
-  srna = RNA_def_struct(brna, "NodeGeometryAttributeToListItems", nullptr);
-  RNA_def_struct_ui_text(srna, "Items", "");
-  RNA_def_struct_sdna(srna, "bNode");
-
-  rna_def_node_item_array_new_with_socket_and_name(
-      srna, "NodeGeometryAttributeToListItem", "AttributeToListItemsAccessor");
-  rna_def_node_item_array_common_functions(
-      srna, "NodeGeometryAttributeToListItem", "AttributeToListItemsAccessor");
-}
-
-static void rna_def_geo_attribute_to_list(BlenderRNA *brna, StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  rna_def_geo_attribute_to_list_item(brna);
-  rna_def_geo_attribute_to_list_items(brna);
-
-  RNA_def_struct_sdna_from(srna, "NodeGeometryAttributeToList", "storage");
-
-  prop = RNA_def_property(srna, "attribute_to_list_items", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
-  RNA_def_property_struct_type(prop, "NodeGeometryAttributeToListItem");
-  RNA_def_property_ui_text(prop, "Items", "");
-  RNA_def_property_srna(prop, "NodeGeometryAttributeToListItems");
-
-  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "active_index");
-  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update(prop, NC_NODE, nullptr);
-
-  prop = RNA_def_property(srna, "active_item", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "NodeGeometryAttributeToListItem");
-  RNA_def_property_pointer_funcs(prop,
-                                 "rna_Node_ItemArray_active_get<AttributeToListItemsAccessor>",
-                                 "rna_Node_ItemArray_active_set<AttributeToListItemsAccessor>",
-                                 nullptr,
-                                 nullptr);
-  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NO_DEG_UPDATE);
-  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
-  RNA_def_property_update(prop, NC_NODE, nullptr);
-
-  prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
-  RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_GeometryNodeAttributeDomain_attribute_domain_itemf");
-  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
-}
-
 static void rna_def_evaluate_closure_input_item(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -10460,7 +10393,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeApplySimulatedData");
   define("GeometryNode", "GeometryNodeAttributeDomainSize");
   define("GeometryNode", "GeometryNodeAttributeStatistic");
-  define("GeometryNode", "GeometryNodeAttributeToList", rna_def_geo_attribute_to_list);
   define("GeometryNode", "GeometryNodeBake", rna_def_geo_bake);
   define("GeometryNode", "GeometryNodeBlurAttribute");
   define("GeometryNode", "GeometryNodeBoneInfo");
