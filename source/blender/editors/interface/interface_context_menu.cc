@@ -79,7 +79,9 @@ static IDProperty *shortcut_property_from_rna_for_enum(bContext *C,
                                                        Button *but_parent,
                                                        Button *but)
 {
-  /* Compute data path from context to property. */
+  /* This is basically same as #shortcut_property_from_rna
+  but with "value" in IDProperty in group. It's required for creating keyitem for enum
+  values. */
 
   /* If this returns null, we won't be able to bind shortcuts to these RNA properties.
    * Support can be added at #wm_context_member_from_ptr. */
@@ -92,7 +94,9 @@ static IDProperty *shortcut_property_from_rna_for_enum(bContext *C,
   const char *identifier = nullptr;
   RNA_property_enum_identifier(
       C, &but_parent->rnapoin, but_parent->rnaprop, int(but->hardmin), &identifier);
+
   if (identifier == nullptr) {
+    /* Return early when valid identifier is not found for the button representing enum value. */
     return nullptr;
   }
   /* Create ID property of data path and value, to pass to the operator. */
