@@ -89,7 +89,7 @@ class MotionPathTestArmature(unittest.TestCase):
         self.assertEqual(
             self.pose_bone_b.motion_path,
             None,
-            "The unselected bone should have no motion path calculated.")
+            "The unselected bone should get no motion path.")
         motion_path = self.pose_bone_a.motion_path
 
         self.assertEqual(motion_path.frame_start, bpy.context.scene.frame_start)
@@ -123,7 +123,7 @@ class MotionPathTestArmature(unittest.TestCase):
         for point in motion_path.points:
             self.assertAlmostEqual(point.co[0], 1, 3)
 
-        # If we don't clear the bath, the bake option has no effect.
+        # If we don't clear the path, the bake option has no effect.
         # I (christoph) think that behavior should change, but it is documented here anyway.
         bpy.ops.pose.paths_calculate(range='KEYS_ALL', bake_location='TAILS')
         for point in motion_path.points:
