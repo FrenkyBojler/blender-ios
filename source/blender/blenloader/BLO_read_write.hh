@@ -82,7 +82,7 @@ class BlendStructWriter {
    * to a stable pointer. This only does something if the pointee has been tagged with
    * #BLO_write_generated_pointer_tag before.
    */
-  void maybe_generated_ptr(const int64_t offset);
+  void maybe_generated_ptr(int64_t offset);
 };
 
 using BlendStructWriterFn = FunctionRef<void(BlendStructWriter &struct_writer)>;
