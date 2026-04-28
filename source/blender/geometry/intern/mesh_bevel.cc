@@ -2325,6 +2325,33 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
         profile::move_profile_plane(bndv, state.emesh.vert_position(bv->v));
       }
       set_bound_vert_seams(bv, state.mark_seam, state.mark_sharp);
+
+      /* Set the mesh kind for the terminal face, mirroring BMesh's
+       * #build_boundary_terminal_edge (BMesh lines 3452-3471). */
+      VMesh *vm = bv->vmesh.get();
+      if (vm->count == 2 && bv->edgecount == 3) {
+        vm->mesh_kind = MeshKind::NONE;
+      }
+      else if (vm->count == 3) {
+        /* Use TRI_FAN unless the extra point is coplanar with the profile
+         * (custom-profile case), in which case POLY avoids overhanging edges. */
+        bool use_tri_fan = true;
+        if (state.params.custom_profile != nullptr) {
+          BoundVert *bndv = efirst->leftv;
+          float profile_plane[4];
+          plane_from_point_normal_v3(
+              profile_plane, bndv->profile.plane_co, bndv->profile.plane_no);
+          /* The extra BoundVert placed along the non-adjacent edge. */
+          bndv = efirst->rightv->next;
+          if (dist_squared_to_plane_v3(bndv->nv.co, profile_plane) < geom::BEVEL_EPSILON_BIG) {
+            use_tri_fan = false;
+          }
+        }
+        vm->mesh_kind = use_tri_fan ? MeshKind::TRI_FAN : MeshKind::POLY;
+      }
+      else {
+        vm->mesh_kind = MeshKind::POLY;
+      }
     }
   }
 }
@@ -4314,6 +4341,10 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
 
 /** \} */
 
+static BoundVert *pipe_test(const BevelState &state, BevVert *bv);
+static VMesh pipe_adj_vmesh(BevelState &state, BevVert *bv, BoundVert *vpipe);
+static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv);
+
 /**
  * Main vmesh builder for a single bevelled vertex.
  * Allocates the #NewVert grid, creates boundary vertices in #ExtendableMesh,
@@ -4423,9 +4454,6 @@ static void build_vmesh(BevelState &state, BevVert *bv)
     }
   }
 
-  /* Check for pipe test for ADJ (3- or 4-boundary, seg > 1). */
-  /* TODO: pipe_adj_vmesh, tri_corner_adj_vmesh, square_out_adj_vmesh special cases. */
-
   switch (vm->mesh_kind) {
     case MeshKind::NONE:
       if (n == 2 && state.params.affect_type == BevelAffect::Vertices) {
@@ -4440,7 +4468,19 @@ static void build_vmesh(BevelState &state, BevVert *bv)
       break;
     case MeshKind::ADJ: {
       /* Compute the ADJ interior coordinates via cubic subdivision. */
-      VMesh vm_adj = adj_vmesh(state, bv);
+      VMesh vm_adj;
+      BoundVert *vpipe = pipe_test(state, bv);
+      if (state.pro_super_r == profile::PRO_SQUARE_R && bv->selcount >= 3 && (ns % 2 == 0) &&
+          state.params.custom_profile == nullptr)
+      {
+        vm_adj = square_out_adj_vmesh(state, bv);
+      }
+      else if (vpipe) {
+        vm_adj = pipe_adj_vmesh(state, bv, vpipe);
+      }
+      else {
+        vm_adj = adj_vmesh(state, bv);
+      }
       /* Copy final positions into vm->mesh and create ExtendableMesh verts. */
       for (int i = 0; i < n; i++) {
         for (int j = 0; j <= ns2; j++) {
@@ -5055,6 +5095,430 @@ static VMesh make_cube_corner_adj_vmesh(BevelState &state)
     }
   }
   return vm1;
+}
+
+/**
+ * Copy whichever of `a` and `b` is closer to `v` into `r`.
+ */
+static void closer_v3_v3v3v3(float r[3], const float a[3], const float b[3], const float v[3])
+{
+  if (math::distance_squared(float3(a), float3(v)) <= math::distance_squared(float3(b), float3(v))) {
+    copy_v3_v3(r, a);
+  }
+  else {
+    copy_v3_v3(r, b);
+  }
+}
+
+/**
+ * Identify if the given vertex configures a 'pipe' (3 or 4 edges, collinear pairs).
+ * Return the boundary vert whose ebev is one of the pipe edges, and
+ * whose next boundary vert has a beveled, non-pipe edge.
+ */
+static BoundVert *pipe_test(const BevelState &state, BevVert *bv)
+{
+  VMesh *vm = bv->vmesh.get();
+  if (vm->count < 3 || vm->count > 4 || bv->selcount < 3 || bv->selcount > 4) {
+    return nullptr;
+  }
+
+  const float3 bv_co = state.emesh.vert_position(bv->v);
+
+  /* Find v1, v2, v3 all with beveled edges, where v1 and v3 have collinear edges. */
+  EdgeHalf *epipe = nullptr;
+  BoundVert *v1 = vm->boundstart;
+  float dir1[3], dir3[3];
+  do {
+    BoundVert *v2 = v1->next;
+    BoundVert *v3 = v2->next;
+    if (v1->ebev && v2->ebev && v3->ebev) {
+      const int other_v1 = geom::edge_other_vert(state.emesh, v1->ebev->e, bv->v);
+      const int other_v3 = geom::edge_other_vert(state.emesh, v3->ebev->e, bv->v);
+      const float3 co_v1 = state.emesh.vert_position(other_v1);
+      const float3 co_v3 = state.emesh.vert_position(other_v3);
+
+      sub_v3_v3v3(dir1, bv_co, co_v1);
+      sub_v3_v3v3(dir3, co_v3, bv_co);
+      normalize_v3(dir1);
+      normalize_v3(dir3);
+      if (angle_normalized_v3v3(dir1, dir3) < geom::BEVEL_EPSILON_ANG) {
+        epipe = v1->ebev;
+        break;
+      }
+    }
+  } while ((v1 = v1->next) != vm->boundstart);
+
+  if (!epipe) {
+    return nullptr;
+  }
+
+  /* Check face planes: all should have normals perpendicular to epipe. */
+  for (int i = 0; i < bv->edgecount; i++) {
+    EdgeHalf *e = &bv->edges[i];
+    if (e->fnext >= 0) {
+      const float3 face_no = state.emesh.face_normal(e->fnext);
+      if (fabsf(dot_v3v3(dir1, face_no)) > geom::BEVEL_EPSILON_BIG) {
+        return nullptr;
+      }
+    }
+  }
+  return v1;
+}
+
+/**
+ * Snap co to the closest point on the profile for vpipe projected onto the plane
+ * containing co with normal in the direction of edge vpipe->ebev.
+ */
+static void snap_to_pipe_profile(
+    const BevelState &state, BevVert *bv, BoundVert *vpipe, bool midline, float co[3])
+{
+  Profile *pro = &vpipe->profile;
+  EdgeHalf *e = vpipe->ebev;
+
+  if (compare_v3v3(pro->start, pro->end, geom::BEVEL_EPSILON_D)) {
+    copy_v3_v3(co, pro->start);
+    return;
+  }
+
+  /* Get a plane with the normal pointing along the beveled edge. */
+  float edir[3], plane[4];
+  const int other_v = geom::edge_other_vert(state.emesh, e->e, bv->v);
+  const float3 v_co = state.emesh.vert_position(bv->v);
+  const float3 other_co = state.emesh.vert_position(other_v);
+  sub_v3_v3v3(edir, v_co, other_co);
+  plane_from_point_normal_v3(plane, co, edir);
+
+  float start_plane[3], end_plane[3], middle_plane[3];
+  closest_to_plane_v3(start_plane, plane, pro->start);
+  closest_to_plane_v3(end_plane, plane, pro->end);
+  closest_to_plane_v3(middle_plane, plane, pro->middle);
+
+  float m[4][4], minv[4][4];
+  if (geom::make_unit_square_map(start_plane, middle_plane, end_plane, m) && invert_m4_m4(minv, m)) {
+    /* Transform co and project it onto superellipse. */
+    float p[3];
+    mul_v3_m4v3(p, minv, co);
+    snap_to_superellipsoid(p, pro->super_r, midline);
+
+    float snap[3];
+    mul_v3_m4v3(snap, m, p);
+    copy_v3_v3(co, snap);
+  }
+  else {
+    /* Planar case: just snap to line start_plane--end_plane. */
+    float p[3];
+    closest_to_line_segment_v3(p, co, start_plane, end_plane);
+    copy_v3_v3(co, p);
+  }
+}
+
+/**
+ * See pipe_test for conditions that make 'pipe'; vpipe is the return value from that.
+ * We want to make an ADJ mesh but then snap the vertices to the profile in a plane
+ * perpendicular to the pipes.
+ */
+static VMesh pipe_adj_vmesh(BevelState &state, BevVert *bv, BoundVert *vpipe)
+{
+  /* Some unnecessary overhead running this subdivision with custom profile snapping later on. */
+  VMesh vm = adj_vmesh(state, bv);
+
+  /* Now snap all interior coordinates to be on the epipe profile. */
+  const int n_bndv = bv->vmesh->count;
+  const int ns = bv->vmesh->seg;
+  const int half_ns = ns / 2;
+  const int ipipe1 = vpipe->index;
+  const int ipipe2 = vpipe->next->next->index;
+
+  for (int i = 0; i < n_bndv; i++) {
+    for (int j = 1; j <= half_ns; j++) {
+      for (int k = 0; k <= half_ns; k++) {
+        if (!geom::is_canon(&vm, i, j, k)) {
+          continue;
+        }
+        /* With a custom profile just copy the shape of the profile at each ring. */
+        if (state.params.custom_profile != nullptr) {
+          /* Find both profile vertices that correspond to this point. */
+          float *profile_point_pipe1, *profile_point_pipe2, f;
+          if (ELEM(i, ipipe1, ipipe2)) {
+            if (n_bndv == 3 && i == ipipe1) {
+              /* This part of the vmesh is the triangular corner between the two pipe profiles. */
+              const int ring = std::max(j, k);
+              profile_point_pipe2 = geom::mesh_vert(&vm, i, 0, ring)->co;
+              profile_point_pipe1 = geom::mesh_vert(&vm, i, ring, 0)->co;
+              /* End profile index increases with k on one side and j on the other. */
+              f = ((k < j) ? std::min(j, k) : ((2.0f * ring) - j)) / (2.0f * ring);
+            }
+            else {
+              /* This is part of either pipe profile boundvert area in the 4-way intersection. */
+              profile_point_pipe1 = geom::mesh_vert(&vm, i, 0, k)->co;
+              profile_point_pipe2 = geom::mesh_vert(&vm, (i == ipipe1) ? ipipe2 : ipipe1, 0, ns - k)->co;
+              f = float(j) / float(ns); /* The ring index brings us closer to the other side. */
+            }
+          }
+          else {
+            /* The profile vertices are on both ends of each of the side profile's rings. */
+            profile_point_pipe1 = geom::mesh_vert(&vm, i, j, 0)->co;
+            profile_point_pipe2 = geom::mesh_vert(&vm, i, j, ns)->co;
+            f = float(k) / float(ns); /* Ring runs along the pipe, so segment is used here. */
+          }
+
+          /* Place the vertex by interpolating between the two profile points using the factor. */
+          interp_v3_v3v3(geom::mesh_vert(&vm, i, j, k)->co, profile_point_pipe1, profile_point_pipe2, f);
+        }
+        else {
+          /* A tricky case is for the 'square' profiles and an even nseg: we want certain
+           * vertices to snap to the midline on the pipe, not just to one plane or the other. */
+          const bool even = (ns % 2) == 0;
+          const bool midline = even && k == half_ns &&
+                         ((i == 0 && j == half_ns) || ELEM(i, ipipe1, ipipe2));
+          snap_to_pipe_profile(state, bv, vpipe, midline, geom::mesh_vert(&vm, i, j, k)->co);
+        }
+      }
+    }
+  }
+  return vm;
+}
+
+/**
+ * Special case of VMesh when profile == 1 and there are 3 or more beveled edges.
+ * We want the effect of parallel offset lines (n/2 of them)
+ * on each side of the center, for even n.
+ * Wherever they intersect with each other between two successive beveled edges,
+ * those intersections are part of the vmesh rings.
+ * We have to move the boundary edges too -- the usual method is to make one profile plane between
+ * successive BoundVerts, but for the effect we want here, there will be two planes,
+ * one on each side of the original edge.
+ * At the moment, this is not called for odd number of segments, though code does something if it
+ * is.
+ */
+static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv)
+{
+  const int n_bndv = bv->vmesh->count;
+  const int ns = bv->vmesh->seg;
+  const int ns2 = ns / 2;
+  const int odd = ns % 2;
+  float ns2inv = 1.0f / float(ns2);
+  VMesh vm = new_adj_vmesh(n_bndv, ns, bv->vmesh->boundstart);
+  const int clstride = 3 * (ns2 + 1);
+  Array<float> centerline(clstride * n_bndv);
+  Array<bool> cset(n_bndv, false);
+
+  const float3 bv_co = state.emesh.vert_position(bv->v);
+
+  /* Find on_edge, place on bndv[i]'s elast where offset line would meet,
+   * taking min-distance-to bv->v with position where next sector's offset line would meet. */
+  BoundVert *bndv = vm.boundstart;
+  for (int i = 0; i < n_bndv; i++) {
+    float bndco[3];
+    copy_v3_v3(bndco, bndv->nv.co);
+    EdgeHalf *e1 = bndv->efirst;
+    EdgeHalf *e2 = bndv->elast;
+    AngleKind ang_kind = ANGLE_STRAIGHT;
+    if (e1 && e2) {
+      ang_kind = edges_angle_kind(state.emesh, e1, e2, bv->v);
+    }
+    if (bndv->is_patch_start) {
+      mid_v3_v3v3(centerline.data() + clstride * i, bndv->nv.co, bndv->next->nv.co);
+      cset[i] = true;
+      bndv = bndv->next;
+      i++;
+      mid_v3_v3v3(centerline.data() + clstride * i, bndv->nv.co, bndv->next->nv.co);
+      cset[i] = true;
+      bndv = bndv->next;
+      i++;
+      /* Leave cset[i] where it was - probably false, unless i == n - 1. */
+    }
+    else if (bndv->is_arc_start) {
+      e1 = bndv->efirst;
+      e2 = bndv->next->efirst;
+      copy_v3_v3(centerline.data() + clstride * i, bndv->profile.middle);
+      bndv = bndv->next;
+      cset[i] = true;
+      i++;
+      /* Leave cset[i] where it was - probably false, unless i == n - 1. */
+    }
+    else if (ang_kind == ANGLE_SMALLER) {
+      float dir1[3], dir2[3], co1[3], co2[3];
+      const int e1_other_v = geom::edge_other_vert(state.emesh, e1->e, bv->v);
+      const int e2_other_v = geom::edge_other_vert(state.emesh, e2->e, bv->v);
+      const float3 e1_other_co = state.emesh.vert_position(e1_other_v);
+      const float3 e2_other_co = state.emesh.vert_position(e2_other_v);
+      sub_v3_v3v3(dir1, bv_co, e1_other_co);
+      sub_v3_v3v3(dir2, bv_co, e2_other_co);
+      add_v3_v3v3(co1, bndco, dir1);
+      add_v3_v3v3(co2, bndco, dir2);
+      /* Intersect e1 with line through bndv parallel to e2 to get v1co. */
+      float meet1[3], meet2[3];
+      int ikind = isect_line_line_v3(bv_co, e1_other_co, bndco, co2, meet1, meet2);
+      float v1co[3];
+      bool v1set;
+      if (ikind == 0) {
+        v1set = false;
+      }
+      else {
+        /* If the lines are skew (ikind == 2), want meet1 which is on e1. */
+        copy_v3_v3(v1co, meet1);
+        v1set = true;
+      }
+      /* Intersect e2 with line through bndv parallel to e1 to get v2co. */
+      ikind = isect_line_line_v3(bv_co, e2_other_co, bndco, co1, meet1, meet2);
+      float v2co[3];
+      bool v2set;
+      if (ikind == 0) {
+        v2set = false;
+      }
+      else {
+        v2set = true;
+        copy_v3_v3(v2co, meet1);
+      }
+
+      /* We want on_edge[i] to be min dist to bv->v of v2co and the v1co of next iteration. */
+      float *on_edge_cur = centerline.data() + clstride * i;
+      int iprev = (i == 0) ? n_bndv - 1 : i - 1;
+      float *on_edge_prev = centerline.data() + clstride * iprev;
+      if (v2set) {
+        if (cset[i]) {
+          closer_v3_v3v3v3(on_edge_cur, on_edge_cur, v2co, bv_co);
+        }
+        else {
+          copy_v3_v3(on_edge_cur, v2co);
+          cset[i] = true;
+        }
+      }
+      if (v1set) {
+        if (cset[iprev]) {
+          closer_v3_v3v3v3(on_edge_prev, on_edge_prev, v1co, bv_co);
+        }
+        else {
+          copy_v3_v3(on_edge_prev, v1co);
+          cset[iprev] = true;
+        }
+      }
+    }
+    bndv = bndv->next;
+  }
+  /* Maybe not everything was set by the previous loop. */
+  bndv = vm.boundstart;
+  for (int i = 0; i < n_bndv; i++) {
+    if (!cset[i]) {
+      float *on_edge_cur = centerline.data() + clstride * i;
+      EdgeHalf *e1 = bndv->next->efirst;
+      float co1[3], co2[3];
+      copy_v3_v3(co1, bndv->nv.co);
+      copy_v3_v3(co2, bndv->next->nv.co);
+      if (e1) {
+        const int e1_other_v = geom::edge_other_vert(state.emesh, e1->e, bv->v);
+        const float3 e1_other_co = state.emesh.vert_position(e1_other_v);
+        if (bndv->prev->is_arc_start && bndv->next->is_arc_start) {
+          float meet1[3], meet2[3];
+          int ikind = isect_line_line_v3(bv_co, e1_other_co, co1, co2, meet1, meet2);
+          if (ikind != 0) {
+            copy_v3_v3(on_edge_cur, meet1);
+            cset[i] = true;
+          }
+        }
+        else {
+          if (bndv->prev->is_arc_start) {
+            closest_to_line_segment_v3(on_edge_cur, co1, bv_co, e1_other_co);
+          }
+          else {
+            closest_to_line_segment_v3(on_edge_cur, co2, bv_co, e1_other_co);
+          }
+          cset[i] = true;
+        }
+      }
+      if (!cset[i]) {
+        mid_v3_v3v3(on_edge_cur, co1, co2);
+        cset[i] = true;
+      }
+    }
+    bndv = bndv->next;
+  }
+
+  /* Fill in rest of center-lines by interpolation. */
+  float co1[3], co2[3];
+  copy_v3_v3(co2, bv_co);
+  bndv = vm.boundstart;
+  for (int i = 0; i < n_bndv; i++) {
+    if (odd) {
+      float ang = 0.5f * angle_v3v3v3(bndv->nv.co, co1, bndv->next->nv.co);
+      float finalfrac;
+      if (ang > geom::BEVEL_SMALL_ANG) {
+        /* finalfrac is the length along arms of isosceles triangle with top angle 2*ang
+         * such that the base of the triangle is 1.
+         * This is used in interpolation along center-line in odd case.
+         * To avoid too big a drop from bv, cap finalfrac a 0.8 arbitrarily */
+        finalfrac = 0.5f / sinf(ang);
+        finalfrac = std::min(finalfrac, 0.8f);
+      }
+      else {
+        finalfrac = 0.8f;
+      }
+      ns2inv = 1.0f / (ns2 + finalfrac);
+    }
+
+    float *p = centerline.data() + clstride * i;
+    copy_v3_v3(co1, p);
+    p += 3;
+    for (int j = 1; j <= ns2; j++) {
+      interp_v3_v3v3(p, co1, co2, j * ns2inv);
+      p += 3;
+    }
+    bndv = bndv->next;
+  }
+
+  /* Coords of edges and mid or near-mid line. */
+  bndv = vm.boundstart;
+  for (int i = 0; i < n_bndv; i++) {
+    copy_v3_v3(co1, bndv->nv.co);
+    copy_v3_v3(co2, centerline.data() + clstride * (i == 0 ? n_bndv - 1 : i - 1));
+    for (int j = 0; j < ns2 + odd; j++) {
+      interp_v3_v3v3(geom::mesh_vert(&vm, i, j, 0)->co, co1, co2, j * ns2inv);
+    }
+    copy_v3_v3(co2, centerline.data() + clstride * i);
+    for (int k = 1; k <= ns2; k++) {
+      interp_v3_v3v3(geom::mesh_vert(&vm, i, 0, k)->co, co1, co2, k * ns2inv);
+    }
+    bndv = bndv->next;
+  }
+  if (!odd) {
+    copy_v3_v3(geom::mesh_vert(&vm, 0, ns2, ns2)->co, bv_co);
+  }
+  geom::vmesh_copy_equiv_verts(&vm);
+
+  /* Fill in interior points by interpolation from edges to center-lines. */
+  bndv = vm.boundstart;
+  for (int i = 0; i < n_bndv; i++) {
+    int im1 = (i == 0) ? n_bndv - 1 : i - 1;
+    for (int j = 1; j < ns2 + odd; j++) {
+      for (int k = 1; k <= ns2; k++) {
+        float meet1[3], meet2[3];
+        int ikind = isect_line_line_v3(geom::mesh_vert(&vm, i, 0, k)->co,
+                                       centerline.data() + clstride * im1 + 3 * k,
+                                       geom::mesh_vert(&vm, i, j, 0)->co,
+                                       centerline.data() + clstride * i + 3 * j,
+                                       meet1,
+                                       meet2);
+        if (ikind == 0) {
+          /* How can this happen? fall back on interpolation in one direction if it does. */
+          interp_v3_v3v3(geom::mesh_vert(&vm, i, j, k)->co,
+                         geom::mesh_vert(&vm, i, 0, k)->co,
+                         centerline.data() + clstride * im1 + 3 * k,
+                         j * ns2inv);
+        }
+        else if (ikind == 1) {
+          copy_v3_v3(geom::mesh_vert(&vm, i, j, k)->co, meet1);
+        }
+        else {
+          mid_v3_v3v3(geom::mesh_vert(&vm, i, j, k)->co, meet1, meet2);
+        }
+      }
+    }
+    bndv = bndv->next;
+  }
+
+  geom::vmesh_copy_equiv_verts(&vm);
+  return vm;
 }
 
 /**

@@ -118,6 +118,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     geometry::BevelParameters bevel_params;
     bevel_params.affect_type = affect;
     bevel_params.segments = segments;
+    bevel_params.shape = params.extract_input<float>("Shape"_ustr);
     const int ne = src_mesh->edges_num;
     bevel_params.offsets = {
         Array<float>(ne), Array<float>(ne), Array<float>(ne), Array<float>(ne)};
