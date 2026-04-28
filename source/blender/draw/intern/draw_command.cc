@@ -354,15 +354,6 @@ void StencilSet::execute() const
   GPU_stencil_reference_set(reference);
 }
 
-void TextureCopy::execute() const
-{
-  gpu::Texture *exec_src = src_is_ref ? *src_ref : src;
-  gpu::Texture *exec_dst = dst_is_ref ? *dst_ref : dst;
-  if (exec_src && exec_dst) {
-    GPU_texture_copy(exec_dst, exec_src);
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -696,11 +687,6 @@ std::string StencilSet::serialize() const
   ss << ".stencil_set(write_mask=0b" << std::bitset<8>(write_mask) << ", reference=0b"
      << std::bitset<8>(reference) << ", compare_mask=0b" << std::bitset<8>(compare_mask) << ")";
   return ss.str();
-}
-
-std::string TextureCopy::serialize() const
-{
-  return ".texture_copy()";
 }
 
 /** \} */
