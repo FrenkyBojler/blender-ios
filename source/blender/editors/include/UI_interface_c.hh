@@ -18,7 +18,6 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 
-#include "DNA_camera_types.h"
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 

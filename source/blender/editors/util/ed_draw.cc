@@ -27,7 +27,7 @@
 
 #include "BLF_api.hh"
 
-#include "DNA_camera_types.h" /* For eCompositionGuideFlags */
+#include "DNA_camera_types.h"
 
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
@@ -1109,7 +1109,7 @@ void ED_region_image_metadata_draw(
   GPU_matrix_pop();
 }
 
-/* Composition Guides */
+/** Composition Guides */
 
 #define M_GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 
@@ -1139,10 +1139,10 @@ static void drawviewborder_grid3(uint shdr_pos, const rctf *rect, float fac)
   immEnd();
 }
 
-/* harmonious triangle */
+/** harmonious triangle */
 static void drawviewborder_triangle(uint shdr_pos,
                                     const rctf *rect,
-                                    const char golden,
+                                    const bool golden,
                                     const char dir)
 {
   /* Has to create local copies in order to use std::swap*/

@@ -47,7 +47,7 @@ enum {
 };
 
 /* Composition Guides */
-enum eCompositionGuideFlags {
+enum eCompositionGuideFlags : short {
   COMPOSITION_GUIDES_ENABLED = (1 << 0),
   COMPOSITION_GUIDES_CENTER = (1 << 1),
   COMPOSITION_GUIDES_CENTER_DIAG = (1 << 2),
