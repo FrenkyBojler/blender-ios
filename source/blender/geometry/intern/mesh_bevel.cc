@@ -237,6 +237,27 @@ class ExtendableMesh {
     return new_corner_uvs_[layer_index].as_span();
   }
 
+  /**
+   * For each vertex (original or new), the list of new-corner indices (into
+   * `new_corner_verts_` / `new_corner_uvs_`) that are incident on it.
+   * Populated incrementally by #face_create in O(1) per corner.
+   */
+  const Map<int, Vector<int>> &vert_to_new_corners() const
+  {
+    return new_vert_to_new_corners_;
+  }
+
+  /**
+   * For each new vertex (index >= mesh.verts_num), the index of the original bevel vertex it
+   * descended from (i.e., `bv->v`).  Only populated when `example_vert` is non-negative in
+   * #vert_create, which is always the case at the bevel arc call sites.
+   * Used by #merge_uvs to look up the parent vertex's UV bucket structure.
+   */
+  const Map<int, int> &vert_bev_origin() const
+  {
+    return new_vert_bev_origin_;
+  }
+
   void vert_kill(const int v);
   void edge_kill(const int e);
   void face_kill(const int f);
@@ -343,6 +364,18 @@ class ExtendableMesh {
 
   /* Per-UV-layer float2 values for new corners, indexed [layer][new_corner]. */
   Vector<Vector<float2>> new_corner_uvs_;
+
+  /**
+   * Maps each vertex (original or new) to the new-corner indices incident on it.
+   * Populated in O(1) per corner by #face_create; never rebuilt.
+   */
+  Map<int, Vector<int>> new_vert_to_new_corners_;
+
+  /**
+   * Maps each new vertex (index >= mesh.verts_num) to the original bevel vertex (`bv->v`)
+   * it descended from.  Populated in #vert_create when `example_vert` >= 0.
+   */
+  Map<int, int> new_vert_bev_origin_;
 
   Array<bool> kill_verts_;
   Array<bool> kill_edges_;
@@ -460,6 +493,9 @@ int ExtendableMesh::vert_create(const float3 &co, const int example_vert)
   const int index = mesh.verts_num + new_vert_positions_.size();
   new_vert_positions_.append(co);
   new_vert_examples_.append(example_vert);
+  if (example_vert >= 0) {
+    new_vert_bev_origin_.add_overwrite(index, example_vert);
+  }
   return index;
 }
 
@@ -491,6 +527,7 @@ int ExtendableMesh::face_create(Span<int> verts, const int example_face)
     /* Edges created inside face_create have no single representative edge; use -1. */
     const int e = edge_create(v1, v2, -1);
 
+    const int nc = int(new_corner_verts_.size());
     new_corner_verts_.append(v1);
     new_corner_edges_.append(e);
     /* Corner examples are deferred; -1 for now. */
@@ -499,6 +536,8 @@ int ExtendableMesh::face_create(Span<int> verts, const int example_face)
     for (Vector<float2> &layer_uvs : new_corner_uvs_) {
       layer_uvs.append(float2(0.0f));
     }
+    /* Record v1 → new corner for the UV merge pass. */
+    new_vert_to_new_corners_.lookup_or_add_default(v1).append(nc);
   }
 
   new_face_offsets_.append(int(new_corner_verts_.size()));
@@ -1814,7 +1853,8 @@ template<typename T> [[maybe_unused]] static void print_span(Span<T> span, const
   for (int i = 0; i < n_new; i++) {
     const int edge_idx = emesh.mesh.edges_num + i;
     const int ex = (i < int(exs.size())) ? exs[i] : -1;
-    fmt::println("  new_edge={} (v{}--v{}) example={}", edge_idx, new_edges[i][0], new_edges[i][1], ex);
+    fmt::println(
+        "  new_edge={} (v{}--v{}) example={}", edge_idx, new_edges[i][0], new_edges[i][1], ex);
   }
 }
 
@@ -3103,9 +3143,7 @@ static void move_profile_plane(BoundVert *bndv, const float3 bmvert_co)
  * Sets `special_params = true` on both to prevent recalculation.
  * Mirrors BMesh's #move_weld_profile_planes.
  */
-static void move_weld_profile_planes(BoundVert *bndv1,
-                                     BoundVert *bndv2,
-                                     const float3 v_co)
+static void move_weld_profile_planes(BoundVert *bndv1, BoundVert *bndv2, const float3 v_co)
 {
   /* Only do this if projecting. */
   if (is_zero_v3(bndv1->profile.proj_dir) || is_zero_v3(bndv2->profile.proj_dir)) {
@@ -3339,6 +3377,172 @@ static VMesh adj_vmesh(BevelState &state, BevVert *bv);
  * The same 6-criterion lexicographic tie-breaking rule is used.
  * \{ */
 
+/* === Helpers for is_bad_uv_poly === */
+
+/**
+ * Returns true if `co` is inside or on the boundary of face `f` when both are
+ * projected to 2D along the face's dominant axis.
+ * Mirrors #BM_face_point_inside_test.
+ */
+static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, const float3 co)
+{
+  const float3 no = emesh.face_normal(f);
+  float axis_mat[3][3];
+  axis_dominant_v3_to_m3(axis_mat, no);
+
+  /* Project the test point. */
+  float co_2d[2];
+  mul_v2_m3v3(co_2d, axis_mat, co);
+
+  /* Project every corner of the face. */
+  const OffsetIndices faces = emesh.mesh.faces();
+  const Span<int> corner_verts = emesh.mesh.corner_verts();
+  const Span<float3> positions = emesh.mesh.vert_positions();
+  const IndexRange face_range = faces[f];
+  const int n = face_range.size();
+  Array<float2> projverts(n);
+  for (int i = 0; i < n; i++) {
+    mul_v2_m3v3(projverts[i], axis_mat, positions[corner_verts[face_range[i]]]);
+  }
+
+  (void)corner_verts;
+  return isect_point_poly_v2(
+      co_2d, reinterpret_cast<const float(*)[2]>(projverts.data()), uint(n));
+}
+
+/**
+ * Sets `*r_e1` and `*r_e2` to the two original edges of face `f` that are
+ * incident on original vertex `v_idx`.
+ * Mirrors BMesh's #get_incident_edges.
+ */
+static void get_incident_edges(
+    const ExtendableMesh &emesh, const int f, const int v_idx, int *r_e1, int *r_e2)
+{
+  *r_e1 = -1;
+  *r_e2 = -1;
+  if (f < 0) {
+    return;
+  }
+  const OffsetIndices faces = emesh.mesh.faces();
+  const Span<int> corner_verts = emesh.mesh.corner_verts();
+  const Span<int> corner_edges = emesh.mesh.corner_edges();
+  const IndexRange face_range = faces[f];
+  const int n = face_range.size();
+  for (int i = 0; i < n; i++) {
+    const int e = corner_edges[face_range[i]];
+    const int2 &ev = emesh.mesh.edges()[e];
+    if (ev[0] == v_idx || ev[1] == v_idx) {
+      if (*r_e1 < 0) {
+        *r_e1 = e;
+      }
+      else if (*r_e2 < 0) {
+        *r_e2 = e;
+      }
+    }
+    (void)corner_verts;
+  }
+}
+
+/**
+ * Find which #BoundVert positions of `bv` are inside face `f` when both are
+ * projected to 2D.  At most 3 can be interior (the maximum between two edges
+ * including miters).
+ * Returns the number of internal vertices found.
+ * Mirrors BMesh's #find_face_internal_boundverts.
+ */
+static int find_face_internal_boundverts(const ExtendableMesh &emesh,
+                                         const BevVert *bv,
+                                         const int f,
+                                         BoundVert *(r_internal[3]))
+{
+  if (f < 0) {
+    r_internal[0] = r_internal[1] = r_internal[2] = nullptr;
+    return 0;
+  }
+  int n_internal = 0;
+  VMesh *vm = bv->vmesh.get();
+  BLI_assert(vm != nullptr);
+  BoundVert *v = vm->boundstart;
+  do {
+    if (face_point_inside_test(emesh, f, float3(v->nv.co))) {
+      r_internal[n_internal++] = v;
+      if (n_internal == 3) {
+        break;
+      }
+    }
+  } while ((v = v->next) != vm->boundstart);
+  for (int i = n_internal; i < 3; i++) {
+    r_internal[i] = nullptr;
+  }
+  return n_internal;
+}
+
+/**
+ * Project BoundVert positions snapped to the two incident edges of face `f` on
+ * `bv->v`, compute the 2D area of the resulting polygon.
+ * BoundVerts that are already inside `f` are used as-is.
+ * Mirrors BMesh's #projected_boundary_area.
+ */
+static float projected_boundary_area(const BevelState &state, BevVert *bv, const int f)
+{
+  const ExtendableMesh &emesh = state.emesh;
+  VMesh *vm = bv->vmesh.get();
+  BLI_assert(vm != nullptr);
+
+  const float3 no = emesh.face_normal(f);
+  float axis_mat[3][3];
+  axis_dominant_v3_to_m3(axis_mat, no);
+
+  int e1 = -1, e2 = -1;
+  get_incident_edges(emesh, f, bv->v, &e1, &e2);
+  BLI_assert(e1 >= 0 && e2 >= 0);
+
+  BoundVert *unsnapped[3];
+  find_face_internal_boundverts(emesh, bv, f, unsnapped);
+
+  const Span<float3> positions = emesh.mesh.vert_positions();
+  const int2 &ev1 = emesh.mesh.edges()[e1];
+  const int2 &ev2 = emesh.mesh.edges()[e2];
+  const float *e1v1 = positions[ev1[0]];
+  const float *e1v2 = positions[ev1[1]];
+  const float *e2v1 = positions[ev2[0]];
+  const float *e2v2 = positions[ev2[1]];
+
+  const int count = vm->count;
+  Array<float2> proj_co(count);
+  BoundVert *v = vm->boundstart;
+  int i = 0;
+  do {
+    const float *co = v->nv.co;
+    if (ELEM(v, unsnapped[0], unsnapped[1], unsnapped[2])) {
+      mul_v2_m3v3(proj_co[i], axis_mat, co);
+    }
+    else {
+      float snap1[3], snap2[3];
+      closest_to_line_segment_v3(snap1, co, e1v1, e1v2);
+      closest_to_line_segment_v3(snap2, co, e2v1, e2v2);
+      const float d1_sq = len_squared_v3v3(snap1, co);
+      const float d2_sq = len_squared_v3v3(snap2, co);
+      mul_v2_m3v3(proj_co[i], axis_mat, d1_sq <= d2_sq ? snap1 : snap2);
+    }
+    ++i;
+  } while ((v = v->next) != vm->boundstart);
+
+  return area_poly_v2(reinterpret_cast<const float(*)[2]>(proj_co.data()), count);
+}
+
+/**
+ * Returns true if choosing face `frep` as the representative for `bv`'s center
+ * polygon would result in a degenerate (near-zero area) UV polygon.
+ * Mirrors BMesh's #is_bad_uv_poly.
+ */
+static bool is_bad_uv_poly(const BevelState &state, BevVert *bv, const int frep)
+{
+  BLI_assert(bv->vmesh != nullptr);
+  const float area = projected_boundary_area(state, bv, frep);
+  return area < 1e-4f; /* BEVEL_EPSILON_BIG */
+}
+
 /**
  * Choose the best representative face index from `faces` (original face indices, -1 = skip).
  *
@@ -3389,8 +3593,7 @@ static int choose_rep_face(const BevelState &state, Span<int> faces)
 
     int vi = 0;
     /* 0: UV-island component. */
-    value_vecs[fi][vi++] = (!uvi.face_component.is_empty()) ? float(uvi.face_component[f]) :
-                                                              0.0f;
+    value_vecs[fi][vi++] = (!uvi.face_component.is_empty()) ? float(uvi.face_component[f]) : 0.0f;
     /* 1: Selected-face placeholder (always 0; no face-selection concept in mesh path). */
     value_vecs[fi][vi++] = 0.0f;
     /* 2: Material index. */
@@ -3538,7 +3741,12 @@ static int frep_for_center_poly(const BevelState &state, const BevVert *bv)
       }
     }
     if (!already_there) {
-      /* is_bad_uv_poly check is deferred (future task). */
+      if (state.uv_layer_info.has_math_layers) {
+        /* Skip candidates that would produce a degenerate UV polygon. */
+        if (is_bad_uv_poly(state, const_cast<BevVert *>(bv), bmf)) {
+          continue;
+        }
+      }
       fchoices[fcount++] = bmf;
     }
   }
@@ -3764,7 +3972,6 @@ static void bevel_build_rings(BevelState &state, BevVert *bv)
   }
 }
 
-
 /* Forward declaration — defined in the Edge polygon construction section below. */
 static EdgeHalf *find_edge_half_for_edge(BevVert *bv, int edge_index);
 
@@ -3805,12 +4012,12 @@ static int bev_rebuild_polygon(BevelState &state, const int f_idx)
   }
 
   bool do_rebuild = false;
-  Vector<int, 32> vv;       /* New vertex indices for the rebuilt face. */
-  Vector<int, 32> orig_v;   /* Representative original vertex for each vv entry.
-                              * For non-beveled vertices this equals vv[i] (the original vertex).
-                              * For VMesh arc vertices this equals bv->v (the original beveled
-                              * vertex whose VMesh produced the arc). Used to identify the
-                              * best-matching original edge example for each rebuilt edge. */
+  Vector<int, 32> vv;     /* New vertex indices for the rebuilt face. */
+  Vector<int, 32> orig_v; /* Representative original vertex for each vv entry.
+                           * For non-beveled vertices this equals vv[i] (the original vertex).
+                           * For VMesh arc vertices this equals bv->v (the original beveled
+                           * vertex whose VMesh produced the arc). Used to identify the
+                           * best-matching original edge example for each rebuilt edge. */
 
   const int sz = int(corners.size());
   for (int ci = 0; ci < sz; ci++) {
@@ -4104,7 +4311,6 @@ static void bevel_build_edge_polygons(BevelState &state, int edge_index)
   /* TODO: implement weld-cross edge attribute continuity (weld_cross_attrs_copy). */
   (void)bevvert_is_weld_cross;
 }
-
 
 /** \} */
 
@@ -5188,8 +5394,223 @@ static void bevel_vert_construct(BevelState &state, int v)
  *
  * Mirrors the `build_mesh` function from the TRY1 reference implementation,
  * adapted for the new index convention (no negated indices).
- * Attribute copying is a TODO for a later pass.
  */
+/**
+ * Interpolate a UV value for vertex position `dst_co` from the corners of original face `f_src`.
+ * Mirrors the relevant part of #BM_loop_interp_from_face.
+ */
+static float2 interp_uv_from_face(const ExtendableMesh &emesh,
+                                  const Span<float2> uv_vals,
+                                  const int f_src,
+                                  const float3 dst_co)
+{
+  const OffsetIndices src_faces = emesh.mesh.faces();
+  const Span<int> corner_verts = emesh.mesh.corner_verts();
+  const Span<float3> positions = emesh.mesh.vert_positions();
+  const IndexRange face_range = src_faces[f_src];
+  const int n = face_range.size();
+
+  const float3 no = emesh.face_normal(f_src);
+  float axis_mat[3][3];
+  axis_dominant_v3_to_m3(axis_mat, no);
+
+  /* Project face corners to 2D. */
+  Array<float2> cos_2d(n);
+  for (int i = 0; i < n; i++) {
+    mul_v2_m3v3(cos_2d[i], axis_mat, positions[corner_verts[face_range[i]]]);
+  }
+
+  /* Project destination point to 2D. */
+  float co_2d[2];
+  mul_v2_m3v3(co_2d, axis_mat, dst_co);
+
+  /* Compute mean-value interpolation weights. */
+  Array<float> w(n);
+  interp_weights_poly_v2(w.data(), reinterpret_cast<float(*)[2]>(cos_2d.data()), n, co_2d);
+
+  /* Weighted sum of UV values. */
+  float2 result(0.0f);
+  for (int i = 0; i < n; i++) {
+    result += w[i] * uv_vals[face_range[i]];
+  }
+  return result;
+}
+
+/**
+ * For every new corner, interpolate UV values from the corner's face representative and
+ * store the results in `emesh.new_corner_uvs_`.
+ * Mirrors the per-loop UV interpolation done inside BMesh's #bev_create_ngon.
+ */
+static void fill_new_corner_uvs(BevelState &state)
+{
+  const int num_uv_layers = int(state.uv_layer_info.maps.size());
+  if (num_uv_layers == 0) {
+    return;
+  }
+  ExtendableMesh &emesh = state.emesh;
+  const int n_new_faces = emesh.new_faces_num();
+  const Span<int> new_face_exs = emesh.new_face_examples();
+  /* Build OffsetIndices over the new-face offset array. */
+  const OffsetIndices new_faces(emesh.new_face_offsets());
+  const Span<int> new_corner_verts = emesh.new_corner_verts();
+
+  for (int nf = 0; nf < n_new_faces; nf++) {
+    const int f_src = new_face_exs[nf];
+    if (f_src < 0 || f_src >= emesh.mesh.faces_num) {
+      continue;
+    }
+    const IndexRange new_corners = new_faces[nf];
+    for (int layer = 0; layer < num_uv_layers; layer++) {
+      const Span<float2> uv_vals = state.uv_layer_info.maps[layer].values.as_span();
+      MutableSpan<float2> dst_uvs = emesh.new_corner_uvs(layer);
+      for (const int nc : new_corners) {
+        /* Use emesh.vert_position() rather than mesh.vert_positions() so that
+         * new bevel vertices (index >= mesh.verts_num) are correctly resolved. */
+        const float3 co = emesh.vert_position(new_corner_verts[nc]);
+        dst_uvs[nc] = interp_uv_from_face(emesh, uv_vals, f_src, co);
+      }
+    }
+  }
+}
+
+/**
+ * Average UV values at shared seam vertices.
+ *
+ * Mirrors what BMesh achieves via #update_uv_vert_map + #bevel_merge_uvs:
+ *
+ * 1. **Source corners at original vertices** — average source-corner UV values within each
+ *    pre-built #UVVertBucket (same as before).
+ *
+ * 2. **New corners at original vertices** — should not exist for correctly built bevel geometry
+ *    (bevel vertices are killed before output), but handled for safety via source-bucket lookup.
+ *
+ * 3. **New corners at new (profile-arc) vertices** — look up the arc vertex's parent bevel
+ *    vertex via #vert_bev_origin, then use that parent's UV bucket structure to group new
+ *    corners.  New corners whose face representative's source corner at the parent vertex
+ *    belongs to the same UV bucket get averaged together.  This correctly handles both
+ *    seam-free meshes (one bucket: all corners merge) and seam meshes (multiple buckets:
+ *    corners from different UV islands remain separate).
+ */
+static void merge_uvs(BevelState &state)
+{
+  const int num_uv_layers = int(state.uv_layer_info.maps.size());
+  if (num_uv_layers == 0) {
+    return;
+  }
+
+  ExtendableMesh &emesh = state.emesh;
+  const Map<int, Vector<int>> &vert_nc_map = emesh.vert_to_new_corners();
+  const Map<int, int> &bev_origin = emesh.vert_bev_origin();
+
+  /* Build a flat array: nc_face_rep[nc] = representative original face index for new corner nc.
+   * Used in pass 3 to determine which UV bucket a new corner belongs to. */
+  const int n_new_corners = int(emesh.new_corner_verts().size());
+  Array<int> nc_face_rep(n_new_corners, -1);
+  {
+    const OffsetIndices new_faces(emesh.new_face_offsets());
+    const Span<int> new_face_exs = emesh.new_face_examples();
+    for (const int nf : IndexRange(emesh.new_faces_num())) {
+      const int f_src = new_face_exs[nf];
+      for (const int nc : new_faces[nf]) {
+        nc_face_rep[nc] = f_src;
+      }
+    }
+  }
+
+  /* Build a map: (original_face, original_vertex) → source corner index.
+   * Used to look up which bucket a new corner's representative face corner at origin_v is in. */
+  const OffsetIndices src_faces = emesh.mesh.faces();
+  const Span<int> src_corner_verts = emesh.mesh.corner_verts();
+  /* key = face_idx * mesh.verts_num + vert_idx; value = source corner index. */
+  Map<int64_t, int> face_vert_to_src_corner;
+  face_vert_to_src_corner.reserve(emesh.mesh.corners_num);
+  for (const int f : IndexRange(emesh.mesh.faces_num)) {
+    for (const int sc : src_faces[f]) {
+      const int64_t key = int64_t(f) * emesh.mesh.verts_num + src_corner_verts[sc];
+      face_vert_to_src_corner.add_new(key, sc);
+    }
+  }
+
+  for (int layer = 0; layer < num_uv_layers; layer++) {
+    MutableSpan<float2> src_uv_vals = state.uv_layer_info.maps[layer].values.as_mutable_span();
+    MutableSpan<float2> new_uv_vals = emesh.new_corner_uvs(layer);
+
+    /* --- Pass 1: source corners at original bevel vertices ------------------- */
+    for (auto item : state.uv_vert_maps[layer].items()) {
+      Vector<UVVertBucket> &uv_vert_buckets = item.value;
+      for (UVVertBucket &bucket : uv_vert_buckets) {
+        if (bucket.size() <= 1) {
+          continue;
+        }
+        float2 avg(0.0f);
+        for (const int src_c : bucket) {
+          avg += src_uv_vals[src_c];
+        }
+        avg /= float(bucket.size());
+        for (const int src_c : bucket) {
+          src_uv_vals[src_c] = avg;
+        }
+      }
+    }
+
+    /* --- Pass 3: new (profile-arc) vertices ---------------------------------- */
+    for (const auto &[nv, new_corners] : vert_nc_map.items()) {
+      if (nv < emesh.mesh.verts_num) {
+        continue;
+      }
+      if (new_corners.size() <= 1) {
+        continue;
+      }
+
+      /* Find the parent bevel vertex for this arc vertex. */
+      const int *origin_v_ptr = bev_origin.lookup_ptr(nv);
+      if (origin_v_ptr == nullptr) {
+        continue;
+      }
+      const int origin_v = *origin_v_ptr;
+
+      /* Look up the UV buckets for the parent vertex on this layer. */
+      const Vector<UVVertBucket> *buckets = state.uv_vert_maps[layer].lookup_ptr(origin_v);
+      if (buckets == nullptr) {
+        continue;
+      }
+
+      /* For each new corner, determine which bucket its face representative's source corner
+       * at origin_v belongs to.  Use a simple scan since bucket count is tiny (≤ valence). */
+      for (const UVVertBucket &bucket : *buckets) {
+        /* Collect new corners in this bucket: their face rep has a source corner at origin_v
+         * that is in this bucket. */
+        Vector<int> matching;
+        for (const int nc : new_corners) {
+          const int f_rep = nc_face_rep[nc];
+          if (f_rep < 0 || f_rep >= emesh.mesh.faces_num) {
+            continue;
+          }
+          const int64_t key = int64_t(f_rep) * emesh.mesh.verts_num + origin_v;
+          const int *src_c_ptr = face_vert_to_src_corner.lookup_ptr(key);
+          if (src_c_ptr == nullptr) {
+            continue;
+          }
+          if (bucket.contains(*src_c_ptr)) {
+            matching.append(nc);
+          }
+        }
+        if (matching.size() <= 1) {
+          continue;
+        }
+        float2 avg(0.0f);
+        for (const int nc : matching) {
+          avg += new_uv_vals[nc];
+        }
+        avg /= float(matching.size());
+        for (const int nc : matching) {
+          new_uv_vals[nc] = avg;
+        }
+      }
+    }
+  }
+}
+
 static std::optional<Mesh *> build_output_mesh(const BevelState &state)
 {
   const ExtendableMesh &emesh = state.emesh;
@@ -5330,24 +5751,26 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
    *   .edge_verts  – written with remapped vertex indices in steps 3-4.
    *   .corner_vert – written with remapped vertex indices in steps 5-6.
    *   .corner_edge – written with remapped edge indices in steps 5-6. */
-  const StringRef skip_names[] = {
-      "position", ".edge_verts", ".corner_vert", ".corner_edge"};
+  const StringRef skip_names[] = {"position", ".edge_verts", ".corner_vert", ".corner_edge"};
   const auto geom_filter = bke::attribute_filter_from_skip_ref(
       Span<StringRef>{skip_names, ARRAY_SIZE(skip_names)});
 
   /* 7a. Point domain (verts): surviving originals then new verts. */
   {
     Array<int> src_for_dst(n_surv_verts + n_new_verts, 0);
-    src_survive_verts.foreach_index([&](const int64_t src_v, const int64_t dst_v) {
-      src_for_dst[dst_v] = int(src_v);
-    });
+    src_survive_verts.foreach_index(
+        [&](const int64_t src_v, const int64_t dst_v) { src_for_dst[dst_v] = int(src_v); });
     const Span<int> new_vert_exs = emesh.new_vert_examples();
     for (const int ni : IndexRange(n_new_verts)) {
       const int ex = new_vert_exs[ni];
       src_for_dst[n_surv_verts + ni] = (ex >= 0) ? ex : 0;
     }
-    bke::gather_attributes(
-        src_attrs, bke::AttrDomain::Point, bke::AttrDomain::Point, geom_filter, src_for_dst, dst_attrs);
+    bke::gather_attributes(src_attrs,
+                           bke::AttrDomain::Point,
+                           bke::AttrDomain::Point,
+                           geom_filter,
+                           src_for_dst,
+                           dst_attrs);
     /* Re-apply new vert positions: gather_attributes above copies position from the example vert,
      * but new bevel verts must keep their computed profile positions. */
     for (const int ni : IndexRange(n_new_verts)) {
@@ -5358,37 +5781,45 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
   /* 7b. Edge domain: surviving original edges then new edges. */
   {
     Array<int> src_for_dst(n_surv_edges + n_new_edges, 0);
-    src_survive_edges.foreach_index([&](const int64_t src_e, const int64_t dst_e) {
-      src_for_dst[dst_e] = int(src_e);
-    });
+    src_survive_edges.foreach_index(
+        [&](const int64_t src_e, const int64_t dst_e) { src_for_dst[dst_e] = int(src_e); });
     const Span<int> new_edge_exs = emesh.new_edge_examples();
     for (const int ni : IndexRange(n_new_edges)) {
       const int ex = new_edge_exs[ni];
       src_for_dst[n_surv_edges + ni] = (ex >= 0) ? ex : 0;
     }
-    bke::gather_attributes(
-        src_attrs, bke::AttrDomain::Edge, bke::AttrDomain::Edge, geom_filter, src_for_dst, dst_attrs);
+    bke::gather_attributes(src_attrs,
+                           bke::AttrDomain::Edge,
+                           bke::AttrDomain::Edge,
+                           geom_filter,
+                           src_for_dst,
+                           dst_attrs);
   }
 
   /* 7c. Face domain: surviving original faces then new faces. */
   {
     Array<int> src_for_dst(n_surv_faces + n_new_faces, 0);
-    src_survive_faces.foreach_index([&](const int64_t src_f, const int64_t dst_f) {
-      src_for_dst[dst_f] = int(src_f);
-    });
+    src_survive_faces.foreach_index(
+        [&](const int64_t src_f, const int64_t dst_f) { src_for_dst[dst_f] = int(src_f); });
     const Span<int> new_face_exs = emesh.new_face_examples();
     for (const int nf : IndexRange(n_new_faces)) {
       const int ex = new_face_exs[nf];
       src_for_dst[n_surv_faces + nf] = (ex >= 0) ? ex : 0;
     }
-    bke::gather_attributes(
-        src_attrs, bke::AttrDomain::Face, bke::AttrDomain::Face, geom_filter, src_for_dst, dst_attrs);
+    bke::gather_attributes(src_attrs,
+                           bke::AttrDomain::Face,
+                           bke::AttrDomain::Face,
+                           geom_filter,
+                           src_for_dst,
+                           dst_attrs);
   }
 
-  /* 7d. Corner domain: surviving original corners (from surviving faces), new corners deferred.
-   *     New corner attributes (UV, normals) require interpolation and are a future task. */
+  /* 7d. Corner domain: surviving original corners (from surviving faces) then new corners.
+   *
+   * Surviving corners are mapped to themselves via src_for_dst[0..n_surv_corners-1].
+   * For new corners we write UV values that were precomputed by
+   * uv::fill_new_corner_uvs / uv::merge_uvs (all other corner attributes stay at default). */
   {
-    /* Build the src index array for surviving corners only (new corners keep defaults). */
     Array<int> src_for_dst(n_surv_corners + n_new_corners, 0);
     int dst_c = 0;
     src_survive_faces.foreach_index([&](const int64_t src_f, const int64_t /*dst_f*/) {
@@ -5397,9 +5828,44 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state)
       }
     });
     BLI_assert(dst_c == n_surv_corners);
-    /* New corners: no example yet — leave src index 0 (default values). */
-    bke::gather_attributes(
-        src_attrs, bke::AttrDomain::Corner, bke::AttrDomain::Corner, geom_filter, src_for_dst, dst_attrs);
+    /* New corners: all attributes except UV default to 0 (from gather_attributes below).
+     * UV values are written separately after the gather. */
+    bke::gather_attributes(src_attrs,
+                           bke::AttrDomain::Corner,
+                           bke::AttrDomain::Corner,
+                           geom_filter,
+                           src_for_dst,
+                           dst_attrs);
+
+    /* Write precomputed UV values for new corners into the output mesh. */
+    const int num_uv_layers = int(state.uv_layer_info.maps.size());
+    if (num_uv_layers > 0) {
+      bke::MutableAttributeAccessor out_attrs = dst->attributes_for_write();
+      const Span<int> new_corner_verts = emesh.new_corner_verts();
+
+      const int new_corner_dst_start = n_surv_corners;
+
+      for (int li = 0; li < num_uv_layers; li++) {
+        const StringRef layer_name = state.uv_layer_info.maps[li].name;
+        bke::AttributeWriter<float2> uv_writer = out_attrs.lookup_for_write<float2>(layer_name);
+        if (!uv_writer) {
+          continue;
+        }
+        MutableSpan<float2> dst_uv = uv_writer.varray.get_internal_span();
+        if (dst_uv.is_empty()) {
+          /* Varray is not backed by a contiguous span; skip. */
+          uv_writer.finish();
+          continue;
+        }
+
+        /* Overwrite new-corner UV values with the interpolated + merged results. */
+        const Span<float2> new_uvs = emesh.new_corner_uvs(li);
+        for (int nc = 0; nc < int(new_corner_verts.size()); nc++) {
+          dst_uv[new_corner_dst_start + nc] = new_uvs[nc];
+        }
+        uv_writer.finish();
+      }
+    }
   }
 
   BLI_assert(bke::mesh_is_valid(*dst));
@@ -5436,48 +5902,18 @@ std::optional<Mesh *> mesh_bevel(
     construct::build_boundary(state.emesh, state, bv, true);
     construct::determine_uv_vert_connectivity(state, v);
     construct::build_vmesh(state, bv);
-    if (v == 1) {
-      fmt::println("\nMESH code dump bv for vert 1");
-      debug::dump_bev_vert(*bv);
-      /* Diagnostic: print boundary ring ->v at i=count-1 including wrap k=seg. */
-      if (bv->vmesh && bv->vmesh->count > 2) {
-        VMesh *vm_dbg = bv->vmesh.get();
-        const int ns_dbg = vm_dbg->seg;
-        fmt::print("  DEBUG boundary ring i=2: ");
-        for (int kk = 0; kk <= ns_dbg; kk++) {
-          fmt::print("k={} v={} | ", kk, geom::mesh_vert(vm_dbg, 2, 0, kk)->v);
-        }
-        fmt::println("");
-      }
-    }
   });
 
   /* Build edge-strip polygons along each beveled edge. */
   if (params.affect_type != BevelAffect::Vertices) {
     state.selection.foreach_index(
         [&](const int e) { construct::bevel_build_edge_polygons(state, e); });
-
-    /* Debug: dump edge polygons for vertex 1. */
-    {
-      BevVert *bv1 = state.vert_hash.lookup_default(1, nullptr);
-      if (bv1) {
-        debug::dump_edge_polygons(state, *bv1);
-      }
-    }
   }
 
   /* Rebuild original faces that touch beveled vertices. */
   Vector<int> rebuilt_orig_faces;
   int rebuilt_face_0 = -1;
   construct::bevel_rebuild_existing_polygons(state, rebuilt_orig_faces, rebuilt_face_0);
-
-  /* Debug: dump the rebuilt face that replaced original face 0. */
-  fmt::println("\nMESH rebuilt face for orig face 0:");
-  debug::dump_rebuilt_face(state, rebuilt_face_0);
-
-  /* Debug: dump the example face recorded for each newly created face. */
-  fmt::println("\n");
-  debug::dump_new_face_examples(state);
 
   /* Kill the original faces that were rebuilt, mirroring BMesh's deferred kill pattern. */
   for (const int f : rebuilt_orig_faces) {
@@ -5486,6 +5922,12 @@ std::optional<Mesh *> mesh_bevel(
 
   /* Kill original beveled vertices. */
   state.bevel_affected_vertices.foreach_index([&](const int v) { state.emesh.vert_kill(v); });
+
+  /* Interpolate UV values for new corners, then merge at seam vertices. */
+  if (state.uv_layer_info.has_math_layers) {
+    construct::fill_new_corner_uvs(state);
+    construct::merge_uvs(state);
+  }
 
   /* TODO: bevel_extend_edge_data (sharp/seam propagation). */
 
