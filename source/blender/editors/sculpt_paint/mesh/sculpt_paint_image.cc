@@ -28,6 +28,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
+#include "BLI_enumerable_thread_specific.hh"
 
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
@@ -184,9 +185,13 @@ static void calc_brush_colors(MutableSpan<float4> buffer_colors,
 {
   BLI_assert(buffer_colors.size() == factors.size());
 
-  for (const int i : buffer_colors.index_range()) {
-    buffer_colors[i] = brush_color * factors[i];
-  }
+  threading::isolate_task([&] {
+    threading::parallel_for(buffer_colors.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        buffer_colors[i] = brush_color * factors[i];
+      }
+    });
+  });
 }
 
 static MutableSpan<float4> read_image_pixels(MutableSpan<float4> image_pixels,
@@ -220,9 +225,13 @@ static MutableSpan<float4> read_image_pixels(Span<uchar4> image_pixels,
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x) + range.start();
 
-  for (int i = 0; i < range.size(); i++) {
-    rgba_uchar_to_float(storage[i], image_pixels[start_offset + i]);
-  }
+  threading::isolate_task([&]() {
+    threading::parallel_for(range, 512, [&](const IndexRange range) {
+      for (int i = 0; i < range.size(); i++) {
+        rgba_uchar_to_float(storage[i], image_pixels[start_offset + i]);
+      }
+    });
+  });
 
   if (processors.is_noop) {
     return storage;
@@ -249,9 +258,13 @@ static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
   const int start_offset = int(pixel_row.start_image_coordinate.y) * width +
                            int(pixel_row.start_image_coordinate.x) + range.start();
 
-  for (int i = 0; i < range.size(); i++) {
-    rgba_float_to_uchar(image_pixels[start_offset + i], scene_linear_pixels[i]);
-  }
+  threading::isolate_task([&]() {
+    threading::parallel_for(range, 512, [&](const IndexRange range) {
+      for (int i = 0; i < range.size(); i++) {
+        rgba_float_to_uchar(image_pixels[start_offset + i], scene_linear_pixels[i]);
+      }
+    });
+  });
 }
 
 static void write_image_pixels(MutableSpan<float4> scene_linear_pixels,
@@ -280,10 +293,14 @@ static void blend_colors(MutableSpan<float4> paint_pixels,
   BLI_assert(paint_pixels.size() == scene_linear_pixels.size());
 
   /* Mix the initial image color with the paint color. */
-  for (const int i : paint_pixels.index_range()) {
-    blend_color_mix_float(paint_pixels[i], scene_linear_pixels[i], paint_pixels[i]);
-    paint_pixels[i] *= brush.alpha;
-  }
+  threading::isolate_task([&] {
+    threading::parallel_for(paint_pixels.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        blend_color_mix_float(paint_pixels[i], scene_linear_pixels[i], paint_pixels[i]);
+        paint_pixels[i] *= brush.alpha;
+      }
+    });
+  });
 
   /* Apply the blended color to the original image with the brush alpha. */
   IMB_blend_color_float(
@@ -302,6 +319,16 @@ static void apply_debug_color(MutableSpan<float4> paint_pixels, const PackedPixe
   }
 }
 #endif
+
+struct LocalData {
+  Vector<float4> byte_to_float_pixels;
+  Vector<float4> paint_pixels;
+  Vector<float3> pixel_positions;
+  Vector<float> factors;
+  Vector<float> distances;
+
+  MutableSpan<float4> scene_linear_pixels;
+};
 
 static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
@@ -335,12 +362,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   debug_color[3] = 1.0f;
 #endif
 
-  Vector<float4> byte_to_float_pixels;
-  Vector<float4> paint_pixels;
-  Vector<float3> pixel_positions;
-  Vector<float> factors;
-  Vector<float> distances;
-
   bool pixels_updated = false;
   IndexMaskMemory memory;
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
@@ -370,67 +391,68 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
           return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
 
+    threading::EnumerableThreadSpecific<LocalData> all_tls;
     valid_primitives.foreach_index([&](const int i) {
       const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
       const bool pixels_painted = threading::parallel_reduce(
           IndexRange(pixel_row.num_pixels),
-          256,
+          512,
           false,
           [&](const IndexRange range, bool /*changed*/) {
-            pixel_positions.resize(range.size());
+            LocalData &tls = all_tls.local();
+            tls.pixel_positions.resize(range.size());
             calc_pixel_row_positions(positions,
                                      pbvh_data.vert_tris,
                                      pixel_node.uv_primitives.tri_indices,
                                      pixel_node.uv_primitives.delta_barycentric_coords,
                                      pixel_row,
                                      range,
-                                     pixel_positions);
+                                     tls.pixel_positions);
 
-            factors.resize(pixel_positions.size());
-            factors.fill(1.0f);
+            tls.factors.resize(tls.pixel_positions.size());
+            tls.factors.fill(1.0f);
 
-            distances.resize(pixel_positions.size());
+            tls.distances.resize(tls.pixel_positions.size());
             calc_brush_distances(
-                ss, pixel_positions, eBrushFalloffShape(brush.falloff_shape), distances);
-            filter_distances_with_radius(cache.radius, distances, factors);
-            apply_hardness_to_distances(cache, distances);
-            calc_brush_strength_factors(cache, brush, distances, factors);
-            calc_brush_texture_factors(ss, brush, pixel_positions, factors);
-            scale_factors(factors, cache.bstrength);
+                ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
+            filter_distances_with_radius(cache.radius, tls.distances, tls.factors);
+            apply_hardness_to_distances(cache, tls.distances);
+            calc_brush_strength_factors(cache, brush, tls.distances, tls.factors);
+            calc_brush_texture_factors(ss, brush, tls.pixel_positions, tls.factors);
+            scale_factors(tls.factors, cache.bstrength);
 
             const bool nonzero_factor = std::ranges::any_of(
-                factors, [](const float factor) { return factor != 0.0f; });
+                tls.factors, [](const float factor) { return factor != 0.0f; });
 
             if (!nonzero_factor) {
               return false;
             }
 
-            paint_pixels.resize(pixel_positions.size());
-            calc_brush_colors(paint_pixels, factors, brush_color);
+            tls.paint_pixels.resize(tls.pixel_positions.size());
+            calc_brush_colors(tls.paint_pixels, tls.factors, brush_color);
 
-            MutableSpan<float4> scene_linear_pixels;
             if (!float_buffer.is_empty()) {
-              scene_linear_pixels = read_image_pixels(
+              tls.scene_linear_pixels = read_image_pixels(
                   float_buffer, *processors, pixel_row, range,image_buffer->x);
             }
             else {
-              scene_linear_pixels = read_image_pixels(
-                  byte_buffer, *processors, pixel_row, range, image_buffer->x, byte_to_float_pixels);
+              tls.scene_linear_pixels = read_image_pixels(
+                  byte_buffer, *processors, pixel_row, range, image_buffer->x, tls.byte_to_float_pixels);
             }
 
 #ifdef DEBUG_PIXEL_NODES
             apply_debug_color(scene_linear_pixels, pixel_row);
 #endif
 
-            blend_colors(paint_pixels, scene_linear_pixels, brush);
+            blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
 
             if (!float_buffer.is_empty()) {
               write_image_pixels(
-                  paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
+                  tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
             }
             else {
               write_image_pixels(
-                  paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
+                  tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
             }
             return true;
           },
