@@ -96,8 +96,27 @@ class MotionPathTestArmature(unittest.TestCase):
         # The motion path frame_end is exclusive while the scene frame_end is inclusive.
         self.assertEqual(motion_path.frame_end, bpy.context.scene.frame_end + 1)
 
-    def test_bake_location(self):
-        pass
+    def test_bake_head_tail(self):
+        """Bones can bake either at the head or the tail."""
+        self.pose_bone_a.keyframe_insert("location", frame=10)
+        self.pose_bone_a.location = (1, 0, 0)
+        self.pose_bone_a.keyframe_insert("location", frame=0)
+        bpy.ops.pose.paths_calculate(range='KEYS_ALL', bake_location='HEADS')
+
+        motion_path = self.pose_bone_a.motion_path
+        for point in motion_path.points:
+            self.assertAlmostEqual(point.co[0], 1, 3)
+
+        # If we don't clear the bath, the bake option has no effect.
+        bpy.ops.pose.paths_calculate(range='KEYS_ALL', bake_location='TAILS')
+        for point in motion_path.points:
+            self.assertAlmostEqual(point.co[0], 1, 3)
+
+        bpy.ops.pose.paths_clear(only_selected=True)
+        bpy.ops.pose.paths_calculate(range='KEYS_ALL', bake_location='TAILS')
+        motion_path = self.pose_bone_a.motion_path
+        for point in motion_path.points:
+            self.assertAlmostEqual(point.co[0], 0, 3)
 
 
 def main():
