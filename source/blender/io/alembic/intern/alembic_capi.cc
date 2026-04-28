@@ -561,9 +561,6 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
 
     if (reader->valid()) {
       reader->readObjectData(data->bmain, sample_sel);
-
-      data->min_time = std::min(data->min_time, reader->minTime());
-      data->max_time = std::max(data->max_time, reader->maxTime());
     }
     else {
       std::cerr << "Object " << reader->name() << " in Alembic file " << filepath
@@ -576,6 +573,12 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
       data->was_cancelled = true;
       return;
     }
+  }
+
+  const TimeInfo time_info = archive->getTimeInfo();
+  if (time_info.is_valid()) {
+    data->min_time = std::min(data->min_time, time_info.min_time);
+    data->max_time = std::max(data->max_time, time_info.max_time);
   }
 
   /* Setup parenthood. */

@@ -27,11 +27,15 @@
 
 namespace blender {
 
+using Alembic::Abc::chrono_t;
 using Alembic::Abc::ErrorHandler;
 using Alembic::Abc::Exception;
 using Alembic::Abc::IArchive;
+using Alembic::Abc::index_t;
 using Alembic::Abc::kWrapExisting;
 using Alembic::Abc::MetaData;
+using Alembic::Abc::TimeSamplingPtr;
+using Alembic::Abc::TimeSamplingType;
 
 namespace io::alembic {
 
@@ -159,5 +163,52 @@ bool ArchiveReader::is_blender_archive_version_prior_44()
   return false;
 }
 
+TimeInfo ArchiveReader::getTimeInfo()
+{
+  const uint32_t num_time_sampling_ptrs = m_archive.getNumTimeSamplings();
+
+  chrono_t min_time = std::numeric_limits<chrono_t>::max();
+  chrono_t max_time = -std::numeric_limits<chrono_t>::max();
+
+  for (uint32_t i = 0; i < num_time_sampling_ptrs; ++i) {
+    const index_t max_samples = m_archive.getMaxNumSamplesForTimeSamplingIndex(i);
+
+    /* This can only happen in very old files, predating the original Blender Alembic support,
+     * however let's make sure this case is handled. */
+    if (max_samples == INDEX_UNKNOWN) {
+      continue;
+    }
+
+    const TimeSamplingPtr time_sampling_ptr = m_archive.getTimeSampling(i);
+    BLI_assert_msg(time_sampling_ptr,
+                   "could not get Alembic time sampling even though it was declared as available");
+
+    const TimeSamplingType &time_sampling_type = time_sampling_ptr->getTimeSamplingType();
+
+    /* Ignore time samplings with values similar to that of a default constructed TimeSampling.
+     *
+     * Those are ignored as it represents a static frame of a 1 second duration which might corrupt
+     * the time range computation (e.g. if the animation is supposed to be at 24 FPS, then the
+     * frame duration should about 0.041 second, the default will scale up the time range by 24).
+     *
+     * Since time samplings are deduplicated when writing archives, if all time samplings in the
+     * file have the same values as the default, then there is no animation, as there would only be
+     * a single time sampling representing a static frame. The default TimeSampling should be at
+     * index 0, but it is still possible that the file was badly written and duplicates exist, so
+     * we perform this check in the loop.
+     */
+    if (time_sampling_ptr->getNumStoredTimes() == 1 &&
+        time_sampling_ptr->getStoredTimes()[0] == 0.0 &&
+        time_sampling_type.getTimePerCycle() == 1.0)
+    {
+      continue;
+    }
+
+    min_time = std::min(min_time, time_sampling_ptr->getSampleTime(0));
+    max_time = std::max(max_time, time_sampling_ptr->getSampleTime(max_samples - 1));
+  }
+
+  return {min_time, max_time};
+}
 }  // namespace io::alembic
 }  // namespace blender
