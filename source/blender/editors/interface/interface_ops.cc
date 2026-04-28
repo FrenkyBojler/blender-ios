@@ -2798,7 +2798,7 @@ static bool view_item_rename_poll(bContext *C)
 static wmOperatorStatus view_item_rename_exec(bContext *C, wmOperator * /*op*/)
 {
   ARegion *region = CTX_wm_region(C);
-  AbstractView *view = get_view_focused(C);
+  const AbstractView *view = get_view_focused(C);
   AbstractViewItem *active_item = region_views_find_active_item(region, view);
 
   view_item_begin_rename(*active_item);
