@@ -1990,7 +1990,7 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
         col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
 
         col = layout.column()
-        col.prop(layout, "composition_guide_color", text="Color")
+        col.prop(item, "composition_guide_color", text="Color")
 
 
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):
