@@ -814,18 +814,16 @@ void action_group_colors_sync(bActionGroup *grp)
   }
 }
 
-void action_group_colors_set_from_posebone(bActionGroup *grp,
-                                           const bArmature &armature,
-                                           const bPoseChannel *pchan)
+void action_group_colors_set_from_posebone(bActionGroup *grp, const bke::PChanBoneConst pchanbone)
 {
-  BLI_assert_msg(pchan, "cannot 'set action group colors from posebone' without a posebone");
-  const Bone *bone = pchan->bone_get(armature);
-  if (!bone) {
+  BLI_assert_msg(pchanbone.pchan,
+                 "cannot 'set action group colors from posebone' without a posebone");
+  if (!pchanbone.bone) {
     /* pchan->bone is only set after leaving editmode. */
     return;
   }
 
-  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get({pchan, bone});
+  const BoneColor &color = animrig::ANIM_bonecolor_posebone_get(pchanbone);
   action_group_colors_set(grp, &color);
 }
 
