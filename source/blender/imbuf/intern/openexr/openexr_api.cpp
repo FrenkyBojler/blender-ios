@@ -649,6 +649,8 @@ bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int flags)
     ibuf->encoded_size = 0;
   }
 
+  /* Use half precision when asked for it, or if source is a
+   * byte image (half precision is always enough for that case). */
   const bool half_precision = (ibuf->foptions.flag & OPENEXR_HALF) ||
                               ibuf->float_data() == nullptr;
 
