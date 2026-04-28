@@ -13,14 +13,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Position"_ustr, AttributeFieldInput::position_field());
+  params.set_output("Position"_ustr, AttributeFieldInput::get_field<float3, "position">());
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputPosition", GEO_NODE_INPUT_POSITION);
+  geo_node_type_base(&ntype, "GeometryNodeInputPosition"_ustr, GEO_NODE_INPUT_POSITION);
   ntype.ui_name = "Position";
   ntype.ui_description = "Retrieve a vector indicating the location of each element";
   ntype.enum_name_legacy = "POSITION";
