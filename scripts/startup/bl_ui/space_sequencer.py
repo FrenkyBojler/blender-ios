@@ -237,6 +237,7 @@ class SEQUENCER_PT_preview_overlay(Panel):
         if (body):
             SEQUENCER_PT_view_composition_guides.draw_composition_guides_panel(overlay_settings, body)
 
+
 class SEQUENCER_PT_sequencer_overlay(Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'HEADER'
@@ -1958,12 +1959,12 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
         layout = self.layout
         overlay_settings = context.space_data.preview_overlay
         self.draw_composition_guides_panel(overlay_settings, layout)
-        
+
     @classmethod
     def draw_composition_guides_panel(cls, item, layout):
         if (not item.show_composition_guides):
             layout.enabled = False
-            
+
         # Left Side
         split = layout.split(factor=0.5, align=True)
         col = split.column(align=True)
@@ -1987,11 +1988,10 @@ class SEQUENCER_PT_view_composition_guides(SequencerButtonsPanel_Output, Panel):
         col = col.column(heading="Harmony", align=True)
         col.prop(item, "show_composition_harmony_tri_a", text="Triangle A")
         col.prop(item, "show_composition_harmony_tri_b", text="Triangle B")
-         
+
         col = layout.column()
         col.prop(layout, "composition_guide_color", text="Color")
-        
-        
+
 
 class SEQUENCER_PT_annotation(AnnotationDataPanel, SequencerButtonsPanel_Output, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'

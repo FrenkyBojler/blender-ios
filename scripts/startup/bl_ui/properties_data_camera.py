@@ -481,9 +481,9 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         cam = context.camera
         if not cam.show_composition_guides:
             layout.enabled = False
-            
+
         layout.use_property_split = True
-        
+
         layout.prop(cam, "show_composition_thirds")
 
         col = layout.column(heading="Center", align=True)
@@ -498,7 +498,7 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         col = layout.column(heading="Harmony", align=True)
         col.prop(cam, "show_composition_harmony_tri_a", text="Triangle A")
         col.prop(cam, "show_composition_harmony_tri_b", text="Triangle B")
-        
+
 
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):
     bl_label = "Safe Areas"
