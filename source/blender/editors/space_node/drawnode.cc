@@ -1108,12 +1108,9 @@ static void draw_node_socket_name_editable(ui::Layout *layout,
       layout->emboss_set(ui::EmbossType::None);
       layout->prop((&sock->runtime->declaration->socket_name_rna->owner),
                    sock->runtime->declaration->socket_name_rna->property_name,
-                   UI_ITEM_NONE,
+                   ui::ITEM_R_TEXT_BUT_LABEL_STYLE,
                    "",
                    ICON_NONE);
-      if (ui::Button *but = layout->last_button()) {
-        ui::button_flag2_enable(but, ui::BUT2_NODE_SOCKET_NAME_EDITABLE);
-      }
       return;
     }
   }

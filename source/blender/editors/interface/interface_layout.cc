@@ -2339,6 +2339,9 @@ void Layout::prop(PointerRNA *ptr,
     if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)) {
       button_flag2_enable(but, BUT2_FORCE_SEMI_MODAL_ACTIVE);
     }
+    if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_LABEL_STYLE)) {
+      button_flag2_enable(but, BUT2_TEXT_LABEL_STYLE);
+    }
   }
 
 #ifdef UI_PROP_DECORATE
@@ -5693,11 +5696,6 @@ Layout &block_layout(Block *block,
 Block *Layout::block() const
 {
   return root_->block;
-}
-
-Button *Layout::last_button() const
-{
-  return root_->block ? root_->block->last_but() : nullptr;
 }
 
 wm::OpCallContext Layout::operator_context() const

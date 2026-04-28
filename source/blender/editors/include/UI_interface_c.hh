@@ -405,8 +405,8 @@ enum {
    * buttons currently.
    */
   BUT2_FORCE_SEMI_MODAL_ACTIVE = 1 << 1,
-  /** Editable node socket name text button. */
-  BUT2_NODE_SOCKET_NAME_EDITABLE = 1 << 2,
+  /** Allow double click edit on text buttons with no emboss that look like labels. */
+  BUT2_TEXT_LABEL_STYLE = 1 << 2,
 };
 
 /** #Button.dragflag */

@@ -86,7 +86,7 @@ struct Item {
   friend struct ItemInternal;
 };
 
-enum eUI_Item_Flag : uint16_t;
+enum eUI_Item_Flag : uint32_t;
 
 enum class LayoutSeparatorType : int8_t {
   Auto,
@@ -174,7 +174,6 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void alignment_set(LayoutAlign alignment);
 
   [[nodiscard]] Block *block() const;
-  [[nodiscard]] Button *last_button() const;
 
   void context_copy(const bContextStore *context);
 
@@ -890,7 +889,7 @@ bool block_layout_needs_resolving(const Block *block);
  */
 void block_layout_free(Block *block);
 
-enum eUI_Item_Flag : uint16_t {
+enum eUI_Item_Flag : uint32_t {
   /* ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   ITEM_R_EXPAND = 1 << 1,
   ITEM_R_SLIDER = 1 << 2,
@@ -925,6 +924,8 @@ enum eUI_Item_Flag : uint16_t {
    * text input while leaving the remaining UI interactive).
    */
   ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE = 1 << 15,
+  /** Text buttons styled like labels. */
+  ITEM_R_TEXT_BUT_LABEL_STYLE = 1 << 16,
 };
 ENUM_OPERATORS(eUI_Item_Flag)
 #define UI_ITEM_NONE ui::eUI_Item_Flag(0)
