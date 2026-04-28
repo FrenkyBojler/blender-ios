@@ -251,7 +251,7 @@ class GeometryManager {
   GeometryManager();
   ~GeometryManager();
 
-  void update_motion_pre(Scene *scene);
+  void update_interactive_motion(Scene *scene);
 
   /* Device Updates */
   void device_update_preprocess(Device *device, Scene *scene, Progress &progress);

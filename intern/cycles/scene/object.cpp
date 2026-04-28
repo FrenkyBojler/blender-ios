@@ -503,7 +503,7 @@ ObjectManager::ObjectManager()
 
 ObjectManager::~ObjectManager() = default;
 
-void ObjectManager::update_motion_pre(Scene *scene)
+void ObjectManager::update_interactive_motion(Scene *scene)
 {
   bool update = false;
 

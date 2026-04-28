@@ -508,7 +508,7 @@ void Camera::update(Scene *scene)
   previous_need_motion = need_motion;
 }
 
-void Camera::update_motion_pre()
+void Camera::update_interactive_motion()
 {
   array<Transform> motion = get_motion();
   if (!motion.empty()) {

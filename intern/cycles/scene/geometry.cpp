@@ -173,7 +173,7 @@ GeometryManager::GeometryManager()
 
 GeometryManager::~GeometryManager() = default;
 
-void GeometryManager::update_motion_pre(Scene *scene)
+void GeometryManager::update_interactive_motion(Scene *scene)
 {
   bool update = false;
 

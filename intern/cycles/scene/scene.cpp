@@ -397,9 +397,9 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   if (!params.background && need_motion() != MOTION_NONE) {
     /* Swap current camera/object/vertex positions to previous positions for next frame. */
-    camera->update_motion_pre();
-    object_manager->update_motion_pre(this);
-    geometry_manager->update_motion_pre(this);
+    camera->update_interactive_motion();
+    object_manager->update_interactive_motion(this);
+    geometry_manager->update_interactive_motion(this);
   }
 
   if (print_stats) {

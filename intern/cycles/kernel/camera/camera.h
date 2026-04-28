@@ -607,7 +607,7 @@ ccl_device_forceinline float4 camera_motion_vector_direction(KernelGlobals kg, c
   float3 motion_pre;
   float3 motion_post;
 
-  /* camera motion, for perspective/orthographic motion.pre/post will be a
+  /* Camera motion, for perspective/orthographic motion.pre/post will be a
    * world-to-raster matrix, for panorama it's world-to-camera, for custom
    * we fall back to the world position until we have inverse mapping for it */
   if (kernel_data.cam.type == CAMERA_CUSTOM) {
