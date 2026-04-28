@@ -1710,11 +1710,10 @@ ImBuf *seq_render_strip(const RenderData *context,
                         Strip *strip,
                         float timeline_frame)
 {
-  const bool is_final_render = context->render != nullptr;
   bool use_preprocess = false;
   bool is_proxy_image = false;
 
-  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip, is_final_render);
+  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
   if (ibuf != nullptr) {
     return ibuf;
   }
@@ -1732,7 +1731,7 @@ ImBuf *seq_render_strip(const RenderData *context,
     use_preprocess = seq_input_have_to_preprocess(strip);
     ibuf = seq_render_preprocess_ibuf(
         context, state, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
-    intra_frame_cache_put_preprocessed(context->scene, strip, is_final_render, ibuf);
+    intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
   }
 
   if (ibuf == nullptr) {
@@ -1837,7 +1836,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
   for (i = strips.size() - 1; i >= 0; i--) {
     Strip *strip = strips[i];
 
-    out = intra_frame_cache_get_composite(context->scene, strip, context->render != nullptr);
+    out = intra_frame_cache_get_composite(context->scene, strip);
     if (out) {
       break;
     }
@@ -1906,7 +1905,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
               context, state, strip, timeline_frame, ibuf1, ibuf2);
           IMB_metadata_copy(out, ibuf2);
 
-          intra_frame_cache_put_composite(context->scene, strip, context->render != nullptr, out);
+          intra_frame_cache_put_composite(context->scene, strip, out);
 
           IMB_freeImBuf(ibuf1);
           IMB_freeImBuf(ibuf2);
@@ -1938,7 +1937,7 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
       IMB_freeImBuf(ibuf2);
     }
 
-    intra_frame_cache_put_composite(context->scene, strip, context->render != nullptr, out);
+    intra_frame_cache_put_composite(context->scene, strip, out);
   }
 
   return out;

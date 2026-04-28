@@ -34,6 +34,7 @@ struct IntraFrameCache {
   int view_id = -1;
   int width = -1;
   int height = -1;
+  bool is_render = false;
 
   ~IntraFrameCache()
   {
@@ -60,6 +61,7 @@ void intra_frame_cache_invalidate(Scene *scene)
     cache->view_id = -1;
     cache->width = -1;
     cache->height = -1;
+    cache->is_render = false;
   }
 }
 
@@ -118,11 +120,8 @@ void StripImageMap::clear()
   this->map_.clear();
 }
 
-ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip, bool is_render)
+ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip)
 {
-  if (is_render) {
-    return nullptr;
-  }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (strip == nullptr || cache == nullptr) {
     return nullptr;
@@ -130,11 +129,8 @@ ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip, bool
   return cache->preprocessed.get(strip);
 }
 
-ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip, bool is_render)
+ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip)
 {
-  if (is_render) {
-    return nullptr;
-  }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (strip == nullptr || cache == nullptr) {
     return nullptr;
@@ -142,14 +138,9 @@ ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip, bool is
   return cache->composite.get(strip);
 }
 
-void intra_frame_cache_put_preprocessed(Scene *scene,
-                                        const Strip *strip,
-                                        bool is_render,
-                                        ImBuf *image)
+void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf *image)
 {
-  if (is_render || scene == nullptr || scene->ed == nullptr || strip == nullptr ||
-      image == nullptr)
-  {
+  if (scene == nullptr || scene->ed == nullptr || strip == nullptr || image == nullptr) {
     return;
   }
   IntraFrameCache *&cache = scene->ed->runtime->intra_frame_cache;
@@ -159,14 +150,9 @@ void intra_frame_cache_put_preprocessed(Scene *scene,
   cache->preprocessed.put(strip, image);
 }
 
-void intra_frame_cache_put_composite(Scene *scene,
-                                     const Strip *strip,
-                                     bool is_render,
-                                     ImBuf *image)
+void intra_frame_cache_put_composite(Scene *scene, const Strip *strip, ImBuf *image)
 {
-  if (is_render || scene == nullptr || scene->ed == nullptr || strip == nullptr ||
-      image == nullptr)
-  {
+  if (scene == nullptr || scene->ed == nullptr || strip == nullptr || image == nullptr) {
     return;
   }
   IntraFrameCache *&cache = scene->ed->runtime->intra_frame_cache;
@@ -187,18 +173,16 @@ void intra_frame_cache_destroy(Scene *scene)
 void intra_frame_cache_set_cur_frame(
     Scene *scene, float frame, int view_id, int width, int height, bool is_render)
 {
-  if (is_render) {
-    return;
-  }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (cache != nullptr) {
     if (cache->timeline_frame != frame || cache->view_id != view_id || cache->width != width ||
-        cache->height != height)
+        cache->height != height || cache->is_render != is_render)
     {
       cache->timeline_frame = frame;
       cache->view_id = view_id;
       cache->width = width;
       cache->height = height;
+      cache->is_render = is_render;
       cache->preprocessed.clear();
       cache->composite.clear();
     }
