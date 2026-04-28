@@ -72,6 +72,8 @@
  *    pointers to virtual member functions.
  */
 
+#include <atomic>
+
 #include "BLI_dynamic_stack_buffer.hh"  // IWYU pragma: keep
 #include "BLI_enum_flags.hh"
 #include "BLI_hash.hh"
@@ -82,6 +84,8 @@
 #include "BLI_utility_mixins.hh"
 
 namespace blender {
+
+struct UniqueHashBytes;
 
 /**
  * Different types support different features. Features like copy constructability can be detected
@@ -203,6 +207,7 @@ class CPPType : NonCopyable, NonMovable {
   void (*print_)(const void *value, std::stringstream &ss) = nullptr;
   bool (*is_equal_)(const void *a, const void *b) = nullptr;
   uint64_t (*hash_)(const void *value) = nullptr;
+  void (*hash_unique_)(const void *value, UniqueHashBytes &hash) = nullptr;
 
   const void *default_value_ = nullptr;
   std::string debug_name_;
@@ -215,10 +220,9 @@ class CPPType : NonCopyable, NonMovable {
   /**
    * Get the `CPPType` that corresponds to a specific static type.
    * This only works for types that actually implement the template specialization using
-   * `BLI_CPP_TYPE_MAKE`.
+   * `BLI_CPP_TYPE_REGISTER`.
    */
   template<typename T> static const CPPType &get();
-  template<typename T> static const CPPType &get_impl();
 
   /**
    * Returns the name of the type for debugging purposes. This name should not be used as
@@ -377,6 +381,7 @@ class CPPType : NonCopyable, NonMovable {
 
   uint64_t hash(const void *value) const;
   uint64_t hash_or_fallback(const void *value, uint64_t fallback_hash) const;
+  void hash_unique(const void *value, UniqueHashBytes &hash) const;
 
   /**
    * Get a pointer to a constant value of this type. The specific value depends on the type.
@@ -421,6 +426,13 @@ class CPPType : NonCopyable, NonMovable {
   }
 };
 
+namespace detail {
+/**
+ * Global static variable that contains the #CPPType for a given type after it has been registered
+ * with #BLI_CPP_TYPE_REGISTER. This should generally be accessed through #CPPType::get<T>. */
+template<typename T> inline TypedBuffer<CPPType> cpp_type_impl{};
+}  // namespace detail
+
 /**
  * Initialize and register basic cpp types.
  */
@@ -432,7 +444,7 @@ void register_cpp_types();
   void *variable_name = stack_buffer_for_##variable_name.buffer();
 
 /* Give a compile error instead of a link error when type information is missing. */
-template<> const CPPType &CPPType::get_impl<void>() = delete;
+template<> const CPPType &CPPType::get<void>() = delete;
 
 /**
  * Two types only compare equal when their pointer is equal. No two instances of CPPType for the
@@ -450,8 +462,11 @@ inline bool operator!=(const CPPType &a, const CPPType &b)
 
 template<typename T> inline const CPPType &CPPType::get()
 {
-  /* Store the #CPPType locally to avoid making the function call in most cases. */
-  static const CPPType &type = CPPType::get_impl<std::decay_t<T>>();
+  const CPPType &type = detail::cpp_type_impl<std::decay_t<T>>.ref();
+  /* Should have been initialized by #BLI_CPP_TYPE_REGISTER.
+   * If this is hit in test code, make sure the test calls `register_cpp_types` (for blenlib
+   * tests) or `BKE_cpp_types_init` (for general tests). */
+  BLI_assert(type.size > 0);
   return type;
 }
 
@@ -694,6 +709,11 @@ inline uint64_t CPPType::hash_or_fallback(const void *value, uint64_t fallback_h
     return this->hash(value);
   }
   return fallback_hash;
+}
+
+inline void CPPType::hash_unique(const void *value, UniqueHashBytes &hash) const
+{
+  this->hash_unique_(value, hash);
 }
 
 inline const void *CPPType::default_value() const
