@@ -325,8 +325,7 @@ enum GeometryNodeAssetTraitFlag {
 ENUM_OPERATORS(GeometryNodeAssetTraitFlag);
 
 enum CompositorNodeAssetTraitFlag {
-  COMPOSIT_NODE_ASSET_SCENE = (1 << 0),
-  COMPOSIT_NODE_ASSET_STRIP_MODIFIER = (1 << 1),
+  COMPOSIT_NODE_ASSET_STRIP_MODIFIER = (1 << 0),
 };
 ENUM_OPERATORS(CompositorNodeAssetTraitFlag);
 
