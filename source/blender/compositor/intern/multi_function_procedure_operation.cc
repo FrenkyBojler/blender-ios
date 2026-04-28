@@ -92,7 +92,7 @@ void MultiFunctionProcedureOperation::execute()
       }
       else {
         output.allocate_texture(domain);
-        parameter_builder.add_uninitialized_single_output(output.cpu_data());
+        parameter_builder.add_uninitialized_single_output(output.cpu_data_for_write());
       }
     }
   }
@@ -152,6 +152,7 @@ void MultiFunctionProcedureOperation::build_procedure()
   }
 
   mf::ReturnInstruction &return_instruction = procedure_builder_.add_return();
+  procedure_.prepare_for_execution();
   mf::procedure_optimization::move_destructs_up(procedure_, return_instruction);
   BLI_assert(procedure_.validate());
 }

@@ -4437,9 +4437,8 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
   const StructRNA *srna_base = static_cast<const StructRNA *>(py_srna->ptr->data);
 
   if (srna_base == RNA_Node) {
-    const UString idname(id);
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = bke::node_type_find_alias(idname).c_str();
+    const UString idname = bke::node_type_find_alias(UString(id));
 
     bke::bNodeType *nt = bke::node_type_find(idname);
     if (nt) {
@@ -5011,6 +5010,7 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
 {
   const char *name = PyUnicode_AsUTF8(pyname);
   PropertyRNA *prop = nullptr;
+  FunctionRNA *func = nullptr;
 
   PYRNA_STRUCT_CHECK_INT(self);
 
@@ -5032,6 +5032,18 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
                    RNA_struct_identifier(self->ptr->type));
       return -1;
     }
+  }
+  else if (name[0] != '_' && (func = RNA_struct_find_function(self->ptr->type, name)) &&
+           RNA_function_defined(func))
+  {
+    /* Python differentiates between non-existent and read-only for values in __dict__ which covers
+     * PyMethodDef and PyGetSetDef. This is only needed because RNA functions are not part of the
+     * __dict__. */
+    PyErr_Format(PyExc_AttributeError,
+                 "bpy_struct: attribute \"%.200s\" from \"%.200s\" is read-only",
+                 RNA_function_identifier(func),
+                 RNA_struct_identifier(self->ptr->type));
+    return -1;
   }
   else if (self->ptr->type == RNA_Context) {
     /* Code just raises correct error, context prop's can't be set,
