@@ -86,6 +86,18 @@ static void rna_def_timeline_marker(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Select", "Marker selection state");
   RNA_def_property_update(prop, 0, "rna_TimelineMarker_update");
 
+  /* Custom Color */
+  prop = RNA_def_property(srna, "use_custom_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", TIME_MARKER_USE_CUSTOM_COLOR);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Custom Color", "Use custom color for the marker");
+
+  prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_float_default(prop, 1.0);
+  RNA_def_property_ui_text(prop, "Color", "Custom color for the marker");
+  RNA_def_property_update(prop, 0, "rna_TimelineMarker_update");
+
   prop = RNA_def_property(srna, "camera", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);

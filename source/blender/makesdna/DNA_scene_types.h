@@ -1063,7 +1063,17 @@ struct TimeMarker {
   unsigned int flag = 0;
   struct Object *camera = nullptr;
   struct IDProperty *prop = nullptr;
+
+  float color[3] = {0.0f, 0.0f, 0.0f};
+  char _pad[4] = {};
 };
+
+typedef enum TimeMarkerFlag {
+  /* Use custom color for marker. */
+  TIME_MARKER_USE_CUSTOM_COLOR = (2 << 0),
+} TimeMarkerFlag;
+
+/** \} */
 
 /** \} */
 

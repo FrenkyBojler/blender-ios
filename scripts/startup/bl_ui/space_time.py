@@ -351,8 +351,46 @@ class TIME_PT_jump(TimelinePanelButtons, Panel):
         layout.prop(scene, "time_jump_delta", text="Delta")
 
 
-###################################
+class TIME_PT_markers(Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Markers"
+    bl_label = "Markers"
 
+    @classmethod
+    def poll(cls, context):
+        return context.scene.timeline_markers
+
+    def draw_header(self, context):
+        self.layout.prop(context.space_data, "show_markers", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        space = context.space_data
+        markers = context.scene.timeline_markers
+        layout.active = space.show_markers
+
+        # Selected marker properties.
+        for marker in markers:
+            if marker.select:
+                layout.prop(marker, "name", placeholder="Marker Name")
+                layout.prop(marker, "frame")
+
+                col = layout.column(align=False, heading="Color")
+                row = col.row(align=True)
+                sub = row.row(align=True)
+                sub.prop(marker, "use_custom_color", text="")
+                sub = sub.row(align=True)
+                sub.active = marker.use_custom_color
+                sub.prop(marker, "color", text="")
+
+                layout.prop(marker, "camera")
+
+
+###################################
 classes = (
     TIME_MT_view,
     TIME_PT_playback,
@@ -360,6 +398,7 @@ classes = (
     TIME_PT_auto_keyframing,
     TIME_PT_jump,
     TIME_PT_playhead_snapping,
+    TIME_PT_markers,
 )
 
 if __name__ == "__main__":  # only for live edit.

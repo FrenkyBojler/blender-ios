@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -469,6 +470,23 @@ static void marker_color_get(const TimeMarker *marker, uchar *r_text_color, ucha
   else {
     ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE, r_text_color);
     ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE, r_line_color);
+    // Set base theme colors based on selection status.
+    const int text_theme = (marker->flag & SELECT) ? TH_TEXT_HI : TH_TEXT;
+    const int line_theme = (marker->flag & SELECT) ? TH_TIME_MARKER_LINE_SELECTED :
+                                                     TH_TIME_MARKER_LINE;
+
+    ui::theme::get_color_4ubv(text_theme, r_text_color);
+    ui::theme::get_color_4ubv(line_theme, r_line_color);
+
+    // Apply custom color if the flag is set.
+    if (marker->flag & TIME_MARKER_USE_CUSTOM_COLOR) {
+      rgba_float_to_uchar(r_line_color, marker->color);
+
+      // Set alpha based on selection status.
+      const uchar alpha = (marker->flag & SELECT) ? 255 : 180;
+      r_text_color[3] = alpha;
+      r_line_color[3] = alpha;
+    }
   }
 }
 
@@ -565,6 +583,18 @@ static void draw_marker(const uiFontStyle *fstyle,
   }
   else {
     ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE, marker_color);
+    if (marker->flag & TIME_MARKER_USE_CUSTOM_COLOR) {
+      rgba_float_to_uchar(marker_color, marker->color);
+      marker_color[3] = 255;
+    }
+    else {
+      if (marker->flag & SELECT) {
+        ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE_SELECTED, marker_color);
+      }
+      else {
+        ui::theme::get_color_4ubv(TH_TEXT, marker_color);
+      }
+    }
   }
 
   constexpr int marker_y = 10;
@@ -1307,7 +1337,7 @@ static void ed_marker_duplicate_apply(bContext *C)
       newmarker->flag = SELECT;
       newmarker->frame = marker.frame;
       STRNCPY_UTF8(newmarker->name, marker.name);
-      newmarker->camera = marker.camera;
+      copy_v3_v3(newmarker->color, marker.color);
 
       if (marker.prop != nullptr) {
         newmarker->prop = IDP_CopyProperty(marker.prop);
