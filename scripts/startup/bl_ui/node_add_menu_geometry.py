@@ -317,7 +317,6 @@ class NODE_MT_gn_input_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Input/Group")
         self.draw_menu(layout, path="Input/Import")
         self.draw_menu(layout, path="Input/Scene")
-        self.draw_menu(layout, path="Input/Sound")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -434,6 +433,7 @@ class NODE_MT_gn_instance_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeTranslateInstances")
         layout.separator()
         self.node_operator(layout, "GeometryNodeInputInstanceBounds")
+        self.node_operator(layout, "GeometryNodeInputInstanceReference")
         self.node_operator(layout, "GeometryNodeInstanceTransform")
         self.node_operator(layout, "GeometryNodeInputInstanceRotation")
         self.node_operator(layout, "GeometryNodeInputInstanceScale")
@@ -1126,7 +1126,7 @@ add_menus = {
     "NODE_MT_category_utilities_list": NODE_MT_gn_utilities_list_base,
     "NODE_MT_category_utilities_matrix": NODE_MT_gn_utilities_matrix_base,
     "NODE_MT_category_GEO_UTILITIES_DEPRECATED": NODE_MT_gn_utilities_deprecated_base,
-    "NODE_MT_category_input_sound": NODE_MT_gn_utilities_sound_base,
+    "NODE_MT_category_utilities_sound": NODE_MT_gn_utilities_sound_base,
     "NODE_MT_geometry_node_add_all": NODE_MT_gn_all_base,
 }
 add_menus = node_add_menu.generate_menus(
@@ -1145,7 +1145,6 @@ swap_menus = {
     "NODE_MT_gn_input_group_swap": NODE_MT_gn_input_group_base,
     "NODE_MT_gn_input_import_swap": NODE_MT_gn_input_import_base,
     "NODE_MT_gn_input_scene_swap": NODE_MT_gn_input_scene_base,
-    "NODE_MT_gn_input_sound_swap": NODE_MT_gn_utilities_sound_base,
     "NODE_MT_gn_output_swap": NODE_MT_gn_output_base,
     "NODE_MT_gn_curve_swap": NODE_MT_gn_curve_base,
     "NODE_MT_gn_curve_read_swap": NODE_MT_gn_curve_read_base,
@@ -1193,6 +1192,7 @@ swap_menus = {
     "NODE_MT_gn_utilities_rotation_swap": NODE_MT_gn_utilities_rotation_base,
     "NODE_MT_gn_utilities_list_swap": NODE_MT_gn_utilities_list_base,
     "NODE_MT_gn_utilities_matrix_swap": NODE_MT_gn_utilities_matrix_base,
+    "NODE_MT_gn_utilities_sound_swap": NODE_MT_gn_utilities_sound_base,
     "NODE_MT_gn_utilities_deprecated_swap": NODE_MT_gn_utilities_deprecated_base,
     "NODE_MT_geometry_node_swap_all": NODE_MT_gn_all_base,
 }
