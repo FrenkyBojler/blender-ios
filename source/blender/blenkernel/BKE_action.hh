@@ -12,6 +12,8 @@
 #include "BLI_function_ref.hh"
 #include "BLI_span.hh"
 
+#include "BKE_pose.hh"
+
 namespace blender {
 
 struct BlendDataReader;
@@ -82,9 +84,7 @@ void action_group_colors_set(bActionGroup *grp, const BoneColor *color);
  *
  * Note that if the posechan's armature bone cannot be found, this function silently does nothing.
  */
-void action_group_colors_set_from_posebone(bActionGroup *grp,
-                                           const bArmature &armature,
-                                           const bPoseChannel *pchan);
+void action_group_colors_set_from_posebone(bActionGroup *grp, bke::PChanBoneConst pchanbone);
 
 /* Pose API ----------------- */
 
