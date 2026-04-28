@@ -54,8 +54,6 @@ enum FontFlags {
   BLF_LAST_RESORT = 1 << 15,
   /** Failure to load this font. Don't try again. */
   BLF_BAD_FONT = 1 << 16,
-  // BLF_RENDER_SUBPIXELAA = 1 << 18,
-
   /** Do not look in other fonts when a glyph is not found in this font. */
   BLF_NO_FALLBACK = 1 << 19,
 };

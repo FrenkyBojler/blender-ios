@@ -32,6 +32,8 @@
 
 #include "BLF_api.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "GPU_capabilities.hh"
 
 #include "blf_internal.hh"
@@ -1437,7 +1439,7 @@ GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
 
 GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int32_t pen_x)
 {
-  if (font->flags & BLF_MONOSPACED) {
+  if (!(U.text_render & USER_TEXT_RENDER_SUBPIXELAA) || (font->flags & BLF_MONOSPACED)) {
     return g;
   }
 
