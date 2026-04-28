@@ -93,8 +93,6 @@
 
 namespace blender {
 
-namespace geo_log = nodes::geo_eval_log;
-
 namespace ed::geometry {
 
 using asset_system::AssetRepresentation;
@@ -102,8 +100,9 @@ using asset_system::AssetRepresentation;
 struct ErrorsForType {
   int duplicate_count = 0;
   bool is_builtin_operator = false;
+  bool invalid_metadata = false;
   Vector<std::string> idname_validation_errors;
-  Vector<std::string> invalid_metadata_errors;
+  Vector<std::string> invalid_input_metadata_errors;
 
   friend bool operator==(const ErrorsForType &a, const ErrorsForType &b) = default;
 };
@@ -243,6 +242,8 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
   const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
       &metadata, "geometry_node_asset_traits_flag");
   if (!traits_flag || traits_flag->type != IDP_INT) {
+    ErrorsForType &errors_for_type = errors.lookup_or_add_default_as(*custom_idname);
+    errors_for_type.invalid_metadata = true;
     return std::nullopt;
   }
   type_data.flag = GeometryNodeAssetTraitFlag(IDP_int_get(traits_flag));
@@ -250,10 +251,14 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
 
   const IDProperty *properties = BKE_asset_metadata_idprop_find(&metadata, "properties");
   if (!properties || properties->type != IDP_GROUP) {
+    ErrorsForType &errors_for_type = errors.lookup_or_add_default_as(*custom_idname);
+    errors_for_type.invalid_metadata = true;
     return std::nullopt;
   }
   const IDProperty *inputs = IDP_GetPropertyFromGroup(properties, "inputs");
   if (!inputs || inputs->type != IDP_GROUP) {
+    ErrorsForType &errors_for_type = errors.lookup_or_add_default_as(*custom_idname);
+    errors_for_type.invalid_metadata = true;
     return std::nullopt;
   }
   for (const IDProperty &input_prop : inputs->data.group) {
@@ -261,7 +266,7 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
         !IDP_GetPropertyTypeFromGroup(&input_prop, "type", IDP_INT))
     {
       ErrorsForType &errors_for_type = errors.lookup_or_add_default_as(*custom_idname);
-      errors_for_type.invalid_metadata_errors.append(input_prop.name);
+      errors_for_type.invalid_input_metadata_errors.append(input_prop.name);
       return std::nullopt;
     }
   }
@@ -406,8 +411,8 @@ static void find_verbose_log_contexts(const Main &bmain,
         }
         bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-            geo_log::GeoNodesLog::get_context_hash_by_zone_for_node_editor(snode,
-                                                                           compute_context_cache);
+            nodes::eval_log::NodesEvalLog::get_context_hash_by_zone_for_node_editor(
+                snode, compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_verbose_log_contexts.add(hash);
         }
@@ -942,7 +947,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   bke::OperatorComputeContext compute_context;
   Set<ComputeContextHash> verbose_log_contexts;
   GeoOperatorLog &eval_log = get_static_eval_log();
-  eval_log.log = std::make_unique<geo_log::GeoNodesLog>();
+  eval_log.log = std::make_unique<nodes::eval_log::NodesEvalLog>();
   eval_log.node_group_name = node_tree->id.name + 2;
   find_verbose_log_contexts(*bmain, verbose_log_contexts);
 
@@ -987,9 +992,9 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
   }
 
-  geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
+  nodes::eval_log::NodeTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
   tree_log.ensure_node_warnings(*bmain);
-  for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
+  for (const nodes::eval_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == nodes::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
     }
@@ -1072,9 +1077,9 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   bke::OperatorComputeContext compute_context;
   GeoOperatorLog &eval_log = get_static_eval_log();
 
-  geo_log::GeoTreeLog *tree_log = eval_log.log ?
-                                      &eval_log.log->get_tree_log(compute_context.hash()) :
-                                      nullptr;
+  nodes::eval_log::NodeTreeLog *tree_log = eval_log.log ? &eval_log.log->get_tree_log(
+                                                              compute_context.hash()) :
+                                                          nullptr;
   nodes::draw_geometry_nodes_operator_redo_ui(
       *C, *op, const_cast<bNodeTree &>(*node_tree), tree_log);
 }
@@ -1300,6 +1305,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     case SOCK_IMAGE:
     case SOCK_COLLECTION:
     case SOCK_MATERIAL:
+    case SOCK_FONT:
     case SOCK_OBJECT: {
       RNA_def_string(srna, "value", nullptr, 0, name.c_str(), description.c_str());
       make_common_value_props(*srna);
@@ -1642,6 +1648,13 @@ void register_node_group_operators(const bContext &C)
                     item.key.c_str(),
                     item.value.duplicate_count);
       }
+      if (item.value.invalid_metadata) {
+        BKE_reportf(
+            reports,
+            RPT_ERROR,
+            "Node tool \"%s\" asset has invalid metadata. Asset meta-data may be out of date",
+            item.key.c_str());
+      }
       for (const std::string &error : item.value.idname_validation_errors) {
         BKE_reportf(reports,
                     RPT_ERROR,
@@ -1649,7 +1662,7 @@ void register_node_group_operators(const bContext &C)
                     item.key.c_str(),
                     error.c_str());
       }
-      for (const std::string &error : item.value.invalid_metadata_errors) {
+      for (const std::string &error : item.value.invalid_input_metadata_errors) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "Error registering node tool \"%s\". Invalid metadata for input \"%s\". "

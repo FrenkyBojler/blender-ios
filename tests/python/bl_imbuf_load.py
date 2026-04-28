@@ -126,8 +126,6 @@ class ImBufLoadTest(ImBufTest):
         self.check("*.png")
 
     def test_load_exr(self):
-        self.skip_if_format_missing("OPENEXR")
-
         self.check("*.exr")
 
     def test_load_hdr(self):
@@ -167,6 +165,9 @@ class ImBufLoadTest(ImBufTest):
     def test_load_psd(self):
         self.check("*.psd")
 
+    def test_load_iris(self):
+        self.check("*.rgb")
+
 
 class ImBufBrokenTest(AbstractImBufTest):
     @classmethod
@@ -190,8 +191,6 @@ class ImBufBrokenTest(AbstractImBufTest):
 
 class ImBufLoadBrokenTest(ImBufBrokenTest):
     def test_load_exr(self):
-        self.skip_if_format_missing("OPENEXR")
-
         self.check("*.exr")
 
 
