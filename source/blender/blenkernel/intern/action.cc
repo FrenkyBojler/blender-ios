@@ -856,7 +856,7 @@ const Bone *bPoseChannel::bone_get(const bArmature &armature) const
   // BLI_assert_msg(this->runtime.bone_index >= 0, "bone index should be known");
   // return armature.bone_get_indexed(this->runtime.bone_index);
   UNUSED_VARS(armature);
-  return this->bone_;
+  return this->bone;
 }
 
 const Bone *bPoseChannel::bone_get(const Object &owner) const
@@ -1938,7 +1938,7 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
     BKE_pose_channel_runtime_reset(&pchan.runtime);
     BKE_pose_channel_session_uid_generate(&pchan);
 
-    pchan.bone_ = nullptr;
+    pchan.bone = nullptr;
     BLO_read_struct(reader, bPoseChannel, &pchan.parent);
     BLO_read_struct(reader, bPoseChannel, &pchan.child);
     BLO_read_struct(reader, bPoseChannel, &pchan.custom_tx);
@@ -1997,9 +1997,9 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
   }
 
   for (bPoseChannel &pchan : pose->chanbase) {
-    pchan.bone_ = BKE_armature_find_bone_name(arm, pchan.name);
+    pchan.bone = BKE_armature_find_bone_name(arm, pchan.name);
 
-    if (UNLIKELY(pchan.bone_ == nullptr)) {
+    if (UNLIKELY(pchan.bone == nullptr)) {
       rebuild = true;
     }
 
