@@ -29,6 +29,7 @@ namespace blender {
 
 const EnumPropertyItem rna_enum_icon_items[] = {
 #include "UI_icons.hh"
+
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1569,12 +1570,7 @@ void RNA_api_ui_layout(StructRNA *srna)
       {0, "LEFT", 0, "", ""},
       {1, "RIGHT", 0, "", ""},
   };
-  parm = RNA_def_enum(func,
-                      "align",
-                      rna_enum_prop_align,
-                      0,
-                      "",
-                      "Text input alignment");
+  parm = RNA_def_enum(func, "align", rna_enum_prop_align, 0, "", "Text input alignment");
 
   func = RNA_def_function(srna, "props_enum", "rna_uiItemsEnumR");
   api_ui_item_rna_common(func);
