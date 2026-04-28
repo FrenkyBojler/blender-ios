@@ -61,6 +61,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
+  PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
