@@ -1363,19 +1363,20 @@ static bool image_memorypack_imbuf(
 {
   ibuf->ftype = ibuf->float_data() ? IMB_FTYPE_OPENEXR : IMB_FTYPE_PNG;
 
-  IMB_save_image(ibuf, filepath, IB_byte_data | IB_mem);
-
-  if (ibuf->encoded_buffer.data == nullptr) {
+  Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, IB_byte_data);
+  if (encoded.is_empty()) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
     image_free_packedfiles(ima);
     return false;
   }
 
-  ImagePackedFile *imapf;
-  const int encoded_size = ibuf->encoded_size;
-  PackedFile *pf = BKE_packedfile_new_from_memory(IMB_steal_encoded_buffer(ibuf), encoded_size);
+  uint8_t *encoded_buffer = MEM_new_array_uninitialized<uint8_t>(encoded.size(),
+                                                                 "encoded image buffer");
+  memcpy(encoded_buffer, encoded.data(), encoded.size());
 
-  imapf = MEM_new<ImagePackedFile>("Image PackedFile");
+  PackedFile *pf = BKE_packedfile_new_from_memory(encoded_buffer, int(encoded.size()));
+
+  ImagePackedFile *imapf = MEM_new<ImagePackedFile>("Image PackedFile");
   STRNCPY(imapf->filepath, filepath);
   imapf->packedfile = pf;
   imapf->view = view;
