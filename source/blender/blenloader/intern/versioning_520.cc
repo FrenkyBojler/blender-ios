@@ -500,7 +500,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 22)) {
     for (Object &object : bmain->objects) {
-      object.parent_bone_head_tail = 1.0;
+      object.parent_bone_head_tail_factor = 1.0;
     }
   }
   /**
