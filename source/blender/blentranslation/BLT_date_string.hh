@@ -32,8 +32,7 @@ enum class DateFormat : uint8_t {
 enum class TimeFormat : uint8_t {
   Default = 0, /* Convention based on output language. */
   H24_Colon,   /* 23:59 */
-  H24_Dot,     /* 23.59 */
-  H12_Colon,   /* 8:59 PM */
+  H12_Colon,   /* 11:59 PM */
 };
 
 std::string date(const std::tm *date_time,

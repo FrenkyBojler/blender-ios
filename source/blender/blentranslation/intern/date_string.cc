@@ -93,9 +93,6 @@ std::string time(const std::tm *date_time, const StringRef locale_iso, TimeForma
   else if (format == TimeFormat::H24_Colon) {
     time_format_str = "{H:02}:{M:02}";
   }
-  else if (format == TimeFormat::H24_Dot) {
-    time_format_str = "{H:02}.{M:02}";
-  }
   else if (format == TimeFormat::H12_Colon) {
     time_format_str = "{I}:{M:02} {p}";
   }
