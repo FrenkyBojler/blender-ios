@@ -50,7 +50,6 @@
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.hh"
 
 #include "UI_resources.hh"
 
@@ -1006,8 +1005,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
            * declarations. The compromise is to not use the proper structure type in the group
            * input/output declarations and instead use a special case for the choice of socket
            * shapes. */
-          build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_OUT, b)
-              .socket_name_ptr(&node_tree->id, RNA_NodeTreeInterfaceSocket, &socket, "name");
+          build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_OUT, b);
         }
         break;
       }
@@ -1032,8 +1030,7 @@ static void group_output_declare(NodeDeclarationBuilder &b)
         const bNodeTreeInterfaceSocket &socket =
             node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
         if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-          build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_IN, b)
-              .socket_name_ptr(&node_tree->id, RNA_NodeTreeInterfaceSocket, &socket, "name");
+          build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_IN, b);
         }
         break;
       }

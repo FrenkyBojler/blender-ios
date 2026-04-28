@@ -890,8 +890,7 @@ bool block_layout_needs_resolving(const Block *block);
 void block_layout_free(Block *block);
 
 enum eUI_Item_Flag : uint16_t {
-  /** Align text input to the right. */
-  ITEM_R_TEXT_RIGHT = 1 << 0,
+  /* ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   ITEM_R_EXPAND = 1 << 1,
   ITEM_R_SLIDER = 1 << 2,
   /**
