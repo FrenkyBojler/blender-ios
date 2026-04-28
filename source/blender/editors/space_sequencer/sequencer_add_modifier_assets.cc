@@ -342,7 +342,7 @@ static MenuType modifier_add_root_catalogs_menu_type()
   return type;
 }
 
-void sequencer_stip_modifier_add_asset_register()
+void sequencer_strip_modifier_add_asset_register()
 {
   WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
   WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
