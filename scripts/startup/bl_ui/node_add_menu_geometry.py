@@ -12,7 +12,7 @@ from bpy.app.translations import (
 class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
     bl_label = "Attribute"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAttributeStatistic")
         self.node_operator(layout, "GeometryNodeAttributeDomainSize")
@@ -828,6 +828,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
         self.typed_bundle(layout, label="Typed Bundle")
+
         self.draw_assets_for_catalog(layout, self.menu_path)
 
 
