@@ -141,11 +141,13 @@ class Result {
   };
   /* Implicit sharing info manages the result's data, allowing it to be shared between multiple
    * results and eventually freeing it when it is no longer needed. It is heap allocated during
-   * data allocation, it gains new users through calls to share_data, and its users gets removed
+   * data allocation, it gains new users through calls to share_data, and its users get removed
    * and its data potentially deleted in the free method. Notice that implicit sharing in Blender
    * allows copying shared data to make it mutable, this is not allowed in the compositor, and it
-   * does not implement a copy-on-write mechanism, so copying needs to be done explicitly. */
-  ImplicitSharingInfo *sharing_info_;
+   * does not implement a copy-on-write mechanism, so copying needs to be done explicitly. The
+   * result may contain data with a nullptr sharing info, this is a special case where the data is
+   * considered external and needn't be managed/freed by the result. */
+  ImplicitSharingInfo *sharing_info_ = nullptr;
   /* The number of users that currently needs this result. Operations initializes this by calling
    * the set_reference_count method before evaluation. Once each operation that needs the result no
    * longer needs it, the release method is called and the reference count is decremented, until it
@@ -297,17 +299,14 @@ class Result {
    * covers the entire evaluation of the compositor, and will thus not be freed. The domain will be
    * set to have the data and display size as the texture size. The given texture should have a
    * format that is compatible with the result. */
-  void share_data(gpu::Texture *texture,
-                  std::optional<ImplicitSharingInfo *> sharing_info = std::nullopt);
+  void share_data(gpu::Texture *texture, ImplicitSharingInfo *sharing_info = nullptr);
 
   /* Share the data of a GPU buffer that is managed by the given implicit sharing info. If no
    * implicit sharing info is provided, the buffer is assumed to be external, has a lifetime that
    * covers the entire evaluation of the compositor, and will thus not be freed. The domain will be
    * set to have the data and display size as the given size. The given buffer should have a format
    * that is compatible with the result. */
-  void share_data(const void *data,
-                  int2 size,
-                  std::optional<ImplicitSharingInfo *> sharing_info = std::nullopt);
+  void share_data(const void *data, int2 size, ImplicitSharingInfo *sharing_info = nullptr);
 
   /* Sets the transformation of the domain of the result to the given transformation. */
   void set_transformation(const float3x3 &transformation);
@@ -507,7 +506,7 @@ BLI_INLINE_METHOD GSpan Result::cpu_data() const
 BLI_INLINE_METHOD GMutableSpan Result::cpu_data_for_write()
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
-  BLI_assert(sharing_info_->is_mutable());
+  BLI_assert(sharing_info_ && sharing_info_->is_mutable());
   return GMutableSpan(cpu_data_.type(), const_cast<void *>(cpu_data_.data()), cpu_data_.size());
 }
 

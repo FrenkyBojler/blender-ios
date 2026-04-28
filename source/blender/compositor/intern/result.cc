@@ -7,8 +7,6 @@
 #include <string>
 #include <variant>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_assert.h"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_array.hh"
@@ -786,7 +784,9 @@ void Result::share_data(const Result &source)
   *this = source;
   reference_count_ = reference_count;
 
-  sharing_info_->add_user();
+  if (sharing_info_) {
+    sharing_info_->add_user();
+  }
 
   /* Derived resources can't be shared, so reset them. */
   derived_resources_ = nullptr;
@@ -817,20 +817,7 @@ void Result::share_data(const Result &source)
   return GPU_texture_format(texture) == result.get_gpu_texture_format();
 }
 
-/* A dummy sharing info that represents external data that is not allocated nor managed by the
- * result, it simply deletes itself with no data deletion. */
-class ExternalSharingInfo : public ImplicitSharingInfo {
- public:
-  MEM_CXX_CLASS_ALLOC_FUNCS("ExternalSharingInfo");
-
- private:
-  void delete_self_with_data() override
-  {
-    delete this;
-  }
-};
-
-void Result::share_data(gpu::Texture *texture, std::optional<ImplicitSharingInfo *> sharing_info)
+void Result::share_data(gpu::Texture *texture, ImplicitSharingInfo *sharing_info)
 {
   BLI_assert(is_compatible_texture(texture, *this));
   BLI_assert(!this->is_allocated());
@@ -839,18 +826,13 @@ void Result::share_data(gpu::Texture *texture, std::optional<ImplicitSharingInfo
   storage_type_ = ResultStorageType::GPU;
   is_single_value_ = false;
   domain_ = Domain(int2(GPU_texture_width(texture), GPU_texture_height(texture)));
-  if (sharing_info.has_value()) {
-    sharing_info_ = sharing_info.value();
+  sharing_info_ = sharing_info;
+  if (sharing_info) {
     sharing_info_->add_user();
-  }
-  else {
-    sharing_info_ = new ExternalSharingInfo();
   }
 }
 
-void Result::share_data(const void *data,
-                        const int2 size,
-                        std::optional<ImplicitSharingInfo *> sharing_info)
+void Result::share_data(const void *data, const int2 size, ImplicitSharingInfo *sharing_info)
 {
   BLI_assert(!this->is_allocated());
 
@@ -858,12 +840,9 @@ void Result::share_data(const void *data,
   cpu_data_ = GSpan(this->get_cpp_type(), data, array_size);
   storage_type_ = ResultStorageType::CPU;
   domain_ = Domain(size);
-  if (sharing_info.has_value()) {
-    sharing_info_ = sharing_info.value();
+  sharing_info_ = sharing_info;
+  if (sharing_info) {
     sharing_info_->add_user();
-  }
-  else {
-    sharing_info_ = new ExternalSharingInfo();
   }
 }
 
@@ -923,7 +902,9 @@ void Result::free()
   delete derived_resources_;
   derived_resources_ = nullptr;
 
-  sharing_info_->remove_user_and_delete_if_last();
+  if (sharing_info_) {
+    sharing_info_->remove_user_and_delete_if_last();
+  }
   sharing_info_ = nullptr;
   switch (storage_type_) {
     case ResultStorageType::GPU:
