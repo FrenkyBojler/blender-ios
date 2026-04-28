@@ -369,84 +369,83 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
         tile_data.tile_number);
 
-    IndexMask valid_primitives = IndexMask::from_predicate(
+    IndexMask valid_rows = IndexMask::from_predicate(
         tile_data.pixel_rows.index_range(), memory, [&](const int i) {
           return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
 
+    Array<bool> row_changed(valid_rows.size(), false);
     threading::EnumerableThreadSpecific<LocalData> all_tls;
-    valid_primitives.foreach_index([&](const int i) {
+    valid_rows.foreach_index([&](const int i, const int pos) {
       const PackedPixelRow pixel_row = tile_data.pixel_rows[i];
-      const bool pixels_painted = threading::parallel_reduce(
-          IndexRange(pixel_row.num_pixels),
-          512,
-          false,
-          [&](const IndexRange range, bool /*changed*/) {
-            LocalData &tls = all_tls.local();
-            tls.pixel_positions.resize(range.size());
-            calc_pixel_row_positions(positions,
-                                     pbvh_data.vert_tris,
-                                     pixel_node.uv_primitives.tri_indices,
-                                     pixel_node.uv_primitives.delta_barycentric_coords,
-                                     pixel_row,
-                                     range,
-                                     tls.pixel_positions);
+      threading::parallel_for(IndexRange(pixel_row.num_pixels), 512, [&](const IndexRange range) {
+        LocalData &tls = all_tls.local();
+        tls.pixel_positions.resize(range.size());
+        calc_pixel_row_positions(positions,
+                                 pbvh_data.vert_tris,
+                                 pixel_node.uv_primitives.tri_indices,
+                                 pixel_node.uv_primitives.delta_barycentric_coords,
+                                 pixel_row,
+                                 range,
+                                 tls.pixel_positions);
 
-            tls.factors.resize(tls.pixel_positions.size());
-            tls.factors.fill(1.0f);
+        tls.factors.resize(tls.pixel_positions.size());
+        tls.factors.fill(1.0f);
 
-            tls.distances.resize(tls.pixel_positions.size());
-            calc_brush_distances(
-                ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
-            filter_distances_with_radius(cache.radius, tls.distances, tls.factors);
-            apply_hardness_to_distances(cache, tls.distances);
-            calc_brush_strength_factors(cache, brush, tls.distances, tls.factors);
-            calc_brush_texture_factors(ss, brush, tls.pixel_positions, tls.factors);
-            scale_factors(tls.factors, cache.bstrength);
+        tls.distances.resize(tls.pixel_positions.size());
+        calc_brush_distances(
+            ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
+        filter_distances_with_radius(cache.radius, tls.distances, tls.factors);
+        apply_hardness_to_distances(cache, tls.distances);
+        calc_brush_strength_factors(cache, brush, tls.distances, tls.factors);
+        calc_brush_texture_factors(ss, brush, tls.pixel_positions, tls.factors);
+        scale_factors(tls.factors, cache.bstrength);
 
-            const bool nonzero_factor = std::ranges::any_of(
-                tls.factors, [](const float factor) { return factor != 0.0f; });
+        const bool nonzero_factor = std::ranges::any_of(
+            tls.factors, [](const float factor) { return factor != 0.0f; });
 
-            if (!nonzero_factor) {
-              return false;
-            }
+        if (!nonzero_factor) {
+          return;
+        }
 
-            tls.paint_pixels.resize(tls.pixel_positions.size());
-            calc_brush_colors(tls.paint_pixels, tls.factors, brush_color);
+        tls.paint_pixels.resize(tls.pixel_positions.size());
+        calc_brush_colors(tls.paint_pixels, tls.factors, brush_color);
 
-            if (!float_buffer.is_empty()) {
-              tls.scene_linear_pixels = read_image_pixels(
-                  float_buffer, *processors, pixel_row, range, image_buffer->x);
-            }
-            else {
-              tls.scene_linear_pixels = read_image_pixels(byte_buffer,
-                                                          *processors,
-                                                          pixel_row,
-                                                          range,
-                                                          image_buffer->x,
-                                                          tls.byte_to_float_pixels);
-            }
+        if (!float_buffer.is_empty()) {
+          tls.scene_linear_pixels = read_image_pixels(
+              float_buffer, *processors, pixel_row, range, image_buffer->x);
+        }
+        else {
+          tls.scene_linear_pixels = read_image_pixels(byte_buffer,
+                                                      *processors,
+                                                      pixel_row,
+                                                      range,
+                                                      image_buffer->x,
+                                                      tls.byte_to_float_pixels);
+        }
 
 #ifdef DEBUG_PIXEL_NODES
-            apply_debug_color(scene_linear_pixels, pixel_row);
+        apply_debug_color(scene_linear_pixels, pixel_row);
 #endif
 
-            blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
+        blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
 
-            if (!float_buffer.is_empty()) {
-              write_image_pixels(
-                  tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
-            }
-            else {
-              write_image_pixels(
-                  tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
-            }
-            return true;
-          },
-          std::logical_or());
+        if (!float_buffer.is_empty()) {
+          write_image_pixels(
+              tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
+        }
+        else {
+          write_image_pixels(
+              tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
+        }
 
-      if (pixels_painted) {
-        tile_data.mark_dirty(pixel_row);
+        row_changed[pos] = true;
+      });
+    });
+
+    valid_rows.foreach_index([&](const int i, const int pos) {
+      if (row_changed[pos]) {
+        tile_data.mark_dirty(tile_data.pixel_rows[i]);
       }
     });
 
