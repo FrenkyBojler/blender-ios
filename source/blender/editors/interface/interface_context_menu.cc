@@ -79,9 +79,8 @@ static IDProperty *shortcut_property_from_rna_for_enum(bContext *C,
                                                        Button *but_parent,
                                                        Button *but)
 {
-  /* This is basically same as #shortcut_property_from_rna
-  but with "value" in IDProperty in group. It's required for creating keyitem for enum
-  values. */
+  /* This is basically same as #shortcut_property_from_rna but with "value" in IDProperty in group.
+   * It's required for creating keyitem for enum values. */
 
   /* If this returns null, we won't be able to bind shortcuts to these RNA properties.
    * Support can be added at #wm_context_member_from_ptr. */
