@@ -166,8 +166,6 @@ void IMB_assign_gpu_texture(ImBuf *ibuf, gpu::Texture *texture);
  */
 void IMB_ensure_host_buffer(ImBuf *ibuf);
 
-void IMB_assign_dds_data(ImBuf *ibuf, const DDSData &data, ImBufOwnership ownership);
-
 /**
  * Increase reference count to imbuf
  * (to delete an imbuf you have to call freeImBuf as many times as it
