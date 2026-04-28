@@ -3483,8 +3483,14 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
       cd->builder->add_relation(
           sequence_scene_key, cd->sequencer_key, "Sequence Scene -> Sequencer");
     }
-    ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
-    cd->builder->build_scene_speakers(strip->scene, sequence_view_layer);
+    ViewLayer *strip_view_layer = nullptr;
+    if (strip->scene_view_layer_name[0] != '\0') {
+      strip_view_layer = BKE_view_layer_find(strip->scene, strip->scene_view_layer_name);
+    }
+    if (strip_view_layer == nullptr) {
+      strip_view_layer = BKE_view_layer_default_render(strip->scene);
+    }
+    cd->builder->build_scene_speakers(strip->scene, strip_view_layer);
   }
   if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
     const CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);

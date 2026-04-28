@@ -847,20 +847,22 @@ static size_t draw_seq_text_get_overlay_string(const TimelineDrawContext &ctx,
       text_array[i++] = source;
     }
 
-    /* For scene strips, append the name of the view layer that will actually render. */
-    if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
-      const char *view_layer_name = strip->scene_view_layer_name;
-      if (view_layer_name[0] == '\0') {
-        if (const ViewLayer *default_vl = BKE_view_layer_default_render(strip->scene)) {
-          view_layer_name = default_vl->name;
-        }
+    /* For camera-input scene strips, append the name of the view layer that will actually render.
+     */
+    if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr &&
+        (strip->flag & SEQ_SCENE_STRIPS) == 0)
+    {
+      const char *view_layer_name;
+      if (strip->scene_view_layer_name[0] != '\0') {
+        view_layer_name = strip->scene_view_layer_name;
       }
-      if (view_layer_name[0] != '\0') {
-        if (i != 0) {
-          text_array[i++] = text_sep;
-        }
-        text_array[i++] = view_layer_name;
+      else {
+        view_layer_name = BKE_view_layer_default_render(strip->scene)->name;
       }
+      if (i != 0) {
+        text_array[i++] = text_sep;
+      }
+      text_array[i++] = view_layer_name;
     }
   }
 
