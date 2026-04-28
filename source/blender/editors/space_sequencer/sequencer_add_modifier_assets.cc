@@ -265,7 +265,7 @@ static wmOperatorStatus strip_modifier_add_asset_exec(bContext *C, wmOperator *o
   STRNCPY_UTF8(cmd->modifier.name, DATA_(node_group->id.name + 2));
   seq::modifier_unique_name(strip, &cmd->modifier);
   /* Hide the datablock selector by default for assets. */
-  cmd->flag |= HIDE_DATABLOCK_SELECTOR;
+  cmd->flag |= SEQ_COMP_MOD_HIDE_DATABLOCK_SELECTOR;
 
   seq::modifier_persistent_uid_init(*strip, cmd->modifier);
 
