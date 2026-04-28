@@ -1813,7 +1813,7 @@ static void text_clip_cursor(const uiFontStyle *fstyle, Button *but, const rcti 
 
   BLI_assert(but->editstr && but->pos >= 0);
 
-  /* Need to set this first. */
+  /* need to set this first */
   fontstyle_set(fstyle);
 
   /* Shift text left until caret is visible. */
