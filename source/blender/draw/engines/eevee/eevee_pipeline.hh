@@ -642,7 +642,9 @@ class DeferredProbePipeline {
   void begin_sync();
   void end_sync();
 
-  PassMain::Sub *prepass_add(blender::Material *blender_mat, GPUMaterial *gpumat);
+  PassMain::Sub *prepass_add(blender::Material *blender_mat,
+                             GPUMaterial *gpumat,
+                             bool hide_on_raycast);
   PassMain::Sub *material_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
@@ -882,7 +884,7 @@ class PipelineModule {
     if (probe_capture == MAT_PROBE_REFLECTION) {
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_DEFERRED:
-          return probe.prepass_add(blender_mat, gpumat);
+          return probe.prepass_add(blender_mat, gpumat, hide_on_raycast);
         case MAT_PIPE_DEFERRED:
           return probe.material_add(blender_mat, gpumat);
         default:

@@ -1501,9 +1501,10 @@ void DeferredProbePipeline::end_sync()
 }
 
 PassMain::Sub *DeferredProbePipeline::prepass_add(blender::Material *blender_mat,
-                                                  GPUMaterial *gpumat)
+                                                  GPUMaterial *gpumat,
+                                                  bool hide_on_raycast)
 {
-  return opaque_layer_.prepass_.add(blender_mat, gpumat, false, false);
+  return opaque_layer_.prepass_.add(blender_mat, gpumat, false, hide_on_raycast);
 }
 
 PassMain::Sub *DeferredProbePipeline::material_add(blender::Material *blender_mat,
@@ -1533,7 +1534,9 @@ void DeferredProbePipeline::render(View &view,
 
   opaque_layer_.radiance_behind_tx_ = dummy_black;
 
-  GPU_framebuffer_bind(prepass_fb);
+  prepass_fb.bind();
+  prepass_fb.clear_depth(inst_.film.depth.clear_value);
+  prepass_fb.clear_color(float4(0.0f));
   opaque_layer_.prepass_.render(view);
 
   inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
@@ -1550,7 +1553,7 @@ void DeferredProbePipeline::render(View &view,
   inst_.gbuffer.bind(gbuffer_fb);
   inst_.manager->submit(opaque_layer_.gbuffer_ps_, view);
 
-  GPU_framebuffer_bind(combined_fb);
+  combined_fb.bind();
   inst_.manager->submit(eval_light_ps_, view);
 
   GPU_debug_group_end();
@@ -1599,7 +1602,7 @@ void PlanarProbePipeline::end_sync()
 PassMain::Sub *PlanarProbePipeline::prepass_add(blender::Material *blender_mat,
                                                 GPUMaterial *gpumat)
 {
-  return prepass_.add(blender_mat, gpumat, false, false);
+  return prepass_.add(blender_mat, gpumat, false, true);
 }
 
 PassMain::Sub *PlanarProbePipeline::material_add(blender::Material *blender_mat,

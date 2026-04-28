@@ -364,13 +364,7 @@ void CaptureView::render_probes()
         GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
         with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
         with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
-        GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
-
-    rbufs.vector_tx.clear(float4(0.0f));
-    if (with_raycast) {
-      rbufs.object_id_tx.clear(uint4(0));
-      rbufs.prepass_normal_tx.clear(float4(0.0f));
-    }
+        GPU_ATTACHMENT_NONE /* Motion vectors not supported. */);
 
     inst_.gbuffer.acquire(extent,
                           inst_.pipelines.probe.header_layer_count(),
@@ -398,10 +392,10 @@ void CaptureView::render_probes()
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
-      GPU_framebuffer_bind(combined_fb_);
       /* Alpha stores transmittance. So start at 1. */
-      GPU_framebuffer_clear_color_depth(
-          combined_fb_, {0.0, 0.0, 0.0, 1.0}, inst_.film.depth.clear_value);
+      // TODO: Clear from gbuffer.bind ?
+      GPU_framebuffer_bind(combined_fb_);
+      GPU_framebuffer_clear_color(combined_fb_, {0.0, 0.0, 0.0, 1.0});
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 

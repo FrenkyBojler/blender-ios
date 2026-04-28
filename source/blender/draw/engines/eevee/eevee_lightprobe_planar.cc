@@ -107,18 +107,11 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
     world_clip_buf_.plane = probe.reflection_clip_plane_get();
     world_clip_buf_.push_update();
 
-    RenderBuffers &rbufs = inst_.render_buffers;
-
-    const bool with_raycast = inst_.pipelines.has_raycast;
-    res.prepass_fb.ensure(
-        GPU_ATTACHMENT_TEXTURE_LAYER(depth_tx_, resource_index),
-        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.prepass_normal_tx) : GPU_ATTACHMENT_NONE,
-        with_raycast ? GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx) : GPU_ATTACHMENT_NONE,
-        GPU_ATTACHMENT_NONE /* motion vectors */);
-    if (with_raycast) {
-      rbufs.object_id_tx.clear(uint4(0));
-      rbufs.prepass_normal_tx.clear(float4(0.0f));
-    }
+    // TODO: Just remove color targets from MAT_PIPE_PREPASS_PLANAR?
+    res.prepass_fb.ensure(GPU_ATTACHMENT_TEXTURE_LAYER(depth_tx_, resource_index),
+                          GPU_ATTACHMENT_NONE,
+                          GPU_ATTACHMENT_NONE,
+                          GPU_ATTACHMENT_NONE /* motion vectors */);
 
     gbuf.acquire(extent,
                  inst_.pipelines.deferred.header_layer_count(),
