@@ -253,7 +253,7 @@ void region_view_scroll_at_borders(bContext *C, wmDropBox &dropbox, const wmEven
   window_to_block_fl(region, block, &x, &y);
 
   const std::optional<rcti> bounds = view->get_bounds();
-	if (!bounds.has_value()) {
+  if (!bounds.has_value()) {
     WM_event_timer_remove(wm, window, dropbox.timer);
     dropbox.timer = nullptr;
     return;
