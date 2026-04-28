@@ -72,7 +72,6 @@ static IDProperty *shortcut_property_from_rna(bContext *C, Button *but)
   /* Create ID property of data path, to pass to the operator. */
   IDProperty *prop = bke::idprop::create_group(__func__).release();
   IDP_AddToGroup(prop, bke::idprop::create("data_path", final_data_path.value()).release());
-  IDP_AddToGroup(prop, bke::idprop::create("value", but->rnaindex).release());
   return prop;
 }
 
@@ -90,14 +89,15 @@ static IDProperty *shortcut_property_from_rna_for_enum(bContext *C,
     return nullptr;
   }
 
+  const char *identifier = nullptr;
+  RNA_property_enum_identifier(C, &but_parent->rnapoin, but_parent->rnaprop, int(but->hardmin), &identifier);
+  if (identifier == nullptr) {
+    return nullptr;
+  }
   /* Create ID property of data path and value, to pass to the operator. */
   IDProperty *prop = bke::idprop::create_group(__func__).release();
   IDP_AddToGroup(prop, bke::idprop::create("data_path", final_data_path.value()).release());
-  IDP_AddToGroup(
-      prop,
-      bke::idprop::create("value",
-                          RNA_enum_identifier_from_prop(but_parent->rnaprop, int(but->hardmin)))
-          .release());
+  IDP_AddToGroup(prop, bke::idprop::create("value", identifier).release());
   return prop;
 }
 
