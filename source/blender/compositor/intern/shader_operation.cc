@@ -6,10 +6,13 @@
 #include <sstream>
 #include <string>
 
+#include <fmt/format.h>
+
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
 #include "GPU_debug.hh"
@@ -23,12 +26,16 @@
 #include "DNA_customdata_types.h"
 #include "DNA_node_types.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_type_conversions.hh"
 
 #include "COM_context.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
+#include "COM_scheduler.hh"
 #include "COM_shader_node.hh"
 #include "COM_shader_operation.hh"
 #include "COM_utilities.hh"
@@ -37,7 +44,7 @@ namespace blender::compositor {
 
 ShaderOperation::ShaderOperation(Context &context,
                                  PixelCompileUnit &compile_unit,
-                                 const VectorSet<const bNode *> &schedule)
+                                 const Schedule &schedule)
     : PixelOperation(context, compile_unit, schedule)
 {
   material_ = GPU_material_from_callbacks(
@@ -135,6 +142,11 @@ void ShaderOperation::link_node_inputs(const bNode &node)
       continue;
     }
 
+    if (schedule_.unneeded_inputs.contains(input)) {
+      this->link_node_input_unavailable(*input);
+      continue;
+    }
+
     const bNodeSocket *output = get_output_linked_to_input(*input);
     if (!output) {
       const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input);
@@ -152,13 +164,16 @@ void ShaderOperation::link_node_inputs(const bNode &node)
      * material graph and is linked appropriately. */
     if (compile_unit_.contains(&output->owner_node())) {
       this->link_node_input_internal(*input, *output);
-      continue;
+    }
+    else {
+      /* Otherwise, the source node is not part of the shader operation, then the link is
+       * external to the GPU material graph and an input to the shader operation must be declared
+       * and linked to the node input. */
+      this->link_node_input_external(*input, *output);
     }
 
-    /* Otherwise, the source node is not part of the shader operation, then the link is external to
-     * the GPU material graph and an input to the shader operation must be declared and linked to
-     * the node input. */
-    this->link_node_input_external(*input, *output);
+    /* Implicitly convert the input link type to the expected input type if needed. */
+    this->convert_input_link_type(*input, *output);
   }
 }
 
@@ -263,6 +278,9 @@ static const char *get_set_function_name(const ResultType type)
     case ResultType::Int3:
       /* GPUMaterial doesn't support int3, so it is passed as a float3. */
       return "set_float3";
+    case ResultType::Int4:
+      /* GPUMaterial doesn't support int4, so it is passed as a float4. */
+      return "set_float4";
     case ResultType::Bool:
       /* GPUMaterial doesn't support bool, so it is passed as a float. */
       return "set_float";
@@ -463,7 +481,7 @@ void ShaderOperation::populate_results_for_node(const bNode &node)
      * of the execution schedule, then an output result needs to be populated for it. */
     const bool is_operation_output = is_output_linked_to_node_conditioned(
         *output, [&](const bNode &node) {
-          return schedule_.contains(&node) && !compile_unit_.contains(&node);
+          return schedule_.nodes.contains(&node) && !compile_unit_.contains(&node);
         });
 
     /* If the output is used as the node preview, then an output result needs to be populated for
@@ -498,6 +516,8 @@ static const char *get_store_function_name(ResultType type)
       return "node_compositor_store_output_int2";
     case ResultType::Int3:
       return "node_compositor_store_output_int3";
+    case ResultType::Int4:
+      return "node_compositor_store_output_int4";
     case ResultType::Bool:
       return "node_compositor_store_output_bool";
     case ResultType::Float4x4:
@@ -550,6 +570,46 @@ void ShaderOperation::populate_operation_result(const bNodeSocket &output_socket
   /* Declare the output link of the storer node as an output of the GPU material to help the GPU
    * code generator to track the nodes that contribute to the output of the shader. */
   GPU_material_add_output_link_composite(material_, storer_output_link);
+}
+
+void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bNodeSocket &output)
+{
+  const ResultType source_type = get_node_socket_result_type(&output);
+  const ResultType target_type = get_node_socket_result_type(&input);
+  if (target_type == source_type) {
+    return;
+  }
+
+  ShaderNode &input_node = *shader_nodes_.lookup(&input.owner_node());
+  GPUNodeStack &input_stack = input_node.get_input(input.identifier);
+
+  /* Conversion is not possible, link a zero constant instead. */
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (!conversions.is_convertible(Result::cpp_type(source_type), Result::cpp_type(target_type))) {
+    const char *function_name = get_set_function_name(target_type);
+    const float *default_value = static_cast<const float *>(
+        Result::cpp_type(target_type).default_value());
+    GPU_link(material_, function_name, GPU_constant(default_value), &input_stack.link);
+    return;
+  }
+
+  const UString function_name = UString(
+      fmt::format("{}_to_{}", Result::type_name(source_type), Result::type_name(target_type)));
+
+  if (source_type == ResultType::Color &&
+      ELEM(target_type, ResultType::Float, ResultType::Int, ResultType::Bool))
+  {
+    float luminance_coefficients[3];
+    IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+    GPU_link(material_,
+             function_name.c_str(),
+             input_stack.link,
+             GPU_constant(luminance_coefficients),
+             &input_stack.link);
+  }
+  else {
+    GPU_link(material_, function_name.c_str(), input_stack.link, &input_stack.link);
+  }
 }
 
 using namespace gpu::shader;
@@ -650,6 +710,10 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
       /* GPUMaterial doesn't support int3, so it is passed as a float3, and we need to convert it
        * back to int3 before writing it. */
       return "ivec4(ivec3(value), 0)";
+    case ResultType::Int4:
+      /* GPUMaterial doesn't support int4, so it is passed as a float4, and we need to convert it
+       * back to int4 before writing it. */
+      return "ivec4(value)";
     case ResultType::Bool:
       /* GPUMaterial doesn't support bool, so it is passed as a float and stored as an int, and we
        * need to convert it back to bool and then to an int before writing it. */
@@ -689,6 +753,7 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Int3:
+    case ResultType::Int4:
     case ResultType::Bool:
     case ResultType::Menu:
       return ImageType::Int2D;
@@ -724,6 +789,8 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   const std::string store_int2_function_header = "void store_int2(const uint id, vec2 value)";
   /* GPUMaterial doesn't support int3, so it is passed as a float3. */
   const std::string store_int3_function_header = "void store_int3(const uint id, vec3 value)";
+  /* GPUMaterial doesn't support int4, so it is passed as a float4. */
+  const std::string store_int4_function_header = "void store_int4(const uint id, vec4 value)";
   /* GPUMaterial doesn't support bool, so it is passed as a float. */
   const std::string store_bool_function_header = "void store_bool(const uint id, float value)";
   const std::string store_float4x4_function_header =
@@ -742,6 +809,7 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   std::stringstream store_int_function;
   std::stringstream store_int2_function;
   std::stringstream store_int3_function;
+  std::stringstream store_int4_function;
   std::stringstream store_bool_function;
   std::stringstream store_float4x4_function;
   std::stringstream store_menu_function;
@@ -754,6 +822,7 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   store_int_function << store_int_function_header << store_function_start;
   store_int2_function << store_int2_function_header << store_function_start;
   store_int3_function << store_int3_function_header << store_function_start;
+  store_int4_function << store_int4_function_header << store_function_start;
   store_bool_function << store_bool_function_header << store_function_start;
   store_float4x4_function << store_float4x4_function_header << store_function_start;
   store_menu_function << store_menu_function_header << store_function_start;
@@ -812,6 +881,9 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
       case ResultType::Int3:
         store_int3_function << common_case_code.str();
         break;
+      case ResultType::Int4:
+        store_int4_function << common_case_code.str();
+        break;
       case ResultType::Bool:
         store_bool_function << common_case_code.str();
         break;
@@ -851,14 +923,15 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   store_int_function << store_function_end;
   store_int2_function << store_function_end;
   store_int3_function << store_function_end;
+  store_int4_function << store_function_end;
   store_bool_function << store_function_end;
   store_float4x4_function << store_function_end;
   store_menu_function << store_function_end;
 
   return store_float_function.str() + store_float2_function.str() + store_float3_function.str() +
          store_float4_function.str() + store_color_function.str() + store_int_function.str() +
-         store_int2_function.str() + store_int3_function.str() + store_bool_function.str() +
-         store_float4x4_function.str() + store_menu_function.str();
+         store_int2_function.str() + store_int3_function.str() + store_int4_function.str() +
+         store_bool_function.str() + store_float4x4_function.str() + store_menu_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)
@@ -883,6 +956,9 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Int3:
       /* GPUMaterial doesn't support int3, so it is passed as a float3. */
       return "vec3";
+    case ResultType::Int4:
+      /* GPUMaterial doesn't support int4, so it is passed as a float4. */
+      return "vec4";
     case ResultType::Bool:
       /* GPUMaterial doesn't support bool, so it is passed as a float. */
       return "float";
@@ -929,6 +1005,8 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
       return "xy";
     case ResultType::Int3:
       return "xyz";
+    case ResultType::Int4:
+      return "xyzw";
     case ResultType::Bool:
       return "x";
     case ResultType::Float4x4:
