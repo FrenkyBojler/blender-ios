@@ -138,6 +138,7 @@ set(SRC
   nodes/node_geo_input_index.cc
   nodes/node_geo_input_instance_bounds.cc
   nodes/node_geo_input_instance_name.cc
+  nodes/node_geo_input_instance_reference.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
   nodes/node_geo_input_instance_transform.cc
