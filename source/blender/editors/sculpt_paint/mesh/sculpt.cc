@@ -386,10 +386,10 @@ bool coord_has_face_set(const OffsetIndices<int> faces,
     return false;
   }
 
-  Set<int> face_set_ids;
-  face_set_ids.add(face_set);
+  Set<int> allowed_face_sets;
+  allowed_face_sets.add(face_set);
   return coord_has_any_face_set(
-      faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord, face_set_ids);
+      faces, corner_verts, vert_to_face_map, face_sets, subdiv_ccg, coord, allowed_face_sets);
 }
 
 bool coord_has_any_face_set(const OffsetIndices<int> faces,
