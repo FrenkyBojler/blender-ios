@@ -560,7 +560,7 @@ void OBJECT_OT_bake_image(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Bake";
-  ot->description = "Bake image textures of selected objects";
+  ot->description = "Bake image textures of selected objects (only internal saving supported)";
   ot->idname = "OBJECT_OT_bake_image";
 
   /* API callbacks. */
