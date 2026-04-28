@@ -669,9 +669,10 @@ void Hair::update_motion(Scene *scene)
 
     Attribute *attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
     attr_mP->modified = true;
-    std::copy_n(curve_keys_pre.data(), curve_keys_pre.size(), attr_mP->data_float3());
-    std::copy_n(
-        curve_keys.data(), curve_keys.size(), attr_mP->data_float3() + curve_keys_pre.size());
+    std::copy_n(curve_keys_pre.data(), curve_keys_pre.size(), attr_mP->data_float3_for_write());
+    std::copy_n(curve_keys.data(),
+                curve_keys.size(),
+                attr_mP->data_float3_for_write() + curve_keys_pre.size());
   }
 }
 

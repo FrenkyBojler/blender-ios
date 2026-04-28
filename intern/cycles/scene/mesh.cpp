@@ -800,8 +800,8 @@ void Mesh::update_motion(Scene *scene)
 
     Attribute *attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
     attr_mP->modified = true;
-    std::copy_n(verts_pre.data(), verts_pre.size(), attr_mP->data_float3());
-    std::copy_n(verts.data(), verts.size(), attr_mP->data_float3() + verts_pre.size());
+    std::copy_n(verts_pre.data(), verts_pre.size(), attr_mP->data_float3_for_write());
+    std::copy_n(verts.data(), verts.size(), attr_mP->data_float3_for_write() + verts_pre.size());
   }
 }
 
