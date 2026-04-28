@@ -571,6 +571,28 @@ static void add_pose_transdata(
   td->con = static_cast<bConstraint *>(pchan->constraints.first);
 }
 
+static void free_pose_transdata(TransInfo *t, TransDataContainer *tc, TransCustomData *custom_data)
+{
+  /* Free any data in custom_data->data. */
+  if (custom_data->data != nullptr) {
+    MEM_delete_void(custom_data->data);
+    custom_data->data = nullptr;
+  }
+
+  /* Armature Pose mode allocates data in td.extra, which is freed here. */
+  if (t->data_type == &TransConvertType_Pose) {
+    for (int i = 0; i < tc->data_len; i++) {
+      TransData &td = tc->data[i];
+      if (!td.extra) {
+        continue;
+      }
+
+      bke::PChanBone *pchanbone = static_cast<bke::PChanBone *>(td.extra);
+      MEM_delete(pchanbone);
+    }
+  }
+}
+
 static void createTransPose(bContext * /*C*/, TransInfo *t)
 {
   Main *bmain = CTX_data_main(t->context);
@@ -733,6 +755,8 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
         add_pose_transdata(t, &pchan, ob, td++, tdx++);
       }
     }
+    tc->custom.type.free_cb = free_pose_transdata;
+    tc->custom.type.use_free = true;
 
     if (td != (tc->data + tc->data_len)) {
       BKE_report(t->reports, RPT_DEBUG, "Bone selection count error");
