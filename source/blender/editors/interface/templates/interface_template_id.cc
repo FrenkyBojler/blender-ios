@@ -337,8 +337,8 @@ void context_active_but_prop_get_templateID(const bContext *C,
     return;
   }
 
-  PointerRNA id_ptr = RNA_property_pointer_get_never_create(&ptr_copy, prop);
-  if (!RNA_struct_is_ID(id_ptr.type)) {
+  StructRNA *type = RNA_property_pointer_type(&ptr_copy, prop);
+  if (!type || !RNA_struct_is_ID(type)) {
     return;
   }
 
