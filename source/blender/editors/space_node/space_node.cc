@@ -1065,7 +1065,9 @@ static bool node_import_file_drop_poll(bContext *C, wmDrag *drag, const wmEvent 
   return false;
 }
 
-static bool node_interface_item_drop_poll_base(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
+static bool node_interface_item_drop_poll_base(bContext *C,
+                                               wmDrag *drag,
+                                               const wmEvent * /*event*/)
 {
   if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
@@ -1131,7 +1133,9 @@ static void node_import_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox
   io::paths_to_operator_properties(drop->ptr, WM_drag_get_paths(drag));
 }
 
-static void node_interface_item_drop_copy_single(bContext * /*C*/, wmDrag * /*drag*/, wmDropBox *drop)
+static void node_interface_item_drop_copy_single(bContext * /*C*/,
+                                                 wmDrag * /*drag*/,
+                                                 wmDropBox *drop)
 {
   RNA_boolean_set(drop->ptr, "only_selected_sockets", true);
   RNA_boolean_set(drop->ptr, "all_panel_contents", false);
@@ -1143,13 +1147,13 @@ static void node_interface_item_drop_copy_all(bContext * /*C*/, wmDrag * /*drag*
   RNA_boolean_set(drop->ptr, "all_panel_contents", true);
 }
 
-static std::string node_interface_item_drop_tooltip_single(bContext* /*C*/,
-                                                    wmDrag* drag,
-                                                    const int /*xy*/[2],
-                                                    wmDropBox* /*drop*/)
+static std::string node_interface_item_drop_tooltip_single(bContext * /*C*/,
+                                                           wmDrag *drag,
+                                                           const int /*xy*/[2],
+                                                           wmDropBox * /*drop*/)
 {
   auto *drag_data = static_cast<bke::node_interface::bNodeTreeInterfaceItemReference *>(
-    drag->poin);
+      drag->poin);
   bool has_selected_header_toggle = false;
 
   for (int i = 0; i < drag_data->items_count; i++) {

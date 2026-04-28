@@ -1337,11 +1337,16 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
 /** \name Add Group Input Node Operator
  * \{ */
 
-static void hide_unselected_sockets(bNode *node, bNodeTreeInterfaceItem *item, bool panels_with_header_unselected) {
+static void hide_unselected_sockets(bNode *node,
+                                    bNodeTreeInterfaceItem *item,
+                                    bool panels_with_header_unselected)
+{
   switch (eNodeTreeInterfaceItemType(item->item_type)) {
     case NODE_INTERFACE_SOCKET: {
       auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
-      if (socket->flag & NODE_INTERFACE_SOCKET_INPUT && !(socket->flag & NODE_INTERFACE_SOCKET_SELECT)) {
+      if (socket->flag & NODE_INTERFACE_SOCKET_INPUT &&
+          !(socket->flag & NODE_INTERFACE_SOCKET_SELECT))
+      {
         auto *node_socket = node->output_by_identifier(UString(socket->identifier));
         node_socket->flag |= SOCK_HIDDEN;
       }
@@ -1350,7 +1355,8 @@ static void hide_unselected_sockets(bNode *node, bNodeTreeInterfaceItem *item, b
     case NODE_INTERFACE_PANEL: {
       /* Only visit unselected panels. */
       auto *interface_panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
-      bool panel_selection_ignored = panels_with_header_unselected && interface_panel->header_toggle_socket();
+      bool panel_selection_ignored = panels_with_header_unselected &&
+                                     interface_panel->header_toggle_socket();
       if (!(interface_panel->flag & NODE_INTERFACE_PANEL_SELECT) || panel_selection_ignored) {
         for (auto *sub_item : interface_panel->items()) {
           hide_unselected_sockets(node, sub_item, panels_with_header_unselected);
@@ -1406,20 +1412,24 @@ static wmOperatorStatus node_add_group_input_node_invoke(bContext *C,
   return node_add_group_input_node_exec(C, op);
 }
 
-static bool contains_any_selected_input(bNodeTreeInterfaceItem *item, bool parent_selected) {
-  switch (eNodeTreeInterfaceItemType(item->item_type)) {
+static bool contains_any_selected_input(const bNodeTreeInterfaceItem &item, bool parent_selected)
+{
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
-        auto *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
-        return socket->flag & NODE_INTERFACE_SOCKET_INPUT && (parent_selected || socket->flag & NODE_INTERFACE_SOCKET_SELECT);
+      const auto &socket = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
+      return socket.flag & NODE_INTERFACE_SOCKET_INPUT &&
+             (parent_selected || socket.flag & NODE_INTERFACE_SOCKET_SELECT);
     }
     case NODE_INTERFACE_PANEL: {
-        auto *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
-        for (auto *sub_item : panel->items()) {
-          /* There's no need to handle the header toggle differently. */
-          if (contains_any_selected_input(sub_item, parent_selected || panel->flag & NODE_INTERFACE_PANEL_SELECT)) {
-            return true;
-          }
+      const auto &panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(item);
+      for (const auto *sub_item : panel.items()) {
+        /* There's no need to handle the header toggle differently. */
+        if (contains_any_selected_input(
+                *sub_item, parent_selected || panel.flag & NODE_INTERFACE_PANEL_SELECT))
+        {
+          return true;
         }
+      }
     }
   }
   return false;
@@ -1435,7 +1445,9 @@ static bool node_add_group_input_node_poll(bContext *C)
   bNodeTree *ntree = snode->edittree;
   bNodeTreeInterface &interface = ntree->tree_interface;
 
-  if (!contains_any_selected_input(reinterpret_cast<bNodeTreeInterfaceItem*>(&interface.root_panel), false)) {
+  if (!contains_any_selected_input(
+          reinterpret_cast<bNodeTreeInterfaceItem &>(interface.root_panel), false))
+  {
     CTX_wm_operator_poll_msg_set(C, "No selected input sockets or panels");
     return false;
   }
@@ -1455,17 +1467,19 @@ void NODE_OT_add_group_input_node(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  PropertyRNA *prop = RNA_def_boolean(ot->srna,
-                                     "only_selected_sockets",
-                                     true,
-                                     "Only Selected Sockets",
-                                     "Include only selected sockets/panels in the added group input node");
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "only_selected_sockets",
+      true,
+      "Only Selected Sockets",
+      "Include only selected sockets/panels in the added group input node");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna,
-                         "all_panel_contents",
-                         false,
-                         "All Panel Contents",
-                         "Include sockets in all selected panels, even if they have a panel toggle");
+  prop = RNA_def_boolean(
+      ot->srna,
+      "all_panel_contents",
+      false,
+      "All Panel Contents",
+      "Include sockets in all selected panels, even if they have a panel toggle");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
