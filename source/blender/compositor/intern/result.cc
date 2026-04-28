@@ -26,6 +26,7 @@
 #include "COM_derived_resources.hh"
 #include "COM_domain.hh"
 #include "COM_result.hh"
+#include "COM_utilities.hh"
 
 namespace blender::compositor {
 
@@ -52,6 +53,7 @@ bool Result::is_single_value_only_type(ResultType type)
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Int3:
+    case ResultType::Int4:
     case ResultType::Bool:
     case ResultType::Float4x4:
     case ResultType::Menu:
@@ -93,6 +95,8 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
         case ResultType::Int3:
           /* RGB textures are not fully supported by hardware, so we store Int3 results in RGBA
            * textures. */
+          return gpu::TextureFormat::SINT_16_16_16_16;
+        case ResultType::Int4:
           return gpu::TextureFormat::SINT_16_16_16_16;
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
@@ -138,6 +142,8 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
           /* RGB textures are not fully supported by hardware, so we store Int3 results in RGBA
            * textures. */
           return gpu::TextureFormat::SINT_32_32_32_32;
+        case ResultType::Int4:
+          return gpu::TextureFormat::SINT_32_32_32_32;
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
           return gpu::TextureFormat::SINT_8;
@@ -180,6 +186,7 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Int3:
+    case ResultType::Int4:
     case ResultType::Bool:
     case ResultType::Menu:
       return GPU_DATA_INT;
@@ -330,8 +337,7 @@ ResultType Result::type(gpu::TextureFormat format)
       return ResultType::Int2;
     case gpu::TextureFormat::SINT_16_16_16_16:
     case gpu::TextureFormat::SINT_32_32_32_32:
-      /* Stores Int3, see Result::gpu_texture_format. */
-      return ResultType::Int3;
+      return ResultType::Int4;
     case gpu::TextureFormat::SINT_8:
       return ResultType::Bool;
     default:
@@ -361,6 +367,8 @@ const CPPType &Result::cpp_type(const ResultType type)
       return CPPType::get<int2>();
     case ResultType::Int3:
       return CPPType::get<int3>();
+    case ResultType::Int4:
+      return CPPType::get<int4>();
     case ResultType::Bool:
       return CPPType::get<bool>();
     case ResultType::Float4x4:
@@ -406,6 +414,8 @@ const char *Result::type_name(const ResultType type)
       return "int2";
     case ResultType::Int3:
       return "int3";
+    case ResultType::Int4:
+      return "int4";
     case ResultType::Bool:
       return "bool";
     case ResultType::Float4x4:
@@ -523,6 +533,9 @@ void Result::allocate_single_value()
     case ResultType::Int3:
       this->set_single_value(int3(0));
       break;
+    case ResultType::Int4:
+      this->set_single_value(int4(0));
+      break;
     case ResultType::Bool:
       this->set_single_value(false);
       break;
@@ -565,11 +578,73 @@ Result Result::upload_to_gpu(const bool from_pool) const
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   BLI_assert(this->is_allocated());
+  BLI_assert(!this->is_single_value());
 
   Result result = Result(*context_, this->type(), this->precision());
   result.allocate_texture(this->domain(), from_pool, ResultStorageType::GPU);
 
-  GPU_texture_update(result, this->get_gpu_data_format(), this->cpu_data().data());
+  switch (this->type()) {
+    case ResultType::Float:
+    case ResultType::Color:
+    case ResultType::Float4:
+    case ResultType::Float2:
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Int4:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      GPU_texture_update(result, this->get_gpu_data_format(), this->cpu_data().data());
+      break;
+    case ResultType::Int3: {
+      /* Int3 is stored as an Int4 on GPU due to hardware limitations, so copy to an Int4 result
+       * before uploading. */
+      Result temporary_result = Result(*context_, ResultType::Int4, this->precision());
+      temporary_result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
+      parallel_for(this->domain().data_size, [&](const int2 texel) {
+        temporary_result.store_pixel(texel, int4(this->load_pixel<int3>(texel), 0));
+      });
+      GPU_texture_update(result, this->get_gpu_data_format(), temporary_result.cpu_data().data());
+      temporary_result.release();
+      break;
+    }
+    case ResultType::Float3: {
+      /* Float3 is stored as a Float4 on GPU due to hardware limitations, so copy to a Float4
+       * result before uploading. */
+      Result temporary_result = Result(*context_, ResultType::Float4, this->precision());
+      temporary_result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
+      parallel_for(this->domain().data_size, [&](const int2 texel) {
+        temporary_result.store_pixel(texel, float4(this->load_pixel<float3>(texel), 0.0f));
+      });
+      GPU_texture_update(result, this->get_gpu_data_format(), temporary_result.cpu_data().data());
+      temporary_result.release();
+      break;
+    }
+    case ResultType::Float4x4: {
+      const int2 size = this->domain().data_size;
+      Result temporary_result = Result(*context_, ResultType::Float4, this->precision());
+      /* Float4x4 is stored in a 4-layer array texture, with each layer storing a column, so copy
+       * to a result with 4 times the height, each slice storing a column. */
+      temporary_result.allocate_texture(size * int2(1, 4), false, ResultStorageType::CPU);
+      for (int i = 0; i < 4; i++) {
+        parallel_for(this->domain().data_size, [&](const int2 texel) {
+          temporary_result.store_pixel(texel + int2(0, size.y * i),
+                                       this->load_pixel<float4x4>(texel)[i]);
+        });
+      }
+      GPU_texture_update(result, this->get_gpu_data_format(), temporary_result.cpu_data().data());
+      temporary_result.release();
+      break;
+    }
+    case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      /* Single only types do not support GPU. */
+      break;
+  }
   return result;
 }
 
@@ -582,7 +657,85 @@ Result Result::download_to_cpu() const
   result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-  GPU_texture_read(*this, this->get_gpu_data_format(), 0, result.cpu_data_for_write().data());
+
+  switch (this->type()) {
+    case ResultType::Float:
+    case ResultType::Color:
+    case ResultType::Float4:
+    case ResultType::Float2:
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Int4:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      GPU_texture_read(*this, this->get_gpu_data_format(), 0, result.cpu_data_for_write().data());
+      break;
+    case ResultType::Int3: {
+      if (this->channels_count() == 3) {
+        GPU_texture_read(
+            *this, this->get_gpu_data_format(), 0, result.cpu_data_for_write().data());
+        break;
+      }
+      /* Int3 is stored as an Int4 on GPU due to hardware limitations, so read to an Int4 result
+       * before copying to result. */
+      Result temporary_result = Result(*context_, ResultType::Int4, this->precision());
+      temporary_result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
+      GPU_texture_read(
+          *this, this->get_gpu_data_format(), 0, temporary_result.cpu_data_for_write().data());
+      parallel_for(this->domain().data_size, [&](const int2 texel) {
+        result.store_pixel(texel, temporary_result.load_pixel<int4>(texel).xyz());
+      });
+      temporary_result.release();
+      break;
+    }
+    case ResultType::Float3: {
+      if (this->channels_count() == 3) {
+        GPU_texture_read(
+            *this, this->get_gpu_data_format(), 0, result.cpu_data_for_write().data());
+        break;
+      }
+      /* Float3 is stored as a Float4 on GPU due to hardware limitations, so read to a Float4
+       * result before copying to result. */
+      Result temporary_result = Result(*context_, ResultType::Float4, this->precision());
+      temporary_result.allocate_texture(this->domain(), false, ResultStorageType::CPU);
+      GPU_texture_read(
+          *this, this->get_gpu_data_format(), 0, temporary_result.cpu_data_for_write().data());
+      parallel_for(this->domain().data_size, [&](const int2 texel) {
+        result.store_pixel(texel, temporary_result.load_pixel<float4>(texel).xyz());
+      });
+      temporary_result.release();
+      break;
+    }
+    case ResultType::Float4x4: {
+      /* Float4x4 is stored in a 4-layer array texture, with each layer storing a column, so read
+       * to a result with 4 times the height, each slice storing a column, before finally copying
+       * and constructing the float4x4 in the result. */
+      const int2 size = this->domain().data_size;
+      Result temporary_result = Result(*context_, ResultType::Float4, this->precision());
+      temporary_result.allocate_texture(size * int2(1, 4), false, ResultStorageType::CPU);
+      GPU_texture_read(
+          *this, this->get_gpu_data_format(), 0, temporary_result.cpu_data_for_write().data());
+      parallel_for(this->domain().data_size, [&](const int2 texel) {
+        result.store_pixel(
+            texel,
+            float4x4(temporary_result.load_pixel<float4>(texel + int2(0, size.y * 0)),
+                     temporary_result.load_pixel<float4>(texel + int2(0, size.y * 1)),
+                     temporary_result.load_pixel<float4>(texel + int2(0, size.y * 2)),
+                     temporary_result.load_pixel<float4>(texel + int2(0, size.y * 3))));
+      });
+      temporary_result.release();
+      break;
+    }
+    case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      /* Single only types do not support GPU. */
+      break;
+  }
 
   return result;
 }
@@ -876,6 +1029,7 @@ int64_t Result::channels_count() const
       return 3;
     case ResultType::Color:
     case ResultType::Float4:
+    case ResultType::Int4:
       return 4;
     case ResultType::Float4x4:
       return 16;
@@ -930,6 +1084,7 @@ void Result::update_single_value_data()
         case ResultType::Color:
         case ResultType::Int:
         case ResultType::Int2:
+        case ResultType::Int4:
         case ResultType::Bool:
         case ResultType::Menu:
           GPU_texture_update(
