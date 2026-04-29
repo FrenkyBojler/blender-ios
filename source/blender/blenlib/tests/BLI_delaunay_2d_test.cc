@@ -1131,10 +1131,47 @@ template<typename T> void nonzero_winding_multi_face_edge_test()
   EXPECT_EQ(out_evenodd.vert.size(), 8);
   EXPECT_EQ(out_nonzero.vert.size(), 8);
 
-  /* Even-odd: middle band [1,2] is a hole (2 crossings = outside).
-   * Non-zero: all bands filled (winding > 0).
-   * So non-zero should have more faces than even-odd. */
-  EXPECT_LT(out_evenodd.face.size(), out_nonzero.face.size());
+  /* The 3 stacked rectangles share the bottom edge (multiplicity 3). The bottom
+   * band (y=0..1) is inside all 3 polygons (3 crossings -> odd -> filled),
+   * the middle band (y=1..2) is inside 2 polygons (-> hole), and the top
+   * band (y=2..3) is inside 1 polygon (-> filled). So even-odd fills the
+   * bottom and top bands and removes the middle band; non-zero has all
+   * positive winding so it fills all 3 bands. */
+  EXPECT_EQ(out_evenodd.face.size(), 4);
+  EXPECT_EQ(out_nonzero.face.size(), 6);
+
+  /* Pin which 4 triangles survive in even-odd. Each band is a quadrilateral
+   * split into 2 triangles. The bottom band uses verts 0,1,2,3; the middle
+   * band 2,3,4,5; the top band 4,5,6,7. Even-odd output must contain the
+   * bottom band's 2 tris and the top band's 2 tris, and must NOT contain
+   * the middle band's 2 tris. Catches a balanced-swap bug that would
+   * preserve the count of 4 by filling middle and removing top, for
+   * example. */
+  for (CDT_result<T> *out_p : {&out_evenodd, &out_nonzero}) {
+    CDT_result<T> &out = *out_p;
+    int verts[8];
+    for (int i = 0; i < 8; i++) {
+      verts[i] = get_orig_index(out.vert_orig, i);
+      EXPECT_NE(verts[i], -1);
+    }
+    /* Bottom band tris (v0,v1,v3) and (v1,v2,v3): present in both rules. */
+    EXPECT_NE(get_output_tri_index(out, verts[3], verts[0], verts[1]), -1);
+    EXPECT_NE(get_output_tri_index(out, verts[1], verts[2], verts[3]), -1);
+    /* Top band tris (v4,v5,v7) and (v4,v6,v7): present in both rules. */
+    EXPECT_NE(get_output_tri_index(out, verts[7], verts[5], verts[4]), -1);
+    EXPECT_NE(get_output_tri_index(out, verts[4], verts[6], verts[7]), -1);
+    /* Middle band tris (v2,v3,v5) and (v2,v4,v5): present only in non-zero. */
+    int f_mid_a = get_output_tri_index(out, verts[5], verts[3], verts[2]);
+    int f_mid_b = get_output_tri_index(out, verts[2], verts[4], verts[5]);
+    if (out_p == &out_evenodd) {
+      EXPECT_EQ(f_mid_a, -1);
+      EXPECT_EQ(f_mid_b, -1);
+    }
+    else {
+      EXPECT_NE(f_mid_a, -1);
+      EXPECT_NE(f_mid_b, -1);
+    }
+  }
 }
 
 /**
@@ -1201,13 +1238,43 @@ template<typename T> void nonzero_winding_multi_face_edge_mixed_test()
   EXPECT_EQ(out_evenodd.vert.size(), 8);
   EXPECT_EQ(out_nonzero.vert.size(), 8);
 
-  /* With CW middle face, the winding calculation differs from all-CCW case.
-   * This verifies winding accumulation with cancellation works correctly.
-   * The middle face (CW) subtracts from the outer, so effectively:
-   * - [0,1]: face 0 only (face 1 CW cancels contribution) -> inside
-   * - [1,2]: face 1 (CW, negative) + face 2 (CCW, positive) -> net depends on geometry
-   * - [2,3]: face 2 only -> inside */
-  EXPECT_EQ(out_evenodd.face.size(), out_nonzero.face.size());
+  /* Same 3-stacked-rectangles geometry as the all-CCW test, but face 1 is
+   * declared CW (`5 4 1 0`). Even-odd is winding-independent: only the
+   * multiplicity of each unique CDT edge matters. Edge (0,1) is still in
+   * all 3 faces (multiplicity 3 -> flip 1) and the y=1, y=2 inner edges
+   * still have multiplicity 2 (flip 0) - so the even-odd output is
+   * identical to the non-mixed test: bottom band (y=0..1) and top band
+   * (y=2..3) filled, middle band (y=1..2) is a hole. 4 triangles total.
+   *
+   * For non-zero, face 1's CW direction contributes -1 winding to the
+   * middle band, cancelling face 2's +1, so the middle band has net
+   * winding 0 and is a hole. The non-zero output is therefore *also*
+   * 4 triangles (not 6 as in the all-CCW non-mixed test). */
+  EXPECT_EQ(out_evenodd.face.size(), 4);
+  EXPECT_EQ(out_nonzero.face.size(), 4);
+
+  /* Pin which 4 triangles are filled in both rules. Same band tris as
+   * the non-mixed test: bottom band (verts 0,1,2,3) split into
+   * (v0,v1,v3) and (v1,v2,v3); top band (verts 4,5,6,7) split into
+   * (v4,v5,v7) and (v4,v6,v7). Middle band (verts 2,3,4,5) tris must
+   * be ABSENT in both even-odd AND non-zero. */
+  for (CDT_result<T> *out_p : {&out_evenodd, &out_nonzero}) {
+    CDT_result<T> &out = *out_p;
+    int verts[8];
+    for (int i = 0; i < 8; i++) {
+      verts[i] = get_orig_index(out.vert_orig, i);
+      EXPECT_NE(verts[i], -1);
+    }
+    /* Bottom band tris (v0,v1,v3) and (v1,v2,v3): present in both rules. */
+    EXPECT_NE(get_output_tri_index(out, verts[3], verts[0], verts[1]), -1);
+    EXPECT_NE(get_output_tri_index(out, verts[1], verts[2], verts[3]), -1);
+    /* Top band tris (v4,v5,v7) and (v4,v6,v7): present in both rules. */
+    EXPECT_NE(get_output_tri_index(out, verts[7], verts[5], verts[4]), -1);
+    EXPECT_NE(get_output_tri_index(out, verts[4], verts[6], verts[7]), -1);
+    /* Middle band tris must be absent in both rules. */
+    EXPECT_EQ(get_output_tri_index(out, verts[5], verts[3], verts[2]), -1);
+    EXPECT_EQ(get_output_tri_index(out, verts[2], verts[4], verts[5]), -1);
+  }
 }
 
 /**
