@@ -20,6 +20,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_collection.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
@@ -482,14 +483,50 @@ static bool treesort_custom(const tTreeSort &x1, const tTreeSort &x2)
   CollectionObject *cob1 = BKE_collection_object_find_in(col, ob1);
   CollectionObject *cob2 = BKE_collection_object_find_in(col, ob2);
 
-  const int sort1 = cob1 ? cob1->sort_index : INT_MAX;
-  const int sort2 = cob2 ? cob2->sort_index : INT_MAX;
+  const int sort1 = cob1 ? (cob1->sort_index < 0 ? INT_MAX : cob1->sort_index) : INT_MAX;
+  const int sort2 = cob2 ? (cob2->sort_index < 0 ? INT_MAX : cob2->sort_index) : INT_MAX;
 
   if (sort1 == sort2) {
     return treesort_alpha(x1, x2);
   }
 
   return sort1 < sort2;
+}
+
+static void outliner_sort_custom_assign_missing_sort_indices(ListBaseT<TreeElement> *lb,
+                                                             TreeElement *last_te)
+{
+  Collection *collection = outliner_collection_from_tree_element(last_te->parent);
+  if (collection == nullptr) {
+    return;
+  }
+
+  bool has_missing_indices = false;
+  for (TreeElement &te : *lb) {
+    Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
+    CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+    if (cob != nullptr && cob->sort_index < 0) {
+      has_missing_indices = true;
+      break;
+    }
+  }
+
+  int max_sort_index = -1;
+  for (CollectionObject &cob : collection->gobject) {
+    max_sort_index = std::max(max_sort_index, cob.sort_index);
+  }
+
+  int next_index = has_missing_indices ? max_sort_index + 1 : 0;
+
+  for (TreeElement &te : *lb) {
+    Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
+    CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+    if (cob != nullptr) {
+      if (!has_missing_indices || cob->sort_index < 0) {
+        cob->sort_index = next_index++;
+      }
+    }
+  }
 }
 
 /* Comparator for type sort. Keep non-objects before object. For objects, place members of the
@@ -704,6 +741,7 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
         BLI_addtail(lb, tp->te);
       }
     }
+    outliner_sort_custom_assign_missing_sort_indices(lb, last_te);
   }
 
   for (TreeElement &te_iter : *lb) {

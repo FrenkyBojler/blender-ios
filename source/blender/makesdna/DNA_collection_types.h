@@ -118,7 +118,7 @@ struct CollectionObject {
   struct Object *ob = nullptr;
 
   CollectionLightLinking light_linking;
-  int sort_index = 0;
+  int sort_index = -1;
 };
 
 struct CollectionChild {
