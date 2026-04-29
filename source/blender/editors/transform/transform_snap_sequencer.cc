@@ -491,8 +491,10 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
         continue;
       }
 
-      /* When mouse is to the right of the target, place strip on the right
-       * (prefer smaller source). When to the left, place on the left. */
+      /* When moving whole strips, snap to mouse cursor cannot distinguish whether left or right
+       * handle should be `best_source`. To determine this, when mouse is to the right of the
+       * target, place strip on the right (prefer smaller source). When to the left, place on the
+       * left. */
       if (snap_to_mouse_cursor && dist == best_dist) {
         bool mouse_right = point[0] > target[0];
         if (mouse_right ? (source[0] > best_source[0]) : (source[0] < best_source[0])) {
@@ -510,7 +512,12 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
     return false;
   }
 
-  float2 best_offset(float(best_target[0] - best_source[0]), 0.0f);
+  if (snap_to_mouse_cursor) {
+    /* Target correct channel with mouse cursor. */
+    best_target[1] = truncf(mval_view.y);
+  }
+
+  float2 best_offset = best_target - best_source;
   if (transform_convert_sequencer_clamp(t, best_offset)) {
     return false;
   }
@@ -596,7 +603,18 @@ bool snap_sequencer_calc(TransInfo *t)
 
 void snap_sequencer_apply_seqslide(TransInfo *t, float *vec)
 {
-  *vec = t->tsnap.snap_target[0] - t->tsnap.snap_source[0];
+  const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
+  const bool snap_to_mouse_cursor = (snap_flag & SEQ_SNAP_TO_MOUSE_CURSOR);
+
+  float2 target = t->tsnap.snap_target;
+  float2 source = t->tsnap.snap_source;
+
+  if (snap_to_mouse_cursor) {
+    copy_v2_v2(vec, target - source);
+  }
+  else {
+    *vec = target[0] - source[0];
+  }
 }
 
 void snap_sequencer_image_apply_translate(TransInfo *t, float vec[2])
