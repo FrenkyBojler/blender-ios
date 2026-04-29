@@ -781,6 +781,86 @@ template<typename T> void nestedholes_test()
   }
 }
 
+template<typename T> void even_odd_nested_holes_deep_test()
+{
+  /* Five concentric squares - one nesting level deeper than `NestedHoles`. Filled bands are
+   * the outermost ring, the third ring, and the innermost square; the second and fourth
+   * rings are holes. An off-by-one in the parity XOR would mis-fill an alternate ring. */
+  const char *spec = R"(20 0 5
+  -0.5 -0.5
+  0.5 -0.5
+  0.5 0.5
+  -0.5 0.5
+  -0.4 -0.4
+  0.4 -0.4
+  0.4 0.4
+  -0.4 0.4
+  -0.3 -0.3
+  0.3 -0.3
+  0.3 0.3
+  -0.3 0.3
+  -0.2 -0.2
+  0.2 -0.2
+  0.2 0.2
+  -0.2 0.2
+  -0.1 -0.1
+  0.1 -0.1
+  0.1 0.1
+  -0.1 0.1
+  0 1 2 3
+  4 5 6 7
+  8 9 10 11
+  12 13 14 15
+  16 17 18 19
+  )";
+
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+  CDT_result<T> out = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
+
+  /* Three filled bands: outermost ring (8 tris), middle filled ring (8 tris),
+   * innermost square (2 tris) -> 18 triangles total. */
+  EXPECT_EQ(out.vert.size(), 20);
+  EXPECT_EQ(out.face.size(), 18);
+
+  /* Innermost square (input ids 16..19) must be present and filled. */
+  int v_i[4];
+  for (int k = 0; k < 4; k++) {
+    v_i[k] = get_orig_index(out.vert_orig, k + 16);
+    EXPECT_NE(v_i[k], -1);
+  }
+  bool inner_a = get_output_tri_index(out, v_i[0], v_i[1], v_i[2]) != -1 &&
+                 get_output_tri_index(out, v_i[0], v_i[2], v_i[3]) != -1;
+  bool inner_b = get_output_tri_index(out, v_i[0], v_i[1], v_i[3]) != -1 &&
+                 get_output_tri_index(out, v_i[1], v_i[2], v_i[3]) != -1;
+  EXPECT_TRUE(inner_a || inner_b);
+
+  /* Innermost-square input-id (4) appears on at least one output face. */
+  bool found_inner_id = false;
+  for (int f = 0; f < int(out.face.size()); f++) {
+    if (output_face_has_input_id(out, f, 4)) {
+      found_inner_id = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_inner_id);
+
+  /* The ring between sq1 and sq2 (input ids 1 and 2) must be a hole - no output face is
+   * "inside sq1 but not sq2". Without this, a buggy `{ring2, ring3, innermost}` fill would
+   * pass the count + innermost checks (8 + 8 + 2 = 18, innermost filled). */
+  bool found_ring2_face = false;
+  for (int f = 0; f < int(out.face.size()); f++) {
+    if (output_face_has_input_id(out, f, 1) && !output_face_has_input_id(out, f, 2)) {
+      found_ring2_face = true;
+      break;
+    }
+  }
+  EXPECT_FALSE(found_ring2_face);
+
+  if (DO_DRAW) {
+    graph_draw<T>("EvenOddNestedHolesDeep", out.vert, out.edge, out.face);
+  }
+}
+
 template<typename T> void disjoint_polys_in_large_hull_test()
 {
   const char *spec = R"(6 0 2
@@ -3086,6 +3166,11 @@ TEST(delaunay_d, NestedHoles)
   nestedholes_test<double>();
 }
 
+TEST(delaunay_d, EvenOddNestedHolesDeep)
+{
+  even_odd_nested_holes_deep_test<double>();
+}
+
 TEST(delaunay_d, NonZeroWinding)
 {
   nonzero_winding_test<double>();
@@ -3334,6 +3419,11 @@ TEST(delaunay_m, LineHoleInSquare)
 TEST(delaunay_m, NestedHoles)
 {
   nestedholes_test<mpq_class>();
+}
+
+TEST(delaunay_m, EvenOddNestedHolesDeep)
+{
+  even_odd_nested_holes_deep_test<mpq_class>();
 }
 
 TEST(delaunay_m, NonZeroWinding)
