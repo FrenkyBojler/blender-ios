@@ -5537,18 +5537,13 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_language_update");
 
   static const EnumPropertyItem rna_enum_time_format_items[] = {
-      {int(date_string::TimeFormat::Default),
-       "DEFAULT",
-       0,
-       "Default",
-       "Default time formatting based on output language"},
-      {int(date_string::TimeFormat::H24_Colon),
-       "H24_COLON",
+      {int(date_string::TimeFormat::H24),
+       "H24",
        0,
        "24-Hour (23:59)",
        "Time format: 24-hour clock with colon, eg: 23:59"},
-      {int(date_string::TimeFormat::H12_Colon),
-       "H12_COLON",
+      {int(date_string::TimeFormat::H12),
+       "H12",
        0,
        "12-Hour (11:59 PM)",
        "Time format: 12-hour clock, eg: 11:59 PM"},
@@ -6117,25 +6112,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem image_draw_methods[] = {
-      {IMAGE_DRAW_METHOD_AUTO,
-       "AUTO",
-       0,
-       "Automatic",
-       "Automatically choose method based on GPU and image"},
-      {IMAGE_DRAW_METHOD_2DTEXTURE,
-       "2DTEXTURE",
-       0,
-       "2D Texture",
-       "Use CPU for display transform and display image with 2D texture"},
-      {IMAGE_DRAW_METHOD_GLSL,
-       "GLSL",
-       0,
-       "GLSL",
-       "Use GLSL shaders for display transform and display image with 2D texture"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem seq_proxy_setup_options[] = {
       {USER_SEQ_PROXY_SETUP_MANUAL, "MANUAL", 0, "Manual", "Set up proxies manually"},
       {USER_SEQ_PROXY_SETUP_AUTOMATIC,
@@ -6278,13 +6254,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Textures */
-
-  prop = RNA_def_property(srna, "image_draw_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, image_draw_methods);
-  RNA_def_property_enum_sdna(prop, nullptr, "image_draw_method");
-  RNA_def_property_ui_text(
-      prop, "Image Display Method", "Method used for displaying images on the screen");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");

@@ -30,23 +30,20 @@ enum class DateFormat : uint8_t {
 };
 
 enum class TimeFormat : uint8_t {
-  Default = 0, /* Convention based on output language. */
-  H24_Colon,   /* 23:59 */
-  H12_Colon,   /* 11:59 PM */
+  H24 = 0, /* 23:59 */
+  H12,     /* 11:59 PM */
 };
 
 std::string date(const std::tm *date_time,
                  const StringRef locale_iso = {},
                  DateFormat format = DateFormat::Default);
 
-std::string time(const std::tm *date_time,
-                 const StringRef locale_iso = {},
-                 TimeFormat format = TimeFormat::Default);
+std::string time(const std::tm *date_time, TimeFormat format = TimeFormat::H24);
 
 std::string datetime(const std::tm *date_time,
                      const StringRef locale_iso = {},
                      DateFormat date_format = DateFormat::Default,
-                     TimeFormat time_format = TimeFormat::Default,
+                     TimeFormat time_format = TimeFormat::H24,
                      const std::tm *now = nullptr,
                      const StringRef today = {},
                      const StringRef yesterday = {});

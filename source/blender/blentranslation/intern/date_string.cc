@@ -22,21 +22,20 @@ namespace blender::date_string {
 struct LocalePatterns {
   StringRef locale;
   StringRef date;
-  StringRef time;
 };
 
 static const LocalePatterns *get_locale_patterns(const StringRef locale_iso)
 {
   static constexpr std::array<LocalePatterns, 9> patterns = {{
-      {"", "{d:02} {b} {Y}", "{H:02}:{M:02}"},         /* default */
-      {"en_US", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},   /* English (US) */
-      {"ar_EG", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},   /* Arabic (Egypt) */
-      {"zh_HANS", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Simplified) */
-      {"zh_HANT", "{Y}年{m}月{d}日", "{H:02}:{M:02}"}, /* Chinese (Traditional) */
-      {"hu_HU", "{Y}. {b} {d:02}", "{H:02}:{M:02}"},   /* Hungarian */
-      {"ja_JP", "{Y}年{m}月{d}日", "{H:02}:{M:02}"},   /* Japanese */
-      {"ko_KR", "{Y}년 {m}월 {d}일", "{H:02}:{M:02}"}, /* Korean */
-      {"ur", "{d:02} {b} {Y}", "{I}:{M:02} {p}"},      /* Urdu */
+      {"", "{d:02} {b} {Y}"},         /* default */
+      {"en_US", "{d:02} {b} {Y}"},    /* English (US) */
+      {"ar_EG", "{d:02} {b} {Y}"},    /* Arabic (Egypt) */
+      {"zh_HANS", "{Y}年{m}月{d}日"}, /* Chinese (Simplified) */
+      {"zh_HANT", "{Y}年{m}月{d}日"}, /* Chinese (Traditional) */
+      {"hu_HU", "{Y}. {b} {d:02}"},   /* Hungarian */
+      {"ja_JP", "{Y}年{m}月{d}日"},   /* Japanese */
+      {"ko_KR", "{Y}년 {m}월 {d}일"}, /* Korean */
+      {"ur", "{d:02} {b} {Y}"},       /* Urdu */
   }};
 
   for (const LocalePatterns &pattern : patterns) {
@@ -49,18 +48,14 @@ static const LocalePatterns *get_locale_patterns(const StringRef locale_iso)
   return &patterns[0];
 }
 
-std::string time(const std::tm *date_time, const StringRef locale_iso, TimeFormat format)
+std::string time(const std::tm *date_time, TimeFormat format)
 {
   std::string time_format_str;
 
-  if (format == TimeFormat::Default) {
-    const LocalePatterns *pattern = get_locale_patterns(locale_iso);
-    time_format_str = pattern->time;
-  }
-  else if (format == TimeFormat::H24_Colon) {
+  if (format == TimeFormat::H24) {
     time_format_str = "{H:02}:{M:02}";
   }
-  else if (format == TimeFormat::H12_Colon) {
+  else if (format == TimeFormat::H12) {
     time_format_str = "{I}:{M:02} {p}";
   }
 
@@ -147,7 +142,7 @@ std::string datetime(const std::tm *datetime,
                     datetime->tm_year == yesterday_tm.tm_year);
   }
 
-  const std::string time_s = time(datetime, locale_iso, time_format);
+  const std::string time_s = time(datetime, time_format);
 
   if (is_today) {
     return std::string(today) + " " + time_s;
