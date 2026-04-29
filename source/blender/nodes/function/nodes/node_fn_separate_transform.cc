@@ -15,10 +15,10 @@ namespace blender::nodes::node_fn_separate_transform_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Matrix>("Transform");
-  b.add_output<decl::Vector>("Translation").subtype(PROP_TRANSLATION);
-  b.add_output<decl::Rotation>("Rotation");
-  b.add_output<decl::Vector>("Scale").subtype(PROP_XYZ);
+  b.add_input<decl::Matrix>("Transform"_ustr);
+  b.add_output<decl::Vector>("Translation"_ustr).subtype(PROP_TRANSLATION);
+  b.add_output<decl::Rotation>("Rotation"_ustr);
+  b.add_output<decl::Vector>("Scale"_ustr).subtype(PROP_XYZ);
 };
 
 class SeparateTransformFunction : public mf::MultiFunction {
@@ -107,7 +107,7 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeSeparateTransform", FN_NODE_SEPARATE_TRANSFORM);
+  fn_node_type_base(&ntype, "FunctionNodeSeparateTransform"_ustr, FN_NODE_SEPARATE_TRANSFORM);
   ntype.ui_name = "Separate Transform";
   ntype.ui_description =
       "Split a transformation matrix into a translation vector, a rotation, and a scale vector";

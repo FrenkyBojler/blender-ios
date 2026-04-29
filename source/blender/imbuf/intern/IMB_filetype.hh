@@ -59,8 +59,7 @@ struct ImFileType {
   /** Combination of #eImFileTypeCapability flags for writing. */
   eImFileTypeCapability capability_write;
 
-  /** #eImbFileType */
-  int filetype;
+  eImbFileType filetype;
 
   /** Upper case ID, used as a unique identifier for the file format. */
   const char *filetype_id;
@@ -85,7 +84,7 @@ struct ImFileColorSpace {
 extern const ImFileType IMB_FILE_TYPES[];
 extern const ImFileType *IMB_FILE_TYPES_LAST;
 
-const ImFileType *IMB_file_type_from_ftype(int ftype);
+const ImFileType *IMB_file_type_from_ftype(eImbFileType ftype);
 const ImFileType *IMB_file_type_from_ibuf(const ImBuf *ibuf);
 
 void imb_filetypes_init();
@@ -314,6 +313,11 @@ ImBuf *imb_load_dds(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
+
+uint8_t *imb_load_dds_compressed_data(const char *filepath,
+                                      int width,
+                                      int height,
+                                      int &r_mipcount);
 
 /** \} */
 

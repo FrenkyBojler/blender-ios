@@ -2718,6 +2718,14 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
 
   if (use_factory_settings) {
     U.runtime.is_dirty = true;
+
+    /* Default to Interface if Developer Tools section is active before Load Factory Preferences.
+     */
+    if (U.space_data.section_active == USER_SECTION_DEVELOPER_TOOLS &&
+        !(U.flag & USER_DEVELOPER_UI))
+    {
+      U.space_data.section_active = USER_SECTION_INTERFACE;
+    }
   }
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
@@ -2726,6 +2734,7 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
   wm_window_clear_drawable(static_cast<wmWindowManager *>(bmain->wm.first));
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_UI | ND_UI_FONT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2924,6 +2933,13 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
 
     if (use_factory_settings) {
       U.runtime.is_dirty = true;
+
+      /* Default to Interface if Developer Tools section is active before Load Factory Settings. */
+      if (U.space_data.section_active == USER_SECTION_DEVELOPER_TOOLS &&
+          !(U.flag & USER_DEVELOPER_UI))
+      {
+        U.space_data.section_active = USER_SECTION_INTERFACE;
+      }
     }
   }
 
@@ -4347,10 +4363,10 @@ void WM_OT_clear_recent_files(wmOperatorType *ot)
 /** \name Auto Script Execution Warning Dialog
  * \{ */
 
-static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void * /*arg*/)
+static void wm_block_autorun_warning_ignore(bContext *C, ui::Block *block)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
+  popup_block_close(C, win, block);
 
   /* Free the data as it's no longer needed. */
   wm_test_autorun_revert_action_set(nullptr, nullptr);
@@ -4493,7 +4509,7 @@ static ui::Block *block_create_autorun_warning(bContext *C, ARegion *region, voi
                          UI_UNIT_Y,
                          nullptr,
                          TIP_("Continue using file without Python scripts"));
-  button_func_set(but, wm_block_autorun_warning_ignore, block, nullptr);
+  button_func_set(but, [block](bContext &C) { wm_block_autorun_warning_ignore(&C, block); });
   button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
   button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
 

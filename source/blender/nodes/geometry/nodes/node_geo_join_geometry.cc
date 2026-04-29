@@ -12,10 +12,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .multi_input()
       .description("Geometries to merge together by concatenating their elements");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -38,7 +38,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeJoinGeometry", GEO_NODE_JOIN_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeJoinGeometry"_ustr, GEO_NODE_JOIN_GEOMETRY);
   ntype.ui_name = "Join Geometry";
   ntype.ui_description = "Merge separately generated geometries into a single one";
   ntype.enum_name_legacy = "JOIN_GEOMETRY";

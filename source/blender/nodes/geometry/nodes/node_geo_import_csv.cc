@@ -19,20 +19,20 @@ namespace blender::nodes::node_geo_import_csv {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Path")
+  b.add_input<decl::String>("Path"_ustr)
       .subtype(PROP_FILEPATH)
       .path_filter("*.csv")
       .optional_label()
       .description("Path to a CSV file");
-  b.add_input<decl::String>("Delimiter").default_value(",");
+  b.add_input<decl::String>("Delimiter"_ustr).default_value(",");
 
-  b.add_output<decl::Geometry>("Point Cloud");
+  b.add_output<decl::Geometry>("Point Cloud"_ustr);
 }
 
 class LoadCsvCache : public memory_cache::CachedValue {
  public:
   GeometrySet geometry;
-  Vector<geo_eval_log::NodeWarning> warnings;
+  Vector<eval_log::NodeWarning> warnings;
 
   void count_memory(MemoryCounter &counter) const override
   {
@@ -85,7 +85,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         return cached_value;
       });
 
-  for (const geo_eval_log::NodeWarning &warning : cached_value->warnings) {
+  for (const eval_log::NodeWarning &warning : cached_value->warnings) {
     params.error_message_add(warning.type, warning.message);
   }
 
@@ -96,7 +96,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImportCSV");
+  geo_node_type_base(&ntype, "GeometryNodeImportCSV"_ustr);
   ntype.ui_name = "Import CSV";
   ntype.ui_description = "Import geometry from an CSV file";
   ntype.nclass = NODE_CLASS_INPUT;

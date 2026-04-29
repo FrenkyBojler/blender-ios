@@ -141,29 +141,30 @@ static EnumPropertyItem resolution_mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Points").is_default_link_socket().description(
-      "Points which are converted to a volume");
-  b.add_input<decl::Float>("Density").default_value(1.0f).min(0.0f);
-  b.add_input<decl::Menu>("Resolution Mode")
+  b.add_input<decl::Geometry>("Points"_ustr)
+      .is_default_link_socket()
+      .description("Points which are converted to a volume");
+  b.add_input<decl::Float>("Density"_ustr).default_value(1.0f).min(0.0f);
+  b.add_input<decl::Menu>("Resolution Mode"_ustr)
       .static_items(resolution_mode_items)
       .optional_label()
       .description("How the voxel size is specified")
       .translation_context(BLT_I18NCONTEXT_COUNTABLE);
-  b.add_input<decl::Float>("Voxel Size")
+  b.add_input<decl::Float>("Voxel Size"_ustr)
       .default_value(0.3f)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
       .usage_by_single_menu(GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE);
-  b.add_input<decl::Float>("Voxel Amount")
+  b.add_input<decl::Float>("Voxel Amount"_ustr)
       .default_value(64.0f)
       .min(0.0f)
       .usage_by_single_menu(GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT);
-  b.add_input<decl::Float>("Radius")
+  b.add_input<decl::Float>("Radius"_ustr)
       .default_value(0.5f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .field_on_all();
-  b.add_output<decl::Geometry>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
+  b.add_output<decl::Geometry>("Volume"_ustr).translation_context(BLT_I18NCONTEXT_ID_ID);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -189,7 +190,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodePointsToVolume", GEO_NODE_POINTS_TO_VOLUME);
+  geo_node_type_base(&ntype, "GeometryNodePointsToVolume"_ustr, GEO_NODE_POINTS_TO_VOLUME);
   ntype.ui_name = "Points to Volume";
   ntype.ui_description = "Generate a fog volume sphere around every point";
   ntype.enum_name_legacy = "POINTS_TO_VOLUME";

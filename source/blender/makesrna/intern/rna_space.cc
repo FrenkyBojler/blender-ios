@@ -1036,8 +1036,6 @@ static bool rna_Space_show_region_asset_shelf_get(PointerRNA *ptr)
 static void rna_Space_show_region_asset_shelf_set(PointerRNA *ptr, bool value)
 {
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN, !value);
-  rna_Space_bool_from_region_flag_set_by_type(
-      ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN, !value);
 }
 static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, const char **r_info)
 {
@@ -1765,7 +1763,7 @@ static void rna_SpaceView3D_use_local_collections_update(bContext *C, PointerRNA
   View3D *v3d = static_cast<View3D *>(ptr->data);
 
   if (ED_view3d_local_collections_set(bmain, v3d)) {
-    BKE_layer_collection_local_sync(scene, view_layer, v3d);
+    BKE_layer_collection_local_sync(*bmain, scene, view_layer, v3d);
     DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   }
 }
@@ -1954,7 +1952,9 @@ static bool rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
   if (win != nullptr) {
     Scene *scene = WM_window_get_active_scene(win);
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    /* FIXME Using G_MAIN is weak, but should work in practice given current context
+     * (code already relies on 'G_MAIN data'). */
+    BKE_view_layer_synced_ensure(*G_MAIN, scene, view_layer);
     obedit = BKE_view_layer_edit_object_get(view_layer);
   }
   return ED_space_image_show_uvedit(sima, obedit);
@@ -1969,7 +1969,9 @@ static bool rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
   if (win != nullptr) {
     Scene *scene = WM_window_get_active_scene(win);
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    /* FIXME Using G_MAIN is weak, but should work in practice given current context
+     * (code already relies on 'G_MAIN data'). */
+    BKE_view_layer_synced_ensure(*G_MAIN, scene, view_layer);
     obedit = BKE_view_layer_edit_object_get(view_layer);
   }
   return ED_space_image_check_show_maskedit(sima, obedit);
@@ -2589,8 +2591,8 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
     }
 
     /* Add new proxy size. */
-    strip.data->proxy->build_size_flags |= seq::rendersize_to_proxysize(
-        eSpaceSeq_Proxy_RenderSize(sseq->render_size));
+    strip.data->proxy->build_size_flags |= eStripProxyBuildSize(
+        seq::rendersize_to_proxysize(eSpaceSeq_Proxy_RenderSize(sseq->render_size)));
 
     /* Build proxy. */
     seq::proxy_build_start(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
@@ -3098,9 +3100,18 @@ static std::optional<std::string> rna_SpaceClipOverlay_path(const PointerRNA *pt
 
 /* File browser. */
 
-static std::optional<std::string> rna_FileSelectParams_path(const PointerRNA * /*ptr*/)
+static std::optional<std::string> rna_FileSelectParams_path(const PointerRNA *ptr)
 {
-  return "params";
+  const PointerRNA space_ptr = ptr->parent();
+  if (!space_ptr.owner_id) {
+    return std::nullopt;
+  }
+
+  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(&space_ptr);
+  if (!editor_path) {
+    return std::nullopt;
+  }
+  return fmt::format("{}.params", *editor_path);
 }
 
 int rna_FileSelectParams_filename_editable(const PointerRNA *ptr, const char **r_info)
@@ -3882,12 +3893,25 @@ static void rna_FileAssetSelectParams_catalog_id_set(PointerRNA *ptr, const char
 }
 
 static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
-    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
 {
+  const FileAssetSelectParams *params = static_cast<FileAssetSelectParams *>(ptr->data);
+
   EnumPropertyItem *items = nullptr;
   int items_num = 0;
   for (const EnumPropertyItem *item = rna_enum_asset_import_method_items; item->identifier; item++)
   {
+    if ((item->value == FILE_ASSET_IMPORT_LINK) &&
+        (params->asset_library_ref.type == ASSET_LIBRARY_CUSTOM))
+    {
+      const bUserAssetLibrary *user_library = BKE_preferences_asset_library_find_index(
+          &U, params->asset_library_ref.custom_library_index);
+      if (user_library && user_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+        /* Don't allow linking with remote libraries. */
+        continue;
+      }
+    }
+
     switch (eFileAssetImportMethod(item->value)) {
       case FILE_ASSET_IMPORT_APPEND_REUSE: {
         if (U.experimental.no_data_block_packing) {
@@ -4394,6 +4418,14 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SO_MODE_COLUMN);
   RNA_def_property_ui_text(
       prop, "Show Mode Column", "Show the mode column for mode toggle and activation");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  prop = RNA_def_property(srna, "scroll_to_active", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SO_SCROLL_TO_ACTIVE);
+  RNA_def_property_ui_text(
+      prop,
+      "Scroll to Active",
+      "Scroll the active item into view when it changes outside of the Outliner");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   /* Granular restriction column option. */

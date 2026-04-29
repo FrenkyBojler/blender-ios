@@ -14,9 +14,9 @@ namespace blender::nodes::node_fn_axis_angle_to_rotation_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Axis").default_value({0.0f, 0.0f, 1.0f});
-  b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE);
-  b.add_output<decl::Rotation>("Rotation");
+  b.add_input<decl::Vector>("Axis"_ustr).default_value({0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Float>("Angle"_ustr).subtype(PROP_ANGLE);
+  b.add_output<decl::Rotation>("Rotation"_ustr);
 };
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -67,7 +67,8 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeAxisAngleToRotation", FN_NODE_AXIS_ANGLE_TO_ROTATION);
+  fn_node_type_base(
+      &ntype, "FunctionNodeAxisAngleToRotation"_ustr, FN_NODE_AXIS_ANGLE_TO_ROTATION);
   ntype.ui_name = "Axis Angle to Rotation";
   ntype.ui_description = "Build a rotation from an axis and a rotation around that axis";
   ntype.enum_name_legacy = "AXIS_ANGLE_TO_ROTATION";

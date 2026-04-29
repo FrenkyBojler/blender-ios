@@ -27,8 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output(data_type, "Grid"_ustr).structure_type(StructureType::Grid).align_with_previous();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -61,9 +61,9 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     return;
   }
   params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeGridVoxelize");
+    bNode &node = params.add_node("GeometryNodeGridVoxelize"_ustr);
     node.custom1 = *data_type;
-    params.update_and_connect_available_socket(node, "Grid");
+    params.update_and_connect_available_socket(node, "Grid"_ustr);
   });
 }
 
@@ -105,7 +105,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeGridVoxelize");
+  geo_node_type_base(&ntype, "GeometryNodeGridVoxelize"_ustr);
   ntype.ui_name = "Voxelize Grid";
   ntype.ui_description =
       "Remove sparseness from a volume grid by making the active tiles into voxels";

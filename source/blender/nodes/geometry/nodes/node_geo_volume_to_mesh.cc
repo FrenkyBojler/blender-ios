@@ -43,30 +43,30 @@ static EnumPropertyItem resolution_mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Volume")
+  b.add_input<decl::Geometry>("Volume"_ustr)
       .supported_type(GeometryComponent::Type::Volume)
       .translation_context(BLT_I18NCONTEXT_ID_ID)
       .is_default_link_socket()
       .description("Volume to convert to a mesh");
-  b.add_input<decl::Menu>("Resolution Mode")
+  b.add_input<decl::Menu>("Resolution Mode"_ustr)
       .static_items(resolution_mode_items)
       .optional_label()
       .description("How the voxel size is specified")
       .translation_context(BLT_I18NCONTEXT_COUNTABLE);
-  b.add_input<decl::Float>("Voxel Size")
+  b.add_input<decl::Float>("Voxel Size"_ustr)
       .default_value(0.3f)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
       .usage_by_single_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE);
-  b.add_input<decl::Float>("Voxel Amount")
+  b.add_input<decl::Float>("Voxel Amount"_ustr)
       .default_value(64.0f)
       .min(0.0f)
       .usage_by_single_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT);
-  b.add_input<decl::Float>("Threshold")
+  b.add_input<decl::Float>("Threshold"_ustr)
       .default_value(0.1f)
       .description("Values larger than the threshold are inside the generated mesh");
-  b.add_input<decl::Float>("Adaptivity").min(0.0f).max(1.0f).subtype(PROP_FACTOR);
-  b.add_output<decl::Geometry>("Mesh");
+  b.add_input<decl::Float>("Adaptivity"_ustr).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_output<decl::Geometry>("Mesh"_ustr);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -214,7 +214,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeVolumeToMesh", GEO_NODE_VOLUME_TO_MESH);
+  geo_node_type_base(&ntype, "GeometryNodeVolumeToMesh"_ustr, GEO_NODE_VOLUME_TO_MESH);
   ntype.ui_name = "Volume to Mesh";
   ntype.ui_description = "Generate a mesh on the \"surface\" of a volume";
   ntype.enum_name_legacy = "VOLUME_TO_MESH";

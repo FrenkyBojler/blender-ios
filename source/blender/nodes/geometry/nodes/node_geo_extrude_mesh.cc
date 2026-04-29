@@ -37,22 +37,25 @@ NODE_STORAGE_FUNCS(NodeGeometryExtrudeMesh)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh")
+  b.add_input<decl::Geometry>("Mesh"_ustr)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh to extrude elements of");
-  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
-  b.add_input<decl::Vector>("Offset")
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Vector>("Offset"_ustr)
       .subtype(PROP_TRANSLATION)
       .implicit_field_on_all(NODE_DEFAULT_INPUT_NORMAL_FIELD)
       .hide_value();
-  b.add_input<decl::Float>("Offset Scale").default_value(1.0f).field_on_all();
-  auto &individual =
-      b.add_input<decl::Bool>("Individual").default_value(true).make_available([](bNode &node) {
-        node_storage(node).mode = GEO_NODE_EXTRUDE_MESH_FACES;
-      });
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
-  b.add_output<decl::Bool>("Top").field_on_all().translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_output<decl::Bool>("Side").field_on_all();
+  b.add_input<decl::Float>("Offset Scale"_ustr).default_value(1.0f).field_on_all();
+  auto &individual = b.add_input<decl::Bool>("Individual"_ustr)
+                         .default_value(true)
+                         .make_available([](bNode &node) {
+                           node_storage(node).mode = GEO_NODE_EXTRUDE_MESH_FACES;
+                         });
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
+  b.add_output<decl::Bool>("Top"_ustr)
+      .field_on_all()
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_output<decl::Bool>("Side"_ustr).field_on_all();
 
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
@@ -464,7 +467,7 @@ static void extrude_mesh_vertices(Mesh &mesh,
   }
 
   const bool no_loose_vert_hint = mesh.runtime->loose_verts_cache.is_cached() &&
-                                  mesh.runtime->loose_verts_cache.data().count == 0;
+                                  mesh.runtime->loose_verts_cache.data().mask.is_empty();
   const bool no_overlapping_hint = mesh.no_overlapping_topology();
   BKE_mesh_runtime_clear_cache(&mesh);
   if (no_loose_vert_hint) {
@@ -546,9 +549,9 @@ static GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
 static void tag_mesh_added_faces(Mesh &mesh)
 {
   const bool no_loose_vert_hint = mesh.runtime->loose_verts_cache.is_cached() &&
-                                  mesh.runtime->loose_verts_cache.data().count == 0;
+                                  mesh.runtime->loose_verts_cache.data().mask.is_empty();
   const bool no_loose_edge_hint = mesh.runtime->loose_edges_cache.is_cached() &&
-                                  mesh.runtime->loose_edges_cache.data().count == 0;
+                                  mesh.runtime->loose_edges_cache.data().mask.is_empty();
   const bool no_overlapping_hint = mesh.no_overlapping_topology();
   BKE_mesh_runtime_clear_cache(&mesh);
   if (no_loose_vert_hint) {
@@ -1551,7 +1554,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH);
+  geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh"_ustr, GEO_NODE_EXTRUDE_MESH);
   ntype.ui_name = "Extrude Mesh";
   ntype.ui_description =
       "Generate new vertices, edges, or faces from selected elements and move them based on an "

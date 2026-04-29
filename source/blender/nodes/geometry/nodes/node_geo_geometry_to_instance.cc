@@ -10,10 +10,10 @@ namespace blender::nodes::node_geo_geometry_to_instance_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .multi_input()
       .description("Each input geometry is turned into a separate instance");
-  b.add_output<decl::Geometry>("Instances").propagate_all();
+  b.add_output<decl::Geometry>("Instances"_ustr).propagate_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -39,7 +39,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGeometryToInstance", GEO_NODE_GEOMETRY_TO_INSTANCE);
+  geo_node_type_base(&ntype, "GeometryNodeGeometryToInstance"_ustr, GEO_NODE_GEOMETRY_TO_INSTANCE);
   ntype.ui_name = "Geometry to Instance";
   ntype.ui_description =
       "Convert each input geometry into an instance, which can be much faster than the Join "

@@ -840,22 +840,22 @@ def previous_socket(socket: NodeSocket):
 
         # If we are entering a node group (from outputs)
         if from_socket.node.type == "GROUP":
-            socket_name = from_socket.name
+            socket_name = from_socket.identifier
             # Some groups can be undefined (because of linked librairies)
             next_socket = next(iter([n for n in from_socket.node.node_tree.nodes if n.type == "GROUP_OUTPUT"]), None)
             if next_socket is None:
                 return NodeSocket(None, None)
             sockets = next_socket.inputs
-            socket = [s for s in sockets if s.name == socket_name][0]
+            socket = [s for s in sockets if s.identifier == socket_name][0]
             group_path.append(from_socket.node)
             soc = socket
             continue
 
         # If we are exiting a node group (from inputs)
         if from_socket.node.type == "GROUP_INPUT":
-            socket_name = from_socket.name
+            socket_name = from_socket.identifier
             sockets = group_path[-1].inputs
-            socket = [s for s in sockets if s.name == socket_name][0]
+            socket = [s for s in sockets if s.identifier == socket_name][0]
             group_path = group_path[:-1]
             soc = socket
             continue
@@ -961,9 +961,9 @@ def check_if_is_linked_to_active_output(shader_socket, group_path):
 
         # If we are entering a node group
         if link.to_node.type == "GROUP":
-            socket_name = link.to_socket.name
+            socket_name = link.to_socket.identifier
             sockets = [n for n in link.to_node.node_tree.nodes if n.type == "GROUP_INPUT"][0].outputs
-            socket = [s for s in sockets if s.name == socket_name][0]
+            socket = [s for s in sockets if s.identifier == socket_name][0]
             new_group_path = group_path.copy()
             new_group_path.append(link.to_node)
             # TODOSNode : Why checking outputs[0] ? What about alpha for texture node, that is outputs[1] ????
@@ -975,9 +975,9 @@ def check_if_is_linked_to_active_output(shader_socket, group_path):
 
         # If we are exiting a node group
         if link.to_node.type == "GROUP_OUTPUT":
-            socket_name = link.to_socket.name
+            socket_name = link.to_socket.identifier
             sockets = group_path[-1].outputs
-            socket = [s for s in sockets if s.name == socket_name][0]
+            socket = [s for s in sockets if s.identifier == socket_name][0]
             new_group_path = group_path[:-1]
             # TODOSNode : Why checking outputs[0] ? What about alpha for texture node, that is outputs[1] ????
             # recursive until find an output material node
@@ -1021,6 +1021,65 @@ def get_attribute_name(socket, export_settings):
         return True, None, True
 
     return False, None, None
+
+
+def detect_iridescence_thickness_texure(socket, minimum_thickness_socket, export_settings):
+    # Check that we have a specific tree branch with all data required for the iridescence thickness texture
+
+    if socket.socket is None:
+        return False, None
+
+    # Check that the socket is linked to a Mix node
+    if not socket.socket.is_linked:
+        return False, None
+    mix_node = socket.socket.links[0].from_node
+    if mix_node is None or mix_node.type != "MIX":
+        return False, None
+    if mix_node.data_type != "FLOAT":
+        return False, None
+
+    # Check that the mix node factor is linked to a separate RGB node, with R
+    # linked to the iridescence thickness texture
+    if not mix_node.inputs['Factor'].is_linked:
+        return False, None
+    separate_rgb_node = mix_node.inputs['Factor'].links[0].from_node
+    if separate_rgb_node is None or separate_rgb_node.type != "SEPARATE_COLOR":
+        return False, None
+    if not separate_rgb_node.inputs[0].is_linked:
+        return False, None
+    iridescence_thickness_texture_node = separate_rgb_node.inputs[0].links[0].from_node
+    if iridescence_thickness_texture_node is None or iridescence_thickness_texture_node.type != "TEX_IMAGE":
+        return False, None
+
+    # Check that the mix node A is linked to a value node, that is itself
+    # linked (output) to the iridescence minimum thickness socket of the glTF
+    # material output node
+    if not mix_node.inputs['A'].is_linked:
+        return False, None
+    value_node = mix_node.inputs['A'].links[0].from_node
+    if value_node is None or value_node.type != "VALUE":
+        return False, None
+    if not value_node.outputs[0].is_linked:
+        return False, None
+    if not len(value_node.outputs[0].links) == 2:
+        return False, None
+    if minimum_thickness_socket.socket is None:
+        return False, None
+    if minimum_thickness_socket.socket.links[0].from_node != value_node:
+        return False, None
+
+    # Check that the mix node B is linked to a value node
+    if not mix_node.inputs['B'].is_linked:
+        return False, None
+    value_node_2 = mix_node.inputs['B'].links[0].from_node
+    if value_node_2 is None or value_node_2.type != "VALUE":
+        return False, None
+
+    return True, {
+        'thickness_minimum': value_node.outputs[0],
+        'thickness_maximum': value_node_2.outputs[0],
+        'tex_socket': NodeSocket(separate_rgb_node.inputs[0], socket.group_path),
+    }
 
 
 def detect_anisotropy_nodes(
@@ -1071,7 +1130,7 @@ def detect_anisotropy_nodes(
     if separate_xyz_node is None or separate_xyz_node.type != "SEPXYZ":
         return False, None
     separate_xyz_z_socket = anisotropy_multiply_node.inputs[0].links[0].from_socket
-    if separate_xyz_z_socket.name != "Z":
+    if separate_xyz_z_socket.identifier != "Z":
         return False, None
     # This separate XYZ node output should be linked to ArcTan2 node (X on inputs[1], Y on inputs[0])
     if not separate_xyz_node.outputs[0].is_linked:
@@ -1081,9 +1140,9 @@ def detect_anisotropy_nodes(
         return False, None
     if arctan2_node.operation != "ARCTAN2":
         return False, None
-    if arctan2_node.inputs[0].links[0].from_socket.name != "Y":
+    if arctan2_node.inputs[0].links[0].from_socket.identifier != "Y":
         return False, None
-    if arctan2_node.inputs[1].links[0].from_socket.name != "X":
+    if arctan2_node.inputs[1].links[0].from_socket.identifier != "X":
         return False, None
     # This arctan2 node output should be linked to anisotropy rotation (Math add node)
     if not arctan2_node.outputs[0].is_linked:
@@ -1107,7 +1166,7 @@ def detect_anisotropy_nodes(
     # This rotation conversion node should have the output linked to anisotropy rotation socket of Principled BSDF
     if not rotation_conversion_node.outputs[0].is_linked:
         return False, None
-    if rotation_conversion_node.outputs[0].links[0].to_socket.name != "Anisotropic Rotation":
+    if rotation_conversion_node.outputs[0].links[0].to_socket.identifier != "Anisotropic Rotation":
         return False, None
     if rotation_conversion_node.outputs[0].links[0].to_node.type != "BSDF_PRINCIPLED":
         return False, None

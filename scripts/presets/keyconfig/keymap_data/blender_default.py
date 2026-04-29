@@ -921,6 +921,7 @@ def km_screen_editing(params):
         ("screen.area_move", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("screen.area_move", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("snap", True)]}),
+        ("screen.area_move", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True}, None),
         ("screen.area_options", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
     ])
 
@@ -1186,6 +1187,16 @@ def km_markers(params):
          {"properties": [("extend", True), ("camera", True)]}),
         ("marker.select_box", {"type": params.select_mouse, "value": 'CLICK_DRAG'},
          {"properties": [("tweak", True)]}),
+        ("marker.select_leftright",
+         {"type": params.select_mouse, "value": 'CLICK', "ctrl": True},
+         {"properties": [("mode", 'CLICK_SIDE'), ("extend", False)]}),
+        ("marker.select_leftright",
+         {"type": params.select_mouse, "value": 'CLICK', "ctrl": True, "shift": True},
+         {"properties": [("mode", 'CLICK_SIDE'), ("extend", True)]}),
+        ("marker.select_leftright", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
+         {"properties": [("mode", 'LEFT'), ("extend", False)]}),
+        ("marker.select_leftright", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
+         {"properties": [("mode", 'RIGHT'), ("extend", False)]}),
         ("marker.select_box", {"type": params.select_mouse, "value": 'CLICK_DRAG', "shift": True},
          {"properties": [("tweak", True), ("mode", 'ADD')]}),
         ("marker.select_box", {"type": params.select_mouse, "value": 'CLICK_DRAG', "ctrl": True},
@@ -3952,6 +3963,8 @@ def km_grease_pencil_selection(params):
         ("grease_pencil.select_fill", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
         # Select linked
         ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS'}, None),
+        ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS', "shift": True},
+         {"properties": [("deselect", True)]}),
         # Select more/less
         ("grease_pencil.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("grease_pencil.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),

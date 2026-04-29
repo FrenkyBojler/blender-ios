@@ -55,6 +55,8 @@
 
 #include "ED_node.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "node_common.h"
 #include "node_util.hh"
 
@@ -91,10 +93,8 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  BLI_strncpy(label,
-              (node->id) ? node->id->name + 2 :
-                           CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Missing Data-Block"),
-              label_maxncpy);
+  BLI_strncpy(
+      label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
 }
 
 int node_group_ui_class(const bNode *node)
@@ -273,8 +273,8 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   bke::bNodeSocketType *base_typeinfo = bke::node_socket_type_find(io_socket.socket_type);
   eNodeSocketDatatype datatype = SOCK_CUSTOM;
 
-  const StringRef name = io_socket.name;
-  const StringRef identifier = io_socket.identifier;
+  const UString name(io_socket.name);
+  const UString identifier(io_socket.identifier);
 
   BaseSocketDeclarationBuilder *decl = nullptr;
   if (base_typeinfo) {
@@ -507,9 +507,18 @@ void node_group_declare(NodeDeclarationBuilder &b)
   if (!group) {
     return;
   }
-  if (ID_IS_LINKED(&group->id) && (group->id.tag & ID_TAG_MISSING)) {
-    r_declaration.skip_updating_sockets = true;
-    return;
+  if (ID_IS_LINKED(&group->id)) {
+    if (ID_MISSING(&group->id)) {
+      r_declaration.skip_updating_sockets = true;
+      return;
+    }
+    /* Currently the missing flag is only set on original data. */
+    if (const ID *orig_group = DEG_get_original_id(&group->id)) {
+      if (ID_MISSING(orig_group)) {
+        r_declaration.skip_updating_sockets = true;
+        return;
+      }
+    }
   }
   r_declaration.skip_updating_sockets = false;
 
@@ -580,7 +589,7 @@ void register_node_type_frame()
   bke::bNodeType *ntype = MEM_new<bke::bNodeType>("frame node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeFrame", NODE_FRAME);
+  bke::node_type_base(*ntype, "NodeFrame"_ustr, NODE_FRAME);
   ntype->ui_name = "Frame";
   ntype->ui_description =
       "Collect related nodes together in a common area. Useful for organization when the "
@@ -610,10 +619,10 @@ static void node_reroute_declare(nodes::NodeDeclarationBuilder &b)
   }
 
   const StringRefNull socket_idname(static_cast<const NodeReroute *>(node->storage)->type_idname);
-  b.add_input<nodes::decl::Custom>("Input")
+  b.add_input<nodes::decl::Custom>("Input"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
-  b.add_output<nodes::decl::Custom>("Output")
+  b.add_output<nodes::decl::Custom>("Output"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic);
 }
@@ -653,7 +662,7 @@ void register_node_type_reroute()
   bke::bNodeType *ntype = MEM_new<bke::bNodeType>("frame node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeReroute", NODE_REROUTE);
+  bke::node_type_base(*ntype, "NodeReroute"_ustr, NODE_REROUTE);
   ntype->ui_name = "Reroute";
   ntype->ui_description =
       "A single-socket organization tool that supports one input and multiple outputs";
@@ -690,7 +699,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
 {
   ntree->ensure_topology_cache();
 
-  const Span<bNode *> all_reroute_nodes = ntree->nodes_by_type("NodeReroute");
+  const Span<bNode *> all_reroute_nodes = ntree->nodes_by_type("NodeReroute"_ustr);
 
   VectorSet<int> reroute_nodes;
   for (const bNode *reroute : all_reroute_nodes) {
@@ -793,7 +802,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     bNode &reroute_node = *all_nodes[reroute_index];
     NodeReroute *storage = static_cast<NodeReroute *>(reroute_node.storage);
     if (reroute_type->idname != storage->type_idname) {
-      StringRef(reroute_type->idname).copy_utf8_truncated(storage->type_idname);
+      reroute_type->idname.ref().copy_utf8_truncated(storage->type_idname);
       nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
     }
   }
@@ -843,11 +852,11 @@ static void node_implicit_conversion_declare(nodes::NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<nodes::decl::Custom>("Value")
+  b.add_input<nodes::decl::Custom>("Value"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .optional_label();
-  b.add_output<nodes::decl::Custom>("Value")
+  b.add_output<nodes::decl::Custom>("Value"_ustr)
       .idname(socket_idname.c_str())
       .structure_type(nodes::StructureType::Dynamic)
       .reference_pass_all()
@@ -863,22 +872,18 @@ static void node_implicit_conversion_label(const bNodeTree * /*ntree*/,
   const auto &data = *static_cast<NodeImplicitConversion *>(node->storage);
   const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(data.type_idname);
   if (!socket_type) {
-    BLI_strncpy(label,
-                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
-                label_maxncpy);
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
     return;
   }
 
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_socket_data_type_items, socket_type->type, &name);
   if (!enum_label) {
-    BLI_strncpy(label,
-                CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, node->typeinfo->ui_name.c_str()),
-                label_maxncpy);
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
     return;
   }
 
-  BLI_snprintf_utf8(label, label_maxncpy, "To %s", CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name));
+  BLI_snprintf_utf8(label, label_maxncpy, IFACE_("To %s"), IFACE_(name));
 }
 
 static void node_implicit_conversion_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -945,10 +950,10 @@ static compositor::NodeOperation *node_implicit_conversion_compositor_operation(
 void register_node_type_implicit_conversion()
 {
   /* Adapt type node is used for all tree types, needs dynamic allocation. */
-  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("Implicit Conversion node type");
+  bke::bNodeType *ntype = MEM_new<bke::bNodeType>(__func__);
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeImplicitConversion");
+  bke::node_type_base(*ntype, "NodeImplicitConversion"_ustr);
   ntype->ui_name = "Implicit Conversion";
   ntype->ui_description = "Implicitly convert the input value to a fixed socket type";
   ntype->nclass = NODE_CLASS_CONVERTER;
@@ -1010,7 +1015,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
     }
     return true;
   });
-  b.add_output<decl::Extend>("", "__extend__");
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static void group_output_declare(NodeDeclarationBuilder &b)
@@ -1035,7 +1040,7 @@ static void group_output_declare(NodeDeclarationBuilder &b)
     }
     return true;
   });
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
 }
 
 static bool group_input_insert_link(bke::NodeInsertLinkParams &params)
@@ -1106,68 +1111,13 @@ static void node_group_output_layout(ui::Layout &layout, bContext *C, PointerRNA
 
 }  // namespace nodes
 
-static void node_group_input_extra_info(nodes::NodeExtraInfoParams &parameters)
-{
-  if (parameters.tree.type != NTREE_COMPOSIT) {
-    return;
-  }
-
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
-  if (space_node->edittree != space_node->nodetree) {
-    return;
-  }
-
-  if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SEQUENCER) {
-    return;
-  }
-
-  Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
-  int color_count = 0;
-  int float_count = 0;
-  int other_count = 0;
-  for (const bNodeSocket *input : group_inputs) {
-    if (input->type == SOCK_RGBA) {
-      color_count++;
-    }
-    else if (input->type == SOCK_FLOAT) {
-      float_count++;
-    }
-    else {
-      other_count++;
-    }
-  }
-
-  if (color_count > 2) {
-    nodes::NodeExtraInfoRow row;
-    row.text = IFACE_("Unsupported Inputs");
-    row.icon = ICON_WARNING_LARGE;
-    row.tooltip = TIP_("Sequencer supports up to two Image inputs, the rest will return zero");
-    parameters.rows.append(std::move(row));
-  }
-  if (float_count > 1) {
-    nodes::NodeExtraInfoRow row;
-    row.text = IFACE_("Unsupported Inputs");
-    row.icon = ICON_WARNING_LARGE;
-    row.tooltip = TIP_("Sequencer supports one Float input, the rest will return zero");
-    parameters.rows.append(std::move(row));
-  }
-  if (other_count > 0) {
-    nodes::NodeExtraInfoRow row;
-    row.text = IFACE_("Unsupported Inputs");
-    row.icon = ICON_WARNING_LARGE;
-    row.tooltip = TIP_(
-        "Sequencer supports only Color and Float inputs, the rest will return zero");
-    parameters.rows.append(std::move(row));
-  }
-}
-
 void register_node_type_group_input()
 {
   /* used for all tree types, needs dynamic allocation */
   bke::bNodeType *ntype = MEM_new<bke::bNodeType>("node type");
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeGroupInput", NODE_GROUP_INPUT);
+  bke::node_type_base(*ntype, "NodeGroupInput"_ustr, NODE_GROUP_INPUT);
   ntype->ui_name = "Group Input";
   ntype->ui_description =
       "Expose connected data from inside a node group as inputs to its interface";
@@ -1176,7 +1126,6 @@ void register_node_type_group_input()
   bke::node_type_size(*ntype, 140, 80, 400);
   ntype->declare = nodes::group_input_declare;
   ntype->insert_link = nodes::group_input_insert_link;
-  ntype->get_extra_info = node_group_input_extra_info;
   ntype->draw_buttons_ex = nodes::node_group_input_layout;
   ntype->no_muting = true;
 
@@ -1236,7 +1185,7 @@ static void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfo
 static void node_group_output_extra_info(nodes::NodeExtraInfoParams &params)
 {
   get_compositor_group_output_extra_info(params);
-  const Span<const bNode *> group_output_nodes = params.tree.nodes_by_type("NodeGroupOutput");
+  const Span<const bNode *> group_output_nodes = params.tree.nodes_by_type("NodeGroupOutput"_ustr);
   if (group_output_nodes.size() <= 1) {
     return;
   }
@@ -1253,10 +1202,10 @@ static void node_group_output_extra_info(nodes::NodeExtraInfoParams &params)
 void register_node_type_group_output()
 {
   /* used for all tree types, needs dynamic allocation */
-  bke::bNodeType *ntype = MEM_new<bke::bNodeType>("node type");
+  bke::bNodeType *ntype = MEM_new<bke::bNodeType>(__func__);
   ntype->free_self = [](bke::bNodeType *type) { MEM_delete(type); };
 
-  bke::node_type_base(*ntype, "NodeGroupOutput", NODE_GROUP_OUTPUT);
+  bke::node_type_base(*ntype, "NodeGroupOutput"_ustr, NODE_GROUP_OUTPUT);
   ntype->ui_name = "Group Output";
   ntype->ui_description = "Output data from inside of a node group";
   ntype->enum_name_legacy = "GROUP_OUTPUT";

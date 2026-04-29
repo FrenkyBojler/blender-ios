@@ -17,10 +17,10 @@ namespace blender::nodes::node_geo_tool_active_element_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Index").description(
-      "Index of the active element in the specified domain");
-  b.add_output<decl::Bool>("Exists").description(
-      "True if an active element exists in the mesh, false otherwise");
+  b.add_output<decl::Int>("Index"_ustr)
+      .description("Index of the active element in the specified domain");
+  b.add_output<decl::Bool>("Exists"_ustr)
+      .description("True if an active element exists in the mesh, false otherwise");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -98,7 +98,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeToolActiveElement", GEO_NODE_TOOL_ACTIVE_ELEMENT);
+  geo_node_type_base(&ntype, "GeometryNodeToolActiveElement"_ustr, GEO_NODE_TOOL_ACTIVE_ELEMENT);
   ntype.ui_name = "Active Element";
   ntype.ui_description = "Active element indices of the edited geometry, for tool execution";
   ntype.enum_name_legacy = "TOOL_ACTIVE_ELEMENT";

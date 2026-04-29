@@ -798,6 +798,16 @@ void WM_event_add_mousemove(wmWindow *win);
 /* 3D mouse. */
 void WM_ndof_deadzone_set(float deadzone);
 #endif
+
+/**
+ * Mark the current event queue to break its current processing, and delay handling of remaining
+ * events to the next main event loop iteration in `WM_main()`.
+ *
+ * Used e.g. by undo/redo code to ensure that a redraw has been done before processing further
+ * events.
+ */
+void WM_event_handling_break(const bContext &C);
+
 /* Notifiers. */
 void WM_event_add_notifier_ex(wmWindowManager *wm,
                               const wmWindow *win,
@@ -1886,6 +1896,7 @@ enum eWM_JobType {
   WM_JOB_TYPE_BAKE_GEOMETRY_NODES,
   WM_JOB_TYPE_UV_PACK,
   WM_JOB_TYPE_GENERATE_TEXTURE_CACHE,
+  WM_JOB_TYPE_SOUND_MIXDOWN,
   /* Add as needed, bake, seq proxy build
    * if having hard coded values is a problem. */
 };

@@ -563,28 +563,8 @@ static void view2d_curRect_validate_resize(View2D *v2d, bool resize)
       }
     }
     else {
-      if ((v2d->keeptot == V2D_KEEPTOT_STRICT) && (winy != v2d->oldwiny)) {
-        /* special exception for Outliner (and later channel-lists):
-         * - Currently, no actions need to be taken here...
-         */
-
-        if (winy < v2d->oldwiny) {
-          const float temp = v2d->oldwiny - winy;
-
-          if (v2d->align & V2D_ALIGN_NO_NEG_Y) {
-            cur->ymin -= temp;
-            cur->ymax -= temp;
-          }
-          else { /* Assume V2D_ALIGN_NO_POS_Y or combination */
-            cur->ymin += temp;
-            cur->ymax += temp;
-          }
-        }
-      }
-      else {
-        /* landscape window: correct for y */
-        height = width * winRatio;
-      }
+      /* landscape window: correct for y */
+      height = width * winRatio;
     }
   }
 
@@ -1950,6 +1930,13 @@ void view2d_center_set(View2D *v2d, float x, float y)
 
   /* make sure that 'cur' rect is in a valid state as a result of these changes */
   view2d_curRect_validate(v2d);
+}
+
+void view2d_size_x_set(View2D *v2d, float size_x)
+{
+  BLI_assert(BLI_rctf_size_y(&v2d->cur) != 0.0f);
+  const float aspect = BLI_rctf_size_x(&v2d->cur) / BLI_rctf_size_y(&v2d->cur);
+  BLI_rctf_resize(&v2d->cur, size_x, size_x / aspect);
 }
 
 void view2d_offset(View2D *v2d, float xfac, float yfac)

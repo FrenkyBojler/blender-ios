@@ -296,7 +296,8 @@ static void image_refresh(const bContext *C, ScrArea *area)
     if (scene->compositing_node_group) {
       Mask *mask = ED_space_image_get_mask(sima);
       if (mask) {
-        ED_node_compositor_job(C);
+        ED_node_compositor_job(
+            CTX_data_main(C), CTX_wm_window(C), CTX_data_scene(C), CTX_data_view_layer(C));
       }
     }
   }
@@ -367,7 +368,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
     case NC_MASK: {
       Scene *scene = WM_window_get_active_scene(win);
       ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-      BKE_view_layer_synced_ensure(scene, view_layer);
+      BKE_view_layer_synced_ensure(*params->bmain, scene, view_layer);
       Object *obedit = BKE_view_layer_edit_object_get(view_layer);
       if (ED_space_image_check_show_maskedit(sima, obedit)) {
         switch (wmn->data) {
@@ -411,7 +412,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
         case ND_MODIFIER: {
           const Scene *scene = WM_window_get_active_scene(win);
           ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-          BKE_view_layer_synced_ensure(scene, view_layer);
+          BKE_view_layer_synced_ensure(*params->bmain, scene, view_layer);
           Object *ob = BKE_view_layer_active_object_get(view_layer);
           /* \note With a geometry nodes modifier, the UVs on `ob` can change in response to
            * any change on `wmn->reference`. If we could track the upstream dependencies,
@@ -662,12 +663,6 @@ static void image_main_region_set_view2d(SpaceImage *sima, ARegion *region)
   int winx = BLI_rcti_size_x(&region->winrct) + 1;
   int winy = BLI_rcti_size_y(&region->winrct) + 1;
 
-  /* For region overlap, move center so image doesn't overlap header. */
-  const rcti *visible_rect = ED_region_visible_rect(region);
-  const int visible_winy = BLI_rcti_size_y(visible_rect) + 1;
-  int visible_centerx = 0;
-  int visible_centery = visible_rect->ymin + (visible_winy - winy) / 2;
-
   region->v2d.tot.xmin = 0;
   region->v2d.tot.ymin = 0;
   region->v2d.tot.xmax = w;
@@ -678,8 +673,8 @@ static void image_main_region_set_view2d(SpaceImage *sima, ARegion *region)
   region->v2d.mask.ymax = winy;
 
   /* which part of the image space do we see? */
-  float x1 = region->winrct.xmin + visible_centerx + (winx - sima->zoom * w) / 2.0f;
-  float y1 = region->winrct.ymin + visible_centery + (winy - sima->zoom * h) / 2.0f;
+  float x1 = region->winrct.xmin + (winx - sima->zoom * w) / 2.0f;
+  float y1 = region->winrct.ymin + (winy - sima->zoom * h) / 2.0f;
 
   x1 -= sima->zoom * sima->xof;
   y1 -= sima->zoom * sima->yof;
