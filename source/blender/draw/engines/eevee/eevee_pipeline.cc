@@ -533,6 +533,8 @@ void ForwardPipeline::transparent_add(const Object *ob,
    * NOTE: Pre-pass needs to be created first in order to be sorted first. */
   float sorting_value = math::dot(ob_location, camera_forward_);
 
+  const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
+
   /* Prepass */
   if (blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) {
     PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
@@ -542,7 +544,8 @@ void ForwardPipeline::transparent_add(const Object *ob,
       pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
       pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     }
-    if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+    pass->push_constant("can_raycast", has_raycast);
+    if (has_raycast) {
       pass->bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
       pass->bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
       pass->bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
@@ -559,7 +562,8 @@ void ForwardPipeline::transparent_add(const Object *ob,
       pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
       pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     }
-    if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+    pass->push_constant("can_raycast", has_raycast);
+    if (has_raycast) {
       pass->bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
       pass->bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
       pass->bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);

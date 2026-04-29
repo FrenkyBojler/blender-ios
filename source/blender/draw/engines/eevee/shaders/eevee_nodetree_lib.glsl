@@ -310,6 +310,12 @@ void raycast_eval([[maybe_unused]] float3 position,
   direction = normalize(direction);
 
 #if defined(MAT_RAYCAST)
+  if (!can_raycast) {
+    /* On prepass for raycast visibile objects and on planar probes rendering in general.
+     * We use a push constant to avoid compiling more shader variants. */
+    return;
+  }
+
   float3 ws_start = position;
   float3 ws_end = position + direction * max_distance;
   if (!clip_ray(
