@@ -8,6 +8,8 @@
 #include "FN_field.hh"
 #include "FN_field_evaluation.hh"
 
+#include "BKE_volume_grid.hh"
+
 namespace blender::bke {
 
 using fn::Field;
@@ -78,10 +80,12 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     src_base_type.destruct(src_single_value);
     return;
   }
+#ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<CurrentT, volume_grid::GVolumeGrid>) {
     // TODO
     SocketValueVariant2::init_default(dst_type, value);
   }
+#endif
   else if constexpr (std::is_same_v<CurrentT, nodes::List>) {
     // TODO
     SocketValueVariant2::init_default(dst_type, value);
@@ -130,19 +134,34 @@ template<typename CurrentT>
 bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
                                                         const SocketValueVariantAny &value)
 {
-  /* Handles fields and volume grids. */
-  if constexpr (requires { typename CurrentT::generic_type; }) {
-    if (dst_type.is<CurrentT>()) {
+  if constexpr (std::is_same_v<CurrentT, GField>) {
+    if (dst_type.is<GField>()) {
       return true;
     }
     if (!dst_type.generic_type) {
       return false;
     }
-    if (dst_type.generic_type->is<CurrentT>()) {
-      const CurrentT &generic_value = value.get<CurrentT>();
-      const CPPType &base_type = generic_value.cpp_type();
-      BLI_assert(dst_type.base_type);
+    if (dst_type.generic_type->is<GField>()) {
+      const GField &field = value.get<GField>();
+      const CPPType &base_type = field.cpp_type();
       return base_type == *dst_type.base_type;
+    }
+    return false;
+  }
+  else if constexpr (std::is_same_v<CurrentT, GVolumeGrid>) {
+    if (dst_type.is<GVolumeGrid>()) {
+      return true;
+    }
+    if (!dst_type.generic_type) {
+      return false;
+    }
+    if (dst_type.generic_type->is<GVolumeGrid>()) {
+      const GVolumeGrid &grid = value.get<GVolumeGrid>();
+      if (!grid) {
+        return true;
+      }
+      const CPPType *grid_value_type = grid->cpp_type();
+      return grid_value_type == dst_type.base_type;
     }
     return false;
   }
@@ -160,26 +179,39 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
   template bool SocketValueVariantTypeInfo::is_interpretable_as_fn<TYPE>( \
       const CPPType &dst_type, const SocketValueVariantAny &value);
 
-/* Might not be strictly necessary for types used in this file. */
 DEFINE_TYPE(int)
 DEFINE_TYPE(float)
 DEFINE_TYPE(GField)
+
+#ifdef WITH_OPENVDB
+DEFINE_TYPE(volume_grid::GVolumeGrid)
+#endif
 
 }  // namespace detail
 
 template<typename T>
 inline T &SocketValueVariant2::init_default(detail::SocketValueVariantAny &value)
 {
-  if constexpr (detail::has_generic_type<T>) {
-    using GenericT = T::generic_type;
-    using BaseT = T::base_type;
-    const CPPType &base_cpp_type = CPPType::get<BaseT>();
-    return reinterpret_cast<T &>(value.emplace<GenericT>(base_cpp_type));
+  if constexpr (requires { typename T::generic_type; }) {
+    using GenericType = typename T::generic_type;
+    using BaseType = typename T::base_type;
+    if constexpr (std::is_same_v<GenericType, GField>) {
+      const CPPType &base_cpp_type = CPPType::get<BaseType>();
+      return value.emplace<GField>(base_cpp_type).typed<BaseType>();
+    }
+    else if constexpr (std::is_same_v<GenericType, GVolumeGrid>) {
+      return value.emplace<GVolumeGrid>(GVolumeGrid{}).typed<BaseType>();
+    }
   }
   else if constexpr (std::is_same_v<T, GField>) {
     /* Some default fallback type. */
     return value.emplace<GField>(CPPType::get<float>());
   }
+#ifdef WITH_OPENVDB
+  else if constexpr (std::is_same_v<T, GVolumeGrid>) {
+    return value.emplace<GVolumeGrid>();
+  }
+#endif
   else {
     return value.emplace<T>();
   }
@@ -202,6 +234,17 @@ void *SocketValueVariant2::init_default(const CPPType &type, detail::SocketValue
   if (type.is<Field<float>>()) {
     return &SocketValueVariant2::init_default<Field<float>>(value);
   }
+#ifdef WITH_OPENVDB
+  if (type.is<GVolumeGrid>()) {
+    return &SocketValueVariant2::init_default<GVolumeGrid>(value);
+  }
+  if (type.is<VolumeGrid<float>>()) {
+    return &SocketValueVariant2::init_default<VolumeGrid<float>>(value);
+  }
+  if (type.is<VolumeGrid<int>>()) {
+    return &SocketValueVariant2::init_default<VolumeGrid<int>>(value);
+  }
+#endif
   return nullptr;
 }
 
@@ -216,6 +259,11 @@ void *SocketValueVariant2::allocate(const CPPType &type, detail::SocketValueVari
   if (type.is<GField>()) {
     return value.allocate<GField>();
   }
+#ifdef WITH_OPENVDB
+  if (type.is<GVolumeGrid>()) {
+    return value.allocate<GVolumeGrid>();
+  }
+#endif
   BLI_assert_unreachable();
   return nullptr;
 }

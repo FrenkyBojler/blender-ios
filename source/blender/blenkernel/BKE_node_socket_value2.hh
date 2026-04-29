@@ -135,32 +135,21 @@ template<typename T, typename... Args> inline T &SocketValueVariant2::emplace(Ar
 
 template<typename T> inline T &SocketValueVariant2::ensure_type()
 {
+  using StorageT = to_storage_type<T>;
   if (!value_.has_value()) {
     return this->init_default<T>();
   }
   const Info &info = value_.extra_info();
   const CPPType &requested_type = CPPType::get<T>();
-  if constexpr (detail::has_generic_type<T>) {
-    using GenericT = T::generic_type;
-    using BaseT = T::base_type;
-    const CPPType &requested_generic_type = CPPType::get<GenericT>();
-    if (info.type == requested_generic_type) {
-      GenericT &gvalue = value_.get<GenericT>();
-      if (gvalue.cpp_type().template is<BaseT>()) {
-        return gvalue.template typed<BaseT>();
-      }
-    }
-    info.convert_to(requested_type, value_);
-    return value_.get<GenericT>().template typed<BaseT>();
+  if (info.type == requested_type) {
+    return reinterpret_cast<T &>(value_.get<StorageT>());
   }
-  else {
-    if (info.type == requested_type) {
-      return value_.get<T>();
-    }
-    info.convert_to(requested_type, value_);
-    BLI_assert(value_.extra_info().is_interpretable_as(requested_type, value_));
-    return value_.get<T>();
+  if (info.is_interpretable_as(requested_type, value_)) {
+    return reinterpret_cast<T &>(value_.get<StorageT>());
   }
+  info.convert_to(requested_type, value_);
+  BLI_assert(value_.extra_info().is_interpretable_as(requested_type, value_));
+  return reinterpret_cast<T &>(value_.get<StorageT>());
 }
 
 inline void *SocketValueVariant2::ensure_type(const CPPType &type)

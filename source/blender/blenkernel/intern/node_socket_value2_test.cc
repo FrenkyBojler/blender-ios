@@ -4,9 +4,14 @@
 
 #include "BKE_gtest_base.hh"
 #include "BKE_node_socket_value2.hh"
+#include "BKE_volume_grid.hh"
 
 #include "FN_field.hh"
 #include "FN_field_evaluation.hh"
+
+#ifdef WITH_OPENVDB
+#  include <openvdb/Grid.h>
+#endif
 
 #include "testing/testing.h"
 
@@ -116,6 +121,40 @@ TEST_F(SocketValueVariantTest, IndexFieldToFloatField)
   EXPECT_EQ(values[2], 2.0f);
   EXPECT_EQ(values[3], 3.0f);
   EXPECT_EQ(values[4], 4.0f);
+}
+
+TEST_F(SocketValueVariantTest, SimpleVolumeGrid)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<GVolumeGrid>() = GVolumeGrid(openvdb::FloatGrid::create());
+  const GVolumeGrid &grid = s.ensure_type<GVolumeGrid>();
+  EXPECT_EQ(grid->active_tiles(), 0);
+}
+
+TEST_F(SocketValueVariantTest, SimpleFloatVolumeGrid)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<VolumeGrid<float>>() = VolumeGrid<float>(openvdb::FloatGrid::create());
+  const VolumeGrid<float> &grid = s.ensure_type<VolumeGrid<float>>();
+  EXPECT_EQ(grid->active_tiles(), 0);
+}
+
+TEST_F(SocketValueVariantTest, VolumeGridToSingle)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<GVolumeGrid>() = GVolumeGrid(openvdb::FloatGrid::create());
+  const int &v = s.ensure_type<int>();
+  /* There is no valid conversion, so this is 0 independent of the grid. */
+  EXPECT_EQ(v, 0);
+}
+
+TEST_F(SocketValueVariantTest, SingleToVolumeGrid)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<int>() = 42;
+  const GVolumeGrid &grid = s.ensure_type<GVolumeGrid>();
+  /* These is no valid conversion from single to volume grid. */
+  EXPECT_FALSE(grid);
 }
 
 }  // namespace blender::bke::tests

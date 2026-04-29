@@ -9,6 +9,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_node_socket_value.hh"
+#include "BKE_volume_grid.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
@@ -58,6 +59,12 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(fn::GField, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(fn::Field<int>, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(fn::Field<float>, CPPTypeFlags::None);
+
+#ifdef WITH_OPENVDB
+  BLI_CPP_TYPE_REGISTER(bke::volume_grid::GVolumeGrid, CPPTypeFlags::None);
+  BLI_CPP_TYPE_REGISTER(bke::volume_grid::VolumeGrid<int>, CPPTypeFlags::None);
+  BLI_CPP_TYPE_REGISTER(bke::volume_grid::VolumeGrid<float>, CPPTypeFlags::None);
+#endif
 }
 
 }  // namespace blender

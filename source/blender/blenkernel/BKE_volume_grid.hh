@@ -240,6 +240,11 @@ class VolumeGridData : public ImplicitSharingMixin {
    */
   bool is_loaded() const;
 
+  /**
+   * Standard Blender CPPType for the value type (e.g. float3 instead of openvdb::Vec3f).
+   */
+  const CPPType *cpp_type() const;
+
   void count_memory(MemoryCounter &memory) const;
 
   /**
@@ -363,8 +368,6 @@ class GVolumeGrid {
 
   /** True if this contains a grid. */
   operator bool() const;
-
-  const CPPType &cpp_type() const;
 
   /** Converts to a typed VolumeGrid. This asserts if the type is wrong. */
   template<typename T> const VolumeGrid<T> &typed() const;
