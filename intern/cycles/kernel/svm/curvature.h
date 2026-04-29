@@ -175,10 +175,17 @@ ccl_device float3 svm_curvature(
   float convexity;
   float concavity;
 
-  float sum_weights = sum_weights_convexity + sum_weights_concavity;
-  curvature = safe_divide(sum_convexity - sum_concavity, sum_weights);
-  convexity = max(0.0f, curvature);
-  concavity = max(0.0f, -curvature);
+  if (flags & NODE_CURVATURE_INDEPENDENT) {
+    convexity = safe_divide(sum_convexity, sum_weights_convexity);
+    concavity = safe_divide(sum_concavity, sum_weights_concavity);
+    curvature = convexity - concavity;
+  }
+  else {
+    float sum_weights = sum_weights_convexity + sum_weights_concavity;
+    curvature = safe_divide(sum_convexity - sum_concavity, sum_weights);
+    convexity = max(0.0f, curvature);
+    concavity = max(0.0f, -curvature);
+  }
 
   curvature = (curvature + M_PI_F) * M_1_2PI_F;
 

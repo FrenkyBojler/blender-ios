@@ -701,6 +701,7 @@ ENUM_OPERATORS(eNodeAO_Flag)
 
 enum eNodeCurvature_Flag : short {
   SHD_CURVATURE_ONLY_LOCAL = 1,
+  SHD_CURVATURE_INDEPENDENT = 2,
 };
 ENUM_OPERATORS(eNodeCurvature_Flag)
 

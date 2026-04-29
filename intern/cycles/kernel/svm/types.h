@@ -434,6 +434,7 @@ enum NodeAO {
 
 enum NodeCurvature {
   NODE_CURVATURE_ONLY_LOCAL = (1 << 0),
+  NODE_CURVATURE_INDEPENDENT = (1 << 1),
 };
 
 enum ShaderType {

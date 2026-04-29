@@ -8014,6 +8014,8 @@ NODE_DEFINE(CurvatureNode)
 
   SOCKET_BOOLEAN(only_local, "Only Local", false);
 
+  SOCKET_BOOLEAN(independent, "Independent", false);
+
   SOCKET_OUT_FLOAT(curvature, "Curvature");
 
   SOCKET_OUT_FLOAT(convexity, "Convexity");
@@ -8029,7 +8031,8 @@ CurvatureNode::CurvatureNode() : ShaderNode(get_node_type()) {}
 
 void CurvatureNode::compile(SVMCompiler &compiler)
 {
-  int flags = (only_local ? NODE_CURVATURE_ONLY_LOCAL : 0);
+  int flags = (only_local ? NODE_CURVATURE_ONLY_LOCAL : 0) |
+              (independent ? NODE_CURVATURE_INDEPENDENT : 0);
 
   compiler.add_node(this,
                     NODE_CURVATURE,
@@ -8048,6 +8051,7 @@ void CurvatureNode::compile(SVMCompiler &compiler)
 void CurvatureNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "samples");
+  compiler.parameter(this, "independent");
   compiler.parameter(this, "only_local");
   compiler.add(this, "node_curvature");
 }

@@ -6537,6 +6537,14 @@ static void def_sh_curvature(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Only Local", "Only consider the object itself when computing curvature");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "independent", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", SHD_CURVATURE_INDEPENDENT);
+  RNA_def_property_ui_text(
+      prop,
+      "Independent",
+      "Keep the weighted average of convexity and concavity mutually exclusive");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_sh_subsurface(BlenderRNA * /*brna*/, StructRNA *srna)

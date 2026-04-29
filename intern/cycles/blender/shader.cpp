@@ -1170,6 +1170,7 @@ static ShaderNode *add_node(Scene *scene,
     CurvatureNode *curvature = graph->create_node<CurvatureNode>();
     curvature->set_samples(b_node.custom1);
     curvature->set_only_local(b_node.custom2 & blender::SHD_CURVATURE_ONLY_LOCAL);
+    curvature->set_independent(b_node.custom2 & blender::SHD_CURVATURE_INDEPENDENT);
     node = curvature;
   }
   else if (b_node.is_type("ShaderNodeDisplacement"_ustr)) {
