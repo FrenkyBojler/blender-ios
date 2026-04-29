@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 unpack_only(igc_vcintrinsics)
-unpack_only(igc_spirv_headers)
-unpack_only(igc_spirv_tools)
 
 #
 # igc_opencl_clang contains patches that need to be applied
@@ -25,7 +23,6 @@ ExternalProject_Add(external_igc_opencl_clang
 
 set(IGC_OPENCL_CLANG_PATCH_DIR ${BUILD_DIR}/igc_opencl_clang/src/external_igc_opencl_clang/patches)
 set(IGC_LLVM_SOURCE_DIR ${BUILD_DIR}/igc_llvm/src/external_igc_llvm)
-set(IGC_SPIRV_TRANSLATOR_SOURCE_DIR ${BUILD_DIR}/igc_spirv_translator/src/external_igc_spirv_translator)
 
 ExternalProject_Add(external_igc_llvm
   URL file://${PACKAGE_DIR}/${IGC_LLVM_FILE}
@@ -80,6 +77,7 @@ else()
   set(IGC_TARGET Linux64)
 endif()
 
+string(REPLACE "-DCMAKE_CXX_STANDARD=20" " " IGC_CMAKE_FLAGS "${DEFAULT_CMAKE_FLAGS}")
 set(IGC_EXTRA_ARGS
   -DIGC_OPTION__ARCHITECTURE_TARGET=${IGC_TARGET}
   -DIGC_OPTION__ARCHITECTURE_HOST=${IGC_TARGET}
@@ -97,7 +95,7 @@ ExternalProject_Add(external_igc
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/igc
-    ${DEFAULT_CMAKE_FLAGS}
+    ${IGC_CMAKE_FLAGS}
     ${IGC_EXTRA_ARGS}
 
   # IGC is pretty set in its way where sub projects ought to live, for some it offers
@@ -115,10 +113,10 @@ ExternalProject_Add(external_igc
       ${BUILD_DIR}/igc_spirv_translator/src/external_igc_spirv_translator/
       ${BUILD_DIR}/igc/src/llvm-project/llvm/projects/llvm-spirv &&
     ${CMAKE_COMMAND} -E create_symlink
-      ${BUILD_DIR}/igc_spirv_tools/src/external_igc_spirv_tools/
+      ${BUILD_DIR}/spirv_tools/src/external_spirv_tools
       ${BUILD_DIR}/igc/src/SPIRV-Tools &&
     ${CMAKE_COMMAND} -E create_symlink
-      ${BUILD_DIR}/igc_spirv_headers/src/external_igc_spirv_headers/
+      ${BUILD_DIR}/spirv_headers/src/external_spirv_headers
       ${BUILD_DIR}/igc/src/SPIRV-Headers &&
     ${CMAKE_COMMAND} -E create_symlink
       ${BUILD_DIR}/igc_vcintrinsics/src/external_igc_vcintrinsics/
@@ -135,8 +133,8 @@ add_dependencies(
   external_igc_vcintrinsics
   external_igc_llvm
   external_igc_opencl_clang
-  external_igc_spirv_headers
-  external_igc_spirv_tools
+  external_spirv_headers
+  external_spirv_tools
   external_igc_spirv_translator
   external_flex
 )

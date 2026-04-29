@@ -57,6 +57,22 @@ ExternalProject_Add(external_spirv_headers
   INSTALL_DIR ${LIBDIR}/vulkan_headers
 )
 
+# Only extract the SPIRV-Tools sources as the dependecies (ShaderC and IGC) uses the sources directly.
+ExternalProject_Add(external_spirv_tools
+  URL file://${PACKAGE_DIR}/${SPIRV_TOOLS_FILE}
+  URL_HASH ${SPIRV_TOOLS_HASH_TYPE}=${SPIRV_TOOLS_HASH}
+  PREFIX ${BUILD_DIR}/spirv_tools
+
+  CONFIGURE_COMMAND echo .
+  BUILD_COMMAND echo .
+  INSTALL_COMMAND echo .
+)
+
+add_dependencies(
+  external_spirv_tools
+  external_spirv_headers
+)
+
 if(UNIX AND NOT APPLE)
   # These are used in `cmake/FindWayland.cmake` from `external_vulkan_loader`.
   # NOTE: When upgrading to CMAKE 3.22 it would be cleaner to use: `PKG_CONFIG_ARGN`,
