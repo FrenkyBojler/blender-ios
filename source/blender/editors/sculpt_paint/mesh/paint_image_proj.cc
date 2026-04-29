@@ -1831,32 +1831,46 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
   if (generate_tile) {
     PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
-    volatile const void *undorect;
+    volatile const void *undorect = nullptr;
     if (tinf->masked) {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          &pjIma->maskRect[tile_index],
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false)
-                     ->data;
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       &pjIma->maskRect[tile_index],
+                                                       &pjIma->valid[tile_index],
+                                                       true,
+                                                       false))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
     else {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          nullptr,
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false)
-                     ->data;
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       nullptr,
+                                                       &pjIma->valid[tile_index],
+                                                       true,
+                                                       false))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
 
     BKE_image_mark_dirty(pjIma->ima, pjIma->ibuf);

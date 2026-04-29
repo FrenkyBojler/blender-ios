@@ -1249,19 +1249,13 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
       int origx = region->destx - tx * ED_IMAGE_UNDO_TILE_SIZE;
       int origy = region->desty - ty * ED_IMAGE_UNDO_TILE_SIZE;
 
-      const ImplicitSharingInfoAndData data = *ED_image_paint_tile_find(
+      const ImBuf *data = ED_image_paint_tile_find(
           undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false);
       if (tile->canvas->float_data()) {
-        tmpbuf.float_buffer = ImBufFloatBuffer{
-            .data = static_cast<const float *>(data.data),
-            .sharing_info = ImplicitSharingPtr<>(data.sharing_info),
-            .colorspace = nullptr};
+        tmpbuf.float_buffer = data->float_buffer;
       }
       else {
-        tmpbuf.byte_buffer = ImBufByteBuffer{
-            .data = static_cast<const uchar *>(data.data),
-            .sharing_info = ImplicitSharingPtr<>(data.sharing_info),
-            .colorspace = nullptr};
+        tmpbuf.byte_buffer = data->byte_buffer;
       }
 
       IMB_rectblend(tile->canvas,
