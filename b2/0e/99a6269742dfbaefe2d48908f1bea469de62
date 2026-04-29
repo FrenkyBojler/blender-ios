@@ -1,1 +1,2 @@
 Referenced by issue #157653, Spin-tool not working correctly when spinning a face around a particular axis with the rotation point set as 3D cursor.
+Referenced by commit 8d139ddc8e7088c2a7b33eeb00f11ebb6cde8f72, Fix #157653: Incorrect rotation with spin + extrude
