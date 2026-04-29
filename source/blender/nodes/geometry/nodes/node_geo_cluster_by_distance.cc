@@ -92,8 +92,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
      * But in current case this will affect result values since some cluster might have lowest ID
      * of element outside of visible mask. */
     const IndexMask mask_to_cluster = IndexMask::from_intersection(mask, selection, memory);
-    const IndexMask mask_to_fallback = index_mask::evaluate_expression(
-        (index_mask::ExprBuilder{}).subtract(&mask, {&selection}), memory);
+    const IndexMask mask_to_fallback = IndexMask::from_difference(mask, selection, memory);
 
     if (mask_to_cluster.is_empty()) {
       return fn::IndexFieldInput::get_index_varray(mask);
