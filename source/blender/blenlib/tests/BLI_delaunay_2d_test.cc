@@ -3127,6 +3127,64 @@ template<typename T> void repeattri_test()
   }
 }
 
+/* Adjacency-deduplication exercise: two adjacent CCW rectangles share a
+ * boundary that has been split by a midpoint vertex, so the shared
+ * boundary becomes TWO distinct constrained CDT edges - both between
+ * the same pair of regions (left rect interior, right rect interior).
+ *
+ * The even-odd region-adjacency build appends a canonical entry for
+ * each cross-region constrained edge it encounters; with two edges
+ * between the same region pair, the second entry is a duplicate that
+ * the helper's stable_sort + std::unique must collapse. The test pins
+ * the BEHAVIOR: both rectangles must be correctly filled.
+ *
+ * Geometry (7 verts, 2 face constraints):
+ *
+ *      4-------3-------6     y=1
+ *      |       |       |
+ *      |   X   2   Y   |     y=0.5  (vert 2 is the midpoint)
+ *      |       |       |
+ *      0-------1-------5     y=0
+ *
+ * Face 0 (X, left): 0,1,2,3,4 (CCW). 5 verts because of midpoint 2.
+ * Face 1 (Y, right): 1,5,6,3,2 (CCW). 5 verts because of midpoint 2.
+ *
+ * Shared CDT edges between X and Y: (1,2) and (2,3) - both with
+ * multiplicity 2, both with parity flip 0. */
+template<typename T> void shared_split_boundary_test()
+{
+  const char *spec = R"(7 0 2
+  0.0 0.0
+  1.0 0.0
+  1.0 0.5
+  1.0 1.0
+  0.0 1.0
+  2.0 0.0
+  2.0 1.0
+  0 1 2 3 4
+  1 5 6 3 2
+  )";
+
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+
+  CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
+  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO);
+
+  /* No new vertices needed (no intersections); both 5-vert pentagons
+   * triangulate into 3 triangles each. */
+  EXPECT_EQ(out_evenodd.vert.size(), 7);
+  EXPECT_EQ(out_nonzero.vert.size(), 7);
+  EXPECT_EQ(out_evenodd.face.size(), 6);
+  EXPECT_EQ(out_nonzero.face.size(), 6);
+
+  if (DO_DRAW) {
+    graph_draw<T>(
+        "SharedSplitBoundary - even-odd", out_evenodd.vert, out_evenodd.edge, out_evenodd.face);
+    graph_draw<T>(
+        "SharedSplitBoundary - non-zero", out_nonzero.vert, out_nonzero.edge, out_nonzero.face);
+  }
+}
+
 template<typename T> void square_o_test()
 {
   const char *spec = R"(8 0 2
@@ -3405,6 +3463,11 @@ TEST(delaunay_d, RepeatTri)
   repeattri_test<double>();
 }
 
+TEST(delaunay_d, SharedSplitBoundary)
+{
+  shared_split_boundary_test<double>();
+}
+
 TEST(delaunay_d, SquareO)
 {
   square_o_test<double>();
@@ -3658,6 +3721,11 @@ TEST(delaunay_m, RepeatEdge)
 TEST(delaunay_m, RepeatTri)
 {
   repeattri_test<mpq_class>();
+}
+
+TEST(delaunay_m, SharedSplitBoundary)
+{
+  shared_split_boundary_test<mpq_class>();
 }
 #  endif
 #endif
