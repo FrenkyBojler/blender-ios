@@ -170,7 +170,7 @@ class Prepass {
     return raycast_vis_on_ps_.is_empty() && raycast_vis_off_ps_.is_empty();
   }
 
-  void render(View &view);
+  void render(View &view, bool do_raycast_depth_copy);
 };
 
 /** \} */
@@ -231,8 +231,7 @@ class ForwardPipeline {
 
   PassMain::Sub *prepass_opaque_add(blender::Material *blender_mat,
                                     GPUMaterial *gpumat,
-                                    bool has_motion,
-                                    bool hide_on_raycast);
+                                    bool has_motion);
   PassMain::Sub *material_opaque_add(const Object *ob,
                                      blender::Material *blender_mat,
                                      GPUMaterial *gpumat);
@@ -908,7 +907,7 @@ class PipelineModule {
       case MAT_PIPE_PREPASS_DEFERRED:
         return deferred.prepass_add(blender_mat, gpumat, false, hide_on_raycast);
       case MAT_PIPE_PREPASS_FORWARD:
-        return forward.prepass_opaque_add(blender_mat, gpumat, false, hide_on_raycast);
+        return forward.prepass_opaque_add(blender_mat, gpumat, false);
       case MAT_PIPE_PREPASS_OVERLAP:
         BLI_assert_msg(0, "Overlap prepass should register to the forward pipeline directly.");
         return nullptr;
@@ -916,7 +915,7 @@ class PipelineModule {
       case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
         return deferred.prepass_add(blender_mat, gpumat, true, hide_on_raycast);
       case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
-        return forward.prepass_opaque_add(blender_mat, gpumat, true, hide_on_raycast);
+        return forward.prepass_opaque_add(blender_mat, gpumat, true);
 
       case MAT_PIPE_DEFERRED:
         return deferred.material_add(blender_mat, gpumat);

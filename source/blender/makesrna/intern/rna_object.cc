@@ -2940,7 +2940,10 @@ static void rna_def_object_visibility(StructRNA *srna)
 
   prop = RNA_def_property(srna, "visible_raycast", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "visibility_flag", OB_HIDE_RAYCAST);
-  RNA_def_property_ui_text(prop, "Raycast Visibility", "Object visibility to raycast rays");
+  RNA_def_property_ui_text(
+      prop,
+      "Raycast Visibility",
+      "Object visibility to raycast rays. Implicitly false for Blended materials.");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 }
 

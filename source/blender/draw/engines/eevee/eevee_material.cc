@@ -292,16 +292,17 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
       /* This is a weird place to handle this, but we need the shader to be bound for pushing
        * constants. The alternative would be compiling more shader variants... :( */
-      bool can_raycast = GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_RAYCAST) &&
-                         probe_capture != MAT_PROBE_PLANAR &&
-                         (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) ||
-                          (ELEM(pipeline_type,
-                                MAT_PIPE_PREPASS_DEFERRED,
-                                MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-                                MAT_PIPE_PREPASS_FORWARD,
-                                MAT_PIPE_PREPASS_FORWARD_VELOCITY,
-                                MAT_PIPE_PREPASS_OVERLAP) &&
-                           hide_on_raycast));
+      bool can_raycast =
+          GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_RAYCAST) &&
+          probe_capture != MAT_PROBE_PLANAR &&
+          (ELEM(pipeline_type,
+                MAT_PIPE_DEFERRED,
+                MAT_PIPE_FORWARD,
+                MAT_PIPE_PREPASS_FORWARD,
+                MAT_PIPE_PREPASS_FORWARD_VELOCITY,
+                MAT_PIPE_PREPASS_OVERLAP) ||
+           (ELEM(pipeline_type, MAT_PIPE_PREPASS_DEFERRED, MAT_PIPE_PREPASS_DEFERRED_VELOCITY) &&
+            hide_on_raycast));
       matpass.sub_pass->push_constant("can_raycast", can_raycast);
     }
     else {

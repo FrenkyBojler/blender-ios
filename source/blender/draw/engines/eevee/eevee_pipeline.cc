@@ -360,11 +360,11 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
   return &sub;
 }
 
-void Prepass::render(View &view)
+void Prepass::render(View &view, bool do_raycast_depth_copy)
 {
   inst_.manager->submit(raycast_vis_on_ps_, view);
 
-  if (inst_.pipelines.has_raycast) {
+  if (do_raycast_depth_copy) {
     GPU_texture_copy(inst_.render_buffers.raycast_depth_tx, inst_.render_buffers.depth_tx);
   }
 
@@ -470,8 +470,7 @@ void ForwardPipeline::end_sync()
 
 PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_mat,
                                                    GPUMaterial *gpumat,
-                                                   bool has_motion,
-                                                   bool hide_on_raycast)
+                                                   bool has_motion)
 {
   BLI_assert_msg(GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) == false,
                  "Forward Transparent should be registered directly without calling "
@@ -482,7 +481,7 @@ PassMain::Sub *ForwardPipeline::prepass_opaque_add(blender::Material *blender_ma
    * is no mix shader (could do better constant folding but that's expensive). */
 
   has_opaque_ = true;
-  return prepass_.add(blender_mat, gpumat, has_motion, hide_on_raycast);
+  return prepass_.add(blender_mat, gpumat, has_motion, true);
 }
 
 PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
@@ -623,7 +622,7 @@ void ForwardPipeline::render(View &view,
   GPU_debug_group_begin("Forward.Opaque");
 
   prepass_fb.bind();
-  prepass_.render(view);
+  prepass_.render(view, false);
 
   inst_.hiz_buffer.set_dirty();
   inst_.hiz_buffer.update();
@@ -1059,7 +1058,7 @@ gpu::Texture *DeferredLayer::render(View &main_view,
   /* Clear stencil buffer so that prepass can tag it. Then draw a full-screen triangle that will
    * clear AOVs for all the pixels touched by this layer. */
   GPU_framebuffer_clear_stencil(prepass_fb, 0xFFu);
-  prepass_.render(render_view);
+  prepass_.render(render_view, inst_.pipelines.has_raycast);
   if (!clear_aovs_ps_.is_empty()) {
     inst_.manager->submit(clear_aovs_ps_);
   }
@@ -1541,7 +1540,7 @@ void DeferredProbePipeline::render(View &view,
   prepass_fb.bind();
   prepass_fb.clear_depth(inst_.film.depth.clear_value);
   prepass_fb.clear_color(float4(0.0f));
-  opaque_layer_.prepass_.render(view);
+  opaque_layer_.prepass_.render(view, inst_.pipelines.has_raycast);
 
   inst_.hiz_buffer.set_source(&inst_.render_buffers.depth_tx);
   inst_.hiz_buffer.update();
@@ -1642,7 +1641,7 @@ void PlanarProbePipeline::render(View &view,
 
   GPU_framebuffer_bind(prepass_fb);
   GPU_framebuffer_clear_depth(prepass_fb, inst_.film.depth.clear_value);
-  prepass_.render(view);
+  prepass_.render(view, false);
 
   /* TODO(fclem): This is the only place where we use the layer source to HiZ.
    * This is because the texture layer view is still a layer texture. */
