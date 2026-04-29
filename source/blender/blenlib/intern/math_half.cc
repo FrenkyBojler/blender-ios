@@ -289,7 +289,7 @@ void math::float_to_half_clamp_array(
     __m256 not_nans_mask = _mm256_cmp_ps(src8, src8, _CMP_EQ_OQ);
     src8 = _mm256_and_ps(src8, not_nans_mask);
     /* Clamp between min & max. */
-    src8 = _mm256_min_ps(_mm_max_ps(src8, min8), max8);
+    src8 = _mm256_min_ps(_mm256_max_ps(src8, min8), max8);
 
     __m128i h8 = _mm256_cvtps_ph(src8, _MM_FROUND_TO_NEAREST_INT);
     _mm_storeu_si128((__m128i *)dst, h8);
