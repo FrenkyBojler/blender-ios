@@ -144,8 +144,12 @@ static bool any_child_to_select(const Set<bPoseChannel *> &pose_bones)
  * Of all selected pose bones, select their parents.
  *
  * \param stop_at_root If true, selection will remain unchanged if there are no parents to select.
+ * \param modify_active The active bone of an armature will be moved to the parent.
  */
-static bool pose_select_parents(bContext *C, const bool extend, const bool stop_at_root)
+static bool pose_select_parents(bContext *C,
+                                const bool extend,
+                                const bool stop_at_root,
+                                const bool modify_active)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
       *CTX_data_main(C), CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
@@ -154,6 +158,7 @@ static bool pose_select_parents(bContext *C, const bool extend, const bool stop_
   for (Object *pose_object : objects) {
     bArmature *arm = id_cast<bArmature *>(pose_object->data);
     BLI_assert(arm);
+    Bone *active_bone = arm->act_bone;
     Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(*pose_object);
     if (stop_at_root && !any_parent_to_select(selected_pose_bones)) {
       continue;
@@ -169,6 +174,9 @@ static bool pose_select_parents(bContext *C, const bool extend, const bool stop_
         continue;
       }
       pose_do_bone_select(pchan->parent, SEL_SELECT);
+      if (modify_active && pchan->bone == active_bone) {
+        arm->act_bone = pchan->parent->bone;
+      }
       changed_any_selection = true;
     }
     ED_pose_bone_select_tag_update(pose_object);
@@ -182,11 +190,13 @@ static bool pose_select_parents(bContext *C, const bool extend, const bool stop_
  * whose direct parent is selected are changed.
  *
  * \param stop_at_leaf If true, selection will remain unchanged if there are no children to select.
+ * \param modify_active The active bone of an armature will be moved to the first child.
  */
 static bool pose_select_children(bContext *C,
                                  const bool all,
                                  const bool extend,
-                                 const bool stop_at_leaf)
+                                 const bool stop_at_leaf,
+                                 const bool modify_active)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
       *CTX_data_main(C), CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
@@ -196,6 +206,7 @@ static bool pose_select_children(bContext *C,
   for (Object *pose_object : objects) {
     bArmature *arm = id_cast<bArmature *>(pose_object->data);
     BLI_assert(arm);
+    Bone *active_bone = arm->act_bone;
     Set<bPoseChannel *> selected_pose_bones = get_selected_pose_bones(*pose_object);
     if (stop_at_leaf && !any_child_to_select(selected_pose_bones)) {
       continue;
@@ -210,12 +221,22 @@ static bool pose_select_children(bContext *C,
       if (all) {
         if (pose_bone_is_below_one_of(pchan, selected_pose_bones)) {
           pose_do_bone_select(&pchan, SEL_SELECT);
+          if (modify_active && pchan.parent->bone == active_bone &&
+              pchan.parent->bone->childbase.first == pchan.bone)
+          {
+            arm->act_bone = pchan.bone;
+          }
           changed_any_selection = true;
         }
       }
       else {
         if (selected_pose_bones.contains(pchan.parent)) {
           pose_do_bone_select(&pchan, SEL_SELECT);
+          if (modify_active && pchan.parent->bone == active_bone &&
+              pchan.parent->bone->childbase.first == pchan.bone)
+          {
+            arm->act_bone = pchan.bone;
+          }
           changed_any_selection = true;
         }
       }
@@ -886,10 +907,14 @@ static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   if (direction == BONE_SELECT_PARENT) {
-    changed = pose_select_parents(C, extend, /* stop_at_root= */ true);
+    changed = pose_select_parents(C, extend, /* stop_at_root= */ true, /* modify_active= */ true);
   }
   else { /* direction == BONE_SELECT_CHILD */
-    changed = pose_select_children(C, /* all= */ false, extend, /* stop_at_leaf= */ true);
+    changed = pose_select_children(C,
+                                   /* all= */ false,
+                                   extend,
+                                   /* stop_at_leaf= */ true,
+                                   /* modify_active= */ true);
   }
 
   if (changed == false) {
@@ -1200,15 +1225,18 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
       break;
 
     case SelectRelatedMode::CHILDREN:
-      changed = pose_select_children(C, /* all= */ true, extend, /* stop_at_leaf= */ false);
+      changed = pose_select_children(
+          C, /* all= */ true, extend, /* stop_at_leaf= */ false, /* modify_active= */ false);
       break;
 
     case SelectRelatedMode::IMMEDIATE_CHILDREN:
-      changed = pose_select_children(C, /* all= */ false, extend, /* stop_at_leaf= */ false);
+      changed = pose_select_children(
+          C, /* all= */ false, extend, /* stop_at_leaf= */ false, /* modify_active= */ false);
       break;
 
     case SelectRelatedMode::PARENT:
-      changed = pose_select_parents(C, extend, /* stop_at_root= */ false);
+      changed = pose_select_parents(
+          C, extend, /* stop_at_root= */ false, /* modify_active= */ false);
       break;
 
     case SelectRelatedMode::SIBLINGS:

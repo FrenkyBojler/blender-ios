@@ -197,7 +197,9 @@ class SelectHierarchy(Operator):
                 select_new.extend([child for child in obj.children if child.visible_get()])
 
             if select_new:
+                print(select_new)
                 select_new.sort(key=lambda obj_iter: obj_iter.name)
+                print(select_new)
                 act_new = select_new[0]
 
         # don't edit any object settings above this
