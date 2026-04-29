@@ -177,7 +177,7 @@ template<typename T> inline List<T>::List() : list_(CPPType::get<T>()) {}
 
 template<typename T> inline VArray<T> List<T>::varray() const
 {
-  return list_.varray().typed<T>();
+  return list_.varray().template typed<T>();
 }
 
 template<typename T> inline std::variant<Span<T>, const T *> List<T>::values() const
