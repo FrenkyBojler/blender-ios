@@ -2623,6 +2623,79 @@ template<typename T> Vector<CDTFace<T> *> compute_face_regions(CDT_state<T> *cdt
 }
 
 /**
+ * Flood-fill per-region values (parity for even-odd, winding for non-zero) from seeded
+ * regions outward through the region-adjacency graph, building CSR adjacency from a
+ * region-pair map for the traversal.
+ *
+ * `region_pair_value` is a Map keyed by `(region_src, region_dst)`. Callers are expected to
+ * insert both directions for each undirected edge (with `value` flipped if needed for the
+ * domain - e.g. negated for signed winding deltas, unchanged for symmetric XOR parity).
+ * `Map::add` ignores subsequent inserts for an existing key, so first-edge-wins is free.
+ *
+ * `region_value` is both input and output. On entry, regions whose value is not
+ * `unset_value` are treated as roots. On exit, regions reachable from a root hold
+ * `combine(parent_value, edge_value_in_traversed_direction)`. Unreachable regions are
+ * left at `unset_value`.
+ *
+ * Order of traversal does not affect the result for self-consistent inputs - each region is
+ * assigned exactly once on first reach. For inconsistent inputs (region-graph cycles whose
+ * `combine`-deltas don't close), the first value wins; later visits via a different path
+ * that would compute a different value are silently ignored.
+ */
+template<typename Value, typename CombineFn>
+void flood_fill_region_values(const Map<int2, Value> &region_pair_value,
+                              MutableSpan<Value> region_value,
+                              const Value unset_value,
+                              CombineFn combine)
+{
+  struct RegionEdge {
+    int neighbor;
+    Value value;
+  };
+  const int64_t num_regions = region_value.size();
+
+  /* Count outgoing neighbors per region directly into the offsets array. The accumulator
+   * writes offsets in-place over [0..N-1] and overwrites [N] with the total, so the trailing
+   * slot just needs to start at 0 (as the value-init does). */
+  Array<int> region_adjacency_offset_data(num_regions + 1, 0);
+  for (const int2 &key : region_pair_value.keys()) {
+    region_adjacency_offset_data[key[0]]++;
+  }
+  const OffsetIndices<int> region_adjacency_offsets = offset_indices::accumulate_counts_to_offsets(
+      region_adjacency_offset_data);
+
+  /* Fill flat adjacency, with a per-region write cursor for sequential appends. */
+  Array<RegionEdge> adjacency_data(region_adjacency_offsets.total_size());
+  Array<int> write_position(num_regions, 0);
+  for (const auto &item : region_pair_value.items()) {
+    const int region_src = item.key[0];
+    const int region_dst = item.key[1];
+    const int index = region_adjacency_offset_data[region_src] + write_position[region_src]++;
+    adjacency_data[index] = {region_dst, item.value};
+  }
+
+  /* Stack-based traversal from pre-seeded roots. */
+  Vector<int> region_stack;
+  region_stack.reserve(num_regions);
+  for (const int r : region_value.index_range()) {
+    if (region_value[r] != unset_value) {
+      region_stack.append(r);
+    }
+  }
+  while (!region_stack.is_empty()) {
+    const int region = region_stack.pop_last();
+    const Value cur = region_value[region];
+    for (const int i : region_adjacency_offsets[region]) {
+      const RegionEdge &re = adjacency_data[i];
+      if (region_value[re.neighbor] == unset_value) {
+        region_value[re.neighbor] = combine(cur, re.value);
+        region_stack.append(re.neighbor);
+      }
+    }
+  }
+}
+
+/**
  * Detect holes using the even-odd fill rule.
  *
  * A hole face is one for which, when a ray is shot from a point inside the face to infinity,
@@ -2722,17 +2795,11 @@ template<typename T> void detect_holes_with_fillrule_nonzero(CDT_state<T> *cdt_s
 
   CDTArrangement<T> *cdt = &cdt_state->cdt;
 
-  /* Adjacency entry for region graph.
-   *
-   * Crossing direction convention:
+  /* Crossing direction convention used when populating the region adjacency below:
    * - Edge `winding > 0` means net CCW traversal from `symedge[0].vert` to `symedge[1].vert`.
    * - Crossing from `symedge[0].face` side INTO `symedge[1].face` side: subtract winding.
    * - Crossing from `symedge[1].face` side INTO `symedge[0].face` side: add winding.
    */
-  struct RegionEdge {
-    int neighbor_region;
-    int winding_delta; /* Winding change when crossing TO neighbor. */
-  };
 
   /* Boundary regions are those touching outer_face. We collect them during flood-fill
    * to avoid a separate pass over all edges. */
@@ -2868,63 +2935,20 @@ template<typename T> void detect_holes_with_fillrule_nonzero(CDT_state<T> *cdt_s
     region_pair_winding.add(int2(region1, region0), delta_1_to_0);
   }
 
-  /* Count unique neighbors per region to build offset array. */
-  Array<int> region_neighbor_count(num_regions, 0);
-  for (const auto &key : region_pair_winding.keys()) {
-    const int region_src = key[0];
-    region_neighbor_count[region_src]++;
-  }
-
-  /* Build offset array for CSR-style adjacency storage. */
-  Array<int> region_adjacency_offset_data(num_regions + 1);
-  region_adjacency_offset_data.as_mutable_span()
-      .take_front(num_regions)
-      .copy_from(region_neighbor_count);
-  region_adjacency_offset_data[num_regions] = 0;
-  const OffsetIndices<int> region_adjacency_offsets = offset_indices::accumulate_counts_to_offsets(
-      region_adjacency_offset_data);
-
-  /* Fill flat adjacency array. `region_neighbor_count` is repurposed,
-   * reset to 0 and reused to track the current write position within
-   * each region's slice of the adjacency array. */
-  Array<RegionEdge> adjacency_data(region_adjacency_offsets.total_size());
-  MutableSpan<int> write_position = region_neighbor_count; /* Alias for readability. */
-  write_position.fill(0);
-
-  for (const auto &item : region_pair_winding.items()) {
-    const int region_src = item.key[0];
-    const int region_dst = item.key[1];
-    const int winding_delta = item.value;
-    const int index = region_adjacency_offset_data[region_src] + write_position[region_src]++;
-    adjacency_data[index] = {region_dst, winding_delta};
-  }
-
-  /* Initialize region winding values and BFS queue. */
+  /* Seed boundary regions with the winding from crossing the outer boundary. */
   Array<int> region_winding(num_regions);
-  region_winding.fill(INT_MIN); /* INT_MIN = unknown. */
-
-  Vector<int> region_stack;
-  region_stack.reserve(num_regions); /* At most one entry per region. */
+  region_winding.fill(INT_MIN); /* INT_MIN = unknown / unreachable. */
   for (const BoundaryRegionInfo &info : boundary_regions) {
     if (region_winding[info.region] == INT_MIN) {
       region_winding[info.region] = info.winding;
-      region_stack.append(info.region);
     }
   }
 
-  /* BFS to propagate winding values through region graph. */
-  while (!region_stack.is_empty()) {
-    const int region = region_stack.pop_last();
-    const int current_winding = region_winding[region];
-
-    for (const int i : region_adjacency_offsets[region]) {
-      const RegionEdge &re = adjacency_data[i];
-      if (region_winding[re.neighbor_region] == INT_MIN) {
-        region_winding[re.neighbor_region] = current_winding + re.winding_delta;
-        region_stack.append(re.neighbor_region);
-      }
-    }
-  }
+  /* Propagate winding through the region graph from the boundary seeds. */
+  flood_fill_region_values<int>(
+      region_pair_winding, region_winding, INT_MIN, [](int cur, int delta) {
+        return cur + delta;
+      });
 
   /* Apply hole status to faces. Hole if winding == 0 (or unreachable). */
   for (CDTFace<T> *f : cdt->faces) {
