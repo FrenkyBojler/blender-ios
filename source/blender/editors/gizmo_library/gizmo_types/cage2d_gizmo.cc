@@ -1056,7 +1056,7 @@ struct RectTransformInteraction {
   float orig_matrix_final_no_offset[4][4];
   Dial *dial;
   bool use_temp_uniform;
-  bool use_temp_pivot;
+  bool use_temp_center_pivot;
 };
 
 }  // namespace
@@ -1068,9 +1068,6 @@ static int gizmo_cage2d_transform_flag_get(const wmGizmo *gz)
   if (data) {
     if (data->use_temp_uniform) {
       transform_flag |= ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM;
-    }
-    if (data->use_temp_pivot) {
-      transform_flag |= ED_GIZMO_CAGE_XFORM_FLAG_SCALE_USE_PIVOT;
     }
   }
   return transform_flag;
@@ -1160,12 +1157,10 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
 {
   RectTransformInteraction *data = static_cast<RectTransformInteraction *>(gz->interaction_data);
   int transform_flag = RNA_enum_get(gz->ptr, "transform");
-
-  /* WARNING: Checking the events modifier only makes sense as long as `tweak_flag`
-   * remains unused (this controls #WM_GIZMO_TWEAK_PRECISE for Shift and
-   * #WM_GIZMO_TWEAK_SNAP for Ctrl by default). */
   bool uniform_changed = false;
   if ((transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM) == 0) {
+    /* WARNING: Checking the events modifier only makes sense as long as `tweak_flag`
+     * remains unused (this controls #WM_GIZMO_TWEAK_PRECISE by default). */
     const bool use_temp_uniform = (event->modifier & KM_SHIFT) != 0;
     uniform_changed = data->use_temp_uniform != use_temp_uniform;
     data->use_temp_uniform = use_temp_uniform;
@@ -1173,15 +1168,9 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
       transform_flag |= ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM;
     }
   }
-  bool pivot_changed = false;
-  if ((transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_SCALE_USE_PIVOT) == 0) {
-    const bool use_temp_pivot = (event->modifier & KM_CTRL) != 0;
-    pivot_changed = data->use_temp_pivot != use_temp_pivot;
-    data->use_temp_pivot = use_temp_pivot;
-    if (use_temp_pivot) {
-      transform_flag |= ED_GIZMO_CAGE_XFORM_FLAG_SCALE_USE_PIVOT;
-    }
-  }
+  const bool use_temp_center_pivot = (event->modifier & KM_ALT) != 0;
+  const bool pivot_changed = data->use_temp_center_pivot != use_temp_center_pivot;
+  data->use_temp_center_pivot = use_temp_center_pivot;
 
   if (uniform_changed || pivot_changed) {
     /* Always refresh. */
@@ -1270,9 +1259,7 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
     const int draw_style = RNA_enum_get(gz->ptr, "draw_style");
 
     float pivot[2];
-    if ((transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE) &&
-        !(transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_SCALE_USE_PIVOT))
-    {
+    if ((transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE) && !data->use_temp_center_pivot) {
       gizmo_pivot_from_scale_part(gz->highlight_part, pivot);
       mul_v2_v2(pivot, dims);
     }
@@ -1461,7 +1448,6 @@ static void GIZMO_GT_cage_2d(wmGizmoType *gzt)
       {ED_GIZMO_CAGE_XFORM_FLAG_ROTATE, "ROTATE", 0, "Rotate", ""},
       {ED_GIZMO_CAGE_XFORM_FLAG_SCALE, "SCALE", 0, "Scale", ""},
       {ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM, "SCALE_UNIFORM", 0, "Scale Uniform", ""},
-      {ED_GIZMO_CAGE_XFORM_FLAG_SCALE_USE_PIVOT, "SCALE_USE_PIVOT", 0, "Scale Around Pivot", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem rna_enum_draw_options[] = {
