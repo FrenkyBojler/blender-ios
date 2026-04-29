@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_gtest_base.hh"
 #include "BKE_node_socket_value2.hh"
 
 #include "FN_field.hh"
@@ -11,7 +12,9 @@
 
 namespace blender::bke::tests {
 
-TEST(socket_value_variant2, SimpleInt)
+class SocketValueVariantTest : public BlenderGTestBase {};
+
+TEST_F(SocketValueVariantTest, SimpleInt)
 {
   SocketValueVariant2 s;
   {
@@ -25,7 +28,7 @@ TEST(socket_value_variant2, SimpleInt)
   }
 }
 
-TEST(socket_value_variant2, IntToFloat)
+TEST_F(SocketValueVariantTest, IntToFloat)
 {
   SocketValueVariant2 s;
   {
@@ -42,7 +45,7 @@ TEST(socket_value_variant2, IntToFloat)
   }
 }
 
-TEST(socket_value_variant2, IntToIntField)
+TEST_F(SocketValueVariantTest, IntToIntField)
 {
   SocketValueVariant2 s;
   s.ensure_type<int>() = 23;

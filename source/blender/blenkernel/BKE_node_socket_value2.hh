@@ -38,7 +38,8 @@ struct SocketValueVariantTypeInfo {
   {
     return SocketValueVariantTypeInfo{
         .kind = Kind::None,
-        .type = CPPType::get<T>(),
+        /* Can't use `CPPType::get<T>()` because this runs before CPPType registration. */
+        .type = blender::detail::cpp_type_impl<T>.ref(),
         .convert_to = convert_to_fn<T>,
         .is_interpretable_as = is_interpretable_as_fn<T>,
     };
