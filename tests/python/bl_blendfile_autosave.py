@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ./blender.bin --background --python tests/python/bl_blendfile_autosave.py
+# ./blender.bin --background --python tests/python/bl_blendfile_autosave.py -- --output-dir=/tmp/
 import bpy
 import os
 import re
@@ -84,9 +84,8 @@ def argparse_create():
     parser.add_argument(
         "--output-dir",
         dest="output_dir",
-        default=".",
         help="Where to output temp saved files",
-        required=False,
+        required=True,
     )
 
     return parser
