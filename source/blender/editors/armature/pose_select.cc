@@ -17,6 +17,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string.h"
 
 #include "BKE_action.hh"
@@ -732,6 +734,93 @@ void POSE_OT_select_constraint_target(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* -------------------------------------- */
+
+enum class BoneScale { NON_UNIT = 0, NON_UNIFORM = 1 };
+
+static wmOperatorStatus pose_select_scaled_exec(bContext *C, wmOperator *op)
+{
+  const Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
+
+  const BoneScale scale_mode = BoneScale(RNA_enum_get(op->ptr, "scale"));
+
+  for (Object *pose_object : objects) {
+    bArmature *arm = id_cast<bArmature *>(pose_object->data);
+    BLI_assert(arm);
+
+    ED_pose_deselect_all(pose_object, SEL_DESELECT, false);
+
+    for (bPoseChannel &pchan : pose_object->pose->chanbase) {
+      if (!animrig::bone_is_selectable(arm, &pchan)) {
+        continue;
+      }
+      const float epsilon = 1.0e-9f;
+      const float3x3 pbone_mat = float3x3(float4x4(pchan.pose_mat));
+      const float3 axis_scale = float3(math::length(pbone_mat.x_axis()),
+                                       math::length(pbone_mat.y_axis()),
+                                       math::length(pbone_mat.z_axis()));
+      bool select = false;
+
+      switch (scale_mode) {
+        case BoneScale::NON_UNIT: {
+          select = (fabsf(axis_scale.x - 1.0f) > epsilon) ||
+                   (fabsf(axis_scale.y - 1.0f) > epsilon) ||
+                   (fabsf(axis_scale.z - 1.0f) > epsilon);
+          break;
+        }
+
+        case BoneScale::NON_UNIFORM: {
+          select = (fabsf(axis_scale.x - axis_scale.y) > epsilon) ||
+                   (fabsf(axis_scale.x - axis_scale.z) > epsilon) ||
+                   (fabsf(axis_scale.y - axis_scale.z) > epsilon);
+          break;
+        }
+      }
+
+      if (select) {
+        pose_do_bone_select(&pchan, SEL_SELECT);
+      }
+    }
+    ED_pose_bone_select_tag_update(pose_object);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void POSE_OT_select_scaled(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Select Scaled Bones";
+  ot->idname = "POSE_OT_select_scaled";
+  ot->description = "Select bones that have non-uniform or non-unit scale";
+
+  /* API callbacks. */
+  ot->exec = pose_select_scaled_exec;
+  ot->poll = ED_operator_posemode;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Props. */
+  static const EnumPropertyItem deform_items[] = {{int(BoneScale::NON_UNIFORM),
+                                                   "NON_UNIFORM",
+                                                   0,
+                                                   "Non-Uniform",
+                                                   "Select bones that have non-uniform scale"},
+                                                  {int(BoneScale::NON_UNIT),
+                                                   "NON_UNIT",
+                                                   0,
+                                                   "Non-Unit",
+                                                   "Select bones that have non-unit scale"},
+                                                  {0, nullptr, 0, nullptr, nullptr}};
+
+  RNA_def_enum(ot->srna, "scale", deform_items, int(BoneScale::NON_UNIFORM), "Scale", "");
+}
+
 /** \} */
 /* -------------------------------------------------------------------- */
 /** \name Select Deform Operator
@@ -774,7 +863,7 @@ static wmOperatorStatus armature_select_deform_exec(bContext *C, wmOperator *op)
 
 void POSE_OT_select_deform(wmOperatorType *ot)
 {
-  /* identifiers */
+  /* Identifiers. */
   ot->name = "Select Deform Bones";
   ot->idname = "POSE_OT_select_deform";
   ot->description = "Select bones the have the deform option enabled (or disabled)";
@@ -783,9 +872,10 @@ void POSE_OT_select_deform(wmOperatorType *ot)
   ot->exec = armature_select_deform_exec;
   ot->poll = ED_operator_posemode;
 
-  /* flags */
+  /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+  /* Props. */
   static const EnumPropertyItem deform_items[] = {
       {int(BoneDeform::DEFORM),
        "DEFORM",
