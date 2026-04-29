@@ -168,27 +168,16 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(wmCursorType curs)
  */
 static int wm_cursor_size(const wmWindow *win)
 {
+  float default_size = OS_MAC ? 21.0f : float(WM_cursor_preferred_logical_size());
+
   if (U.mouse_cursor_size == USER_CURSOR_SIZE_UI_SCALE) {
-    return std::lround(21.0f * U.ui_scale);
+    return std::lround(default_size * U.ui_scale);
   }
 
-  if (OS_MAC) {
-    /* MacOS always scales up this type of cursor for high-dpi displays. */
-    if (U.mouse_cursor_size == USER_CURSOR_SIZE_1_5) {
-      return std::lround(21.0f * 1.5f);
-    }
-    else if (U.mouse_cursor_size == USER_CURSOR_SIZE_2_0) {
-      return std::lround(21.0f * 2.0f);
-    }
-    else if (U.mouse_cursor_size == USER_CURSOR_SIZE_3_0) {
-      return std::lround(21.0f * 3.0f);
-    }
-    return 21;
+  if (!OS_MAC) {
+    const float system_scale = WM_window_dpi_get_scale(win);
+    default_size *= system_scale;
   }
-
-  /* The DPI as a scale without the UI scale preference. */
-  const float system_scale = WM_window_dpi_get_scale(win);
-  const float default_size = float(WM_cursor_preferred_logical_size()) * system_scale;
 
   if (U.mouse_cursor_size == USER_CURSOR_SIZE_1_5) {
     return std::lround(default_size * 1.5f);

@@ -1187,6 +1187,8 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
     WM_window_title_refresh(wm, win);
   }
 
+  WM_cursor_set(win, WM_CURSOR_DEFAULT, true);
+
   /* Add top-bar. */
   ED_screen_global_areas_refresh(win);
 }

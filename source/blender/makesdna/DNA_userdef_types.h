@@ -933,9 +933,7 @@ struct UserDef {
   /** #eUserpref_UI_Flag2. */
   char uiflag2 = USER_REGION_OVERLAP | USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   char gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION;
-
   char mouse_cursor_size = USER_CURSOR_SIZE_DEFAULT;
-
   char _pad8[5] = {};
 
   /* Experimental flag for app-templates to make changes to behavior
