@@ -677,7 +677,7 @@ static void update_curve_plane_normal_cache(const Span<float3> positions,
       [&](const int curve_i) {
         const IndexRange points = points_by_curve[curve_i];
         if (points.size() < 2) {
-          normals[curve_i] = float3(1.0f, 0.0f, 0.0f);
+          normals[curve_i] = float3(0.0f, 1.0f, 0.0f);
           return;
         }
 
@@ -697,7 +697,12 @@ static void update_curve_plane_normal_cache(const Span<float3> positions,
           for (const int point_i : points.drop_back(1)) {
             float3 segment_vec = positions[point_i] - positions[point_i + 1];
             if (math::length_squared(segment_vec) != 0.0f) {
-              normal = math::normalize(float3(segment_vec.y, -segment_vec.x, 0.0f));
+              if (std::abs(segment_vec.x) + std::abs(segment_vec.y) < 1e-4f) {
+                normal = float3(0.0f, 1.0f, 0.0f);
+              }
+              else {
+                normal = math::normalize(float3(segment_vec.y, -segment_vec.x, 0.0f));
+              }
               break;
             }
           }
@@ -729,7 +734,7 @@ static float4x2 get_local_to_stroke_matrix(const Span<float3> positions, const f
 {
   using namespace blender::math;
 
-  if (positions.size() <= 2) {
+  if (positions.size() < 2) {
     return float4x2::identity();
   }
 
