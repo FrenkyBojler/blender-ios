@@ -874,12 +874,12 @@ class PipelineModule {
                               blender::Material *blender_mat,
                               GPUMaterial *gpumat,
                               eMaterialPipeline pipeline_type,
-                              eMaterialProbe probe_capture,
-                              bool hide_on_raycast = false)
+                              eMaterialProbe probe_capture)
   {
     if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
       has_raycast = true;
     }
+    const bool hide_on_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
 
     if (probe_capture == MAT_PROBE_REFLECTION) {
       switch (pipeline_type) {
