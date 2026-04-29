@@ -805,7 +805,7 @@ static void merged_element_search_fn_recursive(const ListBaseT<TreeElement> *tre
 
         iconid = tree_element_get_icon(tselem, &te).icon;
         if (outliner_is_collection_tree_element(&te)) {
-          Collection &collection = *outliner_collection_from_tree_element(&te);
+          const Collection &collection = *outliner_collection_from_tree_element(&te);
           if (collection.color_tag != COLLECTION_COLOR_NONE) {
             iconid = ICON_COLLECTION_COLOR_01 + collection.color_tag;
           }
