@@ -84,9 +84,9 @@ TEST_F(SocketValueVariantTest, ConstantIntFieldToInt)
 TEST_F(SocketValueVariantTest, ConstantIntFieldToFloat)
 {
   SocketValueVariant2 s;
-  s.ensure_type<fn::Field<float>>() = fn::Field<float>(42.0f);
-  const int &v = s.ensure_type<int>();
-  EXPECT_EQ(v, 42);
+  s.ensure_type<fn::Field<int>>() = fn::Field<int>(42);
+  const float &v = s.ensure_type<float>();
+  EXPECT_EQ(v, 42.0f);
 }
 
 TEST_F(SocketValueVariantTest, ConstIntFieldToFloatField)
