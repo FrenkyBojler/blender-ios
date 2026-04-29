@@ -817,7 +817,7 @@ void Result::share_data(const Result &source)
   return GPU_texture_format(texture) == result.get_gpu_texture_format();
 }
 
-void Result::share_data(gpu::Texture *texture, ImplicitSharingInfo *sharing_info)
+void Result::share_data(gpu::Texture *texture, const ImplicitSharingInfo *sharing_info)
 {
   BLI_assert(is_compatible_texture(texture, *this));
   BLI_assert(!this->is_allocated());
@@ -832,7 +832,7 @@ void Result::share_data(gpu::Texture *texture, ImplicitSharingInfo *sharing_info
   }
 }
 
-void Result::share_data(const void *data, const int2 size, ImplicitSharingInfo *sharing_info)
+void Result::share_data(const void *data, const int2 size, const ImplicitSharingInfo *sharing_info)
 {
   BLI_assert(!this->is_allocated());
 

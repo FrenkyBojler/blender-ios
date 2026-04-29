@@ -338,7 +338,10 @@ CachedImage::CachedImage(Context &context,
   else {
     const int2 size = int2(image_buffer->x, image_buffer->y);
     Result buffer_result(context, float_type(image_buffer->channels), ResultPrecision::Full);
-    buffer_result.share_data(linear_image_buffer->float_data(), size);
+    buffer_result.share_data(linear_image_buffer->float_buffer.data,
+                             size,
+                             linear_image_buffer->float_buffer.sharing_info.get());
+    IMB_freeImBuf(linear_image_buffer);
     this->result.allocate_texture(size, false);
 
     if (buffer_result.type() == ResultType::Color && result.type() == ResultType::Float4) {
@@ -371,7 +374,6 @@ CachedImage::CachedImage(Context &context,
         math::from_location<float3x3>(float2(int2(image_buffer->display_offset))));
   }
 
-  IMB_freeImBuf(linear_image_buffer);
   BKE_image_release_ibuf(image, image_buffer, nullptr);
 }
 
