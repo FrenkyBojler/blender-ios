@@ -173,34 +173,50 @@ static void add_output_nodes(const Context &context,
   }
 }
 
+/* Returns the value of input of the node with the given identifier in the given node group
+ * operation. If the value can not be determined statically, a nullopt is returned. The value is
+ * only known statically if the input is not connected or directly connected to a group input node
+ * with the same socket type. */
+template<typename T, typename SocketT>
+static std::optional<T> get_input_socket_value(const bNode &node,
+                                               const UString &identifier,
+                                               NodeGroupOperation &node_group_operation)
+{
+  const bNodeSocket &input = *node.input_by_identifier(identifier);
+  if (!input.is_logically_linked()) {
+    return T(input.default_value_typed<SocketT>()->value);
+  }
+
+  const bNodeSocket *linked_output = input.logically_linked_sockets()[0];
+  if (!linked_output->owner_node().is_group_input()) {
+    return std::nullopt;
+  }
+
+  if (linked_output->type != input.type) {
+    return std::nullopt;
+  }
+
+  return node_group_operation.get_input(linked_output->identifier).get_single_value_default<T>();
+}
+
 /* Returns true if the given input of the given Switch node in the given node group operation is
  * needed by the node. */
 static bool is_switch_node_input_needed(const bNode &node,
                                         const bNodeSocket &input,
                                         NodeGroupOperation &node_group_operation)
 {
-  if (input.identifier_ustr() == "Switch"_ustr) {
+  const UString condition_identifier = "Switch"_ustr;
+  if (input.identifier_ustr() == condition_identifier) {
     return true;
   }
 
-  const bNodeSocket *condition_input = node.input_by_identifier("Switch"_ustr);
-  if (!condition_input->is_logically_linked()) {
-    return (input.identifier_ustr() == "On"_ustr) ==
-           bool(condition_input->default_value_typed<bNodeSocketValueBoolean>()->value);
-  }
-
-  const bNodeSocket *condition_linked_output = condition_input->logically_linked_sockets()[0];
-  if (!condition_linked_output->owner_node().is_group_input()) {
+  const std::optional<bool> condition = get_input_socket_value<bool, bNodeSocketValueBoolean>(
+      node, condition_identifier, node_group_operation);
+  if (!condition.has_value()) {
     return true;
   }
 
-  if (condition_linked_output->type != SOCK_BOOLEAN) {
-    return true;
-  }
-
-  return (input.identifier_ustr() == "On"_ustr) ==
-         node_group_operation.get_input(condition_linked_output->identifier)
-             .get_single_value_default<bool>();
+  return (input.identifier_ustr() == "On"_ustr) == condition.value();
 }
 
 /* returns true if the given input of the given menu switch node in the given node group operation
@@ -209,32 +225,19 @@ static bool is_menu_switch_node_input_needed(const bNode &node,
                                              const bNodeSocket &input,
                                              NodeGroupOperation &node_group_operation)
 {
-  if (input.identifier_ustr() == "Menu"_ustr) {
+  const UString menu_identifier = "Menu"_ustr;
+  if (input.identifier_ustr() == menu_identifier) {
     return true;
   }
 
-  const bNodeSocket *menu_input = node.input_by_identifier("Menu"_ustr);
-  if (!menu_input->is_logically_linked()) {
-    const int menu_identifier = menu_input->default_value_typed<bNodeSocketValueMenu>()->value;
-    const NodeEnumItem menu_item = NodeEnumItem{nullptr, nullptr, menu_identifier};
-    const std::string identifier = nodes::MenuSwitchItemsAccessor::socket_identifier_for_item(
-        menu_item);
-    return input.identifier == identifier;
-  }
-
-  const bNodeSocket *menu_linked_output = menu_input->logically_linked_sockets()[0];
-  if (!menu_linked_output->owner_node().is_group_input()) {
+  const std::optional<nodes::MenuValue> menu =
+      get_input_socket_value<nodes::MenuValue, bNodeSocketValueMenu>(
+          node, menu_identifier, node_group_operation);
+  if (!menu.has_value()) {
     return true;
   }
 
-  if (menu_linked_output->type != SOCK_MENU) {
-    return true;
-  }
-
-  const int menu_identifier = node_group_operation.get_input(menu_linked_output->identifier)
-                                  .get_single_value_default<nodes::MenuValue>()
-                                  .value;
-  const NodeEnumItem menu_item = NodeEnumItem{nullptr, nullptr, menu_identifier};
+  const NodeEnumItem menu_item = NodeEnumItem{nullptr, nullptr, menu.value().value};
   const std::string identifier = nodes::MenuSwitchItemsAccessor::socket_identifier_for_item(
       menu_item);
   return input.identifier == identifier;
@@ -246,40 +249,24 @@ static bool is_index_switch_node_input_needed(const bNode &node,
                                               const bNodeSocket &input,
                                               NodeGroupOperation &node_group_operation)
 {
-  if (input.identifier_ustr() == "Index"_ustr) {
+  const UString index_identifier = "Index"_ustr;
+  if (input.identifier_ustr() == index_identifier) {
+    return true;
+  }
+
+  const std::optional<int> index = get_input_socket_value<int, bNodeSocketValueInt>(
+      node, index_identifier, node_group_operation);
+  if (!index.has_value()) {
     return true;
   }
 
   const NodeIndexSwitch &storage = *static_cast<const NodeIndexSwitch *>(node.storage);
-  const bNodeSocket *index_input = node.input_by_identifier("Index"_ustr);
-  if (!index_input->is_logically_linked()) {
-    const int index = index_input->default_value_typed<bNodeSocketValueInt>()->value;
-    if (!IndexRange(storage.items_num).contains(index)) {
-      return false;
-    }
-
-    const std::string identifier = nodes::IndexSwitchItemsAccessor::socket_identifier_for_item(
-        storage.items[index]);
-    return input.identifier == identifier;
-  }
-
-  const bNodeSocket *index_linked_output = index_input->logically_linked_sockets()[0];
-  if (!index_linked_output->owner_node().is_group_input()) {
-    return true;
-  }
-
-  if (index_linked_output->type != SOCK_INT) {
-    return true;
-  }
-
-  const int index = node_group_operation.get_input(index_linked_output->identifier)
-                        .get_single_value_default<int>();
-  if (!IndexRange(storage.items_num).contains(index)) {
+  if (!IndexRange(storage.items_num).contains(index.value())) {
     return false;
   }
 
   const std::string identifier = nodes::IndexSwitchItemsAccessor::socket_identifier_for_item(
-      storage.items[index]);
+      storage.items[index.value()]);
   return input.identifier == identifier;
 }
 
