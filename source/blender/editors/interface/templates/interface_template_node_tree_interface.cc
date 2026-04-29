@@ -50,8 +50,7 @@ class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
   bNodeTree &tree_;
 
  public:
-  explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view,
-                                           bNodeTree &tree);
+  explicit NodeTreeInterfaceDragController(NodeTreeInterfaceView &view, bNodeTree &tree);
   ~NodeTreeInterfaceDragController() override = default;
 
   std::optional<eWM_DragDataType> get_drag_type() const override;
