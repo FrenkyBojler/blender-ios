@@ -745,6 +745,31 @@ template<typename T> void nestedholes_test()
   CDT_result<T> out3 = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   EXPECT_EQ(out3.vert.size(), 12);
   EXPECT_EQ(out3.face.size(), 10);
+  {
+    int v8 = get_orig_index(out3.vert_orig, 8);
+    int v9 = get_orig_index(out3.vert_orig, 9);
+    int v10 = get_orig_index(out3.vert_orig, 10);
+    int v11 = get_orig_index(out3.vert_orig, 11);
+    EXPECT_NE(v8, -1);
+    EXPECT_NE(v9, -1);
+    EXPECT_NE(v10, -1);
+    EXPECT_NE(v11, -1);
+
+    int f_inner_a = get_output_tri_index(out3, v8, v9, v10);
+    int f_inner_b = get_output_tri_index(out3, v8, v10, v11);
+    int f_inner_c = get_output_tri_index(out3, v8, v9, v11);
+    int f_inner_d = get_output_tri_index(out3, v9, v10, v11);
+    EXPECT_TRUE((f_inner_a != -1 && f_inner_b != -1) || (f_inner_c != -1 && f_inner_d != -1));
+
+    bool found_face_2 = false;
+    for (int f = 0; f < int(out3.face.size()); f++) {
+      if (output_face_has_input_id(out3, f, 2)) {
+        found_face_2 = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found_face_2);
+  }
   if (DO_DRAW) {
     graph_draw<T>("NestedHoles - inside with holes", out3.vert, out3.edge, out3.face);
   }
