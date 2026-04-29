@@ -5,6 +5,7 @@
 #include "BLI_string_utf8.h"
 
 #include "../geometry/node_geometry_util.hh"
+
 #include "NOD_geometry_nodes_list.hh"
 
 #include "node_function_util.hh"
