@@ -1163,7 +1163,7 @@ static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
   return proxy_sizes;
 }
 
-static void seq_build_proxy(bContext *C, Span<Strip *> movie_strips)
+static void seq_build_proxy(bContext *C, const VectorSet<Strip *> strips)
 {
   if (U.sequencer_proxy_setup != USER_SEQ_PROXY_SETUP_AUTOMATIC) {
     return;
@@ -1172,7 +1172,11 @@ static void seq_build_proxy(bContext *C, Span<Strip *> movie_strips)
   wmJob *wm_job = seq::ED_seq_proxy_wm_job_get(C);
   seq::ProxyJob *pj = seq::ED_seq_proxy_job_get(C, wm_job);
 
-  for (Strip *strip : movie_strips) {
+  for (Strip *strip : strips) {
+    if (strip->type != STRIP_TYPE_MOVIE) {
+      continue;
+    }
+
     /* Enable and set proxy size. */
     seq::proxy_set(strip, true);
     strip->data->proxy->build_size_flags = eStripProxyBuildSize(seq_get_proxy_size_flags(C));
@@ -1207,144 +1211,87 @@ static void sequencer_add_movie_sync_sound_strip(
   strip_sound->left_handle_set(scene, strip_movie->left_handle());
 }
 
-static void sequencer_add_movie_multiple_strips(bContext *C,
-                                                wmOperator *op,
-                                                seq::LoadData *load_data,
-                                                VectorSet<Strip *> &r_movie_strips)
+static VectorSet<Strip *> sequencer_add_movie_strips(bContext *C,
+                                                     wmOperator *op,
+                                                     seq::LoadData *load_data)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_ensure(scene);
-  bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
-                                  RNA_boolean_get(op->ptr, "overlap_shuffle_override");
-  bool has_seq_overlap = false;
-  Vector<Strip *> added_strips;
 
-  RNA_BEGIN (op->ptr, itemptr, "files") {
-    char dir_only[FILE_MAX];
-    char file_only[FILE_MAX];
-    RNA_string_get(op->ptr, "directory", dir_only);
-    RNA_string_get(&itemptr, "name", file_only);
-    BLI_path_join(load_data->path, sizeof(load_data->path), dir_only, file_only);
-    STRNCPY(load_data->name, file_only);
-    Strip *strip_movie = nullptr;
-    Strip *strip_sound = nullptr;
+  const bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
+                                        RNA_boolean_get(op->ptr, "overlap_shuffle_override");
+  const bool skip_locked_or_muted = RNA_boolean_get(op->ptr, "skip_locked_or_muted_channels");
+  const bool load_sound = RNA_boolean_get(op->ptr, "sound");
 
-    strip_movie = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
+  bool has_overlap = false;
+  VectorSet<Strip *> strips_added;
 
+  /* Single movie import of movie and sound strip(s). */
+  auto add_movie = [&]() {
+    Strip *strip_movie = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
     if (strip_movie == nullptr) {
       BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
+      return;
+    }
+    strips_added.add(strip_movie);
+
+    Strip *strip_sound = nullptr;
+    if (load_sound) {
+      strip_sound = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
+      sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
+
+      if (strip_sound) {
+        strips_added.add(strip_sound);
+        /* The video has sound, shift the video strip up a channel to make room for the strip. */
+        int movie_channel = strip_movie->channel + 1;
+        if (skip_locked_or_muted) {
+          movie_channel = find_unlocked_unmuted_channel(ed, movie_channel);
+        }
+        seq::strip_channel_set(strip_movie, movie_channel);
+      }
+    }
+
+    load_data->start_frame += strip_movie->right_handle(scene) - strip_movie->left_handle();
+    if (overlap_shuffle_override) {
+      has_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
+      has_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
     }
     else {
-      if (RNA_boolean_get(op->ptr, "sound")) {
-        strip_sound = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
-        sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
-        added_strips.append(strip_movie);
-
-        if (strip_sound) {
-          /* The video has sound, shift the video strip up a channel to make room for the sound
-           * strip. */
-          added_strips.append(strip_sound);
-          seq::strip_channel_set(strip_movie,
-                                 find_unlocked_unmuted_channel(ed, strip_movie->channel + 1));
-        }
-      }
-
-      load_data->start_frame += strip_movie->right_handle(scene) - strip_movie->left_handle();
-      if (overlap_shuffle_override) {
-        has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
-        has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
-      }
-      else {
-        seq_load_apply_generic_options(C, op, strip_sound);
-        seq_load_apply_generic_options(C, op, strip_movie);
-      }
-
-      if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
-        seq::connect(strip_movie, strip_sound);
-      }
-
-      r_movie_strips.add(strip_movie);
+      seq_load_apply_generic_options(C, op, strip_sound);
+      seq_load_apply_generic_options(C, op, strip_movie);
     }
-  }
-  RNA_END;
 
-  if (overlap_shuffle_override) {
-    if (has_seq_overlap) {
-      ScrArea *area = CTX_wm_area(C);
-      const bool use_sync_markers = ((static_cast<SpaceSeq *>(area->spacedata.first))->flag &
-                                     SEQ_MARKER_TRANS) != 0;
-      seq::transform_handle_overlap(scene, ed->current_strips(), added_strips, use_sync_markers);
+    if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
+      seq::connect(strip_movie, strip_sound);
     }
-  }
-}
+  };
+  /* End lambda. */
 
-static bool sequencer_add_movie_single_strip(bContext *C,
-                                             wmOperator *op,
-                                             seq::LoadData *load_data,
-                                             VectorSet<Strip *> &r_movie_strips)
-{
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
-  const Editing *ed = seq::editing_ensure(scene);
-
-  Strip *strip_movie = nullptr;
-  Strip *strip_sound = nullptr;
-  Vector<Strip *> added_strips;
-
-  strip_movie = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
-
-  if (strip_movie == nullptr) {
-    BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
-    return false;
-  }
-  if (RNA_boolean_get(op->ptr, "sound")) {
-    strip_sound = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
-    sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
-    added_strips.append(strip_movie);
-
-    if (strip_sound) {
-      added_strips.append(strip_sound);
-
-      /* The video has sound, shift the video strip up a channel to make room for the sound
-       * strip. */
-      int movie_channel = strip_movie->channel + 1;
-
-      if (RNA_boolean_get(op->ptr, "skip_locked_or_muted_channels")) {
-        movie_channel = find_unlocked_unmuted_channel(ed, strip_movie->channel + 1);
-      }
-
-      seq::strip_channel_set(strip_movie, movie_channel);
+  PropertyRNA *files_prop = RNA_struct_find_property(op->ptr, "files");
+  if (files_prop && RNA_property_collection_length(op->ptr, files_prop) > 1) {
+    RNA_PROP_BEGIN (op->ptr, itemptr, files_prop) {
+      char dir_only[FILE_MAX];
+      char file_only[FILE_MAX];
+      RNA_string_get(op->ptr, "directory", dir_only);
+      RNA_string_get(&itemptr, "name", file_only);
+      BLI_path_join(load_data->path, sizeof(load_data->path), dir_only, file_only);
+      STRNCPY(load_data->name, file_only);
+      add_movie();
     }
-  }
-
-  bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
-                                  RNA_boolean_get(op->ptr, "overlap_shuffle_override");
-  if (overlap_shuffle_override) {
-    bool has_seq_overlap = false;
-
-    has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
-    has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
-
-    if (has_seq_overlap) {
-      ScrArea *area = CTX_wm_area(C);
-      const bool use_sync_markers = ((static_cast<SpaceSeq *>(area->spacedata.first))->flag &
-                                     SEQ_MARKER_TRANS) != 0;
-      seq::transform_handle_overlap(scene, ed->current_strips(), added_strips, use_sync_markers);
-    }
+    RNA_PROP_END;
   }
   else {
-    seq_load_apply_generic_options(C, op, strip_sound);
-    seq_load_apply_generic_options(C, op, strip_movie);
+    add_movie();
   }
 
-  if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
-    seq::connect(strip_movie, strip_sound);
+  if (overlap_shuffle_override && has_overlap) {
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    const bool use_sync_markers = (sseq->flag & SEQ_MARKER_TRANS) != 0;
+    seq::transform_handle_overlap(scene, ed->current_strips(), strips_added, use_sync_markers);
   }
 
-  r_movie_strips.add(strip_movie);
-
-  return true;
+  return strips_added;
 }
 
 static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
@@ -1361,20 +1308,11 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  VectorSet<Strip *> movie_strips;
-  const int tot_files = RNA_property_collection_length(op->ptr,
-                                                       RNA_struct_find_property(op->ptr, "files"));
-
   char vt_old[64];
   STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
-  float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
+  const double fps_old = scene->frames_per_second();
 
-  if (tot_files > 1) {
-    sequencer_add_movie_multiple_strips(C, op, &load_data, movie_strips);
-  }
-  else {
-    sequencer_add_movie_single_strip(C, op, &load_data, movie_strips);
-  }
+  const VectorSet<Strip *> strips_added = sequencer_add_movie_strips(C, op, &load_data);
 
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(op->reports,
@@ -1384,20 +1322,20 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
                 vt_old);
   }
 
-  if (fps_old != scene->r.frs_sec / scene->r.frs_sec_base) {
+  if (fps_old != scene->frames_per_second()) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
                 "Scene frame rate set to %.4g (converted from %.4g)",
-                scene->r.frs_sec / scene->r.frs_sec_base,
+                scene->frames_per_second(),
                 fps_old);
   }
 
-  if (movie_strips.is_empty()) {
+  if (strips_added.is_empty()) {
     sequencer_add_free(C, op);
     return OPERATOR_CANCELLED;
   }
 
-  seq_build_proxy(C, movie_strips);
+  seq_build_proxy(C, strips_added);
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
