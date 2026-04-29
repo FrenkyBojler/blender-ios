@@ -287,9 +287,13 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
                                    << 16;
 
       mat_data->random_packed.w = float_as_uint(gp_style->random_noise_scale);
+
+      mat_data->random_packed2 = uint4(0);
+      mat_data->random_packed2.x = uint(gp_style->random_noise_seed);
     }
     else {
       mat_data->random_packed = uint4(0);
+      mat_data->random_packed2 = uint4(0);
     }
 
     gp_style = gpencil_viewport_material_overrides(inst, ob, color_type, gp_style, lighting_mode);

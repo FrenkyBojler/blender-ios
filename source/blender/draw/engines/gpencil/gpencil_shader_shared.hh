@@ -80,6 +80,8 @@ struct [[host_shared]] gpMaterial {
 #  define _flag packed2.w
 #endif
   uint4 random_packed;
+  /** .x: random seed (animatable, used as offset into the noise pattern). */
+  uint4 random_packed2;
 };
 
 struct [[host_shared]] gpLight {

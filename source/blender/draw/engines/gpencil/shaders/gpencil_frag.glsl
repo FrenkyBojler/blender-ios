@@ -153,7 +153,11 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
   RandomParameters Parameters = unpack_random(gp_materials[matid].random_packed);
 
-  float noise_x = float(i) * Parameters.random_noise_scale;
+  /* Hash the seed so consecutive seed values (e.g. animated per frame) produce
+   * uncorrelated noise patterns rather than a small sliding offset. */
+  uint random_seed = gp_materials[matid].random_packed2.x;
+  float seed_offset = hash_uint_to_float(random_seed) * 65536.0f;
+  float noise_x = float(i) * Parameters.random_noise_scale + seed_offset;
 
   if (Parameters.random_rotation > 0.0f || Parameters.random_size > 0.0f) {
     float rand_rot = noise_level_2(noise_x + 69637.532f);

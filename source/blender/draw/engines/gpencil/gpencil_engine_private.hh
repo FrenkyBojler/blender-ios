@@ -192,8 +192,10 @@ struct Instance final : public DrawEngine {
   tLayer_Pool *gp_layer_pool = new tLayer_Pool();
   /* tVfx */
   tVfx_Pool *gp_vfx_pool = new tVfx_Pool();
-  /* MaterialPool */
-  struct BLI_memblock *gp_material_pool = BLI_memblock_create(sizeof(MaterialPool));
+  /* MaterialPool. The element size exceeds the default 32 KiB chunk, so use a custom chunk
+   * size that fits at least one element. */
+  struct BLI_memblock *gp_material_pool = BLI_memblock_create_ex(sizeof(MaterialPool),
+                                                                 sizeof(MaterialPool) * 2);
   /* LightPool */
   struct BLI_memblock *gp_light_pool = BLI_memblock_create(sizeof(LightPool));
   /* BLI_bitmap */
