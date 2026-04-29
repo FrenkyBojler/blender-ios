@@ -57,6 +57,7 @@ void BKE_cpp_types_init()
 
   BLI_CPP_TYPE_REGISTER(fn::GField, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(fn::Field<int>, CPPTypeFlags::None);
+  BLI_CPP_TYPE_REGISTER(fn::Field<float>, CPPTypeFlags::None);
 }
 
 }  // namespace blender

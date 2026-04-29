@@ -11,6 +11,16 @@
 #include <type_traits>
 #include <utility>
 
+namespace blender::fn {
+class GField;
+}
+namespace blender::bke::volume_grid {
+class GVolumeGrid;
+}
+namespace blender::nodes {
+class List;
+}
+
 namespace blender::bke {
 
 class SocketValueVariant2;
@@ -28,6 +38,22 @@ enum class Kind {
 struct SocketValueVariantTypeInfo;
 using SocketValueVariantAny = Any<SocketValueVariantTypeInfo, 32, 16>;
 
+template<typename T> constexpr Kind get_type_kind()
+{
+  if constexpr (std::is_same_v<T, fn::GField>) {
+    return Kind::Field;
+  }
+  else if constexpr (std::is_same_v<T, volume_grid::GVolumeGrid>) {
+    return Kind::Grid;
+  }
+  else if constexpr (std::is_same_v<T, nodes::List>) {
+    return Kind::List;
+  }
+  else {
+    return Kind::Single;
+  }
+}
+
 struct SocketValueVariantTypeInfo {
   Kind kind;
   const CPPType &type;
@@ -37,7 +63,7 @@ struct SocketValueVariantTypeInfo {
   template<typename T> static SocketValueVariantTypeInfo get()
   {
     return SocketValueVariantTypeInfo{
-        .kind = Kind::None,
+        .kind = get_type_kind<T>(),
         /* Can't use `CPPType::get<T>()` because this runs before CPPType registration. */
         .type = blender::detail::cpp_type_impl<T>.ref(),
         .convert_to = convert_to_fn<T>,
@@ -60,6 +86,14 @@ template<typename T> struct storage_type {
 template<has_generic_type T> struct storage_type<T> {
   using type = typename T::generic_type;
 };
+
+inline const CPPType &to_storage_type(const CPPType &type)
+{
+  if (type.generic_type) {
+    return *type.generic_type;
+  }
+  return type;  // NOLINT
+}
 
 };  // namespace detail
 
@@ -108,6 +142,7 @@ class SocketValueVariant2 {
  public:
   template<typename T> static T &init_default(detail::SocketValueVariantAny &value);
   static void *init_default(const CPPType &type, detail::SocketValueVariantAny &value);
+  static void *allocate(const CPPType &type, detail::SocketValueVariantAny &value);
 };
 
 template<typename T>

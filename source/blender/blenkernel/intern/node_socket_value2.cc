@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_node_socket_value2.hh"
+#include "BKE_type_conversions.hh"
 
 #include "FN_field.hh"
+#include "FN_field_evaluation.hh"
 
 namespace blender::bke {
 
@@ -13,82 +15,146 @@ using fn::GField;
 
 namespace detail {
 
-template<>
-void SocketValueVariantTypeInfo::convert_to_fn<int>(const CPPType &dst_type,
-                                                    SocketValueVariantAny &value)
+template<typename CurrentT>
+void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
+                                               SocketValueVariantAny &value)
 {
-  const int v = value.get<int>();
-  if (dst_type.is<float>()) {
-    value.emplace<float>(v);
-  }
-  else if (dst_type.is<Field<int>>()) {
-    value.emplace<GField>(Field<int>(v));
-  }
-  else if (dst_type.is<GField>()) {
-    value.emplace<GField>(Field<int>(v));
-  }
-  else {
-    SocketValueVariant2::init_default(dst_type, value);
-  }
-}
-
-template<>
-bool SocketValueVariantTypeInfo::is_interpretable_as_fn<int>(
-    const CPPType &dst_type, const SocketValueVariantAny & /*value*/)
-{
-  return dst_type.is<int>();
-}
-
-template<>
-void SocketValueVariantTypeInfo::convert_to_fn<float>(const CPPType &dst_type,
-                                                      SocketValueVariantAny &value)
-{
-  if (dst_type.is<int>()) {
-    const float v = value.get<float>();
-    value.emplace<int>(v);
-  }
-  else {
-    SocketValueVariant2::init_default(dst_type, value);
-  }
-}
-
-template<>
-bool SocketValueVariantTypeInfo::is_interpretable_as_fn<float>(
-    const CPPType &dst_type, const SocketValueVariantAny & /*value*/)
-{
-  return dst_type.is<float>();
-}
-
-template<>
-void SocketValueVariantTypeInfo::convert_to_fn<GField>(const CPPType &dst_type,
-                                                       SocketValueVariantAny &value)
-{
-  if (dst_type.is<GField>()) {
+  if (CPPType::get<CurrentT>() == dst_type) {
     return;
   }
-  const CPPType &base_type = value.get<GField>().cpp_type();
-  if (dst_type.is<Field<int>>()) {
-    if (base_type.is<int>()) {
+  static const DataTypeConversions &conversions = get_implicit_type_conversions();
+  if constexpr (std::is_same_v<CurrentT, GField>) {
+    const GField &src_field = value.get<GField>();
+    const CPPType &src_base_type = src_field.cpp_type();
+    if (dst_type.generic_type && dst_type.generic_type->is<GField>()) {
+      if (src_base_type == *dst_type.base_type) {
+        /* Nothing to do.*/
+        return;
+      }
+      const ConversionFunctions *fns = conversions.get_conversion_functions(src_base_type,
+                                                                            *dst_type.base_type);
+      if (!fns) {
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      if (const void *src_single_value = src_field.get_if_constant()) {
+        if (!fns->convert_single_to_initialized) {
+          SocketValueVariant2::init_default(dst_type, value);
+          return;
+        }
+        BUFFER_FOR_CPP_TYPE_VALUE(*dst_type.base_type, dst_single_value);
+        fns->convert_single_to_initialized(src_single_value, dst_single_value);
+        value.emplace<GField>(GField::from_constant(*dst_type.base_type, dst_single_value));
+        dst_type.base_type->destruct(dst_single_value);
+        return;
+      }
+      if (!fns->multi_function) {
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      fn::FieldOperationPtr op = fn::FieldOperation::from(*fns->multi_function, {src_field});
+      value.emplace<GField>(GField(std::move(op), 0));
       return;
     }
-  }
 
-  SocketValueVariant2::init_default(dst_type, value);
+    if (src_base_type == dst_type) {
+      BUFFER_FOR_CPP_TYPE_VALUE(dst_type, tmp_buffer);
+      fn::evaluate_constant_field(src_field, tmp_buffer);
+      void *dst_value = SocketValueVariant2::allocate(dst_type, value);
+      dst_type.move_construct(tmp_buffer, dst_value);
+      dst_type.destruct(tmp_buffer);
+      return;
+    }
+    const ConversionFunctions *fns = conversions.get_conversion_functions(src_base_type, dst_type);
+    if (!fns || !fns->convert_single_to_initialized) {
+      SocketValueVariant2::init_default(dst_type, value);
+      return;
+    }
+    BUFFER_FOR_CPP_TYPE_VALUE(src_base_type, src_single_value);
+    fn::evaluate_constant_field(src_field, src_single_value);
+    void *dst_value = SocketValueVariant2::allocate(dst_type, value);
+    fns->convert_single_to_uninitialized(src_single_value, dst_value);
+    src_base_type.destruct(src_single_value);
+    return;
+  }
+  else if constexpr (std::is_same_v<CurrentT, volume_grid::GVolumeGrid>) {
+    // TODO
+    SocketValueVariant2::init_default(dst_type, value);
+  }
+  else if constexpr (std::is_same_v<CurrentT, nodes::List>) {
+    // TODO
+    SocketValueVariant2::init_default(dst_type, value);
+  }
+  else {
+    /* The stored value is a single value. */
+
+    if (dst_type.is<GField>()) {
+      GField field = GField::from_constant(CPPType::get<CurrentT>(), value.get());
+      value.emplace<GField>(std::move(field));
+      return;
+    }
+    if (dst_type.generic_type && dst_type.generic_type->is<GField>()) {
+      if (dst_type.base_type->is<CurrentT>()) {
+        GField field = GField::from_constant(CPPType::get<CurrentT>(), value.get());
+        value.emplace<GField>(std::move(field));
+        return;
+      }
+      const ConversionFunctions *fns = conversions.get_conversion_functions(
+          CPPType::get<CurrentT>(), *dst_type.base_type);
+      if (!fns || !fns->convert_single_to_initialized) {
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      BUFFER_FOR_CPP_TYPE_VALUE(*dst_type.base_type, tmp_buffer);
+      fns->convert_single_to_initialized(value.get(), tmp_buffer);
+      value.emplace<GField>(GField::from_constant(*dst_type.base_type, tmp_buffer));
+      dst_type.base_type->destruct(tmp_buffer);
+      return;
+    }
+    const ConversionFunctions *fns = conversions.get_conversion_functions(CPPType::get<CurrentT>(),
+                                                                          dst_type);
+    if (!fns || !fns->convert_single_to_uninitialized) {
+      SocketValueVariant2::init_default(dst_type, value);
+      return;
+    }
+    BUFFER_FOR_CPP_TYPE_VALUE(dst_type, tmp_buffer);
+    fns->convert_single_to_uninitialized(value.get(), tmp_buffer);
+    void *dst_value = SocketValueVariant2::allocate(dst_type, value);
+    dst_type.move_construct(tmp_buffer, dst_value);
+    dst_type.destruct(tmp_buffer);
+  }
 }
 
-template<>
-bool SocketValueVariantTypeInfo::is_interpretable_as_fn<GField>(const CPPType &dst_type,
-                                                                const SocketValueVariantAny &value)
+template<typename CurrentT>
+bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
+                                                        const SocketValueVariantAny &value)
 {
-  if (dst_type.is<GField>()) {
-    return true;
+  if constexpr (std::is_same_v<CurrentT, GField>) {
+    if (dst_type.is<GField>()) {
+      return true;
+    }
+    if (!dst_type.generic_type) {
+      return false;
+    }
+    const GField &field = value.get<GField>();
+    if (dst_type.generic_type->is<GField>()) {
+      return &field.cpp_type() == dst_type.base_type;
+    }
+    return false;
   }
-  const GField &field = value.get<GField>();
-  if (dst_type.is<fn::Field<int>>()) {
-    return field.cpp_type().is<int>();
-  }
-  return false;
+  return CPPType::get<CurrentT>() == dst_type;
 }
+
+#define DEFINE_TYPE(TYPE) \
+  template void SocketValueVariantTypeInfo::convert_to_fn<TYPE>(const CPPType &dst_type, \
+                                                                SocketValueVariantAny &value); \
+  template bool SocketValueVariantTypeInfo::is_interpretable_as_fn<TYPE>( \
+      const CPPType &dst_type, const SocketValueVariantAny &value);
+
+/* Might not be strictly necessary for types used in this file. */
+DEFINE_TYPE(int)
+DEFINE_TYPE(float)
+DEFINE_TYPE(GField)
 
 }  // namespace detail
 
@@ -124,6 +190,24 @@ void *SocketValueVariant2::init_default(const CPPType &type, detail::SocketValue
   if (type.is<Field<int>>()) {
     return &SocketValueVariant2::init_default<Field<int>>(value);
   }
+  if (type.is<Field<float>>()) {
+    return &SocketValueVariant2::init_default<Field<float>>(value);
+  }
+  return nullptr;
+}
+
+void *SocketValueVariant2::allocate(const CPPType &type, detail::SocketValueVariantAny &value)
+{
+  if (type.is<int>()) {
+    return value.allocate<int>();
+  }
+  if (type.is<float>()) {
+    return value.allocate<float>();
+  }
+  if (type.is<GField>()) {
+    return value.allocate<GField>();
+  }
+  BLI_assert_unreachable();
   return nullptr;
 }
 
