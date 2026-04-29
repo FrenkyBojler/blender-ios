@@ -64,8 +64,6 @@ static void brush_init_data(ID *id)
   /* the default alpha falloff curve */
   BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 
-  brush->automasking_cavity_curve = BKE_paint_default_curve();
-
   brush->curve_rand_hue = BKE_paint_default_curve();
   brush->curve_rand_saturation = BKE_paint_default_curve();
   brush->curve_rand_value = BKE_paint_default_curve();
@@ -131,6 +129,15 @@ static void brush_copy_data(Main * /*bmain*/,
     brush_dst->curves_sculpt_settings->curve_parameter_falloff = BKE_curvemapping_copy(
         brush_src->curves_sculpt_settings->curve_parameter_falloff);
   }
+  if (brush_src->mesh_automasking_settings != nullptr) {
+    brush_dst->mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(
+        __func__, dna::shallow_copy(*(brush_src->mesh_automasking_settings)));
+    brush_dst->mesh_automasking_settings->cavity_curve = BKE_curvemapping_copy(
+        brush_src->mesh_automasking_settings->cavity_curve);
+
+    /* The "operator" level cavity curve is never used for the brush. Ensure it is nullptr */
+    brush_dst->mesh_automasking_settings->cavity_curve_op = nullptr;
+  }
 
   /* enable fake user by default */
   id_fake_user_set(&brush_dst->id);
@@ -167,6 +174,10 @@ static void brush_free_data(ID *id)
   if (brush->curves_sculpt_settings != nullptr) {
     BKE_curvemapping_free(brush->curves_sculpt_settings->curve_parameter_falloff);
     MEM_delete(brush->curves_sculpt_settings);
+  }
+  if (brush->mesh_automasking_settings != nullptr) {
+    BKE_curvemapping_free(brush->mesh_automasking_settings->cavity_curve);
+    MEM_delete(brush->mesh_automasking_settings);
   }
 
   MEM_SAFE_DELETE(brush->gradient);
@@ -308,6 +319,11 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     writer->write_struct(brush->curves_sculpt_settings);
     BKE_curvemapping_blend_write(writer, brush->curves_sculpt_settings->curve_parameter_falloff);
   }
+  if (brush->mesh_automasking_settings) {
+    writer->write_struct(brush->mesh_automasking_settings);
+    BKE_curvemapping_blend_write(writer, brush->mesh_automasking_settings->cavity_curve);
+  }
+
   if (brush->gradient) {
     writer->write_struct(brush->gradient);
   }
@@ -444,6 +460,17 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
     if (brush->curves_sculpt_settings->curve_parameter_falloff) {
       BKE_curvemapping_blend_read(reader, brush->curves_sculpt_settings->curve_parameter_falloff);
     }
+  }
+
+  BLO_read_struct(reader, MeshAutomaskingSettings, &brush->mesh_automasking_settings);
+  if (brush->mesh_automasking_settings) {
+    BLO_read_struct(reader, CurveMapping, &brush->mesh_automasking_settings->cavity_curve);
+    if (brush->mesh_automasking_settings->cavity_curve) {
+      BKE_curvemapping_blend_read(reader, brush->mesh_automasking_settings->cavity_curve);
+    }
+
+    /* The "operator" level curve is never used on the brush, ensure it is nullptr */
+    brush->mesh_automasking_settings->cavity_curve_op = nullptr;
   }
 
   BLO_read_struct(reader, PreviewImage, &brush->preview);
@@ -637,6 +664,9 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
   {
     BKE_brush_init_gpencil_settings(brush);
   }
+  else if (ob_mode == OB_MODE_SCULPT) {
+    BKE_brush_init_mesh_automasking_settings(brush);
+  }
 
   return brush;
 }
@@ -741,6 +771,14 @@ Brush *BKE_brush_duplicate(Main *bmain,
   return new_brush;
 }
 
+void BKE_brush_init_mesh_automasking_settings(Brush *brush)
+{
+  if (brush->mesh_automasking_settings == nullptr) {
+    brush->mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+    brush->mesh_automasking_settings->cavity_curve = BKE_paint_default_curve();
+  }
+}
+
 void BKE_brush_init_curves_sculpt_settings(Brush *brush)
 {
   if (brush->curves_sculpt_settings == nullptr) {
@@ -762,16 +800,6 @@ void BKE_brush_tag_unsaved_changes(Brush *brush)
   if (brush && ID_IS_LINKED(brush)) {
     brush->has_unsaved_changes = true;
   }
-}
-
-Brush *BKE_brush_first_search(Main *bmain, const eObjectMode ob_mode)
-{
-  for (Brush &brush : bmain->brushes) {
-    if (brush.ob_mode & ob_mode) {
-      return &brush;
-    }
-  }
-  return nullptr;
 }
 
 void BKE_brush_debug_print_state(Brush *br)
@@ -1676,17 +1704,12 @@ static bool brush_gen_texture(const Brush *br,
 
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
-  ImBuf *im = MEM_new<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 
   BKE_curvemapping_init(br->curve_distance_falloff);
 
-  float *rect_float = MEM_new_array_zeroed<float>(size_t(side) * size_t(side),
-                                                  "radial control rect");
-  IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
-
-  im->x = im->y = side;
+  ImBuf *im = IMB_allocImBuf(side, side, 32, IB_float_data);
 
   const bool have_texture = brush_gen_texture(br, side, secondary, im->float_data_for_write());
 

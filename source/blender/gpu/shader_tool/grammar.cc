@@ -976,6 +976,7 @@ struct ScopeParser {
           close_scope(curr, ScopeType::Subscript);
           match(']');
           return;
+        case Comma: /* For structure binding. */
         case Number:
         case Word:
         case This:
@@ -1149,7 +1150,7 @@ struct ScopeParser {
   {
     if (curr != TokenType(expected) && curr != TokenType(expected2)) {
       error("Syntax Error: Expected token \"" + to_string(TokenType(expected)) + "\" or \"" +
-            to_string(TokenType(expected)) + "\" but got \"" + to_string(curr.type()) + "\"");
+            to_string(TokenType(expected2)) + "\" but got \"" + to_string(curr.type()) + "\"");
     }
     next();
   }

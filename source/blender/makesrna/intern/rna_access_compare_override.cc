@@ -136,8 +136,7 @@ bool RNA_property_overridable_get(const PointerRNA *ptr, PropertyRNA *prop)
     }
     else if (!RNA_struct_in_public_namespace(ptr->type)) {
       if (const std::optional<AncestorPointerRNA> ancestor =
-              RNA_struct_search_closest_ancestor_by_type(const_cast<PointerRNA *>(ptr),
-                                                         RNA_Modifier))
+              RNA_struct_search_closest_ancestor_by_type(ptr, RNA_Modifier))
       {
         ModifierData *mod = static_cast<ModifierData *>(ancestor->data);
         if (mod->flag & eModifierFlag_OverrideLibrary_Local) {
@@ -891,7 +890,8 @@ bool RNA_struct_override_matches(Main *bmain,
                * a NOOP operation to enforce no change on that property, etc.). */
               op->tag |= LIBOVERRIDE_PROP_TAG_NEEDS_RETORE;
               opop_restore->tag |= LIBOVERRIDE_PROP_TAG_NEEDS_RETORE;
-              liboverride->runtime->tag |= LIBOVERRIDE_TAG_NEEDS_RESTORE;
+              BKE_lib_override_library_tag_set(
+                  *liboverride, IDOverrideLibraryTag::TAG_NEEDS_RESTORE, true);
 
               CLOG_DEBUG(
                   &LOG,
