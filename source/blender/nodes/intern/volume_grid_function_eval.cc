@@ -482,13 +482,44 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
   }
 }
 
-static bool execute_multi_function_on_value_variant__volume_grid(
+struct MultiFunctionGridResult {
+  Array<openvdb::GridBase::Ptr> output_grids;
+  std::string error_message;
+};
+
+struct GridMultiFunctionResult {
+  struct Success {
+    Array<openvdb::GridBase::Ptr> output_grids;
+  };
+  struct Failure {
+    std::string error_message;
+  };
+
+  std::variant<Success, Failure> result;
+};
+
+static GridMultiFunctionResult execute_multi_function_on_value_variant__volume_grid(
     const mf::MultiFunction &fn,
     const Span<InputVariant> input_values,
-    const Span<bke::SocketValueVariant *> output_values,
-    std::string &r_error_message)
+    const Span<bool> output_usages)
 {
-  const int inputs_num = input_values.size();
+  int inputs_num = 0;
+  int outputs_num = 0;
+  for (const int param_i : fn.param_indices()) {
+    const mf::ParamType param_type = fn.param_type(param_i);
+    if (param_type.interface_type() == mf::ParamType::Input) {
+      inputs_num++;
+    }
+    else if (param_type.interface_type() == mf::ParamType::Output) {
+      outputs_num++;
+    }
+    else {
+      BLI_assert_unreachable();
+    }
+  }
+
+  BLI_assert(input_values.size() == inputs_num);
+  BLI_assert(output_usages.size() == outputs_num);
   Array<bke::VolumeTreeAccessToken> input_volume_tokens(inputs_num);
 
   Vector<const openvdb::GridBase *> input_grids;
@@ -509,13 +540,12 @@ static bool execute_multi_function_on_value_variant__volume_grid(
       continue;
     }
     if (*transform != other_transform) {
-      r_error_message = TIP_("Input grids have incompatible transforms");
-      return false;
+      return {GridMultiFunctionResult::Failure{TIP_("Input grids have incompatible transforms")}};
     }
   }
   if (transform == nullptr) {
-    r_error_message = TIP_("No input grid found that can determine the topology");
-    return false;
+    return {GridMultiFunctionResult::Failure{
+        TIP_("No input grid found that can determine the topology")}};
   }
 
   openvdb::MaskTree mask_tree;
@@ -523,9 +553,9 @@ static bool execute_multi_function_on_value_variant__volume_grid(
     grid::to_typed_grid(*grid, [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
   }
 
-  Array<openvdb::GridBase::Ptr> output_grids(output_values.size());
-  for (const int i : output_values.index_range()) {
-    if (!output_values[i]) {
+  Array<openvdb::GridBase::Ptr> output_grids(outputs_num);
+  for (const int i : IndexRange(outputs_num)) {
+    if (!output_usages[i]) {
       continue;
     }
     const int param_index = input_values.size() + i;
@@ -533,10 +563,8 @@ static bool execute_multi_function_on_value_variant__volume_grid(
     const CPPType &cpp_type = param_type.data_type().single_type();
     const std::optional<VolumeGridType> grid_type = cpp_type_to_grid_type(cpp_type);
     if (!grid_type) {
-      r_error_message = TIP_("Grid type not supported");
-      return false;
+      return {GridMultiFunctionResult::Failure{TIP_("Grid type not supported")}};
     }
-
     output_grids[i] = grid::create_grid_with_topology(mask_tree, *transform, *grid_type);
   }
 
@@ -559,13 +587,7 @@ static bool execute_multi_function_on_value_variant__volume_grid(
 
   process_background(fn, input_values, *transform, output_grids);
 
-  for (const int i : output_values.index_range()) {
-    if (bke::SocketValueVariant *output_value = output_values[i]) {
-      output_value->set(bke::GVolumeGrid(std::move(output_grids[i])));
-    }
-  }
-
-  return true;
+  return {GridMultiFunctionResult::Success{std::move(output_grids)}};
 }
 
 bool execute_multi_function_on_value_variant__volume_grid(
@@ -574,9 +596,49 @@ bool execute_multi_function_on_value_variant__volume_grid(
     const Span<bke::SocketValueVariant *> output_values,
     std::string &r_error_message)
 {
-  // TODO
-  UNUSED_VARS(fn, input_values, output_values, r_error_message);
-  return false;
+  const int inputs_num = input_values.size();
+
+  Vector<InputVariant> inputs(inputs_num);
+  Array<bke::volume_grid::GVolumeGrid> input_grids(inputs_num);
+  Array<std::optional<GField>> input_fields(inputs_num);
+  Array<bke::VolumeTreeAccessToken> input_tree_tokens(inputs_num);
+
+  for (const int i : input_values.index_range()) {
+    bke::SocketValueVariant &input_value = *input_values[i];
+    if (input_value.is_volume_grid()) {
+      input_grids[i] = input_value.extract<bke::volume_grid::GVolumeGrid>();
+      inputs[i] = &input_grids[i]->grid(input_tree_tokens[i]);
+    }
+    else if (input_value.is_context_dependent_field()) {
+      input_fields[i] = input_value.extract<GField>();
+      inputs[i] = &*input_fields[i];
+    }
+    else {
+      input_value.convert_to_single();
+      inputs[i] = input_value.get_single_ptr();
+    }
+  }
+
+  Array<bool> output_usages(output_values.size());
+  for (const int i : output_values.index_range()) {
+    output_usages[i] = output_values[i] != nullptr;
+  }
+
+  GridMultiFunctionResult result = execute_multi_function_on_value_variant__volume_grid(
+      fn, inputs, output_usages);
+
+  if (const auto *failure = std::get_if<GridMultiFunctionResult::Failure>(&result.result)) {
+    r_error_message = failure->error_message;
+    return false;
+  }
+  auto &success = std::get<GridMultiFunctionResult::Success>(result.result);
+  for (const int i : output_values.index_range()) {
+    if (output_usages[i]) {
+      output_values[i]->set(bke::GVolumeGrid(std::move(success.output_grids[i])));
+    }
+  }
+
+  return true;
 }
 
 #else
