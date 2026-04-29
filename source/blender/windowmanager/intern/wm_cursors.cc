@@ -170,7 +170,7 @@ static int wm_cursor_size(const wmWindow *win)
 {
   float default_size = OS_MAC ? 21.0f : float(WM_cursor_preferred_logical_size());
 
-  if (U.mouse_cursor_size == USER_CURSOR_SIZE_UI_SCALE) {
+  if (U.mouse_cursor_size == eUserpref_Mouse_Cursor_Size::UI_Scale) {
     return std::lround(default_size * U.ui_scale);
   }
 
@@ -179,13 +179,13 @@ static int wm_cursor_size(const wmWindow *win)
     default_size *= system_scale;
   }
 
-  if (U.mouse_cursor_size == USER_CURSOR_SIZE_1_5) {
+  if (U.mouse_cursor_size == eUserpref_Mouse_Cursor_Size::Size_1_5) {
     return std::lround(default_size * 1.5f);
   }
-  else if (U.mouse_cursor_size == USER_CURSOR_SIZE_2_0) {
+  else if (U.mouse_cursor_size == eUserpref_Mouse_Cursor_Size::Size_2_0) {
     return std::lround(default_size * 2.0f);
   }
-  else if (U.mouse_cursor_size == USER_CURSOR_SIZE_3_0) {
+  else if (U.mouse_cursor_size == eUserpref_Mouse_Cursor_Size::Size_3_0) {
     return std::lround(default_size * 3.0f);
   }
   return std::lround(default_size);
@@ -403,8 +403,8 @@ void WM_cursor_set(wmWindow *win, int curs, bool force)
 {
   /* Option to not use any OS-supplied cursors is needed for testing. */
   const bool use_only_custom_cursors = !(
-      U.mouse_cursor_size == USER_CURSOR_SIZE_DEFAULT ||
-      (U.mouse_cursor_size == USER_CURSOR_SIZE_UI_SCALE && UI_SCALE_FAC == 1.0f));
+      U.mouse_cursor_size == eUserpref_Mouse_Cursor_Size::Default ||
+      (U.mouse_cursor_size == eUserpref_Mouse_Cursor_Size::UI_Scale && UI_SCALE_FAC == 1.0f));
 
   if (G.background) {
     return;

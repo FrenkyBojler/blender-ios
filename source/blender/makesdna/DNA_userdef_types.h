@@ -85,12 +85,12 @@ enum eUserPref_PrefFlag {
 };
 
 /** #UserDef.Mouse_cursor_size */
-enum eUserpref_Mouse_Cursor_Size {
-  USER_CURSOR_SIZE_DEFAULT = 0, /* Single default size. */
-  USER_CURSOR_SIZE_UI_SCALE,    /* Increase with UI Scale. */
-  USER_CURSOR_SIZE_1_5,         /* 1.5X size. */
-  USER_CURSOR_SIZE_2_0,         /* 2.0X size. */
-  USER_CURSOR_SIZE_3_0,         /* 3.0X size. */
+enum eUserpref_Mouse_Cursor_Size : uint8_t {
+  Default = 0, /* Default size. */
+  UI_Scale,    /* Increase with UI Scale. */
+  Size_1_5,    /* 1.5X size. */
+  Size_2_0,    /* 2.0X size. */
+  Size_3_0,    /* 3.0X size. */
 };
 
 /* Helper macro for checking frame clamping */
@@ -933,7 +933,7 @@ struct UserDef {
   /** #eUserpref_UI_Flag2. */
   char uiflag2 = USER_REGION_OVERLAP | USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   char gpu_flag = USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE | USER_GPU_FLAG_SUBDIVISION_EVALUATION;
-  char mouse_cursor_size = USER_CURSOR_SIZE_DEFAULT;
+  eUserpref_Mouse_Cursor_Size mouse_cursor_size = eUserpref_Mouse_Cursor_Size::Default;
   char _pad8[5] = {};
 
   /* Experimental flag for app-templates to make changes to behavior

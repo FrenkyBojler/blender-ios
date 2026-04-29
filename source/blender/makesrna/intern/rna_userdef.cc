@@ -4947,15 +4947,27 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem mouse_cursor_sizes[] = {
-      {USER_CURSOR_SIZE_DEFAULT, "DEFAULT", 0, "Default Size", "Default mouse size."},
-      {USER_CURSOR_SIZE_UI_SCALE,
+      {eUserpref_Mouse_Cursor_Size::Default, "DEFAULT", 0, "Default Size", "Default mouse size."},
+      {eUserpref_Mouse_Cursor_Size::UI_Scale,
        "UI_SCALE",
        0,
        "UI Scale",
        "Increase the mouse cursor size with UI Resolution Scale"},
-      {USER_CURSOR_SIZE_1_5, "1.5X", 0, "1.5X Size", "Mouse cursor 1.5X larger than default"},
-      {USER_CURSOR_SIZE_2_0, "2.0X", 0, "2.0X Size", "Mouse cursor 2.0X larger than default"},
-      {USER_CURSOR_SIZE_3_0, "3.0X", 0, "3.0X Size", "Mouse cursor 3.0X larger than default"},
+      {eUserpref_Mouse_Cursor_Size::Size_1_5,
+       "1.5X",
+       0,
+       "1.5X Size",
+       "Mouse cursor 1.5X larger than default"},
+      {eUserpref_Mouse_Cursor_Size::Size_2_0,
+       "2.0X",
+       0,
+       "2.0X Size",
+       "Mouse cursor 2.0X larger than default"},
+      {eUserpref_Mouse_Cursor_Size::Size_3_0,
+       "3.0X",
+       0,
+       "3.0X Size",
+       "Mouse cursor 3.0X larger than default"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
