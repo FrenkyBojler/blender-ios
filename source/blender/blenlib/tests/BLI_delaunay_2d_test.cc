@@ -861,6 +861,60 @@ template<typename T> void even_odd_nested_holes_deep_test()
   }
 }
 
+template<typename T> void even_odd_boundary_disagreement_test()
+{
+  /* Outer rectangle (input id 0) and inner rectangle (input id 1) sharing a portion of the
+   * convex hull. The inner's bottom edge `(1,0)-(3,0)` lies on the outer's bottom edge
+   * `(0,0)-(4,0)`, so the CDT splits the bottom hull at verts 4 and 5 and produces three
+   * boundary edges with mixed multiplicities:
+   *   `(0,0)-(1,0)` and `(3,0)-(4,0)` carry only the outer polygon -> flip 1.
+   *   `(1,0)-(3,0)` carries both polygons                          -> flip 0.
+   * The "inside outer, outside inner" flood-region thus has multiple boundary edges to
+   * `outer_face` with mixed flips, so the boundary-disagreement branch in
+   * `detect_holes_with_fillrule_even_odd` is reachable on this input.
+   *
+   * Note: this test pins the *output* ("inside outer, outside inner" filled, "inside inner"
+   * a hole) on a specific input that exercises the disagreement branch; it does not by
+   * itself distinguish "filled wins" from a hypothetical "first wins" rule, since for this
+   * input the `cdt->edges` iteration order happens to visit a flip=1 edge first. A more
+   * discriminating test would need to control that order. */
+  const char *spec = R"(8 0 2
+  0 0
+  4 0
+  4 2
+  0 2
+  1 0
+  3 0
+  3 1
+  1 1
+  0 1 2 3
+  4 5 6 7
+  )";
+
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+  CDT_result<T> out = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
+
+  /* All 8 input verts survive. Total Delaunay triangles with `H = 6` hull verts (the four
+   * outer corners plus 4 and 5, both collinear on the bottom hull) is `2V - H - 2 = 8`.
+   * The 2 inner-rectangle triangles are holes; the remaining 6 in the U-shaped outer region
+   * survive. */
+  EXPECT_EQ(out.vert.size(), 8);
+  EXPECT_EQ(out.face.size(), 6);
+
+  /* Every output face is inside the outer polygon (input id 0) and none is inside the
+   * inner one (input id 1). A regression that flipped the conflict-resolution rule and
+   * marked the outer region as a hole would invert this: only the 2 inner-rect triangles
+   * would survive and all output faces would have input id 1. */
+  for (int f = 0; f < int(out.face.size()); f++) {
+    EXPECT_TRUE(output_face_has_input_id(out, f, 0));
+    EXPECT_FALSE(output_face_has_input_id(out, f, 1));
+  }
+
+  if (DO_DRAW) {
+    graph_draw<T>("EvenOddBoundaryDisagreement", out.vert, out.edge, out.face);
+  }
+}
+
 template<typename T> void disjoint_polys_in_large_hull_test()
 {
   const char *spec = R"(6 0 2
@@ -3171,6 +3225,11 @@ TEST(delaunay_d, EvenOddNestedHolesDeep)
   even_odd_nested_holes_deep_test<double>();
 }
 
+TEST(delaunay_d, EvenOddBoundaryDisagreement)
+{
+  even_odd_boundary_disagreement_test<double>();
+}
+
 TEST(delaunay_d, NonZeroWinding)
 {
   nonzero_winding_test<double>();
@@ -3424,6 +3483,11 @@ TEST(delaunay_m, NestedHoles)
 TEST(delaunay_m, EvenOddNestedHolesDeep)
 {
   even_odd_nested_holes_deep_test<mpq_class>();
+}
+
+TEST(delaunay_m, EvenOddBoundaryDisagreement)
+{
+  even_odd_boundary_disagreement_test<mpq_class>();
 }
 
 TEST(delaunay_m, NonZeroWinding)
