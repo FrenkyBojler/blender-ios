@@ -31,11 +31,8 @@ using Alembic::Abc::chrono_t;
 using Alembic::Abc::ErrorHandler;
 using Alembic::Abc::Exception;
 using Alembic::Abc::IArchive;
-using Alembic::Abc::index_t;
 using Alembic::Abc::kWrapExisting;
 using Alembic::Abc::MetaData;
-using Alembic::Abc::TimeSamplingPtr;
-using Alembic::Abc::TimeSamplingType;
 
 namespace io::alembic {
 
