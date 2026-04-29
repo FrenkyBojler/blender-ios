@@ -38,8 +38,8 @@ struct EvalResult {
  * \param output_usages: A boolean for each output indicating whether the output is required.
  */
 EvalResult evaluate_multi_function_on_grid(const mf::MultiFunction &fn,
-                                           const Span<InputVariant> input_values,
-                                           const Span<bool> output_usages);
+                                           Span<InputVariant> input_values,
+                                           Span<bool> output_usages);
 
 }  // namespace blender::bke::volume_grid::multi_function_eval
 
