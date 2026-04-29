@@ -1653,7 +1653,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
               category_id_draw, category_draw_len, 2);
           char *space = BLI_strcasestr(category_id_draw, " ");
           if (char_offset2 == 2 && isupper(category_id_draw[1])) {
-            /* First two characters are latin with second uppercase. */
+            /* First two characters are Latin with second uppercase. */
             title = std::string(category_id_draw, char_offset2);
           }
           else if (space && category_draw_len > (space - category_id_draw)) {
@@ -2620,12 +2620,11 @@ static int handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static ARegion *WM_panel_category_tooltip_init(bContext *C,
-                                               ARegion *region,
-                                               int * /*r_pass*/,
-                                               double * /*pass_delay*/,
-                                               bool * /*r_exit_on_event*/)
+static ARegion *WM_panel_category_tooltip_init(
+    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
 {
+  *r_exit_on_event = true;
+
   BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
 
   bScreen *screen = CTX_wm_screen(C);
@@ -2746,6 +2745,11 @@ int handler_panel_region(bContext *C,
         WM_tooltip_clear(C, CTX_wm_window(C));
       }
     }
+    else if ((event->type == RIGHTMOUSE) && panel_categories_find_mouse_over(region, event)) {
+      BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
+      retval = WM_UI_HANDLER_BREAK;
+      popup_context_menu_for_panel(C, region, nullptr);
+    }
   }
 
   if (retval == WM_UI_HANDLER_BREAK) {
@@ -2819,11 +2823,6 @@ int handler_panel_region(bContext *C,
         handle_layout_panel_header(C, &block, mx, my, event->type);
       }
     }
-  }
-
-  if (retval == WM_UI_HANDLER_CONTINUE && event->type == RIGHTMOUSE) {
-    retval = WM_UI_HANDLER_BREAK;
-    popup_context_menu_for_panel(C, region, nullptr);
   }
 
   return retval;
