@@ -1521,7 +1521,33 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static bool image_open_path_for_os_open(bContext *C, wmOperator *op, char r_filepath[FILE_MAX])
+{
+  Main *bmain = CTX_data_main(C);
+
+  r_filepath[0] = '\0';
+
+  if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+    RNA_string_get(op->ptr, "filepath", r_filepath);
+    if (r_filepath[0] == '\0') {
+      return false;
+    }
+    BLI_path_abs(r_filepath, BKE_main_blendfile_path(bmain));
+    return true;
+  }
+
+  Image *ima = image_from_context(C);
+  if (ima == nullptr || ima->filepath[0] == '\0') {
+    return false;
+  }
+
+  BLI_strncpy(r_filepath, ima->filepath, FILE_MAX);
+  BLI_path_abs(r_filepath, ID_BLEND_PATH(bmain, &ima->id));
+
+  return true;
+}
+
+static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceImage *sima = CTX_wm_space_image(C); /* XXX other space types can call */
   const char *path = U.textudir;
@@ -1561,6 +1587,41 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
 
   if (ima) {
     path = ima->filepath;
+  }
+
+  /* Shift+Click opens the file. Alt+Click opens the containing folder in the OS's browser */
+  if (event->modifier & (KM_SHIFT | KM_ALT)) {
+    char filepath[FILE_MAX];
+
+    if (image_open_path_for_os_open(C, op, filepath)) {
+      wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
+      if (!ot) {
+        return OPERATOR_CANCELLED;
+      }
+
+      if (event->modifier & KM_ALT) {
+        char *lslash = const_cast<char *>(BLI_path_slash_rfind(filepath));
+        if (lslash) {
+          *lslash = '\0';
+        }
+      }
+      else if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
+        /* Tiled (UDIM) images store a pattern in filepath; resolve it to the active tile's
+         * actual file path so the OS can open it. */
+        Image *ima_ctx = image_from_context(C);
+        if (ima_ctx && ima_ctx->source == IMA_SRC_TILED) {
+          ImageUser iuser = image_user_from_context_and_active_tile(C, ima_ctx);
+          BKE_image_user_file_path(&iuser, ima_ctx, filepath);
+        }
+      }
+
+      PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
+      RNA_string_set(&props_ptr, "filepath", filepath);
+      WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
+      WM_operator_properties_free(&props_ptr);
+
+      return OPERATOR_CANCELLED;
+    }
   }
 
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
@@ -1623,7 +1684,9 @@ void IMAGE_OT_open(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Open Image";
-  ot->description = "Open image";
+  ot->description =
+      "Open an image file browser, hold Shift to open the file, Alt to browse containing "
+      "directory";
   ot->idname = "IMAGE_OT_open";
 
   /* API callbacks. */
