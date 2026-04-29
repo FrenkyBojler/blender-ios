@@ -150,7 +150,6 @@ void IMB_freeImBuf(ImBuf *ibuf)
     IMB_free_all_data(ibuf);
     IMB_free_gpu_textures(ibuf);
     IMB_metadata_free(ibuf->metadata);
-    colormanage_cache_free(ibuf);
     MEM_delete(ibuf);
   }
 }
@@ -504,10 +503,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   ibuf2->encoded_buffer = ibuf1->encoded_buffer;
   ibuf2->encoded_size = ibuf1->encoded_size;
   ibuf2->encoded_buffer_size = ibuf1->encoded_buffer_size;
-  ibuf2->display_buffer_flags = nullptr;
-  ibuf2->colormanage_cache = nullptr;
   ibuf2->colormanage_flag = ibuf1->colormanage_flag;
-  ibuf2->invalid_rect = ibuf1->invalid_rect;
 
   return ibuf2;
 }

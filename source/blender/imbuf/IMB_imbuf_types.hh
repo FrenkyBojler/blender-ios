@@ -11,9 +11,7 @@
  * Image buffer types.
  */
 
-#include "BLI_implicit_sharing.hh"
 #include "BLI_implicit_sharing_ptr.hh"
-#include "DNA_vec_types.h" /* for rcti */
 
 #include "IMB_imbuf_enums.h"
 
@@ -21,7 +19,6 @@
 
 namespace blender {
 
-struct ColormanageCache;
 struct ExrHandle;
 namespace gpu {
 class Texture;
@@ -286,13 +283,7 @@ struct ImBuf {
   /** Size of `encoded_buffer` */
   unsigned int encoded_buffer_size = 0;
 
-  /* color management */
-  /** array of per-display display buffers dirty flags */
-  unsigned int *display_buffer_flags = nullptr;
-  /** cache used by color management */
-  ColormanageCache *colormanage_cache = nullptr;
   int colormanage_flag = 0;
-  rcti invalid_rect;
 
   const uint8_t *byte_data() const;
   uint8_t *byte_data_for_write();
@@ -314,7 +305,7 @@ enum {
   IB_BITMAPDIRTY = (1 << 1),
   /** float buffer changed, needs recreation of byte rect */
   IB_RECT_INVALID = (1 << 3),
-  /** either float or byte buffer changed, need to re-calculate display buffers */
+  /** either float or byte buffer changed */
   IB_DISPLAY_BUFFER_INVALID = (1 << 4),
   /** image buffer is persistent in the memory and should never be removed from the cache */
   IB_PERSISTENT = (1 << 5),
