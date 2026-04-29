@@ -105,8 +105,8 @@ enum {
   ED_GIZMO_CAGE_XFORM_FLAG_ROTATE = (1 << 1),         /* Rotates */
   ED_GIZMO_CAGE_XFORM_FLAG_SCALE = (1 << 2),          /* Scales */
   ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM = (1 << 3),  /* Scales uniformly */
-  ED_GIZMO_CAGE_XFORM_FLAG_SCALE_SIGNED = (1 << 4),   /* Negative scale allowed */
-  ED_GIZMO_CAGE_XFORM_FLAG_SCALE_CENTERED = (1 << 5), /* Scales centered */
+  ED_GIZMO_CAGE_XFORM_FLAG_SCALE_SIGNED = (1 << 4),     /* Negative scale allowed */
+  ED_GIZMO_CAGE_XFORM_FLAG_SCALE_USE_PIVOT = (1 << 5),  /* Scales around the gizmo pivot */
 };
 
 /* draw_style */
