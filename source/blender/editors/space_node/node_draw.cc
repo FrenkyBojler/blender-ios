@@ -3439,7 +3439,7 @@ int node_get_resize_cursor(NodeResizeDirection directions)
   if ((directions & ~(NODE_RESIZE_RIGHT | NODE_RESIZE_LEFT)) == 0) {
     return WM_CURSOR_X_MOVE;
   }
-  return U.precision_cursor;
+  return WM_CURSOR_EDIT;
 }
 
 static const bNode *find_node_under_cursor(SpaceNode &snode, const float2 &cursor)

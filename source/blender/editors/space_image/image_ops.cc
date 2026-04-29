@@ -3815,7 +3815,7 @@ void IMAGE_OT_sample_line(wmOperatorType *ot)
   /* flags */
   ot->flag = 0; /* no undo/register since this operates on the space */
 
-  WM_operator_properties_gesture_straightline(ot, U.precision_cursor);
+  WM_operator_properties_gesture_straightline(ot, WM_CURSOR_EDIT);
 }
 
 /** \} */

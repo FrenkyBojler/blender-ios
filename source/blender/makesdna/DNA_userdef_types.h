@@ -87,7 +87,7 @@ enum eUserPref_PrefFlag {
 /** #UserDef.Mouse_cursor_size */
 enum eUserpref_Mouse_Cursor_Size {
   USER_CURSOR_SIZE_DEFAULT = 0, /* Single default size. */
-  USER_CURSOR_SIZE_SCALE,       /* Increase with UI Scale. */
+  USER_CURSOR_SIZE_UI_SCALE,    /* Increase with UI Scale. */
   USER_CURSOR_SIZE_1_5,         /* 1.5X size. */
   USER_CURSOR_SIZE_2_0,         /* 2.0X size. */
   USER_CURSOR_SIZE_3_0,         /* 3.0X size. */
@@ -185,7 +185,6 @@ enum eUserpref_UI_Flag2 {
   USER_UIFLAG2_UNUSED_3 = (1 << 3), /* dirty */
   USER_UIFLAG2_SHOW_ONLINE_ASSETS = (1 << 4),
   USER_UIFLAG2_PANEL_TABS_COMPACT = (1 << 5),
-  USER_CURSOR_FLIP = (1 << 6),
 };
 
 /** #UserDef.gpu_flag */
@@ -937,10 +936,7 @@ struct UserDef {
 
   char mouse_cursor_size = USER_CURSOR_SIZE_DEFAULT;
 
-  char paint_cursor = 12;     //  WM_CURSOR_PAINT;
-  char precision_cursor = 5;  // WM_CURSOR_EDIT;
-
-  char _pad8[3] = {};
+  char _pad8[5] = {};
 
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */

@@ -301,12 +301,7 @@ class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Pane
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         flow.prop(view, "use_reduce_motion")
-
-        col = layout.column(heading="Mouse Cursors", align=True)
-        col.prop(view, "mouse_cursor_size")
-        col.prop(view, "mouse_cursor_flip")
-        col.prop(view, "precision_cursor")
-        col.prop(view, "paint_cursor")
+        flow.prop(view, "mouse_cursor_size", text="Mouse Cursor")
 
 
 class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
