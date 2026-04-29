@@ -75,6 +75,8 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   /* TODO: Explicitly create groups of indices in merge code and skip unit groups from future
    * processing... */
   r_roots.as_mutable_span().fill(-1);
+  IndexMaskMemory memory;
+  const IndexMask selection_inverse = selection.complement(IndexRange(domain_size), memory);
 
   if (group_id_to_root.size() == 1) {
     BLI_assert(group_id_to_root.lookup(group_id[selection.first()]) == selection.first());
@@ -112,6 +114,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
   const Field<int> group_id_field = params.extract_input<Field<int>>("Merge ID"_ustr);
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  if (group_id_field.get_input_if<fn::IndexFieldInput>()) {
+    params.set_output("Geometry"_ustr, std::move(geometry_set));
+    return;
+  }
 
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Geometry"_ustr);
 
