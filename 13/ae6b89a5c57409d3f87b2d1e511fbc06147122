@@ -1,1 +1,2 @@
 Referenced by pull request #157921, Fix: Grease Pencil: Creates only fills by default (hide stroke)
+Referenced by commit 510da8b46bfbc59e51dbd18b3d7dd0e45f919c52, Fix: Grease Pencil: Fill tool create only fills by default (hide stroke)
