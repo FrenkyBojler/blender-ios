@@ -67,7 +67,6 @@ void RenderBuffers::acquire(int2 extent)
                                            GPU_TEXTURE_USAGE_ATTACHMENT;
 
   /* Depth and combined are always needed. */
-  const gpu::TextureFormat depth_format = gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8;
   depth_tx.ensure_2d(depth_format, extent, usage_attachment_read);
   /* TODO(fclem): depth_tx should ideally be a texture from pool but we need stencil_view
    * which is currently unsupported by pool textures. */
@@ -82,15 +81,14 @@ void RenderBuffers::acquire(int2 extent)
   vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
   if (inst_.pipelines.has_raycast) {
     raycast_depth_tx.acquire(extent, depth_format, GPU_TEXTURE_USAGE_SHADER_READ);
-    object_id_tx.acquire(extent, gpu::TextureFormat::UINT_16, usage_attachment_read);
-    prepass_normal_tx.acquire(extent, gpu::TextureFormat::UNORM_10_10_10_2, usage_attachment_read);
+    object_id_tx.acquire(extent, object_id_format, usage_attachment_read);
+    prepass_normal_tx.acquire(extent, prepass_normal_format, usage_attachment_read);
   }
   else {
     /* Still acquire them, since the passes can't conditionally bind textures. */
     raycast_depth_tx.acquire(int2(1), depth_format, GPU_TEXTURE_USAGE_SHADER_READ);
-    object_id_tx.acquire(int2(1), gpu::TextureFormat::UINT_16, GPU_TEXTURE_USAGE_SHADER_READ);
-    prepass_normal_tx.acquire(
-        int2(1), gpu::TextureFormat::UNORM_10_10_10_2, GPU_TEXTURE_USAGE_SHADER_READ);
+    object_id_tx.acquire(int2(1), object_id_format, GPU_TEXTURE_USAGE_SHADER_READ);
+    prepass_normal_tx.acquire(int2(1), prepass_normal_format, GPU_TEXTURE_USAGE_SHADER_READ);
   }
 
   const bool do_motion_vectors_swizzle = vector_tx_format() == gpu::TextureFormat::SFLOAT_16_16;

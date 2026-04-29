@@ -154,6 +154,12 @@ class Prepass {
   PassMain raycast_vis_off_ps_{"Prepass Raycast Visibility Off"};
   PassMain::Sub *raycast_vis_off_subs_[2 /*double sided*/][2 /*moving*/] = {{nullptr}};
 
+  /* These are never read in practice,
+   * only needed for GAPI correctness without extra shader variants. */
+  Texture dummy_raycast_depth_tx_;
+  Texture dummy_raycast_id_tx_;
+  Texture dummy_raycast_normal_tx_;
+
  public:
   Prepass(Instance &inst) : inst_(inst) {};
 

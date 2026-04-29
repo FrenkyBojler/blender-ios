@@ -336,6 +336,10 @@ void Prepass::init(DRWState extra_state, FunctionRef<void(PassMain &pass)> pass_
                                    moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
     }
   }
+
+  dummy_raycast_depth_tx_.ensure_2d(RenderBuffers::depth_format, int2(1));
+  dummy_raycast_id_tx_.ensure_2d(RenderBuffers::object_id_format, int2(1));
+  dummy_raycast_normal_tx_.ensure_2d(RenderBuffers::prepass_normal_format, int2(1));
 }
 
 PassMain::Sub *Prepass::add(blender::Material *blender_mat,
@@ -356,6 +360,11 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
     sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
     sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
     sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
+  }
+  else {
+    sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, dummy_raycast_depth_tx_);
+    sub.bind_texture(OBJECT_ID_TEX_SLOT, dummy_raycast_normal_tx_);
+    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, dummy_raycast_id_tx_);
   }
   return &sub;
 }
