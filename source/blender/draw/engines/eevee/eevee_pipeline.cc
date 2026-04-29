@@ -354,8 +354,8 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
       GPU_material_get_name(gpumat));
   if (has_raycast) {
     sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
-    sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
-    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.object_id_tx);
+    sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
+    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
   }
   return &sub;
 }
