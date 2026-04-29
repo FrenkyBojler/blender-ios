@@ -382,6 +382,8 @@ class Result {
   GSpan cpu_data() const;
   GMutableSpan cpu_data_for_write();
 
+  const ImplicitSharingInfo *sharing_info() const;
+
   /* It is important to call update_single_value_data after adjusting the single value. See that
    * method for more information. */
   GPointer single_value() const;
@@ -501,6 +503,11 @@ BLI_INLINE_METHOD GSpan Result::cpu_data() const
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   return cpu_data_;
+}
+
+inline const ImplicitSharingInfo *Result::sharing_info() const
+{
+  return sharing_info_;
 }
 
 BLI_INLINE_METHOD GMutableSpan Result::cpu_data_for_write()
