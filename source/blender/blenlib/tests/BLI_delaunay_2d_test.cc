@@ -1580,9 +1580,10 @@ template<typename T> void nonzero_winding_self_intersect_test()
   EXPECT_EQ(out_evenodd.vert.size(), 5);
   EXPECT_EQ(out_nonzero.vert.size(), 5);
 
-  /* Self-intersecting polygon creates complex winding.
-   * Both rules should fill the two triangular lobes of the figure-8. */
-  EXPECT_EQ(out_evenodd.face.size(), out_nonzero.face.size());
+  /* Self-intersecting polygon creates two triangular lobes of the figure-8.
+   * Both fill rules should produce exactly those two filled triangles. */
+  EXPECT_EQ(out_evenodd.face.size(), 2);
+  EXPECT_EQ(out_nonzero.face.size(), 2);
 }
 
 /**
