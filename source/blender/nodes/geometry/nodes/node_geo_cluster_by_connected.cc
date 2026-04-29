@@ -143,6 +143,8 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeClusterByConnected"_ustr);
   ntype.ui_name = "Cluster by Connected";
+  ntype.ui_description =
+      "Group mesh vertices connected by edges when they are within a specified distance";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
