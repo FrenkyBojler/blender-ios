@@ -2247,9 +2247,9 @@ def write_rst_types_index(basepath):
         fw("   bpy.types.bpy_prop_collection.rst\n")
         fw("   bpy.types.bpy_prop.rst\n")
         fw("   bpy.types.bpy_struct.rst\n\n")
-        if 'bpy.types.GeometrySet' not in EXCLUDE_MODULES:
+        if "bpy.types.GeometrySet" not in EXCLUDE_MODULES:
             fw("   bpy.types.GeometrySet.rst\n")
-        if 'bpy.types.InlineShaderNodes' not in EXCLUDE_MODULES:
+        if "bpy.types.InlineShaderNodes" not in EXCLUDE_MODULES:
             fw("   bpy.types.InlineShaderNodes.rst\n")
 
         # This needs to be included somewhere, while it's hidden, list to avoid warnings.
