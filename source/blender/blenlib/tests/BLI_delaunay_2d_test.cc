@@ -1584,6 +1584,39 @@ template<typename T> void nonzero_winding_self_intersect_test()
    * Both fill rules should produce exactly those two filled triangles. */
   EXPECT_EQ(out_evenodd.face.size(), 2);
   EXPECT_EQ(out_nonzero.face.size(), 2);
+
+  /* Verify the two filled faces are the top and bottom lobes, not the
+   * side wedges (which would have the same count but wrong geometry). */
+  int verts[4];
+  for (int i = 0; i < 4; i++) {
+    verts[i] = get_orig_index(out_evenodd.vert_orig, i);
+    EXPECT_NE(verts[i], -1);
+  }
+
+  /* The intersection vertex at (0, 0) is the only output vertex not
+   * mapped from one of the four input vertices. */
+  int v_int = -1;
+  for (int i = 0; i < int(out_evenodd.vert.size()); i++) {
+    if (i != verts[0] && i != verts[1] && i != verts[2] && i != verts[3]) {
+      v_int = i;
+      break;
+    }
+  }
+  EXPECT_NE(v_int, -1);
+
+  /* Top lobe: (-1,1), (1,1), (0,0) -> v2, v1, v_int.
+   * Bottom lobe: (1,-1), (-1,-1), (0,0) -> v3, v0, v_int.
+   * Output winding is not guaranteed; accept either orientation. */
+  int top_lobe = get_output_tri_index(out_evenodd, verts[2], verts[1], v_int);
+  if (top_lobe == -1) {
+    top_lobe = get_output_tri_index(out_evenodd, verts[1], verts[2], v_int);
+  }
+  int bot_lobe = get_output_tri_index(out_evenodd, verts[3], verts[0], v_int);
+  if (bot_lobe == -1) {
+    bot_lobe = get_output_tri_index(out_evenodd, verts[0], verts[3], v_int);
+  }
+  EXPECT_NE(top_lobe, -1);
+  EXPECT_NE(bot_lobe, -1);
 }
 
 /**
