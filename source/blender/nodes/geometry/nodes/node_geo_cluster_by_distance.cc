@@ -4,7 +4,6 @@
 
 #include "BLI_array.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_index_mask_expression.hh"
 #include "BLI_kdtree.hh"
 
 #include "BKE_geometry_fields.hh"
