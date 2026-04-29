@@ -10488,6 +10488,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputImage", def_geo_image);
   define("GeometryNode", "GeometryNodeInputIndex");
   define("GeometryNode", "GeometryNodeInputInstanceBounds");
+  define("GeometryNode", "GeometryNodeInputInstanceReference");
   define("GeometryNode", "GeometryNodeInputInstanceRotation");
   define("GeometryNode", "GeometryNodeInputInstanceScale");
   define("GeometryNode", "GeometryNodeInputMaterial", def_geo_input_material);
@@ -10566,6 +10567,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSampleIndex", def_geo_sample_index);
   define("GeometryNode", "GeometryNodeSampleNearest");
   define("GeometryNode", "GeometryNodeSampleNearestSurface");
+  define("GeometryNode", "GeometryNodeSampleSoundFrequencies");
   define("GeometryNode", "GeometryNodeSampleUVSurface");
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
