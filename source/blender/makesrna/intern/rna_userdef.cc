@@ -1558,14 +1558,23 @@ static void rna_preference_gpu_preferred_device_set(PointerRNA *ptr, int value)
 }
 
 static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
-    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
 {
+  const bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(ptr->data);
+
   EnumPropertyItem *items = nullptr;
   int items_num = 0;
   for (const EnumPropertyItem *item = rna_enum_preferences_asset_import_method_items;
        item->identifier;
        item++)
   {
+    if ((library->flag & ASSET_LIBRARY_USE_REMOTE_URL) != 0) {
+      if (item->value == ASSET_IMPORT_LINK) {
+        /* Don't allow linking with remote libraries. */
+        continue;
+      }
+    }
+
     switch (eAssetImportMethod(item->value)) {
       case ASSET_IMPORT_APPEND_REUSE: {
         if (U.experimental.no_data_block_packing) {
@@ -6033,25 +6042,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem image_draw_methods[] = {
-      {IMAGE_DRAW_METHOD_AUTO,
-       "AUTO",
-       0,
-       "Automatic",
-       "Automatically choose method based on GPU and image"},
-      {IMAGE_DRAW_METHOD_2DTEXTURE,
-       "2DTEXTURE",
-       0,
-       "2D Texture",
-       "Use CPU for display transform and display image with 2D texture"},
-      {IMAGE_DRAW_METHOD_GLSL,
-       "GLSL",
-       0,
-       "GLSL",
-       "Use GLSL shaders for display transform and display image with 2D texture"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem seq_proxy_setup_options[] = {
       {USER_SEQ_PROXY_SETUP_MANUAL, "MANUAL", 0, "Manual", "Set up proxies manually"},
       {USER_SEQ_PROXY_SETUP_AUTOMATIC,
@@ -6154,9 +6144,10 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_panel_tabs_compact", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_UIFLAG2_PANEL_TABS_COMPACT);
-  RNA_def_property_ui_text(prop,
-                           "Compact Panel Tabs",
-                           "Display panel tabs in a compact size that shows icons when available");
+  RNA_def_property_ui_text(
+      prop,
+      "Compact Sidebar Tabs",
+      "Display sidebar tabs in a compact size that shows icons when available");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "viewport_aa", PROP_ENUM, PROP_NONE);
@@ -6193,13 +6184,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Textures */
-
-  prop = RNA_def_property(srna, "image_draw_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, image_draw_methods);
-  RNA_def_property_enum_sdna(prop, nullptr, "image_draw_method");
-  RNA_def_property_ui_text(
-      prop, "Image Display Method", "Method used for displaying images on the screen");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");

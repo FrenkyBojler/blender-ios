@@ -316,7 +316,7 @@ class Context : public compositor::Context {
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
-      realize_input.wrap_external(viewer_result);
+      realize_input.share_data(viewer_result);
       realization_operation->map_input_to_result(&realize_input);
       realization_operation->evaluate();
 
@@ -440,14 +440,14 @@ class Context : public compositor::Context {
       gpu::Texture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
       /* Don't assume render will keep pass data stored, add our own reference. */
       GPU_texture_ref(pass_texture);
-      pass_data.wrap_external(pass_texture);
+      pass_data.share_data(pass_texture);
       cached_gpu_passes_.append(pass_texture);
     }
     else {
       /* Don't assume render will keep pass data stored, add our own reference. */
       IMB_refImBuf(render_pass->ibuf);
-      pass_data.wrap_external(render_pass->ibuf->float_data_for_write(),
-                              int2(render_pass->ibuf->x, render_pass->ibuf->y));
+      pass_data.share_data(render_pass->ibuf->float_data_for_write(),
+                           int2(render_pass->ibuf->x, render_pass->ibuf->y));
       cached_cpu_passes_.append(render_pass->ibuf);
     }
 
@@ -457,10 +457,12 @@ class Context : public compositor::Context {
       compositor::ConversionOperation conversion_operation(*this, pass_data.type(), pass.type());
       conversion_operation.map_input_to_result(&pass_data);
       conversion_operation.evaluate();
-      pass.steal_data(conversion_operation.get_result());
+      pass.share_data(conversion_operation.get_result());
+      conversion_operation.get_result().release();
     }
     else {
-      pass.steal_data(pass_data);
+      pass.share_data(pass_data);
+      pass_data.release();
     }
 
     /* We assume the given pass is a Cryptomatte pass and retrieve its layer name. If it wasn't a
