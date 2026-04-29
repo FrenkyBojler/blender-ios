@@ -2038,16 +2038,8 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   BLI_assert(but->type == ButtonType::TextBox);
 
-  bool using_placeholder = false;
-
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
-  Vector<StringRef> lines = textbox_wrap_lines(textbox);
-
-  if (textbox->wrap_cache->text.empty() && textbox->placeholder) {
-    lines = textbox_wrap_placeholder(textbox);
-    using_placeholder = true;
-  }
-
+  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   const int visible_lines = textbox->visible_lines();
   fontstyle_set(fstyle);
 
@@ -2294,12 +2286,13 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   uchar col[4];
   copy_v4_v4_uchar(col, wcol->text);
   uiFontStyle style = *fstyle;
-
-  if (using_placeholder) {
+  Vector<blender::StringRef> draw_lines = lines;
+  if (textbox->wrap_cache->text.empty() && textbox->placeholder) {
+    draw_lines = textbox_wrap_placeholder(textbox);
     style.shadow = 0;
     col[3] *= 0.33f;
   }
-  for (const StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
+  for (const StringRef line : draw_lines.as_span().slice_safe(scroll, visible_lines)) {
     if (rect.xmin > button_rect->xmax - scrollbar_pad - text_padding) {
       break;
     }
