@@ -27,35 +27,10 @@ class SocketValueVariant2;
 
 namespace detail {
 
-enum class Kind {
-  None,
-  Single,
-  Field,
-  Grid,
-  List,
-};
-
 struct SocketValueVariantTypeInfo;
 using SocketValueVariantAny = Any<SocketValueVariantTypeInfo, 32, 16>;
 
-template<typename T> constexpr Kind get_type_kind()
-{
-  if constexpr (std::is_same_v<T, fn::GField>) {
-    return Kind::Field;
-  }
-  else if constexpr (std::is_same_v<T, volume_grid::GVolumeGrid>) {
-    return Kind::Grid;
-  }
-  else if constexpr (std::is_same_v<T, nodes::List>) {
-    return Kind::List;
-  }
-  else {
-    return Kind::Single;
-  }
-}
-
 struct SocketValueVariantTypeInfo {
-  Kind kind;
   const CPPType &type;
   void (*convert_to)(const CPPType &dst_type, SocketValueVariantAny &value);
   bool (*is_interpretable_as)(const CPPType &dst_type, const SocketValueVariantAny &value);
@@ -63,9 +38,7 @@ struct SocketValueVariantTypeInfo {
   template<typename T> static SocketValueVariantTypeInfo get()
   {
     return SocketValueVariantTypeInfo{
-        .kind = get_type_kind<T>(),
-        /* Can't use `CPPType::get<T>()` because this runs before CPPType registration. */
-        .type = blender::detail::cpp_type_impl<T>.ref(),
+        .type = *CPPType::get_pre_register<T>(),
         .convert_to = convert_to_fn<T>,
         .is_interpretable_as = is_interpretable_as_fn<T>,
     };
