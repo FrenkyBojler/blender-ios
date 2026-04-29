@@ -465,7 +465,7 @@ struct ImportJobData {
   /** Min time read from file import. */
   chrono_t min_time = std::numeric_limits<chrono_t>::max();
   /** Max time read from file import. */
-  chrono_t max_time = std::numeric_limits<chrono_t>::min();
+  chrono_t max_time = -std::numeric_limits<chrono_t>::max();
 
   bool *stop;
   bool *do_update;
