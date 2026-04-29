@@ -598,6 +598,7 @@ Result Result::upload_to_gpu(const bool from_pool) const
   switch (this->type()) {
     case ResultType::Float:
     case ResultType::Color:
+    case ResultType::Quaternion:
     case ResultType::Float4:
     case ResultType::Float2:
     case ResultType::Int:
@@ -673,6 +674,7 @@ Result Result::download_to_cpu() const
   switch (this->type()) {
     case ResultType::Float:
     case ResultType::Color:
+    case ResultType::Quaternion:
     case ResultType::Float4:
     case ResultType::Float2:
     case ResultType::Int:
