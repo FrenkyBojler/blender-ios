@@ -222,15 +222,15 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static bool is_camera_supported(const GreasePencilLineartModifierData *ld, const bContext *C)
 {
-  Object *use_camera = nullptr;
+  Object *camera = nullptr;
   if (ld->source_camera != nullptr) {
-    use_camera = ld->source_camera;
+    camera = ld->source_camera;
   }
   else {
     Scene *scene = CTX_data_scene(C);
-    use_camera = scene->camera;
+    camera = scene->camera;
   }
-  Camera *camera_data = reinterpret_cast<Camera *>(use_camera->data);
+  Camera *camera_data = reinterpret_cast<Camera *>(camera->data);
   return ELEM(camera_data->type, CAM_PERSP, CAM_ORTHO);
 }
 
