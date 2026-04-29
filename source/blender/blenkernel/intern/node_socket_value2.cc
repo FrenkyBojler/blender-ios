@@ -10,6 +10,8 @@
 
 #include "BKE_volume_grid.hh"
 
+#include "BKE_volume_grid_multi_function_eval.hh"
+
 namespace blender::bke {
 
 using fn::Field;
@@ -82,7 +84,7 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<CurrentT, GVolumeGrid>) {
-    const GVolumeGrid &src_grid = value.get<GVolumeGrid>();
+    GVolumeGrid &src_grid = value.get<GVolumeGrid>();
     if (dst_type.generic_type && dst_type.generic_type->is<GVolumeGrid>()) {
       if (!src_grid) {
         /* Nothing to do. */
@@ -104,7 +106,18 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
         SocketValueVariant2::init_default(dst_type, value);
         return;
       }
-      // TODO: Actually handle conversion.
+      VolumeTreeAccessToken tree_token;
+      const openvdb::GridBase &src_grid_base = src_grid->grid(tree_token);
+      using namespace volume_grid::multi_function_eval;
+      EvalResult conversion_result = evaluate_multi_function_on_grid(
+          *fns->multi_function, {&src_grid_base}, {true});
+      if (std::holds_alternative<EvalResult::Failure>(conversion_result.result)) {
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      src_grid = GVolumeGrid(
+          std::move(std::get<EvalResult::Success>(conversion_result.result).output_grids[0]));
+      return;
     }
     SocketValueVariant2::init_default(dst_type, value);
     return;
