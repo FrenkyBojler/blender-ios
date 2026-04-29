@@ -20,7 +20,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_collection.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
