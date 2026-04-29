@@ -11,8 +11,11 @@
  * the destination texel.
  */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_surf_shadow_infos.hh"
 
+FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_shadow_atomic)
 
@@ -20,13 +23,12 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_shadow_atomic)
 #  define MAT_SHADOW
 #endif
 
-#include "draw_view_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_shadow_tilemap_lib.glsl"
+#include "eevee_shadow_tilemap_lib.bsl.hh"
 #include "eevee_surf_lib.glsl"
 
-float4 closure_to_rgba(Closure cl)
+float4 closure_to_rgba(Closure /*cl*/)
 {
   return float4(0.0f);
 }
@@ -48,7 +50,7 @@ void main()
 #endif
 
   /* Clip to light shape. */
-  if (length_squared(shadow_clip.vector) < 1.0f) {
+  if (dot(shadow_clip.vector, shadow_clip.vector) < 1.0f) {
     discard_result;
   }
 

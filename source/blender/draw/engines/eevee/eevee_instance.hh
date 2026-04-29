@@ -12,6 +12,8 @@
 
 #include <fmt/format.h>
 
+#include "CLG_log.h"
+
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -80,6 +82,7 @@ class Instance : public DrawEngine {
   friend MotionBlurModule;
 
   /** Debug scopes. */
+  static void *debug_scope_render_frame;
   static void *debug_scope_render_sample;
   static void *debug_scope_irradiance_setup;
   static void *debug_scope_irradiance_sample;
@@ -122,6 +125,8 @@ class Instance : public DrawEngine {
   VolumeProbeModule volume_probes;
   LightProbeModule light_probes;
   VolumeModule volume;
+
+  static CLG_LogRef log;
 
   /** Input data. */
   Depsgraph *depsgraph;
@@ -169,6 +174,8 @@ class Instance : public DrawEngine {
   bool use_curves = true;
   bool use_volumes = true;
 
+  GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
+
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -201,10 +208,10 @@ class Instance : public DrawEngine {
         planar_probes(*this),
         volume_probes(*this),
         light_probes(*this),
-        volume(*this, uniform_data.data.volumes){};
-  ~Instance(){};
+        volume(*this, uniform_data.data.volumes) {};
+  ~Instance() override {};
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "EEVEE";
   }
@@ -274,8 +281,11 @@ class Instance : public DrawEngine {
   /* Append a new line to the info string. */
   template<typename... Args> void info_append(const char *msg, Args &&...args)
   {
-    info_ += fmt::format(fmt::runtime(msg), args...);
-    info_ += "\n";
+    std::string fmt_msg = fmt::format(fmt::runtime(msg), args...) + "\n";
+    /* Don't print the same error twice. */
+    if (info_ != fmt_msg && !BLI_str_endswith(info_.c_str(), fmt_msg.c_str())) {
+      info_ += fmt_msg;
+    }
   }
 
   /* The same as `info_append`, but `msg` will be translated.
@@ -339,14 +349,14 @@ class Instance : public DrawEngine {
            ((v3d->shading.type == OB_MATERIAL) && (v3d->overlay.flag & V3D_OVERLAY_LOOK_DEV));
   }
 
-  int get_recalc_flags(const ObjectRef &ob_ref)
+  uint get_recalc_flags(const ObjectRef &ob_ref)
   {
     return ob_ref.recalc_flags(depsgraph_last_update_);
   }
 
-  int get_recalc_flags(const ::World &world)
+  uint get_recalc_flags(const blender::World &world)
   {
-    return world.last_update > depsgraph_last_update_ ? int(ID_RECALC_SHADING) : 0;
+    return world.last_update > depsgraph_last_update_ ? uint(ID_RECALC_SHADING) : 0;
   }
 
  private:
@@ -356,8 +366,6 @@ class Instance : public DrawEngine {
    */
   void render_sample();
   void render_read_result(RenderLayer *render_layer, const char *view_name);
-
-  void mesh_sync(Object *ob, ObjectHandle &ob_handle);
 
   void update_eval_members();
 

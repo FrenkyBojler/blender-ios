@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 
 #include "draw_view_lib.glsl"
-#include "eevee_ray_types_lib.glsl"
+#include "eevee_ray_types_lib.bsl.hh"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_utility_tx_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
@@ -172,13 +173,13 @@ OcclusionData ambient_occlusion_search(float3 vP,
 
     ScreenSpaceRay ssray;
 
-    ssray = raytrace_screenspace_ray_create(ray, uniform_buf.ao.pixel_size);
+    ssray = ScreenSpaceRay::create(ray, uniform_buf.ao.pixel_size);
     data.horizons[0 + i * 2] = ambient_ambient_occlusion_search_horizon(
         vI, vP, noise.y, ssray, depth_tx, inverted, radius, dir_sample_count);
 
     ray.direction = -ray.direction;
 
-    ssray = raytrace_screenspace_ray_create(ray, uniform_buf.ao.pixel_size);
+    ssray = ScreenSpaceRay::create(ray, uniform_buf.ao.pixel_size);
     data.horizons[1 + i * 2] = -ambient_ambient_occlusion_search_horizon(
         vI, vP, noise.y, ssray, depth_tx, inverted, radius, dir_sample_count);
 
@@ -213,9 +214,9 @@ void ambient_occlusion_eval(OcclusionData data,
                             float3 N,
                             float3 Ng,
                             const float inverted,
-                            out float visibility,
-                            out float visibility_error,
-                            out float3 bent_normal)
+                            float &visibility,
+                            float &visibility_error,
+                            float3 &bent_normal)
 {
   /* No error by default. */
   visibility_error = 1.0f;
@@ -337,7 +338,7 @@ float ambient_occlusion_diffuse(OcclusionData data,
                                 float3 N,
                                 float3 Ng,
                                 float3 albedo,
-                                out float3 bent_normal)
+                                float3 &bent_normal)
 {
   float visibility;
   float unused_error;
@@ -380,7 +381,7 @@ float ambient_occlusion_spherical_cap_intersection(float radius1, float radius2,
 }
 
 float ambient_occlusion_specular(
-    OcclusionData data, int2 texel, float3 V, float3 N, float roughness, inout float3 specular_dir)
+    OcclusionData data, int2 texel, float3 V, float3 N, float roughness, float3 &specular_dir)
 {
   float3 visibility_dir;
   float visibility_error;
