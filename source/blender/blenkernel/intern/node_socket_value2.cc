@@ -12,6 +12,7 @@ namespace blender::bke {
 
 using fn::Field;
 using fn::GField;
+using volume_grid::GVolumeGrid;
 
 namespace detail {
 
@@ -129,20 +130,28 @@ template<typename CurrentT>
 bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
                                                         const SocketValueVariantAny &value)
 {
-  if constexpr (std::is_same_v<CurrentT, GField>) {
-    if (dst_type.is<GField>()) {
+  /* Handles fields and volume grids. */
+  if constexpr (requires { typename CurrentT::generic_type; }) {
+    if (dst_type.is<CurrentT>()) {
       return true;
     }
     if (!dst_type.generic_type) {
       return false;
     }
-    const GField &field = value.get<GField>();
-    if (dst_type.generic_type->is<GField>()) {
-      return &field.cpp_type() == dst_type.base_type;
+    if (dst_type.generic_type->is<CurrentT>()) {
+      const CurrentT &generic_value = value.get<CurrentT>();
+      const CPPType &base_type = generic_value.cpp_type();
+      BLI_assert(dst_type.base_type);
+      return base_type == *dst_type.base_type;
     }
     return false;
   }
-  return CPPType::get<CurrentT>() == dst_type;
+  else if constexpr (std::is_same_v<CurrentT, nodes::List>) {
+    return dst_type.is<nodes::List>();
+  }
+  else {
+    return CPPType::get<CurrentT>() == dst_type;
+  }
 }
 
 #define DEFINE_TYPE(TYPE) \
