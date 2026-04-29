@@ -81,14 +81,39 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     return;
   }
 #ifdef WITH_OPENVDB
-  else if constexpr (std::is_same_v<CurrentT, volume_grid::GVolumeGrid>) {
-    // TODO
+  else if constexpr (std::is_same_v<CurrentT, GVolumeGrid>) {
+    const GVolumeGrid &src_grid = value.get<GVolumeGrid>();
+    if (dst_type.generic_type && dst_type.generic_type->is<GVolumeGrid>()) {
+      if (!src_grid) {
+        /* Nothing to do. */
+        return;
+      }
+      const CPPType *src_base_type = src_grid->cpp_type();
+      if (!src_base_type) {
+        /* Unknown type. */
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      if (src_base_type == dst_type.base_type) {
+        /* Nothing to do. */
+        return;
+      }
+      const ConversionFunctions *fns = conversions.get_conversion_functions(*src_base_type,
+                                                                            *dst_type.base_type);
+      if (!fns || !fns->multi_function) {
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      // TODO: Actually handle conversion.
+    }
     SocketValueVariant2::init_default(dst_type, value);
+    return;
   }
 #endif
   else if constexpr (std::is_same_v<CurrentT, nodes::List>) {
     // TODO
     SocketValueVariant2::init_default(dst_type, value);
+    return;
   }
   else {
     /* The stored value is a single value. */

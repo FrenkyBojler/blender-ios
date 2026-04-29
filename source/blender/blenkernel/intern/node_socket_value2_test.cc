@@ -157,4 +157,19 @@ TEST_F(SocketValueVariantTest, SingleToVolumeGrid)
   EXPECT_FALSE(grid);
 }
 
+TEST_F(SocketValueVariantTest, IntVolumeGridToFloatVolumeGrid)
+{
+  // TODO: The grid conversion still has to be implemented.
+  SocketValueVariant2 s;
+  {
+    std::shared_ptr<openvdb::Int32Grid> int_grid = std::make_shared<openvdb::Int32Grid>();
+    int_grid->tree().root().setBackground(42, true);
+    s.ensure_type<VolumeGrid<int>>() = VolumeGrid<int>(std::move(int_grid));
+  }
+  const VolumeGrid<float> &grid = s.ensure_type<VolumeGrid<float>>();
+  VolumeTreeAccessToken tree_token;
+  const openvdb::FloatGrid &float_grid = grid.grid(tree_token);
+  EXPECT_EQ(float_grid.background(), 42.0f);
+}
+
 }  // namespace blender::bke::tests
