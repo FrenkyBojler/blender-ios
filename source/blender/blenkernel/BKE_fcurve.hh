@@ -450,6 +450,11 @@ enum eFCU_Cycle_Type {
 eFCU_Cycle_Type BKE_fcurve_get_cycle_type(const FCurve &fcu);
 
 /**
+ * Returns the tangent of the curve at the given point.
+ */
+float2 BKE_fcurve_tangent(FCurve &fcurve, float frame);
+
+/**
  * Recompute bezier handles of all three given BezTriples, so that `bezt` can be inserted between
  * `prev` and `next` without changing the resulting curve shape.
  *

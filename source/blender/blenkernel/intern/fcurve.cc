@@ -1564,6 +1564,48 @@ static void fcurve_bezt_free(FCurve &fcu)
   fcu.totvert = 0;
 }
 
+float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
+{
+  if (!fcurve.bezt || fcurve.totvert < 2) {
+    /* Need at least 2 keys to have a curve for a tangent. */
+    return {1, 0};
+  }
+  bool replace;
+  const int key_index = BKE_fcurve_bezt_binarysearch_index(
+      fcurve.bezt, frame, fcurve.totvert, &replace);
+
+  if (replace) {
+    const BezTriple &key = fcurve.bezt[key_index];
+    float2 tangent = float2(key.vec[2]) - float2(key.vec[1]);
+    normalize_v2(tangent);
+    return tangent;
+  }
+  if (key_index == 0 || key_index == fcurve.totvert) {
+    /* If the given frame is outside the key range, the tangent is assumed to be 1/0; */
+    return {1, 0};
+  }
+  BezTriple &a = fcurve.bezt[key_index - 1];
+  BezTriple &b = fcurve.bezt[key_index];
+  float roots[4];
+  if (!findzero(frame, a.vec[1][0], a.vec[2][0], b.vec[0][0], b.vec[1][0], roots)) {
+    return {1, 0};
+  }
+
+  const float t = roots[0]; /* Percentage of the curve at which the split should occur. */
+  /* If we were on a key, `replace` would have been set to true. */
+  BLI_assert(t > 0.0f && t < 1.0f);
+  float split1[3][2], split2[2][2], split3[2];
+  interp_v2_v2v2(split1[0], a.vec[1], a.vec[2], t);
+  interp_v2_v2v2(split1[1], a.vec[2], b.vec[0], t);
+  interp_v2_v2v2(split1[2], b.vec[0], b.vec[1], t);
+  interp_v2_v2v2(split2[0], split1[0], split1[1], t);
+  interp_v2_v2v2(split2[1], split1[1], split1[2], t);
+  interp_v2_v2v2(split3, split2[0], split2[1], t);
+  float2 tangent = float2(split2[1]) - float2(split3);
+  normalize_v2(tangent);
+  return tangent;
+}
+
 bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
                                        BezTriple *prev,
                                        BezTriple *next,
