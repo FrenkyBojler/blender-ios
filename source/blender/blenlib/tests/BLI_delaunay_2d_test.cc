@@ -756,6 +756,51 @@ template<typename T> void nestedholes_test()
   }
 }
 
+template<typename T> void disjoint_polys_in_large_hull_test()
+{
+  const char *spec = R"(6 0 2
+  0.0 0.0
+  1.0 0.0
+  0.5 1.0
+  3.0 0.0
+  4.0 0.0
+  3.5 1.0
+  0 1 2
+  3 4 5
+  )";
+
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+
+  CDT_result<T> out = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
+  EXPECT_EQ(out.vert.size(), 6);
+  EXPECT_EQ(out.face.size(), 2);
+
+  int verts[6];
+  for (int i = 0; i < 6; i++) {
+    verts[i] = get_orig_index(out.vert_orig, i);
+    EXPECT_NE(verts[i], -1);
+  }
+
+  int f_a = get_output_tri_index(out, verts[0], verts[1], verts[2]);
+  int f_b = get_output_tri_index(out, verts[3], verts[4], verts[5]);
+  EXPECT_NE(f_a, -1);
+  EXPECT_NE(f_b, -1);
+  EXPECT_TRUE(output_face_has_input_id(out, f_a, 0));
+  EXPECT_TRUE(output_face_has_input_id(out, f_b, 1));
+
+  /* The non-zero rule gets count checks only, not per-face checks.
+   * The optimization being validated lives in the even-odd path.
+   * the non-zero check exists only to confirm this geometry does
+   * not distinguish the two rules. */
+  CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO);
+  EXPECT_EQ(out_nonzero.vert.size(), 6);
+  EXPECT_EQ(out_nonzero.face.size(), 2);
+
+  if (DO_DRAW) {
+    graph_draw<T>("DisjointPolysInLargeHull", out.vert, out.edge, out.face);
+  }
+}
+
 /* Two overlapping squares with the same winding direction (both CCW).
  * Even-odd: overlap region is excluded (2 crossings = outside).
  * Non-zero: overlap region is included (winding = 2 = inside). */
@@ -3075,6 +3120,11 @@ TEST(delaunay_d, DiamondInSquareWire)
   diamondinsquarewire_test<double>();
 }
 
+TEST(delaunay_d, DisjointPolysInLargeHull)
+{
+  disjoint_polys_in_large_hull_test<double>();
+}
+
 TEST(delaunay_d, RepeatEdge)
 {
   repeatedge_test<double>();
@@ -3143,6 +3193,11 @@ TEST(delaunay_m, Quad4)
 TEST(delaunay_m, LineInSquare)
 {
   lineinsquare_test<mpq_class>();
+}
+
+TEST(delaunay_m, DisjointPolysInLargeHull)
+{
+  disjoint_polys_in_large_hull_test<mpq_class>();
 }
 
 TEST(delaunay_m, LineHoleInSquare)
