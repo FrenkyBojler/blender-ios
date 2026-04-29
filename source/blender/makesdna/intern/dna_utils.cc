@@ -187,20 +187,20 @@ struct StructRename {
 };
 static const StructRename struct_renames[] = {
 #define DNA_STRUCT_RENAME(old, new) {#old, #new},
-#define DNA_STRUCT_RENAME_MEMBER(struct_name, old, new)
+#define DNA_STRUCT_RENAME_MEMBER(new_sturct_name, old, new)
 #include "dna_rename_defs.h"
 #undef DNA_STRUCT_RENAME
 #undef DNA_STRUCT_RENAME_MEMBER
 };
 
 struct MemberRename {
-  const char *struct_name;
+  const char *new_struct_name;
   const char *old_name;
   const char *new_name;
 };
 static const MemberRename member_renames[] = {
 #define DNA_STRUCT_RENAME(old, new)
-#define DNA_STRUCT_RENAME_MEMBER(struct_name, old, new) {#struct_name, #old, #new},
+#define DNA_STRUCT_RENAME_MEMBER(new_struct_name, old, new) {#new_struct_name, #old, #new},
 #include "dna_rename_defs.h"
 #undef DNA_STRUCT_RENAME
 #undef DNA_STRUCT_RENAME_MEMBER
@@ -219,7 +219,8 @@ DnaRenameMaps DNA_rename_maps_alias_to_static()
   data.types.add_new("int32_t", "int");
   data.types.add_new("uint32_t", "int");
   for (const MemberRename &r : member_renames) {
-    const StringRefNull struct_static = data.types.lookup_default(r.struct_name, r.struct_name);
+    const StringRefNull struct_static = data.types.lookup_default(r.new_struct_name,
+                                                                  r.new_struct_name);
     data.members.add_new({struct_static, r.new_name}, r.old_name);
   }
   return data;
@@ -234,8 +235,8 @@ DnaRenameMaps DNA_rename_maps_static_to_alias()
     struct_alias_to_static.add_new(r.new_name, r.old_name);
   }
   for (const MemberRename &r : member_renames) {
-    const StringRefNull struct_static = struct_alias_to_static.lookup_default(r.struct_name,
-                                                                              r.struct_name);
+    const StringRefNull struct_static = struct_alias_to_static.lookup_default(r.new_struct_name,
+                                                                              r.new_struct_name);
     data.members.add_new({struct_static, r.old_name}, r.new_name);
   }
   return data;

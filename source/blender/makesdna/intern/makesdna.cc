@@ -1112,7 +1112,7 @@ static void UNUSED_FUNCTION(dna_rename_defs_ensure)()
 {
   using namespace blender;
 #define DNA_STRUCT_RENAME(old, new) (void)sizeof(new);
-#define DNA_STRUCT_RENAME_MEMBER(struct_name, old, new) (void)offsetof(struct_name, new);
+#define DNA_STRUCT_RENAME_MEMBER(new_struct_name, old, new) (void)offsetof(new_struct_name, new);
 #include "dna_rename_defs.h"
 
 #undef DNA_STRUCT_RENAME
