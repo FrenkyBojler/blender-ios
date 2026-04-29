@@ -408,6 +408,28 @@ class WhiteNoiseTextureNode : public ShaderNode {
   NODE_SOCKET_API(float, w)
 };
 
+class MxNoiseTextureNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(MxNoiseTextureNode)
+
+  NODE_SOCKET_API(int, dimensions)
+  NODE_SOCKET_API(int, noise_type)
+  NODE_SOCKET_API(float3, vector)
+  NODE_SOCKET_API(float, amplitude)
+  NODE_SOCKET_API(float, pivot)
+  NODE_SOCKET_API(float, octaves)
+  NODE_SOCKET_API(float, lacunarity)
+  NODE_SOCKET_API(float, diminish)
+  NODE_SOCKET_API(float, jitter)
+  NODE_SOCKET_API(float, style)
+  NODE_SOCKET_API(float, unified_type)
+  NODE_SOCKET_API(float3, freq)
+  NODE_SOCKET_API(float3, offset)
+  NODE_SOCKET_API(float, out_min)
+  NODE_SOCKET_API(float, out_max)
+  NODE_SOCKET_API(float, clamp_output)
+};
+
 class MappingNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(MappingNode)

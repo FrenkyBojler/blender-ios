@@ -1519,6 +1519,69 @@ void WhiteNoiseTextureNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_white_noise_texture");
 }
 
+/* MaterialX Noise Texture */
+
+NODE_DEFINE(MxNoiseTextureNode)
+{
+  NodeType *type = NodeType::add("mx_noise_texture", create, NodeType::SHADER);
+
+  SOCKET_INT(dimensions, "Dimensions", 3);
+  SOCKET_INT(noise_type, "Noise Type", 0);
+
+  SOCKET_IN_POINT(vector, "Vector", zero_float3());
+  SOCKET_IN_FLOAT(amplitude, "Amplitude", 1.0f);
+  SOCKET_IN_FLOAT(pivot, "Pivot", 0.0f);
+  SOCKET_IN_FLOAT(octaves, "Octaves", 3.0f);
+  SOCKET_IN_FLOAT(lacunarity, "Lacunarity", 2.0f);
+  SOCKET_IN_FLOAT(diminish, "Diminish", 0.5f);
+  SOCKET_IN_FLOAT(jitter, "Jitter", 1.0f);
+  SOCKET_IN_FLOAT(style, "Style", 0.0f);
+  SOCKET_IN_FLOAT(unified_type, "Type", 0.0f);
+  SOCKET_IN_VECTOR(freq, "Frequency", one_float3());
+  SOCKET_IN_VECTOR(offset, "Offset", zero_float3());
+  SOCKET_IN_FLOAT(out_min, "Out Min", 0.0f);
+  SOCKET_IN_FLOAT(out_max, "Out Max", 1.0f);
+  SOCKET_IN_FLOAT(clamp_output, "Clamp Output", 1.0f);
+
+  SOCKET_OUT_FLOAT(value, "Value");
+  SOCKET_OUT_COLOR(color, "Color");
+
+  return type;
+}
+
+MxNoiseTextureNode::MxNoiseTextureNode() : ShaderNode(get_node_type()) {}
+
+void MxNoiseTextureNode::compile(SVMCompiler &compiler)
+{
+  compiler.add_node(this,
+                    NODE_TEX_MX_NOISE,
+                    SVMNodeTexMxNoise{
+                        .dimensions = uint(dimensions),
+                        .noise_type = uint(noise_type),
+                        .vector = compiler.input_float3("Vector"),
+                        .amplitude = compiler.input_float("Amplitude"),
+                        .pivot = compiler.input_float("Pivot"),
+                        .octaves = compiler.input_float("Octaves"),
+                        .lacunarity = compiler.input_float("Lacunarity"),
+                        .diminish = compiler.input_float("Diminish"),
+                        .jitter = compiler.input_float("Jitter"),
+                        .style = compiler.input_float("Style"),
+                        .unified_type = compiler.input_float("Type"),
+                        .freq = compiler.input_float3("Frequency"),
+                        .offset = compiler.input_float3("Offset"),
+                        .out_min = compiler.input_float("Out Min"),
+                        .out_max = compiler.input_float("Out Max"),
+                        .clamp_output = compiler.input_float("Clamp Output"),
+                        .value_offset = compiler.output("Value"),
+                        .color_offset = compiler.output("Color"),
+                    });
+}
+
+void MxNoiseTextureNode::compile(OSLCompiler & /*compiler*/)
+{
+  /* The fidelity renderer uses Cycles SVM. Add an OSL implementation before enabling this path. */
+}
+
 /* Wave Texture */
 
 NODE_DEFINE(WaveTextureNode)

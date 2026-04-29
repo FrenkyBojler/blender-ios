@@ -60,6 +60,7 @@
 #include "kernel/svm/mapping.h"
 #include "kernel/svm/math.h"
 #include "kernel/svm/mix.h"
+#include "kernel/svm/mx_noise.h"
 #include "kernel/svm/noisetex.h"
 #include "kernel/svm/normal.h"
 #include "kernel/svm/radial_tiling.h"
@@ -464,6 +465,9 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_TEX_WHITE_NOISE)
       svm_node_tex_white_noise(stack, svm_node_get<SVMNodeTexWhiteNoise>(kg, &offset));
+      break;
+      SVM_CASE(NODE_TEX_MX_NOISE)
+      svm_node_tex_mx_noise(stack, svm_node_get<SVMNodeTexMxNoise>(kg, &offset));
       break;
       SVM_CASE(NODE_NORMAL)
       svm_node_normal(stack, svm_node_get<SVMNodeNormal>(kg, &offset));

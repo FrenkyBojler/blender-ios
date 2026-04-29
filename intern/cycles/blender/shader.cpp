@@ -1011,6 +1011,50 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(noise, &b_texture_mapping);
     node = noise;
   }
+  else if (b_node.is_type("ShaderNodeMxNoise2D"_ustr) ||
+           b_node.is_type("ShaderNodeMxNoise3D"_ustr) ||
+           b_node.is_type("ShaderNodeMxFractal2D"_ustr) ||
+           b_node.is_type("ShaderNodeMxFractal3D"_ustr) ||
+           b_node.is_type("ShaderNodeMxCellNoise2D"_ustr) ||
+           b_node.is_type("ShaderNodeMxCellNoise3D"_ustr) ||
+           b_node.is_type("ShaderNodeMxWorleyNoise2D"_ustr) ||
+           b_node.is_type("ShaderNodeMxWorleyNoise3D"_ustr) ||
+           b_node.is_type("ShaderNodeMxUnifiedNoise2D"_ustr) ||
+           b_node.is_type("ShaderNodeMxUnifiedNoise3D"_ustr))
+  {
+    MxNoiseTextureNode *noise = graph->create_node<MxNoiseTextureNode>();
+    noise->set_dimensions(b_node.is_type("ShaderNodeMxNoise2D"_ustr) ||
+                                  b_node.is_type("ShaderNodeMxFractal2D"_ustr) ||
+                                  b_node.is_type("ShaderNodeMxCellNoise2D"_ustr) ||
+                                  b_node.is_type("ShaderNodeMxWorleyNoise2D"_ustr) ||
+                                  b_node.is_type("ShaderNodeMxUnifiedNoise2D"_ustr) ?
+                              2 :
+                              3);
+    if (b_node.is_type("ShaderNodeMxFractal2D"_ustr) ||
+        b_node.is_type("ShaderNodeMxFractal3D"_ustr))
+    {
+      noise->set_noise_type(1);
+    }
+    else if (b_node.is_type("ShaderNodeMxCellNoise2D"_ustr) ||
+             b_node.is_type("ShaderNodeMxCellNoise3D"_ustr))
+    {
+      noise->set_noise_type(2);
+    }
+    else if (b_node.is_type("ShaderNodeMxWorleyNoise2D"_ustr) ||
+             b_node.is_type("ShaderNodeMxWorleyNoise3D"_ustr))
+    {
+      noise->set_noise_type(3);
+    }
+    else if (b_node.is_type("ShaderNodeMxUnifiedNoise2D"_ustr) ||
+             b_node.is_type("ShaderNodeMxUnifiedNoise3D"_ustr))
+    {
+      noise->set_noise_type(4);
+    }
+    else {
+      noise->set_noise_type(0);
+    }
+    node = noise;
+  }
   else if (b_node.is_type("ShaderNodeTexGabor"_ustr)) {
     const auto &storage = *static_cast<blender::NodeTexGabor *>(b_node.storage);
     GaborTextureNode *gabor = graph->create_node<GaborTextureNode>();

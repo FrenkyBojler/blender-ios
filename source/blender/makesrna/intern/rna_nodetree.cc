@@ -5858,6 +5858,11 @@ static void def_sh_tex_white_noise(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNode_socket_update");
 }
 
+static void def_sh_tex_mx_noise(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  RNA_def_struct_sdna_from(srna, "bNode", nullptr);
+}
+
 static void def_sh_tex_coord(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10186,6 +10191,16 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeTexIES", def_sh_tex_ies);
   define("ShaderNode", "ShaderNodeTexImage", def_sh_tex_image);
   define("ShaderNode", "ShaderNodeTexMagic", def_sh_tex_magic);
+  define("ShaderNode", "ShaderNodeMxNoise2D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxNoise3D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxFractal2D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxFractal3D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxCellNoise2D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxCellNoise3D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxWorleyNoise2D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxWorleyNoise3D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxUnifiedNoise2D", def_sh_tex_mx_noise);
+  define("ShaderNode", "ShaderNodeMxUnifiedNoise3D", def_sh_tex_mx_noise);
   define("ShaderNode", "ShaderNodeTexNoise", def_sh_tex_noise);
   define("ShaderNode", "ShaderNodeTexSky", def_sh_tex_sky);
   define("ShaderNode", "ShaderNodeTexVoronoi", def_sh_tex_voronoi);

@@ -715,6 +715,31 @@ struct SVMNodeTexWhiteNoise {
 static_assert(alignof(SVMNodeTexWhiteNoise) <= alignof(uint));
 static_assert(sizeof(SVMNodeTexWhiteNoise) % sizeof(uint) == 0);
 
+/* NODE_TEX_MX_NOISE */
+struct SVMNodeTexMxNoise {
+  uint dimensions;
+  uint noise_type;
+  SVMInputFloat3 vector;
+  SVMInputFloat amplitude;
+  SVMInputFloat pivot;
+  SVMInputFloat octaves;
+  SVMInputFloat lacunarity;
+  SVMInputFloat diminish;
+  SVMInputFloat jitter;
+  SVMInputFloat style;
+  SVMInputFloat unified_type;
+  SVMInputFloat3 freq;
+  SVMInputFloat3 offset;
+  SVMInputFloat out_min;
+  SVMInputFloat out_max;
+  SVMInputFloat clamp_output;
+  SVMStackOffset value_offset;
+  SVMStackOffset color_offset;
+  uint8_t _pad[2];
+};
+static_assert(alignof(SVMNodeTexMxNoise) <= alignof(uint));
+static_assert(sizeof(SVMNodeTexMxNoise) % sizeof(uint) == 0);
+
 /* NODE_TEX_GRADIENT */
 struct SVMNodeTexGradient {
   NodeGradientType gradient_type;
