@@ -21,6 +21,7 @@ using InputVariant = std::variant<GPointer, const openvdb::GridBase *, const fn:
 
 struct EvalResult {
   struct Success {
+    /** The computed grids. A grid may be null if it was not required (see #output_usages). */
     Array<openvdb::GridBase::Ptr> output_grids;
   };
   struct Failure {
@@ -30,6 +31,12 @@ struct EvalResult {
   std::variant<Success, Failure> result;
 };
 
+/**
+ * Evaluate a multi-function on the given inputs. At least one of the inputs must be a grid or this
+ * will return a failure.
+ *
+ * \param output_usages: A boolean for each output indicating whether the output is required.
+ */
 EvalResult evaluate_multi_function_on_grid(const mf::MultiFunction &fn,
                                            const Span<InputVariant> input_values,
                                            const Span<bool> output_usages);
