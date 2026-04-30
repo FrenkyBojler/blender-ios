@@ -11,6 +11,8 @@
 #include <iomanip>
 #include <optional>
 
+#include "AS_essentials_library.hh"
+
 #include "ED_asset_indexer.hh"
 #include "asset_index.hh"
 
@@ -296,6 +298,13 @@ static int init_indexer_entries_from_value(FileIndexerEntries &indexer_entries,
   for (const std::shared_ptr<Value> &element : entries->elements()) {
     FileIndexerEntry *entry = MEM_new<FileIndexerEntry>(__func__);
     init_indexer_entry_from_value(*entry, *element->as_dictionary_value());
+
+    if (asset_system::skip_experimental_asset_catalog(
+            entry->datablock_info.asset_data->catalog_id))
+    {
+      MEM_delete(entry);
+      continue;
+    }
 
     BLI_linklist_prepend(&indexer_entries.entries, entry);
     num_entries_read += 1;
