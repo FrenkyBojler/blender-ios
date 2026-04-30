@@ -4946,31 +4946,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem mouse_cursor_sizes[] = {
-      {eUserpref_Mouse_Cursor_Size::Default, "DEFAULT", 0, "Default Size", "Default mouse size."},
-      {eUserpref_Mouse_Cursor_Size::UI_Scale,
-       "UI_SCALE",
-       0,
-       "UI Scale",
-       "Increase the mouse cursor size with UI Resolution Scale"},
-      {eUserpref_Mouse_Cursor_Size::Size_1_5,
-       "1.5X",
-       0,
-       "1.5X Size",
-       "Mouse cursor 1.5X larger than default"},
-      {eUserpref_Mouse_Cursor_Size::Size_2_0,
-       "2.0X",
-       0,
-       "2.0X Size",
-       "Mouse cursor 2.0X larger than default"},
-      {eUserpref_Mouse_Cursor_Size::Size_3_0,
-       "3.0X",
-       0,
-       "3.0X Size",
-       "Mouse cursor 3.0X larger than default"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem color_picker_types[] = {
       {USER_CP_CIRCLE_HSV,
        "CIRCLE_HSV",
@@ -5565,8 +5540,9 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Reduce Motion", "Avoid animations and other motion effects in the interface");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  prop = RNA_def_property(srna, "mouse_cursor_size", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, mouse_cursor_sizes);
+  prop = RNA_def_property(srna, "mouse_cursor_size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.5f, 6.0f);
+  RNA_def_property_ui_range(prop, 1.0f, 3.0f, 10.0f, 1);
   RNA_def_property_ui_text(prop, "Mouse Cursor Size", "Size of Mouse Cursors");
   RNA_def_property_update(prop, 0, "rna_userdef_cursor_update");
 }

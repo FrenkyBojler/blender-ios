@@ -1759,6 +1759,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   }
 
+  if (userdef->mouse_cursor_size == 0.0f) {
+    userdef->mouse_cursor_size = U_default.mouse_cursor_size;
+  }
+
   if (!USER_VERSION_ATLEAST(502, 13)) {
     userdef->geometry_nodes_stack_limit = 100;
   }
