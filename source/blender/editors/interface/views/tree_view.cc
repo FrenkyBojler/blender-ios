@@ -6,9 +6,6 @@
  * \ingroup edinterface
  */
 
-#include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
-
 #include "BKE_context.hh"
 
 #include "BLT_translation.hh"
@@ -21,11 +18,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
-#include "WM_api.hh"
-#include "WM_types.hh"
-
 #include "BLI_listbase.h"
-#include "BLI_math_base.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_string.h"
 
@@ -653,7 +646,7 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
   return AbstractViewItem::should_be_filtered_visible(filter_string) !=
-         *this->get_tree_view().invert_search_filter_;
+         bool(*this->get_tree_view().invert_search_filter_);
 }
 
 bool AbstractTreeViewItem::matches_single(const AbstractTreeViewItem &other) const
@@ -1041,7 +1034,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       }
 
       but = uiDefIconBut(block,
-                         ButtonType::IconToggle,
+                         ButtonType::Toggle,
                          icon,
                          0,
                          0,
@@ -1052,6 +1045,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                          0,
                          TIP_("Reverse the order of items"));
       button_func_set(but, set_sort_order_fn, nullptr, tree_view.invert_sort_type_.get());
+      button_func_pushed_state_set(but, [&](const ui::Button & /*button*/) {
+        return *tree_view.invert_sort_type_ != TreeViewSortOrder::None;
+      });
       button_flag_disable(but, BUT_UNDO);
     }
   }
