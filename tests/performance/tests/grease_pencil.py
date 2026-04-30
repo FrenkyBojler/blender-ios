@@ -6,6 +6,7 @@ import api
 import enum
 import time
 
+
 class RecordStage(enum.Enum):
     INIT = 0,
     WARMUP = 1,
@@ -18,6 +19,7 @@ WARMUP_FRAMES = 10
 RECORD_PLAYBACK_ITER = 3
 MIN_NUM_FRAMES_TOTAL = 250
 LOG_KEY = "VIEWPORT_PERFORMANCE: "
+
 
 def _run(args):
     import bpy
@@ -119,6 +121,7 @@ class GreasePencilTest(api.Test):
                 return result
 
         raise Exception("No playback performance result found in log.")
+
 
 def generate(env):
     filepaths = env.find_blend_files('grease_pencil/*')
