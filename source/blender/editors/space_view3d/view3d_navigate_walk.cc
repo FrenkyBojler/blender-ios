@@ -565,8 +565,8 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
                    1.0f :
                    1.0f / walk->scene->unit.scale_length;
 
-  const float userdef_jump_height = U.walk_navigation.jump_height * walk->grid;
-  const float userdef_view_height = U.walk_navigation.view_height * walk->grid;
+  const float userdef_jump_height = U.walk_navigation.jump_height;
+  const float userdef_view_height = U.walk_navigation.view_height;
 
   if (fabsf(U.walk_navigation.walk_speed - g_walk.userdef_speed) > 0.1f) {
     g_walk.base_speed = U.walk_navigation.walk_speed;
