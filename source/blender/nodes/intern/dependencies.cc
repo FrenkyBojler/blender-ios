@@ -160,7 +160,7 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree, EvalDepe
     if (id_type == ID_OB) {
       deps.add_object(reinterpret_cast<Object *>(node->id));
     }
-    if (id_type == ID_IM) {
+    else if (id_type == ID_IM) {
       if (BKE_image_is_animated(reinterpret_cast<Image *>(node->id))) {
         deps.time_dependent = true;
       }
