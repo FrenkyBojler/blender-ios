@@ -1473,6 +1473,8 @@ static void bmw_EdgeringWalker_begin(BMWalker *walker, void *data)
 
   /* Add both sides so both directions are walked. */
   if (lwalk->l->radial_next != lwalk->l) {
+    /* When `no_calc` is true, the walker hit a delimiting edge and can't step further,
+     * so add the alt walker to traverse the ring in the opposite direction. See #157860. */
     if (lwalk->no_calc || (delimit_ngon ? (lwalk->l->f->len != 4) : (lwalk->l->f->len % 2 != 0))) {
       BMwEdgeringWalker *lwalk_alt = static_cast<BMwEdgeringWalker *>(BMW_state_add(walker));
       lwalk_alt->l = lwalk->l->radial_next;
