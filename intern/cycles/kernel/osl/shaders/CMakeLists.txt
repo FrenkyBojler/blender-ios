@@ -62,6 +62,7 @@ set(SRC_OSL
   node_mix_float.osl
   node_mix_vector.osl
   node_mix_vector_non_uniform.osl
+  node_mx_noise_texture.osl
   node_noise_texture.osl
   node_normal.osl
   node_normal_map.osl

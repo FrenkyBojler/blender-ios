@@ -1,0 +1,310 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+/* MaterialX-compatible procedural noise for Cycles OSL.
+ *
+ * The OSL path follows MaterialX's genosl library: Perlin and fractal noise use
+ * OSL "snoise" and cell/Worley use OSL cellnoise-derived feature points.
+ */
+
+#include "stdcycles.h"
+#include "vector2.h"
+
+#define vector3 point
+
+float mx_fbm(float x, float y, int octaves, float lacunarity, float diminish)
+{
+  float result = 0.0;
+  float amplitude = 1.0;
+  float xx = x;
+  float yy = y;
+  for (int i = 0; i < octaves; i += 1) {
+    result += amplitude * noise("snoise", xx, yy);
+    amplitude *= diminish;
+    xx *= lacunarity;
+    yy *= lacunarity;
+  }
+  return result;
+}
+
+color mx_fbm_color(float x, float y, int octaves, float lacunarity, float diminish)
+{
+  color result = 0.0;
+  float amplitude = 1.0;
+  float xx = x;
+  float yy = y;
+  for (int i = 0; i < octaves; i += 1) {
+    result += amplitude * (color)noise("snoise", xx, yy);
+    amplitude *= diminish;
+    xx *= lacunarity;
+    yy *= lacunarity;
+  }
+  return result;
+}
+
+float mx_fbm(point p, int octaves, float lacunarity, float diminish)
+{
+  float result = 0.0;
+  float amplitude = 1.0;
+  point pp = p;
+  for (int i = 0; i < octaves; i += 1) {
+    result += amplitude * noise("snoise", pp);
+    amplitude *= diminish;
+    pp *= lacunarity;
+  }
+  return result;
+}
+
+color mx_fbm_color(point p, int octaves, float lacunarity, float diminish)
+{
+  color result = 0.0;
+  float amplitude = 1.0;
+  point pp = p;
+  for (int i = 0; i < octaves; i += 1) {
+    result += amplitude * (color)noise("snoise", pp);
+    amplitude *= diminish;
+    pp *= lacunarity;
+  }
+  return result;
+}
+
+vector2 mx_worley_cell_position(int x, int y, int xoff, int yoff, float jitter)
+{
+  vector tmp = cellnoise(x + xoff, y + yoff);
+  vector2 off = vector2(tmp.x, tmp.y);
+  off = (off - vector2(0.5, 0.5)) * jitter + vector2(0.5, 0.5);
+  return vector2(x, y) + off;
+}
+
+vector mx_worley_cell_position(int x, int y, int z, int xoff, int yoff, int zoff, float jitter)
+{
+  vector off = cellnoise(vector(x + xoff, y + yoff, z + zoff));
+  off = (off - 0.5) * jitter + 0.5;
+  return vector(x, y, z) + off;
+}
+
+float mx_worley_distance(vector2 p, int x, int y, int xoff, int yoff, float jitter)
+{
+  vector2 diff = mx_worley_cell_position(x, y, xoff, yoff, jitter) - p;
+  return dot(diff, diff);
+}
+
+float mx_worley_distance(vector p, int x, int y, int z, int xoff, int yoff, int zoff, float jitter)
+{
+  vector diff = mx_worley_cell_position(x, y, z, xoff, yoff, zoff, jitter) - p;
+  return dot(diff, diff);
+}
+
+float mx_worley_noise_float(vector2 p, float jitter, int style)
+{
+  int X = (int)floor(p.x);
+  int Y = (int)floor(p.y);
+  vector2 localpos = vector2(p.x - X, p.y - Y);
+  float sqdist = 1.0e6;
+  vector2 minpos = vector2(0.0, 0.0);
+  for (int x = -1; x <= 1; x += 1) {
+    for (int y = -1; y <= 1; y += 1) {
+      float dist = mx_worley_distance(localpos, x, y, X, Y, jitter);
+      vector2 cellpos = mx_worley_cell_position(x, y, X, Y, jitter) - localpos;
+      if (dist < sqdist) {
+        sqdist = dist;
+        minpos = cellpos;
+      }
+    }
+  }
+  if (style == 1) {
+    return cellnoise(minpos.x + p.x, minpos.y + p.y);
+  }
+  return sqrt(sqdist);
+}
+
+float mx_worley_noise_float(vector p, float jitter, int style)
+{
+  int X = (int)floor(p.x);
+  int Y = (int)floor(p.y);
+  int Z = (int)floor(p.z);
+  vector localpos = vector(p.x - X, p.y - Y, p.z - Z);
+  float sqdist = 1.0e6;
+  vector minpos = vector(0.0, 0.0, 0.0);
+  for (int x = -1; x <= 1; x += 1) {
+    for (int y = -1; y <= 1; y += 1) {
+      for (int z = -1; z <= 1; z += 1) {
+        float dist = mx_worley_distance(localpos, x, y, z, X, Y, Z, jitter);
+        vector cellpos = mx_worley_cell_position(x, y, z, X, Y, Z, jitter) - localpos;
+        if (dist < sqdist) {
+          sqdist = dist;
+          minpos = cellpos;
+        }
+      }
+    }
+  }
+  if (style == 1) {
+    return cellnoise(minpos + p);
+  }
+  return sqrt(sqdist);
+}
+
+color mx_worley_noise_color(vector2 p, float jitter, int style)
+{
+  return color(mx_worley_noise_float(p, jitter, style),
+               mx_worley_noise_float(p + vector2(19.0, 193.0), jitter, style),
+               mx_worley_noise_float(p + vector2(73.0, 29.0), jitter, style));
+}
+
+color mx_worley_noise_color(vector p, float jitter, int style)
+{
+  return color(mx_worley_noise_float(p, jitter, style),
+               mx_worley_noise_float(p + vector(19.0, 193.0, 17.0), jitter, style),
+               mx_worley_noise_float(p + vector(73.0, 29.0, 113.0), jitter, style));
+}
+
+vector2 mx_rotate2d(vector2 in_vector, float amount)
+{
+  float radians = amount * M_PI / 180.0;
+  float sa = sin(radians);
+  float ca = cos(radians);
+  return vector2(ca * in_vector.x + sa * in_vector.y, -sa * in_vector.x + ca * in_vector.y);
+}
+
+vector mx_rotate3d(vector in_vector, float amount)
+{
+  vector axis = normalize(vector(0.1, 1.0, 0.0));
+  float radians = amount * M_PI / 180.0;
+  float s = sin(radians);
+  float c = cos(radians);
+  return in_vector * c + cross(axis, in_vector) * s + axis * dot(axis, in_vector) * (1.0 - c);
+}
+
+float mx_range_float(float value, float out_min, float out_max, int clamp_output)
+{
+  float result = out_min + value * (out_max - out_min);
+  return clamp_output != 0 ? clamp(result, min(out_min, out_max), max(out_min, out_max)) : result;
+}
+
+shader node_mx_noise_texture(int dimensions = 3,
+                             int noise_type = 0,
+                             point Vector = point(0.0, 0.0, 0.0),
+                             float Amplitude = 1.0,
+                             float Pivot = 0.0,
+                             float Octaves = 3.0,
+                             float Lacunarity = 2.0,
+                             float Diminish = 0.5,
+                             float Jitter = 1.0,
+                             float Style = 0.0,
+                             float Type = 0.0,
+                             vector Frequency = vector(1.0, 1.0, 1.0),
+                             vector Offset = vector(0.0, 0.0, 0.0),
+                             float OutMin = 0.0,
+                             float OutMax = 1.0,
+                             float ClampOutput = 1.0,
+                             output float Value = 0.0,
+                             output color Color = 0.0)
+{
+  int octaves = clamp((int)Octaves, 0, 32);
+  int style = (int)Style;
+  int unified_type = (int)Type;
+  int clamp_output = (ClampOutput != 0.0) ? 1 : 0;
+  int is_2d = (dimensions == 2) ? 1 : 0;
+
+  if (noise_type == 4) {
+    float cell_jitter = (Jitter - 1.0) * 90000.0;
+    if (is_2d) {
+      vector2 apply_offset = vector2(Vector[0] * Frequency[0], Vector[1] * Frequency[1]) +
+                             vector2(Offset[0], Offset[1]);
+      vector2 apply_cell_jitter = mx_rotate2d(apply_offset, cell_jitter);
+      if (unified_type == 1) {
+        Value = cellnoise(apply_cell_jitter.x, apply_cell_jitter.y);
+        Color = (color)cellnoise(apply_cell_jitter.x, apply_cell_jitter.y);
+      }
+      else if (unified_type == 2) {
+        Value = mx_worley_noise_float(apply_offset, Jitter, style);
+        Color = mx_worley_noise_color(apply_offset, Jitter, style);
+      }
+      else if (unified_type == 3) {
+        point fractal_position = point(apply_offset.x, apply_offset.y, cell_jitter);
+        Value = mx_fbm(fractal_position, octaves, Lacunarity, Diminish);
+        Color = mx_fbm_color(fractal_position, octaves, Lacunarity, Diminish);
+      }
+      else {
+        Value = noise("snoise", apply_cell_jitter.x, apply_cell_jitter.y) * 0.5 + 0.5;
+        Color = (color)noise("snoise", apply_cell_jitter.x, apply_cell_jitter.y) * 0.5 + 0.5;
+      }
+    }
+    else {
+      vector apply_offset = vector(Vector[0], Vector[1], Vector[2]) * Frequency + Offset;
+      vector apply_cell_jitter = mx_rotate3d(apply_offset, cell_jitter);
+      if (unified_type == 1) {
+        Value = cellnoise(apply_cell_jitter);
+        Color = (color)cellnoise(apply_cell_jitter);
+      }
+      else if (unified_type == 2) {
+        Value = mx_worley_noise_float(apply_offset, Jitter, style);
+        Color = mx_worley_noise_color(apply_offset, Jitter, style);
+      }
+      else if (unified_type == 3) {
+        point fractal_position = point(apply_cell_jitter[0],
+                                       apply_cell_jitter[1],
+                                       apply_cell_jitter[2]);
+        Value = mx_fbm(fractal_position, octaves, Lacunarity, Diminish);
+        Color = mx_fbm_color(fractal_position, octaves, Lacunarity, Diminish);
+      }
+      else {
+        point perlin_position = point(apply_cell_jitter[0],
+                                      apply_cell_jitter[1],
+                                      apply_cell_jitter[2]);
+        Value = noise("snoise", perlin_position) * 0.5 + 0.5;
+        Color = (color)noise("snoise", perlin_position) * 0.5 + 0.5;
+      }
+    }
+    Value = mx_range_float(Value, OutMin, OutMax, clamp_output);
+    Color = color(mx_range_float(Color[0], OutMin, OutMax, clamp_output),
+                  mx_range_float(Color[1], OutMin, OutMax, clamp_output),
+                  mx_range_float(Color[2], OutMin, OutMax, clamp_output));
+  }
+  else if (noise_type == 2) {
+    if (is_2d) {
+      Value = cellnoise(Vector[0], Vector[1]);
+      Color = (color)cellnoise(Vector[0], Vector[1]);
+    }
+    else {
+      Value = cellnoise(Vector);
+      Color = (color)cellnoise(Vector);
+    }
+  }
+  else if (noise_type == 3) {
+    if (is_2d) {
+      vector2 p = vector2(Vector[0], Vector[1]);
+      Value = mx_worley_noise_float(p, Jitter, style);
+      Color = mx_worley_noise_color(p, Jitter, style);
+    }
+    else {
+      Value = mx_worley_noise_float(vector(Vector[0], Vector[1], Vector[2]), Jitter, style);
+      Color = mx_worley_noise_color(vector(Vector[0], Vector[1], Vector[2]), Jitter, style);
+    }
+  }
+  else if (noise_type == 1) {
+    if (is_2d) {
+      Value = mx_fbm(Vector[0], Vector[1], octaves, Lacunarity, Diminish);
+      Color = mx_fbm_color(Vector[0], Vector[1], octaves, Lacunarity, Diminish);
+    }
+    else {
+      Value = mx_fbm(Vector, octaves, Lacunarity, Diminish);
+      Color = mx_fbm_color(Vector, octaves, Lacunarity, Diminish);
+    }
+    Value *= Amplitude;
+    Color *= Amplitude;
+  }
+  else {
+    if (is_2d) {
+      Value = noise("snoise", Vector[0], Vector[1]);
+      Color = (color)noise("snoise", Vector[0], Vector[1]);
+    }
+    else {
+      Value = noise("snoise", Vector);
+      Color = (color)noise("snoise", Vector);
+    }
+    Value = Value * Amplitude + Pivot;
+    Color = Color * Amplitude + Pivot;
+  }
+}

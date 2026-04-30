@@ -699,6 +699,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_tex_gradient.glsl
   shaders/material/gpu_shader_material_tex_image.glsl
   shaders/material/gpu_shader_material_tex_magic.glsl
+  shaders/material/gpu_shader_material_tex_mx_noise.glsl
   shaders/material/gpu_shader_material_tex_noise.glsl
   shaders/material/gpu_shader_material_tex_sky.glsl
   shaders/material/gpu_shader_material_texture_coordinates.glsl

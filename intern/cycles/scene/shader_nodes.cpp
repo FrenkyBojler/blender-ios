@@ -1577,9 +1577,11 @@ void MxNoiseTextureNode::compile(SVMCompiler &compiler)
                     });
 }
 
-void MxNoiseTextureNode::compile(OSLCompiler & /*compiler*/)
+void MxNoiseTextureNode::compile(OSLCompiler &compiler)
 {
-  /* The fidelity renderer uses Cycles SVM. Add an OSL implementation before enabling this path. */
+  compiler.parameter(this, "dimensions");
+  compiler.parameter(this, "noise_type");
+  compiler.add(this, "node_mx_noise_texture");
 }
 
 /* Wave Texture */
