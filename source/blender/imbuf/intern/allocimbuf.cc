@@ -508,7 +508,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   ibuf2->foptions = ibuf1->foptions;
   ibuf2->filepath = ibuf1->filepath;
   ibuf2->fileframe = ibuf1->fileframe;
-  /* Set `malloc` flag. */
   ibuf2->refcounter = 0;
   ibuf2->colormanage_flag = ibuf1->colormanage_flag;
 
