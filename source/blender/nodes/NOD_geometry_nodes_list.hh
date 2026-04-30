@@ -8,6 +8,7 @@
 
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_virtual_array.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_memory_counter_fwd.hh"
 
 #include "NOD_geometry_nodes_list_fwd.hh"
@@ -114,6 +115,10 @@ template<typename T> class List {
  public:
   List();
 
+  template<typename ContainerT>
+    requires std::is_same_v<typename ContainerT::value_type, T>
+  static ListPtr<T> from_container(ContainerT &&container);
+
   /** This is implicitly cast to #GField which is always valid. */
   operator const GList &() const;
 
@@ -127,6 +132,100 @@ template<typename T> class List {
   template<typename Fn> void foreach_for_write(Fn &&fn);
 };
 
+class GListPtr {
+ private:
+  ImplicitSharingPtr<GList> data_;
+
+ public:
+  GListPtr() = default;
+  explicit GListPtr(const GList *data) : data_(data) {}
+  explicit GListPtr(const CPPType &type) : GListPtr(MEM_new<GList>(__func__, type)) {}
+
+  operator bool() const
+  {
+    return data_;
+  }
+
+  const GList *operator->() const
+  {
+    return data_.get();
+  }
+
+  const GList &operator*() const
+  {
+    return *data_;
+  }
+
+  const GList *get() const
+  {
+    return data_.get();
+  }
+
+  GList &get_for_write()
+  {
+    BLI_assert(data_);
+    if (!data_->is_mutable()) {
+      *this = data_->copy();
+    }
+    BLI_assert(data_->is_mutable());
+    data_->tag_ensured_mutable();
+    return const_cast<GList &>(*data_);
+  }
+
+  template<typename T> const ListPtr<T> &typed() const
+  {
+    static_assert(sizeof(GList) == sizeof(List<T>));
+    BLI_assert(!data_ || data_->cpp_type().is<T>());
+    return reinterpret_cast<const ListPtr<T> &>(*this);
+  }
+};
+
+template<typename T> class ListPtr {
+ public:
+  using base_type = T;
+  using generic_type = GListPtr;
+
+ private:
+  GListPtr data_;
+
+ public:
+  operator bool() const
+  {
+    return data_;
+  }
+
+  operator const GListPtr &() const
+  {
+    return data_;
+  }
+
+  const List<T> *operator->() const
+  {
+    if (!data_) {
+      return nullptr;
+    }
+    return &data_->typed<T>();
+  }
+
+  const List<T> &operator*() const
+  {
+    return data_->typed<T>();
+  }
+
+  const List<T> &get() const
+  {
+    return data_->typed<T>();
+  }
+
+  List<T> &get_for_write()
+  {
+    return data_.get_for_write().typed<T>();
+  }
+};
+
+template<typename T> constexpr bool is_ListPtr_v = false;
+template<typename T> constexpr bool is_ListPtr_v<ListPtr<T>> = true;
+
 template<typename ContainerT> inline GListPtr GList::from_container(ContainerT &&container)
 {
   using T = typename std::decay_t<ContainerT>::value_type;
@@ -137,6 +236,14 @@ template<typename ContainerT> inline GListPtr GList::from_container(ContainerT &
   array_data.data = sharable_data->data.data();
   array_data.sharing_info = ImplicitSharingPtr<>(sharable_data);
   return GList::create(CPPType::get<T>(), std::move(array_data), sharable_data->data.size());
+}
+
+template<typename T>
+template<typename ContainerT>
+  requires std::is_same_v<typename ContainerT::value_type, T>
+inline ListPtr<T> List<T>::from_container(ContainerT &&container)
+{
+  return GList::from_container(std::forward<ContainerT>(container)).template typed<T>();
 }
 
 inline GList::DataVariant &GList::data()
