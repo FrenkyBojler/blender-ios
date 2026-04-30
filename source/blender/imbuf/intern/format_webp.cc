@@ -155,13 +155,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_webp(ImBuf *ibuf, int fl
 
 bool imb_savewebp(ImBuf *ibuf, const char *filepath, int flags)
 {
-  auto [ctx, file_spec] = prepare_save_webp(ibuf, flags);
+  const auto [ctx, file_spec] = prepare_save_webp(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
 Vector<uint8_t> imb_save_buffer_webp(ImBuf *ibuf, int flags)
 {
-  auto [ctx, file_spec] = prepare_save_webp(ibuf, flags);
+  const auto [ctx, file_spec] = prepare_save_webp(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);
 }
 

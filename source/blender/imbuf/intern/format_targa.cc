@@ -47,13 +47,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_tga(ImBuf *ibuf, int fla
 
 bool imb_save_tga(ImBuf *ibuf, const char *filepath, int flags)
 {
-  auto [ctx, file_spec] = prepare_save_tga(ibuf, flags);
+  const auto [ctx, file_spec] = prepare_save_tga(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
 Vector<uint8_t> imb_save_buffer_tga(ImBuf *ibuf, int flags)
 {
-  auto [ctx, file_spec] = prepare_save_tga(ibuf, flags);
+  const auto [ctx, file_spec] = prepare_save_tga(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);
 }
 

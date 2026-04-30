@@ -1370,11 +1370,9 @@ static bool image_memorypack_imbuf(
     return false;
   }
 
-  uint8_t *encoded_buffer = MEM_new_array_uninitialized<uint8_t>(encoded.size(),
-                                                                 "encoded image buffer");
-  memcpy(encoded_buffer, encoded.data(), encoded.size());
-
-  PackedFile *pf = BKE_packedfile_new_from_memory(encoded_buffer, int(encoded.size()));
+  auto *shared_data = new ImplicitSharedValue<Vector<uint8_t>>(std::move(encoded));
+  PackedFile *pf = BKE_packedfile_new_from_memory(
+      shared_data->data.data(), int(shared_data->data.size()), shared_data);
 
   ImagePackedFile *imapf = MEM_new<ImagePackedFile>("Image PackedFile");
   STRNCPY(imapf->filepath, filepath);

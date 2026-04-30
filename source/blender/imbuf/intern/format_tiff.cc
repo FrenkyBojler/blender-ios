@@ -80,13 +80,13 @@ static std::tuple<WriteContext, ImageSpec> prepare_save_tiff(ImBuf *ibuf, int fl
 
 bool imb_save_tiff(ImBuf *ibuf, const char *filepath, int flags)
 {
-  auto [ctx, file_spec] = prepare_save_tiff(ibuf, flags);
+  const auto [ctx, file_spec] = prepare_save_tiff(ibuf, flags);
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
 Vector<uint8_t> imb_save_buffer_tiff(ImBuf *ibuf, int flags)
 {
-  auto [ctx, file_spec] = prepare_save_tiff(ibuf, flags);
+  const auto [ctx, file_spec] = prepare_save_tiff(ibuf, flags);
   return imb_oiio_write_buffer(ctx, file_spec);
 }
 

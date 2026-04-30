@@ -291,7 +291,7 @@ class IFileStream : public Imf::IStream {
 struct OMemStream : public OStream {
   OMemStream() : OStream("<memory>"), offset(0)
   {
-    buffer.reserve(16 * 1024);
+    buffer.reserve(80 * 1024);
   }
 
   void write(const char c[], int n) override
@@ -751,7 +751,7 @@ Vector<uint8_t> imb_save_buffer_openexr(ImBuf *ibuf, int /*flags*/)
     save_setup_framebuffer(ibuf, half_precision, is_alpha, half_pixels, frameBuffer);
     file.setFrameBuffer(frameBuffer);
     file.writePixels(ibuf->y);
-    return mem_stream.buffer;
+    return std::move(mem_stream.buffer);
   }
   catch (const std::exception &exc) {
     CLOG_ERROR(&LOG, "%s: %s", __func__, exc.what());

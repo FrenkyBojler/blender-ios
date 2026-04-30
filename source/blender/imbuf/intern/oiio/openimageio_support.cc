@@ -37,7 +37,7 @@ namespace imbuf {
 struct MemoryBufferWriter : public Filesystem::IOProxy {
   MemoryBufferWriter() : IOProxy("", Write)
   {
-    buffer.reserve(16 * 1024);
+    buffer.reserve(80 * 1024);
   }
 
   const char *proxytype() const override
@@ -400,7 +400,7 @@ Vector<uint8_t> imb_oiio_write_buffer(const WriteContext &ctx, const ImageSpec &
     return {};
   }
 
-  return writer.buffer;
+  return std::move(writer.buffer);
 }
 
 WriteContext imb_create_write_context(const char *file_format,
