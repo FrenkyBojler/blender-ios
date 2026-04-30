@@ -156,6 +156,15 @@ TEST_F(SocketValueVariantTest, IntListToFloatList)
   EXPECT_EQ(values[4], 5.0f);
 }
 
+TEST_F(SocketValueVariantTest, IntToIntList)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<int>() = 42;
+  const ListPtr<int> &list = s.ensure_type<ListPtr<int>>();
+  /* Implicit conversion from single value to list is not allowed. */
+  EXPECT_FALSE(list);
+}
+
 #ifdef WITH_OPENVDB
 
 TEST_F(SocketValueVariantTest, SimpleVolumeGrid)

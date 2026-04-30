@@ -304,12 +304,11 @@ inline T &SocketValueVariant2::init_default(detail::SocketValueVariantAny &value
       return value.emplace<GField>(base_cpp_type).typed<BaseType>();
     }
     else if constexpr (std::is_same_v<GenericType, GListPtr>) {
-      const CPPType &base_cpp_type = CPPType::get<BaseType>();
-      return value.emplace<GListPtr>(base_cpp_type).typed<BaseType>();
+      return value.emplace<GListPtr>().typed<BaseType>();
     }
 #ifdef WITH_OPENVDB
     else if constexpr (std::is_same_v<GenericType, GVolumeGrid>) {
-      return value.emplace<GVolumeGrid>(GVolumeGrid{}).typed<BaseType>();
+      return value.emplace<GVolumeGrid>().typed<BaseType>();
     }
 #endif
   }
