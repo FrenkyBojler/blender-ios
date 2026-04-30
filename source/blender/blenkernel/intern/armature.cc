@@ -13,7 +13,6 @@
 #include <cstring>
 #include <limits>
 #include <optional>
-#include <utility>
 
 #include "BLI_alloca.h"
 #include "BLI_assert.h"

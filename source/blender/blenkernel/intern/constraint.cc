@@ -178,7 +178,7 @@ bConstraintOb *BKE_constraints_make_evalob(
       if (ob && subdata) {
         cob->ob = ob;
         cob->pchan = static_cast<bPoseChannel *>(subdata);
-        cob->pchan_bone = cob->pchan ? cob->pchan->bone_get(*ob) : nullptr;
+        cob->pchan_armbone = cob->pchan ? cob->pchan->bone_get(*ob) : nullptr;
         cob->type = datatype;
 
         if (cob->pchan->rotmode > 0) {
@@ -2695,10 +2695,10 @@ static void armdef_evaluate(bConstraint *con,
   bool use_envelopes = (data->flag & CONSTRAINT_ARMATURE_ENVELOPE) != 0;
 
   float input_co[3];
-  if (cob->pchan && cob->pchan_bone && !(data->flag & CONSTRAINT_ARMATURE_CUR_LOCATION)) {
+  if (cob->pchan && cob->pchan_armbone && !(data->flag & CONSTRAINT_ARMATURE_CUR_LOCATION)) {
     /* For constraints on bones, use the rest position to bind b-bone segments
      * and envelopes, to allow safely changing the bone location as if parented. */
-    copy_v3_v3(input_co, cob->pchan_bone->arm_head);
+    copy_v3_v3(input_co, cob->pchan_armbone->arm_head);
     mul_m4_v3(cob->ob->object_to_world().ptr(), input_co);
   }
   else {

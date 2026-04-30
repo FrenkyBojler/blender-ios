@@ -35,7 +35,7 @@ struct bConstraintOb {
   /** pose channel that owns the constraints being evaluated */
   struct bPoseChannel *pchan;
   /** Armature bone of the above pchan. */
-  struct Bone *pchan_bone;
+  struct Bone *pchan_armbone;
 
   /** matrix where constraints are accumulated + solved */
   float matrix[4][4];
