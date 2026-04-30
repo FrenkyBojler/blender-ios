@@ -79,7 +79,7 @@ struct [[host_shared]] gpMaterial {
   /** NOTE(@fclem): Needs floatBitsToUint(). */
 #  define _flag packed2.w
 #endif
-  /** .z: bits 0-15 saturation (16-bit), bits 16-23 value (8-bit), bits 24-31 pre-hashed seed (8-bit). */
+  /** .z: bits 0-15 saturation (16-bit), bits 16-23 value (8-bit), bits 24-31 hashed seed (8-bit). */
   uint4 random_packed;
 };
 

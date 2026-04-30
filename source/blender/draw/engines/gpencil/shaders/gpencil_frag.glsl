@@ -120,6 +120,7 @@ struct RandomParameters {
   float random_value;
 
   float random_noise_scale;
+  float random_seed_offset;
 };
 
 RandomParameters unpack_random(uint4 random_packed)
@@ -132,7 +133,8 @@ RandomParameters unpack_random(uint4 random_packed)
           unpacked_y.y,
           unpackUnorm2x16(random_packed.z).x,
           float((random_packed.z >> 16u) & 0xFFu) / 255.0f,
-          uintBitsToFloat(random_packed.w)};
+          uintBitsToFloat(random_packed.w),
+          float(random_packed.z >> 24u) * (65536.0f / 255.0f)};
 }
 
 float simple_noise(float x)
@@ -152,8 +154,7 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
   RandomParameters Parameters = unpack_random(gp_materials[matid].random_packed);
 
-  float seed_offset = float(gp_materials[matid].random_packed.z >> 24u) * (65536.0f / 255.0f);
-  float noise_x = float(i) * Parameters.random_noise_scale + seed_offset;
+  float noise_x = float(i) * Parameters.random_noise_scale + Parameters.random_seed_offset;
 
   if (Parameters.random_rotation > 0.0f || Parameters.random_size > 0.0f) {
     float rand_rot = noise_level_2(noise_x + 69637.532f);
