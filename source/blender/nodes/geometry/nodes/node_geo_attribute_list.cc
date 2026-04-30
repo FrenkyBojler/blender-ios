@@ -114,7 +114,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   parallel_sort(
       names.begin(), names.end(), [](const StringRef &a, const StringRef &b) { return a < b; });
 
-  params.set_output("Names"_ustr, List::from_container(names));
+  params.set_output("Names"_ustr, GList::from_container(names));
 }
 
 static void node_rna(StructRNA *srna)

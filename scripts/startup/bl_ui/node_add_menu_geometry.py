@@ -12,12 +12,11 @@ from bpy.app.translations import (
 class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
     bl_label = "Attribute"
 
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "GeometryNodeAttributeStatistic")
-        node_add_menu.add_node_type(layout, "GeometryNodeAttributeDomainSize")
-        if context.preferences.experimental.use_geometry_nodes_lists:
-            node_add_menu.add_node_type(layout, "GeometryNodeAttributeList")
+        self.node_operator(layout, "GeometryNodeAttributeStatistic")
+        self.node_operator(layout, "GeometryNodeAttributeDomainSize")
+        self.node_operator(layout, "GeometryNodeAttributeList")
         layout.separator()
         self.node_operator(layout, "GeometryNodeBlurAttribute")
         self.node_operator(layout, "GeometryNodeCaptureAttribute")
