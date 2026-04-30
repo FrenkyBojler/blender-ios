@@ -58,10 +58,6 @@ ccl_device_template_spec float2 volume_attribute_value(const float4 /*value*/)
 
 ccl_device_template_spec float3 volume_attribute_value(const float4 value)
 {
-  if (value.w > 1e-6f && value.w != 1.0f) {
-    /* For RGBA colors, unpremultiply after interpolation. */
-    return make_float3(value) / value.w;
-  }
   return make_float3(value);
 }
 
@@ -109,7 +105,12 @@ ccl_device float4 volume_attribute_float4(KernelGlobals kg,
     object_inverse_position_transform(kg, sd, &P);
     const InterpolationType interp = (sd->flag & SD_VOLUME_CUBIC) ? INTERPOLATION_CUBIC :
                                                                     INTERPOLATION_NONE;
-    return kernel_image_interp_3d(kg, sd, desc.offset, P, interp, stochastic);
+    const float4 value = kernel_image_interp_3d(kg, sd, desc.offset, P, interp, stochastic);
+    if (value.w > 1e-6f && value.w != 1.0f) {
+      /* For RGBA colors, unpremultiply after interpolation. */
+      return make_float4(make_float3(value) / value.w, value.w);
+    }
+    return value;
   }
   return zero_float4();
 }
