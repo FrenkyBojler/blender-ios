@@ -440,6 +440,8 @@ class Context : public compositor::Context {
       cached_gpu_passes_.append(pass_texture);
     }
     else {
+      /* Don't assume render will keep pass data stored, add our own reference. */
+      IMB_refImBuf(render_pass->ibuf);
       pass_data.share_data(render_pass->ibuf->float_buffer.data,
                            int2(render_pass->ibuf->x, render_pass->ibuf->y),
                            render_pass->ibuf->float_buffer.sharing_info.get());
