@@ -143,6 +143,7 @@ set(SRC
   NOD_inverse_eval_params.hh
   NOD_inverse_eval_path.hh
   NOD_inverse_eval_run.hh
+  NOD_list_function_eval.hh
   NOD_math_functions.hh
   NOD_menu_value.hh
   NOD_multi_function.hh
@@ -172,7 +173,6 @@ set(SRC
   NOD_trace_values.hh
   NOD_value_elem.hh
   NOD_value_elem_eval.hh
-  intern/list_function_eval.hh
   intern/node_common.h
   intern/node_exec.hh
   intern/node_util.hh

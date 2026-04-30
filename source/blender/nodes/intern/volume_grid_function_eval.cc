@@ -8,7 +8,7 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_multi_function_eval.hh"
 
-#include "BLT_translation.hh"
+#include "BLT_translation.hh"  // IWYU pragma: keep
 
 #include "volume_grid_function_eval.hh"
 
@@ -28,7 +28,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
 
   const int inputs_num = input_values.size();
 
-  Vector<bke::volume_grid::multi_function_eval::InputVariant> inputs(inputs_num);
+  Array<bke::volume_grid::multi_function_eval::InputVariant> inputs(inputs_num);
   Array<bke::volume_grid::GVolumeGrid> input_grids(inputs_num);
   Array<std::optional<GField>> input_fields(inputs_num);
   Array<bke::VolumeTreeAccessToken> input_tree_tokens(inputs_num);

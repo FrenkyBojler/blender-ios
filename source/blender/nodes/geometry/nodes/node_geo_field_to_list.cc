@@ -13,7 +13,7 @@
 
 #include "RNA_prototypes.hh"
 
-#include "list_function_eval.hh"
+#include "NOD_list_function_eval.hh"
 
 #include "node_geometry_util.hh"
 
@@ -147,7 +147,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                       count};
   }
 
-  ListFieldContext context;
+  list::multi_function_eval::ListFieldContext context;
   fn::FieldEvaluator evaluator{context, count};
   for (const int i : fields.index_range()) {
     GMutableSpan values(lists[i]->cpp_type(),

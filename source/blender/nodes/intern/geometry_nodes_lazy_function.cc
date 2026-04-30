@@ -60,7 +60,7 @@
 
 #include "GEO_foreach_geometry.hh"
 
-#include "list_function_eval.hh"
+#include "NOD_list_function_eval.hh"
 #include "volume_grid_function_eval.hh"
 
 #include <fmt/format.h>
@@ -529,7 +529,7 @@ static void execute_multi_function_on_value_variant__field(
         fn, input_values, output_values, r_error_message);
   }
   if (any_input_is_list) {
-    execute_multi_function_on_value_variant__list(fn, input_values, output_values, user_data);
+    execute_multi_function_on_value_variant__list(fn, input_values, output_values);
     return true;
   }
   if (any_input_is_field) {
