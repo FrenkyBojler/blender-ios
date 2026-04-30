@@ -141,43 +141,14 @@ class GListPtr {
   explicit GListPtr(const GList *data) : data_(data) {}
   explicit GListPtr(const CPPType &type) : GListPtr(MEM_new<GList>(__func__, type)) {}
 
-  operator bool() const
-  {
-    return data_;
-  }
+  operator bool() const;
+  const GList *operator->() const;
+  const GList &operator*() const;
 
-  const GList *operator->() const
-  {
-    return data_.get();
-  }
+  const GList *get() const;
+  GList &get_for_write();
 
-  const GList &operator*() const
-  {
-    return *data_;
-  }
-
-  const GList *get() const
-  {
-    return data_.get();
-  }
-
-  GList &get_for_write()
-  {
-    BLI_assert(data_);
-    if (!data_->is_mutable()) {
-      *this = data_->copy();
-    }
-    BLI_assert(data_->is_mutable());
-    data_->tag_ensured_mutable();
-    return const_cast<GList &>(*data_);
-  }
-
-  template<typename T> const ListPtr<T> &typed() const
-  {
-    static_assert(sizeof(GList) == sizeof(List<T>));
-    BLI_assert(!data_ || data_->cpp_type().is<T>());
-    return reinterpret_cast<const ListPtr<T> &>(*this);
-  }
+  template<typename T> const ListPtr<T> &typed() const;
 };
 
 template<typename T> class ListPtr {
@@ -189,38 +160,13 @@ template<typename T> class ListPtr {
   GListPtr data_;
 
  public:
-  operator bool() const
-  {
-    return data_;
-  }
+  operator bool() const;
+  operator const GListPtr &() const;
+  const List<T> *operator->() const;
+  const List<T> &operator*() const;
 
-  operator const GListPtr &() const
-  {
-    return data_;
-  }
-
-  const List<T> *operator->() const
-  {
-    if (!data_) {
-      return nullptr;
-    }
-    return &data_->typed<T>();
-  }
-
-  const List<T> &operator*() const
-  {
-    return data_->typed<T>();
-  }
-
-  const List<T> &get() const
-  {
-    return data_->typed<T>();
-  }
-
-  List<T> &get_for_write()
-  {
-    return data_.get_for_write().typed<T>();
-  }
+  const List<T> &get() const;
+  List<T> &get_for_write();
 };
 
 template<typename T> constexpr bool is_ListPtr_v = false;
@@ -337,6 +283,77 @@ template<typename T> template<typename Fn> inline void List<T>::foreach_for_writ
   else if (auto *single_value = std::get_if<T *>(&values)) {
     fn(**single_value);
   }
+}
+
+inline GListPtr::operator bool() const
+{
+  return data_;
+}
+
+inline const GList *GListPtr::operator->() const
+{
+  return data_.get();
+}
+
+inline const GList &GListPtr::operator*() const
+{
+  return *data_;
+}
+
+inline const GList *GListPtr::get() const
+{
+  return data_.get();
+}
+
+inline GList &GListPtr::get_for_write()
+{
+  BLI_assert(data_);
+  if (!data_->is_mutable()) {
+    *this = data_->copy();
+  }
+  BLI_assert(data_->is_mutable());
+  data_->tag_ensured_mutable();
+  return const_cast<GList &>(*data_);
+}
+
+template<typename T> inline const ListPtr<T> &GListPtr::typed() const
+{
+  static_assert(sizeof(GList) == sizeof(List<T>));
+  BLI_assert(!data_ || data_->cpp_type().is<T>());
+  return reinterpret_cast<const ListPtr<T> &>(*this);
+}
+
+template<typename T> inline ListPtr<T>::operator bool() const
+{
+  return data_;
+}
+
+template<typename T> inline ListPtr<T>::operator const GListPtr &() const
+{
+  return data_;
+}
+
+template<typename T> inline const List<T> *ListPtr<T>::operator->() const
+{
+  if (!data_) {
+    return nullptr;
+  }
+  return &data_->typed<T>();
+}
+
+template<typename T> inline const List<T> &ListPtr<T>::operator*() const
+{
+  return data_->typed<T>();
+}
+
+template<typename T> inline const List<T> &ListPtr<T>::get() const
+{
+  return data_->typed<T>();
+}
+
+template<typename T> inline List<T> &ListPtr<T>::get_for_write()
+{
+  return data_.get_for_write().typed<T>();
 }
 
 }  // namespace blender::nodes
