@@ -19,7 +19,9 @@ namespace blender::bke {
 using fn::Field;
 using fn::GField;
 using nodes::GList;
+using nodes::GListPtr;
 using nodes::List;
+using nodes::ListPtr;
 using volume_grid::GVolumeGrid;
 
 namespace detail {
@@ -84,6 +86,48 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     void *dst_value = SocketValueVariant2::allocate(dst_type, value);
     fns->convert_single_to_uninitialized(src_single_value, dst_value);
     src_base_type.destruct(src_single_value);
+    return;
+  }
+  else if constexpr (std::is_same_v<CurrentT, GListPtr>) {
+    GListPtr &src_list = value.get<GListPtr>();
+    if (dst_type.generic_type && dst_type.generic_type->is<GListPtr>()) {
+      if (!src_list) {
+        /* Nothing to do. */
+        return;
+      }
+      const CPPType &src_base_type = src_list->cpp_type();
+      if (src_base_type == *dst_type.base_type) {
+        /* Nothing to do. */
+        return;
+      }
+      const ConversionFunctions *fns = conversions.get_conversion_functions(src_base_type,
+                                                                            *dst_type.base_type);
+      if (!fns || !fns->multi_function || !fns->convert_single_to_uninitialized) {
+        SocketValueVariant2::init_default(dst_type, value);
+        return;
+      }
+      const int64_t size = src_list->size();
+      const std::variant<GSpan, GPointer> src_values = src_list->values();
+      if (const auto *src_span = std::get_if<GSpan>(&src_values)) {
+        GArray<> dst_values(*dst_type.base_type, size, NoInitialization{});
+        IndexMask mask{size};
+        mf::ParamsBuilder params{*fns->multi_function, &mask};
+        params.add_readonly_single_input(*src_span);
+        params.add_uninitialized_single_output(dst_values);
+        mf::ContextBuilder context;
+        fns->multi_function->call_auto(mask, params, context);
+        src_list = GList::from_garray(std::move(dst_values));
+        return;
+      }
+      if (const auto *src_single_value = std::get_if<GPointer>(&src_values)) {
+        BUFFER_FOR_CPP_TYPE_VALUE(*dst_type.base_type, dst_single_value);
+        fns->convert_single_to_uninitialized(src_single_value->get(), dst_single_value);
+        src_list = GList::from_single({*dst_type.base_type, dst_single_value}, size);
+        dst_type.base_type->destruct(dst_single_value);
+        return;
+      }
+    }
+    SocketValueVariant2::init_default(dst_type, value);
     return;
   }
 #ifdef WITH_OPENVDB
@@ -190,6 +234,23 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
     }
     return false;
   }
+  else if constexpr (std::is_same_v<CurrentT, GListPtr>) {
+    if (dst_type.is<GListPtr>()) {
+      return true;
+    }
+    if (!dst_type.generic_type) {
+      return false;
+    }
+    if (dst_type.generic_type->is<GListPtr>()) {
+      const GListPtr &list_ptr = value.get<GListPtr>();
+      if (!list_ptr) {
+        return true;
+      }
+      const CPPType &base_type = list_ptr->cpp_type();
+      return base_type == *dst_type.base_type;
+    }
+    return false;
+  }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<CurrentT, GVolumeGrid>) {
     if (dst_type.is<GVolumeGrid>()) {
@@ -209,9 +270,7 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
     return false;
   }
 #endif
-  else if constexpr (std::is_same_v<CurrentT, GList>) {
-    return dst_type.is<GList>();
-  }
+
   else {
     return CPPType::get<CurrentT>() == dst_type;
   }
@@ -226,6 +285,7 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
 DEFINE_TYPE(int)
 DEFINE_TYPE(float)
 DEFINE_TYPE(GField)
+DEFINE_TYPE(GListPtr)
 
 #ifdef WITH_OPENVDB
 DEFINE_TYPE(volume_grid::GVolumeGrid)
@@ -242,6 +302,10 @@ inline T &SocketValueVariant2::init_default(detail::SocketValueVariantAny &value
     if constexpr (std::is_same_v<GenericType, GField>) {
       const CPPType &base_cpp_type = CPPType::get<BaseType>();
       return value.emplace<GField>(base_cpp_type).typed<BaseType>();
+    }
+    else if constexpr (std::is_same_v<GenericType, GListPtr>) {
+      const CPPType &base_cpp_type = CPPType::get<BaseType>();
+      return value.emplace<GListPtr>(base_cpp_type).typed<BaseType>();
     }
 #ifdef WITH_OPENVDB
     else if constexpr (std::is_same_v<GenericType, GVolumeGrid>) {
@@ -280,6 +344,15 @@ void *SocketValueVariant2::init_default(const CPPType &type, detail::SocketValue
   if (type.is<Field<float>>()) {
     return &SocketValueVariant2::init_default<Field<float>>(value);
   }
+  if (type.is<GListPtr>()) {
+    return &SocketValueVariant2::init_default<GListPtr>(value);
+  }
+  if (type.is<ListPtr<int>>()) {
+    return &SocketValueVariant2::init_default<ListPtr<int>>(value);
+  }
+  if (type.is<ListPtr<float>>()) {
+    return &SocketValueVariant2::init_default<ListPtr<float>>(value);
+  }
 #ifdef WITH_OPENVDB
   if (type.is<GVolumeGrid>()) {
     return &SocketValueVariant2::init_default<GVolumeGrid>(value);
@@ -304,6 +377,9 @@ void *SocketValueVariant2::allocate(const CPPType &type, detail::SocketValueVari
   }
   if (type.is<GField>()) {
     return value.allocate<GField>();
+  }
+  if (type.is<GListPtr>()) {
+    return value.allocate<GListPtr>();
   }
 #ifdef WITH_OPENVDB
   if (type.is<GVolumeGrid>()) {

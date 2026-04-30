@@ -9,6 +9,8 @@
 #include "FN_field.hh"
 #include "FN_field_evaluation.hh"
 
+#include "NOD_geometry_nodes_list.hh"
+
 #ifdef WITH_OPENVDB
 #  include <openvdb/Grid.h>
 #endif
@@ -16,6 +18,11 @@
 #include "testing/testing.h"
 
 namespace blender::bke::tests {
+
+using nodes::GList;
+using nodes::GListPtr;
+using nodes::List;
+using nodes::ListPtr;
 
 class SocketValueVariantTest : public BlenderGTestBase {};
 
@@ -121,6 +128,32 @@ TEST_F(SocketValueVariantTest, IndexFieldToFloatField)
   EXPECT_EQ(values[2], 2.0f);
   EXPECT_EQ(values[3], 3.0f);
   EXPECT_EQ(values[4], 4.0f);
+}
+
+TEST_F(SocketValueVariantTest, SimpleList)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<ListPtr<int>>() = List<int>::from_container(Vector<int>{1, 2, 3, 4, 5});
+  VArray<int> values = s.ensure_type<ListPtr<int>>()->varray();
+  EXPECT_EQ(values.size(), 5);
+  EXPECT_EQ(values[0], 1);
+  EXPECT_EQ(values[1], 2);
+  EXPECT_EQ(values[2], 3);
+  EXPECT_EQ(values[3], 4);
+  EXPECT_EQ(values[4], 5);
+}
+
+TEST_F(SocketValueVariantTest, IntListToFloatList)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<ListPtr<int>>() = List<int>::from_container(Vector<int>{1, 2, 3, 4, 5});
+  VArray<float> values = s.ensure_type<ListPtr<float>>()->varray();
+  EXPECT_EQ(values.size(), 5);
+  EXPECT_EQ(values[0], 1.0f);
+  EXPECT_EQ(values[1], 2.0f);
+  EXPECT_EQ(values[2], 3.0f);
+  EXPECT_EQ(values[3], 4.0f);
+  EXPECT_EQ(values[4], 5.0f);
 }
 
 #ifdef WITH_OPENVDB

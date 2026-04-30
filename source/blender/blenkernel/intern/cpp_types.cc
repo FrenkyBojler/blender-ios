@@ -60,6 +60,10 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(fn::Field<int>, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(fn::Field<float>, CPPTypeFlags::None);
 
+  BLI_CPP_TYPE_REGISTER(nodes::GListPtr, CPPTypeFlags::None);
+  BLI_CPP_TYPE_REGISTER(nodes::ListPtr<int>, CPPTypeFlags::None);
+  BLI_CPP_TYPE_REGISTER(nodes::ListPtr<float>, CPPTypeFlags::None);
+
 #ifdef WITH_OPENVDB
   BLI_CPP_TYPE_REGISTER(bke::volume_grid::GVolumeGrid, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(bke::volume_grid::VolumeGrid<int>, CPPTypeFlags::None);
