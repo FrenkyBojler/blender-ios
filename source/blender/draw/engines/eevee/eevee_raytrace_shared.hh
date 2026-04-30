@@ -51,7 +51,7 @@ struct [[host_shared]] ScreenThicknessParameters {
   }
 
   /* Return the depth buffer Z thickness of a pixel at a given view space Z depth. */
-  float pixel_depth_thickness_at(float vs_z)
+  float pixel_depth_thickness_at(float vs_z) const
   {
     float vs_thickness = vs_z * thickness_vs_scale + thickness_vs_bias;
     /* NDC offset from view space offset.

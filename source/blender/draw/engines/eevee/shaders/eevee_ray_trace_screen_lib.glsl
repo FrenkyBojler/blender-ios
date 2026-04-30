@@ -284,7 +284,7 @@ float raytrace_screen_2(const float3 vs_origin,
                         const float3 vs_end,
                         const float3 vs_direction,
                         sampler2D hiz_tx,
-                        const float thickness,
+                        const RayTraceData rt_data,
                         const int max_steps,
                         const float jitter,
                         usampler2D ob_id_tx,
@@ -292,12 +292,9 @@ float raytrace_screen_2(const float3 vs_origin,
                         float2 &r_hit_uv)
 {
   /* Convert ray start and end into NDC for correct interpolation. */
-  float4 start, end;
+  float3 start, end;
   start.xyz = drw_point_view_to_screen(vs_origin);
   end.xyz = drw_point_view_to_screen(vs_end);
-  /* W stores Z - thickness (Note that view space forward is -Z). */
-  start.w = drw_depth_view_to_screen(min(vs_origin.z + thickness, drw_view_near()));
-  end.w = drw_depth_view_to_screen(min(vs_end.z + thickness, drw_view_near()));
 
 #if 0
   /* TODO: This should be the correct code but it currently fails when rendering probes.
@@ -317,20 +314,23 @@ float raytrace_screen_2(const float3 vs_origin,
   steps = min(steps, max_steps);
 
   /* Per-step delta. */
-  const float4 delta = (end - start) / float(steps);
+  const float3 delta = (end - start) / float(steps);
 
   const float max_t = max(steps - 1, 1);
   const bool forward = end.z > start.z;
   float previous_step_z = start.z;
 
+  ScreenThicknessEstimator thickness_estimator = ScreenThicknessEstimator::init(start.z);
+
   /* Skip the first step to avoid self-occlusion. But iterate at least once. */
   for (int i = 1; i < steps || i == 1; i++) {
     /* Ensure we don't go past ray end. */
     const float step_t = min(float(i) + jitter, max_t);
-    const float4 step = start + delta * step_t;
+    const float3 step = start + delta * step_t;
 
     const float2 texel = step.xy * extent;
     if (object_id != 0 && object_id != texelFetch(ob_id_tx, int2(texel), 0).r) {
+      thickness_estimator.thickness(1.0f, step_t, 0.0f);
       previous_step_z = step.z;
       continue;
     }
@@ -351,15 +351,18 @@ float raytrace_screen_2(const float3 vs_origin,
     const float hit_max_z = max(hit_depth_point, hit_depth_linear);
 
     /* Ensure the allowed depth range is not lower than the step delta. */
-    const float min_z = forward ? min(step.w, previous_step_z) : step.w;
+    const float min_z = forward ? min(step.z, previous_step_z) : step.z;
     const float max_z = forward ? step.z : max(step.z, previous_step_z);
 
-    // previous_step_z = step.z;
-    /* Using step.z is more "correct", but step.w mitigates missed hits against planes
-     * with normals symmetrical to the ray direction. */
-    previous_step_z = forward ? step.w : step.z;
+    float sample_view_Z = drw_depth_screen_to_view(hit_depth_point);
+    float sample_ndc_min_thickness = rt_data.ray_thickness.pixel_depth_thickness_at(sample_view_Z);
 
-    if (max_z >= hit_max_z && min_z <= hit_min_z) {
+    bool hit = thickness_estimator.intersect(
+        hit_depth_point, step_t, sample_ndc_min_thickness, step.z, previous_step_z);
+
+    previous_step_z = step.z;
+
+    if (hit) {
       r_hit_uv = step.xy;
       /* We have a hit. Compute the distance. */
       const float3 vs_hit_point = drw_point_screen_to_view(float3(step.xy, hit_depth_point));
