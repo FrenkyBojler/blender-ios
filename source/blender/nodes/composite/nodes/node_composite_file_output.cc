@@ -603,12 +603,12 @@ class FileOutputOperation : public NodeOperation {
       }
       else {
         if (result.sharing_info()) {
-          buffer = result.cpu_data().typed<float>().data();
+          buffer = static_cast<const float *>(result.cpu_data().data());
           sharing_info = result.sharing_info();
         }
         else {
           auto *new_data = new ImplicitSharedValue<GArray<>>(result.cpu_data());
-          buffer = new_data->data.as_span().typed<float>().data();
+          buffer = static_cast<const float *>(new_data->data.data());
           sharing_info = new_data;
         }
       }
@@ -729,12 +729,12 @@ class FileOutputOperation : public NodeOperation {
     }
     else {
       if (result.sharing_info()) {
-        buffer = result.cpu_data().typed<float>().data();
+        buffer = static_cast<const float *>(result.cpu_data().data());
         sharing_info = result.sharing_info();
       }
       else {
         auto *new_data = new ImplicitSharedValue<GArray<>>(result.cpu_data());
-        buffer = new_data->data.as_span().typed<float>().data();
+        buffer = static_cast<const float *>(new_data->data.data());
         sharing_info = new_data;
       }
     }

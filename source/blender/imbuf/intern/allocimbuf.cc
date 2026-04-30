@@ -55,13 +55,16 @@ bool imb_alloc_buffer(BufferType &buffer,
 
 uint8_t *ImBuf::byte_data_for_write()
 {
+  if (!this->byte_buffer.data) {
+    return nullptr;
+  }
   if (this->byte_buffer.sharing_info->is_mutable()) {
     this->byte_buffer.sharing_info->tag_ensured_mutable();
   }
   else {
-    const size_t size = size_t(this->x) * size_t(this->y) * this->channels;
+    const size_t size = size_t(this->x) * size_t(this->y) * 4;
     uint8_t *new_data = MEM_new_array_uninitialized<uint8_t>(size, __func__);
-    memcpy(new_data, this->byte_buffer.data, size);
+    std::copy_n(this->byte_buffer.data, size, new_data);
     this->byte_buffer.data = new_data;
     this->byte_buffer.sharing_info = ImplicitSharingPtr<>(
         implicit_sharing::info_for_mem_free(new_data));
@@ -71,13 +74,18 @@ uint8_t *ImBuf::byte_data_for_write()
 
 float *ImBuf::float_data_for_write()
 {
+  if (!this->float_buffer.data) {
+    return nullptr;
+  }
   if (this->float_buffer.sharing_info->is_mutable()) {
     this->float_buffer.sharing_info->tag_ensured_mutable();
   }
   else {
-    const size_t size = size_t(this->x) * size_t(this->y) * this->channels;
+    /* Channels seems to have a default of 4. */
+    const int channels = this->channels == 0 ? 4 : this->channels;
+    const size_t size = size_t(this->x) * size_t(this->y) * channels;
     float *new_data = MEM_new_array_uninitialized<float>(size, __func__);
-    memcpy(new_data, this->float_buffer.data, size);
+    std::copy_n(this->float_buffer.data, size, new_data);
     this->float_buffer.data = new_data;
     this->float_buffer.sharing_info = ImplicitSharingPtr<>(
         implicit_sharing::info_for_mem_free(new_data));
@@ -236,13 +244,17 @@ void ImBuf::assign_float_data(float *data)
 void ImBuf::assign_byte_data(const uint8_t *data, const ImplicitSharingInfo *sharing_info)
 {
   this->byte_buffer.data = data;
+  sharing_info->add_user();
   this->byte_buffer.sharing_info = ImplicitSharingPtr<>(sharing_info);
+  this->flags |= IB_byte_data;
 }
 
 void ImBuf::assign_float_data(const float *data, const ImplicitSharingInfo *sharing_info)
 {
   this->float_buffer.data = data;
+  sharing_info->add_user();
   this->float_buffer.sharing_info = ImplicitSharingPtr<>(sharing_info);
+  this->flags |= IB_float_data;
 }
 
 void IMB_assign_gpu_texture(ImBuf *ibuf, gpu::Texture *texture)
