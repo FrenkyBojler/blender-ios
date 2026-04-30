@@ -1502,9 +1502,6 @@ static void rna_UserDef_studiolight_light_ambient_get(PointerRNA *ptr, float *va
   copy_v3_v3(values, sl->light_ambient);
 }
 
-/* Persistant storage for the date_pattern_sample text. */
-static std::string date_format_names[10];
-
 static const EnumPropertyItem *rna_userdef_date_format_itemf(bContext * /*C*/,
                                                              PointerRNA * /*ptr*/,
                                                              PropertyRNA * /*prop*/,
@@ -1512,6 +1509,7 @@ static const EnumPropertyItem *rna_userdef_date_format_itemf(bContext * /*C*/,
 {
   int totitem = 0;
   EnumPropertyItem *result = nullptr;
+  static std::string date_format_names[10];
   const char *lang = BLT_lang_get();
   for (int i = 0; rna_enum_date_format_items[i].identifier != nullptr; i++) {
     const EnumPropertyItem *item = &rna_enum_date_format_items[i];
