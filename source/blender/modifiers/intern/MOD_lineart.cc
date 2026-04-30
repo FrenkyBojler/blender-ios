@@ -231,7 +231,7 @@ static bool is_camera_supported(const GreasePencilLineartModifierData *ld, const
     camera = scene->camera;
   }
   if (!camera) {
-    return 0;
+    return false;
   }
   Camera *camera_data = reinterpret_cast<Camera *>(camera->data);
   return ELEM(camera_data->type, CAM_PERSP, CAM_ORTHO);
