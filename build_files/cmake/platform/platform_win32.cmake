@@ -414,6 +414,10 @@ if(WITH_LIBMV)
   find_package(Ceres REQUIRED CONFIG)
 endif()
 
+if(WITH_DRACO)
+  find_package(draco REQUIRED CONFIG)
+endif()
+
 if(WITH_MESHOPTIMIZER)
   find_package(meshoptimizer REQUIRED CONFIG)
 endif()

@@ -373,6 +373,10 @@ add_bundled_libraries(ceres/lib)
 set(ZSTD_ROOT_DIR ${LIBDIR}/zstd)
 find_package(Zstd REQUIRED)
 
+if(WITH_DRACO)
+  find_package(draco REQUIRED CONFIG)
+endif()
+
 if(WITH_MESHOPTIMIZER)
   find_package(meshoptimizer REQUIRED CONFIG)
 endif()

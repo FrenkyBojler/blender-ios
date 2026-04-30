@@ -670,6 +670,11 @@ if(WITH_LIBMV)
 endif()
 add_bundled_libraries(ceres/lib)
 
+if(WITH_DRACO)
+  find_package_wrapper(draco REQUIRED)
+  set_and_warn_library_found("Draco" DRACO_FOUND WITH_DRACO)
+endif()
+
 if(WITH_MESHOPTIMIZER)
   find_package_wrapper(meshoptimizer REQUIRED)
   set_and_warn_library_found("meshoptimizer" MESHOPTIMIZER_FOUND WITH_MESHOPTIMIZER)

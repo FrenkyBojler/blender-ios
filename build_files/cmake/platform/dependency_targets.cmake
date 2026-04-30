@@ -495,3 +495,14 @@ if(TARGET meshoptimizer::meshoptimizer)
   target_link_libraries(bf_deps_optional_meshoptimizer INTERFACE meshoptimizer::meshoptimizer)
 endif()
 
+
+# -----------------------------------------------------------------------------
+# Configure Draco
+
+add_library(bf_deps_optional_draco INTERFACE)
+add_library(bf::dependencies::optional::draco ALIAS bf_deps_optional_draco)
+
+if(TARGET draco::draco)
+  target_compile_definitions(bf_deps_optional_draco INTERFACE WITH_DRACO)
+  target_link_libraries(bf_deps_optional_draco INTERFACE draco::draco)
+endif()

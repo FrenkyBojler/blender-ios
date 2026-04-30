@@ -490,7 +490,7 @@ if(WITH_PYTHON)
 
   if(WITH_DRACO)
     install(
-      PROGRAMS $<TARGET_FILE:extern_draco>
+      PROGRAMS $<TARGET_FILE:bf_intern_draco_bridge>
       DESTINATION ${TARGETDIR_VER}/scripts/addons_core/io_scene_gltf2
     )
   endif()
