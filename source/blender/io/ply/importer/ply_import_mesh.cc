@@ -27,8 +27,82 @@ namespace blender {
 static CLG_LogRef LOG = {"io.ply"};
 
 namespace io::ply {
+
+static void ply_data_indices_sanitize(PlyData &data)
+{
+  const IndexRange ply_vertex_index_range = data.vertices.index_range();
+  const IndexRange ply_face_vertices_index_range = data.face_vertices.index_range();
+
+  if (!data.edges.is_empty()) {
+    if (ply_vertex_index_range.size() < 2) {
+      CLOG_WARN(
+          &LOG, "Not enough PLY vertices to have edges: %d", int(ply_vertex_index_range.size()));
+      data.edges = {};
+    }
+    for (const int i : data.edges.index_range()) {
+      if (UNLIKELY(!ply_vertex_index_range.contains(data.edges[i].first))) {
+        CLOG_WARN(&LOG, "Invalid PLY vertex index in edge %d/1: %d", i, data.edges[i].first);
+        data.edges[i].first = data.edges[i].second == 0 ? 1 : 0;
+      }
+      if (UNLIKELY(!ply_vertex_index_range.contains(data.edges[i].second))) {
+        CLOG_WARN(&LOG, "Invalid PLY vertex index in edge %d/2: %d", i, data.edges[i].second);
+        data.edges[i].second = data.edges[i].first == 0 ? 1 : 0;
+      }
+    }
+  }
+
+  if (!data.face_sizes.is_empty()) {
+    int offset = 0;
+    for (const int i : data.face_sizes.index_range()) {
+      if (UNLIKELY(!ply_face_vertices_index_range.contains(offset))) {
+        CLOG_WARN(&LOG, "Invalid PLY face corner indices in face %d", i);
+        data.face_sizes[i] = 0;
+      }
+      if (UNLIKELY(!ply_face_vertices_index_range.contains(offset + int(data.face_sizes[i]) - 1)))
+      {
+        CLOG_WARN(&LOG, "Invalid PLY face corner indices in face %d", i);
+        data.face_sizes[i] = uint32_t(ply_face_vertices_index_range.size() - offset);
+      }
+      int size = int(data.face_sizes[i]);
+      for (int j = 0; j < size; j++) {
+        if (UNLIKELY(!ply_vertex_index_range.contains(data.face_vertices[offset + j]))) {
+          int fallback_vert_index = 0;
+          Set<uint32_t> face_vertex_indices = {data.face_vertices.as_span().slice({offset, size})};
+          while (UNLIKELY(face_vertex_indices.contains(uint32_t(fallback_vert_index)))) {
+            fallback_vert_index++;
+          }
+          if (UNLIKELY(fallback_vert_index >= data.vertices.size())) {
+            /* Completely remove the invalid face, if no valid unused vertex index could be found.
+             */
+            CLOG_WARN(&LOG,
+                      "Invalid PLY vertex index in face %d loop %d: %d, cannot find a fallback "
+                      "vertex, removing the face",
+                      i,
+                      j,
+                      int(data.face_vertices[offset + j]));
+            data.face_vertices.remove(offset, size);
+            size = data.face_sizes[i] = 0;
+          }
+          else {
+            CLOG_WARN(&LOG,
+                      "Invalid PLY vertex index in face %d loop %d: %d, replaced by vertex %d",
+                      i,
+                      j,
+                      int(data.face_vertices[offset + j]),
+                      fallback_vert_index);
+            data.face_vertices[offset + j] = uint32_t(fallback_vert_index);
+          }
+        }
+      }
+      offset += size;
+    }
+  }
+}
+
 Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
 {
+  ply_data_indices_sanitize(data);
+
   Mesh *mesh = BKE_mesh_new_nomain(
       data.vertices.size(), data.edges.size(), data.face_sizes.size(), data.face_vertices.size());
 
@@ -38,18 +112,8 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
 
   if (!data.edges.is_empty()) {
     MutableSpan<int2> edges = mesh->edges_for_write();
-    for (const int i : data.edges.index_range()) {
-      int32_t v1 = data.edges[i].first;
-      int32_t v2 = data.edges[i].second;
-      if (v1 >= mesh->verts_num) {
-        CLOG_WARN(&LOG, "Invalid PLY vertex index in edge %i/1: %d", i, v1);
-        v1 = 0;
-      }
-      if (v2 >= mesh->verts_num) {
-        CLOG_WARN(&LOG, "Invalid PLY vertex index in edge %i/2: %d", i, v2);
-        v2 = 0;
-      }
-      edges[i] = {v1, v2};
+    for (const int64_t i : data.edges.index_range()) {
+      edges[i] = {data.edges[i].first, data.edges[i].second};
     }
   }
 
@@ -64,11 +128,6 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       uint32_t size = data.face_sizes[i];
       face_offsets[i] = offset;
       for (int j = 0; j < size; j++) {
-        uint32_t v = data.face_vertices[offset + j];
-        if (v >= mesh->verts_num) {
-          CLOG_WARN(&LOG, "Invalid PLY vertex index in face %i loop %i: %u", i, j, v);
-          v = 0;
-        }
         corner_verts[offset + j] = data.face_vertices[offset + j];
       }
       offset += size;
