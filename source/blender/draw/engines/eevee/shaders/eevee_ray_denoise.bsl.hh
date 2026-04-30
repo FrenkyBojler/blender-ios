@@ -154,8 +154,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   /* Tracing resolution texel. */
   int2 texel_shifted = max(int2(0), texel_fullres - uniform_buf.raytrace.resolution_bias);
   int2 texel_nearest = texel_shifted / srt.raytrace_resolution_scale;
-  int2 texel_bilinear = texel_shifted % srt.raytrace_resolution_scale;
-  float2 bilinear_co = float2(texel_bilinear) / float(srt.raytrace_resolution_scale);
+  float2 bilinear_co = fract(float2(texel_shifted) / float2(srt.raytrace_resolution_scale));
 
   if (srt.skip_denoise) {
     if (srt.raytrace_resolution_scale == 1) {
