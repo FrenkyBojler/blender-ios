@@ -241,6 +241,7 @@ static void ntree_copy_data(Main * /*bmain*/,
     }
   }
   dst_runtime.geometry_nodes_srna_data = ntree_src->runtime->geometry_nodes_srna_data;
+  dst_runtime.compositor_nodes_srna_data = ntree_src->runtime->compositor_nodes_srna_data;
 
   if (ntree_src->geometry_node_asset_traits) {
     ntree_dst->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(
@@ -2200,14 +2201,16 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
       case SOCK_MENU: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueMenu>(*socket);
         IDP_AddToGroup(input.get(), idprop::create("default_value", value.value).release());
-        auto items = idprop::create_group("items");
-        for (const RuntimeNodeEnumItem &enum_item : value.enum_items->items) {
-          auto item = idprop::create_group(std::to_string(enum_item.identifier));
-          IDP_AddToGroup(item.get(), idprop::create("name", enum_item.name).release());
-          IDP_AddToGroup(item.get(),
-                         idprop::create("description", enum_item.description).release());
+        if (value.enum_items) {
+          auto items = idprop::create_group("items");
+          for (const RuntimeNodeEnumItem &enum_item : value.enum_items->items) {
+            auto item = idprop::create_group(std::to_string(enum_item.identifier));
+            IDP_AddToGroup(item.get(), idprop::create("name", enum_item.name).release());
+            IDP_AddToGroup(item.get(),
+                           idprop::create("description", enum_item.description).release());
+          }
+          IDP_AddToGroup(input.get(), items.release());
         }
-        IDP_AddToGroup(input.get(), items.release());
         break;
       }
       case SOCK_SHADER:

@@ -59,17 +59,10 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
 
 void NodeGroupOperation::execute()
 {
-  Set<StringRef> needed_outputs;
-  for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
-    if (this->get_result(output->identifier).should_compute()) {
-      needed_outputs.add_new(output->identifier);
-    }
-  }
-
   const Schedule schedule = compute_schedule(this->context(),
                                              node_group_,
+                                             *this,
                                              needed_output_types_,
-                                             needed_outputs,
                                              instance_key_,
                                              active_node_group_instance_key_);
   CompileState compile_state(this->context(), schedule);
@@ -156,7 +149,9 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
     }
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
-    if (output && compile_state.get_schedule().nodes.contains(&output->owner_node())) {
+    if (output && compile_state.get_schedule().nodes.contains(&output->owner_node()) &&
+        !compile_state.get_schedule().unneeded_inputs.contains(input))
+    {
       /* The input is linked to a node that is part of the schedule. So map the input to the result
        * we get from the output. */
       Result &result = compile_state.get_result_from_output_socket(*output);
