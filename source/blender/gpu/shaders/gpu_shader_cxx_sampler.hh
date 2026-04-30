@@ -22,12 +22,6 @@
 /** \name Sampler Types
  * \{ */
 
-/* MSL component compatibility. */
-#define gatherComp0 0
-#define gatherComp1 1
-#define gatherComp2 2
-#define gatherComp3 3
-
 template<typename T,
          int Dimensions,
          bool Cube = false,

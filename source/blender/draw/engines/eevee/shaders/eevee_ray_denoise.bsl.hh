@@ -496,10 +496,10 @@ struct DenoiseTemporal {
     /* Make sure to sample the same quad with textureGather. */
     float2 safe_uv = (round_co + 0.5f) / tex_size;
     /* Radiance needs to be manually interpolated because any pixel might contain invalid data. */
-    float4x3 gather4 = transpose(
-        float3x4(textureGather(radiance_history_tx, safe_uv, gatherComp0),
-                 textureGather(radiance_history_tx, safe_uv, gatherComp1),
-                 textureGather(radiance_history_tx, safe_uv, gatherComp2)));
+    float4 r_samples = textureGather(radiance_history_tx, safe_uv, 0);
+    float4 g_samples = textureGather(radiance_history_tx, safe_uv, 1);
+    float4 b_samples = textureGather(radiance_history_tx, safe_uv, 2);
+    float4x3 gather4 = transpose(float3x4(r_samples, g_samples, b_samples));
 
     float4 history_radiance;
     history_radiance = history_validate(texel + int2(0, 1), bilinear_weights.x, gather4[0]);
