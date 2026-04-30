@@ -76,7 +76,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
+  GListPtr list = params.extract_input<GListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -87,14 +87,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (list_size == 0) {
     const CPPType &type = list->cpp_type();
-    List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
-    ListPtr empty_list = List::create(type, std::move(empty_data), 0);
+    GList::ArrayData empty_data = GList::ArrayData::ForDefaultValue(type, 0);
+    GListPtr empty_list = GList::create(type, std::move(empty_data), 0);
     params.set_output("Unique"_ustr, std::move(empty_list));
 
     const CPPType &int_type = CPPType::get<int>();
-    List::ArrayData empty_int_data = List::ArrayData::ForDefaultValue(int_type, 0);
-    params.set_output("Counts"_ustr, List::create(int_type, std::move(empty_int_data), 0));
-    params.set_output("Inverse"_ustr, List::create(int_type, std::move(empty_int_data), 0));
+    GList::ArrayData empty_int_data = GList::ArrayData::ForDefaultValue(int_type, 0);
+    params.set_output("Counts"_ustr, GList::create(int_type, std::move(empty_int_data), 0));
+    params.set_output("Inverse"_ustr, GList::create(int_type, std::move(empty_int_data), 0));
     return;
   }
 
@@ -183,35 +183,35 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int unique_count = unique_indices.size();
 
-  List::ArrayData unique_data = List::ArrayData::ForUninitialized(type, unique_count);
+  GList::ArrayData unique_data = GList::ArrayData::ForUninitialized(type, unique_count);
   GMutableSpan unique_span = unique_data.span_for_write(type, unique_count);
 
   for (int i = 0; i < unique_count; i++) {
     input_varray.get_to_uninitialized(unique_indices[i], unique_span[i]);
   }
 
-  ListPtr unique_list = List::create(type, std::move(unique_data), unique_count);
+  GListPtr unique_list = GList::create(type, std::move(unique_data), unique_count);
   params.set_output("Unique"_ustr, std::move(unique_list));
 
   const CPPType &int_type = CPPType::get<int>();
-  List::ArrayData counts_data = List::ArrayData::ForUninitialized(int_type, unique_count);
+  GList::ArrayData counts_data = GList::ArrayData::ForUninitialized(int_type, unique_count);
   GMutableSpan counts_span = counts_data.span_for_write(int_type, unique_count);
 
   for (int i = 0; i < unique_count; i++) {
     int_type.copy_construct(&unique_counts[i], counts_span[i]);
   }
 
-  ListPtr counts_list = List::create(int_type, std::move(counts_data), unique_count);
+  GListPtr counts_list = GList::create(int_type, std::move(counts_data), unique_count);
   params.set_output("Counts"_ustr, std::move(counts_list));
 
-  List::ArrayData inverse_data = List::ArrayData::ForUninitialized(int_type, list_size);
+  GList::ArrayData inverse_data = GList::ArrayData::ForUninitialized(int_type, list_size);
   GMutableSpan inverse_span = inverse_data.span_for_write(int_type, list_size);
 
   for (int i = 0; i < list_size; i++) {
     int_type.copy_construct(&inverse_indices[i], inverse_span[i]);
   }
 
-  ListPtr inverse_list = List::create(int_type, std::move(inverse_data), list_size);
+  GListPtr inverse_list = GList::create(int_type, std::move(inverse_data), list_size);
   params.set_output("Inverse"_ustr, std::move(inverse_list));
 }
 

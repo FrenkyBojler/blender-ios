@@ -82,7 +82,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
+  GListPtr list = params.extract_input<GListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -116,8 +116,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     indices.append(index);
   }
   else if (index_variant.is_list()) {
-    ListPtr index_list = index_variant.get<ListPtr>();
-    const VArray<int> index_varray = index_list->varray<int>();
+    GListPtr index_list = index_variant.get<GListPtr>();
+    const VArray<int> index_varray = index_list->varray().typed<int>();
     for (int i = 0; i < index_list->size(); i++) {
       int index = index_varray[i];
       if (index < 0) {
@@ -141,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::SocketValueVariant value_variant = params.extract_input<bke::SocketValueVariant>(
       "Value"_ustr);
 
-  ListPtr value_list;
+  GListPtr value_list;
   if (value_variant.is_context_dependent_field()) {
     GField field = value_variant.extract<GField>();
     value_list = evaluate_field_to_list(std::move(field), list_size);
@@ -149,11 +149,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   else {
     value_variant.convert_to_single();
     const void *single_value = value_variant.get_single_ptr_raw();
-    List::SingleData single_data = List::SingleData::ForValue(GPointer(type, single_value));
-    value_list = List::create(type, std::move(single_data), list_size);
+    GList::SingleData single_data = GList::SingleData::ForValue(GPointer(type, single_value));
+    value_list = GList::create(type, std::move(single_data), list_size);
   }
 
-  List::ArrayData result_data = List::ArrayData::ForUninitialized(type, list_size);
+  GList::ArrayData result_data = GList::ArrayData::ForUninitialized(type, list_size);
   GMutableSpan dst_span = result_data.span_for_write(type, list_size);
 
   const GVArray src_varray = list->varray();
@@ -174,7 +174,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     visited[index].set();
   }
 
-  ListPtr result_list = List::create(type, std::move(result_data), list_size);
+  GListPtr result_list = GList::create(type, std::move(result_data), list_size);
   params.set_output("List"_ustr, std::move(result_list));
 }
 

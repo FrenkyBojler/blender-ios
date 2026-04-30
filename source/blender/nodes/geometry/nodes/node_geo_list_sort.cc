@@ -74,7 +74,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
+  GListPtr list = params.extract_input<GListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -95,7 +95,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::SocketValueVariant weights_variant = params.extract_input<bke::SocketValueVariant>(
       "Weights"_ustr);
 
-  ListPtr weights_list;
+  GListPtr weights_list;
   if (weights_variant.is_context_dependent_field()) {
     fn::GField field = weights_variant.extract<fn::GField>();
     weights_list = evaluate_field_to_list(std::move(field), list_size);
@@ -106,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else if (weights_variant.is_list()) {
-    weights_list = weights_variant.get<ListPtr>();
+    weights_list = weights_variant.get<GListPtr>();
     if (!weights_list) {
       params.set_output("List"_ustr, std::move(list));
       return;
@@ -130,7 +130,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   Array<float> weights(list_size);
-  const VArray<float> weights_varray = weights_list->varray<float>();
+  const VArray<float> weights_varray = weights_list->varray().typed<float>();
   for (int i = 0; i < list_size; i++) {
     weights[i] = weights_varray[i];
   }
@@ -152,16 +152,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   parallel_sort(indices.begin(), indices.end(), comparator);
 
   const CPPType &type = list->cpp_type();
-  const List::DataVariant &list_data = list->data();
+  const GList::DataVariant &list_data = list->data();
 
-  if (std::get_if<List::SingleData>(&list_data)) {
+  if (std::get_if<GList::SingleData>(&list_data)) {
     params.set_output("List"_ustr, std::move(list));
     return;
   }
 
-  List::ArrayData sorted_array_data = List::ArrayData::ForUninitialized(type, list_size);
+  GList::ArrayData sorted_array_data = GList::ArrayData::ForUninitialized(type, list_size);
 
-  if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {
+  if (const auto *array_data = std::get_if<GList::ArrayData>(&list_data)) {
     const GSpan src_span(type, array_data->data, list_size);
     GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
 
@@ -171,7 +171,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  ListPtr sorted_list = List::create(type, std::move(sorted_array_data), list_size);
+  GListPtr sorted_list = GList::create(type, std::move(sorted_array_data), list_size);
   params.set_output("List"_ustr, std::move(sorted_list));
 }
 

@@ -70,7 +70,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
+  GListPtr list = params.extract_input<GListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -97,8 +97,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (start >= end) {
     const CPPType &type = list->cpp_type();
-    List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
-    ListPtr empty_list = List::create(type, std::move(empty_data), 0);
+    GList::ArrayData empty_data = GList::ArrayData::ForDefaultValue(type, 0);
+    GListPtr empty_list = GList::create(type, std::move(empty_data), 0);
     params.set_output("List"_ustr, std::move(empty_list));
     return;
   }
@@ -111,25 +111,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const CPPType &type = list->cpp_type();
-  const List::DataVariant &list_data = list->data();
+  const GList::DataVariant &list_data = list->data();
 
-  if (const auto *single_data = std::get_if<List::SingleData>(&list_data)) {
-    List::SingleData slice_data = List::SingleData::ForValue(GPointer(type, single_data->value));
-    ListPtr sliced_list = List::create(type, std::move(slice_data), slice_size);
+  if (const auto *single_data = std::get_if<GList::SingleData>(&list_data)) {
+    GList::SingleData slice_data = GList::SingleData::ForValue(GPointer(type, single_data->value));
+    GListPtr sliced_list = GList::create(type, std::move(slice_data), slice_size);
     params.set_output("List"_ustr, std::move(sliced_list));
     return;
   }
 
-  if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {
+  if (const auto *array_data = std::get_if<GList::ArrayData>(&list_data)) {
     const GSpan src_span(type, array_data->data, list_size);
-    List::ArrayData slice_data = List::ArrayData::ForUninitialized(type, slice_size);
+    GList::ArrayData slice_data = GList::ArrayData::ForUninitialized(type, slice_size);
     GMutableSpan dst_span = slice_data.span_for_write(type, slice_size);
 
     for (int i = 0; i < slice_size; i++) {
       type.copy_construct(src_span[start + i], dst_span[i]);
     }
 
-    ListPtr sliced_list = List::create(type, std::move(slice_data), slice_size);
+    GListPtr sliced_list = GList::create(type, std::move(slice_data), slice_size);
     params.set_output("List"_ustr, std::move(sliced_list));
   }
 }

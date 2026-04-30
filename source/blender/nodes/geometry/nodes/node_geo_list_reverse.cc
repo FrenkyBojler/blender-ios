@@ -55,7 +55,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
+  GListPtr list = params.extract_input<GListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -74,23 +74,23 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const CPPType &type = list->cpp_type();
-  const List::DataVariant &list_data = list->data();
+  const GList::DataVariant &list_data = list->data();
 
-  if (std::get_if<List::SingleData>(&list_data)) {
+  if (std::get_if<GList::SingleData>(&list_data)) {
     params.set_output("List"_ustr, std::move(list));
     return;
   }
 
-  if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {
+  if (const auto *array_data = std::get_if<GList::ArrayData>(&list_data)) {
     const GSpan src_span(type, array_data->data, list_size);
-    List::ArrayData reversed_data = List::ArrayData::ForUninitialized(type, list_size);
+    GList::ArrayData reversed_data = GList::ArrayData::ForUninitialized(type, list_size);
     GMutableSpan dst_span = reversed_data.span_for_write(type, list_size);
 
     for (int i = 0; i < list_size; i++) {
       type.copy_construct(src_span[list_size - 1 - i], dst_span[i]);
     }
 
-    ListPtr reversed_list = List::create(type, std::move(reversed_data), list_size);
+    GListPtr reversed_list = GList::create(type, std::move(reversed_data), list_size);
     params.set_output("List"_ustr, std::move(reversed_list));
     return;
   }

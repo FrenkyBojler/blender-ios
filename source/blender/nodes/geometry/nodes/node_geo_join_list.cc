@@ -63,7 +63,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeoNodesMultiInput<ListPtr> lists = params.extract_input<GeoNodesMultiInput<ListPtr>>(
+  GeoNodesMultiInput<GListPtr> lists = params.extract_input<GeoNodesMultiInput<GListPtr>>(
       "List"_ustr);
 
   if (lists.values.is_empty()) {
@@ -75,10 +75,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Vector<ListPtr> valid_lists;
+  Vector<GListPtr> valid_lists;
   const CPPType *common_type = nullptr;
 
-  for (ListPtr &list : lists.values) {
+  for (GListPtr &list : lists.values) {
     if (list) {
       if (common_type == nullptr) {
         common_type = &list->cpp_type();
@@ -103,13 +103,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   int64_t total_size = 0;
-  for (const ListPtr &list : valid_lists) {
+  for (const GListPtr &list : valid_lists) {
     total_size += list->size();
   }
 
   if (total_size == 0) {
-    List::ArrayData empty_data = List::ArrayData::ForDefaultValue(*common_type, 0);
-    ListPtr empty_list = List::create(*common_type, std::move(empty_data), 0);
+    GList::ArrayData empty_data = GList::ArrayData::ForDefaultValue(*common_type, 0);
+    GListPtr empty_list = GList::create(*common_type, std::move(empty_data), 0);
     params.set_output("List"_ustr, std::move(empty_list));
     return;
   }
@@ -117,8 +117,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Check if all are single data with the same value. */
   bool all_single = true;
   const void *first_value = nullptr;
-  for (const ListPtr &list : valid_lists) {
-    if (const auto *single_data = std::get_if<List::SingleData>(&list->data())) {
+  for (const GListPtr &list : valid_lists) {
+    if (const auto *single_data = std::get_if<GList::SingleData>(&list->data())) {
       if (first_value == nullptr) {
         first_value = single_data->value;
       }
@@ -134,17 +134,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (all_single && first_value != nullptr) {
-    List::SingleData joined_data = List::SingleData::ForValue(GPointer(*common_type, first_value));
-    ListPtr joined_list = List::create(*common_type, std::move(joined_data), total_size);
+    GList::SingleData joined_data = GList::SingleData::ForValue(GPointer(*common_type, first_value));
+    GListPtr joined_list = GList::create(*common_type, std::move(joined_data), total_size);
     params.set_output("List"_ustr, std::move(joined_list));
     return;
   }
 
-  List::ArrayData joined_data = List::ArrayData::ForUninitialized(*common_type, total_size);
+  GList::ArrayData joined_data = GList::ArrayData::ForUninitialized(*common_type, total_size);
   GMutableSpan dst_span = joined_data.span_for_write(*common_type, total_size);
 
   int64_t offset = 0;
-  for (const ListPtr &list : valid_lists) {
+  for (const GListPtr &list : valid_lists) {
     const int64_t list_size = list->size();
     const GVArray varray = list->varray();
     for (int64_t i = 0; i < list_size; i++) {
@@ -153,7 +153,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     offset += list_size;
   }
 
-  ListPtr joined_list = List::create(*common_type, std::move(joined_data), total_size);
+  GListPtr joined_list = GList::create(*common_type, std::move(joined_data), total_size);
   params.set_output("List"_ustr, std::move(joined_list));
 }
 

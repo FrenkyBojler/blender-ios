@@ -52,7 +52,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr bool_list = params.extract_input<ListPtr>("Boolean"_ustr);
+  GListPtr bool_list = params.extract_input<GListPtr>("Boolean"_ustr);
 
   if (!bool_list) {
     params.set_default_remaining_outputs();
@@ -62,7 +62,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int list_size = bool_list->size();
 
   Vector<int> matching_indices;
-  const VArray<bool> bool_varray = bool_list->varray<bool>();
+  const VArray<bool> bool_varray = bool_list->varray().typed<bool>();
 
   for (int i = 0; i < list_size; i++) {
     if (bool_varray[i]) {
@@ -75,15 +75,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (params.output_is_required("Indices"_ustr)) {
     const CPPType &int_type = CPPType::get<int>();
     if (count == 0) {
-      List::ArrayData indices_data = List::ArrayData::ForDefaultValue(int_type, 0);
-      ListPtr indices_list = List::create(int_type, std::move(indices_data), 0);
+      GList::ArrayData indices_data = GList::ArrayData::ForDefaultValue(int_type, 0);
+      GListPtr indices_list = GList::create(int_type, std::move(indices_data), 0);
       params.set_output("Indices"_ustr, std::move(indices_list));
     }
     else {
-      List::ArrayData indices_data = List::ArrayData::ForUninitialized(int_type, count);
+      GList::ArrayData indices_data = GList::ArrayData::ForUninitialized(int_type, count);
       MutableSpan<int> indices_span = indices_data.span_for_write(int_type, count).typed<int>();
       indices_span.copy_from(matching_indices);
-      ListPtr indices_list = List::create(int_type, std::move(indices_data), count);
+      GListPtr indices_list = GList::create(int_type, std::move(indices_data), count);
       params.set_output("Indices"_ustr, std::move(indices_list));
     }
   }

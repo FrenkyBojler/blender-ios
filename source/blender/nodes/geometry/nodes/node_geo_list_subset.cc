@@ -78,7 +78,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
+  GListPtr list = params.extract_input<GListPtr>("List"_ustr);
 
   if (!list) {
     params.set_default_remaining_outputs();
@@ -99,7 +99,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::SocketValueVariant mask_variant = params.extract_input<bke::SocketValueVariant>(
       "Mask"_ustr);
 
-  ListPtr mask_list;
+  GListPtr mask_list;
   if (mask_variant.is_context_dependent_field()) {
     fn::GField field = mask_variant.extract<fn::GField>();
     mask_list = evaluate_field_to_list(std::move(field), list_size);
@@ -110,7 +110,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else if (mask_variant.is_list()) {
-    mask_list = mask_variant.get<ListPtr>();
+    mask_list = mask_variant.get<GListPtr>();
     if (!mask_list) {
       params.set_output("List"_ustr, std::move(list));
       return;
@@ -131,8 +131,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     else {
       const CPPType &type = list->cpp_type();
-      List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
-      params.set_output("List"_ustr, List::create(type, std::move(empty_data), 0));
+      GList::ArrayData empty_data = GList::ArrayData::ForDefaultValue(type, 0);
+      params.set_output("List"_ustr, GList::create(type, std::move(empty_data), 0));
     }
     return;
   }
@@ -141,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const VArray<bool> mask_varray = mask_list->varray<bool>();
+  const VArray<bool> mask_varray = mask_list->varray().typed<bool>();
 
   /* Count how many values pass the mask. */
   int result_size = 0;
@@ -153,8 +153,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (result_size == 0) {
     const CPPType &type = list->cpp_type();
-    List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
-    params.set_output("List"_ustr, List::create(type, std::move(empty_data), 0));
+    GList::ArrayData empty_data = GList::ArrayData::ForDefaultValue(type, 0);
+    params.set_output("List"_ustr, GList::create(type, std::move(empty_data), 0));
     return;
   }
 
@@ -166,7 +166,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const CPPType &type = list->cpp_type();
   const GVArray src_varray = list->varray();
 
-  List::ArrayData result_data = List::ArrayData::ForUninitialized(type, result_size);
+  GList::ArrayData result_data = GList::ArrayData::ForUninitialized(type, result_size);
   GMutableSpan dst_span = result_data.span_for_write(type, result_size);
 
   int dst_index = 0;
@@ -177,7 +177,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  ListPtr result_list = List::create(type, std::move(result_data), result_size);
+  GListPtr result_list = GList::create(type, std::move(result_data), result_size);
   params.set_output("List"_ustr, std::move(result_list));
 }
 
