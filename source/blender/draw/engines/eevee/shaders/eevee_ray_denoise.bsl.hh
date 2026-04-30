@@ -223,16 +223,12 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
       bool tile_is_unused = !flag_test(tile_mask, 1u << 0u);
       if (tile_is_unused) {
         int2 texel_fullres_neighbor = texel_fullres + int2(x, y) * int(tile_size);
-        /* FIXME(fclem): This isn't safe! */
-        srt.invalid_pixel_write(texel_fullres_neighbor);
+
+        if (in_texture_range(texel_fullres, gbuf_header_tx)) {
+          srt.invalid_pixel_write(texel_fullres_neighbor);
+        }
       }
     }
-  }
-
-  bool valid_texel = in_texture_range(texel_fullres, gbuf_header_tx);
-  if (!valid_texel) {
-    srt.invalid_pixel_write(texel_fullres);
-    return;
   }
 
   gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
