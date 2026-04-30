@@ -1313,6 +1313,7 @@ endif()
 
 set_and_warn_dependency(WITH_PYTHON WITH_CYCLES        OFF)
 set_and_warn_dependency(WITH_PYTHON WITH_DRACO         OFF)
+set_and_warn_dependency(WITH_PYTHON WITH_MESHOPTIMIZER OFF)
 set_and_warn_dependency(WITH_PYTHON WITH_MOD_FLUID     OFF)
 
 if(WITH_CYCLES)
