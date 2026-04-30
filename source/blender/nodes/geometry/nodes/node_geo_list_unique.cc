@@ -92,9 +92,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_output("Unique"_ustr, std::move(empty_list));
 
     const CPPType &int_type = CPPType::get<int>();
-    GList::ArrayData empty_int_data = GList::ArrayData::ForDefaultValue(int_type, 0);
-    params.set_output("Counts"_ustr, GList::create(int_type, std::move(empty_int_data), 0));
-    params.set_output("Inverse"_ustr, GList::create(int_type, std::move(empty_int_data), 0));
+    params.set_output("Counts"_ustr,
+                      GList::create(int_type, GList::ArrayData::ForDefaultValue(int_type, 0), 0));
+    params.set_output("Inverse"_ustr,
+                      GList::create(int_type, GList::ArrayData::ForDefaultValue(int_type, 0), 0));
     return;
   }
 

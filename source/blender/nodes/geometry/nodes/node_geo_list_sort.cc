@@ -52,7 +52,7 @@ class SocketSearchOp {
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("GeometryNodeSortList"_ustr);
+    bNode &node = params.add_node("GeometryNodeListSort"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }

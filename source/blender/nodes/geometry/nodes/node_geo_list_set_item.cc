@@ -145,6 +145,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (value_variant.is_context_dependent_field()) {
     GField field = value_variant.extract<GField>();
     value_list = evaluate_field_to_list(std::move(field), list_size);
+    if (!value_list) {
+      params.error_message_add(NodeWarningType::Error, "Failed to evaluate value field");
+      params.set_output("List"_ustr, std::move(list));
+      return;
+    }
   }
   else {
     value_variant.convert_to_single();
