@@ -16,6 +16,7 @@
 #include "MOV_write.hh"
 
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #ifdef WITH_FFMPEG
 #  include <cstdio>
@@ -159,30 +160,16 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
     return;
   }
 
-  int max_luminance = 0;
+  /* Get max nits from the view transform. */
+  int max_luminance = IMB_colormanagement_view_max_nits(imf->display_settings.display_device,
+                                                        imf->view_settings.view_transform);
   if (c->color_trc == AVCOL_TRC_ARIB_STD_B67) {
-    /* HLG is always 1000 nits. */
-    max_luminance = 1000;
+    /* HLG is max 1000 nits, and also a good guess if not found. */
+    max_luminance = (max_luminance == 0) ? 1000 : std::min(max_luminance, 1000);
   }
   else if (c->color_trc == AVCOL_TRC_SMPTEST2084) {
-    /* PQ uses heuristic based on view transform name. In the future this could become
-     * a user control, but this solves the common cases. */
-    StringRefNull view_name = imf->view_settings.view_transform;
-    if (view_name.find("HDR 500 nits") != StringRef::not_found) {
-      max_luminance = 500;
-    }
-    else if (view_name.find("HDR 1000 nits") != StringRef::not_found) {
-      max_luminance = 1000;
-    }
-    else if (view_name.find("HDR 2000 nits") != StringRef::not_found) {
-      max_luminance = 2000;
-    }
-    else if (view_name.find("HDR 4000 nits") != StringRef::not_found) {
-      max_luminance = 4000;
-    }
-    else if (view_name.find("HDR 10000 nits") != StringRef::not_found) {
-      max_luminance = 10000;
-    }
+    /* PQ is max 10000 nits. */
+    max_luminance = std::min(max_luminance, 10000);
   }
 
   /* If we don't know anything, don't write metadata. The video player will make some
@@ -219,6 +206,64 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
   mastering_metadata->has_luminance = 1;
   mastering_metadata->min_luminance = av_make_q(1, 10000);
   mastering_metadata->max_luminance = av_make_q(max_luminance, 1);
+}
+
+/**
+ * \brief Add stereoscopic side data metadata if the output is side-by-side or top-bottom.
+ *
+ * The side data is only added when the scene uses stereoscopic with stereo views and the image
+ * format also contains stereo views.
+ */
+static void add_stereo3d_metadata(MovieWriter &context,
+                                  const RenderData &render_data,
+                                  const ImageFormatData &imf)
+{
+  BLI_assert(context.current_frame);
+  if (BKE_scene_multiview_is_stereo3d(&render_data) && imf.views_format == R_IMF_VIEWS_STEREO_3D) {
+    AVStereo3D *stereo_3d = av_stereo3d_create_side_data(context.current_frame);
+    AVStereo3DType interlace_type = AV_STEREO3D_UNSPEC;
+    switch (imf.stereo3d_format.interlace_type) {
+      case S3D_INTERLACE_ROW:
+        interlace_type = AV_STEREO3D_LINES;
+        break;
+      case S3D_INTERLACE_COLUMN:
+        interlace_type = AV_STEREO3D_COLUMNS;
+        break;
+      case S3D_INTERLACE_CHECKERBOARD:
+        interlace_type = AV_STEREO3D_CHECKERBOARD;
+        break;
+      default:
+        break;
+    }
+
+    switch (imf.stereo3d_format.display_mode) {
+      case S3D_DISPLAY_SIDEBYSIDE: {
+        stereo_3d->type = AV_STEREO3D_SIDEBYSIDE;
+        stereo_3d->view = AV_STEREO3D_VIEW_PACKED;
+        const bool is_swapped = bool(imf.stereo3d_format.flag & S3D_SIDEBYSIDE_CROSSEYED);
+        if (is_swapped) {
+          stereo_3d->flags |= AV_STEREO3D_FLAG_INVERT;
+        }
+        break;
+      }
+
+      case S3D_DISPLAY_TOPBOTTOM: {
+        stereo_3d->type = AV_STEREO3D_TOPBOTTOM;
+        stereo_3d->view = AV_STEREO3D_VIEW_PACKED;
+        break;
+      }
+
+      case S3D_DISPLAY_INTERLACE: {
+        stereo_3d->type = interlace_type;
+        stereo_3d->view = AV_STEREO3D_VIEW_PACKED;
+        const bool is_swapped = bool(imf.stereo3d_format.flag & S3D_INTERLACE_SWAP);
+        if (is_swapped) {
+          stereo_3d->flags |= AV_STEREO3D_FLAG_INVERT;
+        }
+        break;
+      }
+    }
+  }
 }
 
 /* Write a frame to the output file */
@@ -1174,6 +1219,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   avcodec_parameters_from_context(st->codecpar, c);
 
   add_hdr_mastering_display_metadata(st->codecpar, c, imf);
+  add_stereo3d_metadata(*context, *rd, *imf);
 
   context->video_time = 0.0f;
 

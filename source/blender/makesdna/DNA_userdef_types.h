@@ -175,6 +175,7 @@ enum eUserpref_UI_Flag2 {
   USER_UIFLAG2_UNUSED_2 = (1 << 2),
   USER_UIFLAG2_UNUSED_3 = (1 << 3), /* dirty */
   USER_UIFLAG2_SHOW_ONLINE_ASSETS = (1 << 4),
+  USER_UIFLAG2_PANEL_TABS_COMPACT = (1 << 5),
 };
 
 /** #UserDef.gpu_flag */
@@ -475,13 +476,6 @@ enum eMultiSample_Type {
   USER_MULTISAMPLE_4 = 4,
   USER_MULTISAMPLE_8 = 8,
   USER_MULTISAMPLE_16 = 16,
-};
-
-/** #UserDef.image_draw_method */
-enum eImageDrawMethod {
-  IMAGE_DRAW_METHOD_AUTO = 0,
-  IMAGE_DRAW_METHOD_GLSL = 1,
-  IMAGE_DRAW_METHOD_2DTEXTURE = 2,
 };
 
 /** #UserDef.virtual_pixel */
@@ -822,11 +816,10 @@ struct UserDef_Experimental {
   char use_extended_asset_browser = 0;
   char use_sculpt_texture_paint = 0;
   char use_shader_node_previews = 0;
-  char use_geometry_nodes_lists = 0;
   char use_geometry_bundle = 0;
   char use_remote_asset_libraries = 0;
   char use_collection_importer = 0;
-  char _pad[2] = {};
+  char _pad[3] = {};
 };
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -1132,11 +1125,7 @@ struct UserDef {
                   NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM | NDOF_SHOULD_ROTATE | NDOF_CAMERA_PAN_ZOOM;
   /** #eNdof_Navigation_Mode, current navigation mode. */
   uint8_t ndof_navigation_mode = 0;
-  char _pad17[1] = {};
-
-  /** eImageDrawMethod, Method to be used to draw the images
-   * (AUTO, GLSL, Textures or DrawPixels) */
-  short image_draw_method = IMAGE_DRAW_METHOD_AUTO;
+  char _pad17[3] = {};
 
   float glalphaclip = 0.004;
 
