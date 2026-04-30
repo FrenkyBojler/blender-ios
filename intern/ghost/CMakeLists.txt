@@ -275,6 +275,28 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       )
     endif()
 
+    if(WITH_GHOST_WAYLAND_DBUS)
+      list(APPEND INC_SYS
+        ${dbus_INCLUDE_DIRS}
+      )
+      add_definitions(-DWITH_GHOST_WAYLAND_DBUS)
+      if(WITH_GHOST_WAYLAND_DBUS_DYNLOAD)
+        # libdbus is dynamically loaded via `bf_intern_dbus_dynload`; the
+        # `dbus_INCLUDE_DIRS` above is still needed for the type declarations.
+        list(APPEND INC
+          ../dbus_dynload/extern
+        )
+        list(APPEND LIB
+          bf_intern_dbus_dynload
+        )
+        add_definitions(-DWITH_GHOST_WAYLAND_DBUS_DYNLOAD)
+      else()
+        list(APPEND LIB
+          ${dbus_LINK_LIBRARIES}
+        )
+      endif()
+    endif()
+
     if(WITH_GHOST_CSD)
       list(APPEND SRC
         intern/GHOST_WindowWaylandCSD.cc
@@ -299,9 +321,11 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
 
     list(APPEND SRC
       intern/GHOST_SystemWayland.cc
+      intern/GHOST_SystemWaylandDBUS.cc
       intern/GHOST_WindowWayland.cc
 
       intern/GHOST_SystemWayland.hh
+      intern/GHOST_SystemWaylandDBUS.hh
       intern/GHOST_WaylandUtils.hh
       intern/GHOST_WindowWayland.hh
     )

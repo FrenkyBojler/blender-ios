@@ -347,6 +347,18 @@ if(UNIX AND NOT (APPLE OR HAIKU))
     option(WITH_GHOST_CSD "Enable client side decorations with Wayland" ON)
     mark_as_advanced(WITH_GHOST_CSD)
 
+    option(WITH_GHOST_WAYLAND_DBUS
+      "Build with DBUS support for desktop-portal cursor size/theme queries. \
+Requires the `dbus-1` headers at build time."
+      ON
+    )
+    mark_as_advanced(WITH_GHOST_WAYLAND_DBUS)
+
+    option(WITH_GHOST_WAYLAND_DBUS_DYNLOAD
+      "Enable runtime dynamic loading of `libdbus` (avoids a build-time link dependency)" ON
+    )
+    mark_as_advanced(WITH_GHOST_WAYLAND_DBUS_DYNLOAD)
+
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_DYNLOAD)
 
@@ -2559,6 +2571,8 @@ if(FIRST_RUN)
     endif()
     if(WITH_GHOST_WAYLAND)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
+      info_cfg_option(WITH_GHOST_WAYLAND_DBUS)
+      info_cfg_option(WITH_GHOST_WAYLAND_DBUS_DYNLOAD)
     endif()
   endif()
 

@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <optional>
 #include <string_view>
 #include <thread>
@@ -59,6 +60,8 @@
 #  include <wayland_dynload_cursor.h>
 #endif
 #include <wayland-cursor.h>
+
+#include "GHOST_SystemWaylandDBUS.hh"
 
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon.h>
@@ -518,6 +521,14 @@ struct GWL_Cursor {
    * See #update_cursor_scale.
    */
   int theme_size = 0;
+  /** When true, `theme_size` is from `XCURSOR_SIZE` which takes precedence over DBUS. */
+  bool theme_size_from_env = false;
+  /**
+   * The name of the cursor theme as published by the desktop portal
+   * (`org.gnome.desktop.interface/cursor-theme`). Empty when the value
+   * isn't known; consumers should treat that as "use the default theme".
+   */
+  std::string theme_name;
   /**
    * Prefer dark theme cursors where possible.
    */
@@ -1672,6 +1683,12 @@ struct GWL_Display {
 
   bool supports_color_manager_feature_windows_scrgb = false;
   bool supports_color_manager_extended_srgb_linear = false;
+
+  /**
+   * Background DBUS worker. May be null when `WITH_GHOST_WAYLAND_DBUS` is
+   * disabled or when DBUS init fails. All callers must null-check.
+   */
+  GWL_DBus *dbus = nullptr;
 };
 
 /**
@@ -1682,6 +1699,12 @@ struct GWL_Display {
  */
 static void gwl_display_destroy(GWL_Display *display)
 {
+  /* Tear down the DBUS worker first. An in-flight call wakes within
+   * `dbus_call_poll_ms` of the shutdown request (see #portal_settings_read),
+   * so this completes promptly even if the portal is unresponsive. */
+  ghost_wl_dbus_destroy(display->dbus);
+  display->dbus = nullptr;
+
 #ifdef USE_EVENT_BACKGROUND_THREAD
   if (!display->background) {
     if (display->events_pthread) {
@@ -4476,6 +4499,88 @@ static bool update_cursor_scale(GWL_Seat *seat,
   return false;
 }
 
+/**
+ * Re-render the custom cursor on the focused surface of `seat_state_pointer`.
+ * Used when something other than the buffer scale (theme size, theme name, etc.)
+ * forces a regeneration, where the scale-gated refresh inside
+ * #update_cursor_scale would otherwise short-circuit.
+ */
+static void cursor_shape_refresh_for_pointer(GWL_SeatStatePointer *seat_state_pointer,
+                                             const GWL_Cursor &cursor)
+{
+  if (!cursor.is_custom) {
+    return;
+  }
+  wl_surface *wl_surface_focus = seat_state_pointer->wl.surface_window;
+  if (!wl_surface_focus) {
+    return;
+  }
+  GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
+  if (win) {
+    win->cursor_shape_refresh();
+  }
+}
+
+/**
+ * Apply a new cursor size and refresh the custom cursor on both the pointer
+ * and tablet focused surfaces. The refresh is done directly (rather than via
+ * #update_cursor_scale's scale-changed side-effect) because the buffer scale
+ * itself isn't changing here, only the theme size.
+ */
+static void cursor_size_set(GWL_Seat *seat, GWL_Cursor &cursor, const int size_new)
+{
+  if (cursor.theme_size == size_new) {
+    return;
+  }
+  cursor.theme_size = size_new;
+  cursor_shape_refresh_for_pointer(&seat->pointer, cursor);
+  cursor_shape_refresh_for_pointer(&seat->tablet, cursor);
+}
+
+/**
+ * Heuristic: treat a cursor theme as dark when its name contains "dark"
+ * (case-insensitive). Catches the common conventions: `Adwaita-dark`,
+ * `Breeze-Dark`, `Yaru-dark`, `Pop-Dark`, etc. Empty / unknown names fall
+ * through as light.
+ */
+static bool cursor_theme_name_implies_dark(const std::string &name)
+{
+  const char needle[] = "dark";
+  const size_t needle_len = sizeof(needle) - 1;
+  if (name.size() < needle_len) {
+    return false;
+  }
+  for (size_t i = 0; i + needle_len <= name.size(); i++) {
+    size_t j = 0;
+    for (; j < needle_len; j++) {
+      if (std::tolower(static_cast<unsigned char>(name[i + j])) != needle[j]) {
+        break;
+      }
+    }
+    if (j == needle_len) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Apply a new cursor theme name and refresh the custom cursor on both the
+ * pointer and tablet focused surfaces (see #cursor_size_set). Also derives
+ * #GWL_Cursor::use_dark_theme from the name so Blender's custom cursor
+ * generator can pick a contrasting color (see #ghost_wl_buffer_from_cursor_generator).
+ */
+static void cursor_theme_set(GWL_Seat *seat, GWL_Cursor &cursor, const std::string &name_new)
+{
+  if (cursor.theme_name == name_new) {
+    return;
+  }
+  cursor.theme_name = name_new;
+  cursor.use_dark_theme = cursor_theme_name_implies_dark(name_new);
+  cursor_shape_refresh_for_pointer(&seat->pointer, cursor);
+  cursor_shape_refresh_for_pointer(&seat->tablet, cursor);
+}
+
 static void cursor_surface_handle_enter(void *data, wl_surface *wl_surface, wl_output *wl_output)
 {
   if (!ghost_wl_output_own(wl_output)) {
@@ -7048,11 +7153,14 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
       const long value = strtol(env, &env_end, 10);
       if ((*env_end == '\0') && (value > 0)) {
         seat->cursor.theme_size = int(value);
+        seat->cursor.theme_size_from_env = true;
       }
     }
+    /* Else, the DBUS worker may publish a size later; #processEvents picks it up
+     * via #ghost_wl_dbus_results_take and applies it to all seats. */
 
-    /* TODO: detect this from the system.
-     * We *could* have weak support based on checking for known themes. */
+    /* Default to dark; the DBUS worker may publish a theme name later, in which
+     * case #cursor_theme_set re-derives this via #cursor_theme_name_implies_dark. */
     seat->cursor.use_dark_theme = true;
   }
 }
@@ -8578,6 +8686,15 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
   /* Could be null in background mode, however there are enough
    * references to the timer-manager that it's safer to create it. */
   display_->key_repeat_timer_manager = new GHOST_TimerManager();
+
+  /* Spawn the DBUS worker and fire the initial cursor-size and cursor-theme
+   * queries. Results (if any) are picked up by the main thread inside
+   * #processEvents. Skipped in background mode where there is no cursor. */
+  if (!background) {
+    display_->dbus = ghost_wl_dbus_create();
+    ghost_wl_dbus_cursor_size_request(display_->dbus);
+    ghost_wl_dbus_cursor_theme_request(display_->dbus);
+  }
 }
 
 void GHOST_SystemWayland::display_destroy_and_free_all()
@@ -8614,6 +8731,26 @@ GHOST_TSuccess GHOST_SystemWayland::init()
 bool GHOST_SystemWayland::processEvents(bool waitForEvent)
 {
   bool any_processed = false;
+
+  /* Single hot-path atomic gate: false branch (the common case) does no
+   * work at all. Mirrors the `has_pending_actions_for_window` pattern. */
+  if (display_->dbus && display_->dbus->results_ready.exchange(false, std::memory_order_acquire))
+      [[unlikely]]
+  {
+    GWL_DBusResults dbus_results;
+    ghost_wl_dbus_results_take(display_->dbus, &dbus_results);
+#ifdef USE_EVENT_BACKGROUND_THREAD
+    std::lock_guard lock_server_guard{*server_mutex};
+#endif
+    for (GWL_Seat *seat : display_->seats) {
+      if (dbus_results.cursor_size_is_set && !seat->cursor.theme_size_from_env) {
+        cursor_size_set(seat, seat->cursor, dbus_results.cursor_size);
+      }
+      if (dbus_results.cursor_theme_is_set) {
+        cursor_theme_set(seat, seat->cursor, dbus_results.cursor_theme);
+      }
+    }
+  }
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
   if (has_pending_actions_for_window.exchange(false)) [[unlikely]] {
