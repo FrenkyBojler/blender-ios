@@ -228,7 +228,6 @@ encoderSetAttribute(Encoder *encoder, char *attributeName, size_t componentType,
     uint32_t count = encoder->mesh.num_points();
     size_t componentCount = getNumberOfComponents(dataType);
     size_t stride = getAttributeStride(componentType, dataType);
-    draco::DataType dracoDataType = getDataType(componentType);
 
     draco::GeometryAttribute::Type semantics = getAttributeSemantics(attributeName);
     draco::GeometryAttribute attribute;
