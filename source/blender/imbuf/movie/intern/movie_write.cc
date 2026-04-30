@@ -11,14 +11,12 @@
 
 #include "BLI_string_ref.hh"
 
-#include "DNA_scene_enums.h"
 #include "DNA_scene_types.h"
 
 #include "MOV_write.hh"
 
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include <libavutil/stereo3d.h>
 
 #ifdef WITH_FFMPEG
 #  include <cstdio>
