@@ -1528,7 +1528,6 @@ static bool image_memorypack_imbuf_for_autosave(
       shared_data->data.data(), int(shared_data->data.size()), shared_data);
 
   ImagePackedFile *imapf = MEM_new<ImagePackedFile>("Image PackedFile");
-  imapf = MEM_new<ImagePackedFile>("Image PackedFile");
   STRNCPY(imapf->filepath, filepath);
   imapf->packedfile = pf;
   imapf->view = view;
