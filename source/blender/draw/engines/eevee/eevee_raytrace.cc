@@ -115,7 +115,7 @@ void RayTraceModule::sync()
     gpu::Shader *sh = inst_.shaders.static_shader_get(RAY_TILE_COMPACT);
     pass.init();
     pass.specialize_constant(sh, "closure_index", &data_.closure_index);
-    pass.specialize_constant(sh, "resolution_scale", &data_.resolution_scale);
+    pass.specialize_constant(sh, "resolution_scale", &data_.trace_pixel_scale);
     pass.shader_set(sh);
     pass.bind_image("tile_raytrace_denoise_img", &tile_raytrace_denoise_tx_);
     pass.bind_image("tile_raytrace_tracing_img", &tile_raytrace_tracing_tx_);
@@ -217,7 +217,7 @@ void RayTraceModule::sync()
     gpu::Shader *sh = inst_.shaders.static_shader_get(RAY_DENOISE_SPATIAL);
     pass.init();
     pass.specialize_constant(sh, "closure_index", &data_.closure_index);
-    pass.specialize_constant(sh, "raytrace_resolution_scale", &data_.resolution_scale);
+    pass.specialize_constant(sh, "raytrace_resolution_scale", &data_.trace_pixel_scale);
     pass.specialize_constant(sh, "skip_denoise", reinterpret_cast<bool *>(&data_.skip_denoise));
     pass.shader_set(sh);
     pass.bind_ssbo("tiles_coord_buf", &raytrace_denoise_tiles_buf_);
@@ -400,7 +400,7 @@ void RayTraceModule::sync()
                                        use_temporal_denoise;
 
     data_.closure_index = i;
-    data_.resolution_scale = max_ii(1, power_of_2_max_i(ray_tracing_options_.resolution_scale));
+    data_.trace_pixel_scale = max_ii(1, power_of_2_max_i(ray_tracing_options_.resolution_scale));
     data_.skip_denoise = !use_spatial_denoise;
     inst_.manager->warm_shader_specialization(tile_classify_ps_);
     inst_.manager->warm_shader_specialization(tile_compact_ps_);
@@ -507,8 +507,8 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   data_.roughness_mask_bias = data_.roughness_mask_scale * roughness_mask_start;
 
   /* Data for the radiance setup. */
-  data_.resolution_scale = resolution_scale;
-  data_.resolution_bias = int2(random_in_tile(inst_.sampling.sample_index(), resolution_scale));
+  data_.trace_pixel_scale = resolution_scale;
+  data_.trace_pixel_offset = int2(random_in_tile(inst_.sampling.sample_index(), resolution_scale));
   data_.history_persmat = rt_buffer.history_persmat;
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);
@@ -631,8 +631,8 @@ RayTraceResultTexture RayTraceModule::trace(int closure_index,
   data_.roughness_mask_scale = 1.0 / roughness_mask_fade;
   data_.roughness_mask_bias = data_.roughness_mask_scale * roughness_mask_start;
 
-  data_.resolution_scale = resolution_scale;
-  data_.resolution_bias = int2(random_in_tile(inst_.sampling.sample_index(), resolution_scale));
+  data_.trace_pixel_scale = resolution_scale;
+  data_.trace_pixel_offset = int2(random_in_tile(inst_.sampling.sample_index(), resolution_scale));
   data_.denoise_history_persmat = denoise_buf->history_persmat;
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);

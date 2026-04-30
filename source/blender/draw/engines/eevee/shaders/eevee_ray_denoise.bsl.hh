@@ -93,8 +93,8 @@ struct DenoiseSpatial {
   /* Used for bilateral sampling. */
   float sample_weight_get(float3 center_N, float3 center_P, int2 sample_texel) const
   {
-    int2 sample_texel_fullres = sample_texel * uniform_buf.raytrace.resolution_scale +
-                                uniform_buf.raytrace.resolution_bias;
+    int2 sample_texel_fullres = sample_texel * uniform_buf.raytrace.trace_pixel_scale +
+                                uniform_buf.raytrace.trace_pixel_offset;
 
     float sample_depth = texelFetch(depth_tx, sample_texel_fullres, 0).r;
 
@@ -152,7 +152,7 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   int2 texel_fullres = int2(local_id.xy + tile_coord * tile_size);
 
   /* Tracing resolution texel. */
-  int2 texel_shifted = max(int2(0), texel_fullres - uniform_buf.raytrace.resolution_bias);
+  int2 texel_shifted = max(int2(0), texel_fullres - uniform_buf.raytrace.trace_pixel_offset);
   int2 texel_nearest = texel_shifted / srt.raytrace_resolution_scale;
   float2 bilinear_co = fract(float2(texel_shifted) / float2(srt.raytrace_resolution_scale));
 

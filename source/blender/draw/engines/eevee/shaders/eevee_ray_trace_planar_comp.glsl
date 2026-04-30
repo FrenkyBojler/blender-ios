@@ -42,8 +42,8 @@ void main()
     return;
   }
 
-  int2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
-                       uniform_buf.raytrace.resolution_bias;
+  int2 texel_fullres = texel * uniform_buf.raytrace.trace_pixel_scale +
+                       uniform_buf.raytrace.trace_pixel_offset;
 
   gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
   ClosureType closure_type = gbuffer::mode_to_closure_type(gbuf_header.bin_type(closure_index));

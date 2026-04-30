@@ -26,8 +26,8 @@ void main()
   uint2 tile_coord = unpackUvec2x16(tiles_coord_buf[gl_WorkGroupID.x]);
   int2 texel = int2(gl_LocalInvocationID.xy + tile_coord * tile_size);
 
-  int2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
-                       uniform_buf.raytrace.resolution_bias;
+  int2 texel_fullres = texel * uniform_buf.raytrace.trace_pixel_scale +
+                       uniform_buf.raytrace.trace_pixel_offset;
 
   /* Check if texel is out of bounds,
    * so we can utilize fast texture functions and early-out if not. */

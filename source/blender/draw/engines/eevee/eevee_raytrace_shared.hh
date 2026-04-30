@@ -24,8 +24,8 @@ struct [[host_shared]] RayTraceData {
   /** Inverse of input resolution to get screen UVs. */
   float2 full_resolution_inv;
   /** Scale and bias to go from ray-trace resolution to input resolution. */
-  int2 resolution_bias;
-  int resolution_scale;
+  int2 trace_pixel_offset;
+  int trace_pixel_scale;
   /** View space thickness the objects. */
   float thickness;
   /** Scale and bias to go from fast GI resolution to input resolution. */
