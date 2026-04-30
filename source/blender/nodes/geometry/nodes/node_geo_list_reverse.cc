@@ -49,9 +49,6 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   params.add_item(IFACE_("List"), SocketSearchOp{socket_type});
 }

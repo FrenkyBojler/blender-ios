@@ -67,9 +67,6 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
@@ -106,7 +103,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const CPPType &type = list->cpp_type();
 
-  bke::SocketValueVariant index_variant = params.extract_input<bke::SocketValueVariant>("Index"_ustr);
+  bke::SocketValueVariant index_variant = params.extract_input<bke::SocketValueVariant>(
+      "Index"_ustr);
 
   Vector<int> indices;
   if (index_variant.is_single()) {
@@ -140,7 +138,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bke::SocketValueVariant value_variant = params.extract_input<bke::SocketValueVariant>("Value"_ustr);
+  bke::SocketValueVariant value_variant = params.extract_input<bke::SocketValueVariant>(
+      "Value"_ustr);
 
   ListPtr value_list;
   if (value_variant.is_context_dependent_field()) {

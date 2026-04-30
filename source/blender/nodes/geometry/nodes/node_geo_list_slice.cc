@@ -31,8 +31,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   b.add_input<decl::Int>("Start"_ustr).default_value(0).description("Starting index (inclusive)");
-  b.add_input<decl::Int>("End"_ustr).default_value(-1).description(
-      "Ending index (exclusive, -1 means end of list)");
+  b.add_input<decl::Int>("End"_ustr)
+      .default_value(-1)
+      .description("Ending index (exclusive, -1 means end of list)");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -54,9 +55,6 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {

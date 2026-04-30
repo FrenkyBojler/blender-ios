@@ -28,9 +28,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   if (params.in_out() == SOCK_IN) {
     if (params.other_socket().type == SOCK_BOOLEAN) {
       params.add_item(IFACE_("Boolean"), [](LinkSearchOpParams &params) {

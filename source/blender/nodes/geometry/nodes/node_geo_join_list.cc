@@ -57,16 +57,14 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   params.add_item(IFACE_("List"), SocketSearchOp{socket_type});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeoNodesMultiInput<ListPtr> lists = params.extract_input<GeoNodesMultiInput<ListPtr>>("List"_ustr);
+  GeoNodesMultiInput<ListPtr> lists = params.extract_input<GeoNodesMultiInput<ListPtr>>(
+      "List"_ustr);
 
   if (lists.values.is_empty()) {
     params.set_default_remaining_outputs();

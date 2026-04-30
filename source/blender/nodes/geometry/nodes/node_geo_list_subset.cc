@@ -59,9 +59,6 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_geometry_nodes_lists) {
-    return;
-  }
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
   if (params.in_out() == SOCK_IN) {
     if (socket_type == SOCK_BOOLEAN) {
@@ -119,10 +116,10 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
     if (mask_list->size() != list_size) {
-      params.error_message_add(NodeWarningType::Error,
-                               "List and Mask must have the same length (List: " +
-                                   std::to_string(list_size) +
-                                   ", Mask: " + std::to_string(mask_list->size()) + ")");
+      params.error_message_add(
+          NodeWarningType::Error,
+          "List and Mask must have the same length (List: " + std::to_string(list_size) +
+              ", Mask: " + std::to_string(mask_list->size()) + ")");
       params.set_default_remaining_outputs();
       return;
     }
