@@ -1302,8 +1302,16 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
             continue;
           }
         }
-        /* Ratio of cursor-to-pivot distances (current / original). */
-        size_new[i] = size_orig[i] * (delta_curr / delta_orig);
+        if (draw_style == ED_GIZMO_CAGE2D_STYLE_CIRCLE) {
+          /* Use the half-dimension as a fixed reference for circle gizmos,
+           * since the circle registers as a single `PART_SCALE` (both axes free)
+           * and `delta_orig` can be near-zero on one axis. */
+          size_new[i] = delta_curr / (signf(delta_orig) * 0.5f * dims[i] - pivot[i]);
+        }
+        else {
+          /* Ratio of cursor-to-pivot distances (current / original). */
+          size_new[i] = size_orig[i] * (delta_curr / delta_orig);
+        }
       }
     }
 
@@ -1318,7 +1326,9 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
 
     if (transform_flag & ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM) {
       if (constrain_axis[0] == false && constrain_axis[1] == false) {
-        if (draw_style == ED_GIZMO_CAGE2D_STYLE_CIRCLE) {
+        if (draw_style == ED_GIZMO_CAGE2D_STYLE_CIRCLE &&
+            !is_corner_highlighted(gz->highlight_part))
+        {
           /* So that the cursor lies on the circle. */
           scale[1] = scale[0] = len_v2(scale);
         }

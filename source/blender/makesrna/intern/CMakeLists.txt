@@ -169,7 +169,7 @@ endif()
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   string(APPEND GENSRC_FLAGS " -Wno-missing-variable-declarations")
 elseif(MSVC)
-  remove_cc_flag(
+  remove_c_and_cxx_flag(
     # Restore warn C4100 (unreferenced formal parameter) back to w4.
     "/w34100"
   )
@@ -286,10 +286,6 @@ if(WITH_PYTHON)
   )
 endif()
 
-if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_IMAGE_OPENEXR)
-endif()
-
 if(WITH_IMAGE_OPENJPEG)
   add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
@@ -399,7 +395,7 @@ if(WITH_GMP)
 endif()
 
 # Build `makesrna` executable.
-add_cc_flags_custom_test(makesrna)
+add_c_and_cxx_flags_custom_test(makesrna)
 
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
 setup_platform_linker_flags(makesrna)
@@ -473,6 +469,7 @@ set(LIB
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::optional::audaspace
   PUBLIC bf::dependencies::fmt
+  PRIVATE bf::nodes::shader
 )
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

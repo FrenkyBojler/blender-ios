@@ -3011,7 +3011,9 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
     if (CU_IS_2D(cu)) {
       sd = sortdata;
       for (a = 0; a < poly; a++, sd++) {
+        BLI_assert(sd->bl->reversed == false);
         if (sd->bl->hole == sd->dir) {
+          sd->bl->reversed = true;
           BevList *bl = sd->bl;
           bevp1 = bl->bevpoints;
           bevp2 = bevp1 + (bl->nr - 1);
@@ -4641,9 +4643,8 @@ Array<float3> BKE_curve_nurbs_key_vert_coords_alloc(const ListBaseT<Nurb> *lb, c
   int index = 0;
   for (const Nurb &nu : *lb) {
     if (nu.type == CU_BEZIER) {
-      const BezTriple *bezt = nu.bezt;
 
-      for (int i = 0; i < nu.pntsu; i++, bezt++) {
+      for (int i = 0; i < nu.pntsu; i++) {
         vert_coords[index] = &key[0];
         index++;
         vert_coords[index] = &key[3];
@@ -4654,9 +4655,7 @@ Array<float3> BKE_curve_nurbs_key_vert_coords_alloc(const ListBaseT<Nurb> *lb, c
       }
     }
     else {
-      const BPoint *bp = nu.bp;
-
-      for (int i = 0; i < nu.pntsu * nu.pntsv; i++, bp++) {
+      for (int i = 0; i < nu.pntsu * nu.pntsv; i++) {
         vert_coords[index] = key;
         index++;
         key += KEYELEM_FLOAT_LEN_BPOINT;

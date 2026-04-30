@@ -28,6 +28,7 @@ set(SRC
   paint_sample_color.cc
   paint_stroke.cc
   paint_utils.cc
+  palette.cc
   sculpt_uv.cc
 
   curves/sculpt_add.cc
@@ -115,8 +116,8 @@ set(SRC
   mesh/sculpt_trim.cc
   mesh/sculpt_undo.cc
 
-  paint_intern.hh
   paint_cursor.hh
+  paint_intern.hh
 
   curves/sculpt_intern.hh
 
@@ -144,6 +145,7 @@ set(SRC
   mesh/sculpt_pose.hh
   mesh/sculpt_smooth.hh
   mesh/sculpt_undo.hh
+  mesh/vw_paint_intern.hh
 
   mesh/brushes/bmesh_topology_rake.cc
   mesh/brushes/clay.cc

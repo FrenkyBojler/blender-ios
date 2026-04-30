@@ -39,7 +39,6 @@ namespace blender {
 /** \name Fast Python to C Array Conversion for Primitive Types
  * \{ */
 
-/* array utility function */
 int PyC_AsArray_FAST(void *array,
                      const size_t array_item_size,
                      PyObject *value_fast,
@@ -301,7 +300,6 @@ int PyC_AsArray_Multi(void *array,
  * \note See #PyC_Tuple_Pack_* macros that take multiple arguments.
  * \{ */
 
-/* array utility function */
 PyObject *PyC_Tuple_PackArray_F32(const float *array, uint len)
 {
   PyObject *tuple = PyTuple_New(len);
@@ -978,9 +976,6 @@ std::optional<int> PyC_ExceptionSystemExitCode()
   return g_system_exit_code;
 }
 
-/**
- * Capture exit code from current python exception.
- */
 bool PyC_Err_CaptureSystemExitCode()
 {
   if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
@@ -1661,7 +1656,7 @@ static PyObject *pyc_run_string_as_py_object(const char *imports[],
 
   if (imports_star) {
     for (int i = 0; imports_star[i]; i++) {
-      PyObject *mod = PyImport_ImportModule("math");
+      PyObject *mod = PyImport_ImportModule(imports_star[i]);
       if (mod) {
         /* Don't overwrite existing values (override=0). */
         PyDict_Merge(py_dict, PyModule_GetDict(mod), 0);
@@ -2108,6 +2103,24 @@ bool PyC_StructFmt_type_is_bool(char format)
     default:
       return false;
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Dict Utilities
+ * \{ */
+
+bool PyC_Dict_CheckKeysAreStrings(PyObject *dict)
+{
+  PyObject *key;
+  Py_ssize_t pos = 0;
+  while (PyDict_Next(dict, &pos, &key, nullptr)) {
+    if (!PyUnicode_Check(key)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** \} */

@@ -156,7 +156,7 @@ void outliner_free_tree(ListBaseT<TreeElement> *tree)
 
 void outliner_cleanup_tree(SpaceOutliner *space_outliner)
 {
-  outliner_free_tree(&space_outliner->tree);
+  outliner_free_tree(&space_outliner->runtime->tree);
   outliner_storage_cleanup(space_outliner);
 }
 
@@ -247,7 +247,7 @@ TreeElement *AbstractTreeDisplay::add_element(ListBaseT<TreeElement> *lb,
 {
   /* Pointer to store in #TreeStoreElem.id to identify the element over rebuilds and reconstruct it
    * on file read. */
-  /* FIXME: This is may be an arbitrary void pointer that is cast to an ID pointer. Could be a
+  /* FIXME: This may be an arbitrary void pointer that is cast to an ID pointer. Could be a
    * temporary stack pointer even. Often works reliably enough at runtime, and file reading handles
    * cases where data can't be reconstructed just fine (pointer is null'ed). This is still
    * completely type unsafe and error-prone. */
@@ -711,7 +711,8 @@ static void outliner_restore_scrolling_position(SpaceOutliner *space_outliner,
   if (focus->tselem != nullptr) {
     outliner_set_coordinates(region, space_outliner);
 
-    TreeElement *te_new = outliner_find_tree_element(&space_outliner->tree, focus->tselem);
+    TreeElement *te_new = outliner_find_tree_element(&space_outliner->runtime->tree,
+                                                     focus->tselem);
 
     if (te_new != nullptr) {
       int ys_new = te_new->ys;
@@ -777,7 +778,8 @@ static TreeElement *outliner_find_first_desired_element_at_y(const SpaceOutliner
                                                              const float view_co,
                                                              const float view_co_limit)
 {
-  TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_co);
+  TreeElement *te = outliner_find_item_at_y(
+      space_outliner, &space_outliner->runtime->tree, view_co);
 
   bool (*callback_test)(TreeElement *);
   if ((space_outliner->outlinevis == SO_VIEW_LAYER) &&
@@ -886,7 +888,8 @@ static int outliner_exclude_filter_get(const SpaceOutliner *space_outliner)
   return exclude_filter;
 }
 
-static bool outliner_element_visible_get(const Scene *scene,
+static bool outliner_element_visible_get(const Main &bmain,
+                                         const Scene *scene,
                                          ViewLayer *view_layer,
                                          TreeElement *te,
                                          const int exclude_filter)
@@ -947,7 +950,7 @@ static bool outliner_element_visible_get(const Scene *scene,
 
     if (exclude_filter & SO_FILTER_OB_STATE) {
       if (base == nullptr) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(bmain, scene, view_layer);
         base = BKE_view_layer_base_find(view_layer, ob);
 
         if (base == nullptr) {
@@ -973,7 +976,7 @@ static bool outliner_element_visible_get(const Scene *scene,
       }
       else {
         BLI_assert(exclude_filter & SO_FILTER_OB_STATE_ACTIVE);
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(bmain, scene, view_layer);
         if (base != BKE_view_layer_active_base_get(view_layer)) {
           is_visible = false;
         }
@@ -1063,6 +1066,7 @@ static TreeElement *outliner_extract_children_from_subtree(TreeElement *element,
 }
 
 static int outliner_filter_subtree(SpaceOutliner *space_outliner,
+                                   const Main &bmain,
                                    const Scene *scene,
                                    ViewLayer *view_layer,
                                    ListBaseT<TreeElement> *lb,
@@ -1074,18 +1078,18 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
 
   for (te = static_cast<TreeElement *>(lb->first); te; te = te_next) {
     te_next = te->next;
-    if (outliner_element_visible_get(scene, view_layer, te, exclude_filter) == false) {
+    if (outliner_element_visible_get(bmain, scene, view_layer, te, exclude_filter) == false) {
       /* Don't free the tree, but extract the children from the parent and add to this tree. */
       /* This also needs filtering the subtree prior (see #69246). */
       outliner_filter_subtree(
-          space_outliner, scene, view_layer, &te->subtree, search_string, exclude_filter);
+          space_outliner, bmain, scene, view_layer, &te->subtree, search_string, exclude_filter);
       te_next = outliner_extract_children_from_subtree(te, lb);
       continue;
     }
     if ((exclude_filter & SO_FILTER_SEARCH) == 0) {
       /* Filter subtree too. */
       outliner_filter_subtree(
-          space_outliner, scene, view_layer, &te->subtree, search_string, exclude_filter);
+          space_outliner, bmain, scene, view_layer, &te->subtree, search_string, exclude_filter);
       continue;
     }
 
@@ -1101,9 +1105,13 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
       /* flag as not a found item */
       tselem->flag &= ~TSE_SEARCHMATCH;
 
-      if (!TSELEM_OPEN(tselem, space_outliner) ||
-          outliner_filter_subtree(
-              space_outliner, scene, view_layer, &te->subtree, search_string, exclude_filter) == 0)
+      if (!TSELEM_OPEN(tselem, space_outliner) || outliner_filter_subtree(space_outliner,
+                                                                          bmain,
+                                                                          scene,
+                                                                          view_layer,
+                                                                          &te->subtree,
+                                                                          search_string,
+                                                                          exclude_filter) == 0)
       {
         outliner_free_tree_element(te, lb);
       }
@@ -1116,7 +1124,7 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
 
       /* filter subtree too */
       outliner_filter_subtree(
-          space_outliner, scene, view_layer, &te->subtree, search_string, exclude_filter);
+          space_outliner, bmain, scene, view_layer, &te->subtree, search_string, exclude_filter);
     }
   }
 
@@ -1124,7 +1132,8 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
   return (BLI_listbase_is_empty(lb) == false);
 }
 
-static void outliner_filter_tree(SpaceOutliner *space_outliner,
+static void outliner_filter_tree(const Main &bmain,
+                                 SpaceOutliner *space_outliner,
                                  const Scene *scene,
                                  ViewLayer *view_layer)
 {
@@ -1146,8 +1155,13 @@ static void outliner_filter_tree(SpaceOutliner *space_outliner,
     search_string = search_buff;
   }
 
-  outliner_filter_subtree(
-      space_outliner, scene, view_layer, &space_outliner->tree, search_string, exclude_filter);
+  outliner_filter_subtree(space_outliner,
+                          bmain,
+                          scene,
+                          view_layer,
+                          &space_outliner->runtime->tree,
+                          search_string,
+                          exclude_filter);
 }
 
 static void outliner_clear_newid_from_main(Main *bmain)
@@ -1205,7 +1219,7 @@ void outliner_build_tree(Main *mainvar,
   OutlinerTreeElementFocus focus;
   outliner_store_scrolling_position(space_outliner, region, &focus);
 
-  outliner_free_tree(&space_outliner->tree);
+  outliner_free_tree(&space_outliner->runtime->tree);
   outliner_storage_cleanup(space_outliner);
 
   space_outliner->runtime->tree_display = AbstractTreeDisplay::create_from_display_mode(
@@ -1215,21 +1229,21 @@ void outliner_build_tree(Main *mainvar,
   BLI_assert(space_outliner->runtime->tree_display != nullptr);
 
   TreeSourceData source_data{*mainvar, *workspace, *scene, *view_layer};
-  space_outliner->tree = ListBaseT<TreeElement>{
+  space_outliner->runtime->tree = ListBaseT<TreeElement>{
       space_outliner->runtime->tree_display->build_tree(source_data)};
 
   if ((space_outliner->flag & SO_SKIP_SORT_ALPHA) == 0) {
-    outliner_sort(&space_outliner->tree);
+    outliner_sort(&space_outliner->runtime->tree);
   }
   else if ((space_outliner->filter & SO_FILTER_NO_CHILDREN) == 0) {
     /* We group the children that are in the collection before the ones that are not.
      * This way we can try to draw them in a different style altogether.
      * We also have to respect the original order of the elements in case alphabetical
      * sorting is not enabled. This keep object data and modifiers before its children. */
-    outliner_collections_children_sort(&space_outliner->tree);
+    outliner_collections_children_sort(&space_outliner->runtime->tree);
   }
 
-  outliner_filter_tree(space_outliner, scene, view_layer);
+  outliner_filter_tree(*mainvar, space_outliner, scene, view_layer);
   outliner_restore_scrolling_position(space_outliner, region, &focus);
 
   /* `ID.newid` pointer is abused when building tree, DO NOT call #BKE_main_id_newptr_and_tag_clear

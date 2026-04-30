@@ -386,7 +386,7 @@ SeqRetimingKey fake_retiming_key_init(const Scene *scene, const Strip *strip, in
   SeqRetimingKey fake_key = {0};
   fake_key.strip_frame_index = (frame - strip->content_start() - sound_offset) *
                                strip->media_playback_rate_factor(scene_fps);
-  fake_key.flag = 0;
+  fake_key.flag = SEQ_RETIMING_FLAG_NONE;
   return fake_key;
 }
 
@@ -405,7 +405,7 @@ static void retiming_key_overlap(Scene *scene, Strip *strip)
   VectorSet<Strip *> strips;
   VectorSet<Strip *> dependant;
   dependant.add(strip);
-  iterator_set_expand(scene, seqbase, dependant, query_strip_effect_chain);
+  iterator_set_expand(seqbase, dependant, query_strip_effect_chain);
   strips.add_multiple(dependant);
   dependant.remove(strip);
   transform_handle_overlap(scene, seqbase, strips, dependant, true);

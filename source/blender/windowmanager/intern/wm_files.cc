@@ -2309,11 +2309,11 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
    * auto-save when we are in a mode where auto-save wouldn't have worked previously anyway. This
    * check can be removed once the performance regressions have been solved. */
   if (ED_undosys_stack_memfile_get_if_active(wm->runtime->undo_stack) != nullptr) {
-    WM_autosave_write(wm, bmain);
+    WM_autosave_write(wm, bmain, nullptr);
     return true;
   }
   if ((U.uiflag & USER_GLOBALUNDO) == 0) {
-    WM_autosave_write(wm, bmain);
+    WM_autosave_write(wm, bmain, nullptr);
     return true;
   }
   /* Can't auto-save with MemFile right now, try again later. */
@@ -2325,7 +2325,7 @@ bool WM_autosave_is_scheduled(wmWindowManager *wm)
   return wm->autosave_scheduled;
 }
 
-void WM_autosave_write(wmWindowManager *wm, Main *bmain)
+bool WM_autosave_write(wmWindowManager *wm, Main *bmain, ReportList *reports)
 {
   ED_editors_flush_edits(bmain);
 
@@ -2337,13 +2337,14 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 
   /* Error reporting into console. */
   BlendFileWriteParams params{};
-  BLO_write_file(bmain, filepath, fileflags, &params, nullptr);
+  const bool success = BLO_write_file(bmain, filepath, fileflags, &params, reports);
 
   /* Restart auto-save timer. */
   wm_autosave_timer_end(wm);
   wm_autosave_timer_begin(wm);
 
-  wm->autosave_scheduled = false;
+  wm->autosave_scheduled = !success;
+  return success;
 }
 
 static void wm_autosave_timer_begin_ex(wmWindowManager *wm, double timestep)
@@ -2417,6 +2418,21 @@ void wm_autosave_delete()
       BLI_rename_overwrite(filepath, filepath_quit);
     }
   }
+}
+
+static wmOperatorStatus wm_save_auto_save_exec(bContext *C, wmOperator *op)
+{
+  const bool success = WM_autosave_write(CTX_wm_manager(C), CTX_data_main(C), op->reports);
+  return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
+void WM_OT_save_auto_save(wmOperatorType *ot)
+{
+  ot->name = "Save Autosave";
+  ot->idname = "WM_OT_save_auto_save";
+  ot->description = "Create an autosave in the temp directory for the current file";
+
+  ot->exec = wm_save_auto_save_exec;
 }
 
 /** \} */
@@ -2718,6 +2734,14 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
 
   if (use_factory_settings) {
     U.runtime.is_dirty = true;
+
+    /* Default to Interface if Developer Tools section is active before Load Factory Preferences.
+     */
+    if (U.space_data.section_active == USER_SECTION_DEVELOPER_TOOLS &&
+        !(U.flag & USER_DEVELOPER_UI))
+    {
+      U.space_data.section_active = USER_SECTION_INTERFACE;
+    }
   }
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
@@ -2726,6 +2750,7 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
   wm_window_clear_drawable(static_cast<wmWindowManager *>(bmain->wm.first));
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_UI | ND_UI_FONT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2924,6 +2949,13 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
 
     if (use_factory_settings) {
       U.runtime.is_dirty = true;
+
+      /* Default to Interface if Developer Tools section is active before Load Factory Settings. */
+      if (U.space_data.section_active == USER_SECTION_DEVELOPER_TOOLS &&
+          !(U.flag & USER_DEVELOPER_UI))
+      {
+        U.space_data.section_active = USER_SECTION_INTERFACE;
+      }
     }
   }
 
@@ -3226,6 +3258,9 @@ static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
       ED_outliner_select_sync_from_all_tag(C);
     }
     ED_view3d_local_collections_reset(C, (G.fileflags & G_FILE_NO_UI) != 0);
+
+    ED_file_read_bookmarks();
+
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -3629,6 +3664,21 @@ static void wm_generic_callback_free_user_data_idproperties(void *user_data)
 /** \name Save Modified Images Dialog
  * \{ */
 
+static bool wm_show_save_modified_images_dialog(const Main *bmain, wmOperator *op)
+{
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
+  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+
+  /* Toggle RNA property "show_save_modified_images_dialog" to false to prevent opening the popup
+   * dialog in an infinite loop. */
+  if (show_save_image_dialog) {
+    RNA_property_boolean_set(op->ptr, prop, false);
+  }
+
+  return !G.background && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ASK &&
+         show_save_image_dialog && ED_image_save_all_modified_info(bmain, nullptr) > 0;
+}
+
 static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -3891,14 +3941,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent * /*event*/)
 {
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? (!G.background &&
-                                              RNA_property_boolean_get(op->ptr, prop)) :
-                                             false;
-
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
-    RNA_property_boolean_set(op->ptr, prop, false);
+  if (wm_show_save_modified_images_dialog(CTX_data_main(C), op)) {
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
                                             "WM_OT_save_as_mainfile",
@@ -3912,7 +3955,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
   save_set_compress(op);
   save_set_filepath(C, op);
 
-  prop = RNA_struct_find_property(op->ptr, "relative_remap");
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "relative_remap");
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_property_boolean_set(op->ptr, prop, (U.flag & USER_RELPATHS));
   }
@@ -3933,14 +3976,16 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "incremental");
   const bool is_incremental = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
-  prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? (!G.background &&
-                                              RNA_property_boolean_get(op->ptr, prop)) :
-                                             false;
-
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
-    RNA_property_boolean_set(op->ptr, prop, false);
+  if (U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ALWAYS &&
+      ED_image_save_all_modified_info(bmain, nullptr) > 0)
+  {
+    ReportList *reports = CTX_wm_reports(C);
+    const bool is_successful = ED_image_save_all_modified(C, reports);
+    if (!is_successful) {
+      WM_report_banner_show(static_cast<wmWindowManager *>(bmain->wm.first), CTX_wm_window(C));
+    }
+  }
+  else if (wm_show_save_modified_images_dialog(bmain, op)) {
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
                                             "WM_OT_save_mainfile",
@@ -4056,6 +4101,8 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     }
   }
 
+  ED_file_read_bookmarks();
+
   if (!is_save_as && RNA_boolean_get(op->ptr, "exit")) {
     wm_exit_schedule_delayed(C);
   }
@@ -4146,6 +4193,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
                                                 wmOperator *op,
                                                 const wmEvent * /*event*/)
 {
+  const Main *bmain = CTX_data_main(C);
   wmOperatorStatus ret;
 
   /* Cancel if no active window. */
@@ -4153,14 +4201,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? (!G.background &&
-                                              RNA_property_boolean_get(op->ptr, prop)) :
-                                             false;
-
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
-    RNA_property_boolean_set(op->ptr, prop, false);
+  if (wm_show_save_modified_images_dialog(bmain, op)) {
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
                                             "WM_OT_save_mainfile",
@@ -4179,14 +4220,14 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
    * enable the option to remap paths to avoid confusion, see: #37240. */
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
   if ((blendfile_path[0] == '\0') && (U.flag & USER_RELPATHS)) {
-    prop = RNA_struct_find_property(op->ptr, "relative_remap");
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "relative_remap");
     if (!RNA_property_is_set(op->ptr, prop)) {
       RNA_property_boolean_set(op->ptr, prop, true);
     }
   }
 
   if (blendfile_path[0] != '\0') {
-    if (BKE_main_needs_overwrite_confirm(CTX_data_main(C))) {
+    if (BKE_main_needs_overwrite_confirm(bmain)) {
       wm_save_file_overwrite_dialog(C, op);
       ret = OPERATOR_INTERFACE;
     }
@@ -4338,10 +4379,10 @@ void WM_OT_clear_recent_files(wmOperatorType *ot)
 /** \name Auto Script Execution Warning Dialog
  * \{ */
 
-static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void * /*arg*/)
+static void wm_block_autorun_warning_ignore(bContext *C, ui::Block *block)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<ui::Block *>(arg_block));
+  popup_block_close(C, win, block);
 
   /* Free the data as it's no longer needed. */
   wm_test_autorun_revert_action_set(nullptr, nullptr);
@@ -4484,7 +4525,7 @@ static ui::Block *block_create_autorun_warning(bContext *C, ARegion *region, voi
                          UI_UNIT_Y,
                          nullptr,
                          TIP_("Continue using file without Python scripts"));
-  button_func_set(but, wm_block_autorun_warning_ignore, block, nullptr);
+  button_func_set(but, [block](bContext &C) { wm_block_autorun_warning_ignore(&C, block); });
   button_drawflag_disable(but, ui::BUT_TEXT_LEFT);
   button_flag_enable(but, ui::BUT_ACTIVE_DEFAULT);
 

@@ -295,11 +295,10 @@ class BaseCryptoMatteOperation : public NodeOperation {
     }
 
     if (matte_output.should_compute()) {
-      matte_output.steal_data(matte);
+      matte_output.share_data(matte);
     }
-    else {
-      matte.release();
-    }
+
+    matte.release();
   }
 
   /* Computes the pick result, which is a special human-viewable image that the user can pick
@@ -585,13 +584,13 @@ NODE_STORAGE_FUNCS(NodeCryptomatte)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick"_ustr).structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
@@ -801,7 +800,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
        * instead. */
       Result layer_result = this->context().create_result(pass_result.type(),
                                                           pass_result.precision());
-      layer_result.wrap_external(pass_result);
+      layer_result.share_data(pass_result);
 
       layers.append(layer_result);
     }
@@ -908,7 +907,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeCryptomatteV2", CMP_NODE_CRYPTOMATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeCryptomatteV2"_ustr, CMP_NODE_CRYPTOMATTE);
   ntype.ui_name = "Cryptomatte";
   ntype.ui_description =
       "Generate matte for individual objects and materials using Cryptomatte render passes";
@@ -951,24 +950,24 @@ namespace nodes::node_composite_legacy_cryptomatte_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte"_ustr).structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick"_ustr).structure_type(StructureType::Dynamic);
 
   const bNode *node = b.node_or_null();
   if (!node) {
-    b.add_input<decl::Color>("Crypto 00").structure_type(StructureType::Dynamic);
+    b.add_input<decl::Color>("Crypto 00"_ustr).structure_type(StructureType::Dynamic);
     return;
   }
 
   const int inputs_count = static_cast<NodeCryptomatte *>(node->storage)->inputs_num;
   for (int i = 0; i < inputs_count; i++) {
     const std::string name = fmt::format("Crypto {:02}", i);
-    b.add_input<decl::Color>(name).structure_type(StructureType::Dynamic);
+    b.add_input<decl::Color>(UString(name)).structure_type(StructureType::Dynamic);
   }
 }
 
@@ -1012,7 +1011,7 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
       /* The layers will be released by the caller, so return a wrapper around the input result
        * instead. */
       Result layer_result = this->context().create_result(input.type(), input.precision());
-      layer_result.wrap_external(input);
+      layer_result.share_data(input);
 
       layers.append(layer_result);
     }
@@ -1029,7 +1028,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeCryptomatte", CMP_NODE_CRYPTOMATTE_LEGACY);
+  cmp_node_type_base(&ntype, "CompositorNodeCryptomatte"_ustr, CMP_NODE_CRYPTOMATTE_LEGACY);
   ntype.ui_name = "Cryptomatte (Legacy)";
   ntype.ui_description = "Deprecated. Use Cryptomatte Node instead";
   ntype.enum_name_legacy = "CRYPTOMATTE";

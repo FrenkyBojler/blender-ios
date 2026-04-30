@@ -49,13 +49,28 @@ struct ImFileType {
                                     ImFileColorSpace &r_colorspace,
                                     size_t *r_width,
                                     size_t *r_height);
-  /** Save to a file (or memory if #IB_mem is set in `flags` and the format supports it). */
+  /** Save to a file. */
   bool (*save)(ImBuf *ibuf, const char *filepath, int flags);
+  /** Save to a memory buffer. */
+  Vector<uint8_t> (*save_buffer)(ImBuf *ibuf, int flags);
 
   int flag;
 
-  /** #eImbFileType */
-  int filetype;
+  /** Combination of #eImFileTypeCapability flags for reading. */
+  eImFileTypeCapability capability_read;
+  /** Combination of #eImFileTypeCapability flags for writing. */
+  eImFileTypeCapability capability_write;
+
+  eImbFileType filetype;
+
+  /** Upper case ID, used as a unique identifier for the file format. */
+  const char *filetype_id;
+
+  /**
+   * Null-terminated list of file extensions (including the dot).
+   * When non-null, at least one string *must* be set.
+   */
+  const char **file_extensions;
 
   int default_save_role;
 };
@@ -71,7 +86,7 @@ struct ImFileColorSpace {
 extern const ImFileType IMB_FILE_TYPES[];
 extern const ImFileType *IMB_FILE_TYPES_LAST;
 
-const ImFileType *IMB_file_type_from_ftype(int ftype);
+const ImFileType *IMB_file_type_from_ftype(eImbFileType ftype);
 const ImFileType *IMB_file_type_from_ibuf(const ImBuf *ibuf);
 
 void imb_filetypes_init();
@@ -85,12 +100,15 @@ void imb_filetypes_exit();
 /** \name Format: PNG (#IMB_FTYPE_PNG)
  * \{ */
 
+extern const char *imb_file_extensions_png[];
+
 bool imb_is_a_png(const unsigned char *mem, size_t size);
 ImBuf *imb_load_png(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_png(ImBuf *ibuf, int flags);
 
 /** \} */
 
@@ -98,18 +116,23 @@ bool imb_save_png(ImBuf *ibuf, const char *filepath, int flags);
 /** \name Format: TARGA (#IMB_FTYPE_TGA)
  * \{ */
 
+extern const char *imb_file_extensions_tga[];
+
 bool imb_is_a_tga(const unsigned char *mem, size_t size);
 ImBuf *imb_load_tga(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_tga(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_tga(ImBuf *ibuf, int flags);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Format: IRIS (#IMB_FTYPE_IRIS)
  * \{ */
+
+extern const char *imb_file_extensions_iris[];
 
 bool imb_is_a_iris(const unsigned char *mem, size_t size);
 /**
@@ -127,6 +150,8 @@ bool imb_saveiris(ImBuf *ibuf, const char *filepath, int flags);
 /** \name Format: JP2 (#IMB_FTYPE_JP2)
  * \{ */
 
+extern const char *imb_file_extensions_jp2[];
+
 bool imb_is_a_jp2(const unsigned char *buf, size_t size);
 ImBuf *imb_load_jp2(const unsigned char *mem,
                     size_t size,
@@ -140,6 +165,8 @@ bool imb_save_jp2(ImBuf *ibuf, const char *filepath, int flags);
 /* -------------------------------------------------------------------- */
 /** \name Format: JPEG (#IMB_FTYPE_JPG)
  * \{ */
+
+extern const char *imb_file_extensions_jpeg[];
 
 bool imb_is_a_jpeg(const unsigned char *mem, size_t size);
 bool imb_savejpeg(ImBuf *ibuf, const char *filepath, int flags);
@@ -160,19 +187,23 @@ ImBuf *imb_thumbnail_jpeg(const char *filepath,
 /** \name Format: BMP (#IMB_FTYPE_BMP)
  * \{ */
 
+extern const char *imb_file_extensions_bmp[];
+
 bool imb_is_a_bmp(const unsigned char *mem, size_t size);
 ImBuf *imb_load_bmp(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
-/* Found write info at http://users.ece.gatech.edu/~slabaugh/personal/c/bitmapUnix.c */
 bool imb_save_bmp(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_bmp(ImBuf *ibuf, int flags);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Format: CINEON (#IMB_FTYPE_CINEON)
  * \{ */
+
+extern const char *imb_file_extensions_cineon[];
 
 bool imb_is_a_cineon(const unsigned char *mem, size_t size);
 bool imb_save_cineon(ImBuf *buf, const char *filepath, int flags);
@@ -187,8 +218,11 @@ ImBuf *imb_load_cineon(const unsigned char *mem,
 /** \name Format: DPX (#IMB_FTYPE_DPX)
  * \{ */
 
+extern const char *imb_file_extensions_dpx[];
+
 bool imb_is_a_dpx(const unsigned char *mem, size_t size);
 bool imb_save_dpx(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_dpx(ImBuf *ibuf, int flags);
 ImBuf *imb_load_dpx(const unsigned char *mem,
                     size_t size,
                     int flags,
@@ -200,18 +234,23 @@ ImBuf *imb_load_dpx(const unsigned char *mem,
 /** \name Format: HDR (#IMB_FTYPE_RADHDR)
  * \{ */
 
+extern const char *imb_file_extensions_hdr[];
+
 bool imb_is_a_hdr(const unsigned char *mem, size_t size);
 ImBuf *imb_load_hdr(const unsigned char *mem,
                     size_t size,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 bool imb_save_hdr(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_hdr(ImBuf *ibuf, int flags);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Format: TIFF (#IMB_FTYPE_TIF)
  * \{ */
+
+extern const char *imb_file_extensions_tiff[];
 
 bool imb_is_a_tiff(const unsigned char *mem, size_t size);
 /**
@@ -242,12 +281,15 @@ ImBuf *imb_load_tiff(const unsigned char *mem,
  * \return 1 if the function is successful, 0 on failure.
  */
 bool imb_save_tiff(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_tiff(ImBuf *ibuf, int flags);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Format: WEBP (#IMB_FTYPE_WEBP)
  * \{ */
+
+extern const char *imb_file_extensions_webp[];
 
 bool imb_is_a_webp(const unsigned char *mem, size_t size);
 ImBuf *imb_loadwebp(const unsigned char *mem,
@@ -261,12 +303,15 @@ ImBuf *imb_load_filepath_thumbnail_webp(const char *filepath,
                                         size_t *r_width,
                                         size_t *r_height);
 bool imb_savewebp(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_webp(ImBuf *ibuf, int flags);
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Format: DDS (#IMB_FTYPE_DDS)
  * \{ */
+
+extern const char *imb_file_extensions_dds[];
 
 void imb_init_dds();
 
@@ -277,11 +322,18 @@ ImBuf *imb_load_dds(const unsigned char *mem,
                     int flags,
                     ImFileColorSpace &r_colorspace);
 
+uint8_t *imb_load_dds_compressed_data(const char *filepath,
+                                      int width,
+                                      int height,
+                                      int &r_mipcount);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Format: PSD (#IMB_FTYPE_PSD)
  * \{ */
+
+extern const char *imb_file_extensions_psd[];
 
 bool imb_is_a_psd(const unsigned char *mem, size_t size);
 
@@ -296,12 +348,15 @@ ImBuf *imb_load_psd(const unsigned char *mem,
 /** \name Format: AVIF (#IMB_FTYPE_AVIF)
  * \{ */
 
+extern const char *imb_file_extensions_avif[];
+
 bool imb_is_a_avif(const unsigned char *mem, size_t size);
 ImBuf *imb_load_avif(const unsigned char *mem,
                      size_t size,
                      int flags,
                      ImFileColorSpace &r_colorspace);
 bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> imb_save_buffer_avif(ImBuf *ibuf, int flags);
 
 /** \} */
 

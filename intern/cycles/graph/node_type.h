@@ -79,14 +79,14 @@ struct SocketType {
   };
 
   ustring name;
-  Type type;
-  int struct_offset;
-  const void *default_value;
-  const NodeEnum *enum_values;
-  const NodeType *node_type;
-  int flags;
+  Type type = UNDEFINED;
+  int struct_offset = -1;
+  const void *default_value = nullptr;
+  const NodeEnum *enum_values = nullptr;
+  const NodeType *node_type = nullptr;
+  int flags = 0;
   ustring ui_name;
-  SocketModifiedFlags modified_flag_bit;
+  SocketModifiedFlags modified_flag_bit = 9;
 
   size_t storage_size() const;
   size_t packed_size() const;
@@ -134,10 +134,9 @@ struct NodeType {
                        Type type = NONE,
                        const NodeType *base = nullptr);
   static const NodeType *find(ustring name);
+  static vector<ustring> type_names();
 
- private:
-  static unordered_map<ustring, NodeType> &types();
-  static thread_mutex types_mutex_;
+  static bool register_on_init(const NodeType *(*init_func)());
 };
 
 /* Node Definition Macros
@@ -155,6 +154,8 @@ struct NodeType {
 #define NODE_DEFINE(structname) \
   const NodeType *structname::node_type_ = nullptr; \
   thread_mutex structname::node_type_mutex_; \
+  static bool structname##_register_on_init = NodeType::register_on_init( \
+      structname::get_node_type); \
   unique_ptr<Node> structname::create(const NodeType *) \
   { \
     return make_unique<structname>(); \

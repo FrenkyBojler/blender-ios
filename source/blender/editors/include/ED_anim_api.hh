@@ -621,14 +621,15 @@ void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data);
  */
 bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type);
 
-bAction *ANIM_active_action_from_area(Scene *scene,
+bAction *ANIM_active_action_from_area(const Main &bmain,
+                                      Scene *scene,
                                       ViewLayer *view_layer,
                                       const ScrArea *area,
                                       ID **r_action_user = nullptr);
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
-/* anim_channels_*.c */
+/* anim_channels_*.cc */
 
 /** \} */
 
@@ -1269,11 +1270,20 @@ enum eAnimvizCalcRange {
   ANIMVIZ_CALC_RANGE_FULL,
 };
 
+/**
+ * Build a partial depsgraph with only the IDs of the given `targets`.
+ */
 Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    Scene *scene,
                                    ViewLayer *view_layer,
                                    Span<MPathTarget *> targets);
 
+/**
+ * Evaluated the given `depsgraph` for all targets.
+ *
+ * \param range determines which frames the Depsgraph is evaluated for. This can have big
+ * performance implications.
+ */
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Main *bmain,
                               Scene *scene,
