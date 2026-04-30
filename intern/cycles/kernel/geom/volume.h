@@ -50,10 +50,9 @@ ccl_device_template_spec float volume_attribute_value(const float4 value)
   return average(make_float3(value));
 }
 
-ccl_device_template_spec float2 volume_attribute_value(const float4 /*value*/)
+ccl_device_template_spec float2 volume_attribute_value(const float4 value)
 {
-  kernel_assert(!"Float2 attribute not supported for volumes");
-  return zero_float2();
+  return make_float2(value.x, value.y);
 }
 
 ccl_device_template_spec float3 volume_attribute_value(const float4 value)
@@ -84,7 +83,7 @@ ccl_device float4 volume_attribute_float4(KernelGlobals kg,
       }
       case NODE_ATTR_FLOAT2: {
         const float2 f = kernel_data_fetch(attributes_float2, desc.offset);
-        return make_float4(f.x, f.y, 1.0f, 1.0f);
+        return make_float4(f.x, f.y, 0.0f, 1.0f);
       }
       case NODE_ATTR_FLOAT3: {
         const float3 f = kernel_data_fetch(attributes_float3, desc.offset);
