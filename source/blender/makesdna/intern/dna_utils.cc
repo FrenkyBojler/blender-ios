@@ -187,7 +187,7 @@ struct StructRename {
 };
 static const StructRename struct_renames[] = {
 #define DNA_STRUCT_RENAME(old, new) {#old, #new},
-#define DNA_STRUCT_RENAME_MEMBER(new_sturct_name, old, new)
+#define DNA_STRUCT_RENAME_MEMBER(new_struct_name, old, new)
 #include "dna_rename_defs.h"
 #undef DNA_STRUCT_RENAME
 #undef DNA_STRUCT_RENAME_MEMBER
