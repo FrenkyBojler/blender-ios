@@ -1940,14 +1940,16 @@ static bool exr_has_xyz(MultiPartInputFile &file)
 static int exr_has_channels(MultiPartInputFile &file)
 {
   const Header &header = file.header(0);
-  return sizeof(header.channels()) / sizeof(header.channels().begin().channel());
+  if (header.channels().begin() != header.channels().end()) {
+    return sizeof(header.channels()) / sizeof(header.channels().begin().channel());
+  }
+  return 0;
 }
 
-static const char* exr_unknow_channel_name(MultiPartInputFile &file)
+static const char *exr_unknow_channel_name(MultiPartInputFile &file)
 {
   const Header &header = file.header(0);
   return header.channels().begin().name();
-
 }
 
 static bool exr_is_half_float(MultiPartInputFile &file)
