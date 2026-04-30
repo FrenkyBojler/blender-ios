@@ -157,6 +157,11 @@ class CPPType : NonCopyable, NonMovable {
   bool is_copy_assignable = false;
   bool is_move_assignable = false;
 
+  /**
+   * An index that is assigned when the type is registered. Each #CPPtype has a unique index.
+   * While the pointer of a #CPPType is also unique, sometimes it's easier to work with an index
+   * that is a relatively small number (generally <100).
+   */
   int type_index = -1;
 
  private:
@@ -758,6 +763,9 @@ template<typename... Types, typename Fn> inline bool CPPType::to_static_type_try
   using Fn_ = std::remove_reference_t<Fn>;
   using Callback = void (*)(const Fn_ &);
 
+  /* Use an array indexed by #CPPType::type_index instead of a #Map for faster lookup and less
+   * generated code. The array can be quite a bit larger at run-time than the number of types but
+   * the total number of types is fairly limited, so that should be fine. */
   static Array<Callback, 0> callback_array = [&]() {
     /* This way to compute the max generates less code than using std::max with an initializer
      * list. */
