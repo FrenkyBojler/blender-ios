@@ -11,6 +11,7 @@
 #include "BLI_ustring.hh"
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 
 #include "DNA_node_types.h"
@@ -225,13 +226,13 @@ template<typename T> inline std::optional<T> BundleItemValue::as() const
     }
     return std::nullopt;
   }
-  else if constexpr (std::is_same_v<T, ListPtr>) {
+  else if constexpr (std::is_same_v<T, GListPtr>) {
     const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
     if (!socket_value) {
       return std::nullopt;
     }
     if (socket_value->value.is_list()) {
-      return socket_value->value.get<ListPtr>();
+      return socket_value->value.get<GListPtr>();
     }
     return std::nullopt;
   }
