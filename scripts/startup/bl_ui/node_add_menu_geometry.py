@@ -12,7 +12,7 @@ from bpy.app.translations import (
 class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
     bl_label = "Attribute"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAttributeStatistic")
         self.node_operator(layout, "GeometryNodeAttributeDomainSize")
@@ -22,7 +22,8 @@ class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeRemoveAttribute")
         self.node_operator(layout, "GeometryNodeRenameAttribute")
         self.node_operator(layout, "GeometryNodeStoreNamedAttribute", search_weight=1.0)
-        self.node_operator(layout, "GeometryNodeTransferAttributes")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeTransferAttributes")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -643,11 +644,12 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
 class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
     bl_label = "Simulation"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.simulation_zone(layout, label="Simulation")
         layout.separator()
-        self.node_operator(layout, "GeometryNodeXPBDSolver")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeXPBDSolver")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -674,7 +676,8 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeValueToString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeInputSpecialCharacters")
-        self.node_operator(layout, "GeometryNodeTagFilter")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeTagFilter")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -819,15 +822,16 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
     menu_path = "Utilities/Bundle"
 
     def draw(self, context):
-        del context
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
         self.node_operator(layout, "NodeGetBundleItem")
-        self.node_operator(layout, "NodeGetNestedBundlePaths")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "NodeGetNestedBundlePaths")
         self.node_operator(layout, "NodeStoreBundleItem")
         self.node_operator(layout, "NodeJoinBundle")
-        self.typed_bundle(layout, label="Typed Bundle")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.typed_bundle(layout, label="Typed Bundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
