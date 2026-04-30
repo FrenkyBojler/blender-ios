@@ -16,13 +16,12 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
-#include "BLT_date_string.hh"
-#include "BLT_lang.hh"
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
 
 #include "BLT_date_string.hh"
+#include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_studiolight.h"
