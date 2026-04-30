@@ -4,17 +4,17 @@
 
 color node_mix_blend(float t, color col1, color col2)
 {
-  return mix(col1, col2, t);
+  return (1.0 - t) * col1 + t * col2;
 }
 
 color node_mix_add(float t, color col1, color col2)
 {
-  return mix(col1, col1 + col2, t);
+  return col1 + t * col2;
 }
 
 color node_mix_mul(float t, color col1, color col2)
 {
-  return mix(col1, col1 * col2, t);
+  return col1 * (color(1.0 - t) + t * col2);
 }
 
 color node_mix_screen(float t, color col1, color col2)
@@ -56,7 +56,7 @@ color node_mix_overlay(float t, color col1, color col2)
 
 color node_mix_sub(float t, color col1, color col2)
 {
-  return mix(col1, col1 - col2, t);
+  return col1 - t * col2;
 }
 
 color node_mix_div(float t, color col1, color col2)

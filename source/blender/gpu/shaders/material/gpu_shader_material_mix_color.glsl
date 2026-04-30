@@ -17,7 +17,7 @@ void node_mix_blend(float fac,
                     float3 &outvec,
                     float4 &outcol)
 {
-  outcol = mix(col1, col2, fac);
+  outcol = (1.0f - fac) * col1 + fac * col2;
 }
 
 [[node]]
@@ -34,7 +34,7 @@ void node_mix_add(float fac,
                   float4 &outcol)
 {
 
-  outcol = mix(col1, col1 + col2, fac);
+  outcol = col1 + fac * col2;
   outcol.a = col1.a;
 }
 
@@ -52,7 +52,7 @@ void node_mix_mult(float fac,
                    float4 &outcol)
 {
 
-  outcol = mix(col1, col1 * col2, fac);
+  outcol = col1 * (float4(1.0f - fac) + fac * col2);
   outcol.a = col1.a;
 }
 
@@ -130,7 +130,7 @@ void node_mix_sub(float fac,
                   float4 &outcol)
 {
 
-  outcol = mix(col1, col1 - col2, fac);
+  outcol = col1 - fac * col2;
   outcol.a = col1.a;
 }
 
