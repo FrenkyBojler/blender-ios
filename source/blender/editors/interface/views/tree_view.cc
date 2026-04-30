@@ -646,7 +646,7 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
   return AbstractViewItem::should_be_filtered_visible(filter_string) !=
-         *this->get_tree_view().invert_search_filter_;
+         bool(*this->get_tree_view().invert_search_filter_);
 }
 
 bool AbstractTreeViewItem::matches_single(const AbstractTreeViewItem &other) const
@@ -1034,7 +1034,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       }
 
       but = uiDefIconBut(block,
-                         ButtonType::IconToggle,
+                         ButtonType::Toggle,
                          icon,
                          0,
                          0,
@@ -1045,6 +1045,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                          0,
                          TIP_("Reverse the order of items"));
       button_func_set(but, set_sort_order_fn, nullptr, tree_view.invert_sort_type_.get());
+      button_func_pushed_state_set(but, [&](const ui::Button & /*button*/) {
+        return *tree_view.invert_sort_type_ != TreeViewSortOrder::None;
+      });
       button_flag_disable(but, BUT_UNDO);
     }
   }
