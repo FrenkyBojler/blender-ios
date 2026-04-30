@@ -132,7 +132,7 @@ static void read_typed_property_sample(const ICompoundProperty &parent,
                                        bke::MutableAttributeAccessor &attribute_accessor)
 {
   const TArrayProperty &array_prop = TArrayProperty(parent, name);
-  if (array_prop) {
+  if (array_prop && !array_prop.isScalarLike()) {
     using SamplePtr = typename TArrayProperty::sample_ptr_type;
     using ValueType = typename TArrayProperty::value_type;
 
@@ -272,6 +272,23 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
   }
 
   geometry_set.replace_pointcloud(pointcloud);
+}
+
+const Alembic::Abc::ICompoundProperty AbcPointsReader::getArbGeomParams() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+
+  return m_schema.getArbGeomParams();
+}
+
+const Alembic::Abc::ICompoundProperty AbcPointsReader::getUserProperties() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+  return m_schema.getUserProperties();
 }
 
 }  // namespace io::alembic

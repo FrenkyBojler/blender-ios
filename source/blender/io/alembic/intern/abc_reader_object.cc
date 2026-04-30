@@ -16,6 +16,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_constraint.h"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
@@ -26,12 +27,20 @@
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 
+#include "RNA_types.hh"
+
 namespace blender {
 
+using Alembic::Abc::Dimensions;
+using Alembic::Abc::ICompoundProperty;
+using Alembic::Abc::PropertyHeader;
+using Alembic::AbcCoreAbstract::ArraySamplePtr;
+using Alembic::AbcCoreAbstract::DataType;
+using Alembic::AbcGeom::IArrayProperty;
 using Alembic::AbcGeom::IObject;
+using Alembic::AbcGeom::IScalarProperty;
 using Alembic::AbcGeom::IXform;
 using Alembic::AbcGeom::IXformSchema;
-
 namespace io::alembic {
 
 AbcReaderConstructorArgs create_reader_constructor_args(const IObject &object,
@@ -295,6 +304,366 @@ void AbcObjectReader::decref()
 {
   m_refcount--;
   BLI_assert(m_refcount >= 0);
+}
+
+const ICompoundProperty AbcObjectReader::getArbGeomParams() const
+{
+  return {};
+}
+
+const ICompoundProperty AbcObjectReader::getUserProperties() const
+{
+  return {};
+}
+
+void AbcObjectReader::readIDProperties()
+{
+  readIDProperties(getArbGeomParams());
+  readIDProperties(getUserProperties());
+}
+
+static std::optional<PropertySubType> get_property_subtype_for_interpretation(
+    StringRef interpretation)
+{
+  if (interpretation == Alembic::Abc::C3fTPTraits::interpretation() ||
+      interpretation == Alembic::Abc::C4fTPTraits::interpretation())
+  {
+    /* TODO(kevindietrich) : we might want to parameterize what space the colors are in.
+     * For now, this can be changed in the UI, but it is not too convenient when we have
+     * a lot of properties.
+     */
+    return PROP_COLOR;
+  }
+  if (interpretation == Alembic::Abc::V3fTPTraits::interpretation() ||
+      interpretation == Alembic::Abc::P3fTPTraits::interpretation())
+  {
+    return PROP_XYZ;
+  }
+  if (interpretation == Alembic::Abc::N3fTPTraits::interpretation()) {
+    return PROP_DIRECTION;
+  }
+  if (interpretation == Alembic::Abc::QuatfTPTraits::interpretation()) {
+    return PROP_QUATERNION;
+  }
+  return {};
+}
+
+static void set_ui_data_from_interpretation(IDProperty *prop, StringRef interpretation)
+{
+  std::optional<PropertySubType> prop_subtype = get_property_subtype_for_interpretation(
+      interpretation);
+  if (prop_subtype.has_value()) {
+    IDPropertyUIData *ui_data = IDP_ui_data_ensure(prop);
+    ui_data->rna_subtype = prop_subtype.value();
+  }
+}
+
+/* For now the maximum extent is that of a 4x4 matrix, so 16 values. */
+#define ABC_MAX_POD_EXTENT 16
+
+template<typename T>
+static IDProperty *make_idprop_from_int_values(StringRef prop_name,
+                                               const T *sample_values,
+                                               size_t num_values,
+                                               StringRef interpretation)
+{
+  BLI_assert(num_values <= ABC_MAX_POD_EXTENT);
+
+  int int_values[ABC_MAX_POD_EXTENT];
+  for (uint8_t i = 0; i < num_values; i++) {
+    int_values[i] = int(sample_values[i]);
+  }
+
+  if (num_values == 1) {
+    return bke::idprop::create(prop_name, int_values[0]).release();
+  }
+
+  if (num_values == 3 && interpretation == "rgb") {
+    /* Convert to a color. We use the original sample values to avoid sign conversions. */
+    float rgb[3] = {float(sample_values[0]) / 255.0f,
+                    float(sample_values[1]) / 255.0f,
+                    float(sample_values[2]) / 255.0f};
+    IDProperty *result = bke::idprop::create(prop_name, Span(rgb, 3)).release();
+    set_ui_data_from_interpretation(result, interpretation);
+    return result;
+  }
+
+  if (num_values == 4 && interpretation == "rgba") {
+    /* Convert to a color. We use the original sample values to avoid sign conversions. */
+    float rgb[4] = {float(sample_values[0]) / 255.0f,
+                    float(sample_values[1]) / 255.0f,
+                    float(sample_values[2]) / 255.0f,
+                    float(sample_values[3]) / 255.0f};
+    IDProperty *result = bke::idprop::create(prop_name, Span(rgb, 4)).release();
+    set_ui_data_from_interpretation(result, interpretation);
+    return result;
+  }
+
+  return bke::idprop::create(prop_name, Span(int_values, num_values)).release();
+}
+
+template<typename T>
+static IDProperty *make_idprop_from_floats(StringRef prop_name,
+                                           const T *sample_values,
+                                           size_t num_values,
+                                           StringRef interpretation)
+{
+  if (num_values == 1) {
+    return bke::idprop::create(prop_name, sample_values[0]).release();
+  }
+
+  IDProperty *result = bke::idprop::create(prop_name, Span(sample_values, num_values)).release();
+  set_ui_data_from_interpretation(result, interpretation);
+  return result;
+}
+
+static IDProperty *make_idprop_from_halves(StringRef prop_name,
+                                           const Alembic::Abc::float16_t *sample_values,
+                                           size_t num_values,
+                                           StringRef interpretation)
+{
+  float values[ABC_MAX_POD_EXTENT];
+  for (size_t i = 0; i < num_values; i++) {
+    values[i] = sample_values[i];
+  }
+
+  return make_idprop_from_floats(prop_name, values, num_values, interpretation);
+}
+
+template<typename T>
+static IDProperty *make_idprop_from_int_scalar_prop(StringRef prop_name,
+                                                    IScalarProperty &prop,
+                                                    const uint8_t extent,
+                                                    StringRef interpretation)
+{
+  T values[ABC_MAX_POD_EXTENT];
+  prop.get(values);
+  return make_idprop_from_int_values(prop_name, values, extent, interpretation);
+}
+
+static IDProperty *abc_scalar_prop_to_idprop(ICompoundProperty compound_property,
+                                             const PropertyHeader &prop_header)
+{
+  const std::string &prop_name = prop_header.getName();
+  IScalarProperty prop = IScalarProperty(compound_property, prop_name);
+
+  const DataType &data_type = prop_header.getDataType();
+  const uint8_t extent = data_type.getExtent();
+
+  BLI_assert_msg(extent <= ABC_MAX_POD_EXTENT,
+                 "The maximum extent of an Alembic POD has been changed.");
+
+  std::string interpretation = prop.getMetaData().get("interpretation");
+
+  switch (data_type.getPod()) {
+    case Alembic::AbcGeom::kBooleanPOD: {
+      BLI_assert_msg(extent == 1, "Alembic seems to support arrays of bools now.");
+      Alembic::Abc::bool_t value;
+      prop.get(&value);
+      return bke::idprop::create(prop_name, bool(value)).release();
+    }
+    case Alembic::AbcGeom::kUint8POD: {
+      return make_idprop_from_int_scalar_prop<uint8_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt8POD: {
+      return make_idprop_from_int_scalar_prop<int8_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kUint16POD: {
+      return make_idprop_from_int_scalar_prop<uint16_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt16POD: {
+      return make_idprop_from_int_scalar_prop<int16_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kUint32POD: {
+      return make_idprop_from_int_scalar_prop<uint32_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt32POD: {
+      return make_idprop_from_int_scalar_prop<int32_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kUint64POD: {
+      return make_idprop_from_int_scalar_prop<uint64_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt64POD: {
+      return make_idprop_from_int_scalar_prop<int64_t>(prop_name, prop, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kFloat16POD: {
+      Alembic::Abc::float16_t values[ABC_MAX_POD_EXTENT];
+      prop.get(values);
+      return make_idprop_from_halves(prop_name, values, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kFloat32POD: {
+      float values[ABC_MAX_POD_EXTENT];
+      prop.get(values);
+      return make_idprop_from_floats(prop_name, values, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kFloat64POD: {
+      double values[ABC_MAX_POD_EXTENT];
+      prop.get(values);
+      return make_idprop_from_floats(prop_name, values, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kStringPOD: {
+      BLI_assert_msg(extent == 1, "Alembic seems to support arrays of strings now.");
+      std::string value;
+      prop.get(&value);
+      return bke::idprop::create(prop_name, value).release();
+    }
+    case Alembic::AbcGeom::kWstringPOD: {
+      /* Unsupported at the moment, need examples. */
+      break;
+    }
+    case Alembic::AbcGeom::kNumPlainOldDataTypes:
+    case Alembic::AbcGeom::kUnknownPOD: {
+      break;
+    }
+  }
+
+  return nullptr;
+}
+
+template<typename T>
+static IDProperty *make_idprop_from_int_array_prop(StringRef prop_name,
+                                                   ArraySamplePtr sample,
+                                                   const size_t num_values,
+                                                   StringRef interpretation)
+{
+  const T *sample_values = static_cast<const T *>(sample->getData());
+  return make_idprop_from_int_values(prop_name, sample_values, num_values, interpretation);
+}
+
+static IDProperty *abc_array_prop_to_idprop(ICompoundProperty compound_property,
+                                            const PropertyHeader &prop_header)
+{
+  const std::string &prop_name = prop_header.getName();
+  IArrayProperty prop = IArrayProperty(compound_property, prop_name);
+
+  if (!prop.isScalarLike()) {
+    return nullptr;
+  }
+
+  const DataType &data_type = prop_header.getDataType();
+  const uint8_t extent = data_type.getExtent();
+
+  /* Determine the number of values by multiplying the array dimensions by the POD's extent in case
+   * the data is stored as a flat array instead of, e.g., a matrix or vec3. */
+  Alembic::Abc::Dimensions dims;
+  prop.getDimensions(dims);
+  const size_t num_values = dims.numPoints() * extent;
+
+  /* Some software export object level properties as array properties. We only load those
+   * properties which would make sense to us. */
+  if (num_values > ABC_MAX_POD_EXTENT) {
+    return nullptr;
+  }
+
+  std::string interpretation = prop.getMetaData().get("interpretation");
+
+  ArraySamplePtr sample;
+  prop.get(sample);
+
+  switch (data_type.getPod()) {
+    case Alembic::AbcGeom::kBooleanPOD: {
+      if (num_values == 1) {
+        const Alembic::Abc::bool_t *sample_data = static_cast<const Alembic::Abc::bool_t *>(
+            sample->getData());
+        return bke::idprop::create(prop_name, bool(*sample_data)).release();
+      }
+      break;
+    }
+    case Alembic::AbcGeom::kUint8POD: {
+      return make_idprop_from_int_array_prop<uint8_t>(
+          prop_name, sample, num_values, interpretation);
+    }
+    case Alembic::AbcGeom::kInt8POD: {
+      return make_idprop_from_int_array_prop<int8_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kUint16POD: {
+      return make_idprop_from_int_array_prop<uint16_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt16POD: {
+      return make_idprop_from_int_array_prop<int16_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kUint32POD: {
+      return make_idprop_from_int_array_prop<uint32_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt32POD: {
+      return make_idprop_from_int_array_prop<int32_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kUint64POD: {
+      return make_idprop_from_int_array_prop<uint64_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kInt64POD: {
+      return make_idprop_from_int_array_prop<int64_t>(prop_name, sample, extent, interpretation);
+    }
+    case Alembic::AbcGeom::kFloat16POD: {
+      const Alembic::Abc::float16_t *sample_data = static_cast<const Alembic::Abc::float16_t *>(
+          sample->getData());
+      return make_idprop_from_halves(prop_name, sample_data, num_values, interpretation);
+    }
+    case Alembic::AbcGeom::kFloat32POD: {
+      const float *sample_data = static_cast<const float *>(sample->getData());
+      return make_idprop_from_floats(prop_name, sample_data, num_values, interpretation);
+    }
+    case Alembic::AbcGeom::kFloat64POD: {
+      const double *sample_data = static_cast<const double *>(sample->getData());
+      return make_idprop_from_floats(prop_name, sample_data, num_values, interpretation);
+    }
+    case Alembic::AbcGeom::kStringPOD: {
+      if (num_values == 1) {
+        const std::string *sample_data = static_cast<const std::string *>(sample->getData());
+        return bke::idprop::create(prop_name, *sample_data).release();
+      }
+      break;
+    }
+    case Alembic::AbcGeom::kWstringPOD: {
+      /* Unsupported at the moment, need examples. */
+      break;
+    }
+    case Alembic::AbcGeom::kNumPlainOldDataTypes:
+    case Alembic::AbcGeom::kUnknownPOD: {
+      break;
+    }
+  }
+
+  return nullptr;
+}
+
+void AbcObjectReader::readIDProperties(ICompoundProperty compound_property)
+{
+  if (!compound_property || !compound_property.valid()) {
+    return;
+  }
+
+  ID *id = &m_object->id;
+  /* Import the properties on the object's data, if any, since the compound property is set on the
+   * object's data on the Alembic side.
+   * TODO(kevindietrich) : import properties from the parent IXform on the object itself. This
+   * needs to know if the parent is shared or not. */
+  if (m_object->data) {
+    id = m_object->data;
+  }
+
+  IDProperty *group = IDP_EnsureProperties(id);
+
+  for (int i = 0; i < compound_property.getNumProperties(); i++) {
+    auto prop_header = compound_property.getPropertyHeader(i);
+
+    IDProperty *prop = nullptr;
+
+    if (prop_header.isScalar()) {
+      prop = abc_scalar_prop_to_idprop(compound_property, prop_header);
+    }
+    else if (prop_header.isArray()) {
+      prop = abc_array_prop_to_idprop(compound_property, prop_header);
+    }
+    else {
+      // TODO(kevindietrich) : recurse if CompoundProperty
+      continue;
+    }
+
+    if (prop) {
+      IDP_AddToGroup(group, prop);
+    }
+  }
 }
 
 }  // namespace io::alembic

@@ -36,6 +36,22 @@ bool AbcEmptyReader::valid() const
   return m_schema.valid();
 }
 
+const Alembic::Abc::ICompoundProperty AbcEmptyReader::getArbGeomParams() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+  return m_schema.getArbGeomParams();
+}
+
+const Alembic::Abc::ICompoundProperty AbcEmptyReader::getUserProperties() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+  return m_schema.getUserProperties();
+}
+
 bool AbcEmptyReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,

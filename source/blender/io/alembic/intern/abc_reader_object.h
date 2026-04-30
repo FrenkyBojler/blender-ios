@@ -167,9 +167,17 @@ class AbcObjectReader {
 
   void read_matrix(float r_mat[4][4], chrono_t time, float scale, bool &is_constant);
 
+  virtual const Alembic::Abc::ICompoundProperty getArbGeomParams() const;
+
+  virtual const Alembic::Abc::ICompoundProperty getUserProperties() const;
+
+  void readIDProperties();
+
  protected:
   /** Determine whether we can inherit our parent's XForm. */
   void determine_inherits_xform();
+
+  void readIDProperties(Alembic::Abc::ICompoundProperty compound_property);
 };
 
 Imath::M44d get_matrix(const Alembic::AbcGeom::IXformSchema &schema, chrono_t time);

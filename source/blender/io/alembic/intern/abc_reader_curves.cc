@@ -567,5 +567,22 @@ void AbcCurveReader::read_geometry(bke::GeometrySet &geometry_set,
   read_curves_sample(curves, use_interpolation, m_curves_schema, sample_sel);
 }
 
+const Alembic::Abc::ICompoundProperty AbcCurveReader::getArbGeomParams() const
+{
+  if (!m_curves_schema.valid()) {
+    return {};
+  }
+
+  return m_curves_schema.getArbGeomParams();
+}
+
+const Alembic::Abc::ICompoundProperty AbcCurveReader::getUserProperties() const
+{
+  if (!m_curves_schema.valid()) {
+    return {};
+  }
+  return m_curves_schema.getUserProperties();
+}
+
 }  // namespace io::alembic
 }  // namespace blender

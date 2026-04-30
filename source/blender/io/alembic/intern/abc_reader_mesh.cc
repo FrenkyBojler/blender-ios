@@ -624,6 +624,23 @@ void AbcMeshReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   }
 }
 
+const Alembic::Abc::ICompoundProperty AbcMeshReader::getArbGeomParams() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+
+  return m_schema.getArbGeomParams();
+}
+
+const Alembic::Abc::ICompoundProperty AbcMeshReader::getUserProperties() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+  return m_schema.getUserProperties();
+}
+
 bool AbcMeshReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
@@ -1062,6 +1079,23 @@ void AbcSubDReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   if (m_settings->always_add_cache_reader || has_animations(m_schema, m_settings)) {
     addCacheModifier();
   }
+}
+
+const Alembic::Abc::ICompoundProperty AbcSubDReader::getArbGeomParams() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+
+  return m_schema.getArbGeomParams();
+}
+
+const Alembic::Abc::ICompoundProperty AbcSubDReader::getUserProperties() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+  return m_schema.getUserProperties();
 }
 
 Mesh *AbcSubDReader::read_mesh(Mesh *existing_mesh,

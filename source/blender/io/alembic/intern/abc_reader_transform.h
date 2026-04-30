@@ -32,6 +32,9 @@ class AbcEmptyReader final : public AbcObjectReader {
                            const char **r_err_str) const override;
 
   void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel) override;
+
+  const Alembic::Abc::ICompoundProperty getArbGeomParams() const override;
+  const Alembic::Abc::ICompoundProperty getUserProperties() const override;
 };
 
 }  // namespace io::alembic

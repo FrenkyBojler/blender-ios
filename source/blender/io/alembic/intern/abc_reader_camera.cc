@@ -101,5 +101,22 @@ void AbcCameraReader::readObjectData(Main *bmain, const ISampleSelector &sample_
   m_object->data = id_cast<ID *>(bcam);
 }
 
+const Alembic::Abc::ICompoundProperty AbcCameraReader::getArbGeomParams() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+
+  return m_schema.getArbGeomParams();
+}
+
+const Alembic::Abc::ICompoundProperty AbcCameraReader::getUserProperties() const
+{
+  if (!m_schema.valid()) {
+    return {};
+  }
+  return m_schema.getUserProperties();
+}
+
 }  // namespace io::alembic
 }  // namespace blender

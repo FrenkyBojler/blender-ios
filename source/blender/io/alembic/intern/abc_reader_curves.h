@@ -41,6 +41,10 @@ class AbcCurveReader final : public AbcObjectReader {
                           bool use_interpolation,
                           const Alembic::AbcGeom::ICurvesSchema &schema,
                           const Alembic::Abc::ISampleSelector &sample_selector);
+
+  const Alembic::Abc::ICompoundProperty getArbGeomParams() const override;
+
+  const Alembic::Abc::ICompoundProperty getUserProperties() const override;
 };
 
 }  // namespace io::alembic

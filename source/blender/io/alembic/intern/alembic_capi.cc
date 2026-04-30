@@ -561,6 +561,7 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
 
     if (reader->valid()) {
       reader->readObjectData(data->bmain, sample_sel);
+      reader->readIDProperties();
     }
     else {
       std::cerr << "Object " << reader->name() << " in Alembic file " << filepath

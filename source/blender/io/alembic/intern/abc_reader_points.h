@@ -31,6 +31,10 @@ class AbcPointsReader final : public AbcObjectReader {
                      const Alembic::Abc::ISampleSelector &sample_sel,
                      const AbcReadGeometryParams &read_params,
                      const char **r_err_str) override;
+
+  const Alembic::Abc::ICompoundProperty getArbGeomParams() const override;
+
+  const Alembic::Abc::ICompoundProperty getUserProperties() const override;
 };
 
 }  // namespace blender::io::alembic
