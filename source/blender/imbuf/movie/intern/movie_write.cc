@@ -11,12 +11,15 @@
 
 #include "BLI_string_ref.hh"
 
+#include "DNA_camera_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "MOV_write.hh"
 
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include <libavutil/dict.h>
 
 #ifdef WITH_FFMPEG
 #  include <cstdio>
@@ -270,6 +273,32 @@ static void add_stereo3d_metadata(AVCodecParameters *codecpar,
         }
         break;
       }
+    }
+  }
+}
+
+static void add_projection_metadata(const Scene &scene, AVDictionary **metadata)
+{
+  if (scene.camera == nullptr) {
+    return;
+  }
+  if (scene.camera->type != OB_CAMERA) {
+    return;
+  }
+  const Camera &camera = *reinterpret_cast<const Camera *>(scene.camera->data);
+
+  if (camera.type == CAM_PANO) {
+    if (camera.panorama_type == CAM_PANORAMA_EQUIRECTANGULAR) {
+      av_dict_set(metadata, "projection", "equirectangular", 0);
+
+      std::string value = fmt::format("{}", camera.latitude_min);
+      av_dict_set(metadata, "projection_bounds_top", value.c_str(), 0);
+      value = fmt::format("{}", camera.latitude_max);
+      av_dict_set(metadata, "projection_bounds_bottom", value.c_str(), 0);
+      value = fmt::format("{}", camera.longitude_min);
+      av_dict_set(metadata, "projection_bounds_left", value.c_str(), 0);
+      value = fmt::format("{}", camera.longitude_max);
+      av_dict_set( metadata, "projection_bounds_right", value.c_str(), 0);
     }
   }
 }
@@ -883,7 +912,7 @@ static void set_colorspace_options(AVCodecContext *c, const ColorSpace *colorspa
 }
 
 static AVStream *alloc_video_stream(MovieWriter *context,
-                                    const RenderData *rd,
+                                    const Scene &scene,
                                     const ImageFormatData *imf,
                                     AVCodecID codec_id,
                                     AVFormatContext *of,
@@ -895,6 +924,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   AVStream *st;
   const AVCodec *codec;
   AVDictionary *opts = nullptr;
+  const RenderData *rd = &scene.r;
 
   error[0] = '\0';
 
@@ -1181,6 +1211,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   else if (codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
     c->thread_type = FF_THREAD_SLICE;
   }
+  add_projection_metadata(scene, &opts);
 
   int ret = avcodec_open2(c, codec, &opts);
 
@@ -1410,7 +1441,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
 
   if (video_codec != AV_CODEC_ID_NONE) {
     context->video_stream = alloc_video_stream(
-        context, rd, imf, video_codec, of, rectx, recty, error, sizeof(error));
+        context, *scene, imf, video_codec, of, rectx, recty, error, sizeof(error));
     CLOG_INFO(&LOG, "ffmpeg: alloc video stream %p", context->video_stream);
     if (!context->video_stream) {
       if (error[0]) {
