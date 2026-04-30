@@ -2,24 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <type_traits>
+#include <utility>
+
 #include "BLI_any.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_memory_counter_fwd.hh"
 
 #include "BKE_node_socket_value_fwd.hh"
-#include <type_traits>
-#include <utility>
-
-namespace blender::fn {
-class GField;
-}
-namespace blender::bke::volume_grid {
-class GVolumeGrid;
-}
-namespace blender::nodes {
-class List;
-}
 
 namespace blender::bke {
 

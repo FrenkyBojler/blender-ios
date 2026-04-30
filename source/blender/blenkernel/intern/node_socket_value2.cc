@@ -12,10 +12,14 @@
 
 #include "BKE_volume_grid_multi_function_eval.hh"
 
+#include "NOD_geometry_nodes_list.hh"
+
 namespace blender::bke {
 
 using fn::Field;
 using fn::GField;
+using nodes::GList;
+using nodes::List;
 using volume_grid::GVolumeGrid;
 
 namespace detail {
@@ -123,7 +127,7 @@ void SocketValueVariantTypeInfo::convert_to_fn(const CPPType &dst_type,
     return;
   }
 #endif
-  else if constexpr (std::is_same_v<CurrentT, nodes::List>) {
+  else if constexpr (std::is_same_v<CurrentT, GList>) {
     // TODO
     SocketValueVariant2::init_default(dst_type, value);
     return;
@@ -186,6 +190,7 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
     }
     return false;
   }
+#ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<CurrentT, GVolumeGrid>) {
     if (dst_type.is<GVolumeGrid>()) {
       return true;
@@ -203,8 +208,9 @@ bool SocketValueVariantTypeInfo::is_interpretable_as_fn(const CPPType &dst_type,
     }
     return false;
   }
-  else if constexpr (std::is_same_v<CurrentT, nodes::List>) {
-    return dst_type.is<nodes::List>();
+#endif
+  else if constexpr (std::is_same_v<CurrentT, GList>) {
+    return dst_type.is<GList>();
   }
   else {
     return CPPType::get<CurrentT>() == dst_type;
@@ -237,9 +243,11 @@ inline T &SocketValueVariant2::init_default(detail::SocketValueVariantAny &value
       const CPPType &base_cpp_type = CPPType::get<BaseType>();
       return value.emplace<GField>(base_cpp_type).typed<BaseType>();
     }
+#ifdef WITH_OPENVDB
     else if constexpr (std::is_same_v<GenericType, GVolumeGrid>) {
       return value.emplace<GVolumeGrid>(GVolumeGrid{}).typed<BaseType>();
     }
+#endif
   }
   else if constexpr (std::is_same_v<T, GField>) {
     /* Some default fallback type. */

@@ -123,6 +123,8 @@ TEST_F(SocketValueVariantTest, IndexFieldToFloatField)
   EXPECT_EQ(values[4], 4.0f);
 }
 
+#ifdef WITH_OPENVDB
+
 TEST_F(SocketValueVariantTest, SimpleVolumeGrid)
 {
   SocketValueVariant2 s;
@@ -159,7 +161,6 @@ TEST_F(SocketValueVariantTest, SingleToVolumeGrid)
 
 TEST_F(SocketValueVariantTest, IntVolumeGridToFloatVolumeGrid)
 {
-  // TODO: The grid conversion still has to be implemented.
   SocketValueVariant2 s;
   {
     std::shared_ptr<openvdb::Int32Grid> int_grid = std::make_shared<openvdb::Int32Grid>();
@@ -171,5 +172,7 @@ TEST_F(SocketValueVariantTest, IntVolumeGridToFloatVolumeGrid)
   const openvdb::FloatGrid &float_grid = grid.grid(tree_token);
   EXPECT_EQ(float_grid.background(), 42.0f);
 }
+
+#endif
 
 }  // namespace blender::bke::tests
