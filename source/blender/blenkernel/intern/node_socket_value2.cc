@@ -12,12 +12,14 @@
 
 #include "BKE_volume_grid_multi_function_eval.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_list.hh"
 
 namespace blender::bke {
 
 using fn::Field;
 using fn::GField;
+using nodes::BundlePtr;
 using nodes::GList;
 using nodes::GListPtr;
 using nodes::List;
@@ -286,6 +288,7 @@ DEFINE_TYPE(int)
 DEFINE_TYPE(float)
 DEFINE_TYPE(GField)
 DEFINE_TYPE(GListPtr)
+DEFINE_TYPE(std::string)
 
 #ifdef WITH_OPENVDB
 DEFINE_TYPE(volume_grid::GVolumeGrid)
@@ -333,6 +336,12 @@ void *SocketValueVariant2::init_default(const CPPType &type, detail::SocketValue
   }
   if (type.is<int>()) {
     return &SocketValueVariant2::init_default<int>(value);
+  }
+  if (type.is<std::string>()) {
+    return &SocketValueVariant2::init_default<std::string>(value);
+  }
+  if (type.is<BundlePtr>()) {
+    return &SocketValueVariant2::init_default<BundlePtr>(value);
   }
   if (type.is<GField>()) {
     return &SocketValueVariant2::init_default<GField>(value);

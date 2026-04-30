@@ -9,6 +9,7 @@
 #include "FN_field.hh"
 #include "FN_field_evaluation.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_list.hh"
 
 #ifdef WITH_OPENVDB
@@ -19,6 +20,8 @@
 
 namespace blender::bke::tests {
 
+using nodes::Bundle;
+using nodes::BundlePtr;
 using nodes::GList;
 using nodes::GListPtr;
 using nodes::List;
@@ -163,6 +166,29 @@ TEST_F(SocketValueVariantTest, IntToIntList)
   const ListPtr<int> &list = s.ensure_type<ListPtr<int>>();
   /* Implicit conversion from single value to list is not allowed. */
   EXPECT_FALSE(list);
+}
+
+TEST_F(SocketValueVariantTest, SimpleString)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<std::string>() = "Hello World!";
+  EXPECT_EQ(s.ensure_type<std::string>(), "Hello World!");
+}
+
+TEST_F(SocketValueVariantTest, SimpleBundle)
+{
+  SocketValueVariant2 s;
+  s.ensure_type<BundlePtr>() = BundlePtr(Bundle::create());
+  {
+    Bundle &b = s.ensure_type<BundlePtr>().ensure_mutable_inplace();
+    b.add("A"_ustr, 42);
+    b.add("B"_ustr, 42.0f);
+  }
+  {
+    const BundlePtr &b = s.ensure_type<BundlePtr>();
+    EXPECT_EQ(b->lookup("A"_ustr)->as<int>(), 42);
+    EXPECT_EQ(b->lookup("B"_ustr)->as<float>(), 42.0f);
+  }
 }
 
 #ifdef WITH_OPENVDB
