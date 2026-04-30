@@ -350,18 +350,23 @@ PassMain::Sub *Prepass::add(blender::Material *blender_mat,
   const bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
   const bool has_raycast = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
   const bool write_id = has_raycast && !hide_on_raycast;
-  if (!hide_on_raycast) {
-    return &raycast_vis_on_subs_[double_sided][has_motion][write_id]->sub(
+
+  if (hide_on_raycast) {
+    PassMain::Sub &sub = raycast_vis_off_subs_[double_sided][has_motion]->sub(
         GPU_material_get_name(gpumat));
+    if (has_raycast) {
+      /* NOTE: Bound per subpass since material textures could override these slots. */
+      sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
+      sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
+      sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
+    }
+    return &sub;
   }
-  PassMain::Sub &sub = raycast_vis_off_subs_[double_sided][has_motion]->sub(
+
+  PassMain::Sub &sub = raycast_vis_on_subs_[double_sided][has_motion][write_id]->sub(
       GPU_material_get_name(gpumat));
   if (has_raycast) {
-    sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, &inst_.render_buffers.raycast_depth_tx);
-    sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
-    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
-  }
-  else {
+    /* NOTE: Bound per subpass since material textures could override these slots. */
     sub.bind_texture(RAYCAST_DEPTH_TEX_SLOT, dummy_raycast_depth_tx_);
     sub.bind_texture(OBJECT_ID_TEX_SLOT, dummy_raycast_normal_tx_);
     sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, dummy_raycast_id_tx_);
