@@ -353,7 +353,7 @@ template<typename T> inline const List<T> &ListPtr<T>::get() const
 
 template<typename T> inline List<T> &ListPtr<T>::get_for_write()
 {
-  return data_.get_for_write().typed<T>();
+  return data_.get_for_write().template typed<T>();
 }
 
 }  // namespace blender::nodes
