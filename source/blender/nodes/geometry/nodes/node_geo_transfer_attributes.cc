@@ -11,6 +11,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "NOD_geometry_nodes_list.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_transfer_attributes_cc {
@@ -337,7 +339,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet target_geo = params.extract_input<GeometrySet>("Target"_ustr);
   GeometrySet source_geo = params.extract_input<GeometrySet>("Source"_ustr);
-  const ListPtr attribute_patterns_list = params.extract_input<ListPtr>("Names"_ustr);
+  const GListPtr attribute_patterns_list = params.extract_input<GListPtr>("Names"_ustr);
   const bool ignore_names = params.extract_input<bool>("Ignore Names"_ustr);
 
   Map<bke::AttrDomain, Field<int>> dst_id_fields;
@@ -366,9 +368,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   VectorSet<std::string> attribute_patterns;
   if (attribute_patterns_list) {
-    const CPPType &cpp_type = attribute_patterns_list->cpp_type();
-    if (cpp_type.is<std::string>()) {
-      const VArray<std::string> values = attribute_patterns_list->varray<std::string>();
+    if (attribute_patterns_list->cpp_type().is<std::string>()) {
+      const VArray<std::string> values = attribute_patterns_list->typed<std::string>().varray();
       for (const int i : values.index_range()) {
         attribute_patterns.add(values[i]);
       }

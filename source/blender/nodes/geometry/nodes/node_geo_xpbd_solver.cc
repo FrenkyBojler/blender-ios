@@ -34,6 +34,7 @@
 
 #include "NOD_geo_tag_filter.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
 #include "node_geometry_util.hh"
@@ -671,13 +672,13 @@ class XpbdSolverStep {
       geo_set_data.geometry = std::move(*world_.lookup_path_for_write_ptr<GeometrySet>(path));
       if (geo_set_data.geometry.has_bundle()) {
         const Bundle &bundle_in_geo = *geo_set_data.geometry.bundle();
-        if (const std::optional<ListPtr> tags_list_ptr = bundle_in_geo.lookup_path<ListPtr>(
+        if (const std::optional<GListPtr> tags_list_ptr = bundle_in_geo.lookup_path<GListPtr>(
                 "tags"))
         {
           if (*tags_list_ptr) {
-            const List &tags_list = **tags_list_ptr;
+            const GList &tags_list = **tags_list_ptr;
             if (tags_list.cpp_type().is<std::string>()) {
-              tags_list.foreach<std::string>(
+              tags_list.typed<std::string>().foreach(
                   [&](const std::string &tag) { geo_set_data.tags.add(tag); });
             }
           }
@@ -3157,7 +3158,7 @@ class XpbdSolverStep {
           collider_map_path,
           BundleItemSocketValue{
               bke::node_socket_type_find_static(SOCK_STRING),
-              bke::SocketValueVariant::From(List::from_container(std::move(collider_paths)))});
+              bke::SocketValueVariant::From(GList::from_container(std::move(collider_paths)))});
     }
   }
 

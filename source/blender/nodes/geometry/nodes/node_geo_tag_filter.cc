@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_geo_tag_filter.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 #include "node_geometry_util.hh"
 
@@ -22,11 +23,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Set<std::string> tags;
   if (tags_variant.is_list()) {
-    const ListPtr tags_list_ptr = tags_variant.extract<ListPtr>();
+    const GListPtr tags_list_ptr = tags_variant.extract<GListPtr>();
     if (tags_list_ptr) {
-      const List &list = *tags_list_ptr;
+      const GList &list = *tags_list_ptr;
       if (list.cpp_type().is<std::string>()) {
-        list.foreach<std::string>([&](const std::string &tag) { tags.add(tag); });
+        list.typed<std::string>().foreach([&](const std::string &tag) { tags.add(tag); });
       }
     }
   }

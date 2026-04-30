@@ -4,6 +4,7 @@
 
 #include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -88,7 +89,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Make sure the order is deterministic and doesn't depend on hash tables in the bundle. */
   std::ranges::sort(paths);
 
-  params.set_output("Paths"_ustr, List::from_container(std::move(paths)));
+  params.set_output("Paths"_ustr, GList::from_container(std::move(paths)));
 }
 
 static void node_register()
