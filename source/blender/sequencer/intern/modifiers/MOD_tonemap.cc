@@ -242,7 +242,7 @@ static void tonemap_calc_chunk_luminance(const int width,
 
 static AreaLuminance tonemap_calc_input_luminance(const ImBuf *ibuf)
 {
-  float *float_data = ibuf->float_buffer.data;
+  const float *float_data = ibuf->float_data();
   AreaLuminance lum;
   lum = threading::parallel_reduce(
       IndexRange(ibuf->y),
@@ -255,10 +255,12 @@ static AreaLuminance tonemap_calc_input_luminance(const ImBuf *ibuf)
         /* For float images, convert to scene-linear in place. The rest
          * of tone-mapper can then continue with scene-linear values. */
         if (float_data != nullptr) {
-          float4 *fptr = reinterpret_cast<float4 *>(float_data);
-          fptr += y_range.first() * ibuf->x;
-          pixels_to_scene_linear_float(ibuf->float_buffer.colorspace, fptr, chunk_size);
-          tonemap_calc_chunk_luminance(ibuf->x, y_range, fptr, lum);
+          const float4 *fptr = reinterpret_cast<const float4 *>(float_data);
+          Array<float4> scene_linear(chunk_size);
+          std::copy_n(fptr + y_range.first() * ibuf->x, chunk_size, scene_linear.data());
+          pixels_to_scene_linear_float(
+              ibuf->float_buffer.colorspace, scene_linear.data(), chunk_size);
+          tonemap_calc_chunk_luminance(ibuf->x, y_range, scene_linear.data(), lum);
         }
         else {
           const uchar *bptr = ibuf->byte_data() + y_range.first() * ibuf->x * 4;
