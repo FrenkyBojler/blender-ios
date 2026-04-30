@@ -26,7 +26,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Merge ID"_ustr)
       .hide_value()
-      .field_on_all()
       .implicit_field_on_all(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("ID of group of the points to merge");
 }
