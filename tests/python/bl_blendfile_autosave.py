@@ -1,12 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
+import unittest
 
 # ./blender.bin --background --python tests/python/bl_blendfile_autosave.py -- --output-dir=/tmp/
 import bpy
 import os
 import re
 import sys
+import tempfile
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from bl_blendfile_utils import TestHelper
@@ -70,8 +72,110 @@ class TestBlendFileAutosave(TestHelper):
         self.assertIn("NewCubeMesh", bpy.data.meshes)
 
 
+class TestBlendFileImageAutosave(TestHelper):
+    def __init__(self, args):
+        super().__init__(args)
+
+    def setUpClass(self):
+        self.ensure_path(self.args.output_dir)
+        self.temp_dir = tempfile.TemporaryDirectory(dir=self.args.output_dir)
+
+    def tearDownClass(self):
+        self.temp_dir.cleanup()
+
+    @staticmethod
+    def find_autosave_path(base_dir, base_filename):
+        pattern = re.compile("{}_[0-9]+_autosave.blend".format(base_filename))
+
+        paths = os.listdir(base_dir)
+        for path in paths:
+            if pattern.match(path):
+                return os.path.join(base_dir, path)
+
+        return None
+
+    @staticmethod
+    def modify_image(image):
+        width, height = image.size
+        color = (1.0, 1.0, 1.0, 1.0)
+
+        pixels = width * height
+        for pixel in range(pixels):
+            for channel in range(4):
+                image.pixels[pixel * 4 + channel] = color[channel]
+
+    def check_image(self, image, expected_color):
+        width, height = image.size
+
+        pixels = width * height
+
+        actual_data = list(image.pixels[:])
+        expected_data = [0.0] * pixels * 4
+        for pixel in range(pixels):
+            for channel in range(4):
+                expected_data[pixel * 4 + channel] = expected_color[channel]
+
+        self.assertEqual(actual_data, expected_data)
+
+    def test_generated_image_restore(self):
+        self.ensure_path(self.args.output_dir)
+        with tempfile.TemporaryDirectory(dir=self.args.output_dir) as output_dir:
+            bpy.context.preferences.filepaths.temporary_directory = output_dir
+            output_path = os.path.join(output_dir, "blendfile_autosave_generated_image.blend")
+
+            # Immediately create the file so we can ensure we're working on a
+            # "generated" and not packed image with autosave
+            bpy.ops.wm.save_as_mainfile(filepath=output_path, check_existing=False, compress=False)
+
+            orig_image = bpy.data.images.new("GeneratedImage", 2, 2, alpha=True)
+            orig_image.use_fake_user = True
+
+            self.modify_image(orig_image)
+            self.check_image(bpy.data.images["GeneratedImage"], (1.0, 1.0, 1.0, 1.0))
+
+            orig_data = self.blender_data_to_tuple(bpy.data, "orig_data")
+
+            bpy.ops.wm.save_auto_save()
+            bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
+
+            read_data = self.blender_data_to_tuple(bpy.data, "read_data")
+
+            # File should not have image, only autosave should have image
+            self.assertNotEqual(read_data, orig_data)
+            self.assertNotIn("GeneratedImage", bpy.data.images)
+
+            autosave_path = self.find_autosave_path(output_dir, "blendfile_autosave_generated_image")
+            self.assertTrue(autosave_path)
+            self.assertNotEqual(output_path, autosave_path)
+
+            retval = bpy.ops.wm.recover_auto_save(filepath=autosave_path)
+
+            self.assertEqual(retval, {'FINISHED'})
+
+            recover_data = self.blender_data_to_tuple(bpy.data, "recover_data")
+            self.assertEqual(recover_data, orig_data)
+            self.assertIn("GeneratedImage", bpy.data.images)
+            self.check_image(bpy.data.images["GeneratedImage"], (1.0, 1.0, 1.0, 1.0))
+
+            bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
+
+            read_data = self.blender_data_to_tuple(bpy.data, "read_data")
+
+            self.assertNotEqual(read_data, orig_data)
+            self.assertNotIn("GeneratedImage", bpy.data.images)
+
+    @unittest.skip(reason="TBA")
+    def test_packed_image_restore(self):
+        return
+
+    @unittest.skip(reason="TBA")
+    def test_external_image_restore(self):
+        return
+
+
 TESTS = (
     TestBlendFileAutosave,
+    TestBlendFileImageAutosave
 )
 
 
