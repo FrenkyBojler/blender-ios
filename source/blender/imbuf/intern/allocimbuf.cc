@@ -489,8 +489,8 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   }
   if (const uint8_t *src_buffer = ibuf1->byte_data()) {
     IMB_alloc_byte_pixels(ibuf2, false);
-    memcpy(ibuf2->float_data_for_write(), src_buffer, sizeof(uint8_t) * 4 * ibuf1->x * ibuf1->y);
-    ibuf2->float_buffer.colorspace = ibuf1->float_buffer.colorspace;
+    memcpy(ibuf2->byte_data_for_write(), src_buffer, sizeof(uint8_t) * 4 * ibuf1->x * ibuf1->y);
+    ibuf2->byte_buffer.colorspace = ibuf1->byte_buffer.colorspace;
   }
   /* GPU textures can not be easily copied, as it is not guaranteed that this function is called
    * from within an active GPU context. */
