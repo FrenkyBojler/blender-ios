@@ -231,9 +231,9 @@ const bTheme U_theme_default = {
     },
     .link = RGBA(0x6FA9E6ff),
     .wcol_state = {
-      .error = RGBA(0xFF2E3Bff),
+      .error = RGBA(0xD40000ff),
       .warning = RGBA(0xac8737ff),
-      .info = RGBA(0x4D84E0ff),
+      .info = RGBA(0x28487dff),
       .success = RGBA(0x188625ff),
       .inner_anim = RGBA(0x53992eff),
       .inner_anim_sel = RGBA(0x38a600ff),
