@@ -2987,7 +2987,7 @@ static int pyrna_prop_collection_ass_subscript(BPy_PropertyRNA *self,
     PySliceObject *key_slice = (PySliceObject *)key;
     Py_ssize_t step = 1;
 
-    if (key_slice->step != Py_None && !_PyEval_SliceIndex(key, &step)) {
+    if (key_slice->step != Py_None && !_PyEval_SliceIndex(key_slice->step, &step)) {
       return nullptr;
     }
     else if (step != 1) {
