@@ -498,6 +498,7 @@ class AlembicVisibilityImportTests(AbstractAlembicTest):
         # Objects inherit the name of their parent Xform which is called 'HIDDEN' here
         self.assertObjectVisible('HIDDEN')
 
+
 class AlembicImportComparisonTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
