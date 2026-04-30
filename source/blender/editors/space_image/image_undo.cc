@@ -134,6 +134,7 @@ struct PaintTile {
 
 static void ptile_free(PaintTile *ptile)
 {
+  IMB_freeImBuf(ptile->ptile_ibuf);
   if (ptile->mask) {
     MEM_delete(ptile->mask);
   }
@@ -972,9 +973,9 @@ static void image_undosys_step_decode(
     ed::object::mode_set_ex(C, OB_MODE_TEXTURE_PAINT, false, nullptr);
   }
 
-  /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this
-   * paint mode, however, because the image isn't connected as part of the shader nodes, the draw
-   * code is unaware of the corresponding image tag. See #150957 for more details. */
+  /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this paint
+   * mode, however, because the image isn't connected as part of the shader nodes, the draw code
+   * is unaware of the corresponding image tag. See #150957 for more details. */
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   if (object && object->type == OB_MESH && scene &&

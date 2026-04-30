@@ -8,12 +8,9 @@
 
 #pragma once
 
-#include "BLI_implicit_sharing.hh"
-
 #include "DNA_view3d_enums.h"
 
 #include <cstdint>
-#include <optional>
 
 namespace blender {
 
