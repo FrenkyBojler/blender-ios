@@ -1628,7 +1628,9 @@ void OSLCompiler::add_output_converter(const ShaderNode * /*node*/,
                                        string_view /*node_output_parameter*/,
                                        string_view /*converter_input_parameter*/,
                                        string_view /*converter_output_parameter*/,
-                                       string_view /*shader_output_parameter*/) {}
+                                       string_view /*shader_output_parameter*/)
+{
+}
 
 void OSLCompiler::parameter(ShaderNode * /*node*/, const char * /*name*/) {}
 
