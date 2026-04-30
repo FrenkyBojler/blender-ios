@@ -949,45 +949,58 @@ void time_offset_fcurve_segment(FCurve *fcu, FCurveSegment *segment, const float
   const float first_key_x = first_key->vec[1][0];
 
   /* If we operate directly on the fcurve there will be a feedback loop
-   * so we need to capture the "y" values on an array to then apply them on a second loop. */
-  float *y_values = MEM_new_array_zeroed<float>(segment->length, "Time Offset Samples");
+   * so we need to capture the "y" values on an array to then apply them on a second loop. We
+   * oversample by adding an additional point between every key so we can reconstruct the handle
+   * lengths. */
+  Array<float> y_values(segment->length * 2 - 1);
   /* We need to know the tangents of the curve at the offset position so we can adjust the handles
    * accordingly. */
-  Array<float2> tangents(segment->length);
+  Array<float2> tangents(segment->length * 2 - 1);
 
+  const BezTriple *prev_key = nullptr;
   for (int i = 0; i < segment->length; i++) {
-    /* This simulates the fcu curve moving in time. */
     const BezTriple &key = fcu->bezt[segment->start_index + i];
-    const float time = key.vec[1][0] + frame_offset;
-    /* Need to normalize time to first_key to specify that as the wrapping point. */
-    const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
-    const float delta_y = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
-    const float key_y_value = evaluate_fcurve(fcu, wrapped_time) + delta_y;
-    y_values[i] = key_y_value;
-    tangents[i] = BKE_fcurve_tangent(*fcu, wrapped_time);
+    /* This simulates the fcu curve moving in time. */
+    {
+      const float time = key.vec[1][0] + frame_offset;
+      /* Need to normalize time to first_key to specify that as the wrapping point. */
+      const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
+      const float y_offset = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
+      y_values[i * 2] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
+      tangents[i * 2] = BKE_fcurve_tangent(*fcu, wrapped_time);
+    }
+
+    if (prev_key) {
+      const float time = (prev_key->vec[1][0] + key.vec[1][0]) / 2.0f + frame_offset;
+      /* Need to normalize time to first_key to specify that as the wrapping point. */
+      const float wrapped_time = floored_fmod(time - first_key_x, fcu_x_range) + first_key_x;
+      const float y_offset = fcu_y_range * floorf((time - first_key_x) / fcu_x_range);
+      y_values[i * 2 - 1] = evaluate_fcurve(fcu, wrapped_time) + y_offset;
+      tangents[i * 2 - 1] = BKE_fcurve_tangent(*fcu, wrapped_time);
+    }
+
+    prev_key = &key;
   }
 
-  BezTriple *prev_key = segment->start_index - 1 >= 0 ? &fcu->bezt[segment->start_index - 1] :
-                                                        nullptr;
+  prev_key = segment->start_index - 1 >= 0 ? &fcu->bezt[segment->start_index - 1] : nullptr;
   for (int i = 0; i < segment->length; i++) {
     const int key_index = segment->start_index + i;
     BezTriple *next_key = key_index + 1 < fcu->totvert ? &fcu->bezt[key_index + 1] : nullptr;
     BezTriple &key = fcu->bezt[key_index];
-    BKE_fcurve_keyframe_move_value_with_handles(&key, y_values[i]);
+    key.vec[1][1] = y_values[i * 2];
     key.h1 = key.h2 = HD_FREE;
     if (prev_key) {
       const float dist = len_v2(float2(key.vec[1]) - float2(prev_key->vec[1])) * 0.3f;
-      key.vec[0][0] = key.vec[1][0] - tangents[i].x * dist;
-      key.vec[0][1] = key.vec[1][1] - tangents[i].y * dist;
+      key.vec[0][0] = key.vec[1][0] - tangents[i * 2].x * dist;
+      key.vec[0][1] = key.vec[1][1] - tangents[i * 2].y * dist;
     }
     if (next_key) {
       const float dist = len_v2(float2(key.vec[1]) - float2(next_key->vec[1])) * 0.3f;
-      key.vec[2][0] = key.vec[1][0] + tangents[i].x * dist;
-      key.vec[2][1] = key.vec[1][1] + tangents[i].y * dist;
+      key.vec[2][0] = key.vec[1][0] + tangents[i * 2].x * dist;
+      key.vec[2][1] = key.vec[1][1] + tangents[i * 2].y * dist;
     }
     prev_key = &key;
   }
-  MEM_delete(y_values);
 }
 
 /* ---------------- */

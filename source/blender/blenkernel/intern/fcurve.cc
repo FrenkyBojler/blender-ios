@@ -1591,17 +1591,19 @@ float2 BKE_fcurve_tangent(FCurve &fcurve, const float frame)
     return {1, 0};
   }
 
-  const float t = roots[0]; /* Percentage of the curve at which the split should occur. */
-  /* If we were on a key, `replace` would have been set to true. */
+  /* `t` refers to the percentage along the curve. */
+  const float t = roots[0];
+  /* If we were on a key (so 0 or 1), `replace` would have been set to true. */
   BLI_assert(t > 0.0f && t < 1.0f);
-  float split1[3][2], split2[2][2], split3[2];
+  /* We can use De Casteljau to find the tangent. The last line segment of the algorithm is tangent
+   * to the line on point t. */
+  float split1[3][2], split2[2][2];
   interp_v2_v2v2(split1[0], a.vec[1], a.vec[2], t);
   interp_v2_v2v2(split1[1], a.vec[2], b.vec[0], t);
   interp_v2_v2v2(split1[2], b.vec[0], b.vec[1], t);
   interp_v2_v2v2(split2[0], split1[0], split1[1], t);
   interp_v2_v2v2(split2[1], split1[1], split1[2], t);
-  interp_v2_v2v2(split3, split2[0], split2[1], t);
-  float2 tangent = float2(split2[1]) - float2(split3);
+  float2 tangent = float2(split2[1]) - float2(split2[0]);
   normalize_v2(tangent);
   return tangent;
 }
