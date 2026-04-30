@@ -1949,7 +1949,8 @@ static int exr_has_channels(MultiPartInputFile &file)
 static const char *exr_unknow_channel_name(MultiPartInputFile &file)
 {
   const Header &header = file.header(0);
-  return header.channels().begin().name();
+  const char* name =  header.channels().begin().name();
+  return exr_rgba_channelname(file, name);
 }
 
 static bool exr_is_half_float(MultiPartInputFile &file)
@@ -2250,7 +2251,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
                 Slice(Imf::FLOAT, (char *)(first + 2), xstride, ystride, 1, 1, 0.5f));
           }
           else if (num_exr_channels > 0) {
-            frameBuffer.insert(exr_rgba_channelname(*file, exr_unknow_channel_name(*file)),
+            frameBuffer.insert(exr_unknow_channel_name(*file),
                                Slice(Imf::FLOAT, (char *)first, xstride, ystride, 1, 1));
           }
 
