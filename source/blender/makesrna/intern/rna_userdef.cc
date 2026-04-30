@@ -16,6 +16,8 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string_utf8_symbols.h"
+#include "BLT_date_string.hh"
+#include "BLT_lang.hh"
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
@@ -74,6 +76,50 @@ const EnumPropertyItem rna_enum_preference_section_items[] = {
     RNA_ENUM_ITEM_SEPR,
     {USER_SECTION_DEVELOPER_TOOLS, "DEVELOPER_TOOLS", 0, "Developer Tools", ""},
     {USER_SECTION_EXPERIMENTAL, "EXPERIMENTAL", 0, "Experimental", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem rna_enum_date_format_items[] = {
+    {int(date_string::DateFormat::Default),
+     "DEFAULT",
+     0,
+     "Default",
+     "Default date formating based on output language"},
+    {int(date_string::DateFormat::LE_Slash),
+     "LE_SLASH",
+     0,
+     "dd/mm/yyyy",
+     "Date format: dd/mm/yyyy, eg: 27/02/2019"},
+    {int(date_string::DateFormat::LE_Dot),
+     "LE_DOT",
+     0,
+     "dd.mm.yyyy",
+     "Date format: dd.mm.yyyy, eg: 27.02.2019"},
+    {int(date_string::DateFormat::LE_Dash),
+     "LE_DASH",
+     0,
+     "dd-mm-yyyy",
+     "Date format: dd-mm-yyyy, eg: 27-02-2019"},
+    {int(date_string::DateFormat::ME_Slash),
+     "ME_SLASH",
+     0,
+     "mm/dd/yyyy",
+     "Date format: mm/dd/yyyy, eg: 02/27/2019"},
+    {int(date_string::DateFormat::BE_Slash),
+     "BE_SLASH",
+     0,
+     "yyyy/mm/dd",
+     "Date format: yyyy/mm/dd, eg: 2019/02/27"},
+    {int(date_string::DateFormat::BE_Dot),
+     "BE_DOT",
+     0,
+     "yyyy.mm.dd",
+     "Date format: yyyy.mm.dd, eg: 2019.02.27"},
+    {int(date_string::DateFormat::BE_Dash),
+     "BE_DASH",
+     0,
+     "yyyy-mm-dd",
+     "Date format: yyyy-mm-dd, eg: 2019-02-27"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1455,6 +1501,31 @@ static void rna_UserDef_studiolight_light_ambient_get(PointerRNA *ptr, float *va
 {
   StudioLight *sl = static_cast<StudioLight *>(ptr->data);
   copy_v3_v3(values, sl->light_ambient);
+}
+
+/* Persistant storage for the date_pattern_sample text. */
+static std::string date_format_names[10];
+
+static const EnumPropertyItem *rna_userdef_date_format_itemf(bContext * /*C*/,
+                                                             PointerRNA * /*ptr*/,
+                                                             PropertyRNA * /*prop*/,
+                                                             bool *r_free)
+{
+  int totitem = 0;
+  EnumPropertyItem *result = nullptr;
+  const char *lang = BLT_lang_get();
+  for (int i = 0; rna_enum_date_format_items[i].identifier != nullptr; i++) {
+    const EnumPropertyItem *item = &rna_enum_date_format_items[i];
+    constexpr std::tm test = {59, 59, 11, 20, 4, 60, 5, 139, 0}; /* May 20, 1960 11:59:59 */
+    date_format_names[i] = date_string::date(
+        &test, (i == 0) ? lang : nullptr, date_string::DateFormat(item->value));
+    EnumPropertyItem new_item = {
+        item->value, item->identifier, 0, date_format_names[i].c_str(), item->description};
+    RNA_enum_item_add(&result, &totitem, &new_item);
+  }
+  RNA_enum_item_end(&result, &totitem);
+  *r_free = true;
+  return result;
 }
 
 int rna_show_statusbar_vram_editable(const PointerRNA * /*ptr*/, const char ** /*r_info*/)
@@ -5487,52 +5558,9 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "Translate the names of new data-blocks (objects, materials...)");
   RNA_def_property_update(prop, 0, "rna_userdef_translation_update");
 
-  static const EnumPropertyItem rna_enum_date_format_items[] = {
-      {int(date_string::DateFormat::Default),
-       "DEFAULT",
-       0,
-       "Default",
-       "Default date formating based on output language"},
-      {int(date_string::DateFormat::LE_Slash),
-       "LE_SLASH",
-       0,
-       "dd/mm/yyyy",
-       "Date format: dd/mm/yyyy, eg: 27/02/2019"},
-      {int(date_string::DateFormat::LE_Dot),
-       "LE_DOT",
-       0,
-       "dd.mm.yyyy",
-       "Date format: dd.mm.yyyy, eg: 27.02.2019"},
-      {int(date_string::DateFormat::LE_Dash),
-       "LE_DASH",
-       0,
-       "dd-mm-yyyy",
-       "Date format: dd-mm-yyyy, eg: 27-02-2019"},
-      {int(date_string::DateFormat::ME_Slash),
-       "ME_SLASH",
-       0,
-       "mm/dd/yyyy",
-       "Date format: mm/dd/yyyy, eg: 02/27/2019"},
-      {int(date_string::DateFormat::BE_Slash),
-       "BE_SLASH",
-       0,
-       "yyyy/mm/dd",
-       "Date format: yyyy/mm/dd, eg: 2019/02/27"},
-      {int(date_string::DateFormat::BE_Dot),
-       "BE_DOT",
-       0,
-       "yyyy.mm.dd",
-       "Date format: yyyy.mm.dd, eg: 2019.02.27"},
-      {int(date_string::DateFormat::BE_Dash),
-       "BE_DASH",
-       0,
-       "yyyy-mm-dd",
-       "Date format: yyyy-mm-dd, eg: 2019-02-27"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   prop = RNA_def_property(srna, "date_format", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_date_format_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_userdef_date_format_itemf");
   RNA_def_property_ui_text(prop, "Date Format", "Format for displaying date strings");
   RNA_def_property_update(prop, 0, "rna_userdef_language_update");
 
