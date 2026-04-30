@@ -40,7 +40,7 @@ set(DPCPP_EXTRA_ARGS
   -DEMHASH_SYS_LOC=${LIBDIR}/emhash/include/emhash
   -DLEVEL_ZERO_LIBRARY=${LIBDIR}/level-zero/lib/${LIBPREFIX}ze_loader${SHAREDLIBEXT}
   -DLEVEL_ZERO_INCLUDE_DIR=${LIBDIR}/level-zero/include/level_zero
-  -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=${BUILD_DIR}/spirv_headers/src/external_spirv_headers
+  -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=${BUILD_DIR}/dpcpp_spirvheaders/src/external_dpcpp_spirvheaders/
   -DSYCL_UR_USE_FETCH_CONTENT=OFF
   -DSYCL_UR_SOURCE_DIR=${BUILD_DIR}/unifiedruntime/src/external_unifiedruntime/
   -DFETCHCONTENT_SOURCE_DIR_UNIFIED-MEMORY-FRAMEWORK=${BUILD_DIR}/unifiedmemoryframework/src/external_unifiedmemoryframework/
@@ -137,7 +137,7 @@ add_dependencies(
   external_icdloader
   external_emhash
   external_level-zero
-  external_spirv_headers
+  external_dpcpp_spirvheaders
   external_unifiedruntime
   external_unifiedmemoryframework
   external_zstd

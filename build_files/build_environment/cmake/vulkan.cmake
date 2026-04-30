@@ -57,15 +57,21 @@ ExternalProject_Add(external_spirv_headers
   INSTALL_DIR ${LIBDIR}/vulkan_headers
 )
 
-# Only extract the SPIRV-Tools sources as the dependecies (ShaderC and IGC) uses the sources directly.
+set(SPIRV_TOOLS_EXTRA_ARGS
+  -DSPIRV-Headers_SOURCE_DIR=${LIBDIR}/vulkan_headers
+)
+
 ExternalProject_Add(external_spirv_tools
   URL file://${PACKAGE_DIR}/${SPIRV_TOOLS_FILE}
   URL_HASH ${SPIRV_TOOLS_HASH_TYPE}=${SPIRV_TOOLS_HASH}
   PREFIX ${BUILD_DIR}/spirv_tools
 
-  CONFIGURE_COMMAND echo .
-  BUILD_COMMAND echo .
-  INSTALL_COMMAND echo .
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/spirv_tools
+    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    ${SPIRV_TOOLS_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/spirv_tools
 )
 
 add_dependencies(
