@@ -79,9 +79,8 @@ struct [[host_shared]] gpMaterial {
   /** NOTE(@fclem): Needs floatBitsToUint(). */
 #  define _flag packed2.w
 #endif
+  /** .z: bits 0-15 saturation (16-bit), bits 16-23 value (8-bit), bits 24-31 pre-hashed seed (8-bit). */
   uint4 random_packed;
-  /** .x: random seed (animatable, used as offset into the noise pattern). */
-  uint4 random_packed2;
 };
 
 struct [[host_shared]] gpLight {

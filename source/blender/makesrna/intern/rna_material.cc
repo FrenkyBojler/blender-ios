@@ -851,10 +851,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   /* Random Noise Seed. */
   prop = RNA_def_property(srna, "random_noise_seed", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "random_noise_seed");
-  RNA_def_property_ui_text(
-      prop,
-      "Seed",
-      "Seed of the random pattern. Keyframe this value to regenerate randomness over time");
+  RNA_def_property_ui_text(prop, "Seed", "Seed for the random pattern");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* pass index for future compositing and editing tools */

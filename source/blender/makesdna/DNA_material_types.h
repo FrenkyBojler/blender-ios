@@ -343,7 +343,7 @@ struct MaterialGPencilStyle {
   float random_value_factor = 0;
 
   float random_noise_scale = 0;
-  /** Seed used to vary the random pattern (animatable, e.g. for per-frame variation). */
+  /** Seed used to vary the random pattern. */
   int random_noise_seed = 0;
 };
 

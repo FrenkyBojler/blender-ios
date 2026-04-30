@@ -14,6 +14,7 @@
 #include "BKE_image.hh"
 #include "BKE_material.hh"
 
+#include "BLI_hash.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_memblock.h"
@@ -283,17 +284,16 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       mat_data->random_packed.y |= (unit_float_to_ushort_clamp(gp_style->random_hue_factor)) << 16;
 
       mat_data->random_packed.z = (unit_float_to_ushort_clamp(gp_style->random_saturation_factor));
-      mat_data->random_packed.z |= (unit_float_to_ushort_clamp(gp_style->random_value_factor))
-                                   << 16;
+      mat_data->random_packed.z |= uint(unit_float_to_ushort_clamp(gp_style->random_value_factor) >>
+                                        8u)
+                                   << 16u;
+      uint hashed_seed = blender::BLI_hash_int(uint(gp_style->random_noise_seed));
+      mat_data->random_packed.z |= (hashed_seed & 0xFFu) << 24u;
 
       mat_data->random_packed.w = float_as_uint(gp_style->random_noise_scale);
-
-      mat_data->random_packed2 = uint4(0);
-      mat_data->random_packed2.x = uint(gp_style->random_noise_seed);
     }
     else {
       mat_data->random_packed = uint4(0);
-      mat_data->random_packed2 = uint4(0);
     }
 
     gp_style = gpencil_viewport_material_overrides(inst, ob, color_type, gp_style, lighting_mode);

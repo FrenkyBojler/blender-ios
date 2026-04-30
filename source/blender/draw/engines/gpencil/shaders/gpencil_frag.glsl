@@ -126,13 +126,12 @@ RandomParameters unpack_random(uint4 random_packed)
 {
   float2 unpacked_x = unpackUnorm2x16(random_packed.x);
   float2 unpacked_y = unpackUnorm2x16(random_packed.y);
-  float2 unpacked_z = unpackUnorm2x16(random_packed.z);
   return {unpacked_x.x,
           unpacked_x.y,
           unpacked_y.x,
           unpacked_y.y,
-          unpacked_z.x,
-          unpacked_z.y,
+          unpackUnorm2x16(random_packed.z).x,
+          float((random_packed.z >> 16u) & 0xFFu) / 255.0f,
           uintBitsToFloat(random_packed.w)};
 }
 
@@ -153,10 +152,7 @@ float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
   uint matid = gp_interp_flat.mat_flag >> GPENCIL_MATID_SHIFT;
   RandomParameters Parameters = unpack_random(gp_materials[matid].random_packed);
 
-  /* Hash the seed so consecutive seed values (e.g. animated per frame) produce
-   * uncorrelated noise patterns rather than a small sliding offset. */
-  uint random_seed = gp_materials[matid].random_packed2.x;
-  float seed_offset = hash_uint_to_float(random_seed) * 65536.0f;
+  float seed_offset = float(gp_materials[matid].random_packed.z >> 24u) * (65536.0f / 255.0f);
   float noise_x = float(i) * Parameters.random_noise_scale + seed_offset;
 
   if (Parameters.random_rotation > 0.0f || Parameters.random_size > 0.0f) {
