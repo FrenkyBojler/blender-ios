@@ -953,7 +953,6 @@ class USERPREF_PT_viewport_textures(ViewportPanel, CenterAlignMixIn, Panel):
         col.prop(system, "gl_texture_limit", text="Limit Size")
         col.prop(system, "anisotropic_filter")
         col.prop(system, "gl_clip_alpha", slider=True)
-        col.prop(system, "image_draw_method", text="Image Display Method")
 
 
 class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
@@ -3082,7 +3081,6 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_extended_asset_browser"},
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
-                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
                 ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),

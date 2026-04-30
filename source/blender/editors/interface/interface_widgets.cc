@@ -2633,8 +2633,9 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     }
   }
 
-  /* Show placeholder text if the input is empty and not being edited. */
-  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu) && (!drawstr[0] || !but->editstr)) {
+  /* Show placeholder text if the input is empty or not being edited. */
+  if ((!drawstr[0] || !but->editstr) && ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu))
+  {
     const char *placeholder = button_placeholder_get(but);
     if (placeholder && placeholder[0]) {
       FontStyleDrawParams params{};
