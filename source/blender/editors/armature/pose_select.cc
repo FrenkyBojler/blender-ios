@@ -93,10 +93,14 @@ static Set<bPoseChannel *> get_selected_pose_bones(Object &pose_object)
   return selected_pose_bones;
 }
 
+/**
+ * Returns true if any of the bones in the parent hierarchy of the bone is in `potential_parents`.
+ * The bone itself is not checked.
+ */
 static bool pose_bone_is_below_one_of(bPoseChannel &bone,
                                       const Set<bPoseChannel *> &potential_parents)
 {
-  bPoseChannel *bone_iter = &bone;
+  bPoseChannel *bone_iter = bone.parent;
   while (bone_iter) {
     if (potential_parents.contains(bone_iter)) {
       return true;
@@ -186,7 +190,7 @@ static bool pose_select_parents(bContext *C,
 
 /**
  * Selects children of currently selected bones in all objects in pose mode. If `all` is true, a
- * bone will be selected if any bone in it's parent hierarchy is selected. If false, only bones
+ * bone will be selected if any bone in its parent hierarchy is selected. If false, only bones
  * whose direct parent is selected are changed.
  *
  * \param stop_at_leaf If true, selection will remain unchanged if there are no children to select.
@@ -221,9 +225,8 @@ static bool pose_select_children(bContext *C,
       if (all) {
         if (pose_bone_is_below_one_of(pchan, selected_pose_bones)) {
           pose_do_bone_select(&pchan, SEL_SELECT);
-          if (modify_active && pchan.parent->bone == active_bone &&
-              pchan.parent->bone->childbase.first == pchan.bone)
-          {
+          const bool is_first_child = pchan.parent->bone->childbase.first == pchan.bone;
+          if (modify_active && pchan.parent->bone == active_bone && is_first_child) {
             arm->act_bone = pchan.bone;
           }
           changed_any_selection = true;
@@ -232,9 +235,8 @@ static bool pose_select_children(bContext *C,
       else {
         if (selected_pose_bones.contains(pchan.parent)) {
           pose_do_bone_select(&pchan, SEL_SELECT);
-          if (modify_active && pchan.parent->bone == active_bone &&
-              pchan.parent->bone->childbase.first == pchan.bone)
-          {
+          const bool is_first_child = pchan.parent->bone->childbase.first == pchan.bone;
+          if (modify_active && pchan.parent->bone == active_bone && is_first_child) {
             arm->act_bone = pchan.bone;
           }
           changed_any_selection = true;
