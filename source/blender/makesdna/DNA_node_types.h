@@ -291,6 +291,11 @@ enum {
    * NOTE: DEPRECATED, use (id->tag & ID_TAG_LOCALIZED) instead.
    */
   // NTREE_IS_LOCALIZED = 1 << 5,
+  /**
+   * Internal tree for building gpu shaders. This enables context-dependent node declarations for
+   * adding "Weight" input sockets.
+   */
+  NTREE_IS_GPU_SHADER_INTERNAL = 1 << 6,
 };
 
 enum eNodeTreeRuntimeFlag {
@@ -1108,6 +1113,20 @@ enum CMPNodeRelativeToPixelReferenceDimension {
   CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_DIAGONAL = 5,
 };
 
+enum CMPNodeStringToImageHorizontalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_LEFT = 0,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_CENTER = 1,
+  CMP_NODE_STRING_TO_IMAGE_HORIZONTAL_ALIGNMENT_RIGHT = 2,
+};
+
+enum CMPNodeStringToImageVerticalAlignment {
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP = 0,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_TOP_BASELINE = 1,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_MIDDLE = 2,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM_BASELINE = 3,
+  CMP_NODE_STRING_TO_IMAGE_VERTICAL_ALIGNMENT_BOTTOM = 4,
+};
+
 /* Scattering phase functions */
 enum {
   SHD_PHASE_HENYEY_GREENSTEIN = 0,
@@ -1769,16 +1788,16 @@ struct bNodeInstanceKey {
   unsigned int value = 0;
 
 #ifdef __cplusplus
-  inline bool operator==(const bNodeInstanceKey &other) const
+  bool operator==(const bNodeInstanceKey &other) const
   {
     return value == other.value;
   }
-  inline bool operator!=(const bNodeInstanceKey &other) const
+  bool operator!=(const bNodeInstanceKey &other) const
   {
     return !(*this == other);
   }
 
-  inline uint64_t hash() const
+  uint64_t hash() const
   {
     return value;
   }
@@ -3319,6 +3338,13 @@ struct NodeGeometrySampleIndex {
   char _pad[1] = {};
 };
 
+struct NodeRaycastSampleAttributeItem {
+  int8_t data_type = 0; /** #eCustomDataType. */
+  char _pad[3] = {};
+  int identifier;
+  char *name = nullptr;
+};
+
 struct NodeGeometryRaycast {
   DNA_DEFINE_CXX_METHODS(NodeGeometryRaycast)
 
@@ -3327,6 +3353,16 @@ struct NodeGeometryRaycast {
 
   /** #eCustomDataType. */
   int8_t data_type = 0;
+};
+
+struct NodeShaderRaycast {
+  DNA_DEFINE_CXX_METHODS(NodeShaderRaycast)
+
+  int _pad0;
+  int next_identifier = 0;
+  NodeRaycastSampleAttributeItem *sample_attribute_items = nullptr;
+  int sample_attribute_items_num = 0;
+  int active_index = 0;
 };
 
 struct NodeGeometryCurveFill {

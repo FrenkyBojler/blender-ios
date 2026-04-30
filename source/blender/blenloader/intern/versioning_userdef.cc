@@ -1182,12 +1182,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->move_threshold = 2;
   }
 
-  if (!USER_VERSION_ATLEAST(280, 58)) {
-    if (userdef->image_draw_method != IMAGE_DRAW_METHOD_GLSL) {
-      userdef->image_draw_method = IMAGE_DRAW_METHOD_AUTO;
-    }
-  }
-
   /* Patch to set dupli light-probes and grease-pencil. */
   if (!USER_VERSION_ATLEAST(280, 58)) {
     userdef->dupflag |= USER_DUP_LIGHTPROBE;
@@ -1756,9 +1750,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     /* Increase the base XR vignette value to match the previous default after logic refactor. */
     /* Can be either 50 or 60 due to an oversight in the original feature (dde9d21b91) where
      * the DNA default was set 60, but the versioning_userdef set it to 50. */
-    if (userdef->xr_navigation.vignette_intensity == 50 ||
-        userdef->xr_navigation.vignette_intensity == 60)
-    {
+    if (ELEM(userdef->xr_navigation.vignette_intensity, 50, 60)) {
       userdef->xr_navigation.vignette_intensity = 70;
     }
   }
