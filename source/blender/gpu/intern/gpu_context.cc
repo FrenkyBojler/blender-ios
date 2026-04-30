@@ -49,6 +49,7 @@
 
 #include "draw_debug.hh"
 
+#include <cstdio>
 #include <mutex>
 
 namespace blender {
@@ -357,8 +358,7 @@ void GPU_render_step(bool force_resource_release)
 static GPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
 static std::optional<GPUBackendType> g_backend_type_override = std::nullopt;
 static std::optional<bool> g_backend_type_supported = std::nullopt;
-static std::optional<int> g_preferred_device_index_override = std::nullopt;
-static bool g_preferred_device_use_user_pref = true;
+static std::optional<GHOST_GPUDevice> g_preferred_device_override = std::nullopt;
 static std::optional<int> g_vsync_override = std::nullopt;
 static GPUBackend *g_backend = nullptr;
 static GHOST_ISystem *g_ghost_system = nullptr;
@@ -409,45 +409,58 @@ bool GPU_backend_type_selection_is_overridden()
   return g_backend_type_override.has_value();
 }
 
-int GPU_backend_preferred_device_index_get()
+void GPU_backend_preferred_device_set_override(const int index,
+                                               const uint32_t vendor_id,
+                                               const uint32_t device_id)
 {
-  return g_preferred_device_index_override.value();
+  BLI_assert(index >= 0);
+
+  GHOST_GPUDevice device = {};
+  device.is_override = true;
+  device.index = index;
+  device.vendor_id = vendor_id;
+  device.device_id = device_id;
+  g_preferred_device_override = device;
 }
 
-void GPU_backend_preferred_device_index_set_override(const int device_index)
+GHOST_GPUDevice GPU_backend_preferred_device_get()
 {
-  BLI_assert(device_index >= 0);
-  g_preferred_device_index_override = device_index;
-}
-
-bool GPU_backend_preferred_device_index_is_overridden()
-{
-  return g_preferred_device_index_override.has_value();
-}
-
-void GPU_backend_preferred_device_use_user_pref_set(const bool use_user_preference)
-{
-  g_preferred_device_use_user_pref = use_user_preference;
-}
-
-void GPU_backend_preferred_device_get(GHOST_GPUDevice *r_device)
-{
-  if (GPU_backend_preferred_device_index_is_overridden()) {
-    r_device->index = GPU_backend_preferred_device_index_get();
-    r_device->vendor_id = uint(-1);
-    r_device->device_id = uint(-1);
+  if (g_preferred_device_override.has_value()) {
+    return g_preferred_device_override.value();
   }
-  else if (!g_preferred_device_use_user_pref) {
-    r_device->index = -1;
-    r_device->vendor_id = 0u;
-    r_device->device_id = 0u;
-  }
-  else {
-    r_device->index = U.gpu_preferred_index;
-    r_device->vendor_id = U.gpu_preferred_vendor_id;
-    r_device->device_id = U.gpu_preferred_device_id;
-  }
+
+  GHOST_GPUDevice device = {};
+  device.is_override = false;
+  device.index = U.gpu_preferred_index;
+  device.vendor_id = U.gpu_preferred_vendor_id;
+  device.device_id = U.gpu_preferred_device_id;
+  return device;
 }
+
+static const char *gpu_backend_type_name(const GPUBackendType backend_type)
+{
+  switch (backend_type) {
+    case GPU_BACKEND_OPENGL:
+      return "OpenGL";
+    case GPU_BACKEND_VULKAN:
+      return "Vulkan";
+    case GPU_BACKEND_METAL:
+      return "Metal";
+    case GPU_BACKEND_NONE:
+      return "None";
+    case GPU_BACKEND_ANY:
+      break;
+  }
+
+  return "Unknown";
+}
+
+#ifdef WITH_VULKAN_BACKEND
+void GPU_vulkan_supported_devices_print(FILE *fp)
+{
+  blender::gpu::VKBackend::supported_devices_print(fp);
+}
+#endif
 
 bool GPU_backend_type_selection_detect()
 {
@@ -468,6 +481,14 @@ bool GPU_backend_type_selection_detect()
   for (const GPUBackendType backend_type : backends_to_check) {
     GPU_backend_type_selection_set(backend_type);
     if (GPU_backend_supported()) {
+      if (g_preferred_device_override.has_value() && backend_type != GPU_BACKEND_VULKAN) {
+        fprintf(stderr,
+                "Warning: '--gpu-device' is only supported for the Vulkan backend. "
+                "Ignoring the device override for the selected %s backend and falling back to the "
+                "stored GPU preference.\n",
+                gpu_backend_type_name(backend_type));
+        g_preferred_device_override.reset();
+      }
       return true;
     }
     G.f |= G_FLAG_GPU_BACKEND_FALLBACK;
@@ -589,20 +610,7 @@ GPUBackendType GPU_backend_get_type()
 
 const char *GPU_backend_get_name()
 {
-  switch (GPU_backend_get_type()) {
-    case GPU_BACKEND_OPENGL:
-      return "OpenGL";
-    case GPU_BACKEND_VULKAN:
-      return "Vulkan";
-    case GPU_BACKEND_METAL:
-      return "Metal";
-    case GPU_BACKEND_NONE:
-      return "None";
-    case GPU_BACKEND_ANY:
-      break;
-  }
-
-  return "Unknown";
+  return gpu_backend_type_name(GPU_backend_get_type());
 }
 
 GPUBackend *GPUBackend::get()
@@ -653,7 +661,7 @@ GPUSecondaryContextData GPU_create_secondary_context()
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
-  GPU_backend_preferred_device_get(&gpu_settings.preferred_device);
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
 
   /* Grab the system handle. */
   GHOST_ISystem *ghost_system = GPU_backend_ghost_system_get();

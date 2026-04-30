@@ -393,10 +393,10 @@ struct GHOST_InstanceVK {
     vector<VkPhysicalDevice> physical_devices(device_count);
     vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data());
 
-    const bool use_preferred_device_index = preferred_device.vendor_id == uint(-1) &&
-                                            preferred_device.device_id == uint(-1) &&
-                                            preferred_device.index >= 0;
     int best_device_score = -1;
+    /* Index of the device in the full physical-device enumeration. Matches the trailing
+     * `/index` component of `GPUDevice::identifier` (see `init_device_list` in `vk_backend.cc`).
+     */
     int device_index = -1;
     for (const VkPhysicalDevice &physical_device : physical_devices) {
       GHOST_DeviceVK device_vk(physical_device, false);
@@ -425,8 +425,15 @@ struct GHOST_InstanceVK {
         continue;
       }
 
-      if (use_preferred_device_index) {
-        if (preferred_device.index == device_index) {
+      if (preferred_device.is_override) {
+        /* Hard match: vendor/device IDs of `uint(-1)` act as wildcards for the by-index form. */
+        const VkPhysicalDeviceProperties &vk_props = device_vk.properties.properties;
+        const bool match = preferred_device.index == device_index &&
+                           (preferred_device.vendor_id == uint(-1) ||
+                            preferred_device.vendor_id == vk_props.vendorID) &&
+                           (preferred_device.device_id == uint(-1) ||
+                            preferred_device.device_id == vk_props.deviceID);
+        if (match) {
           best_physical_device = physical_device;
           break;
         }
@@ -469,10 +476,21 @@ struct GHOST_InstanceVK {
     }
 
     if (best_physical_device == VK_NULL_HANDLE) {
-      if (use_preferred_device_index) {
-        CLOG_ERROR(&LOG,
-                   "Requested Vulkan GPU device index %d is unavailable or unsupported.",
-                   preferred_device.index);
+      if (preferred_device.is_override) {
+        if (preferred_device.vendor_id == uint(-1)) {
+          CLOG_ERROR(&LOG,
+                     "Requested Vulkan GPU '%d' is unavailable or unsupported. "
+                     "Run with '--gpu-device help' to list available devices.",
+                     preferred_device.index);
+        }
+        else {
+          CLOG_ERROR(&LOG,
+                     "Requested Vulkan GPU '%x/%x/%x' is unavailable or unsupported. "
+                     "Run with '--gpu-device help' to list available devices.",
+                     preferred_device.vendor_id,
+                     preferred_device.device_id,
+                     uint(preferred_device.index));
+        }
         return GHOST_kFailure;
       }
       CLOG_ERROR(&LOG, "No suitable Vulkan Device found!");

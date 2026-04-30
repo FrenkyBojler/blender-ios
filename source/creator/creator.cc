@@ -513,10 +513,6 @@ int main(int argc,
 
   /* Parse environment handling arguments. */
   BLI_args_parse(ba, ARG_PASS_ENVIRONMENT, nullptr, nullptr);
-  if (!main_args_post_environment_validate()) {
-    BKE_blender_atexit();
-    exit(EXIT_FAILURE);
-  }
 
 #else
   /* Using preferences or user startup makes no sense for #WITH_PYTHON_MODULE. */

@@ -9,8 +9,10 @@
 #ifndef WITH_PYTHON_MODULE
 
 #  include <cerrno>
+#  include <cstdint>
 #  include <cstdlib>
 #  include <cstring>
+#  include <limits>
 
 #  include "MEM_guardedalloc.h"
 
@@ -76,11 +78,6 @@
 #  include "creator_intern.h" /* Own include. */
 
 namespace blender {
-
-static GPUBackendType arg_gpu_backend = GPU_BACKEND_NONE;
-static bool arg_gpu_backend_set = false;
-static bool arg_gpu_device_index_set = false;
-static bool arg_gpu_device_index_error = false;
 
 /* -------------------------------------------------------------------- */
 /** \name Build Defines
@@ -1701,40 +1698,110 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   }
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
-  arg_gpu_backend = gpu_backend;
-  arg_gpu_backend_set = true;
   GPU_backend_type_selection_set_override(gpu_backend);
 
   return 1;
 }
 
+static void arg_handle_gpu_device_exit(const int exit_code)
+{
+  /* `BKE_blender_atexit` expects `BKE_appdir_init` to have been called.
+   * `--gpu-device` is parsed in the environment pass, before the usual appdir initialization. */
+  BKE_appdir_init();
+  BKE_blender_atexit();
+  exit(exit_code);
+  BLI_assert_unreachable();
+}
+
 static const char arg_handle_gpu_device_set_doc[] =
-    "<index>\n"
-    "\tPrefer a GPU device index.\n"
-    "\tThis overrides the GPU device from user preferences for this run only.\n"
-    "\tRequires '--gpu-backend vulkan'. Only Vulkan is supported currently.";
+    "<device>\n"
+    "\tSelect a specific GPU device, overriding the GPU device from user preferences for this\n"
+    "\trun only. Accepted forms:\n"
+    "\n"
+    "\t* '<vendor-hex>/<device-hex>/<index-hex>' (matches the identifier used in user\n"
+    "\t  preferences, with vendor PCI ID, device PCI ID and enumeration index all hex-encoded).\n"
+    "\t* '<index>' (no slashes) picks the Nth supported device by enumeration order, decimal.\n"
+    "\t* 'help' prints supported Vulkan devices and exits.\n"
+    "\n"
+    "\tOnly used with the Vulkan backend. Other backends print a warning and ignore this option.";
 static int arg_handle_gpu_device_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "--gpu-device";
   if (argc < 2) {
-    fprintf(stderr, "\nError: GPU device index must follow '%s'.\n", arg_id);
-    return 0;
+    fprintf(stderr, "\nError: GPU device specifier must follow '%s'.\n", arg_id);
+    arg_handle_gpu_device_exit(EXIT_FAILURE);
   }
 
-  const char *err_msg = nullptr;
-  int device_index;
-  if (!parse_int_strict_range(argv[1], nullptr, 0, INT_MAX, &device_index, &err_msg)) {
-    fprintf(stderr,
-            "\nError: %s '%s %s', expected a non-negative integer.\n",
-            err_msg,
-            arg_id,
-            argv[1]);
-    arg_gpu_device_index_error = true;
-    return 1;
+  const char *spec = argv[1];
+  if (STREQ(spec, "help")) {
+    printf("Blender GPU Device Listing (Vulkan):\n");
+    printf("Pass an Index or Device-ID to '--gpu-device'.\n");
+#  ifdef WITH_VULKAN_BACKEND
+    GPU_vulkan_supported_devices_print(stdout);
+#  else
+    printf("  (Vulkan backend not built)\n");
+#  endif
+    arg_handle_gpu_device_exit(EXIT_SUCCESS);
   }
 
-  GPU_backend_preferred_device_index_set_override(device_index);
-  arg_gpu_device_index_set = true;
+  int device_index = 0;
+  uint32_t device_vendor_id = 0;
+  uint32_t device_device_id = 0;
+
+  if (strchr(spec, '/') == nullptr) {
+    const char *err_msg = nullptr;
+    if (!parse_int_strict_range(spec, nullptr, 0, INT_MAX, &device_index, &err_msg)) {
+      fprintf(stderr,
+              "\nError: %s '%s %s', expected '<index>' (a non-negative integer) "
+              "or '<vendor-hex>/<device-hex>/<index-hex>'.\n",
+              err_msg,
+              arg_id,
+              spec);
+      arg_handle_gpu_device_exit(EXIT_FAILURE);
+    }
+    device_vendor_id = uint32_t(-1);
+    device_device_id = uint32_t(-1);
+  }
+  else {
+    const char *p1 = strchr(spec, '/');
+    const char *p2 = strchr(p1 + 1, '/');
+    if (p2 == nullptr) {
+      fprintf(stderr,
+              "\nError: unrecognized '%s %s', expected "
+              "'<vendor-hex>/<device-hex>/<index-hex>', '<index>' or 'help'.\n",
+              arg_id,
+              spec);
+      arg_handle_gpu_device_exit(EXIT_FAILURE);
+    }
+
+    char *end = nullptr;
+    errno = 0;
+    const unsigned long vendor_id = strtoul(spec, &end, 16);
+    const bool vendor_ok = (errno == 0) && (end == p1) && (end != spec) &&
+                           (vendor_id <= std::numeric_limits<uint32_t>::max());
+    errno = 0;
+    const unsigned long device_id = strtoul(p1 + 1, &end, 16);
+    const bool device_ok = (errno == 0) && (end == p2) && (end != p1 + 1) &&
+                           (device_id <= std::numeric_limits<uint32_t>::max());
+    errno = 0;
+    const unsigned long index = strtoul(p2 + 1, &end, 16);
+    const bool index_ok = (errno == 0) && (*end == '\0') && (end != p2 + 1) && (index <= INT_MAX);
+
+    if (!vendor_ok || !device_ok || !index_ok) {
+      fprintf(stderr,
+              "\nError: failed to parse '%s %s', "
+              "expected '<vendor-hex>/<device-hex>/<index-hex>'.\n",
+              arg_id,
+              spec);
+      arg_handle_gpu_device_exit(EXIT_FAILURE);
+    }
+
+    device_vendor_id = uint32_t(vendor_id);
+    device_device_id = uint32_t(device_id);
+    device_index = int(index);
+  }
+
+  GPU_backend_preferred_device_set_override(device_index, device_vendor_id, device_device_id);
   return 1;
 }
 
@@ -1774,26 +1841,6 @@ static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/
   GPU_backend_vsync_set_override(vsync);
 
   return 1;
-}
-
-bool main_args_post_environment_validate()
-{
-  GPU_backend_preferred_device_use_user_pref_set(!arg_gpu_backend_set);
-
-  if (arg_gpu_device_index_error) {
-    return false;
-  }
-
-  if (arg_gpu_device_index_set) {
-    if (!arg_gpu_backend_set || arg_gpu_backend != GPU_BACKEND_VULKAN) {
-      fprintf(stderr,
-              "\nError: '--gpu-device' requires '--gpu-backend vulkan'. "
-              "Only Vulkan is supported currently.\n");
-      return false;
-    }
-  }
-
-  return true;
 }
 
 static const char arg_handle_gpu_compilation_subprocesses_set_doc[] =
@@ -2977,12 +3024,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
 
   BuildDefs defs;
   build_defs_init(&defs, all);
-
-  arg_gpu_backend = GPU_BACKEND_NONE;
-  arg_gpu_backend_set = false;
-  arg_gpu_device_index_set = false;
-  arg_gpu_device_index_error = false;
-  GPU_backend_preferred_device_use_user_pref_set(true);
 
   /* end argument processing after -- */
   BLI_args_pass_set(ba, -1);

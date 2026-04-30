@@ -784,6 +784,11 @@ enum GHOST_TWindowDecorationStyleFlags {
 };
 
 struct GHOST_GPUDevice {
+  /**
+   * When true: use the specified GPU.
+   * When false: fallback to saved GPU.
+   */
+  bool is_override;
   /** Index of the GPU device in the list provided by the platform. */
   int index;
   /** (PCI) Vendor ID of the GPU. */

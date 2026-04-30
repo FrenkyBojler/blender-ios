@@ -10,6 +10,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <cstdio>
+
 #include "GPU_platform.hh"
 
 struct GHOST_GPUDevice;
@@ -57,16 +60,30 @@ void GPU_backend_type_selection_set_override(GPUBackendType backend_type);
 bool GPU_backend_type_selection_is_overridden();
 
 /**
- * Get the preferred GPU device index override (when set).
- */
-int GPU_backend_preferred_device_index_get();
-/**
  * Override the user-preference GPU device to use the specified GPU.
+ *
+ * The override is interpreted as a hard match: device selection must pick the device with this
+ * (`vendor_id`, `device_id`, `index`) triple or fail. The values `vendor_id == uint32_t(-1)` and
+ * `device_id == uint32_t(-1)` are sentinels meaning "wildcard" (don't constrain that field), so
+ * passing both as the sentinel selects purely by enumeration `index`.
  */
-void GPU_backend_preferred_device_index_set_override(int device_index);
-bool GPU_backend_preferred_device_index_is_overridden();
-void GPU_backend_preferred_device_use_user_pref_set(bool use_user_preference);
-void GPU_backend_preferred_device_get(GHOST_GPUDevice *r_device);
+void GPU_backend_preferred_device_set_override(int index, uint32_t vendor_id, uint32_t device_id);
+/**
+ * Return the preferred GPU device for new contexts.
+ *
+ * When backend detection selects a non-Vulkan backend, any device override is
+ * ignored and the stored user preference is returned instead.
+ */
+GHOST_GPUDevice GPU_backend_preferred_device_get();
+
+#ifdef WITH_VULKAN_BACKEND
+/**
+ * Print one line per Vulkan device that meets minimum requirements, matching the
+ * `<vendor-hex>/<device-hex>/<index>` identifier used in user preferences. Used by
+ * `--gpu-device help`.
+ */
+void GPU_vulkan_supported_devices_print(FILE *fp);
+#endif
 
 /**
  * Get the VSync value (when set).
