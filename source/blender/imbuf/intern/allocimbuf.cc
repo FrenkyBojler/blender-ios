@@ -15,7 +15,6 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "IMB_allocimbuf.hh"
 #include "IMB_colormanagement_intern.hh"
 #include "IMB_metadata.hh"
 
@@ -104,25 +103,10 @@ void IMB_free_byte_pixels(ImBuf *ibuf)
   ibuf->flags &= ~IB_byte_data;
 }
 
-static void free_encoded_data(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return;
-  }
-
-  ibuf->encoded_buffer = {};
-
-  ibuf->encoded_buffer_size = 0;
-  ibuf->encoded_size = 0;
-
-  ibuf->flags &= ~IB_mem;
-}
-
 void IMB_free_all_data(ImBuf *ibuf)
 {
   IMB_free_byte_pixels(ibuf);
   IMB_free_float_pixels(ibuf);
-  free_encoded_data(ibuf);
 }
 
 void IMB_free_gpu_textures(ImBuf *ibuf)
@@ -177,66 +161,6 @@ ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
   IMB_freeImBuf(ibuf);
 
   return rval;
-}
-
-bool imb_addencodedbufferImBuf(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return false;
-  }
-
-  free_encoded_data(ibuf);
-
-  if (ibuf->encoded_buffer_size == 0) {
-    ibuf->encoded_buffer_size = 10000;
-  }
-
-  ibuf->encoded_size = 0;
-
-  if (!imb_alloc_buffer(
-          ibuf->encoded_buffer, ibuf->encoded_buffer_size, 1, 1, sizeof(uint8_t), true))
-  {
-    return false;
-  }
-
-  ibuf->flags |= IB_mem;
-
-  return true;
-}
-
-bool imb_enlargeencodedbufferImBuf(ImBuf *ibuf)
-{
-  if (ibuf == nullptr) {
-    return false;
-  }
-
-  if (ibuf->encoded_buffer_size < ibuf->encoded_size) {
-    CLOG_ERROR(&LOG, "%s: error in parameters\n", __func__);
-    return false;
-  }
-
-  uint newsize = 2 * ibuf->encoded_buffer_size;
-  newsize = std::max<uint>(newsize, 10000);
-
-  ImBufByteBuffer new_buffer;
-  if (!imb_alloc_buffer(new_buffer, newsize, 1, 1, sizeof(uint8_t), true)) {
-    return false;
-  }
-
-  if (ibuf->encoded_buffer.data) {
-    new_buffer = ibuf->encoded_buffer;
-  }
-  else {
-    ibuf->encoded_size = 0;
-  }
-
-  ibuf->encoded_buffer = {};
-
-  ibuf->encoded_buffer = new_buffer;
-  ibuf->encoded_buffer_size = newsize;
-  ibuf->flags |= IB_mem;
-
-  return true;
 }
 
 void *imb_alloc_pixels(
@@ -498,11 +422,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   ibuf2->foptions = ibuf1->foptions;
   ibuf2->filepath = ibuf1->filepath;
   ibuf2->fileframe = ibuf1->fileframe;
-  /* Set `malloc` flag. */
   ibuf2->refcounter = 0;
-  ibuf2->encoded_buffer = ibuf1->encoded_buffer;
-  ibuf2->encoded_size = ibuf1->encoded_size;
-  ibuf2->encoded_buffer_size = ibuf1->encoded_buffer_size;
   ibuf2->colormanage_flag = ibuf1->colormanage_flag;
 
   return ibuf2;

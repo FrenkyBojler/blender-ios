@@ -14,6 +14,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -62,6 +63,7 @@ ImBuf *IMB_load_image_from_filepath(const char *filepath,
  * Save image.
  */
 bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
+Vector<uint8_t> IMB_save_image_to_buffer(ImBuf *ibuf, int flags);
 
 /**
  * Test image file.
@@ -559,7 +561,7 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, unsigned int channels, bool initialize_
  */
 void IMB_free_float_pixels(ImBuf *ibuf);
 
-/** Deallocate all CPU side data storage (byte, float, encoded). */
+/** Deallocate all CPU side data storage (byte, float). */
 void IMB_free_all_data(ImBuf *ibuf);
 
 /**
