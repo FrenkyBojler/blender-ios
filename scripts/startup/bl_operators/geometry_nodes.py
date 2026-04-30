@@ -9,10 +9,11 @@ from bpy.props import BoolProperty
 from bpy.app.translations import pgettext_data as data_
 
 
-def add_empty_geometry_node_group(name):
+def add_empty_geometry_node_group(name, add_geometry_input=True):
     group = bpy.data.node_groups.new(name, 'GeometryNodeTree')
 
-    group.interface.new_socket(data_("Geometry"), in_out='INPUT', socket_type='NodeSocketGeometry')
+    if add_geometry_input:
+        group.interface.new_socket(data_("Geometry"), in_out='INPUT', socket_type='NodeSocketGeometry')
     input_node = group.nodes.new('NodeGroupInput')
     input_node.select = False
     input_node.location.x = -200 - input_node.width
@@ -26,14 +27,15 @@ def add_empty_geometry_node_group(name):
     return group
 
 
-def geometry_node_group_empty_new(name):
-    group = add_empty_geometry_node_group(name)
-    group.links.new(group.nodes[data_("Group Input")].outputs[0], group.nodes[data_("Group Output")].inputs[0])
+def geometry_node_group_empty_new(name, add_geometry_input=True):
+    group = add_empty_geometry_node_group(name, add_geometry_input)
+    if add_geometry_input:
+        group.links.new(group.nodes[data_("Group Input")].outputs[0], group.nodes[data_("Group Output")].inputs[0])
     return group
 
 
-def geometry_node_group_empty_modifier_new(name):
-    group = geometry_node_group_empty_new(data_("Geometry Nodes"))
+def geometry_node_group_empty_modifier_new(name, add_geometry_input=True):
+    group = geometry_node_group_empty_new(name, add_geometry_input)
     group.is_modifier = True
     return group
 
@@ -325,7 +327,7 @@ class NewGeometryNodesModifier(Operator):
         if not modifier:
             return {'CANCELLED'}
 
-        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"))
+        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"), ob.type != 'EMPTY')
         modifier.node_group = group
 
         return {'FINISHED'}
@@ -346,7 +348,8 @@ class NewGeometryNodeTreeAssign(Operator):
         modifier = get_context_modifier(context)
         if not modifier:
             return {'CANCELLED'}
-        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"))
+        ob = context.object
+        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"), ob.type != 'EMPTY')
         modifier.node_group = group
 
         return {'FINISHED'}
