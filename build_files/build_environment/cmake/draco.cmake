@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+set(DRACO_EXTRA_ARGS
+)
+
 ExternalProject_Add(external_draco
   URL file://${PACKAGE_DIR}/${DRACO_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
@@ -12,6 +15,7 @@ ExternalProject_Add(external_draco
   CMAKE_ARGS
   -DCMAKE_INSTALL_PREFIX=${LIBDIR}/draco
   ${DEFAULT_CMAKE_FLAGS}
+  ${DRACO_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/draco
 )
