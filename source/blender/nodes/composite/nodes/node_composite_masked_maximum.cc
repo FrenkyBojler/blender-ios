@@ -25,44 +25,44 @@
 
 /* **************** Masked Maximum ******************** */
 
-namespace blender {
+namespace blender::nodes::node_composite_masked_maximum_cc {
 
-namespace nodes::node_composite_masked_maximum_cc {
-
-static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Float>("Image")
+  b.add_input<decl::Float>("Image"_ustr)
       .default_value(0.5f)
       .hide_value()
       .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Image").structure_type(StructureType::Dynamic).align_with_previous();
-  b.add_output<decl::Vector>("Chosen Pixel")
+  b.add_output<decl::Float>("Image"_ustr)
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
+  b.add_output<decl::Vector>("Chosen Pixel"_ustr)
       .dimensions(2)
       .description("The integer coordinates of the pixel that was chosen during the operation")
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Chosen Mask Value")
+  b.add_output<decl::Float>("Chosen Mask Value"_ustr)
       .description(
           "The value of the rounded square mask at the pixel that was chosen during the operation")
       .structure_type(StructureType::Dynamic);
 
-  b.add_input<decl::Bool>("Keep Seamless")
+  b.add_input<decl::Bool>("Keep Seamless"_ustr)
       .default_value(false)
       .description(
           "When enabled, the operation keeps the output mask seamless for a seamless input mask.");
-  b.add_input<decl::Vector>("Constant Part Size")
+  b.add_input<decl::Vector>("Constant Part Size"_ustr)
       .dimensions(2)
-      .default_value({0.0f, 0.0f, 0.0f})
+      .default_value({0.0f, 0.0f})
       .compositor_domain_priority(1)
       .description(
           "Size from the center of the constant part of the rounded square mask to its "
           "boundaries. If the Size value is negative in any dimension, an erosion is "
           "performed instead of a dilation")
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Roundness")
+  b.add_input<decl::Float>("Roundness"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
@@ -71,8 +71,8 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .description("Roundness of the rounded square mask")
       .structure_type(StructureType::Dynamic);
 
-  PanelDeclarationBuilder &falloff_panel = b.add_panel("Falloff Part").default_closed(false);
-  falloff_panel.add_input<decl::Float>("Size Boundary")
+  PanelDeclarationBuilder &falloff_panel = b.add_panel("Falloff Part"_ustr).default_closed(false);
+  falloff_panel.add_input<decl::Float>("Size Boundary"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .compositor_domain_priority(3)
@@ -81,7 +81,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "its constant part. This is also an upper boundary to where the falloff gradient can "
           "reach from a given pixel")
       .structure_type(StructureType::Dynamic);
-  falloff_panel.add_input<decl::Float>("Value Boundary")
+  falloff_panel.add_input<decl::Float>("Value Boundary"_ustr)
       .default_value(0.0f)
       .compositor_domain_priority(4)
       .description(
@@ -89,7 +89,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "Boundary is a lower boundary to the possible output image values. When performing an "
           "erosion, 1 - Value Boundary is an upper boundary to the possible output image values")
       .structure_type(StructureType::Dynamic);
-  falloff_panel.add_input<decl::Float>("Aggressiveness")
+  falloff_panel.add_input<decl::Float>("Aggressiveness"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.0f)
@@ -101,8 +101,8 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
-      falloff_panel.add_panel("Falloff Shape").default_closed(true);
-  falloff_shape_panel.add_input<decl::Float>("Ellipse Height")
+      falloff_panel.add_panel("Falloff Shape"_ustr).default_closed(true);
+  falloff_shape_panel.add_input<decl::Float>("Ellipse Height"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.5f)
@@ -112,7 +112,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "Height of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a smoother falloff.")
       .structure_type(StructureType::Dynamic);
-  falloff_shape_panel.add_input<decl::Float>("Ellipse Width")
+  falloff_shape_panel.add_input<decl::Float>("Ellipse Width"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.5f)
@@ -122,7 +122,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "Width of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a rounder falloff")
       .structure_type(StructureType::Dynamic);
-  falloff_shape_panel.add_input<decl::Float>("Inflection Midpoint")
+  falloff_shape_panel.add_input<decl::Float>("Inflection Midpoint"_ustr)
       .min(0.0f)
       .max(1.0f)
       .default_value(0.5f)
@@ -134,16 +134,17 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "relative to each other")
       .structure_type(StructureType::Dynamic);
 
-  PanelDeclarationBuilder &transform_panel = b.add_panel("Mask Transform").default_closed(true);
-  transform_panel.add_input<decl::Float>("Rotation")
+  PanelDeclarationBuilder &transform_panel =
+      b.add_panel("Mask Transform"_ustr).default_closed(true);
+  transform_panel.add_input<decl::Float>("Rotation"_ustr)
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
       .compositor_domain_priority(9)
       .description("Angle to rotate the rounded square mask by")
       .structure_type(StructureType::Dynamic);
-  transform_panel.add_input<decl::Vector>("Translation")
+  transform_panel.add_input<decl::Vector>("Translation"_ustr)
       .dimensions(2)
-      .default_value({0.0f, 0.0f, 0.0f})
+      .default_value({0.0f, 0.0f})
       .compositor_domain_priority(10)
       .description("Translation of the rounded square mask")
       .structure_type(StructureType::Dynamic);
@@ -727,24 +728,20 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new MaskedMaximumOperation(context, node);
 }
 
-}  // namespace nodes::node_composite_masked_maximum_cc
-
 static void register_node_type_cmp_masked_maximum()
 {
-  namespace file_ns = nodes::node_composite_masked_maximum_cc;
-
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeMaskedMaximum");
+  cmp_node_type_base(&ntype, "CompositorNodeMaskedMaximum"_ustr);
   ntype.ui_name = "Masked Maximum";
   ntype.ui_description = "Masked Maximum";
   ntype.nclass = NODE_CLASS_MATTE;
-  ntype.declare = file_ns::cmp_node_masked_maximum_declare;
+  ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_masked_maximum)
 
-}  // namespace blender
+}  // namespace blender::nodes::node_composite_masked_maximum_cc
