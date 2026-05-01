@@ -1760,3 +1760,17 @@ if(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
   unset(extra_args)
   unset(release_root_folder)
 endif()
+
+
+# ------------------------------------------------------------------------------
+# TEXT EDITOR Tests
+# ------------------------------------------------------------------------------
+
+if(TEST_SRC_DIR_EXISTS)
+	  add_blender_test(
+    bl_text_editor
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_text_editor_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/text_editor"
+  )
+endif()
