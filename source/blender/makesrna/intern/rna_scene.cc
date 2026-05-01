@@ -1964,6 +1964,7 @@ void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
 
   if (scene->compositing_node_group) {
     bNodeTree *ntree = reinterpret_cast<bNodeTree *>(scene->compositing_node_group);
+    DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
     WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
     BKE_main_ensure_invariants(*bmain, ntree->id);
@@ -4252,6 +4253,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "New Keyframe Type", "Type of keyframes to create when inserting keyframes");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   /* Animation */
   prop = RNA_def_property(srna, "anim_mirror_object", PROP_POINTER, PROP_NONE);

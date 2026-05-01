@@ -16,6 +16,7 @@
 #include "MOV_write.hh"
 
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #ifdef WITH_FFMPEG
 #  include <cstdio>
@@ -205,6 +206,72 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
   mastering_metadata->has_luminance = 1;
   mastering_metadata->min_luminance = av_make_q(1, 10000);
   mastering_metadata->max_luminance = av_make_q(max_luminance, 1);
+}
+
+/**
+ * \brief Add stereoscopic side data metadata if the output is side-by-side or top-bottom.
+ *
+ * The side data is only added when the scene uses stereoscopic with stereo views and the image
+ * format also contains stereo views.
+ */
+static void add_stereo3d_metadata(AVCodecParameters *codecpar,
+                                  const RenderData &render_data,
+                                  const ImageFormatData &imf)
+{
+  if (BKE_scene_multiview_is_stereo3d(&render_data) && imf.views_format == R_IMF_VIEWS_STEREO_3D) {
+    AVPacketSideData *side_data = av_packet_side_data_new(&codecpar->coded_side_data,
+                                                          &codecpar->nb_coded_side_data,
+                                                          AV_PKT_DATA_STEREO3D,
+                                                          sizeof(AVStereo3D),
+                                                          0);
+    if (side_data == nullptr) {
+      CLOG_ERROR(&LOG, "Failed to attach stereo3d metadata to stream");
+      return;
+    }
+    AVStereo3D *stereo_3d = reinterpret_cast<AVStereo3D *>(side_data->data);
+    AVStereo3DType interlace_type = AV_STEREO3D_UNSPEC;
+    switch (imf.stereo3d_format.interlace_type) {
+      case S3D_INTERLACE_ROW:
+        interlace_type = AV_STEREO3D_LINES;
+        break;
+      case S3D_INTERLACE_COLUMN:
+        interlace_type = AV_STEREO3D_COLUMNS;
+        break;
+      case S3D_INTERLACE_CHECKERBOARD:
+        interlace_type = AV_STEREO3D_CHECKERBOARD;
+        break;
+      default:
+        break;
+    }
+
+    switch (imf.stereo3d_format.display_mode) {
+      case S3D_DISPLAY_SIDEBYSIDE: {
+        stereo_3d->type = AV_STEREO3D_SIDEBYSIDE;
+        stereo_3d->view = AV_STEREO3D_VIEW_PACKED;
+        const bool is_swapped = bool(imf.stereo3d_format.flag & S3D_SIDEBYSIDE_CROSSEYED);
+        if (is_swapped) {
+          stereo_3d->flags |= AV_STEREO3D_FLAG_INVERT;
+        }
+        break;
+      }
+
+      case S3D_DISPLAY_TOPBOTTOM: {
+        stereo_3d->type = AV_STEREO3D_TOPBOTTOM;
+        stereo_3d->view = AV_STEREO3D_VIEW_PACKED;
+        break;
+      }
+
+      case S3D_DISPLAY_INTERLACE: {
+        stereo_3d->type = interlace_type;
+        stereo_3d->view = AV_STEREO3D_VIEW_PACKED;
+        const bool is_swapped = bool(imf.stereo3d_format.flag & S3D_INTERLACE_SWAP);
+        if (is_swapped) {
+          stereo_3d->flags |= AV_STEREO3D_FLAG_INVERT;
+        }
+        break;
+      }
+    }
+  }
 }
 
 /* Write a frame to the output file */
@@ -1160,6 +1227,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   avcodec_parameters_from_context(st->codecpar, c);
 
   add_hdr_mastering_display_metadata(st->codecpar, c, imf);
+  add_stereo3d_metadata(st->codecpar, *rd, *imf);
 
   context->video_time = 0.0f;
 
