@@ -2591,8 +2591,8 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
     }
 
     /* Add new proxy size. */
-    strip.data->proxy->build_size_flags |= seq::rendersize_to_proxysize(
-        eSpaceSeq_Proxy_RenderSize(sseq->render_size));
+    strip.data->proxy->build_size_flags |= eStripProxyBuildSize(
+        seq::rendersize_to_proxysize(eSpaceSeq_Proxy_RenderSize(sseq->render_size)));
 
     /* Build proxy. */
     seq::proxy_build_start(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
@@ -2999,9 +2999,12 @@ static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 }
 
 static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,
-                                                     Scene * /*scene*/,
+                                                     Scene *scene,
                                                      PointerRNA * /*ptr*/)
 {
+  if (scene->compositing_node_group) {
+    DEG_id_tag_update(&scene->compositing_node_group->id, ID_RECALC_NTREE_OUTPUT);
+  }
   WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -4418,6 +4421,14 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SO_MODE_COLUMN);
   RNA_def_property_ui_text(
       prop, "Show Mode Column", "Show the mode column for mode toggle and activation");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  prop = RNA_def_property(srna, "scroll_to_active", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SO_SCROLL_TO_ACTIVE);
+  RNA_def_property_ui_text(
+      prop,
+      "Scroll to Active",
+      "Scroll the active item into view when it changes outside of the Outliner");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   /* Granular restriction column option. */
