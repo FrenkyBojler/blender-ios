@@ -181,7 +181,6 @@ class TestBlendFileImageAutosave(TestHelper):
             self.assertIn("PackedImage", bpy.data.images)
             self.check_image(bpy.data.images["PackedImage"], (1.0, 1.0, 1.0, 1.0))
 
-
     def test_external_image_restore(self):
         self.ensure_path(self.args.output_dir)
         with tempfile.TemporaryDirectory(dir=self.args.output_dir) as output_dir:
