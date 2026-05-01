@@ -8910,7 +8910,12 @@ class VIEW3D_PT_mesh_paint_automasking(Panel):
             use_face_set = True
             use_operators = True
 
-        draw_mesh_automasking_settings(layout, paint.mesh_automasking_settings, topbar=True, use_face_set=use_face_set, use_operators=use_operators)
+        draw_mesh_automasking_settings(
+            layout,
+            paint.mesh_automasking_settings,
+            topbar=True,
+            use_face_set=use_face_set,
+            use_operators=use_operators)
 
 
 class VIEW3D_PT_sculpt_context_menu(Panel):
