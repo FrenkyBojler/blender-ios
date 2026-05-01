@@ -567,29 +567,6 @@ static void file_main_region_message_subscribe(const wmRegionMessageSubscribePar
                               use_remote_asset_libraries,
                               &msg_sub_value_region_clear_remote_libraries);
   }
-
-  /* Experimental Hair Dynamics feature option. */
-  {
-    PointerRNA ptr = RNA_pointer_create_discrete(
-        nullptr, RNA_PreferencesExperimental, &U.experimental);
-    PropertyRNA *prop = RNA_struct_find_property(&ptr, "use_geometry_nodes_hair_dynamics");
-
-    wmMsgSubscribeValue msg_sub_value_region_clear_libraries{};
-    msg_sub_value_region_clear_libraries.owner = region;
-    msg_sub_value_region_clear_libraries.user_data = sfile;
-    msg_sub_value_region_clear_libraries.notify = [](/* Follow wmMsgNotifyFn spec */
-                                                     bContext *C,
-                                                     wmMsgSubscribeKey * /*msg_key*/,
-                                                     wmMsgSubscribeValue *msg_val) {
-      SpaceFile *sfile = static_cast<SpaceFile *>(msg_val->user_data);
-      ED_fileselect_clear(CTX_wm_manager(C), sfile);
-
-      asset_system::all_library_tag_catalogs_dirty();
-    };
-
-    /* All properties for this space type. */
-    WM_msg_subscribe_rna(mbus, &ptr, prop, &msg_sub_value_region_clear_libraries, __func__);
-  }
 }
 
 bool file_main_region_needs_refresh_before_draw(SpaceFile *sfile)
