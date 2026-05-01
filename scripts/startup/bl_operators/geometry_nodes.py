@@ -327,7 +327,10 @@ class NewGeometryNodesModifier(Operator):
         if not modifier:
             return {'CANCELLED'}
 
-        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"), ob.type != 'EMPTY')
+        is_first_modifier = ob.modifiers[0] == modifier
+        # For empty objects, don't add a geometry input for the first modifier
+        add_geometry_input = False if ob.type == 'EMPTY' and is_first_modifier else True
+        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"), add_geometry_input)
         modifier.node_group = group
 
         return {'FINISHED'}
@@ -349,7 +352,10 @@ class NewGeometryNodeTreeAssign(Operator):
         if not modifier:
             return {'CANCELLED'}
         ob = context.object
-        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"), ob.type != 'EMPTY')
+        is_first_modifier = ob.modifiers[0] == modifier
+        # For empty objects, don't add a geometry input for the first modifier
+        add_geometry_input = False if ob.type == 'EMPTY' and is_first_modifier else True
+        group = geometry_node_group_empty_modifier_new(data_("Geometry Nodes"), add_geometry_input)
         modifier.node_group = group
 
         return {'FINISHED'}
