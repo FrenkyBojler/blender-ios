@@ -26,14 +26,10 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const float merge_distance,
                                     const IndexMask &selection,
                                     const bke::AttributeFilter &attribute_filter);
-
-/**
- * The same as above but merging roots can be provided explicitly.
- */
-PointCloud *point_merge_indices(const PointCloud &src_points,
-                                Span<int> root_indices,
-                                int total_roots,
-                                const bke::AttributeFilter &attribute_filter);
+PointCloud *merge_points(const PointCloud &src_points,
+                         const IndexMask &selection,
+                         Span<int> merge_ids,
+                         const bke::AttributeFilter &attribute_filter);
 
 }  // namespace geometry
 }  // namespace blender

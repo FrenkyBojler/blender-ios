@@ -74,8 +74,6 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
   /* TODO: Explicitly create groups of indices in merge code and skip unit groups from future
    * processing... */
   r_roots.as_mutable_span().fill(-1);
-  IndexMaskMemory memory;
-  const IndexMask selection_inverse = selection.complement(IndexRange(domain_size), memory);
 
   if (group_id_to_root.size() == 1) {
     BLI_assert(group_id_to_root.lookup(group_id[selection.first()]) == selection.first());
@@ -123,17 +121,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
       const bke::PointCloudFieldContext context(*pointcloud);
-      Array<int> masked_group_ids;
-      const std::optional<int> total_merge_ops = masked_ids_to_merging_roots(
-          context, group_id_field, selection_field, pointcloud->totpoint, masked_group_ids);
-      if (total_merge_ops.has_value()) {
-        PointCloud *new_pointcloud = geometry::point_merge_indices(*pointcloud,
-                                                                   masked_group_ids.as_span(),
-                                                                   pointcloud->totpoint -
-                                                                       *total_merge_ops,
-                                                                   attribute_filter);
-        geometry_set.replace_pointcloud(new_pointcloud);
+      FieldEvaluator evaluator(context, pointcloud->totpoint);
+      evaluator.add(group_id_field);
+      evaluator.set_selection(selection_field);
+      Array<int> masked_group_ids(pointcloud->totpoint);
+      evaluator.add_with_destination(group_id_field, masked_group_ids.as_mutable_span());
+      evaluator.evaluate();
+      const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+      if (selection.is_empty()) {
+        return;
       }
+      PointCloud *new_points = geometry::merge_points(
+          *pointcloud, selection, masked_group_ids, attribute_filter);
+      geometry_set.replace_pointcloud(new_points);
     }
     if (const Mesh *mesh = geometry_set.get_mesh()) {
       const bke::MeshFieldContext context(*mesh, AttrDomain::Point);
@@ -157,6 +157,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeMergePoints"_ustr);
   ntype.ui_name = "Merge Points";
+  ntype.ui_description = "Merge points of a point cloud or mesh based on group ID and selection.";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
