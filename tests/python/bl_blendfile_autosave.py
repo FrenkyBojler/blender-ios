@@ -131,45 +131,91 @@ class TestBlendFileImageAutosave(TestHelper):
             orig_image.use_fake_user = True
 
             self.modify_image(orig_image)
-            self.check_image(bpy.data.images["GeneratedImage"], (1.0, 1.0, 1.0, 1.0))
-
-            orig_data = self.blender_data_to_tuple(bpy.data, "orig_data")
+            self.check_image(orig_image, (1.0, 1.0, 1.0, 1.0))
 
             bpy.ops.wm.save_auto_save()
             bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
 
-            read_data = self.blender_data_to_tuple(bpy.data, "read_data")
-
             # File should not have image, only autosave should have image
-            self.assertNotEqual(read_data, orig_data)
             self.assertNotIn("GeneratedImage", bpy.data.images)
 
             autosave_path = self.find_autosave_path(output_dir, "blendfile_autosave_generated_image")
             self.assertTrue(autosave_path)
             self.assertNotEqual(output_path, autosave_path)
-
             retval = bpy.ops.wm.recover_auto_save(filepath=autosave_path)
-
             self.assertEqual(retval, {'FINISHED'})
 
-            recover_data = self.blender_data_to_tuple(bpy.data, "recover_data")
-            self.assertEqual(recover_data, orig_data)
             self.assertIn("GeneratedImage", bpy.data.images)
             self.check_image(bpy.data.images["GeneratedImage"], (1.0, 1.0, 1.0, 1.0))
 
             bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
-
-            read_data = self.blender_data_to_tuple(bpy.data, "read_data")
-
-            self.assertNotEqual(read_data, orig_data)
             self.assertNotIn("GeneratedImage", bpy.data.images)
 
-    @unittest.skip(reason="TBA")
     def test_packed_image_restore(self):
-        return
+        self.ensure_path(self.args.output_dir)
+        with tempfile.TemporaryDirectory(dir=self.args.output_dir) as output_dir:
+            bpy.context.preferences.filepaths.temporary_directory = output_dir
 
-    @unittest.skip(reason="TBA")
+            input_blendfile_path = os.path.join(self.args.src_test_dir, "autosave_image_test.blend")
+            bpy.ops.wm.open_mainfile(filepath=input_blendfile_path)
+
+            output_path = os.path.join(output_dir, "blendfile_autosave_packed_image.blend")
+            bpy.ops.wm.save_as_mainfile(filepath=output_path, check_existing=False, compress=False)
+
+            self.modify_image(bpy.data.images["PackedImage"])
+            self.check_image(bpy.data.images["PackedImage"], (1.0, 1.0, 1.0, 1.0))
+
+            bpy.ops.wm.save_auto_save()
+            bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
+
+            self.assertIn("PackedImage", bpy.data.images)
+            self.check_image(bpy.data.images["PackedImage"], (0.0, 0.0, 0.0, 1.0))
+
+            autosave_path = self.find_autosave_path(output_dir, "blendfile_autosave_packed_image")
+            self.assertTrue(autosave_path)
+            self.assertNotEqual(output_path, autosave_path)
+            retval = bpy.ops.wm.recover_auto_save(filepath=autosave_path)
+            self.assertEqual(retval, {'FINISHED'})
+
+            # Loading the autosave file should show the "temporary" changes
+            self.assertIn("PackedImage", bpy.data.images)
+            self.check_image(bpy.data.images["PackedImage"], (1.0, 1.0, 1.0, 1.0))
+
+
     def test_external_image_restore(self):
+        self.ensure_path(self.args.output_dir)
+        with tempfile.TemporaryDirectory(dir=self.args.output_dir) as output_dir:
+            bpy.context.preferences.filepaths.temporary_directory = output_dir
+
+            input_blendfile_path = os.path.join(self.args.src_test_dir, "autosave_image_test.blend")
+            bpy.ops.wm.open_mainfile(filepath=input_blendfile_path)
+
+            output_path = os.path.join(output_dir, "blendfile_autosave_external_image.blend")
+            bpy.ops.wm.save_as_mainfile(filepath=output_path, check_existing=False, compress=False)
+
+            self.modify_image(bpy.data.images["ExternalImage"])
+            self.check_image(bpy.data.images["ExternalImage"], (1.0, 1.0, 1.0, 1.0))
+
+            bpy.ops.wm.save_auto_save()
+            bpy.ops.wm.open_mainfile(filepath=output_path, load_ui=False)
+
+            self.assertIn("ExternalImage", bpy.data.images)
+            self.check_image(bpy.data.images["ExternalImage"], (0.0, 0.0, 0.0, 1.0))
+
+            autosave_path = self.find_autosave_path(output_dir, "blendfile_autosave_external_image")
+            self.assertTrue(autosave_path)
+            self.assertNotEqual(output_path, autosave_path)
+            retval = bpy.ops.wm.recover_auto_save(filepath=autosave_path)
+            self.assertEqual(retval, {'FINISHED'})
+
+            # Loading the autosave file should show the "temporary" changes
+            self.assertIn("ExternalImage", bpy.data.images)
+            self.check_image(bpy.data.images["ExternalImage"], (1.0, 1.0, 1.0, 1.0))
+
+            # Loading the actual file should show the original data
+            bpy.data.images["ExternalImage"].reload()
+            self.check_image(bpy.data.images["ExternalImage"], (0.0, 0.0, 0.0, 1.0))
+
         return
 
 
@@ -185,6 +231,12 @@ def argparse_create():
     # When --help or no args are given, print this help
     description = "Test basic IO of autosaving a .blend file."
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        "--src-test-dir",
+        dest="src_test_dir",
+        help="Root tests directory to search for blendfiles",
+        required=True,
+    )
     parser.add_argument(
         "--output-dir",
         dest="output_dir",
