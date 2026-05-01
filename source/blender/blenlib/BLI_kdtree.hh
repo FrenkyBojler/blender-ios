@@ -15,6 +15,7 @@
 #include "BLI_kdtree_types.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.hh"
+#include "BLI_task.hh"
 #include "BLI_vector.hh"
 
 #include <algorithm>
@@ -26,6 +27,7 @@ namespace detail {
 constexpr int kd_stack_init = 100;     /* initial size for array (on the stack) */
 constexpr int kd_near_alloc_inc = 100; /* alloc increment for collecting nearest */
 constexpr int kd_found_alloc_inc = 50; /* alloc increment for collecting nearest */
+constexpr uint kd_balance_parallel_threshold = 4096;
 
 constexpr uint kd_node_unset = (uint(-1));
 
@@ -115,11 +117,11 @@ inline void kdtree_insert(KDTree<CoordT> *tree, int index, const CoordT &co)
 namespace detail {
 
 template<typename CoordT>
-static uint kdtree_balance(KDTreeNode<CoordT> *nodes, uint nodes_len, uint axis, const uint ofs)
+static uint kdtree_balance(
+    KDTreeNode<CoordT> *nodes, uint nodes_len, uint axis, const uint ofs, const bool use_threading)
 {
   KDTreeNode<CoordT> *node;
-  typename KDTree<CoordT>::ValueType co;
-  uint left, right, median, i, j;
+  const uint median = nodes_len / 2;
 
   if (nodes_len <= 0) {
     return detail::kd_node_unset;
@@ -128,49 +130,42 @@ static uint kdtree_balance(KDTreeNode<CoordT> *nodes, uint nodes_len, uint axis,
     return 0 + ofs;
   }
 
-  /* Quick-sort style sorting around median. */
-  left = 0;
-  right = nodes_len - 1;
-  median = nodes_len / 2;
-
-  while (right > left) {
-    co = axis_get(nodes[right].co, axis);
-    i = left - 1;
-    j = right;
-
-    while (true) {
-      while (axis_get(nodes[++i].co, axis) < co) { /* pass */
-      }
-      while (axis_get(nodes[--j].co, axis) > co && j > left) { /* pass */
-      }
-
-      if (i >= j) {
-        break;
-      }
-
-      SWAP(KDTreeNode_head<CoordT>,
-           *(KDTreeNode_head<CoordT> *)&nodes[i],
-           *(KDTreeNode_head<CoordT> *)&nodes[j]);
-    }
-
-    SWAP(KDTreeNode_head<CoordT>,
-         *(KDTreeNode_head<CoordT> *)&nodes[i],
-         *(KDTreeNode_head<CoordT> *)&nodes[right]);
-    if (i >= median) {
-      right = i - 1;
-    }
-    if (i <= median) {
-      left = i + 1;
-    }
-  }
+  /**
+   * NOTE: NaN coordinates violate the strict weak ordering
+   * required here, causing undefined behavior. Callers are
+   * responsible for ensuring all coordinates are finite.
+   */
+  std::nth_element(nodes,
+                   nodes + median,
+                   nodes + nodes_len,
+                   [axis](const KDTreeNode<CoordT> &a, const KDTreeNode<CoordT> &b) {
+                     if (axis_get(a.co, axis) < axis_get(b.co, axis)) {
+                       return true;
+                     }
+                     if (axis_get(a.co, axis) > axis_get(b.co, axis)) {
+                       return false;
+                     }
+                     return a.index < b.index;
+                   });
 
   /* Set node and sort sub-nodes. */
   node = &nodes[median];
   node->d = axis;
   axis = (axis + 1) % KDTree<CoordT>::DimsNum;
-  node->left = kdtree_balance(nodes, median, axis, ofs);
-  node->right = kdtree_balance(
-      nodes + median + 1, (nodes_len - (median + 1)), axis, (median + 1) + ofs);
+  uint left_node = detail::kd_node_unset;
+  uint right_node = detail::kd_node_unset;
+  threading::parallel_invoke(
+      use_threading && nodes_len >= detail::kd_balance_parallel_threshold,
+      [&]() { left_node = kdtree_balance(nodes, median, axis, ofs, use_threading); },
+      [&]() {
+        right_node = kdtree_balance(nodes + median + 1,
+                                    (nodes_len - (median + 1)),
+                                    axis,
+                                    (median + 1) + ofs,
+                                    use_threading);
+      });
+  node->left = left_node;
+  node->right = right_node;
 
   return median + ofs;
 }
@@ -186,7 +181,7 @@ template<typename CoordT> inline void kdtree_balance(KDTree<CoordT> *tree)
     }
   }
 
-  tree->root = detail::kdtree_balance<CoordT>(tree->nodes, tree->nodes_len, 0, 0);
+  tree->root = detail::kdtree_balance<CoordT>(tree->nodes, tree->nodes_len, 0, 0, true);
 
 #ifndef NDEBUG
   tree->is_balanced = true;

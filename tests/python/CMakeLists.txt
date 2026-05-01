@@ -1267,6 +1267,8 @@ if(TEST_SRC_DIR_EXISTS)
 
   foreach(geo_node_test ${geo_node_tests})
     file(GLOB files "${TEST_SRC_DIR}/modeling/geometry_nodes/${geo_node_test}/*.blend")
+    # Exclude blend files that use a custom test script (registered separately below).
+    list(FILTER files EXCLUDE REGEX "merge_by_distance_jitter_points")
     foreach(file ${files})
       get_filename_component(filename ${file} NAME_WE)
       add_blender_test(
@@ -1276,6 +1278,15 @@ if(TEST_SRC_DIR_EXISTS)
       )
     endforeach()
   endforeach()
+
+  # This test checks point count rather than exact geometry. The blend is designed so that
+  # every merge cluster contains exactly 2 points (one original, one jittered copy), making
+  # the output count invariant regardless of which point wins each cluster.
+  add_blender_test(
+    geo_node_geometry_merge_by_distance_jitter_points
+    ${TEST_SRC_DIR}/modeling/geometry_nodes/geometry/merge_by_distance_jitter_points.blend
+    --python ${TEST_PYTHON_DIR}/geo_node_point_count_test.py
+  )
 
   file(GLOB files "${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/*.blend")
   foreach(file ${files})
