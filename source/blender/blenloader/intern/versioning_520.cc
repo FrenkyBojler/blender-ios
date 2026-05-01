@@ -548,6 +548,28 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 25)) {
+    for (Brush &brush : bmain->brushes) {
+      if (ELEM(brush.ob_mode, OB_MODE_WEIGHT_PAINT, OB_MODE_VERTEX_PAINT)) {
+        brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+      }
+    }
+
+    auto apply_to_paint = [&](Paint *paint) {
+      if (paint == nullptr) {
+        return;
+      }
+
+      paint->mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
+    };
+
+    for (Scene &scene : bmain->scenes) {
+      apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->vpaint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->wpaint));
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

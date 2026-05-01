@@ -15,6 +15,7 @@ from bl_ui.properties_paint_common import (
     brush_basic_grease_pencil_weight_settings,
     brush_basic_grease_pencil_vertex_settings,
     BrushAssetShelf,
+    draw_mesh_automasking_settings,
 )
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -1000,7 +1001,7 @@ class VIEW3D_HT_header(Header):
             )
 
             layout.popover(
-                panel="VIEW3D_PT_sculpt_automasking",
+                panel="VIEW3D_PT_mesh_paint_automasking",
                 text="",
                 icon=VIEW3D_HT_header._mesh_paint_automasking_icon(tool_settings.sculpt),
             )
@@ -1008,6 +1009,12 @@ class VIEW3D_HT_header(Header):
         elif object_mode == 'VERTEX_PAINT':
             row = layout.row()
             row.popover(panel="VIEW3D_PT_slots_color_attributes", icon='GROUP_VCOL')
+
+            layout.popover(
+                panel="VIEW3D_PT_mesh_paint_automasking",
+                text="",
+                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(tool_settings.sculpt),
+            )
         elif object_mode == 'VERTEX_GREASE_PENCIL':
             draw_topbar_grease_pencil_layer_panel(context, layout)
         elif object_mode == 'WEIGHT_PAINT':
@@ -1019,6 +1026,12 @@ class VIEW3D_HT_header(Header):
                 icon='SNAP_INCREMENT',
                 text="",
                 translate=False,
+            )
+
+            layout.popover(
+                panel="VIEW3D_PT_mesh_paint_automasking",
+                text="",
+                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(tool_settings.sculpt),
             )
         elif object_mode == 'WEIGHT_GREASE_PENCIL':
             row = layout.row()
@@ -6243,15 +6256,14 @@ class VIEW3D_MT_sculpt_mask_edit_pie(Menu):
         props.auto_iteration_count = False
 
 
-class VIEW3D_MT_sculpt_automasking_pie(Menu):
+class VIEW3D_MT_mesh_paint_automasking_pie(Menu):
     bl_label = "Automasking"
 
     def draw(self, context):
         layout = self.layout
         pie = layout.menu_pie()
 
-        tool_settings = context.tool_settings
-        paint = tool_settings.sculpt
+        paint = UnifiedPaintPanel.paint_settings(context)
 
         settings = paint.mesh_automasking_settings
 
@@ -8876,7 +8888,7 @@ class VIEW3D_PT_paint_weight_context_menu(Panel):
         )
 
 
-class VIEW3D_PT_sculpt_automasking(Panel):
+class VIEW3D_PT_mesh_paint_automasking(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "Auto-Masking"
@@ -8885,83 +8897,9 @@ class VIEW3D_PT_sculpt_automasking(Panel):
     def draw(self, context):
         layout = self.layout
 
-        tool_settings = context.tool_settings
-        paint = tool_settings.sculpt
+        paint = UnifiedPaintPanel.paint_settings(context)
 
-        settings = paint.mesh_automasking_settings
-
-        layout.label(text="Auto-Masking")
-
-        col = layout.column(align=True)
-        col.prop(settings, "use_automasking_topology", text="Topology")
-        col.prop(settings, "use_automasking_face_sets", text="Face Sets")
-
-        col.separator()
-
-        col = layout.column(align=True)
-        row = col.row()
-        row.prop(settings, "use_automasking_boundary_edges", text="Mesh Boundary")
-
-        if settings.use_automasking_boundary_edges:
-            props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
-            props.settings_source = 'SCENE'
-            props.boundary_mode = 'MESH'
-
-        row = col.row()
-        row.prop(settings, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
-
-        if settings.use_automasking_boundary_face_sets:
-            props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
-            props.settings_source = 'SCENE'
-            props.boundary_mode = 'FACE_SETS'
-
-        if settings.use_automasking_boundary_edges or settings.use_automasking_boundary_face_sets:
-            col.prop(settings, "boundary_edges_propagation_steps")
-
-        col.separator()
-
-        col = layout.column(align=True)
-        row = col.row()
-        row.prop(settings, "use_automasking_cavity", text="Cavity")
-
-        is_cavity_active = settings.use_automasking_cavity or settings.use_automasking_cavity_inverted
-
-        if is_cavity_active:
-            props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
-            props.settings_source = 'SCENE'
-
-        col.prop(settings, "use_automasking_cavity_inverted", text="Cavity (inverted)")
-
-        if is_cavity_active:
-            col = layout.column(align=True)
-            col.prop(settings, "cavity_factor", text="Factor")
-            col.prop(settings, "cavity_blur_steps", text="Blur")
-
-            col = layout.column()
-            col.prop(settings, "use_automasking_custom_cavity_curve", text="Custom Curve")
-
-            if settings.use_automasking_custom_cavity_curve:
-                col.template_curve_mapping(settings, "cavity_curve", brush=True)
-
-        col.separator()
-
-        col = layout.column(align=True)
-        col.prop(settings, "use_automasking_view_normal", text="View Normal")
-
-        if settings.use_automasking_view_normal:
-            col.prop(settings, "use_automasking_view_occlusion", text="Occlusion")
-            subcol = col.column(align=True)
-            subcol.active = not settings.use_automasking_view_occlusion
-            subcol.prop(settings, "view_normal_limit", text="Limit")
-            subcol.prop(settings, "view_normal_falloff", text="Falloff")
-
-        col = layout.column()
-        col.prop(settings, "use_automasking_start_normal", text="Area Normal")
-
-        if settings.use_automasking_start_normal:
-            col = layout.column(align=True)
-            col.prop(settings, "start_normal_limit", text="Limit")
-            col.prop(settings, "start_normal_falloff", text="Falloff")
+        draw_mesh_automasking_settings(layout, paint, paint.mesh_automasking_settings, topbar=True)
 
 
 class VIEW3D_PT_sculpt_context_menu(Panel):
@@ -9449,7 +9387,7 @@ classes = (
     VIEW3D_MT_orientations_pie,
     VIEW3D_MT_proportional_editing_falloff_pie,
     VIEW3D_MT_sculpt_mask_edit_pie,
-    VIEW3D_MT_sculpt_automasking_pie,
+    VIEW3D_MT_mesh_paint_automasking_pie,
     VIEW3D_MT_grease_pencil_sculpt_automasking_pie,
     VIEW3D_MT_wpaint_vgroup_lock_pie,
     VIEW3D_MT_sculpt_face_sets_edit_pie,
@@ -9510,7 +9448,7 @@ classes = (
     VIEW3D_PT_paint_vertex_context_menu,
     VIEW3D_PT_paint_texture_context_menu,
     VIEW3D_PT_paint_weight_context_menu,
-    VIEW3D_PT_sculpt_automasking,
+    VIEW3D_PT_mesh_paint_automasking,
     VIEW3D_PT_sculpt_context_menu,
     TOPBAR_PT_grease_pencil_materials,
     TOPBAR_PT_grease_pencil_vertex_color,

@@ -1291,10 +1291,94 @@ def color_jitter_panel(layout, context, brush):
             row.prop(prop_owner, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
 
 
+def draw_mesh_automasking_settings(layout, paint, settings, *, topbar=False):
+    """Draw automasking brush settings for mesh paint modes."""
+    if topbar:
+        col = layout.column(heading="Auto-Masking", align=True)
+    else:
+        layout.label(text="Auto-Masking")
+        col = layout.column(align=True)
+
+    col.prop(settings, "use_automasking_topology", text="Topology")
+    col.prop(settings, "use_automasking_face_sets", text="Face Sets")
+
+    col.separator()
+
+    col = layout.column(align=True)
+    row = col.row()
+    row.prop(settings, "use_automasking_boundary_edges", text="Mesh Boundary")
+
+    if settings.use_automasking_boundary_edges:
+        props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
+        props.settings_source = 'BRUSH'
+        props.boundary_mode = 'MESH'
+
+    row = col.row()
+    row.prop(settings, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
+
+    if settings.use_automasking_boundary_face_sets:
+        props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
+        props.settings_source = 'BRUSH'
+        props.boundary_mode = 'FACE_SETS'
+
+    if settings.use_automasking_boundary_edges or settings.use_automasking_boundary_face_sets:
+        col = layout.column()
+        col.use_property_split = False
+        split = col.split(factor=0.4)
+        col = split.column()
+        split.prop(settings, "boundary_edges_propagation_steps")
+
+    col.separator()
+
+    col = layout.column(align=True)
+    row = col.row()
+    row.prop(settings, "use_automasking_cavity", text="Cavity")
+
+    is_cavity_active = settings.use_automasking_cavity or settings.use_automasking_cavity_inverted
+
+    if is_cavity_active:
+        props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
+        props.settings_source = 'BRUSH'
+
+    col.prop(settings, "use_automasking_cavity_inverted", text="Cavity (inverted)")
+
+    if is_cavity_active:
+        col = layout.column(align=True)
+        col.prop(settings, "cavity_factor", text="Factor")
+        col.prop(settings, "cavity_blur_steps", text="Blur")
+
+        col = layout.column()
+        col.prop(settings, "use_automasking_custom_cavity_curve", text="Custom Curve")
+
+        if settings.use_automasking_custom_cavity_curve:
+            col.template_curve_mapping(settings, "cavity_curve", brush=True)
+
+    col.separator()
+
+    col = layout.column(align=True)
+    col.prop(settings, "use_automasking_view_normal", text="View Normal")
+
+    if settings.use_automasking_view_normal:
+        col.prop(settings, "use_automasking_view_occlusion", text="Occlusion")
+        subcol = col.column(align=True)
+        subcol.active = not settings.use_automasking_view_occlusion
+        subcol.prop(settings, "view_normal_limit", text="Limit")
+        subcol.prop(settings, "view_normal_falloff", text="Falloff")
+
+    col = layout.column()
+    col.prop(settings, "use_automasking_start_normal", text="Area Normal")
+
+    if settings.use_automasking_start_normal:
+        col = layout.column(align=True)
+        col.prop(settings, "start_normal_limit", text="Limit")
+        col.prop(settings, "start_normal_falloff", text="Falloff")
+
+
 def brush_settings_advanced(layout, context, settings, brush, popover=False):
     """Draw advanced brush settings for Sculpt, Texture/Vertex/Weight Paint modes."""
 
     mode = UnifiedPaintPanel.get_brush_mode(context)
+    paint = UnifiedPaintPanel.paint_settings(context)
 
     # In the popover we want to combine advanced brush settings with non-advanced brush settings.
     if popover:
@@ -1314,82 +1398,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         use_accumulate = capabilities.has_accumulate
         use_frontface = True
 
-        col = layout.column(heading="Auto-Masking", align=True)
-        automasking = brush.mesh_automasking_settings
-
-        col.prop(automasking, "use_automasking_topology", text="Topology")
-        col.prop(automasking, "use_automasking_face_sets", text="Face Sets")
-
-        layout.separator()
-
-        col = layout.column(align=True)
-        row = col.row()
-        row.prop(automasking, "use_automasking_boundary_edges", text="Mesh Boundary")
-
-        if automasking.use_automasking_boundary_edges:
-            props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
-            props.settings_source = 'BRUSH'
-            props.boundary_mode = 'MESH'
-
-        row = col.row()
-        row.prop(automasking, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
-
-        if automasking.use_automasking_boundary_face_sets:
-            props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
-            props.settings_source = 'BRUSH'
-            props.boundary_mode = 'FACE_SETS'
-
-        if automasking.use_automasking_boundary_edges or automasking.use_automasking_boundary_face_sets:
-            col = layout.column()
-            col.use_property_split = False
-            split = col.split(factor=0.4)
-            col = split.column()
-            split.prop(automasking, "boundary_edges_propagation_steps")
-
-        layout.separator()
-
-        col = layout.column(align=True)
-        row = col.row()
-        row.prop(automasking, "use_automasking_cavity", text="Cavity")
-
-        is_cavity_active = automasking.use_automasking_cavity or automasking.use_automasking_cavity_inverted
-
-        if is_cavity_active:
-            props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
-            props.settings_source = 'BRUSH'
-
-        col.prop(automasking, "use_automasking_cavity_inverted", text="Cavity (inverted)")
-
-        if is_cavity_active:
-            col = layout.column(align=True)
-            col.prop(automasking, "cavity_factor", text="Factor")
-            col.prop(automasking, "cavity_blur_steps", text="Blur")
-
-            col = layout.column()
-            col.prop(automasking, "use_automasking_custom_cavity_curve", text="Custom Curve")
-
-            if automasking.use_automasking_custom_cavity_curve:
-                col.template_curve_mapping(automasking, "cavity_curve", brush=True)
-
-        layout.separator()
-
-        col = layout.column(align=True)
-        col.prop(automasking, "use_automasking_view_normal", text="View Normal")
-
-        if automasking.use_automasking_view_normal:
-            col.prop(automasking, "use_automasking_view_occlusion", text="Occlusion")
-            subcol = col.column(align=True)
-            subcol.active = not automasking.use_automasking_view_occlusion
-            subcol.prop(automasking, "view_normal_limit", text="Limit")
-            subcol.prop(automasking, "view_normal_falloff", text="Falloff")
-
-        col = layout.column()
-        col.prop(automasking, "use_automasking_start_normal", text="Area Normal")
-
-        if automasking.use_automasking_start_normal:
-            col = layout.column(align=True)
-            col.prop(automasking, "start_normal_limit", text="Limit")
-            col.prop(automasking, "start_normal_falloff", text="Falloff")
+        draw_mesh_automasking_settings(layout, paint, brush.mesh_automasking_settings)
 
         layout.separator()
 
@@ -1447,6 +1456,11 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         layout.separator()
 
         layout.prop(brush, "use_alpha")
+
+        draw_mesh_automasking_settings(layout, brush.mesh_automasking_settings)
+
+        layout.separator()
+
         if brush.vertex_brush_type != 'SMEAR':
             use_accumulate = True
         use_frontface = True
@@ -1454,6 +1468,10 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
     # Weight Paint
     elif mode == 'PAINT_WEIGHT':
         layout.prop(brush, "weight_brush_type")
+        layout.separator()
+
+        draw_mesh_automasking_settings(layout, brush.mesh_automasking_settings)
+
         layout.separator()
 
         if brush.weight_brush_type != 'SMEAR':
