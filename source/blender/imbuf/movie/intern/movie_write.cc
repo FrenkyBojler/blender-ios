@@ -11,12 +11,15 @@
 
 #include "BLI_string_ref.hh"
 
+#include "DNA_camera_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "MOV_write.hh"
 
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include <libavutil/dict.h>
 
 #ifdef WITH_FFMPEG
 #  include <cstdio>
@@ -214,13 +217,21 @@ static void add_hdr_mastering_display_metadata(AVCodecParameters *codecpar,
  * The side data is only added when the scene uses stereoscopic with stereo views and the image
  * format also contains stereo views.
  */
-static void add_stereo3d_metadata(MovieWriter &context,
+static void add_stereo3d_metadata(AVCodecParameters *codecpar,
                                   const RenderData &render_data,
                                   const ImageFormatData &imf)
 {
-  BLI_assert(context.current_frame);
   if (BKE_scene_multiview_is_stereo3d(&render_data) && imf.views_format == R_IMF_VIEWS_STEREO_3D) {
-    AVStereo3D *stereo_3d = av_stereo3d_create_side_data(context.current_frame);
+    AVPacketSideData *side_data = av_packet_side_data_new(&codecpar->coded_side_data,
+                                                          &codecpar->nb_coded_side_data,
+                                                          AV_PKT_DATA_STEREO3D,
+                                                          sizeof(AVStereo3D),
+                                                          0);
+    if (side_data == nullptr) {
+      CLOG_ERROR(&LOG, "Failed to attach stereo3d metadata to stream");
+      return;
+    }
+    AVStereo3D *stereo_3d = reinterpret_cast<AVStereo3D *>(side_data->data);
     AVStereo3DType interlace_type = AV_STEREO3D_UNSPEC;
     switch (imf.stereo3d_format.interlace_type) {
       case S3D_INTERLACE_ROW:
@@ -264,6 +275,44 @@ static void add_stereo3d_metadata(MovieWriter &context,
       }
     }
   }
+}
+
+static void add_spherical_mapping_metadata(AVCodecParameters *codecpar, const Scene &scene)
+{
+  if (scene.camera == nullptr) {
+    return;
+  }
+  if (scene.camera->type != OB_CAMERA) {
+    return;
+  }
+  const Camera &camera = *reinterpret_cast<const Camera *>(scene.camera->data);
+
+  /* Only create the side data for full equirectangular cameras. */
+  if (camera.type != CAM_PANO) {
+    return;
+  }
+  if (camera.panorama_type != CAM_PANORAMA_EQUIRECTANGULAR) {
+    return;
+  }
+  if (!compare_ff(camera.latitude_min, -M_PI_2, 1e-6) ||
+      !compare_ff(camera.latitude_max, M_PI_2, 1e-6) ||
+      !compare_ff(camera.longitude_min, -M_PI, 1e-6) ||
+      !compare_ff(camera.longitude_max, M_PI, 1e-6))
+  {
+    return;
+  }
+
+  AVPacketSideData *side_data = av_packet_side_data_new(&codecpar->coded_side_data,
+                                                        &codecpar->nb_coded_side_data,
+                                                        AV_PKT_DATA_SPHERICAL,
+                                                        sizeof(AVSphericalMapping),
+                                                        0);
+  if (side_data == nullptr) {
+    CLOG_ERROR(&LOG, "Failed to attach spherical mapping metadata to stream");
+    return;
+  }
+  AVSphericalMapping &spherical = *reinterpret_cast<AVSphericalMapping *>(side_data->data);
+  spherical.projection = AV_SPHERICAL_EQUIRECTANGULAR;
 }
 
 /* Write a frame to the output file */
@@ -875,7 +924,7 @@ static void set_colorspace_options(AVCodecContext *c, const ColorSpace *colorspa
 }
 
 static AVStream *alloc_video_stream(MovieWriter *context,
-                                    const RenderData *rd,
+                                    const Scene &scene,
                                     const ImageFormatData *imf,
                                     AVCodecID codec_id,
                                     AVFormatContext *of,
@@ -887,6 +936,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   AVStream *st;
   const AVCodec *codec;
   AVDictionary *opts = nullptr;
+  const RenderData *rd = &scene.r;
 
   error[0] = '\0';
 
@@ -1219,7 +1269,8 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   avcodec_parameters_from_context(st->codecpar, c);
 
   add_hdr_mastering_display_metadata(st->codecpar, c, imf);
-  add_stereo3d_metadata(*context, *rd, *imf);
+  add_stereo3d_metadata(st->codecpar, *rd, *imf);
+  add_spherical_mapping_metadata(st->codecpar, scene);
 
   context->video_time = 0.0f;
 
@@ -1402,7 +1453,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
 
   if (video_codec != AV_CODEC_ID_NONE) {
     context->video_stream = alloc_video_stream(
-        context, rd, imf, video_codec, of, rectx, recty, error, sizeof(error));
+        context, *scene, imf, video_codec, of, rectx, recty, error, sizeof(error));
     CLOG_INFO(&LOG, "ffmpeg: alloc video stream %p", context->video_stream);
     if (!context->video_stream) {
       if (error[0]) {
