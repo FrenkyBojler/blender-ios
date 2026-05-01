@@ -397,7 +397,7 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
   old_wm->runtime->userconf = nullptr;
 
   /* Ensure new keymaps are made, and space types are set. */
-  wm->init_flag = 0;
+  wm->init_flag = eWM_InitFlag{};
   wm->runtime->winactive = nullptr;
 
   /* Clearing drawable of old WM before deleting any context to avoid clearing the wrong wm. */
@@ -3785,7 +3785,7 @@ static ui::Block *block_create_save_modified_images_dialog(bContext *C, ARegion 
   char message[64];
   SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
   layout.separator();
-  uiDefButC(block,
+  uiDefButV(block,
             ui::ButtonType::Checkbox,
             message,
             0,
@@ -5080,7 +5080,7 @@ static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region, 
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    uiDefButC(block,
+    uiDefButV(block,
               ui::ButtonType::Checkbox,
               message,
               0,
@@ -5103,18 +5103,18 @@ static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region, 
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    ui::Button *but = uiDefButBitC(block,
-                                   ui::ButtonType::Checkbox,
-                                   1,
-                                   "Save modified asset catalogs",
-                                   0,
-                                   0,
-                                   0,
-                                   UI_UNIT_Y,
-                                   &save_catalogs_when_file_is_closed,
-                                   0,
-                                   0,
-                                   "");
+    ui::Button *but = uiDefButBit(block,
+                                  ui::ButtonType::Checkbox,
+                                  1,
+                                  "Save modified asset catalogs",
+                                  0,
+                                  0,
+                                  0,
+                                  UI_UNIT_Y,
+                                  &save_catalogs_when_file_is_closed,
+                                  0,
+                                  0,
+                                  "");
     button_func_set(but,
                     save_catalogs_when_file_is_closed_set_fn,
                     &save_catalogs_when_file_is_closed,
