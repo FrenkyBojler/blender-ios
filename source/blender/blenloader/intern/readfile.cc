@@ -2839,19 +2839,28 @@ static void read_undo_tag_all_noundo_ids(FileData *fd)
       ID *id = static_cast<ID *>(lbarray[i]->first);
       const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
       if ((id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) == 0) {
-        continue;
+        /* Clear flag for datablocks using memfile undo. */
+        ID *id_iter;
+        FOREACH_MAIN_LISTBASE_ID_BEGIN (lbarray[i], id_iter) {
+          if (BLO_readfile_id_runtime_tags(*id_iter).used_by_no_undo_id) {
+            BLO_readfile_id_runtime_tags_for_write(*id_iter).used_by_no_undo_id = false;
+          }
+        }
+        FOREACH_MAIN_LISTBASE_ID_END;
       }
-
-      if (old_bmain_iter->curlib) {
-        BLO_readfile_id_runtime_tags_for_write(old_bmain_iter->curlib->id).used_by_no_undo_id =
-            true;
+      else {
+        /* Set for other datablocks. */
+        if (old_bmain_iter->curlib) {
+          BLO_readfile_id_runtime_tags_for_write(old_bmain_iter->curlib->id).used_by_no_undo_id =
+              true;
+        }
+        ID *id_iter;
+        FOREACH_MAIN_LISTBASE_ID_BEGIN (lbarray[i], id_iter) {
+          BLO_readfile_id_runtime_tags_for_write(*id_iter).used_by_no_undo_id = true;
+          no_undo_ids.push_back(id_iter);
+        }
+        FOREACH_MAIN_LISTBASE_ID_END;
       }
-      ID *id_iter;
-      FOREACH_MAIN_LISTBASE_ID_BEGIN (lbarray[i], id_iter) {
-        BLO_readfile_id_runtime_tags_for_write(*id_iter).used_by_no_undo_id = true;
-        no_undo_ids.push_back(id_iter);
-      }
-      FOREACH_MAIN_LISTBASE_ID_END;
     }
   }
 
