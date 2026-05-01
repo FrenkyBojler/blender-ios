@@ -54442,7 +54442,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Durchsuche Arbeitsbereich zum Verknüpfen"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "Durchsuche Lichtsonden zum Verknüpfen"
 
 

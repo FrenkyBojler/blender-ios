@@ -136409,7 +136409,7 @@ msgid "Browse Workspace to be linked"
 msgstr "浏览要关联的工作区"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "浏览要关联的光照探头"
 
 

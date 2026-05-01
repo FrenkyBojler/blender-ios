@@ -73003,7 +73003,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Brska po delovnih prostorih, ki jih je mogoče povezati"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "Brska po svetlobnih sondah, ki jih je mogoče povezati"
 
 

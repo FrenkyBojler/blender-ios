@@ -132310,7 +132310,7 @@ msgid "Browse Workspace to be linked"
 msgstr "연결된 작업 영역을 찾아보기"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "연결된 라이트 프로브를 찾아보기"
 
 

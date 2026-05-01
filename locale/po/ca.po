@@ -136937,7 +136937,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Explorar l'obrador per vincular"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "Explorar la sonda de llum per vincular"
 
 

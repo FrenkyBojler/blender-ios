@@ -137405,7 +137405,7 @@ msgid "Browse Workspace to be linked"
 msgstr "リンクするワークスペースを閲覧"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "リンクするライトプローブを閲覧"
 
 

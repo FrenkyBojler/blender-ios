@@ -133615,7 +133615,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Duyệt Không Gian Làm Việc sẽ được kết nối"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "Duyệt Điểm Thăm Dò Ánh Sáng sẽ được kết nối"
 
 

@@ -136940,7 +136940,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Parcourir l’espace de travail à lier"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "Parcourir la sonde d’éclairage à lier"
 
 

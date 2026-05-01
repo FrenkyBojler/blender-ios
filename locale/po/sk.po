@@ -136937,7 +136937,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Prehľadávať priestor sveta na prepojenie"
 
 
-msgid "Browse Light Probe to be linked"
+msgid "Browse LightProbe to be linked"
 msgstr "Prehľadávať snímač svetla na prepojenie"
 
 
