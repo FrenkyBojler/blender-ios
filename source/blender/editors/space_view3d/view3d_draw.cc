@@ -1059,8 +1059,9 @@ static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
   if (true) {
     /* -- draw rotation axis -- */
     float scaled_axis[3];
-    const float scale = rv3d->dist;
-    mul_v3_v3fl(scaled_axis, rv3d->ndof_rot_axis, scale);
+    const float scale = 0.05f*rv3d->dist;
+    const float rot_axis[3] = {0.0f, 0.0f, 1.0f};
+    mul_v3_v3fl(scaled_axis, rot_axis, scale);
 
     immBegin(GPU_PRIM_LINE_STRIP, 3);
     color[3] = 0; /* more transparent toward the ends */
@@ -1087,17 +1088,17 @@ static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
     {
 #  define ROT_AXIS_DETAIL 255
 
-      const float s = 0.05f * scale;
+      const float s = 0.5f * scale;
       const float step = 2.0f * float(M_PI / ROT_AXIS_DETAIL);
 
       float q[4]; /* rotate ring so it's perpendicular to axis */
-      const int upright = fabsf(rv3d->ndof_rot_axis[2]) >= 0.95f;
+      const int upright = fabsf(rot_axis[2]) >= 0.95f;
       if (!upright) {
         const float up[3] = {0.0f, 0.0f, 1.0f};
         float vis_angle, vis_axis[3];
 
-        cross_v3_v3v3(vis_axis, up, rv3d->ndof_rot_axis);
-        vis_angle = acosf(dot_v3v3(up, rv3d->ndof_rot_axis));
+        cross_v3_v3v3(vis_axis, up, rot_axis);
+        vis_angle = acosf(dot_v3v3(up, rot_axis));
         axis_angle_to_quat(q, vis_axis, vis_angle);
       }
 
