@@ -2,20 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "device/device.h"
-
 #include "scene/scene.h"
-#include "scene/shader.h"
-#include "scene/stats.h"
-#include "scene/tabulated_sobol.h"
-#include "scene/volume.h"
-
-#include "kernel/types.h"
-
-#include "util/hash.h"
-#include "util/log.h"
-#include "util/task.h"
-#include "util/time.h"
 
 CCL_NAMESPACE_BEGIN
 
