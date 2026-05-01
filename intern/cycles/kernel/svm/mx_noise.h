@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "kernel/svm/fractal_noise.h"
 #include "kernel/svm/node_types.h"
 #include "kernel/svm/util.h"
 
@@ -179,109 +180,23 @@ ccl_device_inline uint mx_bjfinal(uint a, uint b, uint c)
   return c;
 }
 
-ccl_device_inline float mx_bits_to_01(const uint bits)
-{
-  return float(bits) / float(0xffffffffu);
-}
-
 ccl_device_inline float mx_fade(const float t)
 {
   return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
 
-ccl_device_inline uint mx_hash_int(const int x)
-{
-  const uint len = 1u;
-  const uint seed = 0xdeadbeefu + (len << 2u) + 13u;
-  return mx_bjfinal(seed + uint(x), seed, seed);
-}
-
-ccl_device_inline uint mx_hash_int(const int x, const int y)
-{
-  const uint len = 2u;
-  uint a, b, c;
-  a = b = c = 0xdeadbeefu + (len << 2u) + 13u;
-  a += uint(x);
-  b += uint(y);
-  return mx_bjfinal(a, b, c);
-}
-
-ccl_device_inline uint mx_hash_int(const int x, const int y, const int z)
-{
-  const uint len = 3u;
-  uint a, b, c;
-  a = b = c = 0xdeadbeefu + (len << 2u) + 13u;
-  a += uint(x);
-  b += uint(y);
-  c += uint(z);
-  return mx_bjfinal(a, b, c);
-}
-
-ccl_device_inline uint mx_hash_int(const int x, const int y, const int z, const int w)
-{
-  const uint len = 4u;
-  uint a, b, c;
-  a = b = c = 0xdeadbeefu + (len << 2u) + 13u;
-  a += uint(x);
-  b += uint(y);
-  c += uint(z);
-  mx_bjmix(&a, &b, &c);
-  a += uint(w);
-  return mx_bjfinal(a, b, c);
-}
-
 ccl_device_inline MxHash3 mx_hash_vec3(const int x, const int y)
 {
-  const uint h = mx_hash_int(x, y);
+  const uint h = hash_uint2(uint(x), uint(y));
   MxHash3 result = {h & 0xffu, (h >> 8) & 0xffu, (h >> 16) & 0xffu};
   return result;
 }
 
 ccl_device_inline MxHash3 mx_hash_vec3(const int x, const int y, const int z)
 {
-  const uint h = mx_hash_int(x, y, z);
+  const uint h = hash_uint3(uint(x), uint(y), uint(z));
   MxHash3 result = {h & 0xffu, (h >> 8) & 0xffu, (h >> 16) & 0xffu};
   return result;
-}
-
-ccl_device float mx_perlin_noise_float(const float2 p)
-{
-  int X, Y;
-  const float fx = mx_floorfrac(p.x, &X);
-  const float fy = mx_floorfrac(p.y, &Y);
-  const float u = mx_fade(fx);
-  const float v = mx_fade(fy);
-  const float result = mx_bilerp(mx_gradient_float(mx_hash_int(X, Y), fx, fy),
-                                 mx_gradient_float(mx_hash_int(X + 1, Y), fx - 1.0f, fy),
-                                 mx_gradient_float(mx_hash_int(X, Y + 1), fx, fy - 1.0f),
-                                 mx_gradient_float(mx_hash_int(X + 1, Y + 1), fx - 1.0f, fy - 1.0f),
-                                 u,
-                                 v);
-  return 0.6616f * result;
-}
-
-ccl_device float mx_perlin_noise_float(const float3 p)
-{
-  int X, Y, Z;
-  const float fx = mx_floorfrac(p.x, &X);
-  const float fy = mx_floorfrac(p.y, &Y);
-  const float fz = mx_floorfrac(p.z, &Z);
-  const float u = mx_fade(fx);
-  const float v = mx_fade(fy);
-  const float w = mx_fade(fz);
-  const float result = mx_trilerp(
-      mx_gradient_float(mx_hash_int(X, Y, Z), fx, fy, fz),
-      mx_gradient_float(mx_hash_int(X + 1, Y, Z), fx - 1.0f, fy, fz),
-      mx_gradient_float(mx_hash_int(X, Y + 1, Z), fx, fy - 1.0f, fz),
-      mx_gradient_float(mx_hash_int(X + 1, Y + 1, Z), fx - 1.0f, fy - 1.0f, fz),
-      mx_gradient_float(mx_hash_int(X, Y, Z + 1), fx, fy, fz - 1.0f),
-      mx_gradient_float(mx_hash_int(X + 1, Y, Z + 1), fx - 1.0f, fy, fz - 1.0f),
-      mx_gradient_float(mx_hash_int(X, Y + 1, Z + 1), fx, fy - 1.0f, fz - 1.0f),
-      mx_gradient_float(mx_hash_int(X + 1, Y + 1, Z + 1), fx - 1.0f, fy - 1.0f, fz - 1.0f),
-      u,
-      v,
-      w);
-  return 0.9820f * result;
 }
 
 ccl_device float3 mx_perlin_noise_vec3(const float2 p)
@@ -325,21 +240,22 @@ ccl_device float3 mx_perlin_noise_vec3(const float3 p)
 
 ccl_device_inline float mx_cell_noise_float(const float2 p)
 {
-  return mx_bits_to_01(mx_hash_int(floor_to_int(p.x), floor_to_int(p.y)));
+  return uint_to_float_incl(hash_uint2(uint(floor_to_int(p.x)), uint(floor_to_int(p.y))));
 }
 
 ccl_device_inline float mx_cell_noise_float(const float3 p)
 {
-  return mx_bits_to_01(mx_hash_int(floor_to_int(p.x), floor_to_int(p.y), floor_to_int(p.z)));
+  return uint_to_float_incl(
+      hash_uint3(uint(floor_to_int(p.x)), uint(floor_to_int(p.y)), uint(floor_to_int(p.z))));
 }
 
 ccl_device_inline float3 mx_cell_noise_vec3(const float2 p)
 {
   const int ix = floor_to_int(p.x);
   const int iy = floor_to_int(p.y);
-  return make_float3(mx_bits_to_01(mx_hash_int(ix, iy, 0)),
-                     mx_bits_to_01(mx_hash_int(ix, iy, 1)),
-                     mx_bits_to_01(mx_hash_int(ix, iy, 2)));
+  return make_float3(uint_to_float_incl(hash_uint3(uint(ix), uint(iy), 0u)),
+                     uint_to_float_incl(hash_uint3(uint(ix), uint(iy), 1u)),
+                     uint_to_float_incl(hash_uint3(uint(ix), uint(iy), 2u)));
 }
 
 ccl_device_inline float3 mx_cell_noise_vec3(const float3 p)
@@ -350,39 +266,9 @@ ccl_device_inline float3 mx_cell_noise_vec3(const float3 p)
   b += uint(floor_to_int(p.y));
   c += uint(floor_to_int(p.z));
   mx_bjmix(&a, &b, &c);
-  return make_float3(mx_bits_to_01(mx_bjfinal(a, b, c)),
-                     mx_bits_to_01(mx_bjfinal(a + 1u, b, c)),
-                     mx_bits_to_01(mx_bjfinal(a + 2u, b, c)));
-}
-
-ccl_device float mx_fractal_noise_float(float2 p,
-                                        const int octaves,
-                                        const float lacunarity,
-                                        const float diminish)
-{
-  float result = 0.0f;
-  float amplitude = 1.0f;
-  for (int i = 0; i < octaves; ++i) {
-    result += amplitude * mx_perlin_noise_float(p);
-    amplitude *= diminish;
-    p *= lacunarity;
-  }
-  return result;
-}
-
-ccl_device float mx_fractal_noise_float(float3 p,
-                                        const int octaves,
-                                        const float lacunarity,
-                                        const float diminish)
-{
-  float result = 0.0f;
-  float amplitude = 1.0f;
-  for (int i = 0; i < octaves; ++i) {
-    result += amplitude * mx_perlin_noise_float(p);
-    amplitude *= diminish;
-    p *= lacunarity;
-  }
-  return result;
+  return make_float3(uint_to_float_incl(mx_bjfinal(a, b, c)),
+                     uint_to_float_incl(mx_bjfinal(a + 1u, b, c)),
+                     uint_to_float_incl(mx_bjfinal(a + 2u, b, c)));
 }
 
 ccl_device float3 mx_fractal_noise_vec3(float2 p,
@@ -671,11 +557,15 @@ ccl_device_noinline void svm_node_tex_mx_noise(ccl_private float *ccl_restrict s
       }
       else if (unified_type == 3) {
         const float3 fractal_position = make_float3(apply_offset.x, apply_offset.y, cell_jitter);
-        value = mx_fractal_noise_float(fractal_position, octaves, lacunarity, diminish);
+        /* MaterialX mx_fractal_noise_float, using Blender's equivalent wrapped fBM. */
+        value = octaves > 0 ?
+                    noise_fbm(fractal_position, float(octaves - 1), diminish, lacunarity, false) :
+                    0.0f;
         color = mx_fractal_noise_vec3(fractal_position, octaves, lacunarity, diminish);
       }
       else {
-        value = mx_perlin_noise_float(apply_cell_jitter) * 0.5f + 0.5f;
+        /* MaterialX mx_perlin_noise_float, using Blender's equivalent wrapped noise. */
+        value = snoise_2d(apply_cell_jitter) * 0.5f + 0.5f;
         color = mx_perlin_noise_vec3(apply_cell_jitter) * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
       }
     }
@@ -691,11 +581,15 @@ ccl_device_noinline void svm_node_tex_mx_noise(ccl_private float *ccl_restrict s
         color = mx_worley_noise_vec3(apply_offset, jitter, style, 0);
       }
       else if (unified_type == 3) {
-        value = mx_fractal_noise_float(apply_cell_jitter, octaves, lacunarity, diminish);
+        /* MaterialX mx_fractal_noise_float, using Blender's equivalent wrapped fBM. */
+        value = octaves > 0 ?
+                    noise_fbm(apply_cell_jitter, float(octaves - 1), diminish, lacunarity, false) :
+                    0.0f;
         color = mx_fractal_noise_vec3(apply_cell_jitter, octaves, lacunarity, diminish);
       }
       else {
-        value = mx_perlin_noise_float(apply_cell_jitter) * 0.5f + 0.5f;
+        /* MaterialX mx_perlin_noise_float, using Blender's equivalent wrapped noise. */
+        value = snoise_3d(apply_cell_jitter) * 0.5f + 0.5f;
         color = mx_perlin_noise_vec3(apply_cell_jitter) * 0.5f + make_float3(0.5f, 0.5f, 0.5f);
       }
     }
@@ -715,15 +609,18 @@ ccl_device_noinline void svm_node_tex_mx_noise(ccl_private float *ccl_restrict s
                     mx_worley_noise_vec3(p3, jitter, style, 0);
   }
   else if (noise_type == NODE_MX_NOISE_FRACTAL) {
-    value = is_2d ? mx_fractal_noise_float(p2, octaves, lacunarity, diminish) :
-                    mx_fractal_noise_float(p3, octaves, lacunarity, diminish);
+    /* MaterialX mx_fractal_noise_float, using Blender's equivalent wrapped fBM. */
+    value = octaves <= 0 ? 0.0f :
+                           (is_2d ? noise_fbm(p2, float(octaves - 1), diminish, lacunarity, false) :
+                                    noise_fbm(p3, float(octaves - 1), diminish, lacunarity, false));
     color = is_2d ? mx_fractal_noise_vec3(p2, octaves, lacunarity, diminish) :
                     mx_fractal_noise_vec3(p3, octaves, lacunarity, diminish);
     value *= amplitude;
     color *= amplitude;
   }
   else {
-    value = is_2d ? mx_perlin_noise_float(p2) : mx_perlin_noise_float(p3);
+    /* MaterialX mx_perlin_noise_float, using Blender's equivalent wrapped noise. */
+    value = is_2d ? snoise_2d(p2) : snoise_3d(p3);
     color = is_2d ? mx_perlin_noise_vec3(p2) : mx_perlin_noise_vec3(p3);
     value = value * amplitude + pivot;
     color = color * amplitude + make_float3(pivot, pivot, pivot);
