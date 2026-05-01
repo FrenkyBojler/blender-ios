@@ -69,6 +69,7 @@ class Bundle : public ImplicitSharingMixin {
   BundleItemMap items_;
 
  public:
+  static inline UString type_item_name = "Type"_ustr;
   static BundlePtr create();
 
   bool add(UString key, const BundleItemValue &value);
@@ -116,6 +117,8 @@ class Bundle : public ImplicitSharingMixin {
 
   void clear();
 
+  std::optional<StringRef> type() const;
+
   /** Also see #GeometrySet.ensure_owns_direct_data. */
   void ensure_owns_direct_data();
   bool owns_direct_data() const;
@@ -129,8 +132,11 @@ class Bundle : public ImplicitSharingMixin {
 
   void count_memory(MemoryCounter &memory) const;
 
+  Vector<std::string> gather_paths(FunctionRef<bool(const Bundle &bundle)> fn) const;
+
   /** Create the combined path by inserting '/' between each element. */
   static std::string combine_path(const Span<StringRef> path);
+  static std::string combine_path(const Span<UString> path);
 
   /* Disallow certain characters so that we can use them to e.g. build a bundle path or
    * expressions referencing multiple bundle items. We might not need all of them in the future,
@@ -140,6 +146,20 @@ class Bundle : public ImplicitSharingMixin {
   static bool is_valid_path(const StringRef path);
   static std::optional<Vector<UString>> split_path(const StringRef path);
 };
+
+enum class BundlePathsGatherFilterResult {
+  None,
+  Recurse,
+  Take,
+};
+
+Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
+                                                       const StringRef type_filter);
+Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
+                                                     const eNodeSocketDatatype data_type);
+
+void foreach_nested_bundle_item(
+    const Bundle &bundle, FunctionRef<void(Span<UString> path, const BundleItemValue &value)> fn);
 
 template<typename T>
 inline std::optional<T> BundleItemValue::as_socket_value(
