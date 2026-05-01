@@ -23,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Cluster ID"_ustr).field_source_reference_all();
 }
 
-static constexpr int no_cluster_value = -1;
+constexpr int NO_CLUSTER_VALUE = -1;
 
 static void masked_cluster_ids(const Span<float3> all_positions,
                                const IndexMask &mask_to_cluster,
@@ -36,13 +36,13 @@ static void masked_cluster_ids(const Span<float3> all_positions,
       [&](const int i, const int pos) { kdtree_insert<float3>(tree, pos, all_positions[i]); });
   kdtree_balance<float3>(tree);
 
-  r_cluster_ids.fill(no_cluster_value);
+  r_cluster_ids.fill(NO_CLUSTER_VALUE);
   kdtree_calc_duplicates_fast<float3>(tree, distance, true, r_cluster_ids.data());
   kdtree_free<float3>(tree);
 
   threading::parallel_for(mask_to_cluster.index_range(), 1024 * 4, [&](const IndexRange range) {
     for (const int i : range) {
-      if (r_cluster_ids[i] == no_cluster_value) {
+      if (r_cluster_ids[i] == NO_CLUSTER_VALUE) {
         r_cluster_ids[i] = i;
       }
     }
@@ -91,17 +91,16 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
      * But in current case this will affect result values since some cluster might have lowest ID
      * of element outside of visible mask. */
     const IndexMask mask_to_cluster = IndexMask::from_intersection(mask, selection, memory);
-    const IndexMask mask_to_fallback = IndexMask::from_difference(mask, selection, memory);
-
     if (mask_to_cluster.is_empty()) {
       return fn::IndexFieldInput::get_index_varray(mask);
     }
 
     Array<int> cluster_ids(mask.min_array_size());
 #ifndef NDEBUG
-    cluster_ids.as_mutable_span().fill(no_cluster_value);
+    cluster_ids.as_mutable_span().fill(NO_CLUSTER_VALUE);
 #endif
 
+    const IndexMask mask_to_fallback = IndexMask::from_difference(mask, selection, memory);
     mask_to_fallback.foreach_index_optimized<int>(
         [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
 
@@ -119,12 +118,12 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     const int groups_num = group_indices.size();
 
     Array<IndexMask> all_indices_by_group_id(groups_num);
-    if (group_id_span.has_value()) {
-      const auto get_group_index = [&](const int i) {
-        return group_indices.index_of((*group_id_span)[i]);
-      };
+    if (groups_num > 1) {
       IndexMask::from_groups<int>(
-          mask_to_cluster, memory, get_group_index, all_indices_by_group_id);
+          mask_to_cluster,
+          memory,
+          [&](const int i) { return group_indices.index_of((*group_id_span)[i]); },
+          all_indices_by_group_id);
     }
     else {
       all_indices_by_group_id.first() = mask_to_cluster;
@@ -140,7 +139,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
           const IndexMask &group_mask = all_indices_by_group_id[group_i];
 
           /* Using a map provides better time complexity compared to kdtree, while yet both are not
-           * parallel at the moment, so map is better choose. */
+           * parallel at the moment, so map is the better choice. */
           Map<float3, int> clusters;
           group_mask.foreach_index(
               [&](const int index) { clusters.add(positions[index], index); });
@@ -166,7 +165,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
       });
 
 #ifndef NDEBUG
-      mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != no_cluster_value); });
+      mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != NO_CLUSTER_VALUE); });
 #endif
 
       return VArray<int>::from_container(std::move(cluster_ids));
@@ -194,7 +193,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     });
 
 #ifndef NDEBUG
-    mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != no_cluster_value); });
+    mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != NO_CLUSTER_VALUE); });
 #endif
 
     return VArray<int>::from_container(std::move(cluster_ids));
