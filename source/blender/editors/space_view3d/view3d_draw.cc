@@ -1056,7 +1056,7 @@ static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
 
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
-  if (rv3d->ndof_rot_angle != 0.0f) {
+  if (true) {
     /* -- draw rotation axis -- */
     float scaled_axis[3];
     const float scale = rv3d->dist;
@@ -1085,7 +1085,7 @@ static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
 
     /* -- draw ring around rotation center -- */
     {
-#  define ROT_AXIS_DETAIL 13
+#  define ROT_AXIS_DETAIL 255
 
       const float s = 0.05f * scale;
       const float step = 2.0f * float(M_PI / ROT_AXIS_DETAIL);
@@ -1623,7 +1623,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
   if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_AXIS) {
     if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) == 0) {
       /* It only makes sense to show when orbiting. */
-      if (rv3d->ndof_rot_angle != 0.0f) {
+      if (true) {
         /* TODO: draw something else (but not this) during fly mode. */
         draw_ndof_guide_orbit_axis(rv3d);
       }
