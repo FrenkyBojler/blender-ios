@@ -134100,7 +134100,7 @@ msgstr "Browse Workspace to be linked"
 
 
 msgid "Browse LightProbe to be linked"
-msgstr "Browse Light Probe to be linked"
+msgstr "Browse LightProbe to be linked"
 
 
 msgid "Browse Curves Data to be linked"
