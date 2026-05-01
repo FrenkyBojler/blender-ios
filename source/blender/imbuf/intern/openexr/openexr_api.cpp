@@ -115,7 +115,7 @@ using namespace Imath;
 static bool exr_has_multiview(MultiPartInputFile &file);
 static bool exr_has_multipart_file(MultiPartInputFile &file);
 static bool exr_has_alpha(MultiPartInputFile &file);
-static int exr_has_channels(MultiPartInputFile &file);
+static bool exr_has_channels(MultiPartInputFile &file);
 static const ColorSpace *imb_exr_part_colorspace(const Header &header);
 
 /* XYZ with Illuminant E */
@@ -1937,20 +1937,16 @@ static bool exr_has_xyz(MultiPartInputFile &file)
           header.channels().findChannel("z") != nullptr);
 }
 
-static int exr_has_channels(MultiPartInputFile &file)
+static bool exr_has_channels(MultiPartInputFile &file)
 {
   const Header &header = file.header(0);
-  if (header.channels().begin() != header.channels().end()) {
-    return sizeof(header.channels()) / sizeof(header.channels().begin().channel());
-  }
-  return 0;
+  return header.channels().begin() != header.channels().end();
 }
 
-static const char *exr_unknow_channel_name(MultiPartInputFile &file)
+static const char *exr_unknown_channel_name(MultiPartInputFile &file)
 {
   const Header &header = file.header(0);
-  const char* name =  header.channels().begin().name();
-  return exr_rgba_channelname(file, name);
+  return header.channels().begin().name();
 }
 
 static bool exr_is_half_float(MultiPartInputFile &file)
@@ -2209,7 +2205,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
         else {
           const char *rgb_channels[3];
           const int num_rgb_channels = exr_has_rgb(*file, rgb_channels);
-          const int num_exr_channels = exr_has_channels(*file);
+          const int has_channels = exr_has_channels(*file);
           const bool has_luma = exr_has_luma(*file);
           const bool has_xyz = exr_has_xyz(*file);
           FrameBuffer frameBuffer;
@@ -2250,8 +2246,8 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
                 exr_rgba_channelname(*file, "RY"),
                 Slice(Imf::FLOAT, (char *)(first + 2), xstride, ystride, 1, 1, 0.5f));
           }
-          else if (num_exr_channels > 0) {
-            frameBuffer.insert(exr_unknow_channel_name(*file),
+          else if (has_channels) {
+            frameBuffer.insert(exr_unknown_channel_name(*file),
                                Slice(Imf::FLOAT, (char *)first, xstride, ystride, 1, 1));
           }
 
