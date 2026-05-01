@@ -1089,7 +1089,9 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     GPU_render_end();
   }
   else {
-    wm_window_set_drawable(wm, prev_windrawable, false);
+    if (prev_windrawable != nullptr) {
+      wm_window_set_drawable(wm, prev_windrawable, false);
+    }
   }
 }
 

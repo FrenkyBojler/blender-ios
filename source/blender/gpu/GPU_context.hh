@@ -62,17 +62,15 @@ bool GPU_backend_type_selection_is_overridden();
 /**
  * Override the user-preference GPU device to use the specified GPU.
  *
- * The override is interpreted as a hard match: device selection must pick the device with this
- * (`vendor_id`, `device_id`, `index`) triple or fail. The values `vendor_id == uint32_t(-1)` and
- * `device_id == uint32_t(-1)` are sentinels meaning "wildcard" (don't constrain that field), so
- * passing both as the sentinel selects purely by enumeration `index`.
+ * Device selection first tries the device with this (`vendor_id`, `device_id`, `index`),
+ * then falls back to the preferred device unless hard fail debugging is enabled. The
+ * values `vendor_id == uint32_t(-1)` and `device_id == uint32_t(-1)` are sentinels meaning
+ * "wildcard" (don't constrain that field), so passing both as the sentinel selects purely by
+ * enumeration `index`.
  */
 void GPU_backend_preferred_device_set_override(int index, uint32_t vendor_id, uint32_t device_id);
 /**
  * Return the preferred GPU device for new contexts.
- *
- * When backend detection selects a non-Vulkan backend, any device override is
- * ignored and the stored user preference is returned instead.
  */
 GHOST_GPUDevice GPU_backend_preferred_device_get();
 

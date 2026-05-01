@@ -417,6 +417,7 @@ void GPU_backend_preferred_device_set_override(const int index,
 
   GHOST_GPUDevice device = {};
   device.is_override = true;
+  device.fail_on_invalid_override = false;
   device.index = index;
   device.vendor_id = vendor_id;
   device.device_id = device_id;
@@ -426,14 +427,23 @@ void GPU_backend_preferred_device_set_override(const int index,
 GHOST_GPUDevice GPU_backend_preferred_device_get()
 {
   if (g_preferred_device_override.has_value()) {
-    return g_preferred_device_override.value();
+    GHOST_GPUDevice device = g_preferred_device_override.value();
+    device.fail_on_invalid_override = (G.debug & G_DEBUG_GPU_DEVICE_NO_FALLBACK) != 0;
+    device.fallback_index = U.gpu_preferred_index;
+    device.fallback_vendor_id = U.gpu_preferred_vendor_id;
+    device.fallback_device_id = U.gpu_preferred_device_id;
+    return device;
   }
 
   GHOST_GPUDevice device = {};
   device.is_override = false;
+  device.fail_on_invalid_override = false;
   device.index = U.gpu_preferred_index;
   device.vendor_id = U.gpu_preferred_vendor_id;
   device.device_id = U.gpu_preferred_device_id;
+  device.fallback_index = device.index;
+  device.fallback_vendor_id = device.vendor_id;
+  device.fallback_device_id = device.device_id;
   return device;
 }
 
