@@ -384,8 +384,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
             ],
         )
         self.node_operator(layout, "GeometryNodeBoneInfo")
-        if context.preferences.experimental.use_geometry_nodes_lists:
-            self.node_operator(layout, "GeometryNodeCollectionChildren")
+        self.node_operator(layout, "GeometryNodeCollectionChildren")
         self.node_operator(layout, "GeometryNodeCollectionInfo")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
@@ -665,8 +664,7 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeMatchString")
         self.node_operator(layout, "FunctionNodeReplaceString")
         self.node_operator(layout, "FunctionNodeSliceString")
-        if context.preferences.experimental.use_geometry_nodes_lists:
-            self.node_operator(layout, "FunctionNodeSplitString")
+        self.node_operator(layout, "FunctionNodeSplitString")
         self.node_operator(layout, "FunctionNodeTrimString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeFindInString")
@@ -722,8 +720,7 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Utilities/Bundle")
         self.draw_menu(layout, path="Utilities/Closure")
         self.draw_menu(layout, path="Utilities/Field")
-        if context.preferences.experimental.use_geometry_nodes_lists:
-            self.draw_menu(layout, path="Utilities/List")
+        self.draw_menu(layout, path="Utilities/List")
         self.draw_menu(layout, path="Utilities/Matrix")
         self.draw_menu(layout, path="Utilities/Rotation")
         self.draw_menu(layout, path="Utilities/Sound")
