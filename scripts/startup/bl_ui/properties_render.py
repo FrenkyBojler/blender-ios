@@ -442,6 +442,7 @@ class RENDER_PT_eevee_screen_trace(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "screen_trace_quality", text="Precision")
         col.prop(props, "screen_trace_thickness", text="Thickness")
+        col.prop(props, "backface_mode", text="Backface Lighting")
 
 
 class RENDER_PT_eevee_gi_approximation(RenderButtonsPanel, Panel):
