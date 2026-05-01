@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "scene/camera.h"
+#include "scene/integrator.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/osl.h"
@@ -421,7 +422,7 @@ void Camera::update(Scene *scene)
   }
 
   /* depth of field */
-  kcam->aperturesize = aperturesize;
+  kcam->aperturesize = scene->integrator->get_ignore_depth_of_field() ? 0.0f : aperturesize;
   kcam->focaldistance = max(focaldistance, 1e-5f);
   kcam->blades = (blades < 3) ? 0.0f : blades;
   kcam->bladesrotation = bladesrotation;

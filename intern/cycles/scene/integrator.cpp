@@ -8,8 +8,11 @@
 #include "scene/bake.h"
 #include "scene/camera.h"
 #include "scene/film.h"
+#include "scene/geometry.h"
+#include "scene/hair.h"
 #include "scene/integrator.h"
 #include "scene/light.h"
+#include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/scene.h"
 #include "scene/shader.h"
@@ -188,6 +191,17 @@ NODE_DEFINE(Integrator)
   SOCKET_BOOLEAN(denoise_use_gpu, "Denoise on GPU", true);
   SOCKET_ENUM(denoiser_quality, "Denoiser Quality", denoiser_quality_enum, DENOISER_QUALITY_HIGH);
   SOCKET_FLOAT(denoiser_upscale_factor, "Denoiser Upscale Factor", 1.0f);
+
+  SOCKET_BOOLEAN(ignore_shaders, "Ignore Shaders", false);
+  SOCKET_BOOLEAN(ignore_volumes, "Ignore Volumes", false);
+  SOCKET_BOOLEAN(ignore_lights, "Ignore Lights", false);
+  SOCKET_BOOLEAN(ignore_shadows, "Ignore Shadows", false);
+  SOCKET_BOOLEAN(ignore_displacement, "Ignore Displacement", false);
+  SOCKET_BOOLEAN(ignore_bump, "Ignore Bump", false);
+  SOCKET_BOOLEAN(ignore_polygon_smoothing, "Ignore Polygon Smoothing", false);
+  SOCKET_BOOLEAN(ignore_depth_of_field, "Ignore Depth of Field", false);
+  SOCKET_BOOLEAN(ignore_subsurface_scattering, "Ignore Subsurface Scattering", false);
+  SOCKET_BOOLEAN(ignore_textures, "Ignore Textures", false);
 
   return type;
 }
@@ -428,6 +442,53 @@ void Integrator::tag_update(Scene *scene, const uint32_t flag)
     scene->camera->tag_modified();
   }
 
+  if (ignore_depth_of_field_is_modified()) {
+    scene->camera->tag_modified();
+  }
+
+  if (ignore_polygon_smoothing_is_modified() || ignore_shaders_is_modified()) {
+    for (Geometry *geometry : scene->geometry) {
+      if (geometry->is_mesh()) {
+        Mesh *mesh = static_cast<Mesh *>(geometry);
+        if (ignore_polygon_smoothing_is_modified()) {
+          mesh->tag_smooth_modified();
+        }
+        if (ignore_shaders_is_modified()) {
+          mesh->tag_shader_modified();
+        }
+      }
+      else if (geometry->is_hair()) {
+        Hair *hair = static_cast<Hair *>(geometry);
+        if (ignore_shaders_is_modified()) {
+          hair->tag_curve_shader_modified();
+        }
+      }
+
+      geometry->tag_update(scene, false);
+    }
+  }
+  else if (ignore_displacement_is_modified()) {
+    /* For displacement, iterate over all shaders and manually trigger updates. */
+    for (Shader *shader : scene->shaders) {
+      if (shader->has_displacement) {
+        if (shader->get_displacement_method() != DISPLACE_BUMP) {
+          shader->need_update_displacement = true;
+        }
+      }
+    }
+    scene->geometry_manager->tag_update(scene, GeometryManager::GEOMETRY_MODIFIED);
+  }
+
+  if (ignore_volumes_is_modified() || ignore_bump_is_modified() || ignore_textures_is_modified() ||
+      ignore_subsurface_scattering_is_modified() || ignore_polygon_smoothing_is_modified() ||
+      ignore_displacement_is_modified())
+  {
+    scene->shader_manager->tag_update(scene, ShaderManager::INTEGRATOR_MODIFIED);
+  }
+
+  if (ignore_lights_is_modified() || ignore_shadows_is_modified()) {
+    scene->light_manager->tag_update(scene, LightManager::UPDATE_ALL);
+  }
   if (volume_ray_marching_is_modified()) {
     scene->volume_manager->tag_update_algorithm();
     scene->geometry_manager->tag_update(scene, GeometryManager::VOLUME_MODIFIED);

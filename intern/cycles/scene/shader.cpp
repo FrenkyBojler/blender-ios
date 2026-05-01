@@ -829,6 +829,32 @@ void ShaderManager::add_default(Scene *scene)
     scene->default_empty = shader;
     shader->tag_update(scene);
   }
+
+  /* default ignore shader */
+  {
+    unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
+
+    /* Default ignore shader is a simple N dot Eye shader. Using the "Incoming" output of the
+     * GeometryNode gives us the negated Eye vector. */
+    GeometryNode *geometry = graph->create_node<GeometryNode>();
+
+    VectorMathNode *dot = graph->create_node<VectorMathNode>();
+    dot->set_math_type(NODE_VECTOR_MATH_DOT_PRODUCT);
+
+    DiffuseBsdfNode *diffuse = graph->create_node<DiffuseBsdfNode>();
+
+    graph->connect(geometry->output("Incoming"), dot->input("Vector1"));
+    graph->connect(geometry->output("Normal"), dot->input("Vector2"));
+    graph->connect(dot->output("Value"), diffuse->input("Color"));
+    graph->connect(diffuse->output("BSDF"), graph->output()->input("Surface"));
+
+    Shader *shader = scene->create_node<Shader>();
+    shader->name = "default_ignore_shader";
+    shader->set_graph(std::move(graph));
+    shader->reference();
+    scene->default_ignore_shader = shader;
+    shader->tag_update(scene);
+  }
 }
 
 uint ShaderManager::get_graph_kernel_features(ShaderGraph *graph)

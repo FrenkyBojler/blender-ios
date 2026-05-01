@@ -403,6 +403,7 @@ class ShaderGraph : public NodeOwner {
 
   /* Graph simplification routines. */
   void clean(Scene *scene);
+  void apply_feature_overrides(Scene *scene);
   void constant_fold(Scene *scene);
   void simplify_settings(Scene *scene);
   void deduplicate_nodes();

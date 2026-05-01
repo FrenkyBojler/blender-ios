@@ -126,6 +126,18 @@ class Integrator : public Node {
   NODE_SOCKET_API(DenoiserQuality, denoiser_quality);
   NODE_SOCKET_API(float, denoiser_upscale_factor);
 
+  /* diagnostics */
+  NODE_SOCKET_API(bool, ignore_shaders);
+  NODE_SOCKET_API(bool, ignore_volumes);
+  NODE_SOCKET_API(bool, ignore_lights);
+  NODE_SOCKET_API(bool, ignore_shadows);
+  NODE_SOCKET_API(bool, ignore_displacement);
+  NODE_SOCKET_API(bool, ignore_bump);
+  NODE_SOCKET_API(bool, ignore_polygon_smoothing);
+  NODE_SOCKET_API(bool, ignore_depth_of_field);
+  NODE_SOCKET_API(bool, ignore_subsurface_scattering);
+  NODE_SOCKET_API(bool, ignore_textures);
+
   enum : uint32_t {
     AO_PASS_MODIFIED = (1 << 0),
     OBJECT_MANAGER = (1 << 1),

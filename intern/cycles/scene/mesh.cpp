@@ -10,6 +10,7 @@
 #include "device/device.h"
 
 #include "scene/attribute.h"
+#include "scene/integrator.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/scene.h"
@@ -867,11 +868,15 @@ void Mesh::pack_shaders(Scene *scene, uint *tri_shader)
   const size_t triangles_size = num_triangles();
   const int *shader_ptr = shader.data();
 
+  const bool ignore_smooth = scene->integrator->get_ignore_polygon_smoothing();
+  const bool ignore_shader = scene->integrator->get_ignore_shaders();
+  const bool ignore_volume = scene->integrator->get_ignore_volumes();
+
   /* Corner normals override the smooth flag, as the flatness is already
    * encoded in the corner normals and we always interpolate them. */
   const bool use_corner_normals = attributes.find(ATTR_STD_CORNER_NORMAL) != nullptr;
-  const bool *smooth_ptr = (use_corner_normals) ? nullptr : smooth.data();
-  const bool smooth_constant = (use_corner_normals) ? true : false;
+  const bool *smooth_ptr = (use_corner_normals || ignore_smooth) ? nullptr : smooth.data();
+  const bool smooth_constant = (use_corner_normals && !ignore_smooth) ? true : false;
 
   for (size_t i = 0; i < triangles_size; i++) {
     const int new_shader = shader_ptr ? shader_ptr[i] : INT_MAX;
@@ -883,6 +888,14 @@ void Mesh::pack_shaders(Scene *scene, uint *tri_shader)
       Shader *shader = (last_shader < used_shaders.size()) ?
                            static_cast<Shader *>(used_shaders[last_shader]) :
                            scene->default_surface;
+
+      /* Only ignore shader if it is not only a volume shader, unless volume is also ignored. */
+      if (ignore_shader &&
+          !(shader->has_volume_connected && !shader->has_surface && ignore_volume))
+      {
+        shader = scene->default_ignore_shader;
+      }
+
       shader_id = scene->shader_manager->get_shader_id(shader, last_smooth);
     }
 

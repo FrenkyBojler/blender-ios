@@ -6,6 +6,7 @@
 
 #include "integrator/shader_eval.h"
 
+#include "scene/integrator.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/scene.h"
@@ -347,7 +348,7 @@ static void recompute_displaced_vertex_normals(Mesh *mesh,
 bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progress &progress)
 {
   /* verify if we have a displacement shader */
-  if (!mesh->has_true_displacement()) {
+  if (!mesh->has_true_displacement() || scene->integrator->get_ignore_displacement()) {
     return false;
   }
 

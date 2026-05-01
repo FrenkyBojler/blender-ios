@@ -2399,6 +2399,37 @@ class CYCLES_RENDER_PT_simplify_culling(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "distance_cull_margin", text="")
 
 
+class CYCLES_RENDER_PT_simplify_diagnostics(CyclesButtonsPanel, Panel):
+    bl_label = "Diagnostics"
+    bl_context = "render"
+    bl_parent_id = "CYCLES_RENDER_PT_simplify"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'CYCLES'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        rd = scene.render
+        cscene = scene.cycles
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.active = rd.use_simplify
+
+        col = layout.column()
+        col.prop(cscene, "ignore_lights")
+        col.prop(cscene, "ignore_shadows")
+        col.prop(cscene, "ignore_shaders")
+        col.prop(cscene, "ignore_subsurface_scattering")
+        col.prop(cscene, "ignore_textures")
+        col.prop(cscene, "ignore_bump")
+        col.prop(cscene, "ignore_volumes")
+        col.prop(cscene, "ignore_displacement")
+        col.prop(cscene, "ignore_polygon_smoothing")
+        col.prop(cscene, "ignore_depth_of_field")
+
+
 class CyclesShadingButtonsPanel(CyclesButtonsPanel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
@@ -2644,6 +2675,7 @@ classes = (
     CYCLES_RENDER_PT_bake_selected_to_active,
     CYCLES_RENDER_PT_bake_output,
     CYCLES_RENDER_PT_bake_output_margin,
+    CYCLES_RENDER_PT_simplify_diagnostics,
     CYCLES_RENDER_PT_debug,
     node_panel(CYCLES_MATERIAL_PT_settings),
     node_panel(CYCLES_MATERIAL_PT_settings_surface),

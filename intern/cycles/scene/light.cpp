@@ -393,6 +393,9 @@ bool Light::has_contribution(const Scene *scene, const Object *object)
     /* Will be determined after finishing processing all the lights. */
     return true;
   }
+  if (scene->integrator->get_ignore_lights()) {
+    return false;
+  }
   if (is_area_light()) {
     const AreaLight *light = static_cast<AreaLight *>(this);
     if ((light->get_sizeu() * light->get_sizev() == 0.0f) ||
@@ -470,7 +473,7 @@ void Light::copy_to_kernel(KernelLight *klight,
   const Shader *shader = (get_shader()) ? get_shader() : scene->default_light;
   int shader_id = scene->shader_manager->get_shader_id(shader);
 
-  if (!cast_shadow) {
+  if (!cast_shadow || scene->integrator->get_ignore_shadows()) {
     shader_id &= ~SHADER_CAST_SHADOW;
   }
 

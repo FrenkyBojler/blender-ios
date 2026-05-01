@@ -560,6 +560,18 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
   }
 
+  integrator->set_ignore_shaders(get_boolean(cscene, "ignore_shaders"));
+  integrator->set_ignore_volumes(get_boolean(cscene, "ignore_volumes"));
+  integrator->set_ignore_lights(get_boolean(cscene, "ignore_lights"));
+  integrator->set_ignore_shadows(get_boolean(cscene, "ignore_shadows"));
+  integrator->set_ignore_bump(get_boolean(cscene, "ignore_bump"));
+  integrator->set_ignore_textures(get_boolean(cscene, "ignore_textures"));
+  integrator->set_ignore_displacement(get_boolean(cscene, "ignore_displacement"));
+  integrator->set_ignore_polygon_smoothing(get_boolean(cscene, "ignore_polygon_smoothing"));
+  integrator->set_ignore_depth_of_field(get_boolean(cscene, "ignore_depth_of_field"));
+  integrator->set_ignore_subsurface_scattering(
+      get_boolean(cscene, "ignore_subsurface_scattering"));
+
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
    * set calls above), but we need to make sure that the dependent things are tagged. */
   integrator->tag_update(scene, Integrator::UPDATE_NONE);
