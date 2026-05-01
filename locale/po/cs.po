@@ -40886,7 +40886,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Procházet Pracovní Prostředí k připojení"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "Procházet Světelnou Sondu k připojení"
 
 

@@ -83245,7 +83245,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Переглянути Робпростори для пов'язання"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "Переглянути Проби Освітлення для пов'язання"
 
 

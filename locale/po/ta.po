@@ -135124,7 +135124,7 @@ msgid "Browse Workspace to be linked"
 msgstr "இணைக்கப்பட வேண்டிய பணியிடத்தை உலாவுக"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "இணைக்க லேசான புரோப் உலாவுக"
 
 

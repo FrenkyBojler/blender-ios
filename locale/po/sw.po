@@ -101583,7 +101583,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Vinjari Nafasi ya Kazi ili kuunganishwa"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "Vinjari LightProbe ili kuunganishwa"
 
 

@@ -120330,7 +120330,7 @@ msgid "Browse Workspace to be linked"
 msgstr "ﮟﯾﺮﮐ ﺯﺅﺍﺮﺑ ﻮﮐ ﺲﯿﭙﺳﺍ ﮎﺭﻭ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﮏﻨﻟ"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "ﮟﯾﺮﮐ ﺯﺅﺍﺮﺑ ﻮﮐ ﺏﻭﺮﭘ ﭧﺋﻻ﻿ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﮏﻨﻟ"
 
 

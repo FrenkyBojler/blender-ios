@@ -135040,7 +135040,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Bläddra bland arbetsytor som ska länkas"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "Bläddra i LightProbe för att länka"
 
 

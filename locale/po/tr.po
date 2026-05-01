@@ -109718,7 +109718,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Bağlantılanacak çalışma alanına göz at"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "Bağlanmak için LightProbe'a göz atın"
 
 
