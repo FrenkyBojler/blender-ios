@@ -276,6 +276,12 @@ static PyMethodDef id_free_weakref_cb_def = {
 static void id_weakref_pool_free_value_fn(void *p)
 {
   GHash *weakinfo_hash = static_cast<GHash *>(p);
+  /* Decrement each weakref so Python won't fire their callbacks on the referents
+   * during `Py_Finalize()` — those callbacks call into this (now freed) hash. */
+  GHashIterator iter;
+  GHASH_ITER (iter, weakinfo_hash) {
+    Py_DECREF(static_cast<PyObject *>(BLI_ghashIterator_getKey(&iter)));
+  }
   BLI_ghash_free(weakinfo_hash, nullptr, nullptr);
 }
 
