@@ -2546,6 +2546,12 @@ enum RaytraceEEVEE_Method {
   // RAYTRACE_EEVEE_METHOD_HARDWARE = 2,
 };
 
+enum RaytraceEEVEE_Backface {
+  RAYTRACE_EEVEE_BACKFACE_FALLBACK = 0,
+  RAYTRACE_EEVEE_BACKFACE_DOUBLE_SIDED = 1,
+  RAYTRACE_EEVEE_BACKFACE_SINGLE_SIDED = 2,
+};
+
 /**
  * Ray-tracing parameters.
  */
@@ -2563,6 +2569,9 @@ struct RaytraceEEVEE {
   /** #RaytraceEEVEE_DenoiseStages. */
   int denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL | RAYTRACE_EEVEE_DENOISE_TEMPORAL |
                        RAYTRACE_EEVEE_DENOISE_BILATERAL;
+  /** #RaytraceEEVEE_Backface. */
+  int backface_mode = RAYTRACE_EEVEE_BACKFACE_FALLBACK;
+  char _pad0[4] = {};
 };
 
 /** #SceneEEVEE::flag */

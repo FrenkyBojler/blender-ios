@@ -115,11 +115,15 @@ void main()
           radiance_front_tx, uniform_buf.raytrace, hit, roughness, history_ss_hit_P);
 
       if (hit.hit_backface) {
-        if (true /* TODO add option */) {
-          radiance = float3(0.0f);
-        }
-        else {
-          hit.valid = false;
+        switch (uniform_buf.raytrace.hit_mode) {
+          case HIT_MODE_FALLBACK:
+            hit.valid = false;
+            break;
+          case HIT_MODE_DOUBLE_SIDED:
+            break;
+          case HIT_MODE_SINGLE_SIDED:
+            radiance = float3(0.0f);
+            break;
         }
       }
     }

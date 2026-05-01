@@ -8109,6 +8109,25 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static const EnumPropertyItem backface_mode_items[] = {
+      {RAYTRACE_EEVEE_BACKFACE_FALLBACK,
+       "FALLBACK",
+       0,
+       "Fallback",
+       "The ray will fallback to using the closest lightprobe"},
+      {RAYTRACE_EEVEE_BACKFACE_DOUBLE_SIDED,
+       "DOUBLE_SIDED",
+       0,
+       "Double Sided",
+       "The ray will reuse the front face radiance"},
+      {RAYTRACE_EEVEE_BACKFACE_SINGLE_SIDED,
+       "SINGLE_SIDED",
+       0,
+       "Single Sided",
+       "The ray will have no energy"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "RaytraceEEVEE", nullptr);
   RNA_def_struct_path_func(srna, "rna_RaytraceEEVEE_path");
   RNA_def_struct_ui_text(
@@ -8120,6 +8139,13 @@ static void rna_def_raytrace_eevee(BlenderRNA *brna)
                            "Resolution",
                            "Determines the number of rays per pixel. "
                            "Higher resolution uses more memory.");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "backface_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, backface_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Backface Mode", "Behavior of screen rays hitting geometry from their backside");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
