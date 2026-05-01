@@ -127,10 +127,10 @@ void BKE_object_eval_transform_final(Depsgraph *depsgraph, Object *ob)
   ob->runtime->last_update_transform = DEG_get_update_count(depsgraph);
 }
 
-static void empty_apply_modifiers(Depsgraph *depsgraph,
-                                  Scene *scene,
-                                  Object *object,
-                                  bke::GeometrySet &geometry_set)
+static void empty_object_apply_modifiers(Depsgraph *depsgraph,
+                                         Scene *scene,
+                                         Object *object,
+                                         bke::GeometrySet &geometry_set)
 {
   const bool use_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
@@ -156,14 +156,13 @@ static void empty_apply_modifiers(Depsgraph *depsgraph,
   }
 }
 
-static void empty_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
+static void empty_object_update(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
-  /* Free any evaluated data and restore original data. */
   BKE_object_free_derived_caches(object);
 
   /* Evaluate modifiers. */
   bke::GeometrySet geometry_set;
-  empty_apply_modifiers(depsgraph, scene, object, geometry_set);
+  empty_object_apply_modifiers(depsgraph, scene, object, geometry_set);
 
   object->runtime->geometry_set_eval = new bke::GeometrySet(std::move(geometry_set));
 }
@@ -175,7 +174,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* includes all keys and modifiers */
   switch (ob->type) {
     case OB_EMPTY: {
-      empty_data_update(depsgraph, scene, ob);
+      empty_object_update(depsgraph, scene, ob);
       break;
     }
     case OB_MESH: {

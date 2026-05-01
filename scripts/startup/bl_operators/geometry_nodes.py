@@ -351,6 +351,7 @@ class NewGeometryNodeTreeAssign(Operator):
         modifier = get_context_modifier(context)
         if not modifier:
             return {'CANCELLED'}
+
         ob = context.object
         is_first_modifier = ob.modifiers[0] == modifier
         # For empty objects, don't add a geometry input for the first modifier

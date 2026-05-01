@@ -4377,8 +4377,6 @@ const Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
     }
     return reinterpret_cast<const Mesh *>(data_orig);
   }
-  /* TODO: With this assert it crashes. Why? */
-  // BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   return id_cast<const Mesh *>(object->data);
 }
 

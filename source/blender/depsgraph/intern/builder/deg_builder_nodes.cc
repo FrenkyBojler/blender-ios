@@ -991,7 +991,7 @@ void DepsgraphNodeBuilder::build_object_data(Object *object)
   /* type-specific data. */
   switch (object->type) {
     case OB_EMPTY:
-      build_empty(object);
+      build_empty_object(object);
       break;
     case OB_MESH:
     case OB_CURVES_LEGACY:
@@ -1725,7 +1725,7 @@ void DepsgraphNodeBuilder::build_shapekeys(Key *key)
   }
 }
 
-void DepsgraphNodeBuilder::build_empty(Object *object)
+void DepsgraphNodeBuilder::build_empty_object(Object *object)
 {
   OperationNode *op_node;
   Scene *scene_cow = get_cow_datablock(scene_);
@@ -1735,6 +1735,8 @@ void DepsgraphNodeBuilder::build_empty(Object *object)
   op_node = add_operation_node(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_INIT);
   op_node->set_as_entry();
   /* Geometry evaluation. */
+  /* The empty object type doesn't contain any original geometry, but it can have a geometry nodes
+   * modifier that creates geometry dynamically. */
   op_node = add_operation_node(&object->id,
                                NodeType::GEOMETRY,
                                OperationCode::GEOMETRY_EVAL,
@@ -1742,8 +1744,6 @@ void DepsgraphNodeBuilder::build_empty(Object *object)
                                  BKE_object_eval_uber_data(depsgraph, scene_cow, object_cow);
                                });
   op_node->set_as_exit();
-  /* Materials. */
-  build_materials(object->mat, object->totcol);
 }
 
 /* ObData Geometry Evaluation */
