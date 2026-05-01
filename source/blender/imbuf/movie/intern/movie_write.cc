@@ -277,8 +277,9 @@ static void add_stereo3d_metadata(AVCodecParameters *codecpar,
   }
 }
 
-static void add_projection_metadata(const Scene &scene, AVDictionary **metadata)
+static void add_projection_metadata(MovieWriter &context, const Scene &scene)
 {
+  BLI_assert(context.current_frame);
   if (scene.camera == nullptr) {
     return;
   }
@@ -288,9 +289,11 @@ static void add_projection_metadata(const Scene &scene, AVDictionary **metadata)
   const Camera &camera = *reinterpret_cast<const Camera *>(scene.camera->data);
 
   if (camera.type == CAM_PANO) {
+    // TODO: Use AVSphericalMapping
+    // TODO: Add support for CAM_PANORAMA_FISHEYE_EQUIDISTANT
     if (camera.panorama_type == CAM_PANORAMA_EQUIRECTANGULAR) {
+      /*
       av_dict_set(metadata, "projection", "equirectangular", 0);
-
       std::string value = fmt::format("{}", camera.latitude_min);
       av_dict_set(metadata, "projection_bounds_top", value.c_str(), 0);
       value = fmt::format("{}", camera.latitude_max);
@@ -298,8 +301,15 @@ static void add_projection_metadata(const Scene &scene, AVDictionary **metadata)
       value = fmt::format("{}", camera.longitude_min);
       av_dict_set(metadata, "projection_bounds_left", value.c_str(), 0);
       value = fmt::format("{}", camera.longitude_max);
-      av_dict_set( metadata, "projection_bounds_right", value.c_str(), 0);
+      av_dict_set(metadata, "projection_bounds_right", value.c_str(), 0);
+      */
     }
+    // TODO: Add support for CAM_PANORAMA_FISHEYE_EQUIDISTANT
+    // TODO: Add support for CAM_PANORAMA_FISHEYE_EQUISOLID
+    // TODO: Add support for CAM_PANORAMA_MIRRORBALL
+    // TODO: Add support for CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL
+    // TODO: Add support for CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE
+    // TODO: Add support for CAM_PANORAMA_CENTRAL_CYLINDRICAL = 6,
   }
 }
 
@@ -1211,7 +1221,6 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   else if (codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
     c->thread_type = FF_THREAD_SLICE;
   }
-  add_projection_metadata(scene, &opts);
 
   int ret = avcodec_open2(c, codec, &opts);
 
@@ -1259,6 +1268,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   add_hdr_mastering_display_metadata(st->codecpar, c, imf);
   add_stereo3d_metadata(st->codecpar, *rd, *imf);
+  add_projection_metadata(*context, scene);
 
   context->video_time = 0.0f;
 
