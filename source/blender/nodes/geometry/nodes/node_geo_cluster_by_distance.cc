@@ -8,6 +8,7 @@
 
 #include "BKE_geometry_fields.hh"
 
+#include "atomic_ops.h"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_cluster_by_distance_cc {
@@ -25,6 +26,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 constexpr int NO_CLUSTER_VALUE = -1;
 
+static void set_no_cluster_value(MutableSpan<int> r_cluster_ids)
+{
+  threading::parallel_for(r_cluster_ids.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      if (r_cluster_ids[i] == NO_CLUSTER_VALUE) {
+        r_cluster_ids[i] = i;
+      }
+    }
+  });
+}
+
 static void masked_cluster_ids(const Span<float3> all_positions,
                                const IndexMask &mask_to_cluster,
                                const float distance,
@@ -40,13 +52,26 @@ static void masked_cluster_ids(const Span<float3> all_positions,
   kdtree_calc_duplicates_fast<float3>(tree, distance, true, r_cluster_ids.data());
   kdtree_free<float3>(tree);
 
-  threading::parallel_for(mask_to_cluster.index_range(), 1024 * 4, [&](const IndexRange range) {
-    for (const int i : range) {
-      if (r_cluster_ids[i] == NO_CLUSTER_VALUE) {
-        r_cluster_ids[i] = i;
-      }
-    }
-  });
+  set_no_cluster_value(r_cluster_ids);
+}
+
+static void masked_cluster_ids(const Span<float3> all_positions,
+                               const Span<int> indices,
+                               const float distance,
+                               MutableSpan<int> r_cluster_ids)
+{
+  BLI_assert(indices.size() == r_cluster_ids.size());
+  KDTree<float3> *tree = kdtree_new<float3>(indices.size());
+  for (const int pos : indices.index_range()) {
+    kdtree_insert<float3>(tree, pos, all_positions[indices[pos]]);
+  }
+  kdtree_balance<float3>(tree);
+
+  r_cluster_ids.fill(NO_CLUSTER_VALUE);
+  kdtree_calc_duplicates_fast<float3>(tree, distance, true, r_cluster_ids.data());
+  kdtree_free<float3>(tree);
+
+  set_no_cluster_value(r_cluster_ids);
 }
 
 class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
@@ -111,48 +136,58 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
       }
       VectorSet<int> group_indices;
       group_id_span.emplace(group_ids);
-      mask_to_cluster.foreach_index(
+      mask_to_cluster.foreach_index_optimized<int>(
           [&](const int index) { group_indices.add((*group_id_span)[index]); });
       return group_indices;
     }();
+
     const int groups_num = group_indices.size();
-
-    Array<IndexMask> all_indices_by_group_id(groups_num);
-    if (groups_num > 1) {
-      IndexMask::from_groups<int>(
-          mask_to_cluster,
-          memory,
-          [&](const int i) { return group_indices.index_of((*group_id_span)[i]); },
-          all_indices_by_group_id);
-    }
-    else {
-      all_indices_by_group_id.first() = mask_to_cluster;
+    if (groups_num == 1) {
+      masked_cluster_ids(positions, mask_to_cluster, distance_, cluster_ids);
+      return VArray<int>::from_container(std::move(cluster_ids));
     }
 
-    /* The grain size should be larger as each group gets smaller. */
-    const int avg_group_size = domain_size / group_indices.size();
-    const int grain_size = std::max(8192 / avg_group_size, 1);
+    Array<int> group_offset_data(groups_num + 1, 0);
+    mask_to_cluster.foreach_index_optimized<int>(
+        [&](const int index) {
+          const int group_i = group_indices.index_of((*group_id_span)[index]);
+          atomic_add_and_fetch_int32(&group_offset_data[group_i], 1);
+        },
+        exec_mode::grain_size(8192));
+    const OffsetIndices<int> group_offsets = offset_indices::accumulate_counts_to_offsets(
+        group_offset_data);
 
-    threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
-      Vector<int, 64> buffer;
-      for (const int group_i : range) {
-        const IndexMask &group_indices = all_indices_by_group_id[group_i];
-        buffer.reinitialize(group_indices.size() * 2);
+    Array<int> indices_by_group(group_offsets.total_size());
+    Array<int> group_counts(groups_num, 0);
+    mask_to_cluster.foreach_index_optimized<int>(
+        [&](const int index) {
+          const int group_i = group_indices.index_of((*group_id_span)[index]);
+          const int index_in_group = atomic_fetch_and_add_int32(&group_counts[group_i], 1);
+          indices_by_group[group_offsets[group_i][index_in_group]] = int(index);
+        },
+        exec_mode::grain_size(8192));
 
-        MutableSpan<int> group_cluser_ids = buffer.as_mutable_span().take_front(
-            group_indices.size());
-        masked_cluster_ids(positions, group_indices, distance_, group_cluser_ids);
+    threading::parallel_for(
+        IndexRange(groups_num),
+        1024,
+        [&](const IndexRange range) {
+          Vector<int, 64> group_cluster_ids;
+          for (const int group_i : range) {
+            const Span group = indices_by_group.as_span().slice(group_offsets[group_i]);
 
-        MutableSpan<int> mask_indices = buffer.as_mutable_span().take_back(group_indices.size());
-        group_indices.to_indices(mask_indices);
+            group_cluster_ids.resize(group.size());
+            masked_cluster_ids(positions, group, distance_, group_cluster_ids);
 
-        group_indices.foreach_index_optimized<int>(
-            [&](const int index, const int pos) {
-              cluster_ids[index] = mask_indices[group_cluser_ids[pos]];
-            },
-            exec_mode::parallel);
-      }
-    });
+            threading::parallel_for(group.index_range(), 4096, [&](const IndexRange range) {
+              for (const int pos : range) {
+                const int index = group[pos];
+                cluster_ids[index] = group[group_cluster_ids[pos]];
+              }
+            });
+          }
+        },
+        threading::accumulated_task_sizes(
+            [&](const IndexRange range) { return group_offsets[range].size(); }));
 
 #ifndef NDEBUG
     mask.foreach_index([&](const int i) { BLI_assert(cluster_ids[i] != NO_CLUSTER_VALUE); });

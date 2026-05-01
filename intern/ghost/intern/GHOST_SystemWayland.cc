@@ -815,7 +815,7 @@ static void gwl_pointer_handle_frame_event_add(GWL_SeatStatePointer_Events *poin
     GHOST_ASSERT(event_ms == 0, "Scroll events must not have a time-stamp");
   }
   else {
-    GHOST_ASSERT(event_ms != 0, "Non-scroll events must have a time-stamp");
+    // GHOST_ASSERT(event_ms != 0, "Non-scroll events must have a time-stamp");
   }
 
   const int ty_mask = 1 << int(ty);

@@ -55,7 +55,6 @@ PointCloud *point_merge_indices(const PointCloud &src_points,
   const Span<float3> positions = src_points.positions();
   const int src_size = positions.size();
 
-  /* Create the new point cloud and add it to a temporary component for the attribute API. */
   PointCloud *dst_pointcloud = BKE_pointcloud_new_nomain(total_roots);
   bke::MutableAttributeAccessor dst_attributes = dst_pointcloud->attributes_for_write();
 
