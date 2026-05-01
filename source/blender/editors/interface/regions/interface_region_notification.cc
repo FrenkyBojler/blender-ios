@@ -16,6 +16,7 @@
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_time.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -213,17 +214,21 @@ void show(bScreen *screen, StringRef message, int icon, eReportType report_type)
 
   const uiStyle *style = style_get_dpi();
   fontstyle_set(&style->widget);
-  size_t len = BLF_width_to_strlen(style->widget.uifont_id,
+
+  /* Clip the message if it is too long to fit within the maximum width. */
+  const size_t max_bytes = BLF_width_to_strlen(style->widget.uifont_id,
                                    data->message.c_str(),
                                    data->message.size(),
                                    MAX_TEXT_WIDTH * UI_SCALE_FAC,
                                    nullptr);
-  if (len < data->message.size() - 1) {
-    data->message = data->message.substr(0, len) + BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+  if (max_bytes < data->message.size() - 1) {
+    data->message = data->message.substr(0, max_bytes) + BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
   }
 
-  const float display_seconds = std::max(U.notification_seconds,
-                                         data->message.size() * SECONDS_PER_CHAR);
+  /* Display seconds based on characters, not bytes. */
+  const size_t num_chars = BLI_strnlen_utf8(data->message.c_str(), data->message.size());
+  const float display_seconds = std::max(U.notification_seconds, num_chars * SECONDS_PER_CHAR);
+
   data->time_start = BLI_time_now_seconds();
   data->time_display = data->time_start + FADE_IN_TIME;
   data->time_hide = data->time_display + display_seconds;
