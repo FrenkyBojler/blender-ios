@@ -135,16 +135,16 @@ class Bundle : public ImplicitSharingMixin {
   Vector<std::string> gather_paths(FunctionRef<bool(const Bundle &bundle)> fn) const;
 
   /** Create the combined path by inserting '/' between each element. */
-  static std::string combine_path(const Span<StringRef> path);
-  static std::string combine_path(const Span<UString> path);
+  static std::string combine_path(Span<StringRef> path);
+  static std::string combine_path(Span<UString> path);
 
   /* Disallow certain characters so that we can use them to e.g. build a bundle path or
    * expressions referencing multiple bundle items. We might not need all of them in the future,
    * but better reserve them now while we still can. */
   static constexpr StringRefNull forbidden_key_chars = "/*&|\"^~!,{}()+$#@[];:?<>.-%\\=";
-  static bool is_valid_key(const StringRef key);
-  static bool is_valid_path(const StringRef path);
-  static std::optional<Vector<UString>> split_path(const StringRef path);
+  static bool is_valid_key(StringRef key);
+  static bool is_valid_path(StringRef path);
+  static std::optional<Vector<UString>> split_path(StringRef path);
 };
 
 enum class BundlePathsGatherFilterResult {
@@ -154,9 +154,9 @@ enum class BundlePathsGatherFilterResult {
 };
 
 Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
-                                                       const StringRef type_filter);
+                                                       StringRef type_filter);
 Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
-                                                     const eNodeSocketDatatype data_type);
+                                                     eNodeSocketDatatype data_type);
 
 void foreach_nested_bundle_item(
     const Bundle &bundle, FunctionRef<void(Span<UString> path, const BundleItemValue &value)> fn);
