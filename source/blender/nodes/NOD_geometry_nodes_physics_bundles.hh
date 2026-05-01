@@ -10,24 +10,6 @@
 
 namespace blender::nodes::physics_bundles {
 
-class GravityBundle {
- public:
-  static constexpr StringRefNull name = "Blender.Gravity";
-  static const FlatBundleTypePtr &get_bundle_type();
-};
-
-class ForceBundle {
- public:
-  static constexpr StringRefNull name = "Blender.Force";
-  static const FlatBundleTypePtr &get_bundle_type();
-};
-
-class TorqueBundle {
- public:
-  static constexpr StringRefNull name = "Blender.Torque";
-  static const FlatBundleTypePtr &get_bundle_type();
-};
-
 class ColliderBundle {
  public:
   static constexpr StringRefNull name = "Blender.Collider";

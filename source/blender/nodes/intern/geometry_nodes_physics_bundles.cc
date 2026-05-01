@@ -15,47 +15,6 @@ static void add_filter(FlatBundleTypeBuilder &b)
   b.add<decl::Bool>("filter_local"_ustr).default_value(false);
 }
 
-const FlatBundleTypePtr &GravityBundle::get_bundle_type()
-{
-  static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(GravityBundle::name);
-    add_filter(b);
-    b.add<decl::Vector>("gravity"_ustr).default_value(float3(0.0f, 0.0f, -9.81f));
-    FlatBundleTypePtr bundle_type = b.build();
-    BundleTypeRegistry::register_type(bundle_type);
-    return bundle_type;
-  }();
-  return bundle_type;
-}
-
-const FlatBundleTypePtr &ForceBundle::get_bundle_type()
-{
-  static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(ForceBundle::name);
-    add_filter(b);
-    b.add<decl::Bool>("selection"_ustr).default_value(true).supports_field();
-    b.add<decl::Vector>("force"_ustr).supports_field();
-    const FlatBundleTypePtr bundle_type = b.build();
-    BundleTypeRegistry::register_type(bundle_type);
-    return bundle_type;
-  }();
-  return bundle_type;
-}
-
-const FlatBundleTypePtr &TorqueBundle::get_bundle_type()
-{
-  static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(TorqueBundle::name);
-    add_filter(b);
-    b.add<decl::Bool>("selection"_ustr).default_value(true).supports_field();
-    b.add<decl::Vector>("torque"_ustr).supports_field();
-    const FlatBundleTypePtr bundle_type = b.build();
-    BundleTypeRegistry::register_type(bundle_type);
-    return bundle_type;
-  }();
-  return bundle_type;
-}
-
 const FlatBundleTypePtr &ColliderBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {

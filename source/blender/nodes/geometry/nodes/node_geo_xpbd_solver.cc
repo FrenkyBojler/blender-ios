@@ -62,7 +62,6 @@ constexpr StringRefNull radius = "radius";
 static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
-  types.append(GravityBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
   types.append(InfinitePlaneColliderBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
@@ -71,8 +70,6 @@ static NestedBundleTypePtr make_world_type()
   types.append(RodBendTwistBundle::get_bundle_type());
   types.append(PinPositionBundle::get_bundle_type());
   types.append(PinRotationBundle::get_bundle_type());
-  types.append(ForceBundle::get_bundle_type());
-  types.append(TorqueBundle::get_bundle_type());
   types.append(EdgeLengthConstraintBundle::get_bundle_type());
   types.append(CrossEdgeLengthConstraintBundle::get_bundle_type());
 
