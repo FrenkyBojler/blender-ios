@@ -816,10 +816,10 @@ struct UserDef_Experimental {
   char use_extended_asset_browser = 0;
   char use_sculpt_texture_paint = 0;
   char use_shader_node_previews = 0;
-  char use_geometry_nodes_lists = 0;
   char use_geometry_bundle = 0;
   char use_remote_asset_libraries = 0;
   char use_collection_importer = 0;
+  char use_geometry_nodes_hair_dynamics = 0;
   char _pad[2] = {};
 };
 
