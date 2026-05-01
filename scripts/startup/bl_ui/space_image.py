@@ -169,10 +169,19 @@ class IMAGE_MT_select(Menu):
         layout.menu("IMAGE_MT_select_linked")
 
         layout.separator()
-
-        layout.operator("uv.select_pinned", text="Select Pinned")
         layout.operator("uv.select_split")
-        layout.operator("uv.select_overlap")
+        layout.menu("IMAGE_MT_select_all_by_trait")
+
+
+class IMAGE_MT_select_all_by_trait(Menu):
+    bl_label = "Select All by Trait"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("uv.select_tile", text="Tile")
+        layout.operator("uv.select_pinned", text="Pinned")
+        layout.operator("uv.select_overlap", text="Overlap")
+        layout.operator("uv.select_by_winding", text="Winding")
 
 
 class IMAGE_MT_select_linked(Menu):
@@ -244,7 +253,6 @@ class IMAGE_MT_image(Menu):
             layout.operator("image.resize", text="Resize")
             layout.menu("IMAGE_MT_image_transform")
 
-        if ima and not show_render:
             if ima.packed_file:
                 if ima.filepath:
                     layout.separator()
@@ -410,9 +418,9 @@ class IMAGE_MT_uvs_unwrap(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator("uv.smart_project")
-        layout.operator("uv.lightmap_pack")
-        layout.operator("uv.follow_active_quads")
+        layout.operator("uv.smart_project", text="Smart UV Project...")
+        layout.operator("uv.lightmap_pack", text="Lightmap Pack...")
+        layout.operator("uv.follow_active_quads", text="Follow Active Quads...")
 
         layout.separator()
 
@@ -616,10 +624,10 @@ class IMAGE_MT_pivot_pie(Menu):
 
         sima = context.space_data
 
-        pie.prop_enum(sima, "pivot_point", value='CENTER')
+        pie.prop_enum(sima, "pivot_point", value='BOUNDING_BOX_CENTER')
         pie.prop_enum(sima, "pivot_point", value='CURSOR')
         pie.prop_enum(sima, "pivot_point", value='INDIVIDUAL_ORIGINS')
-        pie.prop_enum(sima, "pivot_point", value='MEDIAN')
+        pie.prop_enum(sima, "pivot_point", value='MEDIAN_POINT')
 
 
 class IMAGE_MT_uvs_snap_pie(Menu):
@@ -1600,6 +1608,13 @@ class IMAGE_PT_gizmo_display(Panel):
         colsub = col.column()
         colsub.prop(view, "show_gizmo_navigate", text="Navigate")
 
+        image = view.image
+        show_compositor_gizmos = (image is not None and image.type == 'COMPOSITING' and
+                                  view.ui_mode in ('VIEW', 'MASK'))
+        if show_compositor_gizmos:
+            colsub = col.column()
+            colsub.prop(view, "show_gizmo_active_node")
+
 
 class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1731,8 +1746,14 @@ class IMAGE_PT_overlay_uv_display(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_uv")
-        layout.prop(uvedit, "uv_face_opacity")
+
+        col = layout.column()
+        row = col.row(align=True)
+        row.prop(uvedit, "show_uv", text="")
+        sub = row.row()
+        sub.active = uvedit.show_uv
+        sub.prop(uvedit, "uv_face_opacity", text="Faces")
+        sub.prop(uvedit, "uv_edge_opacity", text="Edges")
 
 
 class IMAGE_PT_overlay_image(Panel):
@@ -1826,6 +1847,7 @@ classes = (
     IMAGE_MT_view,
     IMAGE_MT_view_zoom,
     IMAGE_MT_select,
+    IMAGE_MT_select_all_by_trait,
     IMAGE_MT_select_linked,
     IMAGE_MT_image,
     IMAGE_MT_image_transform,

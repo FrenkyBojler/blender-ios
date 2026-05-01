@@ -4,6 +4,7 @@
 #include "testing/testing.h"
 
 #include "BKE_fcurve.hh"
+#include "BKE_gtest_base.hh"
 
 #include "ANIM_fcurve.hh"
 
@@ -19,14 +20,16 @@ using namespace blender::animrig;
 /* Epsilon for floating point comparisons. */
 static const float EPSILON = 1e-7f;
 
-TEST(evaluate_fcurve, EmptyFCurve)
+class EvaluateFCurveTest : public BlenderGTestBase {};
+
+TEST_F(EvaluateFCurveTest, EmptyFCurve)
 {
   FCurve *fcu = BKE_fcurve_create();
   EXPECT_EQ(evaluate_fcurve(fcu, 47.0f), 0.0f);
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, OnKeys)
+TEST_F(EvaluateFCurveTest, OnKeys)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -50,7 +53,7 @@ TEST(evaluate_fcurve, OnKeys)
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, InterpolationConstant)
+TEST_F(EvaluateFCurveTest, InterpolationConstant)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -71,7 +74,7 @@ TEST(evaluate_fcurve, InterpolationConstant)
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, InterpolationLinear)
+TEST_F(EvaluateFCurveTest, InterpolationLinear)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -93,7 +96,7 @@ TEST(evaluate_fcurve, InterpolationLinear)
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, InterpolationBezier)
+TEST_F(EvaluateFCurveTest, InterpolationBezier)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -131,7 +134,7 @@ TEST(evaluate_fcurve, InterpolationBezier)
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, InterpolationBounce)
+TEST_F(EvaluateFCurveTest, InterpolationBounce)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -156,7 +159,7 @@ TEST(evaluate_fcurve, InterpolationBounce)
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, ExtrapolationLinearKeys)
+TEST_F(EvaluateFCurveTest, ExtrapolationLinearKeys)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -191,7 +194,7 @@ TEST(evaluate_fcurve, ExtrapolationLinearKeys)
   BKE_fcurve_free(fcu);
 }
 
-TEST(evaluate_fcurve, ExtrapolationBezierKeys)
+TEST_F(EvaluateFCurveTest, ExtrapolationBezierKeys)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -232,7 +235,9 @@ TEST(evaluate_fcurve, ExtrapolationBezierKeys)
   BKE_fcurve_free(fcu);
 }
 
-TEST(fcurve_subdivide, BKE_fcurve_bezt_subdivide_handles)
+class FCurveSubdivideTest : public BlenderGTestBase {};
+
+TEST_F(FCurveSubdivideTest, BKE_fcurve_bezt_subdivide_handles)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -300,7 +305,9 @@ TEST(fcurve_subdivide, BKE_fcurve_bezt_subdivide_handles)
   BKE_fcurve_free(fcu);
 }
 
-TEST(fcurve_active_keyframe, ActiveKeyframe)
+class FCurveActiveKeyframeTest : public BlenderGTestBase {};
+
+TEST_F(FCurveActiveKeyframeTest, ActiveKeyframe)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -363,7 +370,9 @@ TEST(fcurve_active_keyframe, ActiveKeyframe)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_keyframe_move_value_with_handles)
+class BKE_FCurveTest : public BlenderGTestBase {};
+
+TEST_F(BKE_FCurveTest, BKE_fcurve_keyframe_move_value_with_handles)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -395,7 +404,7 @@ TEST(BKE_fcurve, BKE_fcurve_keyframe_move_value_with_handles)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_keyframe_move_time_with_handles)
+TEST_F(BKE_FCurveTest, BKE_fcurve_keyframe_move_time_with_handles)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -427,7 +436,7 @@ TEST(BKE_fcurve, BKE_fcurve_keyframe_move_time_with_handles)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_calc_range)
+TEST_F(BKE_FCurveTest, BKE_fcurve_calc_range)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -480,7 +489,7 @@ TEST(BKE_fcurve, BKE_fcurve_calc_range)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_calc_bounds)
+TEST_F(BKE_FCurveTest, BKE_fcurve_calc_bounds)
 {
   FCurve *fcu = BKE_fcurve_create();
 
@@ -659,12 +668,12 @@ static FCurve *testcurve_with_duplicates()
   return fcu;
 }
 
-TEST(BKE_fcurve, sort_time_fcurve_stability)
+TEST_F(BKE_FCurveTest, sort_time_fcurve_stability)
 {
   FCurve *fcu = testcurve_with_duplicates();
   ASSERT_EQ(fcu->totvert, 10);
 
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
 
   /* The sorting should be stable, i.e. retain the original order when the
    * X-coordinates are identical. */
@@ -683,11 +692,11 @@ TEST(BKE_fcurve, sort_time_fcurve_stability)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys)
+TEST_F(BKE_FCurveTest, BKE_fcurve_deduplicate_keys)
 {
   FCurve *fcu = testcurve_with_duplicates();
   ASSERT_EQ(fcu->totvert, 10);
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
 
   BKE_fcurve_deduplicate_keys(fcu);
   ASSERT_GE(fcu->totvert, 6); /* Protect against out-of-bounds access. */
@@ -702,7 +711,7 @@ TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys_edge_cases)
+TEST_F(BKE_FCurveTest, BKE_fcurve_deduplicate_keys_edge_cases)
 {
   FCurve *fcu = testcurve_with_duplicates();
   ASSERT_EQ(fcu->totvert, 10);
@@ -713,7 +722,7 @@ TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys_edge_cases)
   set_key(fcu, 8, 327.16f, 1);
   set_key(fcu, 9, 327.16f, 2);
 
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
 
   BKE_fcurve_deduplicate_keys(fcu);
   ASSERT_EQ(fcu->totvert, 4);
@@ -725,7 +734,7 @@ TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys_edge_cases)
   BKE_fcurve_free(fcu);
 }
 
-TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys_prefer_whole_frames)
+TEST_F(BKE_FCurveTest, BKE_fcurve_deduplicate_keys_prefer_whole_frames)
 {
   FCurve *fcu = testcurve_with_duplicates();
   ASSERT_EQ(fcu->totvert, 10);
@@ -738,7 +747,7 @@ TEST(BKE_fcurve, BKE_fcurve_deduplicate_keys_prefer_whole_frames)
   set_key(fcu, 5, 47.0f, 2.0f);
   set_key(fcu, 6, 47.0f + BEZT_BINARYSEARCH_THRESH, 3.0f);
 
-  sort_time_fcurve(fcu);
+  sort_time_fcurve(*fcu);
 
   BKE_fcurve_deduplicate_keys(fcu);
   ASSERT_EQ(fcu->totvert, 6);

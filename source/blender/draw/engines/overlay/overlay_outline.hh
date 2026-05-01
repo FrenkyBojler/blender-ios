@@ -55,7 +55,7 @@ class Outline : Overlay {
       return;
     }
 
-    const float outline_width = UI_GetThemeValuef(TH_OUTLINE_WIDTH);
+    const float outline_width = ui::theme::get_value_f(TH_OUTLINE_WIDTH);
     const bool do_smooth_lines = (U.gpu_flag & USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE) != 0;
     const bool do_expand = (U.pixelsize > 1.0) || (outline_width > 2.0f);
     const bool is_transform = (G.moving & G_TRANSFORM_OBJ) != 0;
@@ -214,8 +214,8 @@ class Outline : Overlay {
 
       for (FlatObjectRef flag_ob_ref : flat_objects_) {
         flag_ob_ref.if_flat_axis_orthogonal_to_view(
-            manager, view, [&](gpu::Batch *geom, ResourceIndex resource_index) {
-              pass.draw_expand(geom, GPU_PRIM_LINES, 1, 1, resource_index);
+            manager, view, [&](gpu::Batch *geom, ResourceID resource_id) {
+              pass.draw_expand(geom, GPU_PRIM_LINES, 1, 1, resource_id);
             });
       }
     }
