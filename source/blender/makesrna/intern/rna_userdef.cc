@@ -1507,11 +1507,12 @@ static const EnumPropertyItem *rna_userdef_date_format_itemf(bContext * /*C*/,
 {
   int totitem = 0;
   EnumPropertyItem *result = nullptr;
-  static std::string date_format_names[10];
+  static std::string date_format_names[8];
   const char *lang = BLT_lang_get();
   for (int i = 0; rna_enum_date_format_items[i].identifier != nullptr; i++) {
     const EnumPropertyItem *item = &rna_enum_date_format_items[i];
     constexpr std::tm test = {59, 59, 11, 20, 2, 60, 5, 139, 0}; /* March 20, 1960 11:59:59 */
+    BLI_assert(i <= ARRAY_SIZE(date_format_names) - 1);
     date_format_names[i] = date_string::date(
         &test, (i == 0) ? lang : nullptr, date_string::DateFormat(item->value));
     EnumPropertyItem new_item = {
