@@ -1291,16 +1291,17 @@ def color_jitter_panel(layout, context, brush):
             row.prop(prop_owner, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
 
 
-def draw_mesh_automasking_settings(layout, paint, settings, *, topbar=False):
-    """Draw automasking brush settings for mesh paint modes."""
+def draw_mesh_automasking_settings(layout, settings, *, topbar=False, use_face_set=False, use_operators=False):
+    """Draw automasking settings for mesh paint modes."""
     if topbar:
-        col = layout.column(heading="Auto-Masking", align=True)
-    else:
         layout.label(text="Auto-Masking")
         col = layout.column(align=True)
+    else:
+        col = layout.column(heading="Auto-Masking", align=True)
 
     col.prop(settings, "use_automasking_topology", text="Topology")
-    col.prop(settings, "use_automasking_face_sets", text="Face Sets")
+    if use_face_set:
+        col.prop(settings, "use_automasking_face_sets", text="Face Sets")
 
     col.separator()
 
@@ -1308,25 +1309,23 @@ def draw_mesh_automasking_settings(layout, paint, settings, *, topbar=False):
     row = col.row()
     row.prop(settings, "use_automasking_boundary_edges", text="Mesh Boundary")
 
-    if settings.use_automasking_boundary_edges:
+    if use_operators and settings.use_automasking_boundary_edges:
         props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
         props.settings_source = 'BRUSH'
         props.boundary_mode = 'MESH'
 
     row = col.row()
-    row.prop(settings, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
+    if use_face_set:
+        row.prop(settings, "use_automasking_boundary_face_sets", text="Face Sets Boundary")
 
-    if settings.use_automasking_boundary_face_sets:
-        props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
-        props.settings_source = 'BRUSH'
-        props.boundary_mode = 'FACE_SETS'
+        if use_operators and settings.use_automasking_boundary_face_sets:
+            props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
+            props.settings_source = 'BRUSH'
+            props.boundary_mode = 'FACE_SETS'
 
     if settings.use_automasking_boundary_edges or settings.use_automasking_boundary_face_sets:
-        col = layout.column()
-        col.use_property_split = False
-        split = col.split(factor=0.4)
-        col = split.column()
-        split.prop(settings, "boundary_edges_propagation_steps")
+        col = layout.column(align=True)
+        col.prop(settings, "boundary_edges_propagation_steps", text="Propagation Steps")
 
     col.separator()
 
@@ -1336,7 +1335,7 @@ def draw_mesh_automasking_settings(layout, paint, settings, *, topbar=False):
 
     is_cavity_active = settings.use_automasking_cavity or settings.use_automasking_cavity_inverted
 
-    if is_cavity_active:
+    if use_operators and is_cavity_active:
         props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
         props.settings_source = 'BRUSH'
 
@@ -1398,7 +1397,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         use_accumulate = capabilities.has_accumulate
         use_frontface = True
 
-        draw_mesh_automasking_settings(layout, paint, brush.mesh_automasking_settings)
+        draw_mesh_automasking_settings(layout, brush.mesh_automasking_settings, use_face_set=True, use_operators=True)
 
         layout.separator()
 

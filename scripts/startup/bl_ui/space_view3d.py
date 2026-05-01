@@ -8897,9 +8897,16 @@ class VIEW3D_PT_mesh_paint_automasking(Panel):
     def draw(self, context):
         layout = self.layout
 
+        mode = UnifiedPaintPanel.get_brush_mode(context)
         paint = UnifiedPaintPanel.paint_settings(context)
 
-        draw_mesh_automasking_settings(layout, paint, paint.mesh_automasking_settings, topbar=True)
+        use_face_set = False
+        use_operators = False
+        if mode == 'SCULPT':
+            use_face_set = True
+            use_operators = True
+
+        draw_mesh_automasking_settings(layout, paint.mesh_automasking_settings, topbar=True, use_face_set=use_face_set, use_operators=use_operators)
 
 
 class VIEW3D_PT_sculpt_context_menu(Panel):
