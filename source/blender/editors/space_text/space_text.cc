@@ -200,6 +200,8 @@ static void text_operatortypes()
   WM_operatortype_append(TEXT_OT_scroll_bar);
   WM_operatortype_append(TEXT_OT_line_number);
 
+  WM_operatortype_append(TEXT_OT_ensure_format);
+
   WM_operatortype_append(TEXT_OT_line_break);
   WM_operatortype_append(TEXT_OT_insert);
 

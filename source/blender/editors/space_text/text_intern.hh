@@ -174,6 +174,8 @@ void TEXT_OT_selection_set(wmOperatorType *ot);
 void TEXT_OT_cursor_set(wmOperatorType *ot);
 void TEXT_OT_line_number(wmOperatorType *ot);
 
+void TEXT_OT_ensure_format(wmOperatorType *ot);
+
 /* The term: `find` means: find indicated text. */
 void TEXT_OT_find(wmOperatorType *ot);
 void TEXT_OT_find_set_selected(wmOperatorType *ot);

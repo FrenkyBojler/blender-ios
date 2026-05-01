@@ -47,62 +47,35 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_bracket_match_simple(self):
+    def run_bracket_move_test(self, text_source, start_line, start_character, end_line, end_character):
         text = bpy.data.texts['Text']
-        text.write('def function():\n    pass')
-        text.cursor_set(0, character=12)
+        text.write(text_source)
+        text.cursor_set(start_line, character=start_character)
 
         # Move forward.
         with text_editor_context_override(bpy.context, text):
+            bpy.ops.text.ensure_format()
             bpy.ops.text.move(type='BRACKET')
 
-        self.assertEqual(text.current_line_index, 0)
-        self.assertEqual(text.current_character, 13)
+        self.assertEqual(text.current_line_index, end_line)
+        self.assertEqual(text.current_character, end_character)
 
         # Move backward.
         with text_editor_context_override(bpy.context, text):
+            bpy.ops.text.ensure_format()
             bpy.ops.text.move(type='BRACKET')
 
-        self.assertEqual(text.current_line_index, 0)
-        self.assertEqual(text.current_character, 12)
+        self.assertEqual(text.current_line_index, start_line)
+        self.assertEqual(text.current_character, start_character)
+
+    def test_bracket_match_simple(self):
+        self.run_bracket_move_test('def function():\n    pass', 0, 12, 0, 13)
 
     def test_bracket_match_newline(self):
-        text = bpy.data.texts['Text']
-        text.write('def function(\n):\n    pass')
-        text.cursor_set(0, character=12)
-
-        # Move forward.
-        with text_editor_context_override(bpy.context, text):
-            bpy.ops.text.move(type='BRACKET')
-
-        self.assertEqual(text.current_line_index, 1)
-        self.assertEqual(text.current_character, 0)
-
-        # Move backward.
-        with text_editor_context_override(bpy.context, text):
-            bpy.ops.text.move(type='BRACKET')
-
-        self.assertEqual(text.current_line_index, 0)
-        self.assertEqual(text.current_character, 12)
+        self.run_bracket_move_test('def function(\n):\n    pass', 0, 12, 1, 0)
 
     def test_bracket_match_tabs(self):
-        text = bpy.data.texts['Text']
-        text.write('\t\tfunction_call()')
-        text.cursor_set(0, character=15)
-
-        # Move forward.
-        with text_editor_context_override(bpy.context, text):
-            bpy.ops.text.move(type='BRACKET')
-
-        self.assertEqual(text.current_line_index, 0)
-        self.assertEqual(text.current_character, 16)
-
-        # Move backward.
-        with text_editor_context_override(bpy.context, text):
-            bpy.ops.text.move(type='BRACKET')
-
-        self.assertEqual(text.current_line_index, 0)
-        self.assertEqual(text.current_character, 15)
+        self.run_bracket_move_test('\t\tfunction_call()', 0, 15, 0, 16)
 
 
 def main():

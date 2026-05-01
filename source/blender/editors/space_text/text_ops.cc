@@ -2235,26 +2235,11 @@ static void space_text_cursor_skip(
   }
 }
 
-static void text_update_format(SpaceText *st, Text *text)
-{
-  TextFormatType *tft = ED_text_format_get(text);
-  TextLine *tmp = static_cast<TextLine *>(text->lines.first);
-  for (; tmp;) {
-    if (!tmp->format) {
-      tft->format_line(st, tmp, false);
-    }
-
-    tmp = tmp->next;
-  }
-}
-
 static wmOperatorStatus text_move_cursor(bContext *C, int type, bool select)
 {
   SpaceText *st = CTX_wm_space_text(C);
   Text *text = CTX_data_edit_text(C);
   ARegion *region = CTX_wm_region(C);
-
-  text_update_format(st, text);
 
   /* Ensure we have the right region, it's optional. */
   if (region && region->regiontype != RGN_TYPE_WINDOW) {
@@ -4464,6 +4449,42 @@ void TEXT_OT_update_shader(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Ensure Format
+ * \{ */
+
+static wmOperatorStatus text_ensure_format_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceText *st = CTX_wm_space_text(C);
+  Text *text = CTX_data_edit_text(C);
+
+  TextFormatType *tft = ED_text_format_get(text);
+  TextLine *tmp = static_cast<TextLine *>(text->lines.first);
+  for (; tmp;) {
+    if (!tmp->format) {
+      tft->format_line(st, tmp, false);
+    }
+
+    tmp = tmp->next;
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void TEXT_OT_ensure_format(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Ensure Format";
+  ot->idname = "TEXT_OT_ensure_format";
+  ot->description = "Ensure text has highlighting information applied";
+
+  /* API callbacks. */
+  ot->exec = text_ensure_format_exec;
+  ot->poll = text_edit_poll;
 }
 
 /** \} */
