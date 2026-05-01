@@ -2591,8 +2591,8 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
     }
 
     /* Add new proxy size. */
-    strip.data->proxy->build_size_flags |= seq::rendersize_to_proxysize(
-        eSpaceSeq_Proxy_RenderSize(sseq->render_size));
+    strip.data->proxy->build_size_flags |= eStripProxyBuildSize(
+        seq::rendersize_to_proxysize(eSpaceSeq_Proxy_RenderSize(sseq->render_size)));
 
     /* Build proxy. */
     seq::proxy_build_start(pj->main, pj->scene, &strip, &processed_paths, true, pj->queue);
@@ -2999,9 +2999,12 @@ static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 }
 
 static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,
-                                                     Scene * /*scene*/,
+                                                     Scene *scene,
                                                      PointerRNA * /*ptr*/)
 {
+  if (scene->compositing_node_group) {
+    DEG_id_tag_update(&scene->compositing_node_group->id, ID_RECALC_NTREE_OUTPUT);
+  }
   WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
