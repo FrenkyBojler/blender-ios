@@ -436,6 +436,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
         if (view3d->camera == camera) {
           continue;
         }
+        /* HACK: This should not hijack the local camera of 3d viewports. */
         PointerRNA view3d_ptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceView3D, view3d);
         RNA_boolean_set(&view3d_ptr, "use_local_camera", true);
         RNA_pointer_set(&view3d_ptr, "camera", camera_ptr);
