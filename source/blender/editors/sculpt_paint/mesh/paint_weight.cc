@@ -1758,6 +1758,13 @@ static void wpaint_do_paint(const Depsgraph &depsgraph,
   IndexMaskMemory memory;
   const IndexMask node_mask = vwpaint::pbvh_gather_generic(depsgraph, ob, wp, brush, memory);
 
+  if (auto_mask::is_enabled(wp.paint, ob, &brush)) {
+    auto_mask::Cache &cache = auto_mask::stroke_cache_ensure(depsgraph, wp.paint, &brush, ob);
+    if (cache.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
+      cache.calc_cavity_factor(depsgraph, ob, node_mask);
+    }
+  }
+
   wpaint_paint_leaves(depsgraph, ob, wp, wpd, wpi, mesh, node_mask);
 }
 

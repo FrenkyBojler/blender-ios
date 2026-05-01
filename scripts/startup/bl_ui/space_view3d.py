@@ -968,9 +968,9 @@ class VIEW3D_HT_header(Header):
             from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
             tool = ToolSelectPanelHelper.tool_active_from_context(context)
 
+            paint = UnifiedPaintPanel.paint_settings(context)
             is_paint_tool = False
             if tool.use_brushes:
-                paint = tool_settings.sculpt
                 brush = paint.brush
                 if brush:
                     is_paint_tool = brush.sculpt_brush_type in {'PAINT', 'SMEAR'}
@@ -1003,23 +1003,27 @@ class VIEW3D_HT_header(Header):
             layout.popover(
                 panel="VIEW3D_PT_mesh_paint_automasking",
                 text="",
-                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(tool_settings.sculpt),
+                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(paint),
             )
 
         elif object_mode == 'VERTEX_PAINT':
             row = layout.row()
             row.popover(panel="VIEW3D_PT_slots_color_attributes", icon='GROUP_VCOL')
 
+            paint = UnifiedPaintPanel.paint_settings(context)
+
             layout.popover(
                 panel="VIEW3D_PT_mesh_paint_automasking",
                 text="",
-                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(tool_settings.sculpt),
+                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(paint),
             )
         elif object_mode == 'VERTEX_GREASE_PENCIL':
             draw_topbar_grease_pencil_layer_panel(context, layout)
         elif object_mode == 'WEIGHT_PAINT':
             row = layout.row()
             row.popover(panel="VIEW3D_PT_slots_vertex_groups", icon='GROUP_VERTEX')
+
+            paint = UnifiedPaintPanel.paint_settings(context)
 
             layout.popover(
                 panel="VIEW3D_PT_sculpt_snapping",
@@ -1031,7 +1035,7 @@ class VIEW3D_HT_header(Header):
             layout.popover(
                 panel="VIEW3D_PT_mesh_paint_automasking",
                 text="",
-                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(tool_settings.sculpt),
+                icon=VIEW3D_HT_header._mesh_paint_automasking_icon(paint),
             )
         elif object_mode == 'WEIGHT_GREASE_PENCIL':
             row = layout.row()

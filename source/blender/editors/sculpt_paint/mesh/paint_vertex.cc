@@ -1128,6 +1128,8 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
+        auto_mask::calc_vert_factors(depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
           if (factors[i] == 0.0f) {
@@ -1289,6 +1291,8 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
+        auto_mask::calc_vert_factors(depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
           if (factors[i] == 0.0f) {
@@ -1448,6 +1452,8 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
             ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
+
+        auto_mask::calc_vert_factors(depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
 
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
@@ -1788,6 +1794,8 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
+        auto_mask::calc_vert_factors(depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
           if (factors[i] == 0.0f) {
@@ -1938,6 +1946,13 @@ static void vpaint_do_paint(const Depsgraph &depsgraph,
 
   IndexMaskMemory memory;
   const IndexMask node_mask = vwpaint::pbvh_gather_generic(depsgraph, ob, vp, brush, memory);
+
+  if (auto_mask::is_enabled(vp.paint, ob, &brush)) {
+    auto_mask::Cache &cache = auto_mask::stroke_cache_ensure(depsgraph, vp.paint, &brush, ob);
+    if (cache.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
+      cache.calc_cavity_factor(depsgraph, ob, node_mask);
+    }
+  }
 
   bke::GSpanAttributeWriter attribute = mesh.attributes_for_write().lookup_for_write_span(
       mesh.active_color_attribute);
