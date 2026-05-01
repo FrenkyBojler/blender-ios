@@ -643,6 +643,7 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include <algorithm>
 #  include <fmt/format.h>
 
+#  include "AS_asset_library.hh"
 #  include "AS_asset_representation.hh"
 
 #  include "DNA_anim_types.h"
@@ -3249,7 +3250,45 @@ static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)
 static void rna_FileAssetSelectParams_asset_library_set(PointerRNA *ptr, int value)
 {
   FileAssetSelectParams *params = static_cast<FileAssetSelectParams *>(ptr->data);
+
+  const AssetLibraryReference old_library_ref = params->asset_library_ref;
+  const bUUID old_catalog_id = params->catalog_id;
+  const short old_catalog_visibility = params->asset_catalog_visibility;
+
   params->asset_library_ref = ed::asset::library_reference_from_enum_value(value);
+  const bool library_changed = (ed::asset::library_reference_to_enum_value(&old_library_ref) !=
+                                ed::asset::library_reference_to_enum_value(
+                                    &params->asset_library_ref));
+  if (!library_changed) {
+    return;
+  }
+
+  /* If the new library has a catalog with the same path as the active catalog,
+   * select that. Otherwise default to the "All" catalog. */
+  if (old_catalog_visibility != FILE_SHOW_ASSETS_ALL_CATALOGS) {
+
+    asset_system::AssetLibrary *old_library = AS_asset_library_load(G_MAIN, old_library_ref);
+    asset_system::AssetLibrary *new_library = AS_asset_library_load(G_MAIN,
+                                                                    params->asset_library_ref);
+    if (old_library && new_library) {
+      if (const asset_system::AssetCatalog *old_catalog =
+              old_library->catalog_service().find_catalog(old_catalog_id))
+      {
+        const auto catalog_tree = new_library->catalog_service().catalog_tree();
+
+        if (const asset_system::AssetCatalogTreeItem *item = catalog_tree->find_item(
+                old_catalog->path))
+        {
+          params->catalog_id = item->get_catalog_id();
+          params->asset_catalog_visibility = FILE_SHOW_ASSETS_FROM_CATALOG;
+          return;
+        }
+      }
+    }
+  }
+
+  params->catalog_id = BLI_uuid_nil();
+  params->asset_catalog_visibility = FILE_SHOW_ASSETS_ALL_CATALOGS;
 }
 
 static PointerRNA rna_FileAssetSelectParams_filter_id_get(PointerRNA *ptr)
