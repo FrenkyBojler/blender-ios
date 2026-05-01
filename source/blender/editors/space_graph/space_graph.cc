@@ -344,6 +344,10 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   ui::view2d_view_restore(C);
 
+  if ((sipo->gizmo_flag & SIPO_GIZMO_HIDE) == 0) {
+    WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+  }
+
   /* time-scrubbing */
   int base = round_db_to_int(scene->frames_per_second());
   if (sipo->mode == SIPO_MODE_DRIVERS) {
@@ -978,7 +982,7 @@ void ED_spacetype_ipo()
   art->draw_overlay = graph_main_region_draw_overlay;
   art->listener = graph_region_listener;
   art->message_subscribe = graph_region_message_subscribe;
-  art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_ANIMATION | ED_KEYMAP_FRAMES;
+  art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_ANIMATION | ED_KEYMAP_FRAMES | ED_KEYMAP_GIZMO;
 
   BLI_addhead(&st->regiontypes, art);
 

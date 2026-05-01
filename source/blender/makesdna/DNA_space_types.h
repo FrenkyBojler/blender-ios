@@ -261,7 +261,9 @@ struct SpaceGraph {
   float cursorVal = 0;
   /** Pivot point for transforms. */
   int around = 0;
-  char _pad[4] = {};
+
+  eGraphEdit_Gizmo_Flag gizmo_flag = {};
+  char _pad[3] = {};
 
   SpaceGraph_Runtime runtime;
 };
@@ -287,7 +289,8 @@ struct SpaceNla {
   /* Snapping now lives on the Scene. */
   DNA_DEPRECATED short autosnap = 0;
   eSpaceNla_Flag flag = {};
-  char _pad[4] = {};
+  eSpaceNla_Gizmo_Flag gizmo_flag = {};
+  char _pad[3] = {};
 
   struct bDopeSheet *ads = nullptr;
   /** Deprecated, copied to region. */

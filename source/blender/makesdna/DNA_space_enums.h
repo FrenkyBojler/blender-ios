@@ -336,6 +336,11 @@ enum eGraphEdit_Runtime_Flag : char {
 };
 ENUM_OPERATORS(eGraphEdit_Runtime_Flag)
 
+enum eGraphEdit_Gizmo_Flag : char {
+  SIPO_GIZMO_HIDE = (1 << 0),
+};
+ENUM_OPERATORS(eGraphEdit_Gizmo_Flag)
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -360,6 +365,11 @@ enum eSpaceNla_Flag : short {
   SNLA_SHOW_MARKERS = (1 << 8),
 };
 ENUM_OPERATORS(eSpaceNla_Flag)
+
+enum eSpaceNla_Gizmo_Flag : char {
+  SNLA_GIZMO_HIDE = (1 << 0),
+};
+ENUM_OPERATORS(eSpaceNla_Gizmo_Flag)
 
 /** \} */
 

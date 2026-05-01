@@ -41,6 +41,9 @@ class NLA_HT_header(Header):
             text="",
         )
 
+        row = layout.row()
+        row.prop(context.space_data, "show_gizmo", icon='GIZMO', text="")
+
 
 class NLA_HT_playback_controls(Header):
     bl_space_type = 'NLA_EDITOR'

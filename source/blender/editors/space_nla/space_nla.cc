@@ -305,6 +305,10 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   ui::view2d_view_restore(C);
 
+  if ((snla->gizmo_flag & SNLA_GIZMO_HIDE) == 0) {
+    WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+  }
+
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, snla->flag & SNLA_DRAWTIME, true, fps);
 }
@@ -684,7 +688,7 @@ void ED_spacetype_nla()
   art->draw_overlay = nla_main_region_draw_overlay;
   art->listener = nla_main_region_listener;
   art->message_subscribe = nla_main_region_message_subscribe;
-  art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_ANIMATION | ED_KEYMAP_FRAMES;
+  art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_ANIMATION | ED_KEYMAP_FRAMES | ED_KEYMAP_GIZMO;
 
   BLI_addhead(&st->regiontypes, art);
 

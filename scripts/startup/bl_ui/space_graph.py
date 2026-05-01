@@ -109,6 +109,9 @@ class GRAPH_HT_header(Header):
             panel="GRAPH_PT_proportional_edit",
         )
 
+        row = layout.row()
+        row.prop(st, "show_gizmo", icon='GIZMO', text="")
+
 
 class GRAPH_HT_playback_controls(Header):
     bl_space_type = 'GRAPH_EDITOR'

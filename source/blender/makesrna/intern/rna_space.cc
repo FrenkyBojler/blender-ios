@@ -7371,6 +7371,12 @@ static void rna_def_space_graph(BlenderRNA *brna)
                            "Auto Normalization",
                            "Automatically recalculate curve normalization on every curve edit");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, nullptr);
+
+  /* Gizmo Toggle. */
+  prop = RNA_def_property(srna, "show_gizmo", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", SIPO_GIZMO_HIDE);
+  RNA_def_property_ui_text(prop, "Show Gizmo", "Show gizmos of all types");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, nullptr);
 }
 
 static void rna_def_space_nla(BlenderRNA *brna)
@@ -7427,6 +7433,12 @@ static void rna_def_space_nla(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "DopeSheet");
   RNA_def_property_pointer_sdna(prop, nullptr, "ads");
   RNA_def_property_ui_text(prop, "Dope Sheet", "Settings for filtering animation data");
+
+  /* Gizmo Toggle. */
+  prop = RNA_def_property(srna, "show_gizmo", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", SNLA_GIZMO_HIDE);
+  RNA_def_property_ui_text(prop, "Show Gizmo", "Show gizmos of all types");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NLA, nullptr);
 }
 
 static void rna_def_console_line(BlenderRNA *brna)
