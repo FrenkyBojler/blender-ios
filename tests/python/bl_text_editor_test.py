@@ -49,6 +49,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
     def run_bracket_move_test(self, text_source, start_line, start_character, end_line, end_character):
         text = bpy.data.texts['Text']
+        text.clear()
         text.write(text_source)
         text.cursor_set(start_line, character=start_character)
 
@@ -75,7 +76,10 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         self.run_bracket_move_test('def function(\n):\n    pass', 0, 12, 1, 0)
 
     def test_bracket_match_tabs(self):
-        self.run_bracket_move_test('\t\tfunction_call()', 0, 15, 0, 16)
+        # From #140973.
+        self.run_bracket_move_test('\t\tvector VAO = N + nb + ( noise("perlin", P*(10000.0)) );', 0, 24, 0, 55)
+        self.run_bracket_move_test('\t\tvector VAO = N + nb + ( noise("perlin", P*(10000.0)) );', 0, 31, 0, 53)
+        self.run_bracket_move_test('\t\tvector VAO = N + nb + ( noise("perlin", P*(10000.0)) );', 0, 44, 0, 52)
 
 
 def main():
