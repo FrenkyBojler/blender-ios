@@ -37,8 +37,6 @@
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 
-#include "BLT_lang.hh"
-
 namespace blender {
 
 const EnumPropertyItem rna_enum_preference_section_items[] = {
@@ -1513,7 +1511,7 @@ static const EnumPropertyItem *rna_userdef_date_format_itemf(bContext * /*C*/,
   const char *lang = BLT_lang_get();
   for (int i = 0; rna_enum_date_format_items[i].identifier != nullptr; i++) {
     const EnumPropertyItem *item = &rna_enum_date_format_items[i];
-    constexpr std::tm test = {59, 59, 11, 20, 4, 60, 5, 139, 0}; /* May 20, 1960 11:59:59 */
+    constexpr std::tm test = {59, 59, 11, 20, 2, 60, 5, 139, 0}; /* March 20, 1960 11:59:59 */
     date_format_names[i] = date_string::date(
         &test, (i == 0) ? lang : nullptr, date_string::DateFormat(item->value));
     EnumPropertyItem new_item = {
