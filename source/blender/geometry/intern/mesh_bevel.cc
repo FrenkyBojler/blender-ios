@@ -5818,15 +5818,21 @@ static void bevel_vert_construct(BevelState &state, int v)
     eh->prev = &bv->edges[(i + tot_edges - 1) % tot_edges];
 
     if (eh->is_bev) {
-      const float offset_src_l = state.params.offsets[0][eh->e];
-      const float offset_src_r = state.params.offsets[1][eh->e];
-      const float offset_dst_l = state.params.offsets[2][eh->e];
-      const float offset_dst_r = state.params.offsets[3][eh->e];
-
-      eh->offset_l_spec = (offset_src_l + offset_dst_l) * 0.5f;
-      eh->offset_r_spec = (offset_src_r + offset_dst_r) * 0.5f;
-      eh->offset_l = eh->offset_l_spec;
-      eh->offset_r = eh->offset_r_spec;
+      /* Determine which end of the edge contains this vertex.
+       * `edges()[e][0]` is the source end and `[1]` is the destination end.
+       * Left and right offsets are selected from the corresponding index pair. */
+      const int2 &ev = emesh.mesh.edges()[eh->e];
+      const bool at_src = (ev[0] == v);
+      if (at_src) {
+        eh->offset_l = state.params.offsets[0][eh->e];
+        eh->offset_r = state.params.offsets[1][eh->e];
+      }
+      else {
+        eh->offset_l = state.params.offsets[2][eh->e];
+        eh->offset_r = state.params.offsets[3][eh->e];
+      }
+      eh->offset_l_spec = eh->offset_l;
+      eh->offset_r_spec = eh->offset_r;
     }
     else {
       eh->offset_l = eh->offset_l_spec = 0.0f;
