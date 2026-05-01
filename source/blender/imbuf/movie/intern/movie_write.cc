@@ -277,9 +277,8 @@ static void add_stereo3d_metadata(AVCodecParameters *codecpar,
   }
 }
 
-static void add_projection_metadata(MovieWriter &context, const Scene &scene)
+static void add_spherical_mapping_metadata(AVCodecParameters *codecpar, const Scene &scene)
 {
-  BLI_assert(context.current_frame);
   if (scene.camera == nullptr) {
     return;
   }
@@ -288,29 +287,30 @@ static void add_projection_metadata(MovieWriter &context, const Scene &scene)
   }
   const Camera &camera = *reinterpret_cast<const Camera *>(scene.camera->data);
 
-  if (camera.type == CAM_PANO) {
-    // TODO: Use AVSphericalMapping
-    // TODO: Add support for CAM_PANORAMA_FISHEYE_EQUIDISTANT
-    if (camera.panorama_type == CAM_PANORAMA_EQUIRECTANGULAR) {
-      /*
-      av_dict_set(metadata, "projection", "equirectangular", 0);
-      std::string value = fmt::format("{}", camera.latitude_min);
-      av_dict_set(metadata, "projection_bounds_top", value.c_str(), 0);
-      value = fmt::format("{}", camera.latitude_max);
-      av_dict_set(metadata, "projection_bounds_bottom", value.c_str(), 0);
-      value = fmt::format("{}", camera.longitude_min);
-      av_dict_set(metadata, "projection_bounds_left", value.c_str(), 0);
-      value = fmt::format("{}", camera.longitude_max);
-      av_dict_set(metadata, "projection_bounds_right", value.c_str(), 0);
-      */
-    }
-    // TODO: Add support for CAM_PANORAMA_FISHEYE_EQUIDISTANT
-    // TODO: Add support for CAM_PANORAMA_FISHEYE_EQUISOLID
-    // TODO: Add support for CAM_PANORAMA_MIRRORBALL
-    // TODO: Add support for CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL
-    // TODO: Add support for CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE
-    // TODO: Add support for CAM_PANORAMA_CENTRAL_CYLINDRICAL = 6,
+  /* Only create the side data for full equirectangular cameras. */
+  if (camera.type != CAM_PANO) {
+    return;
   }
+  if (camera.panorama_type != CAM_PANORAMA_EQUIRECTANGULAR) {
+    return;
+  }
+  if (camera.latitude_min != -M_PI_2 || camera.latitude_max != M_PI_2 ||
+      camera.longitude_min != -M_PI || camera.longitude_max != M_PI)
+  {
+    return;
+  }
+
+  AVPacketSideData *side_data = av_packet_side_data_new(&codecpar->coded_side_data,
+                                                        &codecpar->nb_coded_side_data,
+                                                        AV_PKT_DATA_SPHERICAL,
+                                                        sizeof(AVSphericalMapping),
+                                                        0);
+  if (side_data == nullptr) {
+    CLOG_ERROR(&LOG, "Failed to attach spherical mapping metadata to stream");
+    return;
+  }
+  AVSphericalMapping &spherical = *reinterpret_cast<AVSphericalMapping *>(side_data->data);
+  spherical.projection = AV_SPHERICAL_EQUIRECTANGULAR;
 }
 
 /* Write a frame to the output file */
@@ -1268,7 +1268,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   add_hdr_mastering_display_metadata(st->codecpar, c, imf);
   add_stereo3d_metadata(st->codecpar, *rd, *imf);
-  add_projection_metadata(*context, scene);
+  add_spherical_mapping_metadata(st->codecpar, scene);
 
   context->video_time = 0.0f;
 
