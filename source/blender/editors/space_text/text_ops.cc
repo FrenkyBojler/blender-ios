@@ -2350,7 +2350,7 @@ static wmOperatorStatus text_move_cursor(bContext *C, int type, bool select)
       break;
 
     case MATCHING_BRACKET:
-      std::optional<BracketsPositions> brackets = text_get_brackets_positions(text);
+      std::optional<BracketsPositions> brackets = text_get_brackets_positions(st, text);
       if (brackets.has_value()) {
         if (select) {
           txt_pop_first(text);

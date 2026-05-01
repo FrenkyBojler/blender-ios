@@ -373,8 +373,8 @@ World *ED_preview_prepare_world_simple(Main *pr_main)
   World *world = BKE_world_add(pr_main, "SimpleWorld");
   bNodeTree *ntree = world->nodetree;
 
-  bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground");
-  bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld");
+  bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground"_ustr);
+  bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld"_ustr);
   node_add_link(*world->nodetree,
                 *background,
                 *node_find_socket(*background, SOCK_OUT, "Background"),
@@ -393,7 +393,7 @@ void ED_preview_world_simple_set_rgb(World *world, const float color[4])
   bNode *background = bke::node_find_node_by_name(*world->nodetree, "Background");
   BLI_assert(background != nullptr);
 
-  auto color_socket = static_cast<bNodeSocketValueRGBA *>(
+  auto *color_socket = static_cast<bNodeSocketValueRGBA *>(
       bke::node_find_socket(*background, SOCK_IN, "Color")->default_value);
   copy_v4_v4(color_socket->value, color);
 }
@@ -1287,10 +1287,8 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 
   /* handle results */
   if (sp->pr_method == PR_ICON_RENDER) {
-    // char *rct = (char *)(sp->pr_rect + 32 * 16 + 16);
-
     if (sp->pr_rect) {
-      RE_ResultGet32(re, sp->pr_rect);
+      RE_ResultGet32(re, reinterpret_cast<uint8_t *>(sp->pr_rect));
     }
   }
 

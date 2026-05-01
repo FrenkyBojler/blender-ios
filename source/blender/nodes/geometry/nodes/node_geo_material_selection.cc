@@ -129,19 +129,11 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
     }
   }
 
-  uint64_t hash() const override
+  void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep & /*deep_hash_cache*/) const override
   {
-    return get_default_hash(material_);
-  }
-
-  bool is_equal_to(const fn::FieldInput &other) const override
-  {
-    if (const MaterialSelectionFieldInput *other_material_selection =
-            dynamic_cast<const MaterialSelectionFieldInput *>(&other))
-    {
-      return material_ == other_material_selection->material_;
-    }
-    return false;
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(material_);
   }
 
   std::optional<AttrDomain> preferred_domain(
@@ -162,7 +154,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMaterialSelection", GEO_NODE_MATERIAL_SELECTION);
+  geo_node_type_base(&ntype, "GeometryNodeMaterialSelection"_ustr, GEO_NODE_MATERIAL_SELECTION);
   ntype.ui_name = "Material Selection";
   ntype.ui_description = "Provide a selection of faces that use the specified material";
   ntype.enum_name_legacy = "MATERIAL_SELECTION";

@@ -841,7 +841,6 @@ static void mesh_loops_to_tessdata(Mesh &mesh,
                                    CustomData *fdata_legacy,
                                    CustomData *corner_data,
                                    MFace *mface,
-                                   const int *polyindices,
                                    uint (*loopindices)[4],
                                    const int num_faces)
 {
@@ -856,7 +855,6 @@ static void mesh_loops_to_tessdata(Mesh &mesh,
   const bool hasOrigSpace = CustomData_has_layer(corner_data, CD_ORIGSPACE_MLOOP);
   const bool hasLoopNormal = CustomData_has_layer(corner_data, CD_NORMAL);
   int findex, i, j;
-  const int *pidx;
   uint(*lidx)[4];
 
   const bke::AttributeAccessor attributes = mesh.attributes();
@@ -866,9 +864,7 @@ static void mesh_loops_to_tessdata(Mesh &mesh,
         CustomData_get_layer_n_for_write(fdata_legacy, CD_MTFACE, i, num_faces));
     const VArraySpan uv = *attributes.lookup<float2>(uv_names[i], bke::AttrDomain::Corner);
 
-    for (findex = 0, pidx = polyindices, lidx = loopindices; findex < num_faces;
-         pidx++, lidx++, findex++, texface++)
-    {
+    for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, texface++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
         copy_v2_v2(texface->uv[j], uv[(*lidx)[j]]);
       }
@@ -1204,8 +1200,7 @@ static void mesh_tessface_calc(Mesh &mesh)
    * (because they are sorted for polygons, and our quads are still mere copies of their polygons).
    * So we pass nullptr as #MFace pointer, and #mesh_loops_to_tessdata
    * will use the fourth loop index as quad test. */
-  mesh_loops_to_tessdata(
-      mesh, fdata_legacy, &mesh.corner_data, nullptr, mface_to_poly_map, lindices, totface);
+  mesh_loops_to_tessdata(mesh, fdata_legacy, &mesh.corner_data, nullptr, lindices, totface);
 
   /* NOTE: quad detection issue - fourth vert-index vs fourth loop-index:
    * ...However, most #TFace code uses `MFace->v4 == 0` test to check whether it is a tri or quad.
@@ -2071,10 +2066,10 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   angle_data.max = DEG2RADF(180.0f);
   angle_data.subtype = PROP_ANGLE;
 
-  bNode *group_output = node_add_node(nullptr, *group, "NodeGroupOutput");
+  bNode *group_output = node_add_node(nullptr, *group, "NodeGroupOutput"_ustr);
   group_output->location[0] = 480.0f;
   group_output->location[1] = -100.0f;
-  bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput");
+  bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput"_ustr);
   group_input_angle->location[0] = -420.0f;
   group_input_angle->location[1] = -300.0f;
   for (bNodeSocket &socket : group_input_angle->outputs) {
@@ -2082,7 +2077,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
       socket.flag |= SOCK_HIDDEN;
     }
   }
-  bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput");
+  bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput"_ustr);
   group_input_mesh->location[0] = -60.0f;
   group_input_mesh->location[1] = -100.0f;
   for (bNodeSocket &socket : group_input_mesh->outputs) {
@@ -2090,28 +2085,28 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
       socket.flag |= SOCK_HIDDEN;
     }
   }
-  bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
+  bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth"_ustr);
   shade_smooth_edge->custom1 = int16_t(bke::AttrDomain::Edge);
   shade_smooth_edge->location[0] = 120.0f;
   shade_smooth_edge->location[1] = -100.0f;
-  bNode *shade_smooth_face = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
+  bNode *shade_smooth_face = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth"_ustr);
   shade_smooth_face->custom1 = int16_t(bke::AttrDomain::Face);
   shade_smooth_face->location[0] = 300.0f;
   shade_smooth_face->location[1] = -100.0f;
-  bNode *edge_angle = node_add_node(nullptr, *group, "GeometryNodeInputMeshEdgeAngle");
+  bNode *edge_angle = node_add_node(nullptr, *group, "GeometryNodeInputMeshEdgeAngle"_ustr);
   edge_angle->location[0] = -420.0f;
   edge_angle->location[1] = -220.0f;
-  bNode *edge_smooth = node_add_node(nullptr, *group, "GeometryNodeInputEdgeSmooth");
+  bNode *edge_smooth = node_add_node(nullptr, *group, "GeometryNodeInputEdgeSmooth"_ustr);
   edge_smooth->location[0] = -60.0f;
   edge_smooth->location[1] = -160.0f;
-  bNode *face_smooth = node_add_node(nullptr, *group, "GeometryNodeInputShadeSmooth");
+  bNode *face_smooth = node_add_node(nullptr, *group, "GeometryNodeInputShadeSmooth"_ustr);
   face_smooth->location[0] = -240.0f;
   face_smooth->location[1] = -340.0f;
-  bNode *boolean_and = node_add_node(nullptr, *group, "FunctionNodeBooleanMath");
+  bNode *boolean_and = node_add_node(nullptr, *group, "FunctionNodeBooleanMath"_ustr);
   boolean_and->custom1 = NODE_BOOLEAN_MATH_AND;
   boolean_and->location[0] = -60.0f;
   boolean_and->location[1] = -220.0f;
-  bNode *less_than_or_equal = node_add_node(nullptr, *group, "FunctionNodeCompare");
+  bNode *less_than_or_equal = node_add_node(nullptr, *group, "FunctionNodeCompare"_ustr);
   static_cast<NodeFunctionCompare *>(less_than_or_equal->storage)->operation =
       NODE_COMPARE_LESS_EQUAL;
   less_than_or_equal->location[0] = -240.0f;
