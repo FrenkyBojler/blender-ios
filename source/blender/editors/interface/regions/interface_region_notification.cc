@@ -15,8 +15,8 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_time.h"
 #include "BLI_string_utf8.h"
+#include "BLI_time.h"
 
 #include "BLT_translation.hh"
 
@@ -217,10 +217,10 @@ void show(bScreen *screen, StringRef message, int icon, eReportType report_type)
 
   /* Clip the message if it is too long to fit within the maximum width. */
   const size_t max_bytes = BLF_width_to_strlen(style->widget.uifont_id,
-                                   data->message.c_str(),
-                                   data->message.size(),
-                                   MAX_TEXT_WIDTH * UI_SCALE_FAC,
-                                   nullptr);
+                                               data->message.c_str(),
+                                               data->message.size(),
+                                               MAX_TEXT_WIDTH * UI_SCALE_FAC,
+                                               nullptr);
   if (max_bytes < data->message.size() - 1) {
     data->message = data->message.substr(0, max_bytes) + BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
   }

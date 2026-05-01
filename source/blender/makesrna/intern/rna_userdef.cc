@@ -5128,7 +5128,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Developer Extras", "Display advanced settings and tools for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "notification_seconds", PROP_FLOAT, PROP_TIME);
+  prop = RNA_def_property(srna, "notification_seconds", PROP_FLOAT, PROP_TIME);
   RNA_def_property_range(prop, 0.0f, 30.0f);
   RNA_def_property_ui_range(prop, 2.0f, 20.0f, 100.0f, 1);
   RNA_def_property_ui_text(
