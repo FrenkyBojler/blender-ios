@@ -9,6 +9,7 @@
 #include "BKE_geometry_fields.hh"
 
 #include "atomic_ops.h"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_cluster_by_distance_cc {
@@ -126,8 +127,8 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
 #endif
 
     const IndexMask mask_to_fallback = IndexMask::from_difference(mask, selection, memory);
-    mask_to_fallback.foreach_index_optimized<int>(
-        [&](const int index) { cluster_ids[index] = index; }, exec_mode::parallel);
+    mask_to_fallback.foreach_index_optimized<int>([&](const int i) { cluster_ids[i] = i; },
+                                                  exec_mode::parallel);
 
     std::optional<VArraySpan<int>> group_id_span;
     const auto group_indices = [&]() -> VectorSet<int> {
@@ -137,7 +138,7 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
       VectorSet<int> group_indices;
       group_id_span.emplace(group_ids);
       mask_to_cluster.foreach_index_optimized<int>(
-          [&](const int index) { group_indices.add((*group_id_span)[index]); });
+          [&](const int i) { group_indices.add((*group_id_span)[i]); });
       return group_indices;
     }();
 
@@ -149,8 +150,8 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
 
     Array<int> group_offset_data(groups_num + 1, 0);
     mask_to_cluster.foreach_index_optimized<int>(
-        [&](const int index) {
-          const int group_i = group_indices.index_of((*group_id_span)[index]);
+        [&](const int i) {
+          const int group_i = group_indices.index_of((*group_id_span)[i]);
           atomic_add_and_fetch_int32(&group_offset_data[group_i], 1);
         },
         exec_mode::grain_size(8192));
@@ -160,10 +161,10 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
     Array<int> indices_by_group(group_offsets.total_size());
     Array<int> group_counts(groups_num, 0);
     mask_to_cluster.foreach_index_optimized<int>(
-        [&](const int index) {
-          const int group_i = group_indices.index_of((*group_id_span)[index]);
+        [&](const int i) {
+          const int group_i = group_indices.index_of((*group_id_span)[i]);
           const int index_in_group = atomic_fetch_and_add_int32(&group_counts[group_i], 1);
-          indices_by_group[group_offsets[group_i][index_in_group]] = int(index);
+          indices_by_group[group_offsets[group_i][index_in_group]] = int(i);
         },
         exec_mode::grain_size(8192));
     offset_indices::sort_small_groups(group_offsets, indices_by_group);
@@ -181,8 +182,8 @@ class ClusterByDistanceFieldInput final : public bke::GeometryFieldInput {
 
             threading::parallel_for(group.index_range(), 4096, [&](const IndexRange range) {
               for (const int pos : range) {
-                const int index = group[pos];
-                cluster_ids[index] = group[group_cluster_ids[pos]];
+                const int i = group[pos];
+                cluster_ids[i] = group[group_cluster_ids[pos]];
               }
             });
           }
