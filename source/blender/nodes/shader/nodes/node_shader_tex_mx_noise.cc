@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 
 namespace blender::nodes::node_shader_tex_mx_noise_cc {
 
@@ -952,46 +953,46 @@ class MxNoiseFunction : public mf::MultiFunction {
     int param = 0;
     const VArray<float3> &vector = params.readonly_single_input<float3>(param++, "Vector");
 
-    const VArray<float> *amplitude = nullptr;
-    const VArray<float> *pivot = nullptr;
-    const VArray<float> *octaves = nullptr;
-    const VArray<float> *lacunarity = nullptr;
-    const VArray<float> *diminish = nullptr;
-    const VArray<float> *jitter = nullptr;
-    const VArray<float> *style = nullptr;
-    const VArray<float> *unified_type = nullptr;
-    const VArray<float3> *freq = nullptr;
-    const VArray<float3> *offset = nullptr;
-    const VArray<float> *out_min = nullptr;
-    const VArray<float> *out_max = nullptr;
-    const VArray<float> *clamp_output = nullptr;
+    std::optional<VArray<float>> amplitude;
+    std::optional<VArray<float>> pivot;
+    std::optional<VArray<float>> octaves;
+    std::optional<VArray<float>> lacunarity;
+    std::optional<VArray<float>> diminish;
+    std::optional<VArray<float>> jitter;
+    std::optional<VArray<float>> style;
+    std::optional<VArray<float>> unified_type;
+    std::optional<VArray<float3>> freq;
+    std::optional<VArray<float3>> offset;
+    std::optional<VArray<float>> out_min;
+    std::optional<VArray<float>> out_max;
+    std::optional<VArray<float>> clamp_output;
 
     if (noise_type_ == MX_NOISE_PERLIN) {
-      amplitude = &params.readonly_single_input<float>(param++, "Amplitude");
-      pivot = &params.readonly_single_input<float>(param++, "Pivot");
+      amplitude = params.readonly_single_input<float>(param++, "Amplitude");
+      pivot = params.readonly_single_input<float>(param++, "Pivot");
     }
     else if (noise_type_ == MX_NOISE_FRACTAL) {
-      amplitude = &params.readonly_single_input<float>(param++, "Amplitude");
-      octaves = &params.readonly_single_input<float>(param++, "Octaves");
-      lacunarity = &params.readonly_single_input<float>(param++, "Lacunarity");
-      diminish = &params.readonly_single_input<float>(param++, "Diminish");
+      amplitude = params.readonly_single_input<float>(param++, "Amplitude");
+      octaves = params.readonly_single_input<float>(param++, "Octaves");
+      lacunarity = params.readonly_single_input<float>(param++, "Lacunarity");
+      diminish = params.readonly_single_input<float>(param++, "Diminish");
     }
     else if (noise_type_ == MX_NOISE_WORLEY) {
-      jitter = &params.readonly_single_input<float>(param++, "Jitter");
-      style = &params.readonly_single_input<float>(param++, "Style");
+      jitter = params.readonly_single_input<float>(param++, "Jitter");
+      style = params.readonly_single_input<float>(param++, "Style");
     }
     else if (noise_type_ == MX_NOISE_UNIFIED) {
-      freq = &params.readonly_single_input<float3>(param++, "Frequency");
-      offset = &params.readonly_single_input<float3>(param++, "Offset");
-      unified_type = &params.readonly_single_input<float>(param++, "Type");
-      jitter = &params.readonly_single_input<float>(param++, "Jitter");
-      style = &params.readonly_single_input<float>(param++, "Style");
-      octaves = &params.readonly_single_input<float>(param++, "Octaves");
-      lacunarity = &params.readonly_single_input<float>(param++, "Lacunarity");
-      diminish = &params.readonly_single_input<float>(param++, "Diminish");
-      out_min = &params.readonly_single_input<float>(param++, "Out Min");
-      out_max = &params.readonly_single_input<float>(param++, "Out Max");
-      clamp_output = &params.readonly_single_input<float>(param++, "Clamp Output");
+      freq = params.readonly_single_input<float3>(param++, "Frequency");
+      offset = params.readonly_single_input<float3>(param++, "Offset");
+      unified_type = params.readonly_single_input<float>(param++, "Type");
+      jitter = params.readonly_single_input<float>(param++, "Jitter");
+      style = params.readonly_single_input<float>(param++, "Style");
+      octaves = params.readonly_single_input<float>(param++, "Octaves");
+      lacunarity = params.readonly_single_input<float>(param++, "Lacunarity");
+      diminish = params.readonly_single_input<float>(param++, "Diminish");
+      out_min = params.readonly_single_input<float>(param++, "Out Min");
+      out_max = params.readonly_single_input<float>(param++, "Out Max");
+      clamp_output = params.readonly_single_input<float>(param++, "Clamp Output");
     }
 
     MutableSpan<float> r_value = params.uninitialized_single_output_if_required<float>(param++,
@@ -1123,7 +1124,6 @@ NODE_SHADER_MATERIALX_BEGIN
 }
 #endif
 NODE_SHADER_MATERIALX_END
-}
 
 static void register_mx_node_type(bke::bNodeType &ntype,
                                   const UString idname,

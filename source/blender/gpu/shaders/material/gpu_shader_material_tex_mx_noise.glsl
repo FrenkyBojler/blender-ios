@@ -86,7 +86,7 @@ uint mx_rotl32(uint x, int k)
   return (x << k) | (x >> (32 - k));
 }
 
-void mx_bjmix(inout uint a, inout uint b, inout uint c)
+void mx_bjmix(uint &a, uint &b, uint &c)
 {
   a -= c; a ^= mx_rotl32(c, 4); c += b;
   b -= a; b ^= mx_rotl32(a, 6); a += c;
