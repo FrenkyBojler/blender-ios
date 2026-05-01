@@ -294,7 +294,7 @@ ResultT eval(sampler2D hiz_tx,
         float3 ls_P_front = (vP_sample_front - vP) / search_distance;
         float3 ls_P_back = (vP_sample_back - vP) / search_distance;
         /* Simplification of `sin_from_cos(length(ls_P_front.xy))`. */
-        float max_dist = sqrt_fast(1.0f - length_squared(ls_P_front.xy));
+        float max_dist = sqrt_fast(saturate(1.0f - length_squared(ls_P_front.xy)));
         ls_P_front.z = clamp(ls_P_front.z, -max_dist, max_dist);
         ls_P_back.z = clamp(ls_P_back.z, -max_dist, max_dist);
         if (ls_P_front.z == ls_P_back.z) {
