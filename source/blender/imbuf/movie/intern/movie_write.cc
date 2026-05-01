@@ -294,8 +294,10 @@ static void add_spherical_mapping_metadata(AVCodecParameters *codecpar, const Sc
   if (camera.panorama_type != CAM_PANORAMA_EQUIRECTANGULAR) {
     return;
   }
-  if (camera.latitude_min != -M_PI_2 || camera.latitude_max != M_PI_2 ||
-      camera.longitude_min != -M_PI || camera.longitude_max != M_PI)
+  if (!compare_ff(camera.latitude_min, -M_PI_2, 1e-6) ||
+      !compare_ff(camera.latitude_max, M_PI_2, 1e-6) ||
+      !compare_ff(camera.longitude_min, -M_PI, 1e-6) ||
+      !compare_ff(camera.longitude_max, M_PI, 1e-6))
   {
     return;
   }
