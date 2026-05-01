@@ -504,6 +504,10 @@ static BMFace *face_step(BMEdge *edge, BMFace *f)
   BMIter iter;
   BMFace *face_iter;
 
+  if (edge == nullptr) {
+    return f;
+  }
+
   BM_ITER_ELEM (face_iter, &iter, edge, BM_FACES_OF_EDGE) {
     if (BM_face_share_edge_check(face_iter, f)) {
       return face_iter;
