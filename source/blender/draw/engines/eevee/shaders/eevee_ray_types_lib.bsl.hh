@@ -162,8 +162,9 @@ struct ScreenThicknessEstimator {
                  float ray_ss_z_prev)
   {
     float sample_thickness = thickness(sample_ss_z, sample_ss_t, sample_min_thickness);
-    /* Make sure the sample is at least as thick as the ray step.
-     * Adding the ray thickness is equivalent to doing the full 1D AABB intersection test. */
+    /* We want to test the intersection between the surface estimated AABB and the ray step AABB.
+     * This is equivalent to adding the step delta to the surface thickness and doing an AABB vs
+     * point test. */
     sample_thickness += abs(ray_ss_z - ray_ss_z_prev);
 
     float sample_min = sample_ss_z;
