@@ -52,8 +52,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Keep Seamless"_ustr)
       .default_value(false)
       .description(
-          "When enabled, the operation keeps the output mask seamless for a seamless input mask.");
-  b.add_input<decl::Vector>("Constant Part Size"_ustr)
+          "When enabled, the operation keeps the output image seamless for a seamless input "
+          "image.");
+  b.add_input<decl::Vector>("Mask Size"_ustr)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
       .compositor_domain_priority(1)
@@ -62,8 +63,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "boundaries. If the Size value is negative in any dimension, an erosion is "
           "performed instead of a dilation")
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Roundness"_ustr)
-      .default_value(1.0f)
+  b.add_input<decl::Float>("Mask Roundness"_ustr)
+      .default_value(0.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
@@ -71,11 +72,28 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Roundness of the rounded square mask")
       .structure_type(StructureType::Dynamic);
 
-  PanelDeclarationBuilder &falloff_panel = b.add_panel("Falloff Part"_ustr).default_closed(false);
-  falloff_panel.add_input<decl::Float>("Size Boundary"_ustr)
+  PanelDeclarationBuilder &transform_panel =
+      b.add_panel("Mask Transform"_ustr).default_closed(true);
+  transform_panel.add_input<decl::Float>("Rotation"_ustr)
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .compositor_domain_priority(3)
+      .description("Angle to rotate the rounded square mask by")
+      .structure_type(StructureType::Dynamic);
+  transform_panel.add_input<decl::Vector>("Translation"_ustr)
+      .dimensions(2)
+      .default_value({0.0f, 0.0f})
+      .compositor_domain_priority(4)
+      .description("Translation of the rounded square mask")
+      .structure_type(StructureType::Dynamic);
+
+  PanelDeclarationBuilder &falloff_panel = b.add_panel("Mask Falloff"_ustr).default_closed(false);
+  falloff_panel.add_input<decl::Float>("Hardness"_ustr)
       .default_value(1.0f)
       .min(0.0f)
-      .compositor_domain_priority(3)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .compositor_domain_priority(5)
       .description(
           "Maximal size of the falloff part of the rounded square mask starting at the edges of "
           "its constant part. This is also an upper boundary to where the falloff gradient can "
@@ -83,21 +101,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
   falloff_panel.add_input<decl::Float>("Value Boundary"_ustr)
       .default_value(0.0f)
-      .compositor_domain_priority(4)
+      .compositor_domain_priority(6)
       .description(
           "Value that the falloff gradient may fall off to. When performing a dilation, Value "
           "Boundary is a lower boundary to the possible output image values. When performing an "
           "erosion, 1 - Value Boundary is an upper boundary to the possible output image values")
-      .structure_type(StructureType::Dynamic);
-  falloff_panel.add_input<decl::Float>("Aggressiveness"_ustr)
-      .min(0.0f)
-      .max(1.0f)
-      .default_value(0.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(5)
-      .description(
-          "Value of the falloff part at the outer edge of the rounded square mask. A higher value "
-          "results in a more aggressive effect")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
@@ -107,7 +115,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(6)
+      .compositor_domain_priority(7)
       .description(
           "Height of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a smoother falloff.")
@@ -117,7 +125,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(7)
+      .compositor_domain_priority(8)
       .description(
           "Width of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a rounder falloff")
@@ -127,26 +135,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(8)
+      .compositor_domain_priority(9)
       .description(
           "Position of the inflection midpoint of the elliptical step function, which is used to "
           "control the shape of the falloff. It controls how big the two elliptical segments are "
           "relative to each other")
-      .structure_type(StructureType::Dynamic);
-
-  PanelDeclarationBuilder &transform_panel =
-      b.add_panel("Mask Transform"_ustr).default_closed(true);
-  transform_panel.add_input<decl::Float>("Rotation"_ustr)
-      .default_value(0.0f)
-      .subtype(PROP_ANGLE)
-      .compositor_domain_priority(9)
-      .description("Angle to rotate the rounded square mask by")
-      .structure_type(StructureType::Dynamic);
-  transform_panel.add_input<decl::Vector>("Translation"_ustr)
-      .dimensions(2)
-      .default_value({0.0f, 0.0f})
-      .compositor_domain_priority(10)
-      .description("Translation of the rounded square mask")
       .structure_type(StructureType::Dynamic);
 }
 
@@ -203,20 +196,23 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_image_tx");
 
-    const Result &input_constant_part_size = get_input("Constant Part Size");
-    input_constant_part_size.bind_as_texture(shader, "input_constant_part_size_tx");
+    const Result &input_mask_size = get_input("Mask Size");
+    input_mask_size.bind_as_texture(shader, "input_mask_size_tx");
 
-    const Result &input_roundness = get_input("Roundness");
-    input_roundness.bind_as_texture(shader, "input_roundness_tx");
+    const Result &input_mask_roundness = get_input("Mask Roundness");
+    input_mask_roundness.bind_as_texture(shader, "input_mask_roundness_tx");
 
-    const Result &input_size_boundary = get_input("Size Boundary");
-    input_size_boundary.bind_as_texture(shader, "input_size_boundary_tx");
+    const Result &input_rotation = get_input("Rotation");
+    input_rotation.bind_as_texture(shader, "input_rotation_tx");
+
+    const Result &input_translation = get_input("Translation");
+    input_translation.bind_as_texture(shader, "input_translation_tx");
+
+    const Result &input_hardness = get_input("Hardness");
+    input_hardness.bind_as_texture(shader, "input_hardness_tx");
 
     const Result &input_value_boundary = get_input("Value Boundary");
     input_value_boundary.bind_as_texture(shader, "input_value_boundary_tx");
-
-    const Result &input_aggressiveness = get_input("Aggressiveness");
-    input_aggressiveness.bind_as_texture(shader, "input_aggressiveness_tx");
 
     const Result &input_ellipse_height = get_input("Ellipse Height");
     input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
@@ -226,12 +222,6 @@ class MaskedMaximumOperation : public NodeOperation {
 
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
     input_inflection_midpoint.bind_as_texture(shader, "input_inflection_midpoint_tx");
-
-    const Result &input_rotation = get_input("Rotation");
-    input_rotation.bind_as_texture(shader, "input_rotation_tx");
-
-    const Result &input_translation = get_input("Translation");
-    input_translation.bind_as_texture(shader, "input_translation_tx");
 
     if (output_image.should_compute()) {
       output_image.bind_as_image(shader, "output_image_img");
@@ -249,16 +239,15 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
-    input_constant_part_size.unbind_as_texture();
-    input_roundness.unbind_as_texture();
-    input_size_boundary.unbind_as_texture();
+    input_mask_size.unbind_as_texture();
+    input_mask_roundness.unbind_as_texture();
+    input_rotation.unbind_as_texture();
+    input_translation.unbind_as_texture();
+    input_hardness.unbind_as_texture();
     input_value_boundary.unbind_as_texture();
-    input_aggressiveness.unbind_as_texture();
     input_ellipse_height.unbind_as_texture();
     input_ellipse_width.unbind_as_texture();
     input_inflection_midpoint.unbind_as_texture();
-    input_rotation.unbind_as_texture();
-    input_translation.unbind_as_texture();
     if (output_image.should_compute()) {
       output_image.unbind_as_image();
     }
@@ -277,74 +266,44 @@ class MaskedMaximumOperation : public NodeOperation {
   {
     const bool keep_seamless = get_input("Keep Seamless").get_single_value_default<bool>();
     const Result &input_image = get_input("Image");
-    const Result &input_constant_part_size = get_input("Constant Part Size");
-    const Result &input_roundness = get_input("Roundness");
-    const Result &input_size_boundary = get_input("Size Boundary");
+    const Result &input_mask_size = get_input("Mask Size");
+    const Result &input_mask_roundness = get_input("Mask Roundness");
+    const Result &input_rotation = get_input("Rotation");
+    const Result &input_translation = get_input("Translation");
+    const Result &input_hardness = get_input("Hardness");
     const Result &input_value_boundary = get_input("Value Boundary");
-    const Result &input_aggressiveness = get_input("Aggressiveness");
     const Result &input_ellipse_height = get_input("Ellipse Height");
     const Result &input_ellipse_width = get_input("Ellipse Width");
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
-    const Result &input_rotation = get_input("Rotation");
-    const Result &input_translation = get_input("Translation");
 
     parallel_for(domain.data_size, [&](const int2 texel) {
-      float2 constant_part_size = input_constant_part_size.load_pixel_zero<float2, true>(texel);
+      float2 mask_size = input_mask_size.load_pixel_zero<float2, true>(texel);
       float domain_diagonal_length = math::sqrt(math::square(float(domain.data_size.x)) +
                                                 math::square(float(domain.data_size.y)));
-      /* In principle, absolute constant_part_size values greater than domain_diagonal_length can
+      /* In principle, absolute mask_size values greater than domain_diagonal_length can
        * still result in different outputs, however, to prevent extremely long computation times,
        * they are clamped.
        */
-      constant_part_size = math::clamp(constant_part_size,
-                                       float2(-math::ceil(domain_diagonal_length)),
-                                       float2(math::ceil(domain_diagonal_length)));
-      float2 abs_constant_part_size = math::abs(constant_part_size);
-      float roundness = math::clamp(
-          input_roundness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      /* In principle, size_boundary values greater than domain_diagonal_length can still result in
-       * different outputs, however, to prevent extremely long computation times, they are clamped.
-       */
-      float size_boundary = math::clamp(input_size_boundary.load_pixel_zero<float, true>(texel),
-                                        0.0f,
-                                        math::ceil(domain_diagonal_length));
+      mask_size = math::clamp(mask_size,
+                              float2(-math::ceil(domain_diagonal_length)),
+                              float2(math::ceil(domain_diagonal_length)));
+      float2 abs_mask_size = math::abs(mask_size);
+      float mask_roundness = math::clamp(
+          input_mask_roundness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float rotation = input_rotation.load_pixel_zero<float, true>(texel);
+      float2 translation = input_translation.load_pixel_zero<float2, true>(texel);
+      float hardness = math::clamp(input_hardness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
-      float aggressiveness = math::clamp(
-          input_aggressiveness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_height = math::clamp(
           input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_width = math::clamp(
           input_ellipse_width.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float inflection_midpoint = math::clamp(
           input_inflection_midpoint.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float rotation = input_rotation.load_pixel_zero<float, true>(texel);
-      float2 translation = input_translation.load_pixel_zero<float2, true>(texel);
 
       /* Calculate the top right and bottom left corners of the bounding box of the rounded square
        * mask. */
-      float2 bounding_box_top_right_corner_relative_to_pixel;
-      if (abs_constant_part_size.x == abs_constant_part_size.y) {
-        bounding_box_top_right_corner_relative_to_pixel = float2(
-            math::ceil(abs_constant_part_size.x + size_boundary),
-            math::ceil(abs_constant_part_size.y + size_boundary));
-      }
-      else if (abs_constant_part_size.x == 0.0f) {
-        bounding_box_top_right_corner_relative_to_pixel = float2(
-            0.0f, math::ceil(abs_constant_part_size.y + size_boundary));
-      }
-      else if (abs_constant_part_size.y == 0.0f) {
-        bounding_box_top_right_corner_relative_to_pixel = float2(
-            math::ceil(abs_constant_part_size.x + size_boundary), 0.0f);
-      }
-      else {
-        bounding_box_top_right_corner_relative_to_pixel = float2(
-            math::ceil(abs_constant_part_size.x +
-                       (size_boundary *
-                        math::min(abs_constant_part_size.x / abs_constant_part_size.y, 1.0f))),
-            math::ceil(abs_constant_part_size.y +
-                       (size_boundary *
-                        math::min(abs_constant_part_size.y / abs_constant_part_size.x, 1.0f))));
-      }
+      float2 bounding_box_top_right_corner_relative_to_pixel = math::ceil(abs_mask_size);
       if (rotation != 0.0f) {
         /* Rotate bounding box. */
         float2 rotated_top_right_corner = rotate_vector_2d(
@@ -449,7 +408,7 @@ class MaskedMaximumOperation : public NodeOperation {
       }
       float chosen_mask_value = 0.0f;
 
-      bool is_dilate = (constant_part_size.x >= 0.0f) && (constant_part_size.y >= 0.0f);
+      bool is_dilate = (mask_size.x >= 0.0f) && (mask_size.y >= 0.0f);
       float2 mask_center_coordinates = float2(texel) + float2(translation);
       for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
         for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++)
@@ -463,10 +422,9 @@ class MaskedMaximumOperation : public NodeOperation {
           }
           float rounded_square_mask = compute_rounded_square_mask(
               pixel_coordinates_relative_to_mask_center,
-              abs_constant_part_size,
-              roundness,
-              size_boundary,
-              aggressiveness,
+              abs_mask_size,
+              mask_roundness,
+              hardness,
               ellipse_height,
               ellipse_width,
               inflection_midpoint);
@@ -618,106 +576,69 @@ class MaskedMaximumOperation : public NodeOperation {
   }
 
   float compute_rounded_square_mask(float2 coord,
-                                    float2 abs_constant_part_size,
-                                    const float roundness,
-                                    const float size_boundary,
-                                    const float aggressiveness,
+                                    float2 abs_mask_size,
+                                    const float mask_roundness,
+                                    const float hardness,
                                     const float ellipse_height,
                                     const float ellipse_width,
                                     const float inflection_midpoint)
   {
-    /* Swap x and y names if abs_constant_part_size.y > abs_constant_part_size.x. This is done
-     * because the following code expects abs_constant_part_size.x to be greater or equal to
-     * abs_constant_part_size.y. This makes sure that the falloff is calculated based on the larger
-     * abs_constant_part_size, making the Width input an upper limit to the falloff width. */
-    if (abs_constant_part_size.y > abs_constant_part_size.x) {
+    /* Swap x and y names if abs_mask_size.y > abs_mask_size.x. This is done
+     * because the following code expects abs_mask_size.x to be greater or equal to
+     * abs_mask_size.y. */
+    if (abs_mask_size.y > abs_mask_size.x) {
       std::swap(coord.x, coord.y);
-      std::swap(abs_constant_part_size.x, abs_constant_part_size.y);
+      std::swap(abs_mask_size.x, abs_mask_size.y);
     }
 
-    if (abs_constant_part_size.y == 0.0f) {
-      if (abs_constant_part_size.x == 0.0f) {
-        if ((coord.x == 0.0f) && (coord.y == 0.0f)) {
-          /* coord is in the constant part of the mask. */
-          return 1.0f;
-        }
-        else if ((size_boundary == 0.0f) ||
-                 (!is_in_unit_rounded_square(coord / (float2(size_boundary, size_boundary)),
-                                             roundness)))
-        {
-          /* coord is outside of the mask. */
-          return 0.0f;
-        }
-        else {
-          /* coord is in the falloff part of the mask. */
-          return math::interpolate(
-              1.0f,
-              aggressiveness,
-              elliptical_unit_step_without_constant_part(
-                  math::inverse_mix(
-                      0.0f, size_boundary, compute_rounded_square_radius(coord, roundness)),
-                  ellipse_height,
-                  ellipse_width,
-                  inflection_midpoint));
-        }
+    if (abs_mask_size.y == 0.0f) {
+      if (abs_mask_size.x == 0.0f) {
+        /* Mask is a 0 dimensional point. */
+        return ((coord.x == 0.0f) && (coord.y == 0.0f)) ? 1.0f : 0.0f;
       }
       else {
         /* Mask is a 1 dimensional line. */
-        if ((coord.y != 0.0f) || (math::abs(coord.x) > (abs_constant_part_size.x + size_boundary)))
-        {
+        if ((coord.y != 0.0f) || (math::abs(coord.x) > abs_mask_size.x)) {
           /* coord is outside of the mask. */
           return 0.0f;
         }
-        else if (math::abs(coord.x) <= (abs_constant_part_size.x)) {
+        else if (math::abs(coord.x) <= (hardness * abs_mask_size.x)) {
           /* coord is in the constant part of the mask. */
           return 1.0f;
         }
         else {
           /* coord is in the falloff part of the mask. */
-          return math::interpolate(1.0f,
-                                   aggressiveness,
-                                   elliptical_unit_step_without_constant_part(
-                                       math::inverse_mix(abs_constant_part_size.x,
-                                                         abs_constant_part_size.x + size_boundary,
-                                                         math::abs(coord.x)),
-                                       ellipse_height,
-                                       ellipse_width,
-                                       inflection_midpoint));
+          return elliptical_unit_step_without_constant_part(
+              math::inverse_mix(abs_mask_size.x, hardness * abs_mask_size.x, math::abs(coord.x)),
+              ellipse_height,
+              ellipse_width,
+              1.0f - inflection_midpoint);
         }
       }
     }
     else {
-      if (is_in_unit_rounded_square(coord / abs_constant_part_size, roundness)) {
+      /* Mask is a 2 dimensional rounded square. */
+      if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), mask_roundness)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
-      else if ((size_boundary == 0.0f) ||
-               !is_in_unit_rounded_square(
-                   coord /
-                       (abs_constant_part_size + float2(size_boundary,
-                                                        size_boundary * abs_constant_part_size.y /
-                                                            abs_constant_part_size.x)),
-                   roundness))
+      else if ((hardness == 1.0f) ||
+               !is_in_unit_rounded_square(coord / abs_mask_size, mask_roundness))
       {
         /* coord is outside of the mask. */
         return 0.0f;
       }
       else {
         /* coord is in the falloff part of the mask. */
-        return math::interpolate(
-            1.0f,
-            aggressiveness,
-            elliptical_unit_step_without_constant_part(
-                math::inverse_mix(
-                    abs_constant_part_size.x,
-                    abs_constant_part_size.x + size_boundary,
-                    compute_rounded_square_radius(
-                        float2(coord.x,
-                               coord.y * abs_constant_part_size.x / abs_constant_part_size.y),
-                        roundness)),
-                ellipse_height,
-                ellipse_width,
-                inflection_midpoint));
+        return elliptical_unit_step_without_constant_part(
+            math::inverse_mix(
+                abs_mask_size.x,
+                hardness * abs_mask_size.x,
+                compute_rounded_square_radius(
+                    float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), mask_roundness)),
+            ellipse_height,
+            ellipse_width,
+            1.0f - inflection_midpoint);
       }
     }
   }

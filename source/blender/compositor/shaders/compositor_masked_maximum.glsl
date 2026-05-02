@@ -117,102 +117,69 @@ float compute_rounded_square_radius(float2 coord, const float roundness)
 }
 
 float compute_rounded_square_mask(float2 coord,
-                                  float2 abs_constant_part_size,
-                                  const float roundness,
-                                  const float size_boundary,
-                                  const float aggressiveness,
+                                  float2 abs_mask_size,
+                                  const float mask_roundness,
+                                  const float hardness,
                                   const float ellipse_height,
                                   const float ellipse_width,
                                   const float inflection_midpoint)
 {
-  /* Swap x and y names if abs_constant_part_size.y > abs_constant_part_size.x. This is done
-   * because the following code expects abs_constant_part_size.x to be greater or equal to
-   * abs_constant_part_size.y. This makes sure that the falloff is calculated based on the larger
-   * abs_constant_part_size, making the Width input an upper limit to the falloff width. */
-  if (abs_constant_part_size.y > abs_constant_part_size.x) {
+  /* Swap x and y names if abs_mask_size.y > abs_mask_size.x. This is done
+   * because the following code expects abs_mask_size.x to be greater or equal to
+   * abs_mask_size.y. */
+  if (abs_mask_size.y > abs_mask_size.x) {
     swap(coord.x, coord.y);
-    swap(abs_constant_part_size.x, abs_constant_part_size.y);
+    swap(abs_mask_size.x, abs_mask_size.y);
   }
 
-  if (abs_constant_part_size.y == 0.0f) {
-    if (abs_constant_part_size.x == 0.0f) {
-      if ((coord.x == 0.0f) && (coord.y == 0.0f)) {
-        /* coord is in the constant part of the mask. */
-        return 1.0f;
-      }
-      else if ((size_boundary == 0.0f) ||
-               (!is_in_unit_rounded_square(coord / (float2(size_boundary, size_boundary)),
-                                           roundness)))
-      {
-        /* coord is outside of the mask. */
-        return 0.0f;
-      }
-      else {
-        /* coord is in the falloff part of the mask. */
-        return mix(
-            1.0f,
-            aggressiveness,
-            elliptical_unit_step_without_constant_part(
-                inverse_mix(0.0f, size_boundary, compute_rounded_square_radius(coord, roundness)),
-                ellipse_height,
-                ellipse_width,
-                inflection_midpoint));
-      }
+  if (abs_mask_size.y == 0.0f) {
+    if (abs_mask_size.x == 0.0f) {
+      /* Mask is a 0 dimensional point. */
+      return ((coord.x == 0.0f) && (coord.y == 0.0f)) ? 1.0f : 0.0f;
     }
     else {
       /* Mask is a 1 dimensional line. */
-      if ((coord.y != 0.0f) || (abs(coord.x) > (abs_constant_part_size.x + size_boundary))) {
+      if ((coord.y != 0.0f) || (abs(coord.x) > abs_mask_size.x)) {
         /* coord is outside of the mask. */
         return 0.0f;
       }
-      else if (abs(coord.x) <= (abs_constant_part_size.x)) {
+      else if (abs(coord.x) <= (hardness * abs_mask_size.x)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
       else {
         /* coord is in the falloff part of the mask. */
-        return mix(1.0f,
-                   aggressiveness,
-                   elliptical_unit_step_without_constant_part(
-                       inverse_mix(abs_constant_part_size.x,
-                                   abs_constant_part_size.x + size_boundary,
-                                   abs(coord.x)),
-                       ellipse_height,
-                       ellipse_width,
-                       inflection_midpoint));
+        return elliptical_unit_step_without_constant_part(
+            inverse_mix(abs_mask_size.x, hardness * abs_mask_size.x, abs(coord.x)),
+            ellipse_height,
+            ellipse_width,
+            1.0f - inflection_midpoint);
       }
     }
   }
   else {
-    if (is_in_unit_rounded_square(coord / abs_constant_part_size, roundness)) {
+    /* Mask is a 2 dimensional rounded square. */
+    if (is_in_unit_rounded_square(coord / (hardness * abs_mask_size), mask_roundness)) {
       /* coord is in the constant part of the mask. */
       return 1.0f;
     }
-    else if ((size_boundary == 0.0f) ||
-             !is_in_unit_rounded_square(coord / (abs_constant_part_size +
-                                                 float2(size_boundary,
-                                                        size_boundary * abs_constant_part_size.y /
-                                                            abs_constant_part_size.x)),
-                                        roundness))
+    else if ((hardness == 1.0f) ||
+             !is_in_unit_rounded_square(coord / abs_mask_size, mask_roundness))
     {
       /* coord is outside of the mask. */
       return 0.0f;
     }
     else {
       /* coord is in the falloff part of the mask. */
-      return mix(
-          1.0f,
-          aggressiveness,
-          elliptical_unit_step_without_constant_part(
-              inverse_mix(abs_constant_part_size.x,
-                          abs_constant_part_size.x + size_boundary,
-                          compute_rounded_square_radius(float2(coord.x,
-                                                               coord.y * abs_constant_part_size.x /
-                                                                   abs_constant_part_size.y),
-                                                        roundness)),
-              ellipse_height,
-              ellipse_width,
-              inflection_midpoint));
+      return elliptical_unit_step_without_constant_part(
+          inverse_mix(
+              abs_mask_size.x,
+              hardness * abs_mask_size.x,
+              compute_rounded_square_radius(
+                  float2(coord.x, coord.y * abs_mask_size.x / abs_mask_size.y), mask_roundness)),
+          ellipse_height,
+          ellipse_width,
+          1.0f - inflection_midpoint);
     }
   }
 }
@@ -221,53 +188,28 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float2 constant_part_size = texture_load(input_constant_part_size_tx, texel).xy;
+  float2 mask_size = texture_load(input_mask_size_tx, texel).xy;
   float domain_diagonal_length = sqrt(square(float(domain_data_size.x)) +
                                       square(float(domain_data_size.y)));
-  /* In principle, absolute constant_part_size values greater than domain_diagonal_length can still
+  /* In principle, absolute mask_size values greater than domain_diagonal_length can still
    * result in different outputs, however, to prevent extremely long computation times, they are
    * clamped. */
-  constant_part_size = clamp(constant_part_size,
-                             float2(-ceil(domain_diagonal_length)),
-                             float2(ceil(domain_diagonal_length)));
-  float2 abs_constant_part_size = abs(constant_part_size);
-  float roundness = clamp(texture_load(input_roundness_tx, texel).x, 0.0f, 1.0f);
-  /* In principle, size_boundary values greater than domain_diagonal_length can still result in
-   * different outputs, however, to prevent extremely long computation times, they are clamped. */
-  float size_boundary = clamp(
-      texture_load(input_size_boundary_tx, texel).x, 0.0f, ceil(domain_diagonal_length));
+  mask_size = clamp(
+      mask_size, float2(-ceil(domain_diagonal_length)), float2(ceil(domain_diagonal_length)));
+  float2 abs_mask_size = abs(mask_size);
+  float mask_roundness = clamp(texture_load(input_mask_roundness_tx, texel).x, 0.0f, 1.0f);
+  float rotation = texture_load(input_rotation_tx, texel).x;
+  float2 translation = texture_load(input_translation_tx, texel).xy;
+  float hardness = clamp(texture_load(input_hardness_tx, texel).x, 0.0f, 1.0f);
   float value_boundary = texture_load(input_value_boundary_tx, texel).x;
-  float aggressiveness = clamp(texture_load(input_aggressiveness_tx, texel).x, 0.0f, 1.0f);
   float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
   float ellipse_width = clamp(texture_load(input_ellipse_width_tx, texel).x, 0.0f, 1.0f);
   float inflection_midpoint = clamp(
       texture_load(input_inflection_midpoint_tx, texel).x, 0.0f, 1.0f);
-  float rotation = texture_load(input_rotation_tx, texel).x;
-  float2 translation = texture_load(input_translation_tx, texel).xy;
 
   /* Calculate the top right and bottom left corners of the bounding box of the rounded square
    * mask. */
-  float2 bounding_box_top_right_corner_relative_to_pixel;
-  if (abs_constant_part_size.x == abs_constant_part_size.y) {
-    bounding_box_top_right_corner_relative_to_pixel = float2(
-        ceil(abs_constant_part_size.x + size_boundary),
-        ceil(abs_constant_part_size.y + size_boundary));
-  }
-  else if (abs_constant_part_size.x == 0.0f) {
-    bounding_box_top_right_corner_relative_to_pixel = float2(
-        0.0f, ceil(abs_constant_part_size.y + size_boundary));
-  }
-  else if (abs_constant_part_size.y == 0.0f) {
-    bounding_box_top_right_corner_relative_to_pixel = float2(
-        ceil(abs_constant_part_size.x + size_boundary), 0.0f);
-  }
-  else {
-    bounding_box_top_right_corner_relative_to_pixel = float2(
-        ceil(abs_constant_part_size.x +
-             (size_boundary * min(abs_constant_part_size.x / abs_constant_part_size.y, 1.0f))),
-        ceil(abs_constant_part_size.y +
-             (size_boundary * min(abs_constant_part_size.y / abs_constant_part_size.x, 1.0f))));
-  }
+  float2 bounding_box_top_right_corner_relative_to_pixel = ceil(abs_mask_size);
   if (rotation != 0.0f) {
     /* Rotate bounding box. */
     float2 rotated_top_right_corner = rotate_vector_2d(
@@ -369,7 +311,7 @@ void main()
   }
   float chosen_mask_value = 0.0f;
 
-  bool is_dilate = (constant_part_size.x >= 0.0f) && (constant_part_size.y >= 0.0f);
+  bool is_dilate = (mask_size.x >= 0.0f) && (mask_size.y >= 0.0f);
   float2 mask_center_coordinates = float2(texel) + float2(translation);
   for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
     for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++) {
@@ -382,10 +324,9 @@ void main()
       }
       float rounded_square_mask = compute_rounded_square_mask(
           pixel_coordinates_relative_to_mask_center,
-          abs_constant_part_size,
-          roundness,
-          size_boundary,
-          aggressiveness,
+          abs_mask_size,
+          mask_roundness,
+          hardness,
           ellipse_height,
           ellipse_width,
           inflection_midpoint);
