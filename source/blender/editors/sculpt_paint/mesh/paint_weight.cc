@@ -1205,6 +1205,9 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
+      auto_mask::calc_vert_factors(
+          depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
         if (factors[i] == 0.0f) {
@@ -1322,6 +1325,9 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
+      auto_mask::calc_vert_factors(
+          depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
         if (factors[i] == 0.0f) {
@@ -1438,6 +1444,9 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
+      auto_mask::calc_vert_factors(
+          depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
         if (factors[i] == 0.0f) {
@@ -1524,6 +1533,9 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
               ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
           filter_distances_with_radius(cache.radius, distances, factors);
           calc_brush_strength_factors(cache, brush, distances, factors);
+
+          auto_mask::calc_vert_factors(
+              depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
 
           for (const int i : verts.index_range()) {
             const int vert = verts[i];
