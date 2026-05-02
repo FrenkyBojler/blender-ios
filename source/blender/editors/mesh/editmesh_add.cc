@@ -66,10 +66,6 @@ static Object *make_prim_init(bContext *C,
   r_creation_data->original_mode = original_mode;
 
   switch (original_mode) {
-    case CTX_MODE_OBJECT:
-      obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
-      ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
-      break;
     case CTX_MODE_SCULPT:
       obedit = CTX_data_active_object(C);
       ed::sculpt_paint::undo::geometry_begin(*scene, *obedit, op);
@@ -82,8 +78,8 @@ static Object *make_prim_init(bContext *C,
       }
       break;
     default:
-      obedit = CTX_data_active_object(C);
-      BLI_assert_unreachable();
+      obedit = ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
+      ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
       break;
   }
 
