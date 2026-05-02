@@ -273,7 +273,7 @@ class InstancesFieldInput : public fn::FieldInput {
                                          const IndexMask &mask) const = 0;
 };
 
-class AttributeFieldInput : public GeometryFieldInput {
+class AttributeFieldInput : public fn::FieldInput {
  private:
   std::string name_;
   std::optional<std::string> socket_inspection_name_;
@@ -282,7 +282,7 @@ class AttributeFieldInput : public GeometryFieldInput {
   AttributeFieldInput(std::string name,
                       const CPPType &type,
                       std::optional<std::string> socket_inspection_name = std::nullopt)
-      : GeometryFieldInput(type, name),
+      : fn::FieldInput(type, name),
         name_(std::move(name)),
         socket_inspection_name_(std::move(socket_inspection_name))
   {
@@ -308,13 +308,14 @@ class AttributeFieldInput : public GeometryFieldInput {
     return name_;
   }
 
-  GVArray get_varray_for_context(const GeometryFieldContext &context,
-                                 const IndexMask &mask) const override;
+  GVArray get_varray_for_context(const fn::FieldContext &context,
+                                 const IndexMask &mask,
+                                 ResourceScope &scope) const override;
 
   std::string socket_inspection_name() const override;
 
   void hash_unique(UniqueHashBytes &hash, fn::FieldHashDeep &deep_hash_cache) const override;
-  std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
+  // std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 
   template<typename T, FixedString FStr> static const fn::Field<T> &get_field()
   {

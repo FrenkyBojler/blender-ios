@@ -254,49 +254,65 @@ const Instances *GeometryFieldContext::instances() const
              nullptr;
 }
 
-GVArray GeometryFieldInput::get_varray_for_context(const fn::FieldContext &context,
-                                                   const IndexMask &mask,
-                                                   ResourceScope & /*scope*/) const
+static std::optional<GeometryFieldContext> context_to_geometry_try(const fn::FieldContext &context)
 {
   if (const GeometryFieldContext *geometry_context = dynamic_cast<const GeometryFieldContext *>(
           &context))
   {
-    return this->get_varray_for_context(*geometry_context, mask);
+    return *geometry_context;
   }
+
   if (const MeshFieldContext *mesh_context = dynamic_cast<const MeshFieldContext *>(&context)) {
-    return this->get_varray_for_context({mesh_context->mesh(), mesh_context->domain()}, mask);
+    return std::make_optional<GeometryFieldContext>(mesh_context->mesh(), mesh_context->domain());
   }
+
   if (const CurvesFieldContext *curve_context = dynamic_cast<const CurvesFieldContext *>(&context))
   {
     if (const Curves *curves_id = curve_context->curves_id()) {
-      return this->get_varray_for_context({*curves_id, curve_context->domain()}, mask);
+      return std::make_optional<GeometryFieldContext>(*curves_id, curve_context->domain());
     }
-    return this->get_varray_for_context({curve_context->curves(), curve_context->domain()}, mask);
+    return std::make_optional<GeometryFieldContext>(curve_context->curves(),
+                                                    curve_context->domain());
   }
+
   if (const PointCloudFieldContext *point_context = dynamic_cast<const PointCloudFieldContext *>(
           &context))
   {
-    return this->get_varray_for_context({point_context->pointcloud()}, mask);
+    return std::make_optional<GeometryFieldContext>(point_context->pointcloud());
   }
+
   if (const GreasePencilFieldContext *grease_pencil_context =
           dynamic_cast<const GreasePencilFieldContext *>(&context))
   {
-    return this->get_varray_for_context({grease_pencil_context->grease_pencil()}, mask);
+    return std::make_optional<GeometryFieldContext>(grease_pencil_context->grease_pencil());
   }
+
   if (const GreasePencilLayerFieldContext *grease_pencil_context =
           dynamic_cast<const GreasePencilLayerFieldContext *>(&context))
   {
-    return this->get_varray_for_context({grease_pencil_context->grease_pencil(),
-                                         grease_pencil_context->domain(),
-                                         grease_pencil_context->layer_index()},
-                                        mask);
+    return std::make_optional<GeometryFieldContext>(grease_pencil_context->grease_pencil(),
+                                                    grease_pencil_context->domain(),
+                                                    grease_pencil_context->layer_index());
   }
+
   if (const InstancesFieldContext *instances_context = dynamic_cast<const InstancesFieldContext *>(
           &context))
   {
-    return this->get_varray_for_context({instances_context->instances()}, mask);
+    return std::make_optional<GeometryFieldContext>(instances_context->instances());
   }
-  return {};
+
+  return std::nullopt;
+}
+
+GVArray GeometryFieldInput::get_varray_for_context(const fn::FieldContext &context,
+                                                   const IndexMask &mask,
+                                                   ResourceScope & /*scope*/) const
+{
+  const std::optional<GeometryFieldContext> typed_context = context_to_geometry_try(context);
+  if (!typed_context.has_value()) {
+    return {};
+  }
+  return this->get_varray_for_context(*typed_context, mask);
 }
 
 std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
@@ -390,20 +406,28 @@ GVArray InstancesFieldInput::get_varray_for_context(const fn::FieldContext &cont
   return {};
 }
 
-GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &context,
-                                                    const IndexMask & /*mask*/) const
+GVArray AttributeFieldInput::get_varray_for_context(const fn::FieldContext &context,
+                                                    const IndexMask & /*mask*/,
+                                                    ResourceScope &scope) const
 {
+  const std::optional<GeometryFieldContext> typed_context = context_to_geometry_try(context);
+  if (!typed_context.has_value()) {
+    return {};
+  }
+
   const bke::AttrType data_type = cpp_type_to_attribute_type(*type_);
-  const AttrDomain domain = context.domain();
-  if (const GreasePencil *grease_pencil = context.grease_pencil()) {
+  const AttrDomain domain = typed_context->domain();
+  if (const GreasePencil *grease_pencil = typed_context->grease_pencil()) {
     const AttributeAccessor layer_attributes = grease_pencil->attributes();
     if (domain == AttrDomain::Layer) {
+      printf("%s;\n", AT);
       return *layer_attributes.lookup(name_, data_type);
     }
     if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
-      const int layer_index = context.grease_pencil_layer_index();
-      const AttributeAccessor curves_attributes = *context.attributes();
+      const int layer_index = typed_context->grease_pencil_layer_index();
+      const AttributeAccessor curves_attributes = *typed_context->attributes();
       if (const GAttributeReader reader = curves_attributes.lookup(name_, domain, data_type)) {
+        printf("%s;\n", AT);
         return *reader;
       }
       /* Lookup attribute on the layer domain if it does not exist on points or curves. */
@@ -413,19 +437,41 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
         BLI_SCOPED_DEFER([&]() { cpp_type.destruct(value); });
         reader.varray.get_to_uninitialized(layer_index, value);
         const int domain_size = curves_attributes.domain_size(domain);
+        printf("%s;\n", AT);
         return GVArray::from_single(cpp_type, domain_size, value);
       }
     }
-  }
-  else if (context.domain() == bke::AttrDomain::Instance && name_ == "position") {
-    /* Special case for "position" which is no longer an attribute on instances. */
-    return bke::instance_position_varray(*context.instances());
-  }
-  else if (auto attributes = context.attributes()) {
-    return *attributes->lookup(name_, domain, data_type);
+    return {};
   }
 
-  return {};
+  if (typed_context->domain() == bke::AttrDomain::Instance && name_ == "position") {
+    /* Special case for "position" which is no longer an attribute on instances. */
+    printf("%s;\n", AT);
+    return bke::instance_position_varray(*typed_context->instances());
+  }
+
+  const auto attributes = typed_context->attributes();
+  if (!attributes) {
+    return {};
+  }
+
+  const GAttributeReader attribute = attributes->lookup(name_, domain, data_type);
+  if (!attribute) {
+    return {};
+  }
+
+  {
+    /* Have to use #lookup without specifying type/domain in order to access actual implicit
+     * sharing of the value which is not around for lazily computed cast/adapt versions. */
+    const GAttributeReader original_attribute = attributes->lookup(name_);
+    BLI_assert(original_attribute.sharing_info != nullptr);
+    /* Caller should be free to edit geometry without need to care about possibly dangling
+     * references in evaluated field. */
+    original_attribute.sharing_info->add_user();
+    scope.add_value(ImplicitSharingPtr<>(original_attribute.sharing_info));
+  }
+
+  return *attribute;
 }
 
 GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -473,6 +519,7 @@ void AttributeFieldInput::hash_unique(UniqueHashBytes &hash,
   hash.add(type_);
 }
 
+#if (0)
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     const GeometryComponent &component) const
 {
@@ -486,6 +533,7 @@ std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
   }
   return meta_data->domain;
 }
+#endif
 
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
 {
