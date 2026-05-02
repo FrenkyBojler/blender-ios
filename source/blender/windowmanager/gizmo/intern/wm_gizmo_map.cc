@@ -1142,7 +1142,7 @@ void wm_gizmomap_modal_set(
       }
     }
 
-    if ((event->modifier & KM_ALT )& (event->modifier & KM_SHIFT)) {
+    if ((event->modifier & KM_ALT) & (event->modifier & KM_SHIFT)) {
       gzop = WM_gizmo_operator_get(gz, 15);
     }
 

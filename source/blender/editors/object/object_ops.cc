@@ -366,23 +366,23 @@ void operatormacros_object()
     RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   }
 
-   ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_trackball_linked",
+  ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_trackball_linked",
                                     "Duplicate Linked and Rotate (Trackball)",
                                     "Duplicate linked selected objects and rotate them",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   if (ot) {
-    otmacro =WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
+    otmacro = WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
     RNA_boolean_set(otmacro->ptr, "linked", true);
     otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_trackball");
     RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   }
 
-   ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_resize_linked",
+  ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_resize_linked",
                                     "Duplicate Linked and Scale",
                                     "Duplicate linked selected objects and scale them",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   if (ot) {
-    otmacro =WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
+    otmacro = WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
     RNA_boolean_set(otmacro->ptr, "linked", true);
     otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_resize");
     RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
