@@ -312,7 +312,7 @@ class Grid : Overlay {
     if (rv3d->is_persp) {
       /* Scale depends on distance to a point on the floor plane; we interpolate between the
        * point viewed by the camera and the point directly below it, dependent on azimuth. */
-      dist = interpolate(abs(drw_view_position.z / drw_view_forward.z),
+      dist = interpolate(abs(safe_divide(drw_view_position.z, drw_view_forward.z)),
                          abs(drw_view_position.z),
                          1.0f - abs(drw_view_forward.z));
     }
@@ -336,7 +336,11 @@ class Grid : Overlay {
       grid_ubo_.offset = float2(drw_view_position.x, drw_view_position.z);
     }
     else if (rv3d->is_persp) {
-      float3 camera_offs = drw_view_position - dist * drw_view_forward;
+      const float forward_z = drw_view_forward.z;
+      constexpr float eps = 1e-6f;
+      const float view_dist = abs(forward_z) > eps ? safe_divide(drw_view_position.z, forward_z) :
+                                                     rv3d->dist;
+      float3 camera_offs = drw_view_position - view_dist * drw_view_forward;
       grid_ubo_.offset = camera_offs.xy();
     }
     else { /* Orthographic. */
