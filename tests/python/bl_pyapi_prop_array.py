@@ -75,67 +75,61 @@ class TestPropArrayIndex(unittest.TestCase):
 
     size_1d = 10
     valid_indices_1d = (
-        (4, 9, -5, slice(7, 9)),
+        (4, 9, -5, slice(7, 9), slice(2, 9, 3), slice(8, 1, -3), slice(None, None, -1)),
     )
     invalid_indices_1d = (
         (
             # Wrong slice indices are clamped to valid values, and therefore return smaller-than-expected arrays
             (..., (slice(7, 11),)),
             (IndexError, (-11, 10)),
-            # Slices with step are not supported currently - although the 'inlined' [x:y:z] syntax does work?
-            (TypeError, (slice(2, 9, 3),)),
+            (ValueError, (slice(2, 9, 0),)),
         ),
     )
 
     size_2d = (4, 1)
     valid_indices_2d = (
-        (1, 3, -2, slice(0, 3)),
-        (0, -1, slice(0, 1)),
+        (1, 3, -2, slice(0, 3), slice(0, 4, 2), slice(None, None, -1)),
+        (0, -1, slice(0, 1), slice(0, 1, 2), slice(None, None, -1)),
     )
     invalid_indices_2d = (
         (
             # Wrong slice indices are clamped to valid values, and therefore return smaller-than-expected arrays
             (..., (slice(0, 5),)),
             (IndexError, (-5, 4)),
-            # Slices with step are not supported currently - although the 'inlined' [x:y:z] syntax does work?
-            (TypeError, (slice(0, 4, 2),)),
+            (ValueError, (slice(0, 4, 0),)),
         ),
         (
             # Wrong slice indices are clamped to valid values, and therefore return smaller-than-expected arrays
             (..., (slice(1, 2),)),
             (IndexError, (-2, 1)),
-            # Slices with step are not supported currently - although the 'inlined' [x:y:z] syntax does work?
-            (TypeError, (slice(0, 1, 2),)),
+            (ValueError, (slice(0, 1, 0),)),
         ),
     )
 
     size_3d = (3, 2, 4)
     valid_indices_3d = (
-        (1, 2, -2, slice(0, 3)),
-        (0, -2, slice(0, 1)),
-        (3, -4, slice(1, 3)),
+        (1, 2, -2, slice(0, 3), slice(0, 3, 2), slice(None, None, -1)),
+        (0, -2, slice(0, 1), slice(0, 2, 2), slice(None, None, -1)),
+        (3, -4, slice(1, 3), slice(1, 4, 2), slice(None, None, -1)),
     )
     invalid_indices_3d = (
         (
             # Wrong slice indices are clamped to valid values, and therefore return smaller-than-expected arrays
             (..., (slice(0, 5),)),
             (IndexError, (-4, 3)),
-            # Slices with step are not supported currently - although the 'inlined' [x:y:z] syntax does work?
-            (TypeError, (slice(0, 3, 2),)),
+            (ValueError, (slice(0, 3, 0),)),
         ),
         (
             # Wrong slice indices are clamped to valid values, and therefore return smaller-than-expected arrays
             (..., (slice(1, 3),)),
             (IndexError, (-3, 2)),
-            # Slices with step are not supported currently - although the 'inlined' [x:y:z] syntax does work?
-            (TypeError, (slice(0, 1, 2),)),
+            (ValueError, (slice(0, 1, 0),)),
         ),
         (
             # Wrong slice indices are clamped to valid values, and therefore return smaller-than-expected arrays
             (..., (slice(2, 7),)),
             (IndexError, (-5, 4)),
-            # Slices with step are not supported currently - although the 'inlined' [x:y:z] syntax does work?
-            (TypeError, (slice(1, 4, 2),)),
+            (ValueError, (slice(1, 4, 0),)),
         ),
     )
 
@@ -253,11 +247,15 @@ class TestPropArrayIndex(unittest.TestCase):
     ):
         self.assertEqual(len(prop_array), prop_size[current_dimension])
         for idx in valid_indices[current_dimension]:
-            expected_len = self.compute_slice_len(idx)
             data = prop_array[idx]
-            if expected_len is not ...:
-                self.assertEqual(len(data), expected_len)
-            prop_array[idx] = data
+            if isinstance(idx, slice):
+                self.assertEqual(seq_items_as_tuple(data), seq_items_as_tuple(tuple(prop_array)[idx]))
+
+            if not isinstance(idx, slice) or idx.step in (None, 1):
+                prop_array[idx] = data
+            else:
+                with self.assertRaises(TypeError):
+                    prop_array[idx] = data
 
         for error, indices in invalid_indices[current_dimension]:
             for idx in indices:
