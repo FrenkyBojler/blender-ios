@@ -917,6 +917,7 @@ static void slide_dist(const ExtendableMesh &emesh, int e, int v, float d, float
   copy_v3_v3(r_slideco, res);
 }
 
+/* Is co not on the edge e? If not, return the closer end of e in ret_closer_v. */
 static bool is_outside_edge(const ExtendableMesh &emesh,
                             EdgeHalf *eh,
                             const float co[3],
@@ -942,6 +943,8 @@ static bool is_outside_edge(const ExtendableMesh &emesh,
   return false;
 }
 
+/* co should be approximately on the plane between e1 and e2, which share common vert v and common
+ * face f (which cannot be -1). Is it between those edges, sweeping CCW? */
 static bool point_between_edges(
     const ExtendableMesh &emesh, const float co[3], int v, int f, EdgeHalf *e1, EdgeHalf *e2)
 {
@@ -1059,6 +1062,11 @@ static void offset_meet(const ExtendableMesh &emesh,
   float ang = angle_v3v3(dir1, dir2);
   float3 norm_perp1;
   if (ang < BEVEL_EPSILON_ANG) {
+    /* Special case: e1 and e2 are parallel; put offset point perp to both, from v.
+     * Need to find a suitable plane.
+     * Use the average of the two directions and the offset formula for angle bisector.
+     * If offsets are different, use the max (so get consistent looking results if the same
+     * situation arises elsewhere but with opposite roles for e1 and e2). */
     float3 norm_v = float3(0.0f);
     if (f != -1) {
       norm_v = emesh.mesh.face_normals()[f];
@@ -1086,15 +1094,25 @@ static void offset_meet(const ExtendableMesh &emesh,
     copy_v3_v3(meetco, off1a);
   }
   else if (math::abs(ang - float(M_PI)) < BEVEL_EPSILON_ANG) {
+    /* Special case: e1 and e2 are anti-parallel, so bevel is into a zero-area face.
+     * Just make the offset point on the common line, at offset distance from v. */
     float d = math::max(e1->offset_r, e2->offset_l);
     slide_dist(emesh, e2->e, v, d, meetco);
   }
   else {
+    /* Get normal to plane where meet point should be, using cross product instead of the face
+     * normal in case f is non-planar.
+     * Except: sometimes locally there can be a small angle between dir1 and dir2 that leads
+     * to a normal almost perpendicular to the face normal; in this case it looks wrong to use
+     * the local (cross-product) normal, so use the face normal if the angle is small.
+     * If e1-v-e2 is a reflex angle (viewed from vertex normal side), need to flip.
+     * Use the face normal to figure out which side to look at angle from. */
     float3 norm_v1, norm_v2;
     if (f != -1 && ang < BEVEL_SMALL_ANG) {
       norm_v1 = norm_v2 = emesh.mesh.face_normals()[f];
     }
     else if (!edges_between) {
+      /* Get normal as cross product of the two edge directions. */
       norm_v1 = math::normalize(math::cross(dir2, dir1));
       if (math::dot(norm_v1,
                     f != -1 ? emesh.mesh.face_normals()[f] : emesh.mesh.vert_normals()[v]) < 0.0f)
@@ -1104,6 +1122,7 @@ static void offset_meet(const ExtendableMesh &emesh,
       norm_v2 = norm_v1;
     }
     else {
+      /* Separate faces; get face normals at corners for each edge separately. */
       norm_v1 = math::normalize(math::cross(dir1n, dir1));
       int f_curr = e1->fnext;
       if (math::dot(norm_v1,
@@ -1122,6 +1141,7 @@ static void offset_meet(const ExtendableMesh &emesh,
       }
     }
 
+    /* Get vectors perp to each edge, perp to norm_v, pointing into face. */
     float3 norm_perp2;
     norm_perp1 = math::normalize(math::cross(dir1, norm_v1));
     norm_perp2 = math::normalize(math::cross(dir2, norm_v2));
@@ -1133,11 +1153,17 @@ static void offset_meet(const ExtendableMesh &emesh,
     copy_v3_v3(off2b, float3(off2a[0], off2a[1], off2a[2]) + dir2);
 
     float isect2[3];
+    /* Intersect the offset lines. */
     int isect_kind = isect_line_line_v3(off1a, off1b, off2a, off2b, meetco, isect2);
     if (isect_kind == 0) {
+      /* Lines are collinear: we already tested for this, but with a different epsilon. */
       copy_v3_v3(meetco, off1a);
     }
     else {
+      /* The lines intersect, but check that the intersection is at a reasonable place.
+       * One problem: if one of the offsets is 0, don't want an intersection outside that
+       * edge itself. This can happen if the angle between them is > 180 degrees, or if
+       * the offset amount is > the edge length. */
       int closer_v;
       if (e1->offset_r == 0.0f && is_outside_edge(emesh, e1, meetco, &closer_v)) {
         copy_v3_v3(meetco, emesh.vert_position(closer_v));
@@ -1146,7 +1172,9 @@ static void offset_meet(const ExtendableMesh &emesh,
         copy_v3_v3(meetco, emesh.vert_position(closer_v));
       }
       if (edges_between && e1->offset_r > 0.0f && e2->offset_l > 0.0f) {
+        /* Try to drop meetco to a face between e1 and e2. */
         if (isect_kind == 2) {
+          /* Lines didn't meet in 3D: get average of meetco and isect2. */
           mid_v3_v3v3(meetco, meetco, isect2);
         }
         for (EdgeHalf *e_loop = e1; e_loop != e2; e_loop = e_loop->next) {
@@ -1159,6 +1187,7 @@ static void offset_meet(const ExtendableMesh &emesh,
           plane_from_point_normal_v3(plane, v_co, no);
           float dropco[3];
           closest_to_plane_normalized_v3(dropco, plane, meetco);
+          /* Don't drop to faces next to the in-plane edge. */
           if (e_in_plane) {
             float ang = angle_v3v3(no, emesh.mesh.face_normals()[e_in_plane->fnext]);
             if ((math::abs(ang) < BEVEL_SMALL_ANG) ||
@@ -1190,6 +1219,7 @@ static bool offset_meet_edge(const ExtendableMesh &emesh,
   dir1 = math::normalize(dir1);
   dir2 = math::normalize(dir2);
 
+  /* Find angle from dir1 to dir2 as viewed from vertex normal side. */
   float ang = angle_normalized_v3v3(dir1, dir2);
   if (math::abs(ang) < BEVEL_EPSILON_ANG) {
     if (r_angle) {
@@ -1199,6 +1229,7 @@ static bool offset_meet_edge(const ExtendableMesh &emesh,
   }
   float3 fno = math::cross(dir1, dir2);
   if (math::dot(fno, emesh.mesh.vert_normals()[v]) < 0.0f) {
+    /* Angle is reflex. */
     ang = 2.0f * float(M_PI) - ang;
     if (r_angle) {
       *r_angle = ang;
@@ -1226,6 +1257,10 @@ static bool offset_meet_edge(const ExtendableMesh &emesh,
   return true;
 }
 
+/**
+ * Return true if it will look good to put the meeting point where #offset_on_edge_between
+ * would put it. This means neither side sees a reflex angle.
+ */
 static bool good_offset_on_edge_between(
     const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, EdgeHalf *emid, int v)
 {
@@ -1236,6 +1271,12 @@ static bool good_offset_on_edge_between(
          offset_meet_edge(emesh, emid, e2, v, meet, &ang);
 }
 
+/**
+ * Calculate the best place for a meeting point for the offsets from edges e1 and e2 on the
+ * in-between edge emid. Viewed from the vertex normal side, the CCW order of these edges is
+ * e1, emid, e2. Returns true if meetco was placed as a compromise between where two edges met.
+ * If so, puts the ratio of sines of the angles in *r_sinratio.
+ */
 static bool offset_on_edge_between(const ExtendableMesh &emesh,
                                    EdgeHalf *e1,
                                    EdgeHalf *e2,
@@ -2242,6 +2283,7 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
   EdgeHalf *e = efirst;
   float co[3];
   if (bv->edgecount == 2) {
+    /* Only 2 edges in, so terminate the edge with an artificial vertex on the unbeveled edge. */
     const float3 *no = e->fprev != -1 ?
                            &emesh.mesh.face_normals()[e->fprev] :
                            (e->fnext != -1 ? &emesh.mesh.face_normals()[e->fnext] : nullptr);
@@ -2265,6 +2307,7 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
     else {
       adjust_bound_vert(e->rightv, co);
     }
+    /* Make artificial extra point along unbeveled edge, and form triangle. */
     geom::slide_dist(emesh, e->next->e, bv->v, e->offset_l, co);
     if (construct) {
       BoundVert *bndv = add_new_bound_vert(bv, co);
@@ -2277,6 +2320,9 @@ static void build_boundary_terminal_edge(const ExtendableMesh &emesh,
     }
   }
   else {
+    /* More than 2 edges in. Put on-edge verts on all the other edges and join with the beveled
+     * edge to make a poly or adj mesh, because e->prev has offset 0 and offset_meet will put
+     * co on that edge. */
     geom::offset_meet(emesh, e->prev, e, bv->v, e->fprev, false, co, nullptr);
     if (construct) {
       BoundVert *bndv = add_new_bound_vert(bv, co);
@@ -2372,6 +2418,7 @@ static EdgeHalf *next_bev(BevVert *bv, EdgeHalf *from_e)
   return nullptr;
 }
 
+/* Is e between two faces with a (near) 180 degree angle between their normals? */
 static bool eh_on_plane(const ExtendableMesh &emesh, EdgeHalf *e)
 {
   if (e->fprev == -1 || e->fnext == -1) {
@@ -2383,6 +2430,8 @@ static bool eh_on_plane(const ExtendableMesh &emesh, EdgeHalf *e)
 
 enum AngleKind { ANGLE_SMALLER, ANGLE_STRAIGHT, ANGLE_LARGER };
 
+/* Return whether the angle swept from e1 to e2 around v is less than, equal to,
+ * or larger than 180 degrees. */
 static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, EdgeHalf *e2, int v)
 {
   int v1 = geom::edge_other_vert(emesh, e1->e, v);
@@ -2392,10 +2441,12 @@ static AngleKind edges_angle_kind(const ExtendableMesh &emesh, EdgeHalf *e1, Edg
   dir1 = math::normalize(dir1);
   dir2 = math::normalize(dir2);
 
+  /* First check for in-line edges using a simpler test. */
   if (math::abs(math::dot(dir1, dir2)) > geom::BEVEL_EPSILON_ANG_DOT) {
     return ANGLE_STRAIGHT;
   }
 
+  /* Angles are in [0, pi]. Need to compare cross product with normal to see if reflex. */
   float3 cross = math::normalize(math::cross(dir1, dir2));
   float3 no;
   if (e1->fnext != -1) {
@@ -2434,6 +2485,7 @@ static void build_boundary(const ExtendableMesh &emesh,
   BLI_assert(efirst->is_bev);
 
   if (bv->selcount == 1) {
+    /* Special case: only one beveled edge in. */
     build_boundary_terminal_edge(emesh, state, bv, efirst, construct);
     return;
   }
@@ -2442,14 +2494,23 @@ static void build_boundary(const ExtendableMesh &emesh,
   int miter_inner = 0 /*bp->miter_inner*/;
 
   EdgeHalf *emiter = nullptr;
+
+  /* There is more than one beveled edge.
+   * We make BoundVerts to connect the sides of the beveled edges.
+   * Non-beveled edges in between will just join to the appropriate juncture point. */
   EdgeHalf *e = efirst;
   EdgeHalf *e2;
   do {
     BLI_assert(e->is_bev);
     EdgeHalf *eon = nullptr;
-    int in_plane = 0;
+    /* Make the BoundVert for the right side of e; the other side will be made when the beveled
+     * edge to the left of e is handled.
+     * Analyze edges until next beveled edge: they are either "in plane" (preceding and subsequent
+     * faces are coplanar) or not. The "non-in-plane" edges affect the silhouette and we prefer
+     * to slide along one of those if possible. */
+    int in_plane = 0; /* Counts of in-plane / not-in-plane. */
     int not_in_plane = 0;
-    EdgeHalf *enip = nullptr;
+    EdgeHalf *enip = nullptr; /* Representatives of each type. */
     EdgeHalf *eip = nullptr;
     for (e2 = e->next; !e2->is_bev; e2 = e2->next) {
       if (eh_on_plane(emesh, e2)) {
@@ -2479,6 +2540,9 @@ static void build_boundary(const ExtendableMesh &emesh,
       }
     }
     else {
+      /* n_in_plane > 0 and n_not_in_plane == 0.
+       * Since all edges between e and e2 are in the same plane, treat this
+       * like the case where there are no edges between. */
       if (/*bp->loop_slide &&*/ in_plane == 1 &&
           geom::good_offset_on_edge_between(emesh, e, e2, eip, bv->v))
       {
@@ -2507,6 +2571,10 @@ static void build_boundary(const ExtendableMesh &emesh,
       }
       AngleKind ang_kind = edges_angle_kind(emesh, e, e2, bv->v);
 
+      /* Are we doing special mitering?
+       * There can only be one outer reflex angle, so only one outer miter,
+       * and emiter will be set to the first edge of such an edge.
+       * A miter kind of 0 (BEVEL_MITER_SHARP) means no special miter. */
       if ((miter_outer != 0 && !emiter && ang_kind == ANGLE_LARGER) ||
           (miter_inner != 0 && ang_kind == ANGLE_SMALLER))
       {
@@ -5704,7 +5772,9 @@ static void bevel_vert_construct(BevelState &state, int v)
 
   const ExtendableMesh &emesh = state.emesh;
 
-  /* Gather input selected edges.
+  /* Current bevel does nothing if only one edge into a vertex (handled below).
+   *
+   * Gather input selected edges.
    * Only bevel selected edges that have exactly two incident faces.
    * Want edges to be ordered so that they share faces.
    * There may be one or more chains of shared faces broken by
@@ -5794,6 +5864,8 @@ static void bevel_vert_construct(BevelState &state, int v)
   }
 
   if (tot_edges > 1) {
+    /* Test if the winding order of edges around the vertex is CCW as seen from the
+     * vertex normal side. If not, reverse the order and swap fprev/fnext on each EdgeHalf. */
     int ccw_test_sum = 0;
     for (int i = 0; i < tot_edges; i++) {
       ccw_test_sum += bev_ccw_test(
@@ -5812,6 +5884,7 @@ static void bevel_vert_construct(BevelState &state, int v)
     }
   }
 
+  /* Link the next/prev ring and compute offsets and seam flags for each EdgeHalf. */
   for (int i = 0; i < tot_edges; i++) {
     EdgeHalf *eh = &bv->edges[i];
     eh->next = &bv->edges[(i + 1) % tot_edges];
