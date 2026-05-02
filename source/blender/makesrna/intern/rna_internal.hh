@@ -15,6 +15,10 @@
 
 #include "DNA_listBase.h"
 
+#ifndef RNA_RUNTIME
+#  include "dna_parse.h"
+#endif
+
 #include "rna_internal_types.hh"
 
 #include "UI_resources.hh" /* IWYU pragma: export */
@@ -44,9 +48,9 @@ struct SDNA;
 struct Strip;
 struct ViewLayer;
 
-#ifndef RNA_RUNTIME
 /* Data structures used during define */
 
+#ifndef RNA_RUNTIME
 struct ContainerDefRNA {
   void *next, *prev;
 
@@ -79,11 +83,7 @@ struct PropertyDefRNA {
   StringRefNull dnatype;
   int dnaarraylength = 0;
   int dnapointerlevel = 0;
-  /**
-   * Offset in bytes within `dnastructname`.
-   * -1 when unusable (follows pointer for example). */
-  int dnaoffset = 0;
-  int dnasize = 0;
+  const void *dnadefaultdata = nullptr;
 
   /* for finding length of array collections */
   StringRefNull dnalengthstructname;
@@ -120,7 +120,6 @@ struct AllocDefRNA {
 #endif
 
 struct BlenderDefRNA {
-  struct SDNA *sdna = nullptr;
   struct StructRNA *laststruct = nullptr;
   bool error = false;
   bool silent = false;
@@ -131,6 +130,7 @@ struct BlenderDefRNA {
 
   /* Keep last. */
 #ifndef RNA_RUNTIME
+  Vector<dna::ParsedStruct> dna_structs;
   ListBaseT<StructDefRNA> structs = {};
   ListBaseT<AllocDefRNA> allocs = {};
 
