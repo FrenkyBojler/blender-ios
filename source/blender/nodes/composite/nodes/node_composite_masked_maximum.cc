@@ -36,6 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0.5f)
       .hide_value()
       .compositor_domain_priority(0)
+      .description("The input image")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Image"_ustr)
       .structure_type(StructureType::Dynamic)
@@ -45,8 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The integer coordinates of the pixel that was chosen during the operation")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Chosen Mask Value"_ustr)
-      .description(
-          "The value of the rounded square mask at the pixel that was chosen during the operation")
+      .description("The value of the mask at the pixel that was chosen during the operation")
       .structure_type(StructureType::Dynamic);
 
   b.add_input<decl::Bool>("Keep Seamless"_ustr)
@@ -54,22 +54,30 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "When enabled, the operation keeps the output image seamless for a seamless input "
           "image.");
+  b.add_input<decl::Float>("Base Mask"_ustr)
+      .default_value(1.0f)
+      .hide_value()
+      .compositor_domain_priority(1)
+      .description("The base mask")
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Mask Size"_ustr)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
-      .compositor_domain_priority(1)
+      .compositor_domain_priority(2)
       .description(
-          "Size from the center of the constant part of the rounded square mask to its "
-          "boundaries. If the Size value is negative in any dimension, an erosion is "
-          "performed instead of a dilation")
+          "Size from the center of the mask to its boundaries. If the Size value is negative in "
+          "any dimension, an erosion is performed instead of a dilation")
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Mask Roundness"_ustr)
       .default_value(0.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(2)
-      .description("Roundness of the rounded square mask")
+      .compositor_domain_priority(3)
+      .description(
+          "Roundness of the mask. Increasing this value makes the mask rounder by cutting off the "
+          "corners of the base mask. A value of 0 results in the entire base mask being used "
+          "while a value of 1 results in an circular cutout of the base mask being used")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &transform_panel =
@@ -77,14 +85,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   transform_panel.add_input<decl::Float>("Rotation"_ustr)
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
-      .compositor_domain_priority(3)
-      .description("Angle to rotate the rounded square mask by")
+      .compositor_domain_priority(4)
+      .description("Angle to rotate the mask by")
       .structure_type(StructureType::Dynamic);
   transform_panel.add_input<decl::Vector>("Translation"_ustr)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
-      .compositor_domain_priority(4)
-      .description("Translation of the rounded square mask")
+      .compositor_domain_priority(5)
+      .description("Translation of the mask")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_panel = b.add_panel("Mask Falloff"_ustr).default_closed(false);
@@ -93,15 +101,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(5)
-      .description(
-          "Maximal size of the falloff part of the rounded square mask starting at the edges of "
-          "its constant part. This is also an upper boundary to where the falloff gradient can "
-          "reach from a given pixel")
+      .compositor_domain_priority(6)
+      .description("How close the mask falloff starts from the edge of the mask")
       .structure_type(StructureType::Dynamic);
   falloff_panel.add_input<decl::Float>("Value Boundary"_ustr)
       .default_value(0.0f)
-      .compositor_domain_priority(6)
+      .compositor_domain_priority(7)
       .description(
           "Value that the falloff gradient may fall off to. When performing a dilation, Value "
           "Boundary is a lower boundary to the possible output image values. When performing an "
@@ -115,7 +120,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(7)
+      .compositor_domain_priority(8)
       .description(
           "Height of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a smoother falloff.")
@@ -125,7 +130,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(8)
+      .compositor_domain_priority(9)
       .description(
           "Width of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a rounder falloff")
@@ -135,7 +140,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(9)
+      .compositor_domain_priority(10)
       .description(
           "Position of the inflection midpoint of the elliptical step function, which is used to "
           "control the shape of the falloff. It controls how big the two elliptical segments are "
@@ -196,6 +201,9 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_image_tx");
 
+    const Result &input_base_mask = get_input("Base Mask");
+    input_base_mask.bind_as_texture(shader, "input_base_mask_tx");
+
     const Result &input_mask_size = get_input("Mask Size");
     input_mask_size.bind_as_texture(shader, "input_mask_size_tx");
 
@@ -239,6 +247,7 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
+    input_base_mask.unbind_as_texture();
     input_mask_size.unbind_as_texture();
     input_mask_roundness.unbind_as_texture();
     input_rotation.unbind_as_texture();
@@ -266,6 +275,7 @@ class MaskedMaximumOperation : public NodeOperation {
   {
     const bool keep_seamless = get_input("Keep Seamless").get_single_value_default<bool>();
     const Result &input_image = get_input("Image");
+    const Result &input_base_mask = get_input("Base Mask");
     const Result &input_mask_size = get_input("Mask Size");
     const Result &input_mask_roundness = get_input("Mask Roundness");
     const Result &input_rotation = get_input("Rotation");
