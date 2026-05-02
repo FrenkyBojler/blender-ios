@@ -43,10 +43,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
   b.add_output<decl::Vector>("Chosen Pixel"_ustr)
       .dimensions(2)
-      .description("The integer coordinates of the pixel that was chosen during the operation")
+      .description(
+          "The integer coordinates of the pixel of the input image that was chosen during the "
+          "operation")
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Chosen Mask Value"_ustr)
-      .description("The value of the mask at the pixel that was chosen during the operation")
+      .description(
+          "The value of the mask at the pixel of the input image that was chosen during the "
+          "operation")
       .structure_type(StructureType::Dynamic);
 
   b.add_input<decl::Bool>("Keep Seamless"_ustr)
@@ -202,6 +206,11 @@ class MaskedMaximumOperation : public NodeOperation {
     input_image.bind_as_texture(shader, "input_image_tx");
 
     const Result &input_base_mask = get_input("Base Mask");
+    GPU_texture_filter_mode(input_base_mask, false);
+    GPU_texture_extend_mode_x(input_base_mask,
+                              map_extension_mode_to_extend_mode(Extension::Extend));
+    GPU_texture_extend_mode_y(input_base_mask,
+                              map_extension_mode_to_extend_mode(Extension::Extend));
     input_base_mask.bind_as_texture(shader, "input_base_mask_tx");
 
     const Result &input_mask_size = get_input("Mask Size");
@@ -430,19 +439,30 @@ class MaskedMaximumOperation : public NodeOperation {
             pixel_coordinates_relative_to_mask_center = rotate_vector_2d(
                 pixel_coordinates_relative_to_mask_center, -rotation);
           }
-          float rounded_square_mask = compute_rounded_square_mask(
-              pixel_coordinates_relative_to_mask_center,
-              abs_mask_size,
-              mask_roundness,
-              hardness,
-              ellipse_height,
-              ellipse_width,
-              inflection_midpoint);
+          float2 uv_coordinates_relative_to_mask_bottom_left_corner = float2(
+              (abs_mask_size.x == 0.0f) ?
+                  0.0f :
+                  (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
+              (abs_mask_size.y == 0.0f) ?
+                  0.0f :
+                  (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
+          float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
+                                                         abs_mask_size,
+                                                         mask_roundness,
+                                                         hardness,
+                                                         ellipse_height,
+                                                         ellipse_width,
+                                                         inflection_midpoint) *
+                             input_base_mask.sample<float, true>(
+                                 uv_coordinates_relative_to_mask_bottom_left_corner,
+                                 Interpolation::Nearest,
+                                 Extension::Extend,
+                                 Extension::Extend);
 
           int2 image_sampling_coordinates = int2(
               math::floored_mod(pixel_coordinates, float2(domain.data_size)));
           float iteration_masked_maximum =
-              (rounded_square_mask *
+              (mask_value *
                ((is_dilate ? input_image.load_pixel_zero<float, true>(image_sampling_coordinates) :
                              (1.0f - input_image.load_pixel_zero<float, true>(
                                          image_sampling_coordinates))) -
@@ -455,7 +475,7 @@ class MaskedMaximumOperation : public NodeOperation {
                 math::dot(chosen_pixel_coordinates - float2(texel),
                           chosen_pixel_coordinates - float2(texel)))))
           {
-            chosen_mask_value = rounded_square_mask;
+            chosen_mask_value = mask_value;
             chosen_pixel_coordinates = pixel_coordinates;
             masked_maximum = iteration_masked_maximum;
           }
