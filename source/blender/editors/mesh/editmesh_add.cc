@@ -237,7 +237,7 @@ void MESH_OT_primitive_plane_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_plane_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -319,7 +319,7 @@ void MESH_OT_primitive_cube_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_cube_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -398,7 +398,7 @@ void MESH_OT_primitive_circle_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_circle_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -498,7 +498,7 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_cylinder_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -600,7 +600,7 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_cone_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -675,7 +675,7 @@ void MESH_OT_primitive_grid_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_grid_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -750,7 +750,7 @@ void MESH_OT_primitive_monkey_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_monkey_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -840,7 +840,7 @@ void MESH_OT_primitive_uv_sphere_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_uvsphere_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -928,7 +928,7 @@ void MESH_OT_primitive_ico_sphere_add(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = add_primitive_icosphere_exec;
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = ED_operator_scene_mesh_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

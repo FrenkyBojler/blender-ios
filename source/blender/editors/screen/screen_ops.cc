@@ -224,6 +224,12 @@ bool ED_operator_scene_editable(bContext *C)
   return true;
 }
 
+bool ED_operator_scene_mesh_editable(bContext *C)
+{
+  const eContextObjectMode mode = CTX_data_mode_enum(C);
+  return ED_operator_scene_editable(C) && ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH);
+}
+
 bool ED_operator_sequencer_scene_editable(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
