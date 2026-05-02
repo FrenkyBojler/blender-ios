@@ -456,6 +456,10 @@ void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, cons
   normalize_v3_v3(cache->view_normal, view_dir);
 
   cache->view_normal_symm = cache->view_normal;
+
+  cache->initial_normal = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
+  cache->initial_normal_symm = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
+
   cache->bstrength = BKE_brush_alpha_get(&vp.paint, brush);
   cache->is_last_valid = false;
 
