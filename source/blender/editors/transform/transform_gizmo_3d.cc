@@ -1810,7 +1810,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (ot_store.translate == nullptr) {
           ot_store.translate = WM_operatortype_find("TRANSFORM_OT_translate", true);
         }
-        if (ot_store.extra_translate == NULL) {
+        if (ot_store.extra_translate == nullptr) {
           switch (mode) {
             default:
               break;
@@ -1828,10 +1828,10 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         }
 
         if (ot_store.extra_translate) {
-          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_translate, NULL);
+          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_translate, nullptr);
         }
         if (ot_store.extra_translate2) {
-          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_store.extra_translate2, NULL);
+          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_store.extra_translate2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.translate, nullptr);
         break;
@@ -1843,7 +1843,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           if (ot_store.trackball == nullptr) {
             ot_store.trackball = WM_operatortype_find("TRANSFORM_OT_trackball", true);
           }
-          if (ot_store.extra_trackball == NULL) {
+          if (ot_store.extra_trackball == nullptr) {
             switch (mode) {
               default:
                 break;
@@ -1869,7 +1869,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           if (ot_store.rotate == nullptr) {
             ot_store.rotate = WM_operatortype_find("TRANSFORM_OT_rotate", true);
           }
-          if (ot_store.extra_rotate == NULL) {
+          if (ot_store.extra_rotate == nullptr) {
             switch (mode) {
               default:
                 break;
@@ -1892,10 +1892,10 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         }
 
         if (ot_rotate_extra) {
-          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_rotate_extra, NULL);
+          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_rotate_extra, nullptr);
         }
         if (ot_rotate_extra2) {
-          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_rotate_extra2, NULL);
+          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_rotate_extra2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_rotate, nullptr);
         break;
@@ -1904,7 +1904,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (ot_store.resize == nullptr) {
           ot_store.resize = WM_operatortype_find("TRANSFORM_OT_resize", true);
         }
-        if (ot_store.extra_resize == NULL) {
+        if (ot_store.extra_resize == nullptr) {
           switch (mode) {
             default:
               break;
@@ -1921,10 +1921,10 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
           }
         }
         if (ot_store.extra_resize) {
-          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_resize, NULL);
+          ptr_extra = WM_gizmo_operator_set(axis, 16, ot_store.extra_resize, nullptr);
         }
         if (ot_store.extra_resize2) {
-          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_store.extra_resize2, NULL);
+          ptr_extra2 = WM_gizmo_operator_set(axis, 15, ot_store.extra_resize2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.resize, nullptr);
         break;
@@ -1938,7 +1938,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         PointerRNA propptr = RNA_property_pointer_get(ptr_extra, prop);
         if (!propptr.data || !RNA_struct_is_a(propptr.type, RNA_OperatorProperties))
           continue;
-        PropertyRNA *constr = NULL;
+        PropertyRNA *constr = nullptr;
         if (ELEM(true, UNPACK3(constraint_axis))) {
           if ((constr = RNA_struct_find_property(&propptr, "constraint_axis"))) {
             RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
@@ -1956,7 +1956,7 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         PointerRNA propptr2 = RNA_property_pointer_get(ptr_extra2, prop);
         if (!propptr2.data || !RNA_struct_is_a(propptr2.type, RNA_OperatorProperties))
           continue;
-        PropertyRNA *constr = NULL;
+        PropertyRNA *constr = nullptr;
         if (ELEM(true, UNPACK3(constraint_axis))) {
           if ((constr = RNA_struct_find_property(&propptr2, "constraint_axis"))) {
             RNA_property_boolean_set_array(&propptr2, constr, constraint_axis);
