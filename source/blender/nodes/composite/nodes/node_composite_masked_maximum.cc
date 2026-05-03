@@ -99,7 +99,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Translation of the mask")
       .structure_type(StructureType::Dynamic);
 
-  PanelDeclarationBuilder &falloff_panel = b.add_panel("Mask Falloff"_ustr).default_closed(false);
+  PanelDeclarationBuilder &falloff_panel = b.add_panel("Mask Falloff"_ustr).default_closed(true);
   falloff_panel.add_input<decl::Float>("Hardness"_ustr)
       .default_value(1.0f)
       .min(0.0f)
@@ -199,18 +199,20 @@ class MaskedMaximumOperation : public NodeOperation {
                           output_chosen_mask_value.should_compute());
 
     GPU_shader_uniform_2iv(shader, "domain_data_size", domain.data_size);
+
+    const Result &input_base_mask = get_input("Base Mask");
+    GPU_shader_uniform_2iv(
+        shader, "input_base_mask_domain_data_size", input_base_mask.domain().data_size);
+
     GPU_shader_uniform_1b(
         shader, "keep_seamless", get_input("Keep Seamless").get_single_value_default<bool>());
 
     const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_image_tx");
 
-    const Result &input_base_mask = get_input("Base Mask");
     GPU_texture_filter_mode(input_base_mask, false);
-    GPU_texture_extend_mode_x(input_base_mask,
-                              map_extension_mode_to_extend_mode(Extension::Extend));
-    GPU_texture_extend_mode_y(input_base_mask,
-                              map_extension_mode_to_extend_mode(Extension::Extend));
+    GPU_texture_extend_mode_x(input_base_mask, map_extension_mode_to_extend_mode(Extension::Clip));
+    GPU_texture_extend_mode_y(input_base_mask, map_extension_mode_to_extend_mode(Extension::Clip));
     input_base_mask.bind_as_texture(shader, "input_base_mask_tx");
 
     const Result &input_mask_size = get_input("Mask Size");
@@ -441,11 +443,20 @@ class MaskedMaximumOperation : public NodeOperation {
           }
           float2 uv_coordinates_relative_to_mask_bottom_left_corner = float2(
               (abs_mask_size.x == 0.0f) ?
-                  0.0f :
+                  0.5f :
                   (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
               (abs_mask_size.y == 0.0f) ?
-                  0.0f :
+                  0.5f :
                   (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
+          /* Align uv_coordinates_relative_to_mask_bottom_left_corner with pixel centers. For this,
+           * uv_coordinates_relative_to_mask_bottom_left_corner is remapped from [0, 1] x [0, 1] to
+           * [0.5/base_mask_data_size.x, (base_mask_data_size.x-0.5)/base_mask_data_size.x] x
+           * [0.5/base_mask_data_size.y, (base_mask_data_size.y-0.5)/base_mask_data_size.y]. */
+          uv_coordinates_relative_to_mask_bottom_left_corner =
+              (uv_coordinates_relative_to_mask_bottom_left_corner *
+                   float2(input_base_mask.domain().data_size - int2(1, 1)) +
+               float2(0.5f, 0.5f)) /
+              float2(input_base_mask.domain().data_size);
           float mask_value = compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                                          abs_mask_size,
                                                          mask_roundness,
@@ -456,8 +467,8 @@ class MaskedMaximumOperation : public NodeOperation {
                              input_base_mask.sample<float, true>(
                                  uv_coordinates_relative_to_mask_bottom_left_corner,
                                  Interpolation::Nearest,
-                                 Extension::Extend,
-                                 Extension::Extend);
+                                 Extension::Clip,
+                                 Extension::Clip);
 
           int2 image_sampling_coordinates = int2(
               math::floored_mod(pixel_coordinates, float2(domain.data_size)));

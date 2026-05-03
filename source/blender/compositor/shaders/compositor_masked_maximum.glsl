@@ -324,11 +324,20 @@ void main()
       }
       float2 uv_coordinates_relative_to_mask_bottom_left_corner = float2(
           (abs_mask_size.x == 0.0f) ?
-              0.0f :
+              0.5f :
               (0.5f * (pixel_coordinates_relative_to_mask_center.x / abs_mask_size.x) + 0.5f),
           (abs_mask_size.y == 0.0f) ?
-              0.0f :
+              0.5f :
               (0.5f * (pixel_coordinates_relative_to_mask_center.y / abs_mask_size.y) + 0.5f));
+      /* Align uv_coordinates_relative_to_mask_bottom_left_corner with pixel centers. For this,
+       * uv_coordinates_relative_to_mask_bottom_left_corner is remapped from [0, 1] x [0, 1] to
+       * [0.5/base_mask_data_size.x, (base_mask_data_size.x-0.5)/base_mask_data_size.x] x
+       * [0.5/base_mask_data_size.y, (base_mask_data_size.y-0.5)/base_mask_data_size.y]. */
+      uv_coordinates_relative_to_mask_bottom_left_corner =
+          (uv_coordinates_relative_to_mask_bottom_left_corner *
+               float2(input_base_mask_domain_data_size - int2(1, 1)) +
+           float2(0.5f, 0.5f)) /
+          float2(input_base_mask_domain_data_size);
       float mask_value =
           compute_rounded_square_mask(pixel_coordinates_relative_to_mask_center,
                                       abs_mask_size,
