@@ -3090,7 +3090,7 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
 
 static wmOperatorStatus node_insert_offset_invoke(bContext *C,
                                                   wmOperator *op,
-                                                  const wmEvent *event)
+                                                  const wmEvent * /*event*/)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
   NodeInsertOfsData *iofsd = snode->runtime->iofsd;
