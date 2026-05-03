@@ -5553,7 +5553,7 @@ static void anim_channels_toggle_isolate(bAnimContext &ac, bAnimListElem *ale_se
                        &anim_data,
                        ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS,
                        ac.data,
-                       eAnimCont_Types(ac.datatype));
+                       ac.datatype);
 
   /* 2. Pass 1: Check the state of UNRELATED channels.
    * If we find visible unrelated items, we want to ISOLATE (hide them).
@@ -5652,7 +5652,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
                        &anim_data,
                        ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS,
                        ac.data,
-                       eAnimCont_Types(ac.datatype));
+                       ac.datatype);
 
   /* call API method to flush the setting */
   ANIM_flush_setting_anim_channels(
