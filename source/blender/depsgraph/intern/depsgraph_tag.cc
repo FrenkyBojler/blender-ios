@@ -606,8 +606,7 @@ NodeType geometry_tag_to_component(const ID *id)
     case ID_OB: {
       const Object *object = id_cast<Object *>(const_cast<ID *>(id));
       switch (object->type) {
-        /* Empties don't contain original geometry, but can have geometry nodes modifiers that
-         * create geometry. */
+        /* Empties don't contain original geometry, but can have evaluated geometry. */
         case OB_EMPTY:
         case OB_MESH:
         case OB_CURVES_LEGACY:
