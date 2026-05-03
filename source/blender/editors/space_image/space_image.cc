@@ -6,6 +6,8 @@
  * \ingroup spimage
  */
 
+#include <limits>
+
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_image_types.h"
 #include "DNA_mask_types.h"
@@ -661,8 +663,11 @@ static void image_main_region_set_view2d(SpaceImage *sima, ARegion *region)
   float x1 = region->winrct.xmin + (winx - sima->zoom * w) / 2.0f;
   float y1 = region->winrct.ymin + (winy - sima->zoom * h) / 2.0f;
 
-  x1 -= sima->zoom * sima->xof;
-  y1 -= sima->zoom * sima->yof;
+  /* Add half pixel offsets and corrective translation to match image drawing logic exactly, see
+   * compute_screen_space_to_sampler_space_transformation for reference. */
+  const float2 corrective_translation = float2(std::numeric_limits<float>::epsilon() * 10e3f);
+  x1 -= sima->zoom * (sima->xof + 0.5f - corrective_translation.x);
+  y1 -= sima->zoom * (sima->yof + 0.5f - corrective_translation.y);
 
   /* relative display right */
   region->v2d.cur.xmin = ((region->winrct.xmin - x1) / sima->zoom);
@@ -1240,7 +1245,7 @@ static void image_space_subtype_set(ScrArea *area, int value)
     if (sima->mode != SI_MODE_UV) {
       sima->mode_prev = sima->mode;
     }
-    sima->mode = value;
+    sima->mode = eSpaceImage_Mode(value);
   }
   else {
     sima->mode = sima->mode_prev;
