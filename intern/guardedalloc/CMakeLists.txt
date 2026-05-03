@@ -26,6 +26,7 @@ set(SRC
   ./intern/memory_usage.cc
 
   MEM_guardedalloc.h
+  MEM_safe_multiply.h
   ./intern/mallocn_inline.hh
   ./intern/mallocn_intern.hh
   ./intern/mallocn_intern_function_pointers.hh
