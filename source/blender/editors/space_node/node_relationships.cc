@@ -2963,6 +2963,7 @@ static void propagate_for_nodes(const Span<const bNode *> nodes,
 }
 
 static void shift_nodes(bNodeTree &tree,
+                        const bNode &toexclude_from_shift,
                         const bNode &start_node,
                         const bool left_to_right,
                         const float value)
@@ -2976,6 +2977,75 @@ static void shift_nodes(bNodeTree &tree,
   shift_mask[start_node.index()] = true;
   propagate_for_nodes(
       sorted_nodes.drop_front(sorted_nodes.first_index(&start_node)), left_to_right, shift_mask);
+
+  const auto first_parent_if = [](const bNode &node, auto &&func) -> const bNode * {
+    const bNode *node_iter = node.parent;
+    while (node_iter != nullptr) {
+      if (func(*node_iter)) {
+        return node_iter;
+      }
+      node_iter = node_iter->parent;
+    }
+    return nullptr;
+  };
+
+  Array<bool> frames_mask(nodes.size(), false);
+  threading::parallel_for(nodes.index_range(), 1024, [&](const IndexRange range) {
+    for (const int index : range) {
+      if (!shift_mask[index]) {
+        continue;
+      }
+
+      first_parent_if(*nodes[index], [&](const bNode &node) {
+        const int index = node.index();
+        if (frames_mask[index]) {
+          return true;
+        }
+
+        frames_mask[index] = true;
+        return false;
+      });
+    }
+  });
+
+  first_parent_if(toexclude_from_shift, [&](const bNode &node) {
+    const int index = node.index();
+    frames_mask[index] = false;
+    return false;
+  });
+
+  threading::parallel_for(nodes.index_range(), 1024, [&](const IndexRange range) {
+    for (const int index : range) {
+      if (frames_mask[index]) {
+        continue;
+      }
+
+      const bNode *first_parent = first_parent_if(
+          *nodes[index], [&](const bNode &node) { return frames_mask[node.index()]; });
+      if (first_parent == nullptr) {
+        continue;
+      }
+
+      first_parent_if(*nodes[index], [&](const bNode &node) {
+        const int index = node.index();
+        if (frames_mask[index]) {
+          return true;
+        }
+        frames_mask[index] = true;
+        return false;
+      });
+    }
+  });
+
+  threading::parallel_for(shift_mask.index_range(), 1024, [&](const IndexRange range) {
+    for (const int index : range) {
+      const bNode &node = *nodes[index];
+      if (node.parent == nullptr) {
+        continue;
+      }
+      shift_mask[index] |= frames_mask[node.parent->index()];
+    }
+  });
 
   threading::parallel_for(shift_mask.index_range(), 1024, [&](const IndexRange range) {
     for (const int index : range) {
@@ -3020,6 +3090,7 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool r
 
   if (need_offset_side) {
     shift_nodes(ntree,
+                insert,
                 right_alignment ? next : prev,
                 right_alignment,
                 shift_sign * side_offset / UI_SCALE_FAC);
