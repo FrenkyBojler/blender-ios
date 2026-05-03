@@ -2993,6 +2993,8 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool r
   bNode &prev = *iofsd->prev;
   bNode &next = *iofsd->next;
 
+  ntree.ensure_topology_cache();
+
   /* `insert.draw_bounds` isn't updated yet,
    * so `totr_insert` is used to get the correct world-space coords. */
   rctf totr_insert;
