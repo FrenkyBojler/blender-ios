@@ -1933,8 +1933,9 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
 
     if (ptr_extra) {
       RNA_STRUCT_BEGIN (ptr_extra, prop) {
-        if (RNA_property_type(prop) != PROP_POINTER)
+        if (RNA_property_type(prop) != PROP_POINTER) {
           continue;
+        }
         PointerRNA propptr = RNA_property_pointer_get(ptr_extra, prop);
         if (!propptr.data || !RNA_struct_is_a(propptr.type, RNA_OperatorProperties))
           continue;
@@ -1944,8 +1945,9 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
             RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
           }
         }
-        if (constr)
+        if (constr) {
           RNA_boolean_set(&propptr, "release_confirm", 1);
+        }
       }
       RNA_STRUCT_END;
     }
