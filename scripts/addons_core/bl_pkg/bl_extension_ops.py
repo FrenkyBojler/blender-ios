@@ -3730,8 +3730,9 @@ class EXTENSIONS_OT_package_mark_clear_all(Operator):
 
 
 class EXTENSIONS_OT_package_show_set(Operator):
+    """Display information for this add-on"""
     bl_idname = "extensions.package_show_set"
-    bl_label = "Show Package Set"
+    bl_label = ""
 
     pkg_id: rna_prop_pkg_id
     repo_index: rna_prop_repo_index
@@ -3744,8 +3745,9 @@ class EXTENSIONS_OT_package_show_set(Operator):
 
 
 class EXTENSIONS_OT_package_show_clear(Operator):
+    """Display information for this add-on"""
     bl_idname = "extensions.package_show_clear"
-    bl_label = "Show Package Clear"
+    bl_label = ""
 
     pkg_id: rna_prop_pkg_id
     repo_index: rna_prop_repo_index
