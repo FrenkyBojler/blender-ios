@@ -3190,7 +3190,8 @@ static Object *convert_curves_component_to_curves(Base &base,
                                                   ObjectConversionInfo &info,
                                                   Base **r_new_base)
 {
-  Object *ob = base.object, *newob = nullptr;
+  Object *ob = base.object;
+  Object *newob = nullptr;
   ob->flag |= OB_DONE;
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
@@ -3229,7 +3230,8 @@ static Object *convert_pointcloud_component_to_pointcloud(Base &base,
                                                           ObjectConversionInfo &info,
                                                           Base **r_new_base)
 {
-  Object *ob = base.object, *newob = nullptr;
+  Object *ob = base.object;
+  Object *newob = nullptr;
   ob->flag |= OB_DONE;
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
@@ -3269,7 +3271,8 @@ static Object *convert_mesh_component_to_mesh(Base &base,
                                               ObjectConversionInfo &info,
                                               Base **r_new_base)
 {
-  Object *ob = base.object, *newob = nullptr;
+  Object *ob = base.object;
+  Object *newob = nullptr;
   ob->flag |= OB_DONE;
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
@@ -3307,7 +3310,8 @@ static Object *convert_grease_pencil_component_to_grease_pencil(Base &base,
                                                                 ObjectConversionInfo &info,
                                                                 Base **r_new_base)
 {
-  Object *ob = base.object, *newob = nullptr;
+  Object *ob = base.object;
+  Object *newob = nullptr;
   ob->flag |= OB_DONE;
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
