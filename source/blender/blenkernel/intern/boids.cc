@@ -38,7 +38,7 @@
 #include "RNA_enum_types.hh"
 
 namespace blender {
-static auto len_squared_v3v3_with_normal_bias(const float3 &normal)
+static auto len_squared_v3v3_with_normal_bias_fn(const float3 &normal)
 {
   return [=](const float3 &co_search, const float3 &co_test) -> float {
     float d[3], dist;
@@ -292,7 +292,7 @@ static bool rule_avoid_collision(BoidRule *rule,
         pa->prev_state.co,
         &ptn,
         acbr->look_ahead * len_v3(pa->prev_state.vel),
-        len_squared_v3v3_with_normal_bias(float3(pa->prev_state.ave)));
+        len_squared_v3v3_with_normal_bias_fn(float3(pa->prev_state.ave)));
     if (neighbors > 1) {
       for (n = 1; n < neighbors; n++) {
         copy_v3_v3(co1, pa->prev_state.co);
@@ -346,7 +346,7 @@ static bool rule_avoid_collision(BoidRule *rule,
           pa->prev_state.co,
           &ptn,
           acbr->look_ahead * len_v3(pa->prev_state.vel),
-          len_squared_v3v3_with_normal_bias(float3(pa->prev_state.ave)));
+          len_squared_v3v3_with_normal_bias_fn(float3(pa->prev_state.ave)));
 
       if (neighbors > 0) {
         for (n = 0; n < neighbors; n++) {
@@ -454,7 +454,7 @@ static bool rule_flock(BoidRule * /*rule*/,
       pa->state.co,
       ptn,
       ARRAY_SIZE(ptn),
-      len_squared_v3v3_with_normal_bias(float3(pa->prev_state.ave)));
+      len_squared_v3v3_with_normal_bias_fn(float3(pa->prev_state.ave)));
   int n;
   bool ret = false;
 
