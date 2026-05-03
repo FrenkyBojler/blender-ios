@@ -759,8 +759,14 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
           info.name_ += "_volume";
           break;
         case MAT_PIPE_CAPTURE:
-          pipeline_info_name = "eevee_surf_capture";
+          pipeline_info_name = "eevee_surf_capture_infos_";
           info.name_ += "_capture";
+          info.define("MAT_CAPTURE");
+          info.define("closure_to_rgba", "closure_to_rgba_capture");
+          /* Until every vertex shader are ported, we need to bridge the gap here by defining the
+           * pipeline. */
+          info.fragment_source("eevee_surf_capture.bsl.hh");
+          info.fragment_function("eevee_surf_capture");
           break;
         case MAT_PIPE_DEFERRED:
           if (use_shader_to_rgba) {
