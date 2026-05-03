@@ -195,7 +195,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
 
   wm->xr.runtime = nullptr;
 
-  wm->init_flag = 0;
+  wm->init_flag = eWM_InitFlag{};
   wm->op_undo_depth = 0;
   wm->extensions_updates = WM_EXTENSIONS_UPDATE_UNSET;
   wm->extensions_blocked = 0;
@@ -361,8 +361,8 @@ void WM_operator_stack_clear(wmWindowManager *wm, const Set<wmOperatorType *> &t
   bool any_removed = false;
   for (wmOperator &op : wm->runtime->operators.items_mutable()) {
     if (types.contains(op.type)) {
-      WM_operator_free(&op);
       BLI_remlink(&wm->runtime->operators, &op);
+      WM_operator_free(&op);
       any_removed = true;
     }
   }

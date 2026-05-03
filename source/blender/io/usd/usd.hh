@@ -183,7 +183,7 @@ struct USDImportParams {
   float light_intensity_scale;
   bool apply_unit_conversion_scale;
 
-  char mesh_read_flag;
+  MeshSeqCacheModifierReadFlag mesh_read_flag;
   bool set_frame_range;
   bool is_sequence;
   int sequence_len;
@@ -251,7 +251,7 @@ bool USD_export(const bContext *C,
                 bool as_background_job,
                 ReportList *reports);
 
-bool USD_import(const bContext *C,
+bool USD_import(bContext *C,
                 const char *filepath,
                 const USDImportParams *params,
                 bool as_background_job,

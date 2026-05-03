@@ -1025,7 +1025,7 @@ static float fcm_smooth_frame(const FCurve *fcu,
   float total_weighted_value = 0.0f;
   float total_weight = 0.0f;
 
-  /* Define sampling window around the frame using the filder width. */
+  /* Define sampling window around the frame using the filter width. */
   const int start_frame = floorf(evaltime - filter_width);
   const int end_frame = ceilf(evaltime + filter_width);
 
@@ -1200,7 +1200,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
 
   /* add modifier itself */
   fcm = MEM_new<FModifier>("F-Curve Modifier");
-  fcm->type = type;
+  fcm->type = eFModifier_Types(type);
   fcm->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT; /* Expand the main panel, not the sub-panels. */
   fcm->curve = owner_fcu;
   fcm->influence = 1.0f;

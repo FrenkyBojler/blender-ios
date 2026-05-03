@@ -187,7 +187,7 @@ class Context : public compositor::Context {
         float *data = MEM_new_array_uninitialized<float>(
             4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
         IMB_assign_float_buffer(image_buffer, data, IB_TAKE_OWNERSHIP);
-        std::memcpy(image_buffer->float_buffer.data,
+        std::memcpy(image_buffer->float_data_for_write(),
                     result.cpu_data().data(),
                     render_result->rectx * render_result->recty * 4 * sizeof(float));
       }
@@ -260,7 +260,7 @@ class Context : public compositor::Context {
       IMB_free_gpu_textures(image_buffer);
 
       /* Allocate float buffer if not using GPU and no float buffer exists. */
-      if (!image_buffer->float_buffer.data) {
+      if (!image_buffer->float_data()) {
         IMB_alloc_float_pixels(image_buffer, 4, false);
       }
     }
@@ -281,7 +281,7 @@ class Context : public compositor::Context {
         IMB_rectfill(image_buffer, viewer_result.get_single_value<compositor::Color>());
       }
       else {
-        std::memcpy(image_buffer->float_buffer.data,
+        std::memcpy(image_buffer->float_data_for_write(),
                     viewer_result.cpu_data().data(),
                     size.x * size.y * 4 * sizeof(float));
       }
@@ -294,6 +294,9 @@ class Context : public compositor::Context {
       copy_v2_v2_int(image_buffer->display_size, viewer_result.domain().display_size);
       copy_v2_v2_int(image_buffer->display_offset, display_offset);
       copy_v2_v2_int(image_buffer->data_offset, viewer_result.domain().data_offset);
+    }
+    else {
+      image_buffer->flags &= ~IB_has_display_window;
     }
 
     BKE_image_partial_update_mark_full_update(image);
@@ -313,7 +316,7 @@ class Context : public compositor::Context {
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
-      realize_input.wrap_external(viewer_result);
+      realize_input.share_data(viewer_result);
       realization_operation->map_input_to_result(&realize_input);
       realization_operation->evaluate();
 
@@ -426,7 +429,7 @@ class Context : public compositor::Context {
       return this->get_invalid_pass();
     }
 
-    if (!render_pass || !render_pass->ibuf || !render_pass->ibuf->float_buffer.data) {
+    if (!render_pass || !render_pass->ibuf || !render_pass->ibuf->float_data()) {
       return this->get_invalid_pass();
     }
 
@@ -437,14 +440,14 @@ class Context : public compositor::Context {
       gpu::Texture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
       /* Don't assume render will keep pass data stored, add our own reference. */
       GPU_texture_ref(pass_texture);
-      pass_data.wrap_external(pass_texture);
+      pass_data.share_data(pass_texture);
       cached_gpu_passes_.append(pass_texture);
     }
     else {
       /* Don't assume render will keep pass data stored, add our own reference. */
       IMB_refImBuf(render_pass->ibuf);
-      pass_data.wrap_external(render_pass->ibuf->float_buffer.data,
-                              int2(render_pass->ibuf->x, render_pass->ibuf->y));
+      pass_data.share_data(render_pass->ibuf->float_data_for_write(),
+                           int2(render_pass->ibuf->x, render_pass->ibuf->y));
       cached_cpu_passes_.append(render_pass->ibuf);
     }
 
@@ -454,14 +457,16 @@ class Context : public compositor::Context {
       compositor::ConversionOperation conversion_operation(*this, pass_data.type(), pass.type());
       conversion_operation.map_input_to_result(&pass_data);
       conversion_operation.evaluate();
-      pass.steal_data(conversion_operation.get_result());
+      pass.share_data(conversion_operation.get_result());
+      conversion_operation.get_result().release();
     }
     else {
-      pass.steal_data(pass_data);
+      pass.share_data(pass_data);
+      pass_data.release();
     }
 
     /* We assume the given pass is a Cryptomatte pass and retrieve its layer name. If it wasn't a
-     * Cryptomatte pass, the checks below will fail anyways. */
+     * Cryptomatte pass, the checks below will fail anyway. */
     const std::string combined_pass_name = std::string(view_layer->name) + "." + pass_name;
     StringRef cryptomatte_layer_name = bke::cryptomatte::BKE_cryptomatte_extract_layer_name(
         combined_pass_name);
@@ -511,7 +516,7 @@ class Context : public compositor::Context {
   {
     switch (input_data_.scene->r.compositor_precision) {
       case SCE_COMPOSITOR_PRECISION_AUTO:
-        /* Auto uses full precision for final renders and half procession otherwise. */
+        /* Auto uses full precision for final renders and half precision otherwise. */
         if (this->render_context()) {
           return compositor::ResultPrecision::Full;
         }
@@ -574,12 +579,15 @@ class Context : public compositor::Context {
 
     /* Set the reference count for the outputs, only the first color output is actually needed,
      * while the rest are ignored. */
+    const bool is_group_output_needed = flag_is_set(needed_outputs,
+                                                    NodeGroupOutputTypes::GroupOutputNode);
     node_group.ensure_interface_cache();
     for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-      const bool is_fisrt_output = output_socket == node_group.interface_outputs().first();
+      const bool is_first_output = output_socket == node_group.interface_outputs().first();
       Result &output_result = node_group_operation.get_result(output_socket->identifier);
       const bool is_color = output_result.type() == ResultType::Color;
-      output_result.set_reference_count(is_fisrt_output && is_color ? 1 : 0);
+      const bool is_needed = is_group_output_needed && is_first_output && is_color;
+      output_result.set_reference_count(is_needed ? 1 : 0);
     }
 
     /* Map the inputs to the operation. */

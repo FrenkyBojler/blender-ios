@@ -49,7 +49,7 @@ enum eSDNA_Type {
   SDNA_TYPE_UINT64 = 11,
   SDNA_TYPE_INT8 = 12,
   /**
-   * Type used for untyped raw bytes buffers (written by #BLO_write_raw and read by
+   * Type used for untyped raw bytes buffers (written by #BlendWriter::write_raw and read by
    * #BLO_read_data_address).
    *
    * Technically, it also covers all 'raw data' types above.
@@ -81,10 +81,10 @@ struct SDNA *DNA_sdna_from_data(
 void DNA_sdna_free(struct SDNA *sdna);
 
 /* Access for current Blender versions SDNA. */
-void DNA_sdna_current_init(void);
+void DNA_sdna_current_init();
 /* borrowed reference */
-const struct SDNA *DNA_sdna_current_get(void);
-void DNA_sdna_current_free(void);
+const struct SDNA *DNA_sdna_current_get();
+void DNA_sdna_current_free();
 
 struct DNA_ReconstructInfo;
 /**

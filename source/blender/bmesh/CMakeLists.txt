@@ -17,6 +17,7 @@ set(SRC
   operators/bmo_bevel.cc
   operators/bmo_bisect_plane.cc
   operators/bmo_bridge.cc
+  operators/bmo_circularize.cc
   operators/bmo_connect.cc
   operators/bmo_connect_concave.cc
   operators/bmo_connect_nonplanar.cc
@@ -30,6 +31,7 @@ set(SRC
   operators/bmo_fill_edgeloop.cc
   operators/bmo_fill_grid.cc
   operators/bmo_fill_holes.cc
+  operators/bmo_flatten.cc
   operators/bmo_hull.cc
   operators/bmo_inset.cc
   operators/bmo_join_triangles.cc

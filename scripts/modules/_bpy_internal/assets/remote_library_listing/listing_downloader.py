@@ -51,6 +51,14 @@ logger = logging.getLogger(__name__)
 # is used.
 HTTP_CACHEBUST_RESOLUTION_SEC = 60
 
+# JSON files that are larger than this size will not be parsed. This prevents a
+# malicious server from effectively DOSsing Blender by sending it a huge JSON file.
+#
+# This is the size in MiB. The largest files in the remote asset listing are the
+# `assets-{number}.json` files. The server determines how large they are, but
+# typically they are in the order of 1 MB.
+MAX_JSON_FILE_SIZE_MB = 64
+
 
 class RemoteAssetListingLocator:
     """Construct paths for various components of a remote asset library.
@@ -264,6 +272,7 @@ class RemoteAssetListingDownloader:
                     'X-Blender': "{:d}.{:d}".format(*bpy.app.version),
                 },
                 timeout=300,
+                max_size_bytes=MAX_JSON_FILE_SIZE_MB * 1024 * 1024,
             ),
             on_callback_error=self._on_callback_error,
         )
@@ -390,7 +399,7 @@ class RemoteAssetListingDownloader:
         self._num_asset_pages_pending = len(pages)
         for page_index, page_url_w_hash in enumerate(pages):
             # These URLs may be absolute or they may be relative. In any case,
-            # do not assume that they can be used direclty as local filesystem path.
+            # do not assume that they can be used directly as local filesystem path.
             local_path = listing_common.api_versioned(f"assets-{page_index:05}.json")
             download_to = self._queue_download(
                 page_url_w_hash,
@@ -455,7 +464,7 @@ class RemoteAssetListingDownloader:
 
         self.report({'INFO'}, "Asset library index downloaded")
 
-        # Update the mtime of the top metadata file, so that that can be used as
+        # Update the mtime of the top metadata file, so that it can be used as
         # an indicator of how new the files are. This is only done after the
         # last page has been downloaded.
         #
@@ -503,8 +512,11 @@ class RemoteAssetListingDownloader:
             if file_path == sanitized_path:
                 continue
 
-            print(("Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}").format(
-                json_path=json_path, file_path=file_path, report=report))
+            print((
+                "Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}"
+            ).format(
+                json_path=json_path, file_path=file_path, report=report,
+            ))
 
             bad_path = file.path
             file.path = sanitized_path.as_posix()
@@ -585,6 +597,11 @@ class RemoteAssetListingDownloader:
             used_unsafe_file = False
 
         logger.info("Validating %s", path_to_load)
+
+        if path_to_load.stat().st_size > MAX_JSON_FILE_SIZE_MB * 1024 * 1024:
+            raise ValueError("{!s} is larger than {!d} MiB, rejecting the file to prevent memory issues".format(
+                path_to_load, MAX_JSON_FILE_SIZE_MB))
+
         json_data = path_to_load.read_bytes()
         parsed_data = self._parser.parse_and_validate(api_model, json_data)
 
@@ -756,7 +773,7 @@ class RemoteAssetListingDownloader:
 def _sanitize_path_from_url(urlpath: PurePath | str) -> PurePosixPath:
     """Safely convert some path (assumed from a URL) to a relative path.
 
-    URL-unquoting and unicode normalisation is only done when `urlpath` is a `str`.
+    URL-unquoting and unicode normalization is only done when ``urlpath`` is a ``str``.
 
     Directory up-references ('/../') are removed.
     """

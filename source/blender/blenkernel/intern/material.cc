@@ -283,12 +283,23 @@ void BKE_gpencil_material_attr_init(Material *ma)
     MaterialGPencilStyle *gp_style = ma->gp_style;
     /* set basic settings */
     gp_style->stroke_rgba[3] = 1.0f;
-    gp_style->fill_rgba[3] = 0.0f;
+    gp_style->fill_rgba[3] = 1.0f;
     ARRAY_SET_ITEMS(gp_style->mix_rgba, 1.0f, 1.0f, 1.0f, 1.0f);
     ARRAY_SET_ITEMS(gp_style->texture_scale, 1.0f, 1.0f);
     gp_style->texture_offset[0] = -0.5f;
     gp_style->texture_pixsize = 100.0f;
     gp_style->mix_factor = 0.5f;
+    gp_style->placement_mode = GP_MATERIAL_PLACEMENT_RADIUS;
+    gp_style->placement_count = 1;
+    gp_style->placement_density = 10.0f;
+    gp_style->placement_radius_spacing = 100.0f;
+    gp_style->random_size_factor = 0.0f;
+    gp_style->random_strength_factor = 0.0f;
+    gp_style->random_rotation_factor = 0.0f;
+    gp_style->random_hue_factor = 0.0f;
+    gp_style->random_saturation_factor = 0.0f;
+    gp_style->random_value_factor = 0.0f;
+    gp_style->random_noise_scale = 1.0f;
   }
 }
 

@@ -22,7 +22,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_assert.h"
 #include "BLI_bounds.hh"
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.hh"
@@ -91,7 +91,7 @@ struct GreasePencilPaintStroke final : public PaintStroke {
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
   void redraw(bool final) override;
   bool test_cancel() override;
-  void done(bool is_cancel) override;
+  void done(bool is_cancel, bool stroke_started) override;
 };
 
 bool GreasePencilPaintStroke::get_location(float out[3],
@@ -229,7 +229,7 @@ bool GreasePencilPaintStroke::test_cancel()
   return false;
 }
 
-void GreasePencilPaintStroke::done(bool /*is_cancel*/)
+void GreasePencilPaintStroke::done(bool /*is_cancel*/, bool /*stroke_started*/)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       mode_data_.get());
@@ -325,7 +325,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
 static void grease_pencil_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
@@ -434,7 +434,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
 static void grease_pencil_sculpt_paint_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_sculpt_paint(wmOperatorType *ot)
@@ -532,7 +532,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_modal(bContext *C,
 static void grease_pencil_weight_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_weight_brush_stroke(wmOperatorType *ot)
@@ -641,7 +641,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext *C,
 static void grease_pencil_vertex_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  stroke->cancel(C, op);
+  stroke->cancel(C);
 }
 
 static void GREASE_PENCIL_OT_vertex_brush_stroke(wmOperatorType *ot)
@@ -1498,11 +1498,13 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       continue;
     }
 
-    /* Combine the strokes into a single fill with the same fill ID. */
-    bke::SpanAttributeWriter<int> fill_ids =
-        fill_curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-            "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
-    fill_ids.finish();
+    bke::MutableAttributeAccessor attributes = fill_curves.attributes_for_write();
+
+    /* Combine strokes into a single fill with the same fill ID. */
+    attributes.add<int>("fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
+
+    /* Only create fills. Users can change the appearance however they please afterwards. */
+    attributes.add<bool>("hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
     smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
@@ -1733,12 +1735,12 @@ static wmOperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
       break;
 
     case int(FillToolModalKey::ExtensionLengthen):
-      op_data.extension_length = std::max(op_data.extension_length - extension_delta, 0.0f);
+      op_data.extension_length = op_data.extension_length + extension_delta;
       grease_pencil_update_extend(*C, op_data);
       break;
 
     case int(FillToolModalKey::ExtensionShorten):
-      op_data.extension_length = std::min(op_data.extension_length + extension_delta, 10.0f);
+      op_data.extension_length = std::max(op_data.extension_length - extension_delta, 0.0f);
       grease_pencil_update_extend(*C, op_data);
       break;
 
@@ -1818,7 +1820,7 @@ static wmOperatorStatus grease_pencil_fill_modal(bContext *C, wmOperator *op, co
         const float current_dist = math::distance(mouse_pos, op_data.fill_mouse_pos);
 
         float delta = (current_dist - initial_dist) * pixel_size * 0.5f;
-        op_data.extension_length = std::clamp(op_data.extension_length + delta, 0.0f, 10.0f);
+        op_data.extension_length = std::max(op_data.extension_length + delta, 0.0f);
 
         /* Update cursor line and extend lines. */
         WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
