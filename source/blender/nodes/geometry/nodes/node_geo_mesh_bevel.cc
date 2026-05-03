@@ -120,47 +120,77 @@ static void node_geo_exec(GeoNodeExecParams params)
     bevel_params.segments = segments;
     bevel_params.shape = params.extract_input<float>("Shape"_ustr);
     const int ne = src_mesh->edges_num;
-    bevel_params.offsets = {
-        Array<float>(ne), Array<float>(ne), Array<float>(ne), Array<float>(ne)};
 
-    const bke::MeshFieldContext edge_context(*src_mesh, AttrDomain::Edge);
-    FieldEvaluator edge_evaluator{edge_context, src_mesh->edges_num};
-    edge_evaluator.add(selection_field);
-    edge_evaluator.add_with_destination(offset0_field, bevel_params.offsets[0].as_mutable_span());
-    edge_evaluator.add_with_destination(offset1_field, bevel_params.offsets[1].as_mutable_span());
-    edge_evaluator.add_with_destination(offset2_field, bevel_params.offsets[2].as_mutable_span());
-    edge_evaluator.add_with_destination(offset3_field, bevel_params.offsets[3].as_mutable_span());
-    edge_evaluator.evaluate();
-    const IndexMask selection = edge_evaluator.get_evaluated_as_mask(0);
-    if (selection.is_empty()) {
-      return;
+    /* Shared logic executed after the selection/offset evaluator (and its lifetime) is set up.
+     * The `selection` reference must not outlive `evaluator`. */
+    auto run_bevel = [&](const IndexMask &selection) {
+      if (selection.is_empty()) {
+        return;
+      }
+
+      const bke::MeshFieldContext corner_context(*src_mesh, AttrDomain::Corner);
+      FieldEvaluator corner_evaluator{corner_context, src_mesh->corners_num};
+      /* TODO: make this more efficient in usual case of no miters. */
+      bevel_params.miter = Array<bool>(src_mesh->corners_num);
+      bevel_params.spread = Array<float>(src_mesh->corners_num);
+      corner_evaluator.add_with_destination(miter_field, bevel_params.miter.as_mutable_span());
+      corner_evaluator.add_with_destination(spread_field, bevel_params.spread.as_mutable_span());
+      corner_evaluator.evaluate();
+
+      bevel_params.attribute_outputs.vertex_face_id =
+          params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
+      bevel_params.attribute_outputs.edge_face_id =
+          params.get_output_anonymous_attribute_id_if_needed("Edge Face"_ustr);
+      bevel_params.attribute_outputs.outer_edge_id =
+          params.get_output_anonymous_attribute_id_if_needed("Outer Edge"_ustr);
+      bevel_params.attribute_outputs.mid_edge_id =
+          params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
+
+      std::optional<Mesh *> mesh = geometry::mesh_bevel(
+          *src_mesh, selection, bevel_params, attribute_filter);
+      if (!mesh) {
+        return;
+      }
+      geometry_set.replace_mesh(*mesh);
+    };
+
+
+    if (affect == geometry::BevelAffect::Vertices) {
+      /* Vertex bevel: selection and offset0 are per-vertex.
+       * offsets[0][v] is the slide distance at vertex v; offsets[1..3] are unused. */
+      const int nv = src_mesh->verts_num;
+      bevel_params.offsets = {Array<float>(nv), Array<float>(0), Array<float>(0), Array<float>(0)};
+
+      const bke::MeshFieldContext vert_context(*src_mesh, AttrDomain::Point);
+      FieldEvaluator vert_evaluator{vert_context, nv};
+      vert_evaluator.add(selection_field);
+      vert_evaluator.add_with_destination(offset0_field, bevel_params.offsets[0].as_mutable_span());
+      vert_evaluator.evaluate();
+
+      /* Pass to run_bevel while vert_evaluator is still alive. */
+      run_bevel(vert_evaluator.get_evaluated_as_mask(0));
     }
+    else {
+      /* Edge bevel: selection and all four offsets are per-edge. */
+      bevel_params.offsets = {
+          Array<float>(ne), Array<float>(ne), Array<float>(ne), Array<float>(ne)};
 
-    const bke::MeshFieldContext corner_context(*src_mesh, AttrDomain::Corner);
-    FieldEvaluator corner_evaluator{corner_context, src_mesh->corners_num};
-    /* TODO: make this more efficient in usual case of no miters. */
-    bevel_params.miter = Array<bool>(src_mesh->corners_num);
-    bevel_params.spread = Array<float>(src_mesh->corners_num);
-    corner_evaluator.add_with_destination(miter_field, bevel_params.miter.as_mutable_span());
-    corner_evaluator.add_with_destination(spread_field, bevel_params.spread.as_mutable_span());
-    corner_evaluator.evaluate();
+      const bke::MeshFieldContext edge_context(*src_mesh, AttrDomain::Edge);
+      FieldEvaluator edge_evaluator{edge_context, ne};
+      edge_evaluator.add(selection_field);
+      edge_evaluator.add_with_destination(
+          offset0_field, bevel_params.offsets[0].as_mutable_span());
+      edge_evaluator.add_with_destination(
+          offset1_field, bevel_params.offsets[1].as_mutable_span());
+      edge_evaluator.add_with_destination(
+          offset2_field, bevel_params.offsets[2].as_mutable_span());
+      edge_evaluator.add_with_destination(
+          offset3_field, bevel_params.offsets[3].as_mutable_span());
+      edge_evaluator.evaluate();
 
-    bevel_params.attribute_outputs.vertex_face_id =
-        params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
-    bevel_params.attribute_outputs.edge_face_id =
-        params.get_output_anonymous_attribute_id_if_needed("Edge Face"_ustr);
-    bevel_params.attribute_outputs.outer_edge_id =
-        params.get_output_anonymous_attribute_id_if_needed("Outer Edge"_ustr);
-    bevel_params.attribute_outputs.mid_edge_id =
-        params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
-
-    std::optional<Mesh *> mesh = geometry::mesh_bevel(
-        *src_mesh, selection, bevel_params, attribute_filter);
-    if (!mesh) {
-      return;
+      /* Pass to run_bevel while edge_evaluator is still alive. */
+      run_bevel(edge_evaluator.get_evaluated_as_mask(0));
     }
-
-    geometry_set.replace_mesh(*mesh);
   });
 
   params.set_output("Mesh"_ustr, std::move(geometry_set));

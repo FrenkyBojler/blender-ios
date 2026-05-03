@@ -3341,10 +3341,7 @@ static void calculate_profile(BevelState &state, BoundVert *bndv, bool reversed,
     if (need_2) {
       pro.prof_co_2 = Array<float3>(pro_spacing.seg_2 + 1);
     }
-    else {
-      /* prof_co_2 points to the same data. */
-      pro.prof_co_2 = pro.prof_co;
-    }
+    /* prof_co_2 alias is set below after prof_co is filled. */
   }
 
   bool use_map;
@@ -3373,6 +3370,10 @@ static void calculate_profile(BevelState &state, BoundVert *bndv, bool reversed,
                                pro_spacing.xvals_2.data(),
                                pro_spacing.yvals_2.data(),
                                pro.prof_co_2.as_mutable_span());
+  }
+  else {
+    /* When seg_2 == segments, prof_co_2 is a copy of the now-filled prof_co. */
+    pro.prof_co_2 = pro.prof_co;
   }
 }
 
@@ -3502,7 +3503,7 @@ static bool face_point_inside_test(const ExtendableMesh &emesh, const int f, con
 
   (void)corner_verts;
   return isect_point_poly_v2(
-      co_2d, reinterpret_cast<const float (*)[2]>(projverts.data()), uint(n));
+      co_2d, reinterpret_cast<const float(*)[2]>(projverts.data()), uint(n));
 }
 
 /**
@@ -3623,7 +3624,7 @@ static float projected_boundary_area(const BevelState &state, BevVert *bv, const
     ++i;
   } while ((v = v->next) != vm->boundstart);
 
-  return area_poly_v2(reinterpret_cast<const float (*)[2]>(proj_co.data()), count);
+  return area_poly_v2(reinterpret_cast<const float(*)[2]>(proj_co.data()), count);
 }
 
 /**
@@ -5038,17 +5039,111 @@ static void make_unit_cube_map(
 }
 
 /**
+ * Special case for cube corner when `r == PRO_SQUARE_R` (outward straight sides).
+ * Builds the VMesh analytically by setting each canonical grid point to lie on the axis-aligned
+ * face of the octant cube (`co[i] = 1`, the other two coords ramp linearly).
+ * Mirrors BMesh's #make_cube_corner_square.
+ */
+static VMesh make_cube_corner_square(const int nseg)
+{
+  const int ns2 = nseg / 2;
+
+  /* Build 3 BoundVerts at unit-axis corners. */
+  BoundVert bvs[3] = {};
+  for (int i = 0; i < 3; i++) {
+    bvs[i].next = &bvs[(i + 1) % 3];
+    bvs[i].prev = &bvs[(i + 2) % 3];
+    bvs[i].index = i;
+    bvs[i].nv.co[i] = 1.0f;
+  }
+
+  VMesh vm = new_adj_vmesh(3, nseg, &bvs[0]);
+
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j <= ns2; j++) {
+      for (int k = 0; k <= ns2; k++) {
+        if (!geom::is_canon(&vm, i, j, k)) {
+          continue;
+        }
+        float co[3];
+        co[i] = 1.0f;
+        co[(i + 1) % 3] = float(k) * 2.0f / float(nseg);
+        co[(i + 2) % 3] = float(j) * 2.0f / float(nseg);
+        copy_v3_v3(geom::mesh_vert(&vm, i, j, k)->co, co);
+      }
+    }
+  }
+  geom::vmesh_copy_equiv_verts(&vm);
+  return vm;
+}
+
+/**
+ * Special case for cube corner when `r == PRO_SQUARE_IN_R` (inward straight sides).
+ * Mostly a three-way weld with a triangle in the middle for odd nseg.
+ * Mirrors BMesh's #make_cube_corner_square_in.
+ */
+static VMesh make_cube_corner_square_in(const int nseg)
+{
+  const int ns2 = nseg / 2;
+  const int odd = nseg % 2;
+
+  BoundVert bvs[3] = {};
+  for (int i = 0; i < 3; i++) {
+    bvs[i].next = &bvs[(i + 1) % 3];
+    bvs[i].prev = &bvs[(i + 2) % 3];
+    bvs[i].index = i;
+    bvs[i].nv.co[i] = 1.0f;
+  }
+
+  VMesh vm = new_adj_vmesh(3, nseg, &bvs[0]);
+
+  const float b = odd ? 2.0f / (2.0f * float(ns2) + float(M_SQRT2)) : 2.0f / float(nseg);
+
+  for (int i = 0; i < 3; i++) {
+    for (int k = 0; k <= ns2; k++) {
+      float co[3];
+      co[i] = 1.0f - float(k) * b;
+      co[(i + 1) % 3] = 0.0f;
+      co[(i + 2) % 3] = 0.0f;
+      copy_v3_v3(geom::mesh_vert(&vm, i, 0, k)->co, co);
+      co[(i + 1) % 3] = 1.0f - float(k) * b;
+      co[(i + 2) % 3] = 0.0f;
+      co[i] = 0.0f;
+      copy_v3_v3(geom::mesh_vert(&vm, i, 0, nseg - k)->co, co);
+    }
+  }
+  return vm;
+}
+
+/**
  * Builds the canonical unit-simplex vmesh for the cube corner case by:
  *   1. constructing a seg=2 seed with profile-parameterized boundary midpoints,
  *   2. iteratively doubling via #cubic_subdiv until seg >= nseg,
  *   3. resampling to nseg via #interp_vmesh,
  *   4. snapping every grid point to the superellipsoid `x^r + y^r + z^r = 1`.
  * Equivalent to BMesh's #make_cube_corner_adj_vmesh.
+ *
+ * The `PRO_SQUARE_R` and `PRO_SQUARE_IN_R` cases are handled analytically by
+ * #make_cube_corner_square / #make_cube_corner_square_in because the subdivision
+ * + snap pipeline would trip the `z == 0` assertion in #snap_to_superellipsoid
+ * (the square cases assume a 2-D cross-section, not a 3-D superellipsoid).
  */
 static VMesh make_cube_corner_adj_vmesh(BevelState &state)
 {
   const float r = state.pro_super_r;
   const int nseg = state.params.segments;
+
+  /* Short-circuit for square profiles: the superellipsoid snap path below assumes z ≈ 0
+   * only for the general superellipse case; for the two square extremes BMesh calls
+   * dedicated helpers that never invoke snap_to_superellipsoid. */
+  if (state.params.custom_profile == nullptr) {
+    if (r == profile::PRO_SQUARE_R) {
+      return make_cube_corner_square(nseg);
+    }
+    if (r == profile::PRO_SQUARE_IN_R) {
+      return make_cube_corner_square_in(nseg);
+    }
+  }
 
   /* Create 3 BoundVerts for the unit simplex corners (1,0,0), (0,1,0), (0,0,1).
    * They are stack-allocated here and remain live for the entire subdivision.
@@ -5112,6 +5207,7 @@ static VMesh make_cube_corner_adj_vmesh(BevelState &state)
                                           pro.prof_co_2.as_mutable_span());
     }
     else {
+      /* prof_co_2 is a copy of the now-filled prof_co (seg_2 == nseg). */
       pro.prof_co_2 = pro.prof_co;
     }
   }
@@ -5907,6 +6003,13 @@ static void bevel_vert_construct(BevelState &state, int v)
       eh->offset_l_spec = eh->offset_l;
       eh->offset_r_spec = eh->offset_r;
     }
+    else if (state.params.affect_type == BevelAffect::Vertices) {
+      /* Vertex bevel: all edges incident to the selected vertex slide by the same amount.
+       * offsets[0] is a per-vertex array; index by v to get the slide distance for this vertex.
+       * offset_r is not used in vertex bevel mode. */
+      eh->offset_l = eh->offset_l_spec = state.params.offsets[0][v];
+      eh->offset_r = eh->offset_r_spec = 0.0f;
+    }
     else {
       eh->offset_l = eh->offset_l_spec = 0.0f;
       eh->offset_r = eh->offset_r_spec = 0.0f;
@@ -5973,7 +6076,7 @@ static float2 interp_uv_from_face(const ExtendableMesh &emesh,
 
   /* Compute mean-value interpolation weights. */
   Array<float> w(n);
-  interp_weights_poly_v2(w.data(), reinterpret_cast<float (*)[2]>(cos_2d.data()), n, co_2d);
+  interp_weights_poly_v2(w.data(), reinterpret_cast<float(*)[2]>(cos_2d.data()), n, co_2d);
 
   /* Weighted sum of UV values. */
   float2 result(0.0f);
